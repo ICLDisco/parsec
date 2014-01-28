@@ -7,7 +7,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import mpl_prefs
-import binprof_utils as p3_utils
+import ptt_utils
 import pandas as pd
 
 bar_width = 0.8
@@ -27,10 +27,10 @@ if __name__ == '__main__':
         if os.path.exists(arg):
             filenames.append(arg)
 
-    processed_filename_groups = p3_utils.preprocess_profiles(filenames, convert=False)
+    processed_filename_groups = ptt_utils.preprocess_profiles(filenames, convert=False)
 
     for fname_group in processed_filename_groups:
-        profile = p3_utils.autoload_profiles(fname_group)[0]
+        profile = ptt_utils.autoload_profiles(fname_group)[0]
 
         figure = plt.figure()
         ax = figure.add_subplot(111)

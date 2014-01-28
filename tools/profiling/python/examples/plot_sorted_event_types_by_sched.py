@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from parsec_profiling import *
+from parsec_trace_tables import *
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import mpl_prefs
-import p3_group_profiles as p3_g
+import ptt_group_profiles as ptt_g
 import os, sys
 import itertools
 
@@ -140,7 +140,7 @@ if __name__ == '__main__':
                 event_subtypes.append(arg)
 
     # then, we group the profiles appropriately...
-    profiles = p3_g.autoload_profiles(filenames, convert=True, unlink=False)
+    profiles = ptt_g.autoload_profiles(filenames, convert=True, unlink=False)
     profile_sets = find_profile_sets(profiles)
     for pset in profile_sets.values()[1:]:
         if len(pset) != len(profile_sets.values()[0]):

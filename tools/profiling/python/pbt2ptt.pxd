@@ -1,4 +1,4 @@
-# parsec_binprof python definition file
+# pbt2ptt python definition file
 
 cdef extern from "dbp.h":
    ctypedef struct dague_thread_profiling_t:
@@ -91,4 +91,4 @@ cdef extern from "dbpreader.h":
    # DEBUG
    void dbp_file_print(dbp_file_t* file)
 
-include "pbp_info_parser.pxd"
+include "pbt_info_parser.pxd"

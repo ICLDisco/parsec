@@ -1,9 +1,7 @@
 """ DBPreader Python interface
 
 run 'python setup.py build_ext --inplace' to compile
-The preferred nomenclature for the Python Binary Profile is "PBP",
-therefore it is recommended to do "import parsec_binprof as pbp"
-in Python programs using this module.
+The preferred nomenclature for the Python Binary Trace is "PBT",
 
 REQUIREMENTS:
 # Cython 0.18+ required.
@@ -30,14 +28,14 @@ import multiprocessing
 
 import pandas as pd
 
-from parsec_profiling import * # the pure Python classes
+from parsec_trace_tables import * # the pure Python classes
 from common_utils import *
 
 # 'include' will eventually be deprecated by Cython, but I still prefer it.
-include "pbp_info_parser.pxi"
+include "pbt_info_parser.pxi"
 
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
-pbp_core = '.prof-'
+pbt_core = '.prof-'
 
 # reads an entire profile into a set of pandas DataFrames
 # filenames ought to be a list of strings, or comparable type.
@@ -142,7 +140,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
         for p in processes:
             p.join() # cleanup spawned processes
     # report progress
-    cond_print('\nParsing the PBP files took ' + str(t.interval) + ' seconds, ' ,
+    cond_print('\nParsing the PBT files took ' + str(t.interval) + ' seconds, ' ,
                report_progress, end='')
     cond_print('which is ' + str(t.interval/len(node_threads))
                + ' seconds per thread.', report_progress)
@@ -188,7 +186,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     cond_print('Constructed additional structures in {} seconds.'.format(t.interval),
                report_progress)
 
-    profile = ParsecProfile(events, event_types, event_names, event_attributes,
+    profile = ParsecTraceTables(events, event_types, event_names, event_attributes,
                             nodes, threads, information, errors)
 
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
@@ -208,7 +206,7 @@ cpdef convert(filenames, outfilename=None, unlink=True, multiprocess=True,
         if not force_reconvert:
             try:
                 if validate_existing:
-                    ParsecProfile.from_hdf(outfilename, skeleton_only=True)
+                    ParsecTraceTables.from_hdf(outfilename, skeleton_only=True)
                 cond_print(
                     'P3 {} already exists. '.format(
                         os.path.basename(outfilename)) +

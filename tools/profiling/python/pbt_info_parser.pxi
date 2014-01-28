@@ -133,7 +133,7 @@ cdef parse_info(builder, event_type, void * cinfo):
     else:
         dont_print = True
         if not dont_print:
-            print('No parser in pbp_info_parser.pxi for event of type \'{}\''.format(event_name))
+            print('No parser in pbt_info_parser.pxi for event of type \'{}\''.format(event_name))
 
     return event_info
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# build script for parsec_binprof
+# build script for pbt2ptt
 # run python setup.py build_ext --inplace to build
 
 from distutils import ccompiler, util
@@ -24,7 +24,7 @@ lib_dirs = (['@PROJECT_BINARY_DIR@/dague']) # +
 #            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
 
-ext_modules = [Extension('parsec_binprof', ['@CMAKE_CURRENT_SOURCE_DIR@/parsec_binprof.pyx',
+ext_modules = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                             '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
                          include_dirs=['@PROJECT_SOURCE_DIR@/include',
                                        '@PROJECT_SOURCE_DIR@',
@@ -32,9 +32,9 @@ ext_modules = [Extension('parsec_binprof', ['@CMAKE_CURRENT_SOURCE_DIR@/parsec_b
                                        '@PROJECT_BINARY_DIR@',
                                        '@CMAKE_CURRENT_SOURCE_DIR@/../'],
                          depends=['setup.py.in',
-                                  'parsec_binprof.pxd',
-                                  'pbp_info_parser.pxd',
-                                  'pbp_info_parser.pxi',
+                                  'pbt2ptt.pxd',
+                                  'pbt_info_parser.pxd',
+                                  'pbt_info_parser.pxi',
                                   '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
                                   '@PROJECT_SOURCE_DIR@/include/dbp.h',
                                   '@PROJECT_SOURCE_DIR@/include/os-spec-timing.h'],

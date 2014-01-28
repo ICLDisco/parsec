@@ -1,9 +1,9 @@
 #! /usr/bin/env python
 
-from parsec_profiling import *
+from parsec_trace_tables import *
 # from profiling_info import *
 from pretty_print_profile_stats import *
-import parsec_binprof
+import pbt2ptt
 import os, sys
 
 import time
@@ -27,7 +27,7 @@ if __name__ == '__main__':
 
     profile = None
     with Timer() as t:
-        profile = parsec_binprof.read(filenames)
+        profile = pbt2ptt.read(filenames)
         # profile = Profile.unpickle('test.pickle', load_events=False)
     print(t.interval)
 

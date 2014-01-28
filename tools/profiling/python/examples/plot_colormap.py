@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 from __future__ import print_function
-from parsec_profiling import *
-import parsec_binprof as p3_bin
+from parsec_trace_tables import *
+import pbt2ptt as ptt_bin
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import mpl_prefs
-import binprof_utils as p3_utils
+import ptt_utils
 import os, sys
 import itertools
 
@@ -174,7 +174,7 @@ if __name__ == '__main__':
             else:
                 event_subtypes.append(arg)
 
-    profiles = p3_utils.autoload_profiles(filenames, convert=True, unlink=False,
+    profiles = ptt_utils.autoload_profiles(filenames, convert=True, unlink=False,
                                           skeleton_only=False, enhance_filenames=True)
 
     # then divide the profiles into sets based on equivalent command lines

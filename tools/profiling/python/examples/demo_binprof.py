@@ -2,8 +2,8 @@
 
 from __future__ import print_function
 import os
-import parsec_profiling as p3
-import parsec_binprof as pbp
+import parsec_trace_tables as ptt
+import pbt2ptt
 import papi_core_utils
 import numpy as np
 import time
@@ -38,10 +38,10 @@ def do_demo(filenames, translate=False):
                 print('First, we load the HDFed profile...')
             else:
                 print('First, we read the binary profile and convert it to pandas format.')
-                filenames[0] = pbp.convert(filenames, report_progress=True, unlink=False,
+                filenames[0] = pbt2ptt.convert(filenames, report_progress=True, unlink=False,
                                            multiprocess=True)
                 print('Then, we read the HDFed profile...')
-            profile = p3.ParsecProfile.from_hdf(filenames[0])
+            profile = ptt.ParsecTraceTables.from_hdf(filenames[0])
 
         print('The load took {} seconds.'.format(t.interval))
         print('')
@@ -100,7 +100,7 @@ def do_demo(filenames, translate=False):
             # print('There are ' + str(len(profile.events)) + ' events in this profile',
             #       'and they took {} seconds to read & describe.'.format(t.interval))
             with Timer() as t:
-                profile = ParsecProfile.from_hdf('test_table.hdf5')
+                profile = ParsecTraceTables.from_hdf('test_table.hdf5')
             print('There are ' + str(len(profile.events)) + ' events in this profile',
                   'and they took {} seconds to read'.format(t.interval))
             with Timer() as t:

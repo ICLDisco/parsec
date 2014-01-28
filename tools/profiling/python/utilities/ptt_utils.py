@@ -1,6 +1,6 @@
 #!/usr/bin/env python
-import parsec_binprof as pbp
-import parsec_profiling as p3
+import pbt2ptt as pbt
+import parsec_trace_tables as ptt
 import sys, os, shutil, re # file utilities, etc.
 import multiprocessing
 import functools
@@ -17,14 +17,14 @@ class ProfAndName():
 
 def preprocess_profiles(filenames, name_infos=default_name_infos, dry_run=False,
                         enhance_filenames=True, convert=True, unlink=False, force_enhance=False):
-    """ preprocesses PBP files. Intended for use everywhere a P3 is needed.
+    """ preprocesses PBT files. Intended for use everywhere a P3 is needed.
 
-    Preprocesses Parsec Binary Profiles (PBPs) and returns a list of filename lists, if
+    Preprocesses Parsec Binary Profiles (PBTs) and returns a list of filename lists, if
     not asked to convert, or a list of filenames, if asked to convert to P3.
     Conversion to P3 is highly recommended.
-    Each filename returned is suitable for loading info a ParsecProfile object with
-    ParsecProfile.from_hdf(), and each filename list returned is suitable for passing
-    to parsec_binprof.read().
+    Each filename returned is suitable for loading info a ParsecTraceTables object with
+    ParsecTraceTables.from_hdf(), and each filename list returned is suitable for passing
+    to pbt2ptt.read().
     """
 
     fname_groups = group_profile_filenames(filenames)
@@ -38,20 +38,20 @@ def preprocess_profiles(filenames, name_infos=default_name_infos, dry_run=False,
                                                  force_enhance=force_enhance)
         if convert:
             if not dry_run:
-                fn_group = pbp.convert(fn_group, unlink=unlink, report_progress=True)
+                fn_group = pbt.convert(fn_group, unlink=unlink, report_progress=True)
             else:
                 print('Would convert {}'.format(fn_group))
         processed_filenames.append(fn_group)
     return processed_filenames
 
 def group_profile_filenames(filenames, group_by=group_by_defaults):
-    """ groups PBP filenames of different ranks
+    """ groups PBT filenames of different ranks
 
     This function is primarily necessary for use when dealing with
-    PaRSEC Binary Profiles (PBPs) that are part of a distributed run.
-    Since PaRSEC generates a separate PBP for each rank, it is necessary
-    to match up these separate files when attempting to read the full PBP.
-    However, the parsec_binprof module can read a single file at a time
+    PaRSEC Binary Profiles (PBTs) that are part of a distributed run.
+    Since PaRSEC generates a separate PBT for each rank, it is necessary
+    to match up these separate files when attempting to read the full PBT.
+    However, the pbt2ptt module can read a single file at a time
     in order to gather the necessary information to match these files
     automatically, saving the user from unnecessary manual grouping.
 
@@ -62,12 +62,12 @@ def group_profile_filenames(filenames, group_by=group_by_defaults):
     filename_groups = list()
     infonly_prof_groups = dict()
     for filename in filenames:
-        if p3.p3_core in filename:
+        if ptt.ptt_core in filename:
             # skip P3s
             filename_groups.append([filename])
         else:
             # initially group by start_time
-            infonly_prof = pbp.read([filename], skeleton_only=True)
+            infonly_prof = pbt.read([filename], skeleton_only=True)
             start_time = infonly_prof.information['start_time']
             if start_time not in infonly_prof_groups:
                 infonly_prof_groups[start_time] = list()
@@ -107,14 +107,14 @@ def group_profile_filenames(filenames, group_by=group_by_defaults):
         group_filenames = []
         for prof in prof_group:
             group_filenames.append(prof.filename)
-        joint_prof = pbp.read(group_filenames, skeleton_only=True)
+        joint_prof = pbt.read(group_filenames, skeleton_only=True)
         if joint_prof.last_error != 0:
             print('error! dbpreader.c error # {}'.format(joint_prof.last_error))
             print('retrying with apparently conflicting files...')
             # try again with excluded?
             for prof in prof_group.conflicts:
                 group_filenames.append(prof.filename)
-            joint_prof = pbp.read(group_filenames, skeleton_only=True)
+            joint_prof = pbt.read(group_filenames, skeleton_only=True)
             if joint_prof.last_error != 0:
                 print('error! dbpreader.c error # {}'.format(joint_prof.last_error))
                 print('skipping this set of files:')
@@ -127,16 +127,16 @@ def group_profile_filenames(filenames, group_by=group_by_defaults):
 old_renamed_piece   = '.G-prof-'
 def enhance_profile_filenames(filenames, name_infos=default_name_infos,
                               dry_run=False, force_enhance=False):
-    """ Renames PBPs to a filename with more useful information than the default.
+    """ Renames PBTs to a filename with more useful information than the default.
 
     Not designed to operate on lists of filenames that do not belong to the same profile,
     but may work anyway, depending on various factors.
     """
     renamed_files = list()
-    if p3.p3_core in filenames[0]:
-        profile = p3.ParsecProfile.from_hdf(filenames[0], skeleton_only=True)
+    if ptt.ptt_core in filenames[0]:
+        profile = ptt.ParsecTraceTables.from_hdf(filenames[0], skeleton_only=True)
     else:
-        profile = pbp.read(filenames, skeleton_only=True)
+        profile = pbt.read(filenames, skeleton_only=True)
         if profile.last_error != 0:
             print('{} does not appear to be a reasonable set of filenames.'.format(filenames))
             if not force_enhance:
@@ -174,20 +174,20 @@ def enhance_profile_filenames(filenames, name_infos=default_name_infos,
                 if not force_enhance:
                     print('Ignoring file {} to prevent from polluting the name.'.format(filename))
                     continue
-            new_filename = filename.replace(pbp.pbp_core, old_renamed_piece + new_chunk)
+            new_filename = filename.replace(pbt.pbt_core, old_renamed_piece + new_chunk)
         if not dry_run and filename != new_filename:
             if not os.path.exists(dirname + os.sep + new_filename):
                 renamed_files.append(dirname + os.sep + new_filename)
                 shutil.move(dirname + os.sep + filename,
                             dirname + os.sep + new_filename)
                 # also rename already-converted files if they exist
-                p3_name = filename.replace(pbp.pbp_core, p3.p3_core)
-                new_p3_name = new_filename.replace(pbp.pbp_core, p3.p3_core)
-                if (os.path.exists(dirname + os.sep + p3_name) and
-                    not os.path.exists(dirname + os.sep + new_p3_name)):
-                    print('Also renaming corresponding P3 file {}'.format(p3_name))
-                    shutil.move(dirname + os.sep + p3_name,
-                                dirname + os.sep + new_p3_name)
+                ptt_name = filename.replace(pbt.pbt_core, ptt.ptt_core)
+                new_ptt_name = new_filename.replace(pbt.pbt_core, ptt.ptt_core)
+                if (os.path.exists(dirname + os.sep + ptt_name) and
+                    not os.path.exists(dirname + os.sep + new_ptt_name)):
+                    print('Also renaming corresponding P3 file {}'.format(ptt_name))
+                    shutil.move(dirname + os.sep + ptt_name,
+                                dirname + os.sep + new_ptt_name)
             else:
                 print('WARNING: enhance would have overwritten file {} !'.format(dirname + os.sep +
                                                                                  new_filename))
@@ -207,13 +207,13 @@ def revert_profile_filenames(filenames, dry_run=False):
         full_filename = os.path.abspath(filename)
         dirname = os.path.dirname(full_filename)
         filename = os.path.basename(full_filename)
-        match = pbp_filename_regex.match(filename)
+        match = pbt_filename_regex.match(filename)
         if match:
-            original_name = match.group(1).strip('_') + pbp.pbp_core + match.group(3)
+            original_name = match.group(1).strip('_') + pbt.pbt_core + match.group(3)
         else:
             m = ungrouper.match(filename)
             if m:
-                original_name = m.group(1).strip('_') + pbp.pbp_core + m.group(2)
+                original_name = m.group(1).strip('_') + pbt.pbt_core + m.group(2)
             else:
                 print('Could not figure out how to revert {} '.format(dirname + os.sep + filename) +
                       'to original name. Skipping...')
@@ -236,7 +236,7 @@ def autoload_profiles(filenames, convert=True, unlink=False,
                       enhance_filenames=False, skeleton_only=False):
     """ Provides a single interface for all attempts to load P3s from the filesystem.
 
-    Whether from P3, PBP, or a combination of the two, you should be able to
+    Whether from P3, PBT, or a combination of the two, you should be able to
     throw a huge list of filenames at this function and receive a whole mess of
     coherent P3 profiles back. Give it a whirl, and be sure to report any bugs!
     """
@@ -250,23 +250,23 @@ def autoload_profiles(filenames, convert=True, unlink=False,
     if convert: # if we converted in the previous preprocessing step
         pool = multiprocessing.Pool(multiprocessing.cpu_count())
         print('loading P3s...')
-        partial_from_hdf = functools.partial(p3.from_hdf, skeleton_only=skeleton_only)
+        partial_from_hdf = functools.partial(ptt.from_hdf, skeleton_only=skeleton_only)
         profiles = pool.map(partial_from_hdf, groups_or_names)
         print('loaded all P3s.')
-        # profile = p3.ParsecProfile.from_hdf(group, skeleton_only=skeleton_only)
-    else: # we didn't convert, so these are PBP filename lists
+        # profile = ptt.ParsecTraceTables.from_hdf(group, skeleton_only=skeleton_only)
+    else: # we didn't convert, so these are PBT filename lists
         for group in groups_or_names:
-            import parsec_binprof as pbp # don't do this if not necessary
-            print('loading PBP group {}'.format(group))
-            profile = pbp.read(group, skeleton_only=skeleton_only)
+            import pbt2ptt as pbt # don't do this if not necessary
+            print('loading PBT group {}'.format(group))
+            profile = pbt.read(group, skeleton_only=skeleton_only)
             profiles.append(profile)
     return profiles
 
 def get_partner_name(filename):
-    if p3.p3_core in filename:
-        return filename.replace(filename.replace(p3.p3_core, pbp.pbp_core))
-    elif pbp.pbp_core in filename:
-        return filename.replace(filename.replace(pbp.pbp_core, p3.p3_core))
+    if ptt.ptt_core in filename:
+        return filename.replace(filename.replace(ptt.ptt_core, pbt.pbt_core))
+    elif pbt.pbt_core in filename:
+        return filename.replace(filename.replace(pbt.pbt_core, ptt.ptt_core))
     else:
         return filename
 
@@ -275,7 +275,7 @@ def compress_many(filenames, clevel=5):
     pool.map(compress_h5, filenames)
 
 def compress_h5(filename, clevel=5):
-    if p3.p3_core in filename:
+    if ptt.ptt_core in filename:
         os.system('h5repack -f GZIP={} {} {}'.format(clevel, filename, filename + '.ctmp'))
         shutil.move(filename + '.ctmp', filename)
 
@@ -283,7 +283,7 @@ def print_help():
     print('')
     print('  -- DESCRIPTION -- ')
     print(' This utility allows the user to automatically group, and convert PaRSEC binary profiles.')
-    print(' PBPs of different ranks but the same run share certain characteristics, ')
+    print(' PBTs of different ranks but the same run share certain characteristics, ')
     print(' and this utility will attempt to group the profiles by those characteristics.')
     print(' Discovered groupings have their binary profiles renamed with shared descriptor strings,')
     print(' which means that even singleton binary profiles will benefit from this utility as,')
@@ -294,13 +294,13 @@ def print_help():
     print('further interaction with the PaRSEC profile. To disable the conversion, ')
     print('pass the --no-convert flag to the utility.')
     print('')
-    print(' usage: binprof_utils.py [--dry-run] [--no-convert] [--no-enhance] [--force-enhance]')
+    print(' usage: ptt_utils.py [--dry-run] [--no-convert] [--no-enhance] [--force-enhance]')
     print('                  [--unlink] [--unenhance] [FILENAMES] [extra naming keys]')
     print('')
     print(' Options and arguments:')
     print(' --unenhance   : used to revert the profiles to their original names')
     print(' --dry-run     : prints the file renamings without performing them')
-    print(' --no-convert  : does not perform PBP->PPP conversion.')
+    print(' --no-convert  : does not perform PBT->PPP conversion.')
     print('')
     print('  -- EXTRA NAMING KEYS -- ')
     print(' Any other argument not recognized as a filename will be used')

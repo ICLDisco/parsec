@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
-from parsec_profiling import *
+from parsec_trace_tables import *
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import mpl_prefs
-import binprof_utils as p3_utils
+import ptt_utils
 import papi_core_utils
 import os, sys
 import itertools
@@ -120,7 +120,7 @@ if __name__ == '__main__':
             else:
                 event_subtypes.append(arg)
 
-    profiles = p3_utils.autoload_profiles(filenames, convert=True, unlink=False)
+    profiles = ptt_utils.autoload_profiles(filenames, convert=True, unlink=False)
     profile_sets = find_profile_sets(profiles)
     for pset in profile_sets.values()[1:]:
         if len(pset) != len(profile_sets.values()[0]):

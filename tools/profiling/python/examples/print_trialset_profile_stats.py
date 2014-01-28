@@ -7,7 +7,7 @@ import cPickle
 print('this script is broken with the current (better!) PaRSEC profiling system.')
 print('I plan to update it soon. -- pgaultne@utk.edu, 2013-10-29')
 from parsec_trials import *
-from parsec_profiling import *
+from parsec_trace_tables import *
 from profiling_info import *
 from pretty_print_profile_stats import *
 

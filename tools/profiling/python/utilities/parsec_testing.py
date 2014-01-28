@@ -317,9 +317,9 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                     test, profile_filenames = trial.pop()
                     if len(profile_filenames) > 0:
                         try:
-                            import parsec_binprof as pbp
+                            import pbt2ptt as pbt
                             add_info = add_info_to_profile(trial)
-                            profile_filenames = [pbp.convert(profile_filenames,
+                            profile_filenames = [pbt.convert(profile_filenames,
                                                              add_info=add_info)]
                             new_list.append((test, profile_filenames))
                         except ImportError:

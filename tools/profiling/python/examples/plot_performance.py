@@ -9,8 +9,8 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import pandas as pd
 
-import parsec_profiling as p3
-import binprof_utils as p3_utils
+import parsec_trace_tables as ptt
+import ptt_utils
 import mpl_prefs
 import papi_core_utils
 from common_utils import *
@@ -36,18 +36,18 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
     for info in info_list: # temporary hack
         try:
             if info.exe.endswith('potrf'):
-                p3.nice_val(info, 'POTRF_PRI_CHANGE')
+                ptt.nice_val(info, 'POTRF_PRI_CHANGE')
         except Exception as e:
             info['POTRF_PRI_CHANGE'] = 0
 
     matched_info = match_dicts(info_list)
 
-    x_axis = p3.raw_key(matched_info, x_axis)
+    x_axis = ptt.raw_key(matched_info, x_axis)
 
     colors=mpl_prefs.colors[groupby]
-    groupby = p3.raw_key(matched_info, groupby)
+    groupby = ptt.raw_key(matched_info, groupby)
 
-        # groupby = [p3.raw_key(matched_info, gb) for gb in groupby]
+        # groupby = [ptt.raw_key(matched_info, gb) for gb in groupby]
         # colors=mpl_prefs.colors[groupby]
 
     # make DataFrame out of profile informations
@@ -78,7 +78,7 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
 
     title = ''
     try:
-        title += p3.nice_val(matched_info, 'exe').upper() + ' '
+        title += ptt.nice_val(matched_info, 'exe').upper() + ' '
     except:
         pass
     title += 'Performance vs {}'.format(x_axis_name)
@@ -86,7 +86,7 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
         title += ' on ' + matched_info.hostname
     except:
         pass
-    title += '\n' + p3.describe_dict(
+    title += '\n' + ptt.describe_dict(
         matched_info, keys=[x for x in infos if x not in ['hostname', 'exe']],
         key_val_sep=': ', sep=', ')
     print('Plotted', title)
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     args, filenames = parser.parse_known_args()
 
     # load profiles as skeletons
-    profiles = p3_utils.autoload_profiles(filenames, skeleton_only=True)
+    profiles = ptt_utils.autoload_profiles(filenames, skeleton_only=True)
 
     plot_performance(profiles, args.x_axis, infos=default_infos, groupby=args.group_by,
                      ext=args.file_ext, groupby2=args.second_group_by,
