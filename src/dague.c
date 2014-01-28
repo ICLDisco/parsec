@@ -390,9 +390,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         fprintf(stderr, "Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.\n");
     }
 
-    printf("Before %d cores\n", nb_cores);
     GET_INT_ARGV(cmd_line, "cores", nb_cores);
-    printf("You asked for %d cores\n", nb_cores);
     GET_STR_ARGV(cmd_line, "dague_bind_comm", comm_binding_parameter);
     GET_STR_ARGV(cmd_line, "dague_bind", binding_parameter);
 
