@@ -2,7 +2,7 @@
 # Peter Gaultney
 # 2011.09.27
 #
-# meant to process .profile files into a format usable by gnuplot. e.g. calculate standard deviation, useful average, etc.
+# meant to process .trace files into a format usable by gnuplot. e.g. calculate standard deviation, useful average, etc.
 
 import sys
 import os

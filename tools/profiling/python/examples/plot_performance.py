@@ -22,7 +22,7 @@ default_groupby = 'sched'
 default_infos = ['hostname', 'exe', 'ncores', 'sched', 'N', 'NB', 'POTRF_PRI_CHANGE']
 default_tag = None
 
-def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_infos,
+def plot_performance(traces, x_axis, groupby=default_groupby, infos=default_infos,
                      ext=default_ext, sort_ascending=True, groupby2=None, filename_tag=None):
     # remove nonsensical info keys
     infos = [x for x in infos if x != groupby and x != groupby2 and x != x_axis]
@@ -32,7 +32,7 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
     if groupby2:
         groupby_name2 = str(groupby2)
 
-    info_list = [profile.information for profile in profiles]
+    info_list = [trace.information for trace in traces]
     for info in info_list: # temporary hack
         try:
             if info.exe.endswith('potrf'):
@@ -50,10 +50,10 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
         # groupby = [ptt.raw_key(matched_info, gb) for gb in groupby]
         # colors=mpl_prefs.colors[groupby]
 
-    # make DataFrame out of profile informations
-    all_profiles = pd.DataFrame(info_list)
+    # make DataFrame out of trace informations
+    all_traces = pd.DataFrame(info_list)
 
-    groups = all_profiles.groupby(groupby)
+    groups = all_traces.groupby(groupby)
 
     fig = plt.figure()
     ax = fig.add_subplot(111)
@@ -97,7 +97,7 @@ def plot_performance(profiles, x_axis, groupby=default_groupby, infos=default_in
     ax.set_ylabel('Performance (GFLOPS/s)')
     fig.set_size_inches(10, 7)
 
-    names = [profile.name(infos=infos) for profile in profiles]
+    names = [trace.name(infos=infos) for trace in traces]
     filename = 'perf_vs_' + str(x_axis_name) + '_'
     filename += longest_substr(names).strip('_')
     if filename_tag:
@@ -124,9 +124,9 @@ if __name__ == '__main__':
 
     args, filenames = parser.parse_known_args()
 
-    # load profiles as skeletons
-    profiles = ptt_utils.autoload_profiles(filenames, skeleton_only=True)
+    # load traces as skeletons
+    traces = ptt_utils.autoload_traces(filenames, skeleton_only=True)
 
-    plot_performance(profiles, args.x_axis, infos=default_infos, groupby=args.group_by,
+    plot_performance(traces, args.x_axis, infos=default_infos, groupby=args.group_by,
                      ext=args.file_ext, groupby2=args.second_group_by,
                      filename_tag=args.filename_tag)

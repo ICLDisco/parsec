@@ -21,17 +21,17 @@ std_x = 3
 std_y = 3
 ext = 'png'
 
-def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
-                                   profile_descrip='', filters_descrip='',
+def plot_Y_vs_X_scatter_and_sorted(traces, x_axis, y_axis, filters,
+                                   trace_descrip='', filters_descrip='',
                                    std_x=std_x, std_y=std_y, ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    profiles.sort(key=lambda x: x.gflops)
+    traces.sort(key=lambda x: x.gflops)
 
     title = ''
 
-    for profile in profiles:
-        events = profile.filter_events(filters)
+    for trace in traces:
+        events = trace.filter_events(filters)
 
         if std_x:
             x_avg = events[x_axis].mean()
@@ -40,17 +40,17 @@ def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
             y_avg = events[y_axis].mean()
             events = events[:][events[y_axis] - y_avg  < events[y_axis].std() * std_y]
 
-        label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
-                                             profile.gflops)
+        label = '{}: {:.1f} gflops/s'.format(trace.sched.upper(),
+                                             trace.gflops)
 
         ax.plot(events[x_axis], events[y_axis], linestyle='', marker='.',
-                color=mpl_prefs.sched_colors[profile.sched.upper()],
+                color=mpl_prefs.sched_colors[trace.sched.upper()],
                 label=label)
 
         title = ('{} vs {} of {}'.format(y_axis, x_axis, filters_descrip) +
-                 ' Tasks, By Scheduler\nfor {} where '.format(profile.exe) +
-                 'N = {}, NB = {}, IB = {}, on {}'.format(profile.N, profile.NB,
-                                                          profile.IB, profile.hostname))
+                 ' Tasks, By Scheduler\nfor {} where '.format(trace.exe) +
+                 'N = {}, NB = {}, IB = {}, on {}'.format(trace.N, trace.NB,
+                                                          trace.IB, trace.hostname))
     fig.text(0.5, 0.94, title,
              horizontalalignment='center',
              fontsize=12, #family='monospace',
@@ -70,8 +70,8 @@ def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
 
     ax = ax.twiny()
 
-    for profile in profiles:
-        events = profile.filter_events(filters)
+    for trace in traces:
+        events = trace.filter_events(filters)
         events = events.sort(y_axis)
 
         # cut down to ignore noise
@@ -83,11 +83,11 @@ def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
             y_avg = events[y_axis].mean()
             events = events[:][events[y_axis] - y_avg  < events[y_axis].std() * std_y]
 
-        label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
-                                             profile.gflops)
+        label = '{}: {:.1f} gflops/s'.format(trace.sched.upper(),
+                                             trace.gflops)
         ax.plot(xrange(len(events)),
                 events[y_axis],
-                color=mpl_prefs.sched_colors[profile.sched.upper()],
+                color=mpl_prefs.sched_colors[trace.sched.upper()],
                 label=label
             )
 
@@ -98,7 +98,7 @@ def plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
     if std_y != std_x:
         str_str += '-{}'.format(std_x)
     filename = re.sub('[\(\)\' :]' , '',
-                      ('{}_vs_{}_{}'.format(y_axis, x_axis, profile_descrip) +
+                      ('{}_vs_{}_{}'.format(y_axis, x_axis, trace_descrip) +
                        '_{}_{}SD'.format(filters_descrip, std_str) +
                        '_scatter_w_hock.{}'.format(ext)))
     fig.savefig(filename, bbox_inches='tight')
@@ -107,7 +107,7 @@ def print_help():
     print('')
     print(' The script plots the selected Y axis datum against the X axis datum.')
     print('')
-    print(' It will accept sets of profiles as well, and will attempt to merge them if encountered.')
+    print(' It will accept sets of traces as well, and will attempt to merge them if encountered.')
     print(' usage: <script_name> [PROFILE FILENAMES] [--event-types=TYPE1,TYPE2] [--event-subtypes=TYPE1,TYPE2] [--y-axis=Y_AXIS_DATUM]')
     print('')
     print(' --event-types    : Filters by event major type, e.g. GEMM, POTRF, PAPI_L12_EXEC')
@@ -163,44 +163,44 @@ if __name__ == '__main__':
             else:
                 event_subtypes.append(arg)
 
-    profiles = ptt_utils.autoload_profiles(filenames, convert=True, unlink=False,
-                                           enhance_filenames=True)
-    profile_sets = find_profile_sets(profiles)
-    for pset in profile_sets.values()[1:]:
-        if len(pset) != len(profile_sets.values()[0]):
-            print('A profile set has a different size ({}) than the first set ({}),'.format(
-                len(pset), len(profile_sets.values()[0])))
+    traces = ptt_utils.autoload_traces(filenames, convert=True, unlink=False,
+                                       enhance_filenames=True)
+    trace_sets = find_trace_sets(traces)
+    for pset in trace_sets.values()[1:]:
+        if len(pset) != len(trace_sets.values()[0]):
+            print('A trace set has a different size ({}) than the first set ({}),'.format(
+                len(pset), len(trace_sets.values()[0])))
             print('which may cause your graph to be unbalanced.')
-    profiles = automerge_profile_sets(profile_sets.values())
-    profile_sets = find_profile_sets(profiles, on=[ 'exe', 'N', 'NB' ])
+    traces = automerge_trace_sets(trace_sets.values())
+    trace_sets = find_trace_sets(traces, on=[ 'exe', 'N', 'NB' ])
 
-    for set_name, profiles in profile_sets.iteritems():
+    for set_name, traces in trace_sets.iteritems():
         if slice_st_start != None or slice_st_stop != None:
-            event_subtypes = mpl_prefs.kernel_names[profiles[0].exe][slice_st_start:slice_st_stop]
+            event_subtypes = mpl_prefs.kernel_names[traces[0].exe][slice_st_start:slice_st_stop]
         if slice_t_start != None or slice_t_stop != None:
-            event_types = mpl_prefs.kernel_names[profiles[0].exe][slice_t_start:slice_t_stop]
+            event_types = mpl_prefs.kernel_names[traces[0].exe][slice_t_start:slice_t_stop]
 
         if papi_core_all:
             event_types = []
             event_subtypes = []
             # find the PAPI_CORE_EXEC event(s)
-            for event_name in profiles[0].event_types.keys():
+            for event_name in traces[0].event_types.keys():
                 if event_name.startswith('PAPI_CORE_EXEC_'):
                     event_types.append(event_name)
                     y_axes = papi_core_utils.PAPICoreEventValueLabelGetter()[event_name]
                     break
-            event_subtypes = mpl_prefs.kernel_names[profiles[0].exe][:1]
+            event_subtypes = mpl_prefs.kernel_names[traces[0].exe][:1]
 
         # pair up the selectors, if subtypes were specified...
         if len(event_subtypes) > 0:
             type_pairs = list(itertools.product(event_types, event_subtypes))
         else:
-            event_subtypes = mpl_prefs.kernel_names[profiles[0].exe]
+            event_subtypes = mpl_prefs.kernel_names[traces[0].exe]
             type_pairs = list(itertools.product(event_types, event_subtypes))
 
         for y_axis in y_axes:
             print('Now graphing the Y-axis datum \'{}\' against the X-axis datum \'{}\''.format(y_axis, x_axis) +
-                  ' for the event type pairs {} (where they can be found in the profile).'.format(type_pairs))
+                  ' for the event type pairs {} (where they can be found in the trace).'.format(type_pairs))
             for type_pair in type_pairs:
                 filters = []
                 if len(type_pair) == 2: # it's a tuple
@@ -209,11 +209,11 @@ if __name__ == '__main__':
                 else:
                     filters.append('type==.event_types[\'' + type_pair + '\']')
 
-                plot_Y_vs_X_scatter_and_sorted(profiles, x_axis, y_axis, filters,
-                                               profile_descrip=set_name,
+                plot_Y_vs_X_scatter_and_sorted(traces, x_axis, y_axis, filters,
+                                               trace_descrip=set_name,
                                                filters_descrip=str(type_pair),
                                                std_x = std_x, std_y = std_y, ext=ext)
             # for event_type in event_types:
-            #     plot_Y_vs_duration(profiles, event_type, shared_name=set_name)
+            #     plot_Y_vs_duration(traces, event_type, shared_name=set_name)
 
 

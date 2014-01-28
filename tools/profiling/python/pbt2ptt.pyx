@@ -13,7 +13,7 @@ BUILD NOTES:
 # Contrasting versions will likely lead to odd errors about Unicode functions.
 """
 
-# cython: profile=False
+# cython: trace=False
 # ...but could be True if we wanted to # import cProfile, pstats
 from __future__ import print_function
 
@@ -37,7 +37,7 @@ include "pbt_info_parser.pxi"
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
 pbt_core = '.prof-'
 
-# reads an entire profile into a set of pandas DataFrames
+# reads an entire trace into a set of pandas DataFrames
 # filenames ought to be a list of strings, or comparable type.
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=True,
            add_info=dict()):
@@ -150,7 +150,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
         for thread_num in sorted(builder.unordered_threads_by_node[node_id].keys()):
             builder.threads.append(builder.unordered_threads_by_node[node_id][thread_num])
 
-    # now, some voodoo to add shared file information to overall profile info
+    # now, some voodoo to add shared file information to overall trace info
     # e.g., PARAM_N, PARAM_MB, etc.
     # basically, any key that has the same value in all nodes should
     # go straight into the top-level 'information' dictionary, since it is global
@@ -164,7 +164,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     builder.information['worldsize'] = worldsize
     builder.information['last_error'] = last_error
     # allow the caller (who may know something extra about the run) 
-    # to specify additional profile information
+    # to specify additional trace information
     if add_info:
         for key, val in add_info.iteritems():
             add_kv(builder.information, key, val)
@@ -186,16 +186,16 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     cond_print('Constructed additional structures in {} seconds.'.format(t.interval),
                report_progress)
 
-    profile = ParsecTraceTables(events, event_types, event_names, event_attributes,
+    trace = ParsecTraceTables(events, event_types, event_names, event_attributes,
                             nodes, threads, information, errors)
 
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
 #   dbp_reader_dispose_reader(dbp)
     free(c_filenames)
 
-    return profile
+    return trace
 
-# returns the output filename in a list, not the profile itself.
+# returns the output filename in a list, not the trace itself.
 cpdef convert(filenames, outfilename=None, unlink=True, multiprocess=True,
               force_reconvert=False, validate_existing=False,
               table=False, append=False, report_progress=False,
@@ -208,25 +208,25 @@ cpdef convert(filenames, outfilename=None, unlink=True, multiprocess=True,
                 if validate_existing:
                     ParsecTraceTables.from_hdf(outfilename, skeleton_only=True)
                 cond_print(
-                    'P3 {} already exists. '.format(
+                    'PTT {} already exists. '.format(
                         os.path.basename(outfilename)) +
                     'Conversion not forced.', report_progress)
                 return outfilename # file already exists
             except:
                 cond_print(
-                    'P3 {} already exists, but cannot be validated. '.format(
+                    'PTT {} already exists, but cannot be validated. '.format(
                         os.path.basename(outfilename)) +
                     'Conversion will proceed.', report_progress)
                 pass # something went wrong, so try conversion anyway
     # convert
     cond_print('Converting {}'.format(filenames), report_progress)
-    profile = read(filenames, report_progress=report_progress, multiprocess=multiprocess,
+    trace = read(filenames, report_progress=report_progress, multiprocess=multiprocess,
                    add_info=add_info)
     # write file
     with Timer() as t:
-        profile.to_hdf(outfilename, table=table, append=append,
+        trace.to_hdf(outfilename, table=table, append=append,
                        complevel=compress[1], complib=compress[0])
-    cond_print('Wrote profile to HDF5 format in {} seconds.'.format(t.interval), report_progress)
+    cond_print('Wrote trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
             cond_print('Unlinking {} after conversion'.format(filename), report_progress)
@@ -244,7 +244,7 @@ cpdef add_kv(dct, key, value, append_if_present=True):
         pass
     if key not in dct:
         # the first value we find is generally the
-        # last value added to the profile, so we 'prefer' it
+        # last value added to the trace, so we 'prefer' it
         # by putting it directly in the dictionary.
         dct[key] = value
     elif append_if_present:

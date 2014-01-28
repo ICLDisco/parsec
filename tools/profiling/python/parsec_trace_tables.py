@@ -6,9 +6,9 @@ The recommended shorthand for the name is "PTT".
 Therefore, the preferred import method is "import parsec_trace_tables as ptt"
 
 This module is especially suitable for use when a separate Python program
-has done the reading of the profile and has stored the profile in this format
+has done the reading of the trace and has stored the trace in this format
 in some sort of cross-process format. The format natively supported by pandas
-and P3 is HDF5, and can be easily written to and read from using the functions
+and PTT is HDF5, and can be easily written to and read from using the functions
 to_hdf and from_hdf.
 """
 
@@ -128,7 +128,7 @@ def raw_key(dict_, name):
 
 
 def from_hdf(filename, skeleton_only=False, keep_store=False):
-    """ Loads a PaRSEC profile from an existing HDF5 format file."""
+    """ Loads a PaRSEC trace from an existing HDF5 format file."""
     store = pd.HDFStore(filename, 'r')
     top_level = list()
     if not skeleton_only:
@@ -142,65 +142,65 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
         print(ke)
         print(store['information'])
         raise ke
-    profile = ParsecTraceTables(events, *top_level)
+    trace = ParsecTraceTables(events, *top_level)
     if keep_store:
-        profile._store = store
+        trace._store = store
     else:
         store.close()
-    return profile
+    return trace
 
 
-def find_profile_sets(profiles, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
-    profile_sets = dict()
-    for profile in profiles:
+def find_trace_sets(traces, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
+    trace_sets = dict()
+    for trace in traces:
         name = ''
         for info in on:
-            name += str(profile.__getattr__(info)).replace('/', '') + '_'
+            name += str(trace.__getattr__(info)).replace('/', '') + '_'
         try:
             name = name[:-1]
-            profile_sets[name].append(profile)
+            trace_sets[name].append(trace)
         except:
-            profile_sets[name] = [profile]
-    return profile_sets
+            trace_sets[name] = [trace]
+    return trace_sets
 
-# Does a best-effort merge on sets of profiles.
+# Does a best-effort merge on sets of traces.
 # Merges only the events, threads, and nodes, along with
 # the top-level "information" struct.
-# Intended for use after 'find_profile_sets'
-# dangerous for use with groups of profiles that do not
+# Intended for use after 'find_trace_sets'
+# dangerous for use with groups of traces that do not
 # really belong to a reasonably-defined set.
 # In particular, the event_type, event_name, and event_attributes
-# DataFrames are chosen from the first profile in the set - no
+# DataFrames are chosen from the first trace in the set - no
 # attempt is made to merge them at this time.
-def automerge_profile_sets(profile_sets):
-    merged_profiles = list()
-    for p_set in profile_sets:
-        merged_profile = p_set[0]
-        for profile in p_set[1:]:
+def automerge_trace_sets(trace_sets):
+    merged_traces = list()
+    for p_set in trace_sets:
+        merged_trace = p_set[0]
+        for trace in p_set[1:]:
             # ADD UNIQUE ID
             #
             # add start time as id to every row in events and threads DataFrames
-            # so that it is still possible to 'split' the merged profile
+            # so that it is still possible to 'split' the merged trace
             # based on start_time id, which should differ for every run...
-            if profile == p_set[1]:
-                start_time_array = np.empty(len(merged_profile.events), dtype=int)
-                start_time_array.fill(merged_profile.start_time)
-                merged_profile.events['start_time'] = pd.Series(start_time_array)
-                merged_profile.threads['start_time'] = pd.Series(
-                    start_time_array[:len(merged_profile.threads)])
-            start_time_array = np.empty(len(profile.events), dtype=int)
-            start_time_array.fill(profile.start_time)
-            events = profile.events
+            if trace == p_set[1]:
+                start_time_array = np.empty(len(merged_trace.events), dtype=int)
+                start_time_array.fill(merged_trace.start_time)
+                merged_trace.events['start_time'] = pd.Series(start_time_array)
+                merged_trace.threads['start_time'] = pd.Series(
+                    start_time_array[:len(merged_trace.threads)])
+            start_time_array = np.empty(len(trace.events), dtype=int)
+            start_time_array.fill(trace.start_time)
+            events = trace.events
             events['start_time'] = pd.Series(start_time_array)
-            threads = profile.threads
+            threads = trace.threads
             threads['start_time'] = pd.Series(start_time_array[:len(threads)])
             # CONCATENATE EVENTS
-            merged_profile.events = pd.concat([merged_profile.events, events])
-            merged_profile.nodes = pd.concat([merged_profile.nodes, profile.nodes])
-            merged_profile.threads = pd.concat([merged_profile.threads, threads])
-        merged_profile.information = match_dicts([profile.information for profile in p_set])
-        merged_profiles.append(merged_profile)
-    return merged_profiles
+            merged_trace.events = pd.concat([merged_trace.events, events])
+            merged_trace.nodes = pd.concat([merged_trace.nodes, trace.nodes])
+            merged_trace.threads = pd.concat([merged_trace.threads, threads])
+        merged_trace.information = match_dicts([trace.information for trace in p_set])
+        merged_traces.append(merged_trace)
+    return merged_traces
 
 
 def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None):

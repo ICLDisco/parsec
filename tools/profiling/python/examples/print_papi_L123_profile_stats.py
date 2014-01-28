@@ -2,7 +2,7 @@
 
 from parsec_trace_tables import *
 # from profiling_info import *
-from pretty_print_profile_stats import *
+from pretty_print_trace_stats import *
 import pbt2ptt
 import os, sys
 
@@ -25,10 +25,10 @@ if __name__ == '__main__':
         else:
             task_focus.append(arg.lower())
 
-    profile = None
+    trace = None
     with Timer() as t:
-        profile = pbt2ptt.read(filenames)
-        # profile = Profile.unpickle('test.pickle', load_events=False)
+        trace = pbt2ptt.read(filenames)
+        # trace = Profile.unpickle('test.pickle', load_events=False)
     print(t.interval)
 
     printers = []
@@ -37,7 +37,7 @@ if __name__ == '__main__':
     # total_exec_name = None
     # total_select_stats = ExecSelectStats('TOTAL S')
     # total_select_name = None
-    # for name, event_type in profile.event_types.iteritems():
+    # for name, event_type in trace.event_types.iteritems():
     #     if name[:4] == 'PINS' and 'EXEC' in name:
     #         total_exec_name = name
     #         for pkey, pstats in event_type.stats.exec_stats.iteritems():
@@ -71,28 +71,28 @@ if __name__ == '__main__':
     #     total_printer.sorter = total_select_stats
     #     printers.append(total_printer)
     exec_keys = list()
-    for name, value in profile.event_types.iteritems():
+    for name, value in trace.event_types.iteritems():
         if name[:4] == 'PINS' and 'EXEC' in name:
             exec_keys.append(value['key'])
 
-    exec_df = profile.events[:][profile.events['key'].isin(exec_keys)]
-    print(exec_df[ profile.basic_columns + ['PAPI_L2'] ].describe())
-    # print((exec_df[ profile.event_columns + ['PAPI_L2'] ] / float(len(exec_df))).describe())
+    exec_df = trace.events[:][trace.events['key'].isin(exec_keys)]
+    print(exec_df[ trace.basic_columns + ['PAPI_L2'] ].describe())
+    # print((exec_df[ trace.event_columns + ['PAPI_L2'] ] / float(len(exec_df))).describe())
 
-    socket_df = profile.events[:][profile.events['PAPI_L3'] > 0]
-    print(socket_df[profile.basic_columns + ['PAPI_L1', 'PAPI_L2', 'PAPI_L3']].describe())
+    socket_df = trace.events[:][trace.events['PAPI_L3'] > 0]
+    print(socket_df[trace.basic_columns + ['PAPI_L1', 'PAPI_L2', 'PAPI_L3']].describe())
 
-    socket_df = profile.events[:][profile.events['key'] == profile.event_types.PINS_L123['key']]
-    print(socket_df[profile.basic_columns + ['PAPI_L1', 'PAPI_L2', 'PAPI_L3']
+    socket_df = trace.events[:][trace.events['key'] == trace.event_types.PINS_L123['key']]
+    print(socket_df[trace.basic_columns + ['PAPI_L1', 'PAPI_L2', 'PAPI_L3']
                 ].describe().loc['count':'std',:] )
 
     # total_stats = SocketStats()
     # total_count = 0
     # total_name = None
-    # for name, event_type in profile.event_types.iteritems():
+    # for name, event_type in trace.event_types.iteritems():
     #     if name[:4] != 'PINS':
     #         total_count += event_type.stats.count
-    # for name, event_type in profile.event_types.iteritems():
+    # for name, event_type in trace.event_types.iteritems():
     #     if name in ['PINS_L123', 'PINS_SOCKET']:
     #         total_name = name
     #         for pkey, pstats in event_type.stats.socket_stats.iteritems():

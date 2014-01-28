@@ -3,7 +3,7 @@
 from __future__ import print_function
 from parsec_trace_tables import *
 import pbt2ptt as ptt_bin
-import ptt_group_profiles as ptt_g
+import ptt_group_traces as ptt_g
 import os, sys
 
 if __name__ == '__main__':
@@ -12,6 +12,6 @@ if __name__ == '__main__':
         if os.path.exists(arg):
             filenames.append(arg)
     for filename in filenames:
-        profile = ptt_bin.get_info(filename)
-        print(profile.information)
-        print(profile.event_types)
+        trace = ptt_bin.get_info(filename)
+        print(trace.information)
+        print(trace.event_types)

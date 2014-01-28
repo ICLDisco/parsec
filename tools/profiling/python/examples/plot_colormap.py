@@ -22,13 +22,13 @@ std_x = 3
 std_y = 3
 ext = 'pdf'
 
-def plot_colormap(profile, x_axis, y_axis, filters,
+def plot_colormap(trace, x_axis, y_axis, filters,
                   bins=bins, tiers=tiers, std_x=std_x, std_y=std_y,
-                  profile_descrip='', filters_descrip='',
+                  trace_descrip='', filters_descrip='',
                   ext=ext):
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    events = profile.filter_events(filters)
+    events = trace.filter_events(filters)
 
     if std_x:
         x_avg = events[x_axis].mean()
@@ -37,8 +37,8 @@ def plot_colormap(profile, x_axis, y_axis, filters,
         y_avg = events[y_axis].mean()
         events = events[:][events[y_axis] - y_avg  <= events[y_axis].std() * std_y]
 
-    label = '{}: {:.1f} gflops/s'.format(profile.sched.upper(),
-                                         profile.gflops)
+    label = '{}: {:.1f} gflops/s'.format(trace.sched.upper(),
+                                         trace.gflops)
 
     # calculate correlations
     p_corr = events[[y_axis, x_axis]].corr(method='pearson')
@@ -66,9 +66,9 @@ def plot_colormap(profile, x_axis, y_axis, filters,
     ax.set_title(
         """{} vs {} of {}
         for {} where N = {}, NB = {},
-        IB = {}, sched = {}, on {}""".format(y_axis, x_axis, filters_descrip, profile.exe,
-                                             profile.N, profile.NB, profile.IB, profile.sched,
-                                             profile.hostname))
+        IB = {}, sched = {}, on {}""".format(y_axis, x_axis, filters_descrip, trace.exe,
+                                             trace.N, trace.NB, trace.IB, trace.sched,
+                                             trace.hostname))
     if not ax.has_data():
         print('Plot has no data.')
         return None
@@ -86,14 +86,14 @@ def plot_colormap(profile, x_axis, y_axis, filters,
              alpha=0.5, family='monospace',
              transform=ax.transAxes)
 
-    short_exe = profile.exe
-    if profile.exe == 'dpotrf':
+    short_exe = trace.exe
+    if trace.exe == 'dpotrf':
         short_exe = 'PO'
-    elif profile.exe == 'dgetrf':
+    elif trace.exe == 'dgetrf':
         short_exe = 'LU'
-    elif profile.exe == 'dgeqrf':
+    elif trace.exe == 'dgeqrf':
         short_exe = 'QR'
-    descrip_text = '{} {}\n{} {}'.format(y_axis, profile.sched, short_exe, profile.gflops)
+    descrip_text = '{} {}\n{} {}'.format(y_axis, trace.sched, short_exe, trace.gflops)
 
     fig.text(0.15, 0.85, descrip_text,
              horizontalalignment='left',
@@ -109,7 +109,7 @@ def plot_colormap(profile, x_axis, y_axis, filters,
     if std_y != std_x:
         str_str += '-{}'.format(std_x)
     filename = re.sub('[\(\)\' :]' , '',
-                      ('{}_vs_{}_{}'.format(y_axis, x_axis, profile_descrip) +
+                      ('{}_vs_{}_{}'.format(y_axis, x_axis, trace_descrip) +
                        '_{}_{}SD'.format(filters_descrip, std_str) +
                        '_colormap.{}'.format(ext)))
     fig.savefig(filename, bbox_inches='tight')
@@ -118,7 +118,7 @@ def print_help():
     print('')
     print(' The script plots the selected Y axis datum against the X axis datum in a colormap.')
     print('')
-    print(' It will accept sets of profiles as well, and will attempt to merge them if encountered.')
+    print(' It will accept sets of traces as well, and will attempt to merge them if encountered.')
     print(' usage: <script_name> [PROFILE FILENAMES] [--event-types=TYPE1,TYPE2] [--event-subtypes=TYPE1,TYPE2] [--y-axis=Y_AXIS_DATUM]')
     print('')
     print(' --event-types    : Filters by event major type, e.g. GEMM, POTRF, PAPI_L12_EXEC')
@@ -174,36 +174,36 @@ if __name__ == '__main__':
             else:
                 event_subtypes.append(arg)
 
-    profiles = ptt_utils.autoload_profiles(filenames, convert=True, unlink=False,
+    traces = ptt_utils.autoload_traces(filenames, convert=True, unlink=False,
                                           skeleton_only=False, enhance_filenames=True)
 
-    # then divide the profiles into sets based on equivalent command lines
-    profile_sets = find_profile_sets(profiles, on=['exe', 'N', 'NB', 'IB', 'sched'])
+    # then divide the traces into sets based on equivalent command lines
+    trace_sets = find_trace_sets(traces, on=['exe', 'N', 'NB', 'IB', 'sched'])
     # then merge those sets so that multiple trials of the same params are aggregated
-    profiles = automerge_profile_sets(profile_sets.values())
+    traces = automerge_trace_sets(trace_sets.values())
 
-    for profile, name in zip(profiles, profile_sets.keys()):
+    for trace, name in zip(traces, trace_sets.keys()):
         if slice_st_start != None or slice_st_stop != None:
-            event_subtypes = mpl_prefs.kernel_names[profile.exe][slice_st_start:slice_st_stop]
+            event_subtypes = mpl_prefs.kernel_names[trace.exe][slice_st_start:slice_st_stop]
         if slice_t_start != None or slice_t_stop != None:
-            event_types = mpl_prefs.kernel_names[profile.exe][slice_t_start:slice_t_stop]
+            event_types = mpl_prefs.kernel_names[trace.exe][slice_t_start:slice_t_stop]
 
         if papi_core_all:
             event_types = []
             event_subtypes = []
             # find the PAPI_CORE_EXEC event(s)
-            for event_name in profile.event_types.keys():
+            for event_name in trace.event_types.keys():
                 if event_name.startswith('PAPI_CORE_EXEC_'):
                     event_types.append(event_name)
                     y_axes = papi_core_utils.PAPICoreEventValueLabelGetter()[event_name]
                     break
-            event_subtypes = mpl_prefs.kernel_names[profile.exe][:1]
+            event_subtypes = mpl_prefs.kernel_names[trace.exe][:1]
 
         # pair up the selectors, if subtypes were specified...
         if len(event_subtypes) > 0:
             type_pairs = list(itertools.product(event_types, event_subtypes))
         else:
-            event_subtypes = mpl_prefs.kernel_names[profile.exe]
+            event_subtypes = mpl_prefs.kernel_names[trace.exe]
             type_pairs = list(itertools.product(event_types, event_subtypes))
 
         for y_axis in y_axes:
@@ -215,9 +215,9 @@ if __name__ == '__main__':
                 else:
                     filters.append('type==.event_types[\'' + type_pair + '\']')
 
-                print('plotting {} vs {} for {} in {}'.format(y_axis, x_axis, filters, profile))
-                plot_colormap(profile, x_axis, y_axis, filters,
-                              profile_descrip=name, filters_descrip=str(type_pair),
+                print('plotting {} vs {} for {} in {}'.format(y_axis, x_axis, filters, trace))
+                plot_colormap(trace, x_axis, y_axis, filters,
+                              trace_descrip=name, filters_descrip=str(type_pair),
                               std_x = std_x, std_y = std_y, ext=ext, bins=bins)
 
 

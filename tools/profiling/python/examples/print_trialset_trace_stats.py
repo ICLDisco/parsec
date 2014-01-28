@@ -4,12 +4,11 @@ import sys
 import os
 import copy
 import cPickle
-print('this script is broken with the current (better!) PaRSEC profiling system.')
+print('this script is broken with the current (better!) PaRSEC tracing system.')
 print('I plan to update it soon. -- pgaultne@utk.edu, 2013-10-29')
 from parsec_trials import *
 from parsec_trace_tables import *
-from profiling_info import *
-from pretty_print_profile_stats import *
+from pretty_print_trace_stats import *
 
 if __name__ == '__main__':
     files = []
@@ -23,7 +22,7 @@ if __name__ == '__main__':
     trial_sets = []
     totals = []
     for f in files:
-        trial_set = TrialSet.unpickle(f, load_profile=False) # just load the stats
+        trial_set = TrialSet.unpickle(f, load_trace=False) # just load the stats
         trial_sets.append(trial_set)
 
     # sort trial sets by....
@@ -35,12 +34,12 @@ if __name__ == '__main__':
     for trial_set in trial_sets:
         total_stats = ExecSelectStats('TOTAL')
         for trial in trial_set[:]:
-            print(trial.profile.get_handle_counts())
+            print(trial.trace.get_handle_counts())
             printer = LinePrinter()
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            for key, event_type in trial.profile.event_types.iteritems():
+            for key, event_type in trial.trace.event_types.iteritems():
                 if key == 'PINS_EXEC': # or key == 'PINS_SELECT':
                     for pkey, pstats in event_type.stats.exec_stats.iteritems():
                         if pkey in task_focus or 'all' in task_focus:
@@ -83,10 +82,10 @@ if __name__ == '__main__':
             printer.append(ItemPrinter(trial.ex, 'EXEC', length=14))
             printer.append(ItemPrinter(trial.N, 'N', length=7))
             printer.append(ItemPrinter(trial.sched, 'SCHD', length=5))
-            for key, event_type in trial.profile.event_types.iteritems():
+            for key, event_type in trial.trace.event_types.iteritems():
                 if key != 'PINS_EXEC' and key != 'PINS_SELECT':
                     total_count += event_type.stats.count
-            for key, stats in trial.profile.event_types.iteritems():
+            for key, stats in trial.trace.event_types.iteritems():
                 if key == 'PINS_SOCKET':
                     for pkey, pstats in event_type.stats.socket_stats.iteritems():
                         pstats.count = total_count

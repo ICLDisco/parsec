@@ -27,10 +27,10 @@ if __name__ == '__main__':
         if os.path.exists(arg):
             filenames.append(arg)
 
-    processed_filename_groups = ptt_utils.preprocess_profiles(filenames, convert=False)
+    processed_filename_groups = ptt_utils.preprocess_traces(filenames, convert=False)
 
     for fname_group in processed_filename_groups:
-        profile = ptt_utils.autoload_profiles(fname_group)[0]
+        trace = ptt_utils.autoload_traces(fname_group)[0]
 
         figure = plt.figure()
         ax = figure.add_subplot(111)
@@ -40,35 +40,35 @@ if __name__ == '__main__':
         compl_event = None
         prep_event = None
 
-        for event_name in profile.event_types.keys():
+        for event_name in trace.event_types.keys():
             if event_name.startswith('PAPI_CORE_EXEC'):
-                exec_event = profile.event_types[event_name]
+                exec_event = trace.event_types[event_name]
             elif 'CORE_SEL' in event_name:
-                select_event = profile.event_types[event_name]
+                select_event = trace.event_types[event_name]
             elif 'CORE_COMPL' in event_name:
-                compl_event = profile.event_types[event_name]
+                compl_event = trace.event_types[event_name]
             elif 'CORE_PREP' in event_name:
-                prep_event = profile.event_types[event_name]
+                prep_event = trace.event_types[event_name]
 
         # this pandas builtin allows a one-time grouping of the events
         # instead of a new iteration over all the events per thread
-        handle_group_events = profile.events.groupby('handle_id')
+        handle_group_events = trace.events.groupby('handle_id')
         large_handle_size = 0
         for h_id, handle_group in handle_group_events:
             if len(handle_group) > large_handle_size:
                 large_handle_size = len(handle_group)
                 hid = h_id
         print('selecting only events of handle', hid)
-        thread_group_events = profile.events.groupby(['thread_id', 'type', 'handle_id'])
+        thread_group_events = trace.events.groupby(['thread_id', 'type', 'handle_id'])
         # but since the groups may be out-of-order, we need to prepare to
         # collect the information, then sum it, and then plot it in a separate loop
         # after sorting the sums:
 
         # PREPARE
         thread_bars = dict()
-        for th_id in profile.threads['id']:
+        for th_id in trace.threads['id']:
             thread_bars[th_id] = dict()
-            threads = profile.threads[:][profile.threads['id'] == th_id]
+            threads = trace.threads[:][trace.threads['id'] == th_id]
             thread_bars[th_id]['thread_duration'] = threads['duration']
             thread_bars[th_id]['thread_begin'] = threads.iloc[0]['begin']
             thread_bars[th_id]['thread_end'] = threads.iloc[0]['end']
@@ -119,7 +119,7 @@ if __name__ == '__main__':
             th_duration = bar_data['thread_duration'].sum()
             framework_time = th_duration - bottom_sum
             if framework_time < 0:
-                print('Warning: your profile may have inaccurate data, ' +
+                print('Warning: your trace may have inaccurate data, ' +
                       'as the total time of all component events for ' +
                       'thread {} ({}) is greater than the recorded '.format(th_id, bottom_sum) +
                       'duration of that thread ({}).'.format(th_duration))
@@ -130,19 +130,19 @@ if __name__ == '__main__':
 
         ax.grid(True)
         # ax.ticklabel_format(style='sci', scilimits=(0,9), axis='y')
-        ax.set_xticks(np.arange(0.5, 0.5 + len(profile.threads), 4))
-        ax.set_xticklabels([str(i * 4) for i in range(len(profile.threads))], rotation=25.0)
+        ax.set_xticks(np.arange(0.5, 0.5 + len(trace.threads), 4))
+        ax.set_xticklabels([str(i * 4) for i in range(len(trace.threads))], rotation=25.0)
         ax.legend(patches, patch_names, loc='center', ncol=3, fancybox=True, shadow=True)
         ax.set_xlabel('thread id')
         ax.set_ylabel('runtime in nanoseconds')
         ax.set_title(
             'Aggregated task lifecycle components for single trial on {}\n'.format(
-                profile.hostname) +
+                trace.hostname) +
             'N={}, NB={}, sched {}, {} gflops/s, {} s elapsed'.format(
-                profile.N, profile.NB, profile.sched, profile.gflops, profile.time_elapsed) )
+                trace.N, trace.NB, trace.sched, trace.gflops, trace.time_elapsed) )
         figure.set_size_inches(10, 7)
         figure.savefig(
             'stacked_thread_bars_{}.pdf'.format(
-                profile.unique_name(add_infos=['N','NB']).rstrip('_')),
+                trace.unique_name(add_infos=['N','NB']).rstrip('_')),
             dpi=300, bbox_inches='tight')
-        print('done {}'.format(profile))
+        print('done {}'.format(trace))

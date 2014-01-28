@@ -97,7 +97,7 @@ def match_dicts(dicts):
                     temp_fl = float(value)
                     if '.' in str(value): # if number was actually a float
                         # do average
-                        if profile == p_set[1]:
+                        if trace == p_set[1]:
                             matched_info[key] = matched_info[key] * mult
                         matched_info[key] += value * mult
                     else: # not float

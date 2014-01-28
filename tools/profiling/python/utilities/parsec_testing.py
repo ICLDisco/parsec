@@ -48,9 +48,9 @@ class ParsecTest(object):
 class ParsecTrial(list):
     class_version = 1.0 # revamped everything for pandas
     # class members
-    __unloaded_profile_token__ = 'not loaded' # old
+    __unloaded_trace_token__ = 'not loaded' # old
     @staticmethod
-    def unpickle(_file, load_profile=True):
+    def unpickle(_file, load_trace=True):
         trial = cPickle.load(_file)
         return trial
     # object members
@@ -138,7 +138,7 @@ test_output_pattern = (
 
 def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                           exe_dir='.', out_dir='.', max_rsd=max_rsd,
-                          convert_profiles=True):
+                          convert_traces=True):
     last_N = 0
     last_exe = ''
     total_fail_count = 0
@@ -166,7 +166,7 @@ def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                 # my_end, their_end = Pipe()
                 p = Process(target=run_trial,
                             args=(trial, tests_per_trial, exe_dir, out_dir,
-                                  max_rsd, keep_best_test_only, convert_profiles))
+                                  max_rsd, keep_best_test_only, convert_traces))
                 p.start()
                 while p.is_alive():
                     p.join(2)
@@ -197,7 +197,7 @@ def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                           'to successfully execute after {} failures.'.format(fail_count))
 
 def run_trial(trial, tests_per_trial, exe_dir, out_dir,
-              max_rsd, keep_best_test_only, convert_profiles):
+              max_rsd, keep_best_test_only, convert_traces):
     import online_math
 
     test_output_re = re.compile(test_output_pattern, flags=re.DOTALL)
@@ -236,7 +236,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
             #     print("AN ERROR OCCURRED (random id: %d)" % marker)
             #     sys.stderr.write(str(marker) + ':\n' + stderr + '\n')
             match = test_output_re.match(stdout)
-            profile_filenames = glob.glob( 'testing_' + exe + '*.prof-*')
+            trace_filenames = glob.glob( 'testing_' + exe + '*.prof-*')
             if match:
                 # save successfully-parsed output
                 trial.NB = int(match.group(2))
@@ -250,22 +250,22 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                 test.extra_output = extra_output
                 if not os.environ.get('SUPPRESS_EXTRA_OUTPUT', None):
                    sys.stdout.write(extra_output)
-                # rename profile, if it exists
-                if len(profile_filenames) > 0:
-                    moved_profile_filenames = list()
-                    for filename in profile_filenames:
-                        profile_filename = filename.replace('testing_' + exe,
+                # rename trace, if it exists
+                if len(trace_filenames) > 0:
+                    moved_trace_filenames = list()
+                    for filename in trace_filenames:
+                        trace_filename = filename.replace('testing_' + exe,
                                                             out_dir
                                                             + os.sep
                                                             + test.unique_name())
-                        # print('moving {} to {}'.format(filename, profile_filename))
-                        shutil.move(filename, profile_filename)
-                        moved_profile_filenames.append(profile_filename)
-                    profile_filenames = moved_profile_filenames
-                trial.append((test, profile_filenames))
+                        # print('moving {} to {}'.format(filename, trace_filename))
+                        shutil.move(filename, trace_filename)
+                        moved_trace_filenames.append(trace_filename)
+                    trace_filenames = moved_trace_filenames
+                trial.append((test, trace_filenames))
                 test_num += 1 # no more attempts are needed - we got what we came for
             else:
-                safe_unlink(profile_filenames)
+                safe_unlink(trace_filenames)
                 sys.stderr.write("results not properly parsed: %s\n" % stdout)
                 print('\nWe\'ll just try this one again.\n')
         if tests_per_trial > 1:
@@ -273,7 +273,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
         # done with trial. now calculate trial statistics
         test_perfs = []
         test_times = []
-        for test, profile_filenames in trial:
+        for test, trace_filenames in trial:
             test_times.append(test.time)
             test_perfs.append(test.perf)
         variance, avgPerf = online_math.online_variance_mean(test_perfs)
@@ -287,46 +287,46 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
             trial.time_sdv = variance ** 0.5
             print(trial) # realtime progress report
 
-            for test, profile_filenames in extra_tests:
-                safe_unlink(profile_filenames) # these won't be needed anymore
+            for test, trace_filenames in extra_tests:
+                safe_unlink(trace_filenames) # these won't be needed anymore
 
             if keep_best_test_only:
                 best_perf = 0
                 best_index = 0
-                for index, (test, profile_filenames) in enumerate(trial):
+                for index, (test, trace_filenames) in enumerate(trial):
                     if test.perf > best_perf:
                         best_perf = test.perf
                         best_index = index
-                print('Only keeping the profile of the test with the best performance' +
+                print('Only keeping the trace of the test with the best performance' +
                       ' ({} gflops/s), at index {}.'.format(best_perf, best_index))
 
                 new_list = list()
-                for index, (test, profile_filenames) in enumerate(trial):
+                for index, (test, trace_filenames) in enumerate(trial):
                     if index != best_index:
-                        safe_unlink(profile_filenames) # remove profiles of 'not best' runs
+                        safe_unlink(trace_filenames) # remove traces of 'not best' runs
                         new_list.append((test, list()))
                     else:
-                        new_list.append((test, profile_filenames))
+                        new_list.append((test, trace_filenames))
                 del trial[:]
                 trial.extend(new_list)
 
-            if convert_profiles:
-                # iterate through the list, convert the profiles, and save the new names
+            if convert_traces:
+                # iterate through the list, convert the traces, and save the new names
                 new_list = list()
                 while len(trial) > 0:
-                    test, profile_filenames = trial.pop()
-                    if len(profile_filenames) > 0:
+                    test, trace_filenames = trial.pop()
+                    if len(trace_filenames) > 0:
                         try:
                             import pbt2ptt as pbt
-                            add_info = add_info_to_profile(trial)
-                            profile_filenames = [pbt.convert(profile_filenames,
+                            add_info = add_info_to_trace(trial)
+                            trace_filenames = [pbt.convert(trace_filenames,
                                                              add_info=add_info)]
-                            new_list.append((test, profile_filenames))
+                            new_list.append((test, trace_filenames))
                         except ImportError:
-                            new_list.append((test, profile_filenames))
+                            new_list.append((test, trace_filenames))
                             pass # can't convert without the module... ahh well
                     else:
-                        new_list.append((test, profile_filenames))
+                        new_list.append((test, trace_filenames))
                 trial.extend(new_list) # put everything back in the trial
 
             while not trial_finished: # safe against Keyboard Interrupt
@@ -359,7 +359,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
             trial.extend(extra_tests)
             test_perfs = []
             test_times = []
-            for test, profile_filenames in trial:
+            for test, trace_filenames in trial:
                 test_times.append(test.walltime)
                 test_perfs.append(test.perf)
             variance, avgPerf = online_math.online_variance_mean(test_perfs)
@@ -378,7 +378,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
     return trial
 
 
-def add_info_to_profile(trial):
+def add_info_to_trace(trial):
     add_info = dict()
     try:
         if trial.exe.endswith('potrf'):
@@ -491,14 +491,14 @@ def run_main():
     parser.add_argument('exe_dir',
                         help='Directory containing PaRSEC testing executables.')
     parser.add_argument('out_dir',
-                        help='Directory in which to place PaRSEC profiles and trial summaries.')
-    parser.add_argument('-c', '--convert-profiles', action='store_true',
+                        help='Directory in which to place PaRSEC traces and trial summaries.')
+    parser.add_argument('-c', '--convert-traces', action='store_true',
                         help='Convert PaRSEC Binary Profiles to Python HDF5 files.')
     parser.add_argument('-t', '--tests-per-trial', type=int, default=tests_per_trial)
     parser.add_argument('-s', '--max-rsd', type=float, default=max_rsd,
                         help='Maximum relative (% of avg) standard deviation for tests in trial.')
     parser.add_argument('-u', '--unlink-existing', action='store_true',
-                        help='Don\'t ask before unlinking existing profiles that might interfere.')
+                        help='Don\'t ask before unlinking existing traces that might interfere.')
     parser.add_argument('-b', '--best-test-only', action='store_true',
                         help='Preserve only the test with the best runtime ' +
                         '(default is to preserve all tests).')
@@ -520,7 +520,7 @@ def run_main():
     if len(old_profs) > 0:
         unlink = 'y'
         if not args.unlink_existing:
-            unlink = raw_input('Found {} existing profiles'.format(len(old_profs)) +
+            unlink = raw_input('Found {} existing traces'.format(len(old_profs)) +
                                ' in the current working directory.\n' +
                                'These may confuse the program. Remove? [Y/n]: ') or 'y'
         if 'y' in unlink or 'Y' in unlink:
@@ -546,7 +546,7 @@ def run_main():
 
     spawn_trial_processes(trials, args.tests_per_trial, keep_best_test_only=args.best_test_only,
                           exe_dir=args.exe_dir, out_dir=args.out_dir, max_rsd=args.max_rsd,
-                          convert_profiles=args.convert_profiles)
+                          convert_traces=args.convert_traces)
 
 def generate_main():
     import argparse
