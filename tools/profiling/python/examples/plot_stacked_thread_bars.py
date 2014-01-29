@@ -27,7 +27,7 @@ if __name__ == '__main__':
         if os.path.exists(arg):
             filenames.append(arg)
 
-    processed_filename_groups = ptt_utils.preprocess_traces(filenames, convert=False)
+    processed_filename_groups = ptt_utils.preprocess_trace_filenames(filenames)
 
     for fname_group in processed_filename_groups:
         trace = ptt_utils.autoload_traces(fname_group)[0]

@@ -317,10 +317,11 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                     test, trace_filenames = trial.pop()
                     if len(trace_filenames) > 0:
                         try:
-                            import pbt2ptt as pbt
+                            import pbt2ptt
                             add_info = add_info_to_trace(trial)
-                            trace_filenames = [pbt.convert(trace_filenames,
-                                                             add_info=add_info)]
+                            trace_filenames = [pbt2ptt.convert(trace_filenames,
+                                                               unlink=True,
+                                                               add_info=add_info)]
                             new_list.append((test, trace_filenames))
                         except ImportError:
                             new_list.append((test, trace_filenames))

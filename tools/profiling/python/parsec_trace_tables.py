@@ -24,8 +24,6 @@ import warnings # because these warnings are annoying, and I can find no way aro
 warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
-ptt_core = '.h5-'
-
 default_descriptors = ['hostname', 'exe', 'ncores', 'sched']
 
 class ParsecTraceTables(object):
@@ -146,6 +144,7 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
     if keep_store:
         trace._store = store
     else:
+        trace._store = None
         store.close()
     return trace
 
@@ -227,3 +226,24 @@ def nice_val(dict_, key):
         return m.group(1)
     else:
         return dict_[key]
+
+ptt_core = '.h5-'
+old_ptt_core = '.h5-'
+pbt_core = '.prof-' # this is here and not in pbt2ptt b/c pure-python things still need to test
+ptt_ext = '.h5'
+
+def is_ptt(filename):
+    return filename.endswith(ptt_ext) or is_old_ptt(filename)
+def is_old_ptt(filename):
+    return old_ptt_core in filename
+def is_pbt(filename):
+    return pbt_core in filename
+def does_ptt_exist(filenames):
+    return is_ptt(filenames[0])
+def ptt_name(filename):
+    if is_ptt(filename):
+        return filename
+    return filename.replace(pbt_core, ptt_core) + ptt_ext
+def old_ptt_name(filename):
+    return fileame.replace(pbt_core, old_ptt_core)
+

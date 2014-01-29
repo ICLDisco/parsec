@@ -35,7 +35,6 @@ from common_utils import *
 include "pbt_info_parser.pxi"
 
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
-pbt_core = '.prof-'
 
 # reads an entire trace into a set of pandas DataFrames
 # filenames ought to be a list of strings, or comparable type.
@@ -169,7 +168,6 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
         for key, val in add_info.iteritems():
             add_kv(builder.information, key, val)
 
-
     cond_print('Then we concatenate the event DataFrames....', report_progress)
     with Timer() as t:
         events = pd.concat(builder.events)
@@ -187,7 +185,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
                report_progress)
 
     trace = ParsecTraceTables(events, event_types, event_names, event_attributes,
-                            nodes, threads, information, errors)
+                              nodes, threads, information, errors)
 
     dbp_reader_close_files(dbp) # does nothing as of 2013-04-21
 #   dbp_reader_dispose_reader(dbp)
@@ -196,17 +194,17 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     return trace
 
 # returns the output filename in a list, not the trace itself.
-cpdef convert(filenames, outfilename=None, unlink=True, multiprocess=True,
+cpdef convert(filenames, outfilename=None, unlink=False, multiprocess=True,
               force_reconvert=False, validate_existing=False,
               table=False, append=False, report_progress=False,
               add_info=dict(), compress=('blosc', 0)):
     if outfilename == None:
-        outfilename = filenames[0].replace('.prof-', '.h5-')
-    if os.path.exists(outfilename):
+        outfilename = ptt_name(filenames[0])
+    if os.path.exists(outfilename): # this file was already converted
         if not force_reconvert:
             try:
                 if validate_existing:
-                    ParsecTraceTables.from_hdf(outfilename, skeleton_only=True)
+                    from_hdf(outfilename, skeleton_only=True)
                 cond_print(
                     'PTT {} already exists. '.format(
                         os.path.basename(outfilename)) +
@@ -220,8 +218,9 @@ cpdef convert(filenames, outfilename=None, unlink=True, multiprocess=True,
                 pass # something went wrong, so try conversion anyway
     # convert
     cond_print('Converting {}'.format(filenames), report_progress)
-    trace = read(filenames, report_progress=report_progress, multiprocess=multiprocess,
-                   add_info=add_info)
+
+    trace = read(filenames, report_progress=report_progress, 
+                 multiprocess=multiprocess, add_info=add_info)
     # write file
     with Timer() as t:
         trace.to_hdf(outfilename, table=table, append=append,
@@ -421,14 +420,14 @@ class ProfileBuilder(object):
     def __init__(self):
         self.events = list()
         self.infos = list()
+        self.nodes = list()
+        self.errors = list()
+        self.threads = list()
         self.event_types = dict()
         self.event_names = dict()
-        self.event_attributes = dict()
-        self.nodes = list()
-        self.unordered_threads_by_node = dict()
-        self.threads = list()
-        self.errors = list()
         self.information = dict()
+        self.event_attributes = dict()
+        self.unordered_threads_by_node = dict()
 
 # NOTE:
 # this breaks Cython, so don't do it
@@ -446,3 +445,4 @@ def chunk(xs, n):
     for i in xrange(leftover):
         chunks[i%n].append(ys[edge+i])
     return chunks
+
