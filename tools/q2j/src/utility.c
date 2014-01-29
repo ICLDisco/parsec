@@ -36,6 +36,12 @@
 #define IVAR_IS_LEFT   1
 #define IVAR_IS_RIGHT -1
 
+#if defined(DEBUG_UND_1)
+#   define DEBUG_UND(_ARG) printf(_ARG)
+#else
+#   define DEBUG_UND(_ARG)
+#endif
+
 extern int  _q2j_annot_API;
 extern char *q2j_input_file_name;
 extern char *_q2j_data_prefix;
@@ -55,6 +61,7 @@ static void replace_subtree(node_t *new_var, node_t *old_var,
                      node_t *new_m,  node_t *new_n, 
                      node_t *new_mt, node_t *new_nt,
                      node_t *desc_prnt, int kid_num, node_t *root);
+extern void dump_all_unds(var_t *head);
 
 // For the JDF generation we need to emmit some things in special ways,
 // (i.e. arrays in FORTRAN notation) and this "variable" will never need
@@ -101,6 +108,8 @@ static void inline_function_body(node_t *func_body, node_t *call_site);
 static node_t *_DA_copy_tree(node_t *node);
 static void DA_delete_tree(node_t *node);
 static int is_insert_task_call(node_t *node);
+static int node_equiv_simple(node_t *n1, node_t *n2);
+
 
 void inline_function_calls(node_t *node, node_t *func_list_head);
 void convert_loop_from_decr_to_incr(node_t *node);
@@ -161,19 +170,65 @@ void add_variable_use_or_def(node_t *node, int rw, int type, int task_count){
     var_name = DA_var_name(base);
     if( NULL == var_name ) return;
 
+#if defined(DEBUG_UND_1)
+    printf("  Looking for: %s:",tree_to_str(node));
+    if( UND_READ == rw ){
+        printf("R");
+    }
+    if( UND_WRITE == rw ){
+        printf("W");
+    }
+    printf("\n");
+#endif // DEBUG_UND_1
+
     // Look for an existing entry for the array "node"
     prev=var_head;
     for(var=var_head; var != NULL; prev=var, var=var->next){
         if( strcmp(var->var_name, var_name) == 0 ){
+            node_t *trgt_task = node->task->task_node;
+            node_t *curr_task;
             // If we found the array, we look for the Use/Def
             for(und=var->und; NULL!=und->next; und=und->next){
+#if defined(DEBUG_UND_1)
+                printf("   |  Found: ");
+                dump_und(und);
+                printf("\n");
+#endif // DEBUG_UND_1
                 if( und->node == node ){
+                    DEBUG_UND("   |-> Same node, returning\n");
+                    return; 
+                }
+                curr_task = und->node->task->task_node;
+                if( node_equiv_simple(curr_task, trgt_task) && node_equiv_simple(und->node, node) ){
+                    if( und->rw == rw ){
+                        DEBUG_UND("   |-> Nodes and UNDs are equivalent\n");
+                    }else{
+                        DEBUG_UND("   |-> Nodes are equivalent but UNDs have different \"rw\" type.\n");
+                        und->rw |= rw;
+                    }
                     return; 
                 }
             }
+#if defined(DEBUG_UND_1)
+            printf("   |  Found: ");
+            dump_und(und);
+            printf("\n");
+#endif // DEBUG_UND_1
             if( und->node == node ){
-                 return; 
+                DEBUG_UND("   |-> Same node, returning\n");
+                return; 
             }
+            curr_task = und->node->task->task_node;
+            if( node_equiv_simple(curr_task, trgt_task) && node_equiv_simple(und->node, node) ){
+                if( und->rw == rw ){
+                    DEBUG_UND("   |-> Nodes and UNDs are equivalent\n");
+                }else{
+                    DEBUG_UND("   |-> Nodes are equivalent but UNDs have different \"rw\" type.\n");
+                    und->rw |= rw;
+                }
+                return;
+            }
+            DEBUG_UND("   -- No match, creating new\n");
 
             // If we didn't find the Use/Def, we create a new
             und->next = (und_t *)calloc(1, sizeof(und_t));
@@ -186,6 +241,7 @@ void add_variable_use_or_def(node_t *node, int rw, int type, int task_count){
             return;
         }
     }
+    DEBUG_UND("   -- No var, creating new\n");
     // If we didn't find the array, we create a new "var" and a new "und"
     und = (und_t *)calloc(1, sizeof(und_t));
     und->rw = rw;
@@ -294,6 +350,7 @@ static void do_if_parentize(node_t *node, node_t *enclosing_if){
 
 static void do_loop_parentize(node_t *node, node_t *enclosing_loop){
     node_t *tmp;
+    static int off=0;
     int depth=0;
     if( (NULL == node) || (EMPTY == node->type) )
         return;
@@ -315,9 +372,11 @@ static void do_loop_parentize(node_t *node, node_t *enclosing_loop){
         }
     }else{
         int i;
+        off+=4;
         for(i=0; i<node->u.kids.kid_count; ++i){
             do_loop_parentize(node->u.kids.kids[i], enclosing_loop);
         }
+        off-=4;
     }
 }
 
@@ -456,6 +515,16 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
     f->priority    = NULL;
     f->bodies      = NULL;
 
+    if( node->type == BLKBOX_TASK ){
+        node_t *tsk_params = DA_kid(node,1);
+        for(int j=DA_kid_count(tsk_params)-1; j>=0; j--){
+            jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
+            n->next = f->parameters;
+            n->name = DA_var_name(DA_kid(tsk_params, j));
+            f->parameters = n;
+        }
+    }
+
     for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
         jdf_name_list_t *n = q2jmalloc(jdf_name_list_t, 1);
         n->next = f->parameters;
@@ -509,6 +578,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
                 fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
                 return;
             }
+            // Set the annotation API in case it's unset (because this is the first function call we encountered)
             _q2j_annot_API = Q2J_ANN_QUARK;
 
             if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
@@ -527,6 +597,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
                 fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
                 return;
             }
+            // Set the annotation API in case it's unset (because this is the first function call we encountered)
             _q2j_annot_API = Q2J_ANN_GENER;
 
             if( (kid_count > 0) && (IDENTIFIER == DA_kid(node,1)->type) ){
@@ -541,6 +612,10 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             /* If we found a function call that is not inserting a task, silently ignore it */
             return;
         }
+
+        //
+        // If control reached here we have encountered either a QUARK_Insert_Task() or an Insert_Task()
+        //
 
         fname = call_to_task_name( tmp_task_name, mult_kernel_occ ? (int32_t)node->lineno : -1 );
             
@@ -586,6 +661,89 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
         _task_count++;
     }
 
+    if( BLKBOX_TASK == node->type ){
+        char *fname;
+        task_t *task;
+        jdf_function_entry_t *f;
+        node_t *params, *deps;
+
+        params = DA_kid(node,1);
+        deps = DA_kid(node,4);
+
+//TODO: "update the code that sets mult_kernel_occ to look at the pragma blackboxtask directives"
+        fname = call_to_task_name( DA_var_name(DA_kid(node,0)), mult_kernel_occ ? (int32_t)node->lineno : -1 );
+
+        f = jdf_register_addfunction( &_q2j_jdf, fname, node );
+        task = (task_t *)calloc(1, sizeof(task_t));
+        task->task_node = node;
+        int loop_ind_vars = 1+node->loop_depth;
+        task->ind_vars = (char **)calloc(loop_ind_vars+DA_kid_count(params), sizeof(char *));
+
+        int indx = node->loop_depth-1;
+        for(node_t *tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+            task->ind_vars[indx] = DA_var_name(DA_loop_induction_variable(tmp));
+            --indx;
+        }
+        for(int j=0; j<DA_kid_count(params); j++){
+            int indx = j + node->loop_depth;
+            task->ind_vars[indx] = DA_var_name(DA_kid(params,j));
+        }
+
+        node->task = task;
+        node->function = f;
+        assert( NULL != f);
+
+        for(i=0; i<DA_kid_count(deps); i++){
+            node_t *tmp_dep = DA_kid(deps, i);
+            node_t *cond_data = DA_kid(tmp_dep, 2); // this is the "remote" data involved in the dep.
+            node_t *tmp = DA_kid(cond_data, 1); // this is the actual data reference (e.g., A[i][j]).
+
+            tmp->task = task;
+            tmp->function = f;
+            tmp->var_symname = DA_var_name(DA_kid(tmp_dep, 1)); // this is the "local" data.
+            int rw = is_dep_USE(tmp_dep) ? UND_READ : UND_WRITE;
+//FIXME: "do not pass UND_IGNORE, add types to the pragma API instead"
+            add_variable_use_or_def( tmp, rw, UND_IGNORE, _task_count );
+        }
+        _task_count++;
+
+#if defined(DEBUG)
+        fprintf(stderr,"==> Blackbox task pragma detected:\n%s(", tree_to_str(DA_kid(node,0)) );
+
+        // parameters:
+        node_t *params = DA_kid(node, 1);
+        for(int i=0; i<DA_kid_count(params); i++){
+            if( i )
+                fprintf(stderr,", ");
+            fprintf(stderr,"%s", tree_to_str(DA_kid(params,i)) );
+        }
+        fprintf(stderr,") {\n");
+
+        // execution space:
+        node_t *espace = DA_kid(node, 2);
+        for(int i=0; i<DA_kid_count(espace); i++){
+            fprintf(stderr,"  %s = %s .. %s\n", tree_to_str(DA_kid(DA_kid(espace,i),0)), tree_to_str(DA_kid(DA_kid(espace,i),1)), tree_to_str(DA_kid(DA_kid(espace,i),2)) );
+        }
+        fprintf(stderr,"\n");
+
+        // dependencies:
+        deps = DA_kid(node, 4);
+        for(int i=0; i<DA_kid_count(deps); i++){
+            node_t *lcl, *rmt;
+            node_t *tmp_dep = DA_kid(deps, i);
+            lcl = DA_kid(tmp_dep,1);
+            rmt = DA_kid(tmp_dep,2);
+            if( is_dep_USE(tmp_dep) ){
+                fprintf(stderr,"  USE: %s <- %s\n",tree_to_str(lcl), tree_to_str(rmt));
+            }else if( is_dep_DEF(tmp_dep) ){
+                fprintf(stderr,"  DEF: %s -> %s\n",tree_to_str(lcl), tree_to_str(rmt));
+            }
+        }
+        fprintf(stderr,"}\n");
+#endif // DEBUG
+    }
+
+
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
@@ -596,6 +754,16 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             record_uses_defs_and_pools(node->u.kids.kids[i], mult_kernel_occ);
         }
     }
+}
+
+int is_dep_USE(node_t *dep){
+    assert( TASK_DEP == dep->type );
+    return (DEP_USE == DA_int_val(DA_kid(dep,0)));
+}
+
+int is_dep_DEF(node_t *dep){
+    assert( TASK_DEP == dep->type );
+    return (DEP_DEF == DA_int_val(DA_kid(dep,0)));
 }
 
 
@@ -686,6 +854,10 @@ static matrix_variable_t *find_all_matrices(node_t *node){
 node_t *get_locality(node_t *task_node){
     int i, first, step;
 
+    if( BLKBOX_TASK == task_node->type ){
+        return DA_kid(task_node,3);
+    }
+
     if( Q2J_ANN_QUARK == _q2j_annot_API ){
         first = QUARK_FIRST_VAR;
         step  = QUARK_ELEMS_PER_LINE;
@@ -693,15 +865,14 @@ node_t *get_locality(node_t *task_node){
         first = 2;
         step  = 2;
     }else{
-        fprintf(stderr, "ERROR: Annotation API is unset. It should be either QUARK, or GENERAL.\n");
-assert(0);
+        fprintf(stderr, "ERROR: convert_OUTPUT_to_INOUT(): Annotation API is unset. It should be either QUARK, or GENERAL.\n");
         return NULL;
     }
 
     /*
      * First loop to search LOCALITY flag
      */
-    for(i=first; i<task_node->u.kids.kid_count; i+=step){
+    for(i=first; i<DA_kid_count(task_node); i+=step){
         if( isArrayOut(task_node, i) && isArrayLocal(task_node, i) ){
             return DA_kid(task_node,i);
         }
@@ -710,7 +881,7 @@ assert(0);
     /*
      * If no LOCALITY flag, the first output data is used for locality
      */
-    for(i=first; i<task_node->u.kids.kid_count; i+=step){
+    for(i=first; i<DA_kid_count(task_node); i+=step){
         if( isArrayOut(task_node, i) ){
             return DA_kid(task_node,i);
         }
@@ -856,6 +1027,10 @@ int analyze_deps(node_t *node){
     int ret_val;
     int mult = check_for_multiple_kernel_occurances(node);
     record_uses_defs_and_pools(node, mult);
+#if defined(DEBUG_UND_1)
+    dump_all_unds(var_head);
+#endif
+
     ret_val = interrogate_omega(node, var_head);
     if (!_q2j_direct_output){
         jdf_unparse( &_q2j_jdf, stdout );
@@ -1496,6 +1671,82 @@ int find_in_tree(char *name, node_t *node){
     return 0;
 }
 
+/*
+ * This function only works with nodes that have no BLOCK elements as children (at any depth).
+ * Returns 0 when the subtrees are not equivalent and 1 when they are.
+ */
+int node_equiv_simple(node_t *n1, node_t *n2){
+    int kid_count;
+    if( (n1->type != n2->type) || (BLOCK == n1->type) || (BLOCK == n2->type) ){
+        return 0;
+    }
+
+    kid_count = DA_kid_count(n1);
+    if( kid_count != DA_kid_count(n2) ){
+        return 0;
+    }
+
+    if( kid_count > 0 ){
+        int i;
+        for(i=0; i<kid_count; ++i){
+            if( !node_equiv_simple(DA_kid(n1,i), DA_kid(n2,i)) ){
+                return 0;
+            }
+        }
+    }else{
+        // If it's a leaf examine it in a case by case fashion.
+        switch ( n1->type ){
+            case IDENTIFIER:
+                {
+                    char *nm1 = DA_var_name(n1);
+                    char *nm2 = DA_var_name(n2);
+                    if( (NULL == nm1) || (NULL == nm2) || strcmp(nm1, nm2) ){
+                        return 0;
+                    }
+                }
+                break;
+
+            case INTCONSTANT:
+                {
+                    int64_t i1 = n1->const_val.i64_value;
+                    int64_t i2 = n2->const_val.i64_value;
+                    if( i1 != i2 ){
+                        return 0;
+                    }
+                }
+                break;
+
+            case FLOATCONSTANT:
+                {
+                    double d1 = n1->const_val.f64_value;
+                    double d2 = n2->const_val.f64_value;
+                    if( d1 != d2 ){
+                        return 0;
+                    }
+                }
+                break;
+
+            case STRING_LITERAL:
+                {
+                    char *s1 = n1->const_val.str;
+                    char *s2 = n2->const_val.str;
+                    if( strcmp(s1,s2) ){
+                        return 0;
+                    }
+                }
+                break;
+
+            default:
+                if( n1 != n2 ){
+                    return 0;
+                }
+                break;
+        }
+    }
+
+    // If we didn't find any differences, then the (sub)trees are equivalent
+    return 1;
+}
 
 int replace_bounds_in_tree(node_t *new_var, node_t *old_var,
                             node_t *new_i,  node_t *new_j,
@@ -1807,11 +2058,11 @@ int replace_induction_variable_in_body(node_t *node, node_t *ivar, node_t *repla
         }
     }else{
         int i;
-        for(i=0; i<node->u.kids.kid_count; ++i){
-            ret = replace_induction_variable_in_body(node->u.kids.kids[i], ivar, replacement);
+        for(i=0; i<DA_kid_count(node); ++i){
+            ret = replace_induction_variable_in_body(DA_kid(node,i), ivar, replacement);
             // If this kid is the induction variable, but not as a member of a struct, or union, then let's replace it
             if( ret && (S_U_MEMBER != node->type) ){
-                node->u.kids.kids[i] = replacement;
+                DA_kid(node,i) = replacement;
             }
         }
     }
@@ -2665,6 +2916,15 @@ char *DA_type_name(node_t *node){
         case BLOCK:
             str = strdup("BLOCK");
             break;
+        case COND_DATA:
+            str = strdup("COND_DATA");
+            break;
+        case BLKBOX_TASK:
+            str = strdup("BLACKBOX_TASK");
+            break;
+        default:
+            str = strdup("UNKNOWN_TYPE");
+            break;
     }
 
     return str;
@@ -2961,6 +3221,12 @@ char *tree_to_body(node_t *node){
     char *pool_push = NULL;
     int i, j, first=-1, step=-1;
     int pool_buf_count = 0;
+
+    if( BLKBOX_TASK == node->type ){
+        char *tsk_name = DA_var_name(DA_kid(node,0));
+        char *str = append_to_string(NULL, tsk_name, "_body", 5);
+        return(str);
+    }
 
     dague_list_t var_def_list;
     OBJ_CONSTRUCT(&var_def_list, dague_list_t);
@@ -3312,17 +3578,17 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                 str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
                 return str;
 
-	        case ADDR_OF:
+            case ADDR_OF:
                 return strdup("&");
-	        case STAR:
+            case STAR:
                 return strdup("*");
-	        case PLUS:
+            case PLUS:
                 return strdup("+");
-	        case MINUS:
+            case MINUS:
                 return strdup("-");
-	        case TILDA:
+            case TILDA:
                 return strdup("~");
-	        case BANG:
+            case BANG:
                 return strdup("!");
 
             case ADD:
@@ -3630,6 +3896,7 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                   str = append_to_string( str, "}\n", NULL, 0);
                   return str;
                 }
+
             case COMMENT:
                 {
                   char *cmnt_text = DA_comment_text(node);
@@ -3641,6 +3908,133 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
                   }
                   return str;
                 }
+
+            case COND_DATA:
+                {
+                  char *tmp;
+                  if( EMPTY == DA_kid(node, 0)->type ){
+                      return tree_to_str_with_substitutions(DA_kid(node, 1), subs);
+                  }
+
+                  tmp = tree_to_str_with_substitutions(DA_kid(node, 0), subs);
+                  str = append_to_string( NULL, tmp, "(%s) ", 3+strlen(tmp) );
+                  tmp = tree_to_str_with_substitutions(DA_kid(node, 1), subs);
+                  str = append_to_string( str, tmp, "? %s", 2+strlen(tmp) );
+                  if( DA_kid_count(node) == 3 ){
+                      tmp = tree_to_str_with_substitutions(DA_kid(node, 2), subs);
+                      str = append_to_string( str, tmp, ": %s", 2+strlen(tmp) );
+                  }
+
+                  return str;
+                }
+            case BLKBOX_TASK:
+                {
+                  char *tmp;
+                  tmp = tree_to_str_with_substitutions( DA_kid(node,0), subs );
+                  str = append_to_string( NULL, tmp, "BLKBOX_TASK: %s( ", 15+strlen(tmp) );
+
+                  // parameters:
+                  node_t *params = DA_kid(node, 1);
+                  tmp = tree_to_str_with_substitutions(params, subs);
+                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+
+                  str = append_to_string( str, ") {\n", NULL, 0 );
+
+                  // execution space:
+                  node_t *espace = DA_kid(node, 2);
+                  tmp = tree_to_str_with_substitutions(espace, subs);
+                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+
+                  // affinity declaration:
+                  node_t *aff_decl = DA_kid(node, 3);
+                  tmp = tree_to_str_with_substitutions(aff_decl, subs);
+                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+
+                  // dependencies:
+                  node_t *deps = DA_kid(node, 4);
+                  tmp = tree_to_str_with_substitutions(deps, subs);
+                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+
+                  str = append_to_string( str, "}\n", NULL, 0 );
+
+                  return str;
+                }
+
+            case BLKBOX_TASK_PARAMS:
+                {
+                  // parameters:
+                  for(int i=0; i<DA_kid_count(node); i++){
+                      if( i )
+                          str = append_to_string( str, ", ", NULL, 0 );
+                      tmp = tree_to_str_with_substitutions( DA_kid(node,i), subs );
+                      str = append_to_string( str, tmp, "%s", strlen(tmp) );
+                  }
+                  return str;
+                }
+
+            case BLKBOX_TASK_ESPACE:
+                {
+                  for(int i=0; i<DA_kid_count(node); i++){
+                      char *tmp;
+                      tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),0), subs);
+                      str = append_to_string( str, tmp, "%s = ", 3+strlen(tmp) );
+                      tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),1), subs);
+                      str = append_to_string( str, tmp, "%s .. ", 4+strlen(tmp) );
+                      tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),2), subs);
+                      str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
+                  }
+                  return append_to_string( str, "\n", NULL, 0 );
+                }
+
+            case BLKBOX_TASK_DEPS:
+                {
+                  for(int i=0; i<DA_kid_count(node); i++){
+                      char *tmp;
+                      tmp = tree_to_str_with_substitutions(DA_kid(node,i), subs);
+                      str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
+                  }
+                  return str;
+                }
+
+            case TASK_DEP:
+                {
+                  char *tmp;
+                  node_t *lcl, *rmt;
+
+                  lcl = DA_kid(node,1);
+                  tmp = tree_to_str_with_substitutions(lcl, subs);
+                  if( is_dep_USE(node) ){
+                      str = append_to_string( str, tmp, "USE: %s <- ", 9+strlen(tmp) );
+                  }else if( is_dep_DEF(node) ){
+                      str = append_to_string( str, tmp, "DEF: %s -> ", 9+strlen(tmp) );
+                  }
+                  rmt = DA_kid(node,2);
+                  tmp = tree_to_str_with_substitutions(rmt, subs);
+                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+                  return str;
+                }
+/*
+            case BLKBOX_TASK_DEPS:
+                {
+                  for(int i=0; i<DA_kid_count(node); i++){
+                      char *tmp;
+
+                      node_t *lcl, *rmt;
+                      node_t *tmp_dep = DA_kid(node, i);
+                      lcl = DA_kid(tmp_dep,1);
+                      tmp = tree_to_str_with_substitutions(lcl, subs);
+                      if( is_dep_USE(tmp_dep) ){
+                          str = append_to_string( str, tmp, "USE: %s <- ", 9+strlen(tmp) );
+                      }else if( is_dep_DEF(tmp_dep) ){
+                          str = append_to_string( str, tmp, "DEF: %s -> ", 9+strlen(tmp) );
+                      }
+                      rmt = DA_kid(tmp_dep,2);
+                      tmp = tree_to_str_with_substitutions(rmt, subs);
+                      str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
+                  }
+                  return str;
+                }
+*/
 
             default:
                 snprintf(prfx, 12, "|>%u<| ", node->type);

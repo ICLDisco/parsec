@@ -18,6 +18,13 @@
 #include "symtab.h"
 #include "parse_utility.h"
 
+#define YYDEBUG_LEXER_TEXT yytext
+
+/**
+ * Better error handling
+ */
+#define YYERROR_VERBOSE 1
+#define YYDEBUG 1
 
 extern int yyget_lineno();
 void yyerror(const char *s);
@@ -54,6 +61,8 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> GE_OP
 %type <node> GOTO
 %type <node> IDENTIFIER
+%type <node> DEF
+%type <node> USE
 %type <node> IF
 %type <node> INC_OP
 %type <node> INTCONSTANT
@@ -68,6 +77,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> NE_OP
 %type <node> OR_ASSIGN
 %type <node> PTR_OP
+%type <node> TASK_USE_DEP
 %type <node> RETURN
 %type <node> RIGHT_ASSIGN
 %type <node> RIGHT_OP
@@ -76,6 +86,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> SWITCH
 %type <node> WHILE
 %type <node> XOR_ASSIGN
+%type <node> DDOT
 %type <node> additive_expression
 %type <node> and_expression
 %type <node> argument_expression_list
@@ -101,6 +112,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> logical_or_expression
 %type <node> multiplicative_expression
 %type <node> postfix_expression
+%type <node> array_expression
 %type <node> primary_expression
 %type <node> relational_expression
 %type <node> selection_statement
@@ -120,13 +132,18 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <node> initializer
 %type <node> pragma_parameters
 %type <node> pragma_specifier
-//%type <node> pragma_options
-//%type <node> task_arguments
+%type <node> conditional_data
+%type <node> task_dep
+%type <node> task_dep_list
+%type <node> param_range_or_local_var
+%type <node> execution_space
+%type <node> affinity_declaration
+%type <node> blackbox_task_pragma
 
 %type <string> abstract_declarator
 %type <type_node> parameter_declaration
 
-%type <string> identifier_list
+%type <node> identifier_list
 %type <string> initializer_list
 
 %type <string> AUTO
@@ -163,6 +180,7 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 %type <string> DIR_PARSEC_DATA_COLOCATED
 %type <string> DIR_PARSEC_INVARIANT
 %type <string> DIR_PARSEC_TASK_START
+%type <string> DIR_PARSEC_TASK_BLACKBOX
 %type <string> TYPE_NAME
 %type <string> UNION
 %type <string> UNSIGNED
@@ -198,13 +216,13 @@ type_list_t *type_hash[HASH_TAB_SIZE] = {0};
 
 
 %token IDENTIFIER INTCONSTANT BIN_MASK FLOATCONSTANT STRING_LITERAL SIZEOF
-%token PTR_OP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
+%token PTR_OP TASK_USE_DEP INC_OP DEC_OP LEFT_OP RIGHT_OP LE_OP GE_OP EQ_OP NE_OP
 %token L_AND L_OR MUL_ASSIGN DIV_ASSIGN MOD_ASSIGN ADD_ASSIGN
 %token SUB_ASSIGN LEFT_ASSIGN RIGHT_ASSIGN AND_ASSIGN
-%token XOR_ASSIGN OR_ASSIGN TYPE_NAME
+%token DDOT XOR_ASSIGN OR_ASSIGN TYPE_NAME DEF USE
 
 %token TYPEDEF PRAGMA EXTERN STATIC AUTO REGISTER
-%token DIR_PARSEC_DATA_COLOCATED DIR_PARSEC_INVARIANT DIR_PARSEC_TASK_START
+%token DIR_PARSEC_DATA_COLOCATED DIR_PARSEC_INVARIANT DIR_PARSEC_TASK_START DIR_PARSEC_TASK_BLACKBOX
 %token CHAR SHORT INT LONG SIGNED UNSIGNED FLOAT DOUBLE CONST VOLATILE VOID
 %token INT8 INT16 INT32 INT64 UINT8 UINT16 UINT32 UINT64 INTPTR UINTPTR INTMAX UINTMAX
 %token PLASMA_COMPLEX32_T PLASMA_COMPLEX64_T PLASMA_ENUM PLASMA_REQUEST PLASMA_DESC PLASMA_SEQUENCE
@@ -233,12 +251,8 @@ primary_expression
 	| '(' expression ')' {$$ = $2;}
 	;
 
-postfix_expression
-	: primary_expression
-          { 
-          $$ = $1;
-          }
-	| postfix_expression '[' expression ']'
+array_expression
+	: postfix_expression '[' expression ']'
           {
 
               if( ARRAY == $1.type ){
@@ -256,6 +270,10 @@ postfix_expression
               }
 
           }
+
+postfix_expression
+	: primary_expression
+	| array_expression
 	| postfix_expression '(' ')'
           {
               $$.type = FCALL;
@@ -735,6 +753,213 @@ pragma_parameters
 	  }
 	;
 
+
+conditional_data
+    : array_expression
+      {
+          /* A[i][j] */ 
+          $$.type = COND_DATA;
+          $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
+          $$.u.kids.kid_count = 2;
+          node_t tmp;
+          tmp.type=EMPTY;
+          $$.u.kids.kids[0] = node_to_ptr(tmp);
+          $$.u.kids.kids[1] = node_to_ptr($1);
+      }
+    | logical_or_expression '?' array_expression
+      {
+          /* (cond) B[k][l] */
+          $$.type = COND_DATA;
+          $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
+          $$.u.kids.kid_count = 2;
+          $$.u.kids.kids[0] = node_to_ptr($1);
+          $$.u.kids.kids[1] = node_to_ptr($3);
+      }
+    | logical_or_expression '?' array_expression ':' array_expression
+      {
+          /* (cond) ? A[j][k] : B[m][n] */
+          $$.type = COND_DATA;
+          $$.u.kids.kids = (node_t **)calloc(3, sizeof(node_t *));
+          $$.u.kids.kid_count = 3;
+          $$.u.kids.kids[0] = node_to_ptr($1);
+          $$.u.kids.kids[1] = node_to_ptr($3);
+          $$.u.kids.kids[2] = node_to_ptr($5);
+      }
+    ;
+
+task_dep
+    : DEF '(' IDENTIFIER ')' PTR_OP conditional_data 
+      {
+          $$.type = TASK_DEP;
+          $$.u.kids.kids = (node_t **)calloc(3, sizeof(node_t *));
+          $$.u.kids.kid_count = 3;
+          $$.u.kids.kids[0] = DA_create_Int_const(DEP_DEF);
+          $$.u.kids.kids[1] = node_to_ptr($3);
+          $$.u.kids.kids[2] = node_to_ptr($6);
+      }
+    | USE '(' IDENTIFIER ')' TASK_USE_DEP conditional_data 
+      {
+          $$.type = TASK_DEP;
+          $$.u.kids.kids = (node_t **)calloc(3, sizeof(node_t *));
+          $$.u.kids.kid_count = 3;
+          $$.u.kids.kids[0] = DA_create_Int_const(DEP_USE);
+          $$.u.kids.kids[1] = node_to_ptr($3);
+          $$.u.kids.kids[2] = node_to_ptr($6);
+      }
+    ;
+
+task_dep_list
+    : task_dep
+      {
+          node_t *tmp;
+          tmp = node_to_ptr($1);
+          tmp->prev = NULL;
+          tmp->next = NULL;
+          $$.next = tmp;
+      }
+    | task_dep_list task_dep
+      {
+          node_t *tmp;
+          tmp = node_to_ptr($2);
+          tmp->next = NULL;
+          tmp->prev = $1.next;
+          tmp->prev->next = tmp;
+          $$.next = tmp;
+      }
+    ;
+
+
+param_range_or_local_var
+    : IDENTIFIER '=' expression DDOT expression
+      {
+          $$.type = PARAM_RANGE;
+          $$.u.kids.kid_count = 3;
+          $$.u.kids.kids = (node_t **)calloc(3,sizeof(node_t *));
+          $$.u.kids.kids[0] = node_to_ptr($1);
+          $$.u.kids.kids[1] = node_to_ptr($3);
+          $$.u.kids.kids[2] = node_to_ptr($5);
+      }
+    | IDENTIFIER '=' expression
+      {
+          $$.type = ASSIGN;
+          $$.u.kids.kid_count = 2;
+          $$.u.kids.kids = (node_t **)calloc(2,sizeof(node_t *));
+          $$.u.kids.kids[0] = node_to_ptr($1);
+          $$.u.kids.kids[1] = node_to_ptr($3);
+      }
+    ;
+
+affinity_declaration
+    : ':' array_expression
+      {
+          $$ = $2;
+      }
+
+execution_space
+    : param_range_or_local_var
+      {
+          node_t *tmp;
+          tmp = node_to_ptr($1);
+          tmp->prev = NULL;
+          tmp->next = NULL;
+          $$.next = tmp;
+      }
+    | execution_space param_range_or_local_var
+      {
+          node_t *tmp;
+          tmp = node_to_ptr($2);
+          tmp->next = NULL;
+          tmp->prev = $1.next;
+          tmp->prev->next = tmp;
+          $$.next = tmp;
+      }
+    ;
+
+blackbox_task_pragma
+   : PRAGMA DIR_PARSEC_TASK_BLACKBOX IDENTIFIER '(' identifier_list ')' '{' execution_space affinity_declaration task_dep_list '}'
+      {
+          node_t *tmp, *params, *espace, *deps;
+          int param_count, var_count, dep_count;
+
+          // rewind the pointer to the beginning of the execution_space list and count the variables
+          var_count = 1;
+          for(tmp=$8.next; NULL != tmp->prev ; tmp=tmp->prev)
+              var_count++;
+          // allocate and initialize the node that will hold the variables
+          espace = (node_t *)calloc(1, sizeof(node_t));
+          espace->type = BLKBOX_TASK_ESPACE;
+          espace->u.kids.kid_count = var_count;
+          espace->u.kids.kids = (node_t *)calloc(var_count, sizeof(node_t *));
+          // traverse the execution space list and populate the espace node
+          for(int i=0; NULL != tmp ; tmp=tmp->next, i++){
+              espace->u.kids.kids[i] = tmp;
+          }
+
+          // rewind the pointer to the beginning of the param list and count the variables
+          param_count = 1;
+          for(tmp=$5.next; NULL != tmp->prev ; tmp=tmp->prev)
+              param_count++;
+          // allocate and initialize the node that will hold the variables
+          params = (node_t *)calloc(1, sizeof(node_t));
+          params->type = BLKBOX_TASK_PARAMS;
+          params->u.kids.kid_count = param_count;
+          params->u.kids.kids = (node_t *)calloc(param_count, sizeof(node_t *));
+          // traverse the parameter list and populate the params node
+          for(int i=0; NULL != tmp ; tmp=tmp->next, i++){
+              params->u.kids.kids[i] = tmp;
+          }
+
+          // verify that all identifiers have an execution space. The converse is not
+          // necessary, as we can define "local" variables in the execution space.
+          for(int i=0; i<DA_kid_count(params); i++){
+              node_t *tmp = DA_kid(params,i);
+              int has_range = 0;
+              char *name = tree_to_str(tmp);
+              if( NULL == name ){
+                  yyerror("Malformed task parameter.");
+              }
+              for(int i=0; i<var_count; i++){
+                  node_t *tmp_param = DA_kid(espace,i);
+                  char *tmp_nm = tree_to_str(DA_kid(tmp_param,0));
+                  if( NULL == tmp_nm ){
+                      yyerror("Malformed variable in execution space.");
+                  }
+                  if( !strcmp(name, tmp_nm) ){
+                      has_range = 1;
+                  }
+              }
+              if( !has_range ){
+                  fprintf(stderr,"Parameter %s:\n",name);
+                  yyerror("Task parameter with undefined range.");
+              }
+          }
+
+          // rewind the pointer to the beginning of the task_dep_list and count the deps.
+          dep_count = 1;
+          for(tmp=$10.next; NULL != tmp->prev ; tmp=tmp->prev)
+              dep_count++;
+          // allocate and initialize the node that will hold the deps
+          deps = (node_t *)calloc(1, sizeof(node_t));
+          deps->type = BLKBOX_TASK_DEPS;
+          deps->u.kids.kid_count = dep_count;
+          deps->u.kids.kids = (node_t *)calloc(dep_count, sizeof(node_t *));
+          // traverse the dep list and populate the dep node
+          for(int i=0; NULL != tmp ; tmp=tmp->next, i++){
+              deps->u.kids.kids[i] = tmp;
+          }
+
+          $$.type = BLKBOX_TASK;
+          $$.u.kids.kid_count = 5;
+          $$.u.kids.kids = (node_t **)calloc(5,sizeof(node_t *));
+          $$.u.kids.kids[0] = node_to_ptr($3); // task name
+          $$.u.kids.kids[1] = params;
+          $$.u.kids.kids[2] = espace;
+          $$.u.kids.kids[3] = node_to_ptr($9); // affinity declaration
+          $$.u.kids.kids[4] = deps;
+     }
+    ;
+
+
 pragma_specifier
 	: PRAGMA IDENTIFIER pragma_parameters 
       {
@@ -1034,27 +1259,27 @@ parameter_type_list
 
 parameter_list
 	: parameter_declaration
-          {
-              node_t *tmp;
-              (void)st_enter_new_scope();
-              st_insert_new_variable(tree_to_str($1.var), $1.type);
+      {
+          node_t *tmp;
+          (void)st_enter_new_scope();
+          st_insert_new_variable(tree_to_str($1.var), $1.type);
 
-              $1.var->symtab = st_get_current_st();
-              tmp = $1.var;
-              tmp->prev = NULL;
-              tmp->next = NULL;
-              $$.next = tmp;
-          }
+          $1.var->symtab = st_get_current_st();
+          tmp = $1.var;
+          tmp->prev = NULL;
+          tmp->next = NULL;
+          $$.next = tmp;
+      }
 	| parameter_list ',' parameter_declaration
-          {
-              node_t *tmp;
-              st_insert_new_variable(tree_to_str($3.var), $3.type);
-              tmp = $3.var;
-              tmp->next = NULL;
-              tmp->prev = $1.next;
-              tmp->prev->next = tmp;
-              $$.next = tmp;
-          }
+      {
+          node_t *tmp;
+          st_insert_new_variable(tree_to_str($3.var), $3.type);
+          tmp = $3.var;
+          tmp->next = NULL;
+          tmp->prev = $1.next;
+          tmp->prev->next = tmp;
+          $$.next = tmp;
+      }
 	;
 
 
@@ -1074,13 +1299,23 @@ parameter_declaration
 	;
 
 identifier_list
-	: IDENTIFIER { $$ = $1.u.var_name; }
+	: IDENTIFIER
+      {
+          node_t *tmp;
+          tmp = node_to_ptr($1);
+          tmp->prev = NULL;
+          tmp->next = NULL;
+          $$.next = tmp;
+      }
 	| identifier_list ',' IDENTIFIER
-          {
-              char *str = strdup($1);
-              str = append_to_string(str, ", ", NULL, 0 );
-              $$ = append_to_string(str, $3.u.var_name, NULL, 0 );
-          }
+      {
+          node_t *tmp;
+          tmp = node_to_ptr($3);
+          tmp->next = NULL;
+          tmp->prev = $1.next;
+          tmp->prev->next = tmp;
+          $$.next = tmp;
+      }
 	;
 
 type_name
@@ -1127,8 +1362,10 @@ statement
 /*
  If we are to support pragma directives inside the body of a function
  we have to create a pragma scope type of hierarchy.
+ This does not hold for blackbox-task directives though.
     | pragma_specifier 
 */
+    | blackbox_task_pragma
 	;
 
 labeled_statement

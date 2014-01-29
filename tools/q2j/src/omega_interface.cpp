@@ -29,9 +29,6 @@
 
 #define PRAGMAS_DECLARE_GLOBALS
 
-static map<string, string> q2j_colocated_map;
-static map<string, node_t *> _q2j_variable_names;
-
 #define DEP_FLOW  0x1
 #define DEP_OUT   0x2
 #define DEP_ANTI  0x4
@@ -45,6 +42,27 @@ static map<string, node_t *> _q2j_variable_names;
 #define SOURCE  0x0
 #define SINK    0x1
 
+#define EDGE_ANTI  0
+#define EDGE_FLOW  1
+#define EDGE_UNION 2
+
+typedef struct tg_node tg_node_t;
+typedef struct tg_edge{
+    Relation *R;
+    tg_node_t *dst;
+    int type;
+} tg_edge_t;
+
+struct tg_node{
+    char *task_name;
+    list <tg_edge_t *> edges;
+    Relation *cycle;
+    tg_node(){
+    }
+};
+
+
+
 extern int _q2j_produce_shmem_jdf;
 extern int _q2j_verbose_warnings;
 extern int _q2j_add_phony_tasks;
@@ -55,8 +73,13 @@ extern char *_q2j_data_prefix;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
 
-#if 0
-extern void dump_und(und_t *und);
+static map<string, string> q2j_colocated_map;
+static map<string, node_t *> _q2j_variable_names;
+static map<string, Free_Var_Decl *> global_vars;
+
+#define Q2J_DUMP_UND
+#if defined(Q2J_DUMP_UND)
+void dump_und(und_t *und);
 static void dump_full_und(und_t *und);
 #endif
 
@@ -64,7 +87,7 @@ static void dump_full_und(und_t *und);
 //
 static int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
 static Relation process_execution_space(node_t *node, node_t *func, int *status);
-static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
+set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
 static bool eliminate_variable(expr_t *constraint, expr_t *exp, const char *var, Relation R);
@@ -88,12 +111,28 @@ static void _declare_global_vars(node_t *node);
 static inline void declare_global_vars(node_t *node);
 static void declare_globals_in_tree(node_t *node, set <char *> ind_names);
 
-static map<string, Free_Var_Decl *> global_vars;
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 
-#if 0
+#if defined(Q2J_DUMP_UND)
+
+void dump_all_unds(var_t *head){
+    int after_def = 0;
+    var_t *var;
+    und_t *und;
+
+    printf(" ====== dump_all_unds() ======\n");
+    for(var=head; NULL != var; var=var->next){
+        printf(" ====== var: %s\n",var->var_name);
+        for(und=var->und; NULL != und ; und=und->next){
+            char *var_name = DA_var_name(DA_array_base(und->node));
+            printf("    %s ",var_name);
+            dump_full_und(und);
+        }
+    }
+}
+
+
 void dump_all_uses(und_t *def, var_t *head){
     int after_def = 0;
     var_t *var;
@@ -117,6 +156,16 @@ void dump_all_uses(und_t *def, var_t *head){
         }
     }
 }
+
+void dump_und(und_t *und){
+    printf("[%s:%s ", und->node->function->fname, tree_to_str(und->node));
+    if( is_und_read(und) )
+        printf("R");
+    if( is_und_write(und) )
+        printf("W");
+    printf("]");
+}
+
 
 void dump_full_und(und_t *und){
     node_t *tmp;
@@ -376,7 +425,7 @@ int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID>
             }
             imax.update_coef(ivar,-1);
             imax.update_const(-1);
-            if (lb != NULL ){ // Add the condition LB < UB
+            if (lb != NULL ){ // Add the condition LB <= UB
                 GEQ_Handle lb_ub;
                 lb_ub = R_root->add_GEQ();
                 status = expr_to_Omega_coef(DA_rel_rhs(node), lb_ub, 1, ivars, R);
@@ -571,7 +620,7 @@ static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t 
     for(inv_exp=func->pragmas; NULL != inv_exp; inv_exp = inv_exp->next){
 
         // Check if the condition has variables we don't know how to deal with.
-        // If PRAGMAS_DECLARE_GLOBALS is defined, then the followin check is somewhat useless.
+        // If PRAGMAS_DECLARE_GLOBALS is defined, then the following check is somewhat useless.
         if( !DA_tree_contains_only_known_vars(inv_exp, known_vars) ){
             fprintf(stderr,"ERROR: invariant expression: \"%s\" contains unknown variables.\n",tree_to_str(inv_exp));
             fprintf(stderr,"ERROR: known global variables are listed below:\n");
@@ -659,16 +708,35 @@ static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F
     return;
 }
 
+/*
+ * NOTE: If an error occurs in the body, or in one of the functions called by
+ * create_exit_relation() then the return value will be bogus, but the "status"
+ * will be updated to reflect that.  Therefore, callers of this function should
+ * always check the "status"
+ */
 Relation create_exit_relation(node_t *exit, node_t *def, node_t *func, int *status){
-    int i, src_var_count, dst_var_count;
+    int i, src_var_count, src_loop_count, dst_var_count;
     node_t *tmp, *use;
+    node_t *task_node, *params=NULL;
     char **def_ind_names;
     map<string, Variable_ID> ivars;
 
     use = exit;
 
-    src_var_count = def->loop_depth;
+    task_node = def->task->task_node;
+
+    if( BLKBOX_TASK == task_node->type ){
+        params = DA_kid(task_node, 1);
+    }
+
+    src_loop_count = def->loop_depth;
+    src_var_count = src_loop_count;
     dst_var_count = DA_array_dim_count(def);
+
+    if( BLKBOX_TASK == task_node->type ){
+        src_var_count += DA_kid_count(params);
+    }
+
 
     Relation R(src_var_count, dst_var_count);
 
@@ -676,10 +744,17 @@ Relation create_exit_relation(node_t *exit, node_t *def, node_t *func, int *stat
     // and make the last item NULL so we know where the array terminates.
     def_ind_names = (char **)calloc(src_var_count+1, sizeof(char *));
     def_ind_names[src_var_count] = NULL;
-    i=src_var_count-1;
+
+    i=src_loop_count-1;
     for(tmp=def->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+        if(i<0){fprintf(stderr,"i<0\n"); abort();} 
         def_ind_names[i] = DA_var_name(DA_loop_induction_variable(tmp));
         --i;
+    }
+    if( BLKBOX_TASK == task_node->type ){
+        for(int j=0; j<DA_kid_count(params); j++){
+            def_ind_names[src_loop_count+j] = DA_var_name(DA_kid(params, j));
+        }
     }
 
     // Name the input variables using the induction variables of the loops that enclose the def.
@@ -720,6 +795,52 @@ Relation create_exit_relation(node_t *exit, node_t *def, node_t *func, int *stat
         }
     }
 
+    // If the source is a blackbox task, use the execution space to bound the variables
+    if( task_node->type == BLKBOX_TASK ){
+        node_t *espace, *tmp;
+        espace = DA_kid(task_node,2);
+        for(int j=0; j<DA_kid_count(espace); j++){
+            node_t *curr_param, *param_range;
+
+
+            param_range = DA_kid(espace,j);
+            curr_param = DA_kid(param_range,0);
+
+            if( ASSIGN == param_range->type ){
+                node_t *val = DA_kid(param_range,1);
+                EQ_Handle hndl = R_root->add_EQ();
+                *status = expr_to_Omega_coef(curr_param, hndl, 1, ivars, R);
+                *status |= expr_to_Omega_coef(val, hndl, -1, ivars, R);
+                if( Q2J_SUCCESS != *status ){
+                    return R; // the return value here is bogus, but the caller should check the status.
+                }
+            }else if( PARAM_RANGE == param_range->type ){
+                Variable_ID ivar = ivars[DA_var_name(curr_param)];
+                node_t *lb = DA_kid(param_range,1);
+                node_t *ub = DA_kid(param_range,2);
+
+                // Form the Omega expression for the lower bound
+                GEQ_Handle imin = R_root->add_GEQ();
+                imin.update_coef(ivar,1);
+                *status = expr_to_Omega_coef(lb, imin, -1, ivars, R);
+                if( Q2J_SUCCESS != *status ){
+                    return R; // the return value here is bogus, but the caller should check the status.
+                }
+
+                // Form the Omega expression for the upper bound
+                node_t *tmp_econd = DA_create_B_expr( LE, curr_param, ub);
+                *status |= process_end_condition(tmp_econd, R_root, ivars, NULL, R);
+                if( Q2J_SUCCESS != *status ){
+                    return R; // the return value here is bogus, but the caller should check the status.
+                }
+
+            }else{
+                fprintf(stderr,"Blackbox task has unexpected structure: %s\n",tree_to_str(task_node));
+                abort();
+            }
+        }
+    }
+
     // Take into account all the conditions of all enclosing if() statements.
     for(tmp=def->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
         bool in_else = is_enclosed_by_else(def, tmp);
@@ -748,7 +869,7 @@ Relation create_exit_relation(node_t *exit, node_t *def, node_t *func, int *stat
 }
 
 map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int dep_type, node_t *func, int *status){
-    int i, src_var_count, dst_var_count;
+    int i, src_var_count, dst_var_count, dst_loop_count;
     und_t *und;
     node_t *tmp, *def, *use;
     char **use_ind_names;
@@ -757,6 +878,7 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 
     def = entry;
     for(und=var->und; NULL != und ; und=und->next){
+        node_t *task_node, *params = NULL;
 
         if( ((DEP_FLOW==dep_type) && (!is_und_read(und))) || ((DEP_OUT==dep_type) && (!is_und_write(und))) ){
             continue;
@@ -764,7 +886,18 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 
         use = und->node;
 
-        dst_var_count = use->loop_depth;
+        task_node = use->task->task_node;
+
+        if( task_node->type == BLKBOX_TASK ){
+            params = DA_kid(task_node, 1);
+        }
+
+        dst_loop_count = use->loop_depth;
+        dst_var_count = dst_loop_count;
+        if( task_node->type == BLKBOX_TASK ){
+            dst_var_count += DA_kid_count(params);
+        }
+
         // we'll make the source match the destination, whatever that is
         src_var_count = DA_array_dim_count(use);
 
@@ -774,11 +907,19 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
         // and make the last item NULL so we know where the array terminates.
         use_ind_names = (char **)calloc(dst_var_count+1, sizeof(char *));
         use_ind_names[dst_var_count] = NULL;
-        i=dst_var_count-1;
+        i=dst_loop_count-1;
+
         for(tmp=use->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
             use_ind_names[i] = DA_var_name(DA_loop_induction_variable(tmp));
             --i;
         }
+        if( task_node->type == BLKBOX_TASK ){
+            //for(int i=DA_kid_count(params)-1; i>=0; i--){
+            for(int j=0; j<DA_kid_count(params); j++){
+                use_ind_names[dst_loop_count+j] = DA_var_name(DA_kid(params, j));
+            }
+        }
+
 
         // Name the input variables using temporary names "Var_i"
         // The input variables will remain unnamed, but they should disappear because of the equalities
@@ -814,6 +955,51 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
             *status = process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
             if( Q2J_SUCCESS != *status ){
                 return dep_edges; // the return value here is bogus, but the caller should check the status.
+            }
+        }
+
+        // If the destination is a blackbox task, use the execution space to bound the variables
+        if( task_node->type == BLKBOX_TASK ){
+            node_t *espace, *tmp;
+            espace = DA_kid(task_node,2);
+            for(int j=0; j<DA_kid_count(espace); j++){
+                node_t *curr_param, *param_range;
+
+                param_range = DA_kid(espace,j);
+                curr_param = DA_kid(param_range,0);
+
+                if( ASSIGN == param_range->type ){
+                    node_t *val = DA_kid(param_range,1);
+                    EQ_Handle hndl = R_root->add_EQ();
+                    *status = expr_to_Omega_coef(curr_param, hndl, 1, ivars, R);
+                    *status |= expr_to_Omega_coef(val, hndl, -1, ivars, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+                }else if( PARAM_RANGE == param_range->type ){
+                    Variable_ID ivar = ovars[DA_var_name(curr_param)];
+                    node_t *lb = DA_kid(param_range,1);
+                    node_t *ub = DA_kid(param_range,2);
+
+                    // Form the Omega expression for the lower bound
+                    GEQ_Handle imin = R_root->add_GEQ();
+                    imin.update_coef(ivar,1);
+                    *status = expr_to_Omega_coef(lb, imin, -1, ovars, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+
+                    // Form the Omega expression for the upper bound
+                    node_t *tmp_econd = DA_create_B_expr( LE, curr_param, ub);
+                    *status |= process_end_condition(tmp_econd, R_root, ovars, NULL, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+
+                }else{
+                    fprintf(stderr,"Blackbox task has unexpected structure: %s\n",tree_to_str(task_node));
+                    abort();
+                }
             }
         }
 
@@ -858,19 +1044,40 @@ map<node_t *, Relation> create_entry_relations(node_t *entry, var_t *var, int de
 // It would be more acurate to use the terms "source" and "destination" for the edges.
 map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep_type, node_t *exit_node, node_t *func, int *status){
     int i, after_def = 0;
-    int src_var_count, dst_var_count;
+    int src_var_count, src_loop_count, dst_var_count, dst_loop_count;
     und_t *und;
     node_t *tmp, *def, *use;
     char **def_ind_names;
     char **use_ind_names;
     map<string, Variable_ID> ivars, ovars;
     map<node_t *, Relation> dep_edges;
+    node_t *def_params = NULL;
+    node_t *def_task_node;
 
     // In the case of anti-dependencies (write after read) "def" is really a USE.
     def = def_und->node;
-    src_var_count = def->loop_depth;
+    def_task_node = def->task->task_node;
+
+    if( def_task_node->type == BLKBOX_TASK ){
+#if defined(DEBUG_Q2J)
+        printf(" -->> DEF is Blackbox (%s)\n", def_task_node->function->fname);
+#endif
+        def_params = DA_kid(def_task_node, 1);
+    }else{
+#if defined(DEBUG_Q2J)
+        printf(" -->> DEF not Blackbox (%s)\n", def_task_node->function->fname);
+#endif
+    }
+    src_loop_count = def->loop_depth;
+    src_var_count = src_loop_count;
+    if( def_task_node->type == BLKBOX_TASK ){
+        src_var_count += DA_kid_count(def_params);
+    }
+
     after_def = 0;
     for(und=var->und; NULL != und ; und=und->next){
+        node_t *use_task_node;
+        node_t *use_params = NULL;
         char *var_name, *def_name;
  
         // skip anti-dependencies that go to the phony output task.
@@ -899,25 +1106,58 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         // In the case of output dependencies (write after write) "use" is really a DEF.
         use = und->node;
 
-        dst_var_count = use->loop_depth;
+        use_task_node = use->task->task_node;
+
+        if( use_task_node->type == BLKBOX_TASK ){
+//printf("      USE is Blackbox (%s)\n",use_task_node->function->fname);
+            use_params = DA_kid(use_task_node, 1);
+        }else{
+//printf("      USE not Blackbox (%s)\n",use_task_node->function->fname);
+        }
+
+        dst_loop_count = use->loop_depth;
+        dst_var_count = dst_loop_count;
+        if( use_task_node->type == BLKBOX_TASK ){
+            dst_var_count += DA_kid_count(use_params);
+        }
         Relation R(src_var_count, dst_var_count);
 
-        // Store the names of the induction variables of the loops that enclose the definition
-        // and make the last item NULL so we know where the array terminates.
+        // Allocate some space for the names of the parameters of the source task
+        // and make the last item NULL so we can detect where the array terminates.
         def_ind_names = (char **)calloc(src_var_count+1, sizeof(char *));
         def_ind_names[src_var_count] = NULL;
-        i=src_var_count-1;
+
+        // If the source is a blackbox task, use the names provided.
+        if( def_task_node->type == BLKBOX_TASK ){
+            for(int j=0; j<DA_kid_count(def_params); j++){
+                def_ind_names[src_loop_count+j] = DA_var_name(DA_kid(def_params, j));
+            }
+        }
+
+        // Store the names of the induction variables of the loops that enclose the definition.
+        i=src_loop_count-1;
         for(tmp=def->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+            assert(i>=0);
             def_ind_names[i] = DA_var_name(DA_loop_induction_variable(tmp));
             --i;
         }
 
-        // Store the names of the induction variables of the loops that enclose the use
-        // and make the last item NULL so we know where the array terminates.
+        // Allocate some space for the names of the parameters of the destination task
+        // and make the last item NULL so we can detect where the array terminates.
         use_ind_names = (char **)calloc(dst_var_count+1, sizeof(char *));
         use_ind_names[dst_var_count] = NULL;
-        i=dst_var_count-1;
+
+        // If the destination is a blackbox task, use the names provided.
+        if( use_task_node->type == BLKBOX_TASK ){
+            for(int j=0; j<DA_kid_count(use_params); j++){
+                use_ind_names[dst_loop_count+j] = DA_var_name(DA_kid(use_params, j));
+            }
+        }
+
+        // Store the names of the induction variables of the loops that enclose the use.
+        i=dst_loop_count-1;
         for(tmp=use->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
+            assert(i>=0);
             use_ind_names[i] = DA_var_name(DA_loop_induction_variable(tmp));
             --i;
         }
@@ -927,6 +1167,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         for(i=0; i<src_var_count; ++i){
             R.name_input_var(i+1, def_ind_names[i]);
              // put it in a map so we can find it later
+            assert( NULL != def_ind_names[i] );
             ivars[def_ind_names[i]] = R.input_var(i+1);
         }
 
@@ -935,8 +1176,11 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         for(i=0; i<dst_var_count; ++i){
             R.name_output_var(i+1, use_ind_names[i]);
             // put it in a map so we can find it later
+            assert( NULL != use_ind_names[i] );
             ovars[use_ind_names[i]] = R.output_var(i+1);
         }
+
+        /*   ----    Create the Relations    ----   */
 
         F_And *R_root = R.add_and();
 
@@ -956,9 +1200,106 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             // Form the Omega expression for the upper bound
             *status = process_end_condition(DA_for_econd(tmp), R_root, ivars, NULL, R);
             if( Q2J_SUCCESS != *status ){
-                return dep_edges;
+                return dep_edges; // the return value here is bogus, but the caller should check the status.
             }
         }
+
+        // -- Bounding the input variables that came from the blackbox task by the task's execution space"
+
+        // If the source is a blackbox task, use the execution space to bound the variables
+        if( def_task_node->type == BLKBOX_TASK ){
+            node_t *espace, *tmp;
+            espace = DA_kid(def_task_node,2);
+            for(int j=0; j<DA_kid_count(espace); j++){
+                node_t *curr_param, *param_range;
+
+
+                param_range = DA_kid(espace,j);
+                curr_param = DA_kid(param_range,0);
+
+                if( ASSIGN == param_range->type ){
+                    node_t *val = DA_kid(param_range,1);
+                    EQ_Handle hndl = R_root->add_EQ();
+                    *status = expr_to_Omega_coef(curr_param, hndl, 1, ivars, R);
+                    *status |= expr_to_Omega_coef(val, hndl, -1, ivars, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+                }else if( PARAM_RANGE == param_range->type ){
+                    Variable_ID ivar = ivars[DA_var_name(curr_param)];
+                    node_t *lb = DA_kid(param_range,1);
+                    node_t *ub = DA_kid(param_range,2);
+
+                    // Form the Omega expression for the lower bound
+                    GEQ_Handle imin = R_root->add_GEQ();
+                    imin.update_coef(ivar,1);
+                    *status = expr_to_Omega_coef(lb, imin, -1, ivars, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+
+                    // Form the Omega expression for the upper bound
+                    node_t *tmp_econd = DA_create_B_expr( LE, curr_param, ub);
+                    *status |= process_end_condition(tmp_econd, R_root, ivars, NULL, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+
+                }else{
+                    fprintf(stderr,"Blackbox task has unexpected structure: %s\n",tree_to_str(def_task_node));
+                    abort();
+                }
+             }
+         }
+
+        // -- Bounding the output variables that came from the blackbox task by the task's execution space"
+
+        // If the destination is a blackbox task, use the execution space to bound the variables
+        if( use_task_node->type == BLKBOX_TASK ){
+            node_t *espace, *tmp;
+            espace = DA_kid(use_task_node,2);
+            for(int j=0; j<DA_kid_count(espace); j++){
+                node_t *curr_param, *param_range;
+
+                param_range = DA_kid(espace,j);
+                curr_param = DA_kid(param_range,0);
+
+                if( ASSIGN == param_range->type ){
+                    node_t *val = DA_kid(param_range,1);
+                    EQ_Handle hndl = R_root->add_EQ();
+                    *status = expr_to_Omega_coef(curr_param, hndl, 1, ivars, R);
+                    *status |= expr_to_Omega_coef(val, hndl, -1, ivars, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+                }else if( PARAM_RANGE == param_range->type ){
+                    Variable_ID ivar = ovars[DA_var_name(curr_param)];
+                    node_t *lb = DA_kid(param_range,1);
+                    node_t *ub = DA_kid(param_range,2);
+
+                    // Form the Omega expression for the lower bound
+                    GEQ_Handle imin = R_root->add_GEQ();
+                    imin.update_coef(ivar,1);
+                    *status = expr_to_Omega_coef(lb, imin, -1, ovars, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+
+                    // Form the Omega expression for the upper bound
+                    node_t *tmp_econd = DA_create_B_expr( LE, curr_param, ub);
+                    *status |= process_end_condition(tmp_econd, R_root, ovars, NULL, R);
+                    if( Q2J_SUCCESS != *status ){
+                        return dep_edges; // the return value here is bogus, but the caller should check the status.
+                    }
+
+                }else{
+                    fprintf(stderr,"Blackbox task has unexpected structure: %s\n",tree_to_str(use_task_node));
+                    abort();
+                }
+            }
+        }
+
+
 
         // Take into account all the conditions of all if() statements enclosing the DEF.
         for(tmp=def->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
@@ -999,8 +1340,8 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         // "normal", or loop carried, respectively. The outermost enclosing loop HAS to be k'>=k, it is not
         // part of the "or" conditions.  In the loop carried deps, the outer most loop is ALSO in the "or" conditions,
         // so we have (m'>m || n'>n || k'>k) && k'>=k
-        // In addition, if a flow edge is going from a task to itself (because the def and use seemed to be in different
-        // lines) it also needs to have greater-than instead of greater-or-equal relationships for the induction variables.
+        // In addition, if a flow edge is going from a task to itself, it also needs to have greater-than
+        // instead of greater-or-equal relationships for the induction variables.
 
         node_t *encl_loop = find_closest_enclosing_loop(use, def);
 
@@ -1037,7 +1378,8 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
                 ge.update_coef(ivar,-1);
                 // Create Relation due to "normal" DU chain.
                 if( (after_def && (def->task != use->task)) && (tmp == encl_loop) ){
-                    // If there this is "normal" DU chain, i.e. there is direct path from src to dst, then the inner most common loop can be n<=n'
+                    // If there this is "normal" DU chain, i.e. there is a direct path from src to dst, then the inner most common loop can be n<=n'
+
                     ;
                 }else{
                     // If this can only be a loop carried dependency, then the iteration vectors have to be strictly Isrc < Idst
@@ -1094,6 +1436,8 @@ static void _declare_global_vars(node_t *node){
         for(tmp=node; NULL != tmp; tmp=tmp->enclosing_loop ){
             ind_names.insert( DA_var_name(DA_loop_induction_variable(tmp)) );
         }
+
+//TODO: "Maybe we should exclude the blackbox variables from the list of globals as well"
 
         // Find all the variables in the lower bound that are not induction variables and
         // declare them as global variables (symbolic)
@@ -1655,9 +1999,27 @@ expr_t *solve_expression_tree_for_var(expr_t *exp, const char *var_name, Relatio
     int i=0;
     while( true ){
         // If we tried to solve for 1000 output variables and still haven't
-        // found a solution, probably something went wrong and we've entered
-        // an infinite loop
-        Q2J_ASSERT( i++ < 1000 );
+        // found a solution, either there is no solution without output variables,
+        // or something went wrong and we've entered an infinite loop.
+        if( i++ > 1000 ){
+            if( _q2j_verbose_warnings ){
+                fprintf(stderr,"\n\nCould not solve the following expression for \"%s\" without including output variables in the solution:\n",var_name);
+                for(set<expr_t *>::iterator e_it=eqs.begin(); e_it!=eqs.end(); e_it++){
+                    expr_t *eq_exp = *e_it;
+                    fprintf(stderr,"%s\n",expr_tree_to_str(eq_exp) );
+                } 
+                fprintf(stderr,"\nFull exp: %s\n", expr_tree_to_str(exp));
+                fprintf(stderr,"\nRelation: ");
+                R.print();
+                fprintf(stderr,"\nSimpl. Relation: ");
+                R.print_with_subs();
+                fprintf(stderr,"--------------------------------------------------\n");
+#if defined(DEBUG_Q2J)
+                abort();
+#endif
+            }
+            return NULL;
+        }
 
         // If one of the equations includes this variable and no other output
         // variables, we solve that equation for the variable and return the solution.
@@ -1903,7 +2265,7 @@ expr_t *find_EQ_with_var(const char *var_name, expr_t *exp){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-static inline set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp){
+set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp){
     return find_all_constraints_with_var(var_name, exp, EQ_OP);
 }
 
@@ -1936,6 +2298,7 @@ static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t 
             // If you find it in both legs, panic
             tmp_l = find_all_constraints_with_var(var_name, exp->l, constr_type);
             tmp_r = find_all_constraints_with_var(var_name, exp->r, constr_type);
+
             if( !tmp_l.empty() && !tmp_r.empty() ){
                 fprintf(stderr,"\nERROR: find_all_constraints_with_var(): variable \"%s\" is not supposed to be in more than one conjuncts.\n", var_name);
                 fprintf(stderr,"exp->l : %s\n",expr_tree_to_str(exp->l));
@@ -2321,7 +2684,9 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
                 g_it = global_vars.find(var_name);
                 if( global_vars.end() == g_it ){
                     fprintf(stderr,"    Variable \"%s\" was expected to be global, but it is not\n", var_name.c_str());
-                    Q2J_ASSERT( 0 )
+                    fprintf(stderr,"expression: \"%s\"\nRelation:  ",expr_tree_to_str(tree));
+                    S_es.print_with_subs();
+                    abort();
                 }
                 // And get a reference to the local version of the variable in S_tmp.
                 all_vars[var_name] = S_tmp.get_local(g_it->second);
@@ -2456,26 +2821,6 @@ set<dep_t *> edge_map_to_dep_set(map<char *, set<dep_t *> > edges){
     return deps;
 }
 
-
-
-#define EDGE_ANTI  0
-#define EDGE_FLOW  1
-#define EDGE_UNION 2
-
-typedef struct tg_node tg_node_t;
-typedef struct tg_edge{
-    Relation *R;
-    tg_node_t *dst;
-    int type;
-} tg_edge_t;
-
-struct tg_node{
-    char *task_name;
-    list <tg_edge_t *> edges;
-    Relation *cycle;
-    tg_node(){
-    }
-};
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3328,27 +3673,33 @@ Relation process_execution_space( node_t *node, node_t *func, int *status )
 {
     int i;
     node_t *tmp;
-    list<node_t *> params;
+    list<char *> param_names;
     map<string, Variable_ID> vars;
     Relation S;
+    node_t *task_node = node->task->task_node;
 
     for(tmp=node->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-        params.push_front(tmp);
+        char *var_name = DA_var_name(DA_loop_induction_variable(tmp));
+        param_names.push_front(var_name);
     }
-    Q2J_ASSERT( !params.empty() );
+    if( task_node->type == BLKBOX_TASK ){
+        node_t *tsk_params = DA_kid(task_node,1);
+        for(int j=0; j<DA_kid_count(tsk_params); j++){
+            param_names.push_back( DA_var_name(DA_kid(tsk_params, j)) );
+        }
+    }
+    Q2J_ASSERT( !param_names.empty() );
 
-    S = Relation(params.size());
+    S = Relation(param_names.size());
     F_And *S_root = S.add_and();
 
-    for(i=1; !params.empty(); i++ ) {
-        char *var_name;
-        tmp = params.front();
+    for(i=1; !param_names.empty(); i++ ) {
+        char *var_name = param_names.front();
 
-        var_name = DA_var_name(DA_loop_induction_variable(tmp));
         S.name_set_var( i, var_name );
         vars[var_name] = S.set_var( i );
 
-        params.pop_front();
+        param_names.pop_front();
     }
 
     // Bound all induction variables of the loops enclosing the USE
@@ -3379,8 +3730,47 @@ Relation process_execution_space( node_t *node, node_t *func, int *status )
         if( Q2J_SUCCESS != *status ){
             return S; // the return value here is bogus, but the caller should check the status.
         }
-        
     }
+
+    if( task_node->type == BLKBOX_TASK ){
+        node_t *tsk_params = DA_kid(task_node,1);
+        node_t *tsk_espace = DA_kid(task_node,2);
+        for(int j=0; j<DA_kid_count(tsk_params); j++){
+            char *var_name = DA_var_name(DA_kid(tsk_params, j));
+            node_t *bounds = DA_kid(tsk_espace, j);
+
+            Variable_ID var = vars[var_name];
+
+            // Form the Omega expression for the lower bound
+            node_t *lb = DA_kid(bounds, 1);
+            GEQ_Handle imin = S_root->add_GEQ();
+            imin.update_coef(var,1);
+            *status = expr_to_Omega_coef(lb, imin, -1, vars, S);
+            if( Q2J_SUCCESS != *status ){
+                return S; // the return value here is bogus, but the caller should check the status.
+            }
+
+            // Form the Omega expression for the upper bound
+            node_t *ub = (PARAM_RANGE == bounds->type) ? DA_kid(bounds, 2) : lb;
+            GEQ_Handle imax = S_root->add_GEQ();
+            imax.update_coef(var,-1);
+            *status = expr_to_Omega_coef(ub, imax, 1, vars, S);
+            if( Q2J_SUCCESS != *status ){
+                return S; // the return value here is bogus, but the caller should check the status.
+            }
+
+            // Demand that LB <= UB
+            GEQ_Handle lb_le_ub = S_root->add_GEQ();
+            *status = expr_to_Omega_coef(ub, lb_le_ub, 1, vars, S);
+            if( Q2J_SUCCESS != *status ){
+                return S; // the return value here is bogus, but the caller should check the status.
+            }
+            *status = expr_to_Omega_coef(lb, lb_le_ub, -1, vars, S);
+            if( Q2J_SUCCESS != *status ){
+                return S; // the return value here is bogus, but the caller should check the status.
+            }
+        }
+     }
 
     // Add any conditions that have been provided by the developer as invariants
     add_invariants_to_Omega_relation(S_root, S, func);
@@ -3704,7 +4094,7 @@ int interrogate_omega(node_t *func, var_t *head){
                 // TODO: be a loop carried dependency.  If there is at least one enclosing
                 // TODO: loop for which this matrix reference is loop invariant, then we
                 // TODO: should keep the anti-edge.  Keeping it anyway is safe, but
-                // TODO: puts unnecessary burden on Omega when calculating the transitive.
+                // TODO: puts unnecessary burden on Omega when calculating the transitive
                 // TODO: relations and the transitive closures of the loops.
                 ;
             }

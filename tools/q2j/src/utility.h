@@ -23,6 +23,9 @@ BEGIN_C_DECLS
 #define Q2J_ANN_GENER 0x1
 #define Q2J_ANN_QUARK 0x2
 
+#define DEP_USE 0x0
+#define DEP_DEF 0x1
+
 typedef struct _var_t var_t;
 typedef struct _und_t und_t;
 typedef struct _dep_t dep_t;
@@ -52,7 +55,7 @@ struct _expr_t{
     } value;
 };
 
-#define Q2J_ASSERT(_X_) assert((_X_));
+#define Q2J_ASSERT(_X_) do{ if( !(_X_) ){ abort(); } }while(0)
 
 #define q2jmalloc(type, nbelem)  (type*)calloc(nbelem, sizeof(type))
 
@@ -136,6 +139,8 @@ void add_pending_invariant(node_t *node);
 und_t **get_variable_uses_and_defs(node_t *node);
 void add_variable_use_or_def(node_t *node, int rw, int type, int task_count);
 void rename_induction_variables(node_t *node);
+int is_dep_USE(node_t *dep);
+int is_dep_DEF(node_t *dep);
 
 // Analysis
 int analyze_deps(node_t *node);
@@ -150,7 +155,7 @@ const char *type_to_str(int type);
 const char *type_to_symbol(int type);
 void dump_tree(node_t node, int offset);
 void dump_for(node_t *node);
-void dump_all_unds(void);
+void dump_all_unds(var_t *var_head);
 void dump_und(und_t *und);
 
 #define DA_kid(_N_, _X_)      ((_N_)->u.kids.kids[(_X_)])

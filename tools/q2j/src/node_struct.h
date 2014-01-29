@@ -21,9 +21,17 @@
 #define COND        0x1008 // 4104
 #define ARRAY       0x1009 // 4105
 #define FCALL       0x100a // 4106
+#define COND_DATA   0x100b // 4107
+#define TASK_DEP    0x100c // 4108
+#define PARAM_RANGE 0x100d // 4109
 
 #define ENTRY       0x1010 // 4112
 #define EXIT        0x1011 // 4113
+#define BLKBOX_TASK 0x1012 // 4114
+#define BLKBOX_TASK_ESPACE 0x1013 // 4115
+#define BLKBOX_TASK_PARAMS 0x1014 // 4116
+#define BLKBOX_TASK_DEPS   0x1015 // 4117
+
 
 #define EXPR        0x1100 // 4352
 #define ADD         0x1101 // 4353
