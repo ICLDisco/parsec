@@ -373,13 +373,22 @@ BODY [type=CUDA dyld=magmablas_ZGEMM]
 
     if (tempmm > smallnb || descA.nb > smallnb) {
 
-        return gpu_zgemm(context, this_task,
+        int ret = gpu_zgemm(context, this_task,
                          ( n == k+1 ),
                          PlasmaNoTrans, PlasmaConjTrans,
                          tempmm, descA.mb, descA.mb,
                          (dague_complex64_t)-1.0, m, k, &descA, ldam,
                                                   n, k, &descA, ldan,
                          (dague_complex64_t) 1.0, m, n, &descA, ldam);
+        printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             k, m, n,
+             plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
+             tempmm, descA.mb, descA.mb,
+             -1.0, m, k, A, ldam,
+                   n, k, B, ldan,
+              1.0, m, n, C, ldam);
+        return ret;
+
     } else {
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
@@ -388,6 +397,14 @@ BODY [type=CUDA dyld=magmablas_ZGEMM]
                                         B /*A(n, k)*/, ldan,
                (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
 #endif  /* !defined(DAGUE_DRY_RUN) */
+    
+    printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+             k, m, n,
+             plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
+             tempmm, descA.mb, descA.mb,
+             -1.0, m, k, A, ldam,
+                   n, k, B, ldan,
+              1.0, m, n, C, ldam);
 	
     }
 }
