@@ -12,6 +12,8 @@ if(GTG_FOUND)
   set_target_properties(dbp2xml PROPERTIES LINKER_LANGUAGE C)
   include_directories(${GTG_INCLUDE_DIR})
   target_link_libraries(dbp2paje ${GTG_LIBRARIES})
+
+  install(TARGETS dbp2paje RUNTIME DESTINATION bin)
 endif()
 
 find_package(Graphviz QUIET)
