@@ -12,6 +12,7 @@
 #include <stddef.h>
 #include <string.h>
 
+BEGIN_C_DECLS
 /**
  * Note about thread safety:
  *  Some functions are thread safe, others are not.
@@ -199,5 +200,7 @@ void dague_profiling_disable(void);
     if( dague_profile_enabled ) {                                       \
         dague_profiling_trace_flags(context, key, event_id, object_id, info, flags ); \
     }
+
+END_C_DECLS
 
 #endif  /* _DAGUE_profiling_h */
