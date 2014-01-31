@@ -363,12 +363,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( nb_cores <= 0 ) {
 #if defined(HAVE_HWLOC)
         nb_cores = dague_hwloc_nb_real_cores();
-#endif  /* defined(HAVE_HWLOC) */
+#else
         nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
         if(nb_cores == -1) {
             perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
             nb_cores = 1;
         }
+#endif  /* defined(HAVE_HWLOC) */
     }
 
     if( dague_cmd_line_is_taken(cmd_line, "help") ||
