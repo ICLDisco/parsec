@@ -34,7 +34,10 @@ void cpp_comment();
 
 "PARSEC_INVARIANT"	{ count(); return(DIR_PARSEC_INVARIANT); }
 "PARSEC_DATA_COLOCATED"	{ count(); return(DIR_PARSEC_DATA_COLOCATED); }
+"PARSEC_TASK_BLACKBOX" { count(); return(DIR_PARSEC_TASK_BLACKBOX); }
 "PARSEC_TASK_START"	{ count(); return(DIR_PARSEC_TASK_START); }
+"DEF"          { count(); return(DEF); }
+"USE"          { count(); return(USE); }
 "pragma"		{ count(); return(PRAGMA); }
 "break"			{ count(); return(BREAK); }
 "case"			{ count(); return(CASE); }
@@ -350,7 +353,12 @@ L?\"(\\.|[^\\"])*\"	{ count();
                           yylval.node.lineno = yyget_lineno();
                           return(LEFT_ASSIGN);
                         }
-
+".."           { count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
+                          yylval.node.type = DDOT;
+                          yylval.node.lineno = yyget_lineno();
+                          return(DDOT);
+                        }
 "+="			{ count(); 
                           memset(&(yylval.node),0,sizeof(node_t));
                           yylval.node.type = ADD_ASSIGN;
@@ -440,6 +448,13 @@ L?\"(\\.|[^\\"])*\"	{ count();
                           yylval.node.type = PTR_OP;
                           yylval.node.lineno = yyget_lineno();
                           return(PTR_OP);
+                        }
+
+"<-"           { count(); 
+                          memset(&(yylval.node),0,sizeof(node_t));
+                          yylval.node.type = TASK_USE_DEP;
+                          yylval.node.lineno = yyget_lineno();
+                          return(TASK_USE_DEP);
                         }
 
 "&&"			{ count(); 

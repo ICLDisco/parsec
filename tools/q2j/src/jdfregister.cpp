@@ -79,7 +79,8 @@ jdf_generate_call_for_data(node_t *data,
     char *str = NULL;
     int i;
 
-    assert( (data != NULL) && (data->type == ARRAY) );
+    if( NULL == data ) abort();
+    if( ARRAY != data->type ) abort();
 
     sa = string_arena_new(16);
     string_arena_add_string( sa, "%s%s",
@@ -332,6 +333,8 @@ jdf_register_pseudotask(jdf_t *jdf,
         expr_t *solution = solve_expression_tree_for_var(expr, var_name, copy(newS_es));
         // If there is a solution it means that this parameter has a fixed value and not a range.
         // That means that there is no point in including it as a parameter of the pseudo-task.
+//TODO: Also, if the execution space has the same variable multiple times, we can ommit it and
+//TODO: create a broadcast from the pseudotask to the real ones.
         if( NULL != solution ){
             const char *solution_str = expr_tree_to_str(solution);
             solved_vars[var_count].str1 = var_name;
@@ -702,7 +705,7 @@ void jdf_register_fake_read( Relation S_es,
                              node_t *reference_data_element,
                              jdf_function_entry_t *this_function,
                              jdf_dataflow_t *dataflow,
-                             node_t *dst,
+                             node_t *src,
                              int *pseudotask_count)
 {
     Relation emptyR;
@@ -739,13 +742,13 @@ void jdf_register_fake_read( Relation S_es,
     dep->datatype.displ->jdf_cst = 0;
     JDF_OBJECT_SET(dep, NULL, 0, NULL);
 
-    if( need_pseudotask(dst, reference_data_element) ){
+    if( need_pseudotask(src, reference_data_element) ){
         dep_call = jdf_register_pseudotask( &_q2j_jdf, this_function,
                                             S_es, emptyR,
-                                            dst, dataflow->varname,
+                                            src, dataflow->varname,
                                             (*pseudotask_count)++, "in" );
     } else {
-        dep_call = jdf_generate_call_for_data( dst, NULL );
+        dep_call = jdf_generate_call_for_data( src, NULL );
     }
 
     // guarded call
@@ -922,10 +925,11 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
                                  &pseudotask_count );
 
         if(insert_fake_read){
+            dep_t *dep = *(odeps.begin());
             jdf_register_fake_read( S_es,
                                     reference_data_element,
                                     this_function,
-                                    dataflow, (*(odeps.begin()))->dst,
+                                    dataflow, dep->src,
                                     &pseudotask_count );
         }
 
@@ -939,97 +943,105 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
     return;
 }
 
-void jdf_register_anti_dependency( dep_t *dep )
+void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
 {
-    static int nb_ctl_dep = 0;
-    jdf_dataflow_t *dataflow;
-    string_arena_t *sa;
+    Relation *full_rel = dep->rel;
+    list< pair<expr_t *, Relation> > cond_list;
+    list< pair<expr_t *, Relation> >::iterator cond_it;
 
-    jdf_function_entry_t *src = dep->src->function;
-    jdf_function_entry_t *dst = dep->dst->function;
-    Relation             *rel = dep->rel;
-    dep_t dep2;
-    expr_t *expr;
+    cond_list = simplify_conditions_and_split_disjunctions(*full_rel, S_es);
+    for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+        static int nb_ctl_dep = 0;
+        jdf_dataflow_t *dataflow;
+        string_arena_t *sa;
 
-    sa = string_arena_new(8);
-    string_arena_add_string( sa, "ctl%d", nb_ctl_dep );
-    nb_ctl_dep++;
+        jdf_function_entry_t *src = dep->src->function;
+        jdf_function_entry_t *dst = dep->dst->function;
+        dep_t dep2;
+        expr_t *expr = relation_to_tree(cond_it->second);
+        Relation rel = cond_it->second;
 
-    // Simple CTL
-    dataflow = q2jmalloc(jdf_dataflow_t, 1);
-    dataflow->next = NULL;
-    dataflow->varname     = strdup(string_arena_get_string(sa));
-    dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
-    dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
-    JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
+        sa = string_arena_new(8);
+        string_arena_add_string( sa, "ctl%d", nb_ctl_dep );
+        nb_ctl_dep++;
 
-    dataflow->deps->next      = NULL;
-    dataflow->deps->dep_flags = JDF_DEP_FLOW_OUT;
-    dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
-    jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
-    JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
+        // Simple CTL
+        dataflow = q2jmalloc(jdf_dataflow_t, 1);
+        dataflow->next = NULL;
+        dataflow->varname     = strdup(string_arena_get_string(sa));
+        dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
+        dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
+        JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
-    (void)(*dep->rel).print_with_subs_to_string(false);
-    expr = relation_to_tree(*rel);
-    dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
-    dataflow->deps->guard->guard      = NULL;
-    dataflow->deps->guard->properties = NULL;
-    dataflow->deps->guard->callfalse  = NULL;
-    dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
-    dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
-    dataflow->deps->guard->calltrue->func_or_mem = dst->fname;
-    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( dep, expr );
-    clean_tree(expr);
+        dataflow->deps->next      = NULL;
+        dataflow->deps->dep_flags = JDF_DEP_FLOW_OUT;
+        dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
+        jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
+        JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
-    dataflow->next = src->dataflow;
-    src->dataflow  = dataflow;
+//        (void)(*dep->rel).print_with_subs_to_string(false);
+//        expr = relation_to_tree(*rel);
+        dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
+        dataflow->deps->guard->guard      = NULL;
+        dataflow->deps->guard->properties = NULL;
+        dataflow->deps->guard->callfalse  = NULL;
+        dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
+        dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
+        dataflow->deps->guard->calltrue->func_or_mem = dst->fname;
+        dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( dep, expr );
+        clean_tree(expr);
 
-    // Gather
-    dataflow = q2jmalloc(jdf_dataflow_t, 1);
-    dataflow->next = NULL;
-    dataflow->varname     = strdup(string_arena_get_string(sa));
-    dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
-    dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
-    JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
+        dataflow->next = src->dataflow;
+        src->dataflow  = dataflow;
 
-    dataflow->deps->next      = NULL;
-    dataflow->deps->dep_flags = JDF_DEP_FLOW_IN;
-    dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
-    jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
-    JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
+        // Gather
+        dataflow = q2jmalloc(jdf_dataflow_t, 1);
+        dataflow->next = NULL;
+        dataflow->varname     = strdup(string_arena_get_string(sa));
+        dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
+        dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
+        JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
 
-    dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
-    dataflow->deps->guard->guard      = NULL;
-    dataflow->deps->guard->properties = NULL;
-    dataflow->deps->guard->callfalse  = NULL;
-    dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
-    dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
-    dataflow->deps->guard->calltrue->func_or_mem = src->fname;
+        dataflow->deps->next      = NULL;
+        dataflow->deps->dep_flags = JDF_DEP_FLOW_IN;
+        dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
+        jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
+        JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
-    // Reverse the relation
-    Relation inv = *dep->rel;
-    dep2.src = dep->src;
-    dep2.dst = dep->dst;
-    dep2.rel = new Relation( Inverse(inv) );
+        dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
+        dataflow->deps->guard->guard      = NULL;
+        dataflow->deps->guard->properties = NULL;
+        dataflow->deps->guard->callfalse  = NULL;
+        dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
+        dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
+        dataflow->deps->guard->calltrue->func_or_mem = src->fname;
 
-    (void)(*dep2.rel).print_with_subs_to_string(false);
-    expr = relation_to_tree( *dep2.rel );
-    dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
-    clean_tree(expr);
+        // Reverse the relation
+        // Relation inv = *dep->rel;
+        Relation inv = rel;
+        dep2.src = dep->src;
+        dep2.dst = dep->dst;
+        dep2.rel = new Relation( Inverse(inv) );
+
+        (void)(*dep2.rel).print_with_subs_to_string(false);
+        expr = relation_to_tree( *dep2.rel );
+        dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
+        clean_tree(expr);
 
 #ifdef DEBUG
-    {
-        std::cerr << "Anti-dependency: " << src->fname << " => " << dst->fname << " " << (*dep->rel).print_with_subs_to_string();
-        std::cerr << "                 " << dst->fname << " => " << src->fname << " " << (*dep2.rel).print_with_subs_to_string();
-    }
+        {
+            std::cerr << "Anti-dependency: " << src->fname << " => " << dst->fname << " " << rel.print_with_subs_to_string();
+            std::cerr << "                 " << dst->fname << " => " << src->fname << " " << (*dep2.rel).print_with_subs_to_string();
+        }
 #endif
 
-    dataflow->next = dst->dataflow;
-    dst->dataflow  = dataflow;
+        dataflow->next = dst->dataflow;
+        dst->dataflow  = dataflow;
+    }
 }
 
 void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
-                                     map<char *, set<dep_t *> > synch_edges )
+                                     map<char *, set<dep_t *> > synch_edges, Relation S_es  )
 {
     map<char *, set<dep_t *> >::iterator synch_edge_it;
 
@@ -1043,7 +1055,7 @@ void jdf_register_anti_dependencies( jdf_function_entry_t *this_function,
         for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
             assert(((*synch_dep_it)->src)->function == this_function);
 
-            jdf_register_anti_dependency( (*synch_dep_it) );
+            jdf_register_anti_dependency( (*synch_dep_it), S_es );
         }
     }
 }
@@ -1079,7 +1091,7 @@ void jdf_register_function(jdf_function_entry_t       *this_function,
                                               vars, outg_map, incm_map);
 
     if( NULL != this_function->fname )
-        jdf_register_anti_dependencies( this_function, synch_edges );
+        jdf_register_anti_dependencies( this_function, synch_edges, S_es );
 
     jdf_register_body(this_function, this_node);
 }

@@ -462,7 +462,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                                            "in", sa, sa2 );
                          ptask_list.push_back( strdup(string_arena_get_string(sa2)) );
                      }else{
-                         dump_data(sa, dep->dst);
+                         dump_data(sa, dep->src);
                      }
                  }
                  jdfoutput("%s\n", string_arena_get_string(sa) );
