@@ -152,7 +152,7 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
 
 old_renamed_piece   = '.G-prof-'
 def enhance_trace_filenames(filenames, name_infos=default_name_infos,
-                              dry_run=False, force_enhance=False):
+                            dry_run=False, force_enhance=False):
     """ Renames PBTs to a filename with more useful information than the default.
 
     Not designed to operate on lists of filenames that do not belong to the same trace,
@@ -207,8 +207,8 @@ def enhance_trace_filenames(filenames, name_infos=default_name_infos,
                 shutil.move(dirname + os.sep + filename,
                             dirname + os.sep + new_filename)
                 # also rename already-converted files if they exist
-                ptt_name = filename.replace(ptt.pbt_core, ptt.ptt_core)
-                new_ptt_name = new_filename.replace(ptt.pbt_core, ptt.ptt_core)
+                ptt_name = ptt.ptt_name(filename)
+                new_ptt_name = ptt.ptt_name(new_filename)
                 if (os.path.exists(dirname + os.sep + ptt_name) and
                     not os.path.exists(dirname + os.sep + new_ptt_name)):
                     print('Also renaming corresponding PTT file {}'.format(ptt_name))
@@ -269,10 +269,8 @@ def autoload_traces(filenames, convert=True, unlink=False,
     coherent PTT traces back. Give it a whirl, and be sure to report any bugs!
     """
 
-    pbt_groups = preprocess_traces(filenames, enhance_filenames=enhance_filenames)
+    pbt_groups = group_trace_filenames(filenames)
     ptts = list()
-
-    print(pbt_groups)
 
     # convert or separate into PTTs and PBTs
     if convert: # then turn everything into a PTT
@@ -286,12 +284,16 @@ def autoload_traces(filenames, convert=True, unlink=False,
             pbt_groups.remove(fn_group)
     else: # separate into already-PTTs and PBTs
         for fn_group in pbt_groups[:]:
-            trace = ptt.ptt_name(fn_group[0])
+            ptt_name = ptt.ptt_name(fn_group[0])
+            h5_conflicts = find_h5_conflicts(fn_group)
             if ptt.is_ptt(fn_group[0]):
                 ptts.append(fn_group)
                 pbt_groups.remove(fn_group)
-            elif os.path.exists(trace): # passed a PBT name, but previous conversion exists
-                ptts.append([ptt])
+            elif os.path.exists(ptt_name): # passed a PBT name, but previous conversion exists
+                ptts.append([ptt_name])
+                pbt_groups.remove(fn_group)
+            elif len(h5_conflicts) > 0:
+                ptts.append([h5_conflicts[0]])
                 pbt_groups.remove(fn_group)
 
     # LOAD PTTs
@@ -326,14 +328,6 @@ def autoload_traces(filenames, convert=True, unlink=False,
 
     return traces
 
-def get_partner_name(filename):
-    if ptt.is_ptt(filename):
-        return filename.replace(filename.replace(ptt.ptt_core, ptt.pbt_core))
-    elif ptt.is_pbt(filename):
-        return filename.replace(filename.replace(ptt.pbt_core, ptt.ptt_core))
-    else:
-        return filename
-
 def compress_many(filenames, clevel=5):
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
     pool.map(compress_h5, filenames)
@@ -353,16 +347,16 @@ def print_help():
     print(' which means that even singleton binary traces will benefit from this utility as,')
     print(' by default, the utility embeds the GFLOPS/s into the trace name, if available.')
     print('')
-    print('By default, conversion to the Python pandas/HDF5 format (aka PPP) is done also.')
+    print('By default, conversion to the Python pandas/HDF5 format (aka PTT) is done also.')
     print('This conversion may take some time, but it is generally recommended for ease of ')
     print('further interaction with the PaRSEC trace. To disable the conversion, ')
     print('pass the --no-convert flag to the utility.')
     print('')
-    print(' usage: ptt_utils.py [--dry-run] [--no-convert] [--no-enhance] [--force-enhance]')
-    print('                  [--unlink] [--unenhance] [FILENAMES] [extra naming keys]')
+    print(' usage: ptt_utils.py [--dry-run] [--no-convert] ')
+    print('                  [--unlink] [FILENAMES] [extra naming keys]')
     print('')
     print(' Options and arguments:')
-    print(' --unenhance   : used to revert the traces to their original names')
+    # print(' --unenhance   : used to revert the traces to their original names')
     print(' --dry-run     : prints the file renamings without performing them')
     print(' --no-convert  : does not perform PBT->PTT conversion.')
     print('')
@@ -394,6 +388,8 @@ if __name__ == '__main__':
         args.remove('--dry-run')
     if '--revert' in args:
         args.remove('--revert')
+        print('Filename reversion is currently not supported.')
+        sys.exit(-1)
         response = raw_input('Attempt to revert filenames to original names? [Y/n]: ')
         if 'n' not in response.lower():
             revert_trace_filenames(filenames, dry_run=dry_run)
@@ -427,14 +423,16 @@ if __name__ == '__main__':
     else:
         name_infos = default_name_infos
 
-    processed_filename_groups = preprocess_traces(filenames, dry_run=dry_run,
-                                                  enhance_filenames=enhance_filenames,
-                                                  force_enhance=force_enhance,
-                                                  name_infos=name_infos)
+    processed_filename_groups = group_trace_filenames(filenames, dry_run=dry_run)
+
+    # processed_filename_groups = preprocess_traces(filenames, dry_run=dry_run,
+    #                                               enhance_filenames=False,
+    #                                               force_enhance=force_enhance,
+    #                                               name_infos=name_infos)
+
     if convert:
         for fn_group in processed_filename_groups:
             import pbt2ptt
-            print(fn_group)
-            fn_group = pbt2ptt.convert(fn_group, unlink=unlink,
+            fn_group = pbt2ptt.convert(fn_group, unlink=unlink, report_progress=True,
                                        force_reconvert=False, multiprocess=True)
 

@@ -76,7 +76,6 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     builder.event_names[-1] = '' # this is the default, for kernels without names
 
     # start with our nodes in the correct order
-    builder.node_order = dict()
     for i in range(nb_files):
         cfile = dbp_reader_get_file(dbp, i)
         node_id = dbp_file_get_rank(cfile)
@@ -118,12 +117,12 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
             processes.append(p)
             p.start()
         while process_pipes:
-            any_read = False
+            something_was_read = False
             for pipe in process_pipes:
                 try:
                     if not pipe.poll():
                         continue
-                    any_read = True
+                    something_was_read = True
                     events, errors, threads = pipe.recv()
                     for node_id, thread in threads.iteritems():
                         builder.unordered_threads_by_node[node_id].update(thread)
@@ -134,7 +133,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
                     process_pipes.remove(pipe)
                 except EOFError:
                     process_pipes.remove(pipe)
-            if not any_read:
+            if not something_was_read:
                 time.sleep(0.05) # tiny sleep so as not to hog CPU
         for p in processes:
             p.join() # cleanup spawned processes
@@ -193,44 +192,60 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
 
     return trace
 
+
+
 # returns the output filename in a list, not the trace itself.
-cpdef convert(filenames, outfilename=None, unlink=False, multiprocess=True,
+cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
               force_reconvert=False, validate_existing=False,
               table=False, append=False, report_progress=False,
               add_info=dict(), compress=('blosc', 0)):
-    if outfilename == None:
-        outfilename = ptt_name(filenames[0])
-    if os.path.exists(outfilename): # this file was already converted
-        if not force_reconvert:
-            try:
-                if validate_existing:
-                    from_hdf(outfilename, skeleton_only=True)
-                cond_print(
-                    'PTT {} already exists. '.format(
-                        os.path.basename(outfilename)) +
-                    'Conversion not forced.', report_progress)
-                return outfilename # file already exists
-            except:
-                cond_print(
-                    'PTT {} already exists, but cannot be validated. '.format(
-                        os.path.basename(outfilename)) +
-                    'Conversion will proceed.', report_progress)
-                pass # something went wrong, so try conversion anyway
+    # check for existing .h5 (try not to re-convert unnecessarily)
+    h5_conflicts = find_h5_conflicts(filenames)
+    if h5_conflicts:
+        cond_print('potential h5 conflicts:' + str(h5_conflicts), report_progress)
+        conflict_out = h5_conflicts[0]
+        # do skeleton read to check more carefully
+        try:
+            if validate_existing:
+                from_hdf(conflict_out, skeleton_only=True)
+            cond_print(
+                'PTT {} already exists. '.format(
+                    os.path.basename(conflict_out)) +
+                'Conversion not forced.', report_progress)
+            return conflict_out # file already exists
+        except:
+            cond_print(
+                'PTT {} already exists, but cannot be validated. '.format(
+                    os.path.basename(conflict_out)) +
+                'Conversion will proceed.', report_progress)
+            pass # something went wrong, so try conversion anyway
+        
     # convert
     cond_print('Converting {}'.format(filenames), report_progress)
-
     trace = read(filenames, report_progress=report_progress, 
                  multiprocess=multiprocess, add_info=add_info)
+
+    if out == None: # create out filename
+        rank_zero_filename = trace.nodes.iloc[0]['filename']
+        match = dot_prof_regex.match(rank_zero_filename)
+        if match:
+            infos = default_descriptors[:] + ['start_time']
+            infos.remove('exe') # this is in match.group(1)
+            out = (match.group(1).strip('_') + '-' + trace.name(infos=infos) + 
+                   '-' + match.group(4) + '.h5')
+        else:
+            out = get_basic_ptt_name(rank_zero_filename)
+
     # write file
     with Timer() as t:
-        trace.to_hdf(outfilename, table=table, append=append,
-                       complevel=compress[1], complib=compress[0])
+        trace.to_hdf(out, table=table, append=append,
+                     complevel=compress[1], complib=compress[0])
     cond_print('Wrote trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
             cond_print('Unlinking {} after conversion'.format(filename), report_progress)
             os.unlink(filename)
-    return outfilename
+    return out
 
 
 # This function helps support duplicate keys in the info dictionaries
@@ -428,6 +443,8 @@ class ProfileBuilder(object):
         self.information = dict()
         self.event_attributes = dict()
         self.unordered_threads_by_node = dict()
+        self.node_order = dict()
+
 
 # NOTE:
 # this breaks Cython, so don't do it

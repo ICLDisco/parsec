@@ -255,9 +255,9 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                     moved_trace_filenames = list()
                     for filename in trace_filenames:
                         trace_filename = filename.replace('testing_' + exe,
-                                                            out_dir
-                                                            + os.sep
-                                                            + test.unique_name())
+                                                          out_dir
+                                                          + os.sep
+                                                          + test.unique_name())
                         # print('moving {} to {}'.format(filename, trace_filename))
                         shutil.move(filename, trace_filename)
                         moved_trace_filenames.append(trace_filename)

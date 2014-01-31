@@ -15,6 +15,7 @@ to_hdf and from_hdf.
 import sys
 import os
 import re
+import glob
 import shutil
 import numpy as np
 import pandas as pd
@@ -24,7 +25,7 @@ import warnings # because these warnings are annoying, and I can find no way aro
 warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
-default_descriptors = ['hostname', 'exe', 'ncores', 'sched']
+default_descriptors = ['hostname', 'exe', 'ncores', 'N', 'NB', 'sched', 'gflops']
 
 class ParsecTraceTables(object):
     class_version = 1.0 # created 2013.10.22 after move to pandas
@@ -50,7 +51,10 @@ class ParsecTraceTables(object):
         # metadata
         self.basic_columns = ParsecTraceTables.basic_event_columns
 
-    def to_hdf(self, filename, table=False, append=False, complevel=0, complib='blosc'):
+    def to_hdf(self, filename, table=False, append=False, overwrite=True,
+               complevel=0, complib='blosc'):
+        if not overwrite and os.path.exists(filename):
+            return False
         store = pd.HDFStore(filename + '.tmp', 'w')
         for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
             store.put(name, self.__dict__[name])
@@ -59,6 +63,7 @@ class ParsecTraceTables(object):
         # do atomic move once it's finished writing,
         # so as to allow Ctrl-Cs without secret breakage
         shutil.move(filename + '.tmp', filename)
+        return True
 
     # this allows certain 'acceptable' attribute abbreviations
     # and automatically searches the 'information' dictionary
@@ -78,11 +83,11 @@ class ParsecTraceTables(object):
             infos = []
         if add_infos:
             infos += add_infos
-        return describe_dict(self.information, keys=infos, sep='_')
+        return describe_dict(self.information, keys=infos, sep='-')
 
-    def unique_name(self, add_infos=None):
-        infos = default_descriptors + ['start_time']
-        return self.name(infos=infos, add_infos=add_infos)
+    def unique_name(self):
+        infos = ['start_time'] + default_descriptors
+        return self.name(infos=infos)
 
     # use with care - does an eval() on self'user text' when 'user text' starts with '.'
     def filter_events(self, filter_strings):
@@ -104,25 +109,6 @@ class ParsecTraceTables(object):
 
     def __del__(self):
         self.close()
-
-
-def raw_key(dict_, name):
-    """ Converts a simple key name into the actual key name by PaRSEC rules."""
-    try:
-        dict_[name]
-        return name
-    except:
-        pass
-    try:
-        dict_[str(name).upper()]
-        return str(name).upper()
-    except:
-        pass
-    try:
-        dict_['PARAM_' + str(name).upper()]
-        return 'PARAM_' + str(name).upper()
-    except:
-        return name
 
 
 def from_hdf(filename, skeleton_only=False, keep_store=False):
@@ -147,6 +133,71 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
         trace._store = None
         store.close()
     return trace
+
+### END CORE FUNCTIONALITY
+#####################################
+### BEGIN UTILITY FUNCTIONS
+
+def raw_key(dict_, name):
+    """ Converts a simple key name into the actual key name by PaRSEC rules."""
+    try:
+        dict_[name]
+        return name
+    except:
+        pass
+    try:
+        dict_[str(name).upper()]
+        return str(name).upper()
+    except:
+        pass
+    try:
+        dict_['PARAM_' + str(name).upper()]
+        return 'PARAM_' + str(name).upper()
+    except:
+        return name
+
+
+def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
+                  include_key=False, key_length=3, val_length=sys.maxint,
+                  float_formatter='{:.1f}'):
+    description = str()
+    used_keys = []
+    for key in keys:
+        real_key = raw_key(dict_, key)
+        try:
+            if real_key in used_keys:
+                continue # exclude duplicates
+            used_keys.append(real_key)
+            # get the value before we add the key to the description,
+            # in case the key isn't present and we raise an exception
+            value = nice_val(dict_, real_key)
+
+            if include_key and key_length > 0:
+                description += '{}'.format(key[:key_length].lower())
+            if key_val_sep is not None:
+                description += str(key) + key_val_sep
+
+            try:
+                if '.' in str(value):
+                    description += float_formatter.format(value) + sep
+                else:
+                    description += str(value)[:val_length] + sep
+            except:
+                description += str(value)[:val_length] + sep
+        except KeyError as e:
+            pass # key doesn't exist - just ignore
+    return description[:-len(sep)] # remove last 'sep'
+
+
+def nice_val(dict_, key):
+    """ Edits return values for common usage."""
+    if key == 'exe':
+        m = re.match('.*testing_(\w+)', dict_[key])
+        return m.group(1)
+    if key == 'hostname':
+        return dict_[key].split('.')[0]
+    else:
+        return dict_[key]
 
 
 def find_trace_sets(traces, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
@@ -202,32 +253,33 @@ def automerge_trace_sets(trace_sets):
     return merged_traces
 
 
-def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None):
-    description = str()
-    used_keys = []
-    for key in keys:
-        real_key = raw_key(dict_, key)
-        try:
-            if real_key in used_keys:
-                continue # exclude duplicates
-            used_keys.append(real_key)
-            value = str(nice_val(dict_, real_key))
-            if key_val_sep is not None:
-                description += str(key) + key_val_sep
-            description += value + sep
-        except KeyError as e:
-            pass # key doesn't exist - just ignore
-    return description[:-len(sep)] # remove last 'sep'
+dot_prof_regex = re.compile('(\w+).*(\.prof)(.*)-([a-zA-Z0-9]{6})')
 
-def nice_val(dict_, key):
-    """ Edits return values for common usage."""
-    if key == 'exe':
-        m = re.match('.*testing_(\w+)', dict_[key])
-        return m.group(1)
-    else:
-        return dict_[key]
+def find_h5_conflicts(filenames):
+    """ Takes a list of 'prof' filenames and returns any .h5 conflicts.
 
-ptt_core = '.h5-'
+    The determination is based on the six-char unique identifier
+    that usually ends the .prof filenames, which is generated by MPI.
+    The id is different for each rank, but since there will only be
+    one .h5 for a full distributed trace, the 6-char string from rank 0
+    is generally chosen as the string to use in the .h5 name.
+
+    This function only really looks for names that end in that ID + '.h5'.
+    It could easily be modified to search for any filename including that
+    string that is not one of the filenames passed.
+
+    If None is returned, there were no conflicts found.
+    """
+    for filename in filenames:
+        matches = dot_prof_regex.match(filename)
+        if matches:
+            unique_six_char_str = matches.group(4)
+            h5_conflicts = glob.glob('*' + unique_six_char_str + '.h5')
+            if len(h5_conflicts) > 0:
+                return h5_conflicts
+    return None
+
+
 old_ptt_core = '.h5-'
 pbt_core = '.prof-' # this is here and not in pbt2ptt b/c pure-python things still need to test
 ptt_ext = '.h5'
@@ -238,12 +290,8 @@ def is_old_ptt(filename):
     return old_ptt_core in filename
 def is_pbt(filename):
     return pbt_core in filename
-def does_ptt_exist(filenames):
-    return is_ptt(filenames[0])
-def ptt_name(filename):
+def get_basic_ptt_name(filename):
     if is_ptt(filename):
         return filename
-    return filename.replace(pbt_core, ptt_core) + ptt_ext
-def old_ptt_name(filename):
-    return fileame.replace(pbt_core, old_ptt_core)
+    return filename.replace(pbt_core, '-') + ptt_ext
 
