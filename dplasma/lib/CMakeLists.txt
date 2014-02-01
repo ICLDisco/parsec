@@ -174,12 +174,7 @@ precisions_rules_py(generated_wrappers
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
-if (DAGUE_COMPILE_INPLACE)
-  add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" ${generated_wrappers} )
-else()
-  add_documented_files( PARSEC_ALL_SRCS "" ${generated_wrappers} )
-endif()
-
+add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_BINARY_DIR}/" ${generated_wrappers} )
 
 ### Generate the lib
 link_directories(${COREBLAS_LIBRARY_DIRS})
