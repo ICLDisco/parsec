@@ -1,16 +1,15 @@
-option(BUILD_DOCUMENTATION "Use Doxygen to create the HTML based API documentation" OFF)
+#
+#Use Doxygen to create the API documentation
+#
 
-if(BUILD_DOCUMENTATION)
-  find_package(Doxygen)
+option(BUILD_DOCUMENTATION "Generate API documentation during the build process." OFF)
 
-  if (NOT DOXYGEN_FOUND)
-    message(FATAL_ERROR
-      "Doxygen is needed to build the documentation. Please install it correctly")
-  endif()
+find_package(Doxygen)
+
+if (DOXYGEN_FOUND)
 
   set(PARSEC_DOX_SRCS )
   foreach( _file ${PARSEC_ALL_SRCS} )
-    #message(STATUS "File: ${_file}" )
     set(PARSEC_DOX_SRCS "${PARSEC_DOX_SRCS} ${_file}" )
   endforeach()
 
@@ -18,9 +17,17 @@ if(BUILD_DOCUMENTATION)
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxyfile.in
                  ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile @ONLY IMMEDIATE )
   #-- Add a custom target to run Doxygen when ever the project is built
-  add_custom_target (docs
-    COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile
-    SOURCES ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile )
+  if(BUILD_DOCUMENTATION)
+    add_custom_target (docs ALL
+      COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile
+      SOURCES ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile
+      COMMENT "Generating API documentation with Doxygen" VERBATIM)
+  else(BUILD_DOCUMENTATION)
+    add_custom_target (docs
+      COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile
+      SOURCES ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile
+      COMMENT "Generating API documentation with Doxygen" VERBATIM)
+  endif(BUILD_DOCUMENTATION)
 
-endif()
+endif (DOXYGEN_FOUND)
 
