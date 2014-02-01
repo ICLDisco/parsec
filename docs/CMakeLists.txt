@@ -8,7 +8,10 @@ find_package(Doxygen)
 
 if (DOXYGEN_FOUND)
 
-  set(PARSEC_DOX_SRCS )
+  #  set(PARSEC_DOX_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  #  set(PARSEC_DOX_SRCS "${PARSEC_DOX_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/include")
+  #  set(PARSEC_DOX_SRCS "${PARSEC_DOX_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/tools")
+  #  set(PARSEC_DOX_SRCS "${PARSEC_DOX_SRCS} ${CMAKE_CURRENT_SOURCE_DIR}/data_dist")
   foreach( _file ${PARSEC_ALL_SRCS} )
     set(PARSEC_DOX_SRCS "${PARSEC_DOX_SRCS} ${_file}" )
   endforeach()
