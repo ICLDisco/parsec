@@ -210,7 +210,6 @@ int dague_profiling_init( const char *format, ... )
     MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 #endif /* DISTRIBUTED && HAVE_MPI */
     PROFILING_SAVE_uint64INFO("start_time", timestamp);
-    printf("start time is %llu\n", timestamp);
 
     /* add the hostname, for the sake of explicit profiling */
     char buf[HOST_NAME_MAX];

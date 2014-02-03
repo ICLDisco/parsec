@@ -18,7 +18,6 @@ if c_compiler.endswith('icc'):
 else:
     extra_compile_args = []
 
-# libs = ['irc', 'imf', 'dague']
 libs = ['dague'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
 lib_dirs = (['@PROJECT_BINARY_DIR@']) # +
 #            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
