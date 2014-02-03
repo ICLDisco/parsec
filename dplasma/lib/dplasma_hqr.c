@@ -1766,8 +1766,13 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
             hqr_high_binary_init(arg->hlvl);
             break;
         case DPLASMA_FIBONACCI_TREE :
-        default:
             hqr_high_fibonacci_init(arg->hlvl);
+        default:
+            if ( ratio >= 0.5 ) {
+                hqr_high_flat_init(arg->hlvl);
+            } else {
+                hqr_high_fibonacci_init(arg->hlvl);
+            }
         }
     }
 
