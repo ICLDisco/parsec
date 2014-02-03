@@ -20,7 +20,7 @@ else:
 
 # libs = ['irc', 'imf', 'dague']
 libs = ['dague'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
-lib_dirs = (['@PROJECT_BINARY_DIR@/dague']) # +
+lib_dirs = (['@PROJECT_BINARY_DIR@']) # +
 #            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
 
