@@ -206,6 +206,7 @@ int dague_profiling_init( const char *format, ... )
 
     /* shared timestamp allows grouping profiles from different nodes */
     unsigned long long int timestamp = (unsigned long long int)dague_start_time.tv_sec;
+    (void)timestamp;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
     MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
 #endif /* DISTRIBUTED && HAVE_MPI */
