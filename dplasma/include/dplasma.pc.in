@@ -7,7 +7,7 @@ Name: DPLASMA
 Description: Distributed PLASMA over PaRSEC runtime
 Version: 1.0
 Requires: parsec coreblas @PARSEC_PKG_REQUIRE@
-Libs: -L${libdir} -ldplasma -ldague_distribution
+Libs: -L${libdir} -ldplasma -ldague_distribution_matrix
 Libs.private: @EXTRA_LIBS@
 Cflags: -I${includedir} -I/usr/include
 
