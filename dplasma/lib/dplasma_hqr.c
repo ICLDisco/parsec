@@ -1652,6 +1652,7 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
                   int a, int p,
                   int domino, int tsrr )
 {
+    double ratio = 0.0;
     int low_mt, minMN;
     hqr_args_t *arg;
 
@@ -1683,7 +1684,6 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
         domino = domino ? 1 : 0;
     }
     else {
-        double ratio;
         if (trans == PlasmaNoTrans) {
             ratio = ((double)(A->nt) / (double)(A->mt));
         } else {
