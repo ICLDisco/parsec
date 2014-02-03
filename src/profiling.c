@@ -31,6 +31,14 @@
 
 #define MINIMAL_EVENT_BUFFER_SIZE          (1024*1024)
 
+#ifndef HOST_NAME_MAX
+#if defined(MAC_OS_X)
+#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#else
+#define HOST_NAME_MAX 1024
+#endif  /* defined(MAC_OS_X) */
+#endif /* defined(HOST_NAME_MAX) */
+
 /**
  * Externally visible on/off switch for the profiling of new events. It
  * only protects the macros, a direct call to the dague_profiling_trace
@@ -97,6 +105,17 @@ int dague_profiling_change_profile_attribute( const char *format, ... )
     va_end(ap);
 
     return 0;
+}
+
+void dague_profiling_thread_add_information(dague_thread_profiling_t * thread,
+                                            const char *key, const char *value )
+{
+    dague_profiling_info_t *n;
+    n = (dague_profiling_info_t *)calloc(1, sizeof(dague_profiling_info_t));
+    n->key = strdup(key);
+    n->value = strdup(value);
+    n->next = thread->infos;
+    thread->infos = n;
 }
 
 int dague_profiling_init( const char *format, ... )
@@ -185,6 +204,46 @@ int dague_profiling_init( const char *format, ... )
     __already_called = 0;
     dague_profile_enabled = 1;  /* turn on the profiling */
 
+    /* shared timestamp allows grouping profiles from different nodes */
+    unsigned long long int timestamp = (unsigned long long int)dague_start_time.tv_sec;
+#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+    MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+#endif /* DISTRIBUTED && HAVE_MPI */
+    PROFILING_SAVE_uint64INFO("start_time", timestamp);
+    printf("start time is %llu\n", timestamp);
+
+    /* add the hostname, for the sake of explicit profiling */
+    char buf[HOST_NAME_MAX];
+    if (0 == gethostname(buf, HOST_NAME_MAX))
+        dague_profiling_add_information("hostname", buf);
+    else
+        dague_profiling_add_information("hostname", "");
+
+    /* the current working directory may also be helpful */
+    char * newcwd = NULL;
+    int bufsize = HOST_NAME_MAX;
+    errno = 0;
+    char * cwd = getcwd(buf, bufsize);
+    while (cwd == NULL && errno == ERANGE) {
+        bufsize *= 2;
+        cwd = realloc(cwd, bufsize);
+        if (cwd == NULL)            /* failed  - just give up */
+            break;
+        errno = 0;
+        newcwd = getcwd(cwd, bufsize);
+        if (newcwd == NULL) {
+            free(cwd);
+            cwd = NULL;
+        }
+    }
+    if (cwd != NULL) {
+        dague_profiling_add_information("cwd", cwd);
+        if (cwd != buf)
+            free(cwd);
+    }
+    else
+        dague_profiling_add_information("cwd", "");
+
     return 0;
 }
 
@@ -192,6 +251,9 @@ int dague_profiling_start(void)
 {
     if( ++__already_called > 1 )
         return -1;
+#if defined(HAVE_MPI)
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
     dague_start_time = take_time();
     return 0;
 }

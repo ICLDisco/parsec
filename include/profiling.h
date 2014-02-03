@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdlib.h>
 
 BEGIN_C_DECLS
 /**
@@ -46,6 +47,14 @@ int dague_profiling_start(void);
  * Used to store the value of the globals names and values in the current run
  */
 void dague_profiling_add_information( const char *key, const char *value );
+
+/**
+ * Add additional information about the current run, under the form key/value.
+ * This one adds key/value pairs PER THREAD, not globally.
+ * Not thread safe.
+ */
+void dague_profiling_thread_add_information(dague_thread_profiling_t * thread,
+                                            const char *key, const char *value );
 
 /**
  * Initializes the buffer trace with the specified length.
@@ -200,6 +209,102 @@ void dague_profiling_disable(void);
     if( dague_profile_enabled ) {                                       \
         dague_profiling_trace_flags(context, key, event_id, object_id, info, flags ); \
     }
+
+/* MACROS for use elsewhere */
+/* global */
+static inline void
+profiling_save_dinfo(const char *key, double value)
+{
+    char *svalue;
+    int rv=asprintf(&svalue, "%g", value);
+    (void)rv;
+    dague_profiling_add_information(key, svalue);
+    free(svalue);
+}
+static inline void
+profiling_save_iinfo(const char *key, int value)
+{
+    char *svalue;
+    int rv=asprintf(&svalue, "%d", value);
+    (void)rv;
+    dague_profiling_add_information(key, svalue);
+    free(svalue);
+}
+static inline void
+profiling_save_uint64info(const char *key, unsigned long long int value)
+{
+    char *svalue;
+    int rv=asprintf(&svalue, "%llu", value);
+    (void)rv;
+    dague_profiling_add_information(key, svalue);
+    free(svalue);
+}
+static inline void profiling_save_sinfo(const char *key, char* svalue)
+{
+    dague_profiling_add_information(key, svalue);
+}
+/* for threads */
+static inline void
+profiling_thread_save_dinfo(dague_thread_profiling_t * thread,
+                            const char *key, double value)
+{
+    char *svalue;
+    int rv=asprintf(&svalue, "%g", value);
+    (void)rv;
+    dague_profiling_thread_add_information(thread, key, svalue);
+    free(svalue);
+}
+static inline void
+profiling_thread_save_iinfo(dague_thread_profiling_t * thread,
+                            const char *key, int value)
+{
+    char *svalue;
+    int rv=asprintf(&svalue, "%d", value);
+    (void)rv;
+    dague_profiling_thread_add_information(thread, key, svalue);
+    free(svalue);
+}
+static inline void
+profiling_thread_save_uint64info(dague_thread_profiling_t * thread,
+                                 const char *key, unsigned long long int value)
+{
+    char *svalue;
+    int rv=asprintf(&svalue, "%llu", value);
+    (void)rv;
+    dague_profiling_thread_add_information(thread, key, svalue);
+    free(svalue);
+}
+static inline void
+profiling_thread_save_sinfo(dague_thread_profiling_t * thread,
+                            const char *key, char* svalue)
+{
+    dague_profiling_thread_add_information(thread, key, svalue);
+}
+
+#if defined(DAGUE_PROF_TRACE)
+#define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
+#define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
+#define PROFILING_SAVE_uint64INFO(key, integer_value) profiling_save_uint64info(key, integer_value)
+#define PROFILING_SAVE_sINFO(key, str_value) profiling_save_sinfo(key, str_value)
+#define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value)  \
+    profiling_thread_save_dinfo(thread, key, double_value)
+#define PROFILING_THREAD_SAVE_iINFO(thread, key, integer_value) \
+    profiling_thread_save_iinfo(thread, key, integer_value)
+#define PROFILING_THREAD_SAVE_uint64INFO(thread, key, integer_value) \
+    profiling_thread_save_uint64info(thread, key, integer_value)
+#define PROFILING_THREAD_SAVE_sINFO(thread, key, str_value)     \
+    profiling_thread_save_sinfo(thread, key, str_value)
+#else
+#define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
+#define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
+#define PROFILING_SAVE_uint64INFO(key, integer_value) do {} while(0)
+#define PROFILING_SAVE_sINFO(key, str_value) do {} while(0)
+#define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value) do {} while(0)
+#define PROFILING_THREAD_SAVE_iINFO(thread, key, integer_value) do {} while(0)
+#define PROFILING_THREAD_SAVE_uint64INFO(thread, key, integer_value) do {} while(0)
+#define PROFILING_THREAD_SAVE_sINFO(thread, key, str_value) do {} while(0)
+#endif
+
 
 END_C_DECLS
 

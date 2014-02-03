@@ -89,10 +89,12 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
                     'filename':dbp_file_get_name(cfile),
                     'id':node_id,
                     'error':dbp_file_error(cfile)}
+        print(dbp_file_nb_infos(cfile))
         for index in range(dbp_file_nb_infos(cfile)):
             cinfo = dbp_file_get_info(cfile, index)
             key = dbp_info_get_key(cinfo)
             value = dbp_info_get_value(cinfo)
+            print(key, value)
             add_kv(node_dct, key, value)
         builder.nodes.append(node_dct)
         # record threads for this node
