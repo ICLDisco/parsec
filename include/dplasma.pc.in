@@ -1,0 +1,13 @@
+prefix=/usr/local
+exec_prefix=${prefix}/bin
+libdir=${prefix}/lib
+includedir=${prefix}/include
+
+Name: DPLASMA
+Description: Distributed PLASMA over PaRSEC runtime
+Version: 1.0
+Requires: parsec coreblas
+Libs: -L${libdir} -ldplasma -ldague_distribution
+Libs.private: @EXTRA_LIBS@
+Cflags: -I${includedir} -I/usr/include
+
