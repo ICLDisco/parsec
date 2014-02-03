@@ -918,9 +918,10 @@ static int dague_update_deps_with_counter( const dague_object_t *dague_object,
 
 #if defined(DAGUE_DEBUG)
     {
+        char wtmp[MAX_TASK_STRLEN];
         if( (uint32_t)dep_cur_value > (uint32_t)-128) {
             ERROR(("function %s as reached an improbable dependency count of %u\n",
-                   tmp, dep_cur_value ));
+                   wtmp, dep_cur_value ));
         }
 
         DEBUG3(("Task %s has a current dependencies count of %d remaining. %s to go!\n",
