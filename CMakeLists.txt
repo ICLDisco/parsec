@@ -635,13 +635,9 @@ configure_file (
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dplasma.pc.in"
-  "${PROJECT_INCLUDE_DIR}/dplasma.pc" @ONLY)
 
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)
 install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"  DESTINATION lib/pkgconfig)
-install(FILES "${PROJECT_INCLUDE_DIR}/dplasma.pc" DESTINATION lib/pkgconfig)
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
