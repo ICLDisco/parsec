@@ -467,6 +467,11 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(-'q' == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = (iparam[IPARAM_N]/iparam[IPARAM_NB])/iparam[IPARAM_Q];
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
+
+
+    /* HQR */
+    if(-1 == iparam[IPARAM_QR_HLVL_SZE])
+        iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_NNODES];
 }
 
 static void print_arguments(int* iparam)
@@ -524,8 +529,12 @@ static void iparam_default(int* iparam)
     memset(iparam, 0, IPARAM_SIZEOF * sizeof(int));
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_NGPUS] = -1;
-    iparam[IPARAM_QR_DOMINO] = 0;
-    iparam[IPARAM_QR_TSRR] = 0;
+    iparam[IPARAM_QR_DOMINO]    = -1;
+    iparam[IPARAM_QR_TSRR]      = 0;
+    iparam[IPARAM_LOWLVL_TREE]  = DPLASMA_GREEDY_TREE;
+    iparam[IPARAM_HIGHLVL_TREE] = -1;
+    iparam[IPARAM_QR_TS_SZE]    = -1;
+    iparam[IPARAM_QR_HLVL_SZE]  = -1;
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)
