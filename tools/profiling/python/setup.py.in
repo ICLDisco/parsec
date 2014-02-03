@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+# build script for pbt2ptt
+# run python setup.py build_ext --inplace to build
+
+from distutils import ccompiler, util
+from distutils.core import setup
+from distutils.extension import Extension
+from Cython.Distutils import build_ext, extension
+import os.path
+import sys
+import socket
+
+c_compiler = '@CMAKE_C_COMPILER@'.replace('FILEPATH=', '')
+cxx_compiler = '@CMAKE_CXX_COMPILER@'.replace('FILEPATH=', '')
+
+if c_compiler.endswith('icc'):
+    extra_compile_args = ['-wd47', '-static-intel']
+else:
+    extra_compile_args = []
+
+libs = ['dague'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
+lib_dirs = (['@PROJECT_BINARY_DIR@/dague', '@PROJECT_BINARY_DIR@']) # +
+#            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
+run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
+
+ext_modules = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
+                                            '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
+                         include_dirs=['@PROJECT_SOURCE_DIR@/include',
+                                       '@PROJECT_SOURCE_DIR@',
+                                       '@PROJECT_BINARY_DIR@/include',
+                                       '@PROJECT_BINARY_DIR@',
+                                       '@CMAKE_CURRENT_SOURCE_DIR@/../'],
+                         depends=['setup.py.in',
+                                  'pbt2ptt.pxd',
+                                  'pbt_info_parser.pxd',
+                                  'pbt_info_parser.pxi',
+                                  '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
+                                  '@PROJECT_SOURCE_DIR@/include/dbp.h',
+                                  '@PROJECT_SOURCE_DIR@/include/os-spec-timing.h'],
+                         library_dirs=lib_dirs,
+                         runtime_library_dirs=run_dirs,
+                         libraries=libs,
+                         # extra_compile_args=['@CMAKE_C_FLAGS@']
+                     )]
+
+build_type = '@CMAKE_BUILD_TYPE@'
+
+class local_compiler_build_ext( build_ext ):
+    def build_extensions(self):
+        # manually set options on compiler
+        try:
+            self.compiler.compiler = ([c_compiler] +
+                                      self.compiler.compiler[1:] +
+                                      util.split_quoted('@CMAKE_C_FLAGS@') +
+                                      extra_compile_args
+            )
+        except:
+            pass
+
+        try:
+            self.compiler.preprocessor = ([c_compiler] +
+                                          self.compiler.preprocessor[1:]
+            )
+        except:
+            pass
+
+        try:
+            self.compiler.compiler_so = ([c_compiler] +
+                                         self.compiler.compiler_so[1:] +
+                                         util.split_quoted('@CMAKE_C_FLAGS@') +
+                                         extra_compile_args
+            )
+        except:
+            pass
+
+        try:
+            self.compiler.linker_so = ([c_compiler] +
+                                       self.compiler.linker_so[1:] +
+                                       util.split_quoted('@CMAKE_C_FLAGS@') +
+                                       extra_compile_args
+            )
+        except:
+            pass
+
+        try:
+            self.compiler.compiler_cxx = ([cxx_compiler] +
+                                          self.compiler.compiler_cxx[1:] +
+                                          util.split_quoted('@CMAKE_C_FLAGS@') +
+                                          extra_compile_args
+            )
+        except:
+            pass
+
+        # print('compiler is ' + str(self.compiler.__dict__))
+        build_ext.build_extensions(self)
+
+setup(
+    name = 'PaRSEC Binary Profile Interface',
+    version='@PACKAGE_VERSION@',
+    description='parses and converts the PaRSEC Binary Profile format into a pandas Python format',
+    url='http://icl.cs.utk.edu/parsec/',
+    package_dir={ '': '@CMAKE_CURRENT_BINARY_DIR@' },
+    cmdclass = {'build_ext': local_compiler_build_ext},
+    ext_modules = ext_modules
+)
