@@ -369,12 +369,6 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     cdef uint64_t end = 0
     cdef void * cinfo = NULL
 
-    cdef papi_exec_info_t * cast_exec_info = NULL
-    cdef select_info_t * cast_select_info = NULL
-    cdef papi_core_socket_info_t * cast_core_socket_info = NULL
-    cdef papi_core_select_info_t * cast_core_select_info = NULL
-    cdef papi_core_exec_info_t * cast_core_exec_info = NULL
-
     th_begin = sys.maxint
     th_end = 0
     thread_descrip = dbp_thread_get_hr_id(cthread)
