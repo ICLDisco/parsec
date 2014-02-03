@@ -271,10 +271,12 @@ def find_h5_conflicts(filenames):
     If None is returned, there were no conflicts found.
     """
     for filename in filenames:
-        matches = dot_prof_regex.match(filename)
+        basename = os.path.basename(filename)
+        dirname = os.path.dirname(filename)
+        matches = dot_prof_regex.match(basename)
         if matches:
             unique_six_char_str = matches.group(4)
-            h5_conflicts = glob.glob('*' + unique_six_char_str + '.h5')
+            h5_conflicts = glob.glob(dirname + os.sep + '*' + unique_six_char_str + '.h5')
             if len(h5_conflicts) > 0:
                 return h5_conflicts
     return None

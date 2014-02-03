@@ -89,10 +89,10 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
                 if start_time not in unfinished_groups:
                     unfinished_groups[start_time] = list()
                 unfinished_groups[start_time].append(TraceAndName(infonly_trace, filename))
-            else:
+            else: # ungroupable - fail fast.
                 print('One of the traces does not have a start_time information attribute.')
                 print('As a result, these traces cannot be accurately grouped.')
-                return filenames
+                return [filenames] # we must return a list of lists
 
     # now that we've done the initial grouping, check for conflicts
     for key, unfinished_group in unfinished_groups.iteritems():
@@ -280,13 +280,17 @@ def autoload_traces(filenames, convert=True, unlink=False,
     # convert or separate into PTTs and PBTs
     if convert: # then turn everything into a PTT
         for fn_group in pbt_groups[:]:
-            import pbt2ptt
-            # do convert on all -- already-converted filenames will simply be returned
-            converted_filename = pbt2ptt.convert(
-                fn_group, unlink=unlink, report_progress=report_progress,
-                force_reconvert=force_reconvert, multiprocess=multiprocess)
-            ptts.append(converted_filename)
-            pbt_groups.remove(fn_group)
+            if len(fn_group) == 1 and ptt.is_ptt(fn_group[0]):
+                ptts.append(fn_group[0])
+                pbt_groups.remove(fn_group)
+            else:
+                import pbt2ptt
+                # do convert on all -- already-converted filenames will simply be returned
+                converted_filename = pbt2ptt.convert(
+                    fn_group, unlink=unlink, report_progress=report_progress,
+                    force_reconvert=force_reconvert, multiprocess=multiprocess)
+                ptts.append(converted_filename)
+                pbt_groups.remove(fn_group)
     else: # separate into already-PTTs and PBTs
         for fn_group in pbt_groups[:]:
             ptt_name = ptt.ptt_name(fn_group[0])
@@ -428,7 +432,9 @@ if __name__ == '__main__':
     else:
         name_infos = default_name_infos
 
+    print(filenames)
     processed_filename_groups = group_trace_filenames(filenames)
+    print(filenames)
 
     # processed_filename_groups = preprocess_traces(filenames, dry_run=dry_run,
     #                                               enhance_filenames=False,
