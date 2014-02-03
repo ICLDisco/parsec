@@ -49,6 +49,7 @@ struct dbp_file {
     int rank;
     int nb_infos;
     int  nb_threads;
+    int error;
     struct dbp_info  **infos;
     struct dbp_thread *threads;
 };
@@ -158,6 +159,7 @@ struct dbp_multifile_reader {
     int dico_size;
     int worldsize;
     int nb_infos;
+    int last_error;
     dague_time_t min_date;
     dbp_info_t *infos;
     dbp_dictionary_t *dico_keys;
@@ -428,6 +430,11 @@ int dbp_file_nb_infos(const dbp_file_t *file)
     return file->nb_infos;
 }
 
+int dbp_file_error(const dbp_file_t *file)
+{
+    return file->error;
+}
+
 dbp_info_t *dbp_file_get_info(const dbp_file_t *file, int iid)
 {
     assert( iid >= 0 && iid < file->nb_infos && file->infos != NULL);
@@ -458,6 +465,11 @@ dague_time_t dbp_reader_min_date(const dbp_multifile_reader_t *dbp)
 int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp)
 {
     return dbp->worldsize;
+}
+
+int dbp_reader_last_error(const dbp_multifile_reader_t *dbp)
+{
+    return dbp->last_error;
 }
 
 void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
