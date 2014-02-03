@@ -84,10 +84,15 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
             # initially group by start_time
             import pbt2ptt
             infonly_trace = pbt2ptt.read([filename], skeleton_only=True)
-            start_time = infonly_trace.information['start_time']
-            if start_time not in unfinished_groups:
-                unfinished_groups[start_time] = list()
-            unfinished_groups[start_time].append(TraceAndName(infonly_trace, filename))
+            if hasattr(infonly_trace, 'start_time'):
+                start_time = infonly_trace.information['start_time']
+                if start_time not in unfinished_groups:
+                    unfinished_groups[start_time] = list()
+                unfinished_groups[start_time].append(TraceAndName(infonly_trace, filename))
+            else:
+                print('One of the traces does not have a start_time information attribute.')
+                print('As a result, these traces cannot be accurately grouped.')
+                return filenames
 
     # now that we've done the initial grouping, check for conflicts
     for key, unfinished_group in unfinished_groups.iteritems():
@@ -423,7 +428,7 @@ if __name__ == '__main__':
     else:
         name_infos = default_name_infos
 
-    processed_filename_groups = group_trace_filenames(filenames, dry_run=dry_run)
+    processed_filename_groups = group_trace_filenames(filenames)
 
     # processed_filename_groups = preprocess_traces(filenames, dry_run=dry_run,
     #                                               enhance_filenames=False,

@@ -138,10 +138,11 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
         for p in processes:
             p.join() # cleanup spawned processes
     # report progress
-    cond_print('\nParsing the PBT files took ' + str(t.interval) + ' seconds, ' ,
+    cond_print('\nParsing the PBT files took ' + str(t.interval) + ' seconds' ,
                report_progress, end='')
-    cond_print('which is ' + str(t.interval/len(node_threads))
-               + ' seconds per thread.', report_progress)
+    if len(node_threads) > 0:
+        cond_print(', which is ' + str(t.interval/len(node_threads))
+                   + ' seconds per thread.', report_progress)
 
     # sort threads
     for node_id in sorted(builder.unordered_threads_by_node.keys()):
@@ -152,7 +153,10 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     # e.g., PARAM_N, PARAM_MB, etc.
     # basically, any key that has the same value in all nodes should
     # go straight into the top-level 'information' dictionary, since it is global
-    builder.information.update(builder.nodes[0])
+    if len(builder.nodes) > 0:
+        builder.information.update(builder.nodes[0])
+    else:
+        cond_print('No nodes were found in the trace.', report_progress)
     for node in builder.nodes:
         for key, value in node.iteritems():
             if key in builder.information.keys():
@@ -167,10 +171,14 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
         for key, val in add_info.iteritems():
             add_kv(builder.information, key, val)
 
-    cond_print('Then we concatenate the event DataFrames....', report_progress)
-    with Timer() as t:
-        events = pd.concat(builder.events)
-    cond_print('   events DataFrame concatenation time: ' + str(t.interval), report_progress)
+    if len(builder.events) > 0:
+        cond_print('Then we concatenate the event DataFrames....', report_progress)
+        with Timer() as t:
+            events = pd.concat(builder.events)
+        cond_print('   events DataFrame concatenation time: ' + str(t.interval), report_progress)
+    else:
+        events = pd.DataFrame()
+        cond_print('No events were found in the trace.', report_progress)
 
     with Timer() as t:
         information = pd.Series(builder.information)
@@ -179,7 +187,10 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
         event_attributes = pd.Series(builder.event_attributes)
         nodes = pd.DataFrame.from_records(builder.nodes)
         threads = pd.DataFrame.from_records(builder.threads)
-        errors = pd.concat(builder.errors)
+        if len(builder.errors) > 0:
+            errors = pd.concat(builder.errors)
+        else:
+            errors = pd.DataFrame()
     cond_print('Constructed additional structures in {} seconds.'.format(t.interval),
                report_progress)
 
@@ -455,6 +466,8 @@ class ProfileBuilder(object):
 def chunk(xs, n):
     ys = list(xs)
     ylen = len(ys)
+    if ylen < 1:
+        return []
     size = int(ylen / n)
     chunks = [ys[0+size*i : size*(i+1)] for i in xrange(n)]
     leftover = ylen - size*n
