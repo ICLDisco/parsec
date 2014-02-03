@@ -368,7 +368,8 @@ IF( BUILD_DAGUE )
   if( HWLOC_FOUND )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
-  endif (HWLOC_FOUND)
+    set (PARSEC_PKG_REQUIRE "hwloc")
+   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
     # Force the detection of the C library
@@ -634,7 +635,13 @@ configure_file (
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
-install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc" DESTINATION lib/pkgconfig)
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/include/dplasma.pc.in"
+  "${PROJECT_INCLUDE_DIR}/dplasma.pc" @ONLY)
+
+install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)
+install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"  DESTINATION lib/pkgconfig)
+install(FILES "${PROJECT_INCLUDE_DIR}/dplasma.pc" DESTINATION lib/pkgconfig)
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
