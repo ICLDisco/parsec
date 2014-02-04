@@ -55,7 +55,7 @@ static int sched_ltq_install( dague_context_t *master )
 static int flow_ltq_init(dague_execution_unit_t * eu, struct dague_barrier_t* barrier)
 {
     local_queues_scheduler_object_t *sched_obj = NULL;
-    int t, p, nq = 1, hwloc_levels;
+    int nq = 1, hwloc_levels;
     uint32_t queue_size;
     dague_vp_t * vp = eu->virtual_process;
 

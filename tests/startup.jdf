@@ -95,7 +95,7 @@ int main( int argc, char** argv )
         argc -= 1;
     }
 
-    dague = dague_init(1, &argc, &argv);
+    dague = dague_init(-1, &argc, &argv);
     assert( NULL != dague );
 
     /**

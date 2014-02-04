@@ -6,49 +6,27 @@
 
 #define BLOCK 10
 #define N     100
-#define TYPE  matrix_RealFloat
+
+extern int touch_finalize(void);
+extern dague_handle_t* touch_initialize(int block, int n);
 
 int main( int argc, char** argv )
 {
     dague_context_t* dague;
-    dague_touch_handle_t* object;
-    two_dim_block_cyclic_t descA;
-
-#ifdef HAVE_MPI
-    MPI_Init(&argc,&argv);
-#endif
+    dague_handle_t* handle;
 
     (void)argc; (void)argv;
     dague = dague_init(1, &argc, &argv);
     assert( NULL != dague );
 
-    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
-                               1 /*nodes*/, 0 /*rank*/,
-                               BLOCK, BLOCK, N, N,
-                               0, 0, N, N, 1, 1, 1);
-    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
-                                     descA.super.bsiz *
-                                     dague_datadist_getsizeoftype(TYPE) );
+    handle = touch_initialize(BLOCK, N);
 
-    object = dague_touch_new( &descA, (N / BLOCK) -1 );
-    assert( NULL != object );
-
-    dague_arena_construct( object->arenas[DAGUE_touch_DEFAULT_ARENA],
-                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
-
-    dague_enqueue( dague, (dague_handle_t*)object );
+    dague_enqueue( dague, handle );
 
     dague_progress(dague);
 
-    free(descA.mat);
-
     dague_fini( &dague);
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
-
+    touch_finalize();
     return 0;
 }
