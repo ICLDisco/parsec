@@ -170,8 +170,8 @@ END SUBROUTINE dague_handle_free
 SUBROUTINE dague_enqueue(context, handle, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
-    TYPE(dague_context_t), VALUE, INTENT(IN)   :: context
-    TYPE(dague_handle_t), VALUE, INTENT(IN)    :: handle
+    TYPE(dague_context_t), INTENT(IN)          :: context
+    TYPE(dague_handle_t), INTENT(IN)           :: handle
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
 
