@@ -14,7 +14,14 @@ interface touch_initialize
   end function
 end interface
 
-  integer BLOCK, N
+interface touch_finalize
+  function touch_finalize_f08() BIND(C, name="touch_finalize")
+    use, INTRINSIC :: ISO_C_BINDING, only : c_int
+    integer(kind=c_int) :: touch_finalize
+  end function
+end interface
+
+  integer BLOCK, N, ret
   parameter (BLOCK=10, N=100)
 
   type(dague_context_t) :: context
@@ -30,4 +37,7 @@ end interface
 
   call dague_fini(context)
 
+  ret = touch_finalize_f08()
+
+  call exit(ret)
 END
