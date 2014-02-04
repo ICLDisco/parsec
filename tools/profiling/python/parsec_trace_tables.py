@@ -276,13 +276,18 @@ def find_h5_conflicts(filenames):
         matches = dot_prof_regex.match(basename)
         if matches:
             unique_six_char_str = matches.group(4)
-            globber = '*' + unique_six_char_str + '.h5'
+            globber = '*' + unique_six_char_str + ptt_ext
             if dirname:
                 globber = dirname + os.sep + globber
             print(globber)
             h5_conflicts = glob.glob(globber)
             if len(h5_conflicts) > 0:
                 return h5_conflicts
+        elif os.path.exists(filename + ptt_ext):
+            if dirname:
+                return [dirname + os.sep + filename + ptt_ext]
+            else:
+                return [filename + ptt_ext]
     return None
 
 
