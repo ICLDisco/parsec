@@ -65,7 +65,7 @@ static int flow_lfq_init(dague_execution_unit_t* eu_context, struct dague_barrie
 
     vp = eu_context->virtual_process;
 
-    /* Every flow create it's own local object */
+    /* Every flow creates its own local object */
     sched_obj = (local_queues_scheduler_object_t*)malloc(sizeof(local_queues_scheduler_object_t));
     eu_context->scheduler_object = sched_obj;
     if( 0 == eu_context->th_id ) {  /* And flow 0 creates the system_queue */

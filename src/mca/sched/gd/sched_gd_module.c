@@ -47,20 +47,15 @@ static int sched_gd_install( dague_context_t *master )
 
 static int flow_gd_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier)
 {
-    dague_context_t *master = eu_context->virtual_process->dague_context;
-    dague_dequeue_t *q;
-    dague_vp_t *vp;
-    int p, t;
+    dague_vp_t *vp = eu_context->virtual_process;
 
-    for(p = 0; p < master->nb_vp; p++) {
-        q = OBJ_NEW(dague_dequeue_t);
+    if (eu_context == vp->execution_units[0])
+        vp->execution_units[0]->scheduler_object = OBJ_NEW(dague_dequeue_t);
 
-        vp = master->virtual_processes[p];
-        for(t = 0; t < vp->nb_cores; t++) {
-            vp->execution_units[t]->scheduler_object = (void*)q;
-        }
-    }
-    (void)barrier;
+    dague_barrier_wait(barrier);
+
+    eu_context->scheduler_object = (void*)vp->execution_units[0]->scheduler_object;
+
     return 0;
 }
 

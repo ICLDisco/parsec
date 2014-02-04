@@ -48,24 +48,15 @@ static int sched_ap_install( dague_context_t *master )
 
 static int flow_ap_init(dague_execution_unit_t* eu_context, struct dague_barrier_t* barrier)
 {
-    dague_context_t *master = eu_context->virtual_process->dague_context;
-    dague_execution_unit_t *eu;
-    dague_vp_t *vp;
-    int p, t;
+    dague_vp_t *vp = eu_context->virtual_process;
 
-    for(p = 0; p < master->nb_vp; p++) {
-        vp = master->virtual_processes[p];
-        for(t = 0; t < vp->nb_cores; t++) {
-            eu = vp->execution_units[t];
-            if( eu->th_id == 0 ) {
-                eu->scheduler_object = (dague_list_t*)malloc(sizeof(dague_list_t));
-                OBJ_CONSTRUCT(eu->scheduler_object, dague_list_t);
-            } else {
-                eu->scheduler_object = eu->virtual_process->execution_units[0]->scheduler_object;
-            }
-        }
-    }
-    (void)barrier;
+    if (eu_context == vp->execution_units[0])
+        vp->execution_units[0]->scheduler_object = OBJ_NEW(dague_list_t);
+
+    dague_barrier_wait(barrier);
+
+    eu_context->scheduler_object = (void*)vp->execution_units[0]->scheduler_object;
+
     return 0;
 }
 
