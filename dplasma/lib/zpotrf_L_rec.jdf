@@ -138,7 +138,7 @@ BODY
 
     }
     else
-#endif
+#endif /* defined(RECURSIVE_POTRF) */
     {
 
     CORE_zpotrf(uplo, tempkm, T, ldak, &iinfo );
@@ -232,7 +232,7 @@ BODY
         return -1;
     }
     else
-#endif
+#endif /* defined(RECURSIVE_TRSM) */
     {
  //   printf("SMALL TRSM\n");
     CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
@@ -322,7 +322,7 @@ BODY
         return -1;
     }
     else
-#endif
+#endif /* defined(RECURSIVE_HERK) */
     {
 
     CORE_zherk(PlasmaLower, PlasmaNoTrans,
@@ -405,7 +405,6 @@ BODY [type=CUDA dyld=magmablas_ZGEMM]
              -1.0, m, k, A, ldam,
                    n, k, B, ldan,
               1.0, m, n, C, ldam);
-	
     }
 }
 END
@@ -418,8 +417,7 @@ BODY
 
 #if defined(RECURSIVE_GEMM)
     if (tempmm > smallnb || descA.nb > smallnb) {
-
-        // printf("big gemm on CPU\n");
+        //printf("big gemm on CPU\n");
 
         local_block_cyclic_t *small_descA;
         local_block_cyclic_t *small_descB;
@@ -435,27 +433,29 @@ BODY
                                 matrix_ComplexDouble, matrix_Lapack,
                                 1, context->virtual_process->dague_context->my_rank,
                                 smallnb, smallnb, ldam, descA.nb,
-                                0, 0, tempmm, descA.mb, 1, 1, 1);
+                                0, 0, tempmm, tempmm, 1, 1, 1);;
         small_descA->mat = A;
         local_block_cyclic_init(small_descB,
                                 matrix_ComplexDouble, matrix_Lapack,
                                 1, context->virtual_process->dague_context->my_rank,
-                                smallnb, smallnb, ldan, descA.nb,
-                                0, 0, descA.mb, descA.mb, 1, 1, 1);
+                                smallnb, smallnb, ldam, descA.nb,
+                                0, 0, tempmm, tempmm, 1, 1, 1);
         small_descB->mat = B;
         local_block_cyclic_init(small_descC,
                                 matrix_ComplexDouble, matrix_Lapack,
                                 1, context->virtual_process->dague_context->my_rank,
                                 smallnb, smallnb, ldam, descA.nb,
-                                0, 0, tempmm, descA.mb, 1, 1, 1);
+                                0, 0, tempmm, tempmm, 1, 1, 1);
         small_descC->mat = C;
 
         dague_zgemm = dplasma_zgemm_New(PlasmaNoTrans, PlasmaConjTrans,
                                         (dague_complex64_t)-1.0,
                                         (tiled_matrix_desc_t *)small_descA,
                                         (tiled_matrix_desc_t *)small_descB,
-                                        (dague_complex64_t) 1.0,                                                                                                                                                      (tiled_matrix_desc_t *)small_descC);
+                                        (dague_complex64_t) 1.0,
+                                        (tiled_matrix_desc_t *)small_descC);
         dague_zgemm->devices_mask = 1;
+        
         cbdata_zgemm = (cb_data_t *) malloc(sizeof(cb_data_t));
         cbdata_zgemm->context = context;
         cbdata_zgemm->task = this_task;
@@ -466,7 +466,7 @@ BODY
         dague_set_complete_callback(dague_zgemm,
                                     complete_recursive_dague_callback,
                                     (void *)cbdata_zgemm);
-        
+
         dague_enqueue(context->virtual_process->dague_context, dague_zgemm);
         return -1;
     } else 
@@ -480,7 +480,7 @@ BODY
                                         B /*A(n, k)*/, ldan,
                (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
+    
     }
 
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",

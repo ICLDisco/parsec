@@ -375,7 +375,7 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
                                            int rst, int cst )
 {
     assert( (origin->grid.strows == 1) && (origin->grid.stcols == 1) );
-    target = origin;
+    *target = *origin;
     target->grid.strows = rst;
     target->grid.stcols = cst;
     target->super.super.rank_of     = twoDBC_stview_rank_of;

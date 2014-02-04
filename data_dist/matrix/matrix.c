@@ -34,8 +34,8 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
                          int pos,
                          dague_data_key_t key)
 {
+    assert( pos <= matrix->nb_local_tiles );
     dague_data_t* data = matrix->data_map[pos];
-    assert(pos <= matrix->nb_local_tiles);
 
     if( NULL == data ) {
         dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
@@ -61,6 +61,7 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
             data_copy->device_private = ptr;
         }
     }
+    assert( data->key == key );
     return data;
 }
 

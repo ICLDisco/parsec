@@ -167,9 +167,9 @@ int dague_data_copy_detach(dague_data_t* data,
     if( !dague_atomic_cas(&data->device_copies[device], copy, copy->older) ) {
         return DAGUE_ERROR;
     }
-    OBJ_RELEASE(data);
     copy->original     = NULL;
     copy->older        = NULL;
+    OBJ_RELEASE(data);
     return DAGUE_SUCCESS;
 }
 
