@@ -432,7 +432,6 @@ if __name__ == '__main__':
     else:
         name_infos = default_name_infos
 
-    print(filenames)
     processed_filename_groups = group_trace_filenames(filenames)
     print(filenames)
 
