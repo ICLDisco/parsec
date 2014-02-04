@@ -40,7 +40,7 @@ def do_demo(filenames, translate=False):
                 filenames[0] = pbt2ptt.convert(filenames, report_progress=True, unlink=False,
                                            multiprocess=True)
                 print('Then, we read the HDFed trace...')
-            trace = ptt.ParsecTraceTables.from_hdf(filenames[0])
+            trace = ptt.from_hdf(filenames[0])
 
         print('The load took {} seconds.'.format(t.interval))
         print('')
