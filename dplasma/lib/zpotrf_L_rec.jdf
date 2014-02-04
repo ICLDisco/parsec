@@ -433,19 +433,19 @@ BODY
                                 matrix_ComplexDouble, matrix_Lapack,
                                 1, context->virtual_process->dague_context->my_rank,
                                 smallnb, smallnb, ldam, descA.nb,
-                                0, 0, tempmm, tempmm, 1, 1, 1);;
+                                0, 0, tempmm, descA.mb, 1, 1, 1);;
         small_descA->mat = A;
         local_block_cyclic_init(small_descB,
                                 matrix_ComplexDouble, matrix_Lapack,
                                 1, context->virtual_process->dague_context->my_rank,
-                                smallnb, smallnb, ldam, descA.nb,
-                                0, 0, tempmm, tempmm, 1, 1, 1);
+                                smallnb, smallnb, ldan, descA.nb,
+                                0, 0, descA.mb, descA.mb, 1, 1, 1);
         small_descB->mat = B;
         local_block_cyclic_init(small_descC,
                                 matrix_ComplexDouble, matrix_Lapack,
                                 1, context->virtual_process->dague_context->my_rank,
                                 smallnb, smallnb, ldam, descA.nb,
-                                0, 0, tempmm, tempmm, 1, 1, 1);
+                                0, 0, tempmm, descA.mb, 1, 1, 1);
         small_descC->mat = C;
 
         dague_zgemm = dplasma_zgemm_New(PlasmaNoTrans, PlasmaConjTrans,
