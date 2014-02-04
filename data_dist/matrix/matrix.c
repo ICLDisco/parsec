@@ -50,8 +50,8 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
         dague_data_copy_attach(data, data_copy, 0);
 
         if( !dague_atomic_cas(&matrix->data_map[pos], NULL, data) ) {
-            free(data_copy);
-            free(data);
+            dague_data_copy_detach(data, data_copy, 0);
+            OBJ_RELEASE(data_copy);
             data = matrix->data_map[pos];
         }
     } else {
