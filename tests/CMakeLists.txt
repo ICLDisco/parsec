@@ -18,10 +18,6 @@ macro(dague_addtest lang target input)
 
 endmacro(dague_addtest)
 
-
-
-#set(CMAKE_C_COMPILER "vtcc")
-#set(CMAKE_Fortran_COMPILER "vtf77")
 Add_Subdirectory(pingpong)
 Add_Subdirectory(branching)
 Add_Subdirectory(choice)
@@ -40,6 +36,15 @@ string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
 include_directories(${include_dir})
 
 dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
+if(CMAKE_Fortran_COMPILER_WORKS)
+  if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
+    set(touch_exf_FortranFLAGS "-I${PROJECT_BINARY_DIR}/src/fortran")
+    dague_addtest(Fortran touch_exf "touch_exf.F90;${touch_generated}")
+    target_link_libraries(touch_exf daguef)
+    SET_TARGET_PROPERTIES(touch_exf PROPERTIES LINKER_LANGUAGE Fortran)
+  endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
+endif(CMAKE_Fortran_COMPILER_WORKS)
+
 
 jdf_rules(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
 dague_addtest(C startup "${startup_generated}")
