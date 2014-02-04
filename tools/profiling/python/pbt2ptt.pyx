@@ -215,30 +215,30 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     if len(filenames) < 1:
         cond_print('No filenames supplied for conversion!', report_progress)
         return None
-    if len(filenames) == 1:
+    if len(filenames) == 1 and not force_reconvert:
         if is_ptt(filenames[0]):
             cond_print('File {} is already a PTT. Not converting.'.format(filenames[0]),
                        report_progress)
             return filenames[0]
 
     # check for existing .h5 (try not to re-convert unnecessarily)
-    h5_conflicts = find_h5_conflicts(filenames)
-    if h5_conflicts:
-        cond_print('potential h5 conflicts:' + str(h5_conflicts), report_progress)
-        conflict_out = h5_conflicts[0]
+    existing_h5s = find_h5_conflicts(filenames)
+    if existing_h5s and not force_reconvert:
+        cond_print('potential pre-existing PTTs: ' + str(existing_h5s), report_progress)
+        existing_h5 = existing_h5s[0]
         # do skeleton read to check more carefully
         try:
             if validate_existing:
-                from_hdf(conflict_out, skeleton_only=True)
+                from_hdf(existing_h5, skeleton_only=True)
             cond_print(
-                'Possibly conlicting PTT {} already exists. '.format(
-                    conflict_out) +
+                'PTT {} already exists. '.format(
+                    existing_h5) +
                 'Conversion not forced.', report_progress)
-            return conflict_out # file already exists
+            return existing_h5 # file already exists
         except:
             cond_print(
-                'Possibly conflicting PTT {} already exists, but cannot be validated. '.format(
-                    conflict_out) +
+                'Possibly pre-existant PTT {} already exists, but cannot be validated. '.format(
+                    existing_h5) +
                 'Conversion will proceed.', report_progress)
             pass # something went wrong, so try conversion anyway
         
@@ -251,24 +251,22 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
         out_dir = '.'
         try:
             rank_zero_filename = trace.nodes.iloc[0]['filename']
-            print(rank_zero_filename)
             for filename in filenames:
                 if os.path.basename(filename) == rank_zero_filename:
                     out_dir = os.path.dirname(filename)
+                    if not out_dir:
+                        out_dir = '.'
                     break
             match = dot_prof_regex.match(rank_zero_filename)
             if match:
                 infos = default_descriptors[:] + ['start_time']
-                infos.remove('exe') # this is in match.group(1)
+                infos.remove('exe') # this is already in match.group(1)
                 out = (match.group(1).strip('_') + '-' + trace.name(infos=infos) + 
                        '-' + match.group(4) + '.h5')
             else:
                 out = get_basic_ptt_name(rank_zero_filename)
         except:
             out = get_basic_ptt_name(filenames[0])
-            print(filenames[0])
-            print(filenames)
-            print(out)
         out = out_dir + os.sep + out
 
     # write file
