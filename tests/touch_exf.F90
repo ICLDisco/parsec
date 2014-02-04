@@ -10,7 +10,7 @@ interface touch_initialize
     implicit none
     integer(kind=c_int), INTENT(IN), VALUE :: block
     integer(kind=c_int), INTENT(IN), VALUE :: n
-    type(dague_object_t)  :: touch_initialize_f08
+    type(dague_handle_t)  :: touch_initialize_f08
   end function
 end interface
 
@@ -18,13 +18,13 @@ end interface
   parameter (BLOCK=10, N=100)
 
   type(dague_context_t) :: context
-  type(dague_object_t)  :: object
+  type(dague_handle_t)  :: handle
 
   call dague_init(1, context)
 
-  object = touch_initialize_f08(BLOCK, N)
+  handle = touch_initialize_f08(BLOCK, N)
 
-  call dague_enqueue( context, object )
+  call dague_enqueue( context, handle )
 
   call dague_progress(context)
 
