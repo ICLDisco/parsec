@@ -33,7 +33,6 @@
 #include "flops.h"
 
 /* these are globals in common.c */
-extern char *DAGUE_SCHED_NAME[];
 extern int unix_timestamp;
 extern char cwd[];
 
