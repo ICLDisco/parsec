@@ -40,3 +40,47 @@ TASK2(k)
 BODY
   printf("TASKS2(%d)\n", k);
 END
+
+extern "C" %{
+
+#define TYPE  matrix_RealFloat
+static two_dim_block_cyclic_t descA;
+
+dague_object_t* touch_initialize(int block, int n)
+{
+    dague_touch_object_t* object;
+
+    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+                               1 /*nodes*/, 1 /*cores*/, 0 /*rank*/,
+                               block, block, n, n,
+                               0, 0, n, n, 1, 1, 1);
+    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     dague_datadist_getsizeoftype(TYPE) );
+
+    object = dague_touch_new( &descA, (n / block) -1 );
+    assert( NULL != object );
+#ifdef HAVE_MPI
+    MPI_Init(NULL, NULL);
+#endif
+
+    dague_arena_construct( object->arenas[DAGUE_touch_DEFAULT_ARENA],
+                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+
+    return &object->super;
+}
+
+int touch_finalize(void)
+{
+    free(descA.mat);
+
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
+    return 0;
+}
+
+%}
+
