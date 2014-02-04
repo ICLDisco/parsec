@@ -696,14 +696,14 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
         for(i=0; i<DA_kid_count(deps); i++){
             node_t *tmp_dep = DA_kid(deps, i);
             node_t *cond_data = DA_kid(tmp_dep, 2); // this is the "remote" data involved in the dep.
-            node_t *tmp = DA_kid(cond_data, 1); // this is the actual data reference (e.g., A[i][j]).
+            node_t *data_ref = DA_kid(cond_data, 1); // this is the actual data reference (e.g., A[i][j]).
 
-            tmp->task = task;
-            tmp->function = f;
-            tmp->var_symname = DA_var_name(DA_kid(tmp_dep, 1)); // this is the "local" data.
+            data_ref->task = task;
+            data_ref->function = f;
+            data_ref->var_symname = DA_var_name(DA_kid(tmp_dep, 1)); // this is the "local" data.
             int rw = is_dep_USE(tmp_dep) ? UND_READ : UND_WRITE;
 //FIXME: "do not pass UND_IGNORE, add types to the pragma API instead"
-            add_variable_use_or_def( tmp, rw, UND_IGNORE, _task_count );
+            add_variable_use_or_def( data_ref, rw, UND_IGNORE, _task_count );
         }
         _task_count++;
 
