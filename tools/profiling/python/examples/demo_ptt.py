@@ -33,12 +33,11 @@ def do_demo(filenames, translate=False):
         trace = None
 
         with Timer() as t:
-            if len(filenames) == 1 and ('.h5-' in filenames[0] or 'hdf5' in filenames[0]):
+            if len(filenames) == 1 and (ptt.is_ptt(filenames[0])):
                 print('First, we load the HDFed trace...')
             else:
                 print('First, we read the binary trace and convert it to the ParSEC Trace Tables format.')
-                filenames[0] = pbt2ptt.convert(filenames, report_progress=True, unlink=False,
-                                           multiprocess=True)
+                filenames[0] = pbt2ptt.convert(filenames, report_progress=True)
                 print('Then, we read the HDFed trace...')
             trace = ptt.from_hdf(filenames[0])
 
