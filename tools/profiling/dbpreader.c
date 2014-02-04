@@ -40,6 +40,23 @@ static void output(const char *format, ...)
 static int event_buffer_size = 0;
 static int event_avail_space = 0;
 
+typedef enum {
+    SUCCESS,
+    UNABLE_TO_OPEN,
+    TOO_SMALL,
+    NO_MAGICK,
+    WRONG_BYTE_ORDER,
+    DIFF_HR_ID,
+    DIFF_BUFFER_SIZE,
+    DIFF_WORLD_SIZE,
+    DICT_IGNORED,
+    DICT_BROKEN,
+    THREADS_BROKEN,
+    TRACE_TRUNCATED,
+    TRACE_OVERFLOW,
+    DUPLICATE_RANK,
+} OPEN_ERROR;
+
 struct dbp_file {
     struct dbp_multifile_reader *parent;
     char *hr_id;
@@ -479,13 +496,98 @@ void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
 
 static void read_infos(dbp_multifile_reader_t *dbp, int n, dague_profiling_binary_file_header_t *head)
 {
-    (void)n;
-    (void)head;
-    dbp->nb_infos = 0;
-    dbp->infos = NULL;
+    dague_profiling_buffer_t *info, *next;
+    dague_profiling_info_buffer_t *ib;
+    dbp_info_t *id;
+    char *value;
+    int nb, nbthis, pos, vpos, tr, vs;
+
+    dbp->files[n].nb_infos = head->info_size;
+    if( dbp->files[n].nb_infos == 0 ) {
+        dbp->files[n].infos = NULL;
+        return;
+    }
+
+    dbp->files[n].infos = (dbp_info_t**)malloc(sizeof(dbp_info_t*) * dbp->files[n].nb_infos);
+
+    info = refer_events_buffer(dbp->files[n].fd, head->info_offset );
+    if( NULL == info ) {
+        fprintf(stderr, "Unable to read first info at offset %"PRId64": %d general file info in '%s' lost\n",
+                head->info_offset, dbp->files[n].nb_infos, dbp->files[n].filename);
+        dbp->files[n].nb_infos = 0;
+        free( dbp->files[n].infos );
+        dbp->files[n].infos = NULL;
+        return;
+    }
+    assert( PROFILING_BUFFER_TYPE_GLOBAL_INFO == info->buffer_type );
+
+    nb = 0;
+    nbthis = 0;
+    pos = 0;
+    while( nb < dbp->files[n].nb_infos ) {
+        ib = (dague_profiling_info_buffer_t*)&info->buffer[pos];
+        id = (dbp_info_t *)malloc(sizeof(dbp_info_t));
+        id->key = (char*)malloc(ib->info_size+1);
+        id->value = (char*)malloc(ib->value_size+1);
+        memcpy(id->key, ib->info_and_value, ib->info_size);
+        id->key[ib->info_size] = '\0';
+
+        nbthis++;
+
+        pos += sizeof(dague_profiling_info_buffer_t) + ib->info_size - 1;
+
+        value = ib->info_and_value + ib->info_size;
+        vpos = 0;
+        vs = ib->value_size;
+        while( vpos < vs ) {
+            tr = (event_avail_space - pos) < (vs-vpos) ? (event_avail_space - pos) : (vs-vpos);
+            memcpy(id->value + vpos, value, tr);
+            pos += tr;
+            vpos += tr;
+            if( pos == event_avail_space ) {
+                next = refer_events_buffer( dbp->files[n].fd, info->next_buffer_file_offset );
+                if( NULL == next ) {
+                    fprintf(stderr, "Info entry %d is broken. Only %d entries read from '%s'\n",
+                            dbp->files[n].nb_infos - nb, nb, dbp->files[n].filename);
+                    release_events_buffer( info );
+                    dbp->files[n].nb_infos = nb;
+                    return;
+                }
+                assert( PROFILING_BUFFER_TYPE_GLOBAL_INFO == next->buffer_type );
+                release_events_buffer( info );
+                info = next;
+
+                pos = 0;
+                nbthis = 0;
+                value = (char*)&(info->buffer[pos]);
+            }
+        }
+        id->value[vs] = '\0';
+
+        dbp->files[n].infos[nb] = id;
+        nb++;
+
+        if( (nb < dbp->files[n].nb_infos) && (nbthis == info->this_buffer.nb_infos) ) {
+            next = refer_events_buffer( dbp->files[n].fd, info->next_buffer_file_offset );
+            if( NULL == next ) {
+                fprintf(stderr, "Info entry %d is broken. Only %d entries read from '%s'\n",
+                        dbp->files[n].nb_infos - nb, nb, dbp->files[n].filename);
+                release_events_buffer( info );
+                dbp->files[n].nb_infos = nb;
+                return;
+            }
+            assert( PROFILING_BUFFER_TYPE_GLOBAL_INFO == next->buffer_type );
+            release_events_buffer( info );
+            info = next;
+
+            pos = 0;
+            nbthis = 0;
+        }
+    }
+    release_events_buffer( info );
 }
 
-static int read_dictionnary(dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
+static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
 {
     dague_profiling_buffer_t *dico, *next;
     dague_profiling_key_buffer_t *a;
@@ -544,7 +646,7 @@ static int read_dictionnary(dbp_multifile_reader_t *dbp, int fd, const dague_pro
     return 0;
 }
 
-static int check_dictionnary(const dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
+static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
 {
     dague_profiling_buffer_t *dico, *next;
     dague_profiling_key_buffer_t *a;
@@ -639,8 +741,8 @@ static size_t read_thread_infos(dague_thread_profiling_t * res,
     res->infos = NULL;
     th->infos = (dbp_info_t *)calloc(nb_infos, sizeof(dbp_info_t));
     for(i = 0; i < nb_infos; i++) {
-        ib = (dague_profiling_info_buffer_t*)&(br[pos]);
-        pos += ib->info_size + ib->value_size;
+        ib = (dague_profiling_info_buffer_t*)(&br[pos]);
+        pos += ib->info_size + ib->value_size + sizeof(dague_profiling_info_buffer_t) - 1;
         nfo = (dbp_info_t*)&th->infos[i];
         nfo->key = (char*)malloc(ib->info_size+1);
         memcpy(nfo->key, ib->info_and_value, ib->info_size);
@@ -649,7 +751,7 @@ static size_t read_thread_infos(dague_thread_profiling_t * res,
         memcpy(nfo->value, ib->info_and_value + ib->info_size, ib->value_size);
         nfo->value[ib->value_size] = '\0';
     }
-
+    th->nb_infos = nb_infos;
     return pos;
 }
 
@@ -742,12 +844,18 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
     dbp = (dbp_multifile_reader_t*)malloc(sizeof(dbp_multifile_reader_t));
     dbp->files = (dbp_file_t*)malloc(nbfiles * sizeof(dbp_file_t));
     dbp->min_date = zero;
+    dbp->last_error = SUCCESS;
 
     n = 0;
     for(i = 0; i < nbfiles; i++) {
+        dbp->files[n].error = SUCCESS;
+        if (i > 0 && dbp->files[n - 1].error != SUCCESS)
+            dbp->last_error = dbp->files[n - 1].error;
+
         fd = open(filenames[i], O_RDONLY);
         if( fd == -1 ) {
             fprintf(stderr, "Unable to open %s: %s -- skipped\n", filenames[i], strerror(errno));
+            dbp->files[n].error = -UNABLE_TO_OPEN;
             continue;
         }
         dbp->files[n].parent = dbp;
@@ -759,6 +867,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     filenames[i]);
             close(fd);
+            dbp->files[n].error = -TOO_SMALL;
             continue;
         }
 
@@ -767,12 +876,14 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
                     filenames[i]);
             close(fd);
+            dbp->files[n].error = -NO_MAGICK;
             continue;
         }
         if( head.byte_order != 0x0123456789ABCDEF ) {
             fprintf(stderr, "The profile in file %s has been generated with a different byte ordering. File ignored\n",
                     filenames[i]);
             close(fd);
+            dbp->files[n].error = -WRONG_BYTE_ORDER;
             continue;
         }
         dbp->files[n].filename = strdup(filenames[i]);
@@ -782,6 +893,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                         dbp->files[n].filename, head.hr_id,
                         dbp->files[0].hr_id, dbp->files[0].filename);
                 close(fd);
+                dbp->files[n].error = -DIFF_HR_ID;
                 continue;
             }
 
@@ -790,6 +902,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                         dbp->files[n].filename, head.profile_buffer_size,
                         event_buffer_size, dbp->files[0].filename);
                 close(fd);
+                dbp->files[n].error = -DIFF_BUFFER_SIZE;
                 continue;
             }
 
@@ -798,23 +911,28 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                         dbp->files[n].filename, head.worldsize,
                         dbp->worldsize, dbp->files[0].filename);
                 close(fd);
+                dbp->files[n].error = -DIFF_WORLD_SIZE;
                 continue;
             }
 
-            if( check_dictionnary(dbp, fd, &head) != 0 ) {
+            if( check_dictionary(dbp, fd, &head) != 0 ) {
                 fprintf(stderr, "The profile in file %s has a broken or unmatching dictionary. Dictionary ignored.\n",
                         dbp->files[n].filename);
+                dbp->files[n].error = -DICT_IGNORED;
             }
         } else {
             event_buffer_size = head.profile_buffer_size;
-            if( read_dictionnary(dbp, fd, &head) != 0 ) {
+            event_avail_space = event_buffer_size -
+                ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
+
+            if( read_dictionary(dbp, fd, &head) != 0 ) {
                 fprintf(stderr, "The profile in file %s has a broken dictionary. Trying to use the dictionary of next file. Ignoring the file.\n",
                         dbp->files[n].filename);
                 close(fd);
+                dbp->files[n].error = -DICT_BROKEN;
                 continue;
             }
             dbp->worldsize = head.worldsize;
-
         }
 
         dbp->files[n].hr_id = strdup(head.hr_id);
@@ -825,18 +943,24 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         if( read_threads(dbp, n, fd, &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",
                     n, dbp->files[n].filename);
+            dbp->files[n].error = -THREADS_BROKEN;
             continue;
         }
 
         n++;
     }
+    /* record last error */
+    if (dbp->files[n - 1].error != SUCCESS)
+        dbp->last_error = dbp->files[n - 1].error;
 
     if( dbp->worldsize > n ) {
         fprintf(stderr, "The profile in file %s has a world size of %d, but only %d files can be read in input. The trace will be truncated\n",
                 dbp->files[0].filename, dbp->worldsize, n);
+        dbp->last_error = -TRACE_TRUNCATED;
     } else if( dbp->worldsize < n ) {
         fprintf(stderr, "The profile in file %s has a world size of %d, but %d files should be read in input. The trace will be... Strange...\n",
                 dbp->files[0].filename, dbp->worldsize, n);
+        dbp->last_error = -TRACE_OVERFLOW;
     } else {
         for(i = 0; i < n; i++) {
             p = 0;
@@ -847,6 +971,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             if( p != 1 ) {
                 fprintf(stderr, "The rank %d appears %d times in this collection of profiles... The trace will be... Strange...\n",
                         i, p);
+                dbp->last_error = -DUPLICATE_RANK;
             }
         }
     }
