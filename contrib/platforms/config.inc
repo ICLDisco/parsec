@@ -40,7 +40,7 @@ if [ -n "$INSTALL_PREFIX" ]; then
 fi
 
 if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
-  MPI="-DMPI_C_COMPILER=${MPI_DIR}/bin/mpicc -DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpic++ -DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90"
+  MPI="-DMPI_C_COMPILER=${MPI_DIR}/bin/mpicc -DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpicxx -DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90"
 # Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
 fi
 

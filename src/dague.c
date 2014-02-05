@@ -971,7 +971,7 @@ static int dague_update_deps_with_counter(const dague_handle_t *dague_handle,
                                           dague_dependency_t *deps)
 {
     dague_dependency_t dep_new_value, dep_cur_value;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_ENABLE) || DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
