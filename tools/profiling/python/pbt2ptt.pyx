@@ -94,6 +94,13 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
             key = dbp_info_get_key(cinfo)
             value = dbp_info_get_value(cinfo)
             add_kv(node_dct, key, value)
+        try:
+            node_dct['exe_abspath'] = os.path.abspath(
+                node_dct['cwd'] + os.sep + node_dct['exe'])
+            node_dct['exe'] = os.path.basename(node_dct['exe_abspath'])
+        except KeyError as ke:
+            pass
+            
         builder.nodes.append(node_dct)
         # record threads for this node
         builder.unordered_threads_by_node[node_id] = dict()
@@ -152,7 +159,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
             builder.threads.append(builder.unordered_threads_by_node[node_id][thread_num])
 
     # now, some voodoo to add shared file information to overall trace info
-    # e.g., PARAM_N, PARAM_MB, etc.
+    # e.g., PARAM_N, PARAM_MB, exe, SYNC_TIME_ELAPSED, etc.
     # basically, any key that has the same value in all nodes should
     # go straight into the top-level 'information' dictionary, since it is global
     if len(builder.nodes) > 0:
@@ -248,15 +255,22 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
                  multiprocess=multiprocess, add_info=add_info)
 
     if out == None: # create out filename
-        out_dir = '.'
+        out_dir = os.path.dirname(filenames[0])
+        # if all the files exist in the same directory, output the conversion there
+        for filename in filenames[1:]:
+            if out_dir != os.path.dirname(filename):
+                out_dir = None
+                break
         try:
-            rank_zero_filename = trace.nodes.iloc[0]['filename']
-            for filename in filenames:
-                if os.path.basename(filename) == rank_zero_filename:
-                    out_dir = os.path.dirname(filename)
-                    if not out_dir:
-                        out_dir = '.'
-                    break
+            rank_zero_filename = os.path.basename(trace.nodes.iloc[0]['filename'])
+            # if we don't already have an out_dir
+            if not out_dir: 
+                for filename in filenames:
+                    if os.path.basename(filename) == rank_zero_filename:
+                        out_dir = os.path.dirname(filename)
+                        if not out_dir:
+                            out_dir = '.'
+                        break
             match = dot_prof_regex.match(rank_zero_filename)
             if match:
                 infos = default_descriptors[:] + ['start_time']
@@ -265,8 +279,11 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
                        '-' + match.group(4) + '.h5')
             else:
                 out = get_basic_ptt_name(rank_zero_filename)
-        except:
-            out = get_basic_ptt_name(filenames[0])
+        except Exception as e:
+            print(e)
+            out = get_basic_ptt_name(os.path.basename(filenames[0]))
+        if not out_dir:
+            out_dir = '.'
         out = out_dir + os.sep + out
 
     # write file

@@ -59,7 +59,7 @@ def plot_traces(traces, y_axis, main_type, subtype=None, shared_name='',
                                             trace.gflops)
         ax.plot(xrange(len(sorted_events)),
                 sorted_events[y_axis],
-                color=mpl_prefs.sched_colors[trace.sched.upper()],
+                color=mpl_prefs.sched_colors[trace.sched],
                 label=label
             )
 

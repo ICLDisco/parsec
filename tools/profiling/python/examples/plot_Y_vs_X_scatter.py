@@ -38,7 +38,7 @@ def plot_Y_vs_X_scatter(traces, x_axis, y_axis, filters,
                                              trace.gflops)
 
         ax.plot(events[x_axis], events[y_axis], linestyle='', marker='.',
-                color=mpl_prefs.sched_colors[trace.sched.upper()],
+                color=mpl_prefs.sched_colors[trace.sched],
                 label=label)
 
         ax.set_title('{} vs {} of {}'.format(y_axis, x_axis, filters_descrip) +
