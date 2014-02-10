@@ -128,6 +128,7 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
         print(ke)
         print(store['information']) # hopefully this doesn't also raise...
         raise ke
+
     trace = ParsecTraceTables(events, *top_level)
     if keep_store:
         trace._store = store
