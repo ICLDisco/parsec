@@ -52,7 +52,7 @@ static uint32_t sched_priority_trace_counter;
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
 
-#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
+#if defined(HAVE_GETRUSAGE) && defined(HAVE_RUSAGE_THREAD)
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -96,7 +96,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
     return;
 }
 #else
-static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu) { (void)str; return; }
+static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu) { (void)str; (void)eu; return; }
 #endif /* defined(HAVE_GETRUSAGE) */
 #endif /* defined(DAGUE_PROF_RUSAGE_EU) */
 

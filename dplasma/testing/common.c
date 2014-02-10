@@ -488,6 +488,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     assert(iparam[IPARAM_IB]); /* check that defaults have been set */
     if(iparam[IPARAM_NB] <= 0 && iparam[IPARAM_MB] > 0) iparam[IPARAM_NB] = iparam[IPARAM_MB];
     if(iparam[IPARAM_MB] <= 0 && iparam[IPARAM_NB] > 0) iparam[IPARAM_MB] = iparam[IPARAM_NB];
+    if(iparam[IPARAM_NGPUS] && iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -384;
+    if(iparam[IPARAM_NGPUS] && iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -384;
     if(iparam[IPARAM_MB] < 0) iparam[IPARAM_MB] = -iparam[IPARAM_MB];
     if(iparam[IPARAM_NB] < 0) iparam[IPARAM_NB] = -iparam[IPARAM_NB];
 

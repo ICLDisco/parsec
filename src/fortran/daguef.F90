@@ -65,7 +65,7 @@ SUBROUTINE dague_handle_free_f08(ctx) &
          BIND(C, name="dague_handle_free")
     IMPORT dague_handle_t
     IMPLICIT NONE
-    TYPE(dague_handle_t), INTENT(IN) :: ctx
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: ctx
 END SUBROUTINE dague_handle_free_f08
 END INTERFACE dague_handle_free_f08
 
@@ -99,10 +99,10 @@ SUBROUTINE dague_set_complete_callback_f08(handle, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPORT dague_handle_t
     IMPLICIT NONE
-    TYPE(dague_handle_t)                 :: handle
-    TYPE(C_FUNPTR), INTENT(IN)           :: complete_cb
-    TYPE(C_PTR), INTENT(IN)              :: complete_data
-    INTEGER(KIND=C_INT), INTENT(OUT)     :: ierr
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(C_FUNPTR), INTENT(IN)              :: complete_cb
+    TYPE(C_PTR), INTENT(IN)                 :: complete_data
+    INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
 END SUBROUTINE dague_set_complete_callback_f08
 END INTERFACE  dague_set_complete_callback_f08
 
@@ -113,10 +113,10 @@ SUBROUTINE dague_get_complete_callback_f08(handle, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPORT dague_handle_t
     IMPLICIT NONE
-    TYPE(dague_handle_t)                 :: handle
-    TYPE(C_FUNPTR), INTENT(OUT)          :: complete_cb
-    TYPE(C_PTR), INTENT(OUT)             :: complete_data
-    INTEGER(KIND=C_INT), INTENT(OUT)     :: ierr
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(C_FUNPTR), INTENT(OUT)             :: complete_cb
+    TYPE(C_PTR), INTENT(OUT)                :: complete_data
+    INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
 END SUBROUTINE dague_get_complete_callback_f08
 END INTERFACE  dague_get_complete_callback_f08
 
@@ -126,7 +126,7 @@ SUBROUTINE dague_set_priority_f08(handle, priority, &
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT dague_handle_t
     IMPLICIT NONE
-    TYPE(dague_handle_t)                    :: handle
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: handle
     INTEGER(KIND=C_INT), VALUE, INTENT(IN)  :: priority
     INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
 END SUBROUTINE dague_set_priority_f08
@@ -143,7 +143,7 @@ SUBROUTINE dague_init(nbcores, ctx, ierr)
     INTEGER(KIND=c_int)                        :: c_err
 
     call dague_init_f08(nbcores, ctx, c_err)
-    if(present(ierr)) ierr = c_err;
+    if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_init
 
 SUBROUTINE dague_fini(context, ierr)
@@ -154,7 +154,7 @@ SUBROUTINE dague_fini(context, ierr)
     INTEGER(KIND=C_INT)                        :: c_err
 
     call dague_fini_f08(context, c_err)
-    if(present(ierr)) ierr = c_err;
+    if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_fini
 
 SUBROUTINE dague_handle_free(ctx, ierr)
@@ -164,19 +164,19 @@ SUBROUTINE dague_handle_free(ctx, ierr)
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
 
     call dague_handle_free_f08(ctx)
-    ierr = 0;
+    if(present(ierr)) ierr = 0
 END SUBROUTINE dague_handle_free
 
 SUBROUTINE dague_enqueue(context, handle, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
-    TYPE(dague_context_t), VALUE, INTENT(IN)   :: context
-    TYPE(dague_handle_t), VALUE, INTENT(IN)    :: handle
+    TYPE(dague_context_t), INTENT(IN)          :: context
+    TYPE(dague_handle_t), INTENT(IN)           :: handle
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
 
     c_err = dague_enqueue_f08(context, handle)
-    if(present(ierr)) ierr = c_err;
+    if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_enqueue
 
 SUBROUTINE dague_progress(context, ierr)
@@ -187,7 +187,7 @@ SUBROUTINE dague_progress(context, ierr)
     INTEGER(KIND=C_INT)                        :: c_err
 
     c_err = dague_progress_f08(context)
-    if(present(ierr)) ierr = c_err;
+    if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_progress
 
 SUBROUTINE dague_set_complete_callback(handle, complete_cb, &
@@ -204,7 +204,7 @@ SUBROUTINE dague_set_complete_callback(handle, complete_cb, &
     c_fct = C_FUNLOC(complete_cb)
     call dague_set_complete_callback_f08(handle, c_fct, &
                                          complete_data, c_err)
-    if(present(ierr)) ierr = c_err;
+    if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_set_complete_callback
 
 SUBROUTINE dague_get_complete_callback(handle, complete_cb, &
@@ -221,7 +221,7 @@ SUBROUTINE dague_get_complete_callback(handle, complete_cb, &
     call dague_get_complete_callback_f08(handle, c_fun, &
                                          complete_data, c_err)
     call C_F_PROCPOINTER(c_fun, complete_cb)
-    if(present(ierr)) ierr = c_err;
+    if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_get_complete_callback
 
 SUBROUTINE dague_set_priority(handle, priority, ierr)
@@ -233,7 +233,7 @@ SUBROUTINE dague_set_priority(handle, priority, ierr)
     INTEGER(KIND=C_INT)                        :: c_err
 
     call dague_set_priority_f08(handle, priority, c_err)
-    if(present(ierr)) ierr = c_err;
+    if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_set_priority
 
 end module dague_f08_interfaces
