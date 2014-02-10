@@ -1,12 +1,12 @@
 #!/usr/bin/env
 
 sched_colors = {
-    'ap': '#ee4466',
-    'gd': '#eeaa44',
+    'ap': '#ee4466', # red
+    'gd': '#eeaa44', # orange
     'ip': 'brown',
-    'lfq':'#5588cc',
-    'ltq':'#33dd60',
-    'pbq':'#881188',
+    'lfq':'#5588cc', # blue
+    'ltq':'#33dd60', # green
+    'pbq':'#881188', # purple
     'rnd':'black',
 }
 
