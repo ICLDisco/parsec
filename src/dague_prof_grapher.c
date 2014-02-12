@@ -19,72 +19,72 @@ static char **colors = NULL;
 /**
  * A simple solution to generate different color tables for each rank. For a
  * more detailed and visualy appealing solution take a look at
- * http://phrogz.net/css/distinct-colors.html.
+ * http://phrogz.net/css/distinct-colors.html
+ * and http://en.wikipedia.org/wiki/HSV_color_space
  */
 static void HSVtoRGB( double *r, double *g, double *b, double h, double s, double v )
 {
     int i;
-    double f, p, q, t;
-    if( s == 0 ) {
-        // achromatic (grey)
-        *r = *g = *b = v;
-        return;
-    }
-    h /= 60.0;			// sector 0 to 5
+    double c, x, m;
+
+    c = v * s;
+    h /= 60.0;
     i = (int)floor( h );
-    f = h - i;			// factorial part of h
-    p = v * ( 1 - s );
-    q = v * ( 1 - s * f );
-    t = v * ( 1 - s * ( 1 - f ) );
+    x = c * (1 - abs(i % 2 - 1));
+    m = v - c;
+
     switch( i ) {
     case 0:
-        *r = v;
-        *g = t;
-        *b = p;
+        *r = c;
+        *g = x;
+        *b = 0;
         break;
     case 1:
-        *r = q;
-        *g = v;
-        *b = p;
+        *r = x;
+        *g = c;
+        *b = 0;
         break;
     case 2:
-        *r = p;
-        *g = v;
-        *b = t;
+        *r = 0;
+        *g = c;
+        *b = x;
         break;
     case 3:
-        *r = p;
-        *g = q;
-        *b = v;
+        *r = 0;
+        *g = x;
+        *b = c;
         break;
     case 4:
-        *r = t;
-        *g = p;
-        *b = v;
+        *r = x;
+        *g = 0;
+        *b = c;
         break;
     default:		// case 5:
-        *r = v;
-        *g = p;
-        *b = q;
+        *r = c;
+        *g = 0;
+        *b = x;
         break;
     }
+    *r += m;
+    *g += m;
+    *b += m;
+}
+
+static inline double get_rand_in_range(int m, int M)
+{
+    return (double)m + (double)rand() / ((double)RAND_MAX / (M - m + 1) + 1);
 }
 
 static char *unique_color(int index, int colorspace)
 {
     char color[8];
-    double r,g,b;
+    double r, g, b;
 
-#if 1
-    double hue = ( (random() % 360) / 260.0 );  //  0.0 to 1.0
-    double saturation = ( (random() % 270) / 360.0 ) + 0.25;  //  0.25 to 1.0, away from white
-    double brightness = ( (random() % 270) / 360.0 ) + 0.25;  //  0.25 to 1.0, away from black
+    double hue = get_rand_in_range(0, 360);  //  0.0 to 360.0
+    double saturation = get_rand_in_range(180, 360) / 360.0;  //  0.5 to 1.0, away from white
+    double brightness = get_rand_in_range(180, 360) / 360.0;  //  0.5 to 1.0, away from black
     HSVtoRGB(&r, &g, &b, hue, saturation, brightness);
     (void)index; (void)colorspace;
-#else
-    double h = 360.0 * (double)index / (double)colorspace;
-    HSVtoRGB(&r, &g, &b, h, 0.2, 0.7);
-#endif
     snprintf(color, 8, "#%02x%02x%02x", (int)floor(255.0*r), (int)floor(255.0*g), (int)floor(255.0*b));
     return strdup(color);
 }
@@ -146,7 +146,8 @@ char *dague_prof_grapher_taskid(const dague_execution_context_t *exec_context, c
     return tmp;
 }
 
-void dague_prof_grapher_task(const dague_execution_context_t *context, int thread_id, int vp_id, int task_hash)
+void dague_prof_grapher_task(const dague_execution_context_t *context,
+                             int thread_id, int vp_id, int task_hash)
 {
     char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
     if( NULL != grapher_file ) {
@@ -178,9 +179,11 @@ void dague_prof_grapher_dep(const dague_execution_context_t* from, const dague_e
         index += snprintf( tmp + index, 128 - index, " -> " );
         dague_prof_grapher_taskid( to, tmp + index, 128 - index - 4 );
         fprintf(grapher_file,
-                "%s [label=\"%s=>%s\",color=\"#%s\",style=\"solid\"]\n",
+                "%s [label=\"%s=>%s\",color=\"#%s\",style=\"%s\"]\n",
                 tmp, origin_flow->name, dest_flow->name,
-                dependency_activates_task ? "00FF00" : "FF0000");
+                dependency_activates_task ? "00FF00" : "FF0000",
+                ((dest_flow->flow_flags == FLOW_ACCESS_NONE) ? "dotted":
+                 (dest_flow->flow_flags == FLOW_ACCESS_RW) ? "solid" : "dashed"));
         fflush(grapher_file);
     }
 }
