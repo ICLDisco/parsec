@@ -155,12 +155,16 @@ void dague_prof_grapher_task(const dague_execution_context_t *context,
         dague_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(DAGUE_SIM)
         fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs], thread_id, vp_id, tmp, context->sim_exec_date, context->function->name, task_hash);
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
+                "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs],
+                thread_id, vp_id, tmp, context->sim_exec_date, context->function->name, task_hash);
 #else
         fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s\",tooltip=\"%s%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs], thread_id, vp_id, tmp, context->function->name, task_hash);
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
+                "fontcolor=\"black\",label=\"<%d/%d> %s\",tooltip=\"%s%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs],
+                thread_id, vp_id, tmp, context->function->name, task_hash);
 #endif
         fflush(grapher_file);
     }
