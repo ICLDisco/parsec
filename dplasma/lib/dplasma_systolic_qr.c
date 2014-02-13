@@ -369,7 +369,7 @@ dplasma_systolic_init( dplasma_qrtree_t *qrtree,
         dplasma_error("dplasma_systolic_init", "illegal value of p");
         return -4;
     }
-    if ( q < 0 ) {
+    if ( q < -1 ) {
         dplasma_error("dplasma_systolic_init", "illegal value of q");
         return -5;
     }
