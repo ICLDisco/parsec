@@ -3546,9 +3546,12 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
         coutput("  /** Generate profiling information */\n"
                 "#if defined(DAGUE_PROF_TRACE)\n"
                 "  this_task->prof_info.desc = (dague_ddesc_t*)__dague_object->super.%s;\n"
-                "  this_task->prof_info.id   = ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
+                "  this_task->prof_info.id   = %s_hash(__dague_object, this_task->locals);\n"
+                "  /* this_task->prof_info.id   = ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s); */\n"
                 "#endif  /* defined(DAGUE_PROF_TRACE) */\n",
-                f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
+                f->predicate->func_or_mem,
+                f->fname,
+                f->predicate->func_or_mem, f->predicate->func_or_mem,
                 UTIL_DUMP_LIST(sa3, f->predicate->parameters, next,
                                dump_expr, (void*)&linfo,
                                "", "", ", ", "") );
