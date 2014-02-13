@@ -534,7 +534,6 @@ if(NOT DAGUE_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
-add_definitions(-DHAVE_CONFIG_H)
 
 #
 # First go for the tools.
