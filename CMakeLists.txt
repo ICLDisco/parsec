@@ -627,6 +627,12 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
   DESTINATION include)
 
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/ayudame.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/constants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/types.h
+  DESTINATION include/dague)
+
 # pkg-config file
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
