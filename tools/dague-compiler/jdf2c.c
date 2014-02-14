@@ -4241,6 +4241,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "    ", "nc") );
                 } else {
+                    UTIL_DUMP_LIST(sa_temp, dl->guard->calltrue->parameters, next,
+                                   dump_expr, (void*)&info, "", "", ", ", "");
+                    string_arena_add_string(sa_coutput,
+                                            "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                            (1U << dl->dep_index), dl->guard->calltrue->func_or_mem,
+                                            string_arena_get_string(sa_temp));
+                    string_arena_init(sa_temp);
                     flowtomem = 1;
                 }
                 break;
@@ -4255,6 +4262,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc") );
                 } else {
+                    UTIL_DUMP_LIST(sa_temp, dl->guard->calltrue->parameters, next,
+                                   dump_expr, (void*)&info, "", "", ", ", "");
+                    string_arena_add_string(sa_coutput,
+                                            "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                            (1U << dl->dep_index), dl->guard->calltrue->func_or_mem,
+                                            string_arena_get_string(sa_temp));
+                    string_arena_init(sa_temp);
                     flowtomem = 1;
                 }
                 break;
@@ -4305,6 +4319,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                                 jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->callfalse, JDF_OBJECT_LINENO(dl),
                                                                             "      ", "nc") );
                     } else {
+                        UTIL_DUMP_LIST(sa_temp, dl->guard->callfalse->parameters, next,
+                                       dump_expr, (void*)&info, "", "", ", ", "");
+                        string_arena_add_string(sa_coutput,
+                                                "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                                (1U << dl->dep_index), dl->guard->callfalse->func_or_mem,
+                                                string_arena_get_string(sa_temp));
+                        string_arena_init(sa_temp);
                         flowtomem = 1;
                     }
                 }
