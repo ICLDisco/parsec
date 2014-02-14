@@ -414,7 +414,7 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                     end_t = dbp_event_get_timestamp(event_e)
                     end = diff_time(min_date, end_t)
                     # 'end' and 'begin' are unsigned, so subtraction is invalid if they are
-                    if end > begin:
+                    if end >= begin:
                         duration = end - begin
                     else:
                         duration = -1
