@@ -209,8 +209,8 @@ char * dump_expr(void **elem, void *arg)
 
     string_arena_init(sa);
 
-    la = string_arena_new(8);
-    ra = string_arena_new(8);
+    la = string_arena_new(64);
+    ra = string_arena_new(64);
 
     li.sa = la;
     li.prefix = expr_info->prefix;
