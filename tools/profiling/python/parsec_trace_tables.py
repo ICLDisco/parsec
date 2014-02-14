@@ -25,6 +25,7 @@ import warnings # because these warnings are annoying, and I can find no way aro
 warnings.filterwarnings('ignore', category=pd.io.pytables.PerformanceWarning)
 warnings.simplefilter(action = "ignore", category = FutureWarning)
 
+alias_info = True # PARAM_N -> N, GFLOPS -> gflops, etc.
 default_descriptors = ['hostname', 'exe', 'ncores', 'N', 'NB', 'sched', 'gflops']
 
 class ParsecTraceTables(object):
@@ -69,7 +70,7 @@ class ParsecTraceTables(object):
     # and automatically searches the 'information' dictionary
     def __getattr__(self, name):
         try:
-            return nice_val(self.information, raw_key(self.information, name))
+            return nice_val(self.information, unalias_key(self.information, name))
         except:
             return object.__getattribute__(self, name)
     def __getitem__(self, name):
@@ -123,23 +124,67 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
         for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
             top_level.append(store[name])
     except KeyError as ke:
+        print(filename)
         print(ke)
-        print(store['information'])
+        print(store['information']) # hopefully this doesn't also raise...
         raise ke
+
     trace = ParsecTraceTables(events, *top_level)
     if keep_store:
         trace._store = store
     else:
         trace._store = None
         store.close()
+
+    # add filename information to help users group, esp. by load directory
+    abspath = os.path.abspath(filename)
+    trace.information['load_abspath'] = abspath
+    trace.information['load_dirpath'] = os.path.dirname(abspath)
+    trace.information['load_dir'] = os.path.basename(os.path.dirname(abspath))
+    trace.information['load_base'] = os.path.basename(abspath)
+    # clear up old exe info
+    if 'exe_abspath' not in trace.information:
+        try:
+            trace.information['exe_abspath'] = os.path.abspath(
+                trace.information['cwd'] + os.sep + trace.information['exe'])
+            trace.information['exe'] = os.path.basename(trace.information['exe_abspath'])
+        except KeyError as ke:
+            print(ke)
+
+    if alias_info:
+        alias_info_on_load(trace)
+
     return trace
+
+def alias_info_on_load(trace):
+    info =  trace.information
+    info['__original_keys__'] = list()
+
+    for key in info[:].keys():
+        if key.startswith('PARAM_'):
+            short_key = key.replace('PARAM_', '')
+            if short_key not in info.keys():
+                info[short_key] = info[key]
+        elif re.match('[A-Z_0-9]+', key):
+            lower_key = key.lower()
+            if lower_key not in info.keys():
+                info[lower_key] = info[key]
+        info['__original_keys__'].append(key)
+
+    try:
+        if info.exe.endswith('potrf'):
+            nice_val(info, 'POTRF_PRI_CHANGE')
+    except KeyError as ke:
+        info['POTRF_PRI_CHANGE'] = 0
+
+
 
 ### END CORE FUNCTIONALITY
 #####################################
 ### BEGIN UTILITY FUNCTIONS
 
-def raw_key(dict_, name):
-    """ Converts a simple key name into the actual key name by PaRSEC rules."""
+def unalias_key(dict_, name):
+    """ Converts a simple key name into the actual key name by certain alias rules."""
     try:
         dict_[name]
         return name
@@ -163,7 +208,7 @@ def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
     description = str()
     used_keys = []
     for key in keys:
-        real_key = raw_key(dict_, key)
+        real_key = unalias_key(dict_, key)
         try:
             if real_key in used_keys:
                 continue # exclude duplicates

@@ -56,7 +56,7 @@ descTT   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)TT)" hid
 param_p   [type = int default="((two_dim_block_cyclic_t*)A)->grid.rows" hidden=on ]
 param_q   [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=on ]
 minMNT    [type = int default="dplasma_imin( descA.mt-1, descA.nt-1 )"    hidden=on ]
-nbmaxthrd [type = "int" default="( dplasma_imax( 1, dplasma_imin( /*A->cores*/ - 1, 48 ) ) ); assert(0)" hidden=on] /* 48 is the actual limit of the kernel */
+nbmaxthrd [type = "int" default="( dplasma_imax( 1, dplasma_imin( vpmap_get_nb_threads_in_vp(0) - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 
 /*===========================================================================================
 

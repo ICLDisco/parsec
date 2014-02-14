@@ -575,6 +575,7 @@ static char *dump_profiling_init(void **elem, void *arg)
     jdf_function_entry_t* f = (jdf_function_entry_t*)elem;
     char *fname = f->fname;
     unsigned char R, G, B;
+    int nb_locals;
 
     if( !jdf_property_get_int(f->properties, "profile", 1) ) {
         return NULL;
@@ -585,12 +586,16 @@ static char *dump_profiling_init(void **elem, void *arg)
     get_unique_rgb_color((float)info->idx / (float)info->maxidx, &R, &G, &B);
     info->idx++;
 
+    JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
+
     string_arena_add_string(info->sa,
                             "dague_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
-                            "                                       sizeof(dague_profile_ddesc_info_t), dague_profile_ddesc_key_to_string,\n"
+                            "                                       sizeof(dague_profile_ddesc_info_t)+%d*sizeof(assignment_t),\n"
+                            "                                       dague_profile_ddesc_key_to_string,\n"
                             "                                       (int*)&__dague_handle->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
                             "                                       (int*)&__dague_handle->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);",
                             fname, R, G, B,
+                            nb_locals,
                             jdf_basename, fname, fname,
                             jdf_basename, fname, fname);
 

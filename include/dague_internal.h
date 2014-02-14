@@ -273,6 +273,8 @@ struct dague_minimal_execution_context_s {
 #if defined(DAGUE_PROF_TRACE)
     dague_profile_ddesc_info_t prof_info;
 #endif /* defined(DAGUE_PROF_TRACE) */
+    /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
+     * prof_info so that the locals are part of the event specific infos */
     assignment_t            locals[MAX_LOCAL_COUNT];
 };
 

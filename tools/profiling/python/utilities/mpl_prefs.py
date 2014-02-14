@@ -1,13 +1,13 @@
 #!/usr/bin/env
 
 sched_colors = {
-    'AP': '#ee4466',
-    'GD': '#eeaa44',
-    'IP': 'brown',
-    'LFQ':'#5588cc',
-    'LTQ':'#33dd60',
-    'PBQ':'#881188',
-    'RND':'black',
+    'ap': '#ee4466', # red
+    'gd': '#eeaa44', # orange
+    'ip': 'brown',
+    'lfq':'#5588cc', # blue
+    'ltq':'#33dd60', # green
+    'pbq':'#881188', # purple
+    'rnd':'black',
 }
 
 GEMM_names = {

@@ -134,7 +134,7 @@ max_test_failures = 2 # these shouldn't really fail
 
 # PaRSEC testing output pattern
 test_output_pattern = (
-    ".* TIME\(s\)\s+(\d+\.\d+)\s+:\s+\w+\s+.+?N= \d+\s+NB=\s+(\d+).+?(\d+\.\d+)\s+gflops\n(.*)")
+    ".* TIME\(s\)\s+(\d+\.\d+)\s+:\s+\w+\s+.+?(\d+\.\d+)\s+gflops\n(.*)")
 
 def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                           exe_dir='.', out_dir='.', max_rsd=max_rsd,
@@ -239,12 +239,11 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
             trace_filenames = glob.glob( 'testing_' + exe + '*.prof-*')
             if match:
                 # save successfully-parsed output
-                trial.NB = int(match.group(2))
-                perf = float(match.group(3))
                 time = float(match.group(1))
-                extra_output = match.group(4)
+                perf = float(match.group(2))
+                extra_output = match.group(3)
                 print("   -----> gflops: %f time: %f NB:%d" %
-                      (perf, time, trial.NB))
+                      (perf, time, NB))
                 test = ParsecTest(trial.ident, exe, N, cores, NB,
                                   IB, sched, perf, time, test_num)
                 test.extra_output = extra_output
@@ -259,6 +258,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                                                           + os.sep
                                                           + test.unique_name())
                         # print('moving {} to {}'.format(filename, trace_filename))
+                        print('moving', filename, 'to', trace_filename)
                         shutil.move(filename, trace_filename)
                         moved_trace_filenames.append(trace_filename)
                     trace_filenames = moved_trace_filenames
@@ -315,6 +315,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                 new_list = list()
                 while len(trial) > 0:
                     test, trace_filenames = trial.pop()
+                    print('converting', trace_filenames)
                     if len(trace_filenames) > 0:
                         try:
                             import pbt2ptt
@@ -322,6 +323,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                             trace_filenames = [pbt2ptt.convert(trace_filenames,
                                                                unlink=True,
                                                                add_info=add_info)]
+                            print('converted filename is', trace_filenames)
                             new_list.append((test, trace_filenames))
                         except ImportError:
                             new_list.append((test, trace_filenames))
