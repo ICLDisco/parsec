@@ -40,6 +40,8 @@ zgeqrt(k)
 
 BODY
 {
+    dague_complex64_t *lA = (dague_complex64_t*)A;
+    int tempm = descA.m - k * descA.nb;
     int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );
 
@@ -52,9 +54,9 @@ BODY
     void *p_elem_tau  = dague_private_memory_pop( p_work );
     void *p_elem_work = dague_private_memory_pop( p_work );
 
-    CORE_zgeqrt(descA.m, tempkn, descA.nb,
-                A /* dataA(k,k) */, ldak,
-                T /* dataT(k,k) */, descT.mb,
+    CORE_zgeqrt(tempm, tempkn, descA.nb,
+                lA+k*descA.nb /* dataA(k,k) */, ldak,
+                T             /* dataT(k,k) */, descT.mb,
                 p_elem_tau, p_elem_work );
 
     dague_private_memory_push( p_work, p_elem_tau  );
@@ -80,6 +82,8 @@ zlarfb(k, n)
 
 BODY
 {
+    dague_complex64_t *lV = (dague_complex64_t*)V;
+    dague_complex64_t *lC = (dague_complex64_t*)C;
     int tempm = descA.m - k * descA.nb;
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );
@@ -96,9 +100,9 @@ BODY
         lapack_const(PlasmaForward),
         lapack_const(PlasmaColumnwise),
         tempm, tempnn, descA.nb,
-        V + k * descA.nb, ldak,
-        T,                descT.mb,
-        C + k * descA.nb, ldak,
+        lV + k * descA.nb, ldak,
+        T,                 descT.mb,
+        lC + k * descA.nb, ldak,
         p_elem_W, descA.nb);
 
     dague_private_memory_push( p_work, p_elem_W );
