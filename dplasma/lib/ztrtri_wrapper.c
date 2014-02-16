@@ -18,7 +18,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrtri_New - Generates dague object to compute the inverse of an
  *  upper or lower triangular matrix A.
@@ -110,7 +110,7 @@ dplasma_ztrtri_New( PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrtri_Destruct - Free the data structure associated to an object
  *  created with dplasma_ztrtri_New().
@@ -140,7 +140,7 @@ dplasma_ztrtri_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrtri - Computes the inverse of an upper or lower triangular matrix
  *  A.

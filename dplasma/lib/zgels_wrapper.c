@@ -14,7 +14,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgels -overdetermined or underdetermined linear systems
  *  involving an M-by-N matrix A using the QR or the LQ factorization of A.  It

@@ -23,7 +23,7 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlansy_New - Generates the object that computes the value
  *
@@ -168,7 +168,7 @@ dplasma_zlansy_New( PLASMA_enum norm,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlansy_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlansy_New().
@@ -203,7 +203,7 @@ dplasma_zlansy_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlansy - Computes the value
  *

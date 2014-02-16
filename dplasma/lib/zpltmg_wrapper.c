@@ -65,8 +65,7 @@ dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_internal
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpltmg_generic - Generic wrapper for cases that are based on the map
  * function. This is the default for many test matrices generation.
@@ -133,8 +132,7 @@ dplasma_zpltmg_generic( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_internal
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpltmg_genvect - Generic wrapper for cases that are using two
  * datatypes: the default one, and one describing a vector.
@@ -235,8 +233,7 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_internal
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpltmg_circul - Generates a Circulant test matrix by tiles.
  *
@@ -285,7 +282,7 @@ dplasma_zpltmg_circul( dague_context_t *dague,
  *******************************************************************************
  *
  * @ingroup dplasma_internal
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpltmg_condex - Generates a Condex test matrix by tiles.
  *
@@ -373,8 +370,7 @@ dplasma_zpltmg_condex( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_internal
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpltmg_house - Generates a Householder test matrix by tiles.
  *
@@ -448,7 +444,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpltmg - Generates a special test matrix by tiles.
  *

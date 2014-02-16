@@ -19,7 +19,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpotrf_New - Generates the object that Computes the Cholesky
  * factorization of a symmetric positive definite (or Hermitian positive
@@ -107,7 +107,7 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zpotrf_Destruct - Free the data structure associated to an object
  *  created with dplasma_zpotrf_New().
@@ -136,7 +136,7 @@ dplasma_zpotrf_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpotrf - Computes the Cholesky factorization of a symmetric positive
  * definite (or Hermitian positive definite in the complex case) matrix A.

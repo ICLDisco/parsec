@@ -16,7 +16,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlaswp_New - Generates the object that performs a series of row
  *  interchanges on the matrix A.  One row interchange is initiated for each
@@ -84,7 +84,7 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlaswp_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlaswp_New().
@@ -115,7 +115,7 @@ dplasma_zlaswp_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlaswp - Performs a series of row interchanges on the matrix A.  One
  *  row interchange is initiated for each rows in IPIV descriptor.

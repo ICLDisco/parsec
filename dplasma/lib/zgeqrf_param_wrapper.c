@@ -17,7 +17,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeqrf_param_New - Generates the object that computes the
  * hierarchical QR factorization of a M-by-N matrix A: A = Q * R.
@@ -141,7 +141,7 @@ dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgeqrf_param_Destruct - Free the data structure associated to an
  *  object created with dplasma_zgeqrf_param_New().
@@ -179,7 +179,7 @@ dplasma_zgeqrf_param_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeqrf_param - Computes the hierarchical QR factorization of a M-by-N
  * matrix A: A = Q * R.

@@ -18,7 +18,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeqrf_New - Generates the object that computes the QR factorization
  * a complex M-by-N matrix A: A = Q * R.
@@ -125,7 +125,7 @@ dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgeqrf_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgeqrf_New().
@@ -164,7 +164,7 @@ dplasma_zgeqrf_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeqrf - Computes the QR factorization a M-by-N matrix A:
  * A = Q * R.

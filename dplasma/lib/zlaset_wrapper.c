@@ -45,7 +45,7 @@ dplasma_zlaset_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zlaset_New - Generates the object that set the elements of the matrix
  * A on the diagonal to beta and the off-diagonals eklements to alpha.
@@ -106,7 +106,7 @@ dplasma_zlaset_New( PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlaset_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlaset_New().
@@ -132,7 +132,7 @@ dplasma_zlaset_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zlaset - Set the elements of the matrix
  * A on the diagonal to beta and the off-diagonals eklements to alpha.
