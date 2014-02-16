@@ -93,9 +93,9 @@ dplasma_zgeqrt_New( tiled_matrix_desc_t *A,
 
     /* Default type */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrt_DEFAULT_ARENA],
-	                            A->mb*A->nb*sizeof(dague_complex64_t),
-    	                        DAGUE_ARENA_ALIGNMENT_SSE,
-    	                        MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1 );
+                                 A->mb*A->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1 );
 
     /* Little T */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrt_LITTLE_T_ARENA],
@@ -131,8 +131,8 @@ dplasma_zgeqrt_Destruct( dague_handle_t *o )
 {
     dague_zgeqrt_handle_t *dague_zgeqrt = (dague_zgeqrt_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zgeqrt->arenas[DAGUE_zgeqrt_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgeqrt->arenas[DAGUE_zgeqrt_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgeqrt->arenas[DAGUE_zgeqrt_DEFAULT_ARENA ]->opaque_dtt) );
+    dplasma_datatype_undefine_type( &(dague_zgeqrt->arenas[DAGUE_zgeqrt_LITTLE_T_ARENA]->opaque_dtt) );
 
     dague_private_memory_fini( dague_zgeqrt->p_work );
     free( dague_zgeqrt->p_work );
@@ -222,7 +222,7 @@ dplasma_zgeqrt( dague_context_t *dague,
         dplasma_error("dplasma_zgeqrt", "T qnd A must have the same nb");
         return -101;
     }
- 
+
     dague_zgeqrt = dplasma_zgeqrt_New(A, T);
 
     if ( dague_zgeqrt != NULL ) {

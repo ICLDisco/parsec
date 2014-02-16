@@ -97,6 +97,8 @@ BODY
              "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
              k, k, k, A, k, k, T);
 
+#if !defined(DAGUE_DRY_RUN)
+
 #if defined(RECURSIVE_GEQRT)
 
     two_dim_block_cyclic_t *small_descA;
@@ -106,22 +108,26 @@ BODY
 
     small_descA = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
     small_descT = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
-    
+
     two_dim_block_cyclic_init(small_descA,
                               matrix_ComplexDouble, matrix_Lapack,
                               1, context->virtual_process->dague_context->my_rank,
-                              descA.mb, ib, ldak, tempkn,
-                              0, 0, tempkm, tempkn, 1, 1, 1);
+                              dplasma_imin(descA.mb, ldak), ib,
+                              ldak, tempkn, 0, 0,
+                              tempkm, tempkn, 1, 1, 1);
+
     two_dim_block_cyclic_init(small_descT,
                               matrix_ComplexDouble, matrix_Lapack,
                               1, context->virtual_process->dague_context->my_rank,
-                              ib, ib, descT.mb, tempkn,
-                              0, 0, ib, tempkn, 1, 1, 1);
+                              ib, ib,
+                              descT.mb, tempkn, 0, 0,
+                              ib,       tempkn, 1, 1, 1);
     small_descA->mat = A;
     small_descT->mat = T;
 
     /* Dague_object */
-    dague_zgeqrt = dplasma_zgeqrt_New((tiled_matrix_desc_t *)small_descA, (tiled_matrix_desc_t *)small_descT );
+    dague_zgeqrt = dplasma_zgeqrt_New((tiled_matrix_desc_t *)small_descA,
+                                      (tiled_matrix_desc_t *)small_descT );
     dague_zgeqrt->devices_mask = 1;
 
     /* Callback */
@@ -139,9 +145,7 @@ BODY
     dague_enqueue(context->virtual_process->dague_context, dague_zgeqrt);
     return -1;
 
-#else /* !defined(RECURSIVE_GEQRT) */
-
-#if !defined(DAGUE_DRY_RUN)
+#else /* defined(RECURSIVE_GEQRT) */
 
     void *p_elem_A = dague_private_memory_pop( p_tau );
     void *p_elem_B = dague_private_memory_pop( p_work );
@@ -154,9 +158,9 @@ BODY
     dague_private_memory_push( p_tau,  p_elem_A );
     dague_private_memory_push( p_work, p_elem_B );
 
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif /* defined(RECURSIVE_GEQRT) */
 
-#endif /* end of defined(RECURSIVE_GEQRT) */
+#endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
