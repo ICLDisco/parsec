@@ -274,8 +274,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 else if( !strcmp(optarg, "LTQ") )
@@ -300,8 +299,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'g':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if(iparam[IPARAM_NGPUS] == -1) {
                     fprintf(stderr, "#!!!!! This test does not have GPU support. GPU disabled.\n");
                     break;
@@ -357,8 +355,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'H':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
 #if defined(HAVE_HWLOC)
                  dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
 #else
@@ -366,8 +363,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 #endif  /* defined(HAVE_HWLOC */
 
             case 'V':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if( !strncmp(optarg, "display", 7 )) {
                     vpmap_display_map(stderr);
                 } else {
