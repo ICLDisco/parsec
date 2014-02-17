@@ -1,0 +1,108 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include <lapacke.h>
+#include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+dataA  [type = "dague_ddesc_t *"]
+dataT  [type = "dague_ddesc_t *" aligned=dataA]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*descT.nb)"]
+
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
+minMNT [type = "int" hidden=on default = "dplasma_imin(descA.nt, ((descA.m+descA.nb-1)/descA.nb))-1"]
+
+zgeqrt(k)
+  /* Execution space */
+  k = 0 .. minMNT
+
+  : dataA(0, k)
+
+  RW    A <- (0 == k) ? dataA(0, k) : C zlarfb(k-1, k)
+          -> (k < (descA.nt-1)) ? V zlarfb(k, k+1 ..  descA.nt-1)
+          -> dataA(0, k)
+
+  RW    T <- dataT(0, k)                                          [type = LITTLE_T]
+          -> dataT(0, k)                                          [type = LITTLE_T]
+          -> (k < (descA.nt-1)) ? T zlarfb(k, k+1 ..  descA.nt-1) [type = LITTLE_T]
+
+BODY
+{
+    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_zgeqrt(%d)\n"
+             "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+             k, k, k, A, k, k, T);
+
+#if !defined(DAGUE_DRY_RUN)
+
+    void *p_elem_tau  = dague_private_memory_pop( p_work );
+    void *p_elem_work = dague_private_memory_pop( p_work );
+
+    CORE_zgeqrt(descA.m, tempkn, descA.nb,
+                A /* dataA(k,k) */, ldak,
+                T /* dataT(k,k) */, descT.mb,
+                p_elem_tau, p_elem_work );
+
+    dague_private_memory_push( p_work, p_elem_tau  );
+    dague_private_memory_push( p_work, p_elem_work );
+
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+zlarfb(k, n)
+  /* Execution space */
+  k = 0   .. inline_c %{ return dplasma_imin((descA.nt-2), minMNT); %}
+  n = k+1 .. descA.nt-1
+
+  : dataA(0,n)
+
+  READ  V <- A zgeqrt(k)
+  READ  T <- T zgeqrt(k)             [type = LITTLE_T]
+  RW    C <- (k == 0) ? dataA(0, n) : C zlarfb(k-1, n)
+          -> (k == minMNT) ? dataA(0, n)
+          -> (k <  minMNT) && ( n == k+1 ) ? A zgeqrt(k+1)
+          -> (k <  minMNT) && ( n >  k+1 ) ? C zlarfb(k+1, n)
+
+BODY
+{
+    int tempm = descA.m - k * descA.nb;
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_zlarfb(%d, %d)\n", k, n);
+
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_W = dague_private_memory_pop( p_work );
+
+    LAPACKE_zlarfb_work(
+        LAPACK_COL_MAJOR,
+        lapack_const(PlasmaLeft),
+        lapack_const(PlasmaConjTrans),
+        lapack_const(PlasmaForward),
+        lapack_const(PlasmaColumnwise),
+        tempm, tempnn, descA.nb,
+        V + k * descA.nb, ldak,
+        T,                descT.mb,
+        C + k * descA.nb, ldak,
+        p_elem_W, descA.nb);
+
+    dague_private_memory_push( p_work, p_elem_W );
+
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END

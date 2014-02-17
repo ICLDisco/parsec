@@ -33,6 +33,7 @@ set(TESTS
   # QR/LQ
   testing_zgelqf.c
   testing_zgeqrf.c
+  testing_zgeqrf_rec.c
   testing_zunmqr.c
   testing_zunmlq.c
   testing_zgeqrf_hqr.c
