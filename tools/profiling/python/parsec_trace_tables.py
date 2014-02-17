@@ -56,7 +56,7 @@ class ParsecTraceTables(object):
                complevel=0, complib='blosc'):
         if not overwrite and os.path.exists(filename):
             return False
-        store = pd.HDFStore(filename + '.tmp', 'w')
+        store = pd.HDFStore(filename + '.tmp', 'w', complevel=complevel, complib=complib)
         for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
             store.put(name, self.__dict__[name])
         store.put('events', self.events, table=table, append=append)
@@ -324,7 +324,6 @@ def find_h5_conflicts(filenames):
             globber = '*' + unique_six_char_str + ptt_ext
             if dirname:
                 globber = dirname + os.sep + globber
-            print(globber)
             h5_conflicts = glob.glob(globber)
             if len(h5_conflicts) > 0:
                 return h5_conflicts

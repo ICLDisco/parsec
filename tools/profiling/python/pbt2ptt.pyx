@@ -218,7 +218,9 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
 cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
               force_reconvert=False, validate_existing=False,
               table=False, append=False, report_progress=False,
-              add_info=dict(), compress=('blosc', 0)):
+              add_info=dict(), compress=('blosc', 0), skeleton_only=False):
+    if skeleton_only:
+        compress=('blosc', 5)
     if len(filenames) < 1:
         cond_print('No filenames supplied for conversion!', report_progress)
         return None
@@ -252,7 +254,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     # convert
     cond_print('Converting {}'.format(filenames), report_progress)
     trace = read(filenames, report_progress=report_progress, 
-                 multiprocess=multiprocess, add_info=add_info)
+                 multiprocess=multiprocess, add_info=add_info, skeleton_only=skeleton_only)
 
     if out == None: # create out filename
         out_dir = os.path.dirname(filenames[0])
@@ -347,7 +349,7 @@ cpdef construct_thread_in_process(pipe, builder, filenames, node_threads,
     
     for node_id, thread_num in node_threads: # should be list of tuples
         cfile = dbp_reader_get_file(dbp, builder.node_order[node_id])
-        construct_thread(builder, dbp, cfile, node_id, thread_num, skeleton_only)
+        construct_thread(builder, skeleton_only, dbp, cfile, node_id, thread_num)
         cond_print('.', report_progress, end='')
         sys.stdout.flush()
     
@@ -366,8 +368,8 @@ cpdef construct_thread_in_process(pipe, builder, filenames, node_threads,
 thread_id_in_descrip = re.compile('.*thread\s+(\d+).*', re.IGNORECASE)
 vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
-cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
-                      int node_id, int thread_num, int skeleton_only):
+cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
+                      int node_id, int thread_num):
     """Converts all events using the C interface into Python dicts
 
     Also creates a 'thread' dict describing the very basic information
@@ -406,7 +408,6 @@ cdef construct_thread(builder, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
     else:
         thread_id = thread['id']
     builder.unordered_threads_by_node[node_id][thread_id] = thread
-
     while event_s != NULL and not skeleton_only:
         event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
         event_name = builder.event_names[event_type]
