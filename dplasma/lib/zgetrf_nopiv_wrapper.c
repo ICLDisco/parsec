@@ -18,7 +18,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgetrf_nopiv_New - Generates the object that computes the LU
  * factorization of a M-by-N matrix A: A = L * U by with no pivoting
@@ -84,7 +84,7 @@ dplasma_zgetrf_nopiv_New( tiled_matrix_desc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgetrf_nopiv_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgetrf_nopiv_New().
@@ -114,7 +114,7 @@ dplasma_zgetrf_nopiv_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgetrf_nopiv - Computes the LU factorization of a M-by-N matrix A: A
  * = L * U by with no pivoting strategy. The matrix has to be diaagonal dominant

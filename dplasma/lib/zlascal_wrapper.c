@@ -61,7 +61,7 @@ dplasma_zlascal_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zlascal_New - Generates the object that scales a matrix by a given scalar.
  *
@@ -121,7 +121,7 @@ dplasma_zlascal_New( PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlascal_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlascal_New().
@@ -147,7 +147,7 @@ dplasma_zlascal_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zlascal - Scales a matrix by a given scalar.
  *

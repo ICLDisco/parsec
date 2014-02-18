@@ -100,7 +100,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
             node_dct['exe'] = os.path.basename(node_dct['exe_abspath'])
         except KeyError as ke:
             pass
-            
+
         builder.nodes.append(node_dct)
         # record threads for this node
         builder.unordered_threads_by_node[node_id] = dict()
@@ -113,13 +113,14 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     node_thread_chunks = chunk(node_threads, multiprocess)
     process_pipes = list()
     processes = list()
-    
+
+
     with Timer() as t:
         for nt_chunk in node_thread_chunks:
             my_end, their_end = Pipe()
             process_pipes.append(my_end)
             p = Process(target=construct_thread_in_process, args=
-                        (their_end, builder, filenames, 
+                        (their_end, builder, filenames,
                          nt_chunk, skeleton_only, report_progress))
             processes.append(p)
             p.start()
@@ -174,7 +175,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     builder.information['nb_nodes'] = nb_files
     builder.information['worldsize'] = worldsize
     builder.information['last_error'] = last_error
-    # allow the caller (who may know something extra about the run) 
+    # allow the caller (who may know something extra about the run)
     # to specify additional trace information
     if add_info:
         for key, val in add_info.iteritems():
@@ -250,10 +251,10 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
                     existing_h5) +
                 'Conversion will proceed.', report_progress)
             pass # something went wrong, so try conversion anyway
-        
+
     # convert
     cond_print('Converting {}'.format(filenames), report_progress)
-    trace = read(filenames, report_progress=report_progress, 
+    trace = read(filenames, report_progress=report_progress,
                  multiprocess=multiprocess, add_info=add_info, skeleton_only=skeleton_only)
 
     if out == None: # create out filename
@@ -277,7 +278,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
             if match:
                 infos = default_descriptors[:] + ['start_time']
                 infos.remove('exe') # this is already in match.group(1)
-                out = (match.group(1).strip('_') + '-' + trace.name(infos=infos) + 
+                out = (match.group(1).strip('_') + '-' + trace.name(infos=infos) +
                        '-' + match.group(4) + '.h5')
             else:
                 out = get_basic_ptt_name(rank_zero_filename)
@@ -341,18 +342,18 @@ cdef char** string_list_to_c_strings(strings):
     return c_argv
 
 
-cpdef construct_thread_in_process(pipe, builder, filenames, node_threads, 
+cpdef construct_thread_in_process(pipe, builder, filenames, node_threads,
                                   skeleton_only, report_progress):
     cdef dbp_file_t * cfile
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
-    
+
     for node_id, thread_num in node_threads: # should be list of tuples
         cfile = dbp_reader_get_file(dbp, builder.node_order[node_id])
         construct_thread(builder, skeleton_only, dbp, cfile, node_id, thread_num)
         cond_print('.', report_progress, end='')
         sys.stdout.flush()
-    
+
     # now we must send the constructed objects back to the spawning process
     if len(builder.events) > 0:
         builder.events = pd.DataFrame.from_records(builder.events)
@@ -427,12 +428,12 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                 if event_e != NULL:
                     end = dbp_event_get_timestamp(event_e)
                     # 'end' and 'begin' are unsigned, so subtraction is invalid if they are
-                    if end > begin:
+                    if end >= begin:
                         duration = end - begin
                     else:
                         duration = -1
-                    event = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id, 
-                             'type':event_type, 'begin':begin, 'end':end, 'duration':duration, 
+                    event = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id,
+                             'type':event_type, 'begin':begin, 'end':end, 'duration':duration,
                              'flags':event_flags, 'id':event_id}
 
                     if duration >= 0 and duration <= th_duration:
@@ -458,8 +459,8 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
             else: # the event is not complete
                 error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
                     event_name, event_id, thread_id)
-                error = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id, 
-                         'type':event_type, 'begin':begin, 'end':0, 'duration':0, 
+                error = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id,
+                         'type':event_type, 'begin':begin, 'end':0, 'duration':0,
                          'flags':event_flags, 'id':event_id, 'error_msg': error_msg}
                 builder.errors.append(error)
 
@@ -509,4 +510,3 @@ def chunk(xs, n):
     for i in xrange(leftover):
         chunks[i%n].append(ys[edge+i])
     return chunks
-

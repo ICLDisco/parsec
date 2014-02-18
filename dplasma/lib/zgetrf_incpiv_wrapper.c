@@ -19,7 +19,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgetrf_incpiv_New - Generates the object that computes the LU
  * factorization of a M-by-N matrix A using tile algorithm.
@@ -164,7 +164,7 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgetrf_incpiv_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgetrf_incpiv_New().
@@ -201,7 +201,7 @@ dplasma_zgetrf_incpiv_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgetrf_incpiv - Computes the LU factorization of a M-by-N matrix A
  * using tile algorithm.

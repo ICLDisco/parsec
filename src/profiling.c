@@ -43,6 +43,14 @@
 #endif  /* defined(MAC_OS_X) */
 #endif /* defined(HOST_NAME_MAX) */
 
+#ifndef HOST_NAME_MAX
+#if defined(MAC_OS_X)
+#define HOST_NAME_MAX _SC_HOST_NAME_MAX
+#else
+#define HOST_NAME_MAX 1024
+#endif  /* defined(MAC_OS_X) */
+#endif /* defined(HOST_NAME_MAX) */
+
 /**
  * Externally visible on/off switch for the profiling of new events. It
  * only protects the macros, a direct call to the dague_profiling_trace

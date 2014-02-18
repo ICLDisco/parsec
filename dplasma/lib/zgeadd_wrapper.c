@@ -57,7 +57,7 @@ dplasma_zgeadd_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeadd_New - Generates an object that computes the operation B =
  * alpha * A + B
@@ -118,7 +118,7 @@ dplasma_zgeadd_New( PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlacpy_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlacpy_New().
@@ -144,7 +144,7 @@ dplasma_zgeadd_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeadd - Generates an object that computes the operation B =
  * alpha * A + B

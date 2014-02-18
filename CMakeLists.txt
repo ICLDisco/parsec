@@ -381,7 +381,7 @@ check_function_exists(getrusage HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h HAVE_RUSAGE_THREAD)
 check_include_files(limits.h HAVE_LIMITS_H)
 check_include_files(string.h HAVE_STRING_H)
-check_include_files(gen.h HAVE_GEN_H)
+check_include_files(libgen.h HAVE_GEN_H)
 check_include_files(complex.h HAVE_COMPLEX_H)
 check_include_files(sys/param.h HAVE_SYS_PARAM_H)
 check_include_files(sys/types.h HAVE_SYS_TYPES_H)
@@ -396,7 +396,8 @@ IF( BUILD_DAGUE )
   if( HWLOC_FOUND )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
-  endif (HWLOC_FOUND)
+    set (PARSEC_PKG_REQUIRE "hwloc")
+   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
     # Force the detection of the C library
@@ -539,7 +540,6 @@ if(NOT DAGUE_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
-add_definitions(-DHAVE_CONFIG_H)
 
 #
 # Check if indent is available on the system.
@@ -642,7 +642,9 @@ configure_file (
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
-install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc" DESTINATION lib/pkgconfig)
+
+install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)
+install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"  DESTINATION lib/pkgconfig)
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)

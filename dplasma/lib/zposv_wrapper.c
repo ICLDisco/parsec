@@ -15,7 +15,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zposv - Computes the solution to a system of linear equations A * X =
  * B, where A is an N-by-N symmetric positive definite (or Hermitian positive

@@ -14,7 +14,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zungqr_New - Generates the dague object that computes the generation
  *  of an M-by-N matrix Q with orthonormal columns, which is defined as the
@@ -88,7 +88,7 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zungqr_Destruct - Free the data structure associated to an object
  *  created with dplasma_zungqr_New().
@@ -114,7 +114,7 @@ dplasma_zungqr_Destruct( dague_handle_t *object )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zungqr - Generates of an M-by-N matrix Q with orthonormal columns,
  *  which is defined as the first N columns of a product of K elementary

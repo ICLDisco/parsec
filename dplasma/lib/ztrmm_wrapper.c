@@ -25,7 +25,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrmm_New - Generates dague object to compute:
  *
@@ -174,7 +174,7 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrmm_Destruct - Free the data structure associated to an object
  *  created with dplasma_ztrmm_New().
@@ -203,7 +203,7 @@ dplasma_ztrmm_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrmm - Computes:
  *

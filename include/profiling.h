@@ -13,6 +13,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+BEGIN_C_DECLS
 /**
  * Note about thread safety:
  *  Some functions are thread safe, others are not.
@@ -310,5 +311,7 @@ profiling_thread_save_sinfo(dague_thread_profiling_t * thread,
 #define PROFILING_THREAD_SAVE_uint64INFO(thread, key, integer_value) do {} while(0)
 #define PROFILING_THREAD_SAVE_sINFO(thread, key, str_value) do {} while(0)
 #endif
+
+END_C_DECLS
 
 #endif  /* _DAGUE_profiling_h */

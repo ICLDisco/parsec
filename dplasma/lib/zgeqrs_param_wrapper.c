@@ -14,7 +14,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgeqrs - Computes a minimum-norm solution min || A*X - B || using the
  * Hierarchical QR factorization A = Q*R computed by dplasma_zgeqrf_param().

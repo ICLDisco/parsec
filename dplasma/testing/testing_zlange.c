@@ -358,6 +358,19 @@ int main(int argc, char ** argv)
                         printf(" ----- TESTING ZLANHE (%s, %s) ... FAILED !\n", uplostr[u], normsstr[i]);
                         printf("       | Ndag - Nlap | / Nlap = %e\n", normdag);
                         ret |= 1;
+
+                        dplasma_zgeadd(dague, uplo[u], -1.,
+                                       (tiled_matrix_desc_t *)&ddescA,
+                                       (tiled_matrix_desc_t *)&ddescA0 );
+
+                        normlap = LAPACKE_zlanhe_work(LAPACK_COL_MAJOR, normsstr[i][0], uplostr[u][0], M,
+                                                      (dague_complex64_t*)(ddescA0.mat), ddescA0.super.lm, work);
+
+                        assert( normlap == 0.0 );
+                        assert( ((dague_complex64_t*)(ddescA.mat))[0] == 0.5 );
+
+                        /* Restore A0 */
+                        dplasma_zplghe( dague, 0., PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescA0, 3872);
                     }
                 }
             }

@@ -13,7 +13,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgetrs - Solves a system of linear equations A * X = B with a general
  * square matrix A using the LU factorization with incremental pivoting strategy

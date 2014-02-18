@@ -47,7 +47,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgetrf_qrf_New - Generates the object that computes an hybrid LU-QR
  * factorization of a M-by-N matrix A.
@@ -259,7 +259,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgetrf_qrf_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgetrf_qrf_New().
@@ -302,7 +302,7 @@ dplasma_zgetrf_qrf_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgetrf_qrf_New - Generates the object that computes an hybrid LU-QR
  * factorization of a M-by-N matrix A.

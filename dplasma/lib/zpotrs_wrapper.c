@@ -15,7 +15,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zpotrs - Solves a system of linear equations A * X = B with a
  * symmetric positive definite (or Hermitian positive definite in the complex

@@ -19,7 +19,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_ztrsmpl_New - Generates the object that solves U*x = b, when U has
  * been generated through LU factorization with incremental pivoting strategy
@@ -134,7 +134,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrsmpl_Destruct - Free the data structure associated to an object
  *  created with dplasma_ztrsmpl_New().
@@ -166,7 +166,7 @@ dplasma_ztrsmpl_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_ztrsmpl - Solves U*x = b, when U has been generated through LU
  * factorization with incremental pivoting strategy

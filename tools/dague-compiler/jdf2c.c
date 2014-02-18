@@ -210,8 +210,8 @@ char * dump_expr(void **elem, void *arg)
 
     string_arena_init(sa);
 
-    la = string_arena_new(8);
-    ra = string_arena_new(8);
+    la = string_arena_new(64);
+    ra = string_arena_new(64);
 
     li.sa = la;
     li.prefix = expr_info->prefix;
@@ -1081,6 +1081,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     int nbfunctions, nbdata, need_profile = 0;
     string_arena_t *sa1, *sa2;
     jdf_function_entry_t* f;
+    jdf_name_list_t *pl;
 
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
@@ -1111,8 +1112,15 @@ static void jdf_generate_structure(const jdf_t *jdf)
     coutput("typedef struct __dague_%s_internal_handle {\n", jdf_basename);
     coutput(" dague_%s_handle_t super;\n",
             jdf_basename);
-    coutput("  /* The list of data repositories */\n");
 
+    coutput("  /* The ranges to compute the hash key */\n");
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        for(pl = f->parameters; pl != NULL; pl = pl->next) {
+            coutput("  int %s_%s_range;\n", f->fname, pl->name);
+        }
+    }
+
+    coutput("  /* The list of data repositories */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
         if( 0 != function_has_data_output(f) )
             coutput("  data_repo_t *%s_repository;\n", f->fname);
@@ -2384,13 +2392,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         idx++;
     }
 
-    string_arena_init(sa1);
-    coutput("%s  if( !%s_pred(%s) ) continue;\n"
-            "%s  nb_tasks++;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
-                                                            dump_string, NULL,
-                                                            "", "", ", ", ""),
-            indent(nesting));
     for(pl = f->parameters; pl != NULL; pl = pl->next ) {
         coutput("%s  %s_max = dague_imax(%s_max, %s);\n"
                 "%s  %s_min = dague_imin(%s_min, %s);\n",
@@ -2398,8 +2399,25 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 indent(nesting), pl->name, pl->name, pl->name);
     }
 
+    string_arena_init(sa1);
+    coutput("%s  if( !%s_pred(%s) ) continue;\n"
+            "%s  nb_tasks++;\n",
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
+                                                            dump_string, NULL,
+                                                            "", "", ", ", ""),
+            indent(nesting));
+
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
+    }
+
+    coutput("\n"
+            "  /**\n"
+            "   * Set the range variables for the collision-free hash-computation\n"
+            "   */\n");
+    for(pl = f->parameters; pl != NULL; pl = pl->next) {
+        coutput("  __dague_handle->%s_%s_range = (%s_max - %s_min) + 1;\n",
+                f->fname, pl->name, pl->name, pl->name);
     }
 
     coutput("\n"
@@ -2460,6 +2478,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                                                 dump_string, NULL,
                                                                 "", "", ", ", ""),
                 indent(nesting));
+        nesting++;
 
         string_arena_init(sa1);
         string_arena_add_string(sa1, "dep");
@@ -2485,6 +2504,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         if( last_dimension_is_a_range )
             coutput("%s    break;\n", indent(nesting));
         coutput("%s  }\n", indent(nesting));
+        nesting--;
 
         for(; nesting > 0; nesting--) {
             coutput("%s}\n", indent(nesting));
@@ -3189,14 +3209,12 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     jdf_def_list_t *dl;
     expr_info_t info;
     int idx;
-    string_arena_t *prec = string_arena_new(64);
 
     (void)jdf;
 
     coutput("static inline uint64_t %s_hash(const __dague_%s_internal_handle_t *__dague_handle, const assignment_t *assignments)\n"
             "{\n"
-            "  uint64_t __h = 0;\n"
-            "  (void)__dague_handle;\n",
+            "  uint64_t __h = 0;\n",
             f->fname, jdf_basename);
 
     info.prefix = "";
@@ -3207,43 +3225,35 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     for(dl = f->locals; dl != NULL; dl = dl->next) {
         string_arena_init(sa);
 
+        coutput("  int %s = assignments[%d].value;\n",
+                dl->name, idx);
+
         if( definition_is_parameter(f, dl) != NULL ) {
-            coutput("%s", string_arena_get_string(prec));
-            coutput("  int %s = assignments[%d].value;\n",
-                    dl->name, idx);
-            string_arena_init(prec);
             if( dl->expr->op == JDF_RANGE ) {
                 coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
-                string_arena_add_string(prec, "  int %s_inc = %s;\n", dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
-                string_arena_add_string(prec, "  int %s_range = (%s - %s_min + 1 + (%s_inc-1))/%s_inc;\n",
-                                        dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info), dl->name, dl->name, dl->name);
             } else {
                 coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr, &info));
-                string_arena_add_string(prec, "  int %s_range = 1;\n", dl->name);
             }
         } else {
             /* Hash functions depends only on the parameters of the function.
-             * We might need them because the min/max expressions of the parameters
+             * We might need the other definitions because the min expression of the parameters
              * might depend on them, but maybe not, so let's void their use to remove
              * warnings.
              */
-            coutput("  int %s = assignments[%d].value; (void)%s;\n",
-                    dl->name, idx, dl->name);
+            coutput("  (void)%s;\n", dl->name);
         }
         idx++;
     }
-
-    string_arena_free(prec);
 
     string_arena_init(sa);
     for(dl = f->locals; dl != NULL; dl = dl->next) {
         if( definition_is_parameter(f, dl) != NULL ) {
             coutput("  __h += (%s - %s_min)%s;\n", dl->name, dl->name, string_arena_get_string(sa));
-            string_arena_add_string(sa, " * %s_range", dl->name);
+            string_arena_add_string(sa, " * __dague_handle->%s_%s_range", f->fname, dl->name);
         }
     }
 
-    coutput("  return __h;\n");
+    coutput("  return __h; (void)__dague_handle;\n");
     coutput("}\n\n");
     string_arena_free(sa);
 }
@@ -3842,7 +3852,8 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
                 "  this_task->prof_info.desc = (dague_ddesc_t*)__dague_handle->super.%s;\n"
                 "  this_task->prof_info.id   = ((dague_ddesc_t*)(__dague_handle->super.%s))->data_key((dague_ddesc_t*)__dague_handle->super.%s, %s);\n"
                 "#endif  /* defined(DAGUE_PROF_TRACE) */\n",
-                f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
+                f->predicate->func_or_mem,
+                f->predicate->func_or_mem, f->predicate->func_or_mem,
                 UTIL_DUMP_LIST(sa3, f->predicate->parameters, next,
                                dump_expr, (void*)&linfo,
                                "", "", ", ", "") );
@@ -4611,6 +4622,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "    ", "nc") );
                 } else {
+                    UTIL_DUMP_LIST(sa_temp, dl->guard->calltrue->parameters, next,
+                                   dump_expr, (void*)&info, "", "", ", ", "");
+                    string_arena_add_string(sa_coutput,
+                                            "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                            (1U << dl->dep_index), dl->guard->calltrue->func_or_mem,
+                                            string_arena_get_string(sa_temp));
+                    string_arena_init(sa_temp);
                     flowtomem = 1;
                 }
                 break;
@@ -4625,6 +4643,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc") );
                 } else {
+                    UTIL_DUMP_LIST(sa_temp, dl->guard->calltrue->parameters, next,
+                                   dump_expr, (void*)&info, "", "", ", ", "");
+                    string_arena_add_string(sa_coutput,
+                                            "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                            (1U << dl->dep_index), dl->guard->calltrue->func_or_mem,
+                                            string_arena_get_string(sa_temp));
+                    string_arena_init(sa_temp);
                     flowtomem = 1;
                 }
                 break;
@@ -4675,6 +4700,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                                 jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->callfalse, JDF_OBJECT_LINENO(dl),
                                                                             "      ", "nc") );
                     } else {
+                        UTIL_DUMP_LIST(sa_temp, dl->guard->callfalse->parameters, next,
+                                       dump_expr, (void*)&info, "", "", ", ", "");
+                        string_arena_add_string(sa_coutput,
+                                                "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                                (1U << dl->dep_index), dl->guard->callfalse->func_or_mem,
+                                                string_arena_get_string(sa_temp));
+                        string_arena_init(sa_temp);
                         flowtomem = 1;
                     }
                 }

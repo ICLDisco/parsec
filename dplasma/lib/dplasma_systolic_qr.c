@@ -104,11 +104,11 @@ static int systolic_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
  *  systolic_nextpiv - Computes the next row killed by the row p, after
  *  it has kill the row start.
  *
- * @param[in] p
- *         Line used as killer
- *
  * @param[in] k
  *         Factorization step
+ *
+ * @param[in] pivot
+ *         Line used as killer
  *
  * @param[in] start
  *         Starting point to search the next line killed by p after start
@@ -194,11 +194,11 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
  *  systolic_prevpiv - Computes the previous row killed by the row p, before
  *  to kill the row start.
  *
- * @param[in] p
- *         Line used as killer
- *
  * @param[in] k
  *         Factorization step
+ *
+ * @param[in] pivot
+ *         Line used as killer
  *
  * @param[in] start
  *         Starting point to search the previous line killed by p before start
@@ -369,7 +369,7 @@ dplasma_systolic_init( dplasma_qrtree_t *qrtree,
         dplasma_error("dplasma_systolic_init", "illegal value of p");
         return -4;
     }
-    if ( q < 0 ) {
+    if ( q < -1 ) {
         dplasma_error("dplasma_systolic_init", "illegal value of q");
         return -5;
     }

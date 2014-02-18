@@ -22,7 +22,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zunmqr_New - Generates the dague object that overwrites the general
  *  M-by-N matrix C with
@@ -196,7 +196,7 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zunmqr_Destruct - Free the data structure associated to an object
  *  created with dplasma_zunmqr_New().
@@ -231,7 +231,7 @@ dplasma_zunmqr_Destruct( dague_handle_t *object )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zunmqr_New - Overwrites the general M-by-N matrix C with
  *
