@@ -25,6 +25,7 @@ typedef struct cb_data_s {
     dague_ddesc_t * A;
     dague_ddesc_t * B;
     dague_ddesc_t * C;
+    dague_ddesc_t * D;
     void (*destruct)( dague_handle_t * );
 } cb_data_t;
 
@@ -38,6 +39,7 @@ static int complete_recursive_dague_callback(dague_handle_t* dague_handle, void*
     if (data->A != NULL) free(data->A);
     if (data->B != NULL) free(data->B);
     if (data->C != NULL) free(data->C);
+    if (data->D != NULL) free(data->D);
 
     data->destruct( dague_handle );
     free(data);
@@ -139,6 +141,7 @@ BODY
     cbdata_zgeqrt->A       = (dague_ddesc_t *)small_descA;
     cbdata_zgeqrt->B       = (dague_ddesc_t *)small_descT;
     cbdata_zgeqrt->C       = NULL;
+    cbdata_zgeqrt->D       = NULL;
     cbdata_zgeqrt->destruct= dplasma_zgeqrt_Destruct;
     dague_set_complete_callback(dague_zgeqrt,
                                 complete_recursive_dague_callback,
@@ -243,6 +246,7 @@ BODY
     cbdata_zunmqr_panel->A       = (dague_ddesc_t *)small_descA;
     cbdata_zunmqr_panel->B       = (dague_ddesc_t *)small_descT;
     cbdata_zunmqr_panel->C       = (dague_ddesc_t *)small_descC;
+    cbdata_zunmqr_panel->D       = NULL;
     cbdata_zunmqr_panel->destruct= dplasma_zunmqr_panel_Destruct;
     dague_set_complete_callback(dague_zunmqr_panel,
                                 complete_recursive_dague_callback,
@@ -367,6 +371,7 @@ BODY
     cbdata_ztsqrt->A       = (dague_ddesc_t *)small_descA1;
     cbdata_ztsqrt->B       = (dague_ddesc_t *)small_descA2;
     cbdata_ztsqrt->C       = (dague_ddesc_t *)small_descT;
+    cbdata_ztsqrt->D       = NULL;
     cbdata_ztsqrt->destruct= dplasma_ztsqrt_Destruct;
     dague_set_complete_callback(dague_ztsqrt,
                                 complete_recursive_dague_callback,
