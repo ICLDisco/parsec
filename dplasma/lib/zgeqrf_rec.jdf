@@ -16,6 +16,8 @@ extern "C" %{
 #include "scheduling.h"
 
 #define RECURSIVE_GEQRT
+//#define RECURSIVE_TSQRT
+#define RECURSIVE_UNMQR
 
 typedef struct cb_data_s {
     dague_execution_unit_t *context;
@@ -190,6 +192,67 @@ BODY
 
 #if !defined(DAGUE_DRY_RUN)
 
+#if defined(RECURSIVE_UNMQR)
+
+    two_dim_block_cyclic_t *small_descA;
+    two_dim_block_cyclic_t *small_descT;
+    two_dim_block_cyclic_t *small_descC;
+    dague_handle_t *dague_zunmqr_panel;
+    cb_data_t      *cbdata_zunmqr_panel;
+
+    small_descA = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+    small_descC = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+    small_descT = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+
+    two_dim_block_cyclic_init(small_descA,
+                              matrix_ComplexDouble, matrix_Lapack,
+                              1, context->virtual_process->dague_context->my_rank,
+                              dplasma_imin(descA.mb, ldak), ib,
+                              ldak, tempkm, 0, 0,
+                              tempkm, tempkm, 1, 1, 1);
+
+    two_dim_block_cyclic_init(small_descT,
+                              matrix_ComplexDouble, matrix_Lapack,
+                              1, context->virtual_process->dague_context->my_rank,
+                              ib, ib,
+                              descT.mb, tempkm, 0, 0,
+                              ib,       tempkm, 1, 1, 1);
+
+    two_dim_block_cyclic_init(small_descC,
+                              matrix_ComplexDouble, matrix_Lapack,
+                              1, context->virtual_process->dague_context->my_rank,
+                              dplasma_imin(descA.mb, ldak), ib,
+                              ldak, tempnn, 0, 0,
+                              tempkm, tempnn, 1, 1, 1);
+    printf("C mt %d, T mt %d\n", ((tiled_matrix_desc_t *)small_descC)->mt, ((tiled_matrix_desc_t *)small_descT)->mt);
+    small_descA->mat = A;
+    small_descC->mat = C;
+    small_descT->mat = T;
+
+    /* Dague_object */
+    dague_zunmqr_panel = dplasma_zunmqr_panel_New(PlasmaLeft, PlasmaConjTrans,
+                                      (tiled_matrix_desc_t *)small_descA,
+                                      (tiled_matrix_desc_t *)small_descT,
+                                      (tiled_matrix_desc_t *)small_descC );
+    dague_zunmqr_panel->devices_mask = 1;
+
+    /* Callback */
+    cbdata_zunmqr_panel = (cb_data_t *) malloc(sizeof(cb_data_t));
+    cbdata_zunmqr_panel->context = context;
+    cbdata_zunmqr_panel->task    = this_task;
+    cbdata_zunmqr_panel->A       = (dague_ddesc_t *)small_descA;
+    cbdata_zunmqr_panel->B       = (dague_ddesc_t *)small_descT;
+    cbdata_zunmqr_panel->C       = (dague_ddesc_t *)small_descC;
+    cbdata_zunmqr_panel->destruct= dplasma_zunmqr_panel_Destruct;
+    dague_set_complete_callback(dague_zunmqr_panel,
+                                complete_recursive_dague_callback,
+                                (void *)cbdata_zunmqr_panel);
+
+    dague_enqueue(context->virtual_process->dague_context, dague_zunmqr_panel);
+    return -1;
+
+#else /* defined(RECURSIVE_UNMQR) */
+
     void *p_elem_A = dague_private_memory_pop( p_work );
 
     CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
@@ -200,6 +263,8 @@ BODY
                 p_elem_A, descT.nb );
 
     dague_private_memory_push( p_work, p_elem_A );
+
+#endif  /* !defined(RECURSIVE_UNMQR) */
 
 #endif  /* !defined(DAGUE_DRY_RUN) */
 }
@@ -253,6 +318,65 @@ BODY
 
 #if !defined(DAGUE_DRY_RUN)
 
+#if defined(RECURSIVE_TSQRT)
+
+    two_dim_block_cyclic_t *small_descA1;
+    two_dim_block_cyclic_t *small_descA2;
+    two_dim_block_cyclic_t *small_descT;
+    dague_handle_t *dague_ztsqrt;
+    cb_data_t      *cbdata_ztsqrt;
+
+    small_descA1 = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+    small_descA2 = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+    small_descT = (two_dim_block_cyclic_t *) malloc(sizeof(two_dim_block_cyclic_t));
+
+    two_dim_block_cyclic_init(small_descA1,
+                              matrix_ComplexDouble, matrix_Lapack,
+                              1, context->virtual_process->dague_context->my_rank,
+                              dplasma_imin(descA.mb, ldak), ib,
+                              ldak, tempkn, 0, 0,
+                              tempkn, tempkn, 1, 1, 1);
+
+    two_dim_block_cyclic_init(small_descA2,
+                              matrix_ComplexDouble, matrix_Lapack,
+                              1, context->virtual_process->dague_context->my_rank,
+                              dplasma_imin(descA.mb, ldak), ib,
+                              ldam, tempkn, 0, 0,
+                              tempmm, tempkn, 1, 1, 1);
+
+    two_dim_block_cyclic_init(small_descT,
+                              matrix_ComplexDouble, matrix_Lapack,
+                              1, context->virtual_process->dague_context->my_rank,
+                              ib, ib,
+                              descT.mb, tempkn, 0, 0,
+                              ib,       tempkn, 1, 1, 1);
+    small_descA1->mat = A1;
+    small_descA2->mat = A2;
+    small_descT->mat = T;
+
+    /* Dague_object */
+    dague_ztsqrt = dplasma_ztsqrt_New((tiled_matrix_desc_t *)small_descA1,
+                                      (tiled_matrix_desc_t *)small_descA2,
+                                      (tiled_matrix_desc_t *)small_descT );
+    dague_ztsqrt->devices_mask = 1;
+
+    /* Callback */
+    cbdata_ztsqrt = (cb_data_t *) malloc(sizeof(cb_data_t));
+    cbdata_ztsqrt->context = context;
+    cbdata_ztsqrt->task    = this_task;
+    cbdata_ztsqrt->A       = (dague_ddesc_t *)small_descA1;
+    cbdata_ztsqrt->B       = (dague_ddesc_t *)small_descA2;
+    cbdata_ztsqrt->C       = (dague_ddesc_t *)small_descT;
+    cbdata_ztsqrt->destruct= dplasma_ztsqrt_Destruct;
+    dague_set_complete_callback(dague_ztsqrt,
+                                complete_recursive_dague_callback,
+                                (void *)cbdata_ztsqrt);
+
+    dague_enqueue(context->virtual_process->dague_context, dague_ztsqrt);
+    return -1;
+
+#else /* defined(RECURSIVE_TSQRT) */
+
     void *p_elem_A = dague_private_memory_pop( p_tau );
     void *p_elem_B = dague_private_memory_pop( p_work );
 
@@ -264,6 +388,8 @@ BODY
 
     dague_private_memory_push( p_tau,  p_elem_A );
     dague_private_memory_push( p_work, p_elem_B );
+
+#endif  /* !defined(RECURSIVE_TSQRT) */
 
 #endif  /* !defined(DAGUE_DRY_RUN) */
 }
