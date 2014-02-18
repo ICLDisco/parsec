@@ -150,8 +150,10 @@ dplasma_zunmqr_panel_New( PLASMA_enum side, PLASMA_enum trans,
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
+            dplasma_error("dplasma_zunmqr_New", "PlasmaRight not support yet\n");
             return NULL;
         } else {
+            dplasma_error("dplasma_zunmqr_New", "PlasmaRight not support yet\n");
             return NULL;
         }
     }

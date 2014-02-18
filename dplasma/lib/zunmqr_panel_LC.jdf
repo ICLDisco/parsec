@@ -49,7 +49,6 @@ BODY
     int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
     int tempkk = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );
-    int ldck = BLKLDD( descC, k );
 
     printlog("CORE_zlarfb(%d, %d)\n", k, n);
 
@@ -65,7 +64,7 @@ BODY
         tempm, tempnn, tempkk,
         lV + k * descA.nb, ldak,
         T,                 descT.mb,
-        lC + k * descA.nb, ldck,
+        lC + k * descA.nb, ldak,
         p_elem_W, descA.nb);
 
     dague_private_memory_push( p_work, p_elem_W );

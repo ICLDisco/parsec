@@ -224,16 +224,16 @@ BODY
                               dplasma_imin(descA.mb, ldak), ib,
                               ldak, tempnn, 0, 0,
                               tempkm, tempnn, 1, 1, 1);
-    printf("C mt %d, T mt %d\n", ((tiled_matrix_desc_t *)small_descC)->mt, ((tiled_matrix_desc_t *)small_descT)->mt);
+
     small_descA->mat = A;
     small_descC->mat = C;
     small_descT->mat = T;
 
     /* Dague_object */
     dague_zunmqr_panel = dplasma_zunmqr_panel_New(PlasmaLeft, PlasmaConjTrans,
-                                      (tiled_matrix_desc_t *)small_descA,
-                                      (tiled_matrix_desc_t *)small_descT,
-                                      (tiled_matrix_desc_t *)small_descC );
+                                                  (tiled_matrix_desc_t *)small_descA,
+                                                  (tiled_matrix_desc_t *)small_descT,
+                                                  (tiled_matrix_desc_t *)small_descC );
     dague_zunmqr_panel->devices_mask = 1;
 
     /* Callback */
