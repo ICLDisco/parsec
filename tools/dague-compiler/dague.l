@@ -78,8 +78,8 @@ WHITE         [\f\t\v ]
 %s body
 
 %%
-^{WHITE}*(?i:body)    { YY_PUSH_STATE(body); }
-<body>^{WHITE}*(?i:end)      { YY_POP_STATE();
+^{WHITE}*([Bb][Oo][Dd][Yy])    { YY_PUSH_STATE(body); }
+<body>^{WHITE}*([Ee][Nn][Dd])      { YY_POP_STATE();
                         YYLVAL(string) = extern_code( yytext, strlen(yytext) - 3, 1 );
                         return BODY;
                       }
@@ -161,7 +161,7 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         return INT;                                        }
 <properties>[nN][oO]  { YYLVAL(number) = 0;
                         return INT;                                        }
-^%(?i:option)         { return OPTION;                                     }
+^%([Oo][Pp][Tt][Ii][Oo][Nn])         { return OPTION;                      }
 <*>"("                { return OPEN_PAR;                                   }
 <*>")"                { return CLOSE_PAR;                                  }
 <*>"=="               { return EQUAL;                                      }
