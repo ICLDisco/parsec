@@ -19,7 +19,7 @@ extern "C" %{
  * The fourth step combines the local maxima together. At the end all processes
  * owns the same value.
  *
- * The reductions are down by a pipeline folowed by a broadcast of the results.
+ * The reductions are down by a pipeline followed by a broadcast of the results.
  *
  */
 #include <math.h>
