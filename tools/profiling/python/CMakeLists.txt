@@ -10,6 +10,7 @@ set(FISH_ENV    "${CMAKE_CURRENT_BINARY_DIR}/utilities/fish.env")
 set(BASH_ENV    "${CMAKE_CURRENT_BINARY_DIR}/utilities/bash.env")
 set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pxd"
+                "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
                 "${CMAKE_CURRENT_SOURCE_DIR}/pbt_info_parser.pxd"
                 "${CMAKE_CURRENT_SOURCE_DIR}/pbt_info_parser.pxi"
 		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
