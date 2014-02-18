@@ -68,6 +68,7 @@ subs = {
     ('#define SINGLE',      '#define DOUBLE',      '#define SINGLE',      '#define DOUBLE'      ),
     ('#undef DOUBLE',       '#undef SINGLE',       '#undef DOUBLE',       '#undef SINGLE'       ),
     ('float',               'double',              'dague_complex32_t',   'dague_complex64_t'   ),
+    ('dplasma_float',       'dplasma_double',      'dplasma_complex32_t', 'dplasma_complex64'   ),
     ('matrix_RealFloat',    'matrix_RealDouble',   'matrix_ComplexFloat', 'matrix_ComplexDouble'),
     ('float',               'double',              'float',               'double'              ),
     ('matrix_RealFloat',    'matrix_RealDouble',   'matrix_RealFloat',    'matrix_RealDouble'   ),

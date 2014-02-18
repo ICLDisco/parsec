@@ -23,7 +23,7 @@ static inline dague_data_t* fake_data_of(dague_ddesc_t *mat, ...)
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlantr_New - Generates the object that computes the value
  *
@@ -188,7 +188,7 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlantr_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlantr_New().
@@ -223,7 +223,7 @@ dplasma_zlantr_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlantr - Computes the value
  *

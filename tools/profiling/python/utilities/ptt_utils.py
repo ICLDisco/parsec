@@ -433,7 +433,6 @@ if __name__ == '__main__':
         name_infos = default_name_infos
 
     processed_filename_groups = group_trace_filenames(filenames)
-    print(filenames)
 
     # processed_filename_groups = preprocess_traces(filenames, dry_run=dry_run,
     #                                               enhance_filenames=False,

@@ -20,7 +20,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgemm_New - Generates the object that performs one of the following
  *  matrix-matrix operations. WARNING: The computations are not done by this call.
@@ -149,7 +149,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgemm_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgemm_New().
@@ -177,7 +177,7 @@ dplasma_zgemm_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgemm - Performs one of the following matrix-matrix operations
  *

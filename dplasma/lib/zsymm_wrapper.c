@@ -17,7 +17,7 @@
 /**
  ******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zsymm_New - Generates the dague object to compute the following
  *  operation.  WARNING: The computations are not done by this call.
@@ -110,7 +110,7 @@ dplasma_zsymm_New( PLASMA_enum side,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zsymm_Destruct - Free the data structure associated to an object
  *  created with dplasma_zsymm_New().
@@ -138,7 +138,7 @@ dplasma_zsymm_Destruct( dague_handle_t *o )
 /**
  ******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zsymm - Computes the following operation.
  *

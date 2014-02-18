@@ -20,7 +20,7 @@
 /**
  ******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zher2k_New - Generates the dague object to performs one of the
  *  hermitian rank 2k operations
@@ -160,7 +160,7 @@ dplasma_zher2k_New( PLASMA_enum uplo,
 
 /***************************************************************************//**
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zher2k_Destruct - Free the data structure associated to an object
  *  created with dplasma_zher2k_New().
@@ -187,7 +187,7 @@ dplasma_zher2k_Destruct( dague_handle_t *o )
 /**
  ******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zher2k - Performs one of the hermitian rank 2k operations
  *

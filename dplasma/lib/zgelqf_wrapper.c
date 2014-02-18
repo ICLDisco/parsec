@@ -19,7 +19,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgelqf_New - Generates the object that computes the LQ factorization
  * a complex M-by-N matrix A: A = L * Q.
@@ -126,7 +126,7 @@ dplasma_zgelqf_New( tiled_matrix_desc_t *A,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgelqf_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgelqf_New().
@@ -165,7 +165,7 @@ dplasma_zgelqf_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgelqf - Computes the LQ factorization a M-by-N matrix A:
  * A = L * Q.

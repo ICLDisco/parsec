@@ -46,7 +46,7 @@ dplasma_zplgsy_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zplgsy_New - Generates the object that generates a random symmetric
  * matrix by tiles.
@@ -108,7 +108,7 @@ dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zplgsy_Destruct - Free the data structure associated to an object
  *  created with dplasma_zplgsy_New().
@@ -134,7 +134,7 @@ dplasma_zplgsy_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zplgsy - Generates a random symmetric matrix by tiles.
  *

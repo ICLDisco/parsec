@@ -274,8 +274,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 else if( !strcmp(optarg, "LTQ") )
@@ -300,8 +299,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'g':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if(iparam[IPARAM_NGPUS] == -1) {
                     fprintf(stderr, "#!!!!! This test does not have GPU support. GPU disabled.\n");
                     break;
@@ -357,8 +355,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'H':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
 #if defined(HAVE_HWLOC)
                  dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
 #else
@@ -366,8 +363,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 #endif  /* defined(HAVE_HWLOC */
 
             case 'V':
-                fprintf(stderr, "The usage of this option as an argument to the testing is deprecated.\n"
-                        "It should be passed directly to PaRSEC instead\n");
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if( !strncmp(optarg, "display", 7 )) {
                     vpmap_display_map(stderr);
                 } else {
@@ -498,6 +494,11 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(-'q' == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = (iparam[IPARAM_N]/iparam[IPARAM_NB])/iparam[IPARAM_Q];
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
+
+
+    /* HQR */
+    if(-1 == iparam[IPARAM_QR_HLVL_SZE])
+        iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_NNODES];
 }
 
 static void print_arguments(int* iparam)
@@ -555,8 +556,12 @@ static void iparam_default(int* iparam)
     memset(iparam, 0, IPARAM_SIZEOF * sizeof(int));
     iparam[IPARAM_NNODES] = 1;
     iparam[IPARAM_NGPUS] = -1;
-    iparam[IPARAM_QR_DOMINO] = 0;
-    iparam[IPARAM_QR_TSRR] = 0;
+    iparam[IPARAM_QR_DOMINO]    = -1;
+    iparam[IPARAM_QR_TSRR]      = 0;
+    iparam[IPARAM_LOWLVL_TREE]  = DPLASMA_GREEDY_TREE;
+    iparam[IPARAM_HIGHLVL_TREE] = -1;
+    iparam[IPARAM_QR_TS_SZE]    = -1;
+    iparam[IPARAM_QR_HLVL_SZE]  = -1;
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)

@@ -1172,11 +1172,11 @@ static int hqr_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
  *  hqr_nextpiv - Computes the next row killed by the row p, after
  *  it has kill the row start.
  *
- * @param[in] p
- *         Line used as killer
- *
  * @param[in] k
  *         Factorization step
+ *
+ * @param[in] pivot
+ *         Line used as killer
  *
  * @param[in] start
  *         Starting point to search the next line killed by p after start
@@ -1304,11 +1304,11 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
  *  hqr_prevpiv - Computes the previous row killed by the row p, before
  *  to kill the row start.
  *
- * @param[in] p
- *         Line used as killer
- *
  * @param[in] k
  *         Factorization step
+ *
+ * @param[in] pivot
+ *         Line used as killer
  *
  * @param[in] start
  *         Starting point to search the previous line killed by p before start
@@ -1652,6 +1652,7 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
                   int a, int p,
                   int domino, int tsrr )
 {
+    double ratio = 0.0;
     int low_mt, minMN;
     hqr_args_t *arg;
 
@@ -1683,7 +1684,6 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
         domino = domino ? 1 : 0;
     }
     else {
-        double ratio;
         if (trans == PlasmaNoTrans) {
             ratio = ((double)(A->nt) / (double)(A->mt));
         } else {
@@ -1766,8 +1766,13 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
             hqr_high_binary_init(arg->hlvl);
             break;
         case DPLASMA_FIBONACCI_TREE :
-        default:
             hqr_high_fibonacci_init(arg->hlvl);
+        default:
+            if ( ratio >= 0.5 ) {
+                hqr_high_flat_init(arg->hlvl);
+            } else {
+                hqr_high_fibonacci_init(arg->hlvl);
+            }
         }
     }
 

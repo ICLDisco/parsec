@@ -7,6 +7,7 @@ import re
 import datetime as dt
 import time
 import shutil
+import select
 from random import randint
 import cPickle
 import glob
@@ -14,10 +15,11 @@ import subprocess
 from multiprocessing import Process, Pipe
 
 from common_utils import *
+from getchar import GetChar
 
 class ParsecTest(object):
     class_version = 1.0 # revamped everything
-    def __init__(self, ident, exe, N, cores, NB, IB, sched, perf, walltime, test_num):
+    def __init__(self, ident, exe, N, cores, NB, IB, sched, perf, elapsed_time, test_num):
         self.__version__ = self.__class__.class_version
         # parameters
         self.exe = exe
@@ -33,13 +35,13 @@ class ParsecTest(object):
         self.unix_timestamp = int(time.time())
         # output
         self.perf = float(perf)
-        self.time = walltime
+        self.time = elapsed_time
         self.extra_output = ''
     def stamp_time(self):
         self.iso_timestamp = dt.datetime.now().isoformat(sep='_')
         self.unix_timestamp = int(time.time())
     def unique_name(self):
-        return '{:_<6}_{}-{:0>3}_{:0>5}_{:0>4}_{:0>4}_{:_<3}_{:0>3}_{:0>3}_{:.2f}'.format(
+        return '{:_<6}-{}-{:0>3}-{:0>5}-{:0>4}-{:0>4}-{:-<3}-{:0>3}-{:0>3}-{:.2f}'.format(
             self.exe, self.ident, self.cores, self.N, self.NB, self.IB,
             self.sched, self.test_num, int(self.perf), self.unix_timestamp)
     def __repr__(self):
@@ -126,7 +128,7 @@ class ParsecTrial(list):
 
 ##### global defaults for testing #####
 max_rsd = 5 # anything above this and we want to re-run the whole trial
-tests_per_trial = 3
+default_tests_per_trial = 3
 # failure (retry) defaults
 max_stddev_fails = 4 # don't re-run forever, though
 max_trial_failures = 5
@@ -138,7 +140,7 @@ test_output_pattern = (
 
 def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                           exe_dir='.', out_dir='.', max_rsd=max_rsd,
-                          convert_traces=True):
+                          convert_traces=True, skeleton_only=False):
     last_N = 0
     last_exe = ''
     total_fail_count = 0
@@ -166,10 +168,15 @@ def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                 # my_end, their_end = Pipe()
                 p = Process(target=run_trial,
                             args=(trial, tests_per_trial, exe_dir, out_dir,
-                                  max_rsd, keep_best_test_only, convert_traces))
+                                  max_rsd, keep_best_test_only, convert_traces, skeleton_only))
                 p.start()
                 while p.is_alive():
                     p.join(2)
+                while select.select([sys.stdin,],[],[],0.0)[0]:
+                    if 'p' == GetChar():
+                        print('Testing paused. Press "u" to unpause.')
+                        while 'u' != GetChar():
+                            time.sleep(1)
                 if p.exitcode == 0:
                     trial_done = True
                     trials[trial_num] = None
@@ -182,9 +189,9 @@ def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                         trial.failed = True
                         trial_done = True
             except Exception:
-                safe_unlink(glob.glob( 'testing_' + exe + '*.prof-*'))
                 import traceback
                 traceback.print_exc()
+                safe_unlink(glob.glob( 'testing_' + last_exe + '*.prof-*'))
                 fail_count += 1
                 if fail_count < max_trial_failures:
                     print('An exception occurred during trial ' +
@@ -197,7 +204,7 @@ def spawn_trial_processes(trials, tests_per_trial, keep_best_test_only=False,
                           'to successfully execute after {} failures.'.format(fail_count))
 
 def run_trial(trial, tests_per_trial, exe_dir, out_dir,
-              max_rsd, keep_best_test_only, convert_traces):
+              max_rsd, keep_best_test_only, convert_traces, skeleton_only):
     import online_math
 
     test_output_re = re.compile(test_output_pattern, flags=re.DOTALL)
@@ -209,6 +216,13 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
     NB = trial.NB
     IB = trial.IB
     sched = trial.sched
+
+    if NB < 100:
+        max_rsd += 1
+    if NB < 80:
+        max_rsd += 2
+    if NB < 60:
+        max_rsd += 4
 
     # counters and loop variables
     test_num = 0
@@ -322,10 +336,23 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
                             add_info = add_info_to_trace(trial)
                             trace_filenames = [pbt2ptt.convert(trace_filenames,
                                                                unlink=True,
-                                                               add_info=add_info)]
-                            print('converted filename is', trace_filenames)
+                                                               add_info=add_info,
+                                                               skeleton_only=skeleton_only)]
+                            print('converted filename is', trace_filenames[0])
+                            if skeleton_only:
+                                try:
+                                    os.system('ptrepack --chunkshape=auto --propindexes ' +
+                                              '--complevel=5 --complib=blosc ' +
+                                              '{} {}'.format(
+                                                  trace_filenames[0], trace_filenames[0] + '.tmp'))
+                                    shutil.move(trace_filenames[0] + '.tmp', trace_filenames[0])
+                                except Exception as e:
+                                    print(e)
+                                    print('ptrepack utility not available.')
                             new_list.append((test, trace_filenames))
-                        except ImportError:
+                        except ImportError as ie:
+                            print(ie)
+                            print('Cannot convert. pbt2ptt module is unavailable.')
                             new_list.append((test, trace_filenames))
                             pass # can't convert without the module... ahh well
                     else:
@@ -363,7 +390,7 @@ def run_trial(trial, tests_per_trial, exe_dir, out_dir,
             test_perfs = []
             test_times = []
             for test, trace_filenames in trial:
-                test_times.append(test.walltime)
+                test_times.append(test.time)
                 test_perfs.append(test.perf)
             variance, avgPerf = online_math.online_variance_mean(test_perfs)
             perf_stddev = variance ** 0.5
@@ -496,10 +523,12 @@ def run_main():
     parser.add_argument('out_dir',
                         help='Directory in which to place PaRSEC traces and trial summaries.')
     parser.add_argument('-c', '--convert-traces', action='store_true',
-                        help='Convert PaRSEC Binary Profiles to Python HDF5 files.')
-    parser.add_argument('-t', '--tests-per-trial', type=int, default=tests_per_trial)
+                        help='Convert PaRSEC Binary Traces to Python HDF5 files.')
+    parser.add_argument('-t', '--tests-per-trial', type=int, default=default_tests_per_trial)
     parser.add_argument('-s', '--max-rsd', type=float, default=max_rsd,
                         help='Maximum relative (% of avg) standard deviation for tests in trial.')
+    parser.add_argument('-k', '--skeleton-only', action='store_true',
+                        help='If converting traces, ignore events (for smaller file size).')
     parser.add_argument('-u', '--unlink-existing', action='store_true',
                         help='Don\'t ask before unlinking existing traces that might interfere.')
     parser.add_argument('-b', '--best-test-only', action='store_true',
@@ -548,8 +577,9 @@ def run_main():
     trials.sort(key = lambda trial: (trial.exe, trial.N, trial.NB, trial.IB), reverse=True)
 
     spawn_trial_processes(trials, args.tests_per_trial, keep_best_test_only=args.best_test_only,
-                          exe_dir=args.exe_dir, out_dir=args.out_dir, max_rsd=args.max_rsd,
-                          convert_traces=args.convert_traces)
+                          exe_dir=args.exe_dir.rstrip('/'), out_dir=args.out_dir.rstrip('/'),
+                          max_rsd=args.max_rsd,
+                          convert_traces=args.convert_traces, skeleton_only=args.skeleton_only)
 
 def generate_main():
     import argparse
@@ -605,4 +635,3 @@ if __name__ == '__main__':
         run_main()
     else:
         print(__main__.__doc__)
-

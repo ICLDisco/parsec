@@ -1,4 +1,4 @@
-import papi_core_utils 
+import papi_core_utils
 known_pcore_labels = papi_core_utils.PAPICoreEventValueLabelGetter()
 
 # add parsing clauses to this function to get infos.

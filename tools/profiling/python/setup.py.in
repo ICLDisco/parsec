@@ -2,6 +2,7 @@
 # build script for pbt2ptt
 # run python setup.py build_ext --inplace to build
 
+from __future__ import print_function
 from distutils import ccompiler, util
 from distutils.core import setup
 from distutils.extension import Extension
@@ -95,12 +96,45 @@ class local_compiler_build_ext( build_ext ):
         # print('compiler is ' + str(self.compiler.__dict__))
         build_ext.build_extensions(self)
 
+def distutils_dir_name(dname):
+    try:
+        import sysconfig
+        """Returns the name of a distutils build directory"""
+        f = "{dirname}.{platform}-{version[0]}.{version[1]}"
+        return f.format(dirname=dname,
+                        platform=sysconfig.get_platform(),
+                        version=sys.version_info)
+    except ImportError as e:
+        print(e)
+        print('Without the sysconfig module, the bash environment setup script may not work.')
+        print('A modern Python installation with the full distutils package is recommended.')
+        return 'LIB_DIR'
+
 setup(
-    name = 'PaRSEC Binary Profile Interface',
+    name = 'PaRSEC Binary Trace Interface',
     version='@PACKAGE_VERSION@',
-    description='parses and converts the PaRSEC Binary Profile format into a pandas Python format',
+    description='parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
     url='http://icl.cs.utk.edu/parsec/',
     package_dir={ '': '@CMAKE_CURRENT_BINARY_DIR@' },
     cmdclass = {'build_ext': local_compiler_build_ext},
     ext_modules = ext_modules
 )
+
+install_dir = distutils_dir_name('lib')
+print('Installed Python Trace Tables module to', install_dir)
+# now fix the bash and fish environment scripts
+import shutil
+if os.path.exists(os.path.join('utilities','bash.env')):
+    bash_env = open(os.path.join('utilities', 'bash.env'), 'r')
+    new_bash_env = ''
+    for line in bash_env.readlines():
+        if 'LIB_DIR' in line:
+            line = line.replace('LIB_DIR', install_dir)
+        new_bash_env += line
+    tmp_bash_env = open(os.path.join('utilities', 'bash.env.tmp'), 'w')
+    tmp_bash_env.write(new_bash_env)
+    bash_env.close()
+    tmp_bash_env.close()
+    shutil.move(os.path.join('utilities', 'bash.env.tmp'),
+                os.path.join('utilities', 'bash.env'))
+

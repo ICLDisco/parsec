@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,68 +12,79 @@
 #include <stdio.h>
 #include <math.h>
 
-static FILE *grapher_file = NULL;
+FILE *grapher_file = NULL;
 static int nbfuncs = -1;
 static char **colors = NULL;
 
+/**
+ * A simple solution to generate different color tables for each rank. For a
+ * more detailed and visualy appealing solution take a look at
+ * http://phrogz.net/css/distinct-colors.html
+ * and http://en.wikipedia.org/wiki/HSV_color_space
+ */
 static void HSVtoRGB( double *r, double *g, double *b, double h, double s, double v )
 {
-	int i;
-	double f, p, q, t;
-	if( s == 0 ) {
-		// achromatic (grey)
-		*r = *g = *b = v;
-		return;
-	}
-	h /= 60.0;			// sector 0 to 5
-	i = (int)floor( h );
-	f = h - i;			// factorial part of h
-	p = v * ( 1 - s );
-	q = v * ( 1 - s * f );
-	t = v * ( 1 - s * ( 1 - f ) );
-	switch( i ) {
-		case 0:
-			*r = v;
-			*g = t;
-			*b = p;
-			break;
-		case 1:
-			*r = q;
-			*g = v;
-			*b = p;
-			break;
-		case 2:
-			*r = p;
-			*g = v;
-			*b = t;
-			break;
-		case 3:
-			*r = p;
-			*g = q;
-			*b = v;
-			break;
-		case 4:
-			*r = t;
-			*g = p;
-			*b = v;
-			break;
-		default:		// case 5:
-			*r = v;
-			*g = p;
-			*b = q;
-			break;
-	}
+    int i;
+    double c, x, m;
+
+    c = v * s;
+    h /= 60.0;
+    i = (int)floor( h );
+    x = c * (1 - abs(i % 2 - 1));
+    m = v - c;
+
+    switch( i ) {
+    case 0:
+        *r = c;
+        *g = x;
+        *b = 0;
+        break;
+    case 1:
+        *r = x;
+        *g = c;
+        *b = 0;
+        break;
+    case 2:
+        *r = 0;
+        *g = c;
+        *b = x;
+        break;
+    case 3:
+        *r = 0;
+        *g = x;
+        *b = c;
+        break;
+    case 4:
+        *r = x;
+        *g = 0;
+        *b = c;
+        break;
+    default:		// case 5:
+        *r = c;
+        *g = 0;
+        *b = x;
+        break;
+    }
+    *r += m;
+    *g += m;
+    *b += m;
+}
+
+static inline double get_rand_in_range(int m, int M)
+{
+    return (double)m + (double)rand() / ((double)RAND_MAX / (M - m + 1) + 1);
 }
 
 static char *unique_color(int index, int colorspace)
 {
     char color[8];
-    double r,g,b;
-    double h;
+    double r, g, b;
 
-    h = 360.0 * (double)index / (double)colorspace;
-    HSVtoRGB(&r, &g, &b, h, 0.2, 0.7);
-
+    double hue = get_rand_in_range(0, 360);  //  0.0 to 360.0
+    double saturation = get_rand_in_range(180, 360) / 360.0;  //  0.5 to 1.0, away from white
+    double brightness = get_rand_in_range(180, 360) / 360.0;  //  0.5 to 1.0, away from black
+    HSVtoRGB(&r, &g, &b, hue, saturation, brightness);
+    (void)index; (void)colorspace;
     snprintf(color, 8, "#%02x%02x%02x", (int)floor(255.0*r), (int)floor(255.0*g), (int)floor(255.0*b));
     return strdup(color);
 }
@@ -88,7 +99,7 @@ void dague_prof_grapher_init(const char *base_filename, int nbthreads)
     int l10 = 0, cs;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_rank(MPI_COMM_WORLD, &size);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
     cs = size;
     while(cs > 0) {
       l10++;
@@ -112,7 +123,9 @@ void dague_prof_grapher_init(const char *base_filename, int nbthreads)
     fprintf(grapher_file, "digraph G {\n");
     fflush(grapher_file);
 
-    nbfuncs = nbthreads;
+    srandom(size*(rank+1));  /* for consistent color generation */
+    (void)nbthreads;
+    nbfuncs = 128;
     colors = (char**)malloc(nbfuncs * sizeof(char*));
     for(t = 0; t < nbfuncs; t++)
         colors[t] = unique_color(rank * nbfuncs + t, size * nbfuncs);
@@ -133,7 +146,8 @@ char *dague_prof_grapher_taskid(const dague_execution_context_t *exec_context, c
     return tmp;
 }
 
-void dague_prof_grapher_task(const dague_execution_context_t *context, int thread_id, int vp_id, int task_hash)
+void dague_prof_grapher_task(const dague_execution_context_t *context,
+                             int thread_id, int vp_id, int task_hash)
 {
     char tmp[MAX_TASK_STRLEN], nmp[MAX_TASK_STRLEN];
     if( NULL != grapher_file ) {
@@ -141,12 +155,16 @@ void dague_prof_grapher_task(const dague_execution_context_t *context, int threa
         dague_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(DAGUE_SIM)
         fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs], thread_id, vp_id, tmp, context->sim_exec_date, context->function->name, task_hash);
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
+                "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs],
+                thread_id, vp_id, tmp, context->sim_exec_date, context->function->name, task_hash);
 #else
         fprintf(grapher_file,
-                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\",fontcolor=\"black\",label=\"<%d/%d> %s\",tooltip=\"%s%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs], thread_id, vp_id, tmp, context->function->name, task_hash);
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
+                "fontcolor=\"black\",label=\"<%d/%d> %s\",tooltip=\"%s%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs],
+                thread_id, vp_id, tmp, context->function->name, task_hash);
 #endif
         fflush(grapher_file);
     }
@@ -164,10 +182,12 @@ void dague_prof_grapher_dep(const dague_execution_context_t* from, const dague_e
         index = strlen(tmp);
         index += snprintf( tmp + index, 128 - index, " -> " );
         dague_prof_grapher_taskid( to, tmp + index, 128 - index - 4 );
-        fprintf(grapher_file, 
-                "%s [label=\"%s=>%s\",color=\"#%s\",style=\"solid\"]\n",
+        fprintf(grapher_file,
+                "%s [label=\"%s=>%s\",color=\"#%s\",style=\"%s\"]\n",
                 tmp, origin_flow->name, dest_flow->name,
-                dependency_activates_task ? "00FF00" : "FF0000");
+                dependency_activates_task ? "00FF00" : "FF0000",
+                ((dest_flow->flow_flags == FLOW_ACCESS_NONE) ? "dotted":
+                 (dest_flow->flow_flags == FLOW_ACCESS_RW) ? "solid" : "dashed"));
         fflush(grapher_file);
     }
 }

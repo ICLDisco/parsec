@@ -4,6 +4,7 @@ enable_language(Fortran OPTIONAL)
 enable_language(CXX OPTIONAL)
 
 include(CMakeDependentOption)
+include(CMakePushCheckState)
 
 # The current version number
 set (DAGUE_VERSION_MAJOR 1)
@@ -215,7 +216,6 @@ ENDIF (_mach_ppc)
 #       no idea how to correctly detect if the required/optional
 #          libraries are in the correct format.
 #
-set(SAVE_CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS}")
 if (BUILD_64bits)
   if( _match_xlc)
     set( ARCH_BUILD "-q64" )
@@ -234,17 +234,13 @@ else (BUILD_64bits)
   endif(_match_xlc)
 endif (BUILD_64bits)
 
-set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${ARCH_BUILD}")
-check_c_compiler_flag(${ARCH_BUILD} C_M32or64)
-
-if (C_M32or64)
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARCH_BUILD}")
-  set(CMAKE_C_LDFLAGS "${CMAKE_C_LDFLAGS} ${ARCH_BUILD}")
-  set(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${ARCH_BUILD}")
-else (C_M32or64)
-  set(CMAKE_REQUIRED_FLAGS "${SAVE_CMAKE_REQUIRED_FLAGS}")
-endif (C_M32or64)
-unset( SAVE_CMAKE_REQUIRED_FLAGS )
+check_c_compiler_flag( ${ARCH_BUILD} C_M32or64 )
+if( C_M32or64 )
+  set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARCH_BUILD}" )
+  set( CMAKE_C_LDFLAGS "${CMAKE_C_LDFLAGS} ${ARCH_BUILD}" )
+  set( LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${ARCH_BUILD}" )
+  set( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${ARCH_BUILD}" )
+endif( C_M32or64 )
 
 #
 # Check compiler flags and capabilities
@@ -268,17 +264,19 @@ ENDIF( NOT _match_xlc )
 # Set warnings for debug builds
 CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
 IF( HAVE_WALL )
-    SET( C_WFLAGS "${C_WFLAGS} -Wall" )
+    set( C_WFLAGS "${C_WFLAGS} -Wall" )
 ENDIF( HAVE_WALL )
 CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA )
 IF( HAVE_WEXTRA )
-    SET( C_WFLAGS "${C_WFLAGS} -Wextra" )
+    set( C_WFLAGS "${C_WFLAGS} -Wextra" )
 ENDIF( HAVE_WEXTRA )
+
 #
-# flags for the overly verbose icc
+# flags for Intel icc
 #
 STRING(REGEX MATCH ".*icc$" _match_icc ${CMAKE_C_COMPILER})
 if(_match_icc)
+  # Silence annoying warnings
   CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD )
   IF( HAVE_WD )
     # 424: checks for duplicate ";"
@@ -287,24 +285,29 @@ if(_match_icc)
     # 1419: warning about extern functions being declared in .c
     #       files
     # 1572: cuda compares floats with 0.0f.
-    SET( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
+    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
   ENDIF( HAVE_WD )
 endif(_match_icc)
+
+# add gdb symbols in debug and relwithdebinfo
 CHECK_C_COMPILER_FLAG( "-g3" HAVE_G3 )
 IF( HAVE_G3 )
-    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3 ${C_WFLAGS}" )
+    set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3" )
+    set( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g3" )
 ELSE()
-    SET( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g ${C_WFLAGS}" )
+    set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" )
 ENDIF( HAVE_G3)
-SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
-SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
+# verbose compilation in debug
+set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
+# remove asserts in release
+set( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 
 # Check if the linker has group. MacOS doesn't support it
 include(CheckCSourceRuns)
-set(CMAKE_REQUIRED_FLAGS_save "${CMAKE_REQUIRED_FLAGS}")
+CMAKE_PUSH_CHECK_STATE()
 set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wl,--start-group -Wl,--end-group")
 check_c_source_runs( "int main() { return 0; }" HAVE_LINKER_GROUP )
-set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS_save}")
+CMAKE_POP_CHECK_STATE()
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -314,8 +317,10 @@ endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 find_package(Threads)
 if(Threads_FOUND)
-  set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CMAKE_THREAD_LIBS_INIT}")
+  CMAKE_PUSH_CHECK_STATE()
+  list( APPEND CMAKE_REQUIRED_LIBRARIES "${CMAKE_THREAD_LIBS_INIT}" )
   check_function_exists(pthread_create HAVE_PTHREAD)
+  CMAKE_POP_CHECK_STATE()
   if(HAVE_PTHREAD)
     list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
   endif(HAVE_PTHREAD)
@@ -376,7 +381,7 @@ check_function_exists(getrusage HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h HAVE_RUSAGE_THREAD)
 check_include_files(limits.h HAVE_LIMITS_H)
 check_include_files(string.h HAVE_STRING_H)
-check_include_files(gen.h HAVE_GEN_H)
+check_include_files(libgen.h HAVE_GEN_H)
 check_include_files(complex.h HAVE_COMPLEX_H)
 check_include_files(sys/param.h HAVE_SYS_PARAM_H)
 check_include_files(sys/types.h HAVE_SYS_TYPES_H)
@@ -391,7 +396,8 @@ IF( BUILD_DAGUE )
   if( HWLOC_FOUND )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
-  endif (HWLOC_FOUND)
+    set (PARSEC_PKG_REQUIRE "hwloc")
+   endif (HWLOC_FOUND)
 
   if (DAGUE_DIST_WITH_MPI)
     # Force the detection of the C library
@@ -408,13 +414,11 @@ IF( BUILD_DAGUE )
   # Check to see if support for MPI 2.0 is available
   #
   if (MPI_C_FOUND)
-    set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
-    set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
+    CMAKE_PUSH_CHECK_STATE()
     set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
     set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${MPI_C_LIBRARIES}")
     check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
-    set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
-    set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
+    CMAKE_POP_CHECK_STATE()
   endif (MPI_C_FOUND)
 
   if( DAGUE_GPU_WITH_CUDA )
@@ -427,8 +431,7 @@ IF( BUILD_DAGUE )
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
       list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
-      set(saved_include "${CMAKE_REQUIRED_INCLUDES}")
-      set(saved_libs "${CMAKE_REQUIRED_LIBRARIES}")
+      CMAKE_PUSH_CHECK_STATE()
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
       set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES}")
       if(CUDA_VERSION VERSION_LESS "4.0")
@@ -436,8 +439,7 @@ IF( BUILD_DAGUE )
       else()
           check_function_exists(cuDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
       endif()
-      set(CMAKE_REQUIRED_INCLUDES  "${saved_include}")
-      set(CMAKE_REQUIRED_LIBRARIES "${saved_libs}")
+      CMAKE_POP_CHECK_STATE()
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
 
@@ -512,6 +514,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     # ifort
     set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-f77rtl -O0 -g")
+    string (REPLACE "-i_dynamic" "" CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS "${CMAKE_SHARED_LIBRARY_LINK_Fortran_FLAGS}")
   else (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
     get_filename_component (Fortran_COMPILER_NAME ${CMAKE_Fortran_COMPILER} NAME)
     message ("CMAKE_Fortran_COMPILER full path: " ${CMAKE_Fortran_COMPILER})
@@ -537,7 +540,6 @@ if(NOT DAGUE_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
-add_definitions(-DHAVE_CONFIG_H)
 
 #
 # Check if indent is available on the system.
@@ -640,7 +642,9 @@ configure_file (
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
-install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc" DESTINATION lib/pkgconfig)
+
+install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)
+install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"  DESTINATION lib/pkgconfig)
 
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)

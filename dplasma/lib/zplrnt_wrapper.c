@@ -65,7 +65,7 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zplrnt_New - Generates the object that generates a random general
  * matrix by tiles.
@@ -121,7 +121,7 @@ dplasma_zplrnt_New( int diagdom,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zplrnt_Destruct - Free the data structure associated to an object
  *  created with dplasma_zplrnt_New().
@@ -147,7 +147,7 @@ dplasma_zplrnt_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zplrnt - Generates a random general matrix by tiles.
  *

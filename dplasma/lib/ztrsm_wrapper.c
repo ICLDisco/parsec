@@ -24,7 +24,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrsm_New - Generates dague object to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
@@ -164,7 +164,7 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrsm_Destruct - Free the data structure associated to an object
  *  created with dplasma_ztrsm_New().
@@ -193,7 +193,7 @@ dplasma_ztrsm_Destruct( dague_handle_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_Complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_ztrsm - Computes triangular solve
  *     op( A ) * X = B or X * op( A ) = B

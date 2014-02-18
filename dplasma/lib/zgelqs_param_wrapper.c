@@ -14,7 +14,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zgelqs_param - Computes a minimum-norm solution min || A*X - B || using the
  * LQ factorization A = L*Q computed by dplasma_zgelqf().

@@ -9,9 +9,9 @@ fi
 function dirname_bin {
   local _progname=$(which $1)
   if [ -z "$_progname" ]; then
-	echo ""
+    echo ""
   else
-	echo $(dirname $(dirname $_progname))
+    echo $(dirname $(dirname $_progname))
   fi
 }
 
@@ -53,7 +53,7 @@ if [ -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.so" ]; then
 fi
 
 if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
-    CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR}"
+    CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR} -DCUDA_HOST_COMPILER=`which gcc`"
 fi
 
 if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 

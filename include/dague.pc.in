@@ -6,8 +6,8 @@ includedir=${prefix}/include
 Name: PaRSEC
 Description: Parallel Runtime Scheduling and Execution Controller
 Version: @DAGUE_VERSION_MAJOR@.@DAGUE_VERSION_MINOR@
-Requires: coreblas
+Requires: @PARSEC_PKG_REQUIRE@
 Libs: -L${libdir} -ldague
-Libs.private:@HWLOC_LIBRARY@ @EXTRA_LIBS@
-Cflags: -I${includedir} -I@HWLOC_INCLUDE_DIR@
+Libs.private: @EXTRA_LIBS@
+Cflags: -I${includedir}
 
