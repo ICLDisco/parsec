@@ -97,12 +97,18 @@ class local_compiler_build_ext( build_ext ):
         build_ext.build_extensions(self)
 
 def distutils_dir_name(dname):
-    import sysconfig
-    """Returns the name of a distutils build directory"""
-    f = "{dirname}.{platform}-{version[0]}.{version[1]}"
-    return f.format(dirname=dname,
-                    platform=sysconfig.get_platform(),
-                    version=sys.version_info)
+    try:
+        import sysconfig
+        """Returns the name of a distutils build directory"""
+        f = "{dirname}.{platform}-{version[0]}.{version[1]}"
+        return f.format(dirname=dname,
+                        platform=sysconfig.get_platform(),
+                        version=sys.version_info)
+    except ImportError as e:
+        print(e)
+        print('Without the sysconfig module, the bash environment setup script may not work.')
+        print('A modern Python installation with the full distutils package is recommended.')
+        return 'LIB_DIR'
 
 setup(
     name = 'PaRSEC Binary Trace Interface',
