@@ -19,7 +19,7 @@ extern "C" %{
 side   [type = "PLASMA_enum"]
 trans  [type = "PLASMA_enum"]
 dataA1 [type = "dague_ddesc_t *"]
-dataA2 [type = "dague_ddesc_t *"]
+dataA2 [type = "dague_ddesc_t *" aligned=dataA1]
 dataV  [type = "dague_ddesc_t *"]
 dataT  [type = "dague_ddesc_t *" aligned=dataA1]
 p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.mb)"]
@@ -44,9 +44,9 @@ zparfb(k, n)
           ->  (k == descA2.nt-1) ? dataA2(0, n)
           ->  (k <  descA2.nt-1) ? A2 zparfb(k+1, n)
 
-  READ  V  <- dataV(0, k)
+  READ  V  <- V read_V(k)
 
-  READ  T  <- dataT(0, k)                                 [type = LITTLE_T]
+  READ  T  <- T read_T(k)                                 [type = LITTLE_T]
 
 BODY
 {
@@ -59,8 +59,6 @@ BODY
     int lda2 = BLKLDD( descA2, 0 );
 
     printlog("CORE_zlarfb(%d, %d)\n", k, n);
-
-  //  printf("ldv %d, lda1 %d, lda2 %d\n", ldv, lda1, lda2);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_W = dague_private_memory_pop( p_work );
@@ -77,5 +75,31 @@ BODY
     dague_private_memory_push( p_work, p_elem_W );
 
 #endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+read_V(k) [profile = off]
+  k = 0 .. descA1.nt-1
+
+  : dataV(0, k)
+
+  RW V <- dataV(0, k)
+       -> V zparfb(k, 0 .. descA2.nt-1)
+BODY
+{
+    /* nothing */
+}
+END
+
+read_T(k) [profile = off]
+  k = 0 .. descT.nt-1
+
+  : dataT(0, k)
+
+  RW T <- dataT(0, k)                         [type = LITTLE_T]
+       -> T zparfb(k, 0 .. descA2.nt-1)       [type = LITTLE_T]
+BODY
+{
+    /* nothing */
 }
 END
