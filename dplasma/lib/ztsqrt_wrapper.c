@@ -99,10 +99,6 @@ dplasma_ztsqrt_New( tiled_matrix_desc_t *A1,
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, A1->mb, A1->nb, -1 );
 
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_ztsqrt_DEFAULT_ARENA],
-                                 A2->mb*A2->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, A2->mb, A2->nb, -1 );
     /* Little T */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_ztsqrt_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
@@ -137,7 +133,6 @@ dplasma_ztsqrt_Destruct( dague_handle_t *o )
 {
     dague_ztsqrt_handle_t *dague_ztsqrt = (dague_ztsqrt_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_ztsqrt->arenas[DAGUE_ztsqrt_DEFAULT_ARENA ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_ztsqrt->arenas[DAGUE_ztsqrt_DEFAULT_ARENA ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(dague_ztsqrt->arenas[DAGUE_ztsqrt_LITTLE_T_ARENA]->opaque_dtt) );
 

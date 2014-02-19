@@ -48,7 +48,8 @@ BODY
     int tempm = descC.m - k * descC.nb;
     int tempnn = ((n)==(descC.nt-1)) ? (descC.n-(n*descC.nb)) : descC.nb;
     int tempkk = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-    int ldak = BLKLDD( descA, k );
+    int ldv = BLKLDD( descA, 0 );
+    int ldc = BLKLDD( descC, 0 );
 
     printlog("CORE_zlarfb(%d, %d)\n", k, n);
 
@@ -62,9 +63,9 @@ BODY
         lapack_const(PlasmaForward),
         lapack_const(PlasmaColumnwise),
         tempm, tempnn, tempkk,
-        lV + k * descA.nb, ldak,
+        lV + k * descA.nb, ldv,
         T,                 descT.mb,
-        lC + k * descA.nb, ldak,
+        lC + k * descA.nb, ldc,
         p_elem_W, descA.nb);
 
     dague_private_memory_push( p_work, p_elem_W );
@@ -78,8 +79,8 @@ read_A(k) [profile = off]
 
   : dataA(0, k)
 
-  RW A <- dataA(0, k) 
-       -> V zlarfb(k, 0 .. descC.nt-1)             
+  RW A <- dataA(0, k)
+       -> V zlarfb(k, 0 .. descC.nt-1)
 BODY
 {
     /* nothing */
@@ -92,7 +93,7 @@ read_T(k) [profile = off]
   : dataT(0, k)
 
   RW T <- dataT(0, k)                        [type = LITTLE_T]
-       -> T zlarfb(k, 0 .. descC.nt-1)       [type = LITTLE_T]          
+       -> T zlarfb(k, 0 .. descC.nt-1)       [type = LITTLE_T]
 BODY
 {
     /* nothing */

@@ -37,12 +37,16 @@ zparfb(k, n)
 
   : dataA2(0,n)
 
-  READ  A1 <- dataA1(0, n)
-  READ  T  <- dataT(0, k)                                 [type = LITTLE_T]
-  READ  V  <- dataV(0, k)                                 
+  RW    A1 <- dataA1(0, n)
+           -> dataA1(0, n)
+
   RW    A2 <- (k == 0) ? dataA2(0, n) : A2 zparfb(k-1, n)
           ->  (k == descA2.nt-1) ? dataA2(0, n)
           ->  (k <  descA2.nt-1) ? A2 zparfb(k+1, n)
+
+  READ  V  <- dataV(0, k)
+
+  READ  T  <- dataT(0, k)                                 [type = LITTLE_T]
 
 BODY
 {
@@ -50,25 +54,26 @@ BODY
     int tempm = descA1.m - k * descA1.nb;
     int tempnn = ((n)==(descA2.nt-1)) ? (descA2.n-(n*descA2.nb)) : descA2.nb;
 /*    int tempkk = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;*/
-    int ldak = BLKLDD( descA2, k );
+    int ldv  = BLKLDD( descV,  0 );
+    int lda1 = BLKLDD( descA1, 0 );
+    int lda2 = BLKLDD( descA2, 0 );
 
     printlog("CORE_zlarfb(%d, %d)\n", k, n);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_W = dague_private_memory_pop( p_work );
 
-    CORE_dparfb(
-            PlasmaLeft, PlasmaConjTrans, PlasmaForward, PlasmaColumnwise,
-            tempm, tempnn, descA2.m, tempnn, descA2.nb, 0,
-            lA1 + k * descA2.nb, ldak,
-            A2, ldak,
-            V, ldak,
-            T, descT.nb,
-            p_elem_W, descT.nb);
+    CORE_zparfb(
+        PlasmaLeft, PlasmaConjTrans, PlasmaForward, PlasmaColumnwise,
+        tempm, tempnn, descA2.m, tempnn, descA2.nb, 0,
+        lA1 + k * descA1.nb, lda1,
+        A2, lda2,
+        V,  ldv,
+        T,  descT.mb,
+        p_elem_W, descT.nb);
 
     dague_private_memory_push( p_work, p_elem_W );
 
 #endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
-

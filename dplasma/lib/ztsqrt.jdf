@@ -47,7 +47,7 @@ BODY
 {
     dague_complex64_t *lA1 = (dague_complex64_t*)A1;
     int tempkn = ((k)==(descA2.nt-1)) ? (descA2.n-(k*descA2.nb)) : descA2.nb;
-    int ldak = BLKLDD( descA2, k );
+    int ldak = BLKLDD( descA1, 0 );
 
     printlog("CORE_ztsqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -93,9 +93,9 @@ BODY
 {
     dague_complex64_t *lA1 = (dague_complex64_t*)A1;
     int tempnn = ((n)==(descA2.nt-1)) ? (descA2.n-(n*descA2.nb)) : descA2.nb;
-    int ldak = BLKLDD( descA2, k );
+    int ldak = BLKLDD( descA2, 0 );
 
-        printlog("CORE_ztsmqr(%d, %d, %d)\n"
+    printlog("CORE_ztsmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
              k, k, n, k, n, A1, k, n, A2, k, k, V, k, k, T);
 
