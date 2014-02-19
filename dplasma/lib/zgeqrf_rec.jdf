@@ -16,9 +16,9 @@ extern "C" %{
 #include "scheduling.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
-#define RECURSIVE_GEQRT
-#define RECURSIVE_TSQRT
-#define RECURSIVE_UNMQR
+//#define RECURSIVE_GEQRT
+//#define RECURSIVE_TSQRT
+//#define RECURSIVE_UNMQR
 #define RECURSIVE_TSMQR
 
 typedef struct cb_data_s {
@@ -486,15 +486,17 @@ BODY
                             matrix_ComplexDouble, matrix_Lapack,
                             1, context->virtual_process->dague_context->my_rank,
                             dplasma_imin(descA.mb, ldak), ib,
-                            ldam, tempnn, 0, 0,
-                            tempmm, tempnn, 1, 1, 1);
+                            ldam, descA.nb, 0, 0,
+                            tempmm, descA.nb, 1, 1, 1);
+
+   // printf("small descC.nt %d\n", small_descV->nt);
 
     local_block_cyclic_init(small_descT,
                             matrix_ComplexDouble, matrix_Lapack,
                             1, context->virtual_process->dague_context->my_rank,
                             ib, ib,
-                            descT.mb, tempnn, 0, 0,
-                            ib,       tempnn, 1, 1, 1);
+                            descT.mb, descA.nb, 0, 0,
+                            ib,       descA.nb, 1, 1, 1);
 
     small_descA1->mat = A1;
     small_descA2->mat = A2;
@@ -521,6 +523,8 @@ BODY
     dague_set_complete_callback(dague_ztsmqr,
                                 complete_recursive_dague_callback,
                                 (void *)cbdata_ztsmqr);
+
+    printf("IN M1 %d, N1 %d, M2 %d, N2 %d, K %d\n", descA.mb, tempnn, tempmm, tempnn, descA.nb);
 
     dague_enqueue(context->virtual_process->dague_context, dague_ztsmqr);
     return -1;

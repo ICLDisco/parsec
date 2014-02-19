@@ -21,18 +21,18 @@ trans  [type = "PLASMA_enum"]
 dataA1 [type = "dague_ddesc_t *"]
 dataA2 [type = "dague_ddesc_t *" aligned=dataA1]
 dataV  [type = "dague_ddesc_t *"]
-dataT  [type = "dague_ddesc_t *" aligned=dataA1]
+dataT  [type = "dague_ddesc_t *" aligned=dataV]
 p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.mb)"]
 
 descA1 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA1)"]
 descA2 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA2)"]
-descV  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)" ]
+descV  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataV)" ]
 descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)" ]
 
 
 zparfb(k, n)
   /* Execution space */
-  k = 0 .. descA1.nt-1
+  k = 0 .. descV.nt-1
   n = 0 .. descA2.nt-1
 
   : dataA2(0,n)
@@ -41,8 +41,8 @@ zparfb(k, n)
            -> dataA1(0, n)
 
   RW    A2 <- (k == 0) ? dataA2(0, n) : A2 zparfb(k-1, n)
-          ->  (k == descA2.nt-1) ? dataA2(0, n)
-          ->  (k <  descA2.nt-1) ? A2 zparfb(k+1, n)
+          ->  (k == descV.nt-1) ? dataA2(0, n)
+          ->  (k <  descV.nt-1) ? A2 zparfb(k+1, n)
 
   READ  V  <- V read_V(k)
 
@@ -59,6 +59,8 @@ BODY
     int lda2 = BLKLDD( descA2, 0 );
 
     printlog("CORE_zlarfb(%d, %d)\n", k, n);
+
+ //   printf("descV.nt %d, M1 %d, N1 %d, M2 %d, N2 %d, K %d\n", descV.nt, tempm, tempnn, descA2.m, tempnn, descA2.nb);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_W = dague_private_memory_pop( p_work );
@@ -79,7 +81,7 @@ BODY
 END
 
 read_V(k) [profile = off]
-  k = 0 .. descA1.nt-1
+  k = 0 .. descV.nt-1
 
   : dataV(0, k)
 
@@ -92,7 +94,7 @@ BODY
 END
 
 read_T(k) [profile = off]
-  k = 0 .. descT.nt-1
+  k = 0 .. descV.nt-1
 
   : dataT(0, k)
 
