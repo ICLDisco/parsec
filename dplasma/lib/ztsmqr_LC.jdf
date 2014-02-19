@@ -1,0 +1,74 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include <lapacke.h>
+#include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+side   [type = "PLASMA_enum"]
+trans  [type = "PLASMA_enum"]
+dataA1 [type = "dague_ddesc_t *"]
+dataA2 [type = "dague_ddesc_t *"]
+dataV  [type = "dague_ddesc_t *"]
+dataT  [type = "dague_ddesc_t *" aligned=dataA1]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.mb)"]
+
+descA1 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA1)"]
+descA2 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA2)"]
+descV  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)" ]
+descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)" ]
+
+
+zparfb(k, n)
+  /* Execution space */
+  k = 0 .. descA1.nt-1
+  n = 0 .. descA2.nt-1
+
+  : dataA2(0,n)
+
+  READ  A1 <- dataA1(0, n)
+  READ  T  <- dataT(0, k)                                 [type = LITTLE_T]
+  READ  V  <- dataV(0, k)                                 
+  RW    A2 <- (k == 0) ? dataA2(0, n) : A2 zparfb(k-1, n)
+          ->  (k == descA2.nt-1) ? dataA2(0, n)
+          ->  (k <  descA2.nt-1) ? A2 zparfb(k+1, n)
+
+BODY
+{
+    dague_complex64_t *lA1 = (dague_complex64_t*)A1;
+    int tempm = descA1.m - k * descA1.nb;
+    int tempnn = ((n)==(descA2.nt-1)) ? (descA2.n-(n*descA2.nb)) : descA2.nb;
+/*    int tempkk = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;*/
+    int ldak = BLKLDD( descA2, k );
+
+    printlog("CORE_zlarfb(%d, %d)\n", k, n);
+
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_W = dague_private_memory_pop( p_work );
+
+    CORE_dparfb(
+            PlasmaLeft, PlasmaConjTrans, PlasmaForward, PlasmaColumnwise,
+            tempm, tempnn, descA2.m, tempnn, descA2.nb, 0,
+            lA1 + k * descA2.nb, ldak,
+            A2, ldak,
+            V, ldak,
+            T, descT.nb,
+            p_elem_W, descT.nb);
+
+    dague_private_memory_push( p_work, p_elem_W );
+
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+

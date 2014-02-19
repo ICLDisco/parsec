@@ -19,7 +19,7 @@ extern "C" %{
 dataA2 [type = "dague_ddesc_t *"]
 dataA1 [type = "dague_ddesc_t *" aligned=dataA2]
 dataT  [type = "dague_ddesc_t *" aligned=dataA2]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.nb)"]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.mb)"]
 
 descA1 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA1)"]
 descA2 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA2)"]
@@ -32,7 +32,7 @@ ztsqrt(k)
 
   : dataA2(0, k)
 
-  RW   A1 <- dataA1(0, k)
+  RW   A1 <- (0 == k) ? dataA1(0, k) : A1 ztsmqr(k-1, k)
           -> dataA1(0, k)
 
   RW   A2 <- (0 == k) ? dataA2(0, k) : A2 ztsmqr(k-1, k)
@@ -41,6 +41,7 @@ ztsqrt(k)
 
   RW    T <- dataT(0, k)                                               [type = LITTLE_T]
           -> dataT(0, k)      [type = LITTLE_T]
+          -> (k < (descA2.nt-1)) ? T ztsmqr(k, k+1 ..  descA2.nt-1) [type = LITTLE_T]
 
 BODY
 {
@@ -79,11 +80,10 @@ ztsmqr(k, n)
   : dataA2(0,n)
 
   READ  V <- A2 ztsqrt(k)
-  RW    T <- dataT(0, n-1)      [type = LITTLE_T]
-          -> dataT(0, n-1)          [type = LITTLE_T]
+  READ  T <- T ztsqrt(k)             [type = LITTLE_T]
 
   RW   A1 <- dataA1(0, n)
-          -> dataA1(0, n) 
+          -> ( n == k+1 ) ? A1 ztsqrt(k+1)
 
   RW   A2 <- (k == 0) ? dataA2(0, n) : A2 ztsmqr(k-1, n)
           -> ( n == k+1 ) ? A2 ztsqrt(k+1)

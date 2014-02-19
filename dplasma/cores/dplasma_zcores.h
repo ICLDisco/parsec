@@ -13,6 +13,7 @@
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include <core_blas.h>
+#include <plasma.h>
 
 int blgchase_ztrdv2(int NT, int N, int NB,
                    dague_complex64_t *A1, dague_complex64_t *A2,
@@ -32,5 +33,23 @@ int CORE_zplssq(int M, int N,
 int CORE_zamax(PLASMA_enum storev, PLASMA_enum uplo, int M, int N,
                const PLASMA_Complex64_t *A, int lda, double *work);
 int CORE_zamax_tile( PLASMA_enum storev, PLASMA_enum uplo, const PLASMA_desc descA, double *work);
+
+int CORE_ztsmqr_wei(PLASMA_enum side, PLASMA_enum trans,
+                    int M1, int N1, int M2, int N2, int K, int IB,
+                    PLASMA_Complex64_t *A1, int LDA1,
+                    PLASMA_Complex64_t *A2, int LDA2,
+                    const PLASMA_Complex64_t *V, int LDV,
+                    const PLASMA_Complex64_t *T, int LDT,
+                    PLASMA_Complex64_t *WORK, int LDWORK,
+                    PLASMA_Complex64_t *WORKC, int LDWORKC);
+
+int CORE_zparfb_wei(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
+                    int M1, int N1, int M2, int N2, int K, int L,
+                    PLASMA_Complex64_t *A1, int LDA1,
+                    PLASMA_Complex64_t *A2, int LDA2,
+                    const PLASMA_Complex64_t *V, int LDV,
+                    const PLASMA_Complex64_t *T, int LDT,
+                    PLASMA_Complex64_t *WORK, int LDWORK,
+                    PLASMA_Complex64_t *WORKC, int LDWORKC);
 
 #endif /* _DPLASMA_Z_CORES_ */
