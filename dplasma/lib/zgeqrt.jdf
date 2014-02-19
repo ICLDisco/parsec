@@ -18,7 +18,6 @@ extern "C" %{
 
 dataA  [type = "dague_ddesc_t *"]
 dataT  [type = "dague_ddesc_t *" aligned=dataA]
-ib     [type = "int"]
 p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*descT.nb)"]
 
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]

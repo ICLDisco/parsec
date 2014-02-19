@@ -60,6 +60,8 @@ BODY
 
     printlog("CORE_zlarfb(%d, %d)\n", k, n);
 
+  //  printf("ldv %d, lda1 %d, lda2 %d\n", ldv, lda1, lda2);
+
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_W = dague_private_memory_pop( p_work );
 
@@ -68,7 +70,7 @@ BODY
         tempm, tempnn, descA2.m, tempnn, descA2.nb, 0,
         lA1 + k * descA1.nb, lda1,
         A2, lda2,
-        V,  ldv,
+        V,  lda2,
         T,  descT.mb,
         p_elem_W, descT.nb);
 

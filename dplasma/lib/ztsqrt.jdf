@@ -54,7 +54,7 @@ BODY
              k, k, k, k, T, k, k, A1, k, k, A2);
 
 #if !defined(DAGUE_DRY_RUN)
-    printf("ldak %d", ldak);
+  //  printf("ldak %d", ldak);
 
     void *p_elem_tau  = dague_private_memory_pop( p_work );
     void *p_elem_work = dague_private_memory_pop( p_work );
