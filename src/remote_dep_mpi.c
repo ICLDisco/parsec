@@ -166,6 +166,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     dague_execution_context_t task;
 
     task.dague_handle = dague_handle_lookup( origin->handle_id );
+    if( NULL == task.dague_handle ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->handle_id), str;
     task.function     = task.dague_handle->functions_array[origin->function_id];
     memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.function->nb_locals);
     task.priority     = 0xFFFFFFFF;
@@ -1595,12 +1596,13 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
         if( deps->msg.handle_id == obj->handle_id ) {
             char* buffer = (char*)deps->dague_handle;
             int rc, position = 0;
+            deps->dague_handle = NULL;
             rc = remote_dep_get_datatypes(eu_context, deps); assert( -1 != rc );
             DEBUG2(("MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx\n",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     deps->msg.deps, deps->msg.output_mask));
+            item = dague_ulist_remove(&dep_activates_noobj_fifo, item);
             remote_dep_mpi_recv_activate(eu_context, deps, buffer, deps->msg.length, &position);
-            (void)dague_ulist_remove(&dep_activates_noobj_fifo, item);
             free(buffer);
             (void)rc;
         }
