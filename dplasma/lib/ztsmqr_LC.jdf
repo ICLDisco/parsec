@@ -53,21 +53,21 @@ BODY
     dague_complex64_t *lA1 = (dague_complex64_t*)A1;
     int tempm = descA1.m - k * descA1.nb;
     int tempnn = ((n)==(descA2.nt-1)) ? (descA2.n-(n*descA2.nb)) : descA2.nb;
-/*    int tempkk = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;*/
+    int tempkk = ((k)==(descV.nt-1)) ? (descV.n-(k*descV.nb)) : descV.nb;
     int ldv  = BLKLDD( descV,  0 );
     int lda1 = BLKLDD( descA1, 0 );
     int lda2 = BLKLDD( descA2, 0 );
 
     printlog("CORE_zlarfb(%d, %d)\n", k, n);
 
- //   printf("descV.nt %d, M1 %d, N1 %d, M2 %d, N2 %d, K %d\n", descV.nt, tempm, tempnn, descA2.m, tempnn, descA2.nb);
+  //  printf("descV.nt %d, M1 %d, N1 %d, M2 %d, N2 %d, K %d\n", descV.nt, tempm, tempnn, descA2.m, tempnn, tempkk);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_W = dague_private_memory_pop( p_work );
 
     CORE_zparfb(
         PlasmaLeft, PlasmaConjTrans, PlasmaForward, PlasmaColumnwise,
-        tempm, tempnn, descA2.m, tempnn, descA2.nb, 0,
+        tempm, tempnn, descA2.m, tempnn, tempkk, 0,
         lA1 + k * descA1.nb, lda1,
         A2, lda2,
         V,  lda2,

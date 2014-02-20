@@ -16,9 +16,9 @@ extern "C" %{
 #include "scheduling.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
-//#define RECURSIVE_GEQRT
+#define RECURSIVE_GEQRT
 //#define RECURSIVE_TSQRT
-//#define RECURSIVE_UNMQR
+#define RECURSIVE_UNMQR
 #define RECURSIVE_TSMQR
 
 typedef struct cb_data_s {
@@ -524,7 +524,7 @@ BODY
                                 complete_recursive_dague_callback,
                                 (void *)cbdata_ztsmqr);
 
-    printf("IN M1 %d, N1 %d, M2 %d, N2 %d, K %d\n", descA.mb, tempnn, tempmm, tempnn, descA.nb);
+  //    printf("IN M1 %d, N1 %d, M2 %d, N2 %d, K %d\n", descA.mb, tempnn, tempmm, tempnn, descA.nb);
 
     dague_enqueue(context->virtual_process->dague_context, dague_ztsmqr);
     return -1;
