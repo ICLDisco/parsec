@@ -390,7 +390,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         return -1;
     }
 
-#if (DAGUE_DEBUG_VERBOSE >= 2) && defined(HAVE_HWLOC_BITMAP)
+#if (DAGUE_DEBUG_VERBOSE != 0) && defined(HAVE_HWLOC_BITMAP)
     {
         char *str = NULL;
         hwloc_bitmap_asprintf(&str,  binding_mask);
