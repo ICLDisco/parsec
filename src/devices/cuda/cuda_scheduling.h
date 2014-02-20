@@ -102,7 +102,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  check_in_deps:
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tUpload data (if any) for %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tUpload data (if any) for %s priority %d\n", gpu_device->super.device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
@@ -135,7 +135,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tRetrieve data (if any) for %s priority %d\n", gpu_device->device_index,
+        DEBUG2(( "GPU[%1d]:\tRetrieve data (if any) for %s priority %d\n", gpu_device->super.device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }

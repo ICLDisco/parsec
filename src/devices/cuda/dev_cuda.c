@@ -994,6 +994,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     if( 0 != move_data_count ) {
         WARNING(("GPU:\tRequest space on GPU failed for %d out of %d data\n",
                  move_data_count, this_task->function->nb_parameters));
+        exit(-2); 
         /* We can't find enough room on the GPU. Insert the tiles in the begining of
          * the LRU (in order to be reused asap) and return without scheduling the task.
          */
@@ -1059,7 +1060,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                               "GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d\n",
-                              key, memptr, (void*)gpu_elem->gpu_mem_ptr, length, gpu_device->device_index));
+                              original->key, in_elem->device_private, (void*)gpu_elem->device_private, original->nb_elts, gpu_device->super.device_index));
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
                                                  in_elem->device_private, original->nb_elts, stream );
