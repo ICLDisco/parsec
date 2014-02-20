@@ -381,7 +381,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)\n",
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask));
                     assert(remote_deps->outgoing_mask & (1U<<i));
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
                         if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );

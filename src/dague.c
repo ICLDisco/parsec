@@ -242,7 +242,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
-#if DAGUE_DEBUG_VERBOSE > 2
+#if DAGUE_DEBUG_VERBOSE != 0
         vpmap_display_map(stderr);
 #endif
         return NULL;
@@ -494,14 +494,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     for(t = 0; t < nb_total_comp_threads; t++)
         hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
 
-#if DAGUE_DEBUG_VERBOSE >= 3
+#if DAGUE_DEBUG_VERBOSE != 0
     {
         char *str = NULL;
         hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
         DEBUG3(( "binding core free mask is %s\n", str));
         free(str);
     }
-#endif /* DAGUE_DEBUG_VERBOSE */
+#endif /* DAGUE_DEBUG_VERBOSE != 0 */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
 #if defined(DAGUE_PROF_TRACE)
@@ -1647,14 +1647,14 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             startup[t].bindto=prev;
         }
 
-#if DAGUE_DEBUG_VERBOSE >= 3
+#if DAGUE_DEBUG_VERBOSE != 0
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str, context->comm_th_index_mask);
             DEBUG3(( "binding (core indexes) defined by the mask %s\n", str));
             free(str);
         }
-#endif /* DAGUE_DEBUG_VERBOSE */
+#endif /* DAGUE_DEBUG_VERBOSE != 0 */
     }
 
     else if( NULL != (position = strchr(option, ':'))) {
@@ -1772,7 +1772,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     cmp=0;
             }
         }
-#if DAGUE_DEBUG_VERBOSE >= 3
+#if DAGUE_DEBUG_VERBOSE != 0
         {
             char tmp[MAX_CORE_LIST];
             char* str = tmp;
@@ -1786,7 +1786,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             }
             DEBUG3(("binding defined by the parsed list: %s \n", tmp));
         }
-#endif /* DAGUE_DEBUG_VERBOSE */
+#endif /* DAGUE_DEBUG_VERBOSE != 0 */
     }
     return 0;
 #else

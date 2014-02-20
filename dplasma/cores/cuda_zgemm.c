@@ -172,7 +172,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     CUdeviceptr d_A, d_B, d_C;
     cudaError_t status;
-#if DAGUE_DEBUG_VERBOSE
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
 
