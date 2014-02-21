@@ -74,12 +74,27 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 {
     int temp, Q;
     dague_ddesc_t *o = &(Ddesc->super.super);
+    tiled_matrix_desc_t *tdesc = &(Ddesc->super);
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
     Ddesc->mat = NULL;  /* No data associated with the matrix yet */
+
+    /* WARNING: This has to be removed when padding will be removed */
+#if defined(HAVE_MPI)
+    if ( (storage == matrix_Lapack) && (P > 1)) {
+        if ( tdesc->lm % mb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+        if ( tdesc->ln % nb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, ln has to be a multiple of nb\n");
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+    }
+#endif
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
