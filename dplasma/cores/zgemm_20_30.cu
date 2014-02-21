@@ -61,7 +61,7 @@ GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
     double lbeta  = beta;
 #endif
 
-#if (__CUDA_API_VERSION < 4000)
+#if (CUDA_VERSION < 4000) || 1
     cublasSetKernelStream( stream );
     cublasZgemm(TRANSA, TRANSB, m, n, k,
                 lalpha, (cuDoubleComplex*)d_A, lda,
@@ -71,7 +71,7 @@ GENERATE_SM_VERSION_NAME(ZGEMM)( char TRANSA, char TRANSB, int m, int n, int k,
 
 #else
     cudaStream_t current_stream;
-    cublasHandle_t handle = cublasGetCurrentCtx();
+    cublasHandle_t handle = cublasGetCurrentCtx(); /* todo: removed in cuda API 5. */
 
     cublasGetStream_v2 ( handle, &current_stream );
     cublasSetStream_v2 ( handle, &stream );
