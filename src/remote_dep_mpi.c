@@ -1594,8 +1594,9 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
     ({
         dague_remote_deps_t* deps = (dague_remote_deps_t*)item;
         if( deps->msg.handle_id == obj->handle_id ) {
-            char* buffer = (char*)deps->dague_handle;
+            char* buffer = (char*)deps->dague_handle;  /* get back the buffer from the "temporary" storage */
             int rc, position = 0;
+            deps->dague_handle = NULL;
             rc = remote_dep_get_datatypes(eu_context, deps); assert( -1 != rc );
             DEBUG2(("MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx\n",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
