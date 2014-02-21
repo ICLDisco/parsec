@@ -202,6 +202,13 @@ dplasma_zlange_Destruct( dague_handle_t *o )
 {
     dague_zlange_frb_cyclic_handle_t *dague_zlange = (dague_zlange_frb_cyclic_handle_t *)o;
 
+    dague_data_t* data = ((two_dim_block_cyclic_t*)dague_zlange->Tdist)->mat;
+    ((two_dim_block_cyclic_t*)dague_zlange->Tdist)->mat = NULL;
+    dague_data_copy_t* copy = dague_data_get_copy(data, 0);
+    dague_data_copy_detach(data, copy, 0);
+    dague_data_copy_release(copy);
+    OBJ_RELEASE(data);
+
     dague_ddesc_destroy( dague_zlange->Tdist );
     free( dague_zlange->Tdist );
 
