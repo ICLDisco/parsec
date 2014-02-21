@@ -493,7 +493,7 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
 /**
  * Trigger the local reception of a remote task data. Upon completion of all
  * pending receives related to a remote task completion, we call the
- * release_deps tp enable all local tasks and then start the activation
+ * release_deps to enable all local tasks and then start the activation
  * propagation.
  */
 static dague_remote_deps_t*
@@ -532,7 +532,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
     }
 
 #ifdef DAGUE_DIST_COLLECTIVES
-    /* Corresponding comment below on the propogation part */
+    /* Corresponding comment below on the propagation part */
     if(0 == origin->incoming_mask) {
         remote_dep_inc_flying_messages(task.dague_object,
                                        eu_context->virtual_process->dague_context);
