@@ -37,6 +37,7 @@ set(sources
         sym_two_dim_rectangle_cyclic.c
         vector_two_dim_cyclic.c
         reduce_wrapper.c
+        subtile.c
         ${generated_files}
         ${generated_jdf}
 )
@@ -66,4 +67,5 @@ install(FILES
   vector_two_dim_cyclic.h
   two_dim_tabular.h
   grid_2Dcyclic.h
+  subtile.h
   DESTINATION include/data_dist/matrix )
