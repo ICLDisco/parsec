@@ -12,41 +12,14 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "data_dist/matrix/local_rectangle_cyclic.h"
-#include "scheduling.h"
+#include "data_dist/matrix/subtile.h"
+#include "recursive.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
 #define RECURSIVE_GEQRT
-//#define RECURSIVE_TSQRT
+#define RECURSIVE_TSQRT
 #define RECURSIVE_UNMQR
 #define RECURSIVE_TSMQR
-
-typedef struct cb_data_s {
-    dague_execution_unit_t *context;
-    dague_execution_context_t *task;
-    dague_ddesc_t * A;
-    dague_ddesc_t * B;
-    dague_ddesc_t * C;
-    dague_ddesc_t * D;
-    void (*destruct)( dague_handle_t * );
-} cb_data_t;
-
-static int complete_recursive_dague_callback(dague_handle_t* dague_handle, void* cb_data)
-{
-    int rc = 0;
-    cb_data_t* data = (cb_data_t*)cb_data;
-
-    rc = __dague_complete_execution(data->context, data->task);
-
-    if (data->A != NULL) free(data->A);
-    if (data->B != NULL) free(data->B);
-    if (data->C != NULL) free(data->C);
-    if (data->D != NULL) free(data->D);
-
-    data->destruct( dague_handle );
-    free(data);
-    return rc;
-}
 
 %}
 
@@ -107,49 +80,28 @@ BODY
 
 #if defined(RECURSIVE_GEQRT)
 
-    local_block_cyclic_t *small_descA;
-    local_block_cyclic_t *small_descT;
+    subtile_desc_t *small_descA;
+    subtile_desc_t *small_descT;
     dague_handle_t *dague_zgeqrt;
-    cb_data_t      *cbdata_zgeqrt;
 
-    small_descA = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descT = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
+    small_descA = subtile_desc_create( &(descA), k, k,
+                                       dplasma_imin(descA.mb, ldak), ib, 
+                                       0, 0, tempkm, tempkn );
+    small_descT = subtile_desc_create( &(descT), k, k,
+                                       ib, ib, 
+                                       0, 0, ib, tempkn );
 
-    local_block_cyclic_init(small_descA,
-                              matrix_ComplexDouble, matrix_Lapack,
-                              1, context->virtual_process->dague_context->my_rank,
-                              dplasma_imin(descA.mb, ldak), ib,
-                              ldak, tempkn, 0, 0,
-                              tempkm, tempkn, 1, 1, 1);
-
-    local_block_cyclic_init(small_descT,
-                              matrix_ComplexDouble, matrix_Lapack,
-                              1, context->virtual_process->dague_context->my_rank,
-                              ib, ib,
-                              descT.mb, tempkn, 0, 0,
-                              ib,       tempkn, 1, 1, 1);
     small_descA->mat = A;
     small_descT->mat = T;
 
-    /* Dague_object */
+    /* dague_object */
     dague_zgeqrt = dplasma_zgeqrt_New((tiled_matrix_desc_t *)small_descA,
                                       (tiled_matrix_desc_t *)small_descT );
-    dague_zgeqrt->devices_mask = 1;
 
-    /* Callback */
-    cbdata_zgeqrt = (cb_data_t *) malloc(sizeof(cb_data_t));
-    cbdata_zgeqrt->context = context;
-    cbdata_zgeqrt->task    = this_task;
-    cbdata_zgeqrt->A       = (dague_ddesc_t *)small_descA;
-    cbdata_zgeqrt->B       = (dague_ddesc_t *)small_descT;
-    cbdata_zgeqrt->C       = NULL;
-    cbdata_zgeqrt->D       = NULL;
-    cbdata_zgeqrt->destruct= dplasma_zgeqrt_Destruct;
-    dague_set_complete_callback(dague_zgeqrt,
-                                complete_recursive_dague_callback,
-                                (void *)cbdata_zgeqrt);
-
-    dague_enqueue(context->virtual_process->dague_context, dague_zgeqrt);
+    /* recursive call */
+    dague_recursivecall( context, this_task,
+                         dague_zgeqrt, dplasma_zgeqrt_Destruct,
+                         2, small_descA, small_descT );
     return -1;
 
 #else /* defined(RECURSIVE_GEQRT) */
@@ -199,62 +151,35 @@ BODY
 
 #if defined(RECURSIVE_UNMQR)
 
-    local_block_cyclic_t *small_descA;
-    local_block_cyclic_t *small_descT;
-    local_block_cyclic_t *small_descC;
+    subtile_desc_t *small_descA;
+    subtile_desc_t *small_descT;
+    subtile_desc_t *small_descC;
     dague_handle_t *dague_zunmqr_panel;
-    cb_data_t      *cbdata_zunmqr_panel;
 
-    small_descA = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descC = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descT = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-
-    local_block_cyclic_init(small_descA,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            dplasma_imin(descA.mb, ldak), ib,
-                            ldak, tempkm, 0, 0,
-                            tempkm, tempkm, 1, 1, 1);
-
-    local_block_cyclic_init(small_descT,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            ib, ib,
-                            descT.mb, tempkm, 0, 0,
-                            ib,       tempkm, 1, 1, 1);
-
-    local_block_cyclic_init(small_descC,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            dplasma_imin(descA.mb, ldak), ib,
-                            ldak, tempnn, 0, 0,
-                            tempkm, tempnn, 1, 1, 1);
+    small_descA = subtile_desc_create( &(descA), k, k,
+                                       dplasma_imin(descA.mb, ldak), ib,
+                                       0, 0, tempkm, tempkm );
+    small_descC = subtile_desc_create( &(descA), k, n,
+                                       dplasma_imin(descA.mb, ldak), ib,
+                                       0, 0, tempkm, tempnn );
+    small_descT = subtile_desc_create( &(descT), k, k,
+                                       ib, ib,
+                                       0, 0, ib, tempkm );
 
     small_descA->mat = A;
     small_descC->mat = C;
     small_descT->mat = T;
 
-    /* Dague_object */
+    /* dague_object */
     dague_zunmqr_panel = dplasma_zunmqr_panel_New(PlasmaLeft, PlasmaConjTrans,
                                                   (tiled_matrix_desc_t *)small_descA,
                                                   (tiled_matrix_desc_t *)small_descT,
                                                   (tiled_matrix_desc_t *)small_descC );
-    dague_zunmqr_panel->devices_mask = 1;
 
-    /* Callback */
-    cbdata_zunmqr_panel = (cb_data_t *) malloc(sizeof(cb_data_t));
-    cbdata_zunmqr_panel->context = context;
-    cbdata_zunmqr_panel->task    = this_task;
-    cbdata_zunmqr_panel->A       = (dague_ddesc_t *)small_descA;
-    cbdata_zunmqr_panel->B       = (dague_ddesc_t *)small_descT;
-    cbdata_zunmqr_panel->C       = (dague_ddesc_t *)small_descC;
-    cbdata_zunmqr_panel->D       = NULL;
-    cbdata_zunmqr_panel->destruct= dplasma_zunmqr_panel_Destruct;
-    dague_set_complete_callback(dague_zunmqr_panel,
-                                complete_recursive_dague_callback,
-                                (void *)cbdata_zunmqr_panel);
-
-    dague_enqueue(context->virtual_process->dague_context, dague_zunmqr_panel);
+    /* recursive call */
+    dague_recursivecall( context, this_task,
+                         dague_zunmqr_panel, dplasma_zunmqr_panel_Destruct,
+                         3, small_descA, small_descC, small_descT );
     return -1;
 
 #else /* defined(RECURSIVE_UNMQR) */
@@ -326,60 +251,34 @@ BODY
 
 #if defined(RECURSIVE_TSQRT)
 
-    local_block_cyclic_t *small_descA1;
-    local_block_cyclic_t *small_descA2;
-    local_block_cyclic_t *small_descT;
+    subtile_desc_t *small_descA1;
+    subtile_desc_t *small_descA2;
+    subtile_desc_t *small_descT;
     dague_handle_t *dague_ztsqrt;
-    cb_data_t      *cbdata_ztsqrt;
 
-    small_descA1 = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descA2 = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descT  = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
+    small_descA1 = subtile_desc_create( &(descA), k, k,
+                                        dplasma_imin(descA.mb, ldak), ib,
+                                        0, 0, tempkn, tempkn );
+    small_descA2 = subtile_desc_create( &(descA), m, k,
+                                        dplasma_imin(descA.mb, ldak), ib,
+                                        0, 0, tempmm, tempkn );
+    small_descT  = subtile_desc_create( &(descT), m, k,
+                                        ib, ib,
+                                        0, 0, ib, tempkn );
 
-    local_block_cyclic_init(small_descA1,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            dplasma_imin(descA.mb, ldak), ib,
-                            ldak, tempkn, 0, 0,
-                            tempkn, tempkn, 1, 1, 1);
-
-    local_block_cyclic_init(small_descA2,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            dplasma_imin(descA.mb, ldak), ib,
-                            ldam, tempkn, 0, 0,
-                            tempmm, tempkn, 1, 1, 1);
-
-    local_block_cyclic_init(small_descT,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            ib, ib,
-                            descT.mb, tempkn, 0, 0,
-                            ib,       tempkn, 1, 1, 1);
     small_descA1->mat = A1;
     small_descA2->mat = A2;
     small_descT->mat  = T;
 
-    /* Dague_object */
+    /* dague_object */
     dague_ztsqrt = dplasma_ztsqrt_New((tiled_matrix_desc_t *)small_descA1,
                                       (tiled_matrix_desc_t *)small_descA2,
                                       (tiled_matrix_desc_t *)small_descT );
-    dague_ztsqrt->devices_mask = 1;
 
-    /* Callback */
-    cbdata_ztsqrt = (cb_data_t *) malloc(sizeof(cb_data_t));
-    cbdata_ztsqrt->context = context;
-    cbdata_ztsqrt->task    = this_task;
-    cbdata_ztsqrt->A       = (dague_ddesc_t *)small_descA1;
-    cbdata_ztsqrt->B       = (dague_ddesc_t *)small_descA2;
-    cbdata_ztsqrt->C       = (dague_ddesc_t *)small_descT;
-    cbdata_ztsqrt->D       = NULL;
-    cbdata_ztsqrt->destruct= dplasma_ztsqrt_Destruct;
-    dague_set_complete_callback(dague_ztsqrt,
-                                complete_recursive_dague_callback,
-                                (void *)cbdata_ztsqrt);
-
-    dague_enqueue(context->virtual_process->dague_context, dague_ztsqrt);
+    /* recursive call */
+    dague_recursivecall( context, this_task,
+                         dague_ztsqrt, dplasma_ztsqrt_Destruct,
+                         3, small_descA1, small_descA2, small_descT );
     return -1;
 
 #else /* defined(RECURSIVE_TSQRT) */
@@ -457,76 +356,41 @@ BODY
 
 #if defined(RECURSIVE_TSMQR)
 
-    local_block_cyclic_t *small_descA1;
-    local_block_cyclic_t *small_descA2;
-    local_block_cyclic_t *small_descV;
-    local_block_cyclic_t *small_descT;
+    subtile_desc_t *small_descA1;
+    subtile_desc_t *small_descA2;
+    subtile_desc_t *small_descV;
+    subtile_desc_t *small_descT;
     dague_handle_t *dague_ztsmqr;
-    cb_data_t      *cbdata_ztsmqr;
 
-    small_descA1 = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descA2 = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descV  = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-    small_descT  = (local_block_cyclic_t *) malloc(sizeof(local_block_cyclic_t));
-
-    local_block_cyclic_init(small_descA1,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            dplasma_imin(descA.mb, ldak), ib,
-                            ldak, tempnn, 0, 0,
-                            descA.mb, tempnn, 1, 1, 1);
-
-    local_block_cyclic_init(small_descA2,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            dplasma_imin(descA.mb, ldak), ib,
-                            ldam, tempnn, 0, 0,
-                            tempmm, tempnn, 1, 1, 1);
-    local_block_cyclic_init(small_descV,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            dplasma_imin(descA.mb, ldak), ib,
-                            ldam, descA.nb, 0, 0,
-                            tempmm, descA.nb, 1, 1, 1);
-
-   // printf("small descC.nt %d\n", small_descV->nt);
-
-    local_block_cyclic_init(small_descT,
-                            matrix_ComplexDouble, matrix_Lapack,
-                            1, context->virtual_process->dague_context->my_rank,
-                            ib, ib,
-                            descT.mb, descA.nb, 0, 0,
-                            ib,       descA.nb, 1, 1, 1);
+    small_descA1 = subtile_desc_create( &(descA), k, n,
+                                        dplasma_imin(descA.mb, ldak), ib,
+                                        0, 0, descA.mb, tempnn );
+    small_descA2 = subtile_desc_create( &(descA), m, n,
+                                        dplasma_imin(descA.mb, ldak), ib,
+                                        0, 0, tempmm, tempnn );
+    small_descV  = subtile_desc_create( &(descA), m, k,
+                                        dplasma_imin(descA.mb, ldak), ib,
+                                        0, 0, tempmm, descA.nb );
+    small_descT  = subtile_desc_create( &(descT), m, k,
+                                        ib, ib,
+                                        0, 0, ib, descA.nb );
 
     small_descA1->mat = A1;
     small_descA2->mat = A2;
     small_descV->mat  = V;
     small_descT->mat  = T;
 
-    /* Dague_object */
+    /* dague_object */
     dague_ztsmqr = dplasma_ztsmqr_New(PlasmaLeft, PlasmaConjTrans,
                                       (tiled_matrix_desc_t *)small_descA1,
                                       (tiled_matrix_desc_t *)small_descA2,
                                       (tiled_matrix_desc_t *)small_descV,
                                       (tiled_matrix_desc_t *)small_descT );
-    dague_ztsmqr->devices_mask = 1;
 
-    /* Callback */
-    cbdata_ztsmqr = (cb_data_t *) malloc(sizeof(cb_data_t));
-    cbdata_ztsmqr->context = context;
-    cbdata_ztsmqr->task    = this_task;
-    cbdata_ztsmqr->A       = (dague_ddesc_t *)small_descA1;
-    cbdata_ztsmqr->B       = (dague_ddesc_t *)small_descA2;
-    cbdata_ztsmqr->C       = (dague_ddesc_t *)small_descV;
-    cbdata_ztsmqr->D       = (dague_ddesc_t *)small_descT;;
-    cbdata_ztsmqr->destruct= dplasma_ztsmqr_Destruct;
-    dague_set_complete_callback(dague_ztsmqr,
-                                complete_recursive_dague_callback,
-                                (void *)cbdata_ztsmqr);
-
-  //    printf("IN M1 %d, N1 %d, M2 %d, N2 %d, K %d\n", descA.mb, tempnn, tempmm, tempnn, descA.nb);
-
-    dague_enqueue(context->virtual_process->dague_context, dague_ztsmqr);
+    /* recursive call */
+    dague_recursivecall( context, this_task,
+                         dague_ztsmqr, dplasma_ztsmqr_Destruct,
+                         4, small_descA1, small_descA2, small_descV, small_descT );
     return -1;
 
 #else /* defined(RECURSIVE_TSMQR) */
