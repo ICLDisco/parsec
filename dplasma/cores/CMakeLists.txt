@@ -16,10 +16,14 @@ if(CUDA_FOUND)
 ### CUDA .cu sources
     set( CUDA11_SOURCES
          zgemm_11_12_13.cu
+         ztsmqr.cu
+         zparfb.cu
     )
     set( CUDA13_SOURCES ${CUDA11_SOURCES} )
     set( CUDA20_SOURCES
          zgemm_20_30.cu
+         ztsmqr.cu
+         zparfb.cu
     )
     set( CUDA35_SOURCES ${CUDA11_SOURCES} )
 

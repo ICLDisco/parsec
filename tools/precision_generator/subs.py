@@ -197,6 +197,8 @@ subs = {
     ('STSQRT','DTSQRT','CTSQRT','ZTSQRT'),
     ('stsmqr','dtsmqr','ctsmqr','ztsmqr'),
     ('STSMQR','DTSMQR','CTSMQR','ZTSMQR'),
+    ('sparfb','dparfb','cparfb','zparfb'),
+    ('SPARFB','DPARFB','CPARFB','ZPARFB'),
     ('slacpy','dlacpy','slacpy','dlacpy'),
     ('slaset','dlaset','slaset','dlaset'),
     ('sscal','dscal','csscal','zdscal'),

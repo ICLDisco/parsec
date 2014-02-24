@@ -17,9 +17,9 @@ extern "C" %{
 #include "dplasma/cores/dplasma_zcores.h"
 
 #define RECURSIVE_GEQRT
-#define RECURSIVE_TSQRT
+//#define RECURSIVE_TSQRT
 #define RECURSIVE_UNMQR
-#define RECURSIVE_TSMQR
+//#define RECURSIVE_TSMQR
 
 %}
 
@@ -405,7 +405,7 @@ BODY
                 V  /* dataA(m,k) */, ldam,
                 T  /* dataT(m,k) */, descT.mb,
                 p_elem_A, ldwork,
-                p_elem_C, ldwork );
+                NULL, ldwork );
 
     dague_private_memory_push( p_work, p_elem_A );
     dague_private_memory_push( p_work, p_elem_C );
