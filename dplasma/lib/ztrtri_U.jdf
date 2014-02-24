@@ -31,14 +31,14 @@ ztrsmL(k, n)
   /* Locality */
   : dataA(k, n)
 
-  CTL   ctl  -> (k == 0) ? ctl ztrtri(0)
+  CTL   ctl  -> (k == 0) ? ctll ztrtri(0)
 
   READ  A    <- A ztrsm_in_A(k)        [type = UPPER_TILE]
 
   RW    B    <- dataA(k, n)
                  /* Read Only tasks */
-             -> (n == (k+1)) & (k < (descA.nt-2)) ? B zgemm(k+1, k, (n+1)..(descA.nt-1))
-             -> (k > 0) ? A zgemm(k, 0..(k-1), n)
+             -> (n == (k+1)) & (k < (descA.nt-2)) ? A zgemm(k+1, k, (n+1)..(descA.nt-1))
+             -> (k > 0) ? B zgemm(k, 0..(k-1), n)
 
                  /* RW tasks */
              -> (n == (k+1)) ? B ztrsmR(k+1, k)
@@ -72,27 +72,28 @@ zgemm(k, m, n)
   /* Locality */
   : dataA(m, n)
 
-    /* Release ztrsmR that will modify the local B as C */
+    /* Release ztrsmR using A as C in next step */
+  CTL   ctlA -> (n == (k+1)) ? ctlA ztrsmR(k+1, k)
+    /* Release GEMM using A as C in next step */
+             -> (n >  (k+1)) ? ctlC zgemm(k+1, k, n)
+
+    /* Release ztrsmR using B as C in next step */
   CTL   ctlB -> ctlB ztrsmR(k, m)
 
     /* Wait until C is not used as A anymore */
-  CTL   ctlA <- (m == (k-1)) ? ctlA zgemm(k-1, 0 .. (m-1), n)
-    /* Release ztrsmR using A as C in next step */
-             -> (n == (k+1)) ? ctlA ztrsmR(k+1, k)
-    /* Release GEMM using A as C in next step */
-             -> (n >  (k+1)) ? ctlA zgemm(k+1, k, n)
+  CTL   ctlC <- (m == (k-1)) ? ctlA zgemm(k-1, 0 .. (m-1), n)
 
-  READ  A    <- B ztrsmL(k, n)
-
-  READ  B    <- (k == (m+1)) ? B ztrsmL(k-1, k)
+  READ  A    <- (k == (m+1)) ? B ztrsmL(k-1, k)
              <- (k >  (m+1)) ? C zgemm(k-1, m, k)
+
+  READ  B    <- B ztrsmL(k, n)
 
   RW    C    <- (k == (m+1)) ? B ztrsmL(k-1, n)
              <- (k >  (m+1)) ? C zgemm(k-1, m, n)
 
              -> (n == (k+1)) ? B ztrsmR(k+1, m)
              -> (n >  (k+1)) ? C zgemm(k+1, m, n)
-             -> (n == (k+1)) &  (k < (descA.mt-2)) ? B zgemm(k+1, m, (n+1)..(descA.nt-1))
+             -> (n == (k+1)) &  (k < (descA.mt-2)) ? A zgemm(k+1, m, (n+1)..(descA.nt-1))
 
 BODY
 {
@@ -124,10 +125,14 @@ ztrsmR(k, m)
   /* Locality */
   : dataA(m, k)
 
-  CTL   ctlA <- (m == (k-1)) & (k > 1) ? ctlA zgemm( k-1, 0 .. k-2, k )
-  CTL   ctlB <- (k < (descA.nt-2)) ? ctlB zgemm( k, m, k+1 .. (descA.nt-1) )
+    /* Wait until no more gemms using local B as their A */
+  CTL   ctlA <- ((m == (k-1)) && (k > 1)) ? ctlA zgemm( k-1, 0 .. (k-2), k )
 
-  CTL   ctl  -> ctl ztrtri(k)
+    /* Wait until no more gemms using local B as their B */
+  CTL   ctlB <- (k < (descA.nt-1)) ? ctlB zgemm( k, m, (k+1) .. (descA.nt-1) )
+
+    /* Release the trtri on A(k,k) */
+  CTL   ctl  -> ctlr ztrtri(k)
 
   READ  A    <- A ztrsm_in_A(k)        [type = UPPER_TILE]
   RW    B    <- (k == (m+1)) ? B ztrsmL(k-1, k)
@@ -177,8 +182,8 @@ ztrtri(k)
   /* Locality */
   : dataA(k, k)
 
-  CTL   ctl  <- (k == 0) ? ctl ztrsmL(0, 1 .. descA.mt-1)
-             <- (k >  0) ? ctl ztrsmR(k, 0 .. k-1)
+  CTL   ctll  <- ((k == 0) && (descA.nt > 1)) ? ctl ztrsmL(0, 1 .. descA.nt-1)
+  CTL   ctlr  <-  (k >  0)                    ? ctl ztrsmR(k, 0 .. k-1)
 
   RW    A    <- dataA(k,k)     [type = UPPER_TILE]
              -> dataA(k,k)     [type = UPPER_TILE]
