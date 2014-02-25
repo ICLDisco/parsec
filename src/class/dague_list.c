@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2013-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,7 +15,7 @@ dague_list_item_construct( dague_list_item_t* item )
 {
     item->list_prev = item;
     item->list_next = item;
-    item->keeper_of_the_seven_keys = 0;
+    item->aba_key = 0;
 #if defined(DAGUE_DEBUG_ENABLE)
     item->refcount = 0;
     item->belong_to = (void*)0xdeadbeef;

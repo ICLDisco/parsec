@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,7 +23,7 @@ typedef struct dague_list_item_s {
      * separate the two volatile members of the struct to avoid
      * cacheline false sharing
      */
-    uint64_t keeper_of_the_seven_keys;
+    uint64_t aba_key;
     volatile struct dague_list_item_s* list_prev;
 #if defined(DAGUE_DEBUG_ENABLE)
     volatile int32_t refcount;
