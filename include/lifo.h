@@ -76,15 +76,19 @@ struct dague_lifo_s {
                                             ( sizeof(void*) ) :         \
                                             ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 #if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
-#define DAGUE_LIFO_HKEY(LIFO, h, n) ((((dague_lifo_head_t)((uintptr_t)n))<<64)+((dague_lifo_head_t)(uintptr_t)h))
-#define DAGUE_LIFO_KHEAD(LIFO, k) ((dague_list_item_t*)(uintptr_t)(k))
-#define DAGUE_LIFO_KNEXT(LIFO, k) ((dague_list_item_t*)(uintptr_t)(k>>64))
+#define DAGUE_LIFO_HKEY(LIFO, h, n)     ((((dague_lifo_head_t)((uintptr_t)n))<<64)+((dague_lifo_head_t)(uintptr_t)h))
+#define DAGUE_LIFO_KHEAD(LIFO, k)       ((dague_list_item_t*)(uintptr_t)(k))
+#define DAGUE_LIFO_KNEXT(LIFO, k)       ((dague_list_item_t*)(uintptr_t)(k>>64))
 #else
 #define DAGUE_LIFO_CNTMASK(LIFO)         (DAGUE_LIFO_ALIGNMENT(LIFO)-1)
 #define DAGUE_LIFO_PTRMASK(LIFO)         (~(DAGUE_LIFO_CNTMASK(LIFO)))
 #define DAGUE_LIFO_CNT(LIFO, v)          ((uintptr_t)((uintptr_t)(v) & DAGUE_LIFO_CNTMASK(LIFO)))
 #define DAGUE_LIFO_PTR(LIFO, v)          ((dague_list_item_t *)((uintptr_t)(v) & DAGUE_LIFO_PTRMASK(LIFO)))
 #define DAGUE_LIFO_VAL(LIFO, p, c)       ((dague_list_item_t *)(((uintptr_t)DAGUE_LIFO_PTR(LIFO, p)) | DAGUE_LIFO_CNT(LIFO, c)))
+#define DAGUE_LIFO_HKEY(LIFO, h, n)      DAGUE_LIFO_VAL(LIFO, h, ++((h)->aba_key))
+#define DAGUE_LIFO_KHEAD(LIFO, k)        DAGUE_LIFO_PTR(LIFO, k)
+#define DAGUE_LIFO_KNEXT(LIFO, k)        ((dague_list_item_t*)(DAGUE_LIFO_PTR(LIFO, k)->list_next))
+
 #endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
 
 /*
