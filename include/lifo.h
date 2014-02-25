@@ -78,6 +78,7 @@ struct dague_lifo_s {
 #if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
 #define DAGUE_LIFO_PTR(LIFO, v) ((dague_list_item_t*)(uintptr_t)(v))
 #define DAGUE_LIFO_VAL(LIFO, v, k) ((((dague_lifo_head_t)((uint64_t)k))<<64)+((dague_lifo_head_t)(uintptr_t)v))
+#define DAGUE_LIFO_NEXT(LIFO, v) ((dague_list_item_t*)(uintptr_t)(v>>64))
 #else
 #define DAGUE_LIFO_CNTMASK(LIFO)         (DAGUE_LIFO_ALIGNMENT(LIFO)-1)
 #define DAGUE_LIFO_PTRMASK(LIFO)         (~(DAGUE_LIFO_CNTMASK(LIFO)))
@@ -125,10 +126,9 @@ static inline void dague_lifo_push( dague_lifo_t* lifo,
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
 
-    dague_lifo_head_t nhead = DAGUE_LIFO_VAL(lifo, item, ++(item->aba_key));
-
     do {
         dague_lifo_head_t ohead = lifo->lifo_head;
+        dague_lifo_head_t nhead = DAGUE_LIFO_VAL(lifo, item, DAGUE_LIFO_PTR(lifo, ohead));
         item->list_next = DAGUE_LIFO_PTR(lifo, ohead);
         if( __dague_lifo_cas(&(lifo->lifo_head),
                              ohead,
@@ -194,15 +194,16 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
 
     ohead = lifo->lifo_head;
     item = DAGUE_LIFO_PTR(lifo, ohead);
+    nitem = DAGUE_LIFO_NEXT(lifo, ohead);
     while(item != lifo->lifo_ghost) {
-        nitem = DAGUE_LIST_ITEM_NEXT(item);
-        nhead = DAGUE_LIFO_VAL(lifo, nitem, nitem->aba_key); /* if aba_key changed, ohead is not current anymore and nhead is discarded */
+        nhead = DAGUE_LIFO_VAL(lifo, nitem, nitem->list_next); /* if nitem changed (next invalid), ohead is not current anymore and nhead is discarded */
         if( __dague_lifo_cas(&(lifo->lifo_head),
                              ohead,
                              nhead ) )
             break;
-        ohead = lifo->lifo_head;
-        item = DAGUE_LIFO_PTR(lifo, ohead);
+         ohead = lifo->lifo_head;
+         item = DAGUE_LIFO_PTR(lifo, ohead);
+         nitem = DAGUE_LIFO_NEXT(lifo, ohead);
         /* Do some kind of pause to release the bus */
     }
     if( item == lifo->lifo_ghost ) return NULL;
