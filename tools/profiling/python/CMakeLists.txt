@@ -13,9 +13,9 @@ set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
                 "${CMAKE_CURRENT_SOURCE_DIR}/pbt_info_parser.pxd"
                 "${CMAKE_CURRENT_SOURCE_DIR}/pbt_info_parser.pxi"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../../../include/dbp.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../../../include/dbp.h"
                 dague-base dague)
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
                 "${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.c")
