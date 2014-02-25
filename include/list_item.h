@@ -15,8 +15,7 @@
 typedef struct dague_list_item_s {
     dague_object_t  super;
     volatile struct dague_list_item_s* list_next;
-    /**
-     * This field is __very__ special and should be handled with extreme
+    /* This field is __very__ special and should be handled with extreme
      * care. It is used to avoid the ABA problem when atomic operations
      * are in use. It can deal with 2^DAGUE_LIFO_ALIGNMENT_BITS pops,
      * before running into the ABA. In all other cases, it is used to
