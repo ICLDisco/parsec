@@ -872,6 +872,8 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
         dataflows[i].next = &(dataflows[i+1]);
     }
 
+    /* Link last dataflow to already existing dataflow as antidependencies might generate some */
+    dataflows[(vars.size()-1)].next = this_function->dataflow;
     this_function->dataflow = dataflows;
     dataflow = dataflows;
 
