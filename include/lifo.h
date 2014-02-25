@@ -47,13 +47,13 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 #include <stdlib.h>
 #include <dague/sys/atomic.h>
 
-#if defined(DAGUE_ATOMIC_HAS_CAS128B)
+#if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
 typedef __uint128_t dague_lifo_head_t;
 #define __dague_lifo_cas dague_atomic_cas_128b
 #else
 typedef dague_list_item_t* dague_lifo_head_t;
 #define __dague_lifo_cas dague_atomic_cas
-#endif /*defined(DAGUE_ATOMIC_HAS_CAS128B)*/
+#endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
 
 struct dague_lifo_s {
     dague_object_t     super;
@@ -75,7 +75,7 @@ struct dague_lifo_s {
 #define DAGUE_LIFO_ALIGNMENT(LIFO)       (( ( ((uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) < sizeof(void*) ) ? \
                                             ( sizeof(void*) ) :         \
                                             ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
-#if defined(DAGUE_ATOMIC_HAS_CAS128B)
+#if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
 #define DAGUE_LIFO_PTR(LIFO, v) ((dague_list_item_t*)(uintptr_t)(v))
 #define DAGUE_LIFO_VAL(LIFO, v, k) ((((dague_lifo_head_t)((uint64_t)k))<<64)+((dague_lifo_head_t)(uintptr_t)v))
 #else
@@ -84,7 +84,7 @@ struct dague_lifo_s {
 #define DAGUE_LIFO_CNT(LIFO, v)          ((uintptr_t)((uintptr_t)(v) & DAGUE_LIFO_CNTMASK(LIFO)))
 #define DAGUE_LIFO_PTR(LIFO, v)          ((dague_list_item_t *)((uintptr_t)(v) & DAGUE_LIFO_PTRMASK(LIFO)))
 #define DAGUE_LIFO_VAL(LIFO, p, c)       ((dague_list_item_t *)(((uintptr_t)DAGUE_LIFO_PTR(LIFO, p)) | DAGUE_LIFO_CNT(LIFO, c)))
-#endif /*defined(DAGUE_ATOMIC_HAS_CAS128B)*/
+#endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
 
 /*
  * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric

@@ -7,6 +7,10 @@
 #include <dague_config.h>
 #include "lifo.h"
 
+#if !defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
+#warning "DaGUE LIFO is using the keeper_of_the_seven_keys probabilistic atomics, due to lack of CAS 128 bit support"
+#endif
+
 static inline void dague_lifo_construct( dague_lifo_t* lifo )
 {
     /* Don't allow strange alignemnts */
