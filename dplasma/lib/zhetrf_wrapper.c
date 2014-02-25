@@ -6,7 +6,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include "dague_internal.h"
+
 #include <math.h>
 #include <stdlib.h>
 #include <core_blas.h>

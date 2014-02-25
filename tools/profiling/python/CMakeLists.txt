@@ -17,8 +17,7 @@ set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../../../include/dbp.h"
                 dague-base dague)
-set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
-                "${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.c")
+set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.c")
 
 #
 # Always generate the setup.py so it can be used by hand

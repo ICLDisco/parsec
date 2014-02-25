@@ -7,7 +7,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include "dague_internal.h"
+
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
