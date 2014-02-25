@@ -19,7 +19,7 @@ static inline void dague_lifo_construct( dague_lifo_t* lifo )
     }
     DAGUE_LIFO_ITEM_ALLOC( lifo, lifo->lifo_ghost, sizeof(dague_list_item_t) );
     DAGUE_ITEM_ATTACH(lifo, lifo->lifo_ghost);
-    lifo->lifo_head = DAGUE_LIFO_VAL(lifo, lifo->lifo_ghost, 0);
+    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, lifo->lifo_ghost, 0);
 }
 
 static inline void dague_lifo_destruct( dague_lifo_t *lifo )

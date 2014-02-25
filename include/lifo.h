@@ -76,9 +76,9 @@ struct dague_lifo_s {
                                             ( sizeof(void*) ) :         \
                                             ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 #if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
-#define DAGUE_LIFO_PTR(LIFO, v) ((dague_list_item_t*)(uintptr_t)(v))
-#define DAGUE_LIFO_VAL(LIFO, v, k) ((((dague_lifo_head_t)((uint64_t)k))<<64)+((dague_lifo_head_t)(uintptr_t)v))
-#define DAGUE_LIFO_NEXT(LIFO, v) ((dague_list_item_t*)(uintptr_t)(v>>64))
+#define DAGUE_LIFO_HKEY(LIFO, h, n) ((((dague_lifo_head_t)((uintptr_t)n))<<64)+((dague_lifo_head_t)(uintptr_t)h))
+#define DAGUE_LIFO_KHEAD(LIFO, k) ((dague_list_item_t*)(uintptr_t)(k))
+#define DAGUE_LIFO_KNEXT(LIFO, k) ((dague_list_item_t*)(uintptr_t)(k>>64))
 #else
 #define DAGUE_LIFO_CNTMASK(LIFO)         (DAGUE_LIFO_ALIGNMENT(LIFO)-1)
 #define DAGUE_LIFO_PTRMASK(LIFO)         (~(DAGUE_LIFO_CNTMASK(LIFO)))
@@ -111,7 +111,7 @@ struct dague_lifo_s {
  * pointer is an atomic operation so we don't have to protect it. */
 static inline int dague_lifo_is_empty( dague_lifo_t* lifo )
 {
-    return ( (DAGUE_LIFO_PTR(lifo, lifo->lifo_head) == lifo->lifo_ghost) ? 1 : 0);
+    return ( (DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head) == lifo->lifo_ghost) ? 1 : 0);
 }
 static inline int dague_lifo_nolock_is_empty( dague_lifo_t* lifo )
 {
@@ -128,8 +128,8 @@ static inline void dague_lifo_push( dague_lifo_t* lifo,
 
     do {
         dague_lifo_head_t ohead = lifo->lifo_head;
-        dague_lifo_head_t nhead = DAGUE_LIFO_VAL(lifo, item, DAGUE_LIFO_PTR(lifo, ohead));
-        item->list_next = DAGUE_LIFO_PTR(lifo, ohead);
+        dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, item, DAGUE_LIFO_KHEAD(lifo, ohead));
+        item->list_next = DAGUE_LIFO_KHEAD(lifo, ohead);
         if( __dague_lifo_cas(&(lifo->lifo_head),
                              ohead,
                              nhead) ) {
@@ -146,8 +146,8 @@ static inline void dague_lifo_nolock_push( dague_lifo_t* lifo,
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
 
-    item->list_next = DAGUE_LIFO_PTR(lifo, lifo->lifo_head);
-    lifo->lifo_head = DAGUE_LIFO_VAL(lifo, item, 0);
+    item->list_next = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
+    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, item, 0);
 }
 
 static inline void dague_lifo_chain( dague_lifo_t* lifo,
@@ -159,11 +159,11 @@ static inline void dague_lifo_chain( dague_lifo_t* lifo,
     DAGUE_ITEMS_ATTACH(lifo, items);
 
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
-    dague_lifo_head_t nhead = DAGUE_LIFO_VAL(lifo, items, ++(items->aba_key));
 
     do {
         dague_lifo_head_t ohead = lifo->lifo_head;
-        tail->list_next = DAGUE_LIFO_PTR(lifo, ohead);
+        tail->list_next = DAGUE_LIFO_KHEAD(lifo, ohead);
+        dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, items, tail->list_next);
 
         if( __dague_lifo_cas(&(lifo->lifo_head),
                              ohead,
@@ -183,8 +183,8 @@ static inline void dague_lifo_nolock_chain( dague_lifo_t* lifo,
 
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
 
-    tail->list_next = DAGUE_LIFO_PTR(lifo, lifo->lifo_head);
-    lifo->lifo_head = DAGUE_LIFO_VAL(lifo, items, 0);
+    tail->list_next = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
+    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, items, 0);
 }
 
 static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
@@ -193,17 +193,17 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
     dague_lifo_head_t ohead, nhead;
 
     ohead = lifo->lifo_head;
-    item = DAGUE_LIFO_PTR(lifo, ohead);
-    nitem = DAGUE_LIFO_NEXT(lifo, ohead);
+    item = DAGUE_LIFO_KHEAD(lifo, ohead);
+    nitem = DAGUE_LIFO_KNEXT(lifo, ohead);
     while(item != lifo->lifo_ghost) {
-        nhead = DAGUE_LIFO_VAL(lifo, nitem, nitem->list_next); /* if nitem changed (next invalid), ohead is not current anymore and nhead is discarded */
+        nhead = DAGUE_LIFO_HKEY(lifo, nitem, nitem->list_next); /* if nitem changed (next invalid), ohead is not current anymore and nhead is discarded */
         if( __dague_lifo_cas(&(lifo->lifo_head),
                              ohead,
                              nhead ) )
             break;
          ohead = lifo->lifo_head;
-         item = DAGUE_LIFO_PTR(lifo, ohead);
-         nitem = DAGUE_LIFO_NEXT(lifo, ohead);
+         item = DAGUE_LIFO_KHEAD(lifo, ohead);
+         nitem = DAGUE_LIFO_KNEXT(lifo, ohead);
         /* Do some kind of pause to release the bus */
     }
     if( item == lifo->lifo_ghost ) return NULL;
@@ -217,13 +217,13 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
     dague_lifo_head_t ohead, nhead;
 
     ohead = lifo->lifo_head;
-    item = DAGUE_LIFO_PTR(lifo, ohead);
+    item = DAGUE_LIFO_KHEAD(lifo, ohead);
+    nitem = DAGUE_LIFO_KNEXT(lifo, ohead);
     
     if( item == lifo->lifo_ghost )
         return NULL;
     
-    nitem = DAGUE_LIST_ITEM_NEXT(item);
-    nhead = DAGUE_LIFO_VAL(lifo, nitem, nitem->aba_key); /* if aba_key changed, ohead is not current anymore and nhead is discarded */
+    nhead = DAGUE_LIFO_HKEY(lifo, nitem, nitem->list_next); /* if nitem changed, ohead is not current anymore and nhead is discarded */
     if( __dague_lifo_cas(&(lifo->lifo_head),
                          ohead,
                          nhead ) ) { 
@@ -235,8 +235,8 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
 
 static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )
 {
-    dague_list_item_t* item = DAGUE_LIFO_PTR(lifo, lifo->lifo_head);
-    lifo->lifo_head = DAGUE_LIFO_VAL(lifo, item->list_next, 0);
+    dague_list_item_t* item = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
+    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, item->list_next, 0);
     DAGUE_ITEM_DETACH(item);
     return item;
 }
