@@ -76,7 +76,7 @@ struct dague_lifo_s {
                                             ( sizeof(void*) ) :         \
                                             ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 #if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
-#define DAGUE_LIFO_HKEY(LIFO, h, c)      ((((dague_lifo_head_t)((uintptr_t)n))<<64) + \
+#define DAGUE_LIFO_HKEY(LIFO, h, c)      ((((dague_lifo_head_t)((uintptr_t)c))<<64) + \
                                            ((dague_lifo_head_t)(uintptr_t)h))
 #define DAGUE_LIFO_KHEAD(LIFO, k)        ((dague_list_item_t*)(uintptr_t)(k))
 #define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(uintptr_t)(k>>64))
@@ -201,7 +201,7 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
     item = DAGUE_LIFO_KHEAD(lifo, ohead);
     nitem = DAGUE_LIST_ITEM_NEXT(item);
     while(item != lifo->lifo_ghost) {
-        nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(ohead));
+        nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead));
         /* if item changed (nitem possibly invalid), ohead is not current anymore
          * and nhead is discarded */
         if( __dague_lifo_cas(&(lifo->lifo_head),
@@ -230,7 +230,7 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
     if( item == lifo->lifo_ghost )
         return NULL;
     
-    nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(ohead)); 
+    nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead)); 
     /* if item changed, ohead is not current anymore and nhead is discarded */
     if( __dague_lifo_cas(&(lifo->lifo_head),
                          ohead,
