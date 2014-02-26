@@ -91,7 +91,7 @@ dplasma_ztsqrt_New( tiled_matrix_desc_t *A1,
                                NULL);
 
     object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_work, A1->mb*A1->mb * sizeof(dague_complex64_t) );
+    dague_private_memory_init( object->p_work, T->mb*T->mb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_ztsqrt_DEFAULT_ARENA],

@@ -60,11 +60,11 @@ if(CUDA_FOUND)
 ### Now the gpu wrappers to the .cu files
     set(GPU_KERNEL_SOURCES
         cuda_zgemm.c
-#        cuda_stsmqr.c
+        cuda_ztsmqr.c
     )
     set(GPU_KERNEL_HEADERS
         cuda_zgemm.h
-#        cuda_stsmqr.h
+        cuda_ztsmqr.h
     )
 
 else()

@@ -54,15 +54,15 @@ BODY
              k, k, k, k, T, k, k, A1, k, k, A2);
 
 #if !defined(DAGUE_DRY_RUN)
-  //  printf("ldak %d", ldak);
+    printf("TSQRT M %d, N %d, K %d, LDA1 %d, LDA2 %d, LDT %d\n", descA2.m, tempkn, descA2.nb, ldak, ldak, descT.mb);
 
     void *p_elem_tau  = dague_private_memory_pop( p_work );
     void *p_elem_work = dague_private_memory_pop( p_work );
 
     CORE_ztsqrt(descA2.m, tempkn, descA2.nb,
-                lA1+k*descA2.nb /* dataA(k,k) */, ldak,
-                A2 /* dataA(m,k) */, ldak,
-                T  /* dataT(m,k) */, descT.mb,
+                lA1+k*descA2.nb, ldak,
+                A2, ldak,
+                T, descT.mb,
                 p_elem_tau, p_elem_work );
 
     dague_private_memory_push( p_work, p_elem_tau  );
@@ -101,6 +101,7 @@ BODY
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_W = dague_private_memory_pop( p_work );
+    printf("TSMQR\n");
 
     CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
                 descA2.nb, tempnn, descA2.m, tempnn, descA2.nb, descA2.nb,

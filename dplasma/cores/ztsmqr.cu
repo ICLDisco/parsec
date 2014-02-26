@@ -107,17 +107,30 @@
 #include <cublas.h>
 #include <plasma.h>
 
-int
-gpu_zparfb(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
-            int M1, int N1, int M2, int N2, int K, int L,
-                  dague_complex64_t *A1, int LDA1,
-                  dague_complex64_t *A2, int LDA2,
-            const dague_complex64_t *V, int LDV,
-            const dague_complex64_t *T, int LDT,
-                  dague_complex64_t *WORK, int LDWORK,
-                  CUstream *stream);
+///////////////////////////////////////////////////////////////////////////////////////////////////
 
-int gpu_ztsmqr(PLASMA_enum side, PLASMA_enum trans,
+#define GENERATE_SM_VERSION_KERNEL_NAME_I(func, version)  zgemm_##func##_SM##version
+#define GENERATE_SM_VERSION_KERNEL_NAME_I2(func, version) GENERATE_SM_VERSION_KERNEL_NAME_I(func, version)
+#define GENERATE_SM_VERSION_KERNEL_NAME(func)             GENERATE_SM_VERSION_KERNEL_NAME_I2(func, CUDA_SM_VERSION)
+
+#define GENERATE_SM_VERSION_NAME_I(func, version)  magmablas_##func##_SM##version
+#define GENERATE_SM_VERSION_NAME_I2(func, version) GENERATE_SM_VERSION_NAME_I(func, version)
+#define GENERATE_SM_VERSION_NAME(func)             GENERATE_SM_VERSION_NAME_I2(func, CUDA_SM_VERSION)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+extern "C" int
+GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
+	            int M1, int N1, int M2, int N2, int K, int L,
+    	              dague_complex64_t *A1, int LDA1,
+    	              dague_complex64_t *A2, int LDA2,
+    	        const dague_complex64_t *V, int LDV,
+    	        const dague_complex64_t *T, int LDT,
+    	              dague_complex64_t *WORK, int LDWORK,
+    		          CUstream *stream);
+
+extern "C" int
+GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
                 int M1, int N1, int M2, int N2, int K, int IB,
                 dague_complex64_t *A1, int LDA1,
                 dague_complex64_t *A2, int LDA2,
@@ -240,7 +253,7 @@ int gpu_ztsmqr(PLASMA_enum side, PLASMA_enum trans,
         /*
          * Apply H or H' (NOTE: CORE_zparfb used to be CORE_ztsrfb)
          */
-        gpu_zparfb(
+        GENERATE_SM_VERSION_NAME(ZPARFB)(
             side, trans, PlasmaForward, PlasmaColumnwise,
             mi, ni, M2, N2, kb, 0,
             &A1[LDA1*jc+ic], LDA1,

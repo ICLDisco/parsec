@@ -124,6 +124,19 @@
 #include <cuComplex.h>
 #endif  /* defined(PRECISION_z) || defined(PRECISION_c) */
 
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define GENERATE_SM_VERSION_KERNEL_NAME_I(func, version)  zgemm_##func##_SM##version
+#define GENERATE_SM_VERSION_KERNEL_NAME_I2(func, version) GENERATE_SM_VERSION_KERNEL_NAME_I(func, version)
+#define GENERATE_SM_VERSION_KERNEL_NAME(func)             GENERATE_SM_VERSION_KERNEL_NAME_I2(func, CUDA_SM_VERSION)
+
+#define GENERATE_SM_VERSION_NAME_I(func, version)  magmablas_##func##_SM##version
+#define GENERATE_SM_VERSION_NAME_I2(func, version) GENERATE_SM_VERSION_NAME_I(func, version)
+#define GENERATE_SM_VERSION_NAME(func)             GENERATE_SM_VERSION_NAME_I2(func, CUDA_SM_VERSION)
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 inline static cublasOperation_t PLASMA_TRANS_TO_CUBLAS_TRANS(PLASMA_enum trans)
 {
     if (trans == PlasmaNoTrans) {
@@ -136,15 +149,15 @@ inline static cublasOperation_t PLASMA_TRANS_TO_CUBLAS_TRANS(PLASMA_enum trans)
 }
 
 
-int
-gpu_zparfb(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
-            int M1, int N1, int M2, int N2, int K, int L,
-                  dague_complex64_t *A1, int LDA1,
-                  dague_complex64_t *A2, int LDA2,
-            const dague_complex64_t *V, int LDV,
-            const dague_complex64_t *T, int LDT,
-                  dague_complex64_t *WORK, int LDWORK,
-                  CUstream *stream)
+extern "C" int
+GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
+	            int M1, int N1, int M2, int N2, int K, int L,
+    	              dague_complex64_t *A1, int LDA1,
+    	              dague_complex64_t *A2, int LDA2,
+    	        const dague_complex64_t *V, int LDV,
+    	        const dague_complex64_t *T, int LDT,
+    	              dague_complex64_t *WORK, int LDWORK,
+    	              CUstream *stream)
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex zzero = make_cuDoubleComplex(0.0, 0.0);

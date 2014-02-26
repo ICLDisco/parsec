@@ -1,49 +1,33 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ *
+ * @generated s Wed Feb 26 15:16:25 2014
+ *
  */
 
-#ifndef _gpu_stsmqr_h
-#define _gpu_stsmqr_h
+#ifndef _cuda_stsmqr_h_
+#define _cuda_stsmqr_h_
 
 #include "dague_config.h"
-#include "gpu_data.h"
+#include <dague/devices/cuda/dev_cuda.h>
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-/**
- * Import the generics for the GPU handling.
- */
-#include "cuda_sgemm.h"
+#include "fifo.h"
+#include "data_dist/matrix/matrix.h"
+
+int gpu_kernel_init_stsmqr( dague_context_t* dague_context );
+
 int gpu_stsmqr( dague_execution_unit_t* eu_context,
-                dague_execution_context_t* this_task );
+                dague_execution_context_t* this_task,
+                int pushout_A1, int pushout_A2,
+                PLASMA_enum side, PLASMA_enum trans,
+                int M1, int N1, int M2, int N2, int K, int IB,
+                int A1m, int A1n, const tiled_matrix_desc_t *descA1, int LDA1,
+                int A2m, int A2n, const tiled_matrix_desc_t *descA2, int LDA2,
+                int Vm,  int Vn,  const tiled_matrix_desc_t *descV,  int LDV,
+                int Tm,  int Tn,  const tiled_matrix_desc_t *descT,  int LDT);
 
-/****************************************************
- ** GPU-DATA that is QR Specific Starts Here **
- ****************************************************/
-
-int gpu_qr_mark_data_usage( int matrixIsT, const tiled_matrix_desc_t* data, int type, int col, int row );
-
-int stsmqr_cuda_init( dague_context_t* context,
-                      tiled_matrix_desc_t *tileA,
-                      tiled_matrix_desc_t *tileT );
-int stsmqr_cuda_fini( dague_context_t* context );
-
-int gpu_qr_data_map_init( int matrixIsT,
-                          gpu_device_t* gpu_device,
-                          tiled_matrix_desc_t* data );
-int gpu_qr_data_tile_write_owner( int matrixIsT,
-                                  tiled_matrix_desc_t* data,
-                                  int col, int row );
-int gpu_qr_data_get_tile( int matrixIsT,
-                          tiled_matrix_desc_t* data,
-                          int col, int row,
-                          memory_elem_t **pmem_elem );
-int gpu_qr_data_is_on_gpu( int matrixIsT,
-                           gpu_device_t* gpu_device,
-                           tiled_matrix_desc_t* data,
-                           int type, int col, int row,
-                           gpu_elem_t **pgpu_elem);
-
-#endif
+#endif /* _cuda_stsmqr_h_ */

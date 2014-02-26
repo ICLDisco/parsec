@@ -1006,7 +1006,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     return 0;
 }
 
-
+#define WEI_DEBUG
 /**
  * If the most current version of the data is not yet available on the GPU memory
  * schedule a transfer.
@@ -1060,6 +1060,10 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                               "GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d\n",
                               key, memptr, (void*)gpu_elem->gpu_mem_ptr, length, gpu_device->device_index));
+
+#if defined(WEI_DEBUG)
+        printf("PUSH from %p to %p, size %d\n", in_elem->device_private, gpu_elem->device_private, original->nb_elts);
+#endif
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
                                                  in_elem->device_private, original->nb_elts, stream );
@@ -1075,6 +1079,12 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         /* TODO: take ownership of the data */
         return 1;
     }
+#if defined(WEI_DEBUG)
+    else {
+        printf("NO PUSH from %p to %p, size %d\n", in_elem->device_private, gpu_elem->device_private, original->nb_elts);
+    }
+#endif
+
     /* TODO: data keeps the same coherence flags as before */
     return 0;
 }

@@ -16,9 +16,15 @@ extern "C" %{
 #include "recursive.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
-#define RECURSIVE_GEQRT
+#if defined(HAVE_CUDA)
+#include <dague/devices/cuda/dev_cuda.h>
+#include "dplasma/cores/cuda_ztsmqr.h"
+extern int *gpu_counter;
+#endif  /* defined(HAVE_CUDA) */
+
+//#define RECURSIVE_GEQRT
 //#define RECURSIVE_TSQRT
-#define RECURSIVE_UNMQR
+//#define RECURSIVE_UNMQR
 //#define RECURSIVE_TSMQR
 
 %}
@@ -180,11 +186,15 @@ BODY
     dague_recursivecall( context, this_task,
                          dague_zunmqr_panel, dplasma_zunmqr_panel_Destruct,
                          3, small_descA, small_descC, small_descT );
+
+    dague_data_transfer_ownership_to_copy(gC->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
     return -1;
 
 #else /* defined(RECURSIVE_UNMQR) */
 
     void *p_elem_A = dague_private_memory_pop( p_work );
+
+    dague_data_transfer_ownership_to_copy(gC->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
                 tempkm, tempnn, tempkm, ib,
@@ -279,12 +289,19 @@ BODY
     dague_recursivecall( context, this_task,
                          dague_ztsqrt, dplasma_ztsqrt_Destruct,
                          3, small_descA1, small_descA2, small_descT );
+
+    dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+    dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
     return -1;
 
 #else /* defined(RECURSIVE_TSQRT) */
 
     void *p_elem_A = dague_private_memory_pop( p_tau );
     void *p_elem_B = dague_private_memory_pop( p_work );
+  //  printf("M %d, N %d, ib %d, ldak %d, ldam %d\n", tempmm, tempkn, ib, ldak, ldam);
+
+    dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+    dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     CORE_ztsqrt(tempmm, tempkn, ib,
                 A1 /* dataA(k,k) */, ldak,
@@ -339,6 +356,33 @@ ztsmqr(k,m,n)
 
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
+
+BODY [type=CUDA dyld=magmablas_ZTSMQR]
+{
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
+    int ret, pushout_A1 = 0, pushout_A2 = 0;
+     
+    if (m == descA.mt - 1) {
+        pushout_A1 = 1;
+    }
+    if ((k+1) == m || (k+1) == n) {
+        pushout_A2 = 1;
+    }
+
+    ret = gpu_ztsmqr( context, this_task,
+                      pushout_A1, pushout_A2,
+                      PlasmaLeft, PlasmaConjTrans,
+                      descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                      k, n, &descA, ldak,
+                      m, n, &descA, ldam,
+                      m, k, &descA, ldam,
+                      m, k, &descT, descT.mb);
+    return ret;
+}
+END
 
 BODY
 {
