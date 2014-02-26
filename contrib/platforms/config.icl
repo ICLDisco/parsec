@@ -12,10 +12,10 @@ echo "#"
 # if you don't like intel MPI, comment this out.
 . /mnt/scratch/sw/intel/impi/4.1.1.036/bin64/mpivars.sh intel64
 
-for bindir in /mnt/scratch/parsec-deps/*/bin ; do
+for bindir in /home/bouteill/parsec/deps/*/bin ; do
   PATH=$bindir:$PATH
 done
-for pkgdir in /mnt/scratch/parsec-deps/*/lib/pkgconfig ; do
+for pkgdir in /home/bouteill/parsec/deps/*/lib/pkgconfig ; do
   PKG_CONFIG_PATH=$pkgdir:$PKG_CONFIG_PATH
 done
 export PATH PKG_CONFIG_PATH
