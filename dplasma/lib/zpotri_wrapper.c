@@ -36,8 +36,11 @@
  *******************************************************************************
  *
  * @return
- *          \retval -i if the ith parameters is incorrect.
  *          \retval 0 on success.
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval >0 if i, the leading minor of order i of A is not
+ *               positive definite, so the factorization could not be
+ *               completed, and the solution has not been computed.
  *
  *******************************************************************************
  *
@@ -53,6 +56,7 @@ dplasma_zpotri( dague_context_t *dague,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t* A )
 {
+    int info = 0;
     /* Check input arguments */
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
         dplasma_error("dplasma_zpotri", "illegal value of uplo");
@@ -63,7 +67,7 @@ dplasma_zpotri( dague_context_t *dague,
     dague_object_t *dague_ztrtri = NULL;
     dague_object_t *dague_zlauum = NULL;
 
-    dague_ztrtri = dplasma_ztrtri_New(uplo, PlasmaNonUnit, A );
+    dague_ztrtri = dplasma_ztrtri_New(uplo, PlasmaNonUnit, A, &info );
     dague_zlauum = dplasma_zlauum_New(uplo, A );
 
     dague_enqueue( dague, dague_ztrtri );
@@ -74,9 +78,9 @@ dplasma_zpotri( dague_context_t *dague,
     dplasma_ztrtri_Destruct( dague_ztrtri );
     dplasma_zlauum_Destruct( dague_zlauum );
 #else
-    dplasma_ztrtri( dague, uplo, PlasmaNonUnit, A );
+    info = dplasma_ztrtri( dague, uplo, PlasmaNonUnit, A );
     dplasma_zlauum( dague, uplo, A );
 #endif
-    return 0;
+    return info;
 }
 
