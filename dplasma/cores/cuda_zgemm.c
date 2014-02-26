@@ -34,8 +34,7 @@ typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                                         dague_complex64_t *d_B, int ldb,
                                dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                CUstream stream );
-/* TO DISSAPEAR */
-extern void** cuda_gemm_functions;
+                               
 extern int dague_cuda_output_stream;
 
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
@@ -176,7 +175,8 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t)cuda_gemm_functions[gpu_device->cuda_index];
+    cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t) this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;
+    assert( NULL != cuda_zgemm );
 
     /*assert( DATA_COHERENCY_OWNED == this_task->data[2].data_out->coherency_state );*/
 

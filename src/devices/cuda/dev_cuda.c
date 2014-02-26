@@ -306,10 +306,6 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     return fn;
 }
 
-/* TODO: Ugly code to be removed ASAP */
-void** cuda_gemm_functions = NULL;
-/* TODO: Ugly code to be removed ASAP */
-
 static int
 dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
 {
@@ -329,11 +325,7 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
             if( chores[j].type == device->type ) {
                 void* devf = cuda_solve_handle_dependencies(gpu_device, NULL==chores[j].dyld?function->name:chores[j].dyld);
                 if( NULL != devf ) {
-                    /* TODO: Ugly code to be removed ASAP */
-                    if( NULL == cuda_gemm_functions ) {
-                        cuda_gemm_functions = (void**)calloc(100, sizeof(void*));
-                    }
-                    cuda_gemm_functions[gpu_device->cuda_index] = devf;
+                    chores[j].dyld_fn = devf;
                     rc = DAGUE_SUCCESS;
                     dev_mask |= (1 << chores[j].type);
                 }
