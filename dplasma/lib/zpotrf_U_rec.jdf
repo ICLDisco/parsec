@@ -90,7 +90,6 @@ BODY
                              1, small_descT );
 
         return -1;
-
     }
     else
 #endif /* defined(RECURSIVE_POTRF) */
@@ -334,8 +333,6 @@ BODY
 
 #if defined(RECURSIVE_GEMM)
     if (tempnn > smallnb || descA.mb > smallnb) {
-        //printf("big gemm on CPU\n");
-
         subtile_desc_t *small_descA;
         subtile_desc_t *small_descB;
         subtile_desc_t *small_descC;

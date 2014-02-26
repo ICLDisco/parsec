@@ -90,7 +90,6 @@ BODY
                              1, small_descT );
 
         return -1;
-
     }
     else
 #endif /* defined(RECURSIVE_POTRF) */
@@ -234,7 +233,6 @@ BODY
         dague_recursivecall( context, this_task,
                              dague_zherk, dplasma_zherk_Destruct,
                              2, small_descA, small_descT );
-
         return -1;
     }
     else
@@ -334,8 +332,6 @@ BODY
 
 #if defined(RECURSIVE_GEMM)
     if (tempmm > smallnb || descA.nb > smallnb) {
-        //printf("big gemm on CPU\n");
-
         subtile_desc_t *small_descA;
         subtile_desc_t *small_descB;
         subtile_desc_t *small_descC;
