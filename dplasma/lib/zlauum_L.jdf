@@ -28,11 +28,11 @@ readA(m, n) [profile = off]
   : dataA(m,n)
 
   READ  A    <- dataA(m,n)
-             -> (m == n) ? A zlauum(m)
-             -> (m == n) & (m > 0) ? A ztrmm(n, 0 .. (n-1))
-             -> (m > n) ? A zherk(m, n)
-             -> (m > n) & (n > 0) ? A zgemm(m, 0..(n-1), n)
-             -> (m > (n+1)) ? B zgemm(m, n, (n+1)..(m-1))
+             -> (m == n)           ? A zlauum(m)                 [type = LOWER_TILE]
+             -> (m == n) & (m > 0) ? A ztrmm(n, 0 .. (n-1))      [type = LOWER_TILE]
+             -> (m >  n)           ? A zherk(m, n)
+             -> (m >  n) & (n > 0) ? A zgemm(m, 0..(n-1), n)
+             -> (m >= n)           ? B zgemm(m, n, (n+1)..(m-1))
 BODY
 {
     /* nothing */
@@ -51,10 +51,10 @@ zherk(k, n)
 
   READ  A    <- A readA(k, n)
 
-  RW    C    <- (k == (n+1)) ? A zlauum(n)
-             <- (k >  (n+1)) ? C zherk(k-1, n)
-             -> (k <  (descA.mt-1)) ? C zherk(k+1, n)
-             -> (k == (descA.mt-1)) ? dataA(n, n)
+  RW    C    <- (k == (n+1)) ? A zlauum(n)                       [type = LOWER_TILE]
+             <- (k >  (n+1)) ? C zherk(k-1, n)                   [type = LOWER_TILE]
+             -> (k <  (descA.mt-1)) ? C zherk(k+1, n)            [type = LOWER_TILE]
+             -> (k == (descA.mt-1)) ? dataA(n, n)                [type = LOWER_TILE]
 
 BODY
 {
@@ -127,7 +127,7 @@ ztrmm(k, n)
   CTL   ctl2 <- ctl2 zgemm(k, 0..(n-1), n)
   CTL   ctl3 -> ctl3 zlauum(k)
 
-  READ  A    <- A readA(k, k)
+  READ  A    <- A readA(k, k)                              [type = LOWER_TILE]
   RW    B    <- A readA(k, n)
              -> (k <  (descA.mt-1)) ? C zgemm(k+1, n, k)
              -> (k == (descA.mt-1)) ? dataA(k, n)
@@ -159,9 +159,9 @@ zlauum(k)
 
   CTL   ctl3 <- ctl3 ztrmm(k, 0..(k-1))
 
-  RW    A    <- A readA(k,k)
-             -> (k <  (descA.mt-1)) ? C zherk(k+1, k)
-             -> (k == (descA.mt-1)) ? dataA(k, k)
+  RW    A    <- A readA(k,k)                           [type = LOWER_TILE]
+             -> (k <  (descA.mt-1)) ? C zherk(k+1, k)  [type = LOWER_TILE]
+             -> (k == (descA.mt-1)) ? dataA(k, k)      [type = LOWER_TILE]
 
 BODY
 {

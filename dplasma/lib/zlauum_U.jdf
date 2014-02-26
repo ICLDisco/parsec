@@ -28,12 +28,12 @@ readA(m, n) [profile = off]
   : dataA(m,n)
 
   READ  A    <- dataA(m,n)
-             -> (m == n) ? A zlauum(n)
-             -> (m == n) & (n > 0) ? A ztrmm(n, 0 .. (n-1))
-             -> (n > m) ? A zherk(n, m)
-             -> (n > m) ? B ztrmm(n, m)
-             -> (n > m) & (m > 0) ? A zgemm(n, 0..(m-1), m)
-             -> (n > (m+1)) ? A zgemm(n, m, (m+1)..(n-1))
+             -> (m == n)           ? A zlauum(n)                  [type = UPPER_TILE]
+             -> (m == n) & (n > 0) ? A ztrmm(n, 0 .. (n-1))       [type = UPPER_TILE]
+             -> (n >  m)           ? A zherk(n, m)
+             -> (n >  m)           ? B ztrmm(n, m)
+             -> (n >  m) & (m > 0) ? A zgemm(n, 0..(m-1), m)
+             -> (n >= m)           ? A zgemm(n, m, (m+1)..(n-1))
 BODY
 {
     /* nothing */
@@ -52,10 +52,10 @@ zherk(k, m)
 
   READ  A    <- A readA(m, k)
 
-  RW    C    <- (k == (m+1)) ? A zlauum(m)
-             <- (k >  (m+1)) ? C zherk(k-1, m)
-             -> (k <  (descA.mt-1)) ? C zherk(k+1, m)
-             -> (k == (descA.mt-1)) ? dataA(m, m)
+  RW    C    <- (k == (m+1))        ? A zlauum(m)                 [type = UPPER_TILE]
+             <- (k >  (m+1))        ? C zherk(k-1, m)             [type = UPPER_TILE]
+             -> (k <  (descA.mt-1)) ? C zherk(k+1, m)             [type = UPPER_TILE]
+             -> (k == (descA.mt-1)) ? dataA(m, m)                 [type = UPPER_TILE]
 
 BODY
 {
@@ -89,8 +89,8 @@ zgemm(k, m, n)
 
   READ  A    <- A readA(m, k)
   READ  B    <- A readA(n, k)
-  RW    C    <- (k == (n+1)) ? B ztrmm(n, m)
-             <- (k >  (n+1)) ? C zgemm(k-1, m, n)
+  RW    C    <- (k == (n+1))        ? B ztrmm(n, m)
+             <- (k >  (n+1))        ? C zgemm(k-1, m, n)
              -> (k == (descA.mt-1)) ? dataA(m, n)
              -> (k <  (descA.mt-1)) ? C zgemm(k+1, m, n)
 
@@ -127,7 +127,7 @@ ztrmm(k, m)
   CTL   ctl2 <- ctl2 zgemm(k, m, (m+1) .. (k-1))
   CTL   ctl3 -> ctl3 zlauum(k)
 
-  READ  A    <- A readA(k, k)
+  READ  A    <- A readA(k, k)                   [type = UPPER_TILE]
   RW    B    <- A readA(m, k)
              -> (k <  (descA.mt-1)) ? C zgemm(k+1, m, k)
              -> (k == (descA.mt-1)) ? dataA(m, k)
@@ -160,9 +160,9 @@ zlauum(k)
 
   CTL   ctl3 <- ctl3 ztrmm(k, 0..(k-1))
 
-  RW    A    <- A readA(k, k)
-             -> (k <  (descA.mt-1)) ? C zherk(k+1, k)
-             -> (k == (descA.mt-1)) ? dataA(k, k)
+  RW    A    <- A readA(k, k)                           [type = UPPER_TILE]
+             -> (k <  (descA.mt-1)) ? C zherk(k+1, k)   [type = UPPER_TILE]
+             -> (k == (descA.mt-1)) ? dataA(k, k)       [type = UPPER_TILE]
 
 BODY
 {
