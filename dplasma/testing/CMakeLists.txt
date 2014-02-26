@@ -28,7 +28,7 @@ set(TESTS
   # Cholesky
   testing_zpotrf.c
   testing_zposv.c
-  #testing_ztrtri.c # Unstable
+  testing_ztrtri.c
   # QR/LQ
   testing_zgelqf.c
   testing_zgeqrf.c
