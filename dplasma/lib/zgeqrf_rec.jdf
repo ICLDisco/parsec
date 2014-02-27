@@ -14,6 +14,7 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/subtile.h"
 #include "recursive.h"
+#include "dplasma_zrecursive.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
 #if defined(HAVE_CUDA)
@@ -100,12 +101,13 @@ BODY
         small_descT->mat = T;
 
         /* dague_object */
-        dague_zgeqrt = dplasma_zgeqrt_New( (tiled_matrix_desc_t *)small_descA,
-                                           (tiled_matrix_desc_t *)small_descT );
+        dague_zgeqrt = dplasma_zgeqrf_geqrt_New( (tiled_matrix_desc_t *)small_descA,
+                                                 (tiled_matrix_desc_t *)small_descT,
+                                                 p_work );
 
         /* recursive call */
         dague_recursivecall( context, this_task,
-                             dague_zgeqrt, dplasma_zgeqrt_Destruct,
+                             dague_zgeqrt, dplasma_zgeqrf_geqrt_Destruct,
                              2, small_descA, small_descT );
         return -1;
     }
