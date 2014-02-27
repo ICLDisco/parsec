@@ -78,8 +78,8 @@ set(JDF
   ztrmdm.jdf
   zgeqrf_rec.jdf
   zgeqrfr_geqrt.jdf
+  zgeqrfr_unmqr.jdf
   ztsqrt.jdf
-  zunmqr_panel_LC.jdf
   ztsmqr_LC.jdf
 )
 precisions_rules_py(generated_jdf
@@ -177,7 +177,6 @@ set(SOURCES
   ztrdsm_wrapper.c
   zheev_wrapper.c
   ztsqrt_wrapper.c
-  zunmqr_panel_wrapper.c
   ztsmqr_wrapper.c
   zgeqrf_rec_wrapper.c
 )

@@ -23,9 +23,9 @@ extern "C" %{
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 
-//#define RECURSIVE_GEQRT
+#define RECURSIVE_GEQRT
 //#define RECURSIVE_TSQRT
-//#define RECURSIVE_UNMQR
+#define RECURSIVE_UNMQR
 //#define RECURSIVE_TSMQR
 
 %}
@@ -38,7 +38,7 @@ p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)   *de
 
 descA   [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 descT   [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
-smallnb [type = "int" hidden=on default="(ib)" ]
+smallnb [type = "int" hidden=on default="(3*ib)" ]
 
 zgeqrt_typechange(k)  [profile = off]
   /* Execution space */
@@ -101,13 +101,13 @@ BODY
         small_descT->mat = T;
 
         /* dague_object */
-        dague_zgeqrt = dplasma_zgeqrf_geqrt_New( (tiled_matrix_desc_t *)small_descA,
-                                                 (tiled_matrix_desc_t *)small_descT,
-                                                 p_work );
+        dague_zgeqrt = dplasma_zgeqrfr_geqrt_New( (tiled_matrix_desc_t *)small_descA,
+                                                  (tiled_matrix_desc_t *)small_descT,
+                                                  p_work );
 
         /* recursive call */
         dague_recursivecall( context, this_task,
-                             dague_zgeqrt, dplasma_zgeqrf_geqrt_Destruct,
+                             dague_zgeqrt, dplasma_zgeqrfr_geqrt_Destruct,
                              2, small_descA, small_descT );
         return -1;
     }
@@ -179,14 +179,14 @@ BODY
         small_descT->mat = T;
 
         /* dague_object */
-        dague_zunmqr_panel = dplasma_zunmqr_panel_New(PlasmaLeft, PlasmaConjTrans,
-                                                      (tiled_matrix_desc_t *)small_descA,
-                                                      (tiled_matrix_desc_t *)small_descT,
-                                                      (tiled_matrix_desc_t *)small_descC );
+        dague_zunmqr_panel = dplasma_zgeqrfr_unmqr_New( (tiled_matrix_desc_t *)small_descA,
+                                                        (tiled_matrix_desc_t *)small_descT,
+                                                        (tiled_matrix_desc_t *)small_descC,
+                                                        p_work );
 
         /* recursive call */
         dague_recursivecall( context, this_task,
-                             dague_zunmqr_panel, dplasma_zunmqr_panel_Destruct,
+                             dague_zunmqr_panel, dplasma_zgeqrfr_unmqr_Destruct,
                              3, small_descA, small_descC, small_descT );
         return -1;
     }
