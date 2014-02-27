@@ -108,12 +108,16 @@ BODY
     dague_recursivecall( context, this_task,
                          dague_zgeqrt, dplasma_zgeqrt_Destruct,
                          2, small_descA, small_descT );
+
+    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
     return -1;
 
 #else /* defined(RECURSIVE_GEQRT) */
 
     void *p_elem_A = dague_private_memory_pop( p_tau );
     void *p_elem_B = dague_private_memory_pop( p_work );
+
+    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     CORE_zgeqrt(tempkm, tempkn, ib,
                 A /* dataA(k,k) */, ldak,
@@ -291,7 +295,7 @@ BODY
                          3, small_descA1, small_descA2, small_descT );
 
     dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+    //dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
     return -1;
 
 #else /* defined(RECURSIVE_TSQRT) */
@@ -301,7 +305,7 @@ BODY
   //  printf("M %d, N %d, ib %d, ldak %d, ldam %d\n", tempmm, tempkn, ib, ldak, ldam);
 
     dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+    //dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     CORE_ztsqrt(tempmm, tempkn, ib,
                 A1 /* dataA(k,k) */, ldak,
