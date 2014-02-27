@@ -711,7 +711,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
         fprintf(stderr,"==> Blackbox task pragma detected:\n%s(", tree_to_str(DA_kid(node,0)) );
 
         // parameters:
-        node_t *params = DA_kid(node, 1);
+        params = DA_kid(node, 1);
         for(int i=0; i<DA_kid_count(params); i++){
             if( i )
                 fprintf(stderr,", ");
