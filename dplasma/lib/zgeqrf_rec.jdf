@@ -22,10 +22,10 @@ extern "C" %{
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 
-//#define RECURSIVE_GEQRT
+#define RECURSIVE_GEQRT
 //#define RECURSIVE_TSQRT
-//#define RECURSIVE_UNMQR
-//#define RECURSIVE_TSMQR
+#define RECURSIVE_UNMQR
+#define RECURSIVE_TSMQR
 
 %}
 
@@ -305,7 +305,7 @@ BODY
   //  printf("M %d, N %d, ib %d, ldak %d, ldam %d\n", tempmm, tempkn, ib, ldak, ldam);
 
     dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    //dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+    dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     CORE_ztsqrt(tempmm, tempkn, ib,
                 A1 /* dataA(k,k) */, ldak,

@@ -119,7 +119,7 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-extern "C" int
+extern "C" void
 GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
 	            int M1, int N1, int M2, int N2, int K, int L,
     	              dague_complex64_t *A1, int LDA1,
@@ -127,9 +127,9 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
     	        const dague_complex64_t *V, int LDV,
     	        const dague_complex64_t *T, int LDT,
     	              dague_complex64_t *WORK, int LDWORK,
-    		          CUstream *stream);
+    		          CUstream stream);
 
-extern "C" int
+extern "C" void
 GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
                 int M1, int N1, int M2, int N2, int K, int IB,
                 dague_complex64_t *A1, int LDA1,
@@ -150,7 +150,7 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
         fprintf(stderr, "Illegal value of side");
-        return -1;
+        return;
     }
 
     /* NQ is the order of Q */
@@ -165,60 +165,60 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
 
     if ((trans != PlasmaNoTrans) && (trans != PlasmaConjTrans)) {
         fprintf(stderr, "Illegal value of trans");
-        return -2;
+        return;
     }
     if (M1 < 0) {
         fprintf(stderr, "Illegal value of M1");
-        return -3;
+        return;
     }
     if (N1 < 0) {
         fprintf(stderr, "Illegal value of N1");
-        return -4;
+        return;
     }
     if ( (M2 < 0) ||
          ( (M2 != M1) && (side == PlasmaRight) ) ){
         fprintf(stderr, "Illegal value of M2");
-        return -5;
+        return;
     }
     if ( (N2 < 0) ||
          ( (N2 != N1) && (side == PlasmaLeft) ) ){
         fprintf(stderr, "Illegal value of N2");
-        return -6;
+        return;
     }
     if ((K < 0) ||
         ( (side == PlasmaLeft)  && (K > M1) ) ||
         ( (side == PlasmaRight) && (K > N1) ) ) {
         fprintf(stderr, "Illegal value of K");
-        return -7;
+        return;
     }
     if (IB < 0) {
         fprintf(stderr, "Illegal value of IB");
-        return -8;
+        return;
     }
     if (LDA1 < max(1,M1)){
         fprintf(stderr, "Illegal value of LDA1");
-        return -10;
+        return;
     }
     if (LDA2 < max(1,M2)){
         fprintf(stderr, "Illegal value of LDA2");
-        return -12;
+        return;
     }
     if (LDV < max(1,NQ)){
         fprintf(stderr, "Illegal value of LDV");
-        return -14;
+        return;
     }
     if (LDT < max(1,IB)){
         fprintf(stderr, "Illegal value of LDT");
-        return -16;
+        return;
     }
     if (LDWORK < max(1,NW)){
         fprintf(stderr, "Illegal value of LDWORK");
-        return -18;
+        return;
     }
 
     /* Quick return */
     if ((M1 == 0) || (N1 == 0) || (M2 == 0) || (N2 == 0) || (K == 0) || (IB == 0))
-        return PLASMA_SUCCESS;
+        return;
 
     if (((side == PlasmaLeft)  && (trans != PlasmaNoTrans))
         || ((side == PlasmaRight) && (trans == PlasmaNoTrans))) {
@@ -262,5 +262,5 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
             &T[LDT*i], LDT,
             WORK, LDWORK, NULL);
     }
-    return PLASMA_SUCCESS;
+    return;
 }

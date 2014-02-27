@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @generated s Wed Feb 26 18:16:30 2014
+ * @generated s Thu Feb 27 15:42:30 2014
  *
  */
 #include <dague_config.h>
@@ -36,9 +36,10 @@
                                float beta,  float *d_C, int ldc,
                                CUstream stream );*/
 /* TO DISSAPEAR */
-/*extern void** cuda_gemm_functions;
+extern void** cuda_gemm_functions;
 extern int dague_cuda_output_stream;
 
+/*
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 extern cuda_sgemm_t magmablas_SGEMM_SM11;
 FORCE_UNDEFINED_SYMBOL(magmablas_SGEMM_SM11)
@@ -47,15 +48,15 @@ FORCE_UNDEFINED_SYMBOL(magmablas_SGEMM_SM13)
 extern cuda_sgemm_t magmablas_SGEMM_SM20;
 FORCE_UNDEFINED_SYMBOL(magmablas_SGEMM_SM20)*/
 
-/*int gpu_stsmqr(PLASMA_enum side, PLASMA_enum trans,
-               int M1, int N1, int M2, int N2, int K, int IB,
-               float *A1, int LDA1,
-               float *A2, int LDA2,
-         const float *V, int LDV,
-         const float *T, int LDT,
-               float *WORK, int LDWORK,
-               CUstream stream);
-*/
+typedef void (*cuda_stsmqr_t) (PLASMA_enum side, PLASMA_enum trans,
+                               int M1, int N1, int M2, int N2, int K, int IB,
+                               float *A1, int LDA1,
+                               float *A2, int LDA2,
+                         const float *V, int LDV,
+                         const float *T, int LDT,
+                               float *WORK, int LDWORK,
+                               CUstream stream);
+
 static inline
 int gpu_kernel_push_stsmqr( gpu_device_t* gpu_device,
                            dague_gpu_context_t* this_task,
@@ -86,7 +87,7 @@ typedef struct dague_stsmqr_args_s {
 
 #include <dague/devices/cuda/cuda_scheduling.h>
 
-#define WEI_DEBUG
+//#define WEI_DEBUG
 inline static void wei_debug_printf(const char *fmt, ...)
 {
 #if defined (WEI_DEBUG)	
@@ -202,8 +203,10 @@ gpu_kernel_submit_stsmqr( gpu_device_t        *gpu_device,
     wei_debug_printf("I am in submit\n");
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_stsmqr_args_t        *args = (dague_stsmqr_args_t*)gpu_task;
-    CUdeviceptr d_A1, d_A2, d_V, d_T;
+    CUdeviceptr d_A1, d_A2, d_V, d_T, WORK;
     cudaError_t status;
+
+    cuda_stsmqr_t cuda_stsmqr = (cuda_stsmqr_t)cuda_gemm_functions[gpu_device->cuda_index];
 
     assert(this_task->data[flow_A1].data_out->device_index == gpu_device->super.device_index);
     d_A1 = (CUdeviceptr)this_task->data[flow_A1].data_out->device_private;
@@ -214,14 +217,22 @@ gpu_kernel_submit_stsmqr( gpu_device_t        *gpu_device,
     assert(this_task->data[flow_T].data_out->device_index == gpu_device->super.device_index);
     d_T  = (CUdeviceptr)this_task->data[flow_T].data_out->device_private;
 
-    /*gpu_stsmqr(args->side, args->trans,
-               args->M1, args->N1, args->M2, args->N2, args->K, args->IB,
-               (float*)d_A1, args->lda1,
-               (float*)d_A2, args->lda2,
-               (float*)d_V,  args->ldv,
-               (float*)d_T,  args->ldt,
-               (float*)WORK, LDWORK,
-               gpu_stream->cuda_stream);*/
+    tiled_matrix_desc_t *descT = (tiled_matrix_desc_t *)args->ddescT;
+    WORK = (CUdeviceptr)gpu_malloc( gpu_device->memory, 1 );
+    int LDWORK = args->IB;
+
+    wei_debug_printf("nb %d, ib %d, WORK %p\n", descT->nb, args->IB, (void*)WORK);
+
+    cuda_stsmqr(args->side, args->trans,
+                args->M1, args->N1, args->M2, args->N2, args->K, args->IB,
+                (float*)d_A1, args->lda1,
+                (float*)d_A2, args->lda2,
+                (float*)d_V,  args->ldv,
+                (float*)d_T,  args->ldt,
+                (float*)WORK, LDWORK,
+                gpu_stream->cuda_stream);
+
+    gpu_free( gpu_device->memory, (void*)WORK );
 
     return 0;
 }
@@ -441,6 +452,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
         wei_debug_printf("!!!!!!!!!!!!!!!!!!!!!!!! m %d, n %d, k %d go back to CPU\n", m, n, k);
         return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */
     }
+  //  dev_index = 1;
 
     gpu_task = (dague_stsmqr_args_t*)malloc(sizeof(dague_stsmqr_args_t));
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
@@ -470,6 +482,7 @@ int gpu_stsmqr( dague_execution_unit_t* eu_context,
     gpu_task->ddescA1   = (dague_ddesc_t*)descA1;
     gpu_task->ddescA2   = (dague_ddesc_t*)descA2;
     gpu_task->ddescV   = (dague_ddesc_t*)descV;
+    gpu_task->ddescT   = (dague_ddesc_t*)descT;
 
     return gpu_kernel_scheduler_stsmqr( eu_context, (dague_gpu_context_t*)gpu_task, dev_index );
 }

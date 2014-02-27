@@ -1006,7 +1006,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     return 0;
 }
 
-#define WEI_DEBUG
+//#define WEI_DEBUG
 /**
  * If the most current version of the data is not yet available on the GPU memory
  * schedule a transfer.
