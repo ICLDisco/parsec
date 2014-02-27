@@ -42,8 +42,7 @@ if(CUDA_FOUND)
         set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_${_smtarget}} ${CUDA_NVCC_FLAGS})
         cuda_add_library(dplasma_cucores_sm${_smtarget}
                          ${cuda_generated_files} SHARED)
-        target_link_libraries( dplasma_cucores_sm${_smtarget}
-                                 ${CUDA_cublas_LIBRARY} ${CUDA_LIBRARIES})
+        cuda_add_cublas_to_target( dplasma_cucores_sm${_smtarget} )
         install(TARGETS dplasma_cucores_sm${_smtarget} LIBRARY DESTINATION lib ARCHIVE DESTINATION lib )
         set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_BACKUP})
         if( NOT CMAKE_BUILD_SHARED_LIBS )

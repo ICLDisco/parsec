@@ -4,7 +4,7 @@ add_dependencies(common dplasma_includes)
 if(MPI_C_FOUND)
   set_target_properties(common PROPERTIES COMPILE_FLAGS
                         "${MPI_C_COMPILE_FLAGS}")
-  endif(MPI_C_FOUND)
+endif(MPI_C_FOUND)
 
 include(RulesTestings.cmake)
 
@@ -65,13 +65,6 @@ endif()
 
 link_directories(${COREBLAS_LIBRARY_DIRS})
 testings_addexec(targets "${DPLASMA_PRECISIONS}" "${TESTS}")
-
-#Add the LL define to potrf LL
-# testings_addexec(lltargets "+;${DPLASMA_PRECISIONS}" "testing_zpotrf_ll.c")
-# foreach(target ${lltargets})
-#   get_target_property(${target}_COMPILE_FLAGS ${target} COMPILE_FLAGS)
-#   set_target_properties(${target} PROPERTIES COMPILE_FLAGS "${${target}_COMPILE_FLAGS} -DLLT_LL")
-# endforeach()
 
 # Define Testings
 include(Testings.cmake)
