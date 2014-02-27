@@ -24,7 +24,7 @@ if(CUDA_FOUND)
     set( CUDA35_SOURCES ${CUDA11_SOURCES} )
 
     foreach( _smtarget ${CUDA_SM_TARGETS} )
-      if( string( EQUAL "${CUDA${_smtarget}_SOURCES}" "" ) )
+      if( NOT "${CUDA${_smtarget}_SOURCES}" STREQUAL "" )
         set(cuda_generated_files "")
         precisions_rules_py(cuda_generated_files
                             "${CUDA${_smtarget}_SOURCES}"
@@ -114,6 +114,9 @@ target_link_libraries(dplasma_cores
 add_dependencies(dplasma_cores
          dplasma_includes
          dplasma_cores_includes)
+if( NOT ${GPU_KERNEL_SOURCES} STREQUAL "" )
+  cuda_add_cublas_to_target( dplasma_cores )
+endif()
 
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION lib
