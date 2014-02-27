@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @generated s Thu Feb 27 15:42:30 2014
+ * @generated s Thu Feb 27 16:31:08 2014
  *
  */
 #include <dague_config.h>
@@ -218,7 +218,8 @@ gpu_kernel_submit_stsmqr( gpu_device_t        *gpu_device,
     d_T  = (CUdeviceptr)this_task->data[flow_T].data_out->device_private;
 
     tiled_matrix_desc_t *descT = (tiled_matrix_desc_t *)args->ddescT;
-    WORK = (CUdeviceptr)gpu_malloc( gpu_device->memory, 1 );
+  //  WORK = (CUdeviceptr)gpu_malloc( gpu_device->memory, 1 );
+    WORK = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB);
     int LDWORK = args->IB;
 
     wei_debug_printf("nb %d, ib %d, WORK %p\n", descT->nb, args->IB, (void*)WORK);
@@ -232,7 +233,9 @@ gpu_kernel_submit_stsmqr( gpu_device_t        *gpu_device,
                 (float*)WORK, LDWORK,
                 gpu_stream->cuda_stream);
 
-    gpu_free( gpu_device->memory, (void*)WORK );
+    dague_gpu_push_workspace(gpu_device, gpu_stream);
+
+   // gpu_free( gpu_device->memory, (void*)WORK );
 
     return 0;
 }

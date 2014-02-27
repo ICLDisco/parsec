@@ -25,6 +25,7 @@
 
 #define DAGUE_MAX_STREAMS            4
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
+#define DAGUE_GPU_MAX_WORKSPACE      2
 
 #if defined(DAGUE_PROF_TRACE)
 #define DAGUE_PROFILE_CUDA_TRACK_DATA_IN  0x0001
@@ -43,6 +44,12 @@ extern int dague_cuda_own_GPU_key_end;
 
 extern float *device_load, *device_weight;
 
+typedef struct __dague_gpu_workspace {
+    void* workspace[DAGUE_GPU_MAX_WORKSPACE];
+    int stack_head;
+    int total_workspace;    
+} dague_gpu_workspace_t;
+
 typedef struct __dague_gpu_context {
     dague_list_item_t          list_item;
     dague_execution_context_t *ec;
@@ -56,6 +63,7 @@ typedef struct __dague_gpu_exec_stream {
     int32_t executed;    /* number of executed tasks */
     int32_t start, end;  /* circular buffer management start and end positions */
     dague_list_t *fifo_pending;
+    dague_gpu_workspace_t *workspace;
 #if defined(DAGUE_PROF_TRACE)
     dague_thread_profiling_t *profiling;
 #endif  /* defined(PROFILING) */
@@ -137,6 +145,11 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              dague_data_pair_t* task_data,
                              dague_gpu_context_t *gpu_task,
                              CUstream stream );
+
+/* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
+int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);
+void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);
+int dague_gpu_free_workspace(gpu_device_t * gpu_device);
 
 /**
  * Progress
