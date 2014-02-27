@@ -38,6 +38,7 @@ typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                
 extern int dague_cuda_output_stream;
 
+#if 0
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 extern cuda_zgemm_t magmablas_ZGEMM_SM11;
 FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM11)
@@ -45,6 +46,7 @@ extern cuda_zgemm_t magmablas_ZGEMM_SM13;
 FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM13)
 extern cuda_zgemm_t magmablas_ZGEMM_SM20;
 FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM20)
+#endif
 
 static inline
 int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,

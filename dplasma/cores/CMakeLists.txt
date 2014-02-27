@@ -24,6 +24,7 @@ if(CUDA_FOUND)
     set( CUDA35_SOURCES ${CUDA11_SOURCES} )
 
     foreach( _smtarget ${CUDA_SM_TARGETS} )
+      if( string( EQUAL "${CUDA${_smtarget}_SOURCES}" "" ) )
         set(cuda_generated_files "")
         precisions_rules_py(cuda_generated_files
                             "${CUDA${_smtarget}_SOURCES}"
@@ -48,6 +49,7 @@ if(CUDA_FOUND)
         if( NOT CMAKE_BUILD_SHARED_LIBS )
             list(APPEND GPU_KERNEL_LIBS dplasma_cucores_sm${_smtarget})
         endif()
+      endif()
     endforeach()
 
     cuda_build_clean_target()
