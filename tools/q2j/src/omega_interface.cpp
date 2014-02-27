@@ -3548,6 +3548,8 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
 
     // For every anti-edge, repeat the same steps.
+    fprintf(stderr, "Starts computing anti-edges\n");
+    int count = 0;
     for (it=ctrl_deps.begin(); it!=ctrl_deps.end(); it++){
         set<tg_node_t *> visited_nodes;
         list<Relation *> relation_fifo;
@@ -3555,6 +3557,8 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         Relation Rt, Ra;
         tg_node_t *source_node, *sink_node;
 
+        fprintf(stderr, "\r%3.0f%%", ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
 
         dep_t *dep = *it;
         if( dep->rel->is_null() ){
@@ -3571,6 +3575,9 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 2) for each pair of nodes N1,N2 in G, replace all the edges that
         //         go from N1 to N2 with their union.
+        fprintf(stderr, "\r%3.0f%%", ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
+
         visited_nodes.clear(); // just being paranoid.
         visited_nodes.insert(source_node);
         union_graph_edges(source_node, visited_nodes);
@@ -3581,11 +3588,17 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 3) Add to every node a tautologic Relation to self:
         // {[p1,p2,...,pn] -> [p1,p2,...,pn] : TRUE}.
+        fprintf(stderr, "\r%3.0f%%", ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
+
         visited_nodes.clear();
         visited_nodes.insert(source_node);
         add_tautologic_cycles(source_node, visited_nodes);
 
         // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
+        fprintf(stderr, "\r%3.0f%%", ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
+
         visited_nodes.clear();
         compute_transitive_closure_of_all_cycles(source_node, visited_nodes, node_stack);
 #if defined(DEBUG_ANTI)
@@ -3595,6 +3608,9 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 5) Find the union of the transitive edges that start at source_node and end at
         // sink_node
+        fprintf(stderr, "\r%3.0f%%", ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
+
 #if defined(DEBUG_ANTI)
         printf("Computing transitive edge\n");
         fflush(stdout);
