@@ -192,7 +192,7 @@ RW    C <- (k == 0)   ? dataA(m, n)  : C GEMM(k-1, m, n)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - m - n - 3) * (m - n) + 6 * (m - k) : PRI_MAX
 
-BODY [type=CUDA dyld=magmablas_ZGEMM]
+BODY [type=CUDA dyld=cublasZgemm]
 {
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
     int ldam = BLKLDD( descA, m );
