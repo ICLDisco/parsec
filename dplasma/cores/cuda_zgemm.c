@@ -22,6 +22,7 @@
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
 #include "cuda_zgemm.h"
+#include <cublas.h>
 
 #define flow_A  1
 #define flow_B  2
@@ -178,13 +179,12 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t) this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;
     assert( NULL != cuda_zgemm );
 
-    /*assert( DATA_COHERENCY_OWNED == this_task->data[2].data_out->coherency_state );*/
-
     assert(this_task->data[flow_A].data_out->device_index == gpu_device->super.device_index);
     d_A = (CUdeviceptr)this_task->data[flow_A].data_out->device_private;
     assert(this_task->data[flow_B].data_out->device_index == gpu_device->super.device_index);
     d_B = (CUdeviceptr)this_task->data[flow_B].data_out->device_private;
     assert(this_task->data[flow_C].data_out->device_index == gpu_device->super.device_index);
+    /*assert( DATA_COHERENCY_OWNED == this_task->data[flow_C].data_out->coherency_state );*/
     d_C = (CUdeviceptr)this_task->data[flow_C].data_out->device_private;
 
     DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
@@ -200,15 +200,32 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
                              this_task);
 
     status = cudaSuccess;
-    cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), args->M, args->N, args->K,
+#if (CUDA_VERSION < 4000) || 1 /* todo: always use legacy cublas until we understand how to get the cublas_handle in API v5 */
+    cublasSetKernelStream( gpu_stream->stream );
+    cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), 
+                args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
-                args->beta,  (dague_complex64_t*)d_C, args->ldc,
-                gpu_stream->cuda_stream );
-
-    DAGUE_CUDA_CHECK_ERROR( "cuda_zgemm ", status,
+                args->beta,  (dague_complex64_t*)d_C, args->ldc );
+    status = cublasGetError();
+#else
+{ 
+    cudaStream_t current_stream;
+    cublasHandle_t handle = cublasGetCurrentCtx(); /* todo: available in cuda API 4 only */
+    cublasGetStream_v2 ( handle, &current_stream );
+    cublasSetStream_v2 ( handle, &stream );
+    status = 
+    cuda_zgemm( handle,
+                lapack_const(args->transA), lapack_const(args->transB), 
+                args->M, args->N, args->K,
+                args->alpha, (dague_complex64_t*)d_A, args->lda,
+                             (dague_complex64_t*)d_B, args->ldb,
+                args->beta,  (dague_complex64_t*)d_C, args->ldc );
+    cublasSetStream_v2 ( handle, &current_stream );
+}
+#endif /* CUDA_VERSION < 4000 */
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                               {return -1;} );
-
     return 0;
 }
 

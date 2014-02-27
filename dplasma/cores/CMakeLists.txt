@@ -15,11 +15,11 @@ if(CUDA_FOUND)
 
 ### CUDA .cu sources
     set( CUDA11_SOURCES
-         zgemm_11_12_13.cu
+#         zgemm_11_12_13.cu
     )
     set( CUDA13_SOURCES ${CUDA11_SOURCES} )
     set( CUDA20_SOURCES
-         zgemm_20_30.cu
+#         zgemm_20_30.cu
     )
     set( CUDA35_SOURCES ${CUDA11_SOURCES} )
 
