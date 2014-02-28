@@ -9,6 +9,9 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#if defined(HAVE_CUDA)
+#include "dplasma/cores/cuda_zgemm.h"
+#endif
 
 static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescA,
@@ -32,7 +35,10 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 40, 200, 200);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-
+#if defined(HAVE_CUDA)
+    iparam[IPARAM_NGPUS] = 0;
+#endif
+    
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
@@ -92,6 +98,17 @@ int main(int argc, char ** argv)
     }
     if(loud > 2) printf("Done\n");
 
+    /* load the GPU kernel */
+#if defined(HAVE_CUDA)
+    if(iparam[IPARAM_NGPUS] > 0) {
+        if(loud > 3) printf("+++ Load GPU kernel ... ");
+        dague_gpu_data_register(dague,
+                                (dague_ddesc_t*)&ddescA,
+                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
+        if(loud > 3) printf("Done\n");
+    }
+#endif
+    
     /* Create DAGuE */
     if(loud > 2) printf("+++ Computing getrf ... ");
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_nopiv,

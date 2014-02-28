@@ -12,7 +12,7 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-
+#include "dplasma/cores/cuda_zgemm.h"
 %}
 
 dataA     [type = "dague_ddesc_t *"]
@@ -165,3 +165,29 @@ BODY
 #endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
+   
+BODY [type=CUDA dyld=cublasZgemm]
+{
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
+    int pushout = ((m == (k+1)) && (n == (k+1))) ||
+                  ((m >  (k+1)) && (n == (k+1))) ||
+                  ((m == (k+1)) && (n >  (k+1)));
+    
+    printlog("CUDA_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
+             k, n, m, m, k, A, k, n, B, m, n, C);
+
+#if !defined(DAGUE_DRY_RUN)                        
+    gpu_zgemm( context, this_task, pushout,
+               PlasmaNoTrans, PlasmaNoTrans,
+               tempmm, tempnn, descA.mb,
+               -1., m, k, &descA /* dataA(m,k) */, ldam,
+                    k, n, &descA /* dataA(k,n) */, ldak,
+                1., m, n, &descA /* dataA(m,n) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
