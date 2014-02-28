@@ -54,32 +54,29 @@ if(CUDA_FOUND)
 
     cuda_build_clean_target()
 
-### Now the gpu wrappers to the .cu files
-    set(GPU_KERNEL_SOURCES
-        cuda_zgemm.c
-#        cuda_stsmqr.c
-    )
-    set(GPU_KERNEL_HEADERS
+### Now the gpu support core files
+    set(CORE_CUDA_HEADERS
         cuda_zgemm.h
-#        cuda_stsmqr.h
+#        cuda_ztsmqr.h
+    )
+    set(CORE_CUDA_SOURCES
+        cuda_zgemm.c
+#        cuda_ztsmqr.c
     )
 
 else()
-    set(GPU_KERNEL_SOURCES "")
-    set(GPU_KERNEL_HEADERS "")
-    set(GPU_KERNEL_LIBS "")
+    set(CORE_CUDA_HEADERS "")
+    set(CORE_CUDA_SOURCES "")
 endif()
 
+### generate the dplasma_cores headers for all possible precisions
 set(HEADERS
     dplasma_zcores.h
-    ${GPU_KERNEL_HEADERS}
+    ${CORE_CUDA_HEADERS}
 )
-
-### generate the dplasma_cores headers for all possible precisions
 precisions_rules_py(generated_headers
                  ${HEADERS}
                  PRECISIONS "s;d;c;z")
-
 add_custom_target(dplasma_cores_includes ALL SOURCES
     ${generated_headers} )
 
@@ -93,29 +90,43 @@ set(SOURCES
   core_zhetrf_nopiv.c
   core_zhebut.c
   core_zamax.c
-  ${GPU_KERNEL_SOURCES}
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
+precisions_rules_py(generated_cuda_files
+                 ${CORE_CUDA_SOURCES}
+                 PRECISIONS "${DPLASMA_PRECISIONS}")
 
-### Generate the lib
+### Generate the dplasma_cores lib
 link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores
   ${generated_files}
 )
-
 target_link_libraries(dplasma_cores
-  ${GPU_KERNEL_LIBS}
   ${COREBLAS_LIBRARIES}
   ${EXTRA_LIBS}
 )
-
 add_dependencies(dplasma_cores
          dplasma_includes
          dplasma_cores_includes)
-if( NOT ${GPU_KERNEL_SOURCES} STREQUAL "" )
-  cuda_add_cublas_to_target( dplasma_cores )
+
+if( NOT "${generated_cuda_files}" STREQUAL "" )
+  add_library(dplasma_cores_cuda
+    ${generated_cuda_files}
+  )
+  add_dependencies(dplasma_cores_cuda
+          dplasma_includes
+          dplasma_cores_includes)
+  target_link_libraries(dplasma_cores_cuda
+          ${COREBLAS_LIBRARIES}
+          ${EXTRA_LIBS}
+  )
+  cuda_add_cublas_to_target( dplasma_cores_cuda )
+  target_link_libraries(dplasma_cores dplasma_cores_cuda) 
+  install(TARGETS dplasma_cores
+          ARCHIVE DESTINATION lib
+          LIBRARY DESTINATION lib)
 endif()
 
 install(TARGETS dplasma_cores

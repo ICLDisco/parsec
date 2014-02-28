@@ -195,6 +195,7 @@ add_dependencies(dplasma
 target_link_libraries(dplasma
   dplasma_cores
   ${COREBLAS_LIBRARIES}
+  dague dague_distribution_matrix
   ${EXTRA_LIBS}
 )
 
