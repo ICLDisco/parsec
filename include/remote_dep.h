@@ -91,7 +91,6 @@ struct dague_remote_deps_s {
     int32_t                         priority;
     uint32_t*                       remote_dep_fw_mask;  /**< list of peers already notified about
                                                            * the control sequence (only used for control messages) */
-    struct data_repo_entry*         repo_entry;
     struct remote_dep_output_param  output[1];
 };
 /* { item .. remote_dep_fw_mask (points to fw_mask_bitfield),
@@ -145,7 +144,6 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
-    remote_deps->repo_entry      = NULL;
     DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }
