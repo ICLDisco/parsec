@@ -88,7 +88,7 @@ struct dague_lifo_s {
 #define DAGUE_LIFO_VAL(LIFO, p, c)       ((dague_list_item_t *)(((uintptr_t)DAGUE_LIFO_PTR(LIFO, p)) | DAGUE_LIFO_CNT(LIFO, c)))
 #define DAGUE_LIFO_HKEY(LIFO, h, n)      DAGUE_LIFO_VAL(LIFO, h, ++((h)->aba_key))
 #define DAGUE_LIFO_KHEAD(LIFO, k)        DAGUE_LIFO_PTR(LIFO, k)
-#define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(DAGUE_LIFO_PTR(LIFO, k)->list_next))
+#define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(DAGUE_LIFO_CNT(LIFO, k)))
 
 #endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
 
