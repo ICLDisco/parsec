@@ -24,12 +24,8 @@ extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 
 #define RECURSIVE_GEQRT
-//#define RECURSIVE_TSQRT
-<<<<<<< local
-//#define RECURSIVE_UNMQR
-=======
+#define RECURSIVE_TSQRT
 #define RECURSIVE_UNMQR
->>>>>>> other
 #define RECURSIVE_TSMQR
 
 %}
@@ -109,7 +105,6 @@ BODY
                                                   (tiled_matrix_desc_t *)small_descT,
                                                   p_work );
 
-<<<<<<< local
         /* recursive call */
         dague_recursivecall( context, this_task,
                              dague_zgeqrt, dplasma_zgeqrfr_geqrt_Destruct,
@@ -117,38 +112,6 @@ BODY
         return -1;
     }
     else
-=======
-    small_descA->mat = A;
-    small_descT->mat = T;
-
-    /* dague_object */
-    dague_zgeqrt = dplasma_zgeqrt_New((tiled_matrix_desc_t *)small_descA,
-                                      (tiled_matrix_desc_t *)small_descT );
-
-    /* recursive call */
-    dague_recursivecall( context, this_task,
-                         dague_zgeqrt, dplasma_zgeqrt_Destruct,
-                         2, small_descA, small_descT );
-
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    return -1;
-
-#else /* defined(RECURSIVE_GEQRT) */
-
-    void *p_elem_A = dague_private_memory_pop( p_tau );
-    void *p_elem_B = dague_private_memory_pop( p_work );
-
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-
-    CORE_zgeqrt(tempkm, tempkn, ib,
-                A /* dataA(k,k) */, ldak,
-                T /* dataT(k,k) */, descT.mb,
-                p_elem_A, p_elem_B );
-
-    dague_private_memory_push( p_tau,  p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-
->>>>>>> other
 #endif /* defined(RECURSIVE_GEQRT) */
 
 #if !defined(DAGUE_DRY_RUN)
@@ -293,54 +256,7 @@ BODY
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
              k, m, k, k, T, m, k, A1, m, k, A2);
 
-<<<<<<< local
-=======
-#if !defined(DAGUE_DRY_RUN)
-
-#if defined(RECURSIVE_TSQRT)
-
-    subtile_desc_t *small_descA1;
-    subtile_desc_t *small_descA2;
-    subtile_desc_t *small_descT;
-    dague_handle_t *dague_ztsqrt;
-
-    small_descA1 = subtile_desc_create( &(descA), k, k,
-                                        dplasma_imin(descA.mb, ldak), ib,
-                                        0, 0, tempkn, tempkn );
-    small_descA2 = subtile_desc_create( &(descA), m, k,
-                                        dplasma_imin(descA.mb, ldak), ib,
-                                        0, 0, tempmm, tempkn );
-    small_descT  = subtile_desc_create( &(descT), m, k,
-                                        ib, ib,
-                                        0, 0, ib, tempkn );
-
-    small_descA1->mat = A1;
-    small_descA2->mat = A2;
-    small_descT->mat  = T;
-
-    /* dague_object */
-    dague_ztsqrt = dplasma_ztsqrt_New((tiled_matrix_desc_t *)small_descA1,
-                                      (tiled_matrix_desc_t *)small_descA2,
-                                      (tiled_matrix_desc_t *)small_descT );
-
-    /* recursive call */
-    dague_recursivecall( context, this_task,
-                         dague_ztsqrt, dplasma_ztsqrt_Destruct,
-                         3, small_descA1, small_descA2, small_descT );
-
     dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    //dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    return -1;
-
-#else /* defined(RECURSIVE_TSQRT) */
-
-    void *p_elem_A = dague_private_memory_pop( p_tau );
-    void *p_elem_B = dague_private_memory_pop( p_work );
-  //  printf("M %d, N %d, ib %d, ldak %d, ldam %d\n", tempmm, tempkn, ib, ldak, ldam);
-
->>>>>>> other
-    dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
 #if defined(RECURSIVE_TSQRT)
     if (tempmm > smallnb) {
