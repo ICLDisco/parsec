@@ -3810,9 +3810,6 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
                 "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
                 "#endif\n"
-                "#if defined(DISTRIBUTED)\n"
-                "    if( NULL != arg.remote_deps ) arg.remote_deps->repo_entry = arg.output_entry;\n"
-                "#endif  /* defined(DISTRIBUTED) */\n"
                 "  }\n",
                 f->fname, f->fname);
     else
