@@ -3526,6 +3526,8 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
     map<char *, tg_node_t *> task_to_node;
     map<char *, set<dep_t *> > resulting_map;
 
+    int do_TC_of_all_cycles = 1;
+
     // ============
     // Create a graph I_G with the different tasks (task-classes, actually) as nodes
     // and all the flow dependencies and anti-dependencies between tasks as edges.
@@ -3558,7 +3560,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         tg_node_t *source_node, *sink_node;
 
         fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
-                count / 5, count % 5, ctrl_deps.size(),
+                count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
 
@@ -3578,7 +3580,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         // Step 2) for each pair of nodes N1,N2 in G, replace all the edges that
         //         go from N1 to N2 with their union.
         fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
-                count / 5, count % 5, ctrl_deps.size(),
+                count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
 
@@ -3593,7 +3595,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         // Step 3) Add to every node a tautologic Relation to self:
         // {[p1,p2,...,pn] -> [p1,p2,...,pn] : TRUE}.
         fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
-                count / 5, count % 5, ctrl_deps.size(),
+                count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
 
@@ -3603,7 +3605,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
         fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
-                count / 5, count % 5, ctrl_deps.size(),
+                count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
 
@@ -3619,7 +3621,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         // Step 5) Find the union of the transitive edges that start at source_node and end at
         // sink_node
         fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
-                count / 5, count % 5, ctrl_deps.size(),
+                count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
 
