@@ -64,8 +64,8 @@ dplasma_zpotri( dague_context_t *dague,
     }
 
 #ifdef DAGUE_COMPOSITION
-    dague_object_t *dague_ztrtri = NULL;
-    dague_object_t *dague_zlauum = NULL;
+    dague_handle_t *dague_ztrtri = NULL;
+    dague_handle_t *dague_zlauum = NULL;
 
     dague_ztrtri = dplasma_ztrtri_New(uplo, PlasmaNonUnit, A, &info );
     dague_zlauum = dplasma_zlauum_New(uplo, A );

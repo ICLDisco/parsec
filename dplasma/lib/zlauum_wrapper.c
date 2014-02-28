@@ -66,33 +66,33 @@
  * @sa dplasma_slauum_New
  *
  ******************************************************************************/
-dague_object_t*
+dague_handle_t*
 dplasma_zlauum_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *A )
 {
-    dague_object_t *dague_lauum = NULL;
+    dague_handle_t *dague_lauum = NULL;
 
     if ( uplo == PlasmaLower ) {
-        dague_lauum = (dague_object_t*)dague_zlauum_L_new(
+        dague_lauum = (dague_handle_t*)dague_zlauum_L_new(
             uplo, (dague_ddesc_t*)A );
 
         /* Lower part of A with diagonal part */
-        dplasma_add2arena_lower( ((dague_zlauum_L_object_t*)dague_lauum)->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA],
+        dplasma_add2arena_lower( ((dague_zlauum_L_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, A->mb, 1 );
     } else {
-        dague_lauum = (dague_object_t*)dague_zlauum_U_new(
+        dague_lauum = (dague_handle_t*)dague_zlauum_U_new(
             uplo, (dague_ddesc_t*)A );
 
         /* Lower part of A with diagonal part */
-        dplasma_add2arena_upper( ((dague_zlauum_U_object_t*)dague_lauum)->arenas[DAGUE_zlauum_U_UPPER_TILE_ARENA],
+        dplasma_add2arena_upper( ((dague_zlauum_U_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_U_UPPER_TILE_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, A->mb, 1 );
     }
 
-    dplasma_add2arena_tile(((dague_zlauum_L_object_t*)dague_lauum)->arenas[DAGUE_zlauum_L_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zlauum_L_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_L_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
@@ -121,13 +121,13 @@ dplasma_zlauum_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlauum_Destruct( dague_object_t *o )
+dplasma_zlauum_Destruct( dague_handle_t *o )
 {
-    dague_zlauum_L_object_t *olauum = (dague_zlauum_L_object_t *)o;
+    dague_zlauum_L_handle_t *olauum = (dague_zlauum_L_handle_t *)o;
 
     dplasma_datatype_undefine_type( &(olauum->arenas[DAGUE_zlauum_L_DEFAULT_ARENA   ]->opaque_dtt) );
     dplasma_datatype_undefine_type( &(olauum->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA]->opaque_dtt) );
-    DAGUE_INTERNAL_OBJECT_DESTRUCT(o);
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 /**
@@ -185,7 +185,7 @@ dplasma_zlauum( dague_context_t *dague,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t *A )
 {
-    dague_object_t *dague_zlauum = NULL;
+    dague_handle_t *dague_zlauum = NULL;
 
     /* Check input arguments */
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
