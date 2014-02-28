@@ -26,12 +26,13 @@ p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
 descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
+minMNT [type = "int" hidden=on default = "dplasma_imin(descA.nt, ((descA.m+descA.nb-1)/descA.nb))-1"]
 ib     [type = "int" hidden=on default = "descT.mb" ]
 
 
 zlarfb(k, n)
   /* Execution space */
-  k = 0 .. descA.nt-1
+  k = 0 .. minMNT
   n = 0 .. descC.nt-1
 
   : dataC(0, n)
@@ -70,7 +71,7 @@ BODY
 END
 
 read_A(k) [profile = off]
-  k = 0 .. descA.nt-1
+  k = 0 .. minMNT
 
   : dataA(0, k)
 
