@@ -19,17 +19,35 @@ uplo      [type = "PLASMA_enum"]
 dataA     [type = "dague_ddesc_t *"]
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 
-readA(m, n) [profile = off]
+readDIAG(m) [profile = off]
   /* Execution Space */
   m = 0 .. (descA.mt-1)
-  n = m .. (descA.nt-1)
+
+  /* Locality */
+  : dataA(m,m)
+
+  READ  A    <- dataA(m,m)                             [type = UPPER_TILE]
+             -> A zlauum(m)                              [type = UPPER_TILE]
+             -> (m > 0) ? A ztrmm(m, 0 .. (m-1))       [type = UPPER_TILE]
+
+BODY
+{
+    /* nothing */
+}
+END
+
+readA(m, n) [profile = off]
+  /* Execution Space */
+  m = 0   .. (descA.mt-1)
+  n = m+1 .. (descA.nt-1)
 
   /* Locality */
   : dataA(m,n)
 
-  READ  A    <- dataA(m,n)
-             -> (m == n)           ? A zlauum(n)                  [type = UPPER_TILE]
-             -> (m == n) & (n > 0) ? A ztrmm(n, 0 .. (n-1))       [type = UPPER_TILE]
+  READ  A    <- (n >  m) ? dataA(m,n)
+             /* <- (n == m) ? dataA(m,n)                             [type = UPPER_TILE] */
+             /* -> (n == m)           ? A zlauum(n)                  [type = UPPER_TILE] */
+             /* -> (n == m) & (n > 0) ? A ztrmm(n, 0 .. (n-1))       [type = UPPER_TILE] */
              -> (n >  m)           ? A zherk(n, m)
              -> (n >  m)           ? B ztrmm(n, m)
              -> (n >  m) & (m > 0) ? B zgemm(n, 0..(m-1), m)
@@ -77,7 +95,7 @@ END
 
 zgemm(k, m, n)
   /* Execution Space */
-  k = 2     .. (descA.mt-1)
+  k = 1     .. (descA.mt-1)
   m = 0     .. (k-2)
   n = (m+1) .. (k-1)
 
@@ -127,7 +145,7 @@ ztrmm(k, m)
   CTL   ctl2 <- ctl2 zgemm(k, m, (m+1) .. (k-1))
   CTL   ctl3 -> ctl3 zlauum(k)
 
-  READ  A    <- A readA(k, k)                   [type = UPPER_TILE]
+  READ  A    <- A readDIAG(k)                   [type = UPPER_TILE]
   RW    B    <- A readA(m, k)
              -> (k <  (descA.mt-1)) ? C zgemm(k+1, m, k)
              -> (k == (descA.mt-1)) ? dataA(m, k)
@@ -160,7 +178,7 @@ zlauum(k)
 
   CTL   ctl3 <- ctl3 ztrmm(k, 0..(k-1))
 
-  RW    A    <- A readA(k, k)                           [type = UPPER_TILE]
+  RW    A    <- A readDIAG(k)                           [type = UPPER_TILE]
              -> (k <  (descA.mt-1)) ? C zherk(k+1, k)   [type = UPPER_TILE]
              -> (k == (descA.mt-1)) ? dataA(k, k)       [type = UPPER_TILE]
 
