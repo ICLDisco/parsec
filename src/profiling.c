@@ -589,11 +589,11 @@ static int64_t dump_global_infos(int *nbinfos)
         vpos = 0;
         value = ib->info_and_value + is;
         while( vpos < vs ) {
-            tc = (event_avail_space - pos) < (vs-vpos) ? (event_avail_space - pos) : (vs-vpos);
+            tc = (int)(event_avail_space - pos) < (vs-vpos) ? (int)(event_avail_space - pos) : (vs-vpos);
             memcpy(value, i->value + vpos, tc);
             vpos += tc;
             pos += tc;
-            if( pos == event_avail_space ) {
+            if( pos == (int)event_avail_space ) {
                 b->this_buffer.nb_infos = nbthis;
                 n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
                 if( NULL == n ) {
