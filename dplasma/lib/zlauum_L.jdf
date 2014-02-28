@@ -1,0 +1,197 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+uplo      [type = "PLASMA_enum"]
+dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+
+readDIAG(m) [profile = off]
+  /* Execution Space */
+  m = 0 .. (descA.mt-1)
+
+  /* Locality */
+  : dataA(m,m)
+
+  READ  A    <- dataA(m,m)                            [type = LOWER_TILE]
+             -> A zlauum(m)                           [type = LOWER_TILE]
+             -> (m > 0) ? A ztrmm(m, 0 .. (m-1))      [type = LOWER_TILE]
+BODY
+{
+    /* nothing */
+}
+END
+
+readA(m, n) [profile = off]
+  /* Execution Space */
+  m = 0 .. (descA.mt-1)
+  n = 0 .. m-1
+
+  /* Locality */
+  : dataA(m,n)
+
+  READ  A    <- (m >  n) ? dataA(m,n)
+             -> (m >  n)           ? A zherk(m, n)
+             -> (m >  n)           ? B ztrmm(m, n)
+             -> (m >  n) & (n > 0) ? A zgemm(m, 0..(n-1), n)
+             -> (m > (n+1))        ? B zgemm(m, n, (n+1)..(m-1))
+BODY
+{
+    /* nothing */
+}
+END
+
+zherk(k, n)
+  /* Execution Space */
+  k = 1 .. (descA.mt-1)
+  n = 0 .. (k-1)
+
+  /* Locality */
+  : dataA(n, n)
+
+  CTL   ctl0 -> ctl0 ztrmm(k, n)
+
+  READ  A    <- A readA(k, n)
+
+  RW    C    <- (k == (n+1)) ? A zlauum(n)                       [type = LOWER_TILE]
+             <- (k >  (n+1)) ? C zherk(k-1, n)                   [type = LOWER_TILE]
+             -> (k <  (descA.mt-1)) ? C zherk(k+1, n)            [type = LOWER_TILE]
+             -> (k == (descA.mt-1)) ? dataA(n, n)                [type = LOWER_TILE]
+
+BODY
+{
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k*descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int ldan = BLKLDD( descA, n );
+
+    printlog("CORE_zherk(%d, %d)\n"
+             "\t(uplo, PlasmaConjTrans, descA.mb, tempkm, 1.000000, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldan)\n",
+             k, n, k, n, A, n, n, C);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zherk(uplo, PlasmaConjTrans, descA.mb, tempkm,
+               1.0, A /* dataA(k,n) */, ldak,
+               1.0, C /* dataA(n,n) */, ldan );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+
+}
+END
+
+zgemm(k, n, m)
+  /* Execution Space */
+  k = 2     .. (descA.mt-1)
+  n = 0     .. (k-2)
+  m = (n+1) .. (k-1)
+
+  /* Locality */
+  : dataA(m, n)
+
+  CTL   ctl1 -> ctl1 ztrmm(k, m)
+  CTL   ctl2 -> ctl2 ztrmm(k, n)
+
+  READ  A    <- A readA(k, m)
+  READ  B    <- A readA(k, n)
+  RW    C    <- (k == (m+1)) ? B ztrmm(m, n)
+             <- (k >  (m+1)) ? C zgemm(k-1, n, m)
+             -> (k == (descA.mt-1)) ? dataA(m, n)
+             -> (k <  (descA.mt-1)) ? C zgemm(k+1, n, m)
+
+BODY
+{
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k*descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
+
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaConjTrans, PlasmaNoTrans, descA.mb, descA.nb, tempkm, 1.0, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, 1.0, A(%d,%d)[%p], ldam)\n",
+             k, n, m, k, m, A, k, n, B, m, n, C);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans,
+               descA.mb, descA.nb, tempkm,
+               1.0, A /* dataA(k,m) */, ldak,
+                    B /* dataA(k,n) */, ldak,
+               1.0, C /* dataA(m,n) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+ztrmm(k, n)
+  /* Execution Space */
+  k = 1 .. (descA.mt-1)
+  n = 0 .. (k-1)
+
+  /* Locality */
+  : dataA(k,n)
+
+  CTL   ctl0 <- ctl0 zherk(k, n)
+  CTL   ctl1 <- ctl1 zgemm(k, n, (n+1)..(k-1))
+  CTL   ctl2 <- ctl2 zgemm(k, 0..(n-1), n)
+  CTL   ctl3 -> ctl3 zlauum(k)
+
+  READ  A    <- A readDIAG(k)                              [type = LOWER_TILE]
+  RW    B    <- A readA(k, n)
+             -> (k <  (descA.mt-1)) ? C zgemm(k+1, n, k)
+             -> (k == (descA.mt-1)) ? dataA(k, n)
+
+BODY
+{
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k*descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_ztrmm(%d, %d)\n"
+             "\t(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, tempkm, descA.nb, 1.0, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+             k, n, k, k, A, k, n, B);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_ztrmm(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit,
+               tempkm, descA.nb,
+               1.0, A /* dataA(k,k) */, ldak,
+                    B /* dataA(k,n) */, ldak );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+zlauum(k)
+  /* Execution Space */
+  k = 0..(descA.mt-1)
+
+  /* Locality */
+  : dataA(k,k)
+
+  CTL   ctl3 <- ctl3 ztrmm(k, 0..(k-1))
+
+  RW    A    <- A readDIAG(k)                          [type = LOWER_TILE]
+             -> (k <  (descA.mt-1)) ? C zherk(k+1, k)  [type = LOWER_TILE]
+             -> (k == (descA.mt-1)) ? dataA(k, k)      [type = LOWER_TILE]
+
+BODY
+{
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k*descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_zlauum(%d)\n"
+             "\t(uplo, tempkm, A(%d,%d)[%p], ldak)\n",
+             k, k, k, A);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zlauum(uplo, tempkm,
+                A /* dataA(k,k) */, ldak );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+

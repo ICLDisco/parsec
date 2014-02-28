@@ -146,7 +146,6 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
-    remote_deps->repo_entry      = NULL;
     DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }

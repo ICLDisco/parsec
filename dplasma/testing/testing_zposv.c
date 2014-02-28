@@ -23,6 +23,11 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 
+static int check_inverse( dague_context_t *dague, int loud,
+                          PLASMA_enum uplo, int N,
+                          tiled_matrix_desc_t *A,
+                          tiled_matrix_desc_t *Ainv );
+
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -96,7 +101,6 @@ int main(int argc, char ** argv)
             if(loud > 3) printf("Done\n");
         }
 #endif
-
 
         /*********************************************************************
          *               First Check ( ZPOSV )
@@ -233,6 +237,45 @@ int main(int argc, char ** argv)
             }
             else {
                 printf(" ----- TESTING ZPOTRF + ZTRSM + ZTRSM (%s) ....... PASSED !\n", uplostr[u]);
+            }
+            printf("***************************************************\n");
+        }
+
+        /*********************************************************************
+         *               Fourth Check (ZPOTRF + ZPOTRI)
+         */
+        if ( rank == 0 ) {
+            printf("***************************************************\n");
+        }
+
+        /* Create A and X */
+        dplasma_zlacpy( dague, uplo[u],
+                        (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
+
+        /* Compute */
+        if ( loud > 2 ) printf("Compute ... ... ");
+        info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
+
+        if ( info == 0 ) {
+            info = dplasma_zpotri(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
+        }
+        if ( loud > 2 ) printf("Done\n");
+        if ( info != 0 ) printf("%d: Info = %d\n", rank, info);
+
+        /* Check the solution */
+        if ( info == 0 ) {
+            info_solve = check_inverse( dague, (rank == 0) ? loud : 0, uplo[u], N,
+                                        (tiled_matrix_desc_t *)&ddescA0,
+                                        (tiled_matrix_desc_t *)&ddescA);
+        }
+
+        if ( rank == 0 ) {
+            if ( info_solve || info ) {
+                printf(" ----- TESTING ZPOTRF + ZPOTRI (%s) ... FAILED !\n", uplostr[u]);
+                ret |= 1;
+            }
+            else {
+                printf(" ----- TESTING ZPOTRF + ZPOTRI (%s) ....... PASSED !\n", uplostr[u]);
             }
             printf("***************************************************\n");
         }
@@ -398,5 +441,57 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 
     dague_data_free(R.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&R);
+    return info_solution;
+}
+
+
+/*------------------------------------------------------------------------
+ *  Check the accuracy of the solution
+ */
+static int check_inverse( dague_context_t *dague, int loud,
+                          PLASMA_enum uplo, int N,
+                          tiled_matrix_desc_t *A,
+                          tiled_matrix_desc_t *Ainv )
+{
+    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
+    int info_solution;
+    double Anorm, Ainvnorm, Rnorm;
+    double eps, result;
+
+    eps = LAPACKE_dlamch_work('e');
+
+    PASTE_CODE_ALLOCATE_MATRIX(Id, 1,
+        two_dim_block_cyclic, (&Id, matrix_ComplexDouble, matrix_Tile,
+                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->mb, A->nb, N, N, 0, 0,
+                               N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
+
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
+
+    /* Id - A^-1 * A */
+    dplasma_zhemm(dague, PlasmaLeft, uplo,
+                  -1., Ainv, A,
+                  1., (tiled_matrix_desc_t *)&Id );
+
+    Anorm    = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, A );
+    Ainvnorm = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, Ainv );
+    Rnorm    = dplasma_zlange( dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&Id );
+
+    result = Rnorm / ( (Anorm*Ainvnorm)*N*eps );
+    if ( loud > 2 ) {
+        printf("  ||A||_one = %e, ||A^(-1)||_one = %e, ||I - A * A^(-1)||_one = %e, result = %e\n",
+               Anorm, Ainvnorm, Rnorm, result);
+    }
+
+    if ( isinf(Ainvnorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
+        info_solution = 1;
+    }
+    else {
+        info_solution = 0;
+    }
+
+    dague_data_free(Id.mat);
+    dague_ddesc_destroy((dague_ddesc_t*)&Id);
+
     return info_solution;
 }

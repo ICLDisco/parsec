@@ -875,6 +875,8 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
         dataflows[i].next = &(dataflows[i+1]);
     }
 
+    /* Link last dataflow to already existing dataflow as antidependencies might generate some */
+    dataflows[(vars.size()-1)].next = this_function->dataflow;
     this_function->dataflow = dataflows;
     dataflow = dataflows;
 
@@ -965,7 +967,7 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         string_arena_add_string( sa, "ctl%d", nb_ctl_dep );
         nb_ctl_dep++;
 
-        // Simple CTL
+        // Outgoing CTL for src function
         dataflow = q2jmalloc(jdf_dataflow_t, 1);
         dataflow->next = NULL;
         dataflow->varname     = strdup(string_arena_get_string(sa));
@@ -979,8 +981,6 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
         JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
-//        (void)(*dep->rel).print_with_subs_to_string(false);
-//        expr = relation_to_tree(*rel);
         dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
         dataflow->deps->guard->guard      = NULL;
         dataflow->deps->guard->properties = NULL;
@@ -994,7 +994,7 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         dataflow->next = src->dataflow;
         src->dataflow  = dataflow;
 
-        // Gather
+        // Incoming CTL for dest function
         dataflow = q2jmalloc(jdf_dataflow_t, 1);
         dataflow->next = NULL;
         dataflow->varname     = strdup(string_arena_get_string(sa));
@@ -1017,7 +1017,6 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         dataflow->deps->guard->calltrue->func_or_mem = src->fname;
 
         // Reverse the relation
-        // Relation inv = *dep->rel;
         Relation inv = rel;
         dep2.src = dep->src;
         dep2.dst = dep->dst;

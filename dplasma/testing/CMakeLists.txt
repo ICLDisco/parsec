@@ -29,7 +29,7 @@ set(TESTS
   testing_zpotrf.c
   testing_zpotrf_rec.c
   testing_zposv.c
-  #testing_ztrtri.c # Unstable
+  testing_ztrtri.c
   # QR/LQ
   testing_zgelqf.c
   testing_zgeqrf.c

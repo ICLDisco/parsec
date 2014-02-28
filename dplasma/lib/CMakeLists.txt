@@ -48,7 +48,8 @@ set(JDF
   # Cholesky
   zpotrf_U.jdf zpotrf_L.jdf
   zpotrf_U_rec.jdf zpotrf_L_rec.jdf
-  #ztrtri_L.jdf ztrtri_U.jdf #Unstable for now
+  ztrtri_L.jdf ztrtri_U.jdf
+  zlauum_L.jdf zlauum_U.jdf
   # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
@@ -135,7 +136,9 @@ set(SOURCES
   zpotrf_wrapper.c
   zpotrf_rec_wrapper.c
   zpotrs_wrapper.c
-  #ztrtri_wrapper.c # Unstable
+  ztrtri_wrapper.c
+  zlauum_wrapper.c
+  zpotri_wrapper.c
   #
   zgelqf_wrapper.c
   zgelqs_wrapper.c

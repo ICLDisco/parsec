@@ -220,25 +220,25 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
 
 static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
 {
-    dague_list_item_t *item, *nitem;
-    dague_lifo_head_t ohead, nhead;
+     dague_list_item_t *item, *nitem;
+     dague_lifo_head_t ohead, nhead;
 
-    ohead = lifo->lifo_head;
-    item = DAGUE_LIFO_KHEAD(lifo, ohead);
-    nitem = DAGUE_LIST_ITEM_NEXT(item);
-    
-    if( item == lifo->lifo_ghost )
-        return NULL;
-    
-    nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead)); 
-    /* if item changed, ohead is not current anymore and nhead is discarded */
-    if( __dague_lifo_cas(&(lifo->lifo_head),
-                         ohead,
-                         nhead ) ) { 
-        DAGUE_ITEM_DETACH(item);
-        return item;
-    }
-    return NULL;
+     ohead = lifo->lifo_head;
+     item = DAGUE_LIFO_KHEAD(lifo, ohead);
+     nitem = DAGUE_LIST_ITEM_NEXT(item);
+
+     if( item == lifo->lifo_ghost )
+         return NULL;
+
+     nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead));
+     /* if item changed, ohead is not current anymore and nhead is discarded */
+     if( __dague_lifo_cas(&(lifo->lifo_head),
+                          ohead,
+                          nhead ) ) {
+         DAGUE_ITEM_DETACH(item);
+         return item;
+     }
+     return NULL;
 }
 
 static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )

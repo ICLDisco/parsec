@@ -51,7 +51,7 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
 
 #if defined(DAGUE_ATOMIC_USE_GCC_128_BUILTINS)
 #define DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B
-static inline int dague_atomic_cas_128b( volatile __uint128_t* location, 
+static inline int dague_atomic_cas_128b( volatile __uint128_t* location,
                                             __uint128_t old_value,
                                             __uint128_t new_value )
 {
@@ -59,7 +59,7 @@ static inline int dague_atomic_cas_128b( volatile __uint128_t* location,
 }
 #else
 #include "debug.h"
-static inline int dague_atomic_cas_128b( volatile uint64_t* location, 
+static inline int dague_atomic_cas_128b( volatile uint64_t* location,
                                             uint64_t old_value,
                                             uint64_t new_value )
 {
@@ -80,4 +80,3 @@ static inline int32_t dague_atomic_sub_32b(volatile int32_t* location, int32_t i
 {
     return __sync_sub_and_fetch(location, i);
 }
-
