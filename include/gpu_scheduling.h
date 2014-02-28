@@ -68,7 +68,7 @@ int gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     cudaError_t status;
     int rc, exec_stream = 0;
     dague_gpu_context_t *next_task;
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
 

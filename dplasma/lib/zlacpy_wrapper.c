@@ -42,7 +42,7 @@ dplasma_zlacpy_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zlacpy_New - Generates an object that performs a copy of the matrix A
  * into the matrix B.
@@ -101,7 +101,7 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlacpy_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlacpy_New().
@@ -128,7 +128,7 @@ dplasma_zlacpy_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zlacpy - Generates an object that performs a copy of the matrix A
  * into the matrix B.

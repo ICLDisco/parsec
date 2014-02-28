@@ -77,6 +77,7 @@ dplasma/lib/[sdc]syrk_[LU][NT].jdf$
 dplasma/lib/[sdc]trmm_[LR][LU][NT].jdf$
 dplasma/lib/[sdc]trsm_[LR][LU][NT].jdf$
 dplasma/lib/[sdc]ger.jdf$
+dplasma/lib/[sdc]lauum_[LU].jdf$
 dplasma/lib/[sdc]potrf_[LU].jdf$
 dplasma/lib/[sdc]trtri_[LU].jdf$
 dplasma/lib/[sdc]gelqf.jdf$
@@ -133,6 +134,7 @@ dplasma/lib/[sdcz]syrk_[LU][NT].[ch]$
 dplasma/lib/[sdcz]trmm_[LR][LU][NT].[ch]$
 dplasma/lib/[sdcz]trsm_[LR][LU][NT].[ch]$
 dplasma/lib/[sdcz]ger.[ch]$
+dplasma/lib/[sdcz]lauum_[LU].[ch]$
 dplasma/lib/[sdcz]potrf_[LU].[ch]$
 dplasma/lib/[sdcz]trtri_[LU].[ch]$
 dplasma/lib/[sdcz]gelqf.[ch]$
@@ -192,9 +194,11 @@ dplasma/lib/[sdc]syrk_wrapper.c$
 dplasma/lib/[sdc]trmm_wrapper.c$
 dplasma/lib/[sdc]trsm_wrapper.c$
 dplasma/lib/[sdc]ger_wrapper.c$
+dplasma/lib/[sdc]lauum_wrapper.c$
 dplasma/lib/[sdc]posv_wrapper.c$
 dplasma/lib/[sdc]potrf_wrapper.c$
 dplasma/lib/[sdc]potrs_wrapper.c$
+dplasma/lib/[sdc]potri_wrapper.c$
 dplasma/lib/[sdc]trtri_wrapper.c$
 dplasma/lib/[sdc]gelqf_wrapper.c$
 dplasma/lib/[sdc]geqrf_wrapper.c$

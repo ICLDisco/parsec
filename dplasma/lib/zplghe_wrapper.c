@@ -46,7 +46,7 @@ dplasma_zplghe_operator( dague_execution_unit_t *eu,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zplghe_New - Generates the object that generates a random hermitian
  * matrix by tiles.
@@ -106,7 +106,7 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zplghe_Destruct - Free the data structure associated to an object
  *  created with dplasma_zplghe_New().
@@ -132,7 +132,7 @@ dplasma_zplghe_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zplghe - Generates a random hermitian matrix by tiles.
  *

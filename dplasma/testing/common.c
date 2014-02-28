@@ -639,7 +639,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #if defined(HAVE_MPI)
     int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    asprintf(&filename, "%s.%d.profile", argvzero, rank);
+    asprintf(&filename, "%s-%d.profile", argvzero, rank);
 #else
     asprintf(&filename, "%s.profile", argvzero);
 #endif

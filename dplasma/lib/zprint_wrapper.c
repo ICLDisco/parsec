@@ -16,7 +16,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  * dplasma_zprint - Print a matrix tile by tile.
  *

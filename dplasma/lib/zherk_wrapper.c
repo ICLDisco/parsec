@@ -19,7 +19,7 @@
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasm_zherk_New - Generates the object that performs the following operation
  *
@@ -126,7 +126,7 @@ dplasma_zherk_New( PLASMA_enum uplo,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zherk_Destruct - Free the data structure associated to an object
  *  created with dplasma_zherk_New().
@@ -154,7 +154,7 @@ dplasma_zherk_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasm_zherk - Performs the following operation
  *

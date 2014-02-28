@@ -297,6 +297,19 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t us
 
 static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
 {
+#if DAGUE_DEBUG_VERBOSE != 0
+    data_repo_entry_t *e;
+    int h;
+
+    for( h = 0; h < (int)repo->nbentries; h++ ) {
+        for(e = repo->heads[h].first_entry;
+            e != NULL;
+            e = (data_repo_entry_t*)e->data_repo_next_entry) {
+            DEBUG(("entry %p/%" PRIu64 " of hash table %p has a usage count of %u/%u and is %s retained\n",
+                   e, e->key, repo, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more"));
+        }
+    }
+#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
     DAGUE_STAT_DECREASE(mem_hashtable,  sizeof(data_repo_t) + sizeof(data_repo_head_t) * (repo->nbentries-1) + STAT_MALLOC_OVERHEAD);
     free(repo);
 }

@@ -16,9 +16,12 @@ if (DOXYGEN_FOUND)
     set(PARSEC_DOX_SRCS "${PARSEC_DOX_SRCS} ${_file}" )
   endforeach()
 
+  set(PARSEC_DOX_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/doxygen/groups.dox ${PARSEC_DOX_SRCS}" )
+
   #-- Configure the Template Doxyfile for our specific project
   configure_file(${CMAKE_CURRENT_SOURCE_DIR}/doxygen/Doxyfile.in
                  ${CMAKE_CURRENT_BINARY_DIR}/doxygen/Doxyfile @ONLY IMMEDIATE )
+
   #-- Add a custom target to run Doxygen when ever the project is built
   if(BUILD_DOCUMENTATION)
     add_custom_target (docs ALL

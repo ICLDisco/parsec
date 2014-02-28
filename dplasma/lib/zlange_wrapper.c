@@ -23,7 +23,7 @@ static inline void *fake_data_of(struct dague_ddesc *mat, ...)
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlange_New - Generates the object that computes the value
  *
@@ -178,7 +178,7 @@ dplasma_zlange_New( PLASMA_enum ntype,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlange_Destruct - Free the data structure associated to an object
  *  created with dplasma_zlange_New().
@@ -213,7 +213,7 @@ dplasma_zlange_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zlange - Computes the value
  *

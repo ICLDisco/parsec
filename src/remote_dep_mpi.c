@@ -493,7 +493,7 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
 /**
  * Trigger the local reception of a remote task data. Upon completion of all
  * pending receives related to a remote task completion, we call the
- * release_deps tp enable all local tasks and then start the activation
+ * release_deps to enable all local tasks and then start the activation
  * propagation.
  */
 static dague_remote_deps_t*
@@ -532,7 +532,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
     }
 
 #ifdef DAGUE_DIST_COLLECTIVES
-    /* Corresponding comment below on the propogation part */
+    /* Corresponding comment below on the propagation part */
     if(0 == origin->incoming_mask) {
         remote_dep_inc_flying_messages(task.dague_object,
                                        eu_context->virtual_process->dague_context);
@@ -1326,7 +1326,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
     dague_comm_callback_t* cb;
     void* data;
     MPI_Datatype dtt;
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1352,7 +1352,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
         data  = ADATA(deps->output[k].data.ptr);
         dtt   = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)\n",
                item->cmd.activate.peer, k, task->deps, data, type_name, tag+k, deps->output[k].data.displ));
@@ -1501,7 +1501,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     /* Release all the already satisfied deps without posting the RDV */
     if(complete_mask) {
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",

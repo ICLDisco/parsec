@@ -209,8 +209,8 @@ char * dump_expr(void **elem, void *arg)
 
     string_arena_init(sa);
 
-    la = string_arena_new(8);
-    ra = string_arena_new(8);
+    la = string_arena_new(64);
+    ra = string_arena_new(64);
 
     li.sa = la;
     li.prefix = expr_info->prefix;
@@ -2941,7 +2941,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
         }
     }
 
-    coutput("  return __h;\n");
+    coutput("  return __h; (void)__dague_object;\n");
     coutput("}\n\n");
     string_arena_free(sa);
 }
@@ -3559,7 +3559,8 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
                 "  this_task->prof_info.desc = (dague_ddesc_t*)__dague_object->super.%s;\n"
                 "  this_task->prof_info.id   = ((dague_ddesc_t*)(__dague_object->super.%s))->data_key((dague_ddesc_t*)__dague_object->super.%s, %s);\n"
                 "#endif  /* defined(DAGUE_PROF_TRACE) */\n",
-                f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
+                f->predicate->func_or_mem,
+                f->predicate->func_or_mem, f->predicate->func_or_mem,
                 UTIL_DUMP_LIST(sa3, f->predicate->parameters, next,
                                dump_expr, (void*)&linfo,
                                "", "", ", ", "") );
@@ -4237,6 +4238,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "    ", "nc") );
                 } else {
+                    UTIL_DUMP_LIST(sa_temp, dl->guard->calltrue->parameters, next,
+                                   dump_expr, (void*)&info, "", "", ", ", "");
+                    string_arena_add_string(sa_coutput,
+                                            "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                            (1U << dl->dep_index), dl->guard->calltrue->func_or_mem,
+                                            string_arena_get_string(sa_temp));
+                    string_arena_init(sa_temp);
                     flowtomem = 1;
                 }
                 break;
@@ -4251,6 +4259,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                             jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->calltrue, JDF_OBJECT_LINENO(dl),
                                                                         "      ", "nc") );
                 } else {
+                    UTIL_DUMP_LIST(sa_temp, dl->guard->calltrue->parameters, next,
+                                   dump_expr, (void*)&info, "", "", ", ", "");
+                    string_arena_add_string(sa_coutput,
+                                            "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                            (1U << dl->dep_index), dl->guard->calltrue->func_or_mem,
+                                            string_arena_get_string(sa_temp));
+                    string_arena_init(sa_temp);
                     flowtomem = 1;
                 }
                 break;
@@ -4301,6 +4316,13 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                                                 jdf_dump_context_assignment(sa1, jdf, fl, string_arena_get_string(sa_ontask), dl->guard->callfalse, JDF_OBJECT_LINENO(dl),
                                                                             "      ", "nc") );
                     } else {
+                        UTIL_DUMP_LIST(sa_temp, dl->guard->callfalse->parameters, next,
+                                       dump_expr, (void*)&info, "", "", ", ", "");
+                        string_arena_add_string(sa_coutput,
+                                                "    /* action_mask & 0x%x goes to data %s(%s) */\n",
+                                                (1U << dl->dep_index), dl->guard->callfalse->func_or_mem,
+                                                string_arena_get_string(sa_temp));
+                        string_arena_init(sa_temp);
                         flowtomem = 1;
                     }
                 }

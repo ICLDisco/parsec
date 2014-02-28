@@ -31,7 +31,7 @@ ztrsmR(k, m)
   /* Locality */
   : dataA(m, k)
 
-  CTL   ctl  -> (k == 0) ? ctl ztrtri(0)
+  CTL   ctl  -> (k == 0) ? ctlr ztrtri(0)
 
   READ  A    <- A ztrsm_in_A(k)        [type = LOWER_TILE]
 
@@ -73,15 +73,16 @@ zgemm(k, m, n)
   /* Locality */
   : dataA(m, n)
 
+    /* Release ztrsmL using A as C in next step */
+  CTL   ctlA -> (m == (k+1)) ? ctlA ztrsmL(k+1, k)
+    /* Release GEMM using A as C in next step */
+             -> (m >  (k+1)) ? ctlC zgemm(k+1, m, k)
+
     /* Release ztrsmL that will modify the local B as C */
   CTL   ctlB -> ctlB ztrsmL(k, n)
 
     /* Wait until C is not used as A anymore */
-  CTL   ctlA <- (n == (k-1)) ? ctlA zgemm(k-1, m, 0 .. (n-1))
-    /* Release ztrsmL using A as C in next step */
-             -> (m == (k+1)) ? ctlA ztrsmL(k+1, k)
-    /* Release GEMM using A as C in next step */
-             -> (m >  (k+1)) ? ctlA zgemm(k+1, m, k)
+  CTL   ctlC <- (n == (k-1)) ? ctlA zgemm(k-1, m, 0 .. (n-1))
 
   READ  A    <- B ztrsmR(k, m)
 
@@ -125,10 +126,14 @@ ztrsmL(k, n)
   /* Locality */
   : dataA(k, n)
 
-  CTL   ctlA <- (n == (k-1)) & (k > 1) ? ctlA zgemm( k-1, k, 0 .. k-2 )
-  CTL   ctlB <- (k < (descA.mt-2)) ? ctlB zgemm( k, k+1 .. (descA.mt-1), n )
+    /* Wait until no more gemms using local B as their A */
+  CTL   ctlA <- ((n == (k-1)) && (k > 1)) ? ctlA zgemm( k-1, k, 0 .. (k-2) )
 
-  CTL   ctl  -> ctl ztrtri(k)
+    /* Wait until no more gemms using local B as their B */
+  CTL   ctlB <- (k < (descA.mt-1)) ? ctlB zgemm( k, (k+1) .. (descA.mt-1), n )
+
+    /* Release the trtri on A(k,k) */
+  CTL   ctl  -> ctll ztrtri(k)
 
   READ  A    <- A ztrsm_in_A(k)        [type = LOWER_TILE]
   RW    B    <- (k == (n+1)) ? B ztrsmR(k-1, k)
@@ -177,8 +182,8 @@ ztrtri(k)
   /* Locality */
   : dataA(k, k)
 
-  CTL   ctl  <- (k == 0) ? ctl ztrsmR(0, 1 .. descA.mt-1)
-             <- (k >  0) ? ctl ztrsmL(k, 0 .. k-1)
+  CTL   ctlr  <- ((k == 0)  && (descA.mt > 1)) ? ctl ztrsmR(0, 1 .. descA.mt-1)
+  CTL   ctll  <-  (k > 0)                      ? ctl ztrsmL(k, 0 .. k-1)
 
   RW    A    <- dataA(k,k)     [type = LOWER_TILE]
              -> dataA(k,k)     [type = LOWER_TILE]

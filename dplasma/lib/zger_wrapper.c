@@ -16,7 +16,6 @@
  *******************************************************************************
  *
  * @ingroup dplasma_internal
- * @ingroup dplasma_complex64_t
  *
  *  dplasma_zger_internal_New - Generates the object that performs the gerc or
  *      geru operation
@@ -117,7 +116,7 @@ dplasma_zger_internal( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgeru_New - Generates the object that performs one of the following
  *  vector-matrix operations
@@ -173,7 +172,7 @@ dplasma_zgeru_New( const dague_complex64_t alpha,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgeru_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgeru_New().
@@ -199,7 +198,7 @@ dplasma_zgeru_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgeru - Performs one of the following vector-matrix operations
  *
@@ -256,7 +255,7 @@ dplasma_zgeru( dague_context_t *dague,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgerc_New - Generates the object that performs one of the following
  *  vector-matrix operations
@@ -312,7 +311,7 @@ dplasma_zgerc_New( dague_complex64_t alpha,
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgerc_Destruct - Free the data structure associated to an object
  *  created with dplasma_zgerc_New().
@@ -338,7 +337,7 @@ dplasma_zgerc_Destruct( dague_object_t *o )
 /**
  *******************************************************************************
  *
- * @ingroup dplasma_complex64_t
+ * @ingroup dplasma_complex64
  *
  *  dplasma_zgerc - Performs one of the following vector-matrix operations
  *
