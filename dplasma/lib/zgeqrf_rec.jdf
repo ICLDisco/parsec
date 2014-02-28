@@ -23,9 +23,9 @@ extern "C" %{
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 
-#define RECURSIVE_GEQRT
+//#define RECURSIVE_GEQRT
 //#define RECURSIVE_TSQRT
-#define RECURSIVE_UNMQR
+//#define RECURSIVE_UNMQR
 //#define RECURSIVE_TSMQR
 
 %}
@@ -281,13 +281,14 @@ BODY
         small_descT->mat  = T;
 
         /* dague_object */
-        dague_ztsqrt = dplasma_ztsqrt_New((tiled_matrix_desc_t *)small_descA1,
-                                          (tiled_matrix_desc_t *)small_descA2,
-                                          (tiled_matrix_desc_t *)small_descT );
+        dague_ztsqrt = dplasma_zgeqrfr_tsqrt_New((tiled_matrix_desc_t *)small_descA1,
+                                                 (tiled_matrix_desc_t *)small_descA2,
+                                                 (tiled_matrix_desc_t *)small_descT,
+                                                 p_work, p_tau );
 
         /* recursive call */
         dague_recursivecall( context, this_task,
-                             dague_ztsqrt, dplasma_ztsqrt_Destruct,
+                             dague_ztsqrt, dplasma_zgeqrfr_tsqrt_Destruct,
                              3, small_descA1, small_descA2, small_descT );
 
         return -1;
