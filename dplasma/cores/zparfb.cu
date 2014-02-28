@@ -137,19 +137,19 @@
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-inline static cublasOperation_t PLASMA_TRANS_TO_CUBLAS_TRANS(PLASMA_enum trans)
+inline static char PLASMA_TRANS_TO_CUBLAS_TRANS(PLASMA_enum trans)
 {
     if (trans == PlasmaNoTrans) {
-        return CUBLAS_OP_N;
+        return 'N';
     } else if (trans == PlasmaTrans) {
-        return CUBLAS_OP_T;
+        return 'T';
     } else {
-        return CUBLAS_OP_C;
+        return 'C';
     }
 }
 
 
-extern "C" int
+extern "C" void
 GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
 	            int M1, int N1, int M2, int N2, int K, int L,
     	              dague_complex64_t *A1, int LDA1,
@@ -157,7 +157,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
     	        const dague_complex64_t *V, int LDV,
     	        const dague_complex64_t *T, int LDT,
     	              dague_complex64_t *WORK, int LDWORK,
-    	              CUstream *stream)
+    	              CUstream stream)
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex zzero = make_cuDoubleComplex(0.0, 0.0);
@@ -174,51 +174,47 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
         fprintf(stderr, "Illegal value of side");
-        return -1;
+        return;
     }
     if ((trans != PlasmaNoTrans) && (trans != PlasmaConjTrans)) {
         fprintf(stderr, "Illegal value of trans");
-        return -2;
+        return;
     }
     if ((direct != PlasmaForward) && (direct != PlasmaBackward)) {
         fprintf(stderr, "Illegal value of direct");
-        return -3;
+        return;
     }
     if ((storev != PlasmaColumnwise) && (storev != PlasmaRowwise)) {
         fprintf(stderr, "Illegal value of storev");
-        return -4;
+        return;
     }
     if (M1 < 0) {
         fprintf(stderr, "Illegal value of M1");
-        return -5;
+        return;
     }
     if (N1 < 0) {
         fprintf(stderr, "Illegal value of N1");
-        return -6;
+        return;
     }
     if ((M2 < 0) ||
         ( (side == PlasmaRight) && (M1 != M2) ) ) {
         fprintf(stderr, "Illegal value of M2");
-        return -7;
+        return;
     }
     if ((N2 < 0) ||
         ( (side == PlasmaLeft) && (N1 != N2) ) ) {
         fprintf(stderr, "Illegal value of N2");
-        return -8;
+        return;
     }
     if (K < 0) {
         fprintf(stderr, "Illegal value of K");
-        return -9;
+        return;
     }
 
     /* Quick return */
     if ((M1 == 0) || (N1 == 0) || (M2 == 0) || (N2 == 0) || (K == 0))
-        return PLASMA_SUCCESS;
+        return;
 
-    /* set cuda stream */
-    if (stream != NULL) {
-    	cublasSetKernelStream( *stream );
-    }
 
     if (direct == PlasmaForward) {
 
@@ -242,7 +238,8 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                     WORK, LDWORK); */
 
              /* W = W + op(V) * A2  op = Trans */
-            cublasZgemm(CUBLAS_OP_T, CUBLAS_OP_N,
+            cublasSetKernelStream( stream );
+            cublasZgemm('T', 'N',
                         K, N1, M2,
                         zone,
                         (cuDoubleComplex*)V     /* K*M2  */ , LDV,
@@ -251,6 +248,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                         (cuDoubleComplex*)WORK  /* K*N1  */, LDWORK);
 
             /* W = W + A1*/
+            cublasSetKernelStream( stream );
             for(j = 0; j < N1; j++) {
                 cublasZaxpy(
                         K, zone,
@@ -263,14 +261,16 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                 CblasColMajor, CblasLeft, CblasUpper,
                 (CBLAS_TRANSPOSE)trans, CblasNonUnit, K, N2,
                 CBLAS_SADDR(zone), T, LDT, WORK, LDWORK);*/
-            cublasZtrmm( CUBLAS_SIDE_LEFT, CUBLAS_FILL_MODE_UPPER,
-                        PLASMA_TRANS_TO_CUBLAS_TRANS(trans), CUBLAS_DIAG_NON_UNIT,
+            cublasSetKernelStream( stream );
+            cublasZtrmm( 'L', 'U',
+                        PLASMA_TRANS_TO_CUBLAS_TRANS(trans), 'N',
                         K, N2,
                         zone, 
                         (cuDoubleComplex*)T, LDT,
                         (cuDoubleComplex*)WORK, LDWORK);
 
             /* A1 = A1 - W */
+            cublasSetKernelStream( stream );
             for(j = 0; j < N1; j++) {
                 /*cblas_zaxpy(
                         K, CBLAS_SADDR(mzone),
@@ -290,7 +290,8 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                     A2, LDA2,
                     V, LDV,
                     WORK, LDWORK);*/
-            cublasZgemm(CUBLAS_OP_N, CUBLAS_OP_N,
+            cublasSetKernelStream( stream );
+            cublasZgemm('N', 'N',
                         M2, N2, K,
                         mzone,
                         (cuDoubleComplex*)V     /* M2*K  */, LDV,
@@ -378,8 +379,8 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
     }
     else {
         fprintf(stderr, "Not implemented (Backward / Left or Right)");
-        return PLASMA_ERR_NOT_SUPPORTED;
+        return;
     }
 
-    return PLASMA_SUCCESS;
+    return;
 }

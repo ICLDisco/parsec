@@ -507,6 +507,7 @@ int dague_gpu_init(dague_context_t *dague_context)
             cudastatus = cudaStreamCreate( &(exec_stream->cuda_stream) );
             DAGUE_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
                                     {break;} );
+            exec_stream->workspace    = NULL;
             exec_stream->max_events   = DAGUE_MAX_EVENTS_PER_STREAM;
             exec_stream->executed     = 0;
             exec_stream->start        = 0;
@@ -875,6 +876,7 @@ int dague_gpu_data_unregister( dague_ddesc_t* ddesc )
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         if( gpu_device->memory ) {
+            dague_gpu_free_workspace(gpu_device);
             gpu_malloc_fini( gpu_device->memory );
             free( gpu_device->memory );
             gpu_device->memory = NULL;
@@ -1006,7 +1008,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     return 0;
 }
 
-#define WEI_DEBUG
+//#define WEI_DEBUG
 /**
  * If the most current version of the data is not yet available on the GPU memory
  * schedule a transfer.
@@ -1089,6 +1091,56 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     return 0;
 }
 
+
+void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size)
+{
+    void *work = NULL;
+
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+    if (gpu_stream->workspace == NULL) {
+        gpu_stream->workspace = (dague_gpu_workspace_t *)malloc(sizeof(dague_gpu_workspace_t));
+        gpu_stream->workspace->total_workspace = DAGUE_GPU_MAX_WORKSPACE;
+        gpu_stream->workspace->stack_head = DAGUE_GPU_MAX_WORKSPACE - 1;
+        
+        int i, nb_unit;
+        nb_unit = (size + GPU_MALLOC_UNIT_SIZE - 1) / GPU_MALLOC_UNIT_SIZE;
+        for (i = 0; i < DAGUE_GPU_MAX_WORKSPACE; i++) {
+            gpu_stream->workspace->workspace[i] = gpu_malloc( gpu_device->memory, nb_unit);
+        }
+    }
+    assert (gpu_stream->workspace->stack_head >= 0);
+    work = gpu_stream->workspace->workspace[gpu_stream->workspace->stack_head];
+    gpu_stream->workspace->stack_head --;
+#endif /* !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE) */
+    return work;
+}
+
+int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream)
+{
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+    gpu_stream->workspace->stack_head ++;
+    assert (gpu_stream->workspace->stack_head < DAGUE_GPU_MAX_WORKSPACE);
+#endif /* !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE) */
+    return 0;
+}
+
+int dague_gpu_free_workspace(gpu_device_t * gpu_device)
+{
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)  
+    int i, j;
+    for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
+        dague_gpu_exec_stream_t *gpu_stream = &(gpu_device->exec_stream[i]);
+        if (gpu_stream->workspace != NULL) {
+            for (j = 0; j < gpu_stream->workspace->total_workspace; j++) {
+                gpu_free( gpu_device->memory, gpu_stream->workspace->workspace[j] );
+            }
+            free(gpu_stream->workspace);
+            gpu_stream->workspace = NULL;
+        }
+    }
+#endif /* !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE) */
+    return 0;
+}
 
 #if DAGUE_GPU_USE_PRIORITIES
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
