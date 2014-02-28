@@ -462,7 +462,7 @@ static int check_inverse( dague_context_t *dague, int loud,
 
     PASTE_CODE_ALLOCATE_MATRIX(Id, 1,
         two_dim_block_cyclic, (&Id, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->super.nodes, twodA->grid.rank,
                                A->mb, A->nb, N, N, 0, 0,
                                N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
