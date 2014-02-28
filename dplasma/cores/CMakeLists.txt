@@ -94,9 +94,6 @@ set(SOURCES
 precisions_rules_py(generated_files
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
-precisions_rules_py(generated_cuda_files
-                 ${CORE_CUDA_SOURCES}
-                 PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the dplasma_cores lib
 link_directories(${COREBLAS_LIBRARY_DIRS})
@@ -111,27 +108,33 @@ add_dependencies(dplasma_cores
          dplasma_includes
          dplasma_cores_includes)
 
-if( NOT "${generated_cuda_files}" STREQUAL "" )
-  add_library(dplasma_cores_cuda
-    ${generated_cuda_files}
-  )
-  add_dependencies(dplasma_cores_cuda
-          dplasma_includes
-          dplasma_cores_includes)
-  target_link_libraries(dplasma_cores_cuda
-          ${COREBLAS_LIBRARIES}
-          ${EXTRA_LIBS}
-  )
-  cuda_add_cublas_to_target( dplasma_cores_cuda )
-  target_link_libraries(dplasma_cores dplasma_cores_cuda) 
-  install(TARGETS dplasma_cores
-          ARCHIVE DESTINATION lib
-          LIBRARY DESTINATION lib)
-endif()
-
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
+
+if( CUDA_FOUND )
+  precisions_rules_py(generated_cuda_files
+                 ${CORE_CUDA_SOURCES}
+                 PRECISIONS "${DPLASMA_PRECISIONS}")
+
+  if( NOT "${generated_cuda_files}" STREQUAL "" )
+    add_library(dplasma_cores_cuda
+      ${generated_cuda_files}
+      )
+    add_dependencies(dplasma_cores_cuda
+      dplasma_includes
+      dplasma_cores_includes)
+    target_link_libraries(dplasma_cores_cuda
+      ${COREBLAS_LIBRARIES}
+      ${EXTRA_LIBS}
+      )
+    cuda_add_cublas_to_target( dplasma_cores_cuda )
+    target_link_libraries(dplasma_cores dplasma_cores_cuda)
+    install(TARGETS dplasma_cores_cuda
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
+  endif()
+endif()
 
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include/cores)
