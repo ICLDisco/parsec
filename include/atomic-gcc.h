@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -60,6 +60,26 @@ static inline uint32_t dague_atomic_dec_32b( volatile uint32_t *location )
 {
     return __sync_sub_and_fetch(location, (uint32_t)1);
 }
+
+#if defined(DAGUE_ATOMIC_USE_GCC_128_BUILTINS)
+#define DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B
+static inline int dague_atomic_cas_128b( volatile __uint128_t* location, 
+                                            __uint128_t old_value,
+                                            __uint128_t new_value )
+{
+    return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
+}
+#else
+#include "debug.h"
+static inline int dague_atomic_cas_128b( volatile uint64_t* location, 
+                                            uint64_t old_value,
+                                            uint64_t new_value )
+{
+    ERROR(("Use of 128b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 set\n \n"));
+    (void)location; (void)old_value; (void)new_value;
+    return -1;
+}
+#endif
 
 #define DAGUE_ATOMIC_HAS_ATOMIC_ADD_32B
 static inline uint32_t dague_atomic_add_32b( volatile uint32_t *location, int32_t d )

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -53,9 +53,17 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 #include <stdlib.h>
 #include "atomic.h"
 
+#if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
+typedef __uint128_t dague_lifo_head_t;
+#define __dague_lifo_cas dague_atomic_cas_128b
+#else
+typedef dague_list_item_t* dague_lifo_head_t;
+#define __dague_lifo_cas dague_atomic_cas
+#endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
+
 struct dague_lifo_t {
-    dague_list_item_t *lifo_head;
     dague_list_item_t *lifo_ghost;
+    dague_lifo_head_t  lifo_head;
 };
 
 #if !defined(DAGUE_LIFO_ALIGNMENT_BITS)
@@ -65,11 +73,24 @@ struct dague_lifo_t {
 #define DAGUE_LIFO_ALIGNMENT      ( ( (1 << DAGUE_LIFO_ALIGNMENT_BITS ) < sizeof(void*) ) ? \
                                     ( sizeof(void*) ) : \
                                     ( 1 << DAGUE_LIFO_ALIGNMENT_BITS ) )
+
+#if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
+#define DAGUE_LIFO_HKEY(LIFO, h, c)      ((((dague_lifo_head_t)((uintptr_t)c))<<64) + \
+                                           ((dague_lifo_head_t)(uintptr_t)h))
+#define DAGUE_LIFO_KHEAD(LIFO, k)        ((dague_list_item_t*)(uintptr_t)(k))
+#define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(uintptr_t)(k>>64))
+#else
 #define DAGUE_LIFO_CNTMASK        (DAGUE_LIFO_ALIGNMENT-1)
 #define DAGUE_LIFO_PTRMASK        (~(DAGUE_LIFO_CNTMASK))
 #define DAGUE_LIFO_CNT( v )       ( (uintptr_t) ( (uintptr_t)(v) & DAGUE_LIFO_CNTMASK ) )
 #define DAGUE_LIFO_PTR( v )       ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
 #define DAGUE_LIFO_VAL( p, c)     ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
+                                        
+#define DAGUE_LIFO_HKEY(LIFO, h, n)      DAGUE_LIFO_VAL(h, ++((h)->aba_key))
+#define DAGUE_LIFO_KHEAD(LIFO, k)        DAGUE_LIFO_PTR(k)
+#define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(DAGUE_LIFO_CNT(k)))
+#endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
+
 
 /*
  * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric
@@ -96,7 +117,7 @@ struct dague_lifo_t {
  * pointer is an atomic operation so we don't have to protect it. */
 static inline int dague_lifo_is_empty( dague_lifo_t* lifo )
 {
-    return ( (DAGUE_LIFO_PTR(lifo->lifo_head) == lifo->lifo_ghost) ? 1 : 0);
+   return ( (DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head) == lifo->lifo_ghost) ? 1 : 0);
 }
 static inline int dague_lifo_nolock_is_empty( dague_lifo_t* lifo )
 {
@@ -111,13 +132,13 @@ static inline void dague_lifo_push( dague_lifo_t* lifo,
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
 
-    dague_list_item_t* tp = DAGUE_LIFO_VAL(item, (item->keeper_of_the_seven_keys + 1));
-
     do {
-        item->list_next = lifo->lifo_head;
-        if( dague_atomic_cas(&(lifo->lifo_head),
-                             (uintptr_t) item->list_next,
-                             (uintptr_t) tp) ) {
+       dague_lifo_head_t ohead = lifo->lifo_head;
+       dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, item, DAGUE_LIFO_KCNT(lifo, ohead)+(uint64_t)1);
+       item->list_next = DAGUE_LIFO_KHEAD(lifo, ohead);
+       if( __dague_lifo_cas(&(lifo->lifo_head),
+                            ohead,
+                            nhead) ) {
             return;
         }
         /* DO some kind of pause to release the bus */
@@ -131,8 +152,8 @@ static inline void dague_lifo_nolock_push( dague_lifo_t* lifo,
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
 
-    item->list_next = lifo->lifo_head;
-    lifo->lifo_head = item;
+    item->list_next = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
+    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, item, 0);
 }
 
 static inline void dague_lifo_chain( dague_lifo_t* lifo,
@@ -144,13 +165,15 @@ static inline void dague_lifo_chain( dague_lifo_t* lifo,
     DAGUE_ITEMS_ATTACH(lifo, items);
 
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
-    dague_list_item_t* tp = DAGUE_LIFO_VAL(items, (items->keeper_of_the_seven_keys + 1));
 
     do {
-        tail->list_next = lifo->lifo_head;
-        if( dague_atomic_cas(&(lifo->lifo_head),
-                             (uintptr_t) tail->list_next,
-                             (uintptr_t) tp) ) {
+        dague_lifo_head_t ohead = lifo->lifo_head;
+        tail->list_next = DAGUE_LIFO_KHEAD(lifo, ohead);
+        dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, items, tail->list_next);
+
+        if( __dague_lifo_cas(&(lifo->lifo_head),
+                             ohead,
+                             nhead) ) {
             return;
         }
         /* DO some kind of pause to release the bus */
@@ -166,54 +189,63 @@ static inline void dague_lifo_nolock_chain( dague_lifo_t* lifo,
 
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
 
-    tail->list_next = lifo->lifo_head;
-    lifo->lifo_head = items;
+    tail->list_next = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
+    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, items, 0);
 }
 
 static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
 {
-    dague_list_item_t *item, *save;
+    dague_list_item_t *item, *nitem;
+    dague_lifo_head_t ohead, nhead;
 
-    while(DAGUE_LIFO_PTR((item = lifo->lifo_head)) != lifo->lifo_ghost) {
-        if( dague_atomic_cas(&(lifo->lifo_head),
-                             (uintptr_t) item,
-                             (uintptr_t) DAGUE_LIFO_PTR(item)->list_next ) )
+    ohead = lifo->lifo_head;
+    item = DAGUE_LIFO_KHEAD(lifo, ohead);
+    nitem = DAGUE_LIST_ITEM_NEXT(item);
+    while(item != lifo->lifo_ghost) {
+        nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead));
+        /* if item changed (nitem possibly invalid), ohead is not current anymore
+         * and nhead is discarded */
+        if( __dague_lifo_cas(&(lifo->lifo_head),
+                             ohead,
+                             nhead ) )
             break;
+        ohead = lifo->lifo_head;
+        item = DAGUE_LIFO_KHEAD(lifo, ohead);
+        nitem = DAGUE_LIST_ITEM_NEXT(item);
         /* Do some kind of pause to release the bus */
     }
-    save = item;
-    item = DAGUE_LIFO_PTR(item);
     if( item == lifo->lifo_ghost ) return NULL;
-    item->keeper_of_the_seven_keys = DAGUE_LIFO_CNT(save);
     DAGUE_ITEM_DETACH(item);
     return item;
 }
 
 static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
 {
-    dague_list_item_t *item, *save;
-
-    item = lifo->lifo_head;
-    if( DAGUE_LIFO_PTR(item) == lifo->lifo_ghost )
-        return NULL;
-
-    if( dague_atomic_cas(&(lifo->lifo_head),
-                         (uintptr_t) item,
-                         (uintptr_t) DAGUE_LIFO_PTR(item)->list_next) )
-    {
-        save = item;
-        item = DAGUE_LIFO_PTR(item);
-        item->keeper_of_the_seven_keys = DAGUE_LIFO_CNT(save);
-        DAGUE_ITEM_DETACH(item);
-        return item;
-    }
-    return NULL;
+     dague_list_item_t *item, *nitem;
+     dague_lifo_head_t ohead, nhead;
+ 
+     ohead = lifo->lifo_head;
+     item = DAGUE_LIFO_KHEAD(lifo, ohead);
+     nitem = DAGUE_LIST_ITEM_NEXT(item);
+     
+     if( item == lifo->lifo_ghost )
+         return NULL;
+     
+     nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead)); 
+     /* if item changed, ohead is not current anymore and nhead is discarded */
+     if( __dague_lifo_cas(&(lifo->lifo_head),
+                          ohead,
+                          nhead ) ) { 
+         DAGUE_ITEM_DETACH(item);
+         return item;
+     }
+     return NULL;
 }
 
 static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )
 {
-    dague_list_item_t* item = lifo->lifo_head;
-    lifo->lifo_head = (dague_list_item_t*)item->list_next;
+    dague_list_item_t* item = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
+    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, item->list_next, 0);
     DAGUE_ITEM_DETACH(item);
     return item;
 }
