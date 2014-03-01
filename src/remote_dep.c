@@ -343,7 +343,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
         if( (remote_deps->outgoing_mask & (1U<<i)) && (NULL != output->data.data) ) {
             /* if propagated and not a CONTROL */
             assert(NULL != output->data.arena);
-            assert(NULL != output->data.layout);
+            assert(NULL != (void*)(intptr_t)(output->data.layout));
             OBJ_RETAIN(output->data.data);
         }
 
