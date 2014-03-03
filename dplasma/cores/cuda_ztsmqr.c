@@ -54,7 +54,8 @@ typedef void (*cuda_ztsmqr_t) (PLASMA_enum side, PLASMA_enum trans,
                                dague_complex64_t *A2, int LDA2,
                          const dague_complex64_t *V, int LDV,
                          const dague_complex64_t *T, int LDT,
-                               dague_complex64_t *WORK, int LDWORK,
+                               dague_complex64_t *WORK,  int LDWORK,
+                               dague_complex64_t *WORKC, int LDWORKC,
                                CUstream stream);
 
 static inline
@@ -203,7 +204,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
     wei_debug_printf("I am in submit\n");
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_ztsmqr_args_t        *args = (dague_ztsmqr_args_t*)gpu_task;
-    CUdeviceptr d_A1, d_A2, d_V, d_T, WORK;
+    CUdeviceptr d_A1, d_A2, d_V, d_T, WORK, WORKC;
     cudaError_t status;
 
     cuda_ztsmqr_t cuda_ztsmqr = (cuda_ztsmqr_t)cuda_gemm_functions[gpu_device->cuda_index];
@@ -220,10 +221,18 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
     tiled_matrix_desc_t *descT = (tiled_matrix_desc_t *)args->ddescT;
   //  WORK = (CUdeviceptr)gpu_malloc( gpu_device->memory, 1 );
     WORK = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB);
+    WORKC = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB);
     int LDWORK = args->IB;
 
     wei_debug_printf("nb %d, ib %d, WORK %p\n", descT->nb, args->IB, (void*)WORK);
 
+    DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                             gpu_stream->profiling,
+                             (-1 == gpu_stream->prof_event_key_start ?
+                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,                                                                                                                                        this_task->function->function_id) :
+                              gpu_stream->prof_event_key_start),
+                             this_task);
+   
     cuda_ztsmqr(args->side, args->trans,
                 args->M1, args->N1, args->M2, args->N2, args->K, args->IB,
                 (dague_complex64_t*)d_A1, args->lda1,
@@ -231,8 +240,10 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                 (dague_complex64_t*)d_V,  args->ldv,
                 (dague_complex64_t*)d_T,  args->ldt,
                 (dague_complex64_t*)WORK, LDWORK,
+                (dague_complex64_t*)WORKC, LDWORK,
                 gpu_stream->cuda_stream);
 
+    dague_gpu_push_workspace(gpu_device, gpu_stream);
     dague_gpu_push_workspace(gpu_device, gpu_stream);
 
    // gpu_free( gpu_device->memory, (void*)WORK );
@@ -451,11 +462,12 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
     }
     wei_debug_printf("m %d, n %d, k %d, A1 owner %d, A2 owner %d, dev_index %d\n", m, n, k, A1_dev_index, A2_dev_index, dev_index);
 
+    dev_index = 1;
+
     if( dev_index == 0 ) {
         wei_debug_printf("!!!!!!!!!!!!!!!!!!!!!!!! m %d, n %d, k %d go back to CPU\n", m, n, k);
         return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */
     }
-  //  dev_index = 1;
 
     gpu_task = (dague_ztsmqr_args_t*)malloc(sizeof(dague_ztsmqr_args_t));
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);

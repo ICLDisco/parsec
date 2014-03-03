@@ -156,7 +156,8 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
     	              dague_complex64_t *A2, int LDA2,
     	        const dague_complex64_t *V, int LDV,
     	        const dague_complex64_t *T, int LDT,
-    	              dague_complex64_t *WORK, int LDWORK,
+    	              dague_complex64_t *WORK,  int LDWORK,
+                      dague_complex64_t *WORKC, int LDWORKC,
     	              CUstream stream)
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
@@ -238,7 +239,8 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                     WORK, LDWORK); */
 
              /* W = W + op(V) * A2  op = Trans */
-            cublasSetKernelStream( stream );
+          //  cublasSetKernelStream( stream );
+            printf("GEMM M %d, N %d, K %d\n", K, N1, M2);
             cublasZgemm('T', 'N',
                         K, N1, M2,
                         zone,
@@ -248,7 +250,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                         (cuDoubleComplex*)WORK  /* K*N1  */, LDWORK);
 
             /* W = W + A1*/
-            cublasSetKernelStream( stream );
+           // cublasSetKernelStream( stream );
             for(j = 0; j < N1; j++) {
                 cublasZaxpy(
                         K, zone,
@@ -261,23 +263,35 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                 CblasColMajor, CblasLeft, CblasUpper,
                 (CBLAS_TRANSPOSE)trans, CblasNonUnit, K, N2,
                 CBLAS_SADDR(zone), T, LDT, WORK, LDWORK);*/
-            cublasSetKernelStream( stream );
-            cublasZtrmm( 'L', 'U',
-                        PLASMA_TRANS_TO_CUBLAS_TRANS(trans), 'N',
-                        K, N2,
-                        zone, 
-                        (cuDoubleComplex*)T, LDT,
-                        (cuDoubleComplex*)WORK, LDWORK);
+        //    cublasSetKernelStream( stream );
+            if (WORKC == NULL) {
+                cublasZtrmm( 'L', 'U',
+                            PLASMA_TRANS_TO_CUBLAS_TRANS(trans), 'N',
+                            K, N2,
+                            zone, 
+                            (cuDoubleComplex*)T, LDT,
+                            (cuDoubleComplex*)WORK, LDWORK);
+                WORKC = WORK;
+                LDWORKC = LDWORK;
+            } else {
+                cublasZgemm( PLASMA_TRANS_TO_CUBLAS_TRANS(trans), 'N',
+                            K, N2, K,
+                            zone,
+                            T, LDT,
+                            WORK, LDWORK,
+                            0.0,
+                            WORKC, LDWORKC);
+            }
 
             /* A1 = A1 - W */
-            cublasSetKernelStream( stream );
+        //    cublasSetKernelStream( stream );
             for(j = 0; j < N1; j++) {
                 /*cblas_zaxpy(
                         K, CBLAS_SADDR(mzone),
                         &WORK[LDWORK*j], 1,
                         &A1[LDA1*j], 1);*/
                 cublasZaxpy(K, mzone,
-                            (cuDoubleComplex*)(&WORK[LDWORK*j]), 1,
+                            (cuDoubleComplex*)(&WORKC[LDWORKC*j]), 1,
                             (cuDoubleComplex*)(&A1[LDA1*j]), 1);
             }
 
@@ -290,12 +304,13 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                     A2, LDA2,
                     V, LDV,
                     WORK, LDWORK);*/
-            cublasSetKernelStream( stream );
+      //      cublasSetKernelStream( stream );
+            printf("GEMM M %d, N %d, K %d\n", M2, N2, K);
             cublasZgemm('N', 'N',
                         M2, N2, K,
                         mzone,
                         (cuDoubleComplex*)V     /* M2*K  */, LDV,
-                        (cuDoubleComplex*)WORK  /* K*N2  */, LDWORK,
+                        (cuDoubleComplex*)WORKC  /* K*N2  */, LDWORKC,
                         zone,
                         (cuDoubleComplex*)A2    /* m2*N2 */, LDA2);
         }

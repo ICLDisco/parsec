@@ -23,10 +23,12 @@ extern "C" %{
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 
-#define RECURSIVE_GEQRT
-#define RECURSIVE_TSQRT
-#define RECURSIVE_UNMQR
-#define RECURSIVE_TSMQR
+//#define RECURSIVE_GEQRT
+//#define RECURSIVE_TSQRT
+//#define RECURSIVE_UNMQR
+//#define RECURSIVE_TSMQR
+
+//#define DAGUE_DRY_RUN
 
 %}
 
@@ -38,7 +40,7 @@ p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)   *de
 
 descA   [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 descT   [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
-smallnb [type = "int" hidden=on default="(3*ib)" ]
+smallnb [type = "int" hidden=on default="(1*ib)" ]
 
 zgeqrt_typechange(k)  [profile = off]
   /* Execution space */

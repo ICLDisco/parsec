@@ -126,7 +126,8 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
     	              dague_complex64_t *A2, int LDA2,
     	        const dague_complex64_t *V, int LDV,
     	        const dague_complex64_t *T, int LDT,
-    	              dague_complex64_t *WORK, int LDWORK,
+    	              dague_complex64_t *WORK,  int LDWORK,
+                      dague_complex64_t *WORKC, int LDWORKC,
     		          CUstream stream);
 
 extern "C" void
@@ -136,7 +137,8 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
                 dague_complex64_t *A2, int LDA2,
                 const dague_complex64_t *V, int LDV,
                 const dague_complex64_t *T, int LDT,
-                dague_complex64_t *WORK, int LDWORK,
+                dague_complex64_t *WORK,  int LDWORK,
+                dague_complex64_t *WORKC, int LDWORKC,
                 CUstream stream)
 {
     int i, i1, i3;
@@ -260,7 +262,8 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
             A2, LDA2,
             &V[LDV*i], LDV,
             &T[LDT*i], LDT,
-            WORK, LDWORK, NULL);
+            WORK, LDWORK,
+            WORKC,LDWORKC, stream);
     }
     return;
 }
