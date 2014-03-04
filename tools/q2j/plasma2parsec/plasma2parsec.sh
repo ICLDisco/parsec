@@ -42,7 +42,7 @@ generatejdf()
 #    sed -i '/#pragma/d' $dstcpp
 
     echo "  Generate the jdf file"
-    $q2j -anti $dstcpp > $dstjdf
+    $q2j -phony_tasks -shmem -anti $dstcpp > $dstjdf
 
     echo "   Postprocessing"
     # Replace PLASMA_Complex64_t by Dague
