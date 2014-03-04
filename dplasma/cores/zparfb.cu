@@ -148,6 +148,14 @@ inline static char PLASMA_TRANS_TO_CUBLAS_TRANS(PLASMA_enum trans)
     }
 }
 
+#define LACPY
+
+extern "C" void
+magmablas_zlacpy(
+    char uplo, int m, int n,
+    const dague_complex64_t *dA, int ldda, dague_complex64_t alpha,
+    dague_complex64_t       *dB, int lddb, CUstream stream );
+
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
@@ -240,7 +248,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
 
              /* W = W + op(V) * A2  op = Trans */
           //  cublasSetKernelStream( stream );
-            printf("GEMM M %d, N %d, K %d\n", K, N1, M2);
+           // printf("GEMM M %d, N %d, K %d\n", K, N1, M2);
             cublasZgemm('T', 'N',
                         K, N1, M2,
                         zone,
@@ -251,12 +259,21 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
 
             /* W = W + A1*/
            // cublasSetKernelStream( stream );
+
+#if defined (AXPY)
             for(j = 0; j < N1; j++) {
                 cublasZaxpy(
                         K, zone,
                         (cuDoubleComplex*)(&A1[LDA1*j]), 1,
                         (cuDoubleComplex*)(&WORK[LDWORK*j]), 1);
             }
+#endif /* AXPY */
+
+#if defined (LACPY)
+            magmablas_zlacpy( 'A', K, N1,
+                              A1, LDA1, zone,
+                              WORK, LDWORK, stream );
+#endif /* LACPY */
 
             /* W = op(T) * W */
            /* cblas_ztrmm(
@@ -285,6 +302,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
 
             /* A1 = A1 - W */
         //    cublasSetKernelStream( stream );
+#if defined (AXPY)            
             for(j = 0; j < N1; j++) {
                 /*cblas_zaxpy(
                         K, CBLAS_SADDR(mzone),
@@ -294,6 +312,13 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                             (cuDoubleComplex*)(&WORKC[LDWORKC*j]), 1,
                             (cuDoubleComplex*)(&A1[LDA1*j]), 1);
             }
+#endif /* AXPY */
+
+#if defined (LACPY)
+            magmablas_zlacpy( 'A', K, N1,
+                              WORKC, LDWORKC, mzone,
+                              A1, LDA1, stream );
+#endif /* LACPY */
 
             /* A2 = A2 - op(V) * W  */
             /* W also changes: W = V * W, A2 = A2 - W */
@@ -305,7 +330,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                     V, LDV,
                     WORK, LDWORK);*/
       //      cublasSetKernelStream( stream );
-            printf("GEMM M %d, N %d, K %d\n", M2, N2, K);
+           // printf("GEMM M %d, N %d, K %d\n", M2, N2, K);
             cublasZgemm('N', 'N',
                         M2, N2, K,
                         mzone,
