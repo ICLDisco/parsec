@@ -63,7 +63,6 @@ static inline char* arprintf(const char* fmt, ...)
 #   define _DAGUE_DEBUG_HISTORY(ARG)
 #endif
 
-#ifdef HAVE_MPI
 #   define _DAGUE_OUTPUT(PRFX, ARG) do {                                \
         char* __debug_str = arprintf ARG ;                              \
         if(NULL == dague_debug_file) dague_debug_file = stderr;         \
@@ -71,19 +70,7 @@ static inline char* arprintf(const char* fmt, ...)
         free(__debug_str);                                              \
     } while(0)
 
-#   define ABORT() MPI_Abort(MPI_COMM_SELF, -1)
-
-#else /* HAVE_MPI */
-#   define _DAGUE_OUTPUT(PRFX, ARG) do {                                \
-        char* __debug_str = arprintf ARG ;                              \
-        if(NULL == dague_debug_file) dague_debug_file = stderr;         \
-        fprintf(dague_debug_file, "[" PRFX "DAGuE]:\t%s", __debug_str); \
-        free(__debug_str);                                              \
-    } while(0)
-
 #   define ABORT() abort()
-
-#endif /* HAVE_MPI */
 
 #define STATUS(ARG) do { \
     _DAGUE_OUTPUT("..", ARG); \
