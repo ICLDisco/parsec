@@ -40,7 +40,7 @@ p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)   *de
 
 descA   [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 descT   [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
-smallnb [type = "int" hidden=on default="(1*ib)" ]
+smallnb [type = "int" hidden=on default="(3*ib)" ]
 
 zgeqrt_typechange(k)  [profile = off]
   /* Execution space */

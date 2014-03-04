@@ -18,12 +18,20 @@ if(CUDA_FOUND)
          zgemm_11_12_13.cu
          ztsmqr.cu
          zparfb.cu
+         zlacpy.cu
+         zgemm_kernel_T_N_32_32_8_8_8_ssrfb.cu
+         zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
+         zssrfb.cu
     )
     set( CUDA13_SOURCES ${CUDA11_SOURCES} )
     set( CUDA20_SOURCES
          zgemm_20_30.cu
          ztsmqr.cu
          zparfb.cu
+         zlacpy.cu
+         zgemm_kernel_T_N_32_32_8_8_8_ssrfb.cu
+         zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
+         zssrfb.cu
     )
     set( CUDA35_SOURCES ${CUDA11_SOURCES} )
 

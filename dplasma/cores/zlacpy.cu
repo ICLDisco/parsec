@@ -12,7 +12,7 @@
 
 
 #define     max(a, b)   ((a) > (b) ? (a) : (b))
-#define NB 64
+#define NB 128
 
 /* =====================================================================
     Matrix is m x n, and is divided into block rows, each NB x n.
@@ -33,7 +33,7 @@ zlacpy_kernel(
         dA += i;
         dB += i;
         const dague_complex64_t *dAend = dA + n*ldda;
-        while( dA < dAend ) {
+        for( ;dA < dAend; ) {
             *dB = (*dA)*alpha + *dB;
             dA += ldda;
             dB += lddb;

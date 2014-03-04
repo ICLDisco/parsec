@@ -22,6 +22,7 @@
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
 #include "cuda_ztsmqr.h"
+#include <cublas.h>
 
 #define flow_A1  0
 #define flow_A2  1
@@ -39,6 +40,20 @@
 extern void** cuda_gemm_functions;
 extern int dague_cuda_output_stream;
 
+// TODO: ONLY FOR TESTING, WILL REMOVE LATER 
+#include <sys/time.h>
+double get_cur_time() {
+    struct timeval   tv;
+    struct timezone  tz;
+    double cur_time;
+
+    gettimeofday(&tv, &tz);
+    cur_time = tv.tv_sec + tv.tv_usec / 1000000.0;
+
+    return cur_time;
+}
+
+
 /*
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 extern cuda_zgemm_t magmablas_ZGEMM_SM11;
@@ -52,8 +67,8 @@ typedef void (*cuda_ztsmqr_t) (PLASMA_enum side, PLASMA_enum trans,
                                int M1, int N1, int M2, int N2, int K, int IB,
                                dague_complex64_t *A1, int LDA1,
                                dague_complex64_t *A2, int LDA2,
-                         const dague_complex64_t *V, int LDV,
-                         const dague_complex64_t *T, int LDT,
+                          dague_complex64_t *V, int LDV,
+                          dague_complex64_t *T, int LDT,
                                dague_complex64_t *WORK,  int LDWORK,
                                dague_complex64_t *WORKC, int LDWORKC,
                                CUstream stream);
@@ -232,7 +247,15 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,                                                                                                                                        this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
-   
+  
+    double time_start, time_end;
+    for (int i = 0; i < 1; i++) {
+    time_start = get_cur_time();
+  /*  cublasSetKernelStream(gpu_stream->cuda_stream);
+    cublasZgemm('N', 'N', args->M1, args->M1, args->M1,
+                                 1.0, (dague_complex64_t *)d_A1, args->lda1,
+                                                          (dague_complex64_t *)d_A2, args->lda1,
+                                 1.0,  (dague_complex64_t *)d_V, args->lda1);*/
     cuda_ztsmqr(args->side, args->trans,
                 args->M1, args->N1, args->M2, args->N2, args->K, args->IB,
                 (dague_complex64_t*)d_A1, args->lda1,
@@ -242,6 +265,10 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                 (dague_complex64_t*)WORK, LDWORK,
                 (dague_complex64_t*)WORKC, LDWORK,
                 gpu_stream->cuda_stream);
+    cudaStreamSynchronize(gpu_stream->cuda_stream);
+    time_end = get_cur_time();
+    printf("time %f, %f gflops\n", time_end-time_start, (4. * (double)args->M1 * (double)args->M1 * (double)args->M1)/(time_end-time_start)/1e9);
+    }
 
     dague_gpu_push_workspace(gpu_device, gpu_stream);
     dague_gpu_push_workspace(gpu_device, gpu_stream);

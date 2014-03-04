@@ -330,7 +330,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
                     V, LDV,
                     WORK, LDWORK);*/
       //      cublasSetKernelStream( stream );
-           // printf("GEMM M %d, N %d, K %d\n", M2, N2, K);
+       //     printf("GEMM M %d, N %d, K %d\n", M2, N2, K);
             cublasZgemm('N', 'N',
                         M2, N2, K,
                         mzone,

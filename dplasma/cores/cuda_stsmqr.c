@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
- * @generated s Sun Mar  2 16:29:53 2014
+ * @generated s Tue Mar  4 18:51:15 2014
  *
  */
 #include <dague_config.h>
@@ -22,6 +22,7 @@
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
 #include "cuda_stsmqr.h"
+#include <cublas.h>
 
 #define flow_A1  0
 #define flow_A2  1
@@ -39,6 +40,20 @@
 extern void** cuda_gemm_functions;
 extern int dague_cuda_output_stream;
 
+// TODO: ONLY FOR TESTING, WILL REMOVE LATER 
+#include <sys/time.h>
+float get_cur_time() {
+    struct timeval   tv;
+    struct timezone  tz;
+    float cur_time;
+
+    gettimeofday(&tv, &tz);
+    cur_time = tv.tv_sec + tv.tv_usec / 1000000.0;
+
+    return cur_time;
+}
+
+
 /*
 #define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 extern cuda_sgemm_t magmablas_SGEMM_SM11;
@@ -52,8 +67,8 @@ typedef void (*cuda_stsmqr_t) (PLASMA_enum side, PLASMA_enum trans,
                                int M1, int N1, int M2, int N2, int K, int IB,
                                float *A1, int LDA1,
                                float *A2, int LDA2,
-                         const float *V, int LDV,
-                         const float *T, int LDT,
+                          float *V, int LDV,
+                          float *T, int LDT,
                                float *WORK,  int LDWORK,
                                float *WORKC, int LDWORKC,
                                CUstream stream);
@@ -232,7 +247,15 @@ gpu_kernel_submit_stsmqr( gpu_device_t        *gpu_device,
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,                                                                                                                                        this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
-   
+  
+    float time_start, time_end;
+    for (int i = 0; i < 1; i++) {
+    time_start = get_cur_time();
+  /*  cublasSetKernelStream(gpu_stream->cuda_stream);
+    cublasSgemm('N', 'N', args->M1, args->M1, args->M1,
+                                 1.0, (float *)d_A1, args->lda1,
+                                                          (float *)d_A2, args->lda1,
+                                 1.0,  (float *)d_V, args->lda1);*/
     cuda_stsmqr(args->side, args->trans,
                 args->M1, args->N1, args->M2, args->N2, args->K, args->IB,
                 (float*)d_A1, args->lda1,
@@ -242,6 +265,13 @@ gpu_kernel_submit_stsmqr( gpu_device_t        *gpu_device,
                 (float*)WORK, LDWORK,
                 (float*)WORKC, LDWORK,
                 gpu_stream->cuda_stream);
+    cudaStreamSynchronize(gpu_stream->cuda_stream);
+    time_end = get_cur_time();
+    printf("time %f, %f gflops\n", time_end-time_start, (4. * (float)args->M1 * (float)args->M1 * (float)args->M1)/(time_end-time_start)/1e9);
+    }
+    for (int i = 0; i < args->M1*args->N1; i++) {
+    	printf("%f ", *(d_A1+i));
+    }
 
     dague_gpu_push_workspace(gpu_device, gpu_stream);
     dague_gpu_push_workspace(gpu_device, gpu_stream);

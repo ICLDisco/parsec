@@ -1,7 +1,6 @@
-
 /***************************************************************************//**
  *
- * 
+ *
  *
  *  CORE_ztsmqr overwrites the general complex M1-by-N1 tile A1 and
  *  M2-by-N2 tile A2 with
@@ -107,6 +106,9 @@
 #include <cublas.h>
 #include <plasma.h>
 
+#define SSRFB
+//#define PARFB
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define GENERATE_SM_VERSION_KERNEL_NAME_I(func, version)  zgemm_##func##_SM##version
@@ -121,25 +123,32 @@
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
-	            int M1, int N1, int M2, int N2, int K, int L,
-    	              dague_complex64_t *A1, int LDA1,
-    	              dague_complex64_t *A2, int LDA2,
-    	        const dague_complex64_t *V, int LDV,
-    	        const dague_complex64_t *T, int LDT,
-    	              dague_complex64_t *WORK,  int LDWORK,
-                      dague_complex64_t *WORKC, int LDWORKC,
-    		          CUstream stream);
+		    int M1, int N1, int M2, int N2, int K, int L,
+    		      dague_complex64_t *A1, int LDA1,
+    		      dague_complex64_t *A2, int LDA2,
+    		const dague_complex64_t *V, int LDV,
+    		const dague_complex64_t *T, int LDT,
+    		      dague_complex64_t *WORK,  int LDWORK,
+		      dague_complex64_t *WORKC, int LDWORKC,
+    			  CUstream stream);
+
+extern "C" void
+GENERATE_SM_VERSION_NAME(ZSSRFB)(int m, int n, int *k, double *dv, int *ldv,
+		double *dt, int *ldt,
+		double *da1, int *lda1, double *da2, int *lda2,
+		double *dwork, int *ldwork, CUstream stream);
+
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
-                int M1, int N1, int M2, int N2, int K, int IB,
-                dague_complex64_t *A1, int LDA1,
-                dague_complex64_t *A2, int LDA2,
-                const dague_complex64_t *V, int LDV,
-                const dague_complex64_t *T, int LDT,
-                dague_complex64_t *WORK,  int LDWORK,
-                dague_complex64_t *WORKC, int LDWORKC,
-                CUstream stream)
+		int M1, int N1, int M2, int N2, int K, int IB,
+		dague_complex64_t *A1, int LDA1,
+		dague_complex64_t *A2, int LDA2,
+		dague_complex64_t *V, int LDV,
+		dague_complex64_t *T, int LDT,
+		dague_complex64_t *WORK,  int LDWORK,
+		dague_complex64_t *WORKC, int LDWORKC,
+				 CUstream stream)
 {
     int i, i1, i3;
     int NQ, NW;
@@ -151,119 +160,138 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
-        fprintf(stderr, "Illegal value of side");
-        return;
+	fprintf(stderr, "Illegal value of side");
+	return;
     }
 
     /* NQ is the order of Q */
     if (side == PlasmaLeft) {
-        NQ = M2;
-        NW = IB;
+	NQ = M2;
+	NW = IB;
     }
     else {
-        NQ = N2;
-        NW = M1;
+	NQ = N2;
+	NW = M1;
     }
 
     if ((trans != PlasmaNoTrans) && (trans != PlasmaConjTrans)) {
-        fprintf(stderr, "Illegal value of trans");
-        return;
+	fprintf(stderr, "Illegal value of trans");
+	return;
     }
     if (M1 < 0) {
-        fprintf(stderr, "Illegal value of M1");
-        return;
+	fprintf(stderr, "Illegal value of M1");
+	return;
     }
     if (N1 < 0) {
-        fprintf(stderr, "Illegal value of N1");
-        return;
+	fprintf(stderr, "Illegal value of N1");
+	return;
     }
     if ( (M2 < 0) ||
-         ( (M2 != M1) && (side == PlasmaRight) ) ){
-        fprintf(stderr, "Illegal value of M2");
-        return;
+	 ( (M2 != M1) && (side == PlasmaRight) ) ){
+	fprintf(stderr, "Illegal value of M2");
+	return;
     }
     if ( (N2 < 0) ||
-         ( (N2 != N1) && (side == PlasmaLeft) ) ){
-        fprintf(stderr, "Illegal value of N2");
-        return;
+	 ( (N2 != N1) && (side == PlasmaLeft) ) ){
+	fprintf(stderr, "Illegal value of N2");
+	return;
     }
     if ((K < 0) ||
-        ( (side == PlasmaLeft)  && (K > M1) ) ||
-        ( (side == PlasmaRight) && (K > N1) ) ) {
-        fprintf(stderr, "Illegal value of K");
-        return;
+	( (side == PlasmaLeft)  && (K > M1) ) ||
+	( (side == PlasmaRight) && (K > N1) ) ) {
+	fprintf(stderr, "Illegal value of K");
+	return;
     }
     if (IB < 0) {
-        fprintf(stderr, "Illegal value of IB");
-        return;
+	fprintf(stderr, "Illegal value of IB");
+	return;
     }
     if (LDA1 < max(1,M1)){
-        fprintf(stderr, "Illegal value of LDA1");
-        return;
+	fprintf(stderr, "Illegal value of LDA1");
+	return;
     }
     if (LDA2 < max(1,M2)){
-        fprintf(stderr, "Illegal value of LDA2");
-        return;
+	fprintf(stderr, "Illegal value of LDA2");
+	return;
     }
     if (LDV < max(1,NQ)){
-        fprintf(stderr, "Illegal value of LDV");
-        return;
+	fprintf(stderr, "Illegal value of LDV");
+	return;
     }
     if (LDT < max(1,IB)){
-        fprintf(stderr, "Illegal value of LDT");
-        return;
+	fprintf(stderr, "Illegal value of LDT");
+	return;
     }
     if (LDWORK < max(1,NW)){
-        fprintf(stderr, "Illegal value of LDWORK");
-        return;
+	fprintf(stderr, "Illegal value of LDWORK");
+	return;
     }
 
     /* Quick return */
     if ((M1 == 0) || (N1 == 0) || (M2 == 0) || (N2 == 0) || (K == 0) || (IB == 0))
-        return;
+	return;
 
     if (((side == PlasmaLeft)  && (trans != PlasmaNoTrans))
-        || ((side == PlasmaRight) && (trans == PlasmaNoTrans))) {
-        i1 = 0;
-        i3 = IB;
+	|| ((side == PlasmaRight) && (trans == PlasmaNoTrans))) {
+	i1 = 0;
+	i3 = IB;
     }
     else {
-        i1 = ((K-1) / IB)*IB;
-        i3 = -IB;
+	i1 = ((K-1) / IB)*IB;
+	i3 = -IB;
     }
 
     /* set cuda stream */
     cublasSetKernelStream( stream );
 
+#if defined (PARFB)
     for(i = i1; (i > -1) && (i < K); i += i3) {
-        kb = min(IB, K-i);
+	kb = min(IB, K-i);
 
-        if (side == PlasmaLeft) {
-            /*
-             * H or H' is applied to C(i:m,1:n)
-             */
-            mi = M1 - i;
-            ic = i;
-        }
-        else {
-            /*
-             * H or H' is applied to C(1:m,i:n)
-             */
-            ni = N1 - i;
-            jc = i;
-        }
-        /*
-         * Apply H or H' (NOTE: CORE_zparfb used to be CORE_ztsrfb)
-         */
-        GENERATE_SM_VERSION_NAME(ZPARFB)(
-            side, trans, PlasmaForward, PlasmaColumnwise,
-            mi, ni, M2, N2, kb, 0,
-            &A1[LDA1*jc+ic], LDA1,
-            A2, LDA2,
-            &V[LDV*i], LDV,
-            &T[LDT*i], LDT,
-            WORK, LDWORK,
-            WORKC,LDWORKC, stream);
+	if (side == PlasmaLeft) {
+	    /*
+	     * H or H' is applied to C(i:m,1:n)
+	     */
+	    mi = M1 - i;
+	    ic = i;
+	}
+	else {
+	    /*
+	     * H or H' is applied to C(1:m,i:n)
+	     */
+	    ni = N1 - i;
+	    jc = i;
+	}
+	/*
+	 * Apply H or H' (NOTE: CORE_zparfb used to be CORE_ztsrfb)
+	 */
+	GENERATE_SM_VERSION_NAME(ZPARFB)(
+	    side, trans, PlasmaForward, PlasmaColumnwise,
+	    mi, ni, M2, N2, kb, 0,
+	    &A1[LDA1*jc+ic], LDA1,
+	    A2, LDA2,
+	    &V[LDV*i], LDV,
+	    &T[LDT*i], LDT,
+	    WORK, LDWORK,
+	    WORKC,LDWORKC, stream);
     }
+#endif /* PARFB */
+
+
+#if defined (SSRFB)
+    
+    for (i = 0; i < M1; i+=IB) {
+       int sb = min(IB, M1-i);
+       GENERATE_SM_VERSION_NAME(ZSSRFB)(
+	   M2, N2, &sb,
+	   V + LDV*i, &LDV,
+	   T + LDT*i, &LDT,
+	   A1+ i,     &LDA1,
+	   A2,        &LDA2,
+	   WORK, &LDWORK,
+	   stream);
+    }
+#endif /* SSRFB */
+
     return;
 }
