@@ -86,7 +86,7 @@ struct dague_lifo_t {
 #define DAGUE_LIFO_PTR( v )       ( (dague_list_item_t *) ( (uintptr_t)(v) & DAGUE_LIFO_PTRMASK ) )
 #define DAGUE_LIFO_VAL( p, c)     ( (dague_list_item_t *) ( ((uintptr_t)DAGUE_LIFO_PTR(p)) | DAGUE_LIFO_CNT(c) ) )
                                         
-#define DAGUE_LIFO_HKEY(LIFO, h, n)      DAGUE_LIFO_VAL(h, ++((h)->aba_key))
+#define DAGUE_LIFO_HKEY(LIFO, h, c)      DAGUE_LIFO_VAL(h, DAGUE_LIFO_CNT(h)+(uint64_t)1)
 #define DAGUE_LIFO_KHEAD(LIFO, k)        DAGUE_LIFO_PTR(k)
 #define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(DAGUE_LIFO_CNT(k)))
 #endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
@@ -169,7 +169,7 @@ static inline void dague_lifo_chain( dague_lifo_t* lifo,
     do {
         dague_lifo_head_t ohead = lifo->lifo_head;
         tail->list_next = DAGUE_LIFO_KHEAD(lifo, ohead);
-        dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, items, tail->list_next);
+        dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, items, DAGUE_LIFO_KCNT(lifo, ohead)+(uint64_t)1);
 
         if( __dague_lifo_cas(&(lifo->lifo_head),
                              ohead,
