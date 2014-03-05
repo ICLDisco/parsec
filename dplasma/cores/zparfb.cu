@@ -118,7 +118,7 @@
 #include <stdio.h>
 #include <cuda.h>
 #include <cublas.h>
-#include <plasma.h>
+#include <core_blas.h>
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
@@ -237,30 +237,29 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
              *                                     ( A2 )
              */
 
-            /* W = A1 + op(V) * A2 */
-          /*  CORE_zpamm(
-                    PlasmaW, PlasmaLeft, storev,
-                    K, N1, M2, L,
-                    A1, LDA1,
-                    A2, LDA2,
-                    V, LDV,
-                    WORK, LDWORK); */
+            /*
+             * W = A1 + V' * A2:
+             *      W = A1
+             *      W = W + V' * A2
+             *
+             */
+            cudaMemcpy2DAsync ( WORK, LDWORK * sizeof(cuDoubleComplex),
+                                A1,   LDA1   * sizeof(cuDoubleComplex),
+                                K * sizeof(cuDoubleComplex), N1,
+                                cudaMemcpyDeviceToDevice, stream );
 
-             /* W = W + op(V) * A2  op = Trans */
-          //  cublasSetKernelStream( stream );
-           // printf("GEMM M %d, N %d, K %d\n", K, N1, M2);
-            cublasZgemm('T', 'N',
+            cublasZgemm(lapack_const(PlasmaConjTrans), 'N',
                         K, N1, M2,
                         zone,
-                        (cuDoubleComplex*)V     /* K*M2  */ , LDV,
+                        (cuDoubleComplex*)V     /* K*M2  */, LDV,
                         (cuDoubleComplex*)A2    /* M2*N1 */, LDA2,
-                        zzero,
+                        zone,
                         (cuDoubleComplex*)WORK  /* K*N1  */, LDWORK);
 
             /* W = W + A1*/
            // cublasSetKernelStream( stream );
 
-#if defined (AXPY)
+#if defined (AXPY) && 0
             for(j = 0; j < N1; j++) {
                 cublasZaxpy(
                         K, zone,
@@ -269,75 +268,70 @@ GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enu
             }
 #endif /* AXPY */
 
-#if defined (LACPY)
+#if defined (LACPY) && 0
             magmablas_zlacpy( 'A', K, N1,
                               A1, LDA1, zone,
                               WORK, LDWORK, stream );
 #endif /* LACPY */
 
-            /* W = op(T) * W */
            /* cblas_ztrmm(
                 CblasColMajor, CblasLeft, CblasUpper,
                 (CBLAS_TRANSPOSE)trans, CblasNonUnit, K, N2,
                 CBLAS_SADDR(zone), T, LDT, WORK, LDWORK);*/
         //    cublasSetKernelStream( stream );
             if (WORKC == NULL) {
+                /* W = op(T) * W */
                 cublasZtrmm( 'L', 'U',
-                            PLASMA_TRANS_TO_CUBLAS_TRANS(trans), 'N',
-                            K, N2,
-                            zone, 
-                            (cuDoubleComplex*)T, LDT,
-                            (cuDoubleComplex*)WORK, LDWORK);
-                WORKC = WORK;
-                LDWORKC = LDWORK;
-            } else {
-                cublasZgemm( PLASMA_TRANS_TO_CUBLAS_TRANS(trans), 'N',
-                            K, N2, K,
+                             lapack_const(trans), 'N',
+                             K, N2,
+                             zone, 
+                             (cuDoubleComplex*)T, LDT,
+                             (cuDoubleComplex*)WORK, LDWORK);
+
+
+                /* A1 = A1 - W = A1 - op(T) * W */
+                for(j = 0; j < N1; j++) {
+                    /*cblas_zaxpy(
+                     K, CBLAS_SADDR(mzone),
+                     &WORK[LDWORK*j], 1,
+                     &A1[LDA1*j], 1);*/
+                    cublasZaxpy(K, mzone,
+                                (cuDoubleComplex*)(&WORK[LDWORK*j]), 1,
+                                (cuDoubleComplex*)(&A1[LDA1*j]), 1);
+                }
+
+                /* A2 = A2 - op(V) * W  */
+                cublasZgemm('N', 'N',
+                            M2, N2, K,
+                            mzone,
+                            (cuDoubleComplex*)V     /* M2*K  */, LDV,
+                            (cuDoubleComplex*)WORK  /* K*N2  */, LDWORK,
                             zone,
-                            T, LDT,
-                            WORK, LDWORK,
-                            0.0,
-                            WORKC, LDWORKC);
+                            (cuDoubleComplex*)A2    /* m2*N2 */, LDA2);
+
+            } else {
+
+                /* Wc = V * op(T) */
+                cublasZgemm( 'N', lapack_const(trans),
+                             M2, K, K,
+                             zone,  V,     LDV,
+                                    T,     LDT,
+                             zzero, WORKC, LDWORKC );
+
+                /* A1 = A1 - opt(T) * W */
+                cublasZgemm( lapack_const(trans), 'N',
+                             K, N1, K,
+                             mzone, T,    LDT,
+                                    WORK, LDWORK,
+                             zone,  A1,   LDA1 );
+
+                /* A2 = A2 - Wc * W */
+                cublasZgemm( 'N', 'N',
+                             M2, N2, K,
+                             mzone, WORKC, LDWORKC,
+                                    WORK,  LDWORK,
+                             zone,  A2,    LDA2 );
             }
-
-            /* A1 = A1 - W */
-        //    cublasSetKernelStream( stream );
-#if defined (AXPY)            
-            for(j = 0; j < N1; j++) {
-                /*cblas_zaxpy(
-                        K, CBLAS_SADDR(mzone),
-                        &WORK[LDWORK*j], 1,
-                        &A1[LDA1*j], 1);*/
-                cublasZaxpy(K, mzone,
-                            (cuDoubleComplex*)(&WORKC[LDWORKC*j]), 1,
-                            (cuDoubleComplex*)(&A1[LDA1*j]), 1);
-            }
-#endif /* AXPY */
-
-#if defined (LACPY)
-            magmablas_zlacpy( 'A', K, N1,
-                              WORKC, LDWORKC, mzone,
-                              A1, LDA1, stream );
-#endif /* LACPY */
-
-            /* A2 = A2 - op(V) * W  */
-            /* W also changes: W = V * W, A2 = A2 - W */
-           /* CORE_zpamm(
-                    PlasmaA2, PlasmaLeft, storev,
-                    M2, N2, K, L,
-                    A1, LDA1,
-                    A2, LDA2,
-                    V, LDV,
-                    WORK, LDWORK);*/
-      //      cublasSetKernelStream( stream );
-       //     printf("GEMM M %d, N %d, K %d\n", M2, N2, K);
-            cublasZgemm('N', 'N',
-                        M2, N2, K,
-                        mzone,
-                        (cuDoubleComplex*)V     /* M2*K  */, LDV,
-                        (cuDoubleComplex*)WORKC  /* K*N2  */, LDWORKC,
-                        zone,
-                        (cuDoubleComplex*)A2    /* m2*N2 */, LDA2);
         }
         else {
             /*
