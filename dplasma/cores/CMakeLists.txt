@@ -4,6 +4,7 @@ set(generated_files "")
 set(generated_headers "")
 
 include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
+link_directories(${COREBLAS_LIBRARY_DIRS})
 
 ### Generate the CUDA kernels if necessary
 if(CUDA_FOUND)
@@ -16,14 +17,9 @@ if(CUDA_FOUND)
 ### CUDA .cu sources
     set( CUDA11_SOURCES
          zgemm_11_12_13.cu
-         ztsmqr.cu
-         zparfb.cu
-         zlacpy.cu
-         zgemm_kernel_T_N_32_32_8_8_8_ssrfb.cu
-         zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
-         zssrfb.cu
     )
-    set( CUDA13_SOURCES ${CUDA11_SOURCES} )
+    set( CUDA13_SOURCES ${CUDA11_SOURCES}
+     )
     set( CUDA20_SOURCES
          zgemm_20_30.cu
          ztsmqr.cu
@@ -33,7 +29,14 @@ if(CUDA_FOUND)
          zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
          zssrfb.cu
     )
-    set( CUDA35_SOURCES ${CUDA11_SOURCES} )
+    set( CUDA35_SOURCES
+         zgemm_20_30.cu
+         ztsmqr.cu
+         zparfb.cu
+         zlacpy.cu
+         zgemm_kernel_T_N_32_32_8_8_8_ssrfb.cu
+         zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
+         zssrfb.cu )
 
     foreach( _smtarget ${CUDA_SM_TARGETS} )
         set(cuda_generated_files "")
@@ -52,10 +55,14 @@ if(CUDA_FOUND)
 
         set(CUDA_NVCC_FLAGS_BACKUP ${CUDA_NVCC_FLAGS})
         set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_${_smtarget}} ${CUDA_NVCC_FLAGS})
+
         cuda_add_library(dplasma_cucores_sm${_smtarget}
                          ${cuda_generated_files} SHARED)
+
         target_link_libraries( dplasma_cucores_sm${_smtarget}
-                                 ${CUDA_cublas_LIBRARY} ${CUDA_LIBRARIES})
+                               ${CUDA_cublas_LIBRARY}
+                               ${COREBLAS_LIBRARIES}
+                               ${EXTRA_LIBS})
         install(TARGETS dplasma_cucores_sm${_smtarget} LIBRARY DESTINATION lib ARCHIVE DESTINATION lib )
         set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_BACKUP})
         if( NOT CMAKE_BUILD_SHARED_LIBS )
@@ -113,7 +120,6 @@ precisions_rules_py(generated_files
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
 ### Generate the lib
-link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores
   ${generated_files}
 )
