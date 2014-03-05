@@ -42,7 +42,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
            add_info=dict()):
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
-    if isinstance(filenames, basestring): # if the user passed a single string
+    if isinstance(filenames, basestring): # if the user passed a single string instead of a list
         filenames = [filenames]
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
@@ -215,11 +215,16 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
 
 
 
-# returns the output filename in a list, not the trace itself.
+# returns the output filename, not the trace itself.
 cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
               force_reconvert=False, validate_existing=False,
               table=False, append=False, report_progress=False,
               add_info=dict(), compress=('blosc', 0), skeleton_only=False):
+    ''' Given [filenames] that comprise a single binary trace, returns the filename of the converted trace.
+    
+    By default, does not unlink (delete) the binary trace files.
+    By default, performs conversion in multiple threads.
+    '''
     if skeleton_only:
         compress=('blosc', 5)
     if len(filenames) < 1:
@@ -326,8 +331,8 @@ cpdef add_kv(dct, key, value, append_if_present=True):
             dct[list_k] = [value]
 
 
-# helper function for readProfile
 cdef char** string_list_to_c_strings(strings):
+    ''' Converts a list of Python strings to C-style strings '''
     cdef char ** c_argv
     bytes_strings = [bytes(x) for x in strings]
     c_argv = <char**>malloc(sizeof(char*) * len(bytes_strings))
@@ -344,10 +349,13 @@ cdef char** string_list_to_c_strings(strings):
 
 cpdef construct_thread_in_process(pipe, builder, filenames, node_threads,
                                   skeleton_only, report_progress):
+    ''' Target function for the map/reduce threading functionality '''
     cdef dbp_file_t * cfile
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
+    # note that this requires re-opening the binary files in each thread
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
+    # node_threads is our thread-specific input data
     for node_id, thread_num in node_threads: # should be list of tuples
         cfile = dbp_reader_get_file(dbp, builder.node_order[node_id])
         construct_thread(builder, skeleton_only, dbp, cfile, node_id, thread_num)
@@ -371,11 +379,12 @@ vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
 cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                       int node_id, int thread_num):
-    """Converts all events using the C interface into Python dicts
+    """Converts all events using the C interface into a list of Python dicts
 
     Also creates a 'thread' dict describing the very basic information
-    about the thread as seen by PaRSEC. Hopefully the information
-    we store about the thread will continue to improve in the future.
+    about the thread as seen by PaRSEC. 
+
+    Hopefully the information we store about the thread will continue to improve in the future.
     """
     cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, thread_num)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
@@ -419,6 +428,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
         if begin < th_begin:
             th_begin = begin
 
+        # this would be a good place for a test for 'singleton' events.
         if KEY_IS_START( dbp_event_get_key(event_s) ):
             it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
             if it_e != NULL:
@@ -451,12 +461,16 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                             event_name, event_id, thread_id) +
                                      ' has a unreasonable duration.\n')
                         event.update({'error_msg':error_msg})
+                        # we still store error events, in the same format as a normal event
+                        # we simply add an error message column, and put them in a different table.
+                        # Users who wish to use these events can simply merge them with the events table.
                         builder.errors.append(event)
 
                 dbp_iterator_delete(it_e)
                 it_e = NULL
 
             else: # the event is not complete
+                # this will change once singleton events are enabled.
                 error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
                     event_name, event_id, thread_id)
                 error = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id,
@@ -499,6 +513,10 @@ class ProfileBuilder(object):
 # print(builder.test_df[index])
 
 def chunk(xs, n):
+    ''' Splits a list of Xs into n roughly equally-sized lists. 
+
+    Useful for the naive Python map-reduce operation.
+    '''
     ys = list(xs)
     ylen = len(ys)
     if ylen < 1:
