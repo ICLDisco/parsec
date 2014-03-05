@@ -40,7 +40,7 @@
 extern void** cuda_gemm_functions;
 extern int dague_cuda_output_stream;
 
-// TODO: ONLY FOR TESTING, WILL REMOVE LATER 
+// TODO: ONLY FOR TESTING, WILL REMOVE LATER
 #include <sys/time.h>
 double get_cur_time() {
     struct timeval   tv;
@@ -106,8 +106,8 @@ typedef struct dague_ztsmqr_args_s {
 //#define WEI_DEBUG
 inline static void wei_debug_printf(const char *fmt, ...)
 {
-#if defined (WEI_DEBUG)	
-	va_list args;
+#if defined (WEI_DEBUG)
+        va_list args;
     va_start(args, fmt);
     vprintf(fmt, args);
     va_end(args);
@@ -192,7 +192,7 @@ gpu_kernel_push_ztsmqr( gpu_device_t            *gpu_device,
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
-       
+
         wei_debug_printf("PUSH %d, nb %d\n", i, this_task->function->nb_flows);
 
         DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
@@ -247,7 +247,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                               DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,                                                                                                                                        this_task->function->function_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
-  
+
     double time_start, time_end;
     for (int i = 0; i < 1; i++) {
     time_start = get_cur_time();
@@ -262,8 +262,9 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                 (dague_complex64_t*)d_A2, args->lda2,
                 (dague_complex64_t*)d_V,  args->ldv,
                 (dague_complex64_t*)d_T,  args->ldt,
-                (dague_complex64_t*)WORK, LDWORK,
-                (dague_complex64_t*)WORKC, LDWORK,
+                (dague_complex64_t*)WORK,  LDWORK,
+                //NULL, 1,
+                (dague_complex64_t*)WORKC, args->M2,
                 gpu_stream->cuda_stream);
     cudaStreamSynchronize(gpu_stream->cuda_stream);
     time_end = get_cur_time();
@@ -333,7 +334,7 @@ gpu_kernel_pop_ztsmqr( gpu_device_t        *gpu_device,
 
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name));
-            if( (args->pushout_A1 && i == flow_A1) || (args->pushout_A2 && i == flow_A2) ) { 
+            if( (args->pushout_A1 && i == flow_A1) || (args->pushout_A2 && i == flow_A2) ) {
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                                       "GPU:\tMove D2H data <%x> from GPU %d %p -> %p requested\n",
@@ -405,7 +406,7 @@ gpu_kernel_epilog_ztsmqr( gpu_device_t        *gpu_device,
          */
         this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
 
-        if( (args->pushout_A1 && i == flow_A1) || (args->pushout_A2 && i == flow_A2) ) {  
+        if( (args->pushout_A1 && i == flow_A1) || (args->pushout_A2 && i == flow_A2) ) {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         } else {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
@@ -457,15 +458,15 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
     A2_dev_index = this_task->data[flow_A2].data_in->original->owner_device;
     wei_debug_printf("m %d, n %d, k %d, A1 owner %d, A2 owner %d\n", m, n, k, A1_dev_index, A2_dev_index);
 
-        
+
     /* only the tsmqr task located in (k, k+1, n) can choose the device;
-     * if the task goes to GPU, then the whole column will stay in this GPU for ever. 
-     * if the task goes to CPU, then the whole column will stay in CPU in k iteration, 
-     *    then he has the oppotunity to choose devices in k+1 iteration.  
+     * if the task goes to GPU, then the whole column will stay in this GPU for ever.
+     * if the task goes to CPU, then the whole column will stay in CPU in k iteration,
+     *    then he has the oppotunity to choose devices in k+1 iteration.
      */
     if (m == (k+1)) {
         assert(A1_dev_index == 0);
-        if (A2_dev_index == 0) {  
+        if (A2_dev_index == 0) {
             int best_index = 0;  /* default value: first CPU device */
             float weight, best_weight = dague_device_load[0] + dague_device_sweight[0];
             for( dev_index = 1; dev_index < dague_devices_enabled(); dev_index++ ) {
@@ -521,8 +522,8 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
     gpu_task->Tm       = Tm;
     gpu_task->Tn       = Tn;
     gpu_task->ldt      = LDT;
-    gpu_task->ddescA1   = (dague_ddesc_t*)descA1;
-    gpu_task->ddescA2   = (dague_ddesc_t*)descA2;
+    gpu_task->ddescA1  = (dague_ddesc_t*)descA1;
+    gpu_task->ddescA2  = (dague_ddesc_t*)descA2;
     gpu_task->ddescV   = (dague_ddesc_t*)descV;
     gpu_task->ddescT   = (dague_ddesc_t*)descT;
 
