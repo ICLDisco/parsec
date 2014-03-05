@@ -106,8 +106,9 @@
 #include <cublas.h>
 #include <plasma.h>
 
-#define SSRFB
+//#define SSRFB
 //#define PARFB
+#define PARFB2
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -123,6 +124,17 @@
 
 extern "C" void
 GENERATE_SM_VERSION_NAME(ZPARFB)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
+		    int M1, int N1, int M2, int N2, int K, int L,
+    		      dague_complex64_t *A1, int LDA1,
+    		      dague_complex64_t *A2, int LDA2,
+    		const dague_complex64_t *V, int LDV,
+    		const dague_complex64_t *T, int LDT,
+    		      dague_complex64_t *WORK,  int LDWORK,
+		      dague_complex64_t *WORKC, int LDWORKC,
+    			  CUstream stream);
+
+extern "C" void
+GENERATE_SM_VERSION_NAME(ZPARFB2)(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
 		    int M1, int N1, int M2, int N2, int K, int L,
     		      dague_complex64_t *A1, int LDA1,
     		      dague_complex64_t *A2, int LDA2,
@@ -244,27 +256,29 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
     /* set cuda stream */
     cublasSetKernelStream( stream );
 
-#if defined (PARFB)
+#if defined (PARFB) || defined (PARFB2)
     for(i = i1; (i > -1) && (i < K); i += i3) {
 	kb = min(IB, K-i);
 
 	if (side == PlasmaLeft) {
 	    /*
-	     * H or H' is applied to C(i:m,1:n)
-	     */
+	    * H or H' is applied to C(i:m,1:n)
+	    */
 	    mi = M1 - i;
 	    ic = i;
 	}
 	else {
 	    /*
-	     * H or H' is applied to C(1:m,i:n)
-	     */
+	    * H or H' is applied to C(1:m,i:n)
+	    */
 	    ni = N1 - i;
 	    jc = i;
 	}
 	/*
 	 * Apply H or H' (NOTE: CORE_zparfb used to be CORE_ztsrfb)
-	 */
+	*/
+
+#if defined (PARFB)
 	GENERATE_SM_VERSION_NAME(ZPARFB)(
 	    side, trans, PlasmaForward, PlasmaColumnwise,
 	    mi, ni, M2, N2, kb, 0,
@@ -274,8 +288,22 @@ GENERATE_SM_VERSION_NAME(ZTSMQR)(PLASMA_enum side, PLASMA_enum trans,
 	    &T[LDT*i], LDT,
 	    WORK, LDWORK,
 	    WORKC,LDWORKC, stream);
-    }
 #endif /* PARFB */
+
+#if defined (PARFB2)
+	GENERATE_SM_VERSION_NAME(ZPARFB2)(
+	    side, trans, PlasmaForward, PlasmaColumnwise,
+	    mi, ni, M2, N2, kb, 0,
+	    &A1[LDA1*jc+ic], LDA1,
+	    A2, LDA2,
+	    &V[LDV*i], LDV,
+	    &T[LDT*i], LDT,
+	    WORK, LDWORK,
+	    WORKC,LDWORKC, stream);
+#endif /* PARFB2 */
+
+    }
+#endif /* PARFB || PARFB2*/
 
 
 #if defined (SSRFB)

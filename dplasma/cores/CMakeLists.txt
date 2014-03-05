@@ -24,6 +24,7 @@ if(CUDA_FOUND)
          zgemm_20_30.cu
          ztsmqr.cu
          zparfb.cu
+         zparfb2.cu
          zlacpy.cu
          zgemm_kernel_T_N_32_32_8_8_8_ssrfb.cu
          zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
@@ -33,6 +34,7 @@ if(CUDA_FOUND)
          zgemm_20_30.cu
          ztsmqr.cu
          zparfb.cu
+         zparfb2.cu
          zlacpy.cu
          zgemm_kernel_T_N_32_32_8_8_8_ssrfb.cu
          zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
