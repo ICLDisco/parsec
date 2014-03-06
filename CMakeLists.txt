@@ -118,9 +118,6 @@ option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
 option(DAGUE_DEBUG_BUILD_UNIT_TESTS
   "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
-mark_as_advanced(DAGUE_DEBUG_LIFO_USE_ATOMICS)
-option(DAGUE_DEBUG_LIFO_USE_ATOMICS
-  "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)" ON)
 
 ### Simulating Options
 option(DAGUE_SIM
@@ -289,6 +286,17 @@ include (cmake_modules/CheckAtomicIntrinsic.cmake)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+
+mark_as_advanced(DAGUE_LIFO_USE_ATOMICS)
+if(NOT HAVE_COMPARE_AND_SWAP_128)
+  option(DAGUE_LIFO_USE_ATOMICS
+         "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation) -- DANGEROUS: no CAS128 -- risk of ABA"
+         OFF)
+else(NOT HAVE_COMPARE_AND_SWAP_128)
+  option(DAGUE_LIFO_USE_ATOMICS
+         "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)"
+         ON)
+endif(NOT HAVE_COMPARE_AND_SWAP_128)
 
 find_package(Threads)
 if(Threads_FOUND)
