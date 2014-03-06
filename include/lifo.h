@@ -57,7 +57,7 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 typedef __uint128_t dague_lifo_head_t;
 #define __dague_lifo_cas dague_atomic_cas_128b
 #else
-#warning "64bit CAS in Lifo has been know susceptible to ABA"
+#warning "64bit CAS in LIFO has been known susceptible to ABA"
 typedef dague_list_item_t* dague_lifo_head_t;
 #define __dague_lifo_cas dague_atomic_cas
 #endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
