@@ -234,7 +234,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
     d_T  = (CUdeviceptr)this_task->data[flow_T].data_out->device_private;
 
     tiled_matrix_desc_t *descT = (tiled_matrix_desc_t *)args->ddescT;
-  //  WORK = (CUdeviceptr)gpu_malloc( gpu_device->memory, 1 );
+
     WORK = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB);
     WORKC = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB);
     int LDWORK = args->IB;
@@ -249,13 +249,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                              this_task);
 
     double time_start, time_end;
-    for (int i = 0; i < 1; i++) {
     time_start = get_cur_time();
-  /*  cublasSetKernelStream(gpu_stream->cuda_stream);
-    cublasZgemm('N', 'N', args->M1, args->M1, args->M1,
-                                 1.0, (dague_complex64_t *)d_A1, args->lda1,
-                                                          (dague_complex64_t *)d_A2, args->lda1,
-                                 1.0,  (dague_complex64_t *)d_V, args->lda1);*/
     cuda_ztsmqr(args->side, args->trans,
                 args->M1, args->N1, args->M2, args->N2, args->K, args->IB,
                 (dague_complex64_t*)d_A1, args->lda1,
@@ -266,15 +260,12 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                 //NULL, 1,
                 (dague_complex64_t*)WORKC, args->M2,
                 gpu_stream->cuda_stream);
-    //cudaStreamSynchronize(gpu_stream->cuda_stream);
+    cudaStreamSynchronize(gpu_stream->cuda_stream);
     time_end = get_cur_time();
     printf("time %f, %f gflops\n", time_end-time_start, (4. * (double)args->M1 * (double)args->M1 * (double)args->M1)/(time_end-time_start)/1e9);
-    }
 
     dague_gpu_push_workspace(gpu_device, gpu_stream);
     dague_gpu_push_workspace(gpu_device, gpu_stream);
-
-   // gpu_free( gpu_device->memory, (void*)WORK );
 
     return 0;
 }
@@ -484,7 +475,7 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
         } else {
             /* task allocation has been decided in previous iterations, so task will goes to where A2 located */
             dev_index = A2_dev_index;
-  //          assert(dev_index != 0);
+            assert(dev_index != 0);
         }
     } else {
        dev_index = A1_dev_index;
