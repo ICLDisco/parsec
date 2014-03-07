@@ -103,8 +103,6 @@ static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F
 static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t *func);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
 static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root);
-static inline bool is_phony_Entry_task(node_t *task);
-static inline bool is_phony_Exit_task(node_t *task);
 static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
 static inline void flip_sign(expr_t *exp);
 static inline bool is_negative(expr_t *exp);
@@ -220,12 +218,12 @@ char *dump_data(string_arena_t *sa, node_t *n)
     return string_arena_get_string(sa);
 }
 
-static inline bool is_phony_Entry_task(node_t *task){
+bool is_phony_Entry_task(node_t *task){
     char *name = task->function->fname;
     return (strstr(name, "DAGUE_IN_") == name);
 }
 
-static inline bool is_phony_Exit_task(node_t *task){
+bool is_phony_Exit_task(node_t *task){
     char *name = task->function->fname;
     return (strstr(name, "DAGUE_OUT_") == name);
 }

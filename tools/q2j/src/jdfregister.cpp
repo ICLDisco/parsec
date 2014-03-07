@@ -28,6 +28,8 @@ extern char *_q2j_data_prefix;
 extern jdf_t _q2j_jdf;
 
 void jdf_register_pools( jdf_t *jdf );
+bool is_phony_Entry_task(node_t *task);
+bool is_phony_Exit_task(node_t *task);
 
 jdf_def_list_t*
 jdf_create_properties_list( const char* name,
@@ -1067,7 +1069,11 @@ void jdf_register_body(jdf_function_entry_t *this_function,
     jdf_body_t *body = q2jmalloc(jdf_body_t, 1);
 
     JDF_OBJECT_SET(body, NULL, 0, NULL);
-    body->external_code = strdup(tree_to_body(task_node));
+    if( !is_phony_Entry_task(task_node) && !is_phony_Exit_task(task_node) ){
+        body->external_code = strdup(tree_to_body(task_node));
+    }else{
+        body->external_code = strdup("    /* nothing */" );
+    }
     body->next = this_function->bodies;
     this_function->bodies = body;
 }
