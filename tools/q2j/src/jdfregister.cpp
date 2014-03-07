@@ -997,26 +997,6 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         src->dataflow  = dataflow;
 
         // Incoming CTL for dest function
-        dataflow = q2jmalloc(jdf_dataflow_t, 1);
-        dataflow->next = NULL;
-        dataflow->varname     = strdup(string_arena_get_string(sa));
-        dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
-        dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
-        JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
-
-        dataflow->deps->next      = NULL;
-        dataflow->deps->dep_flags = JDF_DEP_FLOW_IN;
-        dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
-        jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
-        JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
-
-        dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
-        dataflow->deps->guard->guard      = NULL;
-        dataflow->deps->guard->properties = NULL;
-        dataflow->deps->guard->callfalse  = NULL;
-        dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
-        dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
-        dataflow->deps->guard->calltrue->func_or_mem = src->fname;
 
         // Reverse the relation
         Relation inv = rel;
@@ -1026,18 +1006,59 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
 
         (void)(*dep2.rel).print_with_subs_to_string(false);
         expr = relation_to_tree( *dep2.rel );
-        dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
+
+        if( src != dst ){
+            dataflow = q2jmalloc(jdf_dataflow_t, 1);
+            dataflow->next = NULL;
+            dataflow->varname     = strdup(string_arena_get_string(sa));
+            dataflow->deps        = q2jmalloc(jdf_dep_t, 1);
+            dataflow->flow_flags = JDF_FLOW_TYPE_CTL;
+            JDF_OBJECT_SET(dataflow, NULL, 0, NULL);
+
+            dataflow->deps->next      = NULL;
+            dataflow->deps->dep_flags = JDF_DEP_FLOW_IN;
+            dataflow->deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
+            jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
+            JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
+
+            dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
+            dataflow->deps->guard->guard      = NULL;
+            dataflow->deps->guard->properties = NULL;
+            dataflow->deps->guard->callfalse  = NULL;
+            dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
+            dataflow->deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
+            dataflow->deps->guard->calltrue->func_or_mem = src->fname;
+
+            dataflow->deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
+
+            dataflow->next = dst->dataflow;
+            dst->dataflow  = dataflow;
+        }else{
+            jdf_dep_t *deps;
+            dataflow->deps->next      = q2jmalloc(jdf_dep_t, 1);
+            deps = dataflow->deps->next;
+        
+            deps->dep_flags = JDF_DEP_FLOW_IN;
+            deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
+            jdf_set_default_datatype(&deps->datatype, "DEFAULT", 1, 0);
+            JDF_OBJECT_SET(deps, NULL, 0, NULL);
+
+            deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
+            deps->guard->guard      = NULL;
+            deps->guard->properties = NULL;
+            deps->guard->callfalse  = NULL;
+            deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
+            deps->guard->calltrue->var         = strdup(string_arena_get_string(sa));
+            deps->guard->calltrue->func_or_mem = src->fname;
+            deps->guard->calltrue->parameters  = jdf_generate_call_parameters( &dep2, expr );
+        }
+
         clean_tree(expr);
 
 #ifdef DEBUG
-        {
-            std::cerr << "Anti-dependency: " << src->fname << " => " << dst->fname << " " << rel.print_with_subs_to_string();
-            std::cerr << "                 " << dst->fname << " => " << src->fname << " " << (*dep2.rel).print_with_subs_to_string();
-        }
+        std::cerr << "Anti-dependency: " << src->fname << " => " << dst->fname << " " << rel.print_with_subs_to_string();
+        std::cerr << "                 " << dst->fname << " => " << src->fname << " " << (*dep2.rel).print_with_subs_to_string();
 #endif
-
-        dataflow->next = dst->dataflow;
-        dst->dataflow  = dataflow;
     }
 }
 
