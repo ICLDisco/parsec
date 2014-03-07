@@ -994,12 +994,6 @@ pragma_specifier
               add_colocated_data_info(reference->u.var_name, reference->u.var_name);
               //printf(") is co-located with %s\n",tmp->u.var_name);
 	  }
-/*
-	| PRAGMA DIR_PARSEC_TASK_START IDENTIFIER task_arguments
-	  {
-              //#pragma PARSEC_TASK_START  TASK_NAME  PARAM[:PSEUDONAME]:(IN|OUT|INOUT|SCRATCH)[:TYPE_NAME] [, ...]
-	  }
-*/
 	;
 
 declaration_specifiers

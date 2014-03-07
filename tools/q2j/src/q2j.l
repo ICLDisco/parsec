@@ -575,8 +575,6 @@ loop:
 		goto loop;
 	}
 
-//	if (c != 0)
-//		putchar(c1);
 }
 
 
@@ -596,7 +594,6 @@ void count()
 		else
 			column++;
 
-	/*ECHO;*/
 }
 
 

@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <assert.h>
 #include <map>
 #include <set>
@@ -110,6 +111,7 @@ static inline bool is_negative(expr_t *exp);
 static void _declare_global_vars(node_t *node);
 static inline void declare_global_vars(node_t *node);
 static void declare_globals_in_tree(node_t *node, set <char *> ind_names);
+static set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1079,6 +1081,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         node_t *use_task_node;
         node_t *use_params = NULL;
         char *var_name, *def_name;
+        node_t *encl_loop;
 
         // skip anti-dependencies that go to the phony output task.
         if( DEP_ANTI == dep_type && is_phony_Exit_task(und->node) ){
@@ -1106,13 +1109,24 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         // In the case of output dependencies (write after write) "use" is really a DEF.
         use = und->node;
 
+        // Prune impossible edges based on control flow. If the source of this
+        // edge is after the sink and they don't share an enclosing loop then
+        // the edge is impossible.
+        encl_loop = find_closest_enclosing_loop(use, def);
+        if( NULL == encl_loop ){
+            // since we didn't find a common loop, source and sink better not be the same.
+            assert( und != def_und );
+
+            // If we haven't seen the source of this dependency yet, then it's a
+            // back-edge that is not carried by a loop; so it's impossible.
+            if( !after_def )
+                continue;
+        }
+
         use_task_node = use->task->task_node;
 
         if( use_task_node->type == BLKBOX_TASK ){
-//printf("      USE is Blackbox (%s)\n",use_task_node->function->fname);
             use_params = DA_kid(use_task_node, 1);
-        }else{
-//printf("      USE not Blackbox (%s)\n",use_task_node->function->fname);
         }
 
         dst_loop_count = use->loop_depth;
@@ -1343,7 +1357,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         // In addition, if a flow edge is going from a task to itself, it also needs to have greater-than
         // instead of greater-or-equal relationships for the induction variables.
 
-        node_t *encl_loop = find_closest_enclosing_loop(use, def);
+        encl_loop = find_closest_enclosing_loop(use, def);
 
         // If USE and DEF are in the same task and that is not in a loop, there is no data flow, go to the next USE.
         if( (NULL == encl_loop) && (def->task == use->task) && ((DEP_ANTI!=dep_type) || (def != use)) ){
@@ -3001,18 +3015,18 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
         // Store the next element in tmp_dst_nd
         tmp_dst_nd = *stack_it;
         for(e_it = tmp_src_nd->edges.begin(); e_it != tmp_src_nd->edges.end(); e_it++){
-        tg_edge_t *tmp_edge = *e_it;
-        // Find the edge that connects tmp_src_nd and tmp_dst_nd and compose
-        if( tmp_edge->dst == tmp_dst_nd ){
-            if( transitiveR.is_null() )
-                transitiveR = *(tmp_edge->R);
-            else
-                transitiveR = Composition(copy(*(tmp_edge->R)), transitiveR);
-            break;
+            tg_edge_t *tmp_edge = *e_it;
+            // Find the edge that connects tmp_src_nd and tmp_dst_nd and compose
+            if( tmp_edge->dst == tmp_dst_nd ){
+                if( transitiveR.is_null() )
+                    transitiveR = *(tmp_edge->R);
+                else
+                    transitiveR = Composition(copy(*(tmp_edge->R)), transitiveR);
+                break;
+            }
         }
-                }
-                // progress the source down the cycle
-                tmp_src_nd = tmp_dst_nd;
+        // progress the source down the cycle
+        tmp_src_nd = tmp_dst_nd;
     }
 
     // Close the cycle by making the begining of the cycle also be the end.
@@ -3055,7 +3069,7 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
         }
     }else{
         // Compute the transitive closure of this relation. We do this in a
-        // child process because sometimes TransitiveClosure() raises as
+        // child process because sometimes TransitiveClosure() raises an
         // assert() inside the Omega library.
         fclose(stdout);
         fclose(stderr);
@@ -3079,7 +3093,6 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
 // Note: We pass visited_nodes by value, so that the effect of the callee is _not_
 // visible to the caller.
 void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *> visited_nodes, list<tg_node_t *> node_stack){
-    static int depth;
 
     visited_nodes.insert(src_nd);
     node_stack.push_back(src_nd);
@@ -3092,9 +3105,7 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
         // cycle, so we should compute the appropriate Relations and store them in the "cycle"
         // field of the corresponding nodes.
         if( visited_nodes.find(next_node) == visited_nodes.end() ){
-            depth += 4;
             compute_transitive_closure_of_all_cycles(next_node, visited_nodes, node_stack);
-            depth -= 4;
         }else{
             list<tg_node_t *>::iterator stack_it;
 
@@ -3105,9 +3116,7 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
 
             // Traverse the elements starting from the oldest (violating the stack semantics),
             // until we find "cycle_start".  All the elements before "cycle_start" are not
-            // members of this cycle. We could instead pop the stack from the top and fill up
-            // a (reversed) list of elements in the cycle, but that would destroy the stack,
-            // and we need to keep it for the next iteration of the for() loop.
+            // members of this cycle.
             stack_it=node_stack.begin();
             while( stack_it!=node_stack.end() && *stack_it!=cycle_start ){
                 ++stack_it;
@@ -3120,34 +3129,26 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
             // copy the elements of the cycle into a new list.
             list<tg_node_t *> cycle_list(stack_it, node_stack.end());
 
-// The code in the #if computes the transitive relation of all cycles.
-// The code in the #else computes the tr. rel. of only the cycle that starts from "stack_it"
-#if 0
-            // Compute the transitive Relation of the cycle (and then compute the
-            // transitive closure of that) as many times as there are elements in
-            // the cycle, changing the starting element of the cycle every time.
-            do{
-                compute_TC_of_transitive_relation_of_cycle(cycle_list);
-
-                cycle_list.push_back( cycle_list.front() );
-                cycle_list.pop_front();
-
-            // when the start is the same element as it was when we started, we are done.
-            }while( cycle_list.front() != cycle_start );
-#else
             compute_TC_of_transitive_relation_of_cycle(cycle_list);
-#endif
+
+            //TODO: release the memory held by "cycle_list".
         }
     }
 
     return;
 }
 
+void print_progress_symbol(int i){
+    char symbols[5] = {'\\','-','/','|','\0'};
+    fprintf(stderr, "\b%c",symbols[i%4]);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
 Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<tg_node_t *> visited_nodes, list<Relation *> relation_fifo, tg_node_t *src_nd, tg_node_t *snk_nd, int just_started){
     static int debug_depth=0;
+
+    print_progress_symbol(debug_depth/4);
 
     Ra.simplify(2,2);
 
@@ -3279,7 +3280,7 @@ void create_node(map<char *, tg_node_t *> &task_to_node, dep_t *dep, int edge_ty
     Q2J_ASSERT(dst->function);
     Q2J_ASSERT(dst->function->fname);
 
-    // See if we there is already a node in the graph for the source of this control edge.
+    // See if there is already a node in the graph for the source of this control edge.
     tg_node_t *src_nd = find_node_in_graph(src->function->fname, task_to_node);
     if( NULL == src_nd ){
         src_nd = new tg_node_t();
@@ -3389,14 +3390,6 @@ void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *de
             // If the destination task is correct, check the Relation.
             if( are_relations_equivalent((*e_it)->R, dep->rel) ){
                 // When we find the Relation we are looking for, we update it and leave this function.
-
-// debug starts
-//printf("Changing Rel: ");
-//(*e_it)->R->print_with_subs();
-//printf("      To Rel: ");
-//fnl_rel.print_with_subs();
-// debug ends
-
                 (*e_it)->R = new Relation(fnl_rel);
                 return;
             }
@@ -3404,7 +3397,7 @@ void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *de
     }
 
     fprintf(stderr,"FATAL ERROR: update_synch_edge_on_graph() should never fail to find the synch edge\n");
-    assert(0);
+    abort();
 }
 
 
@@ -3466,12 +3459,6 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
         dep_pruned->dst = dep->dst;
         dep_pruned->rel = dep->rel;
 
-#if defined(DEBUG_ANTI)
-        //printf("-- DEBUG: processing anti: from %s to %s: %s",
-        //       dep->src->function->fname, dep->dst->function->fname,
-        //       (const char *)dep->rel->print_with_subs_to_string(false));
-#endif /* defined(DEBUG_ANTI) */
-
         // For every flow edge that has the same src and dst as this anti-edge,
         // subtract the flow from the anti.
         set<dep_t *>::iterator it_f;
@@ -3487,17 +3474,11 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
             if( (src_task_f == src_task) && (dst_task_f == dst_task) ){
                 Relation ra, rb;
-                //Relation *rptr;
-                //rptr = dep_pruned->rel; /* save the pointer so we can free it */
                 ra = *(dep_pruned->rel);
                 rb = *(dep_f->rel);
                 if( ra.is_null() ){ break; }
                 if( rb.is_null() ){ continue; }
-#if defined(DEBUG_ANTI)
-                //printf("   DEBUG: found flow: from %s to %s: %s\n",src_task_f->task_name, dst_task_f->task_name, (const char *)rb.print_with_subs_to_string(false));
-#endif /* defined(DEBUG_ANTI) */
                 dep_pruned->rel = new Relation( Difference(ra, rb) );
-                //delete rptr;
             }
         }
 
@@ -3522,11 +3503,55 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps){
-    map<char *, tg_node_t *> task_to_node;
-    map<char *, set<dep_t *> > resulting_map;
+void free_task_graph(map<char *, tg_node_t *> task_to_node){
+    return;
+}
 
-    int do_TC_of_all_cycles = 1;
+////////////////////////////////////////////////////////////////////////////////
+//
+map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps){
+    map<char *, set<dep_t *> > resulting_map;
+    set<dep_t *> rslt_ctrl_deps;
+    int level, max_level=2;
+
+    rslt_ctrl_deps = ctrl_deps;
+    // TODO: we can add an intermediate level by killing all the anti-deps to self without
+    // TODO: computing transitive edges. Just compute the TC of the cycles.
+    for(level=0; level<max_level; level++){
+        fprintf(stderr, "Finalizing synch edges. Level %d/%d\n",level, max_level-1);
+        rslt_ctrl_deps = do_finalize_synch_edges(rslt_ctrl_deps, flow_deps, level);
+        fprintf(stderr, "\n");
+    }
+
+    set<dep_t *>::iterator ctrl_it;
+    for (ctrl_it=rslt_ctrl_deps.begin(); ctrl_it!=rslt_ctrl_deps.end(); ctrl_it++){
+        map<char *, set<dep_t *> >::iterator map_it;
+        set<dep_t *> dep_set;
+        dep_t *dep;
+        char *src_task_name;
+
+        dep = *ctrl_it;
+        dep_set.insert(dep);
+        src_task_name = dep->src->function->fname;
+
+        // See if this task already has a set of sync edges. If so, merge the old set with the new.
+        map_it = resulting_map.find( src_task_name );
+        if( map_it != resulting_map.end() ){
+            set<dep_t *> tmp_set;
+            tmp_set = resulting_map[src_task_name];
+            dep_set.insert(tmp_set.begin(), tmp_set.end());
+        }
+        resulting_map[src_task_name] = dep_set;
+    }
+
+    return resulting_map;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level){
+    map<char *, tg_node_t *> task_to_node;
+    set<dep_t *> rslt_ctrl_deps;
 
     // ============
     // Create a graph I_G with the different tasks (task-classes, actually) as nodes
@@ -3550,7 +3575,6 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
 
     // For every anti-edge, repeat the same steps.
-    fprintf(stderr, "Starts computing anti-edges\n");
     int count = 0;
     for (it=ctrl_deps.begin(); it!=ctrl_deps.end(); it++){
         set<tg_node_t *> visited_nodes;
@@ -3559,7 +3583,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         Relation Rt, Ra;
         tg_node_t *source_node, *sink_node;
 
-        fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
@@ -3579,7 +3603,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 2) for each pair of nodes N1,N2 in G, replace all the edges that
         //         go from N1 to N2 with their union.
-        fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
@@ -3594,33 +3618,35 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 3) Add to every node a tautologic Relation to self:
         // {[p1,p2,...,pn] -> [p1,p2,...,pn] : TRUE}.
-        fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
-
         visited_nodes.clear();
         visited_nodes.insert(source_node);
         add_tautologic_cycles(source_node, visited_nodes);
 
-        // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
-        fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
-                count / 5, count % 5, (int)(ctrl_deps.size()),
-                ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
-        count++;
+        if( level > 0 ){
+            // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
 
-        if (do_TC_of_all_cycles) {
+            fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
+                    count / 5, count % 5, (int)(ctrl_deps.size()),
+                    ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+            count++;
+
             visited_nodes.clear();
             compute_transitive_closure_of_all_cycles(source_node, visited_nodes, node_stack);
 #if defined(DEBUG_ANTI)
             printf("TC of cycles has been computed.\n");
             fflush(stdout);
 #endif /* DEBUG_ANTI */
+        }else{
+            count++;
         }
 
         // Step 5) Find the union of the transitive edges that start at source_node and end at
         // sink_node
-        fprintf(stderr, "\r%4d - %4d / %4d : %3.0f%%",
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%  ",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
         count++;
@@ -3653,48 +3679,47 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
             Rsync.print_with_subs();
             fflush(stdout);
 #endif /* DEBUG_ANTI */
+
             Rsync_finalized = Difference(Rsync, Ra);
+
 #if defined(DEBUG_ANTI)
             printf("==> Result:\n  ");
             Rsync_finalized.print_with_subs();
-            fflush(stdout);
-#endif /* DEBUG_ANTI */
-
-#if defined(DEBUG_ANTI)
             printf("Updating the task graph\n");
             fflush(stdout);
 #endif /* DEBUG_ANTI */
+
             update_synch_edge_on_graph(task_to_node, dep, Rsync_finalized);
-#if defined(DEBUG_ANTI)
-            printf("\n");
-            fflush(stdout);
-#endif /* DEBUG_ANTI */
         }
 
         if( !Rsync_finalized.is_null() && Rsync_finalized.is_upper_bound_satisfiable() ){
             dep_t *dep_finalized;
-            set<dep_t *> dep_set;
-            map<char *, set<dep_t *> >::iterator edge_it;
 
             dep_finalized = (dep_t *)calloc(1,sizeof(dep_t));
             dep_finalized->src = dep->src;
             dep_finalized->dst = dep->dst;
             dep_finalized->rel = new Relation(Rsync_finalized);
-            dep_set.insert(dep_finalized);
-
-            // See if this task already has a set of sync edges. If so, merge the old set with the new.
-            edge_it = resulting_map.find(source_node->task_name);
-            if( edge_it != resulting_map.end() ){
-                set<dep_t *>tmp_set;
-                tmp_set = resulting_map[source_node->task_name];
-                dep_set.insert(tmp_set.begin(), tmp_set.end());
-            }
-            resulting_map[source_node->task_name] = dep_set;
+            rslt_ctrl_deps.insert(dep_finalized);
         }
-
     }
 
-    return resulting_map;
+    // Release the memory taken by the Relations in the
+    // old list and then free the dep structures.
+    it=ctrl_deps.begin();
+    while( it!=ctrl_deps.end() ){
+        Relation R;
+
+        dep_t *dep = *it;
+        if( !dep->rel->is_null() ){
+           delete(dep->rel);
+        }
+        it++;
+        free(dep);
+    }
+
+    free_task_graph(task_to_node);
+
+    return rslt_ctrl_deps;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
