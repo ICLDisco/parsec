@@ -235,8 +235,8 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
 
     tiled_matrix_desc_t *descT = (tiled_matrix_desc_t *)args->ddescT;
 
-    WORK = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB);
-    WORKC = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB);
+    WORK = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB*sizeof(dague_complex64_t));
+    WORKC = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, descT->nb*args->IB*sizeof(dague_complex64_t));
     int LDWORK = args->IB;
 
     wei_debug_printf("nb %d, ib %d, WORK %p\n", descT->nb, args->IB, (void*)WORK);
