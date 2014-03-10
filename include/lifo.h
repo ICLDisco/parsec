@@ -86,7 +86,7 @@ struct dague_lifo_s {
 #define DAGUE_LIFO_CNT(LIFO, v)          ((uintptr_t)((uintptr_t)(v) & DAGUE_LIFO_CNTMASK(LIFO)))
 #define DAGUE_LIFO_PTR(LIFO, v)          ((dague_list_item_t *)((uintptr_t)(v) & DAGUE_LIFO_PTRMASK(LIFO)))
 #define DAGUE_LIFO_VAL(LIFO, p, c)       ((dague_list_item_t *)(((uintptr_t)DAGUE_LIFO_PTR(LIFO, p)) | DAGUE_LIFO_CNT(LIFO, c)))
-#define DAGUE_LIFO_HKEY(LIFO, h, n)      DAGUE_LIFO_VAL(LIFO, h, DAGUE_LIFO_CNT(h)+(uint64_t)1)
+#define DAGUE_LIFO_HKEY(LIFO, h, n)      DAGUE_LIFO_VAL(LIFO, h, DAGUE_LIFO_CNT(LIFO, h)+(uint64_t)1)
 #define DAGUE_LIFO_KHEAD(LIFO, k)        DAGUE_LIFO_PTR(LIFO, k)
 #define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(DAGUE_LIFO_CNT(LIFO, k)))
 
