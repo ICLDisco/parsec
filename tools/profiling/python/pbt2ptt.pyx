@@ -11,6 +11,13 @@ REQUIREMENTS:
 BUILD NOTES:
 # Be SURE to build this against the same version of Python as you have built Cython itself.
 # Contrasting versions will likely lead to odd errors about Unicode functions.
+
+TERMINOLOGY NOTES:
+# The phrase "skeleton_only" refers to loading only the metadata of a trace;
+# i.e., everything but the events. This can significantly improve load times,
+# especially in traces with many thousands of events, and is therefore useful
+# when your scripts are only interested in comparing the basic trace information
+# between multiple traces.
 """
 
 # cython: trace=False
@@ -40,6 +47,26 @@ multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
 # filenames ought to be a list of strings, or comparable type.
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=True,
            add_info=dict()):
+    """ Given binary trace filenames, returns a PaRSEC Trace Table (PTT) object
+
+    Defaults in parentheses
+
+    filenames should be a list-like of strings.
+
+    report_progress (False) turns on stdout printing of trace load progress, useful 
+    for command line scripts.
+
+    skeleton_only (False) will load everything but the events.
+
+    multiprocess (True) specifies the use of multiple I/O and CPU threads to use during the load.
+    An integer number may be specified instead of True.
+    Setting skeleton_only will also set multiprocess == 1.
+
+    add_info ({}) -- a dictionary to merge with the node information from the trace. 
+    This is useful in situations where the caller may have high level information 
+    about the trace that PaRSEC and the trace itself does not or cannot have, 
+    and where the caller wishes to embed that information at the time of PTT generation.
+    """
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
     if isinstance(filenames, basestring): # if the user passed a single string instead of a list
@@ -222,8 +249,30 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
               add_info=dict(), compress=('blosc', 0), skeleton_only=False):
     ''' Given [filenames] that comprise a single binary trace, returns the filename of the converted trace.
     
-    By default, does not unlink (delete) the binary trace files.
-    By default, performs conversion in multiple threads.
+    filenames -- a list-like of strings
+
+    out (None) -- allows manual specification of an output filename.
+
+    unlink (False) -- will unlink the binary trace after successful conversion.
+    
+    skeleton_only, multiprocess, report_progress, add_info -- see docs for "read()"
+
+    force_reconvert (False) -- causes conversion to happen even if a converted trace is determined to already exist.
+    This is usually determined by a simple match of the default generated output filename.
+    This (hopefully) simplifies significantly the mental/organiziational workload of the user,
+    as traces can simply be "re-converted" each time from the binary trace without performing the
+    actual conversion, while still allowing for a manual override in cases where that is necessary.
+
+    validate_existing (False) -- requires a successful load of an existing converted trace, instead of just a filename match.
+
+    table (False) -- allows PyTables 'tabular' storage of the PTT, which is slower but more flexible, 
+    especially in cases of extremely large traces, where the tabular format allows for database-style partial loads.
+    See pandas & PyTables docs for more details.
+
+    append (False) -- related to table. See pandas & PyTables docs.
+    
+    compress (('blosc', 0)) -- takes a tuple of compression algorithm and "level" from 0-9.
+    Level 0 means no compression.
     '''
     if skeleton_only:
         compress=('blosc', 5)
@@ -310,6 +359,11 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
 # by appending the extra values to a list stored at '<key>_list' in the dictionary.
 # It also attempts to store values as numbers instead of strings, if possible.
 cpdef add_kv(dct, key, value, append_if_present=True):
+    ''' Adds value for key to dict; converts strings to numbers if possible.
+    
+    If the key is already present, replaces the current value with the new value,
+    and appends all old and new values in a list at key == <key>_list.
+    '''
     try:    # try to convert value to its number type
         value = float(value) if '.' in value else int(value)
     except: # if this fails, it's a string, and that's fine too

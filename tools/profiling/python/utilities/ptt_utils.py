@@ -267,10 +267,10 @@ def autoload_traces(filenames, convert=True, unlink=False,
                     enhance_filenames=False, skeleton_only=False,
                     report_progress=True, force_reconvert=False,
                     multiprocess=True):
-    """ Provides a single interface for all attempts to load PTTs from the filesystem.
+    """ Preferred interface for most attempts to load PTTs from the filesystem.
 
     Whether from PTT, PBT, or a combination of the two, you should be able to
-    throw a huge list of filenames at this function and receive a whole mess of
+    throw a huge, messy list of filenames at this function and receive a bunch of
     coherent PTT traces back. Give it a whirl, and be sure to report any bugs!
     """
 
@@ -349,14 +349,15 @@ def compress_h5(filename, clevel=5):
 def print_help():
     print('')
     print('  -- DESCRIPTION -- ')
-    print(' This utility allows the user to automatically group, and convert PaRSEC binary traces.')
+    print(' This utility allows the user to automatically group and convert PaRSEC binary traces.')
+    print('')
     print(' PBTs of different ranks but the same run share certain characteristics, ')
     print(' and this utility will attempt to group the traces by those characteristics.')
-    print(' Discovered groupings have their binary traces renamed with shared descriptor strings,')
-    print(' which means that even singleton binary traces will benefit from this utility as,')
-    print(' by default, the utility embeds the GFLOPS/s into the trace name, if available.')
+    # print(' Discovered groupings have their binary traces renamed with shared descriptor strings,')
+    # print(' which means that even singleton binary traces will benefit from this utility as,')
+    # print(' by default, the utility embeds the GFLOPS/s into the trace name, if available.')
     print('')
-    print('By default, conversion to the Python pandas/HDF5 format (aka PTT) is done also.')
+    print('By default, conversion to the Python pandas/HDF5 format (aka PTT) is performed.')
     print('This conversion may take some time, but it is generally recommended for ease of ')
     print('further interaction with the PaRSEC trace. To disable the conversion, ')
     print('pass the --no-convert flag to the utility.')
@@ -434,6 +435,9 @@ if __name__ == '__main__':
 
     processed_filename_groups = group_trace_filenames(filenames)
 
+    # this is commented out because I decided not to enhance the filenames of the
+    # binary trace files by default anymore. It tended to confuse matters,
+    # and it inadvertently encourages continued use of those binary traces.
     # processed_filename_groups = preprocess_traces(filenames, dry_run=dry_run,
     #                                               enhance_filenames=False,
     #                                               force_enhance=force_enhance,
