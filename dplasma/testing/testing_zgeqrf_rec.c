@@ -10,6 +10,8 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dague/devices/cuda/dev_cuda.h"
+#include "../lib/memory_pool.h"
+#include "../lib/zgeqrf_rec.h"
 
 static int check_orthogonality(dague_context_t *dague, int loud,
                                tiled_matrix_desc_t *Q);
@@ -98,11 +100,18 @@ int main(int argc, char ** argv)
         if(loud > 3) printf("Done\n");
     }
 #endif
-
+	
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_rec,
                               ((tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescT));
+
+    dague_zgeqrf_rec_handle_t* myzgeqrf_handle = (dague_zgeqrf_rec_handle_t*)DAGUE_zgeqrf_rec;
+	myzgeqrf_handle->smallnb = iparam[IPARAM_SMALL_NB];
+	if (myzgeqrf_handle->smallnb % iparam[IPARAM_IB] != 0) {
+		myzgeqrf_handle->smallnb = myzgeqrf_handle->smallnb / iparam[IPARAM_IB] * iparam[IPARAM_IB];
+		fprintf(stderr, "small nb should be muliple of IB, so small nb is modified to %d\n", myzgeqrf_handle->smallnb);
+	}
 
     /* lets rock! */
     PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_rec);

@@ -232,6 +232,9 @@ static struct option long_options[] =
     {"alpha",       required_argument,  0, 'a'},
     {"seed",        required_argument,  0, 'R'},
     {"mtx",         required_argument,  0, 'b'},
+    
+    /* Recursive options */
+    {"smallnb",      required_argument,  0, 'z'},
 
     /* HERBT options */
     {"butlvl",      required_argument,  0, 'y'},
@@ -344,6 +347,9 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
+            
+                /* Recursive parameters */
+            case 'z': iparam[IPARAM_SMALL_NB] = atoi(optarg); break;
 
             case 'm':
                 iparam[IPARAM_PINS] = 1;

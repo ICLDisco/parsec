@@ -70,6 +70,7 @@ enum iparam_t {
   IPARAM_BUT_LEVEL,    /* Butterfly level */
   IPARAM_PINS,         /* Was the PINS option used? */
   IPARAM_SCHEDULER,    /* User-selected scheduler */
+  IPARAM_SMALL_NB,      /* Small NB for recursive */
   IPARAM_SIZEOF
 };
 
