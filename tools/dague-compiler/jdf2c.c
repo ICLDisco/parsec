@@ -1026,6 +1026,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#include <dague.h>\n"
             "#include <dague/constants.h>\n"
             "#include <data_distribution.h>\n"
+            "#include <mempool.h>\n"
             "#include <data.h>\n"
             "#include <debug.h>\n"
             "#include <dague/ayudame.h>\n"
