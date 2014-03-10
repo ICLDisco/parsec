@@ -4456,7 +4456,7 @@ int jdf_optimize( jdf_t* jdf )
                 has_displacement |= dep->dep_flags;
             }
             if( JDF_DEP_HAS_DISPL & has_displacement )
-                flow->flow_flags = JDF_FLOW_HAS_DISPL;
+                flow->flow_flags |= JDF_FLOW_HAS_DISPL;
         }
     }
     string_arena_free(sa);
