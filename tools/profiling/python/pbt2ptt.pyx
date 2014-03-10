@@ -4,8 +4,8 @@ run 'python setup.py build_ext --inplace' to compile
 The preferred nomenclature for the Python Binary Trace is "PBT",
 
 REQUIREMENTS:
-# Cython 0.18+ required.
-# pandas 0.12+ (and numpy, etc.) required.
+# Cython 0.19+ required.
+# pandas 0.13+ (and numpy, etc.) required.
 # Python 2.7.3 recommended.
 
 BUILD NOTES:
