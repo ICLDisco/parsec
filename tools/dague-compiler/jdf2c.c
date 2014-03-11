@@ -3502,7 +3502,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                 flow->flow_index);
         return;
     }
-    coutput( "  if( NULL == (chunk = this_task->data[%u].data_in) ) {;  /* flow %s */\n"
+    coutput( "  if( NULL == (chunk = this_task->data[%u].data_in) ) {  /* flow %s */\n"
              "    entry = NULL;\n",
              flow->flow_index, flow->varname);
 
@@ -4837,7 +4837,7 @@ int jdf_optimize( jdf_t* jdf )
                 has_displacement |= dep->dep_flags;
             }
             if( JDF_DEP_HAS_DISPL & has_displacement )
-                flow->flow_flags = JDF_FLOW_HAS_DISPL;
+                flow->flow_flags |= JDF_FLOW_HAS_DISPL;
         }
     }
     string_arena_free(sa);

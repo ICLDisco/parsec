@@ -989,7 +989,6 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     if( 0 != move_data_count ) {
         WARNING(("GPU:\tRequest space on GPU failed for %d out of %d data\n",
                  move_data_count, this_task->function->nb_parameters));
-        exit(-2); 
         /* We can't find enough room on the GPU. Insert the tiles in the begining of
          * the LRU (in order to be reused asap) and return without scheduling the task.
          */

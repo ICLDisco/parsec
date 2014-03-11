@@ -524,7 +524,8 @@ def run_main():
                         help='Directory in which to place PaRSEC traces and trial summaries.')
     parser.add_argument('-c', '--convert-traces', action='store_true',
                         help='Convert PaRSEC Binary Traces to Python HDF5 files.')
-    parser.add_argument('-t', '--tests-per-trial', type=int, default=default_tests_per_trial)
+    parser.add_argument('-t', '--tests-per-trial', type=int, default=default_tests_per_trial,
+                        help='Number of tests per trial.')
     parser.add_argument('-s', '--max-rsd', type=float, default=max_rsd,
                         help='Maximum relative (% of avg) standard deviation for tests in trial.')
     parser.add_argument('-k', '--skeleton-only', action='store_true',
