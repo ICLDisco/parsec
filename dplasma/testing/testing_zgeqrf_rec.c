@@ -106,6 +106,9 @@ int main(int argc, char ** argv)
                               ((tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescT));
 
+    if (iparam[IPARAM_SMALL_NB] == 0) {
+        iparam[IPARAM_SMALL_NB] = iparam[IPARAM_IB]; /* default small nb = ib */
+    }
     dague_zgeqrf_rec_handle_t* myzgeqrf_handle = (dague_zgeqrf_rec_handle_t*)DAGUE_zgeqrf_rec;
 	myzgeqrf_handle->smallnb = iparam[IPARAM_SMALL_NB];
 	if (myzgeqrf_handle->smallnb % iparam[IPARAM_IB] != 0) {
