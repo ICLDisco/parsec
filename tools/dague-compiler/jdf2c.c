@@ -2921,7 +2921,8 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "#  endif /* defined(PINS_ENABLE) */\n"
             " \n"
             "  uint32_t wanted_devices = dague_handle->devices_mask; dague_handle->devices_mask = 0;\n"
-            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "  uint32_t _i;\n"
+            "  for( _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    if( !(wanted_devices & (1<<_i)) ) continue;\n"
             "    dague_device_t* device = dague_devices_get(_i);\n"
             "    dague_ddesc_t* dague_ddesc;\n"
@@ -2950,11 +2951,13 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "        continue;\n"
                            "      }\n"));
     coutput("  /* Remove all the chores without a backend device */\n"
-            "  for( uint32_t i = 0; i < dague_handle->nb_functions; i++ ) {\n"
+            "  uint32_t i;\n"
+            "  for( i = 0; i < dague_handle->nb_functions; i++ ) {\n"
             "    dague_function_t* func = (dague_function_t*)dague_handle->functions_array[i];\n"
             "    __dague_chore_t* chores = (__dague_chore_t*)func->incarnations;\n"
             "    uint32_t index = 0;\n"
-            "    for( uint32_t j = 0; NULL != chores[j].hook; j++ ) {\n"
+            "    uint32_t j;\n"
+            "    for( j = 0; NULL != chores[j].hook; j++ ) {\n"
             "      if(supported_dev & (1 << chores[j].type)) {\n"
             "          if( j != index ) chores[index] = chores[j];\n"
             "          index++;\n"
@@ -3025,7 +3028,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             jdf_basename);
 
     coutput("  /* Unregister all the data */\n"
-            "  for( uint32_t _i = 0; _i < dague_nb_devices; _i++ ) {\n"
+            "  uint32_t _i;\n"
+            "  for( _i = 0; _i < dague_nb_devices; _i++ ) {\n"
             "    dague_device_t* device;\n"
             "    dague_ddesc_t* dague_ddesc;\n"
             "    if(!(handle->super.super.devices_mask & (1 << _i))) continue;\n"
@@ -3502,7 +3506,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                 flow->flow_index);
         return;
     }
-    coutput( "  if( NULL == (chunk = this_task->data[%u].data_in) ) {;  /* flow %s */\n"
+    coutput( "  if( NULL == (chunk = this_task->data[%u].data_in) ) {  /* flow %s */\n"
              "    entry = NULL;\n",
              flow->flow_index, flow->varname);
 
@@ -4837,7 +4841,7 @@ int jdf_optimize( jdf_t* jdf )
                 has_displacement |= dep->dep_flags;
             }
             if( JDF_DEP_HAS_DISPL & has_displacement )
-                flow->flow_flags = JDF_FLOW_HAS_DISPL;
+                flow->flow_flags |= JDF_FLOW_HAS_DISPL;
         }
     }
     string_arena_free(sa);
