@@ -30,22 +30,22 @@ descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc
 
 ib     [type = "int" hidden=on default = "descT.mb" ]
 
-ztsqrt(k)
+ztsqrt_ztsqrt(k)
   /* Execution space */
   k = 0 .. descA2.nt-1
 
   : dataA2(0, k)
 
-  RW   A1 <- (0 == k) ? dataA1(0, k) : A1 ztsmqr(k-1, k)
+  RW   A1 <- (0 == k) ? dataA1(0, k) : A1 ztsqrt_ztsmqr(k-1, k)
           -> dataA1(0, k)
 
-  RW   A2 <- (0 == k) ? dataA2(0, k) : A2 ztsmqr(k-1, k)
-          -> (k < (descA2.nt-1)) ? V ztsmqr(k, k+1 ..  descA2.nt-1)
+  RW   A2 <- (0 == k) ? dataA2(0, k) : A2 ztsqrt_ztsmqr(k-1, k)
+          -> (k < (descA2.nt-1)) ? V ztsqrt_ztsmqr(k, k+1 ..  descA2.nt-1)
           -> dataA2(0, k)
 
-  RW    T <- dataT(0, k)                                            [type = LITTLE_T]
-          -> (k < (descA2.nt-1)) ? T ztsmqr(k, k+1 ..  descA2.nt-1) [type = LITTLE_T]
-          -> dataT(0, k)                                            [type = LITTLE_T]
+  RW    T <- dataT(0, k)                                                   [type = LITTLE_T]
+          -> (k < (descA2.nt-1)) ? T ztsqrt_ztsmqr(k, k+1 ..  descA2.nt-1) [type = LITTLE_T]
+          -> dataT(0, k)                                                   [type = LITTLE_T]
 
 BODY
 {
@@ -74,25 +74,25 @@ BODY
 }
 END
 
-ztsmqr(k, n)
+ztsqrt_ztsmqr(k, n)
   /* Execution space */
   k = 0   .. descA2.nt-2
   n = k+1 .. descA2.nt-1
 
   : dataA2(0,n)
 
-  RW   A1 <- ( k == 0 ) ? dataA1(0, n)   : A1 ztsmqr(k-1, n)
+  RW   A1 <- ( k == 0 ) ? dataA1(0, n)   : A1 ztsqrt_ztsmqr(k-1, n)
 
-          -> (n == (k+1)) ? A1 ztsqrt(k+1)
-          -> (n >  (k+1)) ? A1 ztsmqr(k+1, n)
+          -> (n == (k+1)) ? A1 ztsqrt_ztsqrt(k+1)
+          -> (n >  (k+1)) ? A1 ztsqrt_ztsmqr(k+1, n)
 
-  RW   A2 <- ( k == 0 ) ? dataA2(0, n) : A2 ztsmqr(k-1, n)
+  RW   A2 <- ( k == 0 ) ? dataA2(0, n) : A2 ztsqrt_ztsmqr(k-1, n)
 
-          -> (n == (k+1)) ? A2 ztsqrt(k+1)
-          -> (n >  (k+1)) ? A2 ztsmqr(k+1, n)
+          -> (n == (k+1)) ? A2 ztsqrt_ztsqrt(k+1)
+          -> (n >  (k+1)) ? A2 ztsqrt_ztsmqr(k+1, n)
 
-  READ  V <- A2 ztsqrt(k)
-  READ  T <- T  ztsqrt(k)             [type = LITTLE_T]
+  READ  V <- A2 ztsqrt_ztsqrt(k)
+  READ  T <- T  ztsqrt_ztsqrt(k)             [type = LITTLE_T]
 
 BODY
 {

@@ -27,19 +27,19 @@ descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc
 minMNT [type = "int" hidden=on default = "dplasma_imin(descA.nt, ((descA.m+descA.nb-1)/descA.nb))-1"]
 ib     [type = "int" hidden=on default = "descT.mb" ]
 
-zgeqrt(k)
+zgeqrt_zgeqrt(k)
   /* Execution space */
   k = 0 .. minMNT
 
   : dataA(0, k)
 
-  RW    A <- (0 == k) ? dataA(0, k) : C zlarfb(k-1, k)
-          -> (k < (descA.nt-1)) ? V zlarfb(k, k+1 ..  descA.nt-1)
+  RW    A <- (0 == k) ? dataA(0, k) : C zgeqrt_zunmqr(k-1, k)
+          -> (k < (descA.nt-1)) ? V zgeqrt_zunmqr(k, k+1 ..  descA.nt-1)
           -> dataA(0, k)
 
-  RW    T <- dataT(0, k)                                          [type = LITTLE_T]
-          -> dataT(0, k)                                          [type = LITTLE_T]
-          -> (k < (descA.nt-1)) ? T zlarfb(k, k+1 ..  descA.nt-1) [type = LITTLE_T]
+  RW    T <- dataT(0, k)                                                 [type = LITTLE_T]
+          -> dataT(0, k)                                                 [type = LITTLE_T]
+          -> (k < (descA.nt-1)) ? T zgeqrt_zunmqr(k, k+1 ..  descA.nt-1) [type = LITTLE_T]
 
 BODY
 {
@@ -69,19 +69,19 @@ BODY
 }
 END
 
-zlarfb(k, n)
+zgeqrt_zunmqr(k, n)
   /* Execution space */
   k = 0   .. inline_c %{ return dplasma_imin((descA.nt-2), minMNT); %}
   n = k+1 .. descA.nt-1
 
   : dataA(0,n)
 
-  READ  V <- A zgeqrt(k)
-  READ  T <- T zgeqrt(k)             [type = LITTLE_T]
-  RW    C <- (k == 0) ? dataA(0, n) : C zlarfb(k-1, n)
+  READ  V <- A zgeqrt_zgeqrt(k)
+  READ  T <- T zgeqrt_zgeqrt(k)             [type = LITTLE_T]
+  RW    C <- (k == 0) ? dataA(0, n) : C zgeqrt_zunmqr(k-1, n)
           -> (k == minMNT) ? dataA(0, n)
-          -> (k <  minMNT) && ( n == k+1 ) ? A zgeqrt(k+1)
-          -> (k <  minMNT) && ( n >  k+1 ) ? C zlarfb(k+1, n)
+          -> (k <  minMNT) && ( n == k+1 ) ? A zgeqrt_zgeqrt(k+1)
+          -> (k <  minMNT) && ( n >  k+1 ) ? C zgeqrt_zunmqr(k+1, n)
 
 BODY
 {

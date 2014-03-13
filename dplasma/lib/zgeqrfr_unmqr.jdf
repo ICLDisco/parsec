@@ -30,7 +30,7 @@ minMNT [type = "int" hidden=on default = "dplasma_imin(descA.nt, ((descA.m+descA
 ib     [type = "int" hidden=on default = "descT.mb" ]
 
 
-zlarfb(k, n)
+zunmqr_zunmqr(k, n)
   /* Execution space */
   k = 0 .. minMNT
   n = 0 .. descC.nt-1
@@ -39,9 +39,9 @@ zlarfb(k, n)
 
   READ  V <- A read_A(k)
   READ  T <- T read_T(k)                                 [type = LITTLE_T]
-  RW    C <- (k == 0) ? dataC(0, n) : C zlarfb(k-1, n)
+  RW    C <- (k == 0) ? dataC(0, n) : C zunmqr_zunmqr(k-1, n)
           -> (k == descA.nt-1) ? dataC(0, n)
-          -> (k <  descA.nt-1) ? C zlarfb(k+1, n)
+          -> (k <  descA.nt-1) ? C zunmqr_zunmqr(k+1, n)
 
 BODY
 {
@@ -76,7 +76,7 @@ read_A(k) [profile = off]
   : dataA(0, k)
 
   RW A <- dataA(0, k)
-       -> V zlarfb(k, 0 .. descC.nt-1)
+       -> V zunmqr_zunmqr(k, 0 .. descC.nt-1)
 BODY
 {
     /* nothing */
@@ -88,8 +88,8 @@ read_T(k) [profile = off]
 
   : dataT(0, k)
 
-  RW T <- dataT(0, k)                        [type = LITTLE_T]
-       -> T zlarfb(k, 0 .. descC.nt-1)       [type = LITTLE_T]
+  RW T <- dataT(0, k)                               [type = LITTLE_T]
+       -> T zunmqr_zunmqr(k, 0 .. descC.nt-1)       [type = LITTLE_T]
 BODY
 {
     /* nothing */
