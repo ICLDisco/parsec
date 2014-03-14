@@ -38,13 +38,12 @@ import pandas as pd
 from parsec_trace_tables import * # the pure Python classes
 from common_utils import *
 
-# 'include' will eventually be deprecated by Cython, but I still prefer it.
+# 'include' will eventually be deprecated by Cython, but I still prefer it to having many modules
 include "pbt_info_parser.pxi"
 
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
+microsleep = 0.05
 
-# reads an entire trace into a set of pandas DataFrames
-# filenames ought to be a list of strings, or comparable type.
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=True,
            add_info=dict()):
     """ Given binary trace filenames, returns a PaRSEC Trace Table (PTT) object
@@ -169,7 +168,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
                 except EOFError:
                     process_pipes.remove(pipe)
             if not something_was_read:
-                time.sleep(0.05) # tiny sleep so as not to hog CPU
+                time.sleep(microsleep) # tiny sleep so as not to hog CPU
         for p in processes:
             p.join() # cleanup spawned processes
     # report progress
@@ -188,14 +187,14 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
 
     # now, some voodoo to add shared file information to overall trace info
     # e.g., PARAM_N, PARAM_MB, exe, SYNC_TIME_ELAPSED, etc.
-    # basically, any key that has the same value in all nodes should
+    # basically, any key that has the same value in *all nodes* should
     # go straight into the top-level 'information' dictionary, since it is global
     if len(builder.nodes) > 0:
-        builder.information.update(builder.nodes[0])
+        builder.information.update(builder.nodes[0]) # start with all infos from node 0
     else:
         cond_print('No nodes were found in the trace.', report_progress)
     for node in builder.nodes:
-        for key, value in node.iteritems():
+        for key, value in node.iteritems(): # now remove, one by one, non-matching infos
             if key in builder.information.keys():
                 if builder.information[key] != node[key] and node[key] != 0:
                     del builder.information[key]
@@ -241,8 +240,6 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     return trace
 
 
-
-# returns the output filename, not the trace itself.
 cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
               force_reconvert=False, validate_existing=False,
               table=False, append=False, report_progress=False,
@@ -355,9 +352,6 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     return out
 
 
-# This function helps support duplicate keys in the info dictionaries
-# by appending the extra values to a list stored at '<key>_list' in the dictionary.
-# It also attempts to store values as numbers instead of strings, if possible.
 cpdef add_kv(dct, key, value, append_if_present=True):
     ''' Adds value for key to dict; converts strings to numbers if possible.
     
@@ -561,7 +555,7 @@ class ProfileBuilder(object):
 
 
 # NOTE:
-# this breaks Cython, so don't do it
+# negative indexing breaks Cython, so don't do it.
 # index = -1
 # print('index is ' + str(index))
 # print(builder.test_df[index])
