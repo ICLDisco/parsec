@@ -87,7 +87,6 @@ static void dump_full_und(und_t *und);
 ////////////////////////////////////////////////////////////////////////////////
 //
 static int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
-static Relation process_execution_space(node_t *node, node_t *func, int *status);
 set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
@@ -110,6 +109,7 @@ static void _declare_global_vars(node_t *node);
 static inline void declare_global_vars(node_t *node);
 static void declare_globals_in_tree(node_t *node, set <char *> ind_names);
 static set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level);
+static Relation process_execution_space(node_t *node, node_t *func, int *status);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -401,6 +401,9 @@ int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID>
     int status = Q2J_SUCCESS;
 
     switch( node->type ){
+        // TODO: handle logical or (L_OR) as well.
+        //F_Or *or1 = R_root->add_or();
+        //F_And *and1 = or1->add_and();
         case L_AND:
             new_and = R_root->add_and();
             status = process_end_condition(DA_kid(node,0), new_and, ivars, lb, R);
@@ -412,9 +415,6 @@ int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID>
                 return status;
             }
             break;
-// TODO: handle logical or (L_OR) as well.
-//F_Or *or1 = R_root->add_or();
-//F_And *and1 = or1->add_and();
         case LT:
             ivar = ivars[DA_var_name(DA_rel_lhs(node))];
             imax = R_root->add_GEQ();
@@ -1449,7 +1449,7 @@ static void _declare_global_vars(node_t *node){
             ind_names.insert( DA_var_name(DA_loop_induction_variable(tmp)) );
         }
 
-//TODO: "Maybe we should exclude the blackbox variables from the list of globals as well"
+        //TODO: "Maybe we should exclude the blackbox variables from the list of globals as well"
 
         // Find all the variables in the lower bound that are not induction variables and
         // declare them as global variables (symbolic)
@@ -2744,9 +2744,6 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// WARNING: this function is destructive.  It actually removes nodes from the tree
-// and deletes them altogether. In many cases you will need to pass a copy of the
-// tree to this function.
 list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es){
     stringstream ss;
     set<expr_t *> simpl_conj;
@@ -2788,22 +2785,7 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
         pair<expr_t *, Relation> p = *cj_it;
         expr_t *cur_exp = p.first;
 
-        int dst_count = R.n_out();
-        for(int i=0; i<dst_count; i++){
-            const char *ovar = strdup(R.output_var(i+1)->char_name());
-            // If we find the variable in an EQ then we solve for the variable and
-            // substitute the solution for the variable everywhere in the conjunction.
-            expr_t *solution = solve_expression_tree_for_var(cur_exp, ovar, R);
-            if( NULL != solution ){
-                substitute_exp_for_var(solution, ovar, cur_exp);
-            }else{
-                // If the variable is in no EQs but it's in GEs, we have to use transitivity
-                // to eliminate it.  For example: X-a>=0 && b-X-1>=0 => b-1>=X && X>=a => b-1>=a
-                cur_exp = eliminate_var_using_transitivity(cur_exp, ovar, R);
-            }
-            free((void *)ovar);
-        }
-        cur_exp = simplify_constraint_based_on_execution_space(cur_exp, S_es);
+        cur_exp = simplify_condition(cur_exp, R, S_es);
 
         new_p.first = cur_exp;
         new_p.second = p.second;
@@ -2814,6 +2796,27 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
         clean_tree( (*cj_it).first );
     }
     return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+expr_t *simplify_condition(expr_t *expr, Relation R, Relation S_es){
+    int dst_count = R.n_out();
+    for(int i=0; i<dst_count; i++){
+        const char *ovar = strdup(R.output_var(i+1)->char_name());
+        // If we find the variable in an EQ then we solve for the variable and
+        // substitute the solution for the variable everywhere in the conjunction.
+        expr_t *solution = solve_expression_tree_for_var(expr, ovar, R);
+        if( NULL != solution ){
+            substitute_exp_for_var(solution, ovar, expr);
+        }else{
+            // If the variable is in no EQs but it's in GEs, we have to use transitivity
+            // to eliminate it.  For example: X-a>=0 && b-X-1>=0 => b-1>=X && X>=a => b-1>=a
+            expr = eliminate_var_using_transitivity(expr, ovar, R);
+        }
+        free((void *)ovar);
+    }
+    return simplify_constraint_based_on_execution_space(expr, S_es);
 }
 
 
@@ -3720,6 +3723,21 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
     return rslt_ctrl_deps;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+//
+Relation build_execution_space_relation(node_t *node, int *status){
+    node_t *func;
+
+    // Find the node on the AST that represents the function that encloses this task node
+    for(func = node; func->type != FUNC; func = func->parent){
+        /* keep walking up the tree */;
+    }
+
+    // Use the enclosing function the retrieve the execustion space of the destination task
+    return process_execution_space(node, func, status);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //
 Relation process_execution_space( node_t *node, node_t *func, int *status )
@@ -4288,7 +4306,8 @@ printf("========================================================================
             map<char *, set<dep_t *> > incm_map, outg_map;
             set<dep_t *>::iterator dep_it;
 
-            Relation S_es = process_execution_space(src_task->task_node, func, &status);
+            // Relation S_es = process_execution_space(src_task->task_node, func, &status);
+            Relation S_es = build_execution_space_relation(src_task->task_node, &status);
             if( Q2J_SUCCESS != status ){
                 fprintf(stderr,"process_execution_space() failed.\n");
                 return status;
@@ -4852,7 +4871,3 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     return need_ptask;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////

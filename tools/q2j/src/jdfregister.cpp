@@ -955,6 +955,8 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
 
     cond_list = simplify_conditions_and_split_disjunctions(*full_rel, S_es);
     for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
+        int exec_space_status = Q2J_SUCCESS;
+        jdf_expr_t *dep_expr;
         static int nb_ctl_dep = 0;
         jdf_dataflow_t *dataflow;
         string_arena_t *sa;
@@ -968,6 +970,9 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         sa = string_arena_new(8);
         string_arena_add_string( sa, "ctl%d", nb_ctl_dep );
         nb_ctl_dep++;
+
+        // Generate the dep_expr that will serve as the guard
+        dep_expr = jdf_generate_condition_str( cond_it->first );
 
         // Outgoing CTL for src function
         dataflow = q2jmalloc(jdf_dataflow_t, 1);
@@ -983,8 +988,8 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
         JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
-        dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
-        dataflow->deps->guard->guard      = NULL;
+        dataflow->deps->guard->guard_type = dep_expr == NULL ? JDF_GUARD_UNCONDITIONAL : JDF_GUARD_BINARY;
+        dataflow->deps->guard->guard      = dep_expr;
         dataflow->deps->guard->properties = NULL;
         dataflow->deps->guard->callfalse  = NULL;
         dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
@@ -1003,11 +1008,22 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
         dep2.src = dep->src;
         dep2.dst = dep->dst;
         dep2.rel = new Relation( Inverse(inv) );
-
+        (*dep2.rel).simplify(2,2);
         (void)(*dep2.rel).print_with_subs_to_string(false);
-        expr = relation_to_tree( *dep2.rel );
 
         if( src != dst ){
+
+            Relation dst_S_es = build_execution_space_relation(dep->dst->task->task_node, &exec_space_status);
+            if( Q2J_SUCCESS != exec_space_status ){
+                std::cerr << "jdf_register_anti_dependency(): Could not build execution space Relation for incoming CTRL edge:" << endl;
+                std::cerr << dst->fname << "<-" << src->fname << " " << rel.print_with_subs_to_string();
+            }
+
+            Relation inv_rel = *dep2.rel;
+            expr_t *simpl_expr = simplify_condition(relation_to_tree(inv_rel), inv_rel, dst_S_es);
+            dep_expr = jdf_generate_condition_str( simpl_expr );
+            expr = relation_to_tree( inv_rel );
+
             dataflow = q2jmalloc(jdf_dataflow_t, 1);
             dataflow->next = NULL;
             dataflow->varname     = strdup(string_arena_get_string(sa));
@@ -1021,8 +1037,13 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
             jdf_set_default_datatype(&dataflow->deps->datatype, "DEFAULT", 1, 0);
             JDF_OBJECT_SET(dataflow->deps, NULL, 0, NULL);
 
-            dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
-            dataflow->deps->guard->guard      = NULL;
+            if( Q2J_SUCCESS == exec_space_status ){
+                dataflow->deps->guard->guard_type = dep_expr == NULL ? JDF_GUARD_UNCONDITIONAL : JDF_GUARD_BINARY;
+                dataflow->deps->guard->guard      = dep_expr;
+            }else{
+                dataflow->deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
+                dataflow->deps->guard->guard      = NULL;
+            }
             dataflow->deps->guard->properties = NULL;
             dataflow->deps->guard->callfalse  = NULL;
             dataflow->deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);
@@ -1037,14 +1058,19 @@ void jdf_register_anti_dependency( dep_t *dep, Relation S_es )
             jdf_dep_t *deps;
             dataflow->deps->next      = q2jmalloc(jdf_dep_t, 1);
             deps = dataflow->deps->next;
-        
+
+            Relation inv_rel = *dep2.rel;
+            expr_t *simpl_expr = simplify_condition(relation_to_tree(inv_rel), inv_rel, S_es);
+            dep_expr = jdf_generate_condition_str( simpl_expr );
+            expr = relation_to_tree( inv_rel );
+
             deps->dep_flags = JDF_DEP_FLOW_IN;
             deps->guard     = q2jmalloc(jdf_guarded_call_t, 1);
             jdf_set_default_datatype(&deps->datatype, "DEFAULT", 1, 0);
             JDF_OBJECT_SET(deps, NULL, 0, NULL);
 
-            deps->guard->guard_type = JDF_GUARD_UNCONDITIONAL;
-            deps->guard->guard      = NULL;
+            deps->guard->guard_type = dep_expr == NULL ? JDF_GUARD_UNCONDITIONAL : JDF_GUARD_BINARY;
+            deps->guard->guard      = dep_expr;
             deps->guard->properties = NULL;
             deps->guard->callfalse  = NULL;
             deps->guard->calltrue = q2jmalloc(jdf_call_t, 1);

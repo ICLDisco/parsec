@@ -30,12 +30,14 @@ void clean_tree(expr_t *root);
 expr_t *solve_expression_tree_for_var(expr_t *exp, const char *var_name, Relation R);
 const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
 bool need_pseudotask(node_t *ref1, node_t *ref2);
+Relation build_execution_space_relation(node_t *node, int *status);
 
 char *dump_data(string_arena_t *sa, node_t *n);
 char *dump_actual_parameters(string_arena_t *sa, dep_t *dep, expr_t *rel_exp);
 char *dump_conditions(string_arena_t *sa,
                       list< pair<expr_t *,Relation> > *cond_list,
                       list< pair<expr_t *, Relation> >::iterator *cond_it);
+expr_t *simplify_condition(expr_t *expr, Relation R, Relation S_es);
 #endif
 
 int interrogate_omega(node_t *node, var_t *head);
