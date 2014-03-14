@@ -1088,7 +1088,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
             node_t *new_node, *scond, *econd, *incr, *body;
 
             // Create the induction variable.
-            asprintf(&ind_var_name,"%c",'i'+dim); //
+            asprintf(&ind_var_name,"%c",'m'+dim); //
             ind_vars[dim] = DA_create_ID(ind_var_name);
             free(ind_var_name); // DA_create_ID() will copy the string anyway.
 
