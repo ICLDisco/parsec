@@ -12,7 +12,7 @@
 #include <pthread.h>
 
 #include "os-spec-timing.h"
-#include "list.h"
+#include "dague/class/list.h"
 
 /** DAGuE Binary Profile format. */
 

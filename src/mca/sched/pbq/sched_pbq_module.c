@@ -13,12 +13,12 @@
 #include "dague_config.h"
 #include "dague_internal.h"
 #include "debug.h"
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/sched_local_queues_utils.h"
 #include "dague/mca/sched/pbq/sched_pbq.h"
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 #include "dague/mca/pins/pins.h"
 static int SYSTEM_NEIGHBOR = 0;
 

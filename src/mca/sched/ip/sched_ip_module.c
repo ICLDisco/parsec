@@ -15,7 +15,7 @@
 #include "debug.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/ip/sched_ip.h"
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 #include "dague/mca/pins/pins.h"
 static int SYSTEM_NEIGHBOR = 0;
 

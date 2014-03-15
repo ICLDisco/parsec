@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "list.h"
+#include "dague/class/list.h"
 
 #include <stdio.h>
 #include <stdlib.h>

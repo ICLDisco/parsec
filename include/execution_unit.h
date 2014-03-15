@@ -18,7 +18,7 @@
 #include "hbbuffer.h"
 #include "mempool.h"
 #include "profiling.h"
-#include "barrier.h"
+#include "dague/class/barrier.h"
 
 #ifdef HAVE_PAPI
 /* for PAPI event sets in execution_unit */

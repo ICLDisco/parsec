@@ -15,7 +15,7 @@
 #if defined(HAVE_HWLOC)
 #include "dague_hwloc.h"
 #endif
-#include "list.h"
+#include "dague/class/list.h"
 #include "os-spec-timing.h"
 #include "bindthread.h"
 

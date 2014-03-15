@@ -9,7 +9,7 @@
 
 #include "dague_config.h"
 #include "dague/types.h"
-#include "list_item.h"
+#include "dague/class/list_item.h"
 #include "dague_description_structures.h"
 #include "dague.h"
 #include "profiling.h"

@@ -28,7 +28,7 @@
 #include <ctype.h>
 
 #include "dague/class/dague_object.h"
-#include "list.h"
+#include "dague/class/list.h"
 #include "dague/sys/atomic.h"
 #include "dague/utils/argv.h"
 #include "dague/utils/cmd_line.h"

@@ -8,7 +8,7 @@
 #define MEMORY_POOL_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 #include <stdlib.h>
 
 typedef struct dague_memory_pool_t {

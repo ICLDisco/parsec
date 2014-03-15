@@ -6,7 +6,7 @@
 
 #include <dague_config.h>
 #include "arena.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 #include "data.h"
 
 #define DAGUE_ARENA_MIN_ALIGNMENT(align) ((ptrdiff_t)(align*((sizeof(dague_arena_chunk_t)-1)/align+1)))

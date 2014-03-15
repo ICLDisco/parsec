@@ -15,7 +15,7 @@
  */
 
 #include "dague_config.h"
-#include "list.h"
+#include "dague/class/list.h"
 
 typedef dague_list_t dague_dequeue_t;
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_dequeue_t);

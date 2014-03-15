@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "list.h"
+#include "dague/class/list.h"
 #include <dague/utils/mca_param_internal.h>
 #include <dague/utils/keyval_parse.h>
 

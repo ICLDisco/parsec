@@ -56,7 +56,7 @@
 #if defined(HAVE_STDBOOL_H)
 #include <stdbool.h>
 #endif  /* defined(HAVE_STDBOOL_H) */
-#include "list.h"
+#include "dague/class/list.h"
 
 #include "dague/constants.h"
 

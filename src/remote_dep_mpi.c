@@ -11,7 +11,7 @@
 
 #include <mpi.h>
 #include "profiling.h"
-#include "list.h"
+#include "dague/class/list.h"
 #include "data.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
@@ -63,7 +63,7 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context);
 #endif
 static int remote_dep_dequeue_nothread_progress(dague_context_t* context);
 
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 
 /**
  * Number of data movements to be extracted at each step. Bigger the number

@@ -15,7 +15,7 @@
 #include "debug.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/gd/sched_gd.h"
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 #include "dague/mca/pins/pins.h"
 
 /**

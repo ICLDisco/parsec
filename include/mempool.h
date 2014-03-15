@@ -8,7 +8,7 @@
 #define _mempool_h
 
 #include "dague_config.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 
 typedef struct dague_mempool_s dague_mempool_t;
 typedef struct dague_thread_mempool_s dague_thread_mempool_t;

@@ -29,7 +29,7 @@
 #include "dbp.h"
 #include "data_distribution.h"
 #include "debug.h"
-#include "fifo.h"
+#include "dague/class/fifo.h"
 #include "dague_hwloc.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))

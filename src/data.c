@@ -5,7 +5,7 @@
  */
 
 #include "data.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 #include <dague/constants.h>
 #include <dague/devices/device.h>
 #include <dague/utils/output.h>

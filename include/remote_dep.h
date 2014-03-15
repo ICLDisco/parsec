@@ -15,7 +15,7 @@ typedef unsigned long remote_dep_datakey_t;
 #include <string.h>
 
 #include "dague_description_structures.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FFFFFF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x01000000

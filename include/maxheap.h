@@ -12,7 +12,7 @@
 
 #include "debug.h"
 #include <dague/sys/atomic.h>
-#include "list_item.h"
+#include "dague/class/list_item.h"
 #include <stdlib.h>
 
 /**

@@ -16,7 +16,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <errno.h>
-#include "lifo.h"
+#include "dague/class/lifo.h"
 
 #if defined(DAGUE_PROF_TRACE)
 #include "dbp.h"

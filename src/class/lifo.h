@@ -9,7 +9,7 @@
 
 #include <dague_config.h>
 #include <dague/class/dague_object.h>
-#include "list_item.h"
+#include "dague/class/list_item.h"
 
 typedef struct dague_lifo_s dague_lifo_t;
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_lifo_t);

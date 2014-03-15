@@ -8,7 +8,7 @@
 #define DAGUE_DEVICE_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
-#include "list_item.h"
+#include "dague/class/list_item.h"
 #if defined(DAGUE_PROF_TRACE)
 #include "profiling.h"
 #endif  /* defined(DAGUE_PROF_TRACE) */
