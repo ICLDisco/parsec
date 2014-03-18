@@ -13,8 +13,8 @@
 #include <dague/devices/device.h>
 
 #if defined(HAVE_CUDA)
-#include "list_item.h"
-#include "list.h"
+#include "dague/class/list_item.h"
+#include "dague/class/list.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>

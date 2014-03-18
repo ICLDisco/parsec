@@ -21,7 +21,8 @@ cdef parse_info(builder, event_type, void * cinfo):
             cast_exec_info.kernel_type,
             'exec_info':
             [cast_exec_info.values[x] for x
-             in range(NUM_EXEC_EVENTS)]}
+             in range(NUM_EXEC_EVENTS)]
+        }
     elif event_name == 'PINS_SELECT':
         cast_select_info = <select_info_t *>cinfo
         event_info = {
@@ -35,7 +36,8 @@ cdef parse_info(builder, event_type, void * cinfo):
             cast_select_info.exec_context,
             'values':
             [cast_select_info.values[x] for x
-             in range(NUM_SELECT_EVENTS)]}
+             in range(NUM_SELECT_EVENTS)]
+        }
     elif event_name == 'PINS_ADD':
         cast_core_exec_info = <papi_core_exec_info_t *>cinfo
         event_info = {
@@ -131,7 +133,7 @@ cdef parse_info(builder, event_type, void * cinfo):
     # elif event_name == '<EVENT NAME>':
     #   event_info = <write some code to make it into a simple Python dict>
     else:
-        dont_print = True
+        dont_print = True # silently ignore unless set otherwise
         if not dont_print:
             print('No parser in pbt_info_parser.pxi for event of type \'{}\''.format(event_name))
 

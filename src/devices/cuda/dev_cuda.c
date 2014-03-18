@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -237,9 +237,12 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
         argv = dague_argv_split(cuda_lib_path, ';');
     }
 
+    snprintf(function_name, FILENAME_MAX, "%s", fname);
+    goto name_wo_sm_version;
   retry_lesser_sm_version:
     capability = cuda_legal_compute_capabilitites[index];
     snprintf(function_name, FILENAME_MAX, "%s_SM%2d", fname, capability);
+  name_wo_sm_version:
 
     for( target = argv; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
@@ -269,12 +272,12 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
             break;  /* we got one, stop here */
         }
     }
-    /* Couldn't load from dynamic libs, try static */
+    /* Couldn't load from named dynamic libs, try linked/static */
     if(NULL == fn) {
         dague_output_verbose(5, dague_cuda_output_stream,
-                             "No dynamic function %s found, trying from  statically linked\n",
+                             "No dynamic function %s found, trying from compile time linked in\n",
                              function_name);
-        dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
+        dlh = dlopen("", RTLD_NOW | RTLD_NODELETE);
         if(NULL != dlh) {
             fn = dlsym(dlh, function_name);
             if(NULL != fn) {
@@ -305,10 +308,6 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     return fn;
 }
 
-/* TODO: Ugly code to be removed ASAP */
-void** cuda_gemm_functions = NULL;
-/* TODO: Ugly code to be removed ASAP */
-
 static int
 dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
 {
@@ -328,11 +327,7 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
             if( chores[j].type == device->type ) {
                 void* devf = cuda_solve_handle_dependencies(gpu_device, NULL==chores[j].dyld?function->name:chores[j].dyld);
                 if( NULL != devf ) {
-                    /* TODO: Ugly code to be removed ASAP */
-                    if( NULL == cuda_gemm_functions ) {
-                        cuda_gemm_functions = (void**)calloc(100, sizeof(void*));
-                    }
-                    cuda_gemm_functions[gpu_device->cuda_index] = devf;
+                    chores[j].dyld_fn = devf;
                     rc = DAGUE_SUCCESS;
                     dev_mask |= (1 << chores[j].type);
                 }
@@ -1060,11 +1055,12 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                               "GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d\n",
-                              key, memptr, (void*)gpu_elem->gpu_mem_ptr, length, gpu_device->device_index));
+                              original->key, in_elem->device_private, (void*)gpu_elem->device_private, original->nb_elts, gpu_device->super.device_index));
 
 #if defined(WEI_DEBUG)
         printf("PUSH from %p to %p, size %d\n", in_elem->device_private, gpu_elem->device_private, original->nb_elts);
 #endif
+
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
                                                  in_elem->device_private, original->nb_elts, stream );

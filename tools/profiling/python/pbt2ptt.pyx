@@ -4,13 +4,20 @@ run 'python setup.py build_ext --inplace' to compile
 The preferred nomenclature for the Python Binary Trace is "PBT",
 
 REQUIREMENTS:
-# Cython 0.18+ required.
-# pandas 0.12+ (and numpy, etc.) required.
+# Cython 0.19+ required.
+# pandas 0.13+ (and numpy, etc.) required.
 # Python 2.7.3 recommended.
 
 BUILD NOTES:
 # Be SURE to build this against the same version of Python as you have built Cython itself.
 # Contrasting versions will likely lead to odd errors about Unicode functions.
+
+TERMINOLOGY NOTES:
+# The phrase "skeleton_only" refers to loading only the metadata of a trace;
+# i.e., everything but the events. This can significantly improve load times,
+# especially in traces with many thousands of events, and is therefore useful
+# when your scripts are only interested in comparing the basic trace information
+# between multiple traces.
 """
 
 # cython: trace=False
@@ -31,18 +38,37 @@ import pandas as pd
 from parsec_trace_tables import * # the pure Python classes
 from common_utils import *
 
-# 'include' will eventually be deprecated by Cython, but I still prefer it.
+# 'include' will eventually be deprecated by Cython, but I still prefer it to having many modules
 include "pbt_info_parser.pxi"
 
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
+microsleep = 0.05
 
-# reads an entire trace into a set of pandas DataFrames
-# filenames ought to be a list of strings, or comparable type.
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=True,
            add_info=dict()):
+    """ Given binary trace filenames, returns a PaRSEC Trace Table (PTT) object
+
+    Defaults in parentheses
+
+    filenames should be a list-like of strings.
+
+    report_progress (False) turns on stdout printing of trace load progress, useful 
+    for command line scripts.
+
+    skeleton_only (False) will load everything but the events.
+
+    multiprocess (True) specifies the use of multiple I/O and CPU threads to use during the load.
+    An integer number may be specified instead of True.
+    Setting skeleton_only will also set multiprocess == 1.
+
+    add_info ({}) -- a dictionary to merge with the node information from the trace. 
+    This is useful in situations where the caller may have high level information 
+    about the trace that PaRSEC and the trace itself does not or cannot have, 
+    and where the caller wishes to embed that information at the time of PTT generation.
+    """
     cdef dbp_file_t * cfile
     cdef dbp_dictionary_t * cdict
-    if isinstance(filenames, basestring): # if the user passed a single string
+    if isinstance(filenames, basestring): # if the user passed a single string instead of a list
         filenames = [filenames]
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
@@ -142,7 +168,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
                 except EOFError:
                     process_pipes.remove(pipe)
             if not something_was_read:
-                time.sleep(0.05) # tiny sleep so as not to hog CPU
+                time.sleep(microsleep) # tiny sleep so as not to hog CPU
         for p in processes:
             p.join() # cleanup spawned processes
     # report progress
@@ -161,14 +187,14 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
 
     # now, some voodoo to add shared file information to overall trace info
     # e.g., PARAM_N, PARAM_MB, exe, SYNC_TIME_ELAPSED, etc.
-    # basically, any key that has the same value in all nodes should
+    # basically, any key that has the same value in *all nodes* should
     # go straight into the top-level 'information' dictionary, since it is global
     if len(builder.nodes) > 0:
-        builder.information.update(builder.nodes[0])
+        builder.information.update(builder.nodes[0]) # start with all infos from node 0
     else:
         cond_print('No nodes were found in the trace.', report_progress)
     for node in builder.nodes:
-        for key, value in node.iteritems():
+        for key, value in node.iteritems(): # now remove, one by one, non-matching infos
             if key in builder.information.keys():
                 if builder.information[key] != node[key] and node[key] != 0:
                     del builder.information[key]
@@ -214,12 +240,37 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=T
     return trace
 
 
-
-# returns the output filename in a list, not the trace itself.
 cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
               force_reconvert=False, validate_existing=False,
               table=False, append=False, report_progress=False,
               add_info=dict(), compress=('blosc', 0), skeleton_only=False):
+    ''' Given [filenames] that comprise a single binary trace, returns the filename of the converted trace.
+    
+    filenames -- a list-like of strings
+
+    out (None) -- allows manual specification of an output filename.
+
+    unlink (False) -- will unlink the binary trace after successful conversion.
+    
+    skeleton_only, multiprocess, report_progress, add_info -- see docs for "read()"
+
+    force_reconvert (False) -- causes conversion to happen even if a converted trace is determined to already exist.
+    This is usually determined by a simple match of the default generated output filename.
+    This (hopefully) simplifies significantly the mental/organiziational workload of the user,
+    as traces can simply be "re-converted" each time from the binary trace without performing the
+    actual conversion, while still allowing for a manual override in cases where that is necessary.
+
+    validate_existing (False) -- requires a successful load of an existing converted trace, instead of just a filename match.
+
+    table (False) -- allows PyTables 'tabular' storage of the PTT, which is slower but more flexible, 
+    especially in cases of extremely large traces, where the tabular format allows for database-style partial loads.
+    See pandas & PyTables docs for more details.
+
+    append (False) -- related to table. See pandas & PyTables docs.
+    
+    compress (('blosc', 0)) -- takes a tuple of compression algorithm and "level" from 0-9.
+    Level 0 means no compression.
+    '''
     if skeleton_only:
         compress=('blosc', 5)
     if len(filenames) < 1:
@@ -301,10 +352,12 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     return out
 
 
-# This function helps support duplicate keys in the info dictionaries
-# by appending the extra values to a list stored at '<key>_list' in the dictionary.
-# It also attempts to store values as numbers instead of strings, if possible.
 cpdef add_kv(dct, key, value, append_if_present=True):
+    ''' Adds value for key to dict; converts strings to numbers if possible.
+    
+    If the key is already present, replaces the current value with the new value,
+    and appends all old and new values in a list at key == <key>_list.
+    '''
     try:    # try to convert value to its number type
         value = float(value) if '.' in value else int(value)
     except: # if this fails, it's a string, and that's fine too
@@ -326,8 +379,8 @@ cpdef add_kv(dct, key, value, append_if_present=True):
             dct[list_k] = [value]
 
 
-# helper function for readProfile
 cdef char** string_list_to_c_strings(strings):
+    ''' Converts a list of Python strings to C-style strings '''
     cdef char ** c_argv
     bytes_strings = [bytes(x) for x in strings]
     c_argv = <char**>malloc(sizeof(char*) * len(bytes_strings))
@@ -344,10 +397,13 @@ cdef char** string_list_to_c_strings(strings):
 
 cpdef construct_thread_in_process(pipe, builder, filenames, node_threads,
                                   skeleton_only, report_progress):
+    ''' Target function for the map/reduce threading functionality '''
     cdef dbp_file_t * cfile
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
+    # note that this requires re-opening the binary files in each thread
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
+    # node_threads is our thread-specific input data
     for node_id, thread_num in node_threads: # should be list of tuples
         cfile = dbp_reader_get_file(dbp, builder.node_order[node_id])
         construct_thread(builder, skeleton_only, dbp, cfile, node_id, thread_num)
@@ -371,11 +427,12 @@ vp_id_in_descrip = re.compile('.*VP\s+(\d+).*', re.IGNORECASE)
 
 cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_file_t * cfile,
                       int node_id, int thread_num):
-    """Converts all events using the C interface into Python dicts
+    """Converts all events using the C interface into a list of Python dicts
 
     Also creates a 'thread' dict describing the very basic information
-    about the thread as seen by PaRSEC. Hopefully the information
-    we store about the thread will continue to improve in the future.
+    about the thread as seen by PaRSEC. 
+
+    Hopefully the information we store about the thread will continue to improve in the future.
     """
     cdef dbp_thread_t * cthread = dbp_file_get_thread(cfile, thread_num)
     cdef dbp_event_iterator_t * it_s = dbp_iterator_new_from_thread(cthread)
@@ -419,6 +476,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
         if begin < th_begin:
             th_begin = begin
 
+        # this would be a good place for a test for 'singleton' events.
         if KEY_IS_START( dbp_event_get_key(event_s) ):
             it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
             if it_e != NULL:
@@ -451,12 +509,16 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                             event_name, event_id, thread_id) +
                                      ' has a unreasonable duration.\n')
                         event.update({'error_msg':error_msg})
+                        # we still store error events, in the same format as a normal event
+                        # we simply add an error message column, and put them in a different table.
+                        # Users who wish to use these events can simply merge them with the events table.
                         builder.errors.append(event)
 
                 dbp_iterator_delete(it_e)
                 it_e = NULL
 
             else: # the event is not complete
+                # this will change once singleton events are enabled.
                 error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
                     event_name, event_id, thread_id)
                 error = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id,
@@ -493,12 +555,16 @@ class ProfileBuilder(object):
 
 
 # NOTE:
-# this breaks Cython, so don't do it
+# negative indexing breaks Cython, so don't do it.
 # index = -1
 # print('index is ' + str(index))
 # print(builder.test_df[index])
 
 def chunk(xs, n):
+    ''' Splits a list of Xs into n roughly equally-sized lists. 
+
+    Useful for the naive Python map-reduce operation.
+    '''
     ys = list(xs)
     ylen = len(ys)
     if ylen < 1:

@@ -255,7 +255,7 @@ dague_gather_collective_pattern(dague_execution_unit_t *eu,
 /**
  * This is the local continuation of a collective pattern. Upon receiving an
  * activation from the predecessor the first thing is to retrieve all the data
- * that is needed locally (this is a super-set of the data to be propagated down
+ * needed locally (this is a super-set of the data to be propagated down
  * the collective tree). Thus, once all the data become available locally, this
  * function is called to start propagating the activation order and the data.
  */
@@ -343,7 +343,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
         if( (remote_deps->outgoing_mask & (1U<<i)) && (NULL != output->data.data) ) {
             /* if propagated and not a CONTROL */
             assert(NULL != output->data.arena);
-            assert(NULL != output->data.layout);
+            assert(NULL != (void*)(intptr_t)(output->data.layout));
             OBJ_RETAIN(output->data.data);
         }
 
@@ -381,7 +381,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     DEBUG3(("[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)\n",
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask));
                     assert(remote_deps->outgoing_mask & (1U<<i));
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
                         if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );

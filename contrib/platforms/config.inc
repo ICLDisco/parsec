@@ -6,6 +6,11 @@ if [ "$1" = "debug" ]; then
   DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG_ENABLE=ON -DDAGUE_DEBUG_HISTORY=ON"
 fi
 
+if [ "$1" = "profile" ]; then
+  shift
+  PROFILE="-DDAGUE_PROF_TRACE=ON"
+fi
+
 function dirname_bin {
   local _progname=$(which $1)
   if [ -z "$_progname" ]; then
@@ -27,6 +32,7 @@ GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
 CUDA_DIR=${CUDA_DIR:=$(dirname_bin nvcc)}
 OMEGA_DIR=${OMEGA_DIR:=/opt/omega} # wild guess, but no better way
 PLASMA_DIR=${PLASMA_DIR:=$(pkg-config plasma --variable=prefix)}
+PAPI_DIR=${PAPI_DIR:=$(dirname_bin papi_avail)}
 }
 
 function run_cmake() {
@@ -64,10 +70,14 @@ if [ -n "${PLASMA_DIR}" ]; then
   PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 fi
 
+if [ -n "${PAPI_DIR}" -a -f "$PAPI_DIR/lib/libpapi.so" -a -n "${PROFILE}" ]; then
+    PROFILE="${PROFILE} -DPAPI_DIR=${PAPI_DIR}"
+fi
+
 # Done with variable allocation, do the thing with Cmake
 rm -rf CMakeCache.txt CMakeFiles
 SRC_LOCATION=${SRC_LOCATION:=`dirname $0`/../../}
-CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
+CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${PROFILE} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
 echo $CMAKE_COMMAND
 eval $CMAKE_COMMAND
 }

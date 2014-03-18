@@ -39,7 +39,7 @@
 #include "dague/constants.h"
 #include "dague/class/dague_object.h"
 #include "dague/utils/mca_param.h"
-#include "list.h"
+#include "dague/class/list.h"
 
 BEGIN_C_DECLS
 

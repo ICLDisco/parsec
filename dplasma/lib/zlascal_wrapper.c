@@ -7,7 +7,7 @@
  * @precisions normal z -> c d s
  *
  */
-#include "dague_internal.h"
+
 #include <cblas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"

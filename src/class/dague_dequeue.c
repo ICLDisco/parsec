@@ -5,7 +5,7 @@
  */
 
 #include <dague_config.h>
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 
 OBJ_CLASS_INSTANCE(dague_dequeue_t, dague_list_t, 
                    NULL, NULL);

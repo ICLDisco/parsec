@@ -114,7 +114,7 @@
 #include "dague_config.h"
 #include <stdbool.h>
 #include "dague/class/dague_object.h"
-#include "list.h"
+#include "dague/class/list.h"
 #include "dague/sys/atomic.h"
 
 BEGIN_C_DECLS

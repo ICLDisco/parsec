@@ -29,7 +29,7 @@
 #include "dbp.h"
 #include "data_distribution.h"
 #include "debug.h"
-#include "fifo.h"
+#include "dague/class/fifo.h"
 #include "dague_hwloc.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))
@@ -158,12 +158,16 @@ int dague_profiling_init( void )
     __already_called = 0;
     dague_profile_enabled = 1;  /* turn on the profiling */
 
-    /* shared timestamp allows grouping profiles from different nodes */
-    unsigned long long int timestamp = (unsigned long long int)dague_start_time.tv_sec;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+    {
+        /* shared timestamp allows grouping profiles from different nodes */
+        unsigned long long int timestamp = (unsigned long long int)dague_start_time.tv_sec;
+        MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
+        PROFILING_SAVE_uint64INFO("start_time", timestamp);
+    }
+#else
+    PROFILING_SAVE_uint64INFO("start_time", dague_start_time.tv_sec);
 #endif /* DISTRIBUTED && HAVE_MPI */
-    PROFILING_SAVE_uint64INFO("start_time", timestamp);
 
     /* add the hostname, for the sake of explicit profiling */
     char buf[HOST_NAME_MAX];
@@ -585,11 +589,11 @@ static int64_t dump_global_infos(int *nbinfos)
         vpos = 0;
         value = ib->info_and_value + is;
         while( vpos < vs ) {
-            tc = (event_avail_space - pos) < (vs-vpos) ? (event_avail_space - pos) : (vs-vpos);
+            tc = (int)(event_avail_space - pos) < (vs-vpos) ? (int)(event_avail_space - pos) : (vs-vpos);
             memcpy(value, i->value + vpos, tc);
             vpos += tc;
             pos += tc;
-            if( pos == event_avail_space ) {
+            if( pos == (int)event_avail_space ) {
                 b->this_buffer.nb_infos = nbthis;
                 n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
                 if( NULL == n ) {

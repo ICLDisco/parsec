@@ -35,8 +35,8 @@
 #include <stdbool.h>
 #endif
 
-#include "list_item.h"
-#include "list.h"
+#include "dague/class/list_item.h"
+#include "dague/class/list.h"
 #include <dague/class/dague_value_array.h>
 #include <dague/utils/mca_param.h>
 #include <dague/utils/mca_param_internal.h>

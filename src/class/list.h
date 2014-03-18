@@ -15,7 +15,7 @@
 #define DAGUE_LIST_H_HAS_BEEN_INCLUDED
 
 #include <dague/sys/atomic.h>
-#include "list_item.h"
+#include "dague/class/list_item.h"
 
 typedef struct dague_list_t {
     dague_object_t     super;

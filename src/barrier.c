@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "barrier.h"
+#include "dague/class/barrier.h"
 
 #if DAGUE_IMPLEMENT_BARRIERS
 

@@ -15,7 +15,7 @@
 #include "debug.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/rnd/sched_rnd.h"
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 #include "dague/mca/pins/pins.h"
 static int SYSTEM_NEIGHBOR = 0;
 
@@ -73,11 +73,11 @@ static int sched_rnd_schedule( dague_execution_unit_t* eu_context,
                                dague_execution_context_t* new_context )
 {
     dague_list_item_t *it = (dague_list_item_t*)new_context;
-#if DAGUE_DEBUG_VERBOSE >= 3
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
     do {
-#if DAGUE_DEBUG_VERBOSE >= 3
+#if DAGUE_DEBUG_VERBOSE != 0
         DEBUG3(("RND:\t Pushing task %s\n",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
 #endif

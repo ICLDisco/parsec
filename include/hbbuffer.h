@@ -12,8 +12,8 @@
 #include "debug.h"
 #include <dague/sys/atomic.h>
 #include <stdlib.h>
-#include "lifo.h"
-#include "list.h"
+#include "dague/class/lifo.h"
+#include "dague/class/list.h"
 
 typedef struct dague_hbbuffer_s dague_hbbuffer_t;
 

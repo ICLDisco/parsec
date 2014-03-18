@@ -1,7 +1,7 @@
 ########################################################
 ############## CUSTOM EVENT INFO SECTION ###############
 ### --- add a function and/or a type to this section ###
-#### to allow for new 'info' types                ######
+####         to allow for new 'info' types        ######
 
 cdef extern from "dague/mca/pins/papi_exec/pins_papi_exec.h":
    enum: NUM_EXEC_EVENTS # allows us to grab the #define from the .h

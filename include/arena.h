@@ -14,7 +14,7 @@
 #include "debug.h"
 
 #include <dague/sys/atomic.h>
-#include "lifo.h"
+#include "dague/class/lifo.h"
 
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))

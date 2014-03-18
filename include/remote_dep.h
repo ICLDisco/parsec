@@ -15,7 +15,7 @@ typedef unsigned long remote_dep_datakey_t;
 #include <string.h>
 
 #include "dague_description_structures.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FFFFFF
 #define DAGUE_ACTION_RELEASE_LOCAL_DEPS         0x01000000
@@ -120,11 +120,12 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
 
     if( NULL == remote_deps ) {
         char *ptr;
-        remote_deps = (dague_remote_deps_t*)calloc(1, dague_remote_dep_context.elem_size);
-        OBJ_CONSTRUCT(remote_deps, dague_list_item_t);
+        DAGUE_LIFO_ITEM_ALLOC( lifo, remote_deps, dague_remote_dep_context.elem_size );
         remote_deps->origin = lifo;
+        remote_deps->dague_handle = NULL;
         ptr = (char*)(&(remote_deps->output[dague_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((dague_remote_dep_context.max_nodes_number + 31) / 32);
+        memset(ptr, 0, rank_bit_size * dague_remote_dep_context.max_dep_count);
         for( i = 0; i < dague_remote_dep_context.max_dep_count; i++ ) {
             OBJ_CONSTRUCT(&remote_deps->output[i].super, dague_list_item_t);
             remote_deps->output[i].parent     = remote_deps;
@@ -145,7 +146,6 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
-    remote_deps->repo_entry      = NULL;
     DEBUG(("remote_deps_allocate: %p\n", remote_deps));
     return remote_deps;
 }

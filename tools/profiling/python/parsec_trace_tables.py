@@ -29,6 +29,43 @@ alias_info = True # PARAM_N -> N, GFLOPS -> gflops, etc.
 default_descriptors = ['hostname', 'exe', 'ncores', 'N', 'NB', 'sched', 'gflops']
 
 class ParsecTraceTables(object):
+    """ PaRSEC Trace Tables (PTT) trace container.
+
+    PTT is a container for pandas (pandas.pydata.org) objects.
+
+    core DataFrame (2D matrix/table) object names:
+        events
+        nodes
+        threads
+        errors (similar to events, but populated with broken/invalid events)
+
+    core Series (1D; dictionary) object names:
+        event_types (keys are string names; values are integer event types)
+        event_names (inverse lookup for event_types)
+        event_attributes
+        information -- merged node infos.
+
+    --------------------
+    Utility/ease-of-use:
+
+    The PTT object will automatically search the core "information" dictionary
+    for any attribute names that are not found in itself.
+    Therefore, even though the "GFLOPS" attribute exists in the information
+    dictionary, the following reference styles will work interchangably:
+
+    trace.information['GFLOPS']
+    trace.GFLOPS
+
+    Similarly, best-effort matches will be found if exact ones do not exist.
+    So the following references will return the same information, assuming
+    that there are no keys in the information dict equal to 'NB' or 'nb'
+
+    trace.information['PARAM_NB']
+    trace.PARAM_NB
+    trace.NB
+    trace.nb
+
+    """
     class_version = 1.0 # created 2013.10.22 after move to pandas
     basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'type',
                            'begin', 'end', 'duration', 'flags', 'id']
@@ -66,9 +103,10 @@ class ParsecTraceTables(object):
         shutil.move(filename + '.tmp', filename)
         return True
 
-    # this allows certain 'acceptable' attribute abbreviations
-    # and automatically searches the 'information' dictionary
     def __getattr__(self, name):
+        """
+        this allows certain 'known' attribute abbreviations (e.g. 'NB -> PARAM_NB)
+        and automatically searches the 'information' dictionary """
         try:
             return nice_val(self.information, unalias_key(self.information, name))
         except:
@@ -80,6 +118,11 @@ class ParsecTraceTables(object):
         return describe_dict(self.information)
 
     def name(self, infos=default_descriptors, add_infos=None):
+        """ Returns a dash-separated description of the basic trace info.
+
+        infos (default_descriptors) -- the base set of information to use.
+
+        add_infos (None) -- set of additional information to use."""
         if not infos:
             infos = []
         if add_infos:
@@ -136,7 +179,7 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
         trace._store = None
         store.close()
 
-    # add filename information to help users group, esp. by load directory
+    # add current filename information to help users group their traces, esp. by load directory
     abspath = os.path.abspath(filename)
     trace.information['load_abspath'] = abspath
     trace.information['load_dirpath'] = os.path.dirname(abspath)
@@ -203,7 +246,7 @@ def unalias_key(dict_, name):
 
 
 def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
-                  include_key=False, key_length=3, val_length=sys.maxint,
+                  include_key=False, key_length=3, val_length=20,
                   float_formatter='{:.1f}'):
     description = str()
     used_keys = []
@@ -235,7 +278,7 @@ def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
 
 
 def nice_val(dict_, key):
-    """ Edits return values for common usage."""
+    """ Edits return values for common usage. """
     if key == 'exe':
         m = re.match('.*testing_(\w+)', dict_[key])
         return m.group(1)
@@ -258,16 +301,16 @@ def find_trace_sets(traces, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sche
             trace_sets[name] = [trace]
     return trace_sets
 
-# Does a best-effort merge on sets of traces.
-# Merges only the events, threads, and nodes, along with
-# the top-level "information" struct.
-# Intended for use after 'find_trace_sets'
-# dangerous for use with groups of traces that do not
-# really belong to a reasonably-defined set.
-# In particular, the event_type, event_name, and event_attributes
-# DataFrames are chosen from the first trace in the set - no
-# attempt is made to merge them at this time.
 def automerge_trace_sets(trace_sets):
+    """ Given a list of trace lists, returns a list of merged traces.
+
+    Merges only the events, threads, and nodes, along with the top-level "information" struct.
+    Intended for use after 'find_trace_sets'.
+
+    Dangerous for use with groups of traces that do not really belong to a reasonably-defined set.
+    In particular, the event_type, event_name, and event_attributes DataFrames are chosen
+    from the first trace in the set - no attempt is made to merge them with information from other traces!
+    """
     merged_traces = list()
     for p_set in trace_sets:
         merged_trace = p_set[0]
@@ -301,7 +344,7 @@ def automerge_trace_sets(trace_sets):
 dot_prof_regex = re.compile('(\w+).*(\.prof)(.*)-([a-zA-Z0-9]{6})')
 
 def find_h5_conflicts(filenames):
-    """ Takes a list of 'prof' filenames and returns any .h5 conflicts.
+    """ Takes a list of 'prof' (binary) filenames and returns any .h5 (PTT) conflicts.
 
     The determination is based on the six-char unique identifier
     that usually ends the .prof filenames, which is generated by MPI.

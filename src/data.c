@@ -5,7 +5,7 @@
  */
 
 #include "data.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 #include <dague/constants.h>
 #include <dague/devices/device.h>
 #include <dague/utils/output.h>
@@ -197,6 +197,11 @@ dague_data_copy_t* dague_data_copy_new(dague_data_t* data, uint8_t device)
     return copy;
 }
 
+
+#if 0
+/*
+ * WARNING: Is this function usefull or should it be removed ?
+ */
 /**
  * Find the corresponding copy of the data on the requested device. If the
  * copy is not available in the access mode requested, a new version will
@@ -238,6 +243,7 @@ int dague_data_get_device_copy(dague_data_copy_t* source,
 
     return transfer;
 }
+#endif
 
 /**
  * Beware: Before calling this function the owner of the data must be
@@ -280,7 +286,8 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
 #if defined(DAGUE_DEBUG_ENABLE)
             else {
                 assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
-                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
+                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state 
+                     || copy->data_transfer_status );
                 assert( data->device_copies[i]->version <= copy->version );
             }
 #endif  /* defined(DAGUE_DEBUG_ENABLE) */

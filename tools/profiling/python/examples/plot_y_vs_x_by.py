@@ -1,5 +1,13 @@
 #!/usr/bin/env python
 
+# This script is a possible foundation for much more powerful graphing systems.
+# DataFrames can be grouped by any set of parameters, and a y vs x plot is nothing more
+# than a plot of two columns of a table. Those two columns are specified as X and Y,
+# and then the rows are separated into groups of matching 'by' columns.
+# Therefore, the plot_y_vs_x_by function is theoretically capable of plotting
+# not just basic trace info, but of any trace information as long as it is outer-joined
+# with its basic information.
+
 from __future__ import print_function
 import os, sys
 import itertools
@@ -38,10 +46,10 @@ def plot_y_vs_x_by(dataframe, x_axis, y_axis, by,
 
     dataframe.sort_index(by=x_axis, inplace=True)
 
-    # remove nonsensical 'by' keys
+    # remove nonsensical 'by' keys (e.g. we can't group by the y axis)
     by = [gb for gb in by if gb not in [x_axis, y_axis] and gb in dataframe]
 
-    # determine which by names will help split the given dataset
+    # determine which 'by' names will actually split the given dataset
     naive_groups = dataframe.groupby(by)
     naive_keys = naive_groups.groups.keys()[0] # keys() always returns a list of tuples
     naive_name_to_key = dict(zip(naive_groups.grouper.names, naive_keys))
@@ -60,7 +68,7 @@ def plot_y_vs_x_by(dataframe, x_axis, y_axis, by,
     ax = fig.add_subplot(111)
 
     color_ct = 0
-    ### Plotting loop
+    ### Plotting loop - plot each group in turn
     for gkey, group in final_groups:
         # if gkey is a simple string, it won't work well with zip in the following line
         gkey = [gkey] if isinstance(gkey, basestring) else gkey
@@ -132,7 +140,7 @@ def parse_xylimits(limits_string):
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(description='Plots Y axis param against the X axis param.')
+    parser = argparse.ArgumentParser(description='Plots Y axis param against the X axis param, by trace information groups.')
     parser.add_argument('-x', '--x-axis', default=default_x_axis)
     parser.add_argument('-y', '--y-axis', default=default_y_axis)
     parser.add_argument('-b', '--by', default=default_by)

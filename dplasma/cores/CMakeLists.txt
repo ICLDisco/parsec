@@ -16,12 +16,12 @@ if(CUDA_FOUND)
 
 ### CUDA .cu sources
     set( CUDA11_SOURCES
-         zgemm_11_12_13.cu
+#         zgemm_11_12_13.cu
     )
     set( CUDA13_SOURCES ${CUDA11_SOURCES}
      )
     set( CUDA20_SOURCES
-         zgemm_20_30.cu
+#        zgemm_20_30.cu
          ztsmqr.cu
          zparfb.cu
          zparfb2.cu
@@ -31,7 +31,7 @@ if(CUDA_FOUND)
          zssrfb.cu
     )
     set( CUDA35_SOURCES
-         zgemm_20_30.cu
+#        zgemm_20_30.cu
          ztsmqr.cu
          zparfb.cu
          zparfb2.cu
@@ -41,6 +41,7 @@ if(CUDA_FOUND)
          zssrfb.cu )
 
     foreach( _smtarget ${CUDA_SM_TARGETS} )
+      if( NOT "${CUDA${_smtarget}_SOURCES}" STREQUAL "" )
         set(cuda_generated_files "")
         precisions_rules_py(cuda_generated_files
                             "${CUDA${_smtarget}_SOURCES}"
@@ -61,21 +62,24 @@ if(CUDA_FOUND)
         cuda_add_library(dplasma_cucores_sm${_smtarget}
                          ${cuda_generated_files} SHARED)
 
-        target_link_libraries( dplasma_cucores_sm${_smtarget}
-                               ${CUDA_cublas_LIBRARY}
-                               ${COREBLAS_LIBRARIES}
-                               ${EXTRA_LIBS})
+        cuda_add_cublas_to_target( dplasma_cucores_sm${_smtarget} )
+
         install(TARGETS dplasma_cucores_sm${_smtarget} LIBRARY DESTINATION lib ARCHIVE DESTINATION lib )
         set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_BACKUP})
         if( NOT CMAKE_BUILD_SHARED_LIBS )
             list(APPEND GPU_KERNEL_LIBS dplasma_cucores_sm${_smtarget})
         endif()
+      endif()
     endforeach()
 
     cuda_build_clean_target()
 
-### Now the gpu wrappers to the .cu files
-    set(GPU_KERNEL_SOURCES
+### Now the gpu support core files
+    set(CORE_CUDA_HEADERS
+        cuda_zgemm.h
+        cuda_ztsmqr.h
+    )
+    set(CORE_CUDA_SOURCES
         cuda_zgemm.c
         cuda_ztsmqr.c
     )
@@ -85,21 +89,18 @@ if(CUDA_FOUND)
     )
 
 else()
-    set(GPU_KERNEL_SOURCES "")
-    set(GPU_KERNEL_HEADERS "")
-    set(GPU_KERNEL_LIBS "")
+    set(CORE_CUDA_HEADERS "")
+    set(CORE_CUDA_SOURCES "")
 endif()
 
+### generate the dplasma_cores headers for all possible precisions
 set(HEADERS
     dplasma_zcores.h
-    ${GPU_KERNEL_HEADERS}
+    ${CORE_CUDA_HEADERS}
 )
-
-### generate the dplasma_cores headers for all possible precisions
 precisions_rules_py(generated_headers
                  ${HEADERS}
                  PRECISIONS "s;d;c;z")
-
 add_custom_target(dplasma_cores_includes ALL SOURCES
     ${generated_headers} )
 
@@ -113,25 +114,20 @@ set(SOURCES
   core_zhetrf_nopiv.c
   core_zhebut.c
   core_zamax.c
-#  core_ztsmqr_wei.c
-#  core_zparfb_wei.c
-  ${GPU_KERNEL_SOURCES}
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
-### Generate the lib
+### Generate the dplasma_cores lib
+link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores
   ${generated_files}
 )
-
 target_link_libraries(dplasma_cores
-  ${GPU_KERNEL_LIBS}
   ${COREBLAS_LIBRARIES}
   ${EXTRA_LIBS}
 )
-
 add_dependencies(dplasma_cores
          dplasma_includes
          dplasma_cores_includes)
@@ -139,6 +135,30 @@ add_dependencies(dplasma_cores
 install(TARGETS dplasma_cores
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
+
+if( CUDA_FOUND )
+  precisions_rules_py(generated_cuda_files
+                 ${CORE_CUDA_SOURCES}
+                 PRECISIONS "${DPLASMA_PRECISIONS}")
+
+  if( NOT "${generated_cuda_files}" STREQUAL "" )
+    add_library(dplasma_cores_cuda
+      ${generated_cuda_files}
+      )
+    add_dependencies(dplasma_cores_cuda
+      dplasma_includes
+      dplasma_cores_includes)
+    target_link_libraries(dplasma_cores_cuda
+      ${COREBLAS_LIBRARIES}
+      ${EXTRA_LIBS}
+      )
+    cuda_add_cublas_to_target( dplasma_cores_cuda )
+    target_link_libraries(dplasma_cores dplasma_cores_cuda)
+    install(TARGETS dplasma_cores_cuda
+      ARCHIVE DESTINATION lib
+      LIBRARY DESTINATION lib)
+  endif()
+endif()
 
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include/cores)

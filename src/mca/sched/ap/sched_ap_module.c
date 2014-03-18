@@ -15,7 +15,7 @@
 #include "debug.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/ap/sched_ap.h"
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 #include "dague/mca/pins/pins.h"
 static int SYSTEM_NEIGHBOR = 0;
 
@@ -72,7 +72,7 @@ static dague_execution_context_t *sched_ap_select( dague_execution_unit_t *eu_co
 static int sched_ap_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )
 {
-#if DAGUE_DEBUG_VERBOSE >= 3
+#if DAGUE_DEBUG_VERBOSE != 0
     dague_list_item_t *it = (dague_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
     do {

@@ -67,10 +67,12 @@ int    dplasma_zgetrf_incpiv( dague_context_t *dague, tiled_matrix_desc_t *A, ti
 int    dplasma_zgetrf_nopiv(  dague_context_t *dague, tiled_matrix_desc_t *A );
 int    dplasma_zgetrs( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
 int    dplasma_zgetrs_incpiv( dague_context_t *dague, const PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
+int    dplasma_zlauum( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A );
 int    dplasma_zposv ( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int    dplasma_zpotrf( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 int    dplasma_zpotrf_rec( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 int    dplasma_zpotrs( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
+int    dplasma_zpotri( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 int    dplasma_ztrtri( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum diag, tiled_matrix_desc_t *A );
 int    dplasma_zunglq( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 int    dplasma_zunglq_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
@@ -147,6 +149,7 @@ dague_handle_t* dplasma_zgeqrf_param_New(dplasma_qrtree_t *qrtree, tiled_matrix_
 dague_handle_t* dplasma_zgetrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int *INFO);
 dague_handle_t* dplasma_zgetrf_incpiv_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *L, tiled_matrix_desc_t *IPIV, int *INFO);
 dague_handle_t* dplasma_zgetrf_nopiv_New(tiled_matrix_desc_t *A, int *INFO);
+dague_handle_t* dplasma_zlauum_New( PLASMA_enum uplo, tiled_matrix_desc_t *A);
 dague_handle_t* dplasma_zpotrf_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, int *INFO);
 dague_handle_t* dplasma_zpotrf_rec_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, int *INFO);
 dague_handle_t* dplasma_ztrtri_New( PLASMA_enum uplo, PLASMA_enum diag, tiled_matrix_desc_t *A, int *info);
@@ -203,6 +206,7 @@ void dplasma_zgeqrf_param_Destruct( dague_handle_t *o );
 void dplasma_zgetrf_Destruct( dague_handle_t *o );
 void dplasma_zgetrf_incpiv_Destruct( dague_handle_t *o );
 void dplasma_zgetrf_nopiv_Destruct( dague_handle_t *o );
+void dplasma_zlauum_Destruct( dague_handle_t *o );
 void dplasma_zpotrf_Destruct( dague_handle_t *o );
 void dplasma_zpotrf_rec_Destruct( dague_handle_t *o );
 void dplasma_ztrtri_Destruct( dague_handle_t *o );

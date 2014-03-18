@@ -5,7 +5,7 @@
  */
 
 #include <dague_config.h>
-#include "fifo.h"
+#include "dague/class/fifo.h"
 
 OBJ_CLASS_INSTANCE(dague_fifo_t, dague_list_t,
                    NULL, NULL);

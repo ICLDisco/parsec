@@ -9,7 +9,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
     set(testings_addexec_LDFLAGS "${MPI_C_LINK_FLAGS} ${testings_addexec_LDFLAGS}")
   endif( MPI_C_FOUND )
   set(testings_addexec_LIBS
-    common dplasma dplasma_cores dague dague_distribution_matrix
+    common dplasma 
     ${EXTRA_LIBS}
     )
 

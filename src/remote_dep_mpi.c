@@ -11,7 +11,7 @@
 
 #include <mpi.h>
 #include "profiling.h"
-#include "list.h"
+#include "dague/class/list.h"
 #include "data.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
@@ -63,7 +63,7 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context);
 #endif
 static int remote_dep_dequeue_nothread_progress(dague_context_t* context);
 
-#include "dequeue.h"
+#include "dague/class/dequeue.h"
 
 /**
  * Number of data movements to be extracted at each step. Bigger the number
@@ -166,6 +166,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     dague_execution_context_t task;
 
     task.dague_handle = dague_handle_lookup( origin->handle_id );
+    if( NULL == task.dague_handle ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->handle_id), str;
     task.function     = task.dague_handle->functions_array[origin->function_id];
     memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.function->nb_locals);
     task.priority     = 0xFFFFFFFF;
@@ -509,7 +510,7 @@ remote_dep_get_datatypes(dague_execution_unit_t* eu_context,
 /**
  * Trigger the local reception of a remote task data. Upon completion of all
  * pending receives related to a remote task completion, we call the
- * release_deps tp enable all local tasks and then start the activation
+ * release_deps to enable all local tasks and then start the activation
  * propagation.
  */
 static dague_remote_deps_t*
@@ -550,7 +551,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
     }
 
 #ifdef DAGUE_DIST_COLLECTIVES
-    /* Corresponding comment below on the propogation part */
+    /* Corresponding comment below on the propagation part */
     if(0 == origin->incoming_mask) {
         remote_dep_inc_flying_messages(task.dague_handle,
                                        eu_context->virtual_process->dague_context);
@@ -1343,7 +1344,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
     dague_comm_callback_t* cb;
     void* dataptr;
     MPI_Datatype dtt;
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1369,7 +1370,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
         dataptr = DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data);
         dtt     = deps->output[k].data.layout;
         nbdtt   = deps->output[k].data.count;
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)\n",
                item->cmd.activate.peer, k, task->deps, dataptr, type_name, tag+k, deps->output[k].data.displ));
@@ -1509,7 +1510,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     /* Release all the already satisfied deps without posting the RDV */
     if(complete_mask) {
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
                 DEBUG2(("MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
@@ -1593,14 +1594,15 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
     ({
         dague_remote_deps_t* deps = (dague_remote_deps_t*)item;
         if( deps->msg.handle_id == obj->handle_id ) {
-            char* buffer = (char*)deps->dague_handle;
+            char* buffer = (char*)deps->dague_handle;  /* get back the buffer from the "temporary" storage */
             int rc, position = 0;
+            deps->dague_handle = NULL;
             rc = remote_dep_get_datatypes(eu_context, deps); assert( -1 != rc );
             DEBUG2(("MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx\n",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     deps->msg.deps, deps->msg.output_mask));
+            item = dague_ulist_remove(&dep_activates_noobj_fifo, item);
             remote_dep_mpi_recv_activate(eu_context, deps, buffer, deps->msg.length, &position);
-            (void)dague_ulist_remove(&dep_activates_noobj_fifo, item);
             free(buffer);
             (void)rc;
         }

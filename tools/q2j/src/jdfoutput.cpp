@@ -141,7 +141,7 @@ void print_default_task_placement(node_t *task_node)
 void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
     set<dep_t *>::iterator it;
     map<string, string> pseudo_vars;
-    
+
    // Create a mapping between pseudo_variables and actual variables
 
    // OUTGOING
@@ -150,7 +150,7 @@ void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
         // WARNING: This is needed by Omega. If you remove it you get strange
         // assert() calls being triggered inside the Omega library.
         (void)(*dep->rel).print_with_subs_to_string(false);
-        
+
         if( NULL != dep->src->task ){
             pseudo_vars[dep->src->var_symname] = tree_to_str(dep->src);
         }
@@ -158,22 +158,22 @@ void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
             pseudo_vars[dep->dst->var_symname] = tree_to_str(dep->dst);
         }
     }
-    
+
     // INCOMING
     for (it=in_deps.begin(); it!=in_deps.end(); it++){
         dep_t *dep = *it;
         // WARNING: This is needed by Omega. If you remove it you get strange
         // assert() calls being triggered inside the Omega library.
         (void)(*dep->rel).print_with_subs_to_string(false);
-        
+
         Q2J_ASSERT( NULL != dep->dst);
         pseudo_vars[dep->dst->var_symname] = tree_to_str(dep->dst);
-        
+
         if( NULL != dep->src->task ){
             pseudo_vars[dep->src->var_symname] = tree_to_str(dep->src);
         }
     }
-    
+
     // Dump the map.
     string_arena_t *sa = string_arena_new(16);
     map<string, string>::iterator pvit;
@@ -190,7 +190,7 @@ void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
 char *create_pseudotask(node_t *parent_task,
                                Relation S_es, Relation cond,
                                node_t *data_element,
-                               char *var_pseudoname, 
+                               char *var_pseudoname,
                                int ptask_count, const char *inout,
                                string_arena_t *sa_pseudotask_name,
                                string_arena_t *sa_pseudotask )
@@ -241,10 +241,10 @@ char *create_pseudotask(node_t *parent_task,
             var_count++;
 
             if( !firstpfp ) {
-                string_arena_add_string(sa_parent_formal_param, ", %s", 
+                string_arena_add_string(sa_parent_formal_param, ", %s",
                                         solution_str );
             } else {
-                string_arena_add_string(sa_parent_formal_param, "%s", 
+                string_arena_add_string(sa_parent_formal_param, "%s",
                                         solution_str );
             }
         } else {
@@ -254,19 +254,19 @@ char *create_pseudotask(node_t *parent_task,
 
             // the following code is for generating the string for the caller (the real task)
             if( !firstfp ) {
-                string_arena_add_string(sa_formal_param, ", %s", 
+                string_arena_add_string(sa_formal_param, ", %s",
                                         var_name );
             } else {
-                string_arena_add_string(sa_formal_param, "%s", 
+                string_arena_add_string(sa_formal_param, "%s",
                                         var_name );
                 firstfp = 0;
             }
 
             if( !firstpfp ) {
-                string_arena_add_string(sa_parent_formal_param, ", %s", 
+                string_arena_add_string(sa_parent_formal_param, ", %s",
                                         var_name );
             } else {
-                string_arena_add_string(sa_parent_formal_param, "%s", 
+                string_arena_add_string(sa_parent_formal_param, "%s",
                                         var_name );
             }
 
@@ -312,7 +312,7 @@ char *create_pseudotask(node_t *parent_task,
     // Pseudo Task
     int is_input = !strcmp(inout,"in");
     string_arena_init(sa_pseudotask);
-    string_arena_add_string(sa_pseudotask, 
+    string_arena_add_string(sa_pseudotask,
                             "\n/*\n * Pseudo-task\n */"
                             "\n%s [profile = off]"
                             "\n  /* Execution Space */"
@@ -333,7 +333,7 @@ char *create_pseudotask(node_t *parent_task,
                             is_input ? data_str : string_arena_get_string(sa1),
                             indent(strlen(var_pseudoname), 1),
                             is_input ? string_arena_get_string(sa1) : data_str );
-    
+
     free(mtrx_name);
 
     string_arena_free(sa1);
@@ -400,7 +400,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
         }else if( nb_ideps > 0 ){
             access = "READ";
         }else if( nb_odeps > 0 ){
-            /* 
+            /*
              * DAGuE does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
@@ -438,10 +438,10 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
              cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  node_t *src_node = dep->src;
-                 
+
                  if ( (dep_it!=ideps.begin()) || (cond_it != cond_list.begin()) )
-                     jdfoutput("%s", indent(nbspaces, 1)); 
-                 
+                     jdfoutput("%s", indent(nbspaces, 1));
+
                  // Conditions for this input
                  jdfoutput("<- %s", generate_condition_str(cond_it->first) );
 
@@ -472,7 +472,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                  (*dep->rel).print_with_subs(stdout);
 #endif
              }
-             
+
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
                  clean_tree( (*cond_it).first );
              }
@@ -509,10 +509,10 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
              // is treated independently.
              cond_list = simplify_conditions_and_split_disjunctions(*dep->rel, S_es);
              for(cond_it = cond_list.begin(); cond_it != cond_list.end(); cond_it++){
-                 
+
                  // Conditions for this output
                  jdfoutput("%s-> %s", indent(nbspaces, 1), generate_condition_str(cond_it->first) );
-                 
+
                  // Destination of the output
                  node_t *sink = dep->dst;
                  string_arena_init(sa);
@@ -536,7 +536,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
                  jdfoutput("%s\n", string_arena_get_string(sa));
 #ifdef DEBUG_2
                  jdfoutput_dbg("%s// %s -> %s ", indent(nbspaces, 1),
-                               tree_to_str(dep->src), 
+                               tree_to_str(dep->src),
                                (NULL != sink ) ? sink->task->task_name : "EXIT" );
                  (*dep->rel).print_with_subs(stdout);
 #endif
@@ -558,7 +558,7 @@ void print_antidependencies( jdf_function_entry_t *this_function,
 {
     map<char *, set<dep_t *> >::iterator synch_edge_it;
     bool has_synch_edges = false;
-    
+
     for( synch_edge_it = synch_edges.begin(); synch_edge_it!= synch_edges.end(); ++synch_edge_it){
         if( strcmp( synch_edge_it->first, this_function->fname ) )
             continue;
@@ -570,7 +570,7 @@ void print_antidependencies( jdf_function_entry_t *this_function,
             jdfoutput("  /*\n  Anti-dependencies:\n");
             has_synch_edges = true;
         }
-        
+
         // Traverse all the entries of the set stored in synch_edges[ this task's name ] and print them
         for(synch_dep_it=synch_dep_set.begin(); synch_dep_it!=synch_dep_set.end(); ++synch_dep_it){
             string relation;
@@ -598,7 +598,7 @@ void print_body(node_t *task_node)
                "{\n"
                "%s\n"
                "}\n"
-               "END\n", 
+               "END\n",
                tree_to_body(task_node));
 }
 
@@ -619,31 +619,31 @@ void print_function(jdf_function_entry_t       *this_function,
     char *task_name;
 
     task_name = this_function->fname;
-   
+
     jdfoutput("\n\n%s( ",task_name);
     for(i=0; NULL != this_task->ind_vars[i]; ++i){
         if( i ) jdfoutput(", ");
         jdfoutput("%s", this_task->ind_vars[i]);
     }
     jdfoutput(")\n");
-    
+
     print_execution_space(S_es);
     print_default_task_placement(reference_data_element);
-    
+
 //     if( _q2j_dump_mapping ) {
 //         print_pseudo_variables(outg_deps, incm_deps);
 //     }
-    
+
     ptask_list = print_edges_and_create_pseudotasks( this_task->task_node,
                                                      reference_data_element,
                                                      S_es,
                                                      vars, outg_map, incm_map);
-    
+
     if( NULL != this_function->fname )
         print_antidependencies( this_function, synch_edges );
-    
+
     print_body(this_task->task_node);
-    
+
     // Print all the pseudo-tasks that were created by print_edges_and_create_pseudotasks()
     for(ptask_it=ptask_list.begin(); ptask_it!=ptask_list.end(); ++ptask_it){
         jdfoutput("%s\n",*ptask_it);

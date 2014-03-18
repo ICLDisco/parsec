@@ -1,7 +1,7 @@
 #
 # Based on http://bloerg.net/2012/11/10/cmake-and-distutils.html
 #
-
+if( DAGUE_PROF_TRACE )
 set(SETUP_PY_IN "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in")
 set(SETUP_PY    "${CMAKE_CURRENT_BINARY_DIR}/setup.py")
 set(FISH_ENV_IN "${CMAKE_CURRENT_SOURCE_DIR}/utilities/fish.env.in")
@@ -13,12 +13,11 @@ set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
                 "${CMAKE_CURRENT_SOURCE_DIR}/pbt_info_parser.pxd"
                 "${CMAKE_CURRENT_SOURCE_DIR}/pbt_info_parser.pxi"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
-		"${CMAKE_CURRENT_SOURCE_DIR}/../../../include/dbp.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
+                "${CMAKE_CURRENT_SOURCE_DIR}/../../../include/dbp.h"
                 dague-base dague)
-set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/build/timestamp"
-                "${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.c")
+set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.c")
 
 #
 # Always generate the setup.py so it can be used by hand
@@ -40,4 +39,4 @@ if( PYTHONINTERP_FOUND )
 
     install(CODE "execute_process(COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} install)")
 endif( PYTHONINTERP_FOUND )
-
+endif( DAGUE_PROF_TRACE )

@@ -10,6 +10,7 @@
 #include <stdarg.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/mman.h>
 #include <assert.h>
 #include <map>
 #include <set>
@@ -86,7 +87,6 @@ static void dump_full_und(und_t *und);
 ////////////////////////////////////////////////////////////////////////////////
 //
 static int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
-static Relation process_execution_space(node_t *node, node_t *func, int *status);
 set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
 static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t *exp, int constr_type);
@@ -102,14 +102,14 @@ static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F
 static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t *func);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
 static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *root);
-static inline bool is_phony_Entry_task(node_t *task);
-static inline bool is_phony_Exit_task(node_t *task);
 static bool inline is_enclosed_by_else(node_t *node, node_t *branch);
 static inline void flip_sign(expr_t *exp);
 static inline bool is_negative(expr_t *exp);
 static void _declare_global_vars(node_t *node);
 static inline void declare_global_vars(node_t *node);
 static void declare_globals_in_tree(node_t *node, set <char *> ind_names);
+static set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level);
+static Relation process_execution_space(node_t *node, node_t *func, int *status);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -212,18 +212,18 @@ void dump_UorD(node_t *node){
 char *dump_data(string_arena_t *sa, node_t *n)
 {
     string_arena_init(sa);
-    string_arena_add_string( sa, "%s%s", 
+    string_arena_add_string( sa, "%s%s",
                              _q2j_data_prefix,
                              tree_to_str(n) );
     return string_arena_get_string(sa);
 }
 
-static inline bool is_phony_Entry_task(node_t *task){
+bool is_phony_Entry_task(node_t *task){
     char *name = task->function->fname;
     return (strstr(name, "DAGUE_IN_") == name);
 }
 
-static inline bool is_phony_Exit_task(node_t *task){
+bool is_phony_Exit_task(node_t *task){
     char *name = task->function->fname;
     return (strstr(name, "DAGUE_OUT_") == name);
 }
@@ -246,7 +246,7 @@ static void declare_globals_in_tree(node_t *node, set <char *> ind_names){
                     return;
                 }
             }
-       
+
             // If the var is not already declared as a global symbol, declare it
             map<string, Free_Var_Decl *>::iterator it;
             it = global_vars.find(var_name);
@@ -401,6 +401,9 @@ int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID>
     int status = Q2J_SUCCESS;
 
     switch( node->type ){
+        // TODO: handle logical or (L_OR) as well.
+        //F_Or *or1 = R_root->add_or();
+        //F_And *and1 = or1->add_and();
         case L_AND:
             new_and = R_root->add_and();
             status = process_end_condition(DA_kid(node,0), new_and, ivars, lb, R);
@@ -412,9 +415,6 @@ int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID>
                 return status;
             }
             break;
-// TODO: handle logical or (L_OR) as well.
-//F_Or *or1 = R_root->add_or();
-//F_And *and1 = or1->add_and();
         case LT:
             ivar = ivars[DA_var_name(DA_rel_lhs(node))];
             imax = R_root->add_GEQ();
@@ -629,7 +629,7 @@ static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t 
             exit(-1);
         }
 
-        // Create the actual condition in the Omega relation "R".  
+        // Create the actual condition in the Omega relation "R".
         // Since the invariants that come from pragma directives should only
         // global variables, we pass an empty set for the input variables.
         process_condition(inv_exp, R_root, empty, R);
@@ -747,7 +747,7 @@ Relation create_exit_relation(node_t *exit, node_t *def, node_t *func, int *stat
 
     i=src_loop_count-1;
     for(tmp=def->enclosing_loop; NULL != tmp; tmp=tmp->enclosing_loop ){
-        if(i<0){fprintf(stderr,"i<0\n"); abort();} 
+        if(i<0){fprintf(stderr,"i<0\n"); abort();}
         def_ind_names[i] = DA_var_name(DA_loop_induction_variable(tmp));
         --i;
     }
@@ -1079,12 +1079,13 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         node_t *use_task_node;
         node_t *use_params = NULL;
         char *var_name, *def_name;
- 
+        node_t *encl_loop;
+
         // skip anti-dependencies that go to the phony output task.
         if( DEP_ANTI == dep_type && is_phony_Exit_task(und->node) ){
             continue;
         }
-   
+
         var_name = DA_var_name(DA_array_base(und->node));
         def_name = DA_var_name(DA_array_base(def));
         Q2J_ASSERT( !strcmp(var_name, def_name) );
@@ -1106,13 +1107,24 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         // In the case of output dependencies (write after write) "use" is really a DEF.
         use = und->node;
 
+        // Prune impossible edges based on control flow. If the source of this
+        // edge is after the sink and they don't share an enclosing loop then
+        // the edge is impossible.
+        encl_loop = find_closest_enclosing_loop(use, def);
+        if( NULL == encl_loop ){
+            // since we didn't find a common loop, source and sink better not be the same.
+            assert( und != def_und );
+
+            // If we haven't seen the source of this dependency yet, then it's a
+            // back-edge that is not carried by a loop; so it's impossible.
+            if( !after_def )
+                continue;
+        }
+
         use_task_node = use->task->task_node;
 
         if( use_task_node->type == BLKBOX_TASK ){
-//printf("      USE is Blackbox (%s)\n",use_task_node->function->fname);
             use_params = DA_kid(use_task_node, 1);
-        }else{
-//printf("      USE not Blackbox (%s)\n",use_task_node->function->fname);
         }
 
         dst_loop_count = use->loop_depth;
@@ -1324,7 +1336,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
             *status = process_end_condition(DA_for_econd(tmp), R_root, ovars, NULL, R);
             if( Q2J_SUCCESS != *status ){
                 return dep_edges;
-            } 
+            }
         }
 
         // Take into account all the conditions of all if() statements enclosing the USE.
@@ -1343,14 +1355,14 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         // In addition, if a flow edge is going from a task to itself, it also needs to have greater-than
         // instead of greater-or-equal relationships for the induction variables.
 
-        node_t *encl_loop = find_closest_enclosing_loop(use, def);
+        encl_loop = find_closest_enclosing_loop(use, def);
 
         // If USE and DEF are in the same task and that is not in a loop, there is no data flow, go to the next USE.
         if( (NULL == encl_loop) && (def->task == use->task) && ((DEP_ANTI!=dep_type) || (def != use)) ){
             continue;
         }
-        
-        if( NULL == encl_loop && 
+
+        if( NULL == encl_loop &&
             !( after_def && (def->task != use->task) ) &&
             !( (DEP_ANTI==dep_type) && (after_def||(def==use)) ) ){
 
@@ -1402,7 +1414,7 @@ map<node_t *, Relation> create_dep_relations(und_t *def_und, var_t *var, int dep
         *status = add_array_subscript_equalities(R, R_root, ivars, ovars, def, use);
         if( Q2J_SUCCESS != *status ){
             return dep_edges;
-        } 
+        }
 
         R.simplify(2,2);
         if( R.is_upper_bound_satisfiable() || R.is_lower_bound_satisfiable() ){
@@ -1437,7 +1449,7 @@ static void _declare_global_vars(node_t *node){
             ind_names.insert( DA_var_name(DA_loop_induction_variable(tmp)) );
         }
 
-//TODO: "Maybe we should exclude the blackbox variables from the list of globals as well"
+        //TODO: "Maybe we should exclude the blackbox variables from the list of globals as well"
 
         // Find all the variables in the lower bound that are not induction variables and
         // declare them as global variables (symbolic)
@@ -1577,7 +1589,7 @@ expr_t *copy_tree(expr_t *root){
 void clean_tree(expr_t *root){
     if( NULL == root )
         return;
-        
+
     clean_tree(root->l);
     clean_tree(root->r);
     if( IDENTIFIER == root->type )
@@ -1980,7 +1992,7 @@ expr_t *eliminate_var_using_transitivity(expr_t *exp, const char *var_name, Rela
 
         }
     }
-  
+
     return exp;
 }
 
@@ -2007,7 +2019,7 @@ expr_t *solve_expression_tree_for_var(expr_t *exp, const char *var_name, Relatio
                 for(set<expr_t *>::iterator e_it=eqs.begin(); e_it!=eqs.end(); e_it++){
                     expr_t *eq_exp = *e_it;
                     fprintf(stderr,"%s\n",expr_tree_to_str(eq_exp) );
-                } 
+                }
                 fprintf(stderr,"\nFull exp: %s\n", expr_tree_to_str(exp));
                 fprintf(stderr,"\nRelation: ");
                 R.print();
@@ -2160,7 +2172,7 @@ static void substitute_exp_for_var(expr_t *exp, const char *var_name, expr_t *ro
         c = getVarCoeff(eq_exp, var_name);
         new_exp = copy_tree(exp);
         multiplyTreeByConstant(new_exp, c);
-        
+
         // Find the MUL and its parent and do the replacement.
         mul = findParentOfVar(eq_exp, var_name);
         parent = findParent(eq_exp, mul);
@@ -2191,7 +2203,7 @@ static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Rel
 
         if( R.is_set() )
             return rslt_exp;
-  
+
         for(int i=0; i<R.n_out(); i++){
             const char *ovar = R.output_var(i+1)->char_name();
             if( expr_tree_contains_var(rslt_exp, ovar) ){
@@ -2365,7 +2377,7 @@ static set<expr_t *> find_all_constraints_with_var(const char *var_name, expr_t 
 char *dump_actual_parameters(string_arena_t *sa, dep_t *dep, expr_t *rel_exp){
     Relation R = copy(*(dep->rel));
     set <const char *> vars_in_bounds;
-    
+
     string_arena_init(sa);
 
     int dst_count = R.n_inp();
@@ -2393,7 +2405,7 @@ char *dump_actual_parameters(string_arena_t *sa, dep_t *dep, expr_t *rel_exp){
 expr_t *cnstr_to_tree(Constraint_Handle cnstr, int cnstr_type){
     expr_t *e_add, *root = NULL;
     expr_t *e_cns;
-    
+
     for(Constr_Vars_Iter cvi(cnstr); cvi; cvi++){
         expr_t *e_cns = (expr_t *)calloc( 1, sizeof(expr_t) );
         e_cns->type = INTCONSTANT;
@@ -2549,7 +2561,7 @@ static set<expr_t *> findAllConjunctions(expr_t *exp){
             tmp_r = findAllConjunctions(exp->r);
             eq_set.insert(tmp_r.begin(), tmp_r.end());
             return eq_set;
-        
+
     }
 
 }
@@ -2595,8 +2607,8 @@ void find_all_vars(expr_t *e, set<string> &var_set){
 }
 
 
-        
-    
+
+
 void tree_to_omega_set(expr_t *tree, Constraint_Handle &handle, map<string, Variable_ID> all_vars, int sign){
     int coef;
     Variable_ID v = NULL;
@@ -2732,9 +2744,6 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// WARNING: this function is destructive.  It actually removes nodes from the tree
-// and deletes them altogether. In many cases you will need to pass a copy of the
-// tree to this function.
 list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es){
     stringstream ss;
     set<expr_t *> simpl_conj;
@@ -2776,22 +2785,7 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
         pair<expr_t *, Relation> p = *cj_it;
         expr_t *cur_exp = p.first;
 
-        int dst_count = R.n_out();
-        for(int i=0; i<dst_count; i++){
-            const char *ovar = strdup(R.output_var(i+1)->char_name());
-            // If we find the variable in an EQ then we solve for the variable and
-            // substitute the solution for the variable everywhere in the conjunction.
-            expr_t *solution = solve_expression_tree_for_var(cur_exp, ovar, R);
-            if( NULL != solution ){
-                substitute_exp_for_var(solution, ovar, cur_exp);
-            }else{
-                // If the variable is in no EQs but it's in GEs, we have to use transitivity
-                // to eliminate it.  For example: X-a>=0 && b-X-1>=0 => b-1>=X && X>=a => b-1>=a
-                cur_exp = eliminate_var_using_transitivity(cur_exp, ovar, R);
-            }
-            free((void *)ovar);
-        }
-        cur_exp = simplify_constraint_based_on_execution_space(cur_exp, S_es);
+        cur_exp = simplify_condition(cur_exp, R, S_es);
 
         new_p.first = cur_exp;
         new_p.second = p.second;
@@ -2802,6 +2796,27 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
         clean_tree( (*cj_it).first );
     }
     return result;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+expr_t *simplify_condition(expr_t *expr, Relation R, Relation S_es){
+    int dst_count = R.n_out();
+    for(int i=0; i<dst_count; i++){
+        const char *ovar = strdup(R.output_var(i+1)->char_name());
+        // If we find the variable in an EQ then we solve for the variable and
+        // substitute the solution for the variable everywhere in the conjunction.
+        expr_t *solution = solve_expression_tree_for_var(expr, ovar, R);
+        if( NULL != solution ){
+            substitute_exp_for_var(solution, ovar, expr);
+        }else{
+            // If the variable is in no EQs but it's in GEs, we have to use transitivity
+            // to eliminate it.  For example: X-a>=0 && b-X-1>=0 => b-1>=X && X>=a => b-1>=a
+            expr = eliminate_var_using_transitivity(expr, ovar, R);
+        }
+        free((void *)ovar);
+    }
+    return simplify_constraint_based_on_execution_space(expr, S_es);
 }
 
 
@@ -2864,7 +2879,7 @@ void add_tautologic_cycles(tg_node_t *src_nd, set<tg_node_t *> &visited_nodes){
 
     // See how many input variables it has, that's the loop depth of the kernel.
     n_inp_var = tmpR->n_inp();
-  
+
     // Create a new relation with that arity (number of variables).
     newR = new Relation(n_inp_var, n_inp_var); // Yes, n_inp_var both times
 
@@ -3001,18 +3016,18 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
         // Store the next element in tmp_dst_nd
         tmp_dst_nd = *stack_it;
         for(e_it = tmp_src_nd->edges.begin(); e_it != tmp_src_nd->edges.end(); e_it++){
-        tg_edge_t *tmp_edge = *e_it;
-        // Find the edge that connects tmp_src_nd and tmp_dst_nd and compose
-        if( tmp_edge->dst == tmp_dst_nd ){
-            if( transitiveR.is_null() )
-                transitiveR = *(tmp_edge->R);
-            else
-                transitiveR = Composition(copy(*(tmp_edge->R)), transitiveR);
-            break;
+            tg_edge_t *tmp_edge = *e_it;
+            // Find the edge that connects tmp_src_nd and tmp_dst_nd and compose
+            if( tmp_edge->dst == tmp_dst_nd ){
+                if( transitiveR.is_null() )
+                    transitiveR = *(tmp_edge->R);
+                else
+                    transitiveR = Composition(copy(*(tmp_edge->R)), transitiveR);
+                break;
+            }
         }
-                }
-                // progress the source down the cycle
-                tmp_src_nd = tmp_dst_nd;
+        // progress the source down the cycle
+        tmp_src_nd = tmp_dst_nd;
     }
 
     // Close the cycle by making the begining of the cycle also be the end.
@@ -3055,7 +3070,7 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
         }
     }else{
         // Compute the transitive closure of this relation. We do this in a
-        // child process because sometimes TransitiveClosure() raises as
+        // child process because sometimes TransitiveClosure() raises an
         // assert() inside the Omega library.
         fclose(stdout);
         fclose(stderr);
@@ -3079,7 +3094,6 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
 // Note: We pass visited_nodes by value, so that the effect of the callee is _not_
 // visible to the caller.
 void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *> visited_nodes, list<tg_node_t *> node_stack){
-    static int depth;
 
     visited_nodes.insert(src_nd);
     node_stack.push_back(src_nd);
@@ -3092,9 +3106,7 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
         // cycle, so we should compute the appropriate Relations and store them in the "cycle"
         // field of the corresponding nodes.
         if( visited_nodes.find(next_node) == visited_nodes.end() ){
-            depth += 4;
             compute_transitive_closure_of_all_cycles(next_node, visited_nodes, node_stack);
-            depth -= 4;
         }else{
             list<tg_node_t *>::iterator stack_it;
 
@@ -3105,9 +3117,7 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
 
             // Traverse the elements starting from the oldest (violating the stack semantics),
             // until we find "cycle_start".  All the elements before "cycle_start" are not
-            // members of this cycle. We could instead pop the stack from the top and fill up
-            // a (reversed) list of elements in the cycle, but that would destroy the stack,
-            // and we need to keep it for the next iteration of the for() loop.
+            // members of this cycle.
             stack_it=node_stack.begin();
             while( stack_it!=node_stack.end() && *stack_it!=cycle_start ){
                 ++stack_it;
@@ -3120,34 +3130,26 @@ void compute_transitive_closure_of_all_cycles(tg_node_t *src_nd, set<tg_node_t *
             // copy the elements of the cycle into a new list.
             list<tg_node_t *> cycle_list(stack_it, node_stack.end());
 
-// The code in the #if computes the transitive relation of all cycles.
-// The code in the #else computes the tr. rel. of only the cycle that starts from "stack_it"
-#if 0
-            // Compute the transitive Relation of the cycle (and then compute the
-            // transitive closure of that) as many times as there are elements in
-            // the cycle, changing the starting element of the cycle every time.
-            do{
-                compute_TC_of_transitive_relation_of_cycle(cycle_list);
-
-                cycle_list.push_back( cycle_list.front() );
-                cycle_list.pop_front();
-
-            // when the start is the same element as it was when we started, we are done.
-            }while( cycle_list.front() != cycle_start );
-#else
             compute_TC_of_transitive_relation_of_cycle(cycle_list);
-#endif
+
+            //TODO: release the memory held by "cycle_list".
         }
     }
 
     return;
 }
 
+void print_progress_symbol(int i){
+    char symbols[5] = {'\\','-','/','|','\0'};
+    fprintf(stderr, "\b%c",symbols[i%4]);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 //
 Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<tg_node_t *> visited_nodes, list<Relation *> relation_fifo, tg_node_t *src_nd, tg_node_t *snk_nd, int just_started){
     static int debug_depth=0;
+
+    print_progress_symbol(debug_depth/4);
 
     Ra.simplify(2,2);
 
@@ -3239,7 +3241,7 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
     for (list<tg_edge_t *>::iterator it = cur_nd->edges.begin(); it != cur_nd->edges.end(); it++){
         tg_node_t *next_node = (*it)->dst;
         Relation Rt_new;
-        
+
 #if defined(DEBUG_ANTI)
         printf("%*s",debug_depth,"");
         printf("%s -> %s\n",cur_nd->task_name, next_node->task_name);
@@ -3249,7 +3251,7 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
         // are finalizing are the same (loop carried self edge) and the next node is that (source/sink) node.
         if( (visited_nodes.find(next_node) == visited_nodes.end()) || ((src_nd == snk_nd) && (next_node == snk_nd)) ){
             relation_fifo.push_back((*it)->R);
-            
+
             debug_depth += 4;
             Ra = find_transitive_edge(next_node, Rt_new, Ra, visited_nodes, relation_fifo, src_nd, snk_nd, 0);
             debug_depth -= 4;
@@ -3279,7 +3281,7 @@ void create_node(map<char *, tg_node_t *> &task_to_node, dep_t *dep, int edge_ty
     Q2J_ASSERT(dst->function);
     Q2J_ASSERT(dst->function->fname);
 
-    // See if we there is already a node in the graph for the source of this control edge.
+    // See if there is already a node in the graph for the source of this control edge.
     tg_node_t *src_nd = find_node_in_graph(src->function->fname, task_to_node);
     if( NULL == src_nd ){
         src_nd = new tg_node_t();
@@ -3319,7 +3321,7 @@ bool are_relations_equivalent(Relation *Ra, Relation *Rb){
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-    
+
 void copy_task_graph_node_except_edge(tg_node_t *org_nd, map<char *, tg_node_t *> &task_to_node, dep_t *dep){
     tg_node_t *new_nd;
 
@@ -3344,7 +3346,7 @@ void copy_task_graph_node_except_edge(tg_node_t *org_nd, map<char *, tg_node_t *
         Q2J_ASSERT(dep->dst->function->fname);
 
         if( !strcmp(new_nd->task_name, dep->src->function->fname) &&
-            !strcmp(tmp_edge->dst->task_name, dep->dst->function->fname) && 
+            !strcmp(tmp_edge->dst->task_name, dep->dst->function->fname) &&
             (EDGE_ANTI == tmp_edge->type) &&
             are_relations_equivalent(tmp_edge->R, dep->rel) ) {
             continue;
@@ -3389,14 +3391,6 @@ void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *de
             // If the destination task is correct, check the Relation.
             if( are_relations_equivalent((*e_it)->R, dep->rel) ){
                 // When we find the Relation we are looking for, we update it and leave this function.
-
-// debug starts
-//printf("Changing Rel: ");
-//(*e_it)->R->print_with_subs();
-//printf("      To Rel: ");
-//fnl_rel.print_with_subs();
-// debug ends
-
                 (*e_it)->R = new Relation(fnl_rel);
                 return;
             }
@@ -3404,7 +3398,7 @@ void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *de
     }
 
     fprintf(stderr,"FATAL ERROR: update_synch_edge_on_graph() should never fail to find the synch edge\n");
-    assert(0);
+    abort();
 }
 
 
@@ -3466,12 +3460,6 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
         dep_pruned->dst = dep->dst;
         dep_pruned->rel = dep->rel;
 
-#if defined(DEBUG_ANTI)
-        //printf("-- DEBUG: processing anti: from %s to %s: %s", 
-        //       dep->src->function->fname, dep->dst->function->fname,
-        //       (const char *)dep->rel->print_with_subs_to_string(false));
-#endif /* defined(DEBUG_ANTI) */
-
         // For every flow edge that has the same src and dst as this anti-edge,
         // subtract the flow from the anti.
         set<dep_t *>::iterator it_f;
@@ -3487,17 +3475,11 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
             if( (src_task_f == src_task) && (dst_task_f == dst_task) ){
                 Relation ra, rb;
-                //Relation *rptr;
-                //rptr = dep_pruned->rel; /* save the pointer so we can free it */
                 ra = *(dep_pruned->rel);
                 rb = *(dep_f->rel);
                 if( ra.is_null() ){ break; }
                 if( rb.is_null() ){ continue; }
-#if defined(DEBUG_ANTI)
-                //printf("   DEBUG: found flow: from %s to %s: %s\n",src_task_f->task_name, dst_task_f->task_name, (const char *)rb.print_with_subs_to_string(false));
-#endif /* defined(DEBUG_ANTI) */
                 dep_pruned->rel = new Relation( Difference(ra, rb) );
-                //delete rptr;
             }
         }
 
@@ -3522,9 +3504,55 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+void free_task_graph(map<char *, tg_node_t *> task_to_node){
+    return;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
 map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps){
-    map<char *, tg_node_t *> task_to_node;
     map<char *, set<dep_t *> > resulting_map;
+    set<dep_t *> rslt_ctrl_deps;
+    int level, max_level=2;
+
+    rslt_ctrl_deps = ctrl_deps;
+    // TODO: we can add an intermediate level by killing all the anti-deps to self without
+    // TODO: computing transitive edges. Just compute the TC of the cycles.
+    for(level=0; level<max_level; level++){
+        fprintf(stderr, "Finalizing synch edges. Level %d/%d\n",level, max_level-1);
+        rslt_ctrl_deps = do_finalize_synch_edges(rslt_ctrl_deps, flow_deps, level);
+        fprintf(stderr, "\n");
+    }
+
+    set<dep_t *>::iterator ctrl_it;
+    for (ctrl_it=rslt_ctrl_deps.begin(); ctrl_it!=rslt_ctrl_deps.end(); ctrl_it++){
+        map<char *, set<dep_t *> >::iterator map_it;
+        set<dep_t *> dep_set;
+        dep_t *dep;
+        char *src_task_name;
+
+        dep = *ctrl_it;
+        dep_set.insert(dep);
+        src_task_name = dep->src->function->fname;
+
+        // See if this task already has a set of sync edges. If so, merge the old set with the new.
+        map_it = resulting_map.find( src_task_name );
+        if( map_it != resulting_map.end() ){
+            set<dep_t *> tmp_set;
+            tmp_set = resulting_map[src_task_name];
+            dep_set.insert(tmp_set.begin(), tmp_set.end());
+        }
+        resulting_map[src_task_name] = dep_set;
+    }
+
+    return resulting_map;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//
+set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level){
+    map<char *, tg_node_t *> task_to_node;
+    set<dep_t *> rslt_ctrl_deps;
 
     // ============
     // Create a graph I_G with the different tasks (task-classes, actually) as nodes
@@ -3548,6 +3576,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
 
     // For every anti-edge, repeat the same steps.
+    int count = 0;
     for (it=ctrl_deps.begin(); it!=ctrl_deps.end(); it++){
         set<tg_node_t *> visited_nodes;
         list<Relation *> relation_fifo;
@@ -3555,6 +3584,10 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
         Relation Rt, Ra;
         tg_node_t *source_node, *sink_node;
 
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
+                count / 5, count % 5, (int)(ctrl_deps.size()),
+                ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
 
         dep_t *dep = *it;
         if( dep->rel->is_null() ){
@@ -3571,6 +3604,11 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 2) for each pair of nodes N1,N2 in G, replace all the edges that
         //         go from N1 to N2 with their union.
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
+                count / 5, count % 5, (int)(ctrl_deps.size()),
+                ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
+
         visited_nodes.clear(); // just being paranoid.
         visited_nodes.insert(source_node);
         union_graph_edges(source_node, visited_nodes);
@@ -3581,20 +3619,39 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
         // Step 3) Add to every node a tautologic Relation to self:
         // {[p1,p2,...,pn] -> [p1,p2,...,pn] : TRUE}.
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
+                count / 5, count % 5, (int)(ctrl_deps.size()),
+                ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
         visited_nodes.clear();
         visited_nodes.insert(source_node);
         add_tautologic_cycles(source_node, visited_nodes);
 
-        // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
-        visited_nodes.clear();
-        compute_transitive_closure_of_all_cycles(source_node, visited_nodes, node_stack);
+        if( level > 0 ){
+            // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
+
+            fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
+                    count / 5, count % 5, (int)(ctrl_deps.size()),
+                    ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+            count++;
+
+            visited_nodes.clear();
+            compute_transitive_closure_of_all_cycles(source_node, visited_nodes, node_stack);
 #if defined(DEBUG_ANTI)
-        printf("TC of cycles has been computed.\n");
-        fflush(stdout);
+            printf("TC of cycles has been computed.\n");
+            fflush(stdout);
 #endif /* DEBUG_ANTI */
+        }else{
+            count++;
+        }
 
         // Step 5) Find the union of the transitive edges that start at source_node and end at
         // sink_node
+        fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%  ",
+                count / 5, count % 5, (int)(ctrl_deps.size()),
+                ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
+        count++;
+
 #if defined(DEBUG_ANTI)
         printf("Computing transitive edge\n");
         fflush(stdout);
@@ -3623,48 +3680,62 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
             Rsync.print_with_subs();
             fflush(stdout);
 #endif /* DEBUG_ANTI */
+
             Rsync_finalized = Difference(Rsync, Ra);
+
 #if defined(DEBUG_ANTI)
             printf("==> Result:\n  ");
             Rsync_finalized.print_with_subs();
-            fflush(stdout);
-#endif /* DEBUG_ANTI */
-
-#if defined(DEBUG_ANTI)
             printf("Updating the task graph\n");
             fflush(stdout);
 #endif /* DEBUG_ANTI */
+
             update_synch_edge_on_graph(task_to_node, dep, Rsync_finalized);
-#if defined(DEBUG_ANTI)
-            printf("\n");
-            fflush(stdout);
-#endif /* DEBUG_ANTI */
         }
 
         if( !Rsync_finalized.is_null() && Rsync_finalized.is_upper_bound_satisfiable() ){
             dep_t *dep_finalized;
-            set<dep_t *> dep_set;
-            map<char *, set<dep_t *> >::iterator edge_it;
 
             dep_finalized = (dep_t *)calloc(1,sizeof(dep_t));
             dep_finalized->src = dep->src;
             dep_finalized->dst = dep->dst;
             dep_finalized->rel = new Relation(Rsync_finalized);
-            dep_set.insert(dep_finalized);
-
-            // See if this task already has a set of sync edges. If so, merge the old set with the new.
-            edge_it = resulting_map.find(source_node->task_name);
-            if( edge_it != resulting_map.end() ){
-                set<dep_t *>tmp_set;
-                tmp_set = resulting_map[source_node->task_name];
-                dep_set.insert(tmp_set.begin(), tmp_set.end());
-            }
-            resulting_map[source_node->task_name] = dep_set;
+            rslt_ctrl_deps.insert(dep_finalized);
         }
-
     }
 
-    return resulting_map;
+    // Release the memory taken by the Relations in the
+    // old list and then free the dep structures.
+    it=ctrl_deps.begin();
+    while( it!=ctrl_deps.end() ){
+        Relation R;
+
+        dep_t *dep = *it;
+        if( !dep->rel->is_null() ){
+           delete(dep->rel);
+        }
+        it++;
+        free(dep);
+    }
+
+    free_task_graph(task_to_node);
+
+    return rslt_ctrl_deps;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+//
+Relation build_execution_space_relation(node_t *node, int *status){
+    node_t *func;
+
+    // Find the node on the AST that represents the function that encloses this task node
+    for(func = node; func->type != FUNC; func = func->parent){
+        /* keep walking up the tree */;
+    }
+
+    // Use the enclosing function the retrieve the execustion space of the destination task
+    return process_execution_space(node, func, status);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -3785,14 +3856,14 @@ Relation process_execution_space( node_t *node, node_t *func, int *status )
 static void clean_edges(map<char *, set<dep_t *> > &edges)
 {
     map<char *, set<dep_t *> >::iterator map_it;
-    for(map_it =  edges.begin(); 
+    for(map_it =  edges.begin();
         map_it != edges.end();
         map_it++) {
-        
+
         set<dep_t *>::iterator dep_it;
         set<dep_t *> deps = (*map_it).second;
-        
-        for(dep_it =  deps.begin(); 
+
+        for(dep_it =  deps.begin();
             dep_it != deps.end();
             dep_it++) {
             delete ( (*dep_it)->rel );
@@ -3807,10 +3878,10 @@ static void clean_edges(map<char *, set<dep_t *> > &edges)
 static void clean_sources(map<node_t *, map<node_t *, Relation> > &sources)
 {
     map<node_t *, map<node_t *, Relation> >::iterator map_it;
-    for(map_it =  sources.begin(); 
+    for(map_it =  sources.begin();
         map_it != sources.end();
         map_it++) {
-        
+
         map_it->second.clear();
     }
     sources.clear();
@@ -4069,7 +4140,7 @@ int interrogate_omega(node_t *func, var_t *head){
 #ifdef DEBUG_2
     printf("================================================================================\n");
 #endif
- 
+
     clean_sources(flow_sources);
     clean_sources(output_sources);
 
@@ -4147,54 +4218,54 @@ int interrogate_omega(node_t *func, var_t *head){
     edge_it = outgoing_edges.begin();
     for( ;edge_it != outgoing_edges.end(); ++edge_it ){
 
-	char *task_name;
-	set<dep_t *> outgoing_deps;
+        char *task_name;
+        set<dep_t *> outgoing_deps;
 
-	outgoing_deps = edge_it->second;
+        outgoing_deps = edge_it->second;
 
-	if( outgoing_deps.empty() ){
-	    continue;
-	}
+        if( outgoing_deps.empty() ){
+            continue;
+        }
 
 #ifdef DEBUG_2
         node_t *src_node = (*outgoing_deps.begin())->src
-	if( NULL == src_node->function )
-	    printf("ENTRY \n");
-	else
-	    printf("%s \n", src_node->function->fname);
+        if( NULL == src_node->function )
+            printf("ENTRY \n");
+        else
+            printf("%s \n", src_node->function->fname);
 #endif
 
-	set<dep_t *>::iterator it;
-	for (it=outgoing_deps.begin(); it!=outgoing_deps.end(); it++){
-	    set<dep_t *>incoming_deps;
-	    dep_t *dep = *it;
+        set<dep_t *>::iterator it;
+        for (it=outgoing_deps.begin(); it!=outgoing_deps.end(); it++){
+            set<dep_t *>incoming_deps;
+            dep_t *dep = *it;
 
-	    // If the destination is the EXIT, we do not inverse the edge
-	    if( NULL == dep->dst ){
-		continue;
-	    }
+            // If the destination is the EXIT, we do not inverse the edge
+            if( NULL == dep->dst ){
+                continue;
+            }
 
-	    node_t *sink = dep->dst;
-	    task_name = sink->function->fname;
+            node_t *sink = dep->dst;
+            task_name = sink->function->fname;
 
-	    // Create the incoming edge by inverting the outgoing one.
-	    dep_t *new_dep = (dep_t *)calloc(1, sizeof(dep_t));
-	    Relation inv = *dep->rel;
-	    new_dep->rel = new Relation( Inverse(inv) );
-	    new_dep->src = dep->src;
-	    new_dep->dst = dep->dst;
+            // Create the incoming edge by inverting the outgoing one.
+            dep_t *new_dep = (dep_t *)calloc(1, sizeof(dep_t));
+            Relation inv = *dep->rel;
+            new_dep->rel = new Relation( Inverse(inv) );
+            new_dep->src = dep->src;
+            new_dep->dst = dep->dst;
 
-	    // If there are some deps already associated with this task, retrieve them
-	    map<char *, set<dep_t *> >::iterator edge_it;
-	    edge_it = incoming_edges.find(task_name);
-	    if( edge_it != incoming_edges.end() ){
-		incoming_deps = incoming_edges[task_name];
-	    }
-	    // Add the new dep to the list of deps we will associate with this task
-	    incoming_deps.insert(new_dep);
-	    // Associate the deps with the task
-	    incoming_edges[task_name] = incoming_deps;
-	}
+            // If there are some deps already associated with this task, retrieve them
+            map<char *, set<dep_t *> >::iterator edge_it;
+            edge_it = incoming_edges.find(task_name);
+            if( edge_it != incoming_edges.end() ){
+                incoming_deps = incoming_edges[task_name];
+            }
+            // Add the new dep to the list of deps we will associate with this task
+            incoming_deps.insert(new_dep);
+            // Associate the deps with the task
+            incoming_edges[task_name] = incoming_deps;
+        }
 
     }
 
@@ -4234,8 +4305,9 @@ printf("========================================================================
             set<char *> vars;
             map<char *, set<dep_t *> > incm_map, outg_map;
             set<dep_t *>::iterator dep_it;
-            
-            Relation S_es = process_execution_space(src_task->task_node, func, &status);
+
+            // Relation S_es = process_execution_space(src_task->task_node, func, &status);
+            Relation S_es = build_execution_space_relation(src_task->task_node, &status);
             if( Q2J_SUCCESS != status ){
                 fprintf(stderr,"process_execution_space() failed.\n");
                 return status;
@@ -4253,7 +4325,7 @@ printf("========================================================================
                 outg_map[symname].insert(*dep_it);
                 vars.insert(symname);
             }
-            
+
             if( vars.size() > MAX_PARAM_COUNT ){
                 fprintf(stderr,"WARNING: Number of variables (%lu) exceeds %d\n", vars.size(), MAX_PARAM_COUNT);
             }
@@ -4765,9 +4837,9 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     refr_mtrx = tree_to_str(DA_array_base(ref2));
 
     // If the matrices are different and not co-located, we need a pseudo-task.
-    if( strcmp(comm_mtrx,refr_mtrx) 
-        && ( q2j_colocated_map.find(comm_mtrx) == q2j_colocated_map.end() 
-             || q2j_colocated_map.find(refr_mtrx) == q2j_colocated_map.end() 
+    if( strcmp(comm_mtrx,refr_mtrx)
+        && ( q2j_colocated_map.find(comm_mtrx) == q2j_colocated_map.end()
+             || q2j_colocated_map.find(refr_mtrx) == q2j_colocated_map.end()
              || q2j_colocated_map[comm_mtrx].compare(q2j_colocated_map[refr_mtrx]) ) ){
         need_ptask = true;
     }else{
@@ -4799,7 +4871,3 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     return need_ptask;
 }
 
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -17,34 +17,39 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-#include "fifo.h"
+#include "dague/class/fifo.h"
 #include "datarepo.h"
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
 #include "cuda_zgemm.h"
+#include <cublas.h>
 
 #define flow_A  1
 #define flow_B  2
 #define flow_C  0
 
 #define KERNEL_NAME zgemm
+#if CUDA_VERSION < 4000 || 1
+typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
+                                                          dague_complex64_t *d_B, int ldb,
+                                 dague_complex64_t beta,  dague_complex64_t *d_C, int ldc
+                               );
+#else
+typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h, 
+                                 char TRANSA, char TRANSB, int m, int n, int k,
+                                 dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
+                                                          dague_complex64_t *d_B, int ldb,
+                                 dague_complex64_t beta,  dague_complex64_t *d_C, int ldc
+                               );
+#endif
 
-typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
-                               dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
-                                                        dague_complex64_t *d_B, int ldb,
-                               dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
-                               CUstream stream );
-/* TO DISSAPEAR */
-extern void** cuda_gemm_functions;
+
+
 extern int dague_cuda_output_stream;
 
-#define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
-extern cuda_zgemm_t magmablas_ZGEMM_SM11;
-FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM11)
-extern cuda_zgemm_t magmablas_ZGEMM_SM13;
-FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM13)
-extern cuda_zgemm_t magmablas_ZGEMM_SM20;
-FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM20)
+#define FORCE_LINK_STATIC_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
+FORCE_LINK_STATIC_SYMBOL(cublasZgemm)
 
 static inline
 int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
@@ -172,19 +177,19 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     CUdeviceptr d_A, d_B, d_C;
     cudaError_t status;
-#if DAGUE_DEBUG_VERBOSE >= 2
+#if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
 
-    cuda_zgemm_t cuda_zgemm = (cuda_zgemm_t)cuda_gemm_functions[gpu_device->cuda_index];
-
-    /*assert( DATA_COHERENCY_OWNED == this_task->data[2].data_out->coherency_state );*/
+    cublas_zgemm_t cublas_fnzgemm = (cublas_zgemm_t) this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;
+    assert( NULL != cublas_fnzgemm );
 
     assert(this_task->data[flow_A].data_out->device_index == gpu_device->super.device_index);
     d_A = (CUdeviceptr)this_task->data[flow_A].data_out->device_private;
     assert(this_task->data[flow_B].data_out->device_index == gpu_device->super.device_index);
     d_B = (CUdeviceptr)this_task->data[flow_B].data_out->device_private;
     assert(this_task->data[flow_C].data_out->device_index == gpu_device->super.device_index);
+    /*assert( DATA_COHERENCY_OWNED == this_task->data[flow_C].data_out->coherency_state );*/
     d_C = (CUdeviceptr)this_task->data[flow_C].data_out->device_private;
 
     DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
@@ -200,15 +205,32 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
                              this_task);
 
     status = cudaSuccess;
-    cuda_zgemm( lapack_const(args->transA), lapack_const(args->transB), args->M, args->N, args->K,
+#if (CUDA_VERSION < 4000) || 1 /* todo: always use legacy cublas until we understand how to get the cublas_handle in API v5 */
+    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublas_fnzgemm( lapack_const(args->transA), lapack_const(args->transB), 
+                args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
-                args->beta,  (dague_complex64_t*)d_C, args->ldc,
-                gpu_stream->cuda_stream );
-
-    DAGUE_CUDA_CHECK_ERROR( "cuda_zgemm ", status,
+                args->beta,  (dague_complex64_t*)d_C, args->ldc );
+    status = cublasGetError();
+#else
+{ 
+    cudaStream_t current_stream;
+    cublasHandle_t handle = cublasGetCurrentCtx(); /* todo: available in cuda API 4 only */
+    cublasGetStream_v2 ( handle, &current_stream );
+    cublasSetStream_v2 ( handle, &gpu_stream->cuda_srtream );
+    status = 
+    cublas_fnzgemm( handle,
+                lapack_const(args->transA), lapack_const(args->transB), 
+                args->M, args->N, args->K,
+                args->alpha, (dague_complex64_t*)d_A, args->lda,
+                             (dague_complex64_t*)d_B, args->ldb,
+                args->beta,  (dague_complex64_t*)d_C, args->ldc );
+    cublasSetStream_v2 ( handle, &current_stream );
+}
+#endif /* CUDA_VERSION < 4000 */
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                               {return -1;} );
-
     return 0;
 }
 

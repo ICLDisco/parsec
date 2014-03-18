@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "list.h"
+#include "dague/class/list.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -388,7 +388,7 @@ static void do_parentize(node_t *node, int off){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
             tmp->parent = node;
-#ifdef DEBUG
+#ifdef Q2JDEBUG
             printf("%*s", off, " ");
             printf("Next in block: %s\n",DA_type_name(tmp));
             fflush(stdout);
@@ -399,7 +399,7 @@ static void do_parentize(node_t *node, int off){
         int i;
         for(i=0; i<node->u.kids.kid_count; ++i){
             node->u.kids.kids[i]->parent = node;
-#ifdef DEBUG
+#ifdef Q2JDEBUG
             printf("%*s", off, " ");
             printf("Next kid: %s\n",DA_type_name(node->u.kids.kids[i]));
             fflush(stdout);
@@ -494,7 +494,7 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
     jdf_function_entry_t *f;
     node_t *tmp;
 
-#ifdef DEBUG
+#ifdef Q2JDEBUG
     if ( jdf->functions != NULL ) {
         jdf_function_entry_t *f2 = jdf->functions;
         do {
@@ -584,7 +584,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             if( (kid_count > 2) && (IDENTIFIER == DA_kid(node,2)->type) ){
                 tmp_task_name = DA_var_name(DA_kid(node,2));
             } else {
-#if defined(DEBUG)
+#if defined(Q2JDEBUG)
                 fprintf(stderr,"WARNING: probably there is something wrong with the QUARK_Insert_Task() in line %d. Ignoring it.\n", (int32_t)node->lineno);
 #endif
                 return;
@@ -603,7 +603,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             if( (kid_count > 0) && (IDENTIFIER == DA_kid(node,1)->type) ){
                 tmp_task_name = DA_var_name(DA_kid(node,1));
             } else {
-#if defined(DEBUG)
+#if defined(Q2JDEBUG)
                 fprintf(stderr,"WARNING: probably there is something wrong with the Insert_Task() in line %d. Ignoring it.\n", (int32_t)node->lineno);
 #endif
                 return;
@@ -707,11 +707,11 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
         }
         _task_count++;
 
-#if defined(DEBUG)
+#if defined(Q2JDEBUG)
         fprintf(stderr,"==> Blackbox task pragma detected:\n%s(", tree_to_str(DA_kid(node,0)) );
 
         // parameters:
-        node_t *params = DA_kid(node, 1);
+        params = DA_kid(node, 1);
         for(int i=0; i<DA_kid_count(params); i++){
             if( i )
                 fprintf(stderr,", ");
@@ -740,7 +740,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             }
         }
         fprintf(stderr,"}\n");
-#endif // DEBUG
+#endif // Q2JDEBUG
     }
 
 
@@ -1088,7 +1088,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
             node_t *new_node, *scond, *econd, *incr, *body;
 
             // Create the induction variable.
-            asprintf(&ind_var_name,"%c",'i'+dim); //
+            asprintf(&ind_var_name,"%c",'m'+dim); //
             ind_vars[dim] = DA_create_ID(ind_var_name);
             free(ind_var_name); // DA_create_ID() will copy the string anyway.
 

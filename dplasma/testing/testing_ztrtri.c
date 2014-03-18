@@ -39,11 +39,11 @@ int main(int argc, char ** argv)
     LDC = dplasma_imax(LDC, M);
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, Am, 0, 0,
+                               nodes, rank, MB, NB, LDA, Am, 0, 0,
                                Am, Am, SMB, SNB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescAinv, check,
         two_dim_block_cyclic, (&ddescAinv, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, Am, 0, 0,
+                               nodes, rank, MB, NB, LDA, Am, 0, 0,
                                Am, Am, SMB, SNB, P));
 
     /* matrix generation */
@@ -159,13 +159,13 @@ static int check_solution( dague_context_t *dague, int loud,
 
     PASTE_CODE_ALLOCATE_MATRIX(Id, 1,
         two_dim_block_cyclic, (&Id, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->super.nodes, twodA->grid.rank,
                                A->mb, A->nb, N, N, 0, 0,
                                N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
     PASTE_CODE_ALLOCATE_MATRIX(A0, 1,
         two_dim_block_cyclic, (&A0, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, A->super.cores, twodA->grid.rank,
+                               A->super.nodes, twodA->grid.rank,
                                A->mb, A->nb, N, N, 0, 0,
                                N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,15 +15,14 @@
 typedef struct dague_list_item_s {
     dague_object_t  super;
     volatile struct dague_list_item_s* list_next;
-    /**
-     * This field is __very__ special and should be handled with extreme
+    /* This field is __very__ special and should be handled with extreme
      * care. It is used to avoid the ABA problem when atomic operations
      * are in use. It can deal with 2^DAGUE_LIFO_ALIGNMENT_BITS pops,
      * before running into the ABA. In all other cases, it is used to
      * separate the two volatile members of the struct to avoid
      * cacheline false sharing
      */
-    uint64_t keeper_of_the_seven_keys;
+    uint64_t aba_key;
     volatile struct dague_list_item_s* list_prev;
 #if defined(DAGUE_DEBUG_ENABLE)
     volatile int32_t refcount;

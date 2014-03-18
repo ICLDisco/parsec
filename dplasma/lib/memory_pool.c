@@ -6,7 +6,7 @@
 
 #include "dague_config.h"
 #include "memory_pool.h"
-#include "lifo.h"
+#include "dague/class/lifo.h"
 
 int
 dague_private_memory_init( dague_memory_pool_t* pool,
