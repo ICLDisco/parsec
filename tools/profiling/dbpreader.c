@@ -21,10 +21,18 @@
 #include "dbp.h"
 #include "dbpreader.h"
 
+#ifdef DEBUG
+#undef DEBUG
+#endif
+
 #if DAGUE_DEBUG_VERBOSE >= 1
 #define DEBUG(toto) output toto
 #else
 #define DEBUG(toto) do {} while(0)
+#endif
+
+#ifdef WARNING
+#undef WARNING
 #endif
 #define WARNING(toto) output toto
 
