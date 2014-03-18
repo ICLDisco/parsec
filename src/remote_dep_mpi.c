@@ -520,7 +520,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
 {
     dague_execution_context_t task;
     const dague_flow_t* target;
-    int i, pidx = 0;
+    int i, pidx;
     uint32_t action_mask = 0;
 
     /* Update the mask of remaining dependencies to avoid releasing the same outputs twice */
@@ -535,8 +535,9 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
     for(i = 0; i < task.function->nb_flows;
         task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].data_repo = NULL, i++);
 
-    target = task.function->out[pidx];
     for(i = 0; complete_mask>>i; i++) {
+        pidx = 0;
+        target = task.function->out[pidx];
         assert(i < MAX_PARAM_COUNT);
         if( !((1U<<i) & complete_mask) ) continue;
         while( !((1U<<i) & target->flow_datatype_mask) ) {
