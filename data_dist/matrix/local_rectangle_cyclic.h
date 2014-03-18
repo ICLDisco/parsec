@@ -87,13 +87,4 @@ int localBC_stolapack(local_block_cyclic_t *Mdesc, float* A, int lda);
 void localBC_position_to_coordinates(local_block_cyclic_t *Ddesc, int position, int *m, int *n);
 int localBC_coordinates_to_position(local_block_cyclic_t *Ddesc, int m, int n);
 
-#ifdef HAVE_MPI
-
-int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm);
-
-int close_matrix_file(MPI_File * handle);
-
-#endif /* HAVE_MPI */
-
-
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

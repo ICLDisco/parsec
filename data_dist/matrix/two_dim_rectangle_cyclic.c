@@ -633,17 +633,3 @@ static dague_data_t* twoDBC_st_data_of_key(dague_ddesc_t *desc, dague_data_key_t
 }
 
 #endif /* DAGUE_HARD_SUPERTILE */
-
-/*
- * Common functions
- */
-
-#ifdef HAVE_MPI
-int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm){
-    return MPI_File_open(comm, filename, MPI_MODE_RDWR|MPI_MODE_CREATE, MPI_INFO_NULL, handle);
-}
-
-int close_matrix_file(MPI_File * handle){
-    return MPI_File_close(handle);
-}
-#endif /* HAVE_MPI */

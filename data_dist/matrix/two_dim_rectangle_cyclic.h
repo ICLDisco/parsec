@@ -84,14 +84,6 @@ void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
 void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int position, int *m, int *n);
 int twoDBC_coordinates_to_position(two_dim_block_cyclic_t *Ddesc, int m, int n);
 
-#ifdef HAVE_MPI
-
-int open_matrix_file(char * filename, MPI_File * handle, MPI_Comm comm);
-
-int close_matrix_file(MPI_File * handle);
-
-#endif /* HAVE_MPI */
-
 END_C_DECLS
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/
