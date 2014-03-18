@@ -24,13 +24,14 @@ if [ "x$USER" = "xbosilca" ]; then
   #MPI_DIR="/usr"
 
 elif [ "x${USER}" = "xmfaverge" ]; then
-  if [ "x${CC}" = "xgcc" ]; then
-      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-dbg -DSCOTCH_DIR=/opt/scotch-gf"
-  else
-      DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
-  fi
+  # if [ "x${CC}" = "xgcc" ]; then
+  #     DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-dbg -DSCOTCH_DIR=/opt/scotch-gf"
+  # else
+  #     DSPARSE="-DDAGUE_WITH_SPARSE=ON -DPASTIX_DIR=/home/mfaverge/opt/pastix-intel -DSCOTCH_DIR=/opt/scotch"
+  # fi
   #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
-  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
+  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=ON"
+  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 
 elif [ "x$USER" = "xsmoreaud" ]; then
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
