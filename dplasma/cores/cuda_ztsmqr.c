@@ -10,14 +10,13 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <core_blas.h>
-#include <core_blas.h>
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-#include "fifo.h"
+#include "dague/class/fifo.h"
 #include "datarepo.h"
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
@@ -36,8 +35,6 @@
                                                         dague_complex64_t *d_B, int ldb,
                                dague_complex64_t beta,  dague_complex64_t *d_C, int ldc,
                                CUstream stream );*/
-/* TO DISSAPEAR */
-extern void** cuda_gemm_functions;
 extern int dague_cuda_output_stream;
 
 // TODO: ONLY FOR TESTING, WILL REMOVE LATER
@@ -54,21 +51,12 @@ double get_cur_time() {
 }
 
 
-/*
-#define FORCE_UNDEFINED_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
-extern cuda_zgemm_t magmablas_ZGEMM_SM11;
-FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM11)
-extern cuda_zgemm_t magmablas_ZGEMM_SM13;
-FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM13)
-extern cuda_zgemm_t magmablas_ZGEMM_SM20;
-FORCE_UNDEFINED_SYMBOL(magmablas_ZGEMM_SM20)*/
-
 typedef void (*cuda_ztsmqr_t) (PLASMA_enum side, PLASMA_enum trans,
                                int M1, int N1, int M2, int N2, int K, int IB,
                                dague_complex64_t *A1, int LDA1,
                                dague_complex64_t *A2, int LDA2,
-                          dague_complex64_t *V, int LDV,
-                          dague_complex64_t *T, int LDT,
+                               dague_complex64_t *V, int LDV,
+                               dague_complex64_t *T, int LDT,
                                dague_complex64_t *WORK,  int LDWORK,
                                dague_complex64_t *WORKC, int LDWORKC,
                                CUstream stream);
@@ -222,7 +210,8 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
     CUdeviceptr d_A1, d_A2, d_V, d_T, WORK, WORKC;
     cudaError_t status;
 
-    cuda_ztsmqr_t cuda_ztsmqr = (cuda_ztsmqr_t)cuda_gemm_functions[gpu_device->cuda_index];
+    cuda_ztsmqr_t cuda_ztsmqr = (cuda_ztsmqr_t) this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;
+    assert( NULL != cuda_ztsmqr );
 
     assert(this_task->data[flow_A1].data_out->device_index == gpu_device->super.device_index);
     d_A1 = (CUdeviceptr)this_task->data[flow_A1].data_out->device_private;

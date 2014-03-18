@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <core_blas.h>
-#include <core_blas.h>
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif

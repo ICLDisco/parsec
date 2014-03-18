@@ -15,7 +15,7 @@
 #include "dague.h"
 #include "execution_unit.h"
 #include "scheduling.h"
-#include "fifo.h"
+#include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
 
 int gpu_kernel_init_ztsmqr( dague_context_t* dague_context );
