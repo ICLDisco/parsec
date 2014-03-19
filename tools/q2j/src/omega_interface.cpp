@@ -12,6 +12,7 @@
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <assert.h>
+#include <errno.h>
 #include <map>
 #include <set>
 #include <list>
@@ -2996,7 +2997,7 @@ void union_graph_edges(tg_node_t *src_nd, set<tg_node_t *> &visited_nodes){
 ////////////////////////////////////////////////////////////////////////////////
 //
 void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
-    int pid;
+    int child;
     Relation transitiveR;
     tg_node_t *tmp_dst_nd, *tmp_src_nd, *cycle_start;
     list<tg_edge_t *>::iterator e_it;
@@ -3050,32 +3051,29 @@ void compute_TC_of_transitive_relation_of_cycle(list<tg_node_t *> cycle_list){
 #endif // DEBUG_ANTI
     fflush(stdout);
     fflush(_q2j_output);
-    pid = fork();
-    if( pid ){ // parent
-        int status;
-        waitpid(pid, &status, 0);
-        if( WIFEXITED(status) && (0 == WEXITSTATUS(status)) ){
-            // If the child didn't assert() inside the Omega library, then
-            // we can safely compute the transitive closure of this relation
-#if defined(DEBUG_ANTI)
-            printf("Computing TC\n");
-            fflush(stdout);
-#endif // DEBUG_ANTI
-            transitiveR = TransitiveClosure(transitiveR);
-        }else{
-#if defined(DEBUG_ANTI)
-            printf("Skipping TC\n");
-            fflush(stdout);
-#endif // DEBUG_ANTI
+    child = fork();
+    if( child ){ // parent
+        int status, rv=1;
+        // Wait ignoring interruptions.  If the child finishes it will kill me.
+        while(rv){
+            rv = waitpid(child, &status, 0);
         }
+        // If waitpid() returned zero then the child must have crashed.
+
+#if defined(DEBUG_ANTI)
+        printf("Skipping TC\n");
+        fflush(stdout);
+#endif // DEBUG_ANTI
     }else{
+        pid_t parent, me;
         // Compute the transitive closure of this relation. We do this in a
         // child process because sometimes TransitiveClosure() raises an
         // assert() inside the Omega library.
-        fclose(stdout);
-        fclose(stderr);
         transitiveR = TransitiveClosure(transitiveR);
-        exit(0);
+
+        // Kill the parent and take over the execution.
+        parent = getppid();
+        kill(parent, SIGTERM);
     }
 
     // Union the resulting relation with the relation stored in the cycle of this node

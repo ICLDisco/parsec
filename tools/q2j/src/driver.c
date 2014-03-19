@@ -4,6 +4,11 @@
  *                         reserved.
  */
 
+#include <sys/types.h>
+#include <unistd.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -29,6 +34,8 @@ int _q2j_check_unknown_functions = 0;
 FILE *_q2j_output;
 jdf_t _q2j_jdf;
 
+static volatile int _keep_waiting = 1;
+
 /* 
  * Add the keyword _q2j_data_prefix infront of the matrix name to
  * differentiate the matrix from the data used in the kernels.
@@ -43,6 +50,7 @@ void usage(char *pname);
 static void read_conf_file(void);
 static char *read_line(FILE *ifp);
 static void parse_line(char *line);
+static void sig_handler(int signum);
 
 void usage(char *pname){
     fprintf(stderr,"Usage: %s [-shmem] [-phony_tasks] [-line_numbers] [-anti] [-v] file_1.c [file_2.c ... file_N.c]\n",pname);
@@ -143,7 +151,40 @@ static void read_conf_file(){
     return;
 }
 
+
+static void sig_handler(int signum) {
+    _keep_waiting = 0;
+}
+
+pid_t fork_and_continue_in_child(void){
+   pid_t child, parent = -1;
+   struct sigaction action;
+
+   sigemptyset(&action.sa_mask);
+   action.sa_flags = 0;
+   action.sa_handler = &sig_handler;
+   if (sigaction(SIGUSR1, &action, 0)){
+       perror("sigaction");
+       abort();
+   }
+
+   if ((child = fork()) != 0){
+       // Parent
+       // The parent will exit this loop when the child sends a SIGUSR1 signal
+       while( _keep_waiting ){
+           pause();
+       } 
+       exit(0);
+   }else{
+       // Child
+       parent = getppid();
+   }
+
+   return parent;
+}
+
 int main(int argc, char **argv){
+    pid_t parent;
     int arg, func_count=0;
     node_t *tmp, *q2j_target_func = NULL;
     char *q2j_func_name = NULL;
@@ -190,6 +231,9 @@ int main(int argc, char **argv){
 
     _q2j_func_list_head = NULL;
     (void)st_init_symtab();
+
+
+    parent = fork_and_continue_in_child();
 
     /* Parse all files and generate ASTs for all functions found */
     for(; arg<argc; arg++){
@@ -249,5 +293,7 @@ int main(int argc, char **argv){
         printf("\n\n%s\n\n",tree_to_str(q2j_target_func));
     }
 
-    return EXIT_SUCCESS;
+    kill(parent, SIGUSR1); /* tell parent to exit. */
+
+    exit(EXIT_SUCCESS);
 }
