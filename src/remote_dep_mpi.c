@@ -432,6 +432,9 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
     output->data.ptr = dataptr; /* if still NULL allocate it */
     assert(NULL == output->data.ptr);
 
+    /* THIS SHOULD BE THE RECEIVER DISPLACEMENT: TODO */
+    output->data.displ = 0;
+
     deps->priority       = oldcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
     deps->root           = src_rank;
