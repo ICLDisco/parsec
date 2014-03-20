@@ -1,9 +1,9 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
- * Copyright (c) 2013      Inria. All rights reserved.
+ * Copyright (c) 2013-2014 Inria. All rights reserved.
  * $COPYRIGHT
  *
  *
