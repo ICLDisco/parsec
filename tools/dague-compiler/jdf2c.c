@@ -4196,6 +4196,8 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
                     /* The type might change (possibly from undefined), so let's output */
                     string_arena_add_string(sa_type, "%s", string_arena_get_string(sa_tmp_type));
                     string_arena_add_string(sa_temp, "    data.arena  = %s;\n", string_arena_get_string(sa_type));
+                    /* As we change the arena force the reset of the layout */
+                    string_arena_init(sa_layout);
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
                     /* Same thing: the memory layout may change at anytime */
