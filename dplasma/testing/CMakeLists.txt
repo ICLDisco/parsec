@@ -55,7 +55,7 @@ set(TESTS
   testing_zgeqrf_rd.c
   testing_zhebut.c
   testing_zhbrdt.c
-  #testing_zheev.c
+  testing_zheev.c
   #testing_zherbt.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
