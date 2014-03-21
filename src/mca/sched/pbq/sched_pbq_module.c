@@ -141,7 +141,9 @@ static dague_execution_context_t *sched_pbq_select( dague_execution_unit_t *eu_c
     exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
                                                                        dague_execution_context_priority_comparator);
     if( NULL != exec_context ) {
+#if defined(PINS_ENABLE)
 		exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+#endif
         return exec_context;
     }
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
@@ -150,7 +152,9 @@ static dague_execution_context_t *sched_pbq_select( dague_execution_unit_t *eu_c
         if( NULL != exec_context ) {
             DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
+#if defined(PINS_ENABLE)
 			exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
+#endif
             return exec_context;
         }
     }
@@ -159,14 +163,18 @@ static dague_execution_context_t *sched_pbq_select( dague_execution_unit_t *eu_c
     if( NULL != exec_context ) {
         DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
+#if defined(PINS_ENABLE)
 		exec_context->victim_core = SYSTEM_NEIGHBOR;
+#endif
     }
     return exec_context;}
 
 static int sched_pbq_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )
 {
+#if defined(PINS_ENABLE)
 	new_context->creator_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+#endif
     dague_hbbuffer_push_all_by_priority( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)new_context);
     return 0;
 }
