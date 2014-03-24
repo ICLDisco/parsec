@@ -45,11 +45,11 @@ int main(int argc, char *argv[])
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, MB, NB, LDA, N, 0, 0,
+                               nodes, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SMB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
-                               nodes, cores, rank, IB, NB, MT*IB, N, 0, 0,
+                               nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
 
     /* Fill A with randomness */
@@ -72,8 +72,8 @@ int main(int argc, char *argv[])
     /* Step 2 - Conversion of the tiled band to 1D band storage */
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
         two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
-                               nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
-                               MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
+                               nodes, rank, MB+1, NB+2, MB+1, (NB+2)*(NT+1), 0, 0,
+                               MB+1, (NB+2)*(NT+1), 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
     dague_diag_band_to_rect_handle_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
                                                                                             MT, NT, MB, NB, sizeof(dague_complex64_t));
@@ -166,17 +166,18 @@ int main(int argc, char *argv[])
                                    two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                                           1, rank, MB, NB, LDA, N, 0, 0,
                                                           N, N, 1, 1, 1));
-
-        PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
-                           ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
-                           ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
-                           ddescA0.super.m, ddescA0.super.n);
         /* Fill A0 again */
         dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0.super);
         dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
         /* Convert into Lapack format */
         if( 0 == rank ) {
+#if 0
+            PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
+                           ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
+                           ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
+                           ddescA0.super.m, ddescA0.super.n);
             PLASMA_Tile_to_Lapack(plasmaDescA0, (void*)A0, LDA);
+#endif
 #ifdef PRINTF_HEAVY
             printf("########### A0 #############\n");
             for (int i = 0; i < N; i++){
@@ -221,7 +222,6 @@ int main(int argc, char *argv[])
             }
             printf("\n");
 #endif
-
             double eps = LAPACKE_dlamch_work('e');
             printf("\n");
             printf("------ TESTS FOR PLASMA ZHEEV ROUTINE -------  \n");
