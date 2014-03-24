@@ -1261,7 +1261,7 @@ remote_dep_mpi_short_which(const dague_remote_deps_t* deps,
         if( NULL == deps->output[k].data.arena ) continue;  /* CONTROL dependency */
         size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
 
-        if( (extent <= (RDEP_MSG_SHORT_LIMIT)) | (extent <= (RDEP_MSG_EAGER_LIMIT)) ) {
+        if( (extent <= (RDEP_MSG_SHORT_LIMIT)) || (extent <= (RDEP_MSG_EAGER_LIMIT)) ) {
             DEBUG3(("MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)\n",
                     (extent <= (RDEP_MSG_EAGER_LIMIT) ? "Eager" : "Short"),
                     k, extent, RDEP_MSG_SHORT_LIMIT, k));
