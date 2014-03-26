@@ -23,7 +23,8 @@ if(GRAPHVIZ_FOUND)
 
   add_executable(testgraph testgraph.c graph.c)
   set_target_properties(testgraph PROPERTIES LINKER_LANGUAGE C)
-  set_target_properties(testgraph PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS} ${GRAPHVIZ_LIBRARY}")
+  set_target_properties(testgraph PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
+  target_link_libraries(testgraph ${GRAPHVIZ_LIBRARIES})
 
   find_package(GD QUIET)
 
@@ -32,7 +33,8 @@ if(GRAPHVIZ_FOUND)
 
     add_executable(dbp-dot2png dbp-dot2png.c dbpreader.c graph.c animation.c)
     set_target_properties(dbp-dot2png PROPERTIES LINKER_LANGUAGE C)
-    set_target_properties(dbp-dot2png PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS} ${GRAPHVIZ_LIBRARY} ${GD_LIBRARY}")
+    set_target_properties(dbp-dot2png PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
+    target_link_libraries(dbp-dot2png ${GRAPHVIZ_LIBRARIES} ${GD_LIBRARY})
   endif()
 
 endif(GRAPHVIZ_FOUND)
