@@ -104,18 +104,19 @@ int main(int argc, char *argv[])
     float delta;
     char **traced_types;
     int    nb_traced_types;
+    int rc;
  
     if( argc != 2 ) {
         fprintf(stderr, "Not the right number of arguments\n");
         usage(argv[0]);
     }
     
-    asprintf(&profiles_pattern, "%s.[0-9]*.profile", argv[1]);
+    rc = asprintf(&profiles_pattern, "%s.[0-9]*.profile", argv[1]); assert(rc!=-1);
     if( glob( profiles_pattern, 0, NULL, &profiles ) != 0 ) {
         fprintf(stderr, "Could not find any %s files\n", profiles_pattern);
         usage(argv[0]);
     }
-    asprintf(&dots_pattern, "%s-[0-9]*.dot", argv[1]);
+    rc = asprintf(&dots_pattern, "%s-[0-9]*.dot", argv[1]); assert(rc!=-1);
     if( glob( dots_pattern, 0, NULL, &dots ) != 0 ) {
         fprintf(stderr, "Could not find any %s files\n", dots_pattern);
         usage(argv[0]);
@@ -207,9 +208,10 @@ int main(int argc, char *argv[])
         char *filename;
         char *r;
         unsigned int length;
+        int rc;
 
         persistentGraphRender(&r, &length);
-        asprintf(&filename, "%s.gif", argv[1]);
+        rc = asprintf(&filename, "%s.gif", argv[1]); assert(rc!=-1);
         startAnimation(filename, r, length);
         free(r);
         free(filename);
