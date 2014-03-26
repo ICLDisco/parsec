@@ -46,7 +46,8 @@ dague_lifo_construct( dague_lifo_t* lifo )
     }
 }
 
-#endif  /* DAGUE_LIFO_USE_ATOMICS */
-
 OBJ_CLASS_INSTANCE(dague_lifo_t, dague_list_t,
                    dague_lifo_construct, NULL  /* no need for specialized destructor */);
+
+#endif  /* DAGUE_LIFO_USE_ATOMICS */
+
