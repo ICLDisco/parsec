@@ -204,6 +204,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
     int n = 0, s;
     unsigned long long oid;
     int rc;
+    void *rp;
 
     f = fopen(filename, "r");
     if( f == NULL ) {
@@ -212,7 +213,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
     }
 
     while( !feof(f) ) {
-        fgets(line, 4096, f);
+        rp = fgets(line, 4096, f); assert(NULL != rp);
         for(s = 0, l = line; *l != '\n' && *l != '\0' && s < 4095; l++, s++) /*nothing*/;
         *l = '\0';
         assert( s < 4095 );
@@ -271,6 +272,7 @@ int add_edges_from_dotfile(const char *filename)
     char line[4096];
     char id1[4096], id2[4096], *l;
     unsigned int n1, n2, e = 0, s;
+    void *rp;
 
     f = fopen(filename, "r");
     if( f == NULL ) {
@@ -279,7 +281,7 @@ int add_edges_from_dotfile(const char *filename)
     }
     
     while( !feof(f) ) {
-        fgets(line, 4096, f);
+        rp = fgets(line, 4096, f); assert(NULL != rp);
         for(s = 0, l = line; *l != '\n' && *l != '\0' && s < 4095; l++, s++) /*nothing*/;
         *l = '\0';
         assert( s < 4095 );

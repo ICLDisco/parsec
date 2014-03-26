@@ -95,13 +95,14 @@ void dague_profiling_add_information( const char *key, const char *value )
 int dague_profiling_change_profile_attribute( const char *format, ... )
 {
     va_list ap;
+    int rc;
 
     if( hr_id != NULL ) {
         free(hr_id);
     }
 
     va_start(ap, format);
-    vasprintf(&hr_id, format, ap);
+    rc = vasprintf(&hr_id, format, ap); assert(rc!=-1);
     va_end(ap);
 
     return 0;
@@ -127,6 +128,7 @@ int dague_profiling_init( const char *format, ... )
     int rank = 0;
     int worldsize = 1;
     off_t zero;
+    int rc;
 
 #if defined(HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -139,7 +141,7 @@ int dague_profiling_init( const char *format, ... )
     }
 
     va_start(ap, format);
-    vasprintf(&hr_id, format, ap);
+    rc=vasprintf(&hr_id, format, ap); assert(rc!=-1);
     va_end(ap);
 
     bpf_filename = (char*)malloc(strlen(hr_id) + 16);
@@ -262,6 +264,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 {
     va_list ap;
     dague_thread_profiling_t *res;
+    int rc;
 
     /** Remark: maybe calloc would be less perturbing for the measurements,
      *  if we consider that we don't care about the _init phase, but only
@@ -274,7 +277,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     }
 
     va_start(ap, format);
-    vasprintf(&res->hr_id, format, ap);
+    rc = vasprintf(&res->hr_id, format, ap); assert(rc!=-1);
     va_end(ap);
 
     assert( event_buffer_size != 0 );
