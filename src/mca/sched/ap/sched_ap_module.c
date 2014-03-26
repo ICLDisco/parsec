@@ -62,13 +62,13 @@ static int flow_ap_init(dague_execution_unit_t* eu_context, struct dague_barrier
 
 static dague_execution_context_t *sched_ap_select( dague_execution_unit_t *eu_context )
 {
-	dague_execution_context_t * context = 
-		(dague_execution_context_t*)dague_list_pop_front((dague_list_t*)eu_context->scheduler_object);
+    dague_execution_context_t * context =
+        (dague_execution_context_t*)dague_list_pop_front((dague_list_t*)eu_context->scheduler_object);
 #if defined(PINS_ENABLE)
-	if (NULL != context)
-		context->victim_core = SYSTEM_NEIGHBOR;
-#endif
-	return context;
+    if (NULL != context)
+        context->victim_core = SYSTEM_NEIGHBOR;
+#endif  /* defined(PINS_ENABLE) */
+    return context;
 }
 
 static int sched_ap_schedule( dague_execution_unit_t* eu_context,
