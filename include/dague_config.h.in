@@ -90,6 +90,11 @@
 /* Configuration parameters */
 #cmakedefine DAGUE_WANT_HOME_CONFIG_FILES
 
+/* Compiler and flags used to compile PaRSEC generated sources */
+#define CMAKE_PARSEC_C_COMPILER   "@CMAKE_C_COMPILER@"
+#define CMAKE_PARSEC_C_FLAGS      "@CMAKE_C_FLAGS@"
+#define CMAKE_PARSEC_C_INCLUDES   "@PARSEC_C_INCLUDES@"
+
 /* Optional packages */
 #cmakedefine HAVE_HWLOC
 #cmakedefine HAVE_HWLOC_BITMAP
