@@ -98,7 +98,7 @@ dplasma_zheev_Destruct( dague_handle_t *o )
 #if 0
     two_dim_block_cyclic_t* T = ???
     dague_data_free(T->mat);
-    tiled_matrix_desc_destroy((dague_ddesc_t*)T); free(T);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)T); free(T);
 
     dplasma_datatype_undefine_type( &(((dague_diag_band_to_rect_handle_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]->opaque_dtt) );
 #endif
