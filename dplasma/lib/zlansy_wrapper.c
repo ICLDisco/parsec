@@ -15,11 +15,6 @@
 
 #include "zlansy.h"
 
-static inline dague_data_t* fake_data_of(dague_ddesc_t *mat, ...)
-{
-    return (dague_data_t*)((two_dim_block_cyclic_t*)mat)->mat;
-}
-
 /**
  *******************************************************************************
  *
@@ -141,8 +136,6 @@ dplasma_zlansy_New( PLASMA_enum norm,
         0, 0,       /* Starting points (not important here) */
         A->mt, P*Q, /* Dimensions of the submatrix          */
         1, 1, P);
-    Tdist->mat = (void*)OBJ_NEW(dague_data_t);
-    (void)dague_data_copy_new((dague_data_t*)Tdist->mat, 0);
     Tdist->super.super.data_of = fake_data_of;
 
     /* Create the DAG */

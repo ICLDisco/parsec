@@ -15,11 +15,6 @@
 #include "zlange_one_cyclic.h"
 #include "zlange_frb_cyclic.h"
 
-static inline dague_data_t* fake_data_of(dague_ddesc_t *mat, ...)
-{
-    return (dague_data_t*)((two_dim_block_cyclic_t*)mat)->mat;
-}
-
 /**
  *******************************************************************************
  *
@@ -143,8 +138,6 @@ dplasma_zlange_New( PLASMA_enum ntype,
         0, 0, /* Starting points (not important here) */
         m, n, /* Dimensions of the submatrix          */
         1, 1, P);
-    Tdist->mat = (void*)OBJ_NEW(dague_data_t);
-    (void)dague_data_copy_new((dague_data_t*)Tdist->mat, 0);
     Tdist->super.super.data_of = fake_data_of;
 
     /* Create the DAG */
@@ -201,13 +194,6 @@ void
 dplasma_zlange_Destruct( dague_handle_t *o )
 {
     dague_zlange_frb_cyclic_handle_t *dague_zlange = (dague_zlange_frb_cyclic_handle_t *)o;
-
-    dague_data_t* data = ((two_dim_block_cyclic_t*)dague_zlange->Tdist)->mat;
-    ((two_dim_block_cyclic_t*)dague_zlange->Tdist)->mat = NULL;
-    dague_data_copy_t* copy = dague_data_get_copy(data, 0);
-    dague_data_copy_detach(data, copy, 0);
-    dague_data_copy_release(copy);
-    OBJ_RELEASE(data);
 
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlange->Tdist) );
     free( dague_zlange->Tdist );
