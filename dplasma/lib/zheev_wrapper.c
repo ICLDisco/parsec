@@ -49,35 +49,29 @@
 dague_handle_t*
 dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
                   tiled_matrix_desc_t* A,
-                  tiled_matrix_desc_t* W,
+                  tiled_matrix_desc_t* W,  /* Should be removed: internal workspace as T */
                   tiled_matrix_desc_t* Z,
                   int* info )
 {
     (void)Z;
-
-    /* TODO: remove this when implemented */
-    if( jobz == PlasmaVec ) {
-        dplasma_error("DPLASMA_zheev_New", "Non-blocking interface is not implemented (yet)");
-        *info = -1;
-        return NULL;
-    }
+    *info = 0;
 
     /* Check input arguments */
-    if( jobz != PlasmaNoVec && jobz != PlasmaVec ) {
-        dplasma_error("DPLASMA_zheev", "illegal value of jobz");
+    if( (jobz != PlasmaNoVec) && (jobz != PlasmaVec) ) {
+        dplasma_error("dplasma_zheev_New", "illegal value of jobz");
         *info = -1;
         return NULL;
     }
-    /* TODO: remove this when implemented */
-    if( jobz == PlasmaVec ) {
-        dplasma_error("DPLASMA_zheev", "PlasmaVec jobz is not implemented (yet)");
-        *info = -1;
+    if( (uplo != PlasmaLower) && (uplo != PlasmaUpper) ) {
+        dplasma_error("dplasma_zheev_New", "illegal value of uplo");
+        *info = -2;
         return NULL;
     }
 
-    if( uplo != PlasmaLower && uplo != PlasmaUpper ) {
-        dplasma_error("DPLASMA_zheev", "illegal value of uplo");
-        *info = -2;
+    /* TODO: remove those extra check when those options will be implemented */
+    if( jobz == PlasmaVec ) {
+        dplasma_error("dplasma_zheev_New", "PlasmaVec not implemented (yet)");
+        *info = -1;
         return NULL;
     }
 
@@ -113,9 +107,8 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
         return zheev_compound;
     }
     else {
-        /* TODO: remove this when implemented */
-        dplasma_error("DPLASMA_zheev", "PlasmaUpper uplo is not implemented (yet)");
-        *info = -1;
+        dplasma_error("dplasma_zheev_New", "PlasmaUpper not implemented (yet)");
+        *info = -2;
         return NULL;
     }
 }
@@ -184,11 +177,22 @@ int
 dplasma_zheev( dague_context_t *dague,
                PLASMA_enum jobz, PLASMA_enum uplo,
                tiled_matrix_desc_t* A,
-               tiled_matrix_desc_t* W,
+               tiled_matrix_desc_t* W, /* Should be removed */
                tiled_matrix_desc_t* Z )
 {
     dague_handle_t *dague_zheev = NULL;
     int info = 0;
+
+    /* Check input arguments */
+    if( (jobz != PlasmaNoVec) && (jobz != PlasmaVec) ) {
+        dplasma_error("dplasma_zheev", "illegal value of jobz");
+        return -1;
+    }
+    if( (uplo != PlasmaLower) && (uplo != PlasmaUpper) ) {
+        dplasma_error("dplasma_zheev", "illegal value of uplo");
+        return -2;
+    }
+
     dague_zheev = dplasma_zheev_New( jobz, uplo, A, W, Z, &info );
 
     if ( dague_zheev != NULL )
