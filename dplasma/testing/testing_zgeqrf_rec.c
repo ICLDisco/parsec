@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
         if(loud > 3) printf("Done\n");
     }
 #endif
-	
+
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_rec,
                               ((tiled_matrix_desc_t*)&ddescA,
@@ -109,12 +109,18 @@ int main(int argc, char ** argv)
     if (iparam[IPARAM_SMALL_NB] == 0) {
         iparam[IPARAM_SMALL_NB] = iparam[IPARAM_IB]; /* default small nb = ib */
     }
-    dague_zgeqrf_rec_handle_t* myzgeqrf_handle = (dague_zgeqrf_rec_handle_t*)DAGUE_zgeqrf_rec;
-	myzgeqrf_handle->smallnb = iparam[IPARAM_SMALL_NB];
-	if (myzgeqrf_handle->smallnb % iparam[IPARAM_IB] != 0) {
-		myzgeqrf_handle->smallnb = myzgeqrf_handle->smallnb / iparam[IPARAM_IB] * iparam[IPARAM_IB];
-		fprintf(stderr, "small nb should be muliple of IB, so small nb is modified to %d\n", myzgeqrf_handle->smallnb);
-	}
+
+    {
+        dague_zgeqrf_rec_handle_t* myzgeqrf_handle = (dague_zgeqrf_rec_handle_t*)DAGUE_zgeqrf_rec;
+        myzgeqrf_handle->smallnb = iparam[IPARAM_SMALL_NB];
+        if ( (myzgeqrf_handle->smallnb % iparam[IPARAM_IB] != 0) &&
+             (myzgeqrf_handle->smallnb != iparam[IPARAM_NB]) )
+        {
+            myzgeqrf_handle->smallnb = (myzgeqrf_handle->smallnb / iparam[IPARAM_IB]) * iparam[IPARAM_IB];
+            myzgeqrf_handle->smallnb = dplasma_imin( myzgeqrf_handle->smallnb, iparam[IPARAM_NB] );
+            fprintf(stderr, "Small nb should be a muliple of IB or equal to NB: set to min( (snb/IB)*IB, NB ) = %d\n", myzgeqrf_handle->smallnb);
+        }
+    }
 
     /* lets rock! */
     PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_rec);

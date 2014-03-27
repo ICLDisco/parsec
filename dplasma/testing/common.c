@@ -232,7 +232,7 @@ static struct option long_options[] =
     {"alpha",       required_argument,  0, 'a'},
     {"seed",        required_argument,  0, 'R'},
     {"mtx",         required_argument,  0, 'b'},
-    
+
     /* Recursive options */
     {"smallnb",      required_argument,  0, 'z'},
 
@@ -347,7 +347,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
-            
+
                 /* Recursive parameters */
             case 'z': iparam[IPARAM_SMALL_NB] = atoi(optarg); break;
 
@@ -550,6 +550,8 @@ static void print_arguments(int* iparam)
                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
             fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
+        if(iparam[IPARAM_SMALL_NB] != 1)
+            fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
     }
 }
 
@@ -747,4 +749,3 @@ static char ** delimited_string_to_strings(char * const string_of_strings, char 
     else
         return calloc(sizeof(char *), 1);
 }
-
