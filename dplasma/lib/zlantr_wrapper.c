@@ -210,7 +210,7 @@ dplasma_zlantr_Destruct( dague_handle_t *o )
 {
     dague_zlange_frb_cyclic_handle_t *dague_zlantr = (dague_zlange_frb_cyclic_handle_t *)o;
 
-    dague_ddesc_destroy( dague_zlantr->Tdist );
+    tile_matrix_desc_destroy( dague_zlantr->Tdist );
     free( dague_zlantr->Tdist );
 
     dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA]->opaque_dtt) );

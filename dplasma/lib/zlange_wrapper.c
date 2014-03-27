@@ -209,7 +209,7 @@ dplasma_zlange_Destruct( dague_handle_t *o )
     dague_data_copy_release(copy);
     OBJ_RELEASE(data);
 
-    dague_ddesc_destroy( dague_zlange->Tdist );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlange->Tdist) );
     free( dague_zlange->Tdist );
 
     dplasma_datatype_undefine_type( &(dague_zlange->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA]->opaque_dtt) );

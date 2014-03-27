@@ -363,7 +363,7 @@ dplasma_zpltmg_condex( dague_context_t *dague,
                    1.,     A );
 
     dague_data_free(Q.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&Q);
+    tiled_matrix_desc_destroy((dague_ddesc_t*)&Q);
     return 0;
 }
 
@@ -436,7 +436,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
                    A );
 
     dague_data_free(V.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&V);
+    tiled_matrix_desc_destroy((dague_ddesc_t*)&V);
 
     return 0;
 }

@@ -192,7 +192,7 @@ dplasma_zlansy_Destruct( dague_handle_t *o )
 {
     dague_zlansy_handle_t *dague_zlansy = (dague_zlansy_handle_t *)o;
 
-    dague_ddesc_destroy( dague_zlansy->Tdist );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlansy->Tdist) );
     free( dague_zlansy->Tdist );
 
     dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_DEFAULT_ARENA]->opaque_dtt) );
