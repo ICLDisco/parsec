@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
     PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt);
 
     if( check ) {
-        PLASMA_desc *plasmaDescA0;
         PLASMA_Complex64_t *A0  = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
         double *W0              = (double *)malloc(N*sizeof(double));
         PLASMA_Complex64_t* band;
