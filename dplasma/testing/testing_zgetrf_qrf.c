@@ -232,9 +232,9 @@ int main(int argc, char ** argv)
         dague_ddesc_destroy( (dague_ddesc_t*)&ddescX);
         if ( check_inv ) {
             dague_data_free(ddescInvA.mat);
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescInvA);
+            tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescInvA);
             dague_data_free(ddescI.mat);
-            dague_ddesc_destroy((dague_ddesc_t*)&ddescI);
+            tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescI);
         }
     }
 
@@ -242,13 +242,13 @@ int main(int argc, char ** argv)
     cleanup_dague(dague, iparam);
 
     dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescA);
     dague_data_free(ddescTS.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescTS);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescTS);
     dague_data_free(ddescTT.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescTT);
     dague_data_free(ddescIPIV.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescIPIV);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescIPIV);
     free(lu_tab);
     return ret;
 }

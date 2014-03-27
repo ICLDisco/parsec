@@ -491,7 +491,7 @@ static int check_inverse( dague_context_t *dague, int loud,
     }
 
     dague_data_free(Id.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&Id);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&Id);
 
     return info_solution;
 }
