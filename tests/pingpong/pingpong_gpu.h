@@ -7,7 +7,7 @@
 #include <dague/devices/cuda/dev_cuda.h>
 #include <dague/devices/device_malloc.h>
 #include <dague/utils/output.h>
-#include <fifo.h>
+#include <dague/class/fifo.h>
 #include "scheduling.h"
 
 extern int dague_cuda_output_stream;
