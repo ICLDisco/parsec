@@ -1,23 +1,51 @@
 /*
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
  *
  * @precisions normal z -> s d c
  *
  */
 
-#include <core_blas.h>
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
 #include "dplasma/lib/zhbrdt.h"
 
-/*    SUBROUTINE PZHEEV( JOBZ, UPLO, N, A, IA, JA, DESCA, W, Z, IZ, JZ,
-     $                   DESCZ, WORK, LWORK, RWORK, LRWORK, INFO ) */
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64
+ *
+ * dplasma_zheev_New - TO FILL IN CORRECTLY BY THE PERSON WORKING ON IT !!!
+ *
+ * WARNING: The computations are not done by this call.
+ *
+ *******************************************************************************
+ *
+ * @param[in] uplo
+ *
+ * @param[in,out] A
+ *
+ * @param[out] info
+ *
+ *******************************************************************************
+ *
+ * @return
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zheev
+ * @sa dplasma_zheev_Destruct
+ * @sa dplasma_cheev_New
+ * @sa dplasma_dheev_New
+ * @sa dplasma_sheev_New
+ *
+ ******************************************************************************/
 dague_handle_t*
 dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
                   tiled_matrix_desc_t* A,
@@ -92,6 +120,26 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
     }
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64
+ *
+ *  dplasma_zheev_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zheev_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zheev_New
+ * @sa dplasma_zheev
+ *
+ ******************************************************************************/
 void
 dplasma_zheev_Destruct( dague_handle_t *o )
 {
@@ -105,23 +153,50 @@ dplasma_zheev_Destruct( dague_handle_t *o )
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64
+ *
+ * dplasma_zheev - TO FILL IN CORRECTLY BY THE PERSON WORKING ON IT !!!
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * COPY OF NEW INTERFACE
+ *
+ *******************************************************************************
+ *
+ * @return
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zheev_New
+ * @sa dplasma_zheev_Destruct
+ * @sa dplasma_cheev
+ * @sa dplasma_dheev
+ * @sa dplasma_sheev
+ *
+ ******************************************************************************/
 int
-dplasma_zheev( dague_context_t *dague, PLASMA_enum jobz, PLASMA_enum uplo,
-                    tiled_matrix_desc_t* A,
-                    tiled_matrix_desc_t* W,
-                    tiled_matrix_desc_t* Z,
-                    int* info )
+dplasma_zheev( dague_context_t *dague,
+               PLASMA_enum jobz, PLASMA_enum uplo,
+               tiled_matrix_desc_t* A,
+               tiled_matrix_desc_t* W,
+               tiled_matrix_desc_t* Z )
 {
     dague_handle_t *dague_zheev = NULL;
-
-    dague_zheev = dplasma_zheev_New( jobz, uplo, A, W, Z, info );
+    int info = 0;
+    dague_zheev = dplasma_zheev_New( jobz, uplo, A, W, Z, &info );
 
     if ( dague_zheev != NULL )
     {
         dague_enqueue( dague, (dague_handle_t*)dague_zheev);
         dplasma_progress(dague);
         dplasma_zheev_Destruct( dague_zheev );
-        return 0;
+        return info;
     }
     else {
         return -101;

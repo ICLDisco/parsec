@@ -277,7 +277,7 @@ dague_handle_t* dplasma_zhbrdt_New(tiled_matrix_desc_t *A);
 dague_handle_t* dplasma_zheev_New( const PLASMA_enum jobz, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* W, tiled_matrix_desc_t* Z, int* info );
 dague_handle_t* dplasma_zherbt_New( PLASMA_enum uplo, int ib, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 
-int dplasma_zheev( dague_context_t *dague, const PLASMA_enum jobz, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* W, tiled_matrix_desc_t* Z, int* info );
+int dplasma_zheev( dague_context_t *dague, const PLASMA_enum jobz, const PLASMA_enum uplo, tiled_matrix_desc_t* A, tiled_matrix_desc_t* W, tiled_matrix_desc_t* Z );
 
 void dplasma_zhbrdt_Destruct( dague_handle_t *o );
 void dplasma_zheev_Destruct( dague_handle_t *o );
