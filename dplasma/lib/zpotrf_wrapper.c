@@ -8,7 +8,6 @@
  * @precisions normal z -> s d c
  *
  */
-//
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
