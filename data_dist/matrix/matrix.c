@@ -88,6 +88,12 @@ dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
     return;
 }
 
+dague_data_t*
+fake_data_of(dague_ddesc_t *mat, ...)
+{
+    return dague_matrix_create_data( (tiled_matrix_desc_t*)mat, NULL,
+                                     0, 0 );
+}
 
 /***************************************************************************//**
  *  Internal static descriptor initializer (PLASMA code)
