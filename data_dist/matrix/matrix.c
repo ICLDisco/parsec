@@ -65,6 +65,30 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
     return data;
 }
 
+void
+dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
+{
+    if ( matrix->data_map != NULL ) {
+        int i;
+
+        for(i=0; i<matrix->nb_local_tiles; i++)
+        {
+            dague_data_t      *data = matrix->data_map[i];
+
+            if (data != NULL)
+            {
+                OBJ_DESTRUCT(data);
+                OBJ_RELEASE(data);
+            }
+        }
+
+        free( matrix->data_map );
+        matrix->data_map = NULL;
+    }
+    return;
+}
+
+
 /***************************************************************************//**
  *  Internal static descriptor initializer (PLASMA code)
  **/
@@ -164,22 +188,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 void
 tiled_matrix_desc_destroy( tiled_matrix_desc_t *tdesc )
 {
-    if ( tdesc->data_map != NULL ) {
-        int i;
-
-        /* TODO: cleanup all copies */
-        for(i=0; i<tdesc->nb_local_tiles; i++)
-        {
-            dague_data_t *data = tdesc->data_map[i];
-            if (data != NULL)
-            {
-                OBJ_RELEASE(data);
-            }
-        }
-
-        free( tdesc->data_map );
-        tdesc->data_map = NULL;
-    }
+    dague_matrix_destroy_data( tdesc );
     dague_ddesc_destroy( (dague_ddesc_t*)tdesc );
 }
 
