@@ -69,7 +69,9 @@ static dague_execution_context_t *sched_gd_select( dague_execution_unit_t *eu_co
 static int sched_gd_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )
 {
+#if defined(PINS_ENABLE)
     new_context->creator_core = 1;
+#endif
     if( new_context->function->flags & DAGUE_HIGH_PRIORITY_TASK ) {
         dague_dequeue_chain_front( (dague_dequeue_t*)eu_context->scheduler_object, (dague_list_item_t*)new_context);
     } else {

@@ -23,10 +23,10 @@ extern "C" %{
 extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 
-//#define RECURSIVE_GEQRT
-//#define RECURSIVE_TSQRT
-//#define RECURSIVE_UNMQR
-//#define RECURSIVE_TSMQR
+#define RECURSIVE_GEQRT
+#define RECURSIVE_TSQRT
+#define RECURSIVE_UNMQR
+#define RECURSIVE_TSMQR
 
 //#define DAGUE_DRY_RUN
 

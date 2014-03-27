@@ -65,7 +65,9 @@ static dague_execution_context_t *sched_ip_select( dague_execution_unit_t *eu_co
 	dague_execution_context_t * context =
 		(dague_execution_context_t*)dague_list_pop_back((dague_list_t*)eu_context->scheduler_object);
 	if (NULL != context)
+#if defined(PINS_ENABLE)
 		context->victim_core = SYSTEM_NEIGHBOR;
+#endif
 	return context;
 }
 

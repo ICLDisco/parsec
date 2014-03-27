@@ -131,8 +131,8 @@ int main(int argc, char ** argv)
 
     dague_data_free(ddescA.mat);
     dague_data_free(ddescT.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT );
 
     cleanup_dague(dague, iparam);
 

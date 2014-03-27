@@ -25,11 +25,9 @@ Add_Subdirectory(controlgather)
 Add_Subdirectory(scheduling)
 Add_Subdirectory(all2all)
 
-if (DAGUE_DEBUG_BUILD_UNIT_TESTS )
-  Add_Subdirectory(unit)
-  dague_addtest(C operator operator.c)
-  dague_addtest(C reduce reduce.c)
-endif(DAGUE_DEBUG_BUILD_UNIT_TESTS )
+Add_Subdirectory(unit)
+dague_addtest(C operator operator.c)
+dague_addtest(C reduce reduce.c)
 
 jdf_rules(touch_generated "${CMAKE_CURRENT_SOURCE_DIR}/touch.jdf")
 string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
@@ -54,4 +52,3 @@ dague_addtest(C complex_deps "${complex_deps_generated}")
 
 # Define Testings
 include(Testings.cmake)
-

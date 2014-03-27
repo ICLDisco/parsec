@@ -149,7 +149,9 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
     }
     if (exec_context != NULL) {
-		exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+#if defined(PINS_ENABLE)
+	    exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+#endif
         return exec_context;
     }
 
@@ -175,7 +177,9 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
             dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
         }
         if (exec_context != NULL) {
+#if defined(PINS_ENABLE)
 			exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
+#endif
             return exec_context;
         }
     }
@@ -186,7 +190,9 @@ static dague_execution_context_t *sched_ltq_select( dague_execution_unit_t *eu_c
     if (heap != NULL)
         dague_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (dague_list_item_t*)heap);
 	if (exec_context != NULL)
+#if defined(PINS_ENABLE)
 		exec_context->victim_core = SYSTEM_NEIGHBOR;
+#endif
     return exec_context;
 }
 
