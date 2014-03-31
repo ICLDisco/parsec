@@ -208,13 +208,13 @@ dplasma_zunmlq_param_New( PLASMA_enum side, PLASMA_enum trans,
     dplasma_add2arena_lower( ((dague_zunmlq_param_LC_object_t*)object)->arenas[DAGUE_zunmlq_param_LC_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
+                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
 
     /* Upper triangular part of tile with diagonal */
     dplasma_add2arena_upper( ((dague_zunmlq_param_LC_object_t*)object)->arenas[DAGUE_zunmlq_param_LC_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 1 );
+                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
 
     /* Little T */
     dplasma_add2arena_rectangle( ((dague_zunmlq_param_LC_object_t*)object)->arenas[DAGUE_zunmlq_param_LC_LITTLE_T_ARENA],
