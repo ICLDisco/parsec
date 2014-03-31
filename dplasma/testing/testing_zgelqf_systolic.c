@@ -202,14 +202,14 @@ int main(int argc, char ** argv)
 
     dplasma_systolic_finalize( &qrtree );
 
-    cleanup_dague(dague, iparam);
-
     dague_data_free(ddescA.mat);
     dague_data_free(ddescTS.mat);
     dague_data_free(ddescTT.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescA);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescTS);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescTT);
+
+    cleanup_dague(dague, iparam);
 
     return ret;
 }
