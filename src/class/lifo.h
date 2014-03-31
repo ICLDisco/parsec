@@ -44,6 +44,20 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
 /***********************************************************************
  * Interface is defined. Everything else is private thereafter */
 
+/**
+ * By default all LIFO will handle elements aligned to DAGUE_LIFO_ALIGNMENT_DEFAULT
+ * bits. If a different type of alignment is needed, the trick is to manually allocate
+ * the lifo and set the alignment by hand before calling OBJ_CONSTRUCT on it.
+ */
+#if !defined(DAGUE_LIFO_ALIGNMENT_DEFAULT)
+#define DAGUE_LIFO_ALIGNMENT_DEFAULT 3
+#endif  /* !defined(DAGUE_LIFO_ALIGNMENT_DEFAULT) */
+
+#define DAGUE_LIFO_ALIGNMENT_BITS(LIFO)  ((LIFO)->alignment)
+#define DAGUE_LIFO_ALIGNMENT(LIFO)       (( ( ((uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) < sizeof(void*) ) ? \
+                                            ( sizeof(void*) ) :         \
+                                            ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
+
 #ifdef DAGUE_LIFO_USE_ATOMICS
 
 #include <stdlib.h>
@@ -65,19 +79,6 @@ struct dague_lifo_s {
     dague_lifo_head_t  lifo_head;
 };
 
-/**
- * By default all LIFO will handle elements aligned to DAGUE_LIFO_ALIGNMENT_DEFAULT
- * bits. If a different type of alignment is needed, the trick is to manually allocate
- * the lifo and set the alignment by hand before calling OBJ_CONSTRUCT on it.
- */
-#if !defined(DAGUE_LIFO_ALIGNMENT_DEFAULT)
-#define DAGUE_LIFO_ALIGNMENT_DEFAULT 3
-#endif  /* !defined(DAGUE_LIFO_ALIGNMENT_DEFAULT) */
-
-#define DAGUE_LIFO_ALIGNMENT_BITS(LIFO)  ((LIFO)->alignment)
-#define DAGUE_LIFO_ALIGNMENT(LIFO)       (( ( ((uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) < sizeof(void*) ) ? \
-                                            ( sizeof(void*) ) :         \
-                                            ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 #if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
 #define DAGUE_LIFO_HKEY(LIFO, h, c)      ((((dague_lifo_head_t)((uintptr_t)c))<<64) + \
                                            ((dague_lifo_head_t)(uintptr_t)h))
@@ -94,25 +95,6 @@ struct dague_lifo_s {
 #define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(DAGUE_LIFO_CNT(LIFO, k)))
 
 #endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
-
-/*
- * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric
- *
- * void * converts to any pointer type, and any pointer type converts
- * to void *, but void ** does not convert to a pointer to some other
- * type of pointer, nor do pointers to other pointer types convert to
- * void **.
- */
-#define DAGUE_LIFO_ITEM_ALLOC( LIFO, elt, truesize ) ({                 \
-            void *_elt = NULL;                                          \
-            int _rc;                                                    \
-            _rc = posix_memalign(&_elt,                                 \
-                                DAGUE_LIFO_ALIGNMENT(LIFO), (truesize));\
-            assert( 0 == _rc && NULL != _elt ); (void)_rc;              \
-            OBJ_CONSTRUCT(_elt, dague_list_item_t);                     \
-            (elt) = (__typeof__(elt))_elt;                              \
-        })
-#define DAGUE_LIFO_ITEM_FREE( elt ) do { OBJ_DESTRUCT( elt ); free(elt); } while (0)
 
 /* The ghost pointer will never change. The head will change via an
  * atomic compare-and-swap. On most architectures the reading of a
@@ -252,6 +234,76 @@ static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )
     return item;
 }
 
+#else
+
+#include "list.h"
+
+struct dague_lifo_s {
+    dague_list_t list;
+    uint8_t      alignment;
+};
+
+static inline int
+dague_lifo_is_empty( dague_lifo_t* lifo ) {
+    return dague_list_is_empty((dague_list_t*)lifo);
+}
+
+static inline int
+dague_lifo_nolock_is_empty( dague_lifo_t* lifo)
+{
+    return dague_list_nolock_is_empty((dague_list_t*)lifo);
+}
+
+static inline void
+dague_lifo_push(dague_lifo_t* lifo, dague_list_item_t* item) {
+    dague_list_push_front((dague_list_t*)lifo, item);
+}
+static inline void
+dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item) {
+    dague_list_nolock_push_front((dague_list_t*)lifo, item);
+}
+
+static inline void
+dague_lifo_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
+    dague_list_chain_front((dague_list_t*)lifo, items);
+}
+static inline void
+dague_lifo_nolock_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
+    dague_list_nolock_chain_front((dague_list_t*)lifo, items);
+}
+
+static inline dague_list_item_t*
+dague_lifo_pop(dague_lifo_t* lifo) {
+    return dague_list_pop_front((dague_list_t*)lifo);
+}
+static inline dague_list_item_t*
+dague_lifo_try_pop(dague_lifo_t* lifo) {
+    return dague_list_try_pop_front((dague_list_t*)lifo);
+}
+static inline dague_list_item_t*
+dague_lifo_nolock_pop(dague_lifo_t* lifo) {
+    return dague_list_nolock_pop_front((dague_list_t*)lifo);
+}
+
 #endif /* LIFO_USE_ATOMICS */
+
+/*
+ * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric
+ *
+ * void * converts to any pointer type, and any pointer type converts
+ * to void *, but void ** does not convert to a pointer to some other
+ * type of pointer, nor do pointers to other pointer types convert to
+ * void **.
+ */
+#define DAGUE_LIFO_ITEM_ALLOC( LIFO, elt, truesize ) ({                 \
+    void *_elt = NULL;                                          \
+    int _rc;                                                    \
+    _rc = posix_memalign(&_elt,                                 \
+                         DAGUE_LIFO_ALIGNMENT(LIFO), (truesize));\
+    assert( 0 == _rc && NULL != _elt ); (void)_rc;              \
+    OBJ_CONSTRUCT(_elt, dague_list_item_t);                     \
+    (elt) = (__typeof__(elt))_elt;                              \
+  })
+#define DAGUE_LIFO_ITEM_FREE( elt ) do { OBJ_DESTRUCT( elt ); free(elt); } while (0)
 
 #endif  /* LIFO_H_HAS_BEEN_INCLUDED */

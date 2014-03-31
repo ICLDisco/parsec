@@ -115,8 +115,6 @@ option(DAGUE_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
-option(DAGUE_DEBUG_BUILD_UNIT_TESTS
-  "Enable compilation of units tests in tests/units, tests/syn and tests/debug directories" OFF)
 
 ### Simulating Options
 option(DAGUE_SIM
@@ -575,6 +573,10 @@ if(AWK_EXECUTABLE)
   set(HAVE_AWK 1)
 endif(AWK_EXECUTABLE)
 
+get_property(PARSEC_C_INCLUDES DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
+set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE "List of directories used to compile the daguepp generated code" INTERNAL)
+mark_as_advanced(PARSEC_C_INCLUDES)
+
 #
 # First go for the tools.
 #
@@ -619,9 +621,7 @@ SET( PARSEC_ALL_SRCS "" CACHE INTERNAL "List of sources with internal documentat
 IF( BUILD_DPLASMA )
   add_subdirectory(dplasma)
 ENDIF ( BUILD_DPLASMA )
-IF( DAGUE_DEBUG_BUILD_UNIT_TESTS AND BUILD_DAGUE )
-  add_subdirectory(tests)
-ENDIF()
+add_subdirectory(tests)
 
 # Configuration header
 configure_file (

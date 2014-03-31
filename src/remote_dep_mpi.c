@@ -449,6 +449,9 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
     output->data      = *data;
     output->data.data = NULL;
 
+    /* THIS SHOULD BE THE RECEIVER DISPLACEMENT: TODO */
+    output->data.displ = 0;
+
     deps->priority       = oldcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
     deps->root           = src_rank;
@@ -520,7 +523,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
 {
     dague_execution_context_t task;
     const dague_flow_t* target;
-    int i, pidx = 0;
+    int i, pidx;
     uint32_t action_mask = 0;
 
     /* Update the mask of remaining dependencies to avoid releasing the same outputs twice */
@@ -535,8 +538,9 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
     for(i = 0; i < task.function->nb_flows;
         task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].data_repo = NULL, i++);
 
-    target = task.function->out[pidx];
     for(i = 0; complete_mask>>i; i++) {
+        pidx = 0;
+        target = task.function->out[pidx];
         assert(i < MAX_PARAM_COUNT);
         if( !((1U<<i) & complete_mask) ) continue;
         while( !((1U<<i) & target->flow_datatype_mask) ) {
@@ -1257,7 +1261,7 @@ remote_dep_mpi_short_which(const dague_remote_deps_t* deps,
         if( NULL == deps->output[k].data.arena ) continue;  /* CONTROL dependency */
         size_t extent = deps->output[k].data.arena->elem_size * deps->output[k].data.count;
 
-        if( (extent <= (RDEP_MSG_SHORT_LIMIT)) | (extent <= (RDEP_MSG_EAGER_LIMIT)) ) {
+        if( (extent <= (RDEP_MSG_SHORT_LIMIT)) || (extent <= (RDEP_MSG_EAGER_LIMIT)) ) {
             DEBUG3(("MPI:\tPEER\tNA\t%5s MODE  k=%d\tsize=%d <= %d\t(tag=base+%d)\n",
                     (extent <= (RDEP_MSG_EAGER_LIMIT) ? "Eager" : "Short"),
                     k, extent, RDEP_MSG_SHORT_LIMIT, k));

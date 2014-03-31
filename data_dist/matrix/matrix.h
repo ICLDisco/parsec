@@ -151,5 +151,11 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
                          int pos,
                          dague_data_key_t key);
 
+void
+dague_matrix_destroy_data( tiled_matrix_desc_t* matrix );
+
+dague_data_t*
+fake_data_of(dague_ddesc_t *mat, ...);
+
 END_C_DECLS
 #endif /* _MATRIX_H_  */

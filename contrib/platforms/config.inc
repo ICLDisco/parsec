@@ -33,6 +33,7 @@ CUDA_DIR=${CUDA_DIR:=$(dirname_bin nvcc)}
 OMEGA_DIR=${OMEGA_DIR:=/opt/omega} # wild guess, but no better way
 PLASMA_DIR=${PLASMA_DIR:=$(pkg-config plasma --variable=prefix)}
 PAPI_DIR=${PAPI_DIR:=$(dirname_bin papi_avail)}
+PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python)}
 }
 
 function run_cmake() {
@@ -74,10 +75,14 @@ if [ -n "${PAPI_DIR}" -a -f "$PAPI_DIR/lib/libpapi.so" -a -n "${PROFILE}" ]; the
     PROFILE="${PROFILE} -DPAPI_DIR=${PAPI_DIR}"
 fi
 
+if [ -n "${PYTHON_EXECUTABLE}" -a -x "${PYTHON_EXECUTABLE}" ]; then
+    PYTHON="-DPYTHON_EXECUTABLE=${PYTHON_EXECUTABLE}"
+fi
+
 # Done with variable allocation, do the thing with Cmake
 rm -rf CMakeCache.txt CMakeFiles
 SRC_LOCATION=${SRC_LOCATION:=`dirname $0`/../../}
-CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${PROFILE} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
+CMAKE_COMMAND="cmake -G 'Unix Makefiles' ${MPI} ${HWLOC} ${Q2J} ${PLASMA} ${CUDA} ${GTG} ${PROFILE} ${PYTHON} ${DEBUG} ${USER_OPTIONS} ${TESTCMD} $* ${SRC_LOCATION}"
 echo $CMAKE_COMMAND
 eval $CMAKE_COMMAND
 }

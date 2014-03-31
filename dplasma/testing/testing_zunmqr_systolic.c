@@ -60,7 +60,7 @@ static int check_orthogonality(dague_context_t *dague, int loud, tiled_matrix_de
     }
 
     dague_data_free(Id.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&Id);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&Id);
     return info_ortho;
 }
 
@@ -219,21 +219,21 @@ int main(int argc, char ** argv)
         }
 
         dague_data_free(ddescC0.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescC0);
+        tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescC0);
         dague_data_free(ddescC.mat);
-        dague_ddesc_destroy((dague_ddesc_t*)&ddescC);
+        tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescC);
     }
 
     dplasma_systolic_finalize( &qrtree );
 
     dague_data_free(ddescA.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescA);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescA);
     dague_data_free(ddescTS.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescTS);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescTS);
     dague_data_free(ddescTT.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescTT);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescTT);
     dague_data_free(ddescQ.mat);
-    dague_ddesc_destroy((dague_ddesc_t*)&ddescQ);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescQ);
 
     cleanup_dague(dague, iparam);
 

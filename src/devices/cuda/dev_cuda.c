@@ -237,12 +237,15 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
         argv = dague_argv_split(cuda_lib_path, ';');
     }
 
-    snprintf(function_name, FILENAME_MAX, "%s", fname);
-    goto name_wo_sm_version;
   retry_lesser_sm_version:
-    capability = cuda_legal_compute_capabilitites[index];
-    snprintf(function_name, FILENAME_MAX, "%s_SM%2d", fname, capability);
-  name_wo_sm_version:
+    if( -1 == index ) {
+        capability = 0;
+        snprintf(function_name, FILENAME_MAX, "%s", fname);
+    } 
+    else {
+        capability = cuda_legal_compute_capabilitites[index];
+        snprintf(function_name, FILENAME_MAX, "%s_SM%2d", fname, capability);
+    }
 
     for( target = argv; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
@@ -252,7 +255,10 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
             continue;
         }
         if( S_ISDIR(status.st_mode) ) {
-            snprintf(library_name,  FILENAME_MAX, "%s/libdplasma_cucores_sm%d.so", *target, capability);
+            if( capability )
+                snprintf(library_name,  FILENAME_MAX, "%s/libdplasma_cucores_sm%d.so", *target, capability);
+            else
+                snprintf(library_name,  FILENAME_MAX, "%s/libdplasma_cores_cuda.so", *target);
         } else {
             snprintf(library_name,  FILENAME_MAX, "%s", *target);
         }
@@ -295,7 +301,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
                              "No function %s found for CUDA device %s\n",
                              function_name, gpu_device->super.name);
         index--;
-        if(0 < index)
+        if(-1 <= index)
             goto retry_lesser_sm_version;
     }
 

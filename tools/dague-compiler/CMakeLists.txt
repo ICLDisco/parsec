@@ -20,6 +20,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   set_target_properties(daguepp PROPERTIES LINKER_LANGUAGE C)
   set_target_properties(daguepp PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
   target_link_libraries(daguepp -lm)
+  target_link_libraries(daguepp dague-base)
 
   install(TARGETS daguepp RUNTIME DESTINATION bin)
 
