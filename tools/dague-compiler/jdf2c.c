@@ -3462,12 +3462,8 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    dague_data_t* dl = dague_arena_get(%s, %d);\n"
-            "%s    assert(NULL != dl);\n"
-            "%s    chunk = dague_data_get_copy(dl, target_device);\n",
-            spaces, arena, count,
-            spaces,
-            spaces);
+    coutput("%s    chunk = dague_arena_get_copy(%s, %d, target_device);\n",
+            spaces, arena, count);
     return;
 }
 
