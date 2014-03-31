@@ -3417,7 +3417,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                 "%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n",
                 spaces, call->func_or_mem, call->func_or_mem,
                 spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem);
-        coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass, chunk);\n",
+        coutput("%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass, chunk);\n",
                 spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
     } else {
         coutput("%s    chunk = dague_data_get_copy(%s(%s), target_device);\n"
