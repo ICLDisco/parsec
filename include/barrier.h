@@ -18,6 +18,8 @@
  */
 #if defined(_POSIX_BARRIERS) && (_POSIX_BARRIERS - 20012L) >= 0 && 0
 
+BEGIN_C_DECLS
+
 typedef pthread_barrier_t dague_barrier_t;
 #define dague_barrier_init pthread_barrier_init
 #define dague_barrier_wait pthread_barrier_wait
@@ -38,6 +40,8 @@ int dague_barrier_init(dague_barrier_t *barrier, const void *pthread_mutex_attr,
 int dague_barrier_wait(dague_barrier_t*);
 int dague_barrier_destroy(dague_barrier_t*);
 #define DAGUE_IMPLEMENT_BARRIERS 1
+
+END_C_DECLS
 
 #endif
 

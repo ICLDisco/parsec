@@ -21,6 +21,8 @@
 
 #include "gpu_malloc.h"
 
+BEGIN_C_DECLS
+
 #define DAGUE_GPU_USE_PRIORITIES     1
 
 #define DAGUE_MAX_STREAMS            4
@@ -214,6 +216,8 @@ int progress_stream( gpu_device_t* gpu_device,
  * Compute the adapted unit
  */
 void dague_compute_best_unit( uint64_t length, float* updated_value, char** best_unit );
+
+END_C_DECLS
 
 #endif /* defined(HAVE_CUDA) */
 

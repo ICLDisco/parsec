@@ -9,6 +9,8 @@
 
 #include "dague_internal.h"
 
+BEGIN_C_DECLS
+
 struct dague_barrier_t;
 
 /**
@@ -124,5 +126,7 @@ void dague_set_scheduler( dague_context_t *dague, dague_scheduler_t *scheduler )
  * Global scheduler
  */
 extern dague_scheduler_t scheduler;
+
+END_C_DECLS
 
 #endif  /* _DAGUE_scheduling_h */

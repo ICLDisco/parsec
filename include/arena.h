@@ -16,6 +16,8 @@
 #include "atomic.h"
 #include "lifo.h"
 
+BEGIN_C_DECLS
+
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
 #define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
@@ -120,6 +122,7 @@ static inline uint32_t dague_arena_unref(dague_arena_chunk_t* ptr)
 #endif  /* DAGUE_DEBUG_VERBOSE != 0 */
 #define AUNREF(ptr) DAGUE_ARENA_UNREF_DATA(ptr)
 
+END_C_DECLS
 
 #endif /* __USE_ARENA_H__ */
 
