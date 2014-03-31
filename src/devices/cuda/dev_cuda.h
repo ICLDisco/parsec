@@ -21,6 +21,8 @@
 
 #include <dague/devices/device_malloc.h>
 
+BEGIN_C_DECLS
+
 #define DAGUE_GPU_USE_PRIORITIES     1
 
 #define DAGUE_MAX_STREAMS            4
@@ -150,6 +152,8 @@ int progress_stream( gpu_device_t* gpu_device,
                      advance_task_function_t progress_fct,
                      dague_gpu_context_t* task,
                      dague_gpu_context_t** out_task );
+
+END_C_DECLS
 
 #endif /* defined(HAVE_CUDA) */
 

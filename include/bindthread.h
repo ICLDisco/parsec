@@ -7,11 +7,15 @@
 #ifndef BINDTHREAD_H
 #define BINDTHREAD_H
 
+BEGIN_C_DECLS
+
 int dague_bindthread(int cpu, int ht);
 
 #if defined(HAVE_HWLOC)
 #include <hwloc.h>
 int dague_bindthread_mask(hwloc_cpuset_t cpuset);
 #endif
+
+END_C_DECLS
 
 #endif /* BINDTHREAD_H */
