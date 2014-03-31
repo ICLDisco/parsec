@@ -220,6 +220,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 {
     va_list ap;
     dague_thread_profiling_t *res;
+    int rc;
 
     /** Remark: maybe calloc would be less perturbing for the measurements,
      *  if we consider that we don't care about the _init phase, but only
@@ -233,7 +234,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 
     OBJ_CONSTRUCT(res, dague_list_item_t);
     va_start(ap, format);
-    vasprintf(&res->hr_id, format, ap);
+    rc = vasprintf(&res->hr_id, format, ap); assert(rc!=-1);
     va_end(ap);
 
     assert( event_buffer_size != 0 );

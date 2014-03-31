@@ -37,6 +37,23 @@ else()
     )
 endif()
 
+#This is hot fix. A better approach should check
+# for the version only if necessary.
+# target version should not be hard coded.
+if( CYTHON_EXECUTABLE )
+    execute_process(COMMAND ${CYTHON_EXECUTABLE} --version
+                    RESULT_VARIABLE CYTHON_RESULT
+                    ERROR_VARIABLE CYTHON_OUTPUT
+                    OUTPUT_QUIET
+                    ERROR_STRIP_TRAILING_WHITESPACE)
+    string(REPLACE "Cython version " "" CYTHON_VERSION "${CYTHON_OUTPUT}")
+    if( "${CYTHON_VERSION}" VERSION_LESS "0.19.1" )
+        MESSAGE(STATUS "Cython version ${CYTHON_VERSION} found -- too old for current code")
+        unset(CYTHON_EXECUTABLE CACHE)
+    else()
+        MESSAGE(STATUS "Cython version ${CYTHON_VERSION} found")
+    endif()
+endif()
 
 include( FindPackageHandleStandardArgs )
 FIND_PACKAGE_HANDLE_STANDARD_ARGS( Cython REQUIRED_VARS CYTHON_EXECUTABLE )

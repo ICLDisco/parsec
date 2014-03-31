@@ -9,6 +9,8 @@
 
 #include "dague_internal.h"
 
+BEGIN_C_DECLS
+
 struct dague_barrier_t;
 
 /**
@@ -121,5 +123,7 @@ void dague_remove_scheduler( dague_context_t *dague );
 
 struct dague_sched_module_s;
 extern struct dague_sched_module_s *current_scheduler;
+
+END_C_DECLS
 
 #endif  /* _DAGUE_scheduling_h */

@@ -16,6 +16,8 @@
 #include <dague/sys/atomic.h>
 #include "dague/class/lifo.h"
 
+BEGIN_C_DECLS
+
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
 #define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
@@ -66,6 +68,8 @@ void dague_arena_destruct(dague_arena_t* arena);
 
 dague_data_t* dague_arena_get(dague_arena_t* arena, size_t count);
 void dague_arena_release(dague_data_copy_t* ptr);
+
+END_C_DECLS
 
 #endif /* __USE_ARENA_H__ */
 

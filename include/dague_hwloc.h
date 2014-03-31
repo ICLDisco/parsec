@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+BEGIN_C_DECLS
+
 typedef struct {
     int lvl;
     int processor_id;
@@ -135,5 +137,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t mask_index);
  */
 int dague_hwloc_allow_ht(int htnb);
 int dague_hwloc_get_ht(void);
+
+END_C_DECLS
 
 #endif  /* HWLOC_H_HAS_BEEN_INCLUDED */
