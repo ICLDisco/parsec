@@ -52,16 +52,16 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
 #if defined(DAGUE_ATOMIC_USE_GCC_128_BUILTINS)
 #define DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B
 static inline int dague_atomic_cas_128b( volatile __uint128_t* location,
-                                            __uint128_t old_value,
-                                            __uint128_t new_value )
+                                         __uint128_t old_value,
+                                         __uint128_t new_value )
 {
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 #else
 #include "debug.h"
 static inline int dague_atomic_cas_128b( volatile uint64_t* location,
-                                            uint64_t old_value,
-                                            uint64_t new_value )
+                                         uint64_t old_value,
+                                         uint64_t new_value )
 {
     ERROR(("Use of 128b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 set\n \n"));
     (void)location; (void)old_value; (void)new_value;
