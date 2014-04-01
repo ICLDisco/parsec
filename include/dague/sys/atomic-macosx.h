@@ -65,3 +65,12 @@ static inline int32_t dague_atomic_sub_32b( volatile int32_t *location, int32_t 
     return OSAtomicAdd32( -i, location );
 }
 
+#if defined(DAGUE_ATOMIC_USE_GCC_128_BUILTINS)
+#define DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B
+static inline int dague_atomic_cas_128b( volatile __uint128_t* location,
+                                         __uint128_t old_value,
+                                         __uint128_t new_value )
+{
+    return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
+}
+#endif
