@@ -21,7 +21,7 @@ extern "C" %{
  *      - POTRF(k)    : (MT-k)**3
  *      - HERK(k,m)   : (MT-m)**3 + 3 * (m - k)
  *      - TRSM(m,k)   : (MT-m)**3 + 3 * (m - k) * (2 * MT - k - m - 1)
- *      - GEMM(k,m,n) : (MT-m)**3 + 3 * (m - n) * (2 * MT - m - n - 1) + 6 * (m - k)
+ *      - GEMM(m,n,k) : (MT-m)**3 + 3 * (m - n) * (2 * MT - m - n - 1) + 6 * (m - k)
  *
  * So max priority is:
  *      (MT - PRI_CHANGE)**3 + 3 * MT * (2 * MT - PRI_CHANGE - 1) + 6 * MT  < (MT**3 + 6 MT**2 + 3 MT)
@@ -95,10 +95,10 @@ k = 0 .. m-1
 
 // Parameters
 READ  T <- T POTRF(k)
-RW    C <- (k == 0) ? dataA(m, k) : C GEMM(k-1, m, k)
+RW    C <- (k == 0) ? dataA(m, k) : C GEMM(m, k, k-1)
         -> A HERK(k, m)
-        -> A GEMM(k, m, k+1..m-1 )
-        -> B GEMM(k, m+1..descA.mt-1, m )
+        -> A GEMM(m, k+1..m-1, k)
+        -> B GEMM(m+1..descA.mt-1, m, k)
         -> dataA(m, k)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - k - m - 1) * (m - k) : PRI_MAX
@@ -173,7 +173,7 @@ END
  *                      GEMM                      *
  **************************************************/
 // Name
-GEMM(k, m, n)
+GEMM(m, n, k)
 
 // Execution space
 k = 0   .. descA.mt-3
@@ -186,8 +186,8 @@ n = k+1 .. m-1
 // Parameters
 READ  A <- C TRSM(m, k)
 READ  B <- C TRSM(n, k)
-RW    C <- (k == 0)   ? dataA(m, n)  : C GEMM(k-1, m, n)
-        -> (n == k+1) ? C TRSM(m, n) : C GEMM(k+1, m, n)
+RW    C <- (k == 0)   ? dataA(m, n)  : C GEMM(m, n, k-1)
+        -> (n == k+1) ? C TRSM(m, n) : C GEMM(m, n, k-1)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - m - n - 3) * (m - n) + 6 * (m - k) : PRI_MAX
 
@@ -207,7 +207,7 @@ BODY [type=CUDA dyld=cublasZgemm]
                      (dague_complex64_t) 1.0, m, n, &descA, ldam);
 
     printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             k, m, n,
+             m, n, k,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
              tempmm, descA.mb, descA.mb,
              -1.0, m, k, A, ldam,
@@ -232,7 +232,7 @@ BODY
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             k, m, n,
+             m, n, k,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
              tempmm, descA.mb, descA.mb,
              -1.0, m, k, A, ldam,
