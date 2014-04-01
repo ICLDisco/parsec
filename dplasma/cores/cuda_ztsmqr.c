@@ -237,8 +237,8 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                               gpu_stream->prof_event_key_start),
                              this_task);
 
-    double time_start, time_end;
-    time_start = get_cur_time();
+  //  double time_start, time_end;
+ //   time_start = get_cur_time();
     cuda_ztsmqr(args->side, args->trans,
                 args->M1, args->N1, args->M2, args->N2, args->K, args->IB,
                 (dague_complex64_t*)d_A1, args->lda1,
@@ -249,9 +249,9 @@ gpu_kernel_submit_ztsmqr( gpu_device_t        *gpu_device,
                 //NULL, 1,
                 (dague_complex64_t*)WORKC, args->M2,
                 gpu_stream->cuda_stream);
-    cudaStreamSynchronize(gpu_stream->cuda_stream);
-    time_end = get_cur_time();
-    printf("time %f, %f gflops\n", time_end-time_start, (4. * (double)args->M1 * (double)args->M1 * (double)args->M1)/(time_end-time_start)/1e9);
+//    cudaStreamSynchronize(gpu_stream->cuda_stream);
+ //   time_end = get_cur_time();
+ //   printf("time %f, %f gflops\n", time_end-time_start, (4. * (double)args->M1 * (double)args->M1 * (double)args->M1)/(time_end-time_start)/1e9);
 
     dague_gpu_push_workspace(gpu_device, gpu_stream);
     dague_gpu_push_workspace(gpu_device, gpu_stream);
@@ -395,6 +395,7 @@ gpu_kernel_epilog_ztsmqr( gpu_device_t        *gpu_device,
     return 0;
 }
 
+#define GPU_STATIC
 
 /**
  * Try to execute a GEMM on a GPU.
@@ -440,6 +441,11 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
 
 
 #if !defined(HAVE_MPI)
+
+#if defined (GPU_STATIC)
+    dev_index = n % (dague_devices_enabled()-1)+1;
+#else
+
     /* only the tsmqr task located in (k, k+1, n) can choose the device;
      * if the task goes to GPU, then the whole column will stay in this GPU for ever.
      * if the task goes to CPU, then the whole column will stay in CPU in k iteration,
@@ -470,10 +476,13 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
        dev_index = A1_dev_index;
     }
     wei_debug_printf("m %d, n %d, k %d, A1 owner %d, A2 owner %d, dev_index %d\n", m, n, k, A1_dev_index, A2_dev_index, dev_index);
+#endif /* defined(GPU_STATIC) */
 
+#else
+    dev_index = n % (dague_devices_enabled()-1)+1;
 #endif /* !defined(HAVE_MPI) */
 
-    dev_index = 1;
+    //dev_index = 1;
 
     if( dev_index == 0 ) {
         wei_debug_printf("!!!!!!!!!!!!!!!!!!!!!!!! m %d, n %d, k %d go back to CPU\n", m, n, k);
