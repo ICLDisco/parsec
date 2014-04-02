@@ -183,7 +183,7 @@ n = m+1 .. descA.nt-1
 // Parameters
 READ  A <- C TRSM(k, m)
 READ  B <- C TRSM(k, n)
-RW    C <- (k == 0)   ? dataA(m, n)      : C GEMM(m, n, k-1)
+RW    C <- (k == 0)   ? dataA(m, n)  : C GEMM(m, n, k-1)
         -> (m == k+1) ? C TRSM(m, n) : C GEMM(m, n, k+1)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - m - n - 3) * (n - m) + 6 * (n - k) : PRI_MAX
