@@ -10,7 +10,6 @@ v 1.2.0
  - Revert to an older LEX syntax (not (?i:xxx))
  - Don't recursively call the MPI communication engine progress function.
  - Protect the runtime headers from inclusion in C++ files.
- - Add the documentation generation.
  - Fix a memory leak allowing the remote data to be released once used.
  - Integrate the new profiling system and the python interface (added
    Panda support).
@@ -21,14 +20,17 @@ v 1.2.0
    simpler management, better integration with python, support for HDF5...).
  - Change the colorscheme of the .dot generator
  - Correctly compute the identifier of the tasks (ticket #33).
- - DPLASMA: Improved ztrmm with all the matrix reads unified.
  - Allocate the list items from the corresponding list using the requested
    gap.
  - Add support for older lex (without support for ?i).
- - DPLASMA: Support for potri functions (trtri+lauum), and corresponding testings.
  - Add support for 128 bits atomics and resolve the lingering ABA issue.
    When 128 bits atomics are not available fall back to an atomic lock
    implementation of the most basic data structures.
  - Required Cython 0.19.1 (at least)
  - Completely disconnect the ordering of parameters and locals in the JDF.
  - Many other minor bug fixes, code readability impeovement and typos.
+ - DPLASMA:
+   - Add the doxygen documentation generation.
+   - Improved ztrmm with all the matrix reads unified.
+   - Support for potri functions (trtri+lauum), and corresponding testings.
+   - Fix bug in symmetric/hermitian norms when A.mt < P.
