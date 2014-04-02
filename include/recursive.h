@@ -3,6 +3,7 @@
 
 #include "dague_internal.h"
 #include "scheduling.h"
+#include "data_dist/matrix/matrix.h"
 
 typedef struct cb_data_s {
     dague_execution_unit_t    *eu;
@@ -20,7 +21,7 @@ static inline int dague_recursivecall_callback(dague_handle_t* dague_handle, voi
     rc = __dague_complete_execution(data->eu, data->context);
 
     for(i=0; i<data->nbdesc; i++){
-        dague_ddesc_destroy( data->desc[i] );
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(data->desc[i]) );
         free( data->desc[i] );
     }
 
