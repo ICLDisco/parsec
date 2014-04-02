@@ -132,6 +132,8 @@ int main(int argc, char ** argv)
     }
 #endif
 
+    dague_handle_sync_ids();
+
     if( check ) {
 
         /* remove GPU devices, they are not required for check */
