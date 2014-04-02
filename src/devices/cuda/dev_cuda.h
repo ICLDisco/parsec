@@ -23,7 +23,7 @@
 
 #define DAGUE_GPU_USE_PRIORITIES     1
 
-#define DAGUE_MAX_STREAMS            4
+#define DAGUE_MAX_STREAMS            6
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 #define DAGUE_GPU_MAX_WORKSPACE      2
 
