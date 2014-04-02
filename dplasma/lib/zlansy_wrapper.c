@@ -81,7 +81,7 @@ dplasma_zlansy_New( PLASMA_enum norm,
                     const tiled_matrix_desc_t *A,
                     double *result )
 {
-    int P, Q, mb, nb, elt;
+    int P, Q, mb, nb, elt, m;
     two_dim_block_cyclic_t *Tdist;
     dague_handle_t *dague_zlansy = NULL;
 
@@ -121,6 +121,7 @@ dplasma_zlansy_New( PLASMA_enum norm,
         nb = 1;
         elt = 1;
     }
+    m = dplasma_imax(A->mt, P);
 
     /* Create a copy of the A matrix to be used as a data distribution metric.
      * As it is used as a NULL value we must have a data_copy and a data associated
@@ -131,10 +132,10 @@ dplasma_zlansy_New( PLASMA_enum norm,
     two_dim_block_cyclic_init(
         Tdist, matrix_RealDouble, matrix_Tile,
         A->super.nodes, A->super.myrank,
-        1, 1,       /* Dimensions of the tiles              */
-        A->mt, P*Q, /* Dimensions of the matrix             */
-        0, 0,       /* Starting points (not important here) */
-        A->mt, P*Q, /* Dimensions of the submatrix          */
+        1, 1,   /* Dimensions of the tiles              */
+        m, P*Q, /* Dimensions of the matrix             */
+        0, 0,   /* Starting points (not important here) */
+        m, P*Q, /* Dimensions of the submatrix          */
         1, 1, P);
     Tdist->super.super.data_of = fake_data_of;
 

@@ -3,15 +3,34 @@ Copyright (c) 2009-2014 The University of Tennessee and The University
                         reserved.
 
 This file contains the main features as well as overviews of specific
-bug fixes (and other actions) for each version of PaRSEC since v.1.1.0
+bug fixes (and other actions) for each version of PaRSEC since v1.1.0
 
-Trunk
+v 1.2.0
  - The support for C is required from MPI.
  - Revert to an older LEX syntax (not (?i:xxx))
  - Don't recursively call the MPI communication engine progress function.
  - Protect the runtime headers from inclusion in C++ files.
- - Add the documentation generation.
  - Fix a memory leak allowing the remote data to be released once used.
  - Integrate the new profiling system and the python interface (added
    Panda support).
  - Change several default parameters for the DPLASMA tests.
+ - Add Fortran support for the PaRSEC and the profiling API and add tests
+   to validate it.
+ - Backport all the profiling features from the devel branch (panda support,
+   simpler management, better integration with python, support for HDF5...).
+ - Change the colorscheme of the .dot generator
+ - Correctly compute the identifier of the tasks (ticket #33).
+ - Allocate the list items from the corresponding list using the requested
+   gap.
+ - Add support for older lex (without support for ?i).
+ - Add support for 128 bits atomics and resolve the lingering ABA issue.
+   When 128 bits atomics are not available fall back to an atomic lock
+   implementation of the most basic data structures.
+ - Required Cython 0.19.1 (at least)
+ - Completely disconnect the ordering of parameters and locals in the JDF.
+ - Many other minor bug fixes, code readability impeovement and typos.
+ - DPLASMA:
+   - Add the doxygen documentation generation.
+   - Improved ztrmm with all the matrix reads unified.
+   - Support for potri functions (trtri+lauum), and corresponding testings.
+   - Fix bug in symmetric/hermitian norms when A.mt < P.

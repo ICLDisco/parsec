@@ -295,6 +295,8 @@ ENDIF( HAVE_G3)
 set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
 # remove asserts in release
 set( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
+SET( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${C_WFLAGS}" )
+SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
@@ -303,7 +305,7 @@ if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 #
-# Remove all duplicated from the CFLAGS.
+# Remove all duplicates from the CFLAGS.
 #
 set(TMP_LIST ${CMAKE_C_FLAGS})
 separate_arguments(TMP_LIST)
