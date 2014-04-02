@@ -203,6 +203,8 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
     unsigned int nid;
     int n = 0, s;
     unsigned long long oid;
+    int rc;
+    void *rp;
 
     f = fopen(filename, "r");
     if( f == NULL ) {
@@ -211,7 +213,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
     }
 
     while( !feof(f) ) {
-        fgets(line, 4096, f);
+        rp = fgets(line, 4096, f); assert(NULL != rp);
         for(s = 0, l = line; *l != '\n' && *l != '\0' && s < 4095; l++, s++) /*nothing*/;
         *l = '\0';
         assert( s < 4095 );
@@ -248,9 +250,9 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
             ni.task_id = strdup(id);
             ni.task_name = strdup(taskname);
             ni.task_parameters = strdup(parameters);
-            asprintf(&ni.node, "%d", fileidx);
-            asprintf(&ni.vp, "%d", vp);
-            asprintf(&ni.thread, "%d", thread);
+            rc = asprintf(&ni.node, "%d", fileidx);  assert(rc!=-1);
+            rc = asprintf(&ni.vp, "%d", vp);         assert(rc!=-1);
+            rc = asprintf(&ni.thread, "%d", thread); assert(rc!=-1);
             ni.handle_id = oid;
             ni.priority = priority;
             (void)object;
@@ -270,6 +272,7 @@ int add_edges_from_dotfile(const char *filename)
     char line[4096];
     char id1[4096], id2[4096], *l;
     unsigned int n1, n2, e = 0, s;
+    void *rp;
 
     f = fopen(filename, "r");
     if( f == NULL ) {
@@ -278,7 +281,7 @@ int add_edges_from_dotfile(const char *filename)
     }
     
     while( !feof(f) ) {
-        fgets(line, 4096, f);
+        rp = fgets(line, 4096, f); assert(NULL != rp);
         for(s = 0, l = line; *l != '\n' && *l != '\0' && s < 4095; l++, s++) /*nothing*/;
         *l = '\0';
         assert( s < 4095 );
@@ -423,9 +426,11 @@ static Agedge_t *edge(Agnode_t *t, Agnode_t *h)
 static char *nodename(unsigned int n)
 {
     char *name;
+    int rc;
 
     assert( n < nb_nodes );
-    asprintf(&name, "%s(%s)", nodes[n]->info.task_name, nodes[n]->info.task_parameters);
+    rc = asprintf(&name, "%s(%s)", nodes[n]->info.task_name, nodes[n]->info.task_parameters);
+    assert(rc!=-1);
     return name;
 }
 

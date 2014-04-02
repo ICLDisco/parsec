@@ -1553,9 +1553,11 @@ static void jdf_generate_symbols( const jdf_t *jdf, jdf_def_list_t *def, const c
     char *exprname;
     int id;
     string_arena_t *sa = string_arena_new(64);
+    int rc;
 
     for(id = 0, d = def; d != NULL; id++, d = d->next) {
-        asprintf( &JDF_OBJECT_ONAME(d), "%s%s", prefix, d->name );
+        rc = asprintf( &JDF_OBJECT_ONAME(d), "%s%s", prefix, d->name );
+        assert( rc != -1 );
 
         exprname = (char*)malloc(strlen(JDF_OBJECT_ONAME(d)) + 16);
         string_arena_init(sa);
@@ -2435,8 +2437,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 f->parameters->name, f->parameters->name, f->parameters->name,
                 jdf_basename, f->fname, f->parameters->name);
     } else {
-        int last_dimension_is_a_range = 0;
-
         coutput("  dep = NULL;\n");
 
         nesting = 0;
@@ -2449,8 +2449,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
 
             if(dl->expr->op == JDF_RANGE) {
-                if( pl != NULL)
-                    last_dimension_is_a_range = 1;
                 coutput("%s  %s_start = %s;\n",
                         indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1));
                 coutput("%s  %s_end = %s;\n",
@@ -2461,8 +2459,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                         indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
                 nesting++;
             } else {
-                if( pl != NULL )
-                    last_dimension_is_a_range = 0;
                 coutput("%s  %s = %s;\n",
                         indent(nesting), dl->name, dump_expr((void**)dl->expr, &info1));
             }
@@ -2501,8 +2497,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
             string_arena_add_string(sa1, "->u.next[%s-%s_min]", dl->name, dl->name);
         }
-        if( last_dimension_is_a_range )
-            coutput("%s    break;\n", indent(nesting));
         coutput("%s  }\n", indent(nesting));
         nesting--;
 
@@ -2623,8 +2617,10 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
     char *prefix;
+    int rc;
 
-    asprintf( &JDF_OBJECT_ONAME(f), "%s_%s", jdf_basename, f->fname);
+    rc = asprintf( &JDF_OBJECT_ONAME(f), "%s_%s", jdf_basename, f->fname);
+    assert(rc != -1);
 
     sa = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -2882,10 +2878,12 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     jdf_dataflow_t *fl;
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
+    int rc;
 
     coutput("/** Predeclarations of the dague_function_t */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-        asprintf(&JDF_OBJECT_ONAME( f ), "%s_%s", jdf_basename, f->fname);
+        rc = asprintf(&JDF_OBJECT_ONAME( f ), "%s_%s", jdf_basename, f->fname);
+        assert(rc != -1);
         coutput("static const dague_function_t %s;\n", JDF_OBJECT_ONAME( f ));
         if( NULL != f->priority ) {
             coutput("static inline int priority_of_%s_as_expr_fct(const dague_handle_t *__dague_handle_parent, const assignment_t *assignments);\n",
@@ -2897,7 +2895,8 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     coutput("/** Predeclarations of the parameters */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
         for(fl = f->dataflow; fl != NULL; fl = fl->next) {
-            asprintf(&JDF_OBJECT_ONAME( fl ), "flow_of_%s_%s_for_%s", jdf_basename, f->fname, fl->varname);
+            rc = asprintf(&JDF_OBJECT_ONAME( fl ), "flow_of_%s_%s_for_%s", jdf_basename, f->fname, fl->varname);
+            assert(rc != -1);
             coutput("static const dague_flow_t %s;\n",
                     JDF_OBJECT_ONAME( fl ));
         }
@@ -3410,7 +3409,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                 "%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n",
                 spaces, call->func_or_mem, call->func_or_mem,
                 spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem);
-        coutput("%s  ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass, chunk);\n",
+        coutput("%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", tass, chunk);\n",
                 spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
     } else {
         coutput("%s    chunk = dague_data_get_copy(%s(%s), target_device);\n"
@@ -3455,12 +3454,8 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    dague_data_t* dl = dague_arena_get(%s, %d);\n"
-            "%s    assert(NULL != dl);\n"
-            "%s    chunk = dague_data_get_copy(dl, target_device);\n",
-            spaces, arena, count,
-            spaces,
-            spaces);
+    coutput("%s    chunk = dague_arena_get_copy(%s, %d, target_device);\n",
+            spaces, arena, count);
     return;
 }
 
@@ -4253,6 +4248,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     int i, nbopen;
     int nbparam_given, nbparam_required;
     char *p;
+    int rc;
 
     string_arena_init(sa_open);
 
@@ -4275,7 +4271,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     linfo.prefix = p;
     linfo.sa = sa1;
-    asprintf(&linfo.assignments, "%s.locals", var);
+    rc = asprintf(&linfo.assignments, "%s.locals", var);
+    assert(rc != -1);
 
     info.sa = sa2;
     info.prefix = "";
@@ -4757,10 +4754,12 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
     assignment_info_t ai;
+    int rc;
 
     assert(JDF_OP_IS_C_CODE(expr->op));
-    (void)asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
-                   jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
+    rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
+                  jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
+    assert(rc != -1);
     coutput("static inline int %s(const dague_handle_t *__dague_handle_parent, const assignment_t *assignments)\n"
             "{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (const __dague_%s_internal_handle_t*)__dague_handle_parent;\n"

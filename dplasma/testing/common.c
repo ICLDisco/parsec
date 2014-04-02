@@ -447,6 +447,12 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     /* Check the process grid */
     if(0 == iparam[IPARAM_P])
         iparam[IPARAM_P] = iparam[IPARAM_NNODES];
+    else if(iparam[IPARAM_P] > iparam[IPARAM_NNODES])
+    {
+        fprintf(stderr, "#XXXXX There are only %d nodes in the world, and you requested P=%d\n",
+                iparam[IPARAM_NNODES], iparam[IPARAM_P]);
+        exit(2);
+    }
     if(0 == iparam[IPARAM_Q])
         iparam[IPARAM_Q] = iparam[IPARAM_NNODES] / iparam[IPARAM_P];
     int pqnp = iparam[IPARAM_Q] * iparam[IPARAM_P];

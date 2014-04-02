@@ -204,7 +204,7 @@ ENDIF (_mach_ppc)
 # ppc;ppc64;i386;x86_64.
 # On Linux this is a little bit tricky. We have to check that the
 # compiler supports the -m32/-m64 flags as well as the linker.
-# Once this issue resolved the CMAKE_C_FLAGS and CMAKE_C_LDFLAGS
+# Once this issue is resolved the CMAKE_C_FLAGS and CMAKE_C_LDFLAGS
 # have to be updated accordingly.
 #
 # TODO: Same trick for the Fortran compiler...
@@ -234,7 +234,6 @@ if( C_M32or64 )
   set( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ARCH_BUILD}" )
   set( CMAKE_C_LDFLAGS "${CMAKE_C_LDFLAGS} ${ARCH_BUILD}" )
   set( LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} ${ARCH_BUILD}" )
-  set( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} ${ARCH_BUILD}" )
 endif( C_M32or64 )
 
 #
@@ -297,18 +296,22 @@ set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${C_WFLAGS}" )
 # remove asserts in release
 set( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 
-# Check if the linker has group. MacOS doesn't support it
-include(CheckCSourceRuns)
-CMAKE_PUSH_CHECK_STATE()
-set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wl,--start-group -Wl,--end-group")
-check_c_source_runs( "int main() { return 0; }" HAVE_LINKER_GROUP )
-CMAKE_POP_CHECK_STATE()
-
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+
+#
+# Remove all duplicated from the CFLAGS.
+#
+set(TMP_LIST ${CMAKE_C_FLAGS})
+separate_arguments(TMP_LIST)
+list(REMOVE_DUPLICATES TMP_LIST)
+set(CMAKE_C_FLAGS "")
+foreach( ITEM ${TMP_LIST})
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ITEM}")
+endforeach()
 
 mark_as_advanced(DAGUE_LIFO_USE_ATOMICS)
 if(NOT HAVE_COMPARE_AND_SWAP_128)
@@ -666,3 +669,9 @@ include (CPack)
 
 # build doxyegn documentation
 add_subdirectory(docs)
+
+MESSAGE("\n\nConfiguration flags:")
+MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
+MESSAGE("  CMAKE_C_LDFLAGS        = ${CMAKE_C_LDFLAGS}")
+MESSAGE("  CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}")
+MESSAGE("\n\n")

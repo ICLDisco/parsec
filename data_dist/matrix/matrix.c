@@ -74,10 +74,14 @@ dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
 
         for(i=0; i<matrix->nb_local_tiles; i++)
         {
-            dague_data_t      *data = matrix->data_map[i];
+            dague_data_t *data = matrix->data_map[i];
 
             if (data != NULL)
             {
+                /*
+                 * Need to call destruct before release due to circular
+                 * dependency between the dague_data_copy_t and the dague_data_t
+                 */
                 OBJ_DESTRUCT(data);
                 OBJ_RELEASE(data);
             }

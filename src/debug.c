@@ -31,13 +31,14 @@ void dague_debug_init(void)
 {
     dague_debug_file = stderr;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    int is_mpi_up;
+    int is_mpi_up, rc;
     MPI_Initialized(&is_mpi_up);
     if( 0 == is_mpi_up ) {
         return ;
     }
     MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
-    asprintf(&dague_debug_filename, "log.rank%02d", dague_debug_rank);
+    rc = asprintf(&dague_debug_filename, "log.rank%02d", dague_debug_rank);
+    assert(rc != -1);
 #endif
 #if 0  /* Set to 1 to log all output on your local directory */
     if( NULL != dague_debug_filename ) {

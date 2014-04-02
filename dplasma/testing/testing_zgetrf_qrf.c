@@ -239,7 +239,6 @@ int main(int argc, char ** argv)
     }
 
     dplasma_hqr_finalize( &qrtree );
-    cleanup_dague(dague, iparam);
 
     dague_data_free(ddescA.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescA);
@@ -250,6 +249,8 @@ int main(int argc, char ** argv)
     dague_data_free(ddescIPIV.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescIPIV);
     free(lu_tab);
+
+    cleanup_dague(dague, iparam);
     return ret;
 }
 

@@ -402,13 +402,12 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
 static inline dague_data_copy_t*
 remote_dep_copy_allocate(dague_dep_data_description_t* data)
 {
-    dague_data_t* da;
+    dague_data_copy_t* dc;
     if( NULL == data->arena ) {
         assert(0 == data->count);
         return NULL;
     }
-    da = dague_arena_get(data->arena, data->count);
-    dague_data_copy_t* dc = dague_data_get_copy(da, 0);
+    dc = dague_arena_get_copy(data->arena, data->count, 0);
     dc->coherency_state = DATA_COHERENCY_EXCLUSIVE;
     DEBUG3(("MPI:\tMalloc new remote tile %p size %" PRIu64 " count = %" PRIu64 " displ = %" PRIi64 "\n",
             dc, data->arena->elem_size, data->count, data->displ));
