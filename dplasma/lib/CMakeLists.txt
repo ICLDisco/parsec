@@ -50,7 +50,7 @@ set(JDF
   zpotrf_U_rec.jdf zpotrf_L_rec.jdf
   ztrtri_L.jdf ztrtri_U.jdf
   zlauum_L.jdf zlauum_U.jdf
-  zpotri_L.jdf zpotri_U.jdf
+  zpoinv_L.jdf zpoinv_U.jdf
   # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
