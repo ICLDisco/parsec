@@ -107,7 +107,7 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t*)&ddescT));
 
     if (iparam[IPARAM_SMALL_NB] == 0) {
-        iparam[IPARAM_SMALL_NB] = iparam[IPARAM_IB]; /* default small nb = ib */
+        iparam[IPARAM_SMALL_NB] = iparam[IPARAM_NB]; /* default small nb = nb */
     }
 
     {
@@ -117,9 +117,9 @@ int main(int argc, char ** argv)
              (myzgeqrf_handle->smallnb != iparam[IPARAM_NB]) )
         {
             myzgeqrf_handle->smallnb = (myzgeqrf_handle->smallnb / iparam[IPARAM_IB]) * iparam[IPARAM_IB];
-            myzgeqrf_handle->smallnb = dplasma_imin( myzgeqrf_handle->smallnb, iparam[IPARAM_NB] );
             fprintf(stderr, "Small nb should be a muliple of IB or equal to NB: set to min( (snb/IB)*IB, NB ) = %d\n", myzgeqrf_handle->smallnb);
         }
+        myzgeqrf_handle->smallnb = dplasma_imin( myzgeqrf_handle->smallnb, iparam[IPARAM_NB] );
     }
 
     /* lets rock! */

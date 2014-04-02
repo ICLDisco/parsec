@@ -98,6 +98,7 @@ void print_usage(void)
             " -T --NB           : columns in a tile  (default: autotuned)\n"
             " -s --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -S --SNB          : columns of tiles in a supertile (default: 1)\n"
+            " -z --smallnb      : Small NB used for recursive algorithms (default: NB)\n"
             " -x --check        : verify the results\n"
             " -X --check_inv    : verify the results against the inverse\n"
             "\n"
@@ -167,7 +168,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:z:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -234,7 +235,8 @@ static struct option long_options[] =
     {"mtx",         required_argument,  0, 'b'},
 
     /* Recursive options */
-    {"smallnb",      required_argument,  0, 'z'},
+    {"z",           required_argument,  0, 'z'},
+    {"smallnb",     required_argument,  0, 'z'},
 
     /* HERBT options */
     {"butlvl",      required_argument,  0, 'y'},
@@ -557,7 +559,7 @@ static void print_arguments(int* iparam)
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
             fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
         if(iparam[IPARAM_SMALL_NB] != 1)
-            fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
+            fprintf(stderr, "#+++++ smallMB x smallNB    : %d x %d\n", iparam[IPARAM_SMALL_NB], iparam[IPARAM_SMALL_NB]);
     }
 }
 
