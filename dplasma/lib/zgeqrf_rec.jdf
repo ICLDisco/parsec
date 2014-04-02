@@ -20,7 +20,6 @@ extern "C" %{
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
 #include "dplasma/cores/cuda_ztsmqr.h"
-extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 
 #define RECURSIVE_GEQRT
