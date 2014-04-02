@@ -2437,8 +2437,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 f->parameters->name, f->parameters->name, f->parameters->name,
                 jdf_basename, f->fname, f->parameters->name);
     } else {
-        int last_dimension_is_a_range = 0;
-
         coutput("  dep = NULL;\n");
 
         nesting = 0;
@@ -2451,8 +2449,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
 
             if(dl->expr->op == JDF_RANGE) {
-                if( pl != NULL)
-                    last_dimension_is_a_range = 1;
                 coutput("%s  %s_start = %s;\n",
                         indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1));
                 coutput("%s  %s_end = %s;\n",
@@ -2463,8 +2459,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                         indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
                 nesting++;
             } else {
-                if( pl != NULL )
-                    last_dimension_is_a_range = 0;
                 coutput("%s  %s = %s;\n",
                         indent(nesting), dl->name, dump_expr((void**)dl->expr, &info1));
             }
@@ -2503,8 +2497,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
             string_arena_add_string(sa1, "->u.next[%s-%s_min]", dl->name, dl->name);
         }
-        if( last_dimension_is_a_range )
-            coutput("%s    break;\n", indent(nesting));
         coutput("%s  }\n", indent(nesting));
         nesting--;
 
@@ -3462,12 +3454,8 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    dague_data_t* dl = dague_arena_get(%s, %d);\n"
-            "%s    assert(NULL != dl);\n"
-            "%s    chunk = dague_data_get_copy(dl, target_device);\n",
-            spaces, arena, count,
-            spaces,
-            spaces);
+    coutput("%s    chunk = dague_arena_get_copy(%s, %d, target_device);\n",
+            spaces, arena, count);
     return;
 }
 

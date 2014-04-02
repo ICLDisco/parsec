@@ -60,11 +60,10 @@ freelist_pop_or_create( dague_lifo_t *list, size_t size, dague_data_allocate_t a
     return item;
 }
 
-dague_data_t*
-dague_arena_get(dague_arena_t* arena, size_t count)
+dague_data_copy_t *dague_arena_get_copy(dague_arena_t *arena, size_t count, int device)
 {
-    dague_arena_chunk_t* chunk;
-    dague_data_t* data;
+    dague_arena_chunk_t *chunk;
+    dague_data_t *data;
     dague_data_copy_t *copy;
     size_t size;
 
@@ -93,12 +92,18 @@ dague_arena_get(dague_arena_t* arena, size_t count)
     assert(0 == (((ptrdiff_t)chunk->data) % arena->alignment));
     assert((arena->elem_size + (ptrdiff_t)chunk->data)  <= (size + (ptrdiff_t)chunk));
 
-    copy = dague_data_copy_new( data, 0 );
+    copy = dague_data_copy_new( data, device );
     copy->flags |= DAGUE_DATA_FLAG_ARENA;
     copy->device_private = chunk->data;
     copy->arena_chunk = chunk;
 
-    return data;
+    /* This data is going to be released once all copies are released
+     * It does not exist without at least a copy, and we don't give the
+     * pointer to the user, so we must remove our retain from it
+     */
+    OBJ_RELEASE(data);
+
+    return copy;
 }
 
 void dague_arena_release(dague_data_copy_t* copy)

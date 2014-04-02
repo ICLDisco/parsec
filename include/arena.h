@@ -66,7 +66,7 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              int32_t max_released);
 void dague_arena_destruct(dague_arena_t* arena);
 
-dague_data_t* dague_arena_get(dague_arena_t* arena, size_t count);
+dague_data_copy_t *dague_arena_get_copy(dague_arena_t *arena, size_t count, int device);
 void dague_arena_release(dague_data_copy_t* ptr);
 
 END_C_DECLS
