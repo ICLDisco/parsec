@@ -161,6 +161,13 @@ if(PLASMA_FOUND)
   # so we have to add it by hand.
   # Those parameters are also removed by pkg-config if they are present around mkl libs
   #
+  # Check if the linker has group. MacOS doesn't support it
+  include(CheckCSourceRuns)
+  CMAKE_PUSH_CHECK_STATE()
+  set(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Wl,--start-group -Wl,--end-group")
+  check_c_source_runs( "int main() { return 0; }" HAVE_LINKER_GROUP )
+  CMAKE_POP_CHECK_STATE()
+
   if(HAVE_LINKER_GROUP)
     list(INSERT PLASMA_LIBRARIES 0 -Wl,--start-group)
     list(APPEND PLASMA_LIBRARIES -Wl,--end-group)
