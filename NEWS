@@ -25,7 +25,7 @@ v 1.2.0
  - Allocate the list items from the corresponding list using the requested
    gap.
  - Add support for older lex (without support for ?i).
- - DPLASMA: Support for TRTRI, zlauum, potri, and corresponding testings.
+ - DPLASMA: Support for potri functions (trtri+lauum), and corresponding testings.
  - Add support for 128 bits atomics and resolve the lingering ABA issue.
    When 128 bits atomics are not available fall back to an atomic lock
    implementation of the most basic data structures.
