@@ -140,6 +140,7 @@ set(SOURCES
   ztrtri_wrapper.c
   zlauum_wrapper.c
   zpotri_wrapper.c
+  zpoinv_wrapper.c
   #
   zgelqf_wrapper.c
   zgelqs_wrapper.c
