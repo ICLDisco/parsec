@@ -57,6 +57,7 @@ dplasma/cores/dplasma_[sdc]cores\.h$
 dplasma/cores/sgemm-sm.*\.cubin$
 
 dplasma/include/dplasma_[sdc]\.h$
+dplasma/lib/dplasma_[sdc]check\.c$
 
 dplasma/lib/[sdc]lange_frb_cyclic.jdf$
 dplasma/lib/[sdc]lange_one_cyclic.jdf$
