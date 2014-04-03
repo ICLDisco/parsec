@@ -15,11 +15,6 @@
 #include "dplasma/cores/cuda_zgemm.h"
 #endif
 
-static int check_inverse( dague_context_t *dague, int loud,
-                          PLASMA_enum uplo, int N,
-                          tiled_matrix_desc_t *A,
-                          tiled_matrix_desc_t *Ainv );
-
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
@@ -256,9 +251,9 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-            info_solve = check_inverse( dague, (rank == 0) ? loud : 0, uplo[u], N,
-                                        (tiled_matrix_desc_t *)&ddescA0,
-                                        (tiled_matrix_desc_t *)&ddescA);
+            info_solve = check_zpoinv( dague, (rank == 0) ? loud : 0, uplo[u],
+                                       (tiled_matrix_desc_t *)&ddescA0,
+                                       (tiled_matrix_desc_t *)&ddescA);
         }
 
         if ( rank == 0 ) {
@@ -292,55 +287,4 @@ int main(int argc, char ** argv)
     cleanup_dague(dague, iparam);
 
     return ret;
-}
-
-/*------------------------------------------------------------------------
- *  Check the accuracy of the solution
- */
-static int check_inverse( dague_context_t *dague, int loud,
-                          PLASMA_enum uplo, int N,
-                          tiled_matrix_desc_t *A,
-                          tiled_matrix_desc_t *Ainv )
-{
-    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
-    int info_solution;
-    double Anorm, Ainvnorm, Rnorm;
-    double eps, result;
-
-    eps = LAPACKE_dlamch_work('e');
-
-    PASTE_CODE_ALLOCATE_MATRIX(Id, 1,
-        two_dim_block_cyclic, (&Id, matrix_ComplexDouble, matrix_Tile,
-                               A->super.nodes, twodA->grid.rank,
-                               A->mb, A->nb, N, N, 0, 0,
-                               N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
-
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
-
-    /* Id - A^-1 * A */
-    dplasma_zhemm(dague, PlasmaLeft, uplo,
-                  -1., Ainv, A,
-                  1., (tiled_matrix_desc_t *)&Id );
-
-    Anorm    = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, A );
-    Ainvnorm = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, Ainv );
-    Rnorm    = dplasma_zlange( dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&Id );
-
-    result = Rnorm / ( (Anorm*Ainvnorm)*N*eps );
-    if ( loud > 2 ) {
-        printf("  ||A||_one = %e, ||A^(-1)||_one = %e, ||I - A * A^(-1)||_one = %e, result = %e\n",
-               Anorm, Ainvnorm, Rnorm, result);
-    }
-
-    if ( isinf(Ainvnorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
-        info_solution = 1;
-    }
-    else {
-        info_solution = 0;
-    }
-
-    dague_data_free(Id.mat);
-    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&Id);
-
-    return info_solution;
 }

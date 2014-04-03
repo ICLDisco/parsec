@@ -222,3 +222,93 @@ int check_zaxmb( dague_context_t *dague, int loud,
 
     return info_solution;
 }
+
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_check
+ *
+ * check_zpoinv - Returns the result of the following test
+ *
+ *    \f[ (|| I - A * A^(-1) ||_one / (||A||_one * ||A^(-1)||_one * N * eps) ) < 10. \f]
+ *
+ *  where A is the original matrix, and Ainv the result of a cholesky inversion.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] loud
+ *          The level of verbosity required.
+ *
+ * @param[in] uplo
+ *          = PlasmaUpper: Upper triangle of A is referenced;
+ *          = PlasmaLower: Lower triangle of A is referenced.
+ *
+ * @param[in] A
+ *          Descriptor of the distributed original matrix A.
+ *          A must be two_dim_block_cyclic and fully generated.
+ *
+ * @param[in] Ainv
+ *          Descriptor of the computed distributed A inverse.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval 1, if the result is incorrect
+ *          \retval 0, if the result is correct
+ *
+ ******************************************************************************/
+int check_zpoinv( dague_context_t *dague, int loud,
+                  PLASMA_enum uplo,
+                  tiled_matrix_desc_t *A,
+                  tiled_matrix_desc_t *Ainv )
+{
+    two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
+    two_dim_block_cyclic_t Id;
+    int info_solution;
+    double Anorm, Ainvnorm, Rnorm;
+    double eps, result;
+
+    eps = LAPACKE_dlamch_work('e');
+
+    two_dim_block_cyclic_init(&Id, matrix_ComplexDouble, matrix_Tile,
+                               A->super.nodes, twodA->grid.rank,
+                               A->mb, A->nb, A->n, A->n, 0, 0,
+                               A->n, A->n, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows);
+
+    Id.mat = dague_data_allocate((size_t)Id.super.nb_local_tiles *
+                                  (size_t)Id.super.bsiz *
+                                  (size_t)dague_datadist_getsizeoftype(Id.super.mtype));
+
+    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
+
+    /* Id - A^-1 * A */
+    dplasma_zhemm(dague, PlasmaLeft, uplo,
+                  -1., Ainv, A,
+                  1., (tiled_matrix_desc_t *)&Id );
+
+    Anorm    = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, A );
+    Ainvnorm = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, Ainv );
+    Rnorm    = dplasma_zlange( dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&Id );
+
+    result = Rnorm / ( (Anorm*Ainvnorm)*A->n*eps );
+    if ( loud > 2 ) {
+        printf("  ||A||_one = %e, ||A^(-1)||_one = %e, ||I - A * A^(-1)||_one = %e, result = %e\n",
+               Anorm, Ainvnorm, Rnorm, result);
+    }
+
+    if ( isinf(Ainvnorm) || isnan(result) || isinf(result) || (result > 10.0) ) {
+        info_solution = 1;
+    }
+    else {
+        info_solution = 0;
+    }
+
+    dague_data_free(Id.mat);
+    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&Id);
+
+    return info_solution;
+}
