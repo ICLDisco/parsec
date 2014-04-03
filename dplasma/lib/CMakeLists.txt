@@ -51,6 +51,7 @@ set(JDF
   ztrtri_L.jdf ztrtri_U.jdf
   zlauum_L.jdf zlauum_U.jdf
   zpoinv_L.jdf zpoinv_U.jdf
+  zpoinv2_U.jdf
   # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
