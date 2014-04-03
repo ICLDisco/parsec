@@ -261,7 +261,7 @@ dplasma_zpoinv_sync( dague_context_t *dague,
         return -1;
     }
 
-    info = dplasma_zpotri( dague, uplo, A );
+    info = dplasma_zpotrf( dague, uplo, A );
     info = dplasma_ztrtri( dague, uplo, PlasmaNonUnit, A );
     dplasma_zlauum( dague, uplo, A );
 
