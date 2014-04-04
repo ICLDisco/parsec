@@ -31,7 +31,6 @@ int main(int argc, char ** argv)
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
-    check = 1;
     An = dplasma_imax(M, N);
     LDA = max( LDA, M );
 

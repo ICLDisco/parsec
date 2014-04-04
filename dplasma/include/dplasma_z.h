@@ -234,6 +234,13 @@ void dplasma_zplgsy_Destruct( dague_handle_t *o );
 void dplasma_zplrnt_Destruct( dague_handle_t *o );
 
 /**********************************************************
+ * Check routines
+ */
+int check_zaxmb(  dague_context_t *dague, int loud, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *b, tiled_matrix_desc_t *x );
+int check_zpotrf( dague_context_t *dague, int loud, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *A0 );
+int check_zpoinv( dague_context_t *dague, int loud, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Ainv );
+
+/**********************************************************
  * Work in progress
  */
 

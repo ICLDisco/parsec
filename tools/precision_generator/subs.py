@@ -251,6 +251,7 @@ subs = {
     ('cblas_is',    'cblas_id',    'cblas_ic',    'cblas_iz'   ),
     ('cblas_s',     'cblas_d',     'cblas_c',     'cblas_z'    ),
     ('cblas_s',     'cblas_d',     'cblas_s',     'cblas_d'    ),
+    ('check_s',     'check_d',     'check_c',     'check_z'    ),
     ('control_s',   'control_d',   'control_c',   'control_z'  ),
     ('compute_s',   'compute_d',   'compute_c',   'compute_z'  ),
     ('CORE_S',      'CORE_D',      'CORE_C',      'CORE_Z'     ),

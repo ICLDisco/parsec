@@ -31,7 +31,7 @@ void dague_debug_init(void)
 {
     dague_debug_file = stderr;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    int is_mpi_up, rc;
+    int is_mpi_up, rc; (void)rc;
     MPI_Initialized(&is_mpi_up);
     if( 0 == is_mpi_up ) {
         return ;
