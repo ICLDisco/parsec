@@ -918,7 +918,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
      * Parse all the input and output flows of data and ensure all have
      * corresponding data on the GPU available.
      */
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
 
         temp_loc[i] = NULL;
@@ -942,7 +942,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* Make sure all remaining temporary locations are set to NULL */
-                for( ;  i < this_task->function->nb_parameters; temp_loc[i++] = NULL );
+                for( ;  i < this_task->function->nb_flows; temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
             }
             DAGUE_LIST_ITEM_SINGLETON(lru_gpu_elem);
@@ -963,7 +963,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                 if( NULL != lru_gpu_elem->original ) {
                     dague_data_t* oldmaster = lru_gpu_elem->original;
                     /* Let's check we're not trying to steal one of our own data */
-                    for( j = 0; j < this_task->function->nb_parameters; j++ ) {
+                    for( j = 0; j < this_task->function->nb_flows; j++ ) {
                         if( NULL == this_task->data[j].data_in ) continue;
                         if( this_task->data[j].data_in->original == oldmaster ) {
                             temp_loc[j] = lru_gpu_elem; // TODO: potential leak here? 
@@ -999,7 +999,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     }
     if( 0 != move_data_count ) {
         WARNING(("GPU:\tRequest space on GPU failed for %d out of %d data\n",
-                 move_data_count, this_task->function->nb_parameters));
+                 move_data_count, this_task->function->nb_flows));
         /* We can't find enough room on the GPU. Insert the tiles in the begining of
          * the LRU (in order to be reused asap) and return without scheduling the task.
          */
@@ -1225,7 +1225,7 @@ int progress_stream( gpu_device_t* gpu_device,
                done  by another task, so we need to check if the data is actually ready to use */
             if (exec_stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
                             this_task = exec_stream->tasks[exec_stream->end]->ec;
-                for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+                for( i = 0; i < this_task->function->nb_flows; i++ ) {
                     if(NULL == this_task->function->in[i]) continue;
                     if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
                         this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
