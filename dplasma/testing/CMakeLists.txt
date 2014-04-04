@@ -32,32 +32,32 @@ set(TESTS
   testing_ztrtri.c
   testing_zpoinv.c
   # QR/LQ
-  testing_zgelqf.c
-  testing_zgeqrf.c
-  testing_zgeqrf_rec.c
-  testing_zunmqr.c
-  testing_zunmlq.c
-  testing_zgeqrf_hqr.c
-  testing_zgelqf_hqr.c
-  testing_zunmqr_hqr.c
-  testing_zunmlq_hqr.c
-  testing_zgeqrf_systolic.c
-  testing_zgelqf_systolic.c
-  testing_zunmqr_systolic.c
-  testing_zunmlq_systolic.c
-  # LU
-  testing_zgetrf.c
-  testing_zgetrf_incpiv.c
-  testing_zgetrf_nopiv.c
-  testing_zgetrf_qrf.c
-  #testing_zgesv.c
-  testing_zgesv_incpiv.c
-  # Extra testings
-  testing_zgeqrf_rd.c
-  testing_zhebut.c
-  testing_zhbrdt.c
-  testing_zheev.c
-  #testing_zherbt.c
+  # testing_zgelqf.c
+  # testing_zgeqrf.c
+  # testing_zgeqrf_rec.c
+  # testing_zunmqr.c
+  # testing_zunmlq.c
+  # testing_zgeqrf_hqr.c
+  # testing_zgelqf_hqr.c
+  # testing_zunmqr_hqr.c
+  # testing_zunmlq_hqr.c
+  # testing_zgeqrf_systolic.c
+  # testing_zgelqf_systolic.c
+  # testing_zunmqr_systolic.c
+  # testing_zunmlq_systolic.c
+  # # LU
+  # testing_zgetrf.c
+  # testing_zgetrf_incpiv.c
+  # testing_zgetrf_nopiv.c
+  # testing_zgetrf_qrf.c
+  # #testing_zgesv.c
+  # testing_zgesv_incpiv.c
+  # # Extra testings
+  # testing_zgeqrf_rd.c
+  # testing_zhebut.c
+  # testing_zhbrdt.c
+  # testing_zheev.c
+  # #testing_zherbt.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)

@@ -53,34 +53,34 @@ set(JDF
   zpoinv_L.jdf zpoinv_U.jdf
   zpoinv2_U.jdf
   # LQ/QR
-  zgelqf.jdf
-  zgeqrf.jdf
-  zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
-  zunmlq_LC.jdf zunmlq_LN.jdf zunmlq_RN.jdf zunmlq_RC.jdf
-  zgeqrf_param.jdf
-  zgelqf_param.jdf
-  zunmqr_param_LC.jdf zunmqr_param_LN.jdf zunmqr_param_RN.jdf zunmqr_param_RC.jdf
-  zunmlq_param_LC.jdf zunmlq_param_LN.jdf zunmlq_param_RN.jdf zunmlq_param_RC.jdf
-  # LU
-  zgetrf.jdf
-  zgetrf_incpiv.jdf
-  zgetrf_incpiv_sd.jdf
-  zgetrf_nopiv.jdf
-  zgetrf_qrf.jdf
-  ztrsmpl.jdf
-  ztrsmpl_sd.jdf
-  ztrsmpl_qrf.jdf
+  # zgelqf.jdf
+  # zgeqrf.jdf
+  # zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
+  # zunmlq_LC.jdf zunmlq_LN.jdf zunmlq_RN.jdf zunmlq_RC.jdf
+  # zgeqrf_param.jdf
+  # zgelqf_param.jdf
+  # zunmqr_param_LC.jdf zunmqr_param_LN.jdf zunmqr_param_RN.jdf zunmqr_param_RC.jdf
+  # zunmlq_param_LC.jdf zunmlq_param_LN.jdf zunmlq_param_RN.jdf zunmlq_param_RC.jdf
+  # # LU
+  # zgetrf.jdf
+  # zgetrf_incpiv.jdf
+  # zgetrf_incpiv_sd.jdf
+  # zgetrf_nopiv.jdf
+  # zgetrf_qrf.jdf
+  # ztrsmpl.jdf
+  # ztrsmpl_sd.jdf
+  # ztrsmpl_qrf.jdf
   # Other
-  zgebmm.jdf
-  zgebut.jdf
-  zhetrf.jdf
-  zhbrdt.jdf
-  zhebut.jdf
-  zherbt_L.jdf
-  ztrdsm.jdf
-  ztrmdm.jdf
-  zgeqrt.jdf
-  zgeqrf_rec.jdf
+  # zgebmm.jdf
+  # zgebut.jdf
+  # zhetrf.jdf
+  # zhbrdt.jdf
+  # zhebut.jdf
+  # zherbt_L.jdf
+  # ztrdsm.jdf
+  # ztrmdm.jdf
+  # zgeqrt.jdf
+  # zgeqrf_rec.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -143,46 +143,46 @@ set(SOURCES
   zpotri_wrapper.c
   zpoinv_wrapper.c
   #
-  zgelqf_wrapper.c
-  zgelqs_wrapper.c
-  zgels_wrapper.c
-  zgeqrf_wrapper.c
-  zgeqrs_wrapper.c
-  zunglq_wrapper.c
-  zungqr_wrapper.c
-  zunmlq_wrapper.c
-  zunmqr_wrapper.c
-  zgeqrf_param_wrapper.c
-  zgeqrs_param_wrapper.c
-  zungqr_param_wrapper.c
-  zunmqr_param_wrapper.c
-  zgelqf_param_wrapper.c
-  zgelqs_param_wrapper.c
-  zunglq_param_wrapper.c
-  zunmlq_param_wrapper.c
-  #
-  zgesv_incpiv_wrapper.c
-  zgesv_wrapper.c
-  zgetrf_incpiv_wrapper.c
-  zgetrf_nopiv_wrapper.c
-  zgetrf_qrf_wrapper.c
-  zgetrf_wrapper.c
-  zgetrs_wrapper.c
-  zgetrs_incpiv_wrapper.c
-  ztrsmpl_wrapper.c
-  ztrsmpl_qrf_wrapper.c
+  # zgelqf_wrapper.c
+  # zgelqs_wrapper.c
+  # zgels_wrapper.c
+  # zgeqrf_wrapper.c
+  # zgeqrs_wrapper.c
+  # zunglq_wrapper.c
+  # zungqr_wrapper.c
+  # zunmlq_wrapper.c
+  # zunmqr_wrapper.c
+  # zgeqrf_param_wrapper.c
+  # zgeqrs_param_wrapper.c
+  # zungqr_param_wrapper.c
+  # zunmqr_param_wrapper.c
+  # zgelqf_param_wrapper.c
+  # zgelqs_param_wrapper.c
+  # zunglq_param_wrapper.c
+  # zunmlq_param_wrapper.c
+  # #
+  # zgesv_incpiv_wrapper.c
+  # zgesv_wrapper.c
+  # zgetrf_incpiv_wrapper.c
+  # zgetrf_nopiv_wrapper.c
+  # zgetrf_qrf_wrapper.c
+  # zgetrf_wrapper.c
+  # zgetrs_wrapper.c
+  # zgetrs_incpiv_wrapper.c
+  # ztrsmpl_wrapper.c
+  # ztrsmpl_qrf_wrapper.c
   #
   dplasma_zcheck.c
   #
-  zhbrdt_wrapper.c
-  zhebut_wrapper.c
-  zherbt_wrapper.c
-  zhetrf_wrapper.c
-  zhetrs_wrapper.c
-  ztrdsm_wrapper.c
-  zheev_wrapper.c
-  zgeqrt_wrapper.c
-  zgeqrf_rec_wrapper.c
+  # zhbrdt_wrapper.c
+  # zhebut_wrapper.c
+  # zherbt_wrapper.c
+  # zhetrf_wrapper.c
+  # zhetrs_wrapper.c
+  # ztrdsm_wrapper.c
+  # zheev_wrapper.c
+  # zgeqrt_wrapper.c
+  # zgeqrf_rec_wrapper.c
 )
 precisions_rules_py(generated_wrappers
                  "${SOURCES}"
