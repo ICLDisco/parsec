@@ -10,26 +10,26 @@ include(RulesTestings.cmake)
 
 set(TESTS
   # Lapack Auxiliary
-  testing_zprint.c
-  testing_zlange.c
-  # Level 3 Blas
-  testing_zgemm.c
-  testing_zhemm.c
-  testing_zsymm.c
-  testing_zherk.c
-  testing_zsyrk.c
-  testing_zher2k.c
-  testing_zsyr2k.c
-  testing_ztrmm.c
-  testing_ztrsm.c
+  # testing_zprint.c
+  # testing_zlange.c
+  # # Level 3 Blas
+  # testing_zgemm.c
+  # testing_zhemm.c
+  # testing_zsymm.c
+  # testing_zherk.c
+  # testing_zsyrk.c
+  # testing_zher2k.c
+  # testing_zsyr2k.c
+  # testing_ztrmm.c
+  # testing_ztrsm.c
   #
   # Lapack
   #
   # Cholesky
-  testing_zpotrf.c
-  testing_zpotrf_rec.c
-  testing_zposv.c
-  testing_ztrtri.c
+  # testing_zpotrf.c
+  # testing_zpotrf_rec.c
+  # testing_zposv.c
+  # testing_ztrtri.c
   testing_zpoinv.c
   # QR/LQ
   # testing_zgelqf.c
