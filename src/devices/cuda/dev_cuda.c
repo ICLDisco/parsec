@@ -333,7 +333,7 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
             if( chores[j].type == device->type ) {
                 void* devf = cuda_solve_handle_dependencies(gpu_device, NULL==chores[j].dyld?function->name:chores[j].dyld);
                 if( NULL != devf ) {
-                    chores[j].dyld_fn = devf;
+                    chores[gpu_device->cuda_index].dyld_fn = devf;
                     rc = DAGUE_SUCCESS;
                     dev_mask |= (1 << chores[j].type);
                 }
@@ -1106,9 +1106,9 @@ void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t*
         gpu_stream->workspace->stack_head = DAGUE_GPU_MAX_WORKSPACE - 1;
         
         int i, nb_unit;
-        nb_unit = (size + GPU_MALLOC_UNIT_SIZE - 1) / GPU_MALLOC_UNIT_SIZE;
+        nb_unit = (size + ZONE_MALLOC_UNIT_SIZE - 1) / ZONE_MALLOC_UNIT_SIZE;
         for (i = 0; i < DAGUE_GPU_MAX_WORKSPACE; i++) {
-            gpu_stream->workspace->workspace[i] = gpu_malloc( gpu_device->memory, nb_unit);
+            gpu_stream->workspace->workspace[i] = zone_malloc( gpu_device->memory, nb_unit);
         }
     }
     assert (gpu_stream->workspace->stack_head >= 0);
@@ -1135,7 +1135,7 @@ int dague_gpu_free_workspace(gpu_device_t * gpu_device)
         dague_gpu_exec_stream_t *gpu_stream = &(gpu_device->exec_stream[i]);
         if (gpu_stream->workspace != NULL) {
             for (j = 0; j < gpu_stream->workspace->total_workspace; j++) {
-                gpu_free( gpu_device->memory, gpu_stream->workspace->workspace[j] );
+                zone_free( gpu_device->memory, gpu_stream->workspace->workspace[j] );
             }
             free(gpu_stream->workspace);
             gpu_stream->workspace = NULL;
