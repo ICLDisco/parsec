@@ -1553,7 +1553,7 @@ static void jdf_generate_symbols( const jdf_t *jdf, jdf_def_list_t *def, const c
     char *exprname;
     int id;
     string_arena_t *sa = string_arena_new(64);
-    int rc;
+    int rc; (void)rc;
 
     for(id = 0, d = def; d != NULL; id++, d = d->next) {
         rc = asprintf( &JDF_OBJECT_ONAME(d), "%s%s", prefix, d->name );
@@ -2617,7 +2617,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
     char *prefix;
-    int rc;
+    int rc; (void)rc;
 
     rc = asprintf( &JDF_OBJECT_ONAME(f), "%s_%s", jdf_basename, f->fname);
     assert(rc != -1);
@@ -2878,7 +2878,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     jdf_dataflow_t *fl;
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
-    int rc;
+    int rc; (void)rc;
 
     coutput("/** Predeclarations of the dague_function_t */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
@@ -4248,7 +4248,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     int i, nbopen;
     int nbparam_given, nbparam_required;
     char *p;
-    int rc;
+    int rc; (void)rc;
 
     string_arena_init(sa_open);
 
@@ -4754,7 +4754,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
     assignment_info_t ai;
-    int rc;
+    int rc; (void)rc;
 
     assert(JDF_OP_IS_C_CODE(expr->op));
     rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
