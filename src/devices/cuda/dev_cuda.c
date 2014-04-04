@@ -789,7 +789,8 @@ int dague_gpu_data_register( dague_context_t *dague_context,
              * We allocate all the memory on the GPU and we use our memory management
              */
             mem_elem_per_gpu = (how_much_we_allocate + ZONE_MALLOC_UNIT_SIZE - 1 ) / ZONE_MALLOC_UNIT_SIZE ;
-            cuda_status = (cudaError_t)cudaMalloc(&base_ptr, (mem_elem_per_gpu * ZONE_MALLOC_UNIT_SIZE));
+            size_t total_size = (size_t)mem_elem_per_gpu * ZONE_MALLOC_UNIT_SIZE;
+            cuda_status = (cudaError_t)cudaMalloc(&base_ptr, total_size);
             DAGUE_CUDA_CHECK_ERROR( "cudaMalloc ", cuda_status,
                                     ({ WARNING(("Allocating memory on the GPU device failed\n")); }) );
 
