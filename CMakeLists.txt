@@ -97,7 +97,7 @@ option(DAGUE_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
 option(DAGUE_GPU_CUDA_ALLOC_PER_TILE
   "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" ON)
+  of a complete allocation)" OFF)
 mark_as_advanced(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
 option(DAGUE_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
