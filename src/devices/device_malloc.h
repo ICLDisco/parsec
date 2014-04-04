@@ -1,19 +1,18 @@
 /*
- * Copyright (c) 2012      The University of Tennessee and The University
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef _GPU_MALLOC_H_
-#define _GPU_MALLOC_H_
+#ifndef _ZONE_MALLOC_H_
+#define _ZONE_MALLOC_H_
 
 #include "dague_config.h"
 
 #include <stdlib.h>
 #include <assert.h>
-#include <cuda.h>
 
-#define GPU_MALLOC_UNIT_SIZE (1024*1024)
+#define ZONE_MALLOC_UNIT_SIZE (1024*1024)
 
 #define SEGMENT_EMPTY      1
 #define SEGMENT_FULL       2
@@ -21,32 +20,51 @@
 
 typedef struct segment {
     int status;     /* True if this segment is full, false if it is free */
-    int nb_units;   /* Number of units on this segment */
-    int nb_prev;    /* Number of units on the segment before */
+    int32_t nb_units;   /* Number of units on this segment */
+    int32_t nb_prev;    /* Number of units on the segment before */
 } segment_t;
 
-typedef struct gpu_malloc_s {
+typedef struct zone_malloc_s {
     char      *base;                 /* Base pointer              */
     segment_t *segments;             /* Array of available segments */
     size_t     unit_size;            /* Basic Unit                */
     int        max_segment;          /* Maximum number of segment */
     int        next_tid;             /* Next TID to look at for a malloc */
-} gpu_malloc_t;
+} zone_malloc_t;
 
 
-static inline gpu_malloc_t *gpu_malloc_init(int max_segment, size_t unit_size);
-static inline void  gpu_malloc_fini(gpu_malloc_t *gdata);
-static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units);
-static inline void  gpu_free(  gpu_malloc_t *gdata, void *ptr);
+/**
+ * Define a memory allocator starting from base_ptr, with a length of
+ * _max_segment * _unit_size bytes. The base_ptr can be any type of
+ * memory, it is not directly used by the allocator.
+ */
+static inline zone_malloc_t*
+zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_size);
 
-static inline void gpu_malloc_error(const char *msg)
+/**
+ * Release all resources related to the memory zone, including the zone itself.
+ */
+static inline void*
+zone_malloc_fini(zone_malloc_t** gdata);
+
+/**
+ * Allocate a memory area of length nb_units. In worst case the search is linear
+ * with the number of existing allocations.
+ */
+static inline void *zone_malloc(zone_malloc_t *gdata, int nb_units);
+
+/**
+ * Release a specific memory zone. When possible this memory zone is
+ * merged with similar memory zones surrounding its position.
+ */
+static inline void zone_free(zone_malloc_t *gdata, void *add);
+
+static inline void zone_malloc_error(const char *msg)
 {
-    /* if( gpu_malloc_cback != NULL ) */
-    /*     gpu_malloc_cback(msg);*/
     fprintf(stderr, "%s", msg);
 }
 
-static inline segment_t *SEGMENT_AT_TID(gpu_malloc_t *gdata, int tid)
+static inline segment_t *SEGMENT_AT_TID(zone_malloc_t *gdata, int tid)
 {
     if( tid < 0 )
         return NULL;
@@ -55,33 +73,29 @@ static inline segment_t *SEGMENT_AT_TID(gpu_malloc_t *gdata, int tid)
     return &gdata->segments[tid];
 }
 
-static inline int TID_OF_SEGMENT(gpu_malloc_t *gdata, segment_t *seg)
+static inline int TID_OF_SEGMENT(zone_malloc_t *gdata, segment_t *seg)
 {
     off_t diff = ((char*)seg) - ((char*)gdata->segments);
     assert( (diff % sizeof(segment_t)) == 0 );
     return diff / sizeof(segment_t);
 }
 
-static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
+static inline zone_malloc_t*
+zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_size)
 {
-    gpu_malloc_t *gdata = (gpu_malloc_t*)malloc( sizeof(gpu_malloc_t) );
-    void *ptr = NULL;
+    zone_malloc_t *gdata;
     segment_t *head;
-    cudaError_t rc;
     int i;
 
-    gdata->base               = NULL;
-    gdata->unit_size          = _unit_size;
-    gdata->max_segment        = _max_segment;
-
-    rc = (cudaError_t)cudaMalloc( &ptr,
-                                  (_max_segment * gdata->unit_size) );
-    gdata->base = ptr;
-    if( (cudaSuccess != rc) || (NULL == gdata->base) ) {
-        gpu_malloc_error("unable to allocate backend memory\n");
-        free(gdata);
+    if( NULL == base_ptr ) {
+        zone_malloc_error("Cannot manage an empty memory region\n");
         return NULL;
     }
+
+    gdata = (zone_malloc_t*)malloc( sizeof(zone_malloc_t) );
+    gdata->base               = base_ptr;
+    gdata->unit_size          = _unit_size;
+    gdata->max_segment        = _max_segment;
 
     gdata->next_tid = 0;
     gdata->segments = (segment_t *)malloc(sizeof(segment_t) * _max_segment);
@@ -98,22 +112,22 @@ static inline gpu_malloc_t *gpu_malloc_init(int _max_segment, size_t _unit_size)
     return gdata;
 }
 
-static inline void gpu_malloc_fini(gpu_malloc_t *gdata)
+static inline void*
+zone_malloc_fini(zone_malloc_t** gdata)
 {
-    cudaError_t rc;
+    void* base_ptr = (*gdata)->base;
 
-    free( gdata->segments );
+    free( (*gdata)->segments );
 
-    rc = (cudaError_t)cudaFree(gdata->base);
-    if( cudaSuccess != rc ) {
-        gpu_malloc_error("Failed to free the GPU backend memory.\n");
-    }
-    gdata->max_segment = 0;
-    gdata->unit_size = 0;
-    gdata->base = NULL;
+    (*gdata)->max_segment = 0;
+    (*gdata)->unit_size = 0;
+    (*gdata)->base = NULL;
+    free(*gdata);
+    *gdata = NULL;
+    return base_ptr;
 }
 
-static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units)
+static inline void *zone_malloc(zone_malloc_t *gdata, int nb_units)
 {
     segment_t *current_segment, *next_segment, *new_segment;
     int next_tid, current_tid, new_tid;
@@ -163,7 +177,7 @@ static inline void *gpu_malloc(gpu_malloc_t *gdata, int nb_units)
     return NULL;
 }
 
-static inline void gpu_free(gpu_malloc_t *gdata, void *add)
+static inline void zone_free(zone_malloc_t *gdata, void *add)
 {
     segment_t *current_segment, *next_segment, *prev_segment;
     int current_tid, next_tid, prev_tid;
@@ -175,12 +189,12 @@ static inline void gpu_free(gpu_malloc_t *gdata, void *add)
     current_segment = SEGMENT_AT_TID(gdata, current_tid);
 
     if( NULL == current_segment ) {
-        gpu_malloc_error("address to free not allocated\n");
+        zone_malloc_error("address to free not allocated\n");
         return;
     }
 
     if( SEGMENT_EMPTY == current_segment->status ) {
-        gpu_malloc_error("double free (or other buffer overflow) error in GPU allocation");
+        zone_malloc_error("double free (or other buffer overflow) error in ZONE allocation");
         return;
     }
 
@@ -218,4 +232,4 @@ static inline void gpu_free(gpu_malloc_t *gdata, void *add)
     }
 }
 
-#endif /* _GPU_MALLOC_H_ */
+#endif /* _ZONE_MALLOC_H_ */
