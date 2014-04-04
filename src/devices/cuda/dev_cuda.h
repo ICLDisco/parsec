@@ -19,7 +19,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include <dague/devices/device_malloc.h>
+#include <dague/utils/zone_malloc.h>
 
 BEGIN_C_DECLS
 

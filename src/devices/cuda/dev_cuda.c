@@ -13,7 +13,6 @@
 #include "dague.h"
 #include "data.h"
 #include <dague/devices/cuda/dev_cuda.h>
-#include <dague/devices/device_malloc.h>
 #include "profiling.h"
 #include "execution_unit.h"
 #include "arena.h"
