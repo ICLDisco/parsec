@@ -25,8 +25,8 @@ BEGIN_C_DECLS
 
 #define DAGUE_GPU_USE_PRIORITIES     1
 
-#define DAGUE_MAX_STREAMS            3
-#define DAGUE_MAX_EVENTS_PER_STREAM  1
+#define DAGUE_MAX_STREAMS            6
+#define DAGUE_MAX_EVENTS_PER_STREAM  4
 #define DAGUE_GPU_MAX_WORKSPACE      2
 #define DAGUE_GPU_W2R_NB_MOVE_OUT    1
 
@@ -161,6 +161,9 @@ int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* 
 void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);
 int dague_gpu_free_workspace(gpu_device_t * gpu_device);
 
+
+/* sort pending task list by number of spaces needed */
+int dague_gpu_sort_pending_list(gpu_device_t *gpu_device);
 dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device);
 
 /**

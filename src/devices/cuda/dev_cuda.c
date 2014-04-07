@@ -509,6 +509,7 @@ int dague_gpu_init(dague_context_t *dague_context)
             cudastatus = cudaStreamCreate( &(exec_stream->cuda_stream) );
             DAGUE_CUDA_CHECK_ERROR( "cudaStreamCreate ", cudastatus,
                                     {break;} );
+            exec_stream->workspace    = NULL;
             exec_stream->max_events   = DAGUE_MAX_EVENTS_PER_STREAM;
             exec_stream->executed     = 0;
             exec_stream->start        = 0;
@@ -791,8 +792,8 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             /*
              * We allocate all the memory on the GPU and we use our memory management
              */
-            //mem_elem_per_gpu = (how_much_we_allocate + ZONE_MALLOC_UNIT_SIZE - 1 ) / ZONE_MALLOC_UNIT_SIZE ;
-            mem_elem_per_gpu = 14;
+            mem_elem_per_gpu = (how_much_we_allocate + ZONE_MALLOC_UNIT_SIZE - 1 ) / ZONE_MALLOC_UNIT_SIZE ;
+            //mem_elem_per_gpu = 14;
             size_t total_size = (size_t)mem_elem_per_gpu * ZONE_MALLOC_UNIT_SIZE;
             cuda_status = (cudaError_t)cudaMalloc(&base_ptr, total_size);
             DAGUE_CUDA_CHECK_ERROR( "cudaMalloc ", cuda_status,
@@ -1212,7 +1213,7 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
         gpu_device->sort_starting_p = (dague_list_item_t*)sort_list->ghost_element.list_next;
     }
 
-    printf("start to sort\n");
+    //printf("start to sort\n");
 
     /* p is head */
     dague_list_item_t *p = gpu_device->sort_starting_p;
@@ -1257,7 +1258,7 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
         p = (dague_list_item_t*)min_p->list_next;
        
     }
-    printf("end sort\n");
+    //printf("end sort\n");
     
     if (lock_required) {
         dague_atomic_unlock(&(sort_list->atomic_lock));
@@ -1376,7 +1377,7 @@ int progress_stream( gpu_device_t* gpu_device,
     rc = progress_fct( gpu_device, task, exec_stream );
     if( 0 > rc ) {
         if( -1 == rc ) return -1;  /* Critical issue */
-      //  assert(0); // want to debug this. It happens too often
+        assert(0); // want to debug this. It happens too often
         /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
         DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,

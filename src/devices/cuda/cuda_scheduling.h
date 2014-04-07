@@ -141,7 +141,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
                  this_task->ec->priority ));
     }
     if (this_task == NULL) {
-        this_task = dague_gpu_create_W2R_task(gpu_device);
+//        this_task = dague_gpu_create_W2R_task(gpu_device);
     }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
@@ -167,8 +167,8 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  fetch_task_from_shared_queue:
     assert( NULL == this_task );
-    if (out_task_submit == NULL) {
-  //      dague_gpu_sort_pending_list(gpu_device);
+    if (out_task_submit == NULL && out_task_pop == NULL) {
+        dague_gpu_sort_pending_list(gpu_device);
     }
     this_task = (dague_gpu_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != this_task ) {
