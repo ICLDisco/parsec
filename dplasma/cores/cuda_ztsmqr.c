@@ -30,6 +30,11 @@
 
 #define KERNEL_NAME ztsmqr
 
+
+#define FORCE_LINK_STATIC_SYMBOL(x) extern void(*x)(void); void* __ ## x ## _fp =(void*)&x;
+FORCE_LINK_STATIC_SYMBOL(magmablas_ZTSMQR_SM20)
+
+
 /*typedef void (*cuda_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
                                                         dague_complex64_t *d_B, int ldb,
@@ -483,6 +488,7 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
 #endif /* !defined(HAVE_MPI) */
 
     //dev_index = 1;
+    wei_debug_printf("dev_index=%d\n", dev_index);
 
     if( dev_index == 0 ) {
         wei_debug_printf("!!!!!!!!!!!!!!!!!!!!!!!! m %d, n %d, k %d go back to CPU\n", m, n, k);
