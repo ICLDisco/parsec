@@ -61,7 +61,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     CUcontext saved_ctx;
     cudaError_t status;
     int rc, exec_stream = 0;
-    dague_gpu_context_t *progress_task;
+    dague_gpu_context_t *progress_task, *out_task_push, *out_task_submit, *out_task_pop;
 #if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -114,6 +114,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
             goto disable_gpu;
     }
     this_task = progress_task;
+    out_task_push = progress_task;
 
     /* Stage-in completed for this task: it is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
@@ -131,12 +132,16 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
             goto disable_gpu;
     }
     this_task = progress_task;
+    out_task_submit = progress_task;
 
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tRetrieve data (if any) for %s priority %d\n", gpu_device->super.device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
+    }
+    if (this_task == NULL) {
+        this_task = dague_gpu_create_W2R_task(gpu_device);
     }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
@@ -158,9 +163,13 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
         goto complete_task;
     }
     this_task = progress_task;
+    out_task_pop = progress_task;
 
  fetch_task_from_shared_queue:
     assert( NULL == this_task );
+    if (out_task_submit == NULL) {
+  //      dague_gpu_sort_pending_list(gpu_device);
+    }
     this_task = (dague_gpu_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != this_task ) {
         DEBUG2(( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->cuda_index,
