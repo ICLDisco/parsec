@@ -25,9 +25,10 @@ BEGIN_C_DECLS
 
 #define DAGUE_GPU_USE_PRIORITIES     1
 
-#define DAGUE_MAX_STREAMS            6
-#define DAGUE_MAX_EVENTS_PER_STREAM  4
+#define DAGUE_MAX_STREAMS            3
+#define DAGUE_MAX_EVENTS_PER_STREAM  1
 #define DAGUE_GPU_MAX_WORKSPACE      2
+#define DAGUE_GPU_W2R_NB_MOVE_OUT    1
 
 #if defined(DAGUE_PROF_TRACE)
 #define DAGUE_PROFILE_CUDA_TRACK_DATA_IN  0x0001
@@ -52,9 +53,15 @@ typedef struct __dague_gpu_workspace {
     int total_workspace;    
 } dague_gpu_workspace_t;
 
+typedef struct __dague_gpu_w2r_task {
+    dague_data_t* original;
+} dague_gpu_w2r_task_t;
+
 typedef struct __dague_gpu_context {
     dague_list_item_t          list_item;
     dague_execution_context_t *ec;
+    int task_type;
+    dague_gpu_w2r_task_t w2r_data[DAGUE_GPU_W2R_NB_MOVE_OUT];
 } dague_gpu_context_t;
 
 typedef struct __dague_gpu_exec_stream {
@@ -94,6 +101,7 @@ typedef struct _gpu_device {
     dague_list_t gpu_mem_owned_lru;
     dague_list_t pending;
     zone_malloc_t *memory;
+    dague_list_item_t *sort_starting_p;
 } gpu_device_t;
 
 #define DAGUE_CUDA_CHECK_ERROR( STR, ERROR, CODE )                      \
@@ -152,6 +160,8 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);
 void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);
 int dague_gpu_free_workspace(gpu_device_t * gpu_device);
+
+dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device);
 
 /**
  * Progress

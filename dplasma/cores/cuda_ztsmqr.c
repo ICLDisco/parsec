@@ -272,12 +272,28 @@ gpu_kernel_pop_ztsmqr( gpu_device_t        *gpu_device,
                       dague_gpu_exec_stream_t* gpu_stream)
 {
     dague_execution_context_t *this_task = gpu_task->ec;
-    dague_ztsmqr_args_t        *args = (dague_ztsmqr_args_t*)gpu_task;
+    cudaError_t status;
+    int return_code = 0, how_many = 0, i;
     dague_gpu_data_copy_t     *gpu_copy;
     dague_data_t              *original;
+
+    if (gpu_task->task_type == 111) {
+        for( i = 0; i < this_task->function->nb_flows; i++ ) {
+            original = gpu_task->w2r_data[i].original;
+            gpu_copy = this_task->data[i].data_out;
+            status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
+                                                     (CUdeviceptr)gpu_copy->device_private,
+                                                     original->nb_elts, gpu_stream->cuda_stream );
+            DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
+                                    { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                               gpu_copy->device_private, original->device_copies[0]->device_private));
+                                        return_code = -2;
+                                        goto release_and_return_error;} );    
+        }
+        return return_code;
+    }
+    dague_ztsmqr_args_t        *args = (dague_ztsmqr_args_t*)gpu_task;
     const dague_flow_t        *flow;
-    int return_code = 0, how_many = 0, i;
-    cudaError_t status;
 
     int k = args->A1m;
     int m = args->A2m;
@@ -492,6 +508,7 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
     gpu_task = (dague_ztsmqr_args_t*)malloc(sizeof(dague_ztsmqr_args_t));
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
     gpu_task->super.ec = this_task;
+    gpu_task->super.task_type = 0;
     gpu_task->pushout_A1  = pushout_A1;
     gpu_task->pushout_A2  = pushout_A2;
     gpu_task->side     = side;

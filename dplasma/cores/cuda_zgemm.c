@@ -327,7 +327,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
     dague_data_t              *original;
     int i;
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->out[i]) continue;
         if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) continue;
 
