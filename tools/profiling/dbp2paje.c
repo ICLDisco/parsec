@@ -377,12 +377,12 @@ static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
     static int nextid = 0;
     uidentry_t *n;
     va_list va;
+    int rc;
     hash_key_t h;
     int idx;
     size_t length = strlen(first);
     char *where;
     const char *arg;
-    int rc;
 
     va_start(va, first);
     h = uid_hash_va(first, va);
@@ -444,6 +444,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
 {
     uidentry_t *n, *p;
     int parent_id, son_id;
+    int rc; (void)rc;
 
     const char *identifier = dbp_thread_get_hr_id(th);
 
@@ -457,7 +458,6 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
     if ( sscanf( identifier, DAGUE_PROFILE_STREAM_STR, &parent_id, &son_id ) == 2 )
     {
         char *gpu_name, *stream_name;
-        int rc;
 
         /* Create name */
         rc = asprintf( &gpu_name,    "GPU %d",    parent_id); assert(rc!=-1);
@@ -487,7 +487,6 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
     else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id ) == 2 )
     {
         char *vp_name, *thrd_name;
-        int rc;
 
         /* Create name */
         rc = asprintf( &vp_name,   "VP %d",     parent_id); assert(rc!=-1);
@@ -506,7 +505,6 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
         free(vp_name); free(thrd_name);
     }
     else {
-        int rc;
         rc = asprintf( &(n->alias), "%sT%s", mpi_alias, n->uid ); assert(rc!=-1);
         addContainer (0.00000, n->alias, "CT_T", mpi_alias, identifier, "");
     }

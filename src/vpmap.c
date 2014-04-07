@@ -401,7 +401,7 @@ void vpmap_display_map(FILE *out)
     int v, t, c;
     char *cores = NULL, *ht = NULL, *tmp;
     int *dcores, *dht;
-    int rc;
+    int rc; (void)rc;
 #if defined(HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif

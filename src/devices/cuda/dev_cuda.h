@@ -19,7 +19,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include <dague/devices/device_malloc.h>
+#include <dague/utils/zone_malloc.h>
 
 BEGIN_C_DECLS
 
@@ -85,7 +85,7 @@ typedef struct _gpu_device {
     dague_list_t gpu_mem_lru;
     dague_list_t gpu_mem_owned_lru;
     dague_list_t pending;
-    gpu_malloc_t *memory;
+    zone_malloc_t *memory;
 } gpu_device_t;
 
 #define DAGUE_CUDA_CHECK_ERROR( STR, ERROR, CODE )                      \

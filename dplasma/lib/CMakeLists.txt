@@ -169,6 +169,8 @@ set(SOURCES
   ztrsmpl_wrapper.c
   ztrsmpl_qrf_wrapper.c
   #
+  dplasma_zcheck.c
+  #
   zhbrdt_wrapper.c
   zhebut_wrapper.c
   zherbt_wrapper.c
