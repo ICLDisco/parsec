@@ -953,7 +953,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
              * always remove the data from the LRU.
              */
             if( 0 != lru_gpu_elem->readers ) {
-                goto find_another_data; // TODO: potential leak here? I think not, but needs check.
+                goto find_another_data; // TODO: add an assert of some sort to check for leaks here? 
             }
             /* Make sure the new GPU element is clean and ready to be used */
             assert( master != lru_gpu_elem->original );
@@ -967,7 +967,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                     for( j = 0; j < this_task->function->nb_flows; j++ ) {
                         if( NULL == this_task->data[j].data_in ) continue;
                         if( this_task->data[j].data_in->original == oldmaster ) {
-                            temp_loc[j] = lru_gpu_elem; // TODO: potential leak here? 
+                            temp_loc[j] = lru_gpu_elem; 
                             goto find_another_data;
                         }
                     }

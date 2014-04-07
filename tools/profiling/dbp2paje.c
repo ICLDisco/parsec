@@ -377,6 +377,7 @@ static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
     static int nextid = 0;
     uidentry_t *n;
     va_list va;
+    int rc;
     hash_key_t h;
     int idx;
     size_t length = strlen(first);
@@ -416,7 +417,7 @@ static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
     va_end(va);
     n->alias = NULL;
     n->hash_key = h;
-    (void)asprintf(&n->uid, "%X", nextid++); assert(rc!=-1);
+    rc = asprintf(&n->uid, "%X", nextid++); assert(rc!=-1);
     n->next = UIDs[idx];
     UIDs[idx] = n;
 
