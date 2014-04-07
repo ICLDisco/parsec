@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.8)
+cmake_minimum_required (VERSION 2.8.7)
 project (DAGUE C)
 enable_language(Fortran OPTIONAL)
 enable_language(CXX OPTIONAL)
