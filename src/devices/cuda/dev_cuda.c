@@ -792,8 +792,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             /*
              * We allocate all the memory on the GPU and we use our memory management
              */
-             mem_elem_per_gpu = (how_much_we_allocate + ZONE_MALLOC_UNIT_SIZE - 1 ) / ZONE_MALLOC_UNIT_SIZE ;
-            //mem_elem_per_gpu = 14;
+            mem_elem_per_gpu = (how_much_we_allocate + ZONE_MALLOC_UNIT_SIZE - 1 ) / ZONE_MALLOC_UNIT_SIZE ;
             size_t total_size = (size_t)mem_elem_per_gpu * ZONE_MALLOC_UNIT_SIZE;
             cuda_status = (cudaError_t)cudaMalloc(&base_ptr, total_size);
             DAGUE_CUDA_CHECK_ERROR( "cudaMalloc ", cuda_status,
@@ -1279,10 +1278,11 @@ static inline int dague_lru_contains(dague_list_t *list, dague_gpu_data_copy_t *
     return 0;
 }
 
-dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device)
+dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_execution_unit_t *eu_context)
 {
     dague_gpu_context_t *w2r_task = (dague_gpu_context_t *)malloc(sizeof(dague_gpu_context_t));
-    dague_execution_context_t *ec = (dague_execution_context_t *)malloc(sizeof(dague_execution_context_t));
+ //   dague_execution_context_t *ec = (dague_execution_context_t *)malloc(sizeof(dague_execution_context_t));
+    dague_execution_context_t *ec = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
     dague_function_t *w2r_func;
 
     int i, nb_cleaned, nb_poped;
@@ -1315,7 +1315,8 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device)
     //printf("w2r cleaned %d\n", nb_cleaned);
 
     if (nb_cleaned == 0) {
-        free(ec);
+       // free(ec);
+        dague_thread_mempool_free(eu_context->context_mempool, ec);
         free(w2r_task);
         return NULL;
     } else {   
@@ -1330,7 +1331,7 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device)
     } 
 }
 
-int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task)
+int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task, dague_execution_unit_t *eu_context)
 {
     assert(w2r_task->task_type == 111);
     int i;
@@ -1348,8 +1349,9 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_t
         owned_lru_gpu_elem->readers --;
         assert(owned_lru_gpu_elem->readers >= 0);
     }
-    free(w2r_task->ec);
-    w2r_task->ec = NULL;
+    //free(w2r_task->ec);
+    dague_thread_mempool_free(eu_context->context_mempool, w2r_task->ec);
+ //   w2r_task->ec = NULL;
     free(w2r_task);
     w2r_task = NULL;
     return 0;
@@ -1451,10 +1453,6 @@ int progress_stream( gpu_device_t* gpu_device,
 
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
-            if (exec_stream == &(gpu_device->exec_stream[1]) && task->task_type == 111) {  /* W2R task */
-                *out_task = NULL;
-                dague_gpu_W2R_task_fini(gpu_device, task);
-            }
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "GPU: Complete %s(task %p) on stream %p\n", task->ec->function->name, (void*)task,
                                   (void*)exec_stream->cuda_stream));

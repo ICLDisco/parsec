@@ -140,8 +140,8 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
                  this_task->ec->priority ));
     }
-    if (this_task == NULL) {
-        this_task = dague_gpu_create_W2R_task(gpu_device);
+    if (out_task_submit == NULL && out_task_push == NULL) {
+        this_task = dague_gpu_create_W2R_task(gpu_device, eu_context);
     }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
@@ -185,6 +185,11 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
              this_task->ec->priority ));
     /* Everything went fine so far, the result is correct and back in the main memory */
     DAGUE_LIST_ITEM_SINGLETON(this_task);
+    if (this_task->task_type == 111) {
+        dague_gpu_W2R_task_fini(gpu_device, this_task, eu_context);
+        this_task = progress_task;
+        goto fetch_task_from_shared_queue;
+    }
     gpu_kernel_epilog( gpu_device, this_task );
     __dague_complete_execution( eu_context, this_task->ec );
     dague_device_load[gpu_device->super.device_index] -= dague_device_sweight[gpu_device->super.device_index];

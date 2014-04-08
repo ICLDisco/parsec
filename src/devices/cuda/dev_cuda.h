@@ -159,7 +159,8 @@ int dague_gpu_free_workspace(gpu_device_t * gpu_device);
 
 /* sort pending task list by number of spaces needed */
 int dague_gpu_sort_pending_list(gpu_device_t *gpu_device);
-dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device);
+dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_execution_unit_t *eu_context);
+int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task, dague_execution_unit_t *eu_context);
 
 /**
  * Progress
