@@ -126,6 +126,7 @@ gpu_kernel_push_ztsmqr( gpu_device_t            *gpu_device,
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_data_t              *original;
     dague_data_copy_t         *data, *local;
+    const dague_flow_t        *flow;
 
     dague_ztsmqr_args_t       *args = (dague_ztsmqr_args_t*)gpu_task;
     int k = args->A1m;
@@ -139,7 +140,14 @@ gpu_kernel_push_ztsmqr( gpu_device_t            *gpu_device,
         this_task->data[i].data_out = NULL;
         data = this_task->data[i].data_in;
         original = data->original;
+        flow = this_task->function->in[i];
+        if(NULL == flow) {
+            flow = this_task->function->out[i];
+        }
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
+            if ( (flow->flow_flags & FLOW_ACCESS_WRITE) && local->readers > 0 ) {
+                return -86;
+            }
             this_task->data[i].data_out = local;
 
             /* Check the most up2date version of the data */
@@ -283,9 +291,9 @@ gpu_kernel_pop_ztsmqr( gpu_device_t        *gpu_device,
     dague_data_t              *original;
 
     if (gpu_task->task_type == 111) {
-        for( i = 0; i < this_task->function->nb_flows; i++ ) {
-            original = gpu_task->w2r_data[i].original;
+        for( i = 0; i < 1; i++ ) {
             gpu_copy = this_task->data[i].data_out;
+            original = gpu_copy->original;
             status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
                                                      (CUdeviceptr)gpu_copy->device_private,
                                                      original->nb_elts, gpu_stream->cuda_stream );

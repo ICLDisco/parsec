@@ -53,15 +53,10 @@ typedef struct __dague_gpu_workspace {
     int total_workspace;    
 } dague_gpu_workspace_t;
 
-typedef struct __dague_gpu_w2r_task {
-    dague_data_t* original;
-} dague_gpu_w2r_task_t;
-
 typedef struct __dague_gpu_context {
     dague_list_item_t          list_item;
     dague_execution_context_t *ec;
     int task_type;
-    dague_gpu_w2r_task_t w2r_data[DAGUE_GPU_W2R_NB_MOVE_OUT];
 } dague_gpu_context_t;
 
 typedef struct __dague_gpu_exec_stream {

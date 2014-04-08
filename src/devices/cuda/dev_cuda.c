@@ -792,7 +792,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             /*
              * We allocate all the memory on the GPU and we use our memory management
              */
-            mem_elem_per_gpu = (how_much_we_allocate + ZONE_MALLOC_UNIT_SIZE - 1 ) / ZONE_MALLOC_UNIT_SIZE ;
+             mem_elem_per_gpu = (how_much_we_allocate + ZONE_MALLOC_UNIT_SIZE - 1 ) / ZONE_MALLOC_UNIT_SIZE ;
             //mem_elem_per_gpu = 14;
             size_t total_size = (size_t)mem_elem_per_gpu * ZONE_MALLOC_UNIT_SIZE;
             cuda_status = (cudaError_t)cudaMalloc(&base_ptr, total_size);
@@ -1018,6 +1018,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
     return 0;
 }
 
+//#define WEI_DEBUG
 
 /**
  * If the most current version of the data is not yet available on the GPU memory
@@ -1266,6 +1267,17 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
     return 0;
 }
 
+static inline int dague_lru_contains(dague_list_t *list, dague_gpu_data_copy_t *element)
+{
+    dague_list_item_t *p = (dague_list_item_t *)list->ghost_element.list_next;
+    while (p != &(list->ghost_element)) {
+        if ( ((dague_gpu_data_copy_t*)p)->device_private == element->device_private) {
+            return 1;
+        }
+        p = (dague_list_item_t *)p->list_next;
+    }
+    return 0;
+}
 
 dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device)
 {
@@ -1273,37 +1285,45 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device)
     dague_execution_context_t *ec = (dague_execution_context_t *)malloc(sizeof(dague_execution_context_t));
     dague_function_t *w2r_func;
 
-    int i, nb_cleaned;
-    dague_gpu_data_copy_t *owned_lru_gpu_elem, *cpu_copy;
+    int i, nb_cleaned, nb_poped;
+    dague_gpu_data_copy_t *owned_lru_gpu_elem, *cpu_copy, *temp_loc[MAX_PARAM_COUNT];
     dague_data_t* original;
 
     nb_cleaned = 0;
+    nb_poped = 0;
+
+    dague_list_item_t * p = (dague_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
     while(nb_cleaned < DAGUE_GPU_W2R_NB_MOVE_OUT) {
-        owned_lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_owned_lru);
-        if (owned_lru_gpu_elem == NULL) {
+        if ( p == &(gpu_device->gpu_mem_owned_lru.ghost_element) ) {
             break;
         }
-        assert( DATA_COHERENCY_SHARED == owned_lru_gpu_elem->coherency_state );
-        DAGUE_LIST_ITEM_SINGLETON(owned_lru_gpu_elem);
+        owned_lru_gpu_elem = (dague_gpu_data_copy_t *)p;
         original = owned_lru_gpu_elem->original;
-        assert(NULL != original);
-        w2r_task->w2r_data[nb_cleaned].original = original;
-        ec->data[nb_cleaned].data_out = owned_lru_gpu_elem;
-        dague_data_copy_detach(original, owned_lru_gpu_elem, gpu_device->super.device_index);
-        printf("W lru cleaned %p\n", owned_lru_gpu_elem->device_private);
-        nb_cleaned ++;
+        if (original->device_copies[0]->readers != 0) {
+            p = (dague_list_item_t *)p->list_next;
+        } else {
+            dague_list_item_ring_chop((dague_list_item_t*)owned_lru_gpu_elem);
+            DAGUE_LIST_ITEM_SINGLETON(owned_lru_gpu_elem);
+            owned_lru_gpu_elem->readers ++;
+            ec->data[nb_cleaned].data_out = owned_lru_gpu_elem;
+            printf("W lru pop %p\n", owned_lru_gpu_elem->device_private);
+            nb_cleaned ++;
+           // if (dague_lru_contains(&gpu_device->gpu_mem_owned_lru, owned_lru_gpu_elem)) assert(0);
+        }
     }
-    printf("w2r cleaned %d\n", nb_cleaned);
+
+    //printf("w2r cleaned %d\n", nb_cleaned);
 
     if (nb_cleaned == 0) {
         free(ec);
+        free(w2r_task);
         return NULL;
     } else {   
         OBJ_CONSTRUCT(w2r_task, dague_list_item_t);
-        w2r_func = (dague_function_t *)malloc(sizeof(dague_function_t));
-        w2r_func->nb_flows = nb_cleaned;
+      //  w2r_func = (dague_function_t *)malloc(sizeof(dague_function_t));
+      //  w2r_func->nb_flows = nb_cleaned;
         ec->priority = INT32_MAX;
-        ec->function = w2r_func;
+        ec->function = NULL;
         w2r_task->ec = ec;
         w2r_task->task_type = 111;
         return w2r_task;
@@ -1316,17 +1336,22 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_t
     int i;
     dague_gpu_data_copy_t *owned_lru_gpu_elem, *cpu_copy;
     dague_data_t* original;
-    for (i = 0; i < w2r_task->ec->function->nb_flows; i++) {
+    for (i = 0; i < 1; i++) {
         owned_lru_gpu_elem = w2r_task->ec->data[i].data_out;
         owned_lru_gpu_elem->coherency_state = DATA_COHERENCY_SHARED;
-        original = w2r_task->w2r_data[i].original;
+        original = owned_lru_gpu_elem->original;
         cpu_copy = original->device_copies[0];
         cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
         cpu_copy->version = owned_lru_gpu_elem->version;
         printf("W lru cleaned %p\n", owned_lru_gpu_elem->device_private);
-        w2r_task->w2r_data[i].original = NULL;
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)owned_lru_gpu_elem);
+        owned_lru_gpu_elem->readers --;
+        assert(owned_lru_gpu_elem->readers >= 0);
     }
+    free(w2r_task->ec);
+    w2r_task->ec = NULL;
+    free(w2r_task);
+    w2r_task = NULL;
     return 0;
     
 }
@@ -1377,7 +1402,7 @@ int progress_stream( gpu_device_t* gpu_device,
     rc = progress_fct( gpu_device, task, exec_stream );
     if( 0 > rc ) {
         if( -1 == rc ) return -1;  /* Critical issue */
-        assert(0); // want to debug this. It happens too often
+     // assert(0); // want to debug this. It happens too often
         /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
         DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
@@ -1480,7 +1505,7 @@ void dump_GPU_state(gpu_device_t* gpu_device)
            (unsigned long long)gpu_device->super.transferred_data_in, (unsigned long long)gpu_device->super.transferred_data_out,
            (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
     for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
-        dump_exec_stream(&gpu_device->exec_stream[i]);
+       // dump_exec_stream(&gpu_device->exec_stream[i]);
     }
     if( !dague_ulist_is_empty(&gpu_device->gpu_mem_lru) ) {
         printf("#\n# LRU list\n#\n");
