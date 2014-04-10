@@ -34,7 +34,6 @@ zone_malloc_t* zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_s
 {
     zone_malloc_t *gdata;
     segment_t *head;
-    int i;
 
     if( NULL == base_ptr ) {
         zone_malloc_error("Cannot manage an empty memory region\n");
@@ -49,7 +48,7 @@ zone_malloc_t* zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_s
     gdata->next_tid = 0;
     gdata->segments = (segment_t *)malloc(sizeof(segment_t) * _max_segment);
 #if defined(DAGUE_DEBUG)
-    for(i = 0; i < _max_segment; i++) {
+    for(int i = 0; i < _max_segment; i++) {
         SEGMENT_AT_TID(gdata, i)->status = SEGMENT_UNDEFINED;
     }
 #endif /* defined(DAGUE_DEBUG) */
