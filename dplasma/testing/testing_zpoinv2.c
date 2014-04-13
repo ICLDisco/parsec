@@ -22,7 +22,7 @@ int main(int argc, char ** argv)
     PLASMA_enum uplo = PlasmaUpper;
     int info = 0;
     int ret = 0;
-    int async = 0;
+    int async = 1;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -94,8 +94,8 @@ int main(int argc, char ** argv)
                                      (tiled_matrix_desc_t*)&ddescA,
                                      (tiled_matrix_desc_t*)&ddescB,
                                      (tiled_matrix_desc_t*)&ddescC );
-        SYNC_TIME_PRINT(rank, ("zpoinv2\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
-                               P, Q, NB, N,
+        SYNC_TIME_PRINT(rank, ("zpoinv2\tPxQ= %3d %-3d NB= %4d M= %7d N= %7d : %14f gflops\n",
+                               P, Q, NB, M, N,
                                gflops=(flops/1e9)/sync_time_elapsed));
     }
 
