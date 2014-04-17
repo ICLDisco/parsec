@@ -1234,7 +1234,7 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
             }
             space_q = dague_gpu_check_space_needed(gpu_device, (dague_gpu_context_t*)q);
             if ( space_min > space_q ) {
-                printf("I find a smaller one, current min %p, space %d, q %p, space %d\n", min_p, space_min, q, space_q);
+                fprintf(stderr, "I find a smaller one, current min %p, space %d, q %p, space %d\n", min_p, space_min, q, space_q);
                 min_p = q;
                 space_min = space_q;
             }
@@ -1306,7 +1306,7 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_e
             DAGUE_LIST_ITEM_SINGLETON(owned_lru_gpu_elem);
             owned_lru_gpu_elem->readers ++;
             ec->data[nb_cleaned].data_out = owned_lru_gpu_elem;
-            printf("W lru pop %p\n", owned_lru_gpu_elem->device_private);
+            fprintf(stderr, "W lru pop %p\n", owned_lru_gpu_elem->device_private);
             nb_cleaned ++;
            // if (dague_lru_contains(&gpu_device->gpu_mem_owned_lru, owned_lru_gpu_elem)) assert(0);
         }
@@ -1344,7 +1344,7 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_t
         cpu_copy = original->device_copies[0];
         cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
         cpu_copy->version = owned_lru_gpu_elem->version;
-        printf("W lru cleaned %p\n", owned_lru_gpu_elem->device_private);
+        fprintf(stderr, "W lru cleaned %p\n", owned_lru_gpu_elem->device_private);
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)owned_lru_gpu_elem);
         owned_lru_gpu_elem->readers --;
         assert(owned_lru_gpu_elem->readers >= 0);
