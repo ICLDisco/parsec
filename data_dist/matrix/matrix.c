@@ -82,6 +82,9 @@ dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
                  * dependency between the dague_data_copy_t and the dague_data_t
                  */
                 OBJ_DESTRUCT(data);
+#if defined(DAGUE_DEBUG_ENABLE)
+                ((dague_object_t *) (data))->obj_magic_id = DAGUE_OBJ_MAGIC_ID;
+#endif
                 OBJ_RELEASE(data);
             }
         }

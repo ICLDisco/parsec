@@ -309,8 +309,8 @@ static inline dague_object_t *dague_obj_new_debug(dague_class_t* type, const cha
         assert(NULL != ((dague_object_t *) (object))->obj_class);        \
         assert(DAGUE_OBJ_MAGIC_ID == ((dague_object_t *) (object))->obj_magic_id); \
         if (0 == dague_obj_update((dague_object_t *) (object), -1)) {     \
-            OBJ_SET_MAGIC_ID((object), 0);                      \
             dague_obj_run_destructors((dague_object_t *) (object));       \
+            OBJ_SET_MAGIC_ID((object), 0);                      \
             OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
             free(object);                                       \
             object = NULL;                                      \
@@ -362,8 +362,8 @@ do {                                                            \
 #define OBJ_DESTRUCT(object)                                    \
 do {                                                            \
     assert(DAGUE_OBJ_MAGIC_ID == ((dague_object_t *) (object))->obj_magic_id); \
-    OBJ_SET_MAGIC_ID((object), 0);                              \
     dague_obj_run_destructors((dague_object_t *) (object));     \
+    OBJ_SET_MAGIC_ID((object), 0);                              \
     OBJ_REMEMBER_FILE_AND_LINENO( object, __FILE__, __LINE__ ); \
 } while (0)
 #else
