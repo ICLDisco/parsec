@@ -53,7 +53,7 @@ static void yyerror(YYLTYPE *locp,
                     current_lineno, msg);
         }
     } else {
-        fprintf(stderr, "parse error at unknown: %s\n ", msg);
+        fprintf(stderr, "parse error near line %d: %s\n ", yyget_lineno(), msg);
     }
 }
 
