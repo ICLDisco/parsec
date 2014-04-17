@@ -102,7 +102,7 @@ inline static void wei_debug_printf(const char *fmt, ...)
 #if defined (WEI_DEBUG)
         va_list args;
     va_start(args, fmt);
-    vprintf(fmt, args);
+    vfprintf(stderr, fmt, args);
     va_end(args);
 #endif /* WEI_DEBUG */
 }
