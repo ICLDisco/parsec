@@ -3238,10 +3238,10 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
                 coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr, &info));
             }
         } else {
-            /* Hash functions depends only on the parameters of the function.
-             * We might need the other definitions because the min expression of the parameters
-             * might depend on them, but maybe not, so let's void their use to remove
-             * warnings.
+            /* Hash functions should depend only on the parameters of the
+             * function. However, we might need the other definitions because
+             * the min expression of the parameters might depend on them. If
+             * this is not the case, a quick "(void)" removes the warning.
              */
             coutput("  (void)%s;\n", dl->name);
         }
@@ -3317,7 +3317,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
 
   infodst.sa = sa2;
   infodst.prefix = f->fname;
-  infodst.assignments = strdup(name);
+  infodst.assignments = (char*)name;
   infosrc.sa = sa2;
   infosrc.prefix = "";
   infosrc.assignments = "assignments";
@@ -3355,24 +3355,29 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
           if(!strcmp(pl->name, dl->name))
               break;
       }
+      string_arena_init(sa2);
+      /**
+       * In addition to the locals in the context of the current task we need to
+       * generate the target task "locals" otherwise the usage of expressions in
+       * it's local will be broken. Moreover, we also need to generate the full
+       * assignment context, including target locals, or the usage of %inline
+       * will be broken.
+       */
       if( NULL == pl ) {
           /* It is a value. Let's dump it's expression in the destination context */
-          string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s%s[%d].value = %s;\n",
-                                  indent(spaces), name, idx, dump_expr((void**)dl->expr, &infodst));
+                                  "%sint %s%s = %s[%d].value = %s; (void)%s%s;\n",
+                                  indent(spaces), f->fname, dl->name, name, idx, dump_expr((void**)dl->expr, &infodst), f->fname, dl->name);
       } else {
           /* It is a parameter. Let's dump it's expression in the source context */
           assert(el != NULL);
-          string_arena_init(sa2);
           string_arena_add_string(sa,
-                                  "%s%s[%d].value = %s;\n",
-                                  indent(spaces), name, idx, dump_expr((void**)el, &infosrc));
+                                  "%sint %s%s = %s[%d].value = %s; (void)%s%s;\n",
+                                  indent(spaces), f->fname, dl->name, name, idx, dump_expr((void**)el, &infosrc), f->fname, dl->name);
       }
   }
 
   string_arena_free(sa2);
-  free(infodst.assignments);
 
   return string_arena_get_string(sa);
 }
