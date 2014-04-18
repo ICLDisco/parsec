@@ -2,8 +2,8 @@
 # Shared Memory Testings
 #
 
-#set(OPTIONS "-x -v=5")
-set(OPTIONS "")
+set(OPTIONS "-x -v=5")
+#set(OPTIONS "")
 
 #
 # Check BLAS/Lapack subroutines in shared memory
