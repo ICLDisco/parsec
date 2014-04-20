@@ -2,7 +2,7 @@
 # Shared Memory Testings
 #
 
-set(OPTIONS "-x -v=5")
+set(OPTIONS "-x;-v=5")
 #set(OPTIONS "")
 
 #
