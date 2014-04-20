@@ -7,8 +7,8 @@ include(CMakeDependentOption)
 include(CMakePushCheckState)
 
 # The current version number
-set (DAGUE_VERSION_MAJOR 1)
-set (DAGUE_VERSION_MINOR 2)
+set (DAGUE_VERSION_MAJOR 2)
+set (DAGUE_VERSION_MINOR 0)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
