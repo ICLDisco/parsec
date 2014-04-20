@@ -8,7 +8,7 @@ include(CMakePushCheckState)
 
 # The current version number
 set (DAGUE_VERSION_MAJOR 1)
-set (DAGUE_VERSION_MINOR 0)
+set (DAGUE_VERSION_MINOR 2)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
