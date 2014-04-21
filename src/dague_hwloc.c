@@ -285,7 +285,6 @@ int dague_hwloc_nb_levels(void)
 int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 {
     (void)cpu_index; (void)local_ht_index;
-    assert(local_ht_index >= 0);
 #if defined(HAVE_HWLOC)
     hwloc_obj_t      obj, core;      /* Hwloc object    */
     hwloc_cpuset_t   cpuset;   /* Hwloc cpuset    */
