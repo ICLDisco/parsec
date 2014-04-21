@@ -1342,11 +1342,13 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
                          dep_cmd_item_t* item)
 {
     remote_dep_wire_get_t* task = &(item->cmd.activate.task);
+#if !defined(DAGUE_PROF_DRY_DEP)
     dague_remote_deps_t* deps = (dague_remote_deps_t*) (uintptr_t) task->deps;
     int k, nbdtt, tag = task->tag;
     dague_comm_callback_t* cb;
     void* dataptr;
     MPI_Datatype dtt;
+#endif  /* !defined(DAGUE_PROF_DRY_DEP) */
 #if DAGUE_DEBUG_VERBOSE != 0
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
@@ -1643,18 +1645,19 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
     for(k = 0; deps->incoming_mask >> k; k++) {
         if( !((1U<<k) & deps->incoming_mask) ) continue;
 
+        /* prepare the local receiving data */
+        assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
+        if(NULL == deps->output[k].data.data) {
+            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
+        }
 #ifdef DAGUE_PROF_DRY_DEP
-        (void)dtt; (void)nbdtt;
+        (void)dtt; (void)nbdtt; (void)msg; (void)from;
         /* Removing the corresponding bit prevent the sending of the GET_DATA request */
         remote_dep_mpi_get_end(eu_context, k, deps);
         deps->incoming_mask ^= (1U<<k);
 #else
         dtt   = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
-        assert(NULL == deps->output[k].data.data); /* we do not support in-place tiles now, make sure it doesn't happen yet */
-        if(NULL == deps->output[k].data.data) {
-            deps->output[k].data.data = remote_dep_copy_allocate(&deps->output[k].data);
-        }
 #  if DAGUE_DEBUG_VERBOSE != 0
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2(("MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)\n",
@@ -1676,6 +1679,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
         assert(dague_comm_last_active_req <= DEP_NB_REQ);
 #endif
     }
+#if !defined(DAGUE_PROF_DRY_DEP)
     if(msg.output_mask) {
         TAKE_TIME_WITH_INFO(MPIctl_prof, MPI_Data_ctl_sk, get,
                             from, eu_context->virtual_process->dague_context->my_rank, (*task));
@@ -1685,6 +1689,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
         TAKE_TIME(MPIctl_prof, MPI_Data_ctl_ek, get++);
         DEBUG_MARK_CTL_MSG_GET_SENT(from, (void*)&msg, &msg);
     }
+#endif  /* !defined(DAGUE_PROF_DRY_DEP) */
 }
 
 static void remote_dep_mpi_get_end(dague_execution_unit_t* eu_context,

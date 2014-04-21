@@ -295,7 +295,7 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo) {
  * type of pointer, nor do pointers to other pointer types convert to
  * void **.
  */
-#define DAGUE_LIFO_ITEM_ALLOC( LIFO, elt, truesize ) ({                 \
+#define DAGUE_LIFO_ITEM_ALLOC( LIFO, elt, truesize ) ({         \
     void *_elt = NULL;                                          \
     int _rc;                                                    \
     _rc = posix_memalign(&_elt,                                 \
