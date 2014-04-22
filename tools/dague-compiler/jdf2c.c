@@ -3435,7 +3435,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
  */
 static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_t *call,
                                                int lineno, const char *fname,
-                                               const char *spaces, const char *arena, int count)
+                                               const char *spaces, const char *arena, const char* count)
 {
     int dataindex;
 
@@ -3459,7 +3459,7 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    chunk = dague_arena_get_copy(%s, %d, target_device);\n",
+    coutput("%s    chunk = dague_arena_get_copy(%s, %s, target_device);\n",
             spaces, arena, count);
     return;
 }
@@ -3493,7 +3493,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
 {
     jdf_dep_t *dl;
     expr_info_t info;
-    string_arena_t *sa, *sa2;
+    string_arena_t *sa, *sa2, *sa_count;
     int cond_index = 0;
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
@@ -3511,7 +3511,6 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
              flow->flow_index, flow->varname);
 
     sa  = string_arena_new(64);
-    sa2 = string_arena_new(64);
 
     info.sa = sa;
     info.prefix = "";
@@ -3555,6 +3554,8 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         goto done_with_input;
     }
     if ( flow->flow_flags & JDF_FLOW_TYPE_WRITE ) {
+        sa2 = string_arena_new(64);
+        sa_count = string_arena_new(64);
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
             if ( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) {
                 jdf_fatal(JDF_OBJECT_LINENO(flow),
@@ -3563,20 +3564,25 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                 break;
             }
 
-            sa2 = string_arena_new(64);
+            string_arena_init(sa2);
             create_arena_from_datatype(sa2, dl->datatype);
+
+            assert( dl->datatype.count != NULL );
+            string_arena_add_string(sa_count, "%s", dump_expr((void**)dl->datatype.count, &info));
+
+
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 if( 0 != cond_index ) coutput("    else {\n");
                 jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                   string_arena_get_string(sa2), 1);
+                                                   string_arena_get_string(sa2), string_arena_get_string(sa_count));
                 if( 0 != cond_index ) coutput("    }\n");
                 goto done_with_input;
             case JDF_GUARD_BINARY:
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
                 jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                   string_arena_get_string(sa2), 1);
+                                                   string_arena_get_string(sa2), string_arena_get_string(sa_count));
                 coutput("    }\n");
                 cond_index++;
                 break;
@@ -3584,14 +3590,16 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                 coutput( (0 == cond_index ? condition[0] : condition[1]),
                          dump_expr((void**)dl->guard->guard, &info));
                 jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                   string_arena_get_string(sa2), 1);
+                                                   string_arena_get_string(sa2), string_arena_get_string(sa_count));
                 coutput("    } else {\n");
                 jdf_generate_code_call_init_output(jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), fname, "  ",
-                                                   string_arena_get_string(sa2), 1);
+                                                   string_arena_get_string(sa2), string_arena_get_string(sa_count));
                 coutput("    }\n");
                 goto done_with_input;
             }
         }
+        string_arena_free(sa2);
+        string_arena_free(sa_count);
     }
  done_with_input:
     coutput("      this_task->data[%u].data_in   = chunk;   /* flow %s */\n"
@@ -3604,7 +3612,6 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             (flow->flow_flags & JDF_FLOW_TYPE_WRITE ? "if( NULL != chunk )\n  " : ""),
             flow->flow_index);
     string_arena_free(sa);
-    string_arena_free(sa2);
 }
 
 static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_t *call,
