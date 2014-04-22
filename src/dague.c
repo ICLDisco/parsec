@@ -1155,7 +1155,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
              * for each execution context.
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
-            assert( origin->data[origin_flow->flow_index].data_out == data->ptr );
+            assert( origin->data[origin_flow->flow_index].data_out == data->data->device_private );
             new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[origin_flow->flow_index].data_out;
             (void)data;
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
