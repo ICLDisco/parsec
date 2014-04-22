@@ -4087,7 +4087,9 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
     expr_info_t info;
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
-    int cond_index;
+    string_arena_t *sa_local = string_arena_new(64);
+    string_arena_t *sa_code = string_arena_new(64);
+    int cond_index, need_locals = 0;
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
     assignment_info_t ai;
 
@@ -4096,14 +4098,13 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
     ai.holder = "context->locals";
     ai.expr = NULL;
 
-    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS ) {\n"
-            "%s",
-            UTIL_DUMP_LIST(sa1, f->locals, next,
-                           dump_local_assignments, &ai, "", "    ", "\n", "\n"));
+    UTIL_DUMP_LIST(sa_local, f->locals, next,
+                   dump_local_assignments, &ai, "", "    ", "\n", "\n");
     /* Quiet the unused variable warnings */
-    coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
-                                 dump_string, NULL, "   ", " (void)", ";", ";\n"));
+    UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
+                         dump_string, NULL, "   ", " (void)", ";", ";\n");
+    string_arena_add_string(sa_local, "\n%s\n", string_arena_get_string(sa1));
+    coutput("  if( action_mask & DAGUE_ACTION_RELEASE_LOCAL_REFS ) {\n");
 
     info.prefix = "";
     info.sa = sa1;
@@ -4119,40 +4120,42 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                     switch( dep->guard->guard_type ) {
                     case JDF_GUARD_UNCONDITIONAL:
                         if( NULL != dep->guard->calltrue->var ) {
-                            if( 0 != cond_index ) coutput("    else {\n");
-                            coutput("    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
-                            if( 0 != cond_index ) coutput("    }\n");
+                            if( 0 != cond_index ) string_arena_add_string(sa_code, "    else {\n");
+                            string_arena_add_string(sa_code, "    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
+                                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
+                            if( 0 != cond_index ) string_arena_add_string(sa_code, "    }\n");
                         }
                         goto next_dependency;
                     case JDF_GUARD_BINARY:
                         if( NULL != dep->guard->calltrue->var ) {
-                            coutput((0 == cond_index ? condition[0] : condition[1]),
-                                    dump_expr((void**)dep->guard->guard, &info));
-                            coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                    "    }\n",
-                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
+                            string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
+                                                    dump_expr((void**)dep->guard->guard, &info));
+                            need_locals++;
+                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
+                                                    "    }\n",
+                                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
                             cond_index++;
                         }
                         break;
                     case JDF_GUARD_TERNARY:
+                        need_locals++;
                         if( NULL != dep->guard->calltrue->var ) {
-                            coutput((0 == cond_index ? condition[0] : condition[1]),
-                                    dump_expr((void**)dep->guard->guard, &info));
-                            coutput("      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
+                            string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
+                                                    dump_expr((void**)dep->guard->guard, &info));
+                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
+                                                    dep->guard->calltrue->func_or_mem, dl->flow_index);
                             if( NULL != dep->guard->callfalse->var ) {
-                                coutput("    } else {\n"
-                                        "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                        dep->guard->callfalse->func_or_mem, dl->flow_index);
+                                string_arena_add_string(sa_code, "    } else {\n"
+                                                        "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
+                                                        dep->guard->callfalse->func_or_mem, dl->flow_index);
                             }
                         } else if( NULL != dep->guard->callfalse->var ) {
-                            coutput("    if( !(%s) ) {\n"
-                                    "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                    dump_expr((void**)dep->guard->guard, &info),
-                                    dep->guard->callfalse->func_or_mem, dl->flow_index);
+                            string_arena_add_string(sa_code, "    if( !(%s) ) {\n"
+                                                    "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
+                                                    dump_expr((void**)dep->guard->guard, &info),
+                                                    dep->guard->callfalse->func_or_mem, dl->flow_index);
                         }
-                        coutput("    }\n");
+                        string_arena_add_string(sa_code, "    }\n");
                         goto next_dependency;
                     }
                 }
@@ -4160,16 +4163,25 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
         }
 
     next_dependency:
-        if( dl->flow_flags & (JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE) )
+        if( dl->flow_flags & (JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE) ) {
             if( !(dl->flow_flags & JDF_FLOW_TYPE_READ) )
-                coutput("    if(NULL != context->data[%d].data_in)\n", dl->flow_index);
+                string_arena_add_string(sa_code, "    if(NULL != context->data[%d].data_in)\n", dl->flow_index);
+            if(need_locals) {
+                coutput("%s", string_arena_get_string(sa_local));
+                string_arena_init(sa_local);  /* reset the sa_local */
+            }
+            coutput("%s", string_arena_get_string(sa_code));
+            string_arena_init(sa_code);
             coutput("    DAGUE_DATA_COPY_RELEASE(context->data[%d].data_in);\n", dl->flow_index);
+        }
         (void)jdf;  /* just to keep the compilers happy regarding the goto to an empty statement */
     }
     coutput("  }\n");
 
     string_arena_free(sa);
     string_arena_free(sa1);
+    string_arena_free(sa_local);
+    string_arena_free(sa_code);
 }
 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
