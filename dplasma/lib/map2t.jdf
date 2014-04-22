@@ -1,0 +1,146 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ *
+ */
+#include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+/*
+ * Globals
+ */
+uplo     [type = PLASMA_enum]
+dataA    [type = "dague_ddesc_t *"]
+dataB    [type = "dague_ddesc_t *"]
+operator [type = "tiled_matrix_binary_op_t" ]
+op_args  [type = "void *" ]
+
+descA        [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+descB        [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataB)" ]
+plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
+plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
+ATmt         [type="int" hidden=on default="descA.nt" ]
+ATnt         [type="int" hidden=on default="descA.mt" ]
+
+map_l_in_Amn(n, m)   [profile = off]
+  n = 0   .. descA.mt-1
+  m = n+1 .. ((uplo == plasma_upper) ? 0 : descA.nt-1)
+
+  : dataA(n, m)
+
+  RW A <- dataA(n, m)
+       -> A MAP_L(m, n)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+MAP_L(m, n)  [profile = off]
+  // Execution space
+  m = 1 .. ((uplo == plasma_upper) ? 0 : ATmt-1)
+  n = 0 .. ( m < ATnt ? m-1 : ATnt-1 )
+
+  // Parallel partitioning
+  : dataB(m, n)
+
+  // Parameters
+  READ  A <- A map_l_in_Amn(n, m)
+  RW    B <- dataB(m, n)
+          -> dataB(m, n)
+
+BODY
+{
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), &(descB),
+              A, B, PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("thread %d VP %d map_l( %d, %d )\n",
+             context->th_id, context->virtual_process->vp_id, m, n );
+}
+END
+
+map_u_in_Amn(n, m)  [profile = off]
+  n = 1 .. ((uplo == plasma_lower) ? 0 : descA.mt-1)
+  m = 0 .. ( n < descA.nt ? n-1 : descA.nt-1 )
+  
+  : dataA(n, m)
+
+  RW A <- dataA(n, m)
+       -> A MAP_U(m, n)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+MAP_U(m, n)  [profile = off]
+  // Execution space
+  m = 0   .. ATmt-1
+  n = m+1 .. ((uplo == plasma_lower) ? 0 : ATnt-1)
+
+  // Parallel partitioning
+  : dataB(m, n)
+
+  // Parameters
+  READ  A <- A map_u_in_Amn(n, m)
+  RW    B <- dataB(m, n)
+          -> dataB(m, n)
+
+BODY
+{
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), &(descB),
+              A, B, PlasmaUpperLower, m, n, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("thread %d VP %d map_u( %d, %d )\n",
+             context->th_id, context->virtual_process->vp_id, m, n );
+}
+END
+
+map_diag_in_Akk(k)  [profile = off]
+  k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
+
+  : dataA(k, k)
+
+  RW A <- dataA(k, k)
+       -> A MAP_DIAG(k)
+
+BODY
+{
+    /* nothing */
+}
+END
+
+MAP_DIAG(k) [profile = off]
+  // Execution space
+  k = 0 .. ( ATmt < ATnt ? ATmt-1 : ATnt-1 )
+
+  // Parallel partitioning
+  : dataB(k, k)
+
+  // Parameters
+  READ  A <- A map_diag_in_Akk(k)
+  RW    B <- dataB(k, k)
+          -> dataB(k, k)
+
+BODY
+{
+#if !defined(DAGUE_DRY_RUN)
+    operator( context, &(descA), &(descB),
+              A, B, uplo, k, k, op_args );
+#endif /* !defined(DAGUE_DRY_RUN) */
+
+    printlog("thread %d VP %d map_diag( %d, %d )\n",
+             context->th_id, context->virtual_process->vp_id, k, k );
+}
+END

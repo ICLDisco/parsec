@@ -10,6 +10,7 @@ include(RulesTestings.cmake)
 
 set(TESTS
   # Lapack Auxiliary
+  testing_zgeadd_t.c
   testing_zprint.c
   testing_zlange.c
   # Level 3 Blas

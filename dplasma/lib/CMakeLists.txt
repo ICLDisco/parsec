@@ -15,6 +15,7 @@ set(EXTRA_SOURCES
   dplasma_systolic_qr.c
   map_wrapper.c
   map2_wrapper.c
+  map2t_wrapper.c
   butterfly_map.c
 )
 
@@ -95,6 +96,7 @@ endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 list(APPEND generated_jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map.jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf
+  ${CMAKE_CURRENT_SOURCE_DIR}/map2t.jdf
 )
 
 jdf_rules(generated_files "${generated_jdf}")
@@ -103,6 +105,7 @@ jdf_rules(generated_files "${generated_jdf}")
 set(SOURCES
   # Lapack Auxiliary
   zgeadd_wrapper.c
+  zgeadd_t_wrapper.c
   zlacpy_wrapper.c
   zlange_wrapper.c
   zlanhe_wrapper.c
