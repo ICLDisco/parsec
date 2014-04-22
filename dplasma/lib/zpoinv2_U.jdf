@@ -13,6 +13,11 @@ extern "C" %{
 #include "dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
+#if defined(HAVE_CUDA)
+#include <dague/devices/cuda/dev_cuda.h>
+#include "dplasma/cores/cuda_zgemm.h"
+#endif  /* defined(HAVE_CUDA) */
+
 %}
 
 uplo      [type = "PLASMA_enum"]
@@ -167,9 +172,22 @@ potrf_zgemm(k, m, n)
              -> (((1+k)==n)) ? B potrf_ztrsm(n, m)
              -> ((n>=(2+k))) ? C potrf_zgemm(k+1, m, n)
 
+BODY [type=CUDA dyld=cublasZgemm]
+        int ldak = BLKLDD( descA, k );
+        int tempmm = (m==(descA.nt-1)) ? (descA.n-(m*descA.nb)) : descA.nb;
+
+        return gpu_zgemm(context, this_task,
+                         ( n == k+1 ),
+                         PlasmaConjTrans, PlasmaNoTrans,
+                         descA.mb, tempmm, descA.mb,
+                         (dague_complex64_t)-1.0, k, n, &descA, ldak,
+                                                  k, m, &descA, ldak,
+                         (dague_complex64_t) 1.0, n, m, &descA, descA.mb);
+END
+
 BODY
 {
-  int tempmm = ((m)==(descA.nt-1)) ? (descA.n-(m*descA.nb)) : descA.nb;
+  int tempmm = (m==(descA.nt-1)) ? (descA.n-(m*descA.nb)) : descA.nb;
   int ldak = BLKLDD( descA, k );
 
   printlog("CORE_zgemm(%d, %d, %d)\n"
@@ -178,10 +196,10 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
 
   CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans, descA.mb,
-        tempmm, descA.mb, -1,
-        A /* dataA(k,n) */, ldak, B /* dataA(k,m) */,
-        ldak, 1.000000, C /* dataA(n,m) */,
-        descA.mb );
+             tempmm, descA.mb, 
+             -1.0, A /* dataA(k,n) */, ldak,
+                   B /* dataA(k,m) */, ldak,
+              1.0, C /* dataA(n,m) */, descA.mb );
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
 }
@@ -235,10 +253,6 @@ trtri_zgemm(k, m, n)
   /* Locality */
   : dataA(m,n)
 
-  CTL   ctl6 -> (((1+k)==n)) ? ctl6 trtri_ztrsmR(n, n-1)
-  CTL   ctl5 -> ((n>=(k+2))) ? ctl5 trtri_zgemm((k+1)..(n-1), k, n)
-             <- ((m>=1)) ? ctl5 trtri_zgemm(m, 0..(m-1), n)
-  CTL   ctl4 -> ctl4 trtri_ztrsmR(k, m)
   READ  A    <- ((k>=(2+m))) ? C trtri_zgemm(k-1, m, k)
              <- (((1+m)==k)) ? B trtri_ztrsmL(m+1-1, m+1)
   READ  B    <- B trtri_ztrsmL(k, n)
@@ -247,6 +261,10 @@ trtri_zgemm(k, m, n)
              -> (((1+k)==n)) ? B trtri_ztrsmR(n, m)
              -> ((n>=(k+2))) ? C trtri_zgemm(k+1, m, n)
              -> (((1+k)==n) & (descA.nt>=(k+3))) ? A trtri_zgemm(n, m, (n+1)..(descA.nt-1))
+  CTL   ctl6 -> (((1+k)==n)) ? ctl6 trtri_ztrsmR(n, n-1)
+  CTL   ctl5 -> ((n>=(k+2))) ? ctl5 trtri_zgemm((k+1)..(n-1), k, n)
+             <- ((m>=1)) ? ctl5 trtri_zgemm(m, 0..(m-1), n)
+  CTL   ctl4 -> ctl4 trtri_ztrsmR(k, m)
 
 BODY
 {
@@ -384,8 +402,6 @@ lauum_zgemm(k, m, n)
   /* Locality */
   : dataA(m,n)
 
-  CTL   ctl10 -> ctl10 lauum_ztrmm(k, n)
-  CTL   ctl9 -> ctl9 lauum_ztrmm(k, m)
   READ  A    <- B trtri_ztrsmR(k, m)
   READ  B    <- B trtri_ztrsmR(k, n)
   RW    C    <- ((k==(n+1))) ? B lauum_ztrmm(n, m)
@@ -394,6 +410,8 @@ lauum_zgemm(k, m, n)
              -> (descA.mt>=(k+2)) ? C lauum_zgemm(k+1, m, n)
              -> (descA.mt==(1+k)) ? A DAGUE_OUT_A(m, n)
              -> (descA.mt==(1+k)) ? B hemm_zgemmNC(0..(descB.mt-1), m, n)
+  CTL   ctl10 -> ctl10 lauum_ztrmm(k, n)
+  CTL   ctl9 -> ctl9 lauum_ztrmm(k, m)
 
 BODY
 {
@@ -494,6 +512,15 @@ DAGUE_IN_B(m, n)
   /* Locality */
   : dataB(m,n)
 
+  /*
+     Add control edges so they don't all run at the beginning,
+     when they are only needed at the end
+  */
+  CTL   ctl0 <- (0 < n)               ? ctl0 DAGUE_IN_B(m, n-1)
+             <- ((0 == n) && (0 < m)) ? ctl0 DAGUE_IN_B(m-1, descB.nt-1)
+             -> (n < descB.nt-1)                        ? ctl0 DAGUE_IN_B(m, n+1)
+             -> ((n == descB.nt-1) && (m < descB.mt-1)) ? ctl0 DAGUE_IN_B(m+1, 0)
+             
   RW    A    <- dataB(m,n)
              -> ((descB.nt>=(2+n))) ? A hemm_zgemmNN(m, (n+1)..(descB.nt-1), n)
              -> B hemm_zhemm(m, n)
