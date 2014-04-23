@@ -1156,7 +1156,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
              */
             new_context->data[(int)dest_flow->flow_index].data_repo = dest_repo_entry;
             new_context->data[(int)dest_flow->flow_index].data_in   = origin->data[origin_flow->flow_index].data_out;
-            assert(0 == data->displ); (void)data;
+            (void)data;
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
