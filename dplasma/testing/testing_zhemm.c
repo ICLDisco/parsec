@@ -225,7 +225,7 @@ static int check_solution( dague_context_t *dague, int loud,
 
     Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
 
-    dplasma_zgeadd( dague, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
+    dplasma_zgeadd( dague, PlasmaNoTrans, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
                                                    (tiled_matrix_desc_t*)&ddescC );
 
     Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC );

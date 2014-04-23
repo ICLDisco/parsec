@@ -105,7 +105,6 @@ jdf_rules(generated_files "${generated_jdf}")
 set(SOURCES
   # Lapack Auxiliary
   zgeadd_wrapper.c
-  zgeadd_t_wrapper.c
   zlacpy_wrapper.c
   zlange_wrapper.c
   zlanhe_wrapper.c
