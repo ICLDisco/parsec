@@ -94,7 +94,7 @@ int check_zpotrf( dague_context_t *dague, int loud,
                    A, (tiled_matrix_desc_t*)&LLt);
 
     /* compute LL' - A or U'U - A */
-    dplasma_zgeadd( PlasmaNoTrans, dague, uplo, -1.0, A0,
+    dplasma_zgeadd( dague, PlasmaNoTrans, uplo, -1.0, A0,
                     (tiled_matrix_desc_t*)&LLt);
 
     Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, A0);
