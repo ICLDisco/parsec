@@ -210,8 +210,13 @@ static int remote_dep_dequeue_init(dague_context_t* context)
         DEBUG3(("MPI is not initialized. Fall back to a single node execution\n"));
         return 1;
     }
-    MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
-    if(1 == context->nb_nodes ) return 1;
+    if( context->comm_ctx == NULL ) {
+        MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
+        if(1 == context->nb_nodes ) return 1;
+    }
+    else {
+        MPI_Comm_size(*(MPI_Comm*)context->comm_ctx, (int*)&(context->nb_nodes));
+    }
 
     /**
      * Finalize the initialization of the upper level structures
@@ -907,7 +912,12 @@ static int remote_dep_mpi_init(dague_context_t* context)
     OBJ_CONSTRUCT(&dep_activates_noobj_fifo, dague_list_t);
     OBJ_CONSTRUCT(&dep_put_fifo, dague_list_t);
 
-    MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
+    if( NULL != context->comm_ctx ) {
+        MPI_Comm_dup(*(MPI_Comm*)context->comm_ctx, &dep_comm);
+    }
+    else {
+        MPI_Comm_dup(MPI_COMM_WORLD, &dep_comm);
+    }
     /*
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
      * on MPI_COMM_WORLD.

@@ -443,6 +443,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->active_objects = 0;
     context->flags          = 0;
     context->nb_nodes       = 1;
+    context->comm_ctx       = NULL;
     context->my_rank        = 0;
 
 #if defined(DAGUE_SIM)

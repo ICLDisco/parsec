@@ -149,6 +149,13 @@ int dague_remote_dep_off(dague_context_t* context)
     return remote_dep_off(context);
 }
 
+int dague_remote_dep_set_ctx( dague_context_t* context, void* opaque_comm_ctx ) 
+{
+    dague_remote_dep_fini( context );
+    context->comm_ctx = opaque_comm_ctx;
+    return dague_remote_dep_init( context );
+}
+
 int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
 {
     return remote_dep_progress(eu_context);

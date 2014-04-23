@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -29,21 +29,22 @@ extern dague_data_free_t     dague_data_free;
  */
 
 /**
- * The completion callback of a dague_handle. Once the handle has been
- * completed, i.e. all the local tasks associated with the handle have
- * been executed, and before the handle is marked as done, this callback
- * will be triggered. Inside the callback the handle should not be
- * modified.
- */
-typedef int (*dague_completion_cb_t)(dague_handle_t* dague_handle, void*);
-
-/**
  * Create a new execution context, using the number of resources passed
  * with the arguments. Every execution happend in the context of such an
  * execution context. Several contextes can cohexist on disjoint resources
  * in same time.
  */
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
+
+/**
+ * Reset the remote_dep comm engine associated with @context, and use 
+ * the communication context @opaque_comm_ctx in the future 
+ * (typically an MPI communicator);
+ *   dague_progress becomes collective accross nodes spanning on this
+ *   communication context.
+ */
+int dague_remote_dep_set_ctx( dague_context_t* context, void* opaque_comm_ctx );
+
 
 /**
  * Complete all pending operations on the execution context, and release
@@ -68,16 +69,17 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle);
 int dague_progress(dague_context_t* context);
 
 /**
- * Compose sequentially two handles. If start is already a composed
- * object, then next will be added sequentially to the list. These
- * handles will execute one after another as if there were sequential. 
- * The resulting compound dague_handle is returned. 
- */
-dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
-
-/**
  * HANDLE MANIPULATION FUNCTIONS.
  */
+
+/**
+ * The completion callback of a dague_handle. Once the handle has been
+ * completed, i.e. all the local tasks associated with the handle have
+ * been executed, and before the handle is marked as done, this callback
+ * will be triggered. Inside the callback the handle should not be
+ * modified.
+ */
+typedef int (*dague_completion_cb_t)(dague_handle_t* dague_handle, void*);
 
 /* Accessors to set and get the completion callback and data */
 int dague_set_complete_callback(dague_handle_t* dague_handle,
@@ -94,6 +96,14 @@ void dague_handle_unregister(dague_handle_t* handle);
 /**< globally synchronize object id's so that next register generates the same
  *  * id at all ranks. */
 void dague_handle_sync_ids(void);
+
+/**
+ * Compose sequentially two handles. If start is already a composed
+ * object, then next will be added sequentially to the list. These
+ * handles will execute one after another as if there were sequential. 
+ * The resulting compound dague_handle is returned. 
+ */
+dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 
 /**< Free the resource allocated in the dague handle. The handle should be unregistered first. */
 void dague_handle_free(dague_handle_t *handle);
