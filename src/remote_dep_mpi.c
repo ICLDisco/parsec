@@ -288,6 +288,7 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     OBJ_DESTRUCT(&dep_cmd_queue);
     assert(NULL == dague_dequeue_pop_front(&dep_cmd_fifo));
     OBJ_DESTRUCT(&dep_cmd_fifo);
+    mpi_initialized = 0;
 
     return 0;
 }
