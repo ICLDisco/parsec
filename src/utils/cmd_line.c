@@ -565,7 +565,7 @@ char *dague_cmd_line_get_usage_msg(dague_cmd_line_t *cmd)
             if (NULL != option->clo_single_dash_name) {
                 line[2] = (filled) ? '|' : ' ';
                 strcat(line, "-");
-                strcat(line, option->clo_single_dash_name);
+                strncat(line, option->clo_single_dash_name, 2*MAX_WIDTH - strlen(line));
                 filled = true;
             }
             if (NULL != option->clo_long_name) {
@@ -575,14 +575,14 @@ char *dague_cmd_line_get_usage_msg(dague_cmd_line_t *cmd)
                     strcat(line, " ");
                 }
                 strcat(line, "--");
-                strcat(line, option->clo_long_name);
+                strncat(line, option->clo_long_name, 2*MAX_WIDTH - strlen(line));
                 filled = true;
             }
             strcat(line, " ");
             for (i = 0; (int)i < option->clo_num_params; ++i) {
                 len = sizeof(temp);
                 snprintf(temp, len, "<arg%d> ", (int)i);
-                strcat(line, temp);
+                strncat(line, temp, 2*MAX_WIDTH - strlen(line));
             }
             if (option->clo_num_params > 0) {
                 strcat(line, " ");
@@ -641,7 +641,7 @@ char *dague_cmd_line_get_usage_msg(dague_cmd_line_t *cmd)
                 /* Last line */
 
                 if (strlen(start) < (MAX_WIDTH - PARAM_WIDTH)) {
-                    strcat(line, start);
+                    strncat(line, start, 2*MAX_WIDTH - strlen(line));
                     dague_argv_append(&argc, &argv, line);
                     break;
                 }
@@ -654,7 +654,7 @@ char *dague_cmd_line_get_usage_msg(dague_cmd_line_t *cmd)
                      ptr > start; --ptr) {
                     if (isspace(*ptr)) {
                         *ptr = '\0';
-                        strcat(line, start);
+                        strncat(line, start, 2*MAX_WIDTH - strlen(line));
                         dague_argv_append(&argc, &argv, line);
 
                         start = ptr + 1;
@@ -674,7 +674,7 @@ char *dague_cmd_line_get_usage_msg(dague_cmd_line_t *cmd)
                         if (isspace(*ptr)) {
                             *ptr = '\0';
 
-                            strcat(line, start);
+                            strncat(line, start, 2*MAX_WIDTH - strlen(line));
                             dague_argv_append(&argc, &argv, line);
 
                             start = ptr + 1;
@@ -688,7 +688,7 @@ char *dague_cmd_line_get_usage_msg(dague_cmd_line_t *cmd)
                        whitespace, then just add it on and be done */
 
                     if (ptr >= start + len) {
-                        strcat(line, start);
+                        strncat(line, start, 2*MAX_WIDTH - strlen(line));
                         dague_argv_append(&argc, &argv, line);
                         start = desc + len + 1;
                     }
