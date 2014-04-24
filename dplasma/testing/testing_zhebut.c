@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -28,7 +28,6 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    int info = 0;
     int ret = 0;
     int uplo = PlasmaLower;
     PLASMA_Complex64_t *U_but_vec;
@@ -141,10 +140,7 @@ int main(int argc, char ** argv)
     }
     (void)gflops;
 
-    if ( info != 0 ) {
-        if( rank == 0 && loud ) printf("-- The butterfly failed (info = %d) ! \n", info);
-        ret |= 1;
-    } else if(check) {
+    if(check) {
 
 #if defined(CHECK_B)
         dplasma_zhetrs(dague, uplo,

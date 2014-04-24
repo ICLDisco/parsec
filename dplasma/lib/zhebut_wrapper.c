@@ -172,7 +172,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     U_before = &U_but_vec[level*N];
     U_after  = &U_but_vec[level*N];
 
-    dague_zhebut = (dague_handle_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
+    dague_zhebut = (dague_handle_t *)dague_zhebut_new(seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
 
 
     for(i=0; i<36; i++){
@@ -260,7 +260,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
 
-    dague_zgebut = (dague_handle_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
+    dague_zgebut = (dague_handle_t *)dague_zgebut_new(seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
 
     for(i=0; i<36; i++){
 #if defined(HAVE_MPI)
@@ -345,7 +345,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
 
-    dague_zgebmm = (dague_handle_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, trans, pool_0);
+    dague_zgebmm = (dague_handle_t *)dague_zgebmm_new(seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, trans, pool_0);
 
     for(i=0; i<36; i++) {
 #if defined(HAVE_MPI)
@@ -471,7 +471,6 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
 
     N = A->lm;
 
-    subop = (dague_handle_t **)malloc((nbhe+nbge) * sizeof(dague_handle_t*));
     U_but_vec = (PLASMA_Complex64_t *)malloc( (levels+1)*N*sizeof(PLASMA_Complex64_t) );
     *U_but_ptr = U_but_vec;
     srandom(0);

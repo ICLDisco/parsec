@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -24,13 +24,13 @@ extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int tra
 
 %}
 
-descA  [type = "dague_seg_ddesc_t"]
+descA  [type = "dague_seg_ddesc_t*"]
 A      [type = "dague_ddesc_t *"]
 U      [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
 trans  [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
 
 %option DAGUE_ARENA_STRUT = 36
 
@@ -70,11 +70,11 @@ BODY
   printlog( "GEBMM(%d, %d) (PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
              i, j, i, j, Atl);
 
-  type = segment_to_type_index(descA.seg_info, i, j);
-  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
-  lda = descA.A_org->mb; /* This is the mb of the tile */
-  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  lda = descA->A_org->mb; /* This is the mb of the tile */
+  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
   /*
    * off_in_U is the beginning (vertically) of the segment as an absolute offest
@@ -82,8 +82,8 @@ BODY
    */
   off_in_U = i_tile*lda + off_in_tile%lda;
 
-  N = descA.A_org->lm;
-  lvl = descA.level;
+  N = descA->A_org->lm;
+  lvl = descA->level;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );

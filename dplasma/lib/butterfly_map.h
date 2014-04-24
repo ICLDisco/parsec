@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * $COPYRIGHT
+ *
+ */
+
 #ifndef _RBT_MAPPING_H_
 #define _RBT_MAPPING_H_
 #include "include/data_distribution.h"
@@ -37,7 +45,7 @@ typedef struct dague_seg_ddesc{
 seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb);
 void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset);
 int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, unsigned *n_sz);
-int segment_to_arena_index(const dague_seg_ddesc_t but_ddesc, int m, int n);
+int segment_to_arena_index(const dague_seg_ddesc_t* but_ddesc, int m, int n);
 int segment_to_type_index(const seg_info_t seg, int m, int n);
 
 #endif
