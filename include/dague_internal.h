@@ -295,6 +295,7 @@ struct dague_execution_context_s {
 #endif
     dague_data_pair_t       data[MAX_PARAM_COUNT];
 };
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_execution_context_t);
 
 /**
  * Profiling data.
