@@ -3256,7 +3256,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
         }
     }
 
-    coutput("  return __h; (void)__dague_handle;\n");
+    coutput(" (void)__dague_handle; return __h;\n");
     coutput("}\n\n");
     string_arena_free(sa);
 }
