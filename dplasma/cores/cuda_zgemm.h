@@ -22,7 +22,7 @@ int gpu_kernel_init_zgemm( dague_context_t* dague_context );
 
 int gpu_zgemm( dague_execution_unit_t* eu_context,
                dague_execution_context_t* this_task,
-               int pushout,
+               int pushout, int nb,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K, 
                dague_complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
