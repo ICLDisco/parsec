@@ -19,10 +19,10 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    PLASMA_enum uplo = PlasmaLower;
+    PLASMA_enum uplo = PlasmaUpper;
     int info = 0;
     int ret = 0;
-    int async = 0;
+    int async = 1;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
