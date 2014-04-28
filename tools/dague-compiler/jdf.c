@@ -999,8 +999,14 @@ int jdf_flatten_function(jdf_function_entry_t* function)
             flow->flow_index = flow_index++;
     /* And now name all the others (pure INPUT flows) */
     for( flow = function->dataflow; NULL != flow; flow = flow->next )
-        if( 0xFF == flow->flow_index )
+        if( (0xFF == flow->flow_index) && !(flow->flow_flags & JDF_FLOW_TYPE_CTL) )
             flow->flow_index = flow_index++;
+    /* And last the CONTROL flows */
+    for( flow = function->dataflow; NULL != flow; flow = flow->next )
+        if( 0xFF == flow->flow_index ) {
+            assert(flow->flow_flags & JDF_FLOW_TYPE_CTL);
+            flow->flow_index = flow_index++;
+        }
     /* Let's reorder the dataflow list based on the flow_index field */
     jdf_dataflow_t *parent, *reverse_order = NULL;
     flow_index = 0;
