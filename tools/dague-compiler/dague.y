@@ -505,7 +505,11 @@ dataflow:       optional_flow_flags VAR dependencies
                     flow->deps            = $3;
 
                     $$ = flow;
-                    JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
+                    if( NULL == $3) {
+                        JDF_OBJECT_LINENO($$) = current_lineno;
+                    } else {
+                        JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
+                    }
                 }
         ;
 
