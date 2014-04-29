@@ -262,7 +262,7 @@ dplasma_zpoinv2_sync( dague_context_t *dague,
 {
     int info = 0;
     /* Check input arguments */
-    if (uplo != PlasmaUpper && uplo != PlasmaLower) {
+    if (uplo != PlasmaUpper) {
         dplasma_error("dplasma_zpoinv2_sync", "illegal value of uplo");
         return -1;
     }
