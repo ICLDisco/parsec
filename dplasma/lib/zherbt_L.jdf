@@ -35,6 +35,8 @@ bcast_zgeqrt(k)
          -> (descA.mt>=(k+3)) ? F zunmqr(k, (k+2)..(descA.mt-1))
   READ B <- B zgeqrt(k) [type=LITTLE_T]
          -> (descA.mt>=(k+3)) ? G zunmqr(k, (k+2)..(descA.mt-1)) [type = LITTLE_T]
+
+; (descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 BODY
  /* */
 END
@@ -46,6 +48,8 @@ zgeqrt_to_zherfb(k)
          -> C zherfb(k)
   READ B <- B zgeqrt(k) [type=LITTLE_T]
          -> D zherfb(k) [type=LITTLE_T]
+
+; (descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 BODY
  /* */
 END
@@ -233,6 +237,8 @@ bcast_ztsqrt(k,m1)
   READ L <- L ztsqrt(k,m1) [type=LITTLE_T]
          -> (descA.mt>=(m1+2)) ? T ztsmqr(k, m1, (m1+1)..(descA.mt-1))   [type = LITTLE_T]
          -> (m1>=(k+3)) ? P ztsmqr_hetra1(k, m1, (k+2)..(m1-1))    [type = LITTLE_T]
+
+; (descA.nt - k)*(descA.mt - m1)*(descA.mt - m1)
 BODY
  /* */
 END
