@@ -15,12 +15,11 @@ extern "C" %{
 
 %}
 
-uplo   [type = "PLASMA_enum"]
 ib     [type = "int"]
+A      [type = "tiled_matrix_desc_t *"]
 descA  [type = "tiled_matrix_desc_t"]
-A      [type = "dague_ddesc_t *"]
+T      [type = "tiled_matrix_desc_t *" aligned=A]
 descT  [type = "tiled_matrix_desc_t"]
-T      [type = "dague_ddesc_t *" aligned=A]
 
 pool_3 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*4 *descT.nb)"]
 pool_2 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*2 *descT.nb)"]
