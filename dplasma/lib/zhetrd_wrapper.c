@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2014      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -74,12 +74,12 @@ dplasma_zhetrd( PLASMA_enum uplo,
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
 
-    b2s_obj = dague_zhetrd_b2s_new( (two_dim_block_cyclic_t*)DE );
+    b2s_obj = dague_zhetrd_b2s_new( (two_dim_block_cyclic_t*)DE, DE->mb-1 );
     if( NULL == b2s_obj ) goto cleanup;
-    dplasma_add2arena_tile(b2s_obj->arenas[DAGUE_zhetrd_b2s_DEFAULT_ARENA], 
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+    dplasma_add2arena_rectangle(b2s_obj->arenas[DAGUE_zhetrd_b2s_DEFAULT_ARENA], 
+                                DE->mb*DE->nb*sizeof(dague_complex64_t),
+                                DAGUE_ARENA_ALIGNMENT_SSE,
+                                MPI_DOUBLE_COMPLEX, DE->mb, DE->nb, -1);
         
     dague_enqueue( dague, (dague_object_t*)h2b_obj );
     dague_enqueue( dague, (dague_object_t*)band2rec );
