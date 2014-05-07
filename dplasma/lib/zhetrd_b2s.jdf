@@ -1,0 +1,136 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include "dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/cores/dplasma_zcores.h"
+
+%}
+
+A          [type = "tiled_matrix_desc_t*"]
+NT         [type = int  hidden = on  default="A->nt"]
+NB         [type = int]
+
+/*
+ *
+ */
+in_dat(i) [profile = off hidden = on]
+  i = 1..(NT-1)
+
+  : A(0,i)
+
+  RW A <- A(0,i)
+       -> B zhbrdt(0,0,i-1)
+BODY
+/* nothing */
+  printlog("in_dat(%d, %d, %d) <- A[0, %d] = %p\n",
+           0, 0, i-1, i, A);
+END
+
+/*
+ *
+ */
+zhbrdt(s1,s,i)
+  /* Execution space */
+  s1 = 0..NT-2
+  s = 0..NB-1
+  i = s1..NT-2
+
+  : A(0,i)
+
+  /* A == data_A(0,i) */
+  /* B == data_A(0,i+1) */
+
+  RW    A <- (i==s1) & (0==s) & (0==i) ? A(0,i)
+          <- (i==s1) & (0==s) & (i>=1) ? A zhbrdt(s1-1, NB-1, s1)
+          <- (i==s1) & (s>=1)          ? A zhbrdt(s1, s-1, s1)
+          <- (s1<i)                    ? B zhbrdt(s1, s, i-1)
+
+          -> ((1+s)==NB) & (i==s1)     ? A(0,i)
+          -> ((1+s)==NB) & ((1+s1)==i) ? A zhbrdt(s1+1, 0, s1+1)
+          -> ((1+s)==NB) & ((1+s1)<i)  ? B zhbrdt(s1+1, 0, i-1)
+          -> (i==s1) & ((1+s)<NB)      ? A zhbrdt(s1, s+1, i)
+          -> (i>s1)                    ? B zhbrdt(s1, s+1, i-1)
+
+  RW    B <- (0==s) & (0==s1)          ? A in_dat(i+1)
+          <- (0==s) & ((NT-2)==i)      ? A zhbrdt_half(s1-1, NB-1)
+          <- (0==s)                    ? A zhbrdt(s1-1, NB-1, i+1)
+          <- ((NT-2)==i)               ? A zhbrdt_half(s1, s-1)
+          <-                             A zhbrdt(s1, s-1, i+1)
+
+          -> ((NT-2)==i)               ? A zhbrdt_half(s1, s)
+          ->                             A zhbrdt(s1, s, i+1)
+BODY
+    int nbA, mbA;
+    nbA   = __dague_object->super.A->nb;
+    mbA   = __dague_object->super.A->mb;
+    dague_complex64_t *vi, *vii, *taui, *tauii;
+    vi    = (dague_complex64_t*)A + mbA * NB;
+    vii   = (dague_complex64_t*)B + mbA * NB;
+    taui  = vi  + mbA;
+    tauii = vii + mbA;
+
+    assert(NB+2 == nbA); (void)nbA;
+    assert(NB+1 == mbA); (void)mbA;
+    blgchase_ztrdv2( NT,
+                    NT * NB,
+                    NB,
+                    A /* A(0, i) */, B /* A(0, i+1) */,
+                    vi,  taui,
+                    vii, tauii,
+                    s1 * NB + s, i, s1);
+    printlog("CORE_zhbrdt(s1 = %d, s = %d, i = %d)\n\t(A(%d,%d)[%p], A(%d,%d)[%p], s1*NB+s, i)\n",
+                 s1, s, i, 0, i, A, 0, i+1, B);
+
+END
+
+/*
+ *
+ */
+zhbrdt_half(s1,s)
+  /* Execution space */
+  s1 = 0..NT-1
+  s = 0..NB-1
+
+  : A(0,NT-1)
+
+  /* A == data_A(0,i) */
+
+  RW    A <- (1==NT) & (0==s) ? A(0,NT-1)
+          <- ((NT-1)!=s1)     ? B zhbrdt(s1, s, NT-2)
+          <- (0==s) & (1!=NT) ? A zhbrdt_half(s1-1, NB-1)
+          <- (0!=s)           ? A zhbrdt_half(s1, s-1)
+
+          -> ((NT-1)==s1) & ((NB-1)==s) ? A(0,NT-1)
+          -> ((NT-1)==s1)               ? A zhbrdt_half(s1, s+1)
+          -> ((NT-2)==s1) & ((NB-1)==s) ? A zhbrdt_half(s1+1, 0)
+          -> ((NB-1)==s)                ? B zhbrdt(s1+1, 0, NT-2)
+                                        : B zhbrdt(s1, s+1, NT-2)
+BODY
+    int nbA, mbA;
+    nbA   = __dague_object->super.A->nb;
+    mbA   = __dague_object->super.A->mb;
+    dague_complex64_t *vi, *taui;
+    vi    = (dague_complex64_t*)A + mbA * NB;
+    taui  = vi + mbA;
+
+    assert(NB+2 == nbA); (void)nbA;
+    assert(NB+1 == mbA); (void)mbA;
+    blgchase_ztrdv2( NT,
+                    NT * NB,
+                    NB,
+                    A /* A(0, i) */, NULL /* this is never used [supposed to]*/,
+                    vi, taui,
+                    vi, taui,
+                    s1 * NB + s, NT-1, s1);
+    printlog("CORE_zhbrdt_half(s1 = %d, s = %d)\n\t(A(%d,%d)[%p], s1*NB+s, NT-1)\n",
+                 s1, s, 0, NT-1, A);
+END
