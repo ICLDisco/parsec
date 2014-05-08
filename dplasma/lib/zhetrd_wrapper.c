@@ -30,9 +30,9 @@ dplasma_zhetrd( dague_context_t* dague,
                 tiled_matrix_desc_t* T,
                 int* info )
 {
-    dague_zhetrd_h2b_L_object_t * h2b_obj=NULL;
-    dague_diag_band_to_rect_object_t* band2rect_obj=NULL;
-    dague_zhetrd_b2s_object_t * b2s_obj=NULL;
+    dague_zhetrd_h2b_L_handle_t * h2b=NULL;
+    dague_diag_band_to_rect_handle_t* band2rect=NULL;
+    dague_zhetrd_b2s_handle_t * b2s=NULL;
     dague_memory_pool_t pool[4];
 
     if( uplo != PlasmaLower && uplo != PlasmaUpper ) {
@@ -47,56 +47,56 @@ dplasma_zhetrd( dague_context_t* dague,
     dague_private_memory_init( &pool[3], (sizeof(dague_complex64_t)*T->nb*4 *T->nb) ); /* work for the TSMQRLR */
     
     if( PlasmaLower == uplo ) {
-        h2b_obj = dague_zhetrd_h2b_L_new( ib, A, *A, T, *T, &pool[3], &pool[2], &pool[1], &pool[0] );
-        dplasma_add2arena_rectangle( h2b_obj->arenas[DAGUE_zhetrd_h2b_L_DEFAULT_ARENA],
+        h2b = dague_zhetrd_h2b_L_new( ib, A, *A, T, *T, &pool[3], &pool[2], &pool[1], &pool[0] );
+        dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_L_DEFAULT_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1);
-        dplasma_add2arena_rectangle( h2b_obj->arenas[DAGUE_zhetrd_h2b_L_LITTLE_T_ARENA],
+        dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_L_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
 #if 0
     } else {
-        h2b_obj = dague_zhetrd_h2b_U_new( ib, A, *A, T, *T, pool[3], pool[2], pool[1], pool[0] );
-        dplasma_add2arena_rectangle( h2b_obj->arenas[DAGUE_zhetrd_h2b_U_DEFAULT_ARENA],
+        h2b = dague_zhetrd_h2b_U_new( ib, A, *A, T, *T, pool[3], pool[2], pool[1], pool[0] );
+        dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_U_DEFAULT_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1);
-        dplasma_add2arena_rectangle( h2b_obj->arenas[DAGUE_zhetrd_h2b_U_LITTLE_T_ARENA],
+        dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_U_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
 #endif
     }
-    if( NULL == h2b_obj ) { 
+    if( NULL == h2b ) { 
         *info=-101; goto cleanup;
     }
 
-    band2rect_obj = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)A, (two_dim_block_cyclic_t*)DE,
+    band2rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)A, (two_dim_block_cyclic_t*)DE,
                                                 A->mt, A->nt, A->mb, A->nb, sizeof(dague_complex64_t));
-    if( NULL == band2rect_obj ) goto cleanup;
-    dplasma_add2arena_tile(band2rect_obj->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA],
+    if( NULL == band2rect ) goto cleanup;
+    dplasma_add2arena_tile(band2rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, A->mb);
 
-    b2s_obj = dague_zhetrd_b2s_new( DE, DE->mb-1 );
-    if( NULL == b2s_obj ) goto cleanup;
-    dplasma_add2arena_rectangle(b2s_obj->arenas[DAGUE_zhetrd_b2s_DEFAULT_ARENA], 
+    b2s = dague_zhetrd_b2s_new( DE, DE->mb-1 );
+    if( NULL == b2s ) goto cleanup;
+    dplasma_add2arena_rectangle(b2s->arenas[DAGUE_zhetrd_b2s_DEFAULT_ARENA], 
                                 DE->mb*DE->nb*sizeof(dague_complex64_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
                                 MPI_DOUBLE_COMPLEX, DE->mb, DE->nb, -1);
         
-    dague_enqueue( dague, (dague_object_t*)h2b_obj );
-    dague_enqueue( dague, (dague_object_t*)band2rect_obj );
-    dague_enqueue( dague, (dague_object_t*)b2s_obj );
+    dague_enqueue( dague, (dague_handle_t*)h2b );
+    dague_enqueue( dague, (dague_handle_t*)band2rect );
+    dague_enqueue( dague, (dague_handle_t*)b2s );
     dplasma_progress(dague);
 
 cleanup:
-    if( h2b_obj ) DAGUE_INTERNAL_OBJECT_DESTRUCT( h2b_obj );
-    if( band2rect_obj ) DAGUE_INTERNAL_OBJECT_DESTRUCT( band2rect_obj );
-    if( b2s_obj ) DAGUE_INTERNAL_OBJECT_DESTRUCT( b2s_obj );
+    if( h2b ) DAGUE_INTERNAL_HANDLE_DESTRUCT( h2b );
+    if( band2rect ) DAGUE_INTERNAL_HANDLE_DESTRUCT( band2rect );
+    if( b2s ) DAGUE_INTERNAL_HANDLE_DESTRUCT( b2s );
     dague_private_memory_fini( &pool[0] );
     dague_private_memory_fini( &pool[1] );
     dague_private_memory_fini( &pool[2] );

@@ -76,6 +76,8 @@ set(JDF
   zhbrdt.jdf
   zhebut.jdf
   zherbt_L.jdf
+  zhetrd_h2b_L.jdf
+  zhetrd_b2s.jdf
   ztrdsm.jdf
   ztrmdm.jdf
   zgeqrt.jdf
@@ -174,8 +176,9 @@ set(SOURCES
   dplasma_zcheck.c
   #
   zhbrdt_wrapper.c
-  zhebut_wrapper.c
   zherbt_wrapper.c
+  zhetrd_wrapper.c
+  zhebut_wrapper.c
   zhetrf_wrapper.c
   zhetrs_wrapper.c
   ztrdsm_wrapper.c

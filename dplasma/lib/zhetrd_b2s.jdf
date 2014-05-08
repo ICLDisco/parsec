@@ -9,7 +9,7 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/cores/dplasma_zcores.h"
 
@@ -70,8 +70,8 @@ zhbrdt(s1,s,i)
           ->                             A zhbrdt(s1, s, i+1)
 BODY
     int nbA, mbA;
-    nbA   = __dague_object->super.A->nb;
-    mbA   = __dague_object->super.A->mb;
+    nbA   = __dague_handle->super.A->nb;
+    mbA   = __dague_handle->super.A->mb;
     dague_complex64_t *vi, *vii, *taui, *tauii;
     vi    = (dague_complex64_t*)A + mbA * NB;
     vii   = (dague_complex64_t*)B + mbA * NB;
@@ -116,8 +116,8 @@ zhbrdt_half(s1,s)
                                         : B zhbrdt(s1, s+1, NT-2)
 BODY
     int nbA, mbA;
-    nbA   = __dague_object->super.A->nb;
-    mbA   = __dague_object->super.A->mb;
+    nbA   = __dague_handle->super.A->nb;
+    mbA   = __dague_handle->super.A->mb;
     dague_complex64_t *vi, *taui;
     vi    = (dague_complex64_t*)A + mbA * NB;
     taui  = vi + mbA;
