@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 The University of Tennessee and The University
+ * Copyright (c) 2011-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -40,17 +40,15 @@ int main(int argc, char *argv[])
     /* initializing matrix structure */
     LDA = dplasma_imax( LDA, N );
     LDB = dplasma_imax( LDB, N );
-    SMB = 1;
-    SNB = 1;
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
-                               N, N, SMB, SMB, P));
+                               N, N, SMB, 1, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
-                               MT*IB, N, SMB, SNB, P));
+                               MT*IB, N, SMB, 1, P));
 
     /* Fill A with randomness */
     dplasma_zplghe( dague, (double)N, uplo,
