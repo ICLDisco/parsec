@@ -44,11 +44,11 @@ int main(int argc, char *argv[])
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
-                               N, N, SMB, 1, P));
+                               N, N, SMB, SMB, P));
     PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
         two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
-                               MT*IB, N, SMB, 1, P));
+                               MT*IB, N, SMB, SMB, P));
 
     /* Fill A with randomness */
     dplasma_zplghe( dague, (double)N, uplo,
