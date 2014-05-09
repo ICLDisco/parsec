@@ -595,7 +595,6 @@ int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
 int dague_enqueue( dague_context_t* context, dague_handle_t* object)
 {
     dague_execution_context_t **startup_list;
-    int p;
 
     if( NULL == current_scheduler) {
         dague_set_scheduler( context );
@@ -609,6 +608,7 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
         dague_atomic_inc_32b( &(context->active_objects) );
 
         if( NULL != object->startup_hook ) {
+            int p;
             object->startup_hook(context, object, startup_list);
             for(p = 0; p < vpmap_get_nb_vp(); p++) {
                 if( NULL != startup_list[p] ) {

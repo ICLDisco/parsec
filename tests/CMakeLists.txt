@@ -29,6 +29,11 @@ Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)
 dague_addtest(C reduce reduce.c)
 
+#jdf_rules(wc_generated "${CMAKE_CURRENT_SOURCE_DIR}/write_check.jdf")
+#string( REGEX REPLACE "write_check.[hc]" "" include_dir "${wc_generated}" )
+#include_directories(${include_dir})
+#dague_addtest(C write_check "vector.c;${wc_generated}")
+
 jdf_rules(touch_generated "${CMAKE_CURRENT_SOURCE_DIR}/touch.jdf")
 string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
 include_directories(${include_dir})

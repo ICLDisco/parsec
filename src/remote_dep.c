@@ -464,9 +464,8 @@ void remote_deps_allocation_init(int np, int max_output_deps)
 
 void remote_deps_allocation_fini(void)
 {
-    dague_remote_deps_t* rdeps;
-
     if(1 == dague_remote_dep_inited) {
+        dague_remote_deps_t* rdeps;
         while(NULL != (rdeps = (dague_remote_deps_t*) dague_lifo_pop(&dague_remote_dep_context.freelist))) {
             free(rdeps);
         }
