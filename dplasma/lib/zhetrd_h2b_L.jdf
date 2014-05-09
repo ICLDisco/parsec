@@ -16,9 +16,9 @@ extern "C" %{
 %}
 
 ib     [type = "int"]
-A      [type = "dague_ddesc_t *"]
+A      [type = "tiled_matrix_desc_t*"]
 descA  [type = "tiled_matrix_desc_t"]
-T      [type = "dague_ddesc_t *" aligned=A]
+T      [type = "tiled_matrix_desc_t*" aligned=A]
 descT  [type = "tiled_matrix_desc_t"]
 
 pool_3 [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.nb*4 *descT.nb)"]
