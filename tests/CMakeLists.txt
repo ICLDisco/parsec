@@ -24,6 +24,7 @@ Add_Subdirectory(choice)
 Add_Subdirectory(controlgather)
 Add_Subdirectory(scheduling)
 Add_Subdirectory(all2all)
+Add_Subdirectory(generalized_reduction)
 
 Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)
