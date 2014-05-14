@@ -3568,6 +3568,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             create_arena_from_datatype(sa2, dl->datatype);
 
             assert( dl->datatype.count != NULL );
+            string_arena_init(sa_count);
             string_arena_add_string(sa_count, "%s", dump_expr((void**)dl->datatype.count, &info));
 
 
