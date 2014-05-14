@@ -54,6 +54,7 @@ int main(int argc, char *argv[])
     dplasma_zplghe( dague, (double)N, uplo,
                     (tiled_matrix_desc_t *)&ddescA, 3872);
 #ifdef PRINTF_HEAVY
+    printf("########### A (initial, tile storage)\n");
     dplasma_zprint( dague, uplo, (tiled_matrix_desc_t *)&ddescA );
 #endif
 
@@ -64,6 +65,7 @@ int main(int argc, char *argv[])
                                (tiled_matrix_desc_t*)&ddescT));
     PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
 #ifdef PRINTF_HEAVY
+    printf("########### A (reduced to band form)\n");
     dplasma_zprint( dague, uplo, &ddescA);
 #endif
 
@@ -84,6 +86,7 @@ int main(int argc, char *argv[])
     dague_progress(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 #ifdef PRINTF_HEAVY
+    printf("########### BAND (converted from A)\n");
     dplasma_zprint(dague, PlasmaUpperLower, &ddescBAND);
 #endif
 
@@ -159,55 +162,41 @@ int main(int argc, char *argv[])
 
         /* COMPUTE THE EIGENVALUES WITH LAPACK */
         /* Regenerate A (same random generator) into A0 */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1,
-                                   two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0t, 1,
+                                   two_dim_block_cyclic, (&ddescA0t, matrix_ComplexDouble, matrix_Tile,
                                                           1, rank, MB, NB, LDA, N, 0, 0,
                                                           N, N, 1, 1, 1));
         /* Fill A0 again */
-        dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0.super);
-        dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0, 3872);
+        dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0t.super);
+        dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0t, 3872);
         /* Convert into Lapack format */
-        if( 0 == rank ) {
-#if 0
-            PLASMA_Desc_Create(&plasmaDescA0, ddescA0.mat, PlasmaComplexDouble,
-                           ddescA0.super.mb, ddescA0.super.nb, ddescA0.super.bsiz,
-                           ddescA0.super.lm, ddescA0.super.ln, ddescA0.super.i, ddescA0.super.j,
-                           ddescA0.super.m, ddescA0.super.n);
-            PLASMA_Tile_to_Lapack(plasmaDescA0, (void*)A0, LDA);
-#endif
+        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
+                                   two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
+                                                          1, rank, MB, NB, LDA, N, 0, 0,
+                                                          N, N, 1, 1, 1));
+        dplasma_zlacpy( dague, uplo, &ddescA0t.super, &ddescA0.super);
+        dague_data_free(ddescA0t.mat);
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0t);
 #ifdef PRINTF_HEAVY
-            printf("########### A0 #############\n");
-            for (int i = 0; i < N; i++){
-                for (j = 0; j < N; j++) {
-#   if defined(PRECISION_d) || defined(PRECISION_s)
-                    printf("% 11.4g ", A0[LDA*j+i] );
-#   else
-                    printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
-#   endif
-                }
-                printf("\n");
-            }
+        printf("########### A0 (initial, lapack storage)\n");
+        dplasma_zprint( dague, uplo, &ddescA0 );
 #endif
+        if( 0 == rank ) {
+            A0 = ddescA0.mat;
             /* Compute eigenvalues directly */
             TIME_START();
             LAPACKE_zheev( LAPACK_COL_MAJOR,
                            lapack_const(PlasmaNoVec), lapack_const(uplo),
                            N, A0, LDA, W0);
             TIME_PRINT(rank, ("LAPACK HEEV\n"));
+        }
 #ifdef PRINTF_HEAVY
-            printf("########### A (after LAPACK direct eignesolver)\n");
-            for (int i = 0; i < N; i++){
-                for (j = 0; j < N; j++) {
-#   if defined(PRECISION_d) || defined(PRECISION_s)
-                    printf("% 11.4g ", A0[LDA*j+i] );
-#   else
-                    printf("(%g, %g)", creal(A0[LDA*j+i]), cimag(A0[LDA*j+i]));
-#   endif
-                }
-                printf("\n");
-            }
+        printf("########### A0 (after LAPACK direct eignesolver)\n");
+        dplasma_zprint( dague, uplo, &ddescA0 );
 #endif
-
+        dague_data_free(ddescA0.mat);
+        tiled_matrix_desc_destroy( &ddescA0.super );
+        if( 0 == rank ) {
 #ifdef PRINTF_HEAVY
             printf("\n###############\nDPLASMA Eignevalues\n");
             for(int i = 0; i < N; i++) {
@@ -243,7 +232,7 @@ int main(int argc, char *argv[])
                 printf("************************************************\n");
             }
         }
-        free(A0); free(W0); free(D); free(E);
+        free(W0); free(D); free(E);
     }
 
     dplasma_zherbt_Destruct( DAGUE_zherbt );
