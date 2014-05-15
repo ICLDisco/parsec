@@ -110,16 +110,7 @@ int sort_5(int *elems){
     return -1;
 }
 
-
-
-
-#define RED_OP(_A, _B) (_A + _B)
-#define TYPE(_X) INT(_X)
-
-#define INT(_X) ( (int *)(_X) )
-#define OFFSET(_X,_i) ( *(TYPE(_X)+(_i)) )
-#define REDUCE(_A, _B, _i) OFFSET(_B,_i) = RED_OP( OFFSET(_A,_i), OFFSET(_B,_i) )
-
+/* functions needed for the reduction */
 int compute_offset(int N, int t){
     int i, cnt=0, offset=0;
 
@@ -318,7 +309,6 @@ LINEAR_REDUC(i)
   sz = inline_c %{ return log_of_tree_size(NT, i); %}
   offset = inline_c %{return compute_offset(NT, i); %}
 
- //  a_size = inline_c %{ int prev_sz = log_of_tree_size(NT, i+1); return ((tree_count>i) ? NB*(1<<prev_sz) : 0); %}
   a_size = inline_c %{ int tot_sz=0; for(int prev_i=tree_count; prev_i>i; prev_i--){int prev_sz = log_of_tree_size(NT, prev_i); tot_sz+=(1<<prev_sz);} return ((tree_count>i) ? NB*tot_sz : 0); %}
   b_size = inline_c %{ return NB*(1<<sz); %}
   c_size = inline_c %{ return a_size + b_size; %}
