@@ -311,10 +311,10 @@ ztsmqr_hetra1_out_A0(k,m1,i) [profile = off]
   m1 = (k+2)..(descA.mt-1)
   i = (k+2)..(m1-1)
 
-  : A(m1,i)
+  : A(i, k+1)
 
-  RW N <- N ztsmqr_hetra1(k,m1,i)
-        -> A(m1,i)
+  RW M <- M ztsmqr_hetra1(k,m1,i)
+        -> A(i,k+1)
 BODY
 /* nothing */
  printlog("ztsmqr_hetra1_out_A0(%d, %d, %d) A(%d, %d)[%p]\n",
@@ -327,7 +327,7 @@ ztsmqr_hetra1(k,m1,i)
   m1 = k+2..descA.mt-1
   i = k+2..m1-1
 
-  : A(i,k+1)
+  : A(m1, i)
 
   /* A == A(k+1,k) */
   /* H == A(m,k+1) */
@@ -345,11 +345,11 @@ ztsmqr_hetra1(k,m1,i)
           -> (descA.mt==(m1+1)) & ((k+2)==i) & (descA.nt>=(k+3)) ? A zgeqrt(i-1)
           -> (descA.mt==(m1+1)) & (i>=(k+3)) & (descA.nt>=(k+3)) ? K ztsqrt(k+1, i)
           -> (descA.mt>=(2+m1)) ? M ztsmqr_hetra1(k, m1+1, i)
-          -> (descA.nt==i) ? A(i,k+1)
-          -> (descA.nt==(k+2)) & (i>=(descA.nt+1)) ? A(i,k+1)
+          -> (descA.nt==i) ? M ztsmqr_hetra1_out_A0(k,m1,i)
+          -> (descA.nt==(k+2)) & (i>=(descA.nt+1)) ? M ztsmqr_hetra1_out_A0(k,m1,i)
   RW    N <- R ztsmqr(k, i, m1)
           -> (i>=(k+3)) & (descA.nt>=(3+k)) ? R ztsmqr(k+1, i, m1)
-          -> (descA.nt==(k+2)) ? N ztsmqr_hetra1_out_A0(k,m1,i)
+          -> (descA.nt==(k+2)) ? A(m1,i)
           -> (i==(k+2)) & (descA.nt>=(i+1)) ? H zunmqr(i-1, m1)
   READ  O <- K bcast_ztsqrt(k, m1)
   READ  P <- L bcast_ztsqrt(k, m1)    [type = LITTLE_T]
@@ -382,28 +382,13 @@ BODY
 
 END
 
-ztsmqr_in_A0(k,m1,j) [profile = off]
-  k = 0
-  m1 = ((descA.nt>=2) ? 2 : (descA.mt))..(descA.mt-1)
-  j = (m1+1)..(descA.mt-1)
-
-  : A(j,m1)
-  RW R <- A(j,m1)
-       -> R ztsmqr(k,m1,j)
-BODY
-/* nothing */
-
- printlog("ztsmqr_in_A0(%d, %d, %d) A(%d, %d)[%p]\n",
-          k, m1, j, j, m1, R);
-END
-
 ztsmqr(k,m1,j)
   /* Execution space */
   k = 0..(descA.nt)-1-1
   m1 = k+2..descA.mt-1
   j = m1+1..descA.mt-1
 
-  : A(j,k+1)
+  : A(j,m1)
 
   /* H == A(m,k+1) */
   /* K == A(m1,k) */
@@ -420,7 +405,7 @@ ztsmqr(k,m1,j)
           -> (j>=(2+m1)) ? Q ztsmqr(k, m1+1, j)
           -> ((1+m1)==j) ? V ztsmqr_corner(k, j)
   RW    R <- (k>=1) ? N ztsmqr_hetra1(k-1, j, m1)
-          <- (0==k) ? R ztsmqr_in_A0(k,m1,j)
+          <- (0==k) ? A(j,m1)
           -> N ztsmqr_hetra1(k, j, m1)
   READ  S <- K bcast_ztsqrt(k, m1)
   READ  T <- L bcast_ztsqrt(k, m1)    [type = LITTLE_T]
