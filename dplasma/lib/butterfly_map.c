@@ -1,3 +1,11 @@
+/*
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * $COPYRIGHT
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -353,11 +361,11 @@ int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, un
     return success;
 }
 
-int segment_to_arena_index(const dague_seg_ddesc_t but_ddesc, int m, int n){
+int segment_to_arena_index(const dague_seg_ddesc_t* but_ddesc, int m, int n){
     /* if using named types in the JDF or the default type, then you need to
      * offset the following value by the number of named+default types used
      */
-    return segment_to_type_index(but_ddesc.seg_info, m, n);
+    return segment_to_type_index(but_ddesc->seg_info, m, n);
 }
 
 int segment_to_type_index(const seg_info_t seg, int m, int n){

@@ -88,6 +88,11 @@ static char *dague_app_name = NULL;
 
 static dague_device_t* dague_device_cpus = NULL;
 
+/**
+ * Object based task definition (no specialized constructor and destructor) */
+OBJ_CLASS_INSTANCE(dague_execution_context_t, dague_list_item_t,
+                   NULL, NULL);
+
 static void dague_statistics(char* str)
 {
     struct rusage current;
@@ -199,13 +204,14 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         dague_vp_t *vp = startup->virtual_process;
         dague_execution_context_t fake_context;
         data_repo_entry_t fake_entry;
-        dague_mempool_construct( &vp->context_mempool, sizeof(dague_execution_context_t),
+        dague_mempool_construct( &vp->context_mempool,
+                                  OBJ_CLASS(dague_execution_context_t), sizeof(dague_execution_context_t),
                                  ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
                                  vp->nb_cores );
 
         for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
             dague_mempool_construct( &vp->datarepo_mempools[pi],
-                                     sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
+                                     NULL, sizeof(data_repo_entry_t)+(pi-1)*sizeof(dague_arena_chunk_t*),
                                      ((char*)&fake_entry.data_repo_mempool_owner) - ((char*)&fake_entry),
                                      vp->nb_cores);
 
@@ -443,6 +449,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->active_objects = 0;
     context->flags          = 0;
     context->nb_nodes       = 1;
+    context->comm_ctx       = NULL;
     context->my_rank        = 0;
 
 #if defined(DAGUE_SIM)

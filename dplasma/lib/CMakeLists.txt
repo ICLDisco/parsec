@@ -76,6 +76,8 @@ set(JDF
   zhbrdt.jdf
   zhebut.jdf
   zherbt_L.jdf
+  zhetrd_h2b_L.jdf
+  zhetrd_b2s.jdf
   ztrdsm.jdf
   ztrmdm.jdf
   zgeqrf_rec.jdf
@@ -108,7 +110,6 @@ jdf_rules(generated_files "${generated_jdf}")
 set(SOURCES
   # Lapack Auxiliary
   zgeadd_wrapper.c
-  zgeadd_t_wrapper.c
   zlacpy_wrapper.c
   zlange_wrapper.c
   zlanhe_wrapper.c
@@ -178,8 +179,9 @@ set(SOURCES
   dplasma_zcheck.c
   #
   zhbrdt_wrapper.c
-  zhebut_wrapper.c
   zherbt_wrapper.c
+  zhetrd_wrapper.c
+  zhebut_wrapper.c
   zhetrf_wrapper.c
   zhetrs_wrapper.c
   ztrdsm_wrapper.c

@@ -35,7 +35,7 @@
 #elif defined(ARCH_X86_64)
 #  include "atomic-x86_64.h"
 #else
-#  error "Using unsafe atomics"
+#  error "No safe atomics available"
 #endif
 
 #include <assert.h>

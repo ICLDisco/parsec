@@ -29,7 +29,10 @@ static void dague_thread_mempool_destruct( dague_thread_mempool_t *thread_mempoo
     OBJ_DESTRUCT(&thread_mempool->mempool);
 }
 
-void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t pool_offset, unsigned int nbthreads )
+void dague_mempool_construct( dague_mempool_t *mempool,
+                              dague_class_t* obj_class, size_t elt_size,
+                              size_t pool_offset,
+                              unsigned int nbthreads )
 {
     uint32_t tid;
 
@@ -37,6 +40,7 @@ void dague_mempool_construct( dague_mempool_t *mempool, size_t elt_size, size_t 
     mempool->elt_size = elt_size;
     mempool->pool_owner_offset = pool_offset;
     mempool->nb_max_elt = 0;
+    mempool->obj_class = obj_class;
     mempool->thread_mempools = (dague_thread_mempool_t *)malloc(sizeof(dague_thread_mempool_t) * nbthreads);
     memset( mempool->thread_mempools, 0, sizeof(dague_thread_mempool_t) * nbthreads );
 
@@ -68,5 +72,8 @@ void *dague_thread_mempool_allocate_when_empty( dague_thread_mempool_t *thread_m
     DAGUE_LIFO_ITEM_ALLOC(&thread_mempool->mempool, elt, thread_mempool->parent->elt_size );
     owner = (dague_thread_mempool_t **)((char*)elt + thread_mempool->parent->pool_owner_offset);
     *owner = thread_mempool;
+    if( NULL != thread_mempool->parent->obj_class ) {
+        OBJ_CONSTRUCT_INTERNAL(elt, thread_mempool->parent->obj_class);
+    }
     return elt;
 }

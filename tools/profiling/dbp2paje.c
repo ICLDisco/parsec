@@ -599,6 +599,7 @@ static int dump_one_event( dague_list_t *consolidated_events,
     cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
                                         dbp_event_info_len(estart, dbp) +
                                         dbp_event_info_len(eend,   dbp) );
+    OBJ_CONSTRUCT(cev, dague_list_item_t);
 
     cev->event_id  = dbp_event_get_event_id(  estart );
     cev->handle_id = dbp_event_get_handle_id( estart );

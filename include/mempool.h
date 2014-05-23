@@ -34,6 +34,7 @@ struct dague_mempool_s {
     size_t                  pool_owner_offset;  /**< this is the offset to get to the thread_mempool_t
                                                  *   from a newly allocated element */
     volatile uint32_t       nb_max_elt;         /**< this reflects the maximum of the nb_elt of the other threads */
+    dague_class_t          *obj_class;          /**< the base class of the objects inside the mempool */
     dague_thread_mempool_t *thread_mempools;
 };
 
@@ -56,16 +57,16 @@ struct dague_thread_mempool_s {
  *  Once the system-wide memory pool has been constructed, each thread
  *  can take its onw mempool->thread_mempools element.
  */
-#define DAGUE_MEMPOOL_CONSTRUCT( mempool, type, field_name, nbthreads ) \
-    do {                                                                \
-        type __pseudo_elt;                                              \
-        dague_mempool_construct( (mempool), sizeof(type),               \
-                                 (char*)&(__pseudo_elt.##field_name) -  \
-                                 (char*)&(__pseudo_elt),                \
-                                 nbthreads );                           \
+#define DAGUE_MEMPOOL_CONSTRUCT( mempool, type, field_name, nbthreads )    \
+    do {                                                                   \
+        type __pseudo_elt;                                                 \
+        dague_mempool_construct( (mempool), OBJ_CLASS(type), sizeof(type), \
+                                 (char*)&(__pseudo_elt.##field_name) -     \
+                                 (char*)&(__pseudo_elt),                   \
+                                 nbthreads );                              \
         } while(0)
 void dague_mempool_construct( dague_mempool_t *mempool,
-                              size_t elt_size,
+                              dague_class_t* obj_class, size_t elt_size,
                               size_t pool_offset,
                               unsigned int nbthreads );
 

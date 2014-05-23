@@ -81,7 +81,17 @@ jdf_generate_call_for_data(node_t *data,
     char *str = NULL;
     int i;
 
-    if( NULL == data ) abort();
+    if( NULL == data ){ // we need to support undetermined affinity */
+        call = q2jmalloc(jdf_call_t, 1);
+        call->var         = NULL;
+        call->func_or_mem = strdup("BOGUS_AFFINITY");
+        call->parameters  = q2jmalloc( jdf_expr_t, 1);
+        call->parameters->next = NULL;
+        call->parameters->op   = JDF_VAR;
+        call->parameters->jdf_var = strdup("BOGUS");
+        return call;
+    }
+
     if( ARRAY != data->type ) abort();
 
     sa = string_arena_new(16);
@@ -1136,6 +1146,8 @@ void jdf_register_function(jdf_function_entry_t       *this_function,
                            map<char *, set<dep_t *> > &synch_edges)
 {
     jdf_register_locals( this_function, S_es );
+
+
     this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
 
     jdf_register_dependencies_and_pseudotasks(this_function,

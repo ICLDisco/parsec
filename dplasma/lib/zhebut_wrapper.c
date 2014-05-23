@@ -72,7 +72,7 @@ static uint32_t dague_rbt_rank_of(dague_ddesc_t *desc, ...){
  *
  * Currently we are using Case 2.
  */
-static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
+static dague_data_t *dague_rbt_data_of(dague_ddesc_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
     uintptr_t offset, data_start;
     va_list ap;
@@ -85,7 +85,7 @@ static void *dague_rbt_data_of(dague_ddesc_t *desc, ...){
     va_end(ap);
 
     segA = (dague_seg_ddesc_t *)desc;
-    A = (dague_ddesc_t *)(segA->A_org);
+    A = &segA->A_org->super;
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
 
@@ -153,8 +153,8 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     /* copy the tiled_matrix_desc_t part of A into seg_descA */
     memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
     /* overwrite the rank_of() and data_of() */
-    ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
-    ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
+    seg_descA->super.super.rank_of = dague_rbt_rank_of;
+    seg_descA->super.super.data_of = dague_rbt_data_of;
     /* store a pointer to A itself */
     seg_descA->A_org = A;
     /* store the level */
@@ -172,7 +172,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     U_before = &U_but_vec[level*N];
     U_after  = &U_but_vec[level*N];
 
-    dague_zhebut = (dague_handle_t *)dague_zhebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
+    dague_zhebut = (dague_handle_t *)dague_zhebut_new(seg_descA, &seg_descA->super.super, U_before, U_after, nt, mt, pool_0);
 
 
     for(i=0; i<36; i++){
@@ -241,8 +241,8 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     /* copy the tiled_matrix_desc_t part of A into seg_descA */
     memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
     /* overwrite the rank_of() and data_of() */
-    ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
-    ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
+    seg_descA->super.super.rank_of = dague_rbt_rank_of;
+    seg_descA->super.super.data_of = dague_rbt_data_of;
     /* store a pointer to A itself */
     seg_descA->A_org = A;
     /* store the level */
@@ -260,7 +260,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
 
-    dague_zgebut = (dague_handle_t *)dague_zgebut_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_before, U_after, nt, mt, pool_0);
+    dague_zgebut = (dague_handle_t *)dague_zgebut_new(seg_descA, &seg_descA->super.super, U_before, U_after, nt, mt, pool_0);
 
     for(i=0; i<36; i++){
 #if defined(HAVE_MPI)
@@ -323,8 +323,8 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     /* copy the tiled_matrix_desc_t part of A into seg_descA */
     memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
     /* overwrite the rank_of() and data_of() */
-    ((dague_ddesc_t *)seg_descA)->rank_of = dague_rbt_rank_of;
-    ((dague_ddesc_t *)seg_descA)->data_of = dague_rbt_data_of;
+    seg_descA->super.super.rank_of = dague_rbt_rank_of;
+    seg_descA->super.super.data_of = dague_rbt_data_of;
     /* store a pointer to A itself */
     seg_descA->A_org = A;
     /* store the level */
@@ -345,7 +345,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
     dague_private_memory_init( pool_0, A->mb * A->nb * sizeof(dague_complex64_t) );
 
-    dague_zgebmm = (dague_handle_t *)dague_zgebmm_new(*seg_descA, (dague_ddesc_t*)seg_descA, U_but_vec, nt, mt, trans, pool_0);
+    dague_zgebmm = (dague_handle_t *)dague_zgebmm_new(seg_descA, &seg_descA->super.super, U_but_vec, nt, mt, trans, pool_0);
 
     for(i=0; i<36; i++) {
 #if defined(HAVE_MPI)
@@ -471,7 +471,6 @@ int dplasma_zhebut(dague_context_t *dague, tiled_matrix_desc_t *A, PLASMA_Comple
 
     N = A->lm;
 
-    subop = (dague_handle_t **)malloc((nbhe+nbge) * sizeof(dague_handle_t*));
     U_but_vec = (PLASMA_Complex64_t *)malloc( (levels+1)*N*sizeof(PLASMA_Complex64_t) );
     *U_but_ptr = U_but_vec;
     srandom(0);

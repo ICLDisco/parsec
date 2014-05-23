@@ -9,5 +9,5 @@ Version: @DAGUE_VERSION_MAJOR@.@DAGUE_VERSION_MINOR@
 Requires: @PARSEC_PKG_REQUIRE@
 Libs: -L${libdir} -ldague
 Libs.private: @EXTRA_LIBS@
-Cflags: -I${includedir}
+Cflags: -I${includedir} @CMAKE_C_FLAGS@
 

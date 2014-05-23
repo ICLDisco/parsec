@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -116,6 +116,7 @@ struct dague_context_s {
     volatile uint32_t active_objects;
     volatile uint32_t flags;
 
+    void*   comm_ctx;    /**< opaque communication context */
     int32_t nb_nodes;    /**< nb of physical processes */
     int32_t my_rank;     /**< rank of this physical process */
 

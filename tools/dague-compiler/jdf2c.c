@@ -3256,7 +3256,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
         }
     }
 
-    coutput("  return __h; (void)__dague_handle;\n");
+    coutput(" (void)__dague_handle; return __h;\n");
     coutput("}\n\n");
     string_arena_free(sa);
 }
@@ -3568,6 +3568,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             create_arena_from_datatype(sa2, dl->datatype);
 
             assert( dl->datatype.count != NULL );
+            string_arena_init(sa_count);
             string_arena_add_string(sa_count, "%s", dump_expr((void**)dl->datatype.count, &info));
 
 
@@ -4199,8 +4200,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "#if defined(DISTRIBUTED)\n"
             "  arg.remote_deps = deps;\n"
             "#endif  /* defined(DISTRIBUTED) */\n"
-            "  arg.ready_lists = (NULL != eu) ? alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp) : NULL;\n"
-            "  if(NULL != eu) for( __vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
+            "  assert(NULL != eu);\n"
+            "  arg.ready_lists = alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp);\n"
+            "  for( __vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; arg.ready_lists[__vp_id++] = NULL );\n"
             "  (void)__dague_handle; (void)deps;\n",
             name, jdf_basename, jdf_basename);
 

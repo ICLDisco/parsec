@@ -149,6 +149,13 @@ int dague_remote_dep_off(dague_context_t* context)
     return remote_dep_off(context);
 }
 
+int dague_remote_dep_set_ctx( dague_context_t* context, void* opaque_comm_ctx ) 
+{
+    dague_remote_dep_fini( context );
+    context->comm_ctx = opaque_comm_ctx;
+    return dague_remote_dep_init( context );
+}
+
 int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
 {
     return remote_dep_progress(eu_context);
@@ -457,9 +464,8 @@ void remote_deps_allocation_init(int np, int max_output_deps)
 
 void remote_deps_allocation_fini(void)
 {
-    dague_remote_deps_t* rdeps;
-
     if(1 == dague_remote_dep_inited) {
+        dague_remote_deps_t* rdeps;
         while(NULL != (rdeps = (dague_remote_deps_t*) dague_lifo_pop(&dague_remote_dep_context.freelist))) {
             free(rdeps);
         }

@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -48,13 +48,13 @@ void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
           PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal );
 %}
 
-descA  [type = "dague_seg_ddesc_t"]
+descA  [type = "dague_seg_ddesc_t*"]
 A      [type = "dague_ddesc_t *"]
 Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA.A_org.mb*descA.A_org.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
 
 %option DAGUE_ARENA_STRUT = 36
 
@@ -94,16 +94,16 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
            i, i, i, Atl);
 
-  type = segment_to_type_index(descA.seg_info, i, i);
-  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, i);
+  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
-  segment_to_tile(&descA, i, i, &i_tile, &j_tile, &off_in_tile);
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
+  segment_to_tile(descA, i, i, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
-  N = descA.A_org->lm;
+  N = descA->A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
@@ -113,9 +113,9 @@ BODY
   printf ("=> HEBUT_Diag(%d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, i_tile, j_tile, off_in_tile, i_seg, j_seg);
 #endif
 
-  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
-  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Abl, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Abl, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Abl, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Abl, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("--> HEBUT_Diag(%d): mb_tile=%u, nb_tile=%u, mb_seg=%u, nb_seg=%u\n",i, mb_tile, nb_tile, mb_seg, nb_seg);
@@ -201,24 +201,24 @@ BODY
   fflush(stdout);
 #endif
 
-  type = segment_to_type_index(descA.seg_info, i, j);
+  type = segment_to_type_index(descA->seg_info, i, j);
 #if defined(DEBUG_BUTTERFLY)
   printf("type = %d\n",type);
   fflush(stdout);
 #endif
-  type_exists = type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 #if defined(DEBUG_BUTTERFLY)
   printf("mb_seg = %d, nb_seg = %d\n",mb_seg, nb_seg);
   fflush(stdout);
 #endif
   assert( type_exists ); (void)type_exists;
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
-  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
+  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
-  N = descA.A_org->lm;
+  N = descA->A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
@@ -229,10 +229,10 @@ BODY
   printf ("=> HEBUT_Lower(%d, %d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, j, i_tile, j_tile, off_in_tile, i_seg, j_seg);
 #endif
 
-  BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
-  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
-  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubef, Uaft, BL_IS_TR_TRANS);
-  BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA.level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
+  BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
+  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
+  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubef, Uaft, BL_IS_TR_TRANS);
+  BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("--> HEBUT_Lower(%d,%d): mb_tile=%u, nb_tile=%u, mb_seg=%u, nb_seg=%u\n",i,j, mb_tile, nb_tile, mb_seg, nb_seg);
@@ -304,15 +304,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_TL(%d,%d)\n",i,j);
 
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA.seg_info, i, j);
-  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -360,15 +360,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BL(%d,%d)\n",i,j);
 
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(&descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA.seg_info, i, j);
-  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -414,15 +414,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BR(%d,%d)\n",i,j);
 
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(&descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA.seg_info, i, j);
-  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -465,15 +465,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_TL(%d,%d)\n",i,j);
 
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(&descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA.seg_info, i, j);
-  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");
@@ -518,15 +518,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BL(%d,%d)\n",i,j);
 
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(&descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA.seg_info, i, j);
-  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");
@@ -569,15 +569,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BR(%d,%d)\n",i,j);
 
-  mb_tile = descA.A_org->mb;
-  nb_tile = descA.A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(&descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA.seg_info, i, j);
-  (void)type_index_to_sizes(descA.seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");

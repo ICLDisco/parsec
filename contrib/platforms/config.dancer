@@ -32,7 +32,6 @@ elif [ "x${USER}" = "xmfaverge" ]; then
 elif [ "x$USER" = "xYOURSELF" ]; then
   PLASMA_DIR="SOMEWHERE"
   USER_OPTIONS+="-DDAGUE_OPTION=ON"
-
 fi
 
 . $(dirname $0)/config.inc
