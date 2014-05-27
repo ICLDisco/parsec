@@ -26,7 +26,7 @@ dague_handle_t *merge_sort_new(struct tiled_matrix_desc_t *A, int nb, int nt)
 
 #if defined(HAVE_MPI)
     dague_arena_construct(o->arenas[DAGUE_merge_sort_DEFAULT_ARENA],
-                          nb*size(int), DAGUE_ARENA_ALIGNMENT_SSE,
+                          nb*sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
                           MPI_INT);
 #else
     dague_arena_construct(o->arenas[DAGUE_merge_sort_DEFAULT_ARENA],
