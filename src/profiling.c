@@ -210,7 +210,11 @@ void dague_profiling_start(void)
         return;
 
 #if defined(HAVE_MPI)
-    MPI_Barrier(MPI_COMM_WORLD);
+    {
+        int flag;
+        (void)MPI_Initialized(&flag);
+        if(flag) MPI_Barrier(MPI_COMM_WORLD);
+    }
 #endif
     start_called = 1;
     dague_start_time = take_time();
