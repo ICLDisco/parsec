@@ -8,6 +8,6 @@ Description: Parallel Runtime Scheduling and Execution Controller
 Version: @DAGUE_VERSION_MAJOR@.@DAGUE_VERSION_MINOR@
 Requires: @PARSEC_PKG_REQUIRE@
 Libs: -L${libdir} -ldague -ldague-base
-Libs.private: @EXTRA_LIBS@
+Libs.private: @EXTRA_LIBS@ @PAPI_LIBRARIES@
 Cflags: -I${includedir} @CMAKE_C_FLAGS@
 
