@@ -37,8 +37,8 @@ extern dague_data_free_t     dague_data_free;
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 
 /**
- * Reset the remote_dep comm engine associated with @context, and use 
- * the communication context @opaque_comm_ctx in the future 
+ * Reset the remote_dep comm engine associated with @context, and use
+ * the communication context @opaque_comm_ctx in the future
  * (typically an MPI communicator);
  *   dague_progress becomes collective accross nodes spanning on this
  *   communication context.
@@ -100,8 +100,8 @@ void dague_handle_sync_ids(void);
 /**
  * Compose sequentially two handles. If start is already a composed
  * object, then next will be added sequentially to the list. These
- * handles will execute one after another as if there were sequential. 
- * The resulting compound dague_handle is returned. 
+ * handles will execute one after another as if there were sequential.
+ * The resulting compound dague_handle is returned.
  */
 dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 
