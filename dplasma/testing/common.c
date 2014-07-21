@@ -237,7 +237,7 @@ static struct option long_options[] =
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
 
-    {"mca-pins",    optional_argument,  0, 'm'},
+    {"mca-pins",    required_argument,  0, 'm'},
 
     /* Auxiliary options */
     {"verbose",     optional_argument,  0, 'v'},
