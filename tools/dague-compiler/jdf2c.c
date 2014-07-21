@@ -33,7 +33,8 @@ static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *exp
 static void jdf_generate_code_hooks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
-static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
+static void jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf, const jdf_function_entry_t *f, 
+                                                                 const char *prefix, jdf_dep_flags_t flow_type);
 
 static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found );
 
@@ -2782,10 +2783,18 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
-        jdf_generate_code_iterate_successors(jdf, f, prefix);
+        jdf_generate_code_iterate_successors_or_predecessors(jdf, f, prefix, JDF_DEP_FLOW_OUT);
         string_arena_add_string(sa, "  .iterate_successors = %s,\n", prefix);
     } else {
         string_arena_add_string(sa, "  .iterate_successors = NULL,\n");
+    }
+
+    if( !(f->flags & JDF_FUNCTION_FLAG_NO_PREDECESSORS) ) {
+        sprintf(prefix, "iterate_predecessors_of_%s_%s", jdf_basename, f->fname);
+        jdf_generate_code_iterate_successors_or_predecessors(jdf, f, prefix, JDF_DEP_FLOW_IN);
+        string_arena_add_string(sa, "  .iterate_predecessors = %s,\n", prefix);
+    } else {
+        string_arena_add_string(sa, "  .iterate_predecessors = NULL,\n");
     }
 
     sprintf(prefix, "release_deps_of_%s_%s", jdf_basename, f->fname);
@@ -4449,26 +4458,28 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 }
 
 /**
- * If this function has no successors tag it as such. This will prevent us from
- * generating useless code.
+ * If this function has no predecessors or successors (depending on the
+ * parameters), tag it as such. This will prevent us from generating useless
+ * code.
  */
-static void jdf_check_successors( jdf_function_entry_t *f )
+static void jdf_check_relatives( jdf_function_entry_t *f, jdf_dep_flags_t flow_type, jdf_flags_t flag)
 {
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
 
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
-            if( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) continue;
+            if( !(dl->dep_flags & flow_type) ) continue;
 
             if( (NULL != dl->guard->calltrue->var) ||
                 ((JDF_GUARD_TERNARY == dl->guard->guard_type) &&
                  (NULL != dl->guard->callfalse->var)) ) {
-                return;  /* we do have successors */
+                return;  /* we do have a relative of type flow_type */
             }
         }
     }
-    f->flags |= JDF_FUNCTION_FLAG_NO_SUCCESSORS;
+    /* We don't have a relative of type flow_type, let's tag it with flag */
+    f->flags |= flag;
 }
 
 #define OUTPUT_PREV_DEPS(MASK, SA_DATATYPE, SA_DEPS)                    \
@@ -4494,9 +4505,10 @@ static void jdf_check_successors( jdf_function_entry_t *f )
     }
 
 static void
-jdf_generate_code_iterate_successors(const jdf_t *jdf,
-                                     const jdf_function_entry_t *f,
-                                     const char *name)
+jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
+                                                     const jdf_function_entry_t *f,
+                                                     const char *name,
+                                                     jdf_dep_flags_t flow_type)
 {
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
@@ -4521,8 +4533,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
     expr_info_t info;
 
     info.sa = sa2;
-    info.prefix = "";
-    info.assignments = "this_task->locals";
+    info.prefix = "";    info.assignments = "this_task->locals";
 
     ai.sa = sa2;
     ai.idx = 0;
@@ -4573,7 +4584,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
         string_arena_add_string(sa_coutput, "    data.data   = this_task->data[%d].data_out;\n", fl->flow_index);
 
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
-            if( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) continue;
+            if( !(dl->dep_flags & flow_type) ) continue;
 
             string_arena_init(sa_tmp_type);
             string_arena_init(sa_tmp_nbelt);
@@ -4853,8 +4864,9 @@ int jdf_optimize( jdf_t* jdf )
         if( high_priority ) {
             f->flags |= JDF_FUNCTION_FLAG_HIGH_PRIORITY;
         }
-        /* Check if the function has any successors */
-        jdf_check_successors(f);
+        /* Check if the function has any successors and predecessors */
+        jdf_check_relatives(f, JDF_DEP_FLOW_OUT, JDF_FUNCTION_FLAG_NO_SUCCESSORS);
+        jdf_check_relatives(f, JDF_DEP_FLOW_IN, JDF_FUNCTION_FLAG_NO_PREDECESSORS);
 
         can_be_startup = 1;
         UTIL_DUMP_LIST(sa, f->dataflow, next, has_ready_input_dependency, &can_be_startup, NULL, NULL, NULL, NULL);

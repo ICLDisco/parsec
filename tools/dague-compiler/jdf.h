@@ -155,6 +155,7 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_HAS_DISPLACEMENT  ((jdf_flags_t)(1 << 3))
 #define JDF_FUNCTION_FLAG_HAS_DATA_INPUT    ((jdf_flags_t)(1 << 4))
 #define JDF_FUNCTION_FLAG_HAS_DATA_OUTPUT   ((jdf_flags_t)(1 << 5))
+#define JDF_FUNCTION_FLAG_NO_PREDECESSORS   ((jdf_flags_t)(1 << 6))
 
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;
