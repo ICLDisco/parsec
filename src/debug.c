@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,8 @@
 #include "dague_config.h"
 #include "dague_internal.h"
 #include "remote_dep.h"
-#include <dague/sys/atomic.h>
+#include "dague/sys/atomic.h"
+#include "dague/utils/mca_param.h"
 
 #if defined(HAVE_ERRNO_H)
 #include <errno.h>
@@ -29,6 +30,11 @@ static int   stack_size[ST_ASIZE];
 
 void dague_debug_init(void)
 {
+    dague_mca_param_reg_int_name("debug", "verbose", "Set the output level for debug messages ([0..3])",
+                                 false, false, DAGUE_DEBUG_VERBOSE, &dague_verbose);
+    dague_mca_param_reg_string_name("debug", "filename", "Define the base name for the debug messages",
+                                    false, false, "log", &dague_debug_filename);
+
     dague_debug_file = stderr;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
     int is_mpi_up, rc; (void)rc;
@@ -37,7 +43,7 @@ void dague_debug_init(void)
         return ;
     }
     MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
-    rc = asprintf(&dague_debug_filename, "log.rank%02d", dague_debug_rank);
+    rc = asprintf(&dague_debug_filename, "%s.rank%02d", dague_debug_filename, dague_debug_rank);
     assert(rc != -1);
 #endif
 #if 0  /* Set to 1 to log all output on your local directory */
