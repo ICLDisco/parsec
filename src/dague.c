@@ -339,7 +339,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_cmd_line_make_opt3(cmd_line, 'c', "cores", "cores", 1,
                              "Number of cores to used");
     dague_cmd_line_make_opt3(cmd_line, 'g', "gpus", "gpus", 1,
-                             "Number of GPU to used");
+                             "Number of GPU to used (deprecated use MCA instead)");
     dague_cmd_line_make_opt3(cmd_line, 'V', "vpmap", "vpmap", 1,
                              "Virtual process map");
     dague_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
@@ -865,9 +865,7 @@ dague_check_IN_dependencies_with_mask( const dague_handle_t *dague_handle,
                     if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) )
                         continue;  /* doesn't match */
                     /* the condition triggered let's check if it's for a data */
-                } else {
-                    /* we have an input flow without a condition, it MUST be final */
-                }
+                }  /* otherwise we have an input flow without a condition, it MUST be final */
                 if( 0xFF == dep->function_id )
                     active = (1 << flow->flow_index);
                 break;
@@ -935,8 +933,11 @@ dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
                 }
             }
         } else {
-            /* Data case: we count the opposite that in the mask case,
-             * aka. count all that do not have a direct dependence on a data */
+            /* Data case: we count how many inputs we must have (the opposite
+             * compared with the mask case). We iterate over all the input
+             * dependencies of the flow to make sure the flow is expected to
+             * hold a valid value.
+             */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
                 if( NULL != dep->cond ) {
@@ -948,7 +949,7 @@ dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
                 } else {
                     /* we have an input flow without a condition, it MUST be final */
                 }
-                if( 0xFF != dep->function_id )  /* if not a data we must wat for it */
+                if( 0xFF != dep->function_id )  /* if not a data we must wait for the flow activation */
                     active++;
                 break;
             }
