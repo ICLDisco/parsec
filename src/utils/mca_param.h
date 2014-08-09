@@ -154,7 +154,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_mca_param_info_t);
  * @retval DAGUE_SUCCESS
  *
  * This function initalizes the MCA parameter system.  It is
- * invoked internally (by mca_base_open()) and is only documented
+ * invoked internally (by dague_mca_open()) and is only documented
  * here for completeness.
  */
 DAGUE_DECLSPEC int dague_mca_param_init(void);
@@ -414,7 +414,7 @@ DAGUE_DECLSPEC int dague_mca_param_set_string(int index, char *value);
 
 /**
  * Unset a parameter that was previously set by
- * dague_mca_param_set_int() or dague_mca_base_param_set_string().
+ * dague_mca_param_set_int() or dague_mca_param_set_string().
  *
  * @param index [in] Index of MCA parameter to set
  *
@@ -454,10 +454,10 @@ DAGUE_DECLSPEC char *dague_mca_param_env_var(const char *param_name);
  * It is not always convenient to widely propagate a parameter's index
  * value, or it may be necessary to look up the parameter from a
  * different component -- where it is not possible to have the return
- * value from mca_param_reg_int() or mca_base_param_reg_string().
+ * value from mca_param_reg_int() or mca_param_reg_string().
  * This function can be used to look up the index of any registered
  * parameter.  The returned index can be used with
- * mca_param_lookup_int() and mca_base_param_lookup_string().
+ * dague_mca_param_lookup_int() and dague_mca_param_lookup_string().
  */
 DAGUE_DECLSPEC int
 dague_mca_param_find(const char *type,
@@ -548,7 +548,7 @@ dague_mca_param_check_exclusive_string(const char *type_a,
  * Set the "internal" flag on an MCA parameter to true or false.
  *
  * @param index [in] Index previous returned from
- * mca_param_reg_string() or mca_base_param_reg_int().
+ * mca_param_reg_string() or mca_param_reg_int().
  * @param internal [in] Boolean indicating whether the MCA
  * parameter is internal (private) or public.
  *
@@ -581,7 +581,7 @@ dague_mca_param_set_internal(int index, bool internal);
  * This function is used to obtain a list of all the currently
  * registered MCA parameters along with their associated types
  * (currently: string or integer).  The results from this function
- * can be used to repeatedly invoke mca_param_lookup_int()
+ * can be used to repeatedly invoke dague_mca_param_lookup_int()
  * and/or mca_param_lookup_string() to obtain a comprehensive
  * list of all MCA parameters and their current values.
  *
@@ -666,9 +666,13 @@ dague_mca_param_finalize(void);
  * appropriate, it must be eventually freed by the caller.
  */
 DAGUE_DECLSPEC int
-mca_base_var_env_name(const char *param_name,
-                      char **env_name);
+dague_mca_var_env_name(const char *param_name,
+                       char **env_name);
 
+DAGUE_DECLSPEC void
+dague_mca_show_mca_params(dague_list_t *info,
+                          const char *type, const char *component,
+                          bool pretty_print);
 END_C_DECLS
 
 #endif /* DAGUE_MCA_PARAM_H */

@@ -378,13 +378,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(HAVE_HWLOC) */
     }
 
-    if( dague_cmd_line_is_taken(cmd_line, "help") ||
-        dague_cmd_line_is_taken(cmd_line, "h")) {
-        char* help_msg = dague_cmd_line_get_usage_msg(cmd_line);
-        fprintf(stdout, "%s\n", help_msg);
-        free(help_msg);
-        return NULL;
-    }
 #if defined(HAVE_HWLOC)
     if( dague_cmd_line_is_taken(cmd_line, "ht") ) {
         int hyperth = 0;
@@ -667,6 +660,21 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     if( display_vpmap )
         vpmap_display_map(stderr);
+
+    if( dague_cmd_line_is_taken(cmd_line, "help") ||
+        dague_cmd_line_is_taken(cmd_line, "h")) {
+        char* help_msg = dague_cmd_line_get_usage_msg(cmd_line);
+        dague_list_t* l = NULL;
+
+        fprintf(stdout, "%s\n\nRegistered MCA parameters:\n", help_msg);
+        free(help_msg);
+
+        dague_mca_param_dump(&l, 1);
+        dague_mca_show_mca_params(l, "all", "all", 1);
+        dague_mca_param_dump_release(l);
+
+        dague_fini(&context);
+    }
 
     if( NULL != cmd_line )
         OBJ_RELEASE(cmd_line);
