@@ -4129,7 +4129,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                 if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
                     switch( dep->guard->guard_type ) {
                     case JDF_GUARD_UNCONDITIONAL:
-                        if( NULL != dep->guard->calltrue->var ) {
+                        if( NULL != dep->guard->calltrue->var ) {  /* this is a dataflow not a data access */
                             if( 0 != cond_index ) string_arena_add_string(sa_code, "    else {\n");
                             string_arena_add_string(sa_code, "    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->flow_index);
@@ -4137,32 +4137,28 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         }
                         goto next_dependency;
                     case JDF_GUARD_BINARY:
-                        if( NULL != dep->guard->calltrue->var ) {
-                            string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
-                                                    dump_expr((void**)dep->guard->guard, &info));
-                            need_locals++;
-                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                                    "    }\n",
+                        string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
+                                                dump_expr((void**)dep->guard->guard, &info));
+                        need_locals++;
+                        if( NULL != dep->guard->calltrue->var ) {   /* this is a dataflow not a data access */
+                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->flow_index);
-                            cond_index++;
                         }
+                        string_arena_add_string(sa_code, "    }\n");
+                        cond_index++;
                         break;
                     case JDF_GUARD_TERNARY:
                         need_locals++;
-                        if( NULL != dep->guard->calltrue->var ) {
-                            string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
-                                                    dump_expr((void**)dep->guard->guard, &info));
+                        string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
+                                                dump_expr((void**)dep->guard->guard, &info));
+                        if( NULL != dep->guard->calltrue->var ) {    /* this is a dataflow not a data access */
                             string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->flow_index);
-                            if( NULL != dep->guard->callfalse->var ) {
-                                string_arena_add_string(sa_code, "    } else {\n"
-                                                        "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                                        dep->guard->callfalse->func_or_mem, dl->flow_index);
-                            }
-                        } else if( NULL != dep->guard->callfalse->var ) {
-                            string_arena_add_string(sa_code, "    if( !(%s) ) {\n"
+                        }
+                        string_arena_add_string(sa_code, "    } else {\n");
+                        if( NULL != dep->guard->callfalse->var ) {    /* this is a dataflow not a data access */
+                            string_arena_add_string(sa_code,
                                                     "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                                    dump_expr((void**)dep->guard->guard, &info),
                                                     dep->guard->callfalse->func_or_mem, dl->flow_index);
                         }
                         string_arena_add_string(sa_code, "    }\n");

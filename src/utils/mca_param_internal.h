@@ -31,8 +31,8 @@
  * to generate internal documentation (by default, it is skipped).
  */
 
-#ifndef DAGUE_MCA_BASE_PARAM_INTERNAL_H
-#define DAGUE_MCA_BASE_PARAM_INTERNAL_H
+#ifndef DAGUE_MCA_PARAM_INTERNAL_H
+#define DAGUE_MCA_PARAM_INTERNAL_H
 
 #include "dague_config.h"
 
@@ -177,8 +177,8 @@ DAGUE_DECLSPEC extern dague_list_t dague_mca_param_file_values;
  *
  * Parse a parameter file.
  */
-DAGUE_DECLSPEC int dague_mca_base_parse_paramfile(const char *paramfile);
+DAGUE_DECLSPEC int dague_mca_parse_paramfile(const char *paramfile);
 
 END_C_DECLS
 
-#endif /* DAGUE_MCA_BASE_PARAM_INTERNAL_H */
+#endif /* DAGUE_MCA_PARAM_INTERNAL_H */

@@ -60,3 +60,13 @@ or it was originially registered as a STRING and re-registered as an
 INT).  This a developer error; your job may abort.
 
   MCA parameter name: %s
+#
+[developer warning: field too long]
+**************************************************************************
+*** DEVELOPER WARNING: A field in ompi_info output is too long and
+*** will appear poorly in the prettyprint output.
+***
+***   Value:      "%s"
+***   Max length: %d
+**************************************************************************
+
