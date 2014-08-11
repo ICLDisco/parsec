@@ -2595,7 +2595,11 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         } else {
             string_arena_add_string(sa, "#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
             string_arena_add_string(sa, "    { .type     = DAGUE_DEV_%s,\n", type_property->expr->jdf_var);
-            string_arena_add_string(sa, "      .dyld     = \"%s\",\n", (NULL==dyld_property)?"NULL":dyld_property->expr->jdf_var);
+            if( NULL == dyld_property ) {
+                string_arena_add_string(sa, "      .dyld     = NULL,\n");
+            } else {
+                string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
+            }
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
             string_arena_add_string(sa, "      .hook     = hook_of_%s_%s },\n", base_name, type_property->expr->jdf_var);
             string_arena_add_string(sa, "#endif  /* defined(HAVE_%s) */\n", type_property->expr->jdf_var);
