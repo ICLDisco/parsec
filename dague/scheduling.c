@@ -6,14 +6,14 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "src/mca/mca_repository.h"
-#include "src/mca/sched/sched.h"
+#include "dague/mca/mca_repository.h"
+#include "dague/mca/sched/sched.h"
 #include "profiling.h"
 #include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
-#include "src/mca/pins/pins.h"
+#include "dague/mca/pins/pins.h"
 #include "os-spec-timing.h"
 #include "remote_dep.h"
 

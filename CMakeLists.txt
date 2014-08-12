@@ -609,11 +609,11 @@ if( BUILD_DAGUE )
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
     #include(FortranCInterface)
-    #FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+    #FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
     #                         MACRO_NAMESPACE "DAGUE_"
     #                         SYMBOL_NAMESPACE "dague_")
     #                         SYMBOLS mysub daguef:my_sub)
-    add_subdirectory(src/fortran)
+    add_subdirectory(dague/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
 

@@ -9,7 +9,7 @@
 #include "dague_hwloc.h"
 #include "execution_unit.h"
 #include <dague/utils/mca_param.h>
-#include "src/mca/mca_repository.h"
+#include "dague/mca/mca_repository.h"
 
 #include "common.h"
 #include "common_timing.h"
