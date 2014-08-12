@@ -14,7 +14,7 @@ void mca_components_repository_init(void)
     mca_static_components_init();
 }
 
-static int belongs_to_list(char **list, const char *name)
+int mca_components_belongs_to_user_list(char **list, const char *name)
 {
     int i;
     if( list == NULL ) return 1;
@@ -24,54 +24,72 @@ static int belongs_to_list(char **list, const char *name)
     return 0;
 }
 
-mca_base_component_t **mca_components_open_bytype(char *type)
+char **mca_components_get_user_selection(char *type)
 {
-    int i, nb, n;
-    mca_base_component_t **opened_components;
     char *param, **list;
-    int idx;
+    int idx, nb, i, n;
 
     idx = dague_mca_param_find("mca", NULL, type);
-    if( idx == DAGUE_ERROR ) {
-        list = NULL;
-    } else {
-        dague_mca_param_lookup_string(idx, &param);
-        if( param == NULL ) {
-            list = NULL;
-        } else {
-            for(nb = 1, i = 0; param[i] != '\0'; i++) {
-                if( param[i] == ',' )
-                    nb++;
-            }
-            list = (char**)malloc( (nb+1)*sizeof(char*) );
-            for(nb = 0, i = 0, n = 0; param[i] != '\0'; i++) {
-                if( param[i] == ',' ) {
-                    list[nb] = (char*)malloc(i-n+1);
-                    memcpy( list[nb], &param[n], i-n );
-                    list[nb][i-n] = '\0';
-                    nb++;
-                    n = i+1;
-                }
-            }
+    if( idx == DAGUE_ERROR )
+        return NULL;
+
+    dague_mca_param_lookup_string(idx, &param);
+    if( param == NULL )
+        return NULL;
+
+    for(nb = 1, i = 0; param[i] != '\0'; i++) {
+        if( param[i] == ',' )
+            nb++;
+    }
+    list = (char**)malloc( (nb+1)*sizeof(char*) );
+    for(nb = 0, i = 0, n = 0; param[i] != '\0'; i++) {
+        if( param[i] == ',' ) {
             list[nb] = (char*)malloc(i-n+1);
             memcpy( list[nb], &param[n], i-n );
             list[nb][i-n] = '\0';
             nb++;
-            list[nb] = NULL;
+            n = i+1;
         }
     }
+    list[nb] = (char*)malloc(i-n+1);
+    memcpy( list[nb], &param[n], i-n );
+    list[nb][i-n] = '\0';
+    nb++;
+    list[nb] = NULL;
+
+    return list;
+}
+
+void mca_components_free_user_list(char **list)
+{
+    int i;
+    if( NULL != list ) {
+        for(i = 0; list[i] != NULL; i++) {
+            free(list[i]);
+        }
+        free(list);
+    }
+}
+
+mca_base_component_t **mca_components_open_bytype(char *type)
+{
+    int i, nb, n;
+    mca_base_component_t **opened_components;
+    char **list;
+
+    list = mca_components_get_user_selection(type);
 
     nb = 0;
     for(i = 0; mca_static_components[i] != NULL; i++) {
         if( !strcmp( mca_static_components[i]->mca_type_name, type ) &&
-            belongs_to_list(list, mca_static_components[i]->mca_component_name) )
+            mca_components_belongs_to_user_list(list, mca_static_components[i]->mca_component_name) )
             nb++;
     }
     opened_components = (mca_base_component_t**)malloc(sizeof(mca_base_component_t*) * (nb+1));
     n = 0;
     for(i = 0; (n < nb) && (mca_static_components[i] != NULL); i++) {
         if( !strcmp( mca_static_components[i]->mca_type_name, type ) &&
-            belongs_to_list(list, mca_static_components[i]->mca_component_name) ) {
+            mca_components_belongs_to_user_list(list, mca_static_components[i]->mca_component_name) ) {
             if( ( (NULL != mca_static_components[i]->mca_open_component) &&
                   (mca_static_components[i]->mca_open_component()) ) ||
                 ( NULL ==  mca_static_components[i]->mca_open_component ) ) {
@@ -83,6 +101,9 @@ mca_base_component_t **mca_components_open_bytype(char *type)
             }
         }
     }
+
+    mca_components_free_user_list(list);
+
     opened_components[n] = NULL;
     return opened_components;
 }
