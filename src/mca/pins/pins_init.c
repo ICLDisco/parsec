@@ -13,10 +13,10 @@
 
 #define MAX_NAME_SIZE 100 /* arbitrary module name limit for 'safety' */
 
-static int num_modules_enabled = -1;
-static char ** modules_enabled;
+static int num_modules_activated = 0;
+static dague_pins_module_t **modules_activated = NULL;
 
-extern parsec_pins_callback * pins_array[];
+extern parsec_pins_callback *pins_array[];
 
 static mca_base_component_t **pins_components = NULL;
 
@@ -28,15 +28,12 @@ static mca_base_component_t **pins_components = NULL;
  */
 void pins_init(dague_context_t * master_context) {
     int i = 0;
-    dague_pins_module_t * module = NULL;
+    dague_pins_module_t *module = NULL;
     int priority = -1;
+    char **user_list;
 
-    if (num_modules_enabled < 0)
-        num_modules_enabled = 0; /* disable future activations */
 #if defined(DAGUE_PROF_TRACE)
-    int size = (num_modules_enabled * (MAX_NAME_SIZE + 1)) + 1;
-    char * modules_enabled_str = calloc(size, sizeof(char));
-    modules_enabled_str[0] = '\0';
+    char * modules_activated_str = NULL;
 #endif /* DAGUE_PROF_TRACE */
 
     for (; i < PINS_FLAG_COUNT; i++) {
@@ -44,76 +41,48 @@ void pins_init(dague_context_t * master_context) {
             pins_array[i] = &pins_empty_callback;
     }
     DEBUG(("Initialized PaRSEC PINS callbacks to pins_empty_callback()"));
-    /*
-    int index = dague_mca_param_find("mca", "sched", NULL);
-    if (index != DAGUE_ERROR)
-        printf("%d index!\n", index);
-    index = dague_mca_param_find("mca", NULL, "sched");
-    if (index != DAGUE_ERROR)
-        printf("%d index 2!\n", index);
-    index = dague_mca_param_find("mca", "pins", "papi_L123_test");
-    if (index != DAGUE_ERROR)
-        printf("%d index 3!\n", index);
-    index = dague_mca_param_find("mca", "pins", "pins_papi_L123_test");
-    if (index != DAGUE_ERROR)
-        printf("%d index 4!\n", index);
-    index = dague_mca_param_find("mca", NULL, "pins_papi_L123_test");
-    if (index != DAGUE_ERROR)
-        printf("%d index 5!\n", index);
-    index = dague_mca_param_find("mca", "pins_papi_L123", "test");
-    if (index != DAGUE_ERROR)
-        printf("%d index 6!\n", index);
-    index = dague_mca_param_find("mca", NULL, "pins");
-    if (index != DAGUE_ERROR)
-        printf("%d PINS modules defined!\n", index);
-
-    pins_components = mca_components_open_bytype("pins");
-    // DEBUG count
-    int fc =0;
-    while (pins_components[fc] != NULL) {
-        pins_components[fc]->mca_query_component((mca_base_module_t*)&module, &priority);
-        printf("%s\n", module->component->base_version.mca_component_name);
-        fc++;
+    user_list = mca_components_get_user_selection("pins");
+    if( NULL == user_list ) {
+        /* No PINS component requested by user */
+        return;
     }
-    printf("num pins %d\n", fc);
-     */
-    if (NULL != modules_enabled) {
-        i = 0;
-        pins_components = mca_components_open_bytype("pins");
-        while (pins_components[i] != NULL) {
+    pins_components = mca_components_open_bytype("pins");
+    for(i = 0; pins_components[i] != NULL; i++) /* nothing just counting */;
+    modules_activated = (dague_pins_module_t**)malloc(sizeof(dague_pins_module_t*) * i);
+#if defined(DAGUE_PROF_TRACE)
+    modules_activated_str = (char*)malloc( (MAX_NAME_SIZE+1) * i);
+#endif /* DAGUE_PROF_TRACE */
+    num_modules_activated = 0;
+
+    for(i = 0; pins_components[i] != NULL; i++) {
+        if( mca_components_belongs_to_user_list(user_list, pins_components[i]->mca_component_name) ) {
             if (pins_components[i]->mca_query_component != NULL) {
                 pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                int j = 0;
-                while (modules_enabled[j] != NULL) {
-                    if (0 == strncmp(module->component->base_version.mca_component_name,
-                                     modules_enabled[j], MAX_NAME_SIZE)) {
-                        if (NULL != module->module.init) {
-                            module->module.init(master_context);
-                            DEBUG(("Activated PINS module %s.\n",
-                                   module->component->base_version.mca_component_name));
-                        }
+                fprintf(stderr, "query component %d returns priority %d\n", i, priority);
+                if (NULL != module->module.init) {
+                    module->module.init(master_context);
+                    DEBUG(("Activated PINS module %s.\n",
+                           module->component->base_version.mca_component_name));
+                    modules_activated[num_modules_activated++] = module;
 #if defined(DAGUE_PROF_TRACE)
-                        /* accumulate the names of modules used */
-                        strncat(modules_enabled_str,
-                                module->component->base_version.mca_component_name,
-                                MAX_NAME_SIZE);
-                        strncat(modules_enabled_str, ",", 1);
-#endif /* DAGUE_PROF_TRACE */
-                        break;
-                    }
-                    j++;
+                    strncat(modules_activated_str, pins_components[i]->mca_component_name, MAX_NAME_SIZE);
+                    strncat(modules_activated_str, ",", 1);
+#endif
                 }
             }
-            i++;
         }
     }
+    mca_components_free_user_list(user_list);
+    fprintf(stderr, "Found %d components, activated %d\n", i, num_modules_activated);
 #if defined(DAGUE_PROF_TRACE)
     /* replace trailing comma with \0 */
-    if (strlen(modules_enabled_str) > 1)
-        modules_enabled_str[strlen(modules_enabled_str) - 2] = '\0';
-    /* dague_profiling_add_information("PINS_MODULES", modules_enabled_str); */
-    free(modules_enabled_str);
-    modules_enabled_str = NULL;
+    if ( strlen(modules_activated_str) > 1) {
+        if( modules_activated_str[ strlen(modules_activated_str) - 1 ] == ',' ) {
+            modules_activated_str[strlen(modules_activated_str) - 1] = '\0';
+        }
+    }
+    dague_profiling_add_information("PINS_MODULES", modules_activated_str);
+    free(modules_activated_str);
 #endif
 }
 
@@ -125,43 +94,20 @@ void pins_fini(dague_context_t * master_context) {
     int priority = -1;
     int i = 0;
 
-    if (NULL != modules_enabled) {
-        /*
-         * Call all fini methods in reverse order in order to preserve
-         * cleanup semantics.
-         */
-        while (pins_components[i] != NULL)
-            i++; /* count */
-        i--; /* back down to before NULL element */
+    if (NULL != modules_activated) {
+        for(i = 0; i < num_modules_activated; i++) {
+            if( NULL != modules_activated[i]->module.fini ) {
+                modules_activated[i]->module.fini(master_context);
+                DEBUG(("Finalized PINS module %s.\n",
+                       modules_activated[i]->module.component->base_version.mca_component_name));
+            }
+        }
+        free(modules_activated);
+        modules_activated = NULL;
+        num_modules_activated = -1;
+    }
 
-        while (i >= 0) {
-            if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                int j = 0;
-                while (modules_enabled[j] != NULL) {
-                    if (0 == strncmp(module->component->base_version.mca_component_name,
-                                     modules_enabled[j], MAX_NAME_SIZE))  {
-                        if (NULL != module->module.fini) {
-                            module->module.fini(master_context);
-                            DEBUG(("Finalized PINS module %s.\n",
-                                   module->component->base_version.mca_component_name));
-                        }
-                        break;
-                    }
-                    j++;
-                }
-            }
-            i--;
-        }
-        /* cleanup memory */
-        for (i=0; i < num_modules_enabled; i++) {
-            if (modules_enabled[i] != NULL) {
-                free(modules_enabled[i]);
-                modules_enabled[i] = NULL;
-            }
-        }
-        free(modules_enabled);
-        modules_enabled = NULL;
+    if( NULL != pins_components ) {
         mca_components_close(pins_components);
         pins_components = NULL;
     }
@@ -176,26 +122,12 @@ void pins_fini(dague_context_t * master_context) {
  * It MUST NOT be called BEFORE pins_init().
  */
 void pins_thread_init(dague_execution_unit_t * exec_unit) {
-    dague_pins_module_t * module = NULL;
-    int priority = -1;
     int i = 0;
 
-    if (NULL != modules_enabled) {
-        while (pins_components[i] != NULL) {
-            if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                int j = 0;
-                while (modules_enabled[j] != NULL) {
-                    if (0 == strncmp(module->component->base_version.mca_component_name,
-                                     modules_enabled[j], MAX_NAME_SIZE)) {
-                        if (NULL != module->module.thread_init)
-                            module->module.thread_init(exec_unit);
-                        break;
-                    }
-                    j++;
-                }
-            }
-            i++;
+    if (NULL != modules_activated) {
+        for(i = 0; i < num_modules_activated; i++) {
+            if ( NULL != modules_activated[i]->module.thread_init)
+                modules_activated[i]->module.thread_init(exec_unit);
         }
     }
 
@@ -206,39 +138,17 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
  * called in scheduling.c, which is not ideal
  */
 void pins_thread_fini(dague_execution_unit_t * exec_unit) {
-    dague_pins_module_t * module = NULL;
-    int priority = -1;
     int i = 0;
 
-    if (modules_enabled != NULL) {
-        /*
-         * Call all fini methods in reverse order in order to preserve
-         * cleanup semantics.
-         */
-        while (pins_components[i] != NULL)
-            i++; /* count modules */
-        i--; /* back down by one to skip NULL array element */
-        while (i >= 0) {
-            if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                int j = 0;
-                while (modules_enabled[j] != NULL) {
-                    if (0 == strncmp(module->component->base_version.mca_component_name,
-                                     modules_enabled[j], MAX_NAME_SIZE)) {
-                        if (NULL != module->module.thread_fini)
-                            module->module.thread_fini(exec_unit);
-                        break;
-                    }
-                    j++;
-                }
-            }
-            i--;
+    if (NULL != modules_activated) {
+        for(i = 0; i < num_modules_activated; i++) {
+            if ( NULL != modules_activated[i]->module.thread_fini)
+                modules_activated[i]->module.thread_fini(exec_unit);
         }
     }
 
     parsec_instrument(THREAD_FINI, exec_unit, NULL, NULL);
 }
-
 
 /**
  * pins_handle_init() should be called once per PaRSEC handle instantiation.
@@ -249,26 +159,12 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
  * It MUST NOT be called BEFORE pins_init().
  */
 void pins_handle_init(dague_handle_t * handle) {
-    dague_pins_module_t * module = NULL;
-    int priority = -1;
     int i = 0;
 
-    if (NULL != modules_enabled) {
-        while (pins_components[i] != NULL) {
-            if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                int j = 0;
-                while (modules_enabled[j] != NULL) {
-                    if (0 == strncmp(module->component->base_version.mca_component_name,
-                                     modules_enabled[j], MAX_NAME_SIZE)) {
-                        if (NULL != module->module.handle_init)
-                            module->module.handle_init(handle);
-                        break;
-                    }
-                    j++;
-                }
-            }
-            i++;
+    if (NULL != modules_activated) {
+        for(i = 0; i < num_modules_activated; i++) {
+            if ( NULL != modules_activated[i]->module.handle_init)
+                modules_activated[i]->module.handle_init(handle);
         }
     }
 
@@ -279,34 +175,12 @@ void pins_handle_init(dague_handle_t * handle) {
  * Currently uncalled in the PaRSEC DPLAMSA testing executables
  */
 void pins_handle_fini(dague_handle_t * handle) {
-    dague_pins_module_t * module = NULL;
-    int priority = -1;
     int i = 0;
 
-    if (NULL != modules_enabled) {
-        /*
-         * Call all fini methods in reverse order in order to preserve
-         * cleanup semantics.
-         */
-        while (pins_components[i] != NULL)
-            i++;
-        i--;
-
-        while (i >= 0) {
-            if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                int j = 0;
-                while (modules_enabled[j] != NULL) {
-                    if (0 == strncmp(module->component->base_version.mca_component_name,
-                                     modules_enabled[j], MAX_NAME_SIZE)) {
-                        if (NULL != module->module.handle_fini)
-                            module->module.handle_fini(handle);
-                        break;
-                    }
-                    j++;
-                }
-            }
-            i--;
+    if (NULL != modules_activated) {
+        for(i = 0; i < num_modules_activated; i++) {
+            if ( NULL != modules_activated[i]->module.handle_fini)
+                modules_activated[i]->module.handle_fini(handle);
         }
     }
 
@@ -314,42 +188,31 @@ void pins_handle_fini(dague_handle_t * handle) {
 }
 
 /**
- * Addon method to allow for limiting the 'enabled modules.'
- * It is only possible to call this method only before pins_init, so as not to introduce
- * new modules without proper initialization, so as not to overwrite
- * currently-enabled modules, and so as not to cause threading complications.
- * (this method is certainly NOT THREAD-SAFE).
- *
- * The method will only allow itself to be called a single time.
- *
- * The array of modules should be terminated by a NULL pointer.
+ * Convenient functions for application that want to overwrite the MCA
+ *  default behavior.
  */
 void pins_enable_modules (const char * const modules[]) {
-    int counter = 0;
-    if (dague_atomic_cas(&num_modules_enabled, -1, 0)) {
-        while (modules[num_modules_enabled] != NULL)
-            num_modules_enabled++;
-        counter = num_modules_enabled;
-        if (num_modules_enabled > 0)
-            modules_enabled = calloc(num_modules_enabled + 1, sizeof(char));
-        if (modules_enabled != NULL) {
-            modules_enabled[counter] = NULL;
-            for (counter--; counter >= 0; counter--) {
-                modules_enabled[counter] = calloc(sizeof(char), MAX_NAME_SIZE + 1);
-                if (NULL != modules_enabled[counter]) {
-                    strncpy(modules_enabled[counter], modules[counter], MAX_NAME_SIZE);
-                    DEBUG(("Allowing PINS module %s to be activated.\n", modules_enabled[counter]));
-                }
-                else {
-                    DEBUG(("Memory allocation failed in "
-                           "'pins_set_modules_enabled.' "
-                           "Module %s not enabled\n", modules[counter]));
-                }
-            }
-        }
+    int i, l;
+    char *str;
+    int idx;
+
+    l = 0;
+    for(i = 0; NULL != modules[i]; i++) {
+        l += strlen(modules[i])+1;
     }
-    else
-        DEBUG3(("PINS modules have already been set and cannot be set again.\n"));
+    str = (char *)malloc(l);
+    str[0] = '\0';
+    for(i = 0; NULL != modules[i]; i++) {
+        strcat(str, modules[i]);
+        strcat(str, ",");
+    }
+    if(l > 0)
+        str[l-1] = '\0';
+
+    idx = dague_mca_param_find("mca", NULL, "pins");
+    dague_mca_param_set_string(idx, str);
+
+    free(str);
 }
 
 /*
@@ -363,22 +226,10 @@ int pins_is_module_enabled(char * name) {
     int priority = -1;
     int i = 0;
 
-    if (modules_enabled != NULL) {
-        while (pins_components[i] != NULL) {
-            if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                int j = 0;
-                while (modules_enabled[j] != NULL) {
-                    if (0 == strncmp(module->component->base_version.mca_component_name,
-                                     modules_enabled[j], MAX_NAME_SIZE) &&
-                        0 == strncmp(module->component->base_version.mca_component_name,
-                                     name, MAX_NAME_SIZE)) {
-                        return 1; /* yes, this module is enabled */
-                    }
-                    j++;
-                }
-            }
-            i++;
+    if (NULL != modules_activated) {
+        for(i = 0; i < num_modules_activated; i++) {
+            if ( strcmp(name, modules_activated[i]->component->base_version.mca_component_name) == 0)
+                return 1;
         }
     }
     return 0; /* no, this module is not enabled */
