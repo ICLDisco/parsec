@@ -27,7 +27,7 @@
 #include <stdio.h>
 
 #include "dague/sys/atomic.h"
-#include "src/class/dague_object.h"
+#include "dague/class/dague_object.h"
 
 /*
  * Instantiation of class descriptor for the base class.  This is

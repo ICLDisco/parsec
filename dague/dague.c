@@ -41,7 +41,7 @@
 #include "dague/devices/device.h"
 #include "dague/utils/cmd_line.h"
 
-#include "src/mca/mca_repository.h"
+#include "dague/mca/mca_repository.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
