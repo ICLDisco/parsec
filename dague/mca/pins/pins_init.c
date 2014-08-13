@@ -26,7 +26,8 @@ static mca_base_component_t **pins_components = NULL;
  * other components have been initialized, so as to allow the interfacing of
  * PINS measurements with working PaRSEC subsystems.
  */
-void pins_init(dague_context_t * master_context) {
+void pins_init(dague_context_t * master_context)
+{
     int i = 0;
     dague_pins_module_t *module = NULL;
     int priority = -1;
@@ -90,8 +91,6 @@ void pins_init(dague_context_t * master_context) {
  * pins_fini must call fini methods of all modules
  */
 void pins_fini(dague_context_t * master_context) {
-    dague_pins_module_t * module = NULL;
-    int priority = -1;
     int i = 0;
 
     if (NULL != modules_activated) {
@@ -99,7 +98,7 @@ void pins_fini(dague_context_t * master_context) {
             if( NULL != modules_activated[i]->module.fini ) {
                 modules_activated[i]->module.fini(master_context);
                 DEBUG(("Finalized PINS module %s.\n",
-                       modules_activated[i]->module.component->base_version.mca_component_name));
+                       modules_activated[i]->component->base_version.mca_component_name));
             }
         }
         free(modules_activated);
@@ -222,8 +221,6 @@ void pins_enable_modules (const char * const modules[]) {
   modules are "init"ed, and check against that array.
  */
 int pins_is_module_enabled(char * name) {
-    dague_pins_module_t * module = NULL;
-    int priority = -1;
     int i = 0;
 
     if (NULL != modules_activated) {
