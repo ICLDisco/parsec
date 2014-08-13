@@ -68,7 +68,10 @@ int main( int argc, char** argv )
     long time_elapsed;
 
 #ifdef HAVE_MPI
-    MPI_Init(&argc,&argv);
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
 #endif
 
     while( NULL != argv[i] ) {
