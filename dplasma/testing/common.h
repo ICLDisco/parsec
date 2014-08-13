@@ -68,7 +68,6 @@ enum iparam_t {
   IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
-  IPARAM_PINS,         /* Was the PINS option used? */
   IPARAM_SCHEDULER,    /* User-selected scheduler */
   IPARAM_SIZEOF
 };
@@ -229,7 +228,6 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     PROFILING_SAVE_iINFO("PARAM_QR_DOMINO", iparam[IPARAM_QR_DOMINO]);  \
     PROFILING_SAVE_iINFO("PARAM_QR_TSRR", iparam[IPARAM_QR_TSRR]);      \
     PROFILING_SAVE_iINFO("PARAM_BUT_LEVEL", iparam[IPARAM_BUT_LEVEL]);  \
-    PROFILING_SAVE_iINFO("PARAM_PINS", iparam[IPARAM_PINS]);            \
     PROFILING_SAVE_iINFO("PARAM_SCHEDULER", iparam[IPARAM_SCHEDULER]);  \
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \

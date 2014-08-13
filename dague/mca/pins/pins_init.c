@@ -59,7 +59,7 @@ void pins_init(dague_context_t * master_context)
         if( mca_components_belongs_to_user_list(user_list, pins_components[i]->mca_component_name) ) {
             if (pins_components[i]->mca_query_component != NULL) {
                 pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                fprintf(stderr, "query component %d returns priority %d\n", i, priority);
+                DEBUG(("query component %d returns priority %d\n", i, priority));
                 if (NULL != module->module.init) {
                     module->module.init(master_context);
                     DEBUG(("Activated PINS module %s.\n",
