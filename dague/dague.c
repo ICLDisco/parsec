@@ -85,7 +85,7 @@ static struct rusage _dague_rusage;
 
 static char *dague_enable_dot = NULL;
 static char *dague_app_name = NULL;
-
+static char *dague_enable_profiling = NULL;  /* profiling file when DAGUE_PROF_TRACE is on */
 static dague_device_t* dague_device_cpus = NULL;
 
 /**
@@ -205,7 +205,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         dague_execution_context_t fake_context;
         data_repo_entry_t fake_entry;
         dague_mempool_construct( &vp->context_mempool,
-                                  OBJ_CLASS(dague_execution_context_t), sizeof(dague_execution_context_t),
+                                 OBJ_CLASS(dague_execution_context_t), sizeof(dague_execution_context_t),
                                  ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
                                  vp->nb_cores );
 
@@ -231,13 +231,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                                                   DAGUE_PROFILE_THREAD_STR,
                                                   eu->th_id,
                                                   eu->virtual_process->vp_id );
-    PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
-    PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
-
-    if( NULL == eu->eu_profile ) {
-        fprintf(stderr, "*** %s\n", dague_profiling_strerror());
+    if( NULL != eu->eu_profile ) {
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
     }
-
 #endif /* DAGUE_PROF_TRACE */
 
     PINS_THREAD_INIT(eu);
@@ -504,12 +501,27 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* DAGUE_DEBUG_VERBOSE != 0 */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
+    dague_mca_param_reg_string_name("profile", "filename",
 #if defined(DAGUE_PROF_TRACE)
-    if( dague_profiling_init( ) == 0 ) {
+                                 "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
+                                 false, false,
+#else
+                                 "Path to the profiling file (unused due to profiling being turned off during building)",
+                                 false, true,  /* profiling disabled: read-only */
+#endif  /* defined(DAGUE_PROF_TRACE) */
+                                 "<none>", &dague_enable_profiling);
+#if defined(DAGUE_PROF_TRACE)
+    if( (0 != strncasecmp(dague_enable_profiling, "<none>", 6)) && (0 == dague_profiling_init( )) ) {
         int i, l;
         char *cmdline_info = basename(dague_app_name);
 
-        if( dague_profiling_dbp_start( cmdline_info, dague_app_name ) != 0 ) {
+        /* Use either the app name (argv[0]) or the user provided filename */
+        if( 0 == strncmp(dague_enable_profiling, "<app>", 5) ) {
+            ret = dague_profiling_dbp_start( cmdline_info, dague_app_name );
+        } else {
+            ret = dague_profiling_dbp_start( dague_enable_profiling, dague_app_name );
+        }
+        if( ret != 0 ) {
             fprintf(stderr, "*** %s. Profile deactivated.\n", dague_profiling_strerror());
         }
 
@@ -753,9 +765,7 @@ int dague_fini( dague_context_t** pcontext )
 
     AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
-    if( 0 != dague_profiling_fini( ) ) {
-        fprintf(stderr, "*** %s\n", dague_profiling_strerror());
-    }
+    (void)dague_profiling_fini( );  /* we're leaving, ignore errors */
 #endif  /* DAGUE_PROF_TRACE */
 
     if(dague_enable_dot) {
