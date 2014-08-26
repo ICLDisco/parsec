@@ -2778,7 +2778,6 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                                 nb_input);
     }
 
-    string_arena_add_string(sa, "  .init = (dague_create_function_t*)%s,\n", "NULL");
     string_arena_add_string(sa, "  .key = (dague_functionkey_fn_t*)%s_hash,\n", f->fname);
     string_arena_add_string(sa, "  .fini = (dague_hook_t*)%s,\n", "NULL");
 

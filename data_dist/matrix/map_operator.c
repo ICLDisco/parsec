@@ -415,7 +415,6 @@ static const dague_function_t dague_map_operator = {
     .priority = NULL,
     .in = { &flow_of_map_operator },
     .out = { &flow_of_map_operator },
-    .init = NULL,
     .key = NULL,
     .prepare_input = data_lookup,
     .incarnations = __dague_map_chores,
