@@ -607,6 +607,7 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
         /* Update the number of pending objects */
         dague_atomic_inc_32b( &(context->active_objects) );
 
+        (void)dague_remote_dep_new_object(object);
         if( NULL != object->startup_hook ) {
             int p;
             object->startup_hook(context, object, startup_list);

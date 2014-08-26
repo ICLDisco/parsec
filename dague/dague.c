@@ -1447,7 +1447,6 @@ int dague_handle_register( dague_handle_t* object )
     object_array[index] = object;
     object->handle_id = index;
     dague_atomic_unlock( &object_array_lock );
-    (void)dague_remote_dep_new_object( object );
     return (int)index;
 }
 
