@@ -514,6 +514,7 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
     res->super.super.handle_id = 1111;
     res->super.super.nb_local_tasks = src->nb_local_tiles;
     res->super.super.startup_hook = dague_map_operator_startup_fn;
+    (void)dague_handle_reserve_id((dague_handle_t *)res);
     return (dague_handle_t*)res;
 }
 

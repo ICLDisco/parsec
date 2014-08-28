@@ -1425,42 +1425,67 @@ dague_handle_t* dague_handle_lookup( uint32_t handle_id )
     return r;
 }
 
-/**< Register the object with the engine. Create the unique identifier for the object */
-int dague_handle_register( dague_handle_t* object )
+/**< Reverse an unique ID for the handle. Beware that on a distributed environment the
+ * connected objects must have the same ID.
+ */
+int dague_handle_reserve_id( dague_handle_t* object )
 {
-    uint32_t index;
+    uint32_t idx;
 
     dague_atomic_lock( &object_array_lock );
-    index = (uint32_t)++object_array_pos;
+    idx = (uint32_t)++object_array_pos;
 
-    if( index >= object_array_size ) {
+    if( idx >= object_array_size ) {
         object_array_size *= 2;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
 #if defined(DAGUE_DEBUG_ENABLE)
         {
             unsigned int i;
-            for(i = index; i < object_array_size; i++)
+            for(i = idx; i < object_array_size; i++)
                 object_array[i] = NOOBJECT;
         }
 #endif  /* defined(DAGUE_DEBUG_ENABLE */
     }
-    object_array[index] = object;
-    object->handle_id = index;
+    object->handle_id = idx;
     dague_atomic_unlock( &object_array_lock );
-    return (int)index;
+    return (int)idx;
+}
+
+/**< Register a handle object with the engine. Once enrolled the object can be target
+ * for other components of the runtime, such as communications.
+ */
+int dague_handle_register( dague_handle_t* object)
+{
+    uint32_t idx = object->handle_id;
+
+    dague_atomic_lock( &object_array_lock );
+    if( idx >= object_array_size ) {
+        object_array_size *= 2;
+        object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
+#if defined(DAGUE_DEBUG_ENABLE)
+        {
+            unsigned int i;
+            for(i = idx; i < object_array_size; i++)
+                object_array[i] = NOOBJECT;
+        }
+#endif  /* defined(DAGUE_DEBUG_ENABLE */
+    }
+    object_array[idx] = object;
+    dague_atomic_unlock( &object_array_lock );
+    return idx;
 }
 
 /**< globally synchronize object id's so that next register generates the same
  * id at all ranks. */
 void dague_handle_sync_ids( void )
 {
-    uint32_t index;
+    uint32_t idx;
     dague_atomic_lock( &object_array_lock );
-    index = (int)object_array_pos;
+    idx = (int)object_array_pos;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    MPI_Allreduce( MPI_IN_PLACE, &index, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+    MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
 #endif
-    if( index >= object_array_size ) {
+    if( idx >= object_array_size ) {
         object_array_size *= 2;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
 #if defined(DAGUE_DEBUG_ENABLE)
@@ -1471,11 +1496,14 @@ void dague_handle_sync_ids( void )
         }
 #endif  /* defined(DAGUE_DEBUG_ENABLE) */
     }
-    object_array_pos = index;
+    object_array_pos = idx;
     dague_atomic_unlock( &object_array_lock );
 }
 
-/**< Unregister the object with the engine. */
+/**< Unregister the object with the engine. This make the handle available for
+ * future handles. Beware that in a distributed environment the connected objects
+ * must have the same ID.
+ */
 void dague_handle_unregister( dague_handle_t* object )
 {
     dague_atomic_lock( &object_array_lock );

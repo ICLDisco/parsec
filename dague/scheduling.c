@@ -603,10 +603,14 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
     /* These pointers need to be initialized to NULL; doing it with calloc */
     startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
 
+    /* Enable the object to interact with the communication engine */
+    (void)dague_handle_register(object);
+
     if( object->nb_local_tasks > 0 ) {
         /* Update the number of pending objects */
         dague_atomic_inc_32b( &(context->active_objects) );
 
+        /* Retreive all the early messages for this object */
         (void)dague_remote_dep_new_object(object);
         if( NULL != object->startup_hook ) {
             int p;

@@ -3198,7 +3198,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __dague_handle->super.super.startup_hook = %s_startup;\n"
             "  __dague_handle->super.super.destructor   = (dague_destruct_fn_t)%s_destructor;\n"
-            "  (void)dague_handle_register((dague_handle_t*)__dague_handle);\n",
+            "  (void)dague_handle_reserve_id((dague_handle_t*)__dague_handle);\n",
             jdf_basename, jdf_basename);
 
     coutput("  return (dague_%s_handle_t*)__dague_handle;\n"
