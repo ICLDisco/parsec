@@ -1414,15 +1414,13 @@ static void dague_handle_empty_repository(void)
 /**< Retrieve the local object attached to a unique object id */
 dague_handle_t* dague_handle_lookup( uint32_t handle_id )
 {
-    dague_handle_t *r;
+    dague_handle_t *r = NOOBJECT;
     dague_atomic_lock( &object_array_lock );
-    if( handle_id > object_array_pos ) {
-        r = NULL;
-    } else {
+    if( handle_id <= object_array_pos ) {
         r = object_array[handle_id];
     }
     dague_atomic_unlock( &object_array_lock );
-    return r;
+    return (NOOBJECT == r ? NULL : r);
 }
 
 /**< Reverse an unique ID for the handle. Beware that on a distributed environment the
@@ -1436,19 +1434,16 @@ int dague_handle_reserve_id( dague_handle_t* object )
     idx = (uint32_t)++object_array_pos;
 
     if( idx >= object_array_size ) {
-        object_array_size *= 2;
+        object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
-#if defined(DAGUE_DEBUG_ENABLE)
-        {
-            unsigned int i;
-            for(i = idx; i < object_array_size; i++)
-                object_array[i] = NOOBJECT;
-        }
-#endif  /* defined(DAGUE_DEBUG_ENABLE */
+        /* NULLify all the new elements */
+        for( uint32_t i = (object_array_size>>1); i < object_array_size;
+             object_array[i++] = NOOBJECT );
     }
     object->handle_id = idx;
+    assert( NOOBJECT == object_array[idx] );
     dague_atomic_unlock( &object_array_lock );
-    return (int)idx;
+    return idx;
 }
 
 /**< Register a handle object with the engine. Once enrolled the object can be target
@@ -1460,15 +1455,11 @@ int dague_handle_register( dague_handle_t* object)
 
     dague_atomic_lock( &object_array_lock );
     if( idx >= object_array_size ) {
-        object_array_size *= 2;
+        object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
-#if defined(DAGUE_DEBUG_ENABLE)
-        {
-            unsigned int i;
-            for(i = idx; i < object_array_size; i++)
-                object_array[i] = NOOBJECT;
-        }
-#endif  /* defined(DAGUE_DEBUG_ENABLE */
+        /* NULLify all the new elements */
+        for( uint32_t i = (object_array_size>>1); i < object_array_size;
+             object_array[i++] = NOOBJECT );
     }
     object_array[idx] = object;
     dague_atomic_unlock( &object_array_lock );
@@ -1486,15 +1477,11 @@ void dague_handle_sync_ids( void )
     MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
 #endif
     if( idx >= object_array_size ) {
-        object_array_size *= 2;
+        object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
-#if defined(DAGUE_DEBUG_ENABLE)
-        {
-            unsigned int i;
-            for(i = object_array_pos+1; i < object_array_size; i++)
-                object_array[i] = NOOBJECT;
-        }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+        /* NULLify all the new elements */
+        for( uint32_t i = (object_array_size>>1); i < object_array_size;
+             object_array[i++] = NOOBJECT );
     }
     object_array_pos = idx;
     dague_atomic_unlock( &object_array_lock );
