@@ -871,9 +871,9 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
     int64_t zero;
     char *xmlbuffer;
     int rank = 0, worldsize = 1, buflen;
+    int  min_fd;
 #if defined(HAVE_MPI)
     char *unique_str;
-    int  min_fd;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
