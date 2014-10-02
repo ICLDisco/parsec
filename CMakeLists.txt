@@ -388,6 +388,7 @@ check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 check_include_files(stddef.h HAVE_STDDEF_H)
 check_include_files(stdbool.h HAVE_STDBOOL_H)
+check_include_files(ctype.h HAVE_CTYPE_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h HAVE_RUSAGE_THREAD)
 check_include_files(limits.h HAVE_LIMITS_H)
@@ -608,11 +609,11 @@ if( BUILD_DAGUE )
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
     #include(FortranCInterface)
-    #FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+    #FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
     #                         MACRO_NAMESPACE "DAGUE_"
     #                         SYMBOL_NAMESPACE "dague_")
     #                         SYMBOLS mysub daguef:my_sub)
-    add_subdirectory(src/fortran)
+    add_subdirectory(dague/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
 

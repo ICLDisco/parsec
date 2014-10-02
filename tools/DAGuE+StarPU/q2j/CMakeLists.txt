@@ -1,6 +1,6 @@
 if(FOUND_OMEGA)
-  BISON_TARGET(dague_q2j_yacc src/q2j.y ${CMAKE_CURRENT_BINARY_DIR}/q2j.y.c)
-  FLEX_TARGET(dague_q2j_flex src/q2j.l  ${CMAKE_CURRENT_BINARY_DIR}/q2j.l.c)
+  BISON_TARGET(dague_q2j_yacc dague/q2j.y ${CMAKE_CURRENT_BINARY_DIR}/q2j.y.c)
+  FLEX_TARGET(dague_q2j_flex dague/q2j.l  ${CMAKE_CURRENT_BINARY_DIR}/q2j.l.c)
   ADD_FLEX_BISON_DEPENDENCY(dague_q2j_flex dague_q2j_yacc)
 
   # Bison and Flex are supposed to generate good code.
@@ -12,7 +12,7 @@ if(FOUND_OMEGA)
 
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_BINARY_DIR})
 
-  add_executable(q2j src/omega_interface.cpp src/driver.c src/utility.c src/symtab.c ${BISON_dague_q2j_yacc_OUTPUTS} ${FLEX_dague_q2j_flex_OUTPUTS})
+  add_executable(q2j dague/omega_interface.cpp dague/driver.c dague/utility.c dague/symtab.c ${BISON_dague_q2j_yacc_OUTPUTS} ${FLEX_dague_q2j_flex_OUTPUTS})
   set_target_properties(q2j PROPERTIES COMPILE_FLAGS "-I${DAGUE_OMEGA_DIR}/omega_lib/include -I${DAGUE_OMEGA_DIR}/basic/include")
   set_target_properties(q2j PROPERTIES LINKER_LANGUAGE CXX)
   set_target_properties(q2j PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")

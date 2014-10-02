@@ -988,7 +988,7 @@ static int make_opt(dague_cmd_line_t *cmd, dague_cmd_line_init_t *e)
     option->clo_type = e->ocl_variable_type;
     option->clo_variable_dest = e->ocl_variable_dest;
     if (NULL != e->ocl_mca_param_name) {
-        (void) mca_base_var_env_name (e->ocl_mca_param_name,
+        (void)dague_mca_var_env_name(e->ocl_mca_param_name,
                                      &option->clo_mca_param_env_var);
     }
 

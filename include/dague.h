@@ -37,8 +37,8 @@ extern dague_data_free_t     dague_data_free;
 dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
 
 /**
- * Reset the remote_dep comm engine associated with @context, and use 
- * the communication context @opaque_comm_ctx in the future 
+ * Reset the remote_dep comm engine associated with @context, and use
+ * the communication context @opaque_comm_ctx in the future
  * (typically an MPI communicator);
  *   dague_progress becomes collective accross nodes spanning on this
  *   communication context.
@@ -89,9 +89,18 @@ int dague_get_complete_callback(const dague_handle_t* dague_handle,
 
 /**< Retrieve the local object attached to a unique object id */
 dague_handle_t* dague_handle_lookup(uint32_t handle_id);
-/**< Register the object with the engine. Create the unique identifier for the handle */
+/**< Reverse an unique ID for the handle. Beware that on a distributed environment the
+ * connected objects must have the same ID.
+ */
+int dague_handle_reserve_id(dague_handle_t* handle);
+/**< Register the object with the engine. The object must have a unique handle, especially
+ * in a distributed environment.
+ */
 int dague_handle_register(dague_handle_t* handle);
-/**< Unregister the object with the engine. */
+/**< Unregister the object with the engine. This make the handle available for
+ * future handles. Beware that in a distributed environment the connected objects
+ * must have the same ID.
+ */
 void dague_handle_unregister(dague_handle_t* handle);
 /**< globally synchronize object id's so that next register generates the same
  *  * id at all ranks. */
@@ -100,8 +109,8 @@ void dague_handle_sync_ids(void);
 /**
  * Compose sequentially two handles. If start is already a composed
  * object, then next will be added sequentially to the list. These
- * handles will execute one after another as if there were sequential. 
- * The resulting compound dague_handle is returned. 
+ * handles will execute one after another as if there were sequential.
+ * The resulting compound dague_handle is returned.
  */
 dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 

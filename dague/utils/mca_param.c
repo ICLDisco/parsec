@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2008 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2012 The University of Tennessee and The University
+ * Copyright (c) 2004-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -33,6 +33,9 @@
 #endif
 #ifdef HAVE_STDBOOL_H
 #include <stdbool.h>
+#endif
+#ifdef HAVE_CTYPE_H
+#include <ctype.h>
 #endif
 
 #include "dague/class/list_item.h"
@@ -723,7 +726,7 @@ static int read_files(char *file_list)
     count = dague_argv_count(files);
 
     for (i = count - 1; i >= 0; --i) {
-        dague_mca_base_parse_paramfile(files[i]);
+        dague_mca_parse_paramfile(files[i]);
     }
     dague_argv_free(files);
 
@@ -2005,8 +2008,8 @@ int dague_mca_param_check_exclusive_string(const char *type_a,
     return DAGUE_SUCCESS;
 }
 
-int mca_base_var_env_name(const char *param_name,
-                          char **env_name)
+int dague_mca_var_env_name(const char *param_name,
+                           char **env_name)
 {
     int ret;
 
@@ -2020,3 +2023,366 @@ int mca_base_var_env_name(const char *param_name,
     return DAGUE_SUCCESS;
 }
 
+/*
+ * Private variables - set some reasonable screen size defaults
+ */
+static const char *dague_info_component_all = "all";
+static const char *dague_info_type_all = "all";
+static int centerpoint = 24;
+static int screen_width = 78;
+static int dague_info_pretty = 0;
+
+/*
+ * Prints the passed value in a pretty or parsable format.
+ */
+static void
+dague_info_out(const char *pretty_message, const char *plain_message, const char *value)
+{
+    size_t i, len, max_value_width;
+    char *spaces = NULL;
+    char *filler = NULL;
+    char *pos, *v, savev;
+
+#ifdef HAVE_ISATTY
+    /* If we have isatty(), if this is not a tty, then disable
+     * wrapping for grep-friendly behavior
+     */
+    if (0 == isatty(STDOUT_FILENO)) {
+        screen_width = INT_MAX;
+    }
+#endif
+
+#ifdef TIOCGWINSZ
+    if (screen_width < INT_MAX) {
+        struct winsize size;
+        if (ioctl(STDOUT_FILENO, TIOCGWINSZ, (char*) &size) >= 0) {
+            screen_width = size.ws_col;
+        }
+    }
+#endif
+
+    /* Strip leading and trailing whitespace from the string value */
+    v = strdup(value);
+    len = strlen(v);
+    if (isspace(v[0])) {
+        char *newv;
+        i = 0;
+        while (isspace(v[i]) && i < len) {
+            ++i;
+        }
+        newv = strdup(v + i);
+        free(v);
+        v = newv;
+        len = strlen(v);
+    }
+    if (len > 0 && isspace(v[len - 1])) {
+        i = len - 1;
+        /* Note that i is size_t (unsigned), so we can't check for i
+           >= 0.  But we don't need to, because if the value was all
+           whitespace, stripping whitespace from the left (above)
+           would have resulted in an empty string, and we wouldn't
+           have gotten into this block. */
+        while (isspace(v[i]) && i > 0) {
+            --i;
+        }
+        v[i + 1] = '\0';
+    }
+
+    if (dague_info_pretty && NULL != pretty_message) {
+        if (centerpoint > (int)strlen(pretty_message)) {
+            asprintf(&spaces, "%*s", centerpoint -
+                     (int)strlen(pretty_message), " ");
+        } else {
+            spaces = strdup("");
+#if DAGUE_ENABLE_DEBUG
+            if (centerpoint < (int)strlen(pretty_message)) {
+                dague_show_help("help-mca-param.txt",
+                                "developer warning: field too long", false,
+                               pretty_message, centerpoint);
+            }
+#endif
+        }
+        max_value_width = screen_width - strlen(spaces) - strlen(pretty_message) - 2;
+        if (0 < strlen(pretty_message)) {
+            asprintf(&filler, "%s%s: ", spaces, pretty_message);
+        } else {
+            asprintf(&filler, "%s  ", spaces);
+        }
+        free(spaces);
+        spaces = NULL;
+
+        while (true) {
+            if (strlen(v) < max_value_width) {
+                printf("%s%s\n", filler, v);
+                break;
+            } else {
+                asprintf(&spaces, "%*s", centerpoint + 2, " ");
+
+                /* Work backwards to find the first space before
+                 * max_value_width
+                 */
+                savev = v[max_value_width];
+                v[max_value_width] = '\0';
+                pos = (char*)strrchr(v, (int)' ');
+                v[max_value_width] = savev;
+                if (NULL == pos) {
+                    /* No space found < max_value_width.  Look for the first
+                     * space after max_value_width.
+                     */
+                    pos = strchr(&v[max_value_width], ' ');
+
+                    if (NULL == pos) {
+
+                        /* There's just no spaces.  So just print it and be done. */
+
+                        printf("%s%s\n", filler, v);
+                        break;
+                    } else {
+                        *pos = '\0';
+                        printf("%s%s\n", filler, v);
+                        v = pos + 1;
+                    }
+                } else {
+                    *pos = '\0';
+                    printf("%s%s\n", filler, v);
+                    v = pos + 1;
+                }
+
+                /* Reset for the next iteration */
+                free(filler);
+                filler = strdup(spaces);
+                free(spaces);
+                spaces = NULL;
+            }
+        }
+        if (NULL != filler) {
+            free(filler);
+        }
+        if (NULL != spaces) {
+            free(spaces);
+        }
+    } else {
+        if (NULL != plain_message && 0 < strlen(plain_message)) {
+            printf("%s:%s\n", plain_message, value);
+        } else {
+            printf("  %s\n", value);
+        }
+    }
+}
+
+void dague_mca_show_mca_params(dague_list_t *info,
+                               const char *type, const char *component,
+                               bool pretty_print)
+{
+    dague_list_item_t *i;
+    dague_mca_param_info_t *p;
+    char *value_string, *empty = "";
+    char *message, *content, *tmp;
+    int value_int, j;
+    dague_mca_param_source_t source;
+    char *src_file;
+
+    dague_info_pretty = pretty_print;
+    for (i = DAGUE_LIST_ITERATOR_FIRST(info); i != DAGUE_LIST_ITERATOR_LAST(info);
+         i = DAGUE_LIST_ITERATOR_NEXT(i)) {
+        p = (dague_mca_param_info_t*) i;
+
+        if (NULL != p->mbpp_type_name && ((0 == strcmp(type, dague_info_type_all) ||
+                                           (0 == strcmp(type, p->mbpp_type_name))))) {
+            if (0 == strcmp(component, dague_info_component_all) ||
+                NULL == p->mbpp_component_name ||
+                (NULL != p->mbpp_component_name &&
+                 0 == strcmp(component, p->mbpp_component_name))) {
+
+                /* Find the source of the value */
+                if (DAGUE_SUCCESS !=
+                    dague_mca_param_lookup_source(p->mbpp_index, &source, &src_file)) {
+                    continue;
+                }
+
+                /* Make a char *for the default value.  Invoke a
+                 * lookup because it may transform the char *("~/" ->
+                 * "<home dir>/") or get the value from the
+                 * environment, a file, etc.
+                 */
+                if (DAGUE_MCA_PARAM_TYPE_STRING == p->mbpp_type) {
+                    dague_mca_param_lookup_string(p->mbpp_index,
+                                                 &value_string);
+
+                    /* Can't let the char *be NULL because we
+                     * assign it to a std::string, below
+                     */
+                    if (NULL == value_string) {
+                        value_string = strdup(empty);
+                    }
+                } else {
+                    dague_mca_param_lookup_int(p->mbpp_index, &value_int);
+                    asprintf(&value_string, "%d", value_int);
+                }
+
+                /* Build up the strings for the output */
+
+                if (pretty_print) {
+                    asprintf(&message, "MCA %s", p->mbpp_type_name);
+
+                    /* Put in the real, full name (which may be
+                     * different than the categorization).
+                     */
+                    asprintf(&content, "%s \"%s\" (%s: <%s>, data source: ",
+                             p->mbpp_read_only ? "information" : "parameter",
+                             p->mbpp_full_name,
+                             p->mbpp_read_only ? "value" : "current value",
+                             (0 == strlen(value_string)) ? "none" : value_string);
+
+                    /* Indicate where the param was set from */
+                    switch(source) {
+                        case MCA_PARAM_SOURCE_DEFAULT:
+                            asprintf(&tmp, "%sdefault value", content);
+                            free(content);
+                            content = tmp;
+                            break;
+                        case MCA_PARAM_SOURCE_ENV:
+                            asprintf(&tmp, "%senvironment or cmdline", content);
+                            free(content);
+                            content = tmp;
+                            break;
+                        case MCA_PARAM_SOURCE_FILE:
+                            asprintf(&tmp, "%sfile [%s]", content, src_file);
+                            free(content);
+                            content = tmp;
+                            break;
+                        case MCA_PARAM_SOURCE_OVERRIDE:
+                            asprintf(&tmp, "%sAPI override", content);
+                            free(content);
+                            content = tmp;
+                            break;
+                        default:
+                            break;
+                    }
+
+                    /* Is this parameter deprecated? */
+                    if (p->mbpp_deprecated) {
+                        asprintf(&tmp, "%s, deprecated", content);
+                        free(content);
+                        content = tmp;
+                    }
+
+                    /* Does this parameter have any synonyms? */
+                    if (p->mbpp_synonyms_len > 0) {
+                        asprintf(&tmp, "%s, synonyms: ", content);
+                        free(content);
+                        content = tmp;
+                        for (j = 0; j < p->mbpp_synonyms_len; ++j) {
+                            if (j > 0) {
+                                asprintf(&tmp, "%s, %s", content, p->mbpp_synonyms[j]->mbpp_full_name);
+                                free(content);
+                                content = tmp;
+                            } else {
+                                asprintf(&tmp, "%s%s", content, p->mbpp_synonyms[j]->mbpp_full_name);
+                                free(content);
+                                content = tmp;
+                            }
+                        }
+                    }
+
+                    /* Is this parameter a synonym of something else? */
+                    else if (NULL != p->mbpp_synonym_parent) {
+                        asprintf(&tmp, "%s, synonym of: %s", content, p->mbpp_synonym_parent->mbpp_full_name);
+                        free(content);
+                        content = tmp;
+                    }
+                    asprintf(&tmp, "%s)", content);
+                    free(content);
+                    content = tmp;
+                    dague_info_out(message, message, content);
+                    free(message);
+                    free(content);
+
+                    /* If we have a help message, dague_info_output it */
+                    if (NULL != p->mbpp_help_msg) {
+                        dague_info_out("", "", p->mbpp_help_msg);
+                    }
+                } else {
+                    /* build the message*/
+                    asprintf(&tmp, "mca:%s:%s:param:%s:", p->mbpp_type_name,
+                             (NULL == p->mbpp_component_name) ? "base" : p->mbpp_component_name,
+                             p->mbpp_full_name);
+
+                    /* Output the value */
+                    asprintf(&message, "%svalue", tmp);
+                    dague_info_out(message, message, value_string);
+                    free(message);
+
+                    /* Indicate where the param was set from */
+
+                    asprintf(&message, "%sdata_source", tmp);
+                    switch(source) {
+                        case MCA_PARAM_SOURCE_DEFAULT:
+                            content = strdup("default value");
+                            break;
+                        case MCA_PARAM_SOURCE_ENV:
+                            content = strdup("environment-cmdline");
+                            break;
+                        case MCA_PARAM_SOURCE_FILE:
+                            asprintf(&content, "file: %s", src_file);
+                            break;
+                        case MCA_PARAM_SOURCE_OVERRIDE:
+                            content = strdup("API override");
+                            break;
+                        default:
+                            break;
+                    }
+                    dague_info_out(message, message, content);
+                    free(message);
+                    free(content);
+
+                    /* Output whether it's read only or writable */
+
+                    asprintf(&message, "%sstatus", tmp);
+                    content = p->mbpp_read_only ? "read-only" : "writable";
+                    dague_info_out(message, message, content);
+                    free(message);
+
+                    /* If it has a help message, dague_info_output that */
+
+                    if (NULL != p->mbpp_help_msg) {
+                        asprintf(&message, "%shelp", tmp);
+                        content = p->mbpp_help_msg;
+                        dague_info_out(message, message, content);
+                        free(message);
+                    }
+
+                    /* Is this parameter deprecated? */
+                    asprintf(&message, "%sdeprecated", tmp);
+                    content = p->mbpp_deprecated ? "yes" : "no";
+                    dague_info_out(message, message, content);
+                    free(message);
+
+                    /* Does this parameter have any synonyms? */
+                    if (p->mbpp_synonyms_len > 0) {
+                        for (j = 0; j < p->mbpp_synonyms_len; ++j) {
+                            asprintf(&message, "%ssynonym:name", tmp);
+                            content = p->mbpp_synonyms[j]->mbpp_full_name;
+                            dague_info_out(message, message, content);
+                            free(message);
+                        }
+                    }
+
+                    /* Is this parameter a synonym of something else? */
+                    else if (NULL != p->mbpp_synonym_parent) {
+                        asprintf(&message, "%ssynonym_of:name", tmp);
+                        content = p->mbpp_synonym_parent->mbpp_full_name;
+                        dague_info_out(message, message, content);
+                        free(message);
+                    }
+                }
+
+                /* If we allocated the string, then free it */
+
+                if (NULL != value_string) {
+                    free(value_string);
+                }
+            }
+        }
+    }
+}

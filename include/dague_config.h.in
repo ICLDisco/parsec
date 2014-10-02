@@ -75,6 +75,7 @@
 #cmakedefine HAVE_ERRNO_H
 #cmakedefine HAVE_STDDEF_H
 #cmakedefine HAVE_STDBOOL_H
+#cmakedefine HAVE_CTYPE_H
 #cmakedefine HAVE_LIMITS_H
 #cmakedefine HAVE_STRING_H
 #cmakedefine HAVE_GEN_H

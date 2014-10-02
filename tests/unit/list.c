@@ -264,7 +264,10 @@ int main(int argc, char *argv[])
     max_time = 0xffffffff;
 
 #if defined(HAVE_MPI)
-    MPI_Init(&argc, &argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
 #endif
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();

@@ -43,7 +43,7 @@ static void add_to_env(char **params, char **values, char ***env);
 /*
  * Add -mca to the possible command line options list
  */
-int mca_base_cmd_line_setup(dague_cmd_line_t *cmd)
+int dague_mca_cmd_line_setup(dague_cmd_line_t *cmd)
 {
     int ret = DAGUE_SUCCESS;
 
@@ -62,7 +62,7 @@ int mca_base_cmd_line_setup(dague_cmd_line_t *cmd)
 
     {
         dague_cmd_line_init_t entry =
-            {"mca_base_param_file_prefix", '\0', "am", NULL, 1,
+            {"dague_mca_param_file_prefix", '\0', "am", NULL, 1,
              NULL, DAGUE_CMD_LINE_TYPE_STRING,
              "Aggregate MCA parameter set file list"
             };
@@ -79,8 +79,8 @@ int mca_base_cmd_line_setup(dague_cmd_line_t *cmd)
 /*
  * Look for and handle any -mca options on the command line
  */
-int mca_base_cmd_line_process_args(dague_cmd_line_t *cmd,
-                                   char ***context_env, char ***global_env)
+int dague_mca_cmd_line_process_args(dague_cmd_line_t *cmd,
+                                    char ***context_env, char ***global_env)
 {
   int i, num_insts;
   char **params;
@@ -171,7 +171,7 @@ static void add_to_env(char **params, char **values, char ***env)
        vars of the form OMPI_MCA_*=value. */
 
     for (i = 0; NULL != params && NULL != params[i]; ++i) {
-        (void) mca_base_var_env_name (params[i], &name);
+        (void) dague_mca_var_env_name (params[i], &name);
         dague_setenv(name, values[i], true, env);
         free(name);
     }

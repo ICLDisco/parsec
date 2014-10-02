@@ -3,6 +3,7 @@
 
 #include <stdio.h> /* for FILE* */
 
+BEGIN_C_DECLS
 /**
  * vpmap_fini
  * to be called when finalizing the virtual process map
@@ -101,4 +102,5 @@ int vpmap_get_nb_total_threads(void);
  */
 void vpmap_display_map(FILE *out);
 
+END_C_DECLS
 #endif

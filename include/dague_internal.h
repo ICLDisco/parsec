@@ -141,14 +141,6 @@ typedef void (dague_traverse_function_t)(struct dague_execution_unit_s *,
 typedef uint64_t (dague_functionkey_fn_t)(const dague_handle_t *dague_handle,
                                           const assignment_t *assignments);
 /**
- * Create an execution context tailored for representing this specified
- * class of tasks.
- */
-typedef int (dague_create_function_t)(struct dague_execution_unit_s*,
-                                      const struct dague_function_s* task_class,
-                                      dague_execution_context_t** task);
-
-/**
  *
  */
 typedef float (dague_evaluate_function_t)(const dague_execution_context_t* task);
@@ -219,7 +211,6 @@ struct dague_function_s {
     dague_data_ref_fn_t         *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
     dague_data_ref_fn_t         *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
     dague_data_ref_fn_t         *data_affinity;  /**< Populates an array of data references, of size 1 */
-    dague_create_function_t     *init;
     dague_functionkey_fn_t      *key;
 #if defined(DAGUE_SIM)
     dague_sim_cost_fct_t        *sim_cost_fct;
@@ -229,6 +220,7 @@ struct dague_function_s {
     dague_hook_t                *prepare_output;
 
     dague_traverse_function_t   *iterate_successors;
+    dague_traverse_function_t   *iterate_predecessors;
     dague_release_deps_t        *release_deps;
     dague_hook_t                *complete_execution;
     dague_hook_t                *fini;

@@ -126,6 +126,7 @@ int compute_offset(int N, int t){
         }
     }
     assert(0);
+    return 0;
 }
 
 int count_bits(int N){
@@ -147,6 +148,7 @@ int log_of_tree_size(int N, int t){
         if( cnt == t ) return i;
     }
     assert(0);
+    return 0;
 }
 
 int index_to_tree(int N, int idx){
@@ -161,6 +163,7 @@ int index_to_tree(int N, int idx){
         }
     }
     assert(0);
+    return 0;
 }
 
 int global_to_local_index(int N, int idx){
@@ -174,15 +177,19 @@ int global_to_local_index(int N, int idx){
         }
     }
     assert(0);
+    return 0;
 }
 
+#if defined(HAVE_MPI)
+#define MY_TYPE MPI_INT
+#else
+#define MY_TYPE NULL
+#endif  /* defined(HAVE_MPI) */
 %}
 
 dataA      [type = "struct tiled_matrix_desc_t *"]
 NB         [type = int]
 NT         [type = int]
-
-
 
 /*
  *
@@ -213,15 +220,15 @@ SORT(i)
   : dataA(i,0)
 
   RW A <- A INIT_DATA(i)
-       -> A REDUCE(i) [ type= DEFAULT layout= MPI_INT count= NB ]
+       -> A REDUCE(i) [ type= DEFAULT layout= MY_TYPE count= NB ]
 
 BODY
    int type, j, error=0;
    int *Aptr = (int *)A;
 
-   type = sort_5((int *)A); 
+   type = sort_5((int *)A);
    assert( type >= 0 );
-  
+
 END
 
 
@@ -239,9 +246,9 @@ REDUCE(i)
   : dataA(i,0)
 
   RW A <- A SORT(i)
-       -> ((sz>0) && (0==li%2)) ? A MERGE(t,1,li/2) [ type= DEFAULT layout= MPI_INT count= NB ]
-       -> ((sz>0) && (0!=li%2)) ? B MERGE(t,1,li/2) [ type= DEFAULT layout= MPI_INT count= NB ]
-       -> (sz==0) ? B LINEAR_REDUC(1) [ type= DEFAULT layout= MPI_INT count= NB ]
+       -> ((sz>0) && (0==li%2)) ? A MERGE(t,1,li/2) [ type= DEFAULT layout= MY_TYPE count= NB ]
+       -> ((sz>0) && (0!=li%2)) ? B MERGE(t,1,li/2) [ type= DEFAULT layout= MY_TYPE count= NB ]
+       -> (sz==0) ? B LINEAR_REDUC(1) [ type= DEFAULT layout= MY_TYPE count= NB ]
 BODY
   /* nothing */
 END
@@ -270,11 +277,11 @@ MERGE(t,s,i)
           <- (1<s)  ? C MERGE(t,s-1,i*2)
 
   READ  B <- (1==s) ? A REDUCE(offset+i*2+1)
-          <- (1<s)  ? C MERGE(t, s-1, i*2+1)    
+          <- (1<s)  ? C MERGE(t, s-1, i*2+1)
 
-  WRITE C -> ((sz!=s) && (0==i%2)) ? A MERGE(t, s+1, i/2)  [ type= DEFAULT layout= MPI_INT count= data_size ]
-          -> ((sz!=s) && (0!=i%2)) ? B MERGE(t, s+1, i/2)  [ type= DEFAULT layout= MPI_INT count= data_size ]
-          -> (sz==s)               ? B LINEAR_REDUC(t)     [ type= DEFAULT layout= MPI_INT count= data_size/2 ]
+  WRITE C -> ((sz!=s) && (0==i%2)) ? A MERGE(t, s+1, i/2)  [ type= DEFAULT layout= MY_TYPE count= data_size ]
+          -> ((sz!=s) && (0!=i%2)) ? B MERGE(t, s+1, i/2)  [ type= DEFAULT layout= MY_TYPE count= data_size ]
+          -> (sz==s)               ? B LINEAR_REDUC(t)     [ type= DEFAULT layout= MY_TYPE count= data_size/2 ]
 
 BODY
   int jc,ja,jb;
@@ -317,11 +324,11 @@ LINEAR_REDUC(i)
 
   READ  A <- (tree_count==i) ? T LINE_TERMINATOR(0)
           <- (tree_count<i)  ? C LINEAR_REDUC(i+1)
-  READ  B <- (0==sz) ? A REDUCE(offset) 
+  READ  B <- (0==sz) ? A REDUCE(offset)
           <- (0<sz)  ? C MERGE(i, sz, 0)
 
-  WRITE C -> (1<i)  ? A LINEAR_REDUC(i-1) [ type= DEFAULT layout= MPI_INT count= c_size ]
-          -> (1==i) ? C RESULT(0)         [ type= DEFAULT layout= MPI_INT count= c_size ]
+  WRITE C -> (1<i)  ? A LINEAR_REDUC(i-1) [ type= DEFAULT layout= MY_TYPE count= c_size ]
+          -> (1==i) ? C RESULT(0)         [ type= DEFAULT layout= MY_TYPE count= c_size ]
 BODY
   int j;
   int jc,ja,jb;
@@ -367,7 +374,7 @@ RESULT(j)
 BODY
   int jc;
   int *Cptr = (int *)C;
-  
+
   if( 0==((__dague_handle->super.super.context)->my_rank) ){
       for(jc=0; jc<NT*NB; jc++){
           printf("%d\n",Cptr[jc]);

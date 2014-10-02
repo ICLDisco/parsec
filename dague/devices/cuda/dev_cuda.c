@@ -333,7 +333,8 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
         __dague_chore_t* chores = (__dague_chore_t*)function->incarnations;
         for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
             if( chores[j].type == device->type ) {
-                void* devf = cuda_solve_handle_dependencies(gpu_device, NULL==chores[j].dyld?function->name:chores[j].dyld);
+                void* devf = cuda_solve_handle_dependencies(gpu_device,
+                                 (NULL == chores[j].dyld) ? function->name : chores[j].dyld);
                 if( NULL != devf ) {
                     chores[gpu_device->cuda_index].dyld_fn = devf;
                     rc = DAGUE_SUCCESS;

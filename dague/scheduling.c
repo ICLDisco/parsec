@@ -6,14 +6,14 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "src/mca/mca_repository.h"
-#include "src/mca/sched/sched.h"
+#include "dague/mca/mca_repository.h"
+#include "dague/mca/sched/sched.h"
 #include "profiling.h"
 #include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "vpmap.h"
-#include "src/mca/pins/pins.h"
+#include "dague/mca/pins/pins.h"
 #include "os-spec-timing.h"
 #include "remote_dep.h"
 
@@ -603,10 +603,15 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
     /* These pointers need to be initialized to NULL; doing it with calloc */
     startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
 
+    /* Enable the object to interact with the communication engine */
+    (void)dague_handle_register(object);
+
     if( object->nb_local_tasks > 0 ) {
         /* Update the number of pending objects */
         dague_atomic_inc_32b( &(context->active_objects) );
 
+        /* Retreive all the early messages for this object */
+        (void)dague_remote_dep_new_object(object);
         if( NULL != object->startup_hook ) {
             int p;
             object->startup_hook(context, object, startup_list);

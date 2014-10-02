@@ -9,7 +9,7 @@
 #include "dague_hwloc.h"
 #include "execution_unit.h"
 #include <dague/utils/mca_param.h>
-#include "src/mca/mca_repository.h"
+#include "dague/mca/mca_repository.h"
 
 #include "common.h"
 #include "common_timing.h"
@@ -66,9 +66,6 @@ const char *uplostr[2]  = { "Upper", "Lower" };
 const char *diagstr[2]  = { "NonUnit", "Unit   " };
 const char *transstr[3] = { "N", "T", "H" };
 const char *normsstr[4] = { "Max", "One", "Inf", "Fro" };
-
-static char *mca_pins_optarg = NULL;
-static char ** delimited_string_to_strings(char * const string_of_strings, char delim);
 
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
@@ -242,7 +239,7 @@ static struct option long_options[] =
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
 
-    {"mca-pins",    optional_argument,  0, 'm'},
+    {"mca-pins",    required_argument,  0, 'm'},
 
     /* Auxiliary options */
     {"verbose",     optional_argument,  0, 'v'},
@@ -353,10 +350,6 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 /* Recursive parameters */
             case 'z': iparam[IPARAM_SMALL_NB] = atoi(optarg); break;
 
-            case 'm':
-                iparam[IPARAM_PINS] = 1;
-                mca_pins_optarg = optarg;
-                break;
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
@@ -636,7 +629,10 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     getcwd(cwd, sizeof(cwd));
 #endif
 #ifdef HAVE_MPI
-    MPI_Init(&argc,&argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &iparam[IPARAM_NNODES]);
     MPI_Comm_rank(MPI_COMM_WORLD, &iparam[IPARAM_RANK]);
 #else
@@ -646,12 +642,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     parse_arguments(&argc, &argv, iparam);
     int verbose = iparam[IPARAM_VERBOSE];
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
-
-#ifdef PINS_ENABLE
-    char ** modules = delimited_string_to_strings(mca_pins_optarg, ',');
-    pins_enable_modules((const char * const*)modules); // by calling this, we limit allowable modules
-    free(modules);
-#endif /* PINS_ENABLE */
 
     TIME_START();
 
@@ -721,39 +711,3 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
     (void)iparam;
 }
 
-/**
- * Modifies array in-place by replacing delimiters with null terminator,
- * then returns an array of pointers to the individual strings, plus one
- * NULL pointer, which will serve as the end marker of the array.
- * Provided initial string must be null-terminated.
- *
- * free() may be called on the returned pointer once the user is done with it.
- * Note, however, that if the other string was also dynamically allocated,
- * it must still be free()d separately.
- */
-static char ** delimited_string_to_strings(char * const string_of_strings, char delim) {
-    if (string_of_strings != NULL) {
-        char ** array = NULL;
-        // first, count
-        int count = 1;
-        char * pch = NULL;
-        pch = strchr(string_of_strings, delim);
-        for (; NULL != pch; count++)
-            pch = strchr(pch + sizeof(char), delim);
-        array = calloc(sizeof(char *), (count + 1));
-        // then, replace delims with \0 and put pointers in array
-        int i = 0;
-        pch = string_of_strings;
-        do {
-            array[i] = pch;
-            pch = strchr(array[i], delim);
-            if (pch != NULL) {
-                *pch = '\0';
-                pch += sizeof(char);
-            }
-        } while (++i < count);
-        return array;
-    }
-    else
-        return calloc(sizeof(char *), 1);
-}

@@ -197,6 +197,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 {
     pthread_attr_t thread_attr;
     int is_mpi_up = 0;
+    int thread_level_support;
 
     assert(mpi_initialized == 0);
 
@@ -210,6 +211,17 @@ static int remote_dep_dequeue_init(dague_context_t* context)
         DEBUG3(("MPI is not initialized. Fall back to a single node execution\n"));
         return 1;
     }
+
+    MPI_Query_thread( &thread_level_support );
+    if( thread_level_support == MPI_THREAD_SINGLE ||
+        thread_level_support == MPI_THREAD_FUNNELED ) {
+        fprintf(stderr,
+                "*** Warning: MPI was not initialized with the appropriate level of thread support. ***\n"
+                "*** Current level is %s, while MPI_THREAD_SERIALIZED or MPI_THREAD_MULTIPLE is needed ***\n"
+                "*** to guarantee correctness. ***\n",
+                thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED" );
+    }
+
     if( context->comm_ctx == NULL ) {
         MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
         if(1 == context->nb_nodes ) return 1;

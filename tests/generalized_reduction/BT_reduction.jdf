@@ -29,6 +29,7 @@ int compute_offset(int N, int t){
         }
     }
     assert(0);
+    return 0xffffffff;
 }
 
 int count_bits(int N){
@@ -50,6 +51,7 @@ int log_of_tree_size(int N, int t){
         if( cnt == t ) return i;
     }
     assert(0);
+    return 0xffffffff;
 }
 
 int index_to_tree(int N, int idx){
@@ -64,6 +66,7 @@ int index_to_tree(int N, int idx){
         }
     }
     assert(0);
+    return 0xffffffff;
 }
 
 int global_to_local_index(int N, int idx){
@@ -77,6 +80,7 @@ int global_to_local_index(int N, int idx){
         }
     }
     assert(0);
+    return 0xffffffff;
 }
 
 %}

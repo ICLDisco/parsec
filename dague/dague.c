@@ -41,7 +41,7 @@
 #include "dague/devices/device.h"
 #include "dague/utils/cmd_line.h"
 
-#include "src/mca/mca_repository.h"
+#include "dague/mca/mca_repository.h"
 
 #ifdef DAGUE_PROF_TRACE
 #include "profiling.h"
@@ -85,7 +85,7 @@ static struct rusage _dague_rusage;
 
 static char *dague_enable_dot = NULL;
 static char *dague_app_name = NULL;
-
+static char *dague_enable_profiling = NULL;  /* profiling file when DAGUE_PROF_TRACE is on */
 static dague_device_t* dague_device_cpus = NULL;
 
 /**
@@ -205,7 +205,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         dague_execution_context_t fake_context;
         data_repo_entry_t fake_entry;
         dague_mempool_construct( &vp->context_mempool,
-                                  OBJ_CLASS(dague_execution_context_t), sizeof(dague_execution_context_t),
+                                 OBJ_CLASS(dague_execution_context_t), sizeof(dague_execution_context_t),
                                  ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
                                  vp->nb_cores );
 
@@ -231,13 +231,10 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                                                   DAGUE_PROFILE_THREAD_STR,
                                                   eu->th_id,
                                                   eu->virtual_process->vp_id );
-    PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
-    PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
-
-    if( NULL == eu->eu_profile ) {
-        fprintf(stderr, "*** %s\n", dague_profiling_strerror());
+    if( NULL != eu->eu_profile ) {
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
     }
-
 #endif /* DAGUE_PROF_TRACE */
 
     PINS_THREAD_INIT(eu);
@@ -339,7 +336,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_cmd_line_make_opt3(cmd_line, 'c', "cores", "cores", 1,
                              "Number of cores to used");
     dague_cmd_line_make_opt3(cmd_line, 'g', "gpus", "gpus", 1,
-                             "Number of GPU to used");
+                             "Number of GPU to used (deprecated use MCA instead)");
     dague_cmd_line_make_opt3(cmd_line, 'V', "vpmap", "vpmap", 1,
                              "Virtual process map");
     dague_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
@@ -378,13 +375,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif  /* defined(HAVE_HWLOC) */
     }
 
-    if( dague_cmd_line_is_taken(cmd_line, "help") ||
-        dague_cmd_line_is_taken(cmd_line, "h")) {
-        char* help_msg = dague_cmd_line_get_usage_msg(cmd_line);
-        fprintf(stdout, "%s\n", help_msg);
-        free(help_msg);
-        return NULL;
-    }
 #if defined(HAVE_HWLOC)
     if( dague_cmd_line_is_taken(cmd_line, "ht") ) {
         int hyperth = 0;
@@ -511,12 +501,27 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* DAGUE_DEBUG_VERBOSE != 0 */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
+    dague_mca_param_reg_string_name("profile", "filename",
 #if defined(DAGUE_PROF_TRACE)
-    if( dague_profiling_init( ) == 0 ) {
+                                 "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
+                                 false, false,
+#else
+                                 "Path to the profiling file (unused due to profiling being turned off during building)",
+                                 false, true,  /* profiling disabled: read-only */
+#endif  /* defined(DAGUE_PROF_TRACE) */
+                                 "<none>", &dague_enable_profiling);
+#if defined(DAGUE_PROF_TRACE)
+    if( (0 != strncasecmp(dague_enable_profiling, "<none>", 6)) && (0 == dague_profiling_init( )) ) {
         int i, l;
         char *cmdline_info = basename(dague_app_name);
 
-        if( dague_profiling_dbp_start( cmdline_info, dague_app_name ) != 0 ) {
+        /* Use either the app name (argv[0]) or the user provided filename */
+        if( 0 == strncmp(dague_enable_profiling, "<app>", 5) ) {
+            ret = dague_profiling_dbp_start( cmdline_info, dague_app_name );
+        } else {
+            ret = dague_profiling_dbp_start( dague_enable_profiling, dague_app_name );
+        }
+        if( ret != 0 ) {
             fprintf(stderr, "*** %s. Profile deactivated.\n", dague_profiling_strerror());
         }
 
@@ -668,6 +673,21 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( display_vpmap )
         vpmap_display_map(stderr);
 
+    if( dague_cmd_line_is_taken(cmd_line, "help") ||
+        dague_cmd_line_is_taken(cmd_line, "h")) {
+        char* help_msg = dague_cmd_line_get_usage_msg(cmd_line);
+        dague_list_t* l = NULL;
+
+        fprintf(stdout, "%s\n\nRegistered MCA parameters:\n", help_msg);
+        free(help_msg);
+
+        dague_mca_param_dump(&l, 1);
+        dague_mca_show_mca_params(l, "all", "all", 1);
+        dague_mca_param_dump_release(l);
+
+        dague_fini(&context);
+    }
+
     if( NULL != cmd_line )
         OBJ_RELEASE(cmd_line);
 
@@ -745,9 +765,7 @@ int dague_fini( dague_context_t** pcontext )
 
     AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
-    if( 0 != dague_profiling_fini( ) ) {
-        fprintf(stderr, "*** %s\n", dague_profiling_strerror());
-    }
+    (void)dague_profiling_fini( );  /* we're leaving, ignore errors */
 #endif  /* DAGUE_PROF_TRACE */
 
     if(dague_enable_dot) {
@@ -859,17 +877,16 @@ dague_check_IN_dependencies_with_mask( const dague_handle_t *dague_handle,
             active = 0;
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->function_id == 0xFF ) {  /* this is only true for memory locations */
-                    if( NULL != dep->cond ) {
-                        /* Check if the condition apply on the current setting */
-                        assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) ) {
-                            continue;
-                        }
-                    }
+                if( NULL != dep->cond ) {
+                    /* Check if the condition apply on the current setting */
+                    assert( dep->cond->op == EXPR_OP_INLINE );
+                    if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) )
+                        continue;  /* doesn't match */
+                    /* the condition triggered let's check if it's for a data */
+                }  /* otherwise we have an input flow without a condition, it MUST be final */
+                if( 0xFF == dep->function_id )
                     active = (1 << flow->flow_index);
-                    break;
-                }
+                break;
             }
         }
         ret |= active;
@@ -934,20 +951,25 @@ dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
                 }
             }
         } else {
-            /* Data case: count all that do not have a direct dependence on a data */
+            /* Data case: we count how many inputs we must have (the opposite
+             * compared with the mask case). We iterate over all the input
+             * dependencies of the flow to make sure the flow is expected to
+             * hold a valid value.
+             */
             for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
                 dep = flow->dep_in[j];
-                if( dep->function_id != 0xFF ) {  /* we don't count memory locations */
-                    if( NULL != dep->cond ) {
-                        /* Check if the condition apply on the current setting */
-                        assert( dep->cond->op == EXPR_OP_INLINE );
-                        if( dep->cond->inline_func32(dague_handle, exec_context->locals) ) {
-                            active++;
-                        }
-                    } else {
-                        active++;
-                    }
+                if( NULL != dep->cond ) {
+                    /* Check if the condition apply on the current setting */
+                    assert( dep->cond->op == EXPR_OP_INLINE );
+                    if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) )
+                        continue;  /* doesn't match */
+                    /* the condition triggered let's check if it's for a data */
+                } else {
+                    /* we have an input flow without a condition, it MUST be final */
                 }
+                if( 0xFF != dep->function_id )  /* if not a data we must wait for the flow activation */
+                    active++;
+                break;
             }
         }
         ret += active;
@@ -1392,69 +1414,83 @@ static void dague_handle_empty_repository(void)
 /**< Retrieve the local object attached to a unique object id */
 dague_handle_t* dague_handle_lookup( uint32_t handle_id )
 {
-    dague_handle_t *r;
+    dague_handle_t *r = NOOBJECT;
     dague_atomic_lock( &object_array_lock );
-    if( handle_id > object_array_pos ) {
-        r = NULL;
-    } else {
+    if( handle_id <= object_array_pos ) {
         r = object_array[handle_id];
     }
     dague_atomic_unlock( &object_array_lock );
-    return r;
+    return (NOOBJECT == r ? NULL : r);
 }
 
-/**< Register the object with the engine. Create the unique identifier for the object */
-int dague_handle_register( dague_handle_t* object )
+/**< Reverse an unique ID for the handle. Beware that on a distributed environment the
+ * connected objects must have the same ID.
+ */
+int dague_handle_reserve_id( dague_handle_t* object )
 {
-    uint32_t index;
+    uint32_t idx;
 
     dague_atomic_lock( &object_array_lock );
-    index = (uint32_t)++object_array_pos;
+    idx = (uint32_t)++object_array_pos;
 
-    if( index >= object_array_size ) {
-        object_array_size *= 2;
+    if( idx >= object_array_size ) {
+        object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
-#if defined(DAGUE_DEBUG_ENABLE)
-        {
-            unsigned int i;
-            for(i = index; i < object_array_size; i++)
-                object_array[i] = NOOBJECT;
-        }
-#endif  /* defined(DAGUE_DEBUG_ENABLE */
+        /* NULLify all the new elements */
+        for( uint32_t i = (object_array_size>>1); i < object_array_size;
+             object_array[i++] = NOOBJECT );
     }
-    object_array[index] = object;
-    object->handle_id = index;
+    object->handle_id = idx;
+    assert( NOOBJECT == object_array[idx] );
     dague_atomic_unlock( &object_array_lock );
-    (void)dague_remote_dep_new_object( object );
-    return (int)index;
+    return idx;
+}
+
+/**< Register a handle object with the engine. Once enrolled the object can be target
+ * for other components of the runtime, such as communications.
+ */
+int dague_handle_register( dague_handle_t* object)
+{
+    uint32_t idx = object->handle_id;
+
+    dague_atomic_lock( &object_array_lock );
+    if( idx >= object_array_size ) {
+        object_array_size <<= 1;
+        object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
+        /* NULLify all the new elements */
+        for( uint32_t i = (object_array_size>>1); i < object_array_size;
+             object_array[i++] = NOOBJECT );
+    }
+    object_array[idx] = object;
+    dague_atomic_unlock( &object_array_lock );
+    return idx;
 }
 
 /**< globally synchronize object id's so that next register generates the same
  * id at all ranks. */
 void dague_handle_sync_ids( void )
 {
-    uint32_t index;
+    uint32_t idx;
     dague_atomic_lock( &object_array_lock );
-    index = (int)object_array_pos;
+    idx = (int)object_array_pos;
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    MPI_Allreduce( MPI_IN_PLACE, &index, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+    MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
 #endif
-    if( index >= object_array_size ) {
-        object_array_size *= 2;
+    if( idx >= object_array_size ) {
+        object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
-#if defined(DAGUE_DEBUG_ENABLE)
-        {
-            unsigned int i;
-            for(i = object_array_pos+1; i < object_array_size; i++)
-                object_array[i] = NOOBJECT;
-        }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+        /* NULLify all the new elements */
+        for( uint32_t i = (object_array_size>>1); i < object_array_size;
+             object_array[i++] = NOOBJECT );
     }
-    object_array_pos = index;
+    object_array_pos = idx;
     dague_atomic_unlock( &object_array_lock );
 }
 
-/**< Unregister the object with the engine. */
+/**< Unregister the object with the engine. This make the handle available for
+ * future handles. Beware that in a distributed environment the connected objects
+ * must have the same ID.
+ */
 void dague_handle_unregister( dague_handle_t* object )
 {
     dague_atomic_lock( &object_array_lock );
