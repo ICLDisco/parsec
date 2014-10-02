@@ -10,7 +10,6 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <core_blas.h>
-#include <core_blas.h>
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif
@@ -101,6 +100,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_data_t              *original;
     dague_data_copy_t         *data, *local;
+    const dague_flow_t        *flow;
 
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
@@ -108,7 +108,14 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         this_task->data[i].data_out = NULL;
         data = this_task->data[i].data_in;
         original = data->original;
+        flow = this_task->function->in[i];
+        if(NULL == flow) {
+            flow = this_task->function->out[i];
+        }
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
+            if ( (flow->flow_flags & FLOW_ACCESS_WRITE) && local->readers > 0 ) {
+                return -86;
+            }
             this_task->data[i].data_out = local;
 
             /* Check the most up2date version of the data */
@@ -254,6 +261,22 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
     int return_code = 0, how_many = 0, i;
     cudaError_t status;
 
+    if (gpu_task->task_type == 111) {
+        for( i = 0; i < 1; i++ ) {
+            gpu_copy = this_task->data[i].data_out;
+            original = gpu_copy->original;
+            status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
+                                                     (CUdeviceptr)gpu_copy->device_private,
+                                                     original->nb_elts, gpu_stream->cuda_stream );
+            DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
+                                    { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                               gpu_copy->device_private, original->device_copies[0]->device_private));
+                                        return_code = -2;
+                                        goto release_and_return_error;} );    
+        }
+        return return_code;
+    }
+
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
@@ -328,7 +351,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
     dague_data_t              *original;
     int i;
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->out[i]) continue;
         if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) continue;
 
@@ -423,6 +446,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task = (dague_zgemm_args_t*)malloc(sizeof(dague_zgemm_args_t));
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
     gpu_task->super.ec = this_task;
+    gpu_task->super.task_type = 0;
     gpu_task->pushout  = pushout;
     gpu_task->alpha    = alpha;
     gpu_task->beta     = beta;
