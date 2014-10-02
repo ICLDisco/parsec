@@ -1056,7 +1056,6 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     
     /* DtoD copy, if data is read only, then we go back to CPU copy, and fetch data from CPU (HtoD) */
     if (in_elem != gpu_elem && in_elem != original->device_copies[0] && in_elem->version == original->device_copies[0]->version) {
-        printf("####################GPU1 TO GPU2######################\n");
         dague_data_copy_release(in_elem);  /* release the copy in GPU1 */
         task_data->data_in = original->device_copies[0];
         in_elem = task_data->data_in;
@@ -1172,7 +1171,6 @@ void dump_list(dague_list_t *list)
 {
     dague_list_item_t *p = (dague_list_item_t *)list->ghost_element.list_next;
     while (p != &(list->ghost_element)) {
-        printf("%p \n", p);
         p = (dague_list_item_t *)p->list_next;
     }
 }
@@ -1210,8 +1208,6 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
         gpu_device->sort_starting_p = (dague_list_item_t*)sort_list->ghost_element.list_next;
     }
 
-    //printf("start to sort\n");
-
     /* p is head */
     dague_list_item_t *p = gpu_device->sort_starting_p;
 
@@ -1231,7 +1227,6 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
             }
             space_q = dague_gpu_check_space_needed(gpu_device, (dague_gpu_context_t*)q);
             if ( space_min > space_q ) {
-                fprintf(stderr, "I find a smaller one, current min %p, space %d, q %p, space %d\n", min_p, space_min, q, space_q);
                 min_p = q;
                 space_min = space_q;
             }
@@ -1255,7 +1250,6 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
         p = (dague_list_item_t*)min_p->list_next;
        
     }
-    //printf("end sort\n");
     
     if (lock_required) {
         dague_atomic_unlock(&(sort_list->atomic_lock));
@@ -1303,13 +1297,10 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_e
             DAGUE_LIST_ITEM_SINGLETON(owned_lru_gpu_elem);
             owned_lru_gpu_elem->readers ++;
             ec->data[nb_cleaned].data_out = owned_lru_gpu_elem;
-            fprintf(stderr, "W lru pop %p\n", owned_lru_gpu_elem->device_private);
             nb_cleaned ++;
            // if (dague_lru_contains(&gpu_device->gpu_mem_owned_lru, owned_lru_gpu_elem)) assert(0);
         }
     }
-
-    //printf("w2r cleaned %d\n", nb_cleaned);
 
     if (nb_cleaned == 0) {
        // free(ec);
@@ -1341,7 +1332,6 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_t
         cpu_copy = original->device_copies[0];
         cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
         cpu_copy->version = owned_lru_gpu_elem->version;
-        fprintf(stderr, "W lru cleaned %p\n", owned_lru_gpu_elem->device_private);
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)owned_lru_gpu_elem);
         owned_lru_gpu_elem->readers --;
         assert(owned_lru_gpu_elem->readers >= 0);
@@ -1401,7 +1391,6 @@ int progress_stream( gpu_device_t* gpu_device,
     rc = progress_fct( gpu_device, task, exec_stream );
     if( 0 > rc ) {
         if( -1 == rc ) return -1;  /* Critical issue */
-     // assert(0); // want to debug this. It happens too often
         /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
         DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
@@ -1418,10 +1407,20 @@ int progress_stream( gpu_device_t* gpu_device,
         rc = cuEventRecord( exec_stream->events[exec_stream->start], exec_stream->cuda_stream );
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
-        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                              "GPU: Submitted %s(task %p) priority %d on stream %p\n",
-                              task->ec->function->name, (void*)task->ec, task->ec->priority,
-                              (void*)exec_stream->cuda_stream));
+#if DAGUE_OUTPUT_VERBOSE >= 3
+        if( task->type == 111 ) {
+            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                  "GPU: Submitted Transfer(task %p) on stream %p\n",
+                                  (void*)task->ec, 
+                                  (void*)exec_stream->cuda_stream));
+        }
+        else {
+            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                  "GPU: Submitted %s(task %p) priority %d on stream %p\n",
+                                  task->ec->function->name, (void*)task->ec, task->ec->priority,
+                                  (void*)exec_stream->cuda_stream));
+        }
+#endif
     }
     task = NULL;
 
@@ -1438,21 +1437,30 @@ int progress_stream( gpu_device_t* gpu_device,
                     if(NULL == this_task->function->in[i]) continue;
                     if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
                         this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
-                        //printf("I did the push, now I set it to complete\n");
                         continue;
                     }
                     if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
                         return saved_rc;
                     }
-                    //printf("I did NOT do the push, but it is complete\n");
                 }
             }
 
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
-            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                                  "GPU: Complete %s(task %p) on stream %p\n", task->ec->function->name, (void*)task,
-                                  (void*)exec_stream->cuda_stream));
+#if DAGUE_OUTPUT_VERBOSE >= 3                                                                   
+            if( task->type == 111 ) {
+                DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                      "GPU: Completed Transfer(task %p) on stream %p\n",
+                                      (void*)task->ec, 
+                                      (void*)exec_stream->cuda_stream));
+            }
+            else {
+                DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                      "GPU: Completed %s(task %p) priority %d on stream %p\n",
+                                      task->ec->function->name, (void*)task->ec, task->ec->priority,
+                                      (void*)exec_stream->cuda_stream));
+            }
+#endif
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
             DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
