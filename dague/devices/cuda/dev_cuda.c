@@ -1089,8 +1089,8 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 #if DAGUE_DEBUG_VERBOSE
     else {
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream, 
-		                      "GPU:\tNO PUSH from %p to %p, size %d\n", 
-							  in_elem->device_private, gpu_elem->device_private, original->nb_elts);
+                              "GPU:\tNO PUSH from %p to %p, size %d\n", 
+                              in_elem->device_private, gpu_elem->device_private, original->nb_elts));
     }
 #endif
     /* TODO: data keeps the same coherence flags as before */
