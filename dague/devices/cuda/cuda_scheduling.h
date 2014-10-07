@@ -185,7 +185,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
              this_task->ec->priority ));
     /* Everything went fine so far, the result is correct and back in the main memory */
     DAGUE_LIST_ITEM_SINGLETON(this_task);
-    if (this_task->task_type == 111) {
+    if (this_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
         dague_gpu_W2R_task_fini(gpu_device, this_task, eu_context);
         this_task = progress_task;
         goto fetch_task_from_shared_queue;

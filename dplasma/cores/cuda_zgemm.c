@@ -261,7 +261,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
     int return_code = 0, how_many = 0, i;
     cudaError_t status;
 
-    if (gpu_task->task_type == 111) {
+    if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
         for( i = 0; i < 1; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             original = gpu_copy->original;
