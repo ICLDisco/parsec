@@ -1698,9 +1698,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
 {
     string_arena_t *sa = string_arena_new(64), *sa2 = string_arena_new(64);
     jdf_expr_t *le;
-    char *exprname;
-    int i, ret = 1, generate_stubs = 0;
-    char pre[8];
+    int ret = 1, generate_stubs = 0;
     string_arena_t *tmp_fct_name;
     jdf_datatransfer_type_t* datatype = &dep->datatype;
 
@@ -1860,24 +1858,10 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     }
     string_arena_add_string(sa,
                             "},\n"
-                            "  .belongs_to = &%s,\n"
-                            "  .call_params = {\n",
+                            "  .belongs_to = &%s\n"
+                            "};\n",
                             JDF_OBJECT_ONAME(flow));
 
-    exprname = (char *)malloc(strlen(JDF_OBJECT_ONAME(dep)) + 128);
-    pre[0] = '\0';
-    for( i = 1, le = call->parameters; le != NULL; i++, le = le->next ) {
-        sprintf(exprname, "expr_of_p%d_for_%s", i, JDF_OBJECT_ONAME(call));
-        string_arena_add_string(sa, "%s    &%s", pre, exprname);
-        jdf_generate_expression(jdf, context, le, exprname);
-        sprintf(pre, ",\n");
-    }
-    free(exprname);
-
-    string_arena_add_string(sa,
-                            "\n"
-                            "  }\n"
-                            "};\n");
     coutput("%s", string_arena_get_string(sa));
 
     string_arena_free(sa);

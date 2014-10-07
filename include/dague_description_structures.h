@@ -131,7 +131,6 @@ struct dep_s {
     dague_flow_t const    *flow;           /**< Pointer to the flow pointed to/from this dependency */
     dague_flow_t const    *belongs_to;     /**< The flow this dependency belongs tp */
     struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
-    expr_t const          *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
 };
 
 void dep_dump(const dep_t *d, const struct dague_handle_s *dague_handle, const char *prefix);
