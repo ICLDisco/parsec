@@ -45,6 +45,8 @@ extern int dague_cuda_own_GPU_key_start;
 extern int dague_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
 
+#define GPU_TASK_TYPE_D2HTRANSFER 111
+
 extern float *device_load, *device_weight;
 
 typedef struct __dague_gpu_workspace {

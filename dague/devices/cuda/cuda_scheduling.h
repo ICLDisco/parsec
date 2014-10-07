@@ -38,8 +38,6 @@
 #define gpu_kernel_profile   GENERATE_NAME( gpu_kernel_profile  , KERNEL_NAME )
 #define gpu_kernel_scheduler GENERATE_NAME( gpu_kernel_scheduler, KERNEL_NAME )
 
-#define GPU_TASK_TYPE_D2HTRANSFER 111
-
 /**
  * Try to execute a kernel on a GPU.
  *
