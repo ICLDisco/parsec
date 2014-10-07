@@ -1712,6 +1712,11 @@ static void jdf_generate_direct_data_function(const jdf_t *jdf, const char *mem,
     ai.idx = 0;
     ai.holder = "assignments";
     ai.expr = NULL;
+
+    UTIL_DUMP_LIST(sa4, parameters, next,
+                   dump_expr, (void*)&info,
+                   "", "", ", ", "");
+
     coutput("static dague_data_t *%s(const dague_handle_t *dague_handle, const assignment_t *assignments)\n"
             "{\n"
             "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
@@ -1720,7 +1725,11 @@ static void jdf_generate_direct_data_function(const jdf_t *jdf, const char *mem,
             "  /* Silent Warnings: should look into parameters to know what variables are usefull */\n"
             "%s\n"
             "  __ddesc = (dague_ddesc_t*)__dague_handle->super.%s;\n"
-            "  return __ddesc->data_of(__ddesc, %s);\n"
+            "  if( __ddesc->myrank == __ddesc->rank_of(__ddesc, %s) ) {\n"
+            "    return __ddesc->data_of(__ddesc, %s);\n"
+            "  } else {\n"
+            "    return NULL;\n"
+            "  }\n"
             "}\n"
             "\n",
             function_name,
@@ -1730,9 +1739,8 @@ static void jdf_generate_direct_data_function(const jdf_t *jdf, const char *mem,
             UTIL_DUMP_LIST_FIELD(sa3, context, next, name,
                                  dump_string, NULL, "", "  (void)", ";\n", ";"),
             mem,
-            UTIL_DUMP_LIST(sa4, parameters, next,
-                           dump_expr, (void*)&info,
-                           "", "", ", ", ""));
+            string_arena_get_string(sa4),
+            string_arena_get_string(sa4));
 
     string_arena_free(sa1);
     string_arena_free(sa2);

@@ -2102,7 +2102,7 @@ void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup,
     dague_atomic_unlock( &object_array_lock );
 }
 
-int dague_task_does_final_output(const struct dague_execution_context_s *task,
+int dague_task_does_final_output(const  dague_execution_context_t *task,
                                  dague_data_t **data)
 {
     const dague_function_t *f;
@@ -2125,6 +2125,7 @@ int dague_task_does_final_output(const struct dague_execution_context_s *task,
                     continue;
             }
             if( NULL != data ) {
+                assert(NULL != dep->direct_data);
                 data[nbout] = dep->direct_data(task->dague_handle, task->locals);
             }
             nbout++;
