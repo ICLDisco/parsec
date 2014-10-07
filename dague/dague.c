@@ -2102,8 +2102,11 @@ void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup,
     dague_atomic_unlock( &object_array_lock );
 }
 
-int dague_task_does_final_output(const  dague_execution_context_t *task,
-                                 dague_data_t **data)
+/** deps is an array of size MAX_PARAM_COUNT
+ *  Returns the number of output deps on which there is a final output
+ */
+int dague_task_deps_with_final_output(const dague_execution_context_t *task,
+                                      const dep_t **deps)
 {
     const dague_function_t *f;
     const dague_flow_t  *flow;
@@ -2124,10 +2127,7 @@ int dague_task_does_final_output(const  dague_execution_context_t *task,
                 if( dep->cond->inline_func32(task->dague_handle, task->locals) )
                     continue;
             }
-            if( NULL != data ) {
-                assert(NULL != dep->direct_data);
-                data[nbout] = dep->direct_data(task->dague_handle, task->locals);
-            }
+            deps[nbout] = dep;
             nbout++;
         }
     }

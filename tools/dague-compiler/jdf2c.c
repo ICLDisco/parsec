@@ -3850,7 +3850,7 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
     (void)jdf;
 
     for( dl = function->dataflow; dl != NULL; dl = dl->next ) {
-        complete_mask |= dl->flow_dep_mask;
+        complete_mask |= dl->flow_dep_mask_out;
     }
     coutput("  release_deps_of_%s_%s(context, %s,\n"
             "      DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
@@ -4541,7 +4541,7 @@ static void jdf_check_relatives( jdf_function_entry_t *f, jdf_dep_flags_t flow_t
                                     "  %s",                             \
                                     string_arena_get_string((SA_DATATYPE))); \
         }                                                               \
-        if( fl->flow_dep_mask == (MASK) ) {                             \
+        if( (JDF_DEP_FLOW_OUT & flow_type) && fl->flow_dep_mask_out == (MASK) ) { \
             string_arena_add_string(sa_coutput,                         \
                                     "  %s",                             \
                                     string_arena_get_string((SA_DEPS))); \
@@ -4814,7 +4814,8 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
             coutput("  if( action_mask & 0x%x ) {  /* Flow of Data %s */\n"
                     "%s"
                     "  }\n",
-                    fl->flow_dep_mask, fl->varname, string_arena_get_string(sa_coutput));
+                    (flow_type & JDF_DEP_FLOW_OUT) ? fl->flow_dep_mask_out : fl->flow_dep_mask_in,
+                    fl->varname, string_arena_get_string(sa_coutput));
         }
     }
     coutput("  (void)data;(void)nc;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;(void)action_mask;\n");

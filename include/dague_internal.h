@@ -343,16 +343,11 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
                                              int rank_src, int rank_dst, int vpid_dst,
                                              void *param);
 
-/** data is an array of size MAX_PARAM_COUNT
- *  Returns the number of data on which there is a final output
- *  For 0 <= i <= return value, if data[i] == NULL, that data
- *   exist but is located on a remote node (the node that executes
- *   task).
- *  If data[i] != NULL, that data exists and is local to the
- *   calling node.
+/** deps is an array of size MAX_PARAM_COUNT
+ *  Returns the number of output deps on which there is a final output
  */
-int dague_task_does_final_output(const dague_execution_context_t *task,
-                                 dague_data_t **data);
+int dague_task_deps_with_final_output(const dague_execution_context_t *task,
+                                      const dep_t **deps);
 
 void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
 
