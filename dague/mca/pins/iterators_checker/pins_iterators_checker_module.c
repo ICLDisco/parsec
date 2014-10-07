@@ -5,6 +5,7 @@
 #include "pins_iterators_checker.h"
 #include "profiling.h"
 #include "execution_unit.h"
+#include "data.h"
 
 /* init functions */
 static void pins_init_iterators_checker(dague_context_t * master_context);
@@ -60,13 +61,27 @@ static dague_ontask_iterate_t print_link(dague_execution_unit_t *eu,
 {
     char  new_str[TASK_STR_LEN];
     char  old_str[TASK_STR_LEN];
+    dague_data_t *final_data[MAX_PARAM_COUNT];
     char *info = (char*)param;
+    int nbfo, i;
 
     dague_snprintf_execution_context(old_str, TASK_STR_LEN, oldcontext);
     dague_snprintf_execution_context(new_str, TASK_STR_LEN, newcontext);
 
-    fprintf(stderr, "PINS ITERATORS CHECKER::   %s that runs on rank %d, vpid %d is a %s of %s that runs on rank %d\n",
+    fprintf(stderr, "PINS ITERATORS CHECKER::   %s that runs on rank %d, vpid %d is a %s of %s that runs on rank %d.\n",
             new_str, dst_rank, dst_vpid, info, old_str, src_rank);
+
+    nbfo = dague_task_does_final_output(newcontext, final_data);
+    fprintf(stderr, "PINS ITERATORS CHECKER::   %s does %d final outputs.\n",
+            new_str, nbfo);
+    for(i = 0; i < nbfo; i++) {
+        if( NULL != final_data[i] )
+            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %u, on device %d\n",
+                    new_str, i, nbfo, final_data[i]->key, final_data[i]->owner_device);
+        else
+            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d is not found\n",
+                    new_str, i, nbfo);
+    }
 
     return DAGUE_ITERATE_CONTINUE;
 }

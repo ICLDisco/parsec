@@ -2101,3 +2101,35 @@ void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup,
     }
     dague_atomic_unlock( &object_array_lock );
 }
+
+int dague_task_does_final_output(const struct dague_execution_context_s *task,
+                                 dague_data_t **data)
+{
+    const dague_function_t *f;
+    const dague_flow_t  *flow;
+    const dep_t          *dep;
+    int fi, di, nbout = 0;
+
+    f = task->function;
+    for(fi = 0; fi < f->nb_flows && f->out[fi] != NULL; fi++) {
+        flow = f->out[fi];
+        if( ! (SYM_OUT & flow->sym_type ) )
+            continue;
+        for(di = 0; di < MAX_DEP_OUT_COUNT && flow->dep_out[di] != NULL; di++) {
+            dep = flow->dep_out[di];
+            if( dep->function_id != (uint8_t)-1 )
+                continue;
+            if( NULL != dep->cond ) {
+                assert( EXPR_OP_INLINE == dep->cond->op );
+                if( dep->cond->inline_func32(task->dague_handle, task->locals) )
+                    continue;
+            }
+            if( NULL != data ) {
+                data[nbout] = dep->direct_data(task->dague_handle, task->locals);
+            }
+            nbout++;
+        }
+    }
+
+    return nbout;
+}

@@ -343,6 +343,12 @@ dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
                                              int rank_src, int rank_dst, int vpid_dst,
                                              void *param);
 
+/** data is an array of size MAX_PARAM_COUNT
+ *  Returns the number of data on which there is a final output
+ */
+int dague_task_does_final_output(const struct dague_execution_context_s *task,
+                                 dague_data_t **data);
+
 void dague_dependencies_mark_task_as_startup(dague_execution_context_t* exec_context);
 
 int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,

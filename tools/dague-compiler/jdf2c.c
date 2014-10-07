@@ -1692,6 +1692,55 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const char *tname,
     string_arena_free(sa3);
 }
 
+static void jdf_generate_direct_data_function(const jdf_t *jdf, const char *mem,
+                                              const jdf_expr_t *parameters, const jdf_def_list_t *context,
+                                              const char *function_name)
+{
+    assignment_info_t ai;
+    expr_info_t info;
+    string_arena_t *sa1 = string_arena_new(64);
+    string_arena_t *sa2 = string_arena_new(64);
+    string_arena_t *sa3 = string_arena_new(64);
+    string_arena_t *sa4 = string_arena_new(64);
+    string_arena_t *sa5 = string_arena_new(64);
+
+    info.sa = sa5;
+    info.prefix = "";
+    info.assignments = "assignments";
+
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "assignments";
+    ai.expr = NULL;
+    coutput("static dague_data_t *%s(const dague_handle_t *dague_handle, const assignment_t *assignments)\n"
+            "{\n"
+            "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
+            "  dague_ddesc_t *__ddesc;\n"
+            "%s\n"
+            "  /* Silent Warnings: should look into parameters to know what variables are usefull */\n"
+            "%s\n"
+            "  __ddesc = (dague_ddesc_t*)__dague_handle->super.%s;\n"
+            "  return __ddesc->data_of(__ddesc, %s);\n"
+            "}\n"
+            "\n",
+            function_name,
+            jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST(sa1, context, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"),
+            UTIL_DUMP_LIST_FIELD(sa3, context, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";"),
+            mem,
+            UTIL_DUMP_LIST(sa4, parameters, next,
+                           dump_expr, (void*)&info,
+                           "", "", ", ", ""));
+
+    string_arena_free(sa1);
+    string_arena_free(sa2);
+    string_arena_free(sa3);
+    string_arena_free(sa4);
+    string_arena_free(sa5);
+}
+
 static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_dep_t *dep,
                                     jdf_call_t *call, const char *depname,
                                     const char *condname, const jdf_def_list_t *context )
@@ -1748,15 +1797,23 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             exit(-1);
         }
         string_arena_add_string(sa,
-                                "  .function_id = %d, /* %s_%s */\n",
+                                "  .function_id = %d, /* %s_%s */\n"
+                                "  .direct_data = NULL,\n",
                                 (NULL != pf ? pf->function_id : -1), jdf_basename, call->func_or_mem);
         string_arena_add_string(sa,
                                 "  .flow = &flow_of_%s_%s_for_%s,\n",
                                 jdf_basename, call->func_or_mem, call->var);
     } else {
+        tmp_fct_name = string_arena_new(64);
+        string_arena_add_string(tmp_fct_name, "%s_direct_access", JDF_OBJECT_ONAME(dep));
+        jdf_generate_direct_data_function(jdf, call->func_or_mem, call->parameters, context,
+                                          string_arena_get_string(tmp_fct_name));
         string_arena_add_string(sa,
-                                "  .function_id = %d, /* %s_%s */\n",
-                                -1, jdf_basename, call->func_or_mem);
+                                "  .function_id = %d, /* %s_%s */\n"
+                                "  .direct_data = &%s,\n",
+                                -1, jdf_basename, call->func_or_mem,
+                                string_arena_get_string(tmp_fct_name));
+        string_arena_free(tmp_fct_name);
     }
     string_arena_add_string(sa,
                             "  .dep_index = %d,\n"
@@ -1858,9 +1915,13 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     }
     string_arena_add_string(sa,
                             "},\n"
-                            "  .belongs_to = &%s\n"
-                            "};\n",
+                            "  .belongs_to = &%s,\n",
                             JDF_OBJECT_ONAME(flow));
+
+    
+
+    string_arena_add_string(sa,
+                            "};\n");
 
     coutput("%s", string_arena_get_string(sa));
 
