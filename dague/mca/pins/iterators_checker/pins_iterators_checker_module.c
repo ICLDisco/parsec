@@ -74,10 +74,11 @@ static dague_ontask_iterate_t print_link(dague_execution_unit_t *eu,
 
 static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_unit,
                                                dague_execution_context_t * exec_context,
-                                               void * data) 
+                                               void *_data) 
 {
     char  str[TASK_STR_LEN];
-    dague_data_t *final_data[MAX_PARAM_COUNT];
+    const dep_t *final_deps[MAX_PARAM_COUNT];
+    dague_data_t *data;
     int nbfo, i;
 
     dague_snprintf_execution_context(str, TASK_STR_LEN, exec_context);
@@ -92,13 +93,14 @@ static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_uni
     else
         fprintf(stderr, "PINS ITERATORS CHECKER::   %s has no predecessor\n", str);
 
-    nbfo = dague_task_does_final_output(exec_context, final_data);
+    nbfo = dague_task_deps_with_final_output(exec_context, final_deps);
     fprintf(stderr, "PINS ITERATORS CHECKER::   %s does %d final outputs.\n",
             str, nbfo);
     for(i = 0; i < nbfo; i++) {
-        if( NULL != final_data[i] )
-            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %u, on device %d\n",
-                    str, i, nbfo, final_data[i]->key, final_data[i]->owner_device);
+        data = final_deps[i]->direct_data(exec_context->dague_handle, exec_context->locals);
+        if( NULL != data )
+            fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %u, on device %d. \n",
+                    str, i, nbfo, data->key, data->owner_device);
         else
             fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d is remote\n",
                     str, i, nbfo);
@@ -106,6 +108,6 @@ static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_uni
 
     // keep the contract with the previous registrant
     if (exec_begin_prev != NULL) {
-        (*exec_begin_prev)(exec_unit, exec_context, data);
+        (*exec_begin_prev)(exec_unit, exec_context, _data);
     }
 }
