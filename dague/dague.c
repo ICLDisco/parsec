@@ -40,6 +40,7 @@
 #include "dague/utils/installdirs.h"
 #include "dague/devices/device.h"
 #include "dague/utils/cmd_line.h"
+#include "dague/utils/mca_param_cmd_line.h"
 
 #include "dague/mca/mca_repository.h"
 
@@ -311,6 +312,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
     dague_cmd_line_t *cmd_line = NULL;
+    char **environ = NULL;
+    char **env_variable, *env_name, *env_value;
 
     dague_debug_init(); /* First thing ever ! */
     dague_installdirs_open();
@@ -341,6 +344,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                              "Virtual process map");
     dague_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
                              "Enable hyperthreading");
+    dague_mca_cmd_line_setup(cmd_line);
 
     if( (NULL != pargc) && (0 != *pargc) ) {
         dague_app_name = strdup( (*pargv)[0] );
@@ -355,6 +359,25 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             dague_app_name = strdup( "app_name_XXXXXX" );
         }
     }
+
+    ret = dague_mca_cmd_line_process_args(cmd_line, &environ, &environ);
+    if( environ != NULL ) {
+        for(env_variable = environ;
+            *env_variable != NULL;
+            env_variable++) {
+            env_name = *env_variable;
+            for(env_value = env_name; *env_value != '\0' && *env_value != '='; env_value++)
+                /* nothing */;
+            if(*env_value == '=') {
+                *env_value = '\0';
+                env_value++;
+            }
+            setenv(env_name, env_value, 1);
+            free(*env_variable);
+        }
+        free(environ);
+    }
+
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
