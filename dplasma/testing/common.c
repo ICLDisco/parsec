@@ -34,7 +34,6 @@
 
 #include "dague_prof_grapher.h"
 #include "vpmap.h"
-#include "dague/mca/pins/pins.h"
 
 char *DAGUE_SCHED_NAME[] = {
     "", /* default */
@@ -114,8 +113,6 @@ void print_usage(void)
             "\n"
             " -y --butlvl       : Level of the Butterfly (starting from 0).\n"
             "\n"
-            "    --mca-pins     : specify the Performance Instrumentation modules to be loaded (if available), separated by commas.\n"
-            "\n"
             " -v --verbose      : extra verbose output\n"
             " -h --help         : this message\n"
             "\n"
@@ -164,7 +161,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
+#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -233,8 +230,6 @@ static struct option long_options[] =
     /* HERBT options */
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
-
-    {"mca-pins",    required_argument,  0, 'm'},
 
     /* Auxiliary options */
     {"verbose",     optional_argument,  0, 'v'},
