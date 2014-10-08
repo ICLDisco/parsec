@@ -1175,18 +1175,6 @@ void dump_list(dague_list_t *list)
     }
 }
 
-static inline int dague_list_nolock_contains(dague_list_t *list, dague_list_item_t *element)
-{
-    dague_list_item_t *p = (dague_list_item_t *)list->ghost_element.list_next;
-    while (p != &(list->ghost_element)) {
-        if (p == element) {
-            return 1;
-        }
-        p = (dague_list_item_t *)p->list_next;
-    }
-    return 0;
-}
-
 int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
 {
     //dague_list_t *sort_list = &(gpu_device->pending);
@@ -1314,14 +1302,14 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_e
         ec->priority = INT32_MAX;
         ec->function = NULL;
         w2r_task->ec = ec;
-        w2r_task->task_type = 111;
+        w2r_task->task_type = GPU_TASK_TYPE_D2HTRANSFER;
         return w2r_task;
     } 
 }
 
 int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task, dague_execution_unit_t *eu_context)
 {
-    assert(w2r_task->task_type == 111);
+    assert(w2r_task->task_type == GPU_TASK_TYPE_D2HTRANSFER);
     int i;
     dague_gpu_data_copy_t *owned_lru_gpu_elem, *cpu_copy;
     dague_data_t* original;
@@ -1408,7 +1396,7 @@ int progress_stream( gpu_device_t* gpu_device,
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
 #if DAGUE_OUTPUT_VERBOSE >= 3
-        if( task->type == 111 ) {
+        if( task->type == GPU_TASK_TYPE_D2HTRANSFER ) {
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "GPU: Submitted Transfer(task %p) on stream %p\n",
                                   (void*)task->ec, 
@@ -1448,7 +1436,7 @@ int progress_stream( gpu_device_t* gpu_device,
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
 #if DAGUE_OUTPUT_VERBOSE >= 3                                                                   
-            if( task->type == 111 ) {
+            if( task->type == GPU_TASK_TYPE_D2HTRANSFER ) {
                 DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                       "GPU: Completed Transfer(task %p) on stream %p\n",
                                       (void*)task->ec, 

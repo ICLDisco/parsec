@@ -40,6 +40,9 @@ static inline int dague_list_is_empty( dague_list_t* list );
 static inline int dague_list_nolock_is_empty( dague_list_t* list );
 #define dague_ulist_is_empty(list) dague_list_nolock_is_empty(list)
 
+/** check if @list contains @item (not thread safe) */
+static inline int dague_list_nolock_contains( dague_list_t *list, dague_list_item_t *item );
+
 /** Paste code to iterate on all items in the @LIST (front to back) (mutex protected)
  *    the @CODE_BLOCK code is applied to each item, which can be refered
  *    to as @ITEM_NAME in @CODE_BLOCK
@@ -361,6 +364,18 @@ dague_list_unlock( dague_list_t* list )
     }                                                                   \
     ITEM;                                                               \
 })
+
+static inline int 
+dague_list_nolock_contains( dague_list_t *list, dague_list_item_t *item )
+{
+    dague_list_item_t* litem;
+    litem = DAGUE_ULIST_ITERATOR(list, ITEM,
+        {
+            if( item == ITEM )
+                break;
+        });
+    return item == litem;
+}
 
 static inline void
 dague_list_nolock_add_before( dague_list_t* list,
