@@ -1,0 +1,43 @@
+#!/bin/bash
+echo "## Configuring for DARTER NICS (Cray XC30)"
+echo "# It is recommended that you load the following modules:"
+echo "  module swap PrgEnv-cray PrgEnv-gnu"
+echo "  module load papi cmake"
+
+if [ "debug" = "$1" ]; then 
+  INSTALL_PREFIX=/lustre/scratch/$USER/parsec-debug-`date +%y%m%d.%s`
+else
+  INSTALL_PREFIX=/lustre/scratch/$USER/parsec-`date +%y%m%d.%s`
+fi
+USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF" #remove for XK6/7
+
+# A default source for supplementary software on Kraken. 
+# This links to software I compiled myself, customize to your needs
+OPT_DIR="$HOME/DARTER/opt"
+HWLOC_DIR=${HWLOC_DIR:="$OPT_DIR"}
+if [ ! -z "$HWLOC_DIR" -a ! -d "$HWLOC_DIR" ]; then 
+    echo "You need to install HWLOC, could not be found in $HWLOC_DIR"
+    exit 1
+fi
+PLASMA_DIR=${PLASMA_DIR:="$OPT_DIR"}
+if [ ! -z "$PLASMA_DIR" -a ! -d "$PLASMA_DIR" ]; then 
+    echo "You need to install PLASMA, could not be found in $PLASMA_DIR"
+    exit 2
+fi
+# To compile the Q2J compiler. You can compile and use PaRSEC/Dplasma without it.
+#OMEGA_DIR=${OMEGA_DIR:="$OPT_DIR/Omega/"}
+# To compile tracing support tools. Tracing can work without this, you'll need to do the analysis on another machine.
+#GTG_DIR=${GTG_DIR:="$OPT_DIR/gtg"}
+
+# Compilers and MPI/BLAS
+CC=${CC:="cc"}
+CXX=${CXX:="CC"}
+FC=${FC:="ftn"}
+#MPI_DIR=${MPI_DIR:="$MPICH_DIR"}
+
+. $(dirname $0)/config.inc
+# guess_defaults
+run_cmake $*
+
+
+
