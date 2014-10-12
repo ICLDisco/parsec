@@ -1072,32 +1072,34 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
         tile_op_type = current_param->operation_type;
         tile_type_index = current_param->tile_type_index;
         
-        if(tile_op_type == INPUT || tile_op_type == OUTPUT || tile_op_type == INOUT) {
-            if(0 == flow_set_flag[temp_task->belongs_to_function]){
-                /*setting flow in function structure */
-                set_flow_in_function(__dague_handle, temp_task, tile_op_type, flow_index, tile_type_index);
-            }               
+        if(tile != NULL){ /* For test purpose */
+            if(tile_op_type == INPUT || tile_op_type == OUTPUT || tile_op_type == INOUT) {
+                if(0 == flow_set_flag[temp_task->belongs_to_function]){
+                    /*setting flow in function structure */
+                    set_flow_in_function(__dague_handle, temp_task, tile_op_type, flow_index, tile_type_index);
+                }               
 
-            if (NULL != tile->last_user.task) {
-                set_descendant(tile->last_user.task, tile->last_user.flow_index, 
-                               temp_task, flow_index, tile->last_user.op_type, 
-                               tile_op_type);
-                set_dependencies_for_function((dague_handle_t *)__dague_handle, 
-                                              (dague_function_t *)tile->last_user.task->super.function, 
-                                              (dague_function_t *)temp_task->super.function, 
-                                              tile->last_user.flow_index, flow_index, tile_type_index);   
-                
-            } else {
-                temp_task->flow_count++;
-                set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL, 
-                                              (dague_function_t *)temp_task->super.function, 
-                                              0, flow_index, tile_type_index);   
-            }    
+                if (NULL != tile->last_user.task) {
+                    set_descendant(tile->last_user.task, tile->last_user.flow_index, 
+                                   temp_task, flow_index, tile->last_user.op_type, 
+                                   tile_op_type);
+                    set_dependencies_for_function((dague_handle_t *)__dague_handle, 
+                                                  (dague_function_t *)tile->last_user.task->super.function, 
+                                                  (dague_function_t *)temp_task->super.function, 
+                                                  tile->last_user.flow_index, flow_index, tile_type_index);   
+                    
+                } else {
+                    temp_task->flow_count++;
+                    set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL, 
+                                                  (dague_function_t *)temp_task->super.function, 
+                                                  0, flow_index, tile_type_index);   
+                }    
 
-            tile->last_user.flow_index = flow_index;
-            tile->last_user.op_type = tile_op_type;
-            tile->last_user.task = temp_task;
-            flow_index++;
+                tile->last_user.flow_index = flow_index;
+                tile->last_user.op_type = tile_op_type;
+                tile->last_user.task = temp_task;
+                flow_index++;
+            } 
         } 
         current_param = current_param->next;
     }        
