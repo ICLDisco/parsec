@@ -26,6 +26,7 @@ Add_Subdirectory(scheduling)
 Add_Subdirectory(all2all)
 Add_Subdirectory(generalized_reduction)
 Add_Subdirectory(merge_sort)
+Add_Subdirectory(interfaces/superscalar)
 
 Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)

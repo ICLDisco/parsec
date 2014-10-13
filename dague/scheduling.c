@@ -171,14 +171,9 @@ static inline int all_tasks_done(dague_context_t* context)
     return (context->active_objects == 0);
 }
 
-int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context)
+int dague_check_complete_cb(dague_handle_t *dague_handle, dague_context_t *context, int remaining)
 {
-    int remaining;
-
-    assert( dague_handle->nb_local_tasks != 0 );
-    remaining = dague_atomic_dec_32b( &(dague_handle->nb_local_tasks) );
-
-    if( 0 == remaining ) {
+   if( 0 == remaining ) {
         /* A dague object has been completed. Call the attached callback if
          * necessary, then update the main engine.
          */
@@ -189,6 +184,15 @@ int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context
         return 1;
     }
     return 0;
+}
+
+int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context)
+{
+    int remaining;
+
+    assert( dague_handle->nb_local_tasks != 0 );
+    remaining = dague_atomic_dec_32b( &(dague_handle->nb_local_tasks) );
+    return dague_check_complete_cb(dague_handle, context, remaining);
 }
 
 dague_sched_module_t *current_scheduler                  = NULL;
@@ -629,6 +633,10 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
                     __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
                 }
             }
+        }
+    } else {
+        if( NULL != object->complete_cb ) {
+            (void)object->complete_cb( object, object->complete_cb_data );
         }
     }
 

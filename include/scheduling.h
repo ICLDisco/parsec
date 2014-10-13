@@ -105,6 +105,16 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
 int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context);
 
 /**
+ * When changing the number of local tasks, see if we need to call the
+ * DAG complete_cb callback, and/or if we need to update the number of
+ * active objects.
+ *
+ * remaining is the number of local tasks available, after updating it
+ * using the appropriate atomic operation
+ */
+int dague_check_complete_cb(dague_handle_t *dague_handle, dague_context_t *context, int remaining);
+
+/**
  * Loads the scheduler as selected using the MCA logic
  * You better not call this while some computation is in progress,
  *  i.e. it should be safe to call this when the main thread is not yet inside dague_progress,
