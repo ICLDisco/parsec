@@ -1,6 +1,6 @@
 #include "dague_config.h"
 #include <stdarg.h>
-#include "dague/interfaces/superscalar/insert_function.h"
+#include "dague/interfaces/superscalar/insert_function_internal.h"
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
@@ -356,7 +356,7 @@ test_hook_of_dtd_task(dague_execution_unit_t * context,
     dtd_task_t * current_task = (dtd_task_t*)this_task;
     DAGUE_TASK_PROF_TRACE(context->eu_profile,
 			              this_task->dague_handle->profiling_array[0], this_task);
-    current_task->fpointer(context, this_task);
+    current_task->fpointer(this_task);
     
     return 0;
 }
@@ -727,7 +727,9 @@ release_deps_of_dtd(dague_execution_unit_t* eu,
     arg.action_mask = action_mask;
     arg.output_usage = 0;
     arg.output_entry = NULL;
+    #ifdef HAVE_MPI
     arg.remote_deps = NULL;
+    #endif /* HAVE_MPI */
     arg.ready_lists = (NULL != eu) ? alloca(sizeof(dague_execution_context_t *) * eu->virtual_process->dague_context->nb_vp) : NULL;
 
     if (NULL != eu)

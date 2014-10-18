@@ -14,11 +14,10 @@
 #if defined(HAVE_CUDA)
 #include "dplasma/cores/cuda_zgemm.h"
 #endif
-#include "dague/interfaces/superscalar/insert_function.h"
+#include "dague/interfaces/superscalar/insert_function_internal.h"
 
 int
-call_to_kernel_PO(dague_execution_unit_t * context,
-                  dague_execution_context_t * this_task)
+call_to_kernel_PO(dague_execution_context_t * this_task)
 {
     const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
     int* INFO = __dague_handle->INFO; /* zpotrf specific; should be removed */
@@ -53,8 +52,7 @@ call_to_kernel_PO(dague_execution_unit_t * context,
 }
 
 int
-call_to_kernel_TR(dague_execution_unit_t * context,
-                  dague_execution_context_t * this_task)
+call_to_kernel_TR(dague_execution_context_t * this_task)
 {
     const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
     /* int task_id = this_task->locals[0].value;
@@ -96,8 +94,7 @@ call_to_kernel_TR(dague_execution_unit_t * context,
 }
 
 int
-call_to_kernel_HE(dague_execution_unit_t * context,
-                  dague_execution_context_t * this_task)
+call_to_kernel_HE(dague_execution_context_t * this_task)
 {
     const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
     /* int task_id = this_task->locals[0].value;
@@ -138,8 +135,7 @@ call_to_kernel_HE(dague_execution_unit_t * context,
 
 
 int
-call_to_kernel_GE(dague_execution_unit_t * context,
-                  dague_execution_context_t * this_task)
+call_to_kernel_GE(dague_execution_context_t * this_task)
 {
     const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
     /* int task_id = this_task->locals[0].value;
