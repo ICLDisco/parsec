@@ -35,9 +35,6 @@ list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
 include(mca/CMakeLists.txt)
 
-# Import all the available interfce
-include(interfaces/superscalar/CMakeLists.txt)
-
 # find_package(TAU REQUIRED)
 # include_directories(${TAU_INCLUDE_DIRS})
 # message(WARNING ${TAU_INCLUDE_DIRS})
