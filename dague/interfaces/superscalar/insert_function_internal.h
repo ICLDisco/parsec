@@ -44,7 +44,7 @@ typedef struct dtd_task_s dtd_task_t;
 
 typedef int (task_func)(dague_execution_context_t*); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
 
-
+#endif
 /* Structure used to pack arguments of insert_task() */
 struct task_param_s {
     void *pointer_to_tile;
@@ -73,7 +73,6 @@ struct dtd_task_s {
     uint8_t belongs_to_function;
     task_param_t *param_list;
 };
-#endif
 
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dtd_task_t); /* For creating objects of class dtd_task_t */
 
@@ -121,12 +120,10 @@ struct generic_hash_table {
     void **buckets;
 };
 
-
 /**
  * internal_dague_handle
  */
-#if 0
-typedef struct dague_dtd_handle_s {
+struct dague_dtd_handle_s {
     dague_handle_t super; 
     /* The array of datatypes LOWER_TILE, LITTLE_T, DEFAULT and the others */
     dague_arena_t **arenas;
@@ -140,8 +137,8 @@ typedef struct dague_dtd_handle_s {
     hash_table *tile_h_table; // ready task list head
     dtd_task_t *ready_task; //ring of initial ready tasks 
     int total_task_class;
-} dague_dtd_handle_t;
-#endif
+};
+
 typedef struct __dague_dtd_internal_handle_s {
     dague_dtd_handle_t super;
     data_repo_t *dtd_data_repository;
