@@ -639,6 +639,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config_bottom.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
   DESTINATION include)
