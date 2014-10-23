@@ -6,9 +6,9 @@
 
 #include "data.h"
 #include "dague/class/lifo.h"
-#include <dague/constants.h>
-#include <dague/devices/device.h>
-#include <dague/utils/output.h>
+#include "dague/constants.h"
+#include "dague/devices/device.h"
+#include "dague/utils/output.h"
 #include "data.h"
 #include "arena.h"
 

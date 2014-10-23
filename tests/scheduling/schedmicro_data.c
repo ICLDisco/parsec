@@ -3,6 +3,7 @@
 #include "data_distribution.h"
 #include "data.h"
 #include "vpmap.h"
+#include "debug.h"
 
 #include <assert.h>
 

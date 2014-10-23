@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The University of Tennessee and The University
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,9 +8,7 @@
 #define DATA_H_HAS_BEEN_INCLUDED
 
 #include "dague_internal.h"
-#include <dague/types.h>
-#include <dague/sys/atomic.h>
-#include "execution_unit.h"
+#include "dague/types.h"
 
 /**
  * This is a variable changed only once, and contains the total number of
@@ -77,7 +75,7 @@ struct dague_data_copy_s {
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
     dague_data_status_t      data_transfer_status;   /** three status */
-    dague_execution_context_t *push_task;            /** the task who actually do the PUSH */
+    struct dague_execution_context_t *push_task;            /** the task who actually do the PUSH */
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 
