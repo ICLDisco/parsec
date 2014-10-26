@@ -7,7 +7,9 @@
 #ifndef DATA_H_HAS_BEEN_INCLUDED
 #define DATA_H_HAS_BEEN_INCLUDED
 
-#include "dague_config.h"
+#include "dague.h"
+#include "dague/class/dague_object.h"
+#include "dague/class/list_item.h"
 #include "dague/types.h"
 
 struct dague_context_s;
@@ -26,6 +28,35 @@ typedef uint8_t dague_data_status_t;
 typedef uint8_t dague_data_flag_t;
 #define DAGUE_DATA_FLAG_ARENA     ((dague_data_flag_t)0x01)
 #define DAGUE_DATA_FLAG_TRANSIT   ((dague_data_flag_t)0x02)
+
+/**
+ * This structure represent a device copy of a dague_data_t.
+ */
+struct dague_data_copy_s {
+    dague_list_item_t         super;
+
+    int8_t                    device_index;         /**< Index in the original->device_copies array */
+    dague_data_flag_t         flags;
+    dague_data_coherency_t    coherency_state;
+    /* int8_t */
+
+    int32_t                   readers;
+
+    uint32_t                  version;
+
+    struct dague_data_copy_s *older;                 /**< unused yet */
+    dague_data_t             *original;
+    struct dague_arena_chunk_s      *arena_chunk;           /**< If this is an arena-based data, keep
+                                                      *   the chunk pointer here, to avoid
+                                                      *   risky pointers arithmetic (pointers mis-alignment
+                                                      *   depending on many parameters) */
+    void                     *device_private;        /**< The pointer to the device-specific data.
+                                                      *   Overlay data distributions assume that arithmetic
+                                                      *   can be done on these pointers. */
+    dague_data_status_t      data_transfer_status;   /** three status */
+    struct dague_execution_context_t *push_task;            /** the task who actually do the PUSH */
+};
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 
 /**
  * Initialize the DAGuE data infrastructure
