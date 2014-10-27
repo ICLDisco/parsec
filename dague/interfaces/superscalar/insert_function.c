@@ -26,6 +26,35 @@
 //#define GRAPH_COLOR 
 //#define PRINT_F_STRUCTURE
 
+void 
+dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
+{
+    const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
+    dtd_task_t *current_task = (dtd_task_t *)this_task;
+    task_param_t *current_param = current_task->param_list;
+    int next_arg;
+    void *tmp;
+    dague_data_copy_t *tmp_data;
+    va_list arguments;
+    va_start(arguments, this_task);
+    next_arg = va_arg(arguments, int);
+
+    while (current_param != NULL){
+         tmp = va_arg(arguments, void*);
+        if(UNPACK_VALUE == next_arg){
+            /*tmp = current_param->pointer_to_tile; */       
+           memcpy(tmp, &(current_param->pointer_to_tile), sizeof(uintptr_t));
+        }else if (UNPACK_DATA == next_arg){
+            tmp_data = ((dtd_tile_t*)(current_param->pointer_to_tile))->data_copy;
+            memcpy(tmp, &tmp_data, sizeof(dague_data_copy_t *));
+        }
+        next_arg = va_arg(arguments, int);
+        current_param = current_param->next;
+    }
+    va_end(arguments);
+}
+
+
 /* To create object of class dtd_task_t that inherits dague_execution_context_t class */
 static dague_mempool_t *context_mempool; 
 OBJ_CLASS_INSTANCE(dtd_task_t, dague_execution_context_t,

@@ -11,6 +11,7 @@
 #include "data_distribution.h"
 #include "dague/interfaces/superscalar/insert_function.h"
 
+#if 0
 #define INPUT 0x1
 #define OUTPUT 0x2
 #define INOUT 0x3
@@ -22,16 +23,17 @@
 #define DAGUE_dtd_NB_FUNCTIONS 5
 #define DTD_TASK_COUNT 10000
 #define PASSED_BY_REF 1
+#define UNPACK_VALUE 1
+#define UNPACK_DATA 2
 
 
-#if 0
 #define TILE_OF(DAGUE, DDESC, I, J) \
     tile_manage(DAGUE, &(ddesc##DDESC.super.super), I, J)
 
 
 typedef struct generic_hash_table hash_table;
-
 #endif
+
 typedef struct bucket_element_f_s bucket_element_f_t;
 typedef struct bucket_element_tile_s bucket_element_tile_t;
 typedef struct bucket_element_task_s bucket_element_task_t;
@@ -44,6 +46,7 @@ typedef struct dtd_task_s dtd_task_t;
 
 typedef int (task_func)(dague_execution_context_t*); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
 
+#endif
 /* Structure used to pack arguments of insert_task() */
 struct task_param_s {
     void *pointer_to_tile;
@@ -72,7 +75,6 @@ struct dtd_task_s {
     uint8_t belongs_to_function;
     task_param_t *param_list;
 };
-#endif
 
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dtd_task_t); /* For creating objects of class dtd_task_t */
 

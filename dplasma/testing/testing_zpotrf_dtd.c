@@ -19,34 +19,20 @@
 int
 call_to_kernel_PO(dague_execution_context_t * this_task)
 {
-    const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
-    int* INFO = __dague_handle->INFO; /* zpotrf specific; should be removed */
-    /* int task_id = this_task->locals[0].value;
-    dtd_task_t * current_task = find_task(__dague_handle->task_h_table, task_id, __dague_handle->task_h_size)->task; */
-    dtd_task_t *current_task = (dtd_task_t *)this_task;
-    task_param_t *current_param = current_task->param_list;
-    PLASMA_enum uplo;
-    int tempkm, ldak, *iinfo;
-    dague_data_copy_t *gT;
+    int *tempkm, *ldak, *iinfo;
+    dague_data_copy_t *data;
 
-    /* Unpacking of parameters */
-    uplo = *((int *)current_param->pointer_to_tile);
-    current_param = current_param->next;
-    tempkm = *((int *)current_param->pointer_to_tile);
-    current_param = current_param->next;
-    gT = ((dtd_tile_t *) (current_param->pointer_to_tile))->data_copy;
-    current_param = current_param->next;
-    ldak = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    iinfo = (int *) current_param->pointer_to_tile;
-    /* End of upacking */
+    dague_dtd_unpack_args(this_task,
+                          UNPACK_VALUE, &uplo,
+                          UNPACK_VALUE, &tempkm,
+                          UNPACK_DATA,  &data,
+                          UNPACK_VALUE, &ldak,
+                          UNPACK_VALUE, &iinfo 
+                        );
 
-    void *T = DAGUE_DATA_COPY_GET_PTR(gT);
-    (void) T;
+    void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)data); 
 
-    CORE_zpotrf(uplo, tempkm, T, ldak, iinfo);
-    if (*iinfo != 0 && *INFO == 0)
-        *INFO = 23 + *iinfo;   /* there was k * descA.mb + iinfo; k and descA.mb is not accesible here */
+    CORE_zpotrf(*uplo, *tempkm, TT, *ldak, iinfo);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
@@ -54,41 +40,33 @@ call_to_kernel_PO(dague_execution_context_t * this_task)
 int
 call_to_kernel_TR(dague_execution_context_t * this_task)
 {
-    const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
-    /* int task_id = this_task->locals[0].value;
-    dtd_task_t * current_task = find_task(__dague_handle->task_h_table, task_id, __dague_handle->task_h_size)->task; */
-    dtd_task_t *current_task = (dtd_task_t *)this_task;
-    task_param_t *current_param = current_task->param_list;
-    int i, tempmm, nb, ldak, ldam;
+    PLASMA_enum *side, *uplo, *trans, *diag;
+    int  *tempmm, *nb, *ldak, *ldam, *alpha;
     dague_data_copy_t *gC;
     dague_data_copy_t *gT;
 
-    /* Unpacking of parameters */
-    for(i=0;i<4;i++){
-        current_param = current_param->next;
-    }
-    tempmm = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    nb = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    current_param = current_param->next;
-    gT = ((dtd_tile_t *) (current_param->pointer_to_tile))->data_copy;
-    current_param = current_param->next;
-    ldak = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    gC = ((dtd_tile_t *) (current_param->pointer_to_tile))->data_copy;
-    current_param = current_param->next;
-    ldam = *((int *) current_param->pointer_to_tile);
-    /* End of upacking */
+    dague_dtd_unpack_args(this_task,
+                          UNPACK_VALUE, &side,
+                          UNPACK_VALUE, &uplo,
+                          UNPACK_VALUE, &trans,
+                          UNPACK_VALUE, &diag,
+                          UNPACK_VALUE, &tempmm,
+                          UNPACK_VALUE, &nb,
+                          UNPACK_VALUE, &alpha,
+                          UNPACK_DATA,  &gT,
+                          UNPACK_VALUE, &ldak,
+                          UNPACK_DATA,  &gC,
+                          UNPACK_VALUE, &ldam 
+                        );
 
     void *T = DAGUE_DATA_COPY_GET_PTR(gT);
     void *C = DAGUE_DATA_COPY_GET_PTR(gC);
     (void) T;
     (void) C;
 
-    CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
-           tempmm, nb, (dague_complex64_t) 1.0, T, ldak,
-           C, ldam);
+    CORE_ztrsm(*side, *uplo, *trans, *diag,
+           *tempmm, *nb, (dague_complex64_t) 1.0, T, *ldak,
+           C, *ldam);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
@@ -96,39 +74,31 @@ call_to_kernel_TR(dague_execution_context_t * this_task)
 int
 call_to_kernel_HE(dague_execution_context_t * this_task)
 {
-    const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
-    /* int task_id = this_task->locals[0].value;
-    dtd_task_t * current_task = find_task(__dague_handle->task_h_table, task_id, __dague_handle->task_h_size)->task; */
-    dtd_task_t *current_task = (dtd_task_t *)this_task;
-    task_param_t *current_param = current_task->param_list;
-    int i, mb, ldam, tempmm;
-    dague_data_copy_t *gT;
+    PLASMA_enum *uplo, *trans;
+    int *mb, *ldam, *tempmm, *alpha, *beta;
     dague_data_copy_t *gA;
+    dague_data_copy_t *gT;
 
-    /* Unpacking of parameters */
-    for(i=0;i<2;i++){
-        current_param = current_param->next;
-    }
-    tempmm = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    mb = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    current_param = current_param->next;
-    gA = ((dtd_tile_t *) (current_param->pointer_to_tile))->data_copy;
-    current_param = current_param->next;
-    ldam = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    current_param = current_param->next;
-    gT = ((dtd_tile_t *) (current_param->pointer_to_tile))->data_copy;
-    /* End of upacking */
+    dague_dtd_unpack_args(this_task,
+                          UNPACK_VALUE, &uplo,
+                          UNPACK_VALUE, &trans,
+                          UNPACK_VALUE, &tempmm,
+                          UNPACK_VALUE, &mb,
+                          UNPACK_VALUE, &alpha,
+                          UNPACK_DATA,  &gA,
+                          UNPACK_VALUE, &ldam,
+                          UNPACK_VALUE, &beta,
+                          UNPACK_DATA,  &gT,
+                          UNPACK_VALUE, &ldam 
+                        );
 
-    void *T = DAGUE_DATA_COPY_GET_PTR(gT);
     void *A = DAGUE_DATA_COPY_GET_PTR(gA);
+    void *T = DAGUE_DATA_COPY_GET_PTR(gT);
     (void)A;
     (void)T;
 
-    CORE_zherk(PlasmaLower, PlasmaNoTrans, tempmm, mb, (double) -1.0, A, ldam,
-           (double) 1.0, T, ldam);
+    CORE_zherk(*uplo, *trans, *tempmm, *mb, (double) -1.0, A, *ldam,
+           (double) 1.0, T, *ldam);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
@@ -137,48 +107,36 @@ call_to_kernel_HE(dague_execution_context_t * this_task)
 int
 call_to_kernel_GE(dague_execution_context_t * this_task)
 {
-    const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
-    /* int task_id = this_task->locals[0].value;
-    dtd_task_t * current_task = find_task(__dague_handle->task_h_table, task_id, __dague_handle->task_h_size)->task; */
-    dtd_task_t *current_task = (dtd_task_t *)this_task;
-    task_param_t *current_param = current_task->param_list;
-    int i, tempmm, mb, ldam, ldan;
+    PLASMA_enum *transA, *transB;
+    int *tempmm, *mb, *ldam, *ldan;
+    double *alpha, *beta;
     dague_data_copy_t *gA;
     dague_data_copy_t *gB;
     dague_data_copy_t *gC;
 
-    /* Unpacking of parameters */
-    for(i=0;i<2;i++){
-        current_param = current_param->next;
-    }
-    tempmm = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    mb = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    current_param = current_param->next;
-    gA = ((dtd_tile_t *) (current_param->pointer_to_tile))->data_copy;
-    current_param = current_param->next;
-    ldam = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    gB = ((dtd_tile_t*) (current_param->pointer_to_tile))->data_copy;
-    current_param = current_param->next;
-    ldan = *((int *) current_param->pointer_to_tile);
-    current_param = current_param->next;
-    current_param = current_param->next;
-    gC = ((dtd_tile_t *) (current_param->pointer_to_tile))->data_copy;
-    /* End of upacking */
+    dague_dtd_unpack_args(this_task,
+                          UNPACK_VALUE, &transA,
+                          UNPACK_VALUE, &transB,
+                          UNPACK_VALUE, &tempmm,
+                          UNPACK_VALUE, &mb,
+                          UNPACK_VALUE, &alpha,
+                          UNPACK_DATA,  &gA,
+                          UNPACK_VALUE, &ldam,
+                          UNPACK_DATA,  &gB,
+                          UNPACK_VALUE, &ldan,
+                          UNPACK_VALUE, &beta,
+                          UNPACK_DATA,  &gC,
+                          UNPACK_VALUE, &ldam
+                        );
 
     void *A = DAGUE_DATA_COPY_GET_PTR(gA);
     void *B = DAGUE_DATA_COPY_GET_PTR(gB);
     void *C = DAGUE_DATA_COPY_GET_PTR(gC);
-    (void)A;
-    (void)B;
-    (void)C;
 
     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
-           tempmm, mb, mb, (dague_complex64_t) - 1.0, A, ldam,
-           B, ldan,
-           (dague_complex64_t) 1.0, C, ldam);
+           *tempmm, *mb, *mb, (dague_complex64_t) - 1.0, A, *ldam,
+           B, *ldan,
+           (dague_complex64_t) 1.0, C, *ldam);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
@@ -305,12 +263,12 @@ int main(int argc, char ** argv)
                                            sizeof(int),        &transB,             VALUE,
                                            sizeof(int),        &tempmm,             VALUE,
                                            sizeof(int),        &ddescA.super.mb,    VALUE,
-                                           sizeof(int),        &alpha_herk,         VALUE,
+                                           sizeof(double),        &alpha_herk,         VALUE,
                                            PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, k), INPUT, DEFAULT,
                                            sizeof(int),        &ldam,               VALUE,
                                            PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, n, k), INPUT, DEFAULT,
                                            sizeof(int),        &ldan,               VALUE,
-                                           sizeof(int),        &beta,               VALUE,
+                                           sizeof(double),        &beta,               VALUE,
                                            PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, n), INOUT, DEFAULT,
                                            sizeof(int),        &ldam,               VALUE,
                                            0);

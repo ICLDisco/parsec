@@ -269,10 +269,10 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                     }
                 }
             }
-            if( set_parameters > 1 ) {
+            /*if( set_parameters > 1 ) {
                 ERROR(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__));
-            }
+            }*/ /* Change it as soon as dtd has a running version */
             DEBUG2(( "thread %d of VP %d Schedules %s\n",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) ));

@@ -8,6 +8,20 @@
 #include "data_distribution.h"
 #include "dague.h"
 
+#define INPUT 0x1
+#define OUTPUT 0x2
+#define INOUT 0x3
+#define VALUE 0x20
+#define AFFINITY 0x4
+#define DEFAULT 0x1
+#define LOWER_TILE 0x2
+#define LITTLE_T 0x3
+#define DAGUE_dtd_NB_FUNCTIONS 5
+#define DTD_TASK_COUNT 10000
+#define PASSED_BY_REF 1
+#define UNPACK_VALUE 1
+#define UNPACK_DATA 2
+
 #define TILE_OF(DAGUE, DDESC, I, J) \
     tile_manage(DAGUE, &(ddesc##DDESC.super.super), I, J)
 
@@ -26,32 +40,5 @@ dague_dtd_handle_t* dague_dtd_new(int, int, int* );
     
 void insert_task_generic_fptr(dague_dtd_handle_t *, 
                               task_func *, char *, ...);
-/* Structure used to pack arguments of insert_task() */
-struct task_param_s {
-    void *pointer_to_tile;
-    int operation_type;
-    int tile_type_index;
-    task_param_t *next;
-};
-/* Task structure derived from dague_execution_context_t */
-struct descendant_info { /* All the fields store info about the descendant except op_type_parent(operation type ex. INPUT, INPUt or OUTPUT) */
-    uint8_t op_type_parent; /* Info about the current_task and not about descendant */
-    uint8_t op_type; 
-    uint8_t flow_index; 
-    dtd_task_t *task;
-};
-struct dtd_task_s {
-    dague_execution_context_t super;
-    task_func* fpointer;
-    uint32_t ref_count;
-    uint32_t task_id;
-    int total_flow;
-    struct descendant_info desc[10];
-    int flow_count;
-    int ready_mask;
-    char *name;
-    uint8_t belongs_to_function;
-    task_param_t *param_list;
-};
 
-
+void dague_dtd_unpack_args(dague_execution_context_t *this_task, ...);
