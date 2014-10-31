@@ -68,7 +68,7 @@ struct dtd_task_s {
     uint32_t ref_count;
     uint32_t task_id;
     int total_flow;
-    struct descendant_info desc[10];
+    struct descendant_info desc[MAX_DESC];
     int flow_count;
     int ready_mask;
     char *name;
@@ -106,6 +106,7 @@ struct bucket_element_f_s {
 struct bucket_element_tile_s {
     dague_data_key_t key;
     dtd_tile_t *tile;
+    dague_ddesc_t* belongs_to;
     bucket_element_tile_t *next;
 };
 
@@ -198,11 +199,12 @@ void dtd_startup(dague_context_t *context,
                  dague_execution_context_t **pready_list);
 
 dtd_tile_t* find_tile(hash_table *tile_h_table, 
-                      uint32_t key, int h_size);
+                      uint32_t key, int h_size,
+                      dague_ddesc_t *belongs_to);
 
 void tile_insert_h_t(hash_table *tile_h_table, 
                      uint32_t key, dtd_tile_t *tile, 
-                     int h_size);
+                     int h_size, dague_ddesc_t *belongs_to);
 
 int data_lookup_of_dtd_task(dague_execution_unit_t *, 
                             dague_execution_context_t *);

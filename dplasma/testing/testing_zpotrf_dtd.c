@@ -19,6 +19,7 @@
 int
 call_to_kernel_PO(dague_execution_context_t * this_task)
 {
+    PLASMA_enum *uplo;
     int *tempkm, *ldak, *iinfo;
     dague_data_copy_t *data;
 
@@ -210,6 +211,7 @@ int main(int argc, char ** argv)
     }
 #endif
 
+    sym_two_dim_block_cyclic_t *__ddescA = &ddescA;
     total = ddescA.super.mt;
     SYNC_TIME_START();
 

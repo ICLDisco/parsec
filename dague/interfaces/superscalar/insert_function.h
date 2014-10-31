@@ -16,14 +16,15 @@
 #define DEFAULT 0x1
 #define LOWER_TILE 0x2
 #define LITTLE_T 0x3
-#define DAGUE_dtd_NB_FUNCTIONS 5
+#define DAGUE_dtd_NB_FUNCTIONS 15
 #define DTD_TASK_COUNT 10000
 #define PASSED_BY_REF 1
 #define UNPACK_VALUE 1
 #define UNPACK_DATA 2
+#define MAX_DESC 15
 
 #define TILE_OF(DAGUE, DDESC, I, J) \
-    tile_manage(DAGUE, &(ddesc##DDESC.super.super), I, J)
+    tile_manage(DAGUE, &(__ddesc##DDESC->super.super), I, J)
 
 typedef struct generic_hash_table hash_table;
 typedef struct task_param_s task_param_t;

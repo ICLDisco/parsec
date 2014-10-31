@@ -33,17 +33,17 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
     dtd_task_t *current_task = (dtd_task_t *)this_task;
     task_param_t *current_param = current_task->param_list;
     int next_arg;
-    void *tmp;
+    void **tmp;
     dague_data_copy_t *tmp_data;
     va_list arguments;
     va_start(arguments, this_task);
     next_arg = va_arg(arguments, int);
 
     while (current_param != NULL){
-         tmp = va_arg(arguments, void*);
+         tmp = va_arg(arguments, void**);
         if(UNPACK_VALUE == next_arg){
             /*tmp = current_param->pointer_to_tile; */       
-           memcpy(tmp, &(current_param->pointer_to_tile), sizeof(uintptr_t));
+             memcpy(tmp, &(current_param->pointer_to_tile), sizeof(uintptr_t));
         }else if (UNPACK_DATA == next_arg){
             tmp_data = ((dtd_tile_t*)(current_param->pointer_to_tile))->data_copy;
             memcpy(tmp, &tmp_data, sizeof(dague_data_copy_t *));
@@ -240,7 +240,8 @@ function_insert_h_t(hash_table *hash_table,
 /** Tile Hash Function **/
 dtd_tile_t * 
 find_tile(hash_table *hash_table, 
-          uint32_t key, int h_size) 
+          uint32_t key, int h_size,
+          dague_ddesc_t* belongs_to) 
 {    
     uint32_t hash_val = hash_key(key, h_size);
     bucket_element_tile_t *current;
@@ -249,7 +250,7 @@ find_tile(hash_table *hash_table,
 
     if(current != NULL) {    /* Finding the elememnt, the pointer to the tile in the bucket of Hash table is returned if found, else NULL is returned */
         while(current != NULL) {
-            if(current->key == key) {
+            if(current->key == key && current->belongs_to == belongs_to) {
                 break;
             }
             current = current->next; 
@@ -268,7 +269,7 @@ find_tile(hash_table *hash_table,
 void 
 tile_insert_h_t(hash_table *hash_table, 
                 uint32_t key, dtd_tile_t *tile, 
-                int h_size)
+                int h_size, dague_ddesc_t* belongs_to)
 {    
     uint32_t hash_val = hash_key(key, h_size);
     bucket_element_tile_t *new_list, *current_table_element;
@@ -278,6 +279,7 @@ tile_insert_h_t(hash_table *hash_table,
     new_list->next = NULL;
     new_list->key = key;
     new_list->tile = tile;
+    new_list->belongs_to = belongs_to;
 
     current_table_element = hash_table->buckets[hash_val];
 
@@ -298,7 +300,7 @@ dtd_tile_t*
 tile_manage(dague_dtd_handle_t *dague_dtd_handle, 
             dague_ddesc_t *ddesc, int i, int j)
 {
-    dtd_tile_t *tmp =  find_tile (dague_dtd_handle->tile_h_table, ddesc->data_key(ddesc, i, j), dague_dtd_handle->tile_hash_table_size);
+    dtd_tile_t *tmp =  find_tile (dague_dtd_handle->tile_h_table, ddesc->data_key(ddesc, i, j), dague_dtd_handle->tile_hash_table_size, ddesc);
 
     if( NULL == tmp) { 
         dtd_tile_t *temp_tile = (dtd_tile_t*) malloc(sizeof(dtd_tile_t));
@@ -311,7 +313,7 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
         temp_tile->last_user.flow_index = 0;
         temp_tile->last_user.op_type = 0;
         temp_tile->last_user.task = NULL;
-        tile_insert_h_t(dague_dtd_handle->tile_h_table, temp_tile->key, temp_tile, dague_dtd_handle->tile_hash_table_size);
+        tile_insert_h_t(dague_dtd_handle->tile_h_table, temp_tile->key, temp_tile, dague_dtd_handle->tile_hash_table_size, ddesc);
         return temp_tile;
     }else {
         return tmp;
@@ -571,7 +573,7 @@ dague_dtd_new(int task_class_counter,
     __dague_handle->super.super.nb_functions = DAGUE_dtd_NB_FUNCTIONS; 
     __dague_handle->super.super.functions_array = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
     for(i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++){
-        __dague_handle->super.super.functions_array[i] = malloc(sizeof(dague_function_t));
+        __dague_handle->super.super.functions_array[i] = calloc(1, sizeof(dague_function_t));
     }
 	//memcpy((dague_function_t *) __dague_handle->super.super.functions_array[0], &dtd_function, sizeof(dague_function_t));
     __dague_handle->super.super.dependencies_array = (dague_dependencies_t **) calloc(DAGUE_dtd_NB_FUNCTIONS, sizeof(dague_dependencies_t *));
@@ -868,12 +870,14 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
     uint8_t i, dep_exists = 0, j;    
 
     if (NULL == parent_function) {   /* Data is not coming from any other task */
-        dague_flow_t *tmp_d_flow = (dague_flow_t *)desc_function->in[desc_flow_index];
-        for (i=0; i<MAX_DEP_IN_COUNT; i++) {
-            if (NULL != tmp_d_flow->dep_in[i]) {
-                if (tmp_d_flow->dep_in[i]->function_id == 100 ) {
-                    dep_exists = 1;
-                    break;
+        if(desc_function->in[desc_flow_index]){
+            dague_flow_t *tmp_d_flow = (dague_flow_t *)desc_function->in[desc_flow_index];
+            for (i=0; i<MAX_DEP_IN_COUNT; i++) {
+                if (NULL != tmp_d_flow->dep_in[i]) {
+                    if (tmp_d_flow->dep_in[i]->function_id == 100 ) {
+                        dep_exists = 1;
+                        break;
+                    }
                 }
             }
         }
@@ -992,7 +996,14 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
 dague_function_t* 
 create_function(dague_dtd_handle_t *__dague_handle, task_func* fpointer, char* name) 
 {
+    static int handle_id = 0;
     static uint8_t function_counter = 0;
+
+    if(__dague_handle->super.handle_id != handle_id){
+        handle_id = __dague_handle->super.handle_id;
+        function_counter = 0;
+    }
+    
     dague_function_t *function = (dague_function_t *) calloc(1, sizeof(dague_function_t));
 
     /* 
@@ -1073,11 +1084,22 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
                       task_param_t *param_list_head, 
                       char* name)
 {
+    static int handle_id = 0;
+
+    
     static uint32_t task_id = 0, _internal_task_counter=0;
     static int task_class_counter = 0;
     static uint8_t flow_set_flag[MAX_TASK_CLASS];
     int next_arg, tile_type_index,  tile_op_type, i, flow_index = 0;
     
+    if(__dague_handle->super.handle_id != handle_id){
+        handle_id = __dague_handle->super.handle_id;
+        task_id = 0;
+        _internal_task_counter = 0;
+        task_class_counter = 0; 
+        for (int i=0; i<MAX_TASK_CLASS; i++)
+            flow_set_flag[i] = 0;
+    }
     
     task_param_t *current_param = param_list_head; /* Parameters passed by user when called Insert_task() */
     dtd_tile_t *tile;
@@ -1087,6 +1109,17 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
     DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     temp_task->flow_count = 0;
+    for(int i=0;i<MAX_DESC;i++){
+        temp_task->desc[i].op_type_parent = 0;
+        temp_task->desc[i].op_type        = 0;
+        temp_task->desc[i].flow_index     = 0;
+        temp_task->desc[i].task           = NULL;
+    }
+    for(int i=0;i<MAX_PARAM_COUNT;i++){
+        temp_task->super.data[i].data_repo = NULL;
+        temp_task->super.data[i].data_in = NULL;
+        temp_task->super.data[i].data_out = NULL;
+    }
 
     /* Creating master function structures */
     dague_function_t *tmp_function = find_function(__dague_handle->function_h_table, fpointer, __dague_handle->function_hash_table_size); /* Hash table lookup to check if the function structure exists or not */ 
@@ -1114,19 +1147,23 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
                 }               
 
                 if (NULL != tile->last_user.task) {
+                    if (tile->last_user.task == temp_task){
+                        temp_task->flow_count++;
+                    }
                     set_descendant(tile->last_user.task, tile->last_user.flow_index, 
                                    temp_task, flow_index, tile->last_user.op_type, 
                                    tile_op_type);
-                    set_dependencies_for_function((dague_handle_t *)__dague_handle, 
+                    /*set_dependencies_for_function((dague_handle_t *)__dague_handle, 
                                                   (dague_function_t *)tile->last_user.task->super.function, 
                                                   (dague_function_t *)temp_task->super.function, 
                                                   tile->last_user.flow_index, flow_index, tile_type_index);   
-                    
+                    */
                 } else {
                     temp_task->flow_count++;
-                    set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL, 
+                    /*set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL, 
                                                   (dague_function_t *)temp_task->super.function, 
                                                   0, flow_index, tile_type_index);   
+                    */
                 }    
 
                 tile->last_user.flow_index = flow_index;
@@ -1152,6 +1189,10 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
     temp_task->total_flow = flow_index;
     temp_task->ready_mask = 0;
     temp_task->name = name; 
+    temp_task->super.priority = 0;
+    temp_task->super.hook_id = 0;
+    temp_task->super.chore_id = 0;
+    temp_task->super.unused = 0;
     
    
     /* Building list of initial ready task */
