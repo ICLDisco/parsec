@@ -24,7 +24,7 @@ int
 call_to_kernel(dague_execution_context_t * this_task)
 {
     //printf("Executing Task\n");
-    fflush(stdout); 
+    fflush(stdout);
     return 0;
 }
 
@@ -33,27 +33,26 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int ncores = 8, k, uplo, info;
     int no_of_tasks = 100000;
-    
+
     dague = dague_init(ncores, &argc, &argv);
 
     dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
 
-
     TIME_START();
-    
-    for(k=0;k<no_of_tasks;k++){
+
+    for( k = 0; k < no_of_tasks; k++ ) {
         insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel, "Task",
                                  sizeof(int),      &uplo,              VALUE,
-                                 PASSED_BY_REF,    NULL, INOUT, DEFAULT,
+                                 PASSED_BY_REF,    NULL,               INOUT, DEFAULT,
                                  0);
-    } 
+    }
 
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
     dague_progress(dague);
 
     printf("Time Elapsed:\t");
-    printf("\n%lf\n",no_of_tasks/time_elapsed);    
+    printf("\n%lf\n",no_of_tasks/time_elapsed);
 
     dague_fini(&dague);
     return 0;

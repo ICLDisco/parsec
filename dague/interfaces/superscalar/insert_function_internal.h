@@ -11,42 +11,10 @@
 #include "data_distribution.h"
 #include "dague/interfaces/superscalar/insert_function.h"
 
-#if 0
-#define INPUT 0x1
-#define OUTPUT 0x2
-#define INOUT 0x3
-#define VALUE 0x20
-#define AFFINITY 0x4
-#define DEFAULT 0x1
-#define LOWER_TILE 0x2
-#define LITTLE_T 0x3
-#define DAGUE_dtd_NB_FUNCTIONS 5
-#define DTD_TASK_COUNT 10000
-#define PASSED_BY_REF 1
-#define UNPACK_VALUE 1
-#define UNPACK_DATA 2
-
-
-#define TILE_OF(DAGUE, DDESC, I, J) \
-    tile_manage(DAGUE, &(ddesc##DDESC.super.super), I, J)
-
-
-typedef struct generic_hash_table hash_table;
-#endif
-
 typedef struct bucket_element_f_s bucket_element_f_t;
 typedef struct bucket_element_tile_s bucket_element_tile_t;
 typedef struct bucket_element_task_s bucket_element_task_t;
 
-#if 0
-typedef struct dtd_tile_s dtd_tile_t;
-
-typedef struct task_param_s task_param_t;
-typedef struct dtd_task_s dtd_task_t;
-
-typedef int (task_func)(dague_execution_context_t*); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
-
-#endif
 /* Structure used to pack arguments of insert_task() */
 struct task_param_s {
     void *pointer_to_tile;
@@ -58,8 +26,8 @@ struct task_param_s {
 /* Task structure derived from dague_execution_context_t */
 struct descendant_info { /* All the fields store info about the descendant except op_type_parent(operation type ex. INPUT, INPUt or OUTPUT) */
     uint8_t op_type_parent; /* Info about the current_task and not about descendant */
-    uint8_t op_type; 
-    uint8_t flow_index; 
+    uint8_t op_type;
+    uint8_t flow_index;
     dtd_task_t *task;
 };
 struct dtd_task_s {
@@ -79,7 +47,7 @@ struct dtd_task_s {
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dtd_task_t); /* For creating objects of class dtd_task_t */
 
 /** Tile structure **/
-struct user { 
+struct user {
     uint8_t flow_index;
     uint8_t op_type;
     dtd_task_t *task;
@@ -127,18 +95,18 @@ struct generic_hash_table {
  * internal_dague_handle
  */
 struct dague_dtd_handle_s {
-    dague_handle_t super; 
+    dague_handle_t super;
     /* The array of datatypes LOWER_TILE, LITTLE_T, DEFAULT and the others */
     dague_arena_t **arenas;
     int arenas_size;
-    int *INFO; //zpotrf specific; should be removed    
+    int *INFO; //zpotrf specific; should be removed
     int tile_hash_table_size;
     int task_hash_table_size;
     uint8_t function_hash_table_size;
     hash_table *task_h_table; // hash_table for tasks
     hash_table *function_h_table; // hash_table for master function structure
     hash_table *tile_h_table; // ready task list head
-    dtd_task_t *ready_task; //ring of initial ready tasks 
+    dtd_task_t *ready_task; //ring of initial ready tasks
     int total_task_class;
 };
 
@@ -159,17 +127,17 @@ dague_ontask_iterate_t  dtd_release_dep_fct(struct dague_execution_unit_s *eu,
 
 hash_table* create_task_table(int);
 
-void dtd_startup(dague_context_t *context, 
-                 dague_handle_t *dague_handle, 
+void dtd_startup(dague_context_t *context,
+                 dague_handle_t *dague_handle,
                  dague_execution_context_t **pready_list);
 
-dtd_tile_t* find_tile(hash_table *tile_h_table, 
+dtd_tile_t* find_tile(hash_table *tile_h_table,
                       uint32_t key, int h_size,
                       dague_ddesc_t *belongs_to);
 
-void tile_insert_h_t(hash_table *tile_h_table, 
-                     uint32_t key, dtd_tile_t *tile, 
+void tile_insert_h_t(hash_table *tile_h_table,
+                     uint32_t key, dtd_tile_t *tile,
                      int h_size, dague_ddesc_t *belongs_to);
 
-int data_lookup_of_dtd_task(dague_execution_unit_t *, 
+int data_lookup_of_dtd_task(dague_execution_unit_t *,
                             dague_execution_context_t *);

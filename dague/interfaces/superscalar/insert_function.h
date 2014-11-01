@@ -34,12 +34,12 @@ typedef struct dague_dtd_handle_s dague_dtd_handle_t;
 
 typedef int (task_func)(dague_execution_context_t*); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
 
-dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle, 
+dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                         dague_ddesc_t *ddesc, int i, int j);
 
 dague_dtd_handle_t* dague_dtd_new(int, int, int* );
-    
-void insert_task_generic_fptr(dague_dtd_handle_t *, 
+
+void insert_task_generic_fptr(dague_dtd_handle_t *,
                               task_func *, char *, ...);
 
 void dague_dtd_unpack_args(dague_execution_context_t *this_task, ...);
