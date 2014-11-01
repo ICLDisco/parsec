@@ -1,6 +1,5 @@
 #include "dague_config.h"
 #include <stdarg.h>
-#include "dague/interfaces/superscalar/insert_function_internal.h"
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
@@ -17,11 +16,46 @@
 #include "mempool.h"
 #include "dague/devices/device.h"
 #include "dague/constants.h"
+#include "dague/interfaces/superscalar/insert_function_internal.h"
 
 #define MAX_TASK_CLASS 10
 #define TASK_HASH_TABLE_SIZE (100*1000)
 #define TILE_HASH_TABLE_SIZE (100*10)
 #define FUNCTION_HASH_TABLE_SIZE (10)
+
+/**
+ * All the static functions should be declared before being defined.
+ */
+static int
+test_hook_of_dtd_task(dague_execution_unit_t * context,
+                      dague_execution_context_t * this_task);
+static int
+dtd_startup_tasks(dague_context_t * context,
+                  __dague_dtd_internal_handle_t * __dague_handle,
+                  dague_execution_context_t ** pready_list);
+static int
+dtd_is_ready(const dtd_task_t *dest, int dest_flow_index);
+
+static void
+iterate_successors_of_dtd_task(dague_execution_unit_t * eu,
+                               const dague_execution_context_t * this_task,
+                               uint32_t action_mask,
+                               dague_ontask_function_t * ontask,
+                               void *ontask_arg);
+static void
+_internal_insert_task(dague_dtd_handle_t *__dague_handle,
+                      task_func* fpointer,
+                      task_param_t *param_list_head,
+                      char* name);
+static int
+release_deps_of_dtd(struct dague_execution_unit_s *,
+                    dague_execution_context_t *,
+                    uint32_t, dague_remote_deps_t *);
+
+static dague_hook_return_t
+complete_hook_of_dtd(struct dague_execution_unit_s *,
+                     dague_execution_context_t *);
+
 
 //#define GRAPH_COLOR 
 //#define PRINT_F_STRUCTURE
@@ -29,7 +63,6 @@
 void 
 dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
 {
-    const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
     dtd_task_t *current_task = (dtd_task_t *)this_task;
     task_param_t *current_param = current_task->param_list;
     int next_arg;
@@ -70,9 +103,7 @@ uint64_t function_pointer_tracker[20];
 static inline char* 
 color_hash(char *name) 
 {
-    int c,i;
-    char str[15];
-    int r1, r2, g1, g2, b1, b2;
+    int c, i, r1, r2, g1, g2, b1, b2;
     char *color=(char *)calloc(6,sizeof(char));
 
     r1 = 0xA3;
@@ -389,7 +420,7 @@ test_hook_of_dtd_task(dague_execution_unit_t * context,
 
     dtd_task_t * current_task = (dtd_task_t*)this_task;
     DAGUE_TASK_PROF_TRACE(context->eu_profile,
-			              this_task->dague_handle->profiling_array[0], this_task);
+                          this_task->dague_handle->profiling_array[0], this_task);
     current_task->fpointer(this_task);
     
     return 0;
@@ -608,13 +639,13 @@ dague_dtd_new(int task_class_counter,
 }
 
 /* DTD version of is_completed() */
-static int 
-dtd_is_ready(const dtd_task_t *dest, 
-            const  int dest_flow_index)
+static int
+dtd_is_ready(const dtd_task_t *dest,
+             int dest_flow_index)
 {
     dague_dtd_handle_t* dague_dtd_handle = (dague_dtd_handle_t*) dest->super.dague_handle; 
     dtd_task_t *dest_task = (dtd_task_t*)dest;
-    
+
     if ( dest_task->total_flow == dague_atomic_inc_32b(&(dest_task->flow_count))) {
         return 1;
     }  
@@ -788,8 +819,8 @@ release_deps_of_dtd(dague_execution_unit_t* eu,
 }
 
 /* complete_hook() */
-static int 
-complete_hook_of_dtd(dague_execution_unit_t* context, 
+static int
+complete_hook_of_dtd(dague_execution_unit_t* context,
                      dague_execution_context_t* this_task)
 {
     DAGUE_TASK_PROF_TRACE(context->eu_profile,

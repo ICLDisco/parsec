@@ -159,41 +159,6 @@ dague_ontask_iterate_t  dtd_release_dep_fct(struct dague_execution_unit_s *eu,
 
 hash_table* create_task_table(int);
 
-int test_hook_of_dtd_task(dague_execution_unit_t *context, 
-                          dague_execution_context_t *this_task);
-
-int dtd_is_ready(const dtd_task_t *,const int);
-   
-#if 0 
-dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle, 
-                        dague_ddesc_t *ddesc, int i, int j);
-
-dague_dtd_handle_t* dague_dtd_new(int, int, int* );
-    
-void insert_task_generic_fptr(dague_dtd_handle_t *, 
-                              task_func *, char *, ...);
-#endif
-void _internal_insert_task(dague_dtd_handle_t *, 
-                           task_func*, task_param_t *, 
-                           char *);
-
-void iterate_successors_of_dtd_task(dague_execution_unit_t *eu,
-                                    const dague_execution_context_t *this_task, 
-                                    uint32_t action_mask, 
-                                    dague_ontask_function_t *ontask, 
-                                    void *ontask_arg);
-
-int release_deps_of_dtd(struct dague_execution_unit_s *,
-                        dague_execution_context_t *,
-                        uint32_t, dague_remote_deps_t *);
-
-dague_hook_return_t complete_hook_of_dtd(struct dague_execution_unit_s *, 
-                                         dague_execution_context_t *);
-
-int dtd_startup_tasks(dague_context_t *context, 
-                      __dague_dtd_internal_handle_t *__dague_handle, 
-                      dague_execution_context_t **pready_list);
-
 void dtd_startup(dague_context_t *context, 
                  dague_handle_t *dague_handle, 
                  dague_execution_context_t **pready_list);
