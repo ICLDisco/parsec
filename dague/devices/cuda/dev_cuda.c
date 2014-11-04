@@ -320,7 +320,8 @@ static int
 dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
-    uint32_t i, j, dev_mask = 0x0, rc = DAGUE_ERR_NOT_FOUND;
+    uint32_t i, j, dev_mask = 0x0;
+    int32_t rc = DAGUE_ERR_NOT_FOUND;
 
     /**
      * Let's suppose it is not our job to detect if a particular body can
@@ -439,48 +440,35 @@ int dague_gpu_init(dague_context_t *dague_context)
         unsigned int total_mem;
 #endif  /* CUDA_VERSION >= 3020 */
         gpu_device_t* gpu_device;
-        CUdevprop devProps;
         char szName[256];
-        int major, minor, concurrency, computemode, streaming_multiprocessor, cuda_cores;
+        int major, minor, concurrency, computemode, streaming_multiprocessor, cuda_cores, clockRate;
         CUdevice hcuDevice;
+
+        /* Allow fine grain selection of the GPU's */
+        if( !((1 << i) & cuda_mask) ) continue;
 
         status = cuDeviceGet( &hcuDevice, i );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGet ", status, {continue;} );
         status = cuDeviceGetName( szName, 256, hcuDevice );
         DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetName ", status, {continue;} );
 
-        status = cuDeviceComputeCapability( &major, &minor, hcuDevice);
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceComputeCapability ", status, {continue;} );
-
-        status = cuDeviceGetProperties( &devProps, hcuDevice );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetProperties ", status, {continue;} );
-
+        status = cuDeviceGetAttribute( &major, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR, hcuDevice);
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute(MAJOR) ", status, {continue;} );
+        status = cuDeviceGetAttribute( &minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, hcuDevice);
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute(MINOR) ", status, {continue;} );
+        status = cuDeviceGetAttribute( &clockRate, CU_DEVICE_ATTRIBUTE_CLOCK_RATE, hcuDevice);
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute(CLOCK_RATE) ", status, {continue;} );
         status = cuDeviceGetAttribute( &concurrency, CU_DEVICE_ATTRIBUTE_CONCURRENT_KERNELS, hcuDevice );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
-
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute(CONCURRENT) ", status, {continue;} );
         status = cuDeviceGetAttribute( &streaming_multiprocessor, CU_DEVICE_ATTRIBUTE_MULTIPROCESSOR_COUNT, hcuDevice );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
-
-        /* Allow fine grain selection of the GPU's */
-        if( !((1 << i) & cuda_mask) ) continue;
-
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute(MULTIPROCESSOR) ", status, {continue;} );
         status = cuDeviceGetAttribute( &computemode, CU_DEVICE_ATTRIBUTE_COMPUTE_MODE, hcuDevice );
-        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute ", status, {continue;} );
+        DAGUE_CUDA_CHECK_ERROR( "cuDeviceGetAttribute(COMPUTE_MODE) ", status, {continue;} );
 
         if( show_caps ) {
             STATUS(("GPU Device %d (capability %d.%d): %s\n", i, major, minor, szName ));
             STATUS(("\tSM                 : %d\n", streaming_multiprocessor ));
-            STATUS(("\tmaxThreadsPerBlock : %d\n", devProps.maxThreadsPerBlock ));
-            STATUS(("\tmaxThreadsDim      : [%d %d %d]\n", devProps.maxThreadsDim[0],
-                    devProps.maxThreadsDim[1], devProps.maxThreadsDim[2] ));
-            STATUS(("\tmaxGridSize        : [%d %d %d]\n", devProps.maxGridSize[0],
-                    devProps.maxGridSize[1], devProps.maxGridSize[2] ));
-            STATUS(("\tsharedMemPerBlock  : %d\n", devProps.sharedMemPerBlock ));
-            STATUS(("\tconstantMemory     : %d\n", devProps.totalConstantMemory ));
-            STATUS(("\tSIMDWidth          : %d\n", devProps.SIMDWidth ));
-            STATUS(("\tmemPitch           : %d\n", devProps.memPitch ));
-            STATUS(("\tregsPerBlock       : %d\n", devProps.regsPerBlock ));
-            STATUS(("\tclockRate          : %d\n", devProps.clockRate ));
+            STATUS(("\tclockRate          : %d\n", clockRate ));
             STATUS(("\tconcurrency        : %s\n", (concurrency == 1 ? "yes" : "no") ));
             STATUS(("\tcomputeMode        : %d\n", computemode ));
         }
@@ -561,7 +549,8 @@ int dague_gpu_init(dague_context_t *dague_context)
         if (dague_cuda_lookup_device_cudacores(&cuda_cores, major, minor) == DAGUE_ERROR ) {
             return -1;
         }
-        gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)devProps.clockRate * 2.0 / 1000000;
+
+        gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)clockRate * 2.0 / 1000000;
         gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
 
         if( show_caps ) {
