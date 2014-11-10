@@ -31,8 +31,11 @@ call_to_kernel(dague_execution_context_t * this_task)
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    int ncores = 8, k, uplo, info;
-    int no_of_tasks = 100000;
+    int ncores = 8, k, uplo = 1, info;
+    int no_of_tasks = 1;
+
+    int uplo1=2, uplo2=3;
+    double uplo3 = 88.56;
 
     dague = dague_init(ncores, &argc, &argv);
 
@@ -41,9 +44,12 @@ int main(int argc, char ** argv)
     TIME_START();
 
     for( k = 0; k < no_of_tasks; k++ ) {
-        insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel, "Task",
+        insert_task_generic_fptr_old(DAGUE_dtd_handle, call_to_kernel, "Task",
                                  sizeof(int),      &uplo,              VALUE,
+                                 sizeof(int),      &uplo2,              VALUE,
+                                 sizeof(int),      &uplo1,              VALUE,
                                  PASSED_BY_REF,    NULL,               INOUT, DEFAULT,
+                                 sizeof(double),   &uplo3,              VALUE,
                                  0);
     }
 
@@ -53,7 +59,7 @@ int main(int argc, char ** argv)
 
     printf("Time Elapsed:\t");
     printf("\n%lf\n",no_of_tasks/time_elapsed);
-
+    
     dague_fini(&dague);
     return 0;
 }

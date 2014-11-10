@@ -46,7 +46,8 @@ static void
 _internal_insert_task(dague_dtd_handle_t *__dague_handle,
                       task_func* fpointer,
                       task_param_t *param_list_head,
-                      char* name);
+                      char* name, int no_of_param,
+                      int size_of_value_param);
 static int
 release_deps_of_dtd(struct dague_execution_unit_s *,
                     dague_execution_context_t *,
@@ -153,7 +154,7 @@ fill_color(char *name)
 {
     char *str;
     str = (char *)calloc(12,sizeof(char));
-    snprintf(str,11,"fill:%s",color_hash(name));
+    snprintf(str,12,"fill:%s",color_hash(name));
     return str;
 }
 
@@ -607,7 +608,6 @@ dague_dtd_new(int task_class_counter,
     __dague_handle->super.super.devices_mask = DAGUE_DEVICES_ALL;
     __dague_handle->super.INFO = info; /* zpotrf specific; should be removed */
 
-    dague_function_t *func;
     __dague_handle->super.super.nb_functions = DAGUE_dtd_NB_FUNCTIONS;
     __dague_handle->super.super.functions_array = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
     for(i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++){
@@ -845,9 +845,93 @@ data_lookup_of_dtd_task(dague_execution_unit_t * context,
     return DAGUE_HOOK_RETURN_DONE;
 }
 
+/* Inert Task with one allocation of memory */
+void
+insert_task_generic_fptr(dague_dtd_handle_t * __dague_handle, 
+                      task_func *kernel_pointer, char *name, ...)
+{
+    va_list args, args_copy;
+    int next_arg, counter = 0, tile_op_type, tile_type_index, total_value_size=0;
+    int offset = 1;
+    long unsigned int total_size;
+    void *tmp;
+    void *value_block, *current_val, *start_of_allocation;
+    task_param_t *param_head = NULL, *current_param = NULL, *tmp_param;
+
+    va_start(args, name);
+    va_copy(args_copy, args);    
+   
+    /* checking with template */ 
+    dague_function_t *function = find_function(__dague_handle->function_h_table,
+                                               kernel_pointer,
+                                               __dague_handle->function_hash_table_size); /* Hash table lookup to check if the function structure exists or not */
+
+    if(NULL == function){
+        next_arg = va_arg(args, int);
+        while(next_arg != 0){
+            tmp = va_arg(args, void*);
+            tile_op_type = va_arg(args, int);
+             
+            if(tile_op_type == INPUT || tile_op_type == OUTPUT || tile_op_type == INOUT) {
+                tile_type_index = va_arg(args, int);
+            }else{
+                total_value_size += next_arg;
+            }
+            counter ++;
+            next_arg = va_arg(args, int);
+        }
+
+    }else {
+       counter = function->nb_parameters; 
+       total_value_size = function->nb_locals; 
+    }
+
+    va_end(args);
+
+    total_size = counter*sizeof(task_param_t) + total_value_size;
+    start_of_allocation = (void *) malloc(total_size);
+    param_head = (task_param_t *) start_of_allocation;
+    value_block = ((char *)start_of_allocation) + counter*sizeof(task_param_t);
+    
+    next_arg = va_arg(args_copy, int);
+    current_param = param_head;        
+    current_val = value_block;
+
+    while(next_arg != 0){
+        tmp = va_arg(args_copy, void*);
+        tile_op_type = va_arg(args_copy, int);
+        current_param->tile_type_index = DEFAULT;
+
+        if(tile_op_type == INPUT || tile_op_type == OUTPUT || tile_op_type == INOUT) {
+            tile_type_index = va_arg(args_copy, int);
+            current_param->tile_type_index = tile_type_index;
+            current_param->pointer_to_tile = tmp;
+        } else {
+            memcpy(current_val, tmp, next_arg);
+            current_param->pointer_to_tile = current_val;
+            current_val = ((char *)current_val) + next_arg;      
+        }
+
+        current_param->operation_type = tile_op_type;
+        
+        tmp_param = current_param;
+        current_param = current_param + offset;
+        tmp_param->next = current_param;
+
+        next_arg = va_arg(args_copy, int);
+
+    }
+    tmp_param->next = NULL;
+    va_end(args_copy);
+
+    _internal_insert_task(__dague_handle, kernel_pointer, param_head, 
+                          name, counter, total_value_size);
+
+}
+
 /** PaRSEC INSERT Task Function **/
 void
-insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
+insert_task_generic_fptr_old(dague_dtd_handle_t *__dague_handle,
                          task_func* kernel_pointer, char* name, ...)
 {
     va_list arguments;
@@ -892,7 +976,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     va_end(arguments);
 
     fpointer = kernel_pointer;
-    _internal_insert_task(__dague_handle, fpointer, param_list_head, name);
+    /* _internal_insert_task(__dague_handle, fpointer, param_list_head, name); */
 }
 
 /* Dependencies setting function for Function structures */
@@ -1057,8 +1141,8 @@ create_function(dague_dtd_handle_t *__dague_handle, task_func* fpointer, char* n
     *name_not_const = name;
     function->function_id = function_counter;
     function->nb_flows = 0;
-    function->nb_parameters = 0;
-    function->nb_locals = 0;
+    function->nb_parameters = 0; /* using now to store info about how many parameters this take */
+    function->nb_locals = 0; /* using to store total size of value parameters */
     params[0] = &symb_dtd_taskid;
     locals[0] = &symb_dtd_taskid;
     function->data_affinity = NULL;
@@ -1121,7 +1205,8 @@ static void
 _internal_insert_task(dague_dtd_handle_t *__dague_handle,
                       task_func* fpointer,
                       task_param_t *param_list_head,
-                      char* name)
+                      char* name, int no_of_param,
+                      int size_of_value_param)
 {
     static int handle_id = 0;
     static uint32_t task_id = 0, _internal_task_counter=0;
@@ -1164,6 +1249,9 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
                                                __dague_handle->function_hash_table_size); /* Hash table lookup to check if the function structure exists or not */
     if( NULL == function ) {
         function = create_function(__dague_handle, fpointer, name);
+        function->nb_parameters = no_of_param;
+        function->nb_locals = size_of_value_param;
+        track_function_created_or_not = 1;
     }
 
     temp_task->belongs_to_function = function->function_id;
