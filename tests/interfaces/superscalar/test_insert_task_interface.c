@@ -44,7 +44,7 @@ int main(int argc, char ** argv)
     TIME_START();
 
     for( k = 0; k < no_of_tasks; k++ ) {
-        insert_task_generic_fptr_old(DAGUE_dtd_handle, call_to_kernel, "Task",
+        insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel, "Task",
                                  sizeof(int),      &uplo,              VALUE,
                                  sizeof(int),      &uplo2,              VALUE,
                                  sizeof(int),      &uplo1,              VALUE,

@@ -929,6 +929,7 @@ insert_task_generic_fptr(dague_dtd_handle_t * __dague_handle,
 
 }
 
+#if 0
 /** PaRSEC INSERT Task Function **/
 void
 insert_task_generic_fptr_old(dague_dtd_handle_t *__dague_handle,
@@ -976,8 +977,9 @@ insert_task_generic_fptr_old(dague_dtd_handle_t *__dague_handle,
     va_end(arguments);
 
     fpointer = kernel_pointer;
-    /* _internal_insert_task(__dague_handle, fpointer, param_list_head, name); */
+     _internal_insert_task(__dague_handle, fpointer, param_list_head, name, 0, 0); 
 }
+#endif
 
 /* Dependencies setting function for Function structures */
 void
@@ -988,8 +990,43 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
                               uint8_t desc_flow_index,
                               int tile_type_index)
 {
-    dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
     uint8_t i, dep_exists = 0, j;
+
+    if (NULL == desc_function) {   /* Data is not going to any other task */
+        if(parent_function->out[parent_flow_index]){
+            dague_flow_t *tmp_d_flow = (dague_flow_t *)parent_function->out[parent_flow_index];
+            for (i=0; i<MAX_DEP_IN_COUNT; i++) {
+                if (NULL != tmp_d_flow->dep_out[i]) {
+                    if (tmp_d_flow->dep_out[i]->function_id == 100 ) {
+                        dep_exists = 1;
+                        break;
+                    }
+                }
+            }
+        }
+        if (!dep_exists) {
+            dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
+#if defined (PRINT_F_STRUCTURE)
+            printf("%s -> LOCAL\n", parent_function->name);
+#endif
+            desc_dep->cond = NULL;
+            desc_dep->ctl_gather_nb = NULL;
+            desc_dep->function_id = 100; /* 100 is used to indicate data is coming from memory */
+            desc_dep->dep_index = parent_flow_index;
+            desc_dep->dep_datatype_index = tile_type_index; /* specific for cholesky, will need to change */
+            desc_dep->belongs_to = parent_function->out[parent_flow_index];
+
+            for (i=0; i<MAX_DEP_IN_COUNT; i++) {
+                if (NULL == parent_function->out[parent_flow_index]->dep_out[i]) {
+                    /* Bypassing constness in function structure */
+                    dague_flow_t **desc_in = (dague_flow_t**)&(parent_function->out[parent_flow_index]);
+                    (*desc_in)->dep_out[i] = (dep_t *)desc_dep; /* Setting dep in the next available dep_in array index */
+                    break;
+                }
+            }
+        }
+        return;
+    }
 
     if (NULL == parent_function) {   /* Data is not coming from any other task */
         if(desc_function->in[desc_flow_index]){
@@ -1004,6 +1041,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             }
         }
         if (!dep_exists) {
+            dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
 #if defined (PRINT_F_STRUCTURE)
             printf("LOCAL -> %s\n", desc_function->name);
 #endif
@@ -1025,7 +1063,6 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
         }
         return;
     } else {
-        dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
         dague_flow_t *tmp_flow = (dague_flow_t *) parent_function->out[parent_flow_index]; /* just to make code look better */
         uint8_t function_id;
 
@@ -1070,6 +1107,8 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
         }
 
         if(!dep_exists){
+            dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
+            dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
 #if defined (PRINT_F_STRUCTURE)
             printf("%s -> %s\n", parent_function->name, desc_function->name);
 #endif
@@ -1276,17 +1315,22 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
                     set_descendant(tile->last_user.task, tile->last_user.flow_index,
                                    temp_task, flow_index, tile->last_user.op_type,
                                    tile_op_type);
-                    /*set_dependencies_for_function((dague_handle_t *)__dague_handle,
+                    set_dependencies_for_function((dague_handle_t *)__dague_handle,
                                                   (dague_function_t *)tile->last_user.task->super.function,
                                                   (dague_function_t *)temp_task->super.function,
                                                   tile->last_user.flow_index, flow_index, tile_type_index);
-                    */
+                    
                 } else {
                     temp_task->flow_count++;
-                    /*set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL,
+                    if (tile_op_type == INPUT || tile_op_type == INOUT )
+                    set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL,
                                                   (dague_function_t *)temp_task->super.function,
                                                   0, flow_index, tile_type_index);
-                    */
+                    if (tile_op_type == OUTPUT)
+                    set_dependencies_for_function((dague_handle_t *)__dague_handle,
+                                                  (dague_function_t *)temp_task->super.function, NULL,
+                                                  flow_index, 0, tile_type_index);
+                    
                 }
 
                 tile->last_user.flow_index = flow_index;
