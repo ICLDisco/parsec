@@ -1213,12 +1213,8 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
                 DEBUG3(("  Task %s is immediate and will be executed ASAP\n", tmp1));
-                PINS(EXEC_BEGIN, eu_context, new_context, (void *)1);
                 __dague_execute(eu_context, new_context);
-                PINS(EXEC_END, eu_context, new_context, (void *)1);
-                PINS(COMPLETE_EXEC_BEGIN, eu_context, new_context, (void *)1);
                 __dague_complete_execution(eu_context, new_context);
-                PINS(COMPLETE_EXEC_END, eu_context, new_context, (void *)1);
 #if 0 /* TODO */
                 SET_HIGHEST_PRIORITY(new_context, dague_execution_context_priority_comparator);
                 DAGUE_LIST_ITEM_SINGLETON(&(new_context->list_item));

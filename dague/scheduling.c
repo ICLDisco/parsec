@@ -146,6 +146,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
 
+    PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
     /**
@@ -158,11 +159,14 @@ int __dague_execute( dague_execution_unit_t* eu_context,
                tmp, function->incarnations[exec_context->chore_id].type));
 #endif
         rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
-        if( DAGUE_HOOK_RETURN_NEXT != rc )
+        if( DAGUE_HOOK_RETURN_NEXT != rc ) {
+            PINS(EXEC_END, eu_context, exec_context, NULL);
             return rc;
+        }
         exec_context->chore_id++;
     } while(NULL != function->incarnations[exec_context->chore_id].hook);
     /* We're out of luck, no more chores */
+    PINS(EXEC_END, eu_context, exec_context, NULL  );
     return DAGUE_HOOK_RETURN_ERROR;
 }
 
@@ -306,6 +310,9 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
 {
     int rc = 0;
 
+    /* complete execution==add==push (also includes exec of immediates) */
+    PINS(COMPLETE_EXEC_BEGIN, eu_context, exec_context, NULL);
+
     if( NULL != exec_context->function->prepare_output ) {
         exec_context->function->prepare_output( eu_context, exec_context );
     }
@@ -313,6 +320,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
     __dague_complete_task(exec_context->dague_handle, eu_context->virtual_process->dague_context);
+    PINS(COMPLETE_EXEC_END, eu_context, exec_context, NULL);
     AYU_TASK_COMPLETE(exec_context);
 
     /* Succesfull execution. The context is ready to be released, all
@@ -423,14 +431,9 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
                 PINS(PREPARE_INPUT_END, eu_context, exec_context, NULL);
                 int rv = 0;
                 /* We're good to go ... */
-                PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
                 rv = __dague_execute( eu_context, exec_context );
-                PINS(EXEC_END, eu_context, exec_context, NULL  );
                 if( 0 == rv ) {
-                    /* complete execution==add==push (also includes exec of immediates) */
-                    PINS(COMPLETE_EXEC_BEGIN, eu_context, exec_context, NULL);
                     __dague_complete_execution( eu_context, exec_context );
-                    PINS(COMPLETE_EXEC_END, eu_context, exec_context, NULL);
                 }
                 nbiterations++;
                 break;
