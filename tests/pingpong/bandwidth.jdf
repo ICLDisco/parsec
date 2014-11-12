@@ -117,7 +117,7 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
     f = va_arg(ap, int);
     va_end(ap);
 
-    assert( (f < dat->size) && (f >= 0) );
+    assert( (f < dat->size) && (f >= 0) ); (void)dat;
 
     return (uint32_t)f;
 }
