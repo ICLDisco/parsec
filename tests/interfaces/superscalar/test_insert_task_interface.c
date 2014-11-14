@@ -22,9 +22,26 @@ double time_elapsed = 0.0;
 
 int
 call_to_kernel(dague_execution_context_t * this_task)
-{
-    //printf("Executing Task\n");
-    fflush(stdout);
+{   
+    int *uplo, *uplo2, *uplo1;
+    double *uplo3;
+    dague_data_copy_t *data;
+
+     dague_dtd_unpack_args(this_task,
+                          UNPACK_VALUE, &uplo,
+                          UNPACK_VALUE, &uplo2,
+                          UNPACK_VALUE, &uplo1,
+                          UNPACK_DATA,  &data,
+                          UNPACK_VALUE, &uplo3 
+                        );
+
+
+    printf("Executing Task\n");
+    printf("Parameter 1: %d\n", *uplo);
+    printf("Parameter 2: %d\n", *uplo2);
+    printf("Parameter 3: %d\n", *uplo1);
+    printf("Parameter 4: %p\n", data);
+    printf("Parameter 5: %lf\n", *uplo3);
     return 0;
 }
 
@@ -36,6 +53,7 @@ int main(int argc, char ** argv)
 
     int uplo1=2, uplo2=3;
     double uplo3 = 88.56;
+    dague_ddesc_t *ddesc = malloc(sizeof(dague_ddesc_t));
 
     dague = dague_init(ncores, &argc, &argv);
 
@@ -48,7 +66,7 @@ int main(int argc, char ** argv)
                                  sizeof(int),      &uplo,              VALUE,
                                  sizeof(int),      &uplo2,              VALUE,
                                  sizeof(int),      &uplo1,              VALUE,
-                                 PASSED_BY_REF,    NULL,               INOUT, DEFAULT,
+                                 PASSED_BY_REF,    ddesc,               INOUT, DEFAULT,
                                  sizeof(double),   &uplo3,              VALUE,
                                  0);
     }

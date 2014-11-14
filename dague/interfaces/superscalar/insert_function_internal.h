@@ -30,6 +30,7 @@ struct descendant_info { /* All the fields store info about the descendant excep
     uint8_t flow_index;
     dtd_task_t *task;
 };
+
 struct dtd_task_s {
     dague_execution_context_t super;
     task_func* fpointer;
