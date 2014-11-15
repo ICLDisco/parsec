@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
 
         gettimeofday(&tstart, NULL);
         dague_enqueue(dague, bw_test);
-        dague_progress(dague);
+        dague_context_wait(dague);
         gettimeofday(&tend, NULL);
 
         if( 0 != i ) {

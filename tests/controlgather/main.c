@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     ctlgat = ctlgat_new(ddescA, size, nb);
     dague_enqueue(dague, ctlgat);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     free_data(ddescA);
 

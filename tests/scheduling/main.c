@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
                 dague_enqueue(dague, ep);
 
                 start = take_time();
-                dague_progress(dague);
+                dague_context_wait(dague);
                 end = take_time();
 
                 ep_destroy(ep);

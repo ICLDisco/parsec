@@ -43,7 +43,7 @@ int dplasma_datatype_undefine_type(dague_datatype_t* type);
 #define dplasma_progress( object )              \
     do {                                        \
         /*MPI_Barrier(dplasma_comm);*/              \
-        dague_progress( object );               \
+        dague_context_wait( object );               \
     } while (0)
 
 #else
@@ -62,7 +62,7 @@ int dplasma_datatype_undefine_type(dague_datatype_t* type);
 # define dplasma_datatype_undefine_type( type ) ( *(type) = NULL )
 
 #define dplasma_progress( object )              \
-  dague_progress( object );
+  dague_context_wait( object );
 
 #endif
 

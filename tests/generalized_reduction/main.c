@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
     BT_reduction = BT_reduction_new(ddescA, nb, nt);
     dague_enqueue(dague, BT_reduction);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_handle_free((dague_handle_t*)BT_reduction);
     free_data(ddescA);

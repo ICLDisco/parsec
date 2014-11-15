@@ -170,7 +170,7 @@ int main( int argc, char** argv )
     assert( NULL != handle );
     handle->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
     dague_enqueue( dague, (dague_handle_t*)handle );
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     /* No priority */
     handle = dague_complex_deps_new( &descA, ni, nk );
@@ -189,7 +189,7 @@ int main( int argc, char** argv )
                (double)time_elapsed);
     }
     TIMER_START(time_elapsed);
-    dague_progress(dague);
+    dague_context_wait(dague);
     TIMER_STOP(time_elapsed);
     printf("DAG execution in %ld micro-sec\n", time_elapsed);
 

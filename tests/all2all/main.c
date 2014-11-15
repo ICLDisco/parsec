@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     a2a = a2a_new(ddescA, ddescB, size, repeat);
     dague_enqueue(dague, a2a);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_handle_free(a2a);
     dague_fini(&dague);

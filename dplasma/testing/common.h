@@ -190,7 +190,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
-    dague_progress(DAGUE);                                              \
+    dague_context_wait(DAGUE);                                              \
     if( loud > 3 )                                                      \
         TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \

@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     rtt = rtt_new(ddescA, size, nb);
     dague_enqueue(dague, rtt);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_handle_free((dague_handle_t*)rtt);
 

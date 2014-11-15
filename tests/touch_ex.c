@@ -23,7 +23,7 @@ int main( int argc, char** argv )
 
     dague_enqueue( dague, handle );
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_fini( &dague);
 

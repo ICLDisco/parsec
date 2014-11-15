@@ -104,7 +104,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu) { (vo
 /**
  * Disabled by now.
  */
-int __dague_progress_task( dague_execution_unit_t* eu_context,
+int __dague_context_wait_task( dague_execution_unit_t* eu_context,
                            dague_execution_context_t* task )
 {
     (void)eu_context;
@@ -333,7 +333,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     return rc;
 }
 
-void* __dague_progress( dague_execution_unit_t* eu_context )
+void* __dague_context_wait( dague_execution_unit_t* eu_context )
 {
     uint64_t misses_in_a_row;
     dague_context_t* dague_context = eu_context->virtual_process->dague_context;
@@ -380,7 +380,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
     if( NULL == current_scheduler ) {
-        fprintf(stderr, "DAGuE: Main thread entered dague_progress, while scheduler is not selected yet!\n");
+        fprintf(stderr, "DAGuE: Main thread entered dague_context_wait, while scheduler is not selected yet!\n");
         return (void *)-1;
     }
 
@@ -668,10 +668,10 @@ __dague_context_cas_or_flag(dague_context_t* context,
  * context mutiple times without completions.
  *
  * @returns: 0 if the other threads in this context have been started, -1 if the
- * context was already active, -2 if there was nothing to do and no threads have
+ * context was already active, -2 if there was nothing to do and no threads hav
  * been activated.
  */
-int dague_start( dague_context_t* context )
+int dague_context_start( dague_context_t* context )
 {
     /* No active work */
     if(all_tasks_done(context)) return -2;
@@ -693,7 +693,7 @@ int dague_start( dague_context_t* context )
  *
  * @returns: 0 if the context is active, any other value otherwide.
  */
-int dague_test( dague_context_t* context )
+int dague_context_test( dague_context_t* context )
 {
     return !all_tasks_done(context);
 }
@@ -702,9 +702,9 @@ int dague_test( dague_context_t* context )
  * If the context is active the current thread (which must be the thread that
  * created the context will join the other active threads to complete the tasks
  * enqueued on the context. This function is blocking, the return is only
- * possible upon completion of all tasks on the context.
+ * possible upon completion of all active handles in the context.
  */
-int dague_wait( dague_context_t* context )
+int dague_context_wait( dague_context_t* context )
 {
     int ret = 0;
     if( __dague_context_cas_or_flag(context,
@@ -712,29 +712,7 @@ int dague_wait( dague_context_t* context )
         (void)dague_remote_dep_on(context);
     }
 
-    ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
-
-    context->__dague_internal_finalization_counter++;
-    (void)dague_remote_dep_off(context);
-    context->flags ^= DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN;
-    return ret;
-}
-
-/**
- * Partial progress of an active context. The thread will return upon completion
- * of some amount of pending work.
- *
- * @returns: 0 is the context is still active, any other value otherwise.
- */
-int dague_progress(dague_context_t* context)
-{
-    int ret = 0;
-    if( __dague_context_cas_or_flag(context,
-                                    DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN) ) {
-        (void)dague_remote_dep_on(context);
-    }
-
-    ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
+    ret = (int)(long)__dague_context_wait( context->virtual_processes[0]->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
     (void)dague_remote_dep_off(context);

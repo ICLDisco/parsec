@@ -161,7 +161,7 @@ int main(int argc, char ** argv)
                                 /* lets rock! */
                                 SYNC_TIME_START();
                                 TIME_START();
-                                dague_progress(dague);
+                                dague_context_wait(dague);
 
 #if defined(DAGUE_SIM)
                                 printf("zgeqrf simulation M= %d N= %d qr_a= %d qr_p= %d treel= %d treeh= %d domino= %d RR= %d : %d \n",

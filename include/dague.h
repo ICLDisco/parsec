@@ -40,7 +40,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[]);
  * Reset the remote_dep comm engine associated with @context, and use
  * the communication context @opaque_comm_ctx in the future
  * (typically an MPI communicator);
- *   dague_progress becomes collective accross nodes spanning on this
+ *   dague_context_wait becomes collective accross nodes spanning on this
  *   communication context.
  */
 int dague_remote_dep_set_ctx( dague_context_t* context, void* opaque_comm_ctx );
@@ -61,12 +61,32 @@ int dague_fini( dague_context_t** pcontext );
 int dague_enqueue( dague_context_t* context, dague_handle_t* handle);
 
 /**
- * Progress the execution context until no further operations are available.
- * Upon return from this function, all resources (threads and acclerators)
- * associated with the corresponding context are put in a mode where they
- * are not active.
+ * Start the runtime by allowing all the other threads to start executing.
+ * This call should be paired with one of the completion calls, test or wait.
+ *
+ * @returns: 0 if the other threads in this context have been started, -1 if the
+ * context was already active, -2 if there was nothing to do and no threads hav
+ * been activated.
  */
-int dague_progress(dague_context_t* context);
+int dague_context_start(dague_context_t* context);
+
+/**
+ * Check the status of a context. No progress on the context is guaranteed.
+ *
+ * @returns: 0 if the context is active, any other value otherwide.
+ */
+int dague_context_test( dague_context_t* context );
+
+/**
+ * Progress the execution context until no further operations are available.
+ * Upon return from this function, all resources (threads and accelerators)
+ * associated with the corresponding context are put in a mode where they are
+ * not active. New handles enqueued during the progress stage are automatically
+ * taken into account, and the caller of this function will not return to the
+ * user until all pending handles are completed and all other threads are in a
+ * sleeping mode.
+ */
+int dague_context_wait(dague_context_t* context);
 
 /**
  * HANDLE MANIPULATION FUNCTIONS.
@@ -103,7 +123,7 @@ int dague_handle_register(dague_handle_t* handle);
  */
 void dague_handle_unregister(dague_handle_t* handle);
 /**< globally synchronize object id's so that next register generates the same
- *  * id at all ranks. */
+ *  id at all ranks. */
 void dague_handle_sync_ids(void);
 
 /**

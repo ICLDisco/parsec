@@ -252,7 +252,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         return NULL;
     }
 
-    return __dague_progress(eu);
+    return __dague_context_wait(eu);
 }
 
 static void dague_vp_init( dague_vp_t *vp,

@@ -81,16 +81,16 @@ FUNCTION dague_enqueue_f08(context, handle) &
 END FUNCTION dague_enqueue_f08
 END INTERFACE dague_enqueue_f08
 
-INTERFACE dague_progress_f08
-FUNCTION dague_progress_f08(context) &
-           BIND(C, name="dague_progress")
+INTERFACE dague_context_wait_f08
+FUNCTION dague_context_wait_f08(context) &
+           BIND(C, name="dague_context_wait")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT dague_context_t
     IMPLICIT NONE
     TYPE(dague_context_t), VALUE, INTENT(IN)    :: context
-    INTEGER(KIND=c_int)                         :: dague_progress_f08
-END FUNCTION dague_progress_f08
-END INTERFACE dague_progress_f08
+    INTEGER(KIND=c_int)                         :: dague_context_wait_f08
+END FUNCTION dague_context_wait_f08
+END INTERFACE dague_context_wait_f08
 
 INTERFACE  dague_set_complete_callback_f08
 SUBROUTINE dague_set_complete_callback_f08(handle, complete_cb, &
@@ -179,16 +179,16 @@ SUBROUTINE dague_enqueue(context, handle, ierr)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_enqueue
 
-SUBROUTINE dague_progress(context, ierr)
+SUBROUTINE dague_context_wait(context, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
     TYPE(dague_context_t), INTENT(IN)          :: context
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
 
-    c_err = dague_progress_f08(context)
+    c_err = dague_context_wait_f08(context)
     if(present(ierr)) ierr = c_err
-END SUBROUTINE dague_progress
+END SUBROUTINE dague_context_wait
 
 SUBROUTINE dague_set_complete_callback(handle, complete_cb, &
                                        complete_data, ierr)

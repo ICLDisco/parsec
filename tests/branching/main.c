@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     if( NULL != branching ) {
         dague_enqueue(dague, branching);
 
-        dague_progress(dague);
+        dague_context_wait(dague);
     }
 
 #if defined(DAGUE_PROF_GRAPHER)

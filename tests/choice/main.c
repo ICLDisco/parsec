@@ -50,7 +50,7 @@ int main(int argc, char *argv[])
     choice = choice_new(ddescA, size, decision, nb, world);
     dague_enqueue(dague, choice);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     choice_destroy(choice);
 

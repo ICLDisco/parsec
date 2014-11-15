@@ -68,7 +68,7 @@ int main( int argc, char* argv[] )
                                                NULL);
     dague_enqueue(dague, (dague_handle_t*)object);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_map_operator_Destruct( object );
 
