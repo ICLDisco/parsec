@@ -8,6 +8,8 @@
 #include "data_distribution.h"
 #include "dague.h"
 
+#define DTD_ENABLED
+
 #define INPUT 0x1
 #define OUTPUT 0x2
 #define INOUT 0x3
@@ -31,6 +33,7 @@ typedef struct task_param_s task_param_t;
 typedef struct dtd_task_s dtd_task_t;
 typedef struct dtd_tile_s dtd_tile_t;
 typedef struct dague_dtd_handle_s dague_dtd_handle_t;
+typedef struct __dague_dtd_internal_handle_s __dague_dtd_internal_handle_t;
 
 typedef int (task_func)(dague_execution_context_t*); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
 
@@ -43,3 +46,4 @@ void insert_task_generic_fptr(dague_dtd_handle_t *,
                               task_func *, char *, ...);
 
 void dague_dtd_unpack_args(dague_execution_context_t *this_task, ...);
+void dtd_destructor(__dague_dtd_internal_handle_t * handle);

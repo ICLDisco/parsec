@@ -111,10 +111,10 @@ struct dague_dtd_handle_s {
     int total_task_class;
 };
 
-typedef struct __dague_dtd_internal_handle_s {
+struct __dague_dtd_internal_handle_s {
     dague_dtd_handle_t super;
     data_repo_t *dtd_data_repository;
-} __dague_dtd_internal_handle_t;
+};
 
 
 /* Function prototypes */

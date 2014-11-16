@@ -484,7 +484,7 @@ dtd_startup_tasks(dague_context_t * context,
 }
 
 /* Destruct function */
-static void
+ void
 dtd_destructor(__dague_dtd_internal_handle_t * handle)
 {
     uint32_t i, j;
@@ -538,7 +538,8 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
     }
 
     /* dtd handle specific */
-    dague_mempool_destruct(context_mempool);
+    /*dague_mempool_destruct(context_mempool);
+    context_mempool = NULL;*/
     for (i=0;i<TASK_HASH_TABLE_SIZE;i++){
         free((bucket_element_task_t *)handle->super.task_h_table->buckets[i]);
     }

@@ -875,6 +875,10 @@ int dague_fini( dague_context_t** pcontext )
     }
 #endif
 
+#if defined(DTD_ENABLED)
+    dague_mempool_destruct(context_mempool);
+#endif
+
     dague_handle_empty_repository();
     debug_mark_purge_all_history();
 
