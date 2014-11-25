@@ -191,7 +191,7 @@ int main(int argc, char ** argv)
                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
-        dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
     dague_handle_t* DAGUE_zpotrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
     /* matrix generation */
@@ -214,6 +214,8 @@ int main(int argc, char ** argv)
     sym_two_dim_block_cyclic_t *__ddescA = &ddescA;
     total = ddescA.super.mt;
     SYNC_TIME_START();
+
+    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle); 
 
     /* Testing Insert Function */
     for(k=0;k<total;k++){
@@ -281,8 +283,9 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
     TIME_START();
 
-    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
-    dague_progress(dague);
+    /*dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle); */
+    dague_atomic_add_32b(&DAGUE_dtd_handle->super.nb_local_tasks, 1); 
+    dague_context_wait(dague);
 
 
     if( loud > 3 )

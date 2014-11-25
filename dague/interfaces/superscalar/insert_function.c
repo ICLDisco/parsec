@@ -479,6 +479,7 @@ dtd_startup_tasks(dague_context_t * context,
         vpid = (vpid+1)%context->nb_vp; /* spread the tasks across all the VPs */
         tmp_task = ring;
     }
+    (dague_list_item_t*) dague_dtd_handle->ready_task = NULL; /* can not be any contention */
 
     return 0;
 }
@@ -573,7 +574,7 @@ dtd_startup(dague_context_t * context,
 {
     uint32_t supported_dev = 0;
     __dague_dtd_internal_handle_t *__dague_handle = (__dague_dtd_internal_handle_t *) dague_handle;
-    dague_handle->context = context;
+    /*dague_handle->context = context;*/ /* doing it in dts_new */
 
     /* Create the PINS DATA pointers if PINS is enabled */
 #if defined(PINS_ENABLE)
@@ -605,7 +606,8 @@ dtd_startup(dague_context_t * context,
 
 /* dague_dtd_new() */
 dague_dtd_handle_t *
-dague_dtd_new(int task_class_counter,
+dague_dtd_new(dague_context_t* context, 
+              int task_class_counter,
               int arena_count, int *info)
 {
     int i;
@@ -619,6 +621,7 @@ dague_dtd_new(int task_class_counter,
     __dague_handle->super.function_hash_table_size = function_hash_table_size;
     __dague_handle->super.ready_task = NULL;
     __dague_handle->super.total_task_class = task_class_counter;
+    __dague_handle->super.super.context = context;
 
     __dague_handle->super.task_h_table = (hash_table *)(generic_create_hash_table(__dague_handle->super.task_hash_table_size,
                                                                                   sizeof(bucket_element_task_t*)));
@@ -627,16 +630,16 @@ dague_dtd_new(int task_class_counter,
     __dague_handle->super.function_h_table = (hash_table *)(generic_create_hash_table(__dague_handle->super.function_hash_table_size,
                                                                                       sizeof(bucket_element_f_t *)));
     __dague_handle->super.super.devices_mask = DAGUE_DEVICES_ALL;
-    __dague_handle->super.INFO = info; /* zpotrf specific; should be removed */
+    __dague_handle->super.INFO               = info; /* zpotrf specific; should be removed */
 
-    __dague_handle->super.super.nb_functions = DAGUE_dtd_NB_FUNCTIONS;
+    __dague_handle->super.super.nb_functions    = DAGUE_dtd_NB_FUNCTIONS;
     __dague_handle->super.super.functions_array = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
     for(i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++){
         __dague_handle->super.super.functions_array[i] = NULL;
     }
         //memcpy((dague_function_t *) __dague_handle->super.super.functions_array[0], &dtd_function, sizeof(dague_function_t));
     __dague_handle->super.super.dependencies_array = (dague_dependencies_t **) calloc(DAGUE_dtd_NB_FUNCTIONS, sizeof(dague_dependencies_t *));
-    __dague_handle->super.arenas_size = arena_count;
+    __dague_handle->super.arenas_size              = arena_count;
     __dague_handle->super.arenas = (dague_arena_t **) malloc(__dague_handle->super.arenas_size * sizeof(dague_arena_t *));
     for (i = 0; i < __dague_handle->super.arenas_size; i++) {
         __dague_handle->super.arenas[i] = (dague_arena_t *) calloc(1, sizeof(dague_arena_t));
@@ -648,8 +651,11 @@ dague_dtd_new(int task_class_counter,
     __dague_handle->super.super.profiling_array = calloc (2 * task_class_counter, sizeof(int));
 #endif /* defined(DAGUE_PROF_TRACE) */
 
-    __dague_handle->super.super.startup_hook = dtd_startup;
-    __dague_handle->super.super.destructor = (dague_destruct_fn_t) dtd_destructor;
+    __dague_handle->super.tasks_created         = 0; /* For the bounded window, starting with 0 tasks */ 
+    __dague_handle->super.tasks_scheduled       = 0; /* For the bounded window, starting with 0 tasks */ 
+    __dague_handle->super.super.nb_local_tasks  = -1; /* For the bounded window, starting with -1 task */ 
+    __dague_handle->super.super.startup_hook    = dtd_startup;
+    __dague_handle->super.super.destructor      = (dague_destruct_fn_t) dtd_destructor;
 
     /* initializing mempool_context here */
     if(NULL == context_mempool){
@@ -1373,11 +1379,14 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
                 tile->last_user.task = temp_task;
                 flow_index++;
             }
-        }else {
-                memcpy(current_val, tmp, next_arg);
-                current_param->pointer_to_tile = current_val;
-                current_val = ((char*)current_val) + next_arg;
-            }
+        } else if (tile_op_type == SCRATCH){
+            current_param->pointer_to_tile = malloc(next_arg);        
+        
+        } else {
+            memcpy(current_val, tmp, next_arg);
+            current_param->pointer_to_tile = current_val;
+            current_val = ((char*)current_val) + next_arg;
+        }
         current_param->operation_type = tile_op_type;
         
         tmp_param = current_param;
@@ -1411,7 +1420,13 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     temp_task->super.chore_id = 0;
     temp_task->super.unused = 0;
 
-
+    if(!__dague_handle->super.context->active_objects) {
+        printf("Context not attached\n");
+        task_id++;
+        __dague_execute(__dague_handle->super.context->virtual_processes[0]->execution_units[0], (dague_execution_context_t *)temp_task);  /* executing the tasks as soon as we find it if no engine is attached */        
+        return;
+    }
+ 
     /* Building list of initial ready task */
     if(temp_task->total_flow == temp_task->flow_count) {
         DAGUE_LIST_ITEM_SINGLETON(temp_task);
@@ -1432,7 +1447,72 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
     task_id++;
     _internal_task_counter++;
-    __dague_handle->super.nb_local_tasks = _internal_task_counter;
+    /* __dague_handle->super.nb_local_tasks = _internal_task_counter; */
+    __dague_handle->super.nb_local_tasks++;
+    __dague_handle->tasks_created = _internal_task_counter;
+
+    int task_window_size = 10;
+    static int first_time = 1;
+
+    if((__dague_handle->tasks_created % task_window_size) == 0 ){
+        dague_execution_context_t **startup_list;
+        startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*));
+
+        int vpid = 0;
+        /* from here dtd_task specific loop starts*/
+        dague_list_item_t *tmp_task = (dague_list_item_t*) __dague_handle->ready_task;
+        dague_list_item_t *ring;
+
+        while(NULL != tmp_task) {
+            ring = dague_list_item_ring_chop (tmp_task);
+            DAGUE_LIST_ITEM_SINGLETON(tmp_task);
+
+            if (NULL != startup_list[vpid]) {
+                dague_list_item_ring_merge((dague_list_item_t *)tmp_task,
+                               (dague_list_item_t *) (startup_list[vpid]));
+            }
+
+            startup_list[vpid] = (dague_execution_context_t*)tmp_task;
+            vpid = (vpid+1)%__dague_handle->super.context->nb_vp; /* spread the tasks across all the VPs */
+            tmp_task = ring;
+        }
+        (dague_list_item_t*) __dague_handle->ready_task = NULL; /* can not be any contention */
+
+        int p;
+        for(p = 0; p < vpmap_get_nb_vp(); p++) {
+            if( NULL != startup_list[p] ) {
+                dague_list_t temp;
+
+                OBJ_CONSTRUCT( &temp, dague_list_t );
+                /* Order the tasks by priority */
+                dague_list_chain_sorted(&temp, (dague_list_item_t*)startup_list[p],
+                                        dague_execution_context_priority_comparator);
+                startup_list[p] = (dague_execution_context_t*)dague_list_nolock_unchain(&temp);
+                OBJ_DESTRUCT(&temp);
+                /* We should add these tasks on the system queue when there is one */
+                __dague_schedule( __dague_handle->super.context->virtual_processes[p]->execution_units[0], startup_list[p] );
+            }
+        }
+        free(startup_list);
+        first_time = 0;
+    }
+
+    /*static int first_time = 1;
+    int task_window_size = 50;
+    if((__dague_handle->tasks_created % task_window_size) == 0){
+            dague_atomic_add_32b(&__dague_handle->super.nb_local_tasks, task_window_size);
+            __dague_handle->tasks_scheduled += task_window_size;
+            dague_enqueue(__dague_handle->super.context, (dague_handle_t*) __dague_handle);
+        printf("Status of context from test: %d\n", dague_context_test(__dague_handle->super.context));
+        //if(!dague_context_test(__dague_handle->super.context)) {
+        if(first_time) {
+            printf("Activating\n");
+            printf("status of context: %d\n", dague_context_start(__dague_handle->super.context));
+            first_time = 0;
+        }else {
+            printf("Already active so not activating again\n");
+        }
+    }*/
 }
 
 static void

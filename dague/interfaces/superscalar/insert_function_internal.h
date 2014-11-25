@@ -109,6 +109,8 @@ struct dague_dtd_handle_s {
     hash_table *tile_h_table; // ready task list head
     dtd_task_t *ready_task; //ring of initial ready tasks
     int total_task_class;
+    int tasks_created;
+    int tasks_scheduled;
 };
 
 struct __dague_dtd_internal_handle_s {

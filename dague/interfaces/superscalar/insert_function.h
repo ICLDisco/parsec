@@ -13,6 +13,7 @@
 #define INPUT 0x1
 #define OUTPUT 0x2
 #define INOUT 0x3
+#define SCRATCH 0x8
 #define VALUE 0x20
 #define AFFINITY 0x4
 #define DEFAULT 0x1
@@ -40,7 +41,7 @@ typedef int (task_func)(dague_execution_context_t*); /* Function pointer typeof 
 dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                         dague_ddesc_t *ddesc, int i, int j);
 
-dague_dtd_handle_t* dague_dtd_new(int, int, int* );
+dague_dtd_handle_t* dague_dtd_new(dague_context_t *, int, int, int* );
 
 void insert_task_generic_fptr(dague_dtd_handle_t *,
                               task_func *, char *, ...);
