@@ -92,6 +92,28 @@ FUNCTION dague_context_wait_f08(context) &
 END FUNCTION dague_context_wait_f08
 END INTERFACE dague_context_wait_f08
 
+INTERFACE dague_context_start_f08
+FUNCTION dague_context_start_f08(context) &
+           BIND(C, name="dague_context_start")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPORT dague_context_t
+    IMPLICIT NONE
+    TYPE(dague_context_t), VALUE, INTENT(IN)    :: context
+    INTEGER(KIND=c_int)                         :: dague_context_start_f08
+END FUNCTION dague_context_start_f08
+END INTERFACE dague_context_start_f08
+
+INTERFACE dague_context_test_f08
+FUNCTION dague_context_test_f08(context) &
+           BIND(C, name="dague_context_test")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPORT dague_context_t
+    IMPLICIT NONE
+    TYPE(dague_context_t), VALUE, INTENT(IN)    :: context
+    INTEGER(KIND=c_int)                         :: dague_context_test_f08
+END FUNCTION dague_context_test_f08
+END INTERFACE dague_context_test_f08
+
 INTERFACE  dague_set_complete_callback_f08
 SUBROUTINE dague_set_complete_callback_f08(handle, complete_cb, &
                                            complete_data, ierr) &
@@ -189,6 +211,26 @@ SUBROUTINE dague_context_wait(context, ierr)
     c_err = dague_context_wait_f08(context)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_context_wait
+
+SUBROUTINE dague_context_start(context, ierr)
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPLICIT NONE
+    TYPE(dague_context_t), INTENT(IN)          :: context
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
+    INTEGER(KIND=C_INT)                        :: c_err
+
+    c_err = dague_context_start_f08(context)
+    if(present(ierr)) ierr = c_err
+END SUBROUTINE dague_context_start
+
+SUBROUTINE dague_context_test(context, ierr)
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPLICIT NONE
+    TYPE(dague_context_t), INTENT(IN)          :: context
+    INTEGER(KIND=C_INT), INTENT(OUT)           :: ierr
+
+    ierr = dague_context_test_f08(context)
+END SUBROUTINE dague_context_test
 
 SUBROUTINE dague_set_complete_callback(handle, complete_cb, &
                                        complete_data, ierr)
