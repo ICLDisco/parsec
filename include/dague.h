@@ -55,8 +55,10 @@ int dague_fini( dague_context_t** pcontext );
 
 /**
  * Attach an execution handle on a context, in other words on the set of
- * resources associated to this particular context. This operation will
- * define if accelerators can be used for the execution.
+ * resources associated to this particular context. A matching between
+ * the capabilitis of the context and the support from the handle will be
+ * done during this step, which will basically define if accelerators can
+ * be used for the execution.
  */
 int dague_enqueue( dague_context_t* context, dague_handle_t* handle);
 
@@ -73,7 +75,8 @@ int dague_context_start(dague_context_t* context);
 /**
  * Check the status of a context. No progress on the context is guaranteed.
  *
- * @returns: 0 if the context is active, any other value otherwide.
+ * @returns: 0 if the context is active, a negative value to indicate an error, or
+ *           any positive value to indicate that the context is not active.
  */
 int dague_context_test( dague_context_t* context );
 
