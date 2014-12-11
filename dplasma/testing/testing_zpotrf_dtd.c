@@ -34,7 +34,7 @@ call_to_kernel_PO(dague_execution_context_t * this_task)
     void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)data); 
 
     CORE_zpotrf(*uplo, *tempkm, TT, *ldak, iinfo);
-
+    
     return DAGUE_HOOK_RETURN_DONE;
 }
 
@@ -215,7 +215,7 @@ int main(int argc, char ** argv)
     total = ddescA.super.mt;
     SYNC_TIME_START();
 
-    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle); 
+    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);  
 
     /* Testing Insert Function */
     for(k=0;k<total;k++){
@@ -280,8 +280,8 @@ int main(int argc, char ** argv)
         }
     }
 
-    SYNC_TIME_START();
-    TIME_START();
+    /*SYNC_TIME_START();
+    TIME_START();*/
 
     /*dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle); */
     dague_atomic_add_32b(&DAGUE_dtd_handle->super.nb_local_tasks, 1); 
