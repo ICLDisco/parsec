@@ -79,7 +79,7 @@ endif( DAGUE_PROF_GRAPHER )
 # Setup targets
 #
 if( BUILD_DAGUE )
-  add_library(dague-base STATIC ${BASE_SOURCES})
+  add_library(dague-base ${BASE_SOURCES})
   set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   set_target_properties(dague-base PROPERTIES POSITION_INDEPENDENT_CODE ON)
   if (MPI_C_FOUND)
@@ -87,16 +87,20 @@ if( BUILD_DAGUE )
   endif (MPI_C_FOUND)
   target_link_libraries(dague-base ${EXTRA_LIBS})
 
-  install(TARGETS dague-base ARCHIVE DESTINATION lib)
+  install(TARGETS dague-base
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib)
 
-  add_library(dague STATIC ${SOURCES})
+  add_library(dague ${SOURCES})
   set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   if (MPI_C_FOUND)
     set_target_properties(dague PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
   target_link_libraries(dague dague-base ${EXTRA_LIBS})
 
-  install(TARGETS dague ARCHIVE DESTINATION lib)
+  install(TARGETS dague
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib)
 
   install(FILES utils/help-mca-param.txt DESTINATION share/dague)
 ENDIF( BUILD_DAGUE )
