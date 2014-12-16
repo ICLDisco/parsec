@@ -71,6 +71,8 @@ int queue_add_begin, queue_add_end;
 int queue_remove_begin, queue_remove_end;
 #endif  /* defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS) */
 int device_delegate_begin, device_delegate_end;
+int arena_memory_alloc_key, arena_memory_free_key;
+int task_memory_alloc_key, task_memory_free_key;
 #endif  /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_HWLOC
@@ -588,6 +590,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                                 0, NULL,
                                                 &queue_remove_begin, &queue_remove_end);
 #  endif /* DAGUE_PROF_TRACE_SCHEDULING_EVENTS */
+        dague_profiling_add_dictionary_keyword( "ARENA_MEMORY", "fill:#B9B243",
+                                                sizeof(size_t), "",
+                                                &arena_memory_alloc_key, &arena_memory_free_key);
+        dague_profiling_add_dictionary_keyword( "TASK_MEMORY", "fill:#B9B243",
+                                                sizeof(size_t), "",
+                                                &task_memory_alloc_key, &task_memory_free_key);
         dague_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);

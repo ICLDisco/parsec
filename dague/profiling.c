@@ -24,6 +24,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "profiling.h"
 #include "dbp.h"
@@ -89,7 +90,8 @@ static int file_backend_extendable;
 
 static dague_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
-
+static pthread_key_t thread_specific_profiling_key;
+ 
 static void set_last_error(const char *format, ...)
 {
     va_list ap;
@@ -134,6 +136,8 @@ int dague_profiling_init( void )
     long ps;
 
     if( __profile_initialized ) return -1;
+
+    pthread_key_create(&thread_specific_profiling_key, NULL);
 
     OBJ_CONSTRUCT( &threads, dague_list_t );
 
@@ -240,6 +244,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
         fprintf(stderr, "*** %s\n", dague_profiling_strerror());
         return NULL;
     }
+    pthread_setspecific(thread_specific_profiling_key, res);
 
     OBJ_CONSTRUCT(res, dague_list_item_t);
     va_start(ap, format);
@@ -532,10 +537,29 @@ dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
     return 0;
 }
 
+int
+dague_profiling_ts_trace_flags(int key,
+                               uint64_t event_id, uint32_t object_id,
+                               void *info, uint16_t flags)
+{
+    dague_thread_profiling_t* context = (dague_thread_profiling_t*)
+        pthread_getspecific(thread_specific_profiling_key);
+    return dague_profiling_trace_flags(context, key, event_id, object_id,
+                                       info, flags);
+}
+
 int dague_profiling_trace( dague_thread_profiling_t* context, int key,
                            uint64_t event_id, uint32_t handle_id, void *info )
 {
     return dague_profiling_trace_flags( context, key, event_id, handle_id, info, 0 );
+}
+
+int dague_profiling_ts_trace(int key, uint64_t event_id, uint32_t object_id, void *info)
+{
+    dague_thread_profiling_t* context = (dague_thread_profiling_t*)
+        pthread_getspecific(thread_specific_profiling_key);
+    return dague_profiling_trace_flags(context, key, event_id, object_id,
+                                       info, 0);
 }
 
 static int64_t dump_global_infos(int *nbinfos)
