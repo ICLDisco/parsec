@@ -54,6 +54,11 @@ if (MPI_C_FOUND)
     set_target_properties(dague_distribution_matrix PROPERTIES COMPILE_FLAGS
                           "${MPI_C_COMPILE_FLAGS}")
 endif(MPI_C_FOUND)
+
+target_link_libraries(dague_distribution_matrix
+  dague_distribution
+)
+
 install(TARGETS dague_distribution_matrix
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib)

@@ -18,7 +18,7 @@ static MPI_Datatype block;
  *
  * @return the dague object to schedule.
  */
-dague_handle_t *merge_sort_new(struct tiled_matrix_desc_t *A, int nb, int nt)
+dague_handle_t *merge_sort_new(tiled_matrix_desc_t *A, int nb, int nt)
 {
     dague_merge_sort_handle_t *o = NULL;
 

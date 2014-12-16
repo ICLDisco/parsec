@@ -205,7 +205,7 @@ add_dependencies(dplasma
 target_link_libraries(dplasma
   dplasma_cores
   ${COREBLAS_LIBRARIES}
-  dague dague_distribution_matrix
+  dague dague-base dague_distribution_matrix
   ${EXTRA_LIBS}
 )
 
@@ -217,3 +217,7 @@ add_dependencies(dplasma dplasma_includes)
 install(TARGETS dplasma
         ARCHIVE DESTINATION lib
         LIBRARY DESTINATION lib)
+
+### install the dplasma headers
+install(FILES
+  DESTINATION include)

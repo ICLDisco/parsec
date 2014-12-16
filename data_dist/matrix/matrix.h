@@ -120,20 +120,20 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
 extern void
 dague_map_operator_Destruct( dague_handle_t* o );
 
-extern struct dague_handle_t*
+extern dague_handle_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t op,
                       void* op_data );
 
-extern void dague_reduce_col_Destruct( struct dague_handle_t *o );
+extern void dague_reduce_col_Destruct( dague_handle_t *o );
 
-extern struct dague_handle_t*
+extern dague_handle_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t op,
                       void* op_data );
-extern void dague_reduce_row_Destruct( struct dague_handle_t *o );
+extern void dague_reduce_row_Destruct( dague_handle_t *o );
 
 /*
  * Macro to get the block leading dimension

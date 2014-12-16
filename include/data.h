@@ -75,7 +75,7 @@ struct dague_data_copy_s {
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
     dague_data_status_t      data_transfer_status;   /** three status */
-    struct dague_execution_context_t *push_task;            /** the task who actually do the PUSH */
+    dague_execution_context_t *push_task;            /** the task who actually do the PUSH */
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 

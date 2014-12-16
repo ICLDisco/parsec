@@ -13,12 +13,12 @@ static MPI_Datatype block;
 
 /**
  * @param [IN] A    the data, already distributed and allocated
- * @param [IN] nb   tile size 
+ * @param [IN] nb   tile size
  * @param [IN] nt   number of tiles
  *
  * @return the dague object to schedule.
  */
-dague_handle_t *BT_reduction_new(struct tiled_matrix_desc_t *A, int nb, int nt)
+dague_handle_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
 {
     dague_BT_reduction_handle_t *o = NULL;
 
@@ -27,10 +27,10 @@ dague_handle_t *BT_reduction_new(struct tiled_matrix_desc_t *A, int nb, int nt)
 #if defined(HAVE_MPI)
     {
         MPI_Aint extent;
-    	MPI_Type_contiguous(nb, MPI_INT, &block);
+        MPI_Type_contiguous(nb, MPI_INT, &block);
         MPI_Type_commit(&block);
 #if defined(HAVE_MPI_20)
-        MPI_Aint lb = 0; 
+        MPI_Aint lb = 0;
         MPI_Type_get_extent(block, &lb, &extent);
 #else
         MPI_Type_extent(block, &extent);
