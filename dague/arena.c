@@ -12,11 +12,12 @@
 #if defined(DAGUE_PROF_TRACE)
 #include "profiling.h"
 extern int arena_memory_alloc_key, arena_memory_free_key;
-#define TRACE_MALLOC(size, ptr) dague_profiling_ts_trace(arena_memory_alloc_key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, &size)
-#define TRACE_FREE(ptr)         dague_profiling_ts_trace(arena_memory_free_key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, NULL)
+extern int arena_memory_used_key, arena_memory_unused_key;
+#define TRACE_MALLOC(key, size, ptr) dague_profiling_ts_trace(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, &size)
+#define TRACE_FREE(key, ptr)         dague_profiling_ts_trace(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, NULL)
 #else
-#define TRACE_MALLOC(size, ptr) do {} while (0)
-#define TRACE_FREE(ptr) do {} while (0)
+#define TRACE_MALLOC(key, size, ptr) do {} while (0)
+#define TRACE_FREE(key, ptr) do {} while (0)
 #endif
 
 #define DAGUE_ARENA_MIN_ALIGNMENT(align) ((ptrdiff_t)(align*((sizeof(dague_arena_chunk_t)-1)/align+1)))
@@ -50,7 +51,7 @@ void dague_arena_destruct(dague_arena_t* arena)
     while(NULL != (item = dague_lifo_pop(&arena->area_lifo))) {
         DEBUG3(("Arena:\tfree element base ptr %p, data ptr %p (from arena %p)\n",
                 item, ((dague_arena_chunk_t*)item)->data, arena));
-        TRACE_FREE(item);
+        TRACE_FREE(arena_memory_free_key, item);
         arena->data_free(item);
     }
     OBJ_DESTRUCT(&arena->area_lifo);
@@ -65,7 +66,7 @@ freelist_pop_or_create( dague_lifo_t *list, size_t size, dague_data_allocate_t a
         if( size < sizeof( dague_list_item_t ) )
             size = sizeof( dague_list_item_t );
         item = (dague_list_item_t *)alloc( size );
-        TRACE_MALLOC(size, item);
+        TRACE_MALLOC(arena_memory_alloc_key, size, item);
         OBJ_CONSTRUCT(item, dague_list_item_t);
         assert(NULL != item);
     }
@@ -89,8 +90,9 @@ dague_data_copy_t *dague_arena_get_copy(dague_arena_t *arena, size_t count, int 
         size = DAGUE_ALIGN(arena->elem_size * count + arena->alignment + sizeof(dague_arena_chunk_t),
                            arena->alignment, size_t);
         chunk = (dague_arena_chunk_t*)arena->data_malloc(size);
-        TRACE_MALLOC(size, chunk);
+        TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
     }
+    TRACE_MALLOC(arena_memory_used_key, size, chunk);
     data->nb_elts = count * arena->elem_size;
 
 #if defined(DAGUE_DEBUG_ENABLE)
@@ -135,11 +137,12 @@ void dague_arena_release(dague_data_copy_t* copy)
     if( NULL != data )
         dague_data_copy_detach( data, copy, 0 );
 
+    TRACE_FREE(arena_memory_unused_key, chunk);
     if(chunk->count > 1 || arena->released >= arena->max_released) {
         DEBUG2(("Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
                 arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(dague_arena_chunk_t),
                 DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
-        TRACE_FREE(chunk);
+        TRACE_FREE(arena_memory_free_key, chunk);
         arena->data_free(chunk);
     } else {
         DEBUG2(("Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
