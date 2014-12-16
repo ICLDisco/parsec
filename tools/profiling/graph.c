@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "graph.h"
 
 #include <assert.h>
@@ -44,7 +50,7 @@ unsigned int add_node(node_info_t *info)
     n->succ            = NULL;
     n->nbpred          = 0;
     n->pred            = NULL;
-    
+
     n->rnode           = NULL;
 
     if( nb_nodes + 1 > nb_allocated_nodes ) {
@@ -203,7 +209,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
     unsigned int nid;
     int n = 0, s;
     unsigned long long oid;
-    int rc;
+    int rc; (void)rc;
 
     f = fopen(filename, "r");
     if( f == NULL ) {
@@ -277,7 +283,7 @@ int add_edges_from_dotfile(const char *filename)
         perror(filename);
         return 0;
     }
-    
+
     while( !feof(f) ) {
         (void)fgets(line, 4096, f);
         for(s = 0, l = line; *l != '\n' && *l != '\0' && s < 4095; l++, s++) /*nothing*/;
@@ -294,7 +300,7 @@ int add_edges_from_dotfile(const char *filename)
         if( n2 == NID ) {
             continue;
         }
-        
+
         add_edge(n1, n2);
         e++;
     }
@@ -309,7 +315,7 @@ void set_node_status(unsigned int node, int status_bits)
 {
     assert(node < nb_nodes);
     nodes[node]->status |= status_bits;
-    
+
     update_node_display(node);
 }
 
@@ -328,7 +334,7 @@ void update_neighbors_status(unsigned int node)
 
     assert( node < nb_nodes );
     assert( nodes[node]->status & STATUS_DONE );
-    
+
     for(i = 0; i < nodes[node]->nbsucc; i++) {
         n = nodes[ nodes[node]->succ[i] ];
         if( n->status & (STATUS_DONE|STATUS_RUNNING) )
@@ -374,7 +380,7 @@ static void update_node_display(unsigned int node)
         }  else {
             agsafeset(nn, "color", "black", "");
             agsafeset(nn, "fillcolor", "white", "");
-            agsafeset(nn, "fontcolor", "black", "");            
+            agsafeset(nn, "fontcolor", "black", "");
         }
     }
 }
@@ -424,11 +430,11 @@ static Agedge_t *edge(Agnode_t *t, Agnode_t *h)
 static char *nodename(unsigned int n)
 {
     char *name;
-    int rc;
+    int rc; (void)rc;
 
     assert( n < nb_nodes );
     rc = asprintf(&name, "%s(%s)", nodes[n]->info.task_name, nodes[n]->info.task_parameters);
-    assert(rc!=-1);
+    assert(rc != -1);
     return name;
 }
 
@@ -548,11 +554,11 @@ void persistentGraphClose(void)
     unsigned int i;
 
     gvFreeLayout(gvc, persistentGraph);
-    
+
     for(i = 0; i < nb_nodes; i++) {
         nodes[i]->rnode = NULL;
     }
-    
+
     agclose(persistentGraph);
     persistentGraph = NULL;
 }

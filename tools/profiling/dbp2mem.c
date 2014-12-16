@@ -113,9 +113,12 @@ static int find_references( FILE *tracefile, char *dico_name,
         dico = dbp_reader_get_dictionary(dbp, i);
         if( !strcmp(dbp_dictionary_name(dico), dico_name) ) {
             dico_id = i;
-            break;
+            goto keep_going;
         }
     }
+    fprintf(stderr, "Dictionary entry %s not found in %s\n", dico_name, filename);
+    return -1;
+  keep_going:
     if( i == dbp_reader_nb_dictionary_entries(dbp)) {
         fprintf(stderr, "Unable to find the dictionary entry called '%s'\n", dico_name);
         return -1;

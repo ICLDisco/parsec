@@ -1747,6 +1747,7 @@ static void jdf_generate_direct_data_function(const jdf_t *jdf, const char *mem,
     string_arena_free(sa3);
     string_arena_free(sa4);
     string_arena_free(sa5);
+    (void)jdf;
 }
 
 static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_dep_t *dep,

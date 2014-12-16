@@ -1,11 +1,18 @@
-#include <errno.h>
-#include <stdio.h>
+/*
+ * Copyright (c) 2013-2014 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #include "dague/mca/pins/pins.h"
 #include "pins_iterators_checker.h"
 #include "profiling.h"
 #include "execution_unit.h"
 #include "data.h"
+
+#include <errno.h>
+#include <stdio.h>
 
 /* init functions */
 static void pins_init_iterators_checker(dague_context_t * master_context);
@@ -15,10 +22,6 @@ static void pins_fini_iterators_checker(dague_context_t * master_context);
 static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_unit,
                                                dague_execution_context_t * exec_context,
                                                void * data);
-static void iterators_checker_exec_count_end(dague_execution_unit_t * exec_unit,
-                                             dague_execution_context_t * exec_context,
-                                             void * data);
-
 const dague_pins_module_t dague_pins_iterators_checker_module = {
     &dague_pins_iterators_checker_component,
     {
@@ -69,12 +72,13 @@ static dague_ontask_iterate_t print_link(dague_execution_unit_t *eu,
     fprintf(stderr, "PINS ITERATORS CHECKER::   %s that runs on rank %d, vpid %d is a %s of %s that runs on rank %d.\n",
             new_str, dst_rank, dst_vpid, info, old_str, src_rank);
 
+    (void)eu; (void)dep; (void)data;
     return DAGUE_ITERATE_CONTINUE;
 }
 
 static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_unit,
                                                dague_execution_context_t * exec_context,
-                                               void *_data) 
+                                               void *_data)
 {
     char  str[TASK_STR_LEN];
     const dep_t *final_deps[MAX_PARAM_COUNT];

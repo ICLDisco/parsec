@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -21,12 +21,10 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     //PLASMA_enum trans = PlasmaNoTrans;
     PLASMA_enum trans = PlasmaTrans;
-    int info = 0;
     int ret = 0;
 
     int Aseed = 100;
     int Bseed = 100;
-    int Cseed = 2873;
 
     dague_complex64_t alpha =  1;
     dague_complex64_t beta  = 1;
