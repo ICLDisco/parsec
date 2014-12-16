@@ -37,6 +37,11 @@ int dague_arena_construct(dague_arena_t* arena,
     arena->alignment = alignment;
     arena->elem_size = elem_size;
     arena->opaque_dtt = opaque_dtt;
+    arena->max_used = 0;
+    arena->released = 0;
+    /* By default, we accept a free when we have already 64MB of available memory in the free list */
+    arena->max_released = 64 * (1 << 20) / elem_size;
+
     arena->data_malloc = dague_data_allocate;
     arena->data_free = dague_data_free;
     return 0;
