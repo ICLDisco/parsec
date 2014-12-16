@@ -18,10 +18,6 @@
 #include "dbp.h"
 #include "dbpreader.h"
 
-static char **type_strings = NULL;
-static int   *type_indexes = NULL;
-static int  nbtypes = 0;
-
 typedef struct memalloc_event_s {
     uint64_t time;
     uint64_t ptr;
@@ -47,25 +43,9 @@ void insert_event(memalloc_event_t *event) {
     }
 }
 
-#if DAGUE_DEBUG_VERBOSE >= 2
-#define DEBUG(toto) output toto
-#else
-#define DEBUG(toto) do {} while(0)
-#endif
-#define WARNING(toto) output toto
-
-static void output(const char *format, ...)
-{
-    va_list ap;
-    va_start(ap, format);
-    vfprintf(stderr, format, ap);
-    va_end(ap);
-}
-
 static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dico_id, int nid, int tid)
 {
     uint64_t k;
-    uint64_t start, end;
     dbp_event_iterator_t *it;
     const dbp_event_t *e;
     const dbp_thread_t *th = dbp_file_get_thread( dbp_reader_get_file(dbp, nid), tid);
@@ -120,21 +100,19 @@ static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dic
     dbp_iterator_delete(it);
 }
 
-static int find_references( const char* filename, char *dico_name, const dbp_multifile_reader_t *dbp)
+static int find_references( FILE *tracefile, char *dico_name,
+                            char key, const dbp_multifile_reader_t *dbp)
 {
     int i, ifd, t;
     dbp_dictionary_t *dico;
-    FILE* tracefile;
     memalloc_event_t *e, *a, *f, *p;
     long long int allocated;
     int dico_id;
-    char *dico_string;
 
     for(i = 0; i < dbp_reader_nb_dictionary_entries(dbp); i++) {
         dico = dbp_reader_get_dictionary(dbp, i);
         if( !strcmp(dbp_dictionary_name(dico), dico_name) ) {
             dico_id = i;
-            dico_string = strdup( dbp_dictionary_name(dico) );
             break;
         }
     }
@@ -142,18 +120,6 @@ static int find_references( const char* filename, char *dico_name, const dbp_mul
         fprintf(stderr, "Unable to find the dictionary entry called '%s'\n", dico_name);
         return -1;
     }
-
-    tracefile = fopen(filename, "w");
-    if( NULL == tracefile ) {
-        fprintf(stderr, "Unable to open %s in write mode: %s\n", filename, strerror(errno));
-        return -1;
-    }
-
-    fprintf(tracefile, "#Date ");
-    for( ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
-        fprintf(tracefile, "Rank%d ", ifd);
-    }
-    fprintf(tracefile, "\n");
 
     for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
         for(t = 0; t < dbp_file_nb_threads(dbp_reader_get_file(dbp, ifd)); t++) {
@@ -186,7 +152,7 @@ static int find_references( const char* filename, char *dico_name, const dbp_mul
                     allocated -= e->buddy->size;
                 }
             }
-            fprintf(tracefile, "%llu %d %lld\n", e->time, ifd, allocated);
+            fprintf(tracefile, "%" PRIu64 " %d %c %lld\n", e->time, ifd, key, allocated);
         }
 
         p = NULL;
@@ -198,13 +164,14 @@ static int find_references( const char* filename, char *dico_name, const dbp_mul
         EVENTS = NULL;
     }
 
-    fclose(tracefile);
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
     dbp_multifile_reader_t *dbp;
+    const char *filename = "out.dat";
+    FILE* tracefile;
 
     dbp = dbp_reader_open_files(argc-1, argv+1);
     printf("DBP files read\n");
@@ -212,9 +179,17 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    find_references("out.dta", "ARENA_MEMORY", dbp);
+    tracefile = fopen(filename, "w");
+    if( NULL == tracefile ) {
+        fprintf(stderr, "Unable to open %s in write mode: %s\n", filename, strerror(errno));
+        return -1;
+    }
+    fprintf(tracefile, "#Date Rank Type Amount\n");
 
+    find_references(tracefile, "ARENA_MEMORY",     'M', dbp);
+    find_references(tracefile, "ARENA_ACTIVE_SET", 'A', dbp);
     dbp_reader_close_files(dbp);
 
+    fclose(tracefile);
     return 0;
 }
