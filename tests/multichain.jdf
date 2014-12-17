@@ -1,0 +1,161 @@
+extern "C" %{
+/**
+ * Copyright (c) 2014      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include <sys/time.h>
+#include <inttypes.h>
+#include <string.h>
+#include <stdlib.h>
+
+#define BLOCK 10
+#define N     100
+#define NN    2
+#define TYPE  matrix_RealFloat
+
+%}
+
+A          [type = "two_dim_block_cyclic_t*"]
+B          [type = "two_dim_block_cyclic_t*" aligned=A]
+NI         [type = int]
+NJ         [type = int]
+
+HORIZONTAL(i)
+
+  i = 0 .. NI-1
+
+: A(i, 0)
+
+READ A <- A(i, 0)
+       -> A VERTICAL(i, 0)
+RW   B <- (i == 0)      ? B(i, 0) : B HORIZONTAL(i-1)
+       -> (i != (NI-1)) ? B HORIZONTAL(i+1)
+BODY
+     printf("HORIZONTAL(%d)\n", i);
+END
+
+VERTICAL(i, j)
+  i = 0 .. NI-1
+  j = 0 .. NJ-1
+
+: A(i, 0)
+
+READ A <- (j == 0)      ? A HORIZONTAL(i) : A VERTICAL(i, j-1)
+       -> (j != (NJ-1)) ? A VERTICAL(i, j+1)
+RW   B <- (i == 0)      ? B(i, 0) : B VERTICAL(i-1, j)
+       -> (i != (NI-1)) ? B VERTICAL(i+1, j) : B(i, 0)
+BODY
+     printf("VERTICAL(%d, %d)\n", i, j);
+END
+
+extern "C" %{
+
+#define TIMER_START(TIMER)                      \
+    do {                                        \
+        struct timeval tv;                      \
+        gettimeofday(&tv,NULL);                 \
+        (TIMER) = tv.tv_sec * 1e6 + tv.tv_usec; \
+    } while (0)
+
+#define TIMER_STOP(TIMER)                                   \
+    do {                                                    \
+        struct timeval tv;                                  \
+        gettimeofday(&tv,NULL);                             \
+        (TIMER) = (tv.tv_sec * 1e6 + tv.tv_usec) - (TIMER); \
+    } while (0)
+
+int main(int argc, char* argv[])
+{
+    dague_multichain_handle_t* handle;
+    two_dim_block_cyclic_t descA, descB;
+    dague_arena_t arena;
+    dague_context_t *dague;
+    int ni = NN, nj = NN, verbose = 0, i = 1;
+    int rank = 0, size = 1, mat_size;
+    long time_elapsed;
+
+    while( NULL != argv[i] ) {
+        if( 0 == strncmp(argv[i], "-i=", 3) ) {
+            ni = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-j=", 3) ) {
+            nj = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-v=", 3) ) {
+            verbose = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        i++;  /* skip this one */
+        continue;
+    move_and_continue:
+        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
+        argc -= 1;
+    }
+#ifdef DISTRIBUTED
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif  /* DISTRIBUTED */
+    dague = dague_init(1, &argc, &argv);
+    assert( NULL != dague );
+
+    /**
+     * Build the data and the arena to hold it up.
+     */
+    mat_size = 2*BLOCK*size*NN;
+    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+                               size /*nodes*/, rank /*rank*/,
+                               2*BLOCK, 1, mat_size, 1,
+                               0, 0, mat_size, 1, 1, 1, 1);
+    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     dague_datadist_getsizeoftype(TYPE) );
+    two_dim_block_cyclic_init( &descB, TYPE, matrix_Tile,
+                               size /*nodes*/, rank /*rank*/,
+                               2*BLOCK, 1, mat_size, 1,
+                               0, 0, mat_size, 1, 1, 1, 1);
+    descB.mat = dague_data_allocate( descB.super.nb_local_tiles *
+                                     descB.super.bsiz *
+                                     dague_datadist_getsizeoftype(TYPE) );
+    dague_arena_construct( &arena,
+                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+
+    handle = dague_multichain_new( &descA, &descB, ni, nj );
+    assert( NULL != handle );
+    TIMER_START(time_elapsed);
+    handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
+    dague_enqueue( dague, (dague_handle_t*)handle );
+    TIMER_STOP(time_elapsed);
+    printf("DAG construction %d tasks in %ld micro-sec\n",
+           handle->super.nb_local_tasks, time_elapsed);
+    if( verbose >= 5 ) {
+        printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
+               "                 encoding=\"none\" compression=\"none\">\n"
+               "%g\n"
+               "</DartMeasurement>\n",
+               (double)time_elapsed);
+    }
+    TIMER_START(time_elapsed);
+    dague_context_wait(dague);
+    TIMER_STOP(time_elapsed);
+    printf("DAG execution in %ld micro-sec\n", time_elapsed);
+
+    free(descA.mat);
+
+    dague_fini( &dague);
+
+    return 0;
+}
+
+%}
