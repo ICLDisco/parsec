@@ -663,9 +663,9 @@ __dague_context_cas_or_flag(dague_context_t* context,
 }
 
 /**
- * If there are enqueued handle to be executed launch the other threads and then
- * return. Mark the internal structures in such a way that we can't start the
- * context mutiple times without completions.
+ * If there are enqueued handles waiting to be executed launch the other threads
+ * and then return. Mark the internal structures in such a way that we can't
+ * start the context mutiple times without completions.
  *
  * @returns: 0 if the other threads in this context have been started, -1 if the
  * context was already active, -2 if there was nothing to do and no threads hav
