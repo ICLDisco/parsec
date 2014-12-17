@@ -116,14 +116,10 @@ static int find_references( FILE *tracefile, char *dico_name,
             goto keep_going;
         }
     }
-    fprintf(stderr, "Dictionary entry %s not found in %s\n", dico_name, filename);
+    fprintf(stderr, "Unable to find the dictionary entry called '%s'\n", dico_name);
     return -1;
-  keep_going:
-    if( i == dbp_reader_nb_dictionary_entries(dbp)) {
-        fprintf(stderr, "Unable to find the dictionary entry called '%s'\n", dico_name);
-        return -1;
-    }
 
+  keep_going:
     for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
         for(t = 0; t < dbp_file_nb_threads(dbp_reader_get_file(dbp, ifd)); t++) {
             find_memory_ref_in_thread(dbp, dico_id, ifd, t);
