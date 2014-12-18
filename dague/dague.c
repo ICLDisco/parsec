@@ -527,15 +527,28 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* DAGUE_DEBUG_VERBOSE != 0 */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
+    /**
+     * Parameters defining the default ARENA behavior. Handle with care they can lead to
+     * significant memory consumption or to a significant overhead in memory management
+     * (allocation/deallocation). These values are only used by ARENAs constructed with
+     * the default constructor (not the extended one).
+     */
+    dague_mca_param_reg_sizet_name("arena", "max_used", "The maxmimum amount of memory each arena can"
+                                                        " hold (0 for unlimited)",
+                                   false, false, dague_arena_max_allocated_memory, &dague_arena_max_allocated_memory);
+    dague_mca_param_reg_sizet_name("arena", "max_used", "The maxmimum amount of memory each arena can"
+                                                        " cache (0 for unlimited)",
+                                   false, false, dague_arena_max_cached_memory, &dague_arena_max_cached_memory);
+
     dague_mca_param_reg_string_name("profile", "filename",
 #if defined(DAGUE_PROF_TRACE)
-                                 "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
-                                 false, false,
+                                    "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
+                                    false, false,
 #else
-                                 "Path to the profiling file (unused due to profiling being turned off during building)",
-                                 false, true,  /* profiling disabled: read-only */
+                                    "Path to the profiling file (unused due to profiling being turned off during building)",
+                                    false, true,  /* profiling disabled: read-only */
 #endif  /* defined(DAGUE_PROF_TRACE) */
-                                 "<none>", &dague_enable_profiling);
+                                    "<none>", &dague_enable_profiling);
 #if defined(DAGUE_PROF_TRACE)
     if( (0 != strncasecmp(dague_enable_profiling, "<none>", 6)) && (0 == dague_profiling_init( )) ) {
         int i, l;

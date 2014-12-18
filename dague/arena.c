@@ -22,12 +22,15 @@ extern int arena_memory_used_key, arena_memory_unused_key;
 
 #define DAGUE_ARENA_MIN_ALIGNMENT(align) ((ptrdiff_t)(align*((sizeof(dague_arena_chunk_t)-1)/align+1)))
 
+size_t dague_arena_max_allocated_memory = 0;  /* unlimited */
+size_t dague_arena_max_cached_memory    = 0;  /* unlimitted */
+
 int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t elem_size,
                              size_t alignment,
                              dague_datatype_t opaque_dtt,
-                             int32_t max_used,
-                             int32_t max_released)
+                             size_t max_allocated_memory,
+                             size_t max_cached_memory)
 {
     /* alignment must be more than zero and power of two */
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
@@ -40,9 +43,9 @@ int dague_arena_construct_ex(dague_arena_t* arena,
     arena->elem_size    = elem_size;
     arena->opaque_dtt   = opaque_dtt;
     arena->used         = 0;
-    arena->max_used     = max_used;
+    arena->max_used     = max_allocated_memory / elem_size;
     arena->released     = 0;
-    arena->max_released = max_released;
+    arena->max_released = max_cached_memory / elem_size;
 
     arena->data_malloc  = dague_data_allocate;
     arena->data_free    = dague_data_free;
@@ -57,8 +60,8 @@ int dague_arena_construct(dague_arena_t* arena,
 {
     return dague_arena_construct_ex(arena, elem_size,
                                     alignment, opaque_dtt,
-                                    -1,  /* unlimitted elements */
-                                    -1); /* no caching */
+                                    dague_arena_max_allocated_memory,
+                                    dague_arena_max_cached_memory);
 }
 
 void dague_arena_destruct(dague_arena_t* arena)

@@ -18,6 +18,16 @@
 
 BEGIN_C_DECLS
 
+/**
+ * Maximum amount of memory each arena is allowed to manipulate.
+ */
+size_t dague_arena_max_allocated_memory;
+
+/**
+ * Maximum amount of memory cached on each arena.
+ */
+size_t dague_arena_max_cached_memory;
+
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
 #define DAGUE_ALIGN_PAD_AMOUNT(x,s) ((~((uintptr_t)(x))+1) & ((uintptr_t)(s)-1))
@@ -73,8 +83,8 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t elem_size,
                              size_t alignment,
                              dague_datatype_t opaque_dtt,
-                             int32_t max_used,
-                             int32_t max_released);
+                             size_t max_used,
+                             size_t max_released);
 /**
  * Release the arena. All the memory allocated for the elements
  * by the arena is released, but not the dague_data_copy_t and
