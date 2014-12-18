@@ -50,7 +50,6 @@ int dague_arena_construct_ex(dague_arena_t* arena,
     arena->data_malloc  = dague_data_allocate;
     arena->data_free    = dague_data_free;
     return 0;
-
 }
 
 int dague_arena_construct(dague_arena_t* arena,
