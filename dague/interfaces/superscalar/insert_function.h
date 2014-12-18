@@ -24,6 +24,7 @@
 #define PASSED_BY_REF 1
 #define UNPACK_VALUE 1
 #define UNPACK_DATA 2
+#define UNPACK_SCRATCH 3
 #define MAX_DESC 15
 
 #define TILE_OF(DAGUE, DDESC, I, J) \

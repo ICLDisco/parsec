@@ -57,6 +57,10 @@ set(TESTS
   testing_zhebut.c
   testing_zhbrdt.c
   testing_zheev.c
+  #testing_zherbt.c
+  # insert_task interface
+  testing_zpotrf_dtd.c
+  testing_zgeqrf_dtd.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)
