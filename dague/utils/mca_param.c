@@ -897,7 +897,7 @@ static int read_keys_from_registry(HKEY hKey, char *sub_key, char *current_name)
             storage.intval  = (int)word_lpData;
             override.intval = (int)word_lpData;
             param_type = DAGUE_MCA_PARAM_TYPE_INT;
-            /* DAGUE_MCA_PARAM_TYPE_STRING not supported */
+            /* DAGUE_MCA_PARAM_TYPE_SIZET not supported */
         }
         if( !retCode ) {
             (void)param_register( type_name, NULL, str_key_name, NULL,
@@ -1099,8 +1099,8 @@ static int param_register(const char *type_name,
 
             /* Both are SIZE_T */
 
-            if (DAGUE_MCA_PARAM_TYPE_SIZET == array[i].mbp_type &&
-                DAGUE_MCA_PARAM_TYPE_SIZET == param.mbp_type) {
+            else if (DAGUE_MCA_PARAM_TYPE_SIZET == array[i].mbp_type &&
+                     DAGUE_MCA_PARAM_TYPE_SIZET == param.mbp_type) {
                 if (NULL != default_value) {
                     array[i].mbp_default_value.sizetval =
                         param.mbp_default_value.sizetval;
@@ -1160,7 +1160,7 @@ static int param_register(const char *type_name,
             /* If the original is INT and the new is STRING, or the original
              is STRING and the new is INT, this is an developer error. */
 
-            else if (param.mbp_type == array[i].mbp_type) {
+            else if (param.mbp_type != array[i].mbp_type) {
 #if defined(DAGUE_DEBUG_ENABLE)
                 dague_show_help("help-mca-param.txt",
                                 "re-register with different type",
@@ -1363,7 +1363,7 @@ static bool param_set_override(size_t index,
     if (DAGUE_MCA_PARAM_TYPE_INT == type) {
         array[index].mbp_override_value.intval = storage->intval;
     } else if (DAGUE_MCA_PARAM_TYPE_SIZET == type) {
-        array[index].mbp_override_value.sizetval = storage->intval;
+        array[index].mbp_override_value.sizetval = storage->sizetval;
     } else if (DAGUE_MCA_PARAM_TYPE_STRING == type) {
         if (NULL != storage->stringval) {
             array[index].mbp_override_value.stringval =
