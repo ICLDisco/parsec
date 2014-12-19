@@ -279,6 +279,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 static int remote_dep_dequeue_fini(dague_context_t* context)
 {
     if( 0 == mpi_initialized ) return 0;
+    (void)context;
 
     /**
      * We suppose the off function was called before. Then we will append a
@@ -313,10 +314,11 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     return 0;
 }
 
-/* 0 if no communication capabilities are enabled, 1 if we are in a single node
- * scenario and the main thread will check the communications on a regular
- * basis, 2 if the order is enqueued but the thread is not yet on, and 3 if the
- * thread is running.
+/* The possible values for dague_communication_engine_up are: 0 if no
+ * communication capabilities are enabled, 1 if we are in a single node scenario
+ * and the main thread will check the communications on a regular basis, 2 if
+ * the order is enqueued but the thread is not yet on, and 3 if the thread is
+ * running.
  */
 static int remote_dep_dequeue_on(dague_context_t* context)
 {
@@ -324,7 +326,8 @@ static int remote_dep_dequeue_on(dague_context_t* context)
      * communicate with any other process. However, we might have to execute all
      * local data copies, which requires MPI.
      */
-    if( 2 > dague_communication_engine_up ) return -1;
+    if( 0 >= dague_communication_engine_up ) return -1;
+    if( context->nb_nodes == 1 ) return 1;
 
     /* At this point I am supposed to own the mutex */
     dague_communication_engine_up = 2;
