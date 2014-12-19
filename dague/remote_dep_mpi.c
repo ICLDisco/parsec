@@ -48,7 +48,7 @@ static int remote_dep_dequeue_off(dague_context_t* context);
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
 #   define remote_dep_new_object(obj) remote_dep_dequeue_new_object(obj)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
-#   define remote_dep_progress(ctx) ((void)ctx,0)
+#   define remote_dep_progress(ctx, cycles) remote_dep_dequeue_nothread_progress(ctx, cycles)
 
 #else
 static int remote_dep_dequeue_nothread_init(dague_context_t* context);
@@ -59,9 +59,9 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context);
 #   define remote_dep_off(ctx)  0
 #   define remote_dep_new_object(obj) remote_dep_dequeue_new_object(obj)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
-#   define remote_dep_progress(ctx) remote_dep_dequeue_nothread_progress(ctx)
+#   define remote_dep_progress(ctx, cycles) remote_dep_dequeue_nothread_progress(ctx, cycles)
 #endif
-static int remote_dep_dequeue_nothread_progress(dague_context_t* context);
+static int remote_dep_dequeue_nothread_progress(dague_context_t* context, int cycles);
 
 #include "dague/class/dequeue.h"
 
@@ -208,7 +208,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
          * back to the no-MPI case.
          */
         context->nb_nodes = 1;
-        DEBUG3(("MPI is not initialized. Fall back to a single node execution\n"));
+        DEBUG3(("MPI is not initialized. Fall back to a single node shared memory execution\n"));
         return 1;
     }
 
@@ -221,14 +221,8 @@ static int remote_dep_dequeue_init(dague_context_t* context)
                 "*** to guarantee correctness. ***\n",
                 thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED" );
     }
-
-    if( context->comm_ctx == NULL ) {
-        MPI_Comm_size(MPI_COMM_WORLD, (int*)&(context->nb_nodes));
-        if(1 == context->nb_nodes ) return 1;
-    }
-    else {
-        MPI_Comm_size(*(MPI_Comm*)context->comm_ctx, (int*)&(context->nb_nodes));
-    }
+    MPI_Comm_size( (NULL == context->comm_ctx) ? MPI_COMM_WORLD : *(MPI_Comm*)context->comm_ctx,
+                   (int*)&(context->nb_nodes));
 
     /**
      * Finalize the initialization of the upper level structures
@@ -239,6 +233,9 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 
     OBJ_CONSTRUCT(&dep_cmd_queue, dague_dequeue_t);
     OBJ_CONSTRUCT(&dep_cmd_fifo, dague_list_t);
+
+    if(context->nb_nodes == 1)
+        goto up_and_running;
 
     /* Build the condition used to drive the MPI thread */
     pthread_mutex_init( &mpi_thread_mutex, NULL );
@@ -263,6 +260,13 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 
     /* Wait until the MPI thread signals it's awakening */
     pthread_cond_wait( &mpi_thread_condition, &mpi_thread_mutex );
+  up_and_running:
+    /* We're all by ourselves. In case we need to use MPI to handle data copies
+     * between different formats let's setup local MPI support.
+     */
+    if(context->nb_nodes == 1)
+        remote_dep_mpi_init(context);
+
     mpi_initialized = 1;  /* up and running */
 
     return context->nb_nodes;
@@ -308,7 +312,12 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
 static volatile int mpi_thread_marker = 0;
 static int remote_dep_dequeue_on(dague_context_t* context)
 {
+    /* If we are the only participant in this execution, we should not have to
+     * communicate with any other process. However, we might have to execute all
+     * local data copies, which requires MPI.
+     */
     if(1 == context->nb_nodes) return 0;
+
     /* At this point I am supposed to own the mutex */
     mpi_thread_marker = 1;
     pthread_cond_signal(&mpi_thread_condition);
@@ -358,7 +367,7 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
         mpi_thread_marker = 0;
         /* The MPI thread is owning the lock */
         remote_dep_mpi_on(context);
-        whatsup = remote_dep_dequeue_nothread_progress(context);
+        whatsup = remote_dep_dequeue_nothread_progress(context, -1 /* loop till explicitly asked to return */);
     } while(-1 != whatsup);
     /* Release all resources */
     remote_dep_mpi_fini(context);
@@ -647,7 +656,9 @@ static int remote_dep_dequeue_nothread_fini(dague_context_t* context)
 }
 #endif
 
-static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
+static int
+remote_dep_dequeue_nothread_progress(dague_context_t* context,
+                                     int cycles)
 {
     dague_list_item_t *items;
     dep_cmd_item_t *item, *same_pos;
@@ -657,6 +668,9 @@ static int remote_dep_dequeue_nothread_progress(dague_context_t* context)
 
     OBJ_CONSTRUCT(&temp_list, dague_list_t);
  check_pending_queues:
+    if( cycles >= 0 )
+        if( 0 == cycles--) return 0;
+
     /* Move a number of tranfers from the shared dequeue into our ordered lifo. */
     how_many = 0;
     while( NULL != (item = (dep_cmd_item_t*) dague_dequeue_try_pop_front(&dep_cmd_queue)) ) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -386,14 +386,14 @@ void* __dague_context_wait( dague_execution_unit_t* eu_context )
 
   skip_first_barrier:
     while( !all_tasks_done(dague_context) ) {
-#if defined(DISTRIBUTED) && !defined(DAGUE_REMOTE_DEP_USE_THREADS)
-        if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
+#if defined(DISTRIBUTED)
+        if( (eu_context->virtual_process[0].dague_context->nb_nodes == 1) && DAGUE_THREAD_IS_MASTER(eu_context) ) {
             /* check for remote deps completion */
             while(dague_remote_dep_progress(eu_context) > 0)  {
                 misses_in_a_row = 0;
             }
         }
-#endif /* defined(DISTRIBUTED) && !defined(DAGUE_REMOTE_DEP_USE_THREADS)*/
+#endif /* defined(DISTRIBUTED) */
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
