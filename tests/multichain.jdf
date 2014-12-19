@@ -129,7 +129,7 @@ int main(int argc, char* argv[])
     dague_arena_construct( &arena,
                            descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+                           MPI_FLOAT);  /* change for distributed cases */
 
     handle = dague_multichain_new( &descA, &descB, ni, nj );
     assert( NULL != handle );
