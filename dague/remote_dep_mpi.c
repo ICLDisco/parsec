@@ -208,9 +208,11 @@ static int remote_dep_dequeue_init(dague_context_t* context)
          * back to the no-MPI case.
          */
         context->nb_nodes = 1;
+        dague_communication_engine_up = -1;  /* No communications supported */
         DEBUG3(("MPI is not initialized. Fall back to a single node shared memory execution\n"));
         return 1;
     }
+    dague_communication_engine_up = 0;  /* we have communication capabilities */
 
     MPI_Query_thread( &thread_level_support );
     if( thread_level_support == MPI_THREAD_SINGLE ||
@@ -234,8 +236,16 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     OBJ_CONSTRUCT(&dep_cmd_queue, dague_dequeue_t);
     OBJ_CONSTRUCT(&dep_cmd_fifo, dague_list_t);
 
-    if(context->nb_nodes == 1)
+    /* From now on the communication capabilities are enabled */
+    dague_communication_engine_up = 1;
+    if(context->nb_nodes == 1) {
+        /* We're all by ourselves. In case we need to use MPI to handle data copies
+         * between different formats let's setup local MPI support.
+         */
+        remote_dep_mpi_init(context);
+
         goto up_and_running;
+    }
 
     /* Build the condition used to drive the MPI thread */
     pthread_mutex_init( &mpi_thread_mutex, NULL );
@@ -261,12 +271,6 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     /* Wait until the MPI thread signals it's awakening */
     pthread_cond_wait( &mpi_thread_condition, &mpi_thread_mutex );
   up_and_running:
-    /* We're all by ourselves. In case we need to use MPI to handle data copies
-     * between different formats let's setup local MPI support.
-     */
-    if(context->nb_nodes == 1)
-        remote_dep_mpi_init(context);
-
     mpi_initialized = 1;  /* up and running */
 
     return context->nb_nodes;
@@ -274,7 +278,7 @@ static int remote_dep_dequeue_init(dague_context_t* context)
 
 static int remote_dep_dequeue_fini(dague_context_t* context)
 {
-    if( (1 == context->nb_nodes) || (0 == mpi_initialized) ) return 0;
+    if( 0 == mpi_initialized ) return 0;
 
     /**
      * We suppose the off function was called before. Then we will append a
@@ -283,7 +287,7 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
      * able to catch this by locking the mutex.  Once we know the MPI thread is
      * gone, cleaning up will be straighforward.
      */
-    {
+    if( 1 < dague_communication_engine_up ) {
         dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
         OBJ_CONSTRUCT(item, dague_list_item_t);
         void *ret;
@@ -309,35 +313,41 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
     return 0;
 }
 
-static volatile int mpi_thread_marker = 0;
+/* 0 if no communication capabilities are enabled, 1 if we are in a single node
+ * scenario and the main thread will check the communications on a regular
+ * basis, 2 if the order is enqueued but the thread is not yet on, and 3 if the
+ * thread is running.
+ */
 static int remote_dep_dequeue_on(dague_context_t* context)
 {
     /* If we are the only participant in this execution, we should not have to
      * communicate with any other process. However, we might have to execute all
      * local data copies, which requires MPI.
      */
-    if(1 == context->nb_nodes) return 0;
+    if( 2 > dague_communication_engine_up ) return -1;
 
     /* At this point I am supposed to own the mutex */
-    mpi_thread_marker = 1;
+    dague_communication_engine_up = 2;
     pthread_cond_signal(&mpi_thread_condition);
     pthread_mutex_unlock(&mpi_thread_mutex);
+    (void)context;
     return 1;
 }
 
 static int remote_dep_dequeue_off(dague_context_t* context)
 {
-    if(1 == context->nb_nodes) return 0;
+    if(dague_communication_engine_up < 2) return -1;  /* Not started */
 
     dep_cmd_item_t* item = (dep_cmd_item_t*) calloc(1, sizeof(dep_cmd_item_t));
     OBJ_CONSTRUCT(item, dague_list_item_t);
     item->action = DEP_CTL;
     item->cmd.ctl.enable = 0;  /* turn OFF the MPI thread */
     item->priority = 0;
-    while( 1 == mpi_thread_marker ) sched_yield();
+    while( 3 != dague_communication_engine_up ) sched_yield();
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 
     pthread_mutex_lock(&mpi_thread_mutex);
+    (void)context;  /* silence warning */
     return 0;
 }
 
@@ -364,7 +374,7 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
         /* Now let's block */
         pthread_cond_wait(&mpi_thread_condition, &mpi_thread_mutex);
         /* acknoledge the activation */
-        mpi_thread_marker = 0;
+        dague_communication_engine_up = 3;
         /* The MPI thread is owning the lock */
         remote_dep_mpi_on(context);
         whatsup = remote_dep_dequeue_nothread_progress(context, -1 /* loop till explicitly asked to return */);

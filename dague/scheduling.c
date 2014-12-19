@@ -387,7 +387,9 @@ void* __dague_context_wait( dague_execution_unit_t* eu_context )
   skip_first_barrier:
     while( !all_tasks_done(dague_context) ) {
 #if defined(DISTRIBUTED)
-        if( (eu_context->virtual_process[0].dague_context->nb_nodes == 1) && DAGUE_THREAD_IS_MASTER(eu_context) ) {
+        if( (1 == dague_communication_engine_up) &&
+            (eu_context->virtual_process[0].dague_context->nb_nodes == 1) &&
+            DAGUE_THREAD_IS_MASTER(eu_context) ) {
             /* check for remote deps completion */
             while(dague_remote_dep_progress(eu_context) > 0)  {
                 misses_in_a_row = 0;

@@ -14,6 +14,8 @@
 #include <stdio.h>
 #include "arena.h"
 
+int dague_communication_engine_up = -1;
+
 #ifdef DISTRIBUTED
 
 static int remote_dep_bind_thread(dague_context_t* context);
