@@ -663,13 +663,13 @@ remote_dep_dequeue_nothread_progress(dague_context_t* context,
     dague_list_item_t *items;
     dep_cmd_item_t *item, *same_pos;
     dague_list_t temp_list;
-    int ret = 0, how_many, position;
+    int ret = 0, how_many, position, executed_tasks = 0;
     dague_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
 
     OBJ_CONSTRUCT(&temp_list, dague_list_t);
  check_pending_queues:
     if( cycles >= 0 )
-        if( 0 == cycles--) return 0;
+        if( 0 == cycles--) return executed_tasks;  /* report how many events were progressed */
 
     /* Move a number of tranfers from the shared dequeue into our ordered lifo. */
     how_many = 0;
@@ -737,6 +737,7 @@ remote_dep_dequeue_nothread_progress(dague_context_t* context,
     }
     position = (DEP_ACTIVATE == item->action) ? item->cmd.activate.peer : (context->nb_nodes + item->action);
     assert(DEP_CTL != item->action);
+    executed_tasks++;  /* count all the tasks executed during this call */
   handle_now:
     switch(item->action) {
     case DEP_CTL:
