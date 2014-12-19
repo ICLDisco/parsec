@@ -707,7 +707,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     free(startup);
 
     /* Introduce communication thread */
-    context->nb_nodes = dague_remote_dep_init(context);
+    (void)dague_remote_dep_init(context);
     dague_statistics("DAGuE");
 
     AYU_INIT();
