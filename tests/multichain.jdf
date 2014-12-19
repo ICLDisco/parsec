@@ -139,6 +139,11 @@ int main(int argc, char* argv[])
     TIMER_STOP(time_elapsed);
     printf("DAG construction %d tasks in %ld micro-sec\n",
            handle->super.nb_local_tasks, time_elapsed);
+
+    TIMER_START(time_elapsed);
+    dague_context_wait(dague);
+    TIMER_STOP(time_elapsed);
+    printf("DAG execution in %ld micro-sec\n", time_elapsed);
     if( verbose >= 5 ) {
         printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
                "                 encoding=\"none\" compression=\"none\">\n"
@@ -146,10 +151,6 @@ int main(int argc, char* argv[])
                "</DartMeasurement>\n",
                (double)time_elapsed);
     }
-    TIMER_START(time_elapsed);
-    dague_context_wait(dague);
-    TIMER_STOP(time_elapsed);
-    printf("DAG execution in %ld micro-sec\n", time_elapsed);
 
     free(descA.mat);
 
