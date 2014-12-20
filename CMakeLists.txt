@@ -16,7 +16,7 @@ enable_testing()
 include(CTest)
 
 set(MPI_TEST_CMD
-      "mpirun" CACHE STRING
+      "mpiexec" CACHE STRING
       "A command to run distributed memory testings")
 if( "${MPI_TEST_CMD}" STREQUAL "" )
     MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
