@@ -154,17 +154,55 @@ void dague_prof_grapher_task(const dague_execution_context_t *context,
         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context);
         dague_prof_grapher_taskid(context, nmp, MAX_TASK_STRLEN);
 #if defined(DAGUE_SIM)
+#  if defined(DAGUE_PROF_TRACE)
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
-                "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\",tooltip=\"%s%d\"];\n",
+                "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
+                "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
                 nmp, colors[context->function->function_id % nbfuncs],
-                thread_id, vp_id, tmp, context->sim_exec_date, context->function->name, task_hash);
+                thread_id, vp_id, tmp, context->sim_exec_date,
+                context->dague_handle->handle_id,
+                context->dague_handle->profiling_array != NULL 
+                    ? context->dague_handle->profiling_array[2*context->dague_handle->handle_id]
+                    : -1,
+                context->function->name,
+                task_hash);
+#  else
+        fprintf(grapher_file,
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
+                "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
+                "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs],
+                thread_id, vp_id, tmp, context->sim_exec_date,
+                context->dague_handle->handle_id,
+                context->function->name,
+                task_hash);
+#  endif
 #else
+#  if defined(DAGUE_PROF_TRACE)
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
-                "fontcolor=\"black\",label=\"<%d/%d> %s\",tooltip=\"%s%d\"];\n",
+                "fontcolor=\"black\",label=\"<%d/%d> %s\","
+                "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
                 nmp, colors[context->function->function_id % nbfuncs],
-                thread_id, vp_id, tmp, context->function->name, task_hash);
+                thread_id, vp_id, tmp,
+                context->dague_handle->handle_id,
+                context->dague_handle->profiling_array != NULL 
+                    ? context->dague_handle->profiling_array[2*context->dague_handle->handle_id]
+                    : -1,
+                context->function->name,
+                task_hash);
+#  else
+        fprintf(grapher_file,
+                "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
+                "fontcolor=\"black\",label=\"<%d/%d> %s\","
+                "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
+                nmp, colors[context->function->function_id % nbfuncs],
+                thread_id, vp_id, tmp,
+                context->dague_handle->handle_id,
+                context->function->name,
+                task_hash);
+#  endif
 #endif
         fflush(grapher_file);
     }
