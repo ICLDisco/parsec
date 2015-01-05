@@ -1,5 +1,4 @@
 #include "dague.h"
-#include "arena.h" /* get rid of this */
 #include "data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "touch.h"
