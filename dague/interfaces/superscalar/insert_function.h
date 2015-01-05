@@ -14,6 +14,7 @@
 #define OUTPUT 0x2
 #define INOUT 0x3
 #define SCRATCH 0x8
+#define ATOMIC_WRITE 0x4
 #define VALUE 0x20
 #define AFFINITY 0x4
 #define DEFAULT 0x1

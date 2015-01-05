@@ -15,6 +15,8 @@ typedef struct bucket_element_f_s bucket_element_f_t;
 typedef struct bucket_element_tile_s bucket_element_tile_t;
 typedef struct bucket_element_task_s bucket_element_task_t;
 
+typedef struct dtd_successor_list_s dtd_successor_list_t;
+
 /* Structure used to pack arguments of insert_task() */
 struct task_param_s {
     void *pointer_to_tile;
@@ -29,6 +31,16 @@ struct descendant_info { /* All the fields store info about the descendant excep
     uint8_t op_type;
     uint8_t flow_index;
     dtd_task_t *task;
+    dtd_tile_t *tile;
+};
+
+/* Structure to hold list of Read-ONLY successors of a task */
+
+struct dtd_successor_list_s { /* Structure to be used for correct ordering strategy 1 in multi-threaded env */
+    dtd_task_t *task;
+    dep_t *deps;
+    int flow_index;
+    dtd_successor_list_t *next;
 };
 
 struct dtd_task_s {
@@ -39,9 +51,12 @@ struct dtd_task_s {
     int total_flow;
     struct descendant_info desc[MAX_DESC];
     int flow_count;
+    int flow_satisfied;
     int ready_mask;
     char *name;
     uint8_t belongs_to_function;
+    uint8_t first_and_input; /* saves flow for which a task may be first one 
+                                and it's operation type is INPUT on that DATA */
     task_param_t *param_list;
 };
 
