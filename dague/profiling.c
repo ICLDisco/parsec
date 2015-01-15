@@ -777,6 +777,10 @@ static int64_t dump_thread(int *nbth)
         it != DAGUE_LIST_ITERATOR_END( &threads );
         it = DAGUE_LIST_ITERATOR_NEXT( it ) ) {
         thread = (dague_thread_profiling_t*)it;
+
+        if(thread->nb_events == 0)
+            continue; /** We don't store threads with no events at all */
+
         th_size = thread_size(thread);
 
         if( pos + th_size >= event_avail_space ) {
