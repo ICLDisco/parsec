@@ -377,7 +377,7 @@ static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
     static int nextid = 0;
     uidentry_t *n;
     va_list va;
-    int rc;
+    int rc; (void)rc;
     hash_key_t h;
     int idx;
     size_t length = strlen(first);

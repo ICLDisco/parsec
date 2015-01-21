@@ -117,7 +117,7 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
     f = va_arg(ap, int);
     va_end(ap);
 
-    assert( (f < dat->size) && (f >= 0) );
+    assert( (f < dat->size) && (f >= 0) ); (void)dat;
 
     return (uint32_t)f;
 }
@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
 
         gettimeofday(&tstart, NULL);
         dague_enqueue(dague, bw_test);
-        dague_progress(dague);
+        dague_context_wait(dague);
         gettimeofday(&tend, NULL);
 
         if( 0 != i ) {

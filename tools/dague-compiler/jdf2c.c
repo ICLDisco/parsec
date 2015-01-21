@@ -33,7 +33,8 @@ static int jdf_expr_depends_on_symbol(const char *varname, const jdf_expr_t *exp
 static void jdf_generate_code_hooks(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_data_lookup(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname);
-static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix);
+static void jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf, const jdf_function_entry_t *f, 
+                                                                 const char *prefix, jdf_dep_flags_t flow_type);
 
 static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found );
 
@@ -1691,15 +1692,71 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const char *tname,
     string_arena_free(sa3);
 }
 
+static void jdf_generate_direct_data_function(const jdf_t *jdf, const char *mem,
+                                              const jdf_expr_t *parameters, const jdf_def_list_t *context,
+                                              const char *function_name)
+{
+    assignment_info_t ai;
+    expr_info_t info;
+    string_arena_t *sa1 = string_arena_new(64);
+    string_arena_t *sa2 = string_arena_new(64);
+    string_arena_t *sa3 = string_arena_new(64);
+    string_arena_t *sa4 = string_arena_new(64);
+    string_arena_t *sa5 = string_arena_new(64);
+
+    info.sa = sa5;
+    info.prefix = "";
+    info.assignments = "assignments";
+
+    ai.sa = sa2;
+    ai.idx = 0;
+    ai.holder = "assignments";
+    ai.expr = NULL;
+
+    UTIL_DUMP_LIST(sa4, parameters, next,
+                   dump_expr, (void*)&info,
+                   "", "", ", ", "");
+
+    coutput("static dague_data_t *%s(const dague_handle_t *dague_handle, const assignment_t *assignments)\n"
+            "{\n"
+            "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
+            "  dague_ddesc_t *__ddesc;\n"
+            "%s\n"
+            "  /* Silent Warnings: should look into parameters to know what variables are usefull */\n"
+            "%s\n"
+            "  __ddesc = (dague_ddesc_t*)__dague_handle->super.%s;\n"
+            "  if( __ddesc->myrank == __ddesc->rank_of(__ddesc, %s) ) {\n"
+            "    return __ddesc->data_of(__ddesc, %s);\n"
+            "  } else {\n"
+            "    return NULL;\n"
+            "  }\n"
+            "}\n"
+            "\n",
+            function_name,
+            jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST(sa1, context, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"),
+            UTIL_DUMP_LIST_FIELD(sa3, context, next, name,
+                                 dump_string, NULL, "", "  (void)", ";\n", ";"),
+            mem,
+            string_arena_get_string(sa4),
+            string_arena_get_string(sa4));
+
+    string_arena_free(sa1);
+    string_arena_free(sa2);
+    string_arena_free(sa3);
+    string_arena_free(sa4);
+    string_arena_free(sa5);
+    (void)jdf;
+}
+
 static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_dep_t *dep,
                                     jdf_call_t *call, const char *depname,
                                     const char *condname, const jdf_def_list_t *context )
 {
     string_arena_t *sa = string_arena_new(64), *sa2 = string_arena_new(64);
     jdf_expr_t *le;
-    char *exprname;
-    int i, ret = 1, generate_stubs = 0;
-    char pre[8];
+    int ret = 1, generate_stubs = 0;
     string_arena_t *tmp_fct_name;
     jdf_datatransfer_type_t* datatype = &dep->datatype;
 
@@ -1749,15 +1806,23 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             exit(-1);
         }
         string_arena_add_string(sa,
-                                "  .function_id = %d, /* %s_%s */\n",
+                                "  .function_id = %d, /* %s_%s */\n"
+                                "  .direct_data = NULL,\n",
                                 (NULL != pf ? pf->function_id : -1), jdf_basename, call->func_or_mem);
         string_arena_add_string(sa,
                                 "  .flow = &flow_of_%s_%s_for_%s,\n",
                                 jdf_basename, call->func_or_mem, call->var);
     } else {
+        tmp_fct_name = string_arena_new(64);
+        string_arena_add_string(tmp_fct_name, "%s_direct_access", JDF_OBJECT_ONAME(dep));
+        jdf_generate_direct_data_function(jdf, call->func_or_mem, call->parameters, context,
+                                          string_arena_get_string(tmp_fct_name));
         string_arena_add_string(sa,
-                                "  .function_id = %d, /* %s_%s */\n",
-                                -1, jdf_basename, call->func_or_mem);
+                                "  .function_id = %d, /* %s_%s */\n"
+                                "  .direct_data = &%s,\n",
+                                -1, jdf_basename, call->func_or_mem,
+                                string_arena_get_string(tmp_fct_name));
+        string_arena_free(tmp_fct_name);
     }
     string_arena_add_string(sa,
                             "  .dep_index = %d,\n"
@@ -1859,24 +1924,14 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     }
     string_arena_add_string(sa,
                             "},\n"
-                            "  .belongs_to = &%s,\n"
-                            "  .call_params = {\n",
+                            "  .belongs_to = &%s,\n",
                             JDF_OBJECT_ONAME(flow));
 
-    exprname = (char *)malloc(strlen(JDF_OBJECT_ONAME(dep)) + 128);
-    pre[0] = '\0';
-    for( i = 1, le = call->parameters; le != NULL; i++, le = le->next ) {
-        sprintf(exprname, "expr_of_p%d_for_%s", i, JDF_OBJECT_ONAME(call));
-        string_arena_add_string(sa, "%s    &%s", pre, exprname);
-        jdf_generate_expression(jdf, context, le, exprname);
-        sprintf(pre, ",\n");
-    }
-    free(exprname);
+    
 
     string_arena_add_string(sa,
-                            "\n"
-                            "  }\n"
                             "};\n");
+
     coutput("%s", string_arena_get_string(sa));
 
     string_arena_free(sa);
@@ -2594,7 +2649,11 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
         } else {
             string_arena_add_string(sa, "#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
             string_arena_add_string(sa, "    { .type     = DAGUE_DEV_%s,\n", type_property->expr->jdf_var);
-            string_arena_add_string(sa, "      .dyld     = \"%s\",\n", (NULL==dyld_property)?"NULL":dyld_property->expr->jdf_var);
+            if( NULL == dyld_property ) {
+                string_arena_add_string(sa, "      .dyld     = NULL,\n");
+            } else {
+                string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
+            }
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
             string_arena_add_string(sa, "      .hook     = hook_of_%s_%s },\n", base_name, type_property->expr->jdf_var);
             string_arena_add_string(sa, "#endif  /* defined(HAVE_%s) */\n", type_property->expr->jdf_var);
@@ -2773,7 +2832,6 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                                 nb_input);
     }
 
-    string_arena_add_string(sa, "  .init = (dague_create_function_t*)%s,\n", "NULL");
     string_arena_add_string(sa, "  .key = (dague_functionkey_fn_t*)%s_hash,\n", f->fname);
     string_arena_add_string(sa, "  .fini = (dague_hook_t*)%s,\n", "NULL");
 
@@ -2782,10 +2840,18 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
-        jdf_generate_code_iterate_successors(jdf, f, prefix);
+        jdf_generate_code_iterate_successors_or_predecessors(jdf, f, prefix, JDF_DEP_FLOW_OUT);
         string_arena_add_string(sa, "  .iterate_successors = %s,\n", prefix);
     } else {
         string_arena_add_string(sa, "  .iterate_successors = NULL,\n");
+    }
+
+    if( !(f->flags & JDF_FUNCTION_FLAG_NO_PREDECESSORS) ) {
+        sprintf(prefix, "iterate_predecessors_of_%s_%s", jdf_basename, f->fname);
+        jdf_generate_code_iterate_successors_or_predecessors(jdf, f, prefix, JDF_DEP_FLOW_IN);
+        string_arena_add_string(sa, "  .iterate_predecessors = %s,\n", prefix);
+    } else {
+        string_arena_add_string(sa, "  .iterate_predecessors = NULL,\n");
     }
 
     sprintf(prefix, "release_deps_of_%s_%s", jdf_basename, f->fname);
@@ -3186,7 +3252,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __dague_handle->super.super.startup_hook = %s_startup;\n"
             "  __dague_handle->super.super.destructor   = (dague_destruct_fn_t)%s_destructor;\n"
-            "  (void)dague_handle_register((dague_handle_t*)__dague_handle);\n",
+            "  (void)dague_handle_reserve_id((dague_handle_t*)__dague_handle);\n",
             jdf_basename, jdf_basename);
 
     coutput("  return (dague_%s_handle_t*)__dague_handle;\n"
@@ -3785,7 +3851,7 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
     (void)jdf;
 
     for( dl = function->dataflow; dl != NULL; dl = dl->next ) {
-        complete_mask |= dl->flow_dep_mask;
+        complete_mask |= dl->flow_dep_mask_out;
     }
     coutput("  release_deps_of_%s_%s(context, %s,\n"
             "      DAGUE_ACTION_RELEASE_REMOTE_DEPS |\n"
@@ -4120,7 +4186,7 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                 if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
                     switch( dep->guard->guard_type ) {
                     case JDF_GUARD_UNCONDITIONAL:
-                        if( NULL != dep->guard->calltrue->var ) {
+                        if( NULL != dep->guard->calltrue->var ) {  /* this is a dataflow not a data access */
                             if( 0 != cond_index ) string_arena_add_string(sa_code, "    else {\n");
                             string_arena_add_string(sa_code, "    data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->flow_index);
@@ -4128,32 +4194,28 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
                         }
                         goto next_dependency;
                     case JDF_GUARD_BINARY:
-                        if( NULL != dep->guard->calltrue->var ) {
-                            string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
-                                                    dump_expr((void**)dep->guard->guard, &info));
-                            need_locals++;
-                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n"
-                                                    "    }\n",
+                        string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
+                                                dump_expr((void**)dep->guard->guard, &info));
+                        need_locals++;
+                        if( NULL != dep->guard->calltrue->var ) {   /* this is a dataflow not a data access */
+                            string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->flow_index);
-                            cond_index++;
                         }
+                        string_arena_add_string(sa_code, "    }\n");
+                        cond_index++;
                         break;
                     case JDF_GUARD_TERNARY:
                         need_locals++;
-                        if( NULL != dep->guard->calltrue->var ) {
-                            string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
-                                                    dump_expr((void**)dep->guard->guard, &info));
+                        string_arena_add_string(sa_code, (0 == cond_index ? condition[0] : condition[1]),
+                                                dump_expr((void**)dep->guard->guard, &info));
+                        if( NULL != dep->guard->calltrue->var ) {    /* this is a dataflow not a data access */
                             string_arena_add_string(sa_code, "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
                                                     dep->guard->calltrue->func_or_mem, dl->flow_index);
-                            if( NULL != dep->guard->callfalse->var ) {
-                                string_arena_add_string(sa_code, "    } else {\n"
-                                                        "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                                        dep->guard->callfalse->func_or_mem, dl->flow_index);
-                            }
-                        } else if( NULL != dep->guard->callfalse->var ) {
-                            string_arena_add_string(sa_code, "    if( !(%s) ) {\n"
+                        }
+                        string_arena_add_string(sa_code, "    } else {\n");
+                        if( NULL != dep->guard->callfalse->var ) {    /* this is a dataflow not a data access */
+                            string_arena_add_string(sa_code,
                                                     "      data_repo_entry_used_once( eu, %s_repo, context->data[%d].data_repo->key );\n",
-                                                    dump_expr((void**)dep->guard->guard, &info),
                                                     dep->guard->callfalse->func_or_mem, dl->flow_index);
                         }
                         string_arena_add_string(sa_code, "    }\n");
@@ -4449,26 +4511,28 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 }
 
 /**
- * If this function has no successors tag it as such. This will prevent us from
- * generating useless code.
+ * If this function has no predecessors or successors (depending on the
+ * parameters), tag it as such. This will prevent us from generating useless
+ * code.
  */
-static void jdf_check_successors( jdf_function_entry_t *f )
+static void jdf_check_relatives( jdf_function_entry_t *f, jdf_dep_flags_t flow_type, jdf_flags_t flag)
 {
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
 
     for(fl = f->dataflow; fl != NULL; fl = fl->next) {
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
-            if( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) continue;
+            if( !(dl->dep_flags & flow_type) ) continue;
 
             if( (NULL != dl->guard->calltrue->var) ||
                 ((JDF_GUARD_TERNARY == dl->guard->guard_type) &&
                  (NULL != dl->guard->callfalse->var)) ) {
-                return;  /* we do have successors */
+                return;  /* we do have a relative of type flow_type */
             }
         }
     }
-    f->flags |= JDF_FUNCTION_FLAG_NO_SUCCESSORS;
+    /* We don't have a relative of type flow_type, let's tag it with flag */
+    f->flags |= flag;
 }
 
 #define OUTPUT_PREV_DEPS(MASK, SA_DATATYPE, SA_DEPS)                    \
@@ -4478,7 +4542,7 @@ static void jdf_check_successors( jdf_function_entry_t *f )
                                     "  %s",                             \
                                     string_arena_get_string((SA_DATATYPE))); \
         }                                                               \
-        if( fl->flow_dep_mask == (MASK) ) {                             \
+        if( (JDF_DEP_FLOW_OUT & flow_type) && fl->flow_dep_mask_out == (MASK) ) { \
             string_arena_add_string(sa_coutput,                         \
                                     "  %s",                             \
                                     string_arena_get_string((SA_DEPS))); \
@@ -4494,9 +4558,10 @@ static void jdf_check_successors( jdf_function_entry_t *f )
     }
 
 static void
-jdf_generate_code_iterate_successors(const jdf_t *jdf,
-                                     const jdf_function_entry_t *f,
-                                     const char *name)
+jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
+                                                     const jdf_function_entry_t *f,
+                                                     const char *name,
+                                                     jdf_dep_flags_t flow_type)
 {
     jdf_dataflow_t *fl;
     jdf_dep_t *dl;
@@ -4521,8 +4586,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
     expr_info_t info;
 
     info.sa = sa2;
-    info.prefix = "";
-    info.assignments = "this_task->locals";
+    info.prefix = "";    info.assignments = "this_task->locals";
 
     ai.sa = sa2;
     ai.idx = 0;
@@ -4573,7 +4637,7 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
         string_arena_add_string(sa_coutput, "    data.data   = this_task->data[%d].data_out;\n", fl->flow_index);
 
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
-            if( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) continue;
+            if( !(dl->dep_flags & flow_type) ) continue;
 
             string_arena_init(sa_tmp_type);
             string_arena_init(sa_tmp_nbelt);
@@ -4751,7 +4815,8 @@ jdf_generate_code_iterate_successors(const jdf_t *jdf,
             coutput("  if( action_mask & 0x%x ) {  /* Flow of Data %s */\n"
                     "%s"
                     "  }\n",
-                    fl->flow_dep_mask, fl->varname, string_arena_get_string(sa_coutput));
+                    (flow_type & JDF_DEP_FLOW_OUT) ? fl->flow_dep_mask_out : fl->flow_dep_mask_in,
+                    fl->varname, string_arena_get_string(sa_coutput));
         }
     }
     coutput("  (void)data;(void)nc;(void)eu;(void)ontask;(void)ontask_arg;(void)rank_dst;(void)action_mask;\n");
@@ -4853,8 +4918,9 @@ int jdf_optimize( jdf_t* jdf )
         if( high_priority ) {
             f->flags |= JDF_FUNCTION_FLAG_HIGH_PRIORITY;
         }
-        /* Check if the function has any successors */
-        jdf_check_successors(f);
+        /* Check if the function has any successors and predecessors */
+        jdf_check_relatives(f, JDF_DEP_FLOW_OUT, JDF_FUNCTION_FLAG_NO_SUCCESSORS);
+        jdf_check_relatives(f, JDF_DEP_FLOW_IN, JDF_FUNCTION_FLAG_NO_PREDECESSORS);
 
         can_be_startup = 1;
         UTIL_DUMP_LIST(sa, f->dataflow, next, has_ready_input_dependency, &can_be_startup, NULL, NULL, NULL, NULL);

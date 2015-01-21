@@ -13,10 +13,11 @@ elif [ "x$USER" == "xherault" ]; then
 
 elif [ "x$USER" == "xbosilca" ]; then 
     HWLOC_DIR=/Users/bosilca/opt
+    CUDA_DIR=/Developer/NVIDIA/CUDA-6.5/
     GTG_DIR=${GTG_DIR:="${HOME}/opt"}
     PLASMA_DIR=${HOME}/opt/PLASMA/plasma-svn/
     #OMEGA_DIR=${OMEGA_DIR:="/Users/bosilca/tools/Omega/binary"}
-    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=ON -DDPLASMA_PRECISIONS='d'"
+    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=ON -DDAGUE_DIST_WITH_MPI=ON -DDPLASMA_PRECISIONS='d'"
     AYUDAME_DIR=${AYUDAME_DIR:="/Users/bosilca/opt/temanejo"}
 #    USER_OPTIONS+=" -DAYUDAME_DIR=${AYUDAME_DIR}"
 
@@ -28,10 +29,6 @@ elif [ "x$USER" == "xadanalis" ]; then
     CC=$GCCDIR/gcc-mp-4.7
     CXX=$GCCDIR/g++-mp-4.7
     FC=$GCCDIR/gfortran-mp-4.7
-
-elif [ "x$USER" == "xpetergaultney" ]; then 
-    USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF -DDAGUE_DIST_WITH_MPI=OFF -DDPLASMA_PRECISIONS=d -DPINS_ENABLE=ON"
-    PLASMA_DIR=${HOME}/workspace/plasma_2_5_0
 fi
 
 

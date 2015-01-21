@@ -68,7 +68,6 @@ enum iparam_t {
   IPARAM_QR_DOMINO,    /* Enable/disable the domino between the upper and the lower tree (specific to xgeqrf_param) */
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
-  IPARAM_PINS,         /* Was the PINS option used? */
   IPARAM_SCHEDULER,    /* User-selected scheduler */
   IPARAM_SIZEOF
 };
@@ -125,14 +124,14 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
 #define PASTE_CODE_FLOPS( FORMULA, PARAMS ) \
-  double gflops, flops = FORMULA PARAMS;
+  double gflops = -1.0, flops = FORMULA PARAMS;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
-  double gflops, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
+  double gflops = -1.0, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
 #else
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
-  double gflops, flops = (FADD PARAMS + FMUL PARAMS);
+  double gflops = -1.0, flops = (FADD PARAMS + FMUL PARAMS);
 #endif
 
 /*******************************
@@ -191,7 +190,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
-    dague_progress(DAGUE);                                              \
+    dague_context_wait(DAGUE);                                              \
     if( loud > 3 )                                                      \
         TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
@@ -229,7 +228,6 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     PROFILING_SAVE_iINFO("PARAM_QR_DOMINO", iparam[IPARAM_QR_DOMINO]);  \
     PROFILING_SAVE_iINFO("PARAM_QR_TSRR", iparam[IPARAM_QR_TSRR]);      \
     PROFILING_SAVE_iINFO("PARAM_BUT_LEVEL", iparam[IPARAM_BUT_LEVEL]);  \
-    PROFILING_SAVE_iINFO("PARAM_PINS", iparam[IPARAM_PINS]);            \
     PROFILING_SAVE_iINFO("PARAM_SCHEDULER", iparam[IPARAM_SCHEDULER]);  \
     if(loud >= 5 && rank == 0) {                                        \
         printf("<DartMeasurement name=\"performance\" type=\"numeric/double\"\n" \

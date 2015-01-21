@@ -886,10 +886,12 @@ int jdf_compare_datatype(const jdf_datatransfer_type_t* src,
     do {                                                                \
         if( (DEP)->dep_flags & JDF_DEP_FLOW_OUT ) {                     \
             SAVE_AND_UPDATE_INDEX((DEP), global_out_index, *dep_out_index, UPDATE); \
-            (FLOW)->flow_dep_mask |= (1 << (DEP)->dep_index);           \
+            (FLOW)->flow_dep_mask_out |= (1 << (DEP)->dep_index);       \
             (FLOW)->flow_flags |= JDF_FLOW_IS_OUT;                      \
-        } else {                                                        \
+        }                                                               \
+        if( (DEP)->dep_flags & JDF_DEP_FLOW_IN ) {                      \
             SAVE_AND_UPDATE_INDEX((DEP), global_in_index, *dep_in_index, UPDATE); \
+            (FLOW)->flow_dep_mask_in |= (1 << (DEP)->dep_index);        \
             (FLOW)->flow_flags |= JDF_FLOW_IS_IN;                       \
         }                                                               \
     } while(0)
@@ -1064,10 +1066,10 @@ int jdf_flatten_function(jdf_function_entry_t* function)
             if( strlen(string_arena_get_string(sa1)) )
                 string_arena_add_string(sa2, " displ = <%s>", string_arena_get_string(sa1));
 
-            printf("%s: %6s[%1s%1s idx %d, mask 0x%x] %2s %8d %8d <%s %s>\n", function->fname,
+            printf("%s: %6s[%1s%1s idx %d, mask 0x%x/0x%x] %2s %8d %8d <%s %s>\n", function->fname,
                    flow->varname, (flow->flow_flags & JDF_FLOW_IS_IN ? "R" : " "),
                    (flow->flow_flags & JDF_FLOW_IS_OUT ? "W" : " "),
-                   flow->flow_index, flow->flow_dep_mask,
+                   flow->flow_index, flow->flow_dep_mask_in, flow->flow_dep_mask_out,
                    (JDF_DEP_FLOW_OUT & dep->dep_flags ? "->" : "<-"),
                    dep->dep_index, dep->dep_datatype_index,
                    dep->guard->calltrue->func_or_mem,

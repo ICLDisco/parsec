@@ -22,7 +22,10 @@ int main(int argc, char *argv[])
     dague_handle_t *choice;
 
 #if defined(HAVE_MPI)
-    MPI_Init(&argc, &argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -47,7 +50,7 @@ int main(int argc, char *argv[])
     choice = choice_new(ddescA, size, decision, nb, world);
     dague_enqueue(dague, choice);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     choice_destroy(choice);
 

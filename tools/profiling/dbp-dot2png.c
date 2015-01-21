@@ -1,5 +1,5 @@
-/*
- * Copyright (c)      2012 The University of Tennessee and The University
+/**
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -25,7 +25,7 @@
 
 static void usage(const char *prg)
 {
-    fprintf(stderr, 
+    fprintf(stderr,
             "Usage: %s <basename>\n"
             "  Opens <basename>.[0-9]*.profile to serve as binary profile traces of a DAGuE execution\n"
             "    and <basename>-[0-9]+.dot to serve as a DAG representation of the same execution\n"
@@ -36,9 +36,9 @@ static void usage(const char *prg)
 }
 
 static void sample(const dbp_multifile_reader_t *dbp,
-                   dbp_event_iterator_t **allthreads, 
-                   int nbthreads, 
-                   uint64_t sframe, 
+                   dbp_event_iterator_t **allthreads,
+                   int nbthreads,
+                   uint64_t sframe,
                    float top)
 {
     const dbp_event_t *dbp_e;
@@ -104,26 +104,26 @@ int main(int argc, char *argv[])
     char **traced_types;
     int    nb_traced_types;
     int rc;
- 
+
     if( argc != 2 ) {
         fprintf(stderr, "Not the right number of arguments\n");
         usage(argv[0]);
     }
-    
+
     rc = asprintf(&profiles_pattern, "%s.[0-9]*.profile", argv[1]); assert(rc!=-1);
-    if( glob( profiles_pattern, 0, NULL, &profiles ) != 0 ) {
+    if( (rc < 0) || glob( profiles_pattern, 0, NULL, &profiles ) != 0 ) {
         fprintf(stderr, "Could not find any %s files\n", profiles_pattern);
         usage(argv[0]);
     }
     rc = asprintf(&dots_pattern, "%s-[0-9]*.dot", argv[1]); assert(rc!=-1);
-    if( glob( dots_pattern, 0, NULL, &dots ) != 0 ) {
+    if( (rc < 0) || glob( dots_pattern, 0, NULL, &dots ) != 0 ) {
         fprintf(stderr, "Could not find any %s files\n", dots_pattern);
         usage(argv[0]);
     }
 
     if( dots.gl_pathc != profiles.gl_pathc ||
         dots.gl_pathc == 0 ) {
-        fprintf(stderr, 
+        fprintf(stderr,
                 "There is %lu files corresponding to the pattern %s, and %lu files corresponding to the pattern %s\n"
                 "Cannot handle non-corresponding / empty cases.\n",
                 dots.gl_pathc, dots_pattern,
@@ -152,10 +152,10 @@ int main(int argc, char *argv[])
     for(i = 0; i < (int)dots.gl_pathc; i++)
         n += add_nodes_from_dotfile( dots.gl_pathv[i], i, traced_types, nb_traced_types );
     e = 0;
-    for(i = 0; i < (int)dots.gl_pathc; i++) 
+    for(i = 0; i < (int)dots.gl_pathc; i++)
         e += add_edges_from_dotfile( dots.gl_pathv[i] );
 
-    fprintf(stderr, "#Read %lu dots files: created a graph of %d nodes, and %d edges\n", 
+    fprintf(stderr, "#Read %lu dots files: created a graph of %d nodes, and %d edges\n",
             dots.gl_pathc, n, e);
 
     nbthreads = 0;
@@ -203,10 +203,9 @@ int main(int argc, char *argv[])
         char *filename;
         char *r;
         unsigned int length;
-        int rc;
 
         persistentGraphRender(&r, &length);
-        rc = asprintf(&filename, "%s.gif", argv[1]); assert(rc!=-1);
+        (void)asprintf(&filename, "%s.gif", argv[1]); assert(rc!=-1);
         startAnimation(filename, r, length);
         free(r);
         free(filename);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -17,6 +17,16 @@
 #include "dague/class/lifo.h"
 
 BEGIN_C_DECLS
+
+/**
+ * Maximum amount of memory each arena is allowed to manipulate.
+ */
+size_t dague_arena_max_allocated_memory;
+
+/**
+ * Maximum amount of memory cached on each arena.
+ */
+size_t dague_arena_max_cached_memory;
 
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))
@@ -54,16 +64,32 @@ struct dague_arena_chunk_s {
 #define DAGUE_ARENA_ALIGNMENT_SSE 16
 #define DAGUE_ARENA_ALIGNMENT_CL1 64
 
+/**
+ * Constructor for the arena class. By default this constructor
+ * does not enable any caching, thus it behaves more like a
+ * convenience wrapper around malloc/free than a freelist.
+ */
 int dague_arena_construct(dague_arena_t* arena,
                           size_t elem_size,
                           size_t alignment,
                           dague_datatype_t opaque_dtt);
+/**
+ * Extended constructor for the arena class. It enabled the
+ * caching support up to max_released number of elements,
+ * and prevents the freelist to handle more than max_used
+ * active elements at the same time.
+ */
 int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t elem_size,
                              size_t alignment,
                              dague_datatype_t opaque_dtt,
-                             int32_t max_used,
-                             int32_t max_released);
+                             size_t max_used,
+                             size_t max_released);
+/**
+ * Release the arena. All the memory allocated for the elements
+ * by the arena is released, but not the dague_data_copy_t and
+ * dague_data_t allocated to support the arena.
+ */
 void dague_arena_destruct(dague_arena_t* arena);
 
 dague_data_copy_t *dague_arena_get_copy(dague_arena_t *arena, size_t count, int device);

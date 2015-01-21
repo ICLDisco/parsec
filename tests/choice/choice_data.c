@@ -91,7 +91,7 @@ static int vpid_of(dague_ddesc_t *desc, ...)
 }
 
 #if defined(DAGUE_PROF_TRACE)
-static uint32_t data_key(struct dague_ddesc *desc, ...)
+static uint32_t data_key(struct dague_ddesc_s *desc, ...)
 {
     int k;
     va_list ap;

@@ -31,7 +31,7 @@ int dague_enqueue( dague_context_t*, dague_handle_t* );
  * Start the execution of the dague_context_t. The other threads will
  * asynchronously start the execution of the pending tasks. The execution cannot
  * complete without the submitting thread getting involved, either using
- * dague_wait or dague_test.
+ * dague_context_wait or dague_context_test.
  *
  * @param [INOUT] The dague context which is to be started.
  *
@@ -49,7 +49,7 @@ int dague_start( dague_context_t* );
  *           more pending tasks. All subsequent calls on the same context
  *           will automatically succeed.
  */
-int dague_test( dague_context_t* );
+int dague_context_test( dague_context_t* );
 
 /**
  * Wait until all the possible tasks on the dague_context_t are executed
@@ -60,7 +60,7 @@ int dague_test( dague_context_t* );
  * @return 0 If the execution is completed.
  * @return * Any other error raised by the tasks themselves.
  */
-int dague_wait( dague_context_t* );
+int dague_context_wait( dague_context_t* );
 
 /**
  * Mark a execution context as being ready to be scheduled, i.e. all
@@ -77,8 +77,7 @@ int dague_wait( dague_context_t* );
  */
 int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*);
 
-int dague_progress(dague_context_t* context);
-void* __dague_progress(dague_execution_unit_t* eu_context);
+void* __dague_context_wait(dague_execution_unit_t* eu_context);
 
 /**
  * Execute the body of the task associated to the context.
@@ -103,6 +102,16 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
  * Otherwise, just update the dague_handle.
  */
 int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context);
+
+/**
+ * When changing the number of local tasks, see if we need to call the
+ * DAG complete_cb callback, and/or if we need to update the number of
+ * active objects.
+ *
+ * remaining is the number of local tasks available, after updating it
+ * using the appropriate atomic operation
+ */
+int dague_check_complete_cb(dague_handle_t *dague_handle, dague_context_t *context, int remaining);
 
 /**
  * Loads the scheduler as selected using the MCA logic

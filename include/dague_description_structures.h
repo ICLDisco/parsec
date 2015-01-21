@@ -44,6 +44,7 @@ struct assignment_s {
 typedef dague_datatype_t (*expr_op_datatype_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
 typedef int32_t (*expr_op_int32_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
 typedef int64_t (*expr_op_int64_inline_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
+typedef dague_data_t *(*direct_data_lookup_func_t)(const struct dague_handle_s *__dague_handle_parent, const assignment_t *assignments);
 
 struct expr_s {
     union {
@@ -122,16 +123,17 @@ struct dague_comm_desc_s {
 };
 
 struct dep_s {
-    expr_t const          *cond;           /**< The runtime-evaluable condition on this dependency */
-    expr_t const          *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
-    uint8_t                function_id;    /**< Index of the target dague function in the object function array */
-    uint8_t                dep_index;      /**< Output index of the dependency. This is used to store the flow
-                                             *   before tranfering it to the successors. */
-    uint8_t                dep_datatype_index;  /**< Index of the output datatype. */
-    dague_flow_t const    *flow;           /**< Pointer to the flow pointed to/from this dependency */
-    dague_flow_t const    *belongs_to;     /**< The flow this dependency belongs tp */
-    struct dague_comm_desc_s     datatype;       /**< Datatype associated with this dependency */
-    expr_t const          *call_params[MAX_CALL_PARAM_COUNT]; /**< Parameters of the dague function pointed by this dependency */
+    expr_t const               *cond;           /**< The runtime-evaluable condition on this dependency */
+    expr_t const               *ctl_gather_nb;  /**< In case of control gather, the runtime-evaluable number of controls to expect */
+    uint8_t                    function_id;     /**< Index of the target dague function in the object function array */
+    uint8_t                    dep_index;      /**< Output index of the dependency. This is used to store the flow
+                                                *   before tranfering it to the successors. */
+    uint8_t                    dep_datatype_index;  /**< Index of the output datatype. */
+    dague_flow_t const        *flow;           /**< Pointer to the flow pointed to/from this dependency */
+    dague_flow_t const        *belongs_to;     /**< The flow this dependency belongs tp */
+    struct dague_comm_desc_s   datatype;       /**< Datatype associated with this dependency */
+    direct_data_lookup_func_t  direct_data;    /**< Lookup the data associated with this dep, if (and only if)
+                                                *   this dep is a direct memory access */
 };
 
 void dep_dump(const dep_t *d, const struct dague_handle_s *dague_handle, const char *prefix);

@@ -99,6 +99,13 @@ struct dague_remote_deps_s {
  *   (max_dep_count x (np+31)/32 uint32_t) rank_bits
  *   ((np+31)/32 x uint32_t) fw_mask_bitfield } */
 
+/* This int can take the following values:
+ * - negative: no communication engine has been enabled
+ * - 0: the communication engine is not turned on
+ * - positive: the meaning is defined by the communication engine.
+ */
+extern int dague_communication_engine_up;
+
 #if defined(DISTRIBUTED)
 
 typedef struct {

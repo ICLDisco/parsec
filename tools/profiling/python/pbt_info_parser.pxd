@@ -16,7 +16,7 @@ cdef extern from "dague/mca/pins/papi_exec/pins_papi_exec.h":
       long long values[NUM_EXEC_EVENTS] # number is inconsequential
 
 cdef extern from "dague/mca/pins/papi_select/pins_papi_select.h":
-   enum: NUM_TASK_SELECT_EVENTS # allows us to grab the #define from the .h
+   enum: NUM_SELECT_EVENTS # allows us to grab the #define from the .h
    enum: SYSTEM_QUEUE_VP
    enum: KERNEL_NAME_SIZE
 
@@ -29,7 +29,7 @@ cdef extern from "dague/mca/pins/papi_select/pins_papi_select.h":
       int victim_th_id
       long long exec_context
       int values_len
-      long long values[NUM_TASK_SELECT_EVENTS] # number is inconsequential
+      long long values[NUM_SELECT_EVENTS] # number is inconsequential
 
 # cdef extern from "dague/mca/pins/papi_socket/pins_papi_socket.h":
 #    enum: NUM_SOCKET_EVENTS # allows us to grab the #define from the .h

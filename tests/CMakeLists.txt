@@ -43,7 +43,7 @@ include_directories(${include_dir})
 dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
 if(CMAKE_Fortran_COMPILER_WORKS)
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    set(touch_exf_FortranFLAGS "-I${PROJECT_BINARY_DIR}/src/fortran")
+    set(touch_exf_FortranFLAGS "-I${PROJECT_BINARY_DIR}/dague/fortran")
     dague_addtest(Fortran touch_exf "touch_exf.F90;${touch_generated}")
     target_link_libraries(touch_exf daguef)
     SET_TARGET_PROPERTIES(touch_exf PROPERTIES LINKER_LANGUAGE Fortran)
@@ -56,6 +56,9 @@ dague_addtest(C startup "${startup_generated}")
 
 jdf_rules(complex_deps_generated "${CMAKE_CURRENT_SOURCE_DIR}/complex_deps.jdf")
 dague_addtest(C complex_deps "${complex_deps_generated}")
+
+jdf_rules(multichain_generated "${CMAKE_CURRENT_SOURCE_DIR}/multichain.jdf")
+dague_addtest(C multichain "${multichain_generated}")
 
 # Define Testings
 include(Testings.cmake)

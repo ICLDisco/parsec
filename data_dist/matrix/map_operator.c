@@ -156,48 +156,19 @@ static inline int final_data_of_map_operator(dague_execution_context_t *this_tas
     return __flow_nb;
 }
 
-static inline int
-expr_of_p1_for_flow_of_map_operator_dep_in_fct(const dague_handle_t *__dague_handle_parent,
-                                                const assignment_t *assignments)
-{
-    (void)__dague_handle_parent;
-    return assignments[0].value;
-}
-
-static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
-    .op = EXPR_OP_INLINE,
-    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_in_fct }
-};
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
-    .call_params = {
-        &expr_of_p1_for_flow_of_map_operator_dep_in
-    }
+    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } }
 };
 
-static inline int
-expr_of_p1_for_flow_of_map_operator_dep_out_fct(const dague_handle_t *__dague_handle_parent,
-                                                 const assignment_t *assignments)
-{
-    (void)__dague_handle_parent;
-    return (assignments[0].value + 1);
-}
-static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
-    .op = EXPR_OP_INLINE,
-    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_out_fct }
-};
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .dep_index = 1,
     .flow = &flow_of_map_operator,
     .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
-    .call_params = {
-        &expr_of_p1_for_flow_of_map_operator_dep_out
-    }
 };
 
 static const dague_flow_t flow_of_map_operator = {
@@ -415,7 +386,6 @@ static const dague_function_t dague_map_operator = {
     .priority = NULL,
     .in = { &flow_of_map_operator },
     .out = { &flow_of_map_operator },
-    .init = NULL,
     .key = NULL,
     .prepare_input = data_lookup,
     .incarnations = __dague_map_chores,
@@ -515,6 +485,7 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
     res->super.super.handle_id = 1111;
     res->super.super.nb_local_tasks = src->nb_local_tiles;
     res->super.super.startup_hook = dague_map_operator_startup_fn;
+    (void)dague_handle_reserve_id((dague_handle_t *)res);
     return (dague_handle_t*)res;
 }
 

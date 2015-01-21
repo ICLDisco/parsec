@@ -11,6 +11,11 @@ set_target_properties(dbpinfos PROPERTIES LINKER_LANGUAGE C)
 set_target_properties(dbpinfos PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
 target_link_libraries(dbpinfos dague-base ${GTG_LIBRARIES})
 
+add_executable(dbp2mem dbp2mem.c dbpreader.c)
+set_target_properties(dbp2mem PROPERTIES LINKER_LANGUAGE C)
+set_target_properties(dbp2mem PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
+target_link_libraries(dbp2mem dague-base ${GTG_LIBRARIES})
+
 find_package(GTG)
 
 if(GTG_FOUND)

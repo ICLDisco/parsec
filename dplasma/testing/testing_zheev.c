@@ -85,7 +85,7 @@ goto fin;
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, MB);
     dague_enqueue(dague, (dague_handle_t*)DAGUE_diag_band_to_rect);
-    dague_progress(dague);
+    dague_context_wait(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 #ifdef PRINTF_HEAVY
     printf("########### BAND (converted from A)\n");

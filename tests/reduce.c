@@ -43,7 +43,10 @@ int main( int argc, char* argv[] )
     int rows = 1;
 
 #if defined(HAVE_MPI)
-    MPI_Init(&argc, &argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
@@ -65,7 +68,7 @@ int main( int argc, char* argv[] )
                                                NULL);
     dague_enqueue(dague, (dague_handle_t*)object);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_map_operator_Destruct( object );
 

@@ -92,7 +92,7 @@ main (int argc, char *argv[])
     cholesky = cholesky_new(ddescA, BLOCKSIZE, matrix_rank/BLOCKSIZE, uplo, &info);
 
 	
-    dague_progress(dague);
+    dague_context_wait(dague);
   
     
 

@@ -16,7 +16,7 @@ enable_testing()
 include(CTest)
 
 set(MPI_TEST_CMD
-      "mpirun" CACHE STRING
+      "mpiexec" CACHE STRING
       "A command to run distributed memory testings")
 if( "${MPI_TEST_CMD}" STREQUAL "" )
     MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
@@ -388,6 +388,7 @@ check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 check_include_files(stddef.h HAVE_STDDEF_H)
 check_include_files(stdbool.h HAVE_STDBOOL_H)
+check_include_files(ctype.h HAVE_CTYPE_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h HAVE_RUSAGE_THREAD)
 check_include_files(limits.h HAVE_LIMITS_H)
@@ -436,15 +437,21 @@ IF( BUILD_DAGUE )
     find_package(CUDA QUIET)
     set(HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
+      message(STATUS "Found CUDA ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
       if(CUDA_VERSION VERSION_LESS "3.0")
         set(CUDA_HOST_COMPILATION_CPP OFF)
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
       list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
+      if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        list(APPEND EXTRA_LIBS "-framework cuda")
+      else(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        list(APPEND EXTRA_LIBS cuda)
+      endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       CMAKE_PUSH_CHECK_STATE()
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
-      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES}")
+      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES};-lcuda")
       if(CUDA_VERSION VERSION_LESS "4.0")
           set(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
       else()
@@ -608,11 +615,11 @@ if( BUILD_DAGUE )
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
     #include(FortranCInterface)
-    #FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+    #FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
     #                         MACRO_NAMESPACE "DAGUE_"
     #                         SYMBOL_NAMESPACE "dague_")
     #                         SYMBOLS mysub daguef:my_sub)
-    add_subdirectory(src/fortran)
+    add_subdirectory(dague/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
 
@@ -638,6 +645,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config_bottom.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
   DESTINATION include)
