@@ -14,6 +14,14 @@
 #include <stdio.h>
 #include "arena.h"
 
+/**
+ * Indicator for the status of the communication engine. The following values are valid:
+ * - -1: the engine is not initialized (e.g. MPI is not up and running)
+ * -  0: any value > 0 indicate communication capabilities
+ * -  1: the communication capabilities are enabled (internal engine is initialized)
+ * -  2: communication thread is running
+ * -  3: communication thread is up but sleeping
+ */
 int dague_communication_engine_up = -1;
 
 #ifdef DISTRIBUTED
