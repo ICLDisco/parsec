@@ -224,7 +224,7 @@ int main(int argc, char ** argv)
         insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_PO, "Potrf",
                                  sizeof(int),      &uplo,              VALUE,
                                  sizeof(int),      &tempkm,            VALUE,
-                                 PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, k, k), INOUT, DEFAULT,
+                                 PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, k, k), INOUT | REGION_FULL,
                                  sizeof(int),      &ldak,              VALUE,
                                  sizeof(int),      &iinfo,             VALUE,
                                  0);
@@ -239,9 +239,9 @@ int main(int argc, char ** argv)
                                      sizeof(int),      &tempmm,             VALUE,
                                      sizeof(int),      &ddescA.super.nb,    VALUE,
                                      sizeof(int),      &alpha_trsm,         VALUE,
-                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, k, k), INPUT, DEFAULT,
+                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, k, k), INPUT | REGION_FULL,
                                      sizeof(int),      &ldak,               VALUE,
-                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, m, k), INOUT, DEFAULT,
+                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, m, k), INOUT | REGION_FULL,
                                      sizeof(int),      &ldam,               VALUE,
                                      0);
         }
@@ -254,10 +254,10 @@ int main(int argc, char ** argv)
                                     sizeof(int),       &tempmm,             VALUE,
                                     sizeof(int),       &ddescA.super.mb,    VALUE,
                                     sizeof(int),       &alpha_herk,         VALUE,
-                                    PASSED_BY_REF,     TILE_OF(DAGUE_dtd_handle, A, m, k), INPUT, DEFAULT,
+                                    PASSED_BY_REF,     TILE_OF(DAGUE_dtd_handle, A, m, k), INPUT | REGION_FULL,
                                     sizeof(int),       &ldam,               VALUE,
                                     sizeof(int),       &beta,               VALUE,
-                                    PASSED_BY_REF,     TILE_OF(DAGUE_dtd_handle, A, m, m), INOUT, DEFAULT,
+                                    PASSED_BY_REF,     TILE_OF(DAGUE_dtd_handle, A, m, m), INOUT | REGION_FULL,
                                     sizeof(int),       &ldam,               VALUE,
                                     0);
             for(n=k+1;n<m;n++){
@@ -268,12 +268,12 @@ int main(int argc, char ** argv)
                                            sizeof(int),        &tempmm,             VALUE,
                                            sizeof(int),        &ddescA.super.mb,    VALUE,
                                            sizeof(double),        &alpha_herk,         VALUE,
-                                           PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, k), INPUT, DEFAULT,
+                                           PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, k), INPUT | REGION_FULL,
                                            sizeof(int),        &ldam,               VALUE,
-                                           PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, n, k), INPUT, DEFAULT,
+                                           PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, n, k), INPUT | REGION_FULL,
                                            sizeof(int),        &ldan,               VALUE,
                                            sizeof(double),        &beta,               VALUE,
-                                           PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, n), INOUT, DEFAULT,
+                                           PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, n), INOUT | REGION_FULL,
                                            sizeof(int),        &ldam,               VALUE,
                                            0);
             }

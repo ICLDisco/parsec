@@ -26,9 +26,9 @@ struct task_param_s {
 };
 
 /* Task structure derived from dague_execution_context_t */
-struct descendant_info { /* All the fields store info about the descendant except op_type_parent(operation type ex. INPUT, INPUt or OUTPUT) */
-    uint8_t op_type_parent; /* Info about the current_task and not about descendant */
-    uint8_t op_type;
+struct descendant_info { /* All the fields store info about the descendant except op_type_parent(operation type ex. INPUT, INOUT or OUTPUT) */
+    int op_type_parent; /* Info about the current_task and not about descendant */
+    int op_type;
     uint8_t flow_index;
     dtd_task_t *task;
     dtd_tile_t *tile;
@@ -55,8 +55,10 @@ struct dtd_task_s {
     int ready_mask;
     char *name;
     uint8_t belongs_to_function;
-    uint8_t first_and_input; /* saves flow for which a task may be first one 
+    uint8_t first_and_input[MAX_DESC]; /* saves flow for which a task may be first one 
                                 and it's operation type is INPUT on that DATA */
+    uint8_t dont_skip_releasing_data[MAX_DESC]; /* Saves flow index for which we have to release data of a TASK 
+                                  with INPUT operation */
     task_param_t *param_list;
 };
 
@@ -65,7 +67,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dtd_task_t); /* For creating objects of cla
 /** Tile structure **/
 struct user {
     uint8_t flow_index;
-    uint8_t op_type;
+    int op_type;
     dtd_task_t *task;
 };
 

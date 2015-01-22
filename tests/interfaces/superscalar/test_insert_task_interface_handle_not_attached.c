@@ -70,7 +70,7 @@ int main(int argc, char ** argv)
                                  sizeof(int),      &uplo,               VALUE,
                                  sizeof(int),      &uplo2,              VALUE,
                                  sizeof(double),   NULL,                SCRATCH,
-                                 PASSED_BY_REF,    ddesc,               INOUT, DEFAULT,
+                                 PASSED_BY_REF,    ddesc,               INOUT | REGION_FULL,
                                  sizeof(int),      &uplo1,              VALUE,
                                  0);
     }

@@ -9,13 +9,24 @@
 #include "dague.h"
 
 #define DTD_ENABLED
+#define ATOMIC_WRITE_ENABLED
 
-#define INPUT 0x1
-#define OUTPUT 0x2
-#define INOUT 0x3
-#define SCRATCH 0x8
-#define ATOMIC_WRITE 0x4
-#define VALUE 0x20
+#define GET_OP_TYPE 0xf00
+typedef enum {  INPUT=0x100,
+                OUTPUT=0x200,
+                INOUT=0x300,
+                ATOMIC_WRITE=0x400,
+                SCRATCH=0x500,
+                VALUE=0x600
+             } dtd_op_type;
+
+#define GET_REGION_INFO 0xff
+typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
+                REGION_L=1<<1,   
+                REGION_D=1<<2,
+                REGION_U=1<<3
+             } dtd_regions;
+
 #define AFFINITY 0x4
 #define DEFAULT 0x1
 #define LOWER_TILE 0x2
@@ -30,6 +41,7 @@
 
 #define TILE_OF(DAGUE, DDESC, I, J) \
     tile_manage(DAGUE, &(__ddesc##DDESC->super.super), I, J)
+
 
 typedef struct generic_hash_table hash_table;
 typedef struct task_param_s task_param_t;

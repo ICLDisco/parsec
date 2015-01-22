@@ -20,9 +20,27 @@
 #include "dplasma/testing/common_timing.h"
 
 double time_elapsed = 0.0;
+int
+call_to_kernel_type_1(dague_execution_context_t * this_task)
+{   
+    static int count=0;
+    dague_data_copy_t *gDATA;
+
+    dague_dtd_unpack_args(this_task,
+                          UNPACK_DATA,  &gDATA
+                          );
+ 
+    int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
+
+    printf("Executing Task: %d\n",((dtd_task_t *)this_task)->task_id+1);
+    //printf("The data is: %d\n", *data);
+
+    
+    return 0;
+}
 
 int
-call_to_kernel(dague_execution_context_t * this_task)
+call_to_kernel_type_2(dague_execution_context_t * this_task)
 {   
     static int count=0;
     dague_data_copy_t *gDATA;
@@ -50,6 +68,9 @@ int main(int argc, char ** argv)
 
     if(argv[1] != NULL){
         no_of_tasks = atoi(argv[1]);
+    }
+    if(argv[2] != NULL){
+        size = atoi(argv[2]);
     }
 
     dague = dague_init(ncores, &argc, &argv);
@@ -84,16 +105,21 @@ int main(int argc, char ** argv)
         printf("At index %d: %d\n", k, *data);
     } 
 
-    for(int kk = 0; kk< no_of_tasks; kk++) {
-        for( k = 0; k < total; k++ ) {
-            insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel,     "Task",
-                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, k, k),   ATOMIC_WRITE | REGION_FULL,
+    for(int kk = 0; kk< total; kk++) {
+            insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_type_2,     "Atomic_write",
+                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   ATOMIC_WRITE | REGION_FULL,
+                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   INOUT | REGION_FULL,
+                                     0);
+        for( k = 0; k < kk-1; k++ ) {
+            insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_type_1,     "Input",
+                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   INPUT | REGION_FULL,
+                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, k, k),   INPUT | REGION_FULL,
                                      0);
         }
     }
 
-    dague_atomic_dec_32b(&DAGUE_dtd_handle->super.nb_local_tasks ); 
-    dague_context_start(dague);  
+    increment_task_counter(DAGUE_dtd_handle); 
+    //dague_context_start(dague);  
     dague_context_wait(dague);  
 
     printf("Finally \n");

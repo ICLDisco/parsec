@@ -24,10 +24,12 @@
 #define FUNCTION_HASH_TABLE_SIZE (10)
 
 //#define PRINT_F_STRUCTURE
-#define SPIT_TRAVERSAL_INFO
+//#define SPIT_TRAVERSAL_INFO
+#define DAG_BUILD_2
 #define OVERLAP_STRATEGY_1
+//#define OVERLAP_STRATEGY_2
 
-#if defined (OVERLAP_STRATEGY_1)
+#if defined (OVERLAP_STRATEGY_1) || defined (OVERLAP_STRATEGY_2)
     #include "dague/interfaces/superscalar/overlap_strategies.c"
 #else
     #include "dague/interfaces/superscalar/insert_function_internal.h"
@@ -57,7 +59,7 @@ _internal_insert_task(dague_dtd_handle_t *__dague_handle,
                       task_func* fpointer,
                       task_param_t *param_list_head,
                       char* name, int no_of_param,
-                      int size_of_value_param);
+                          int size_of_value_param);
 static int
 release_deps_of_dtd(struct dague_execution_unit_s *,
                     dague_execution_context_t *,
@@ -67,13 +69,10 @@ static dague_hook_return_t
 complete_hook_of_dtd(struct dague_execution_unit_s *,
                      dague_execution_context_t *);
 
-
-//#define PRINT_F_STRUCTURE
-
 void 
 increment_task_counter(dague_dtd_handle_t *handle)
 {
-    dague_atomic_add_32b(&handle->super.nb_local_tasks, 1);
+    dague_atomic_add_32b(&handle->super.nb_local_tasks, -1);
 }
 
 void
@@ -418,7 +417,7 @@ task_insert_h_t(hash_table* hash_table, int key,
 void
 set_descendant(dtd_task_t *parent_task, uint8_t parent_flow_index,
                dtd_task_t *desc_task, uint8_t desc_flow_index,
-               uint8_t parent_op_type, uint8_t desc_op_type)
+               int parent_op_type, int desc_op_type)
 {
     parent_task->desc[parent_flow_index].op_type_parent = parent_op_type;
     parent_task->desc[parent_flow_index].op_type        = desc_op_type;
@@ -721,35 +720,37 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
     dtd_task_t *parent_task  = (dtd_task_t*)old_context;
 
 #if defined(DAGUE_PROF_GRAPHER)
-    if(NULL!=grapher_file) {
-        int i=0;
+    if(!parent_task->first_and_input[deps->dep_index]){ /* Check to not print stuff redundantly */
+        if(NULL!=grapher_file) {
+            int i=0;
 
-        parent = parent_task->name;
-        for(i=0;i<strlen(parent);i++){
-            fprintf(grapher_file,"%c",parent[i]);
+            parent = parent_task->name;
+            for(i=0;i<strlen(parent);i++){
+                fprintf(grapher_file,"%c",parent[i]);
+            }
+            fprintf(grapher_file,"_%d -> ", parent_task->task_id);
+            dest = current_task->name;
+            for(i=0;i<strlen(dest);i++){
+                fprintf(grapher_file,"%c",dest[i]);
+            }
+            fprintf(grapher_file,"_%d ",task_id);
+            fprintf(grapher_file,"[label=tile_%d]\n",deps->dep_index);
+            for(i=0;i<strlen(parent);i++){
+                fprintf(grapher_file,"%c",parent[i]);
+            }
+            fprintf(grapher_file,"_%d ", parent_task->task_id);
+            fprintf(grapher_file,"[shape=\"polygon\",style=\"filled\",color=\"");
+            print_color_graph(parent);
+            fprintf(grapher_file,"\"]\n");
+            for(i=0;i<strlen(dest);i++){
+                fprintf(grapher_file,"%c",dest[i]);
+            }
+            fprintf(grapher_file,"_%d ", current_task->task_id);
+            fprintf(grapher_file,"[shape=\"polygon\",style=\"filled\",color=\"");
+            print_color_graph(dest);
+            fprintf(grapher_file,"\"]\n");
+            fflush(grapher_file);
         }
-        fprintf(grapher_file,"_%d -> ", parent_task->task_id);
-        dest = current_task->name;
-        for(i=0;i<strlen(dest);i++){
-            fprintf(grapher_file,"%c",dest[i]);
-        }
-        fprintf(grapher_file,"_%d ",task_id);
-        fprintf(grapher_file,"[label=tile_%d]\n",deps->dep_index);
-        for(i=0;i<strlen(parent);i++){
-            fprintf(grapher_file,"%c",parent[i]);
-        }
-        fprintf(grapher_file,"_%d ", parent_task->task_id);
-        fprintf(grapher_file,"[shape=\"polygon\",style=\"filled\",color=\"");
-        print_color_graph(parent);
-        fprintf(grapher_file,"\"]\n");
-        for(i=0;i<strlen(dest);i++){
-            fprintf(grapher_file,"%c",dest[i]);
-        }
-        fprintf(grapher_file,"_%d ", current_task->task_id);
-        fprintf(grapher_file,"[shape=\"polygon\",style=\"filled\",color=\"");
-        print_color_graph(dest);
-        fprintf(grapher_file,"\"]\n");
-        fflush(grapher_file);
     }
 #endif
 
@@ -766,8 +767,12 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
                                            &current_task->super.list_item,
                                            dague_execution_context_priority_comparator );
 
-   }
-  return DAGUE_ITERATE_CONTINUE;
+        return DAGUE_ITERATE_CONTINUE; /* Returns the status of the task being activated, whether 
+                                          it is ready or not */
+    } else {
+        return DAGUE_ITERATE_STOP;
+    }
+    
 }
 
 /* iterate_successors_function */
@@ -798,7 +803,6 @@ iterate_successors_of_dtd_task(dague_execution_unit_t * eu,
     deps = (dep_t*) malloc (sizeof(dep_t));
     dague_flow_t* dst_flow = (dague_flow_t*) malloc(sizeof(dague_flow_t));
 
-    //tmp_task = current_task;
     for(i=0; i<current_task->total_flow; i++) {
         tmp_task = current_task;
         last_iterate_flag = 0;
@@ -806,13 +810,13 @@ iterate_successors_of_dtd_task(dague_execution_unit_t * eu,
           * Not iterating if there's no descendant for this flow or
           * if the operation type of current task is READ ONLY
          */
-        if( (NULL == current_task->desc[i].task ) || (INPUT == current_task->desc[i].op_type_parent) ) {
+        if( (NULL == current_task->desc[i].task ) || INPUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) ) {
             /* Checking if this is the first task and
              * the operation is input or not.
              * We can not bypass this task even if the operation type is
              * INPUT only
              */
-            if (current_task->first_and_input != i){
+            if (current_task->first_and_input[i]){
                 continue;
             }
         }
@@ -822,7 +826,7 @@ iterate_successors_of_dtd_task(dague_execution_unit_t * eu,
 
         current_desc_task = current_task->desc[i].task;
 
-        if ( current_task->desc[i].op_type == INOUT || current_task->desc[i].op_type == OUTPUT) {
+        if ( (current_task->desc[i].op_type & GET_OP_TYPE) == INOUT || (current_task->desc[i].op_type & GET_OP_TYPE) == OUTPUT) {
             last_iterate_flag = 1;
         }
         while(NULL != current_desc_task) {
@@ -1166,18 +1170,18 @@ set_flow_in_function(dague_dtd_handle_t *__dague_handle,
     flow->flow_index    = flow_index;
     flow->flow_datatype_mask = 1<<tile_type_index;
 
-    if (tile_op_type == INPUT) {
+    if ((tile_op_type & GET_OP_TYPE) == INPUT) {
         flow->flow_flags = FLOW_ACCESS_READ;
-    } else if (tile_op_type == OUTPUT) {
+    } else if ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
         flow->flow_flags = FLOW_ACCESS_WRITE;
-    } else if (tile_op_type == INOUT) {
+    } else if ((tile_op_type & GET_OP_TYPE) == INOUT) {
         flow->flow_flags = FLOW_ACCESS_RW;
     }
-    if (tile_op_type == INPUT || tile_op_type == INOUT) {
+    if ((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
         dague_flow_t **in = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->in[flow_index]);
         *in = flow;
     }
-    if (tile_op_type == OUTPUT || tile_op_type == INOUT) {
+    if ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE || (tile_op_type & GET_OP_TYPE) == INOUT) {
         dague_flow_t **out = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->out[flow_index]);
         *out = flow;
     }
@@ -1200,7 +1204,8 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     static uint32_t task_id = 0, _internal_task_counter=0;
     static int task_class_counter = 0;
     static uint8_t flow_set_flag[MAX_TASK_CLASS];
-    int next_arg, tile_type_index,  tile_op_type, i, flow_index = 0;
+    int next_arg, tile_type_index, i, flow_index = 0;
+    int tile_op_type;
     int track_function_created_or_not = 0;
     task_param_t *head_of_param_list, *current_param, *tmp_param;
     void *tmp, *value_block, *current_val; 
@@ -1221,12 +1226,14 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     temp_task->flow_satisfied = 0;
-    temp_task->first_and_input = 99;
     for(int i=0;i<MAX_DESC;i++){
-        temp_task->desc[i].op_type_parent = 0;
-        temp_task->desc[i].op_type        = 0;
-        temp_task->desc[i].flow_index     = 0;
+        temp_task->desc[i].op_type_parent = -1;
+        temp_task->desc[i].op_type        = -1;
+        temp_task->desc[i].flow_index     = -1;
         temp_task->desc[i].task           = NULL;
+
+        temp_task->first_and_input[i]     = 0;
+        temp_task->dont_skip_releasing_data[i] = 0;
     }
     for(int i=0;i<MAX_PARAM_COUNT;i++){
         temp_task->super.data[i].data_repo = NULL;
@@ -1260,8 +1267,8 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         tile_op_type = va_arg(args, int);
         current_param->tile_type_index = DEFAULT;
 
-        if(tile_op_type == INPUT || tile_op_type == OUTPUT || tile_op_type == INOUT) {
-            tile_type_index = va_arg(args, int);
+        if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
+            tile_type_index = tile_op_type & GET_REGION_INFO;
             current_param->tile_type_index = tile_type_index;
             current_param->pointer_to_tile = tmp;                
 
@@ -1271,30 +1278,35 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
                     set_flow_in_function(__dague_handle, temp_task, tile_op_type, flow_index, tile_type_index);
                 }
 
-                if (NULL != tile->last_user.task) {
+                if(NULL != tile->last_user.task) {
                     if (tile->last_user.task == temp_task){
-                       // temp_task->flow_count++;
                         temp_task->flow_satisfied++;
-                    }
-                    set_descendant(tile->last_user.task, tile->last_user.flow_index,
+                    } else { /* Setting descendant only if the tasks are diferrent from each other */
+                        set_descendant(tile->last_user.task, tile->last_user.flow_index,
                                    temp_task, flow_index, tile->last_user.op_type,
                                    tile_op_type);
-                    set_dependencies_for_function((dague_handle_t *)__dague_handle,
-                                                  (dague_function_t *)tile->last_user.task->super.function,
-                                                  (dague_function_t *)temp_task->super.function,
-                                                  tile->last_user.flow_index, flow_index, tile_type_index);
-                    
+                    }
+                    if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
+                        set_dependencies_for_function((dague_handle_t *)__dague_handle,
+                                                  (dague_function_t *)temp_task->super.function, NULL,
+                                                  flow_index, 0, tile_type_index);
+                    } else {
+                        set_dependencies_for_function((dague_handle_t *)__dague_handle,
+                                                      (dague_function_t *)tile->last_user.task->super.function,
+                                                      (dague_function_t *)temp_task->super.function,
+                                                      tile->last_user.flow_index, flow_index, tile_type_index);
+                    }
                 } else {
-                    if(INPUT == tile_op_type){
-                        temp_task->first_and_input = flow_index; /* Saving the Flow for which a Task is the first one to use the data and the operation is INPUT */
+                    if(INPUT == (tile_op_type & GET_OP_TYPE)){
+                        temp_task->first_and_input[flow_index] = 1; /* Saving the Flow for which a Task is the first one to use the data and the operation is INPUT */
                     }
                     temp_task->flow_satisfied++;
-                    if (tile_op_type == INPUT || tile_op_type == INOUT )
-                    set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL,
+                    if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT)
+                        set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL,
                                                   (dague_function_t *)temp_task->super.function,
                                                   0, flow_index, tile_type_index);
-                    if (tile_op_type == OUTPUT)
-                    set_dependencies_for_function((dague_handle_t *)__dague_handle,
+                    if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE)
+                        set_dependencies_for_function((dague_handle_t *)__dague_handle,
                                                   (dague_function_t *)temp_task->super.function, NULL,
                                                   flow_index, 0, tile_type_index);
                     
@@ -1307,16 +1319,12 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
                 flow_index++;
             }
-        } else if (tile_op_type == SCRATCH){
+        } else if ((tile_op_type & GET_OP_TYPE) == SCRATCH){
             if(NULL == tmp){
                 current_param->pointer_to_tile = malloc(next_arg);        
             }else {
                 current_param->pointer_to_tile = tmp;        
             }
-        } else if (tile_op_type == ATOMIC_WRITE){
-            tile_type_index = va_arg(args, int);
-            current_param->tile_type_index = tile_type_index;
-            current_param->pointer_to_tile = tmp;                
         } else {
             memcpy(current_val, tmp, next_arg);
             current_param->pointer_to_tile = current_val;

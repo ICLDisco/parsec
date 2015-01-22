@@ -788,6 +788,21 @@ int dague_fini( dague_context_t** pcontext )
 
     PINS_THREAD_FINI(context->virtual_processes[0]->execution_units[0]);
 
+    /**
+     * We need to force the main thread to drain all possible pending messages
+     * on the communication layer. This is not an issue in a distributed run,
+     * but on a single node run with MPI support, objects can be created (and
+     * thus context_id additions might be pending on the communication layer).
+     */
+#if defined(DISTRIBUTED)
+    if( (1 == dague_communication_engine_up) &&
+        (context->nb_nodes == 1) &&
+        DAGUE_THREAD_IS_MASTER(context->virtual_processes[0]->execution_units[0]) ) {
+        /* check for remote deps completion */
+        dague_remote_dep_progress(context->virtual_processes[0]->execution_units[0]);
+    }
+#endif /* defined(DISTRIBUTED) */
+
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
