@@ -1,6 +1,6 @@
 extern "C" %{
 /**
- * Copyright (c) 2014      The University of Tennessee and The University
+ * Copyright (c) 2014-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,6 +16,9 @@ extern "C" %{
 #define N     100
 #define NN    2
 #define TYPE  matrix_RealFloat
+
+#include "multichain.h"
+static dague_multichain_handle_t* handle;
 
 %}
 
@@ -35,7 +38,7 @@ READ A <- A(i, 0)
 RW   B <- (i == 0)      ? B(i, 0) : B HORIZONTAL(i-1)
        -> (i != (NI-1)) ? B HORIZONTAL(i+1)
 BODY
-     printf("HORIZONTAL(%d)\n", i);
+     printf("HORIZONTAL(%d) [left-over tasks %d]\n", i, handle->super.nb_local_tasks);
 END
 
 VERTICAL(i, j)
@@ -49,7 +52,7 @@ READ A <- (j == 0)      ? A HORIZONTAL(i) : A VERTICAL(i, j-1)
 RW   B <- (i == 0)      ? B(i, 0) : B VERTICAL(i-1, j)
        -> (i != (NI-1)) ? B VERTICAL(i+1, j) : B(i, 0)
 BODY
-     printf("VERTICAL(%d, %d)\n", i, j);
+     printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, handle->super.nb_local_tasks);
 END
 
 extern "C" %{
@@ -70,7 +73,6 @@ extern "C" %{
 
 int main(int argc, char* argv[])
 {
-    dague_multichain_handle_t* handle;
     two_dim_block_cyclic_t descA, descB;
     dague_arena_t arena;
     dague_context_t *dague;
@@ -129,7 +131,12 @@ int main(int argc, char* argv[])
     dague_arena_construct( &arena,
                            descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_FLOAT);  /* change for distributed cases */
+#ifdef DISTRIBUTED
+                           MPI_FLOAT
+#else
+                           NULL
+#endif  /* DISTRIBUTED */
+                         );
 
     handle = dague_multichain_new( &descA, &descB, ni, nj );
     assert( NULL != handle );
@@ -151,6 +158,24 @@ int main(int argc, char* argv[])
                "</DartMeasurement>\n",
                (double)time_elapsed);
     }
+
+    /**
+     * Validate the dague_context_start / dague_context_wait functionality.
+     */
+    printf("\n\nChecking the dague_context_start / dague_context_wait (sleep 5)\n\n");
+    handle = dague_multichain_new( &descA, &descB, ni, nj );
+    assert( NULL != handle );
+
+    TIMER_START(time_elapsed);
+    handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
+    dague_enqueue( dague, (dague_handle_t*)handle );
+    TIMER_STOP(time_elapsed);
+
+    dague_context_start(dague);
+    sleep(5);
+    printf("Main thread going for the wait\n");
+    /* By now most of the tasks should be completed */
+    dague_context_wait(dague);
 
     free(descA.mat);
 
