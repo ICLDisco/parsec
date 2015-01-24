@@ -14,12 +14,12 @@ extern "C" %{
 
 #define BLOCK 10
 #define N     100
-#define NN    2
+#define NN    4
 #define TYPE  matrix_RealFloat
 
 #include "multichain.h"
 static dague_multichain_handle_t* handle;
-
+static int verbose = 0;
 %}
 
 A          [type = "two_dim_block_cyclic_t*"]
@@ -38,7 +38,8 @@ READ A <- A(i, 0)
 RW   B <- (i == 0)      ? B(i, 0) : B HORIZONTAL(i-1)
        -> (i != (NI-1)) ? B HORIZONTAL(i+1)
 BODY
-     printf("HORIZONTAL(%d) [left-over tasks %d]\n", i, handle->super.nb_local_tasks);
+    if(verbose)
+        printf("HORIZONTAL(%d) [left-over tasks %d]\n", i, handle->super.nb_local_tasks);
 END
 
 VERTICAL(i, j)
@@ -52,7 +53,8 @@ READ A <- (j == 0)      ? A HORIZONTAL(i) : A VERTICAL(i, j-1)
 RW   B <- (i == 0)      ? B(i, 0) : B VERTICAL(i-1, j)
        -> (i != (NI-1)) ? B VERTICAL(i+1, j) : B(i, 0)
 BODY
-     printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, handle->super.nb_local_tasks);
+    if(verbose)
+        printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, handle->super.nb_local_tasks);
 END
 
 extern "C" %{
@@ -76,7 +78,7 @@ int main(int argc, char* argv[])
     two_dim_block_cyclic_t descA, descB;
     dague_arena_t arena;
     dague_context_t *dague;
-    int ni = NN, nj = NN, verbose = 0, i = 1;
+    int ni = NN, nj = NN, loops = 5, i = 1;
     int rank = 0, size = 1, mat_size;
     long time_elapsed;
 
@@ -92,6 +94,18 @@ int main(int argc, char* argv[])
         if( 0 == strncmp(argv[i], "-v=", 3) ) {
             verbose = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-l=", 3) ) {
+            loops = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-h", 2) ) {
+            printf("-h: help\n"
+                   "-i=<nb> the number of horizontal tasks\n"
+                   "-j=<nb> the number of vertical tasks for each horizontal task\n"
+                   "-l=<nb> the number of repetition\n"
+                   "-v=<nb> the verbosity level\n");
+            exit(0);
         }
         i++;  /* skip this one */
         continue;
@@ -138,45 +152,48 @@ int main(int argc, char* argv[])
 #endif  /* DISTRIBUTED */
                          );
 
-    handle = dague_multichain_new( &descA, &descB, ni, nj );
-    assert( NULL != handle );
-    TIMER_START(time_elapsed);
-    handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
-    dague_enqueue( dague, (dague_handle_t*)handle );
-    TIMER_STOP(time_elapsed);
-    printf("DAG construction %d tasks in %ld micro-sec\n",
-           handle->super.nb_local_tasks, time_elapsed);
+    for( ; loops > 0; loops-- ) {
 
-    TIMER_START(time_elapsed);
-    dague_context_wait(dague);
-    TIMER_STOP(time_elapsed);
-    printf("DAG execution in %ld micro-sec\n", time_elapsed);
-    if( verbose >= 5 ) {
-        printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
-               "                 encoding=\"none\" compression=\"none\">\n"
-               "%g\n"
-               "</DartMeasurement>\n",
-               (double)time_elapsed);
+        printf("\n\n\n%d iterations remaining\n\n\n", loops);
+        handle = dague_multichain_new( &descA, &descB, ni, nj );
+        assert( NULL != handle );
+        TIMER_START(time_elapsed);
+        handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
+        dague_enqueue( dague, (dague_handle_t*)handle );
+        TIMER_STOP(time_elapsed);
+        printf("DAG construction %d tasks in %ld micro-sec\n",
+               handle->super.nb_local_tasks, time_elapsed);
+
+        TIMER_START(time_elapsed);
+        dague_context_wait(dague);
+        TIMER_STOP(time_elapsed);
+        printf("DAG execution in %ld micro-sec\n", time_elapsed);
+        if( verbose >= 5 ) {
+            printf("<DartMeasurement name=\"no_pri\" type=\"numeric/double\"\n"
+                   "                 encoding=\"none\" compression=\"none\">\n"
+                   "%g\n"
+                   "</DartMeasurement>\n",
+                   (double)time_elapsed);
+        }
+
+        /**
+         * Validate the dague_context_start / dague_context_wait functionality.
+         */
+        printf("\n\nChecking the dague_context_start / dague_context_wait (sleep 5)\n\n");
+        handle = dague_multichain_new( &descA, &descB, ni, nj );
+        assert( NULL != handle );
+
+        TIMER_START(time_elapsed);
+        handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
+        dague_enqueue( dague, (dague_handle_t*)handle );
+        TIMER_STOP(time_elapsed);
+
+        dague_context_start(dague);
+        sleep(5);
+        printf("Main thread going for the wait\n");
+        /* By now most of the tasks should be completed */
+        dague_context_wait(dague);
     }
-
-    /**
-     * Validate the dague_context_start / dague_context_wait functionality.
-     */
-    printf("\n\nChecking the dague_context_start / dague_context_wait (sleep 5)\n\n");
-    handle = dague_multichain_new( &descA, &descB, ni, nj );
-    assert( NULL != handle );
-
-    TIMER_START(time_elapsed);
-    handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
-    dague_enqueue( dague, (dague_handle_t*)handle );
-    TIMER_STOP(time_elapsed);
-
-    dague_context_start(dague);
-    sleep(5);
-    printf("Main thread going for the wait\n");
-    /* By now most of the tasks should be completed */
-    dague_context_wait(dague);
-
     free(descA.mat);
 
     dague_fini( &dague);
