@@ -333,7 +333,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     return rc;
 }
 
-void* __dague_context_wait( dague_execution_unit_t* eu_context )
+int __dague_context_wait( dague_execution_unit_t* eu_context )
 {
     uint64_t misses_in_a_row;
     dague_context_t* dague_context = eu_context->virtual_process->dague_context;
@@ -354,10 +354,10 @@ void* __dague_context_wait( dague_execution_unit_t* eu_context )
         /* The master thread might not have to trigger the barrier if the other
          * threads have been activated by a previous start.
          */
-        if( !(DAGUE_CONTEXT_FLAG_MAIN_IN & dague_context->flags) ) {
-            dague_context->flags |= DAGUE_CONTEXT_FLAG_MAIN_IN;
+        if( DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE & dague_context->flags ) {
             goto skip_first_barrier;
         }
+        dague_context->flags |= DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE;
     }
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
@@ -381,7 +381,7 @@ void* __dague_context_wait( dague_execution_unit_t* eu_context )
 
     if( NULL == current_scheduler ) {
         fprintf(stderr, "DAGuE: Main thread entered dague_context_wait, while scheduler is not selected yet!\n");
-        return (void *)-1;
+        return -1;
     }
 
   skip_first_barrier:
@@ -515,7 +515,7 @@ void* __dague_context_wait( dague_execution_unit_t* eu_context )
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
-    return (void*)((long)nbiterations);
+    return nbiterations;
 }
 
 /************ COMPOSITION OF DAGUE_OBJECTS ****************/
@@ -656,9 +656,11 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
 
 static inline int
 __dague_context_cas_or_flag(dague_context_t* context,
-                            int flags)
+                            uint32_t flags)
 {
     uint32_t current_flags = context->flags;
+    /* if the flags are already set don't reset them */
+    if( flags == (current_flags & flags) ) return 0;
     return dague_atomic_cas(&context->flags,
                             current_flags,
                             current_flags | flags);
@@ -678,11 +680,13 @@ int dague_context_start( dague_context_t* context )
     /* No active work */
     if(all_tasks_done(context)) return -2;
     /* Context already active */
-    if( DAGUE_CONTEXT_FLAG_ACTIVE & context->flags )
+    if( DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags )
         return -1;
     /* Start up the context */
-    if( __dague_context_cas_or_flag(context, DAGUE_CONTEXT_FLAG_ACTIVE) ) {
+    if( __dague_context_cas_or_flag(context, DAGUE_CONTEXT_FLAG_COMM_ACTIVE) ) {
         (void)dague_remote_dep_on(context);
+        /* Mark the context so that we will skip the initial barrier during the _wait */
+        context->flags |= DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE;
         /* Wake up the other threads */
         dague_barrier_wait( &(context->barrier) );
         return 0;
@@ -709,15 +713,18 @@ int dague_context_test( dague_context_t* context )
 int dague_context_wait( dague_context_t* context )
 {
     int ret = 0;
+
     if( __dague_context_cas_or_flag(context,
-                                    DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN) ) {
+                                    DAGUE_CONTEXT_FLAG_COMM_ACTIVE) ) {
         (void)dague_remote_dep_on(context);
     }
 
-    ret = (int)(long)__dague_context_wait( context->virtual_processes[0]->execution_units[0] );
+    ret = __dague_context_wait( context->virtual_processes[0]->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
     (void)dague_remote_dep_off(context);
-    context->flags ^= DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN;
+    assert(context->flags & DAGUE_CONTEXT_FLAG_COMM_ACTIVE);
+    assert(context->flags & DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE);
+    context->flags ^= (DAGUE_CONTEXT_FLAG_COMM_ACTIVE | DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE);
     return ret;
 }

@@ -77,7 +77,7 @@ int dague_context_wait( dague_context_t* );
  */
 int __dague_schedule( dague_execution_unit_t*, dague_execution_context_t*);
 
-void* __dague_context_wait(dague_execution_unit_t* eu_context);
+int __dague_context_wait(dague_execution_unit_t* eu_context);
 
 /**
  * Execute the body of the task associated to the context.

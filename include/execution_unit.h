@@ -103,8 +103,10 @@ struct dague_vp_s {
     dague_execution_unit_t* execution_units[1];
 };
 
-#define DAGUE_CONTEXT_FLAG_ACTIVE  0x0001
-#define DAGUE_CONTEXT_FLAG_MAIN_IN 0x0002
+/* The communication layer is up and running, or at least active */
+#define DAGUE_CONTEXT_FLAG_COMM_ACTIVE    0x0001
+/* All the DAGuE threads associated with the context are up and running. */
+#define DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE 0x0002
 
 /**
  * All virtual processes belong to a single physical
