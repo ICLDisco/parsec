@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <math.h>
+#include <errno.h>
 
 FILE *grapher_file = NULL;
 static int nbfuncs = -1;
