@@ -447,7 +447,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     th_begin = sys.maxint
     th_end = 0
     thread_descrip = dbp_thread_get_hr_id(cthread)
-    thread = {'node_id': node_id, 'description': thread_descrip}
+    thread = {'node_id': node_id, 'thread_id': thread_num, 'description': thread_descrip}
 
     for i in range(dbp_thread_nb_infos(cthread)):
         th_info = dbp_thread_get_info(cthread, i)
@@ -460,12 +460,8 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
         th_duration = thread['end'] - thread['begin']
     except:
         th_duration = sys.maxint
-
-    if not 'id' in thread:
-        thread_id = thread_num
-    else:
-        thread_id = thread['id']
-    builder.unordered_threads_by_node[node_id][thread_id] = thread
+        
+    builder.unordered_threads_by_node[node_id][thread_num] = thread
     while event_s != NULL and not skeleton_only:
         event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
         event_name = builder.event_names[event_type]
@@ -490,7 +486,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                         duration = end - begin
                     else:
                         duration = -1
-                    event = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id,
+                    event = {'node_id':node_id, 'thread_id':thread_num, 'handle_id':handle_id,
                              'type':event_type, 'begin':begin, 'end':end, 'duration':duration,
                              'flags':event_flags, 'id':event_id}
 
@@ -506,7 +502,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                             th_end = end
                     else: # the event is 'not sane'
                         error_msg = ('event of class {} id {} at {}'.format(
-                            event_name, event_id, thread_id) +
+                            event_name, event_id, thread_num) +
                                      ' has a unreasonable duration.\n')
                         event.update({'error_msg':error_msg})
                         # we still store error events, in the same format as a normal event
@@ -520,8 +516,8 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
             else: # the event is not complete
                 # this will change once singleton events are enabled.
                 error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
-                    event_name, event_id, thread_id)
-                error = {'node_id':node_id, 'thread_id':thread_id, 'handle_id':handle_id,
+                    event_name, event_id, thread_num)
+                error = {'node_id':node_id, 'thread_id':thread_num, 'handle_id':handle_id,
                          'type':event_type, 'begin':begin, 'end':0, 'duration':0,
                          'flags':event_flags, 'id':event_id, 'error_msg': error_msg}
                 builder.errors.append(error)
