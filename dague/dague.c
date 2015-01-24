@@ -231,10 +231,15 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
 
 #ifdef DAGUE_PROF_TRACE
-    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
-                                                  DAGUE_PROFILE_THREAD_STR,
-                                                  eu->th_id,
-                                                  eu->virtual_process->vp_id );
+    {
+        char *binding = dague_hwloc_get_binding();
+        eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
+                                                      DAGUE_PROFILE_THREAD_STR,
+                                                      eu->th_id,
+                                                      eu->virtual_process->vp_id,
+                                                      binding);
+        free(binding);
+    }
     if( NULL != eu->eu_profile ) {
         PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
         PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );

@@ -74,6 +74,12 @@ extern int dague_hwloc_nb_real_cores();
 int dague_hwloc_bind_on_core_index(int cpu_index, int ht_index);
 
 /**
+ * Gives a readable representation of the cpuset the thread is bound to
+ * Result has to be freed.
+ */
+char *dague_hwloc_get_binding(void);
+
+/**
  * Return the logical socket index for a core index (hwloc numbering).
  */
 int dague_hwloc_socket_id(int core_id);

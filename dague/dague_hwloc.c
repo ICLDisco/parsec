@@ -281,6 +281,35 @@ int dague_hwloc_nb_levels(void)
 #endif  /* defined(HAVE_HWLOC) */
 }
 
+char *dague_hwloc_get_binding(void)
+{
+#if defined(HAVE_HWLOC)
+    char *binding;
+    hwloc_cpuset_t cpuset;
+
+#if !defined(HAVE_HWLOC_BITMAP)
+    cpuset = hwloc_cpuset_alloc();
+    hwloc_cpuset_singlify(cpuset);
+#else
+    cpuset = hwloc_bitmap_alloc();
+    hwloc_bitmap_singlify(cpuset);
+#endif
+
+    /** No need to check for return code: the set will be unchanged (0x0)
+     *  if get_cpubind fails */
+    hwloc_get_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD);
+
+#if !defined(HAVE_HWLOC_BITMAP)
+    hwloc_cpuset_asprintf(&binding, cpuset);
+    hwloc_cpuset_free(cpuset);
+#else
+    hwloc_bitmap_asprintf(&binding, cpuset);
+    hwloc_bitmap_free(cpuset);
+#endif
+    return binding;
+#endif
+    return strdup("No_Binding_Information");
+}
 
 int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 {

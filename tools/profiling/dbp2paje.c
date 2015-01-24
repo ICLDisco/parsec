@@ -445,6 +445,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
     uidentry_t *n, *p;
     int parent_id, son_id;
     int rc; (void)rc;
+    char binding_info[1024]; /**< Risk of buffer overflow. A better approach should be used... */
 
     const char *identifier = dbp_thread_get_hr_id(th);
 
@@ -484,7 +485,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
 
         free(gpu_name); free(stream_name);
     }
-    else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id ) == 2 )
+    else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id, binding_info ) == 3 )
     {
         char *vp_name, *thrd_name;
 

@@ -202,7 +202,7 @@ typedef struct {
 extern char *dague_profile_ddesc_key_to_string;
 
 #define DAGUE_PROFILE_STREAM_STR "GPU %d-%d"
-#define DAGUE_PROFILE_THREAD_STR "DAGuE Thread %d of VP %d"
+#define DAGUE_PROFILE_THREAD_STR "DAGuE Thread %d of VP %d Bound on %s"
 
 extern int dague_profile_enabled;
 
