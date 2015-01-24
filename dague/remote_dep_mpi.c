@@ -712,7 +712,7 @@ remote_dep_dequeue_nothread_progress(dague_context_t* context,
                 /* Remove previous elem from the priority list. The element
                  might be either in the dep_cmd_fifo if it is old enough to be
                  pushed there, or in the temp_list waiting to be moved
-                 upstrea. Pay attention from which queue it is removed. */
+                 upstream. Pay attention from which queue it is removed. */
 #if defined(DAGUE_DEBUG_ENABLE)
                 dague_list_nolock_remove((struct dague_list_t*)same_pos->super.belong_to, (dague_list_item_t*)same_pos);
 #else
@@ -781,6 +781,7 @@ remote_dep_dequeue_nothread_progress(dague_context_t* context,
   have_same_pos:
     if( NULL != same_pos) {
         dague_list_nolock_push_front(&temp_list, (dague_list_item_t*)same_pos);
+        cycles++; /* as we still have pending messages of the same type, stay here for an extra loop */
     }
     dague_mpi_same_pos_items[position] = same_pos;
 
