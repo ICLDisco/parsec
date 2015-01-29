@@ -164,7 +164,7 @@ void dague_prof_grapher_task(const dague_execution_context_t *context,
                 thread_id, vp_id, tmp, context->sim_exec_date,
                 context->dague_handle->handle_id,
                 context->dague_handle->profiling_array != NULL 
-                    ? context->dague_handle->profiling_array[2*context->dague_handle->handle_id]
+                    ? context->dague_handle->profiling_array[2*context->function->function_id]
                     : -1,
                 context->function->name,
                 task_hash);
@@ -189,7 +189,7 @@ void dague_prof_grapher_task(const dague_execution_context_t *context,
                 thread_id, vp_id, tmp,
                 context->dague_handle->handle_id,
                 context->dague_handle->profiling_array != NULL 
-                    ? context->dague_handle->profiling_array[2*context->dague_handle->handle_id]
+                    ? context->dague_handle->profiling_array[2*context->function->function_id]
                     : -1,
                 context->function->name,
                 task_hash);
