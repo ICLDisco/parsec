@@ -106,7 +106,6 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
 
 
 /* To create object of class dtd_task_t that inherits dague_execution_context_t class */
-static dague_mempool_t *context_mempool = NULL;
 OBJ_CLASS_INSTANCE(dtd_task_t, dague_execution_context_t,
                    NULL, NULL);
 
@@ -673,16 +672,6 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.super.startup_hook    = dtd_startup;
     __dague_handle->super.super.destructor      = (dague_destruct_fn_t) dtd_destructor;
 
-    /* initializing mempool_context here */
-    if(NULL == context_mempool){
-        context_mempool = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
-        dtd_task_t fake_task;
-        int total_size = sizeof(dtd_task_t) + MAX_PARAM_COUNT * sizeof(task_param_t) + MAX_PARAM_COUNT * sizeof(double); /* Fixing the size of parameters and values(other than data pointers) to MAX_PARAM_COUNT, Will change as soon as we implement gloaal Bins of memory */ 
-        dague_mempool_construct( context_mempool,
-                                 OBJ_CLASS(dtd_task_t), total_size,
-                                 ((char*)&fake_task.super.mempool_owner) - ((char*)&fake_task),
-                                 1/* no. of threads*/ );
-    }
 
     (void) dague_handle_reserve_id((dague_handle_t *) __dague_handle);
     return (dague_dtd_handle_t*) __dague_handle;
@@ -1106,9 +1095,12 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
     return;
 }
 
-/* Function structure declaration and initializing */
+/* Function structure declaration and initializing 
+   Also creates the mempool_context for each task class     
+*/
 dague_function_t*
-create_function(dague_dtd_handle_t *__dague_handle, task_func* fpointer, char* name)
+create_function(dague_dtd_handle_t *__dague_handle, task_func* fpointer, char* name,
+                int count_of_params, long unsigned int size_of_param)
 {
     static int handle_id = 0;
     static uint8_t function_counter = 0;
@@ -1118,7 +1110,21 @@ create_function(dague_dtd_handle_t *__dague_handle, task_func* fpointer, char* n
         function_counter = 0;
     }
 
-    dague_function_t *function = (dague_function_t *) calloc(1, sizeof(dague_function_t));
+    dague_dtd_function_t *dtd_function = (dague_dtd_function_t *) calloc(1, sizeof(dague_dtd_function_t));
+    dague_function_t *function = (dague_function_t *) dtd_function;
+
+    dtd_function->count_of_params = count_of_params;
+    dtd_function->size_of_param = size_of_param;
+
+    /* Allocating mempool according to the size and param count */
+    dtd_function->context_mempool = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
+    dtd_task_t fake_task;
+    int total_size = sizeof(dtd_task_t) + count_of_params * sizeof(task_param_t) + size_of_param;
+    dague_mempool_construct( dtd_function->context_mempool,
+                             OBJ_CLASS(dtd_task_t), total_size,
+                             ((char*)&fake_task.super.mempool_owner) - ((char*)&fake_task),
+                             1/* no. of threads*/ );
+
 
     /*
        To bypass const in function structure.
@@ -1199,7 +1205,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
                          task_func* fpointer,
                          char* name, ...)
 {
-    va_list args;
+    va_list args, args_for_size;
     static int handle_id = 0;
     static uint32_t task_id = 0, _internal_task_counter=0;
     static int task_class_counter = 0;
@@ -1219,10 +1225,45 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
             flow_set_flag[i] = 0;
     }
 
+
+    va_start(args, name);
+
+    /* Creating master function structures */
+    dague_function_t *function = find_function(__dague_handle->function_h_table,
+                                               fpointer,
+                                               __dague_handle->function_hash_table_size); /* Hash table lookup to check if the function structure exists or not */
+    if( NULL == function ) {
+        /* calculating the size of parameters for each task class*/
+        int count_of_params = 0;
+        long unsigned int size_of_param = 0;
+        va_copy(args_for_size, args);
+        next_arg = va_arg(args_for_size, int);
+        while(next_arg != 0){
+            count_of_params ++;
+            tmp = va_arg(args_for_size, void *);
+            tile_op_type = va_arg(args_for_size, int);
+
+            //if(!((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE)) {
+            if((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) {
+                size_of_param += next_arg;    
+            }
+            next_arg = va_arg(args_for_size, int);
+        } 
+
+        va_end(args_for_size);
+#if defined (PRINT_F_STRUCTURE)
+        printf("Function Created for task Class: %s\n Has %d parameters\n Total Size: %lu\n", name, count_of_params, size_of_param);
+#endif
+        function = create_function(__dague_handle, fpointer, name, count_of_params, size_of_param);
+        track_function_created_or_not = 1;
+    }
+
+    dague_mempool_t * context_mempool_in_function = ((dague_dtd_function_t*) function)->context_mempool;
+
     dtd_tile_t *tile;
     dtd_task_t *current_task = NULL, *temp_task, *task_to_be_in_hasht = NULL;
 
-    temp_task = (dtd_task_t *) dague_thread_mempool_allocate(context_mempool->thread_mempools); /* Creating Task object */
+    temp_task = (dtd_task_t *) dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools); /* Creating Task object */
     DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     temp_task->flow_satisfied = 0;
@@ -1241,24 +1282,17 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         temp_task->super.data[i].data_out  = NULL;
     }
 
-    /* Creating master function structures */
-    dague_function_t *function = find_function(__dague_handle->function_h_table,
-                                               fpointer,
-                                               __dague_handle->function_hash_table_size); /* Hash table lookup to check if the function structure exists or not */
-    if( NULL == function ) {
-        function = create_function(__dague_handle, fpointer, name);
-        track_function_created_or_not = 1;
-    }
+    
 
     temp_task->belongs_to_function = function->function_id;
     temp_task->super.function = __dague_handle->super.functions_array[(temp_task->belongs_to_function)];
 
     head_of_param_list = (task_param_t *) (((char *)temp_task) + sizeof(dtd_task_t)); /* Getting the pointer allocated from mempool */
     current_param = head_of_param_list;  
-    value_block = ((char *)head_of_param_list) + MAX_PARAM_COUNT * sizeof(task_param_t);  
+    value_block = ((char *)head_of_param_list) + ((dague_dtd_function_t*)function)->count_of_params * sizeof(task_param_t);  
     current_val = value_block;
 
-    va_start(args, name);
+
     next_arg = va_arg(args, int);
 
     while(next_arg != 0){
@@ -1321,7 +1355,9 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
             }
         } else if ((tile_op_type & GET_OP_TYPE) == SCRATCH){
             if(NULL == tmp){
-                current_param->pointer_to_tile = malloc(next_arg);        
+                current_param->pointer_to_tile = current_val;
+                current_val = ((char*)current_val) + next_arg;
+                //current_param->pointer_to_tile = malloc(next_arg);        
             }else {
                 current_param->pointer_to_tile = tmp;        
             }

@@ -48,6 +48,7 @@ typedef struct task_param_s task_param_t;
 typedef struct dtd_task_s dtd_task_t;
 typedef struct dtd_tile_s dtd_tile_t;
 typedef struct dague_dtd_handle_s dague_dtd_handle_t;
+typedef struct dague_dtd_function_s dague_dtd_function_t;
 typedef struct __dague_dtd_internal_handle_s __dague_dtd_internal_handle_t;
 
 typedef int (task_func)(dague_execution_context_t*); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */

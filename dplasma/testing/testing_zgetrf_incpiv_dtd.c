@@ -134,7 +134,6 @@ call_to_kernel_TS_TRF(dague_execution_context_t * this_task)
     
     if (info != 0 && check_info)
         printf("Gtstrf something is wrong\n");
-    free(WORK);
 
     return 0;
 }

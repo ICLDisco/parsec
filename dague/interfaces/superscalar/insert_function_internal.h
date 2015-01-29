@@ -35,7 +35,6 @@ struct descendant_info { /* All the fields store info about the descendant excep
 };
 
 /* Structure to hold list of Read-ONLY successors of a task */
-
 struct dtd_successor_list_s { /* Structure to be used for correct ordering strategy 1 in multi-threaded env */
     dtd_task_t *task;
     dep_t *deps;
@@ -135,6 +134,16 @@ struct __dague_dtd_internal_handle_s {
     data_repo_t *dtd_data_repository;
 };
 
+/**
+ * Extension of dague_function_t class 
+ *
+ */
+struct dague_dtd_function_s {
+    dague_function_t super;
+    dague_mempool_t *context_mempool;
+    int count_of_params;
+    long unsigned int size_of_param;
+};
 
 /* Function prototypes */
 dague_ontask_iterate_t  dtd_release_dep_fct(struct dague_execution_unit_s *eu,

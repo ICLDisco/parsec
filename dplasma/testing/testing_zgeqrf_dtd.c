@@ -43,10 +43,6 @@ int call_to_kernel_GE_QRT(dague_execution_context_t *this_task)
 
     CORE_zgeqrt(*m, *n, *ib, AA, *lda, TT, *ldt, TAU, WORK);
 
-    /* temporary solution TODO: create memory management inside runtime */
-    free(TAU);
-    free(WORK);
-
     return 0;
 }
 
@@ -94,8 +90,6 @@ call_to_kernel_UN_MQR(dague_execution_context_t * this_task)
     CORE_zunmqr(*side, *trans, *m, *n, *k, *ib,
                 A, *lda, T, *ldt, C, *ldc, WORK, *ldwork);
 
-    /* temporary solution TODO: create memory management inside runtime */
-    free(WORK);
 
     return 0;
 }
@@ -136,10 +130,6 @@ call_to_kernel_TS_QRT(dague_execution_context_t * this_task)
     void *T = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gT); 
 
     CORE_ztsqrt(*m, *n, *ib, A1, *lda1, A2, *lda2, T, *ldt, TAU, WORK);
-
-    /* temporary solution TODO: create memory management inside runtime */
-    free(TAU);
-    free(WORK);
 
     return 0;
 }
@@ -195,9 +185,6 @@ call_to_kernel_TS_MQR(dague_execution_context_t * this_task)
 
     CORE_ztsmqr(*side, *trans, *m1, *n1, *m2, *n2, *k, *ib,
                 A1, *lda1, A2, *lda2, V, *ldv, T, *ldt, WORK, *ldwork);
-
-    /* temporary solution TODO: create memory management inside runtime */
-    free(WORK);
 
     return 0;
 }
