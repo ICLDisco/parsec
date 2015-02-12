@@ -11,6 +11,9 @@
 #include "data_distribution.h"
 #include "dague/interfaces/superscalar/insert_function.h"
 
+
+dague_dtd_handle_t *__dtd_handle;
+
 typedef struct bucket_element_f_s bucket_element_f_t;
 typedef struct bucket_element_tile_s bucket_element_tile_t;
 typedef struct bucket_element_task_s bucket_element_task_t;
@@ -108,6 +111,11 @@ struct generic_hash_table {
     void **buckets;
 };
 
+/* for testing abstraction for PaRsec */
+struct hook_info{
+    dague_hook_t *hook;
+};
+
 /**
  * internal_dague_handle
  */
@@ -127,6 +135,7 @@ struct dague_dtd_handle_s {
     int total_task_class;
     int tasks_created;
     int tasks_scheduled;
+    struct hook_info actual_hook[15]; 
 };
 
 struct __dague_dtd_internal_handle_s {
