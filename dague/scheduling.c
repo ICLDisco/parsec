@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -618,12 +618,13 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
     }
     PINS_HANDLE_INIT(handle);  /* PINS handle initialization */
 
+    /* Update the number of pending objects */
+    dague_atomic_inc_32b( &(context->active_objects) );
+
     /* Enable the handle to interact with the communication engine */
     (void)dague_handle_register(handle);
 
     if( handle->nb_local_tasks > 0 ) {
-        /* Update the number of pending objects */
-        dague_atomic_inc_32b( &(context->active_objects) );
 
         /* Retrieve all the early messages for this handle */
         (void)dague_remote_dep_new_object(handle);
@@ -646,9 +647,7 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
             }
         }
     } else {
-        if( NULL != handle->complete_cb ) {
-            (void)handle->complete_cb( handle, handle->complete_cb_data );
-        }
+        dague_check_complete_cb(handle, context, handle->nb_local_tasks);
     }
 
     free(startup_list);
