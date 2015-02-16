@@ -18,6 +18,7 @@
 #include "remote_dep.h"
 
 #include "dague/ayudame.h"
+#include "dague/constants.h"
 
 #include <signal.h>
 #if defined(HAVE_STRING_H)
@@ -185,6 +186,7 @@ int dague_check_complete_cb(dague_handle_t *dague_handle, dague_context_t *conte
             (void)dague_handle->complete_cb( dague_handle, dague_handle->complete_cb_data );
         }
         dague_atomic_dec_32b( &(context->active_objects) );
+        PINS_HANDLE_FINI(dague_handle);
         return 1;
     }
     return 0;
@@ -601,7 +603,7 @@ int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
     return old_priority;
 }
 
-int dague_enqueue( dague_context_t* context, dague_handle_t* object)
+int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
 {
     dague_execution_context_t **startup_list;
 
@@ -611,19 +613,23 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
 
     /* These pointers need to be initialized to NULL; doing it with calloc */
     startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
+    if( NULL == startup_list ) {  /* bad bad */
+        return DAGUE_ERR_OUT_OF_RESOURCE;
+    }
+    PINS_HANDLE_INIT(handle);  /* PINS handle initialization */
 
-    /* Enable the object to interact with the communication engine */
-    (void)dague_handle_register(object);
+    /* Enable the handle to interact with the communication engine */
+    (void)dague_handle_register(handle);
 
-    if( object->nb_local_tasks > 0 ) {
+    if( handle->nb_local_tasks > 0 ) {
         /* Update the number of pending objects */
         dague_atomic_inc_32b( &(context->active_objects) );
 
-        /* Retreive all the early messages for this object */
-        (void)dague_remote_dep_new_object(object);
-        if( NULL != object->startup_hook ) {
+        /* Retrieve all the early messages for this handle */
+        (void)dague_remote_dep_new_object(handle);
+        if( NULL != handle->startup_hook ) {
             int p;
-            object->startup_hook(context, object, startup_list);
+            handle->startup_hook(context, handle, startup_list);
             for(p = 0; p < vpmap_get_nb_vp(); p++) {
                 if( NULL != startup_list[p] ) {
                     dague_list_t temp;
@@ -640,8 +646,8 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
             }
         }
     } else {
-        if( NULL != object->complete_cb ) {
-            (void)object->complete_cb( object, object->complete_cb_data );
+        if( NULL != handle->complete_cb ) {
+            (void)handle->complete_cb( handle, handle->complete_cb_data );
         }
     }
 
