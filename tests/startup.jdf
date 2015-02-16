@@ -21,6 +21,10 @@ STARTUP(i, j, k)
   i = 0 .. NI-1
   j = 0 .. NJ-1
   k = 0 .. NK-1
+
+  valid1 = i == 1 && j == 1
+  valid2 = (i == 1) && (j == 1)
+
   prio = inline_c %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
 
   : A(i,0)
@@ -36,6 +40,7 @@ BODY
     fprintf(stderr, "priority(%d, %d, %d): %d\n",
             i, j, k, prio );
 #endif
+    assert(valid1 == valid2);
 }
 END
 

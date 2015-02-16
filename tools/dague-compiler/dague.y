@@ -196,15 +196,21 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE OPTION
 
-%nonassoc RANGE QUESTION_MARK COLON
-%nonassoc LESS LEQ MORE MEQ
-%right NOT
-%left EQUAL NOTEQUAL
-%left AND OR XOR
-%left MODULO SHL SHR
-%left PLUS MINUS
-%left TIMES DIV
+/* C99 operator precedence: http://en.cppreference.com/w/c/language/operator_precedence */
+%nonassoc RANGE
 %left COMMA
+%right ASSIGNMENT
+%right QUESTION_MARK COLON
+%left OR
+%left AND
+%left XOR
+%left EQUAL NOTEQUAL
+%left LESS LEQ MORE MEQ
+%left SHL SHR
+%left PLUS MINUS
+%left MODULO TIMES DIV
+%right NOT
+%left OPEN_PAR CLOSE_PAR
 
 %debug
 /*%pure-parser*/
