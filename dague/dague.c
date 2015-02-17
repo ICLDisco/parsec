@@ -1579,12 +1579,11 @@ void dague_handle_free(dague_handle_t *handle)
 }
 
 /**< Decrease task number of the object by nb_tasks. */
-void dague_handle_dec_nbtask( dague_handle_t* handle, uint32_t nb_tasks )
+void dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks )
 {
     int remaining;
 
-    assert( handle->nb_local_tasks >= nb_tasks );
-    remaining = dague_atomic_sub_32b((int32_t*)&handle->nb_local_tasks, (int32_t)nb_tasks);
+    remaining = dague_atomic_add_32b((int32_t*)&handle->nb_local_tasks, (int32_t)nb_tasks);
     dague_check_complete_cb(handle, handle->context, remaining);
 }
 
