@@ -3666,13 +3666,25 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
  done_with_input:
     coutput("      this_task->data[%u].data_in   = chunk;   /* flow %s */\n"
             "      this_task->data[%u].data_repo = entry;\n"
-            "    }\n"
-            "    /* Now get the local version of the data to be worked on */\n"
-            "    %sthis_task->data[%u].data_out = dague_data_get_copy(chunk->original, target_device);\n",
+            "    }\n",
             flow->flow_index, flow->varname,
-            flow->flow_index,
-            (flow->flow_flags & JDF_FLOW_TYPE_WRITE ? "if( NULL != chunk )\n  " : ""),
             flow->flow_index);
+    {
+        int has_output_deps = 0;
+        for(dl = flow->deps; dl != NULL; dl = dl->next) {
+            if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
+                has_output_deps = 1;
+                break;
+            }
+        }
+        if( has_output_deps ) {
+            coutput("    /* Now get the local version of the data to be worked on */\n"
+                    "    %sthis_task->data[%u].data_out = dague_data_get_copy(chunk->original, target_device);\n\n",
+                    (flow->flow_flags & JDF_FLOW_TYPE_WRITE ? "if( NULL != chunk )\n  " : ""),
+                    flow->flow_index);
+        } else
+            coutput("    this_task->data[%u].data_out = NULL;  /* input only */\n\n", flow->flow_index);
+    }
     string_arena_free(sa);
 }
 
