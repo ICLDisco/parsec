@@ -1,6 +1,5 @@
 
 macro(dague_addtest lang target input)
-  list(APPEND EXTRA_LIBS m)
 
   if( MPI_C_FOUND )
     set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
@@ -49,6 +48,10 @@ if(CMAKE_Fortran_COMPILER_WORKS)
     SET_TARGET_PROPERTIES(touch_exf PROPERTIES LINKER_LANGUAGE Fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(CMAKE_Fortran_COMPILER_WORKS)
+
+#Most of the test need -lm. Add it and trim the list down.
+list(APPEND EXTRA_LIBS m)
+list(REMOVE_DUPLICATES EXTRA_LIBS)
 
 
 jdf_rules(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
