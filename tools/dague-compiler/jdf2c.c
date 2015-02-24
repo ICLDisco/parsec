@@ -2979,11 +2979,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "  uint32_t supported_dev = 0;\n"
             "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
             "  dague_handle->context = context;\n"
-            "  /* Create the PINS DATA pointers if PINS is enabled */\n"
-            "#  if defined(PINS_ENABLE)\n"
-            "  __dague_handle->super.super.context = context;\n"
-            "  (void)pins_handle_init(&__dague_handle->super.super);\n"
-            "#  endif /* defined(PINS_ENABLE) */\n"
             " \n"
             "  uint32_t wanted_devices = dague_handle->devices_mask; dague_handle->devices_mask = 0;\n"
             "  uint32_t _i;\n"
@@ -3671,13 +3666,25 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
  done_with_input:
     coutput("      this_task->data[%u].data_in   = chunk;   /* flow %s */\n"
             "      this_task->data[%u].data_repo = entry;\n"
-            "    }\n"
-            "    /* Now get the local version of the data to be worked on */\n"
-            "    %sthis_task->data[%u].data_out = dague_data_get_copy(chunk->original, target_device);\n",
+            "    }\n",
             flow->flow_index, flow->varname,
-            flow->flow_index,
-            (flow->flow_flags & JDF_FLOW_TYPE_WRITE ? "if( NULL != chunk )\n  " : ""),
             flow->flow_index);
+    {
+        int has_output_deps = 0;
+        for(dl = flow->deps; dl != NULL; dl = dl->next) {
+            if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
+                has_output_deps = 1;
+                break;
+            }
+        }
+        if( has_output_deps ) {
+            coutput("    /* Now get the local version of the data to be worked on */\n"
+                    "    %sthis_task->data[%u].data_out = dague_data_get_copy(chunk->original, target_device);\n\n",
+                    (flow->flow_flags & JDF_FLOW_TYPE_WRITE ? "if( NULL != chunk )\n  " : ""),
+                    flow->flow_index);
+        } else
+            coutput("    this_task->data[%u].data_out = NULL;  /* input only */\n\n", flow->flow_index);
+    }
     string_arena_free(sa);
 }
 

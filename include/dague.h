@@ -140,8 +140,10 @@ dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 /**< Free the resource allocated in the dague handle. The handle should be unregistered first. */
 void dague_handle_free(dague_handle_t *handle);
 
-/**< Decrease task number of the object by nb_tasks. */
-void dague_handle_dec_nbtask( dague_handle_t* handle, uint32_t nb_tasks );
+/**< Update the number of tasks by adding the increment (if the increment is negative
+ * the number of tasks is decreased).
+ */
+void dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks );
 
 /**< Print DAGuE usage message */
 void dague_usage(void);

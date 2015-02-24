@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -27,7 +27,6 @@
 #endif /*HAVE_MPI */
 
 struct dague_device_s;
-typedef struct dague_ddesc_s dague_ddesc_t;
 typedef int (*dague_memory_region_management_f)(dague_ddesc_t*, struct dague_device_s*);
 
 typedef uint8_t memory_registration_status_t;

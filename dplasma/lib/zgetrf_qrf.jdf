@@ -1364,7 +1364,7 @@ BODY
             }
         }
 
-        dague_handle_dec_nbtask( this_task->dague_handle, nb_tasks );
+        dague_handle_update_nbtask( this_task->dague_handle, -nb_tasks );
     }
 }
 END

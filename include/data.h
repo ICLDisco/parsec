@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The University of Tennessee and The University
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -36,8 +36,9 @@ typedef uint8_t dague_data_status_t;
 struct dague_data_s {
     dague_object_t            super;
 
-    int8_t                    owner_device;
     dague_data_key_t          key;
+    int8_t                    owner_device;
+    struct dague_ddesc_s*     ddesc;
     uint32_t                  nb_elts;          /* number of elements of the memory layout */
     struct dague_data_copy_s *device_copies[1]; /* this array allocated according to the number of devices
                                                  * (dague_supported_number_of_devices). It points to the most recent

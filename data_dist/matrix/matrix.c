@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -46,6 +46,7 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
 
         data->owner_device = 0;
         data->key = key;
+        data->ddesc = &matrix->super;
         data->nb_elts = matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype);
         dague_data_copy_attach(data, data_copy, 0);
 
