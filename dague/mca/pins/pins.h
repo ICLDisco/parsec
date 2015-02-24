@@ -19,11 +19,8 @@ typedef enum PINS_FLAG {
     EXEC_END,        // called before thread executes a task
     COMPLETE_EXEC_BEGIN,       // called before scheduler adds a newly-enabled task
     COMPLETE_EXEC_END,         // called after scheduler adds a newly-enabled task
-    /* what follows are
-     * Special Events.
-     * They do not necessarily
-     * obey the 'exec unit, exec context'
-     * contract.
+    /* what follows are Special Events. They do not necessarily
+     * obey the 'exec unit, exec context' contract.
      */
     THREAD_INIT,     // Provided as an option for modules to run work during thread init without using the MCA module registration system.
     THREAD_FINI,     // Similar to above, for thread finalization.
@@ -38,16 +35,17 @@ typedef enum PINS_FLAG {
     PINS_FLAG_COUNT
 } PINS_FLAG;
 
-typedef void (parsec_pins_callback)(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data);
+typedef void (parsec_pins_callback)(struct dague_execution_unit_s * exec_unit,
+                                    struct dague_execution_context_s * task, void * data);
 
-void pins_empty_callback(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data);
+void pins_empty_callback(struct dague_execution_unit_s * exec_unit,
+                         struct dague_execution_context_s * task, void * data);
 
 BEGIN_C_DECLS
 
 /*
  * Structures for pins components
  */
-
 struct dague_pins_base_component_2_0_0 {
     mca_base_component_2_0_0_t base_version;
     mca_base_component_data_2_0_0_t base_data;
@@ -94,7 +92,7 @@ typedef struct {
 END_C_DECLS
 
 /*
- These functions should be each be called once at the appropriate lifecycle of the DAGuE Context
+ These functions should each be called once at the appropriate lifecycle of the DAGuE Context
  except that handle functions should be called once per handle, and thread functions once per thread
  */
 void pins_init(struct dague_context_s * master);

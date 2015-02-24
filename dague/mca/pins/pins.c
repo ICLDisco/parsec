@@ -6,6 +6,17 @@
 static int registration_disabled;
 
 parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
+//parsec_pins_callback * pins_callback_array[PINS_FLAG_COUNT] = {0};
+
+/*void pins_init_exec_unit(dague_execution_unit_t * exec_unit)
+{
+	int n;
+	
+	for(n = 0; n < PINS_FLAG_COUNT; n++)
+	{
+		exec_unit->pins_array[n] = pins_callback_array[n];
+	}
+}*/
 
 void parsec_instrument(PINS_FLAG method_flag,
                        struct dague_execution_unit_s * exec_unit,

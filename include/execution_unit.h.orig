@@ -22,7 +22,7 @@
 
 #ifdef PINS_ENABLE
 #include "dague/mca/pins/pins.h"
-#endif
+#endif  /* defined(PINS_ENABLE) */
 
 #ifdef HAVE_PAPI
 /* for PAPI event sets in execution_unit */
@@ -30,6 +30,7 @@ typedef enum PAPI_EVENTSETS {
         EXEC_SET,
         SELECT_SET,
         PER_SOCKET_SET,
+        POWER_SET,
         EVENTSETS_COUNT
 } PAPI_EVENTSETS;
 #endif // HAVE_PAPI
@@ -64,20 +65,25 @@ struct dague_execution_unit_s {
 #endif
 
 #if defined(HAVE_PAPI)
-    long long int papi_last_read[5]; /* TODO: magic number */
+    long long int papi_last_read[5]; // TODO: magic number
     int papi_eventsets[EVENTSETS_COUNT];
 #endif /* HAVE_PAPI */
 
 #if defined(PINS_ENABLE)
-    int num_counters;
-
+	parsec_pins_callback * pins_array[PINS_FLAG_COUNT];
+	int num_counters;
+	
     long long int starvation;
-    long * steal_counters; /* this is for Stephanie and print_steals PINS module */
-
-    /* Needed for papi_socket */
-    int num_tasks;
+    long * steal_counters; // this is for Stephanie and print_steals PINS module
+    
+    // The following variables are needed for papi_socket
     char ** pins_papi_socket_event_name;
-    int * pins_papi_socket_native_event;
+	int * pins_papi_socket_native_event;
+	
+	// REMOVE THESE LATER
+	int num_tasks;
+	long long start_values[2];
+	long long error_values[2];
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
@@ -114,10 +120,8 @@ struct dague_vp_s {
     dague_execution_unit_t* execution_units[1];
 };
 
-/* The communication layer is up and running, or at least active */
-#define DAGUE_CONTEXT_FLAG_COMM_ACTIVE    0x0001
-/* All the DAGuE threads associated with the context are up and running. */
-#define DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE 0x0002
+#define DAGUE_CONTEXT_FLAG_ACTIVE  0x0001
+#define DAGUE_CONTEXT_FLAG_MAIN_IN 0x0002
 
 /**
  * All virtual processes belong to a single physical
@@ -132,7 +136,9 @@ struct dague_context_s {
     void*   comm_ctx;    /**< opaque communication context */
     int32_t nb_nodes;    /**< nb of physical processes */
     int32_t my_rank;     /**< rank of this physical process */
-
+    
+    int num_tasks; // Used in papi_power to store the number of tasks measured
+    
     dague_barrier_t  barrier;
 
     size_t remote_dep_fw_mask_sizeof; /* Size of the remote dep fw mask */
