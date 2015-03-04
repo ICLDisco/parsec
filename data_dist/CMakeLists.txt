@@ -1,5 +1,5 @@
 set(sources
-        hash_datadist.c)
+  hash_datadist.c)
 
 add_library(dague_distribution ${sources})
 if (MPI_C_FOUND)

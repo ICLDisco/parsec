@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -865,6 +865,9 @@ static int jdf_dataflow_type(const jdf_dataflow_t *flow)
     jdf_dep_t *dl;
     int type = 0;
     for(dl = flow->deps; dl != NULL; dl = dl->next) {
+        if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+            continue;  /* skip WRITE-only flows even if they have empty input deps (for datatype) */
+        }
         type |= dl->dep_flags;
     }
     return type;
@@ -1422,6 +1425,15 @@ static int jdf_generate_initfinal_data_for_dep(const jdf_dep_t *dep,
 
     switch( dep->guard->guard_type ) {
     case JDF_GUARD_UNCONDITIONAL:
+        if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) ) {
+            /* TODO */
+            string_arena_add_string(sa,
+                                    "    __d = (dague_ddesc_t*)NULL;\n"
+                                    "    refs[__flow_nb].ddesc = NULL;\n"
+                                    "    refs[__flow_nb].key = 0xffffffff;\n"
+                                    "    __flow_nb++;\n");
+                                    break;
+        }
         if( dep->guard->calltrue->var == NULL ) {
             /* Unconditional direct memory reference: this is a init or final data */
             jdf_generate_initfinal_data_for_call(dep->guard->calltrue, sa, 0);
@@ -1927,7 +1939,6 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                             "  .belongs_to = &%s,\n",
                             JDF_OBJECT_ONAME(flow));
 
-    
 
     string_arena_add_string(sa,
                             "};\n");
@@ -1985,6 +1996,10 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
 
         if( dl->guard->guard_type == JDF_GUARD_UNCONDITIONAL ) {
             sprintf(condname, "NULL");
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+                continue;  /* skip type declaration for WRITE-only flows */
+            }
+
             indepnorange = jdf_generate_dependency(jdf, flow, dl, dl->guard->calltrue,
                                                    JDF_OBJECT_ONAME(dl), condname, context) && indepnorange;
             string_arena_add_string(psa, "%s&%s", sep, JDF_OBJECT_ONAME(dl));
@@ -2098,9 +2113,14 @@ static char* has_ready_input_dependency(void **elt, void *pint)
             dep = dep->next;
         }
     } else {  /* This is a data */
-        while( NULL != dep ) {
+        for( ; NULL != dep; dep = dep->next ) {
             if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
+                /* Skip the default type declaration for WRITE-only dependencies */
+                if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) )
+                    continue;
+
                 has_input = 1;
+
                 if( NULL == dep->guard->calltrue->var ) {
                     can_be_startup = 1;
                 }
@@ -2110,7 +2130,6 @@ static char* has_ready_input_dependency(void **elt, void *pint)
                     }
                 }
             }
-            dep = dep->next;
         }
     }
     if( (0 == can_be_startup) && has_input ) {
@@ -2708,6 +2727,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                             fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
 
                     case JDF_GUARD_UNCONDITIONAL:
+                        if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+                            fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
+                            break;
+                        }
+
                     case JDF_GUARD_BINARY:
                         if( NULL == dl->guard->calltrue->var )
                             fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
@@ -3500,7 +3524,7 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
 {
     int dataindex;
 
-    if( call->var != NULL ) {
+    if( (NULL != call) && (NULL != call->var) ) {
         dataindex = jdf_data_input_index(jdf, call->func_or_mem, call->var);
         if( dataindex < 0 ) {
             if( dataindex == -1 ) {
@@ -3618,11 +3642,16 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         sa2 = string_arena_new(64);
         sa_count = string_arena_new(64);
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
-            if ( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) {
-                jdf_fatal(JDF_OBJECT_LINENO(flow),
-                          "During code generation: unable to find an output flow for variable %s marked as WRITE\n",
-                          flow->varname );
-                break;
+            /* Special case for the arena definition for WRITE-only flows */
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+                assert(JDF_GUARD_UNCONDITIONAL == dl->guard->guard_type);
+            } else {
+                if ( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(flow),
+                              "During code generation: unable to find an output flow for variable %s marked as WRITE\n",
+                              flow->varname );
+                    break;
+                }
             }
 
             string_arena_init(sa2);
@@ -4531,6 +4560,10 @@ static void jdf_check_relatives( jdf_function_entry_t *f, jdf_dep_flags_t flow_t
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->dep_flags & flow_type) ) continue;
 
+            /* Skip the default type declaration for WRITE-only dependencies */
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) )
+                continue;
+
             if( (NULL != dl->guard->calltrue->var) ||
                 ((JDF_GUARD_TERNARY == dl->guard->guard_type) &&
                  (NULL != dl->guard->callfalse->var)) ) {
@@ -4645,6 +4678,9 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
 
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->dep_flags & flow_type) ) continue;
+            /* Special case for the arena definition for WRITE-only flows */
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) )
+                continue;
 
             string_arena_init(sa_tmp_type);
             string_arena_init(sa_tmp_nbelt);

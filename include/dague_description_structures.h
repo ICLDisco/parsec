@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,14 +16,7 @@ typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
 
 struct dague_handle_s;
-#if defined(HAVE_MPI)
-#include <mpi.h>
-#define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
-typedef MPI_Datatype dague_datatype_t;
-#else
-#define DAGUE_DATATYPE_NULL  NULL
-typedef void* dague_datatype_t;
-#endif
+#include "dague/datatype.h"
 
 BEGIN_C_DECLS
 
