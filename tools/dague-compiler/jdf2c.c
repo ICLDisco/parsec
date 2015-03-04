@@ -785,10 +785,10 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
         JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
         string_arena_add_string(sa,
                                 "  %s_nblocal_tasks = %s_%s_internal_init(__dague_handle);\n"
-                                "  __dague_handle->%s_repository = data_repo_create_nothreadsafe(\n"
+                                "  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(  /* %s */\n"
                                 "          %s_nblocal_tasks, %d);\n",
                                 f->fname, jdf_basename, f->fname,
-                                f->fname,
+                                f->function_id, f->fname,
                                 f->fname, nbdata);
     }
 
@@ -1124,11 +1124,18 @@ static void jdf_generate_structure(const jdf_t *jdf)
         }
     }
 
-    coutput("  /* The list of data repositories */\n");
-    for( f = jdf->functions; NULL != f; f = f->next ) {
-        if( 0 != function_has_data_output(f) )
-            coutput("  data_repo_t *%s_repository;\n", f->fname);
+    coutput("  /* The list of data repositories ");
+    for( nbdata = 0, f = jdf->functions; NULL != f; f = f->next ) {
+        if( 0 != function_has_data_output(f) ) {
+            coutput(" %s ", f->fname);
+            nbdata++;
+        }
     }
+    coutput("*/\n");
+    if(nbdata != 0 ) {
+        coutput("  data_repo_t* repositories[%d];\n", nbdata );
+    }
+
     coutput("} __dague_%s_internal_handle_t;\n"
             "\n", jdf_basename);
 
@@ -1162,8 +1169,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("#define %s_repo (__dague_handle->%s_repository)\n",
-                        f->fname, f->fname);
+                coutput("#define %s_repo (__dague_handle->repositories[%d])\n",
+                        f->fname, f->function_id);
         }
     }
 
@@ -3098,8 +3105,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("   data_repo_destroy_nothreadsafe(handle->%s_repository);\n",
-                        f->fname);
+                coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
+                        f->function_id, f->fname);
         }
     }
 
@@ -3264,10 +3271,22 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         coutput("#  endif /* defined(DAGUE_PROF_TRACE) */\n");
     }
 
-    coutput("  /* Create the data repositories for this object */\n"
+    coutput("  /* Populate the data repositories for this handle */\n"
             "%s",
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
-                            "", "", "\n", "\n"));
+                            "", "", "\n", ""));
+    {
+        jdf_function_entry_t* f;
+
+        for( f = jdf->functions; NULL != f; f = f->next ) {
+            if( 0 != function_has_data_output(f) ) {
+                coutput("  __dague_handle->super.super.repo_array = __dague_handle->repositories;\n\n");
+                break;
+            }
+        }
+        if( NULL == f )
+            coutput("  __dague_handle->super.super.repo_array = NULL;\n");
+    }
 
     coutput("  __dague_handle->super.super.startup_hook = %s_startup;\n"
             "  __dague_handle->super.super.destructor   = (dague_destruct_fn_t)%s_destructor;\n"
