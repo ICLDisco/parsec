@@ -15,11 +15,11 @@
 #endif  /* !defined(DAGUE_DATATYPE_H_HAS_BEEN_INCLUDED) */
 
 #define dague_type_create_contiguous    MPI_Type_contiguous
-#define dague_type_create_vector        MPI_Type_create_vector
+#define dague_type_create_vector        MPI_Type_vector
 #define dague_type_create_hvector       MPI_Type_create_hvector
-#define dague_type_create_indexed       MPI_Type_create_indexed
+#define dague_type_create_indexed       MPI_Type_indexed
 #define dague_type_create_indexed_block MPI_Type_create_indexed_block
-#define dague_type_create_struct        MPI_Type_sreate_struct
+#define dague_type_create_struct        MPI_Type_create_struct
 
 static inline int
 dague_type_create_resized(dague_datatype_t oldtype,
