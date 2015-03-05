@@ -1,20 +1,16 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague.h"
 #include "execution_unit.h"
+#include "arena.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-
+#include "dague/datatype.h"
 #include <math.h>
-
-struct dague_reduce_handle_t;
-typedef struct dague_reduce_handle_t dague_reduce_handle_t;
-
-extern dague_reduce_handle_t *dague_reduce_new(dague_ddesc_t* R /* data R */, dague_ddesc_t* A /* data A */, int MT, int depth, void* ELEM_NEUTRE /* data ELEM_NEUTRE */);
-extern void dague_reduce_destroy( dague_reduce_handle_t *o );
+#include "data_dist/matrix/reduce.h"
 
 #if 0
 static int dague_operator_print_id( struct dague_execution_unit *eu, void* data, void* op_data, ... )
@@ -37,10 +33,10 @@ int main( int argc, char* argv[] )
     dague_context_t* dague;
     dague_handle_t* object;
     two_dim_block_cyclic_t ddescA;
-    int cores = 4, world = 1, rank = 0;
-    int mb = 100, nb = 100;
-    int lm = 900, ln = 900;
+    int cores = 2, world = 1, rank = 0;
+    int nb = 100, ln = 900;
     int rows = 1;
+    dague_datatype_t newtype;
 
 #if defined(HAVE_MPI)
     {
@@ -54,18 +50,23 @@ int main( int argc, char* argv[] )
     dague = dague_init(cores, &argc, &argv);
 
     two_dim_block_cyclic_init( &ddescA, matrix_RealFloat, matrix_Tile,
-                               world, rank, mb, nb, lm, ln, 0, 0, lm, ln, 1, 1, rows );
+                               world, rank, nb, 1, ln, 1, 0, 0, ln, 1, 1, 1, rows );
     ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles *
                                      (size_t)ddescA.super.bsiz *
                                      (size_t)dague_datadist_getsizeoftype(ddescA.super.mtype));
 
     dague_ddesc_set_key(&ddescA.super.super, "A");
 
-    object = (dague_handle_t*)dague_reduce_new((dague_ddesc_t*)&ddescA,
-                                               (dague_ddesc_t*)&ddescA,
-                                               ddescA.super.mt,
-                                               (int)ceil(log(ddescA.super.mt) / log(2.0)),
+    object = (dague_handle_t*)dague_reduce_new((tiled_matrix_desc_t*)&ddescA,
+                                               (tiled_matrix_desc_t*)&ddescA,
                                                NULL);
+    /* Prepare the arena for the reduction */
+    dague_type_create_contiguous(nb, dague_datatype_double_t, &newtype);
+    dague_arena_construct(((dague_reduce_handle_t*)object)->arenas[DAGUE_reduce_DEFAULT_ARENA],
+                          nb*sizeof(double),
+                          DAGUE_ARENA_ALIGNMENT_SSE,
+                          newtype);
+
     dague_enqueue(dague, (dague_handle_t*)object);
 
     dague_context_wait(dague);

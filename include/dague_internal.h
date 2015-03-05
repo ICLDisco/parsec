@@ -29,6 +29,7 @@ typedef struct dague_arena_s           dague_arena_t;
 typedef struct dague_arena_chunk_s     dague_arena_chunk_t;
 typedef struct dague_data_pair_s       dague_data_pair_t;
 typedef struct dague_dependencies_s    dague_dependencies_t;
+typedef struct data_repo_s             data_repo_t;
 
 /**< The most basic execution flow. Each virtual process includes
  *   multiple execution units (posix threads + local data) */
@@ -64,6 +65,7 @@ struct dague_handle_s {
     void*                      complete_cb_data;
     dague_destruct_fn_t        destructor;
     dague_dependencies_t**     dependencies_array;
+    data_repo_t**              repo_array;
 };
 
 #define DAGUE_DEVICES_ALL				   UINT32_MAX

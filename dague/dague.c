@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -942,20 +942,28 @@ dague_check_IN_dependencies_with_mask( const dague_handle_t *dague_handle,
             }
         } else {
             if( !(flow->flow_flags & FLOW_HAS_IN_DEPS) ) continue;
-            /* Data case: resolved only if we found a data already ready */
-            active = 0;
-            for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
-                dep = flow->dep_in[j];
-                if( NULL != dep->cond ) {
-                    /* Check if the condition apply on the current setting */
-                    assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) )
-                        continue;  /* doesn't match */
-                    /* the condition triggered let's check if it's for a data */
-                }  /* otherwise we have an input flow without a condition, it MUST be final */
-                if( 0xFF == dep->function_id )
-                    active = (1 << flow->flow_index);
-                break;
+            if( NULL == flow->dep_in[0] ) {
+                /** As the flow is tagged with FLOW_HAS_IN_DEPS and there is no
+                 * dep_in we are in the case where a write only dependency used
+                 * an in dependency to specify the arena where the data should
+                 * be allocated.
+                 */
+                active = (1 << flow->flow_index);
+            } else {
+                /* Data case: resolved only if we found a data already ready */
+                for( active = 0, j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+                    dep = flow->dep_in[j];
+                    if( NULL != dep->cond ) {
+                        /* Check if the condition apply on the current setting */
+                        assert( dep->cond->op == EXPR_OP_INLINE );
+                        if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) )
+                            continue;  /* doesn't match */
+                        /* the condition triggered let's check if it's for a data */
+                    }  /* otherwise we have an input flow without a condition, it MUST be final */
+                    if( 0xFF == dep->function_id )
+                        active = (1 << flow->flow_index);
+                    break;
+                }
             }
         }
         ret |= active;
