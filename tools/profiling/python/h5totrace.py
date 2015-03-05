@@ -15,7 +15,7 @@ def warning(*objs):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='convert an HDF5 profile file (and optionnaly a DOT file) into a PAJE trace')
     parser.add_argument('--h5', help='HDF5 input file', required=1, dest='input')
-    parser.add_argument('--dot', help='DOT input file (should match the run of the HDF5 input file)')
+    parser.add_argument('--dot', help='DOT input file (should match the run of the HDF5 input file)', dest='dot')
     parser.add_argument('--out', help='Output file name', required=1, dest='output')
     args = parser.parse_args()
 
@@ -28,6 +28,31 @@ if __name__ == '__main__':
         os.unlink("%s.trace" % (args.output))
     except OSError:
         pass
+
+    task_names = dict()
+    if args.dot:
+        try:
+            dotfile = open(args.dot, 'r')
+            for line in dotfile:
+                ls = line.find("label=\"")
+                ts = line.find("tooltip=\"")
+                if ls >= 0 and ts >= 0:
+                    label=line[ls+7:-1]
+                    le = label.find("\",")
+                    assert le >= 1
+                    label = label[0:le]
+
+                    tooltip=line[ts+9:-1]
+                    te = tooltip.find("\"")
+                    assert te >= 1
+                    tooltip = tooltip[0:te]
+
+                    ttfields = tooltip.split(':')
+                    task_names["%s:%s:%s"%(ttfields[0], ttfields[1], ttfields[3])] = label
+            dotfile.close()
+        except IOError as e:
+            warning("Could not open %s: %s"% (args.dot, e))
+
     paje.startTrace(args.output)
 
     PajeContainerType = paje.PajeDef('PajeDefineContainerType')
@@ -67,8 +92,13 @@ if __name__ == '__main__':
 
     sev = store.events.sort(['node_id', 'thread_id', 'begin'])
     for ev in store.events.iterrows():
-        PajeSetState.PajeEvent(Time=float(ev[1].begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev[1].node_id,ev[1].thread_id)],
-                               Value=state_aliases[ev[1].type], task_name=store.event_names[ev[1].type])
+        key = "hid=%d:did=%d:tid=%d"%(ev[1].handle_id,ev[1].type,ev[1].id)
+        if key in task_names.keys():
+            PajeSetState.PajeEvent(Time=float(ev[1].begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev[1].node_id,ev[1].thread_id)],
+                                   Value=state_aliases[ev[1].type], task_name=task_names[key])
+        else:
+            PajeSetState.PajeEvent(Time=float(ev[1].begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev[1].node_id,ev[1].thread_id)],
+                                   Value=state_aliases[ev[1].type], task_name=store.event_names[ev[1].type])
         PajeSetState.PajeEvent(Time=float(ev[1].end), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev[1].node_id,ev[1].thread_id)],
                                Value=paje_entity_waiting, task_name="Waiting")
 
