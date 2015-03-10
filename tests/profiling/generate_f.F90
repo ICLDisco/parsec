@@ -40,7 +40,7 @@ PROGRAM GENERATE_F
           C_NULL_PTR, ierr)
   end do
 
-  call dague_profile_dump("myfile.prof", ierr)
+  call dague_profile_dump(ierr)
 
   call dague_profile_fini(ierr)
 

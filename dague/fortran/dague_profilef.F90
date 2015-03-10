@@ -40,11 +40,10 @@ module dague_profile_f08_interfaces
   END INTERFACE dague_profile_reset_f08
 
   INTERFACE dague_profile_dump_f08
-     SUBROUTINE dague_profile_dump_f08(fname, ierr) &
+     SUBROUTINE dague_profile_dump_f08(ierr) &
           BIND(C, name="dague_profile_dump_f08")
        USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
        IMPLICIT NONE
-       CHARACTER(KIND=C_CHAR), INTENT(IN)           :: fname(*)
        INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
      END SUBROUTINE dague_profile_dump_f08
   END INTERFACE dague_profile_dump_f08
@@ -152,21 +151,15 @@ CONTAINS
     if(present(ierr)) ierr = c_err;
   END SUBROUTINE dague_profile_reset
 
-  SUBROUTINE dague_profile_dump(fname, ierr)
+  SUBROUTINE dague_profile_dump(ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
     IMPLICIT NONE
-    CHARACTER(*), INTENT(IN)                   :: fname
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
 
     INTEGER(KIND=c_int)                        :: c_err
-    CHARACTER(KIND=C_CHAR), ALLOCATABLE        :: c_fname(:)
-    INTEGER                                    :: i
 
-    ALLOCATE(c_fname(LEN_TRIM(fname)+1))
-    c_fname(:) = (/ (fname(i:i), i = 1, LEN_TRIM(fname)), c_null_char /)
-    call dague_profile_dump_f08(c_fname, c_err)
+    call dague_profile_dump_f08(c_err)
     if(present(ierr)) ierr = c_err;
-    DEALLOCATE(c_fname)
   END SUBROUTINE dague_profile_dump
 
   FUNCTION dague_profile_thread_init(length, id_name, ierr)
