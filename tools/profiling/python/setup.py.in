@@ -24,6 +24,7 @@ libs = ['dague-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
 lib_dirs = (['@PROJECT_BINARY_DIR@/dague']) # +
 #            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
+package_dir='@CMAKE_CURRENT_BINARY_DIR@'
 
 ext_modules = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                             '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
@@ -115,7 +116,7 @@ setup(
     version='@PACKAGE_VERSION@',
     description='parses and converts the PaRSEC Binary Trace format into a pandas-based Python tabular format',
     url='http://icl.cs.utk.edu/parsec/',
-    package_dir={ '': '@CMAKE_CURRENT_BINARY_DIR@' },
+    package_dir={ '': package_dir },
     cmdclass = {'build_ext': local_compiler_build_ext},
     ext_modules = ext_modules
 )
@@ -124,17 +125,19 @@ install_dir = distutils_dir_name('lib')
 print('Installed Python Trace Tables module to', install_dir)
 # now fix the bash and fish environment scripts
 import shutil
-if os.path.exists(os.path.join('utilities','bash.env')):
-    bash_env = open(os.path.join('utilities', 'bash.env'), 'r')
+
+bashfilename=os.path.join(package_dir, 'utilities','bash.env')
+if os.path.exists(bashfilename):
+    bash_env = open(bashfilename, 'r')
     new_bash_env = ''
     for line in bash_env.readlines():
         if 'LIB_DIR' in line:
             line = line.replace('LIB_DIR', install_dir)
         new_bash_env += line
-    tmp_bash_env = open(os.path.join('utilities', 'bash.env.tmp'), 'w')
+    tmp_bash_env = open(bashfilename + '.tmp', 'w')
     tmp_bash_env.write(new_bash_env)
     bash_env.close()
     tmp_bash_env.close()
-    shutil.move(os.path.join('utilities', 'bash.env.tmp'),
-                os.path.join('utilities', 'bash.env'))
+    shutil.move(bashfilename + '.tmp',
+                bashfilename)
 
