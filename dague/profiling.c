@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -35,7 +35,7 @@
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-#define MINIMAL_EVENT_BUFFER_SIZE          (1024*1024)
+#define MINIMAL_EVENT_BUFFER_SIZE          (10*sysconf(_SC_PAGESIZE))
 #ifndef HOST_NAME_MAX
 #if defined(MAC_OS_X)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
@@ -165,17 +165,6 @@ int dague_profiling_init( void )
     __already_called = 0;
     dague_profile_enabled = 1;  /* turn on the profiling */
 
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    {
-        /* shared timestamp allows grouping profiles from different nodes */
-        unsigned long long int timestamp = (unsigned long long int)dague_start_time.tv_sec;
-        MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-        PROFILING_SAVE_uint64INFO("start_time", timestamp);
-    }
-#else
-    PROFILING_SAVE_uint64INFO("start_time", dague_start_time.tv_sec);
-#endif /* DISTRIBUTED && HAVE_MPI */
-
     /* add the hostname, for the sake of explicit profiling */
     char buf[HOST_NAME_MAX];
     if (0 == gethostname(buf, HOST_NAME_MAX))
@@ -234,6 +223,10 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     int rc; (void)rc;
 
     if( !__profile_initialized ) return NULL;
+    if( -1 == file_backend_fd ) {
+        set_last_error("Profiling system: dague_profiling_thread_init: call before dague_profiling_dbp_start");
+        return NULL;
+    }
     /** Remark: maybe calloc would be less perturbing for the measurements,
      *  if we consider that we don't care about the _init phase, but only
      *  about the measurement phase that happens later.
@@ -847,6 +840,10 @@ int dague_profiling_dbp_dump( void )
         set_last_error("Profiling system: User Error: dague_profiling_dbp_dump before dague_profiling_dbp_start()");
         return -1;
     }
+    if( NULL == profile_head ) {
+        set_last_error("Profiling system: User Error: dague_profiling_dbp_dump before dague_profiling_dbp_start()");
+        return -1;
+    }
 
     /* Flush existing events buffer, unconditionally */
     DAGUE_LIST_ITERATOR(&threads, it, {
@@ -903,8 +900,12 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
 #if defined(HAVE_MPI)
     char *unique_str;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+    int MPI_ready;
+    (void)MPI_Initialized(&MPI_ready);
+    if(MPI_ready) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+    }
 #endif
 
     if( !__profile_initialized ) return -1;
