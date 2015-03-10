@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include "profiling.h"
 
-void dague_profiling_init_f08( int* ierr )
+void dague_profile_init_f08( int* ierr )
 {
     *ierr = dague_profiling_init();
 }
@@ -24,20 +24,22 @@ void dague_profile_reset_f08( int* ierr )
     *ierr = dague_profiling_reset();
 }
 
-void dague_profiling_dump_f08( int* ierr )
+void dague_profile_dump_f08( int* ierr )
 {
     *ierr = dague_profiling_dbp_dump();
 }
 
-void dague_profiling_start_f08( const char *filename, const char *hr_info, int* ierr )
+void dague_profile_start_f08( const char *filename, const char *hr_info, int* ierr )
 {
     *ierr = dague_profiling_dbp_start( filename, hr_info );
 }
 
 dague_thread_profiling_t*
-dague_profile_thread_init_f08( size_t length, const char *id_name)
+dague_profile_thread_init_f08( size_t length, const char *id_name, int* ierr)
 {
-    return dague_profiling_thread_init(length, "%s", id_name);
+    dague_thread_profiling_t* tp = dague_profiling_thread_init(length, "%s", id_name);
+    *ierr = (NULL == tp) ? -1 : 0;
+    return tp;
 }
 
 void dague_profile_add_dictionary_keyword_f08(const char* key_name, const char* attributes,
