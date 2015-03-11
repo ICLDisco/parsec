@@ -45,8 +45,6 @@ typedef void* dague_datatype_t;
 #define dague_datatype_double_t      NULL
 #define dague_datatype_long_double_t NULL
 
-#endif  /* defined(HAVE_MPIP) */
-
 BEGIN_C_DECLS
 
 /**
@@ -88,5 +86,7 @@ int dague_type_create_resized(dague_datatype_t oldtype,
                               dague_datatype_t *newtype);
 
 END_C_DECLS
+
+#endif  /* defined(HAVE_MPI) */
 
 #endif  /* DAGUE_DATATYPE_H_HAS_BEEN_INCLUDED */
