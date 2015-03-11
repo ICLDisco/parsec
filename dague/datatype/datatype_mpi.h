@@ -14,6 +14,10 @@
 #error __FILE__ should only be directly included from dague/datatype.h. Include "dague/datatype.h" instead.
 #endif  /* !defined(DAGUE_DATATYPE_H_HAS_BEEN_INCLUDED) */
 
+#if !defined(HAVE_MPI)
+#error __FILE__ should only be used when MPI support is enabled.
+#endif  /* !defined(HAVE_MPI) */
+
 #define dague_type_create_contiguous    MPI_Type_contiguous
 #define dague_type_create_vector        MPI_Type_vector
 #define dague_type_create_hvector       MPI_Type_create_hvector
