@@ -7,6 +7,7 @@ from distutils import ccompiler, util
 from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext, extension
+from Cython.Build import cythonize
 import os.path
 import sys
 import socket
@@ -14,10 +15,11 @@ import socket
 c_compiler = '@CMAKE_C_COMPILER@'.replace('FILEPATH=', '')
 cxx_compiler = '@CMAKE_CXX_COMPILER@'.replace('FILEPATH=', '')
 
+build_type = '@CMAKE_BUILD_TYPE@'
+
+extra_compile_args = []
 if c_compiler.endswith('icc'):
-    extra_compile_args = ['-wd47', '-static-intel']
-else:
-    extra_compile_args = []
+    extra_compile_args.append('-wd47', '-static-intel')
 
 # libs = ['irc', 'imf', 'dague-base']
 libs = ['dague-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
@@ -26,7 +28,12 @@ lib_dirs = (['@PROJECT_BINARY_DIR@/dague']) # +
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
 package_dir='@CMAKE_CURRENT_BINARY_DIR@'
 
-ext_modules = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
+debuggeron = False
+if 'Debug' == build_type:
+    debuggeron = True
+    extra_compile_args.append('-O0') # Overwrite the default Cython compilation flags
+
+extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                             '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
                          include_dirs=['@PROJECT_SOURCE_DIR@/include',
                                        '@PROJECT_SOURCE_DIR@',
@@ -45,8 +52,6 @@ ext_modules = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                          libraries=libs,
                          # extra_compile_args=['@CMAKE_C_FLAGS@']
                      )]
-
-build_type = '@CMAKE_BUILD_TYPE@'
 
 class local_compiler_build_ext( build_ext ):
     def build_extensions(self):
@@ -118,12 +123,15 @@ setup(
     url='http://icl.cs.utk.edu/parsec/',
     package_dir={ '': package_dir },
     cmdclass = {'build_ext': local_compiler_build_ext},
-    ext_modules = ext_modules
+    ext_modules = cythonize(extensions, gdb_debug=debuggeron)
 )
 
 install_dir = distutils_dir_name('lib')
 print('Installed Python Trace Tables module to', install_dir)
+
+#
 # now fix the bash and fish environment scripts
+#
 import shutil
 
 bashfilename=os.path.join(package_dir, 'utilities','bash.env')
