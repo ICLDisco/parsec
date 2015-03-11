@@ -19,7 +19,7 @@ build_type = '@CMAKE_BUILD_TYPE@'
 
 extra_compile_args = []
 if c_compiler.endswith('icc'):
-    extra_compile_args.append('-wd47', '-static-intel')
+    extra_compile_args.extend(['-wd47', '-static-intel'])
 
 # libs = ['irc', 'imf', 'dague-base']
 libs = ['dague-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
