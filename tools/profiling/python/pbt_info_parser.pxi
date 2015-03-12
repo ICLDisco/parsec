@@ -23,6 +23,15 @@ cdef parse_info(builder, event_type, void * cinfo):
             [cast_exec_info.values[x] for x
              in range(NUM_EXEC_EVENTS)]
         }
+    elif event_name == 'PINS_CORE':
+        cast_exec_info = <papi_exec_info_t *>cinfo
+        event_info = {
+            'kernel_type':
+            cast_exec_info.kernel_type,
+            'exec_info':
+            [cast_exec_info.values[x] for x
+             in range(NUM_EXEC_EVENTS)]
+        }
     elif event_name == 'PINS_SELECT':
         cast_select_info = <select_info_t *>cinfo
         event_info = {

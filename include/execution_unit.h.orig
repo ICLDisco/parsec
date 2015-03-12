@@ -30,6 +30,7 @@ typedef enum PAPI_EVENTSETS {
         EXEC_SET,
         SELECT_SET,
         PER_SOCKET_SET,
+        PER_CORE_SET,
         POWER_SET,
         EVENTSETS_COUNT
 } PAPI_EVENTSETS;
@@ -76,11 +77,17 @@ struct dague_execution_unit_s {
     long long int starvation;
     long * steal_counters; // this is for Stephanie and print_steals PINS module
     
-    // The following variables are needed for papi_socket
+    /* The following variables are needed for papi_socket */
     char ** pins_papi_socket_event_name;
 	int * pins_papi_socket_native_event;
+	int num_socket_tasks;
 	
-	// REMOVE THESE LATER
+	/* The following variables are needed for papi_core */
+	char ** pins_papi_core_event_name;
+	int * pins_papi_core_native_event;
+	int num_core_tasks;
+	
+	/* REMOVE THESE LATER */
 	int num_tasks;
 	long long start_values[2];
 	long long error_values[2];

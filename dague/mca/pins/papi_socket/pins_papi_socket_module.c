@@ -55,11 +55,12 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
 {
     char* mca_param_name;
     char* token;
+    char* temp;
     int err, i;
     bool socket = false, core = false, started = false;
     
     exec_unit->num_counters = 0;
-    exec_unit->num_tasks = 0;
+    exec_unit->num_socket_tasks = 0;
     exec_unit->pins_papi_socket_event_name = (char**)calloc(NUM_SOCKET_EVENTS, sizeof(char*));
 	exec_unit->pins_papi_socket_native_event = (int*)calloc(NUM_SOCKET_EVENTS, sizeof(int));
 	
@@ -70,7 +71,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
 	}
 	
 	asprintf(&mca_param_name, "%s", mca_param_string);
-	
+        
 	token = strtok(mca_param_name, ":");
 	
 	if(token == NULL)
@@ -82,27 +83,42 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
 	
 	while(token != NULL)
 	{
-		if(token[0] != '*')
+		if(token[0] == 'S')
 		{
-			if(atoi(token) == exec_unit->socket_id)
+            temp = (char*)calloc(strlen(token), sizeof(char));
+            strcpy(temp, token);
+            memmove(temp, temp+1, strlen(temp));
+            
+			if(temp[0] != '*')
+			{
+				if(atoi(temp) == exec_unit->socket_id)
+					socket = true;
+			}
+			else
 				socket = true;
+            free(temp);
 		}
-		else
-			socket = true;
 		
 		token = strtok(NULL, ":");
-		if(token[0] != '*')
+		
+		if(token[0] == 'C')
 		{
-			if(socket)
+            temp = (char*)calloc(strlen(token),sizeof(char));
+            strcpy(temp, token);
+            memmove(temp, temp+1, strlen(temp));
+            
+			if(temp[0] != '*')
 			{
-				if(atoi(token) == (exec_unit->core_id % CORES_PER_SOCKET))
+				if(atoi(temp) == (exec_unit->core_id % CORES_PER_SOCKET))
 					core = true;
 			}
+			else
+				core = true;
+            free(temp);
 		}
-		else
-			core = true;
 		
 		token = strtok(NULL, ",");
+		
 		if(socket && core)
 		{
 			if(exec_unit->num_counters == NUM_SOCKET_EVENTS)
@@ -140,7 +156,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
 		                 token);
 		   		return;
 			}
-		
+			
 			/* Add events to the eventset */
 			if( PAPI_OK != (err = PAPI_add_event(exec_unit->papi_eventsets[PER_SOCKET_SET],
 				                                 exec_unit->pins_papi_socket_native_event[exec_unit->num_counters])) ) 
@@ -149,6 +165,8 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
 				             token, PAPI_strerror(err));
 				return;
 			}
+			else
+				printf("Adding Event: %s\n", exec_unit->pins_papi_socket_event_name[exec_unit->num_counters]);
 			exec_unit->num_counters++;
 		}
 		
@@ -179,15 +197,44 @@ static void pins_thread_fini_papi_socket(dague_execution_unit_t * exec_unit)
 {
     int err, i;
     long long int values[NUM_SOCKET_EVENTS];
+	
+	if( PAPI_NULL != exec_unit->papi_eventsets[PER_SOCKET_SET] )
+	{
+		if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_SOCKET_SET], values)) ) 
+		{
+			dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
+			             exec_unit->th_id, PAPI_strerror(err));
+		}
 
+		int inc = 0;
+		papi_socket_info_t info;
+		/*info.vp_id = exec_unit->virtual_process->vp_id;*/
+		info.th_id = exec_unit->th_id;
+	
+		info.kernel_type = -1;
+		/* exec_context isn't available here.
+		if (exec_context->dague_handle->profiling_array != NULL)
+		        info.kernel_type = exec_context->dague_handle->profiling_array[exec_context->function->function_id * 2] / 2;
+ 		*/
+	
+		for(int i = 0; i < NUM_SOCKET_EVENTS; i++)
+		{
+			info.values[i] = values[i];
+		}
+	
+		info.values_len = NUM_SOCKET_EVENTS;
+		
+		inc = dague_profiling_trace(exec_unit->eu_profile,
+			                        pins_prof_papi_socket_end, 45, 0, (void *)&info);
+		inc = dague_profiling_trace(exec_unit->eu_profile,
+			                        pins_prof_papi_socket_end, 45, 0, (void *)&info);
+	}
+	
     for(i = 0; i < NUM_SOCKET_EVENTS; i++)
     {
 		if( PAPI_NULL == exec_unit->pins_papi_socket_native_event[i] )
 		    return;  /* nothing to see here */
     }
-
-    if( (exec_unit->core_id % CORES_PER_SOCKET) != WHICH_CORE_IN_SOCKET )
-        return;
 	
 	/* Stop the PAPI counters. */
     if( PAPI_OK != (err = PAPI_stop(exec_unit->papi_eventsets[PER_SOCKET_SET], values)) ) 
@@ -235,9 +282,9 @@ static void start_papi_socket(dague_execution_unit_t * exec_unit,
     if( PAPI_NULL == exec_unit->papi_eventsets[PER_SOCKET_SET] )
         goto next_pins;
     
-    exec_unit->num_tasks++;
+    exec_unit->num_socket_tasks++;
     
-    if(exec_unit->num_tasks == 1)
+    if(exec_unit->num_socket_tasks == 1)
     {
 		long long int values[NUM_SOCKET_EVENTS];
 		
@@ -288,12 +335,12 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
     if( PAPI_NULL == exec_unit->papi_eventsets[PER_SOCKET_SET] )
         goto next_pins;
 	
-	if(exec_unit->num_tasks == 5)
+	if(exec_unit->num_socket_tasks == 5)
 	{
 		long long int values[NUM_SOCKET_EVENTS];
 		int err;
 		
-		exec_unit->num_tasks = 0;
+		exec_unit->num_socket_tasks = 0;
 		
 		if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_SOCKET_SET], values)) ) 
 		{
@@ -323,8 +370,6 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 	}
 	else
 	{
-		int err;
-	
 		int inc = 0;
 		papi_socket_info_t info;
 		/*info.vp_id = exec_unit->virtual_process->vp_id;*/
