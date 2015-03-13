@@ -56,8 +56,6 @@ PROGRAM GENERATE_F
      dfi%f = i * 2.0d0
      call dague_profile_trace(prof_handle, k1_end, event_id, 1, &
           C_LOC(dfi), ierr)
-     dd%d1 = i * 1.0d0
-     dd%d2 = i * 2.0d0
      call dague_profile_trace(prof_handle, k3_start, event_id, 1, &
           C_NULL_PTR, ierr)
      dd%d1 = i * 4.0d0
