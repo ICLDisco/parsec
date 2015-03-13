@@ -541,12 +541,6 @@ dague_profiling_ts_trace_flags(int key,
                                        info, flags);
 }
 
-int dague_profiling_trace( dague_thread_profiling_t* context, int key,
-                           uint64_t event_id, uint32_t handle_id, void *info )
-{
-    return dague_profiling_trace_flags( context, key, event_id, handle_id, info, 0 );
-}
-
 int dague_profiling_ts_trace(int key, uint64_t event_id, uint32_t object_id, void *info)
 {
     dague_thread_profiling_t* context = (dague_thread_profiling_t*)
