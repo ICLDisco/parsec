@@ -1,141 +1,65 @@
-import papi_core_utils
-known_pcore_labels = papi_core_utils.PAPICoreEventValueLabelGetter()
+from collections import namedtuple
+import struct
+
+cdef class ExtendedEvent:
+    cdef object ev_struct
+    cdef object aev
+    cdef char* fmt
+    cdef int event_len
+
+    def __init__(self, event_name, event_conv, event_len):
+        fmt = '@'
+        tup = []
+        for ev in str.split(event_conv, ':'):
+            if 0 == len(ev):
+                continue
+            ev_list = str.split(ev, '{', 2)
+            if len(ev_list) > 1:
+                [ev_name, ev_type] = ev_list[:2]
+                ev_type = ev_type.replace('}', '')
+            else:
+                ev_name = ev_list[0] if len(ev_list) == 1 else ''
+                ev_type = ''
+            if 0 == len(ev_name):
+                continue
+            tup.append(ev_name)
+            if ev_type == 'int32_t' or ev_type == 'int':
+                fmt += 'i'
+            elif ev_type == 'int64_t':
+                fmt += 'l'
+            elif ev_type == 'double':
+                fmt += 'd'
+            elif ev_type == 'float':
+                fmt += 'f'
+        self.aev = namedtuple(event_name, tup)
+        #print('event[{0} = {1} fmt \'{2}\''.format(event_name, tup, fmt))
+        self.ev_struct = struct.Struct(fmt)
+        if event_len != len(self):
+            print('Expected length differs from provided length for {0} extended event ({1} != {2})'.format(event_name, len(self), event_len))
+            event_len = event_len if event_len < len(self) else len(self)
+        self.event_len = event_len
+    def __len__(self):
+        return self.ev_struct.size
+    def unpack(self, pybs):
+        return self.aev._make(self.ev_struct.unpack(pybs))
 
 # add parsing clauses to this function to get infos.
-cdef parse_info(builder, event_type, void * cinfo):
+cdef parse_info(builder, event_type, char * cinfo):
     cdef papi_exec_info_t * cast_exec_info = NULL
     cdef select_info_t * cast_select_info = NULL
     cdef papi_core_socket_info_t * cast_core_socket_info = NULL
     cdef papi_core_select_info_t * cast_core_select_info = NULL
     cdef papi_core_exec_info_t * cast_core_exec_info = NULL
 
+    cdef bytes pybs;
+
+    if None == builder.event_convertors[event_type]:
+       return None
     event_info = None
 
-    event_name = builder.event_names[event_type]
-    # this is where users must add code to translate
-    # their own info objects
-    if event_name == 'PINS_EXEC':
-        cast_exec_info = <papi_exec_info_t *>cinfo
-        event_info = {
-            'kernel_type':
-            cast_exec_info.kernel_type,
-            'exec_info':
-            [cast_exec_info.values[x] for x
-             in range(NUM_EXEC_EVENTS)]
-        }
-    elif event_name == 'PINS_SELECT':
-        cast_select_info = <select_info_t *>cinfo
-        event_info = {
-            'kernel_type':
-            cast_select_info.kernel_type,
-            'victim_vp_id':
-            cast_select_info.victim_vp_id,
-            'victim_thread_id':
-            cast_select_info.victim_th_id,
-            'exec_context':
-            cast_select_info.exec_context,
-            'values':
-            [cast_select_info.values[x] for x
-             in range(NUM_SELECT_EVENTS)]
-        }
-    elif event_name == 'PINS_ADD':
-        cast_core_exec_info = <papi_core_exec_info_t *>cinfo
-        event_info = {
-            'kernel_type':
-            cast_core_exec_info.kernel_type,
-            'PAPI_L1':
-            cast_core_exec_info.evt_values[0],
-            'PAPI_L2':
-            cast_core_exec_info.evt_values[1],
-            'PAPI_L3':
-            cast_core_exec_info.evt_values[2],
-        }
-    elif event_name == 'PINS_L12_EXEC':
-        cast_core_exec_info = <papi_core_exec_info_t *>cinfo
-        event_info = {
-            'kernel_type':
-            cast_core_exec_info.kernel_type,
-            'PAPI_L1':
-            cast_core_exec_info.evt_values[0],
-            'PAPI_L2':
-            cast_core_exec_info.evt_values[1],
-            'PAPI_L3':
-            cast_core_exec_info.evt_values[2],
-        }
-    elif event_name == 'PINS_L12_SELECT':
-        cast_core_select_info = <papi_core_select_info_t *>cinfo
-        event_info = {
-            'kernel_type':
-            cast_core_select_info.kernel_type,
-            'victim_vp_id':
-            cast_core_select_info.victim_vp_id,
-            'victim_thread_id':
-            cast_core_select_info.victim_th_id,
-            'starvation':
-            cast_core_select_info.selection_time,
-            'exec_context':
-            cast_core_select_info.exec_context,
-            'PAPI_L1':
-            cast_core_select_info.evt_values[0],
-            'PAPI_L2':
-            cast_core_select_info.evt_values[1],
-        }
-    elif event_name == 'PINS_L123':
-        cast_core_socket_info = <papi_core_socket_info_t *>cinfo
-        event_info = {
-            'PAPI_L1':
-            cast_core_socket_info.evt_values[0],
-            'PAPI_L2':
-            cast_core_socket_info.evt_values[1],
-            'PAPI_L3':
-            cast_core_socket_info.evt_values[2],
-        }
-    # events originating from current papi_L123 module
-    elif event_name.startswith('PAPI'):
-        lbls = known_pcore_labels[event_name]
-        if ('_EXEC' in event_name or 
-            '_COMPL' in event_name or 
-            '_ADD' in event_name or
-            '_PREP' in event_name):
-            cast_core_exec_info = <papi_core_exec_info_t *>cinfo
-            event_info = {
-                'kernel_type': cast_core_exec_info.kernel_type,
-            }
-            for idx, lbl in enumerate(lbls):
-                event_info.update({lbl: cast_core_exec_info.evt_values[idx]})
-        elif '_SEL' in event_name:
-            cast_core_select_info = <papi_core_select_info_t *>cinfo
-            if cast_core_select_info.selection_time < 0:
-                # then this event has been marked as invalid
-                return None
-            if cast_core_select_info.selection_time > 1000000000:
-                print(event_name)
-                print(cast_core_select_info.selection_time)
-            event_info = {
-                'kernel_type':
-                cast_core_select_info.kernel_type,
-                'victim_vp_id':
-                cast_core_select_info.victim_vp_id,
-                'victim_thread_id':
-                cast_core_select_info.victim_th_id,
-                'selection_time':
-                cast_core_select_info.selection_time,
-                'exec_context':
-                cast_core_select_info.exec_context,
-            }
-            for idx, lbl in enumerate(lbls):
-                event_info.update({lbl: cast_core_select_info.evt_values[idx]})
-        elif '_THREAD' in event_name or '_SOCKET' in event_name:
-            cast_core_socket_info = <papi_core_socket_info_t *>cinfo
-            event_info = dict()
-            for idx, lbl in enumerate(lbls):
-                event_info.update({lbl: cast_core_socket_info.evt_values[idx]})
-    # elif event_name == '<EVENT NAME>':
-    #   event_info = <write some code to make it into a simple Python dict>
-    else:
-        dont_print = True # silently ignore unless set otherwise
-        if not dont_print:
-            print('No parser in pbt_info_parser.pxi for event of type \'{}\''.format(event_name))
-
-    return event_info
-
+    try:
+        pybs = cinfo[:len(builder.event_convertors[event_type])]
+        return builder.event_convertors[event_type].unpack(pybs)._asdict()
+    except Exception as e:
+        print(e)
+        return None
