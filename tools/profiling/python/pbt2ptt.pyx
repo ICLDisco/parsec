@@ -605,6 +605,7 @@ cdef class ExtendedEvent:
                 ev_type = ''
             if 0 == len(ev_name):
                 continue
+            ev_name = ev_name.replace(' ', '_')
             tup.append(ev_name)
             if ev_type == 'int32_t' or ev_type == 'int':
                 fmt += 'i'
