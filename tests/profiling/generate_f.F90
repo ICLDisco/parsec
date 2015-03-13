@@ -25,13 +25,13 @@ PROGRAM GENERATE_F
   call dague_profile_init(ierr)
 
   info_length = SIZEOF(dfi)
-  call dague_profile_add_dictionary_keyword("key 1", "NULL attr", &
-       info_length, "double(%d):float(%f):int(%d)", k1_start, k1_end, ierr)
-  call dague_profile_add_dictionary_keyword("key 2", "NULL attr", &
-       info_length, "double(%d):float(%f):int(%d)", k2_start, k2_end, ierr)
+  call dague_profile_add_dictionary_keyword("key1", "NULL attr", &
+       info_length, "double{double}:float{float}:int{int32_t}", k1_start, k1_end, ierr)
+  call dague_profile_add_dictionary_keyword("key2", "NULL attr", &
+       info_length, "double{double}:float{float}:int{int32_t}", k2_start, k2_end, ierr)
   info_length = SIZEOF(dd)
-  call dague_profile_add_dictionary_keyword("key 3", "NULL attr", &
-       info_length, "double1(%d):double2(%d)", k3_start, k3_end, ierr)
+  call dague_profile_add_dictionary_keyword("key3", "NULL attr", &
+       info_length, "double1{double}:double2{double}", k3_start, k3_end, ierr)
 
   prof_length = 1024 * 1024
   prof_handle = dague_profile_thread_init(prof_length, "thread 1", ierr)
