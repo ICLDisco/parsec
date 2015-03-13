@@ -142,12 +142,11 @@ int dague_profiling_dictionary_flush( void );
  * not thread safe (if two threads share a same thread_context. Safe per thread_context)
  */
 #define PROFILE_OBJECT_ID_NULL ((uint32_t)-1)
-int dague_profiling_trace( dague_thread_profiling_t* context,
-                           int key, uint64_t event_id, uint32_t handle_id,
-                           void *info );
 int dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
                                 uint64_t event_id, uint32_t handle_id,
                                 void *info, uint16_t flags );
+#define dague_profiling_trace(CTX, KEY, EVENT_ID, HANDLE_ID, INFO) \
+    dague_profiling_trace_flags( (CTX), (KEY), (EVENT_ID), (HANDLE_ID), (INFO), 0 )
 int dague_profiling_ts_trace(int key, uint64_t event_id, uint32_t object_id,
                              void *info );
 int dague_profiling_ts_trace_flags(int key,
@@ -296,7 +295,6 @@ profiling_thread_save_sinfo(dague_thread_profiling_t * thread,
 #if defined(DAGUE_PROF_TRACE)
 #define PROFILING_SAVE_dINFO(key, double_value) profiling_save_dinfo(key, double_value)
 #define PROFILING_SAVE_iINFO(key, integer_value) profiling_save_iinfo(key, integer_value)
-#define PROFILING_SAVE_uint64INFO(key, integer_value) profiling_save_uint64info(key, integer_value)
 #define PROFILING_SAVE_sINFO(key, str_value) profiling_save_sinfo(key, str_value)
 #define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value)  \
     profiling_thread_save_dinfo(thread, key, double_value)
@@ -309,7 +307,6 @@ profiling_thread_save_sinfo(dague_thread_profiling_t * thread,
 #else
 #define PROFILING_SAVE_dINFO(key, double_value) do {} while(0)
 #define PROFILING_SAVE_iINFO(key, integer_value) do {} while(0)
-#define PROFILING_SAVE_uint64INFO(key, integer_value) do {} while(0)
 #define PROFILING_SAVE_sINFO(key, str_value) do {} while(0)
 #define PROFILING_THREAD_SAVE_dINFO(thread, key, double_value) do {} while(0)
 #define PROFILING_THREAD_SAVE_iINFO(thread, key, integer_value) do {} while(0)

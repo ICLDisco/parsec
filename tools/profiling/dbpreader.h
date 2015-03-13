@@ -20,7 +20,6 @@ char *dbp_info_get_value(const dbp_info_t *info);
 
 typedef struct dbp_multifile_reader dbp_multifile_reader_t;
 dbp_multifile_reader_t *dbp_reader_open_files(int nbfiles, char *files[]);
-dbp_multifile_reader_t *dbp_reader_open_default_files(void);
 int dbp_reader_nb_files(const dbp_multifile_reader_t *dbp);
 int dbp_reader_nb_dictionary_entries(const dbp_multifile_reader_t *dbp);
 int dbp_reader_worldsize(const dbp_multifile_reader_t *dbp);

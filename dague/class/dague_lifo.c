@@ -16,9 +16,7 @@
 static inline void dague_lifo_construct( dague_lifo_t* lifo )
 {
     /* Don't allow strange alignemnts */
-    if( (0 == lifo->alignment) || (lifo->alignment > 16) ) {
-        lifo->alignment = DAGUE_LIFO_ALIGNMENT_DEFAULT;
-    }
+    lifo->alignment = DAGUE_LIFO_ALIGNMENT_DEFAULT;
     DAGUE_LIFO_ITEM_ALLOC( lifo, lifo->lifo_ghost, sizeof(dague_list_item_t) );
     DAGUE_ITEM_ATTACH(lifo, lifo->lifo_ghost);
     lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, lifo->lifo_ghost, 0);
@@ -40,10 +38,7 @@ OBJ_CLASS_INSTANCE(dague_lifo_t, dague_object_t,
 static inline void
 dague_lifo_construct( dague_lifo_t* lifo )
 {
-    /* Don't allow strange alignemnts */
-    if( (0 == lifo->alignment) || (lifo->alignment > 16) ) {
-        lifo->alignment = DAGUE_LIFO_ALIGNMENT_DEFAULT;
-    }
+    lifo->alignment = DAGUE_LIFO_ALIGNMENT_DEFAULT;
 }
 
 OBJ_CLASS_INSTANCE(dague_lifo_t, dague_list_t,

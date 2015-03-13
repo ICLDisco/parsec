@@ -74,7 +74,7 @@ class ParsecTraceTables(object):
 
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
-    def __init__(self, events, event_types, event_names, event_attributes,
+    def __init__(self, events, event_types, event_names, event_attributes, event_convertors,
                  nodes, threads, information, errors):
         self.__version__ = self.__class__.class_version
         # core data
@@ -82,6 +82,7 @@ class ParsecTraceTables(object):
         self.event_types = event_types
         self.event_names = event_names
         self.event_attributes = event_attributes
+        self.event_convertors = event_convertors
         self.nodes = nodes
         self.threads = threads
         self.information = information
@@ -108,7 +109,7 @@ class ParsecTraceTables(object):
         this allows certain 'known' attribute abbreviations (e.g. 'NB -> PARAM_NB)
         and automatically searches the 'information' dictionary """
         try:
-            return nice_val(self.information, unalias_key(self.information, name))
+            return self.information[unalias_key(self.information, name)]
         except:
             return object.__getattribute__(self, name)
     def __getitem__(self, name):
@@ -216,7 +217,7 @@ def alias_info_on_load(trace):
 
     try:
         if info.exe.endswith('potrf'):
-            nice_val(info, 'POTRF_PRI_CHANGE')
+            info['POTRF_PRI_CHANGE']
     except KeyError as ke:
         info['POTRF_PRI_CHANGE'] = 0
 
@@ -258,7 +259,7 @@ def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
             used_keys.append(real_key)
             # get the value before we add the key to the description,
             # in case the key isn't present and we raise an exception
-            value = nice_val(dict_, real_key)
+            value = dict_[real_key]
 
             if include_key and key_length > 0:
                 description += '{}'.format(key[:key_length].lower())
@@ -275,18 +276,6 @@ def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
         except KeyError as e:
             pass # key doesn't exist - just ignore
     return description[:-len(sep)] # remove last 'sep'
-
-
-def nice_val(dict_, key):
-    """ Edits return values for common usage. """
-    if key == 'exe':
-        m = re.match('.*testing_(\w+)', dict_[key])
-        return m.group(1)
-    if key == 'hostname':
-        return dict_[key].split('.')[0]
-    else:
-        return dict_[key]
-
 
 def find_trace_sets(traces, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
     trace_sets = dict()

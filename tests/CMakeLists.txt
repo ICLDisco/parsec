@@ -1,6 +1,5 @@
 
 macro(dague_addtest lang target input)
-  list(APPEND EXTRA_LIBS m)
 
   if( MPI_C_FOUND )
     set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
@@ -26,6 +25,7 @@ Add_Subdirectory(scheduling)
 Add_Subdirectory(all2all)
 Add_Subdirectory(generalized_reduction)
 Add_Subdirectory(merge_sort)
+Add_Subdirectory(profiling)
 
 Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)
@@ -43,13 +43,16 @@ include_directories(${include_dir})
 dague_addtest(C touch_ex "touch_ex.c;${touch_generated}")
 if(CMAKE_Fortran_COMPILER_WORKS)
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    set(touch_exf_FortranFLAGS "-I${PROJECT_BINARY_DIR}/dague/fortran")
     dague_addtest(Fortran touch_exf "touch_exf.F90;${touch_generated}")
     target_link_libraries(touch_exf daguef)
+    SET_TARGET_PROPERTIES(touch_exf PROPERTIES COMPILE_FLAGS "-I${PROJECT_BINARY_DIR}/dague/fortran")
     SET_TARGET_PROPERTIES(touch_exf PROPERTIES LINKER_LANGUAGE Fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(CMAKE_Fortran_COMPILER_WORKS)
 
+#Most of the test need -lm. Add it and trim the list down.
+list(APPEND EXTRA_LIBS m)
+list(REMOVE_DUPLICATES EXTRA_LIBS)
 
 jdf_rules(startup_generated "${CMAKE_CURRENT_SOURCE_DIR}/startup.jdf")
 dague_addtest(C startup "${startup_generated}")

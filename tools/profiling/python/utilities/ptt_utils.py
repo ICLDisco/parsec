@@ -84,11 +84,12 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
             # initially group by start_time
             import pbt2ptt
             infonly_trace = pbt2ptt.read([filename], skeleton_only=True)
-            if hasattr(infonly_trace, 'start_time'):
-                start_time = infonly_trace.information['start_time']
-                if start_time not in unfinished_groups:
-                    unfinished_groups[start_time] = list()
-                unfinished_groups[start_time].append(TraceAndName(infonly_trace, filename))
+            # PBT files related are supposed to have the same hr_id
+            if hasattr(infonly_trace, 'exe'):
+                hr_id = infonly_trace.information['exe']
+                if hr_id not in unfinished_groups:
+                    unfinished_groups[hr_id] = list()
+                unfinished_groups[hr_id].append(TraceAndName(infonly_trace, filename))
             else: # ungroupable - fail fast.
                 print('One of the traces does not have a start_time information attribute.')
                 print('As a result, these traces cannot be accurately grouped.')

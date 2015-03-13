@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -409,14 +409,16 @@ static int jdf_sanity_check_dataflow_expressions_unbound(void)
                     (jdf_sanity_check_expr_bound(dep->guard->guard, kind, f) < 0) )
                     rc = -1;
                 k = 1;
-                for(e = dep->guard->calltrue->parameters; e != NULL; e = e->next) {
-                    snprintf(kind, 128,
-                             "Parameter %d of dependency %d\n"
-                             "  of dataflow number %d (variable %s) at line %d",
-                             k, j, i, flow->varname, JDF_OBJECT_LINENO(flow));
-                    if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
-                        rc = -1;
-                    k++;
+                if( NULL != dep->guard->calltrue ) {
+                    for(e = dep->guard->calltrue->parameters; e != NULL; e = e->next) {
+                        snprintf(kind, 128,
+                                 "Parameter %d of dependency %d\n"
+                                 "  of dataflow number %d (variable %s) at line %d",
+                                 k, j, i, flow->varname, JDF_OBJECT_LINENO(flow));
+                        if( jdf_sanity_check_expr_bound(e, kind, f) < 0 )
+                            rc = -1;
+                        k++;
+                    }
                 }
                 if( dep->guard->guard_type == JDF_GUARD_TERNARY ) {
                     k = 1;
@@ -444,22 +446,40 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
     jdf_function_entry_t *f1, *f2;
     jdf_dataflow_t *flow;
     jdf_dep_t *dep;
+    jdf_guarded_call_t *guard;
 
     for(f1 = current_jdf.functions; f1 != NULL; f1 = f1->next) {
         for(f2 = current_jdf.functions; f2 != NULL; f2 = f2->next) {
             for(flow = f2->dataflow; flow != NULL; flow = flow->next) {
                 for(dep = flow->deps; dep != NULL; dep = dep->next) {
-                    if( !strcmp(dep->guard->calltrue->func_or_mem, f1->fname) &&
-                        (dep->guard->calltrue->var == NULL) ) {
+                    guard = dep->guard;
+                    /* Special case for the arena definition for WRITE-only flows */
+                    if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) ) {
+                        if( JDF_GUARD_UNCONDITIONAL != guard->guard_type ) {
+                            jdf_fatal(JDF_OBJECT_LINENO(dep),
+                                      "expected WRITE-only expression with wrong type (internal error)\n");
+                        }
+                        if( (JDF_FLOW_TYPE_CTL | JDF_FLOW_TYPE_READ) & flow->flow_flags ) {
+                            jdf_fatal(JDF_OBJECT_LINENO(dep),
+                                      "Incorrect dependency (CTL or READ) in a WRITE-only flow (internal error)\n");
+                        }
+                        if( !(JDF_FLOW_TYPE_WRITE & flow->flow_flags) ) {
+                            jdf_fatal(JDF_OBJECT_LINENO(dep),
+                                      "Lack of dependency in a not WRITE-only flow (internal error)\n");
+                        }
+                        continue;
+                    }
+                    if( !strcmp(guard->calltrue->func_or_mem, f1->fname) &&
+                        (guard->calltrue->var == NULL) ) {
                         jdf_fatal(JDF_OBJECT_LINENO(dep),
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
                                   f1->fname, JDF_OBJECT_LINENO(f1), f2->fname);
                         rc = -1;
                     }
-                    if( dep->guard->guard_type == JDF_GUARD_TERNARY &&
-                        !strcmp(dep->guard->callfalse->func_or_mem, f1->fname) &&
-                        (dep->guard->callfalse->var == NULL) ) {
+                    if( guard->guard_type == JDF_GUARD_TERNARY &&
+                        !strcmp(guard->callfalse->func_or_mem, f1->fname) &&
+                        (guard->callfalse->var == NULL) ) {
                         jdf_fatal(JDF_OBJECT_LINENO(dep),
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
@@ -479,7 +499,7 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
 {
     jdf_function_entry_t* fin;
     jdf_dataflow_t*  flowin;
-    jdf_dep_t *depin;
+    jdf_dep_t *dep;
     int matched = 0;
 
     /*printf("Investigate flow %s:%s -> %s:%s\n", fout->fname, flowout->varname,
@@ -503,15 +523,19 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
             return -1;
         }
 
-        for( depin = flowin->deps; depin != NULL; depin = depin->next ) {
-            if( (depin->guard->calltrue->var != NULL) &&
-                (0 == strcmp(depin->guard->calltrue->func_or_mem, fout->fname)) ) {
+        for( dep = flowin->deps; dep != NULL; dep = dep->next ) {
+            /* Skip the default type declaration for WRITE-only dependencies */
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) )
+                continue;
+
+            if( (dep->guard->calltrue->var != NULL) &&
+                (0 == strcmp(dep->guard->calltrue->func_or_mem, fout->fname)) ) {
                 matched = 1;
                 break;
             }
-            if( (depin->guard->guard_type == JDF_GUARD_TERNARY) &&
-                (depin->guard->callfalse->var != NULL) &&
-                (0 == strcmp(depin->guard->callfalse->func_or_mem, fout->fname)) ) {
+            if( (dep->guard->guard_type == JDF_GUARD_TERNARY) &&
+                (dep->guard->callfalse->var != NULL) &&
+                (0 == strcmp(dep->guard->callfalse->func_or_mem, fout->fname)) ) {
                 matched = 1;
                 break;
             }
@@ -544,6 +568,10 @@ static int jdf_sanity_check_dataflow_unexisting_data(void)
             j = 1;
             matched = 0;
             for( dep = flow1->deps; dep != NULL; dep = dep->next ) {
+
+                /* Skip the default type declaration for WRITE-only dependencies */
+                if( (NULL == dep->guard->guard) && (NULL == dep->guard->calltrue) && (NULL == dep->guard->callfalse) )
+                    continue;
                 if( (dep->guard->calltrue->var != NULL) ) {
                     call = dep->guard->calltrue;
                     matched = jdf_sanity_check_in_out_flow_match( f1, flow1, call );

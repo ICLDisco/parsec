@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,6 +54,12 @@ typedef struct jdf_object_t {
 #define JDF_OBJECT_COMMENT( OBJ )  ((OBJ)->super.comment)
 #define JDF_OBJECT_ONAME( OBJ )    (OBJ)->super.oname
 
+/**
+ * Internam name marker for the arena allocation of the WRITE-only
+ * dependencies. This name is internally associated with the corresponding
+ * variable, and can be safely used as a marker.
+ */
+#define PARSEC_WRITE_MAGIC_NAME "__parsec_write_type"
 
 /**
  * Checks the sanity of the current_jdf.
@@ -268,6 +274,10 @@ typedef struct jdf_call {
     char                     *func_or_mem;
     struct jdf_expr          *parameters;
 } jdf_call_t;
+
+#define JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(DEP) \
+    ((NULL == (DEP)->guard->guard) && (NULL != (DEP)->guard->calltrue) && (NULL == (DEP)->guard->callfalse) && \
+     (0 == strcmp(PARSEC_WRITE_MAGIC_NAME, (DEP)->guard->calltrue->func_or_mem)))
 
 /*******************************************************************/
 /*             Expressions (and list of expressions)              */

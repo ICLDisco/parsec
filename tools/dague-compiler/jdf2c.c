@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -785,10 +785,10 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
         JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
         string_arena_add_string(sa,
                                 "  %s_nblocal_tasks = %s_%s_internal_init(__dague_handle);\n"
-                                "  __dague_handle->%s_repository = data_repo_create_nothreadsafe(\n"
+                                "  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(  /* %s */\n"
                                 "          %s_nblocal_tasks, %d);\n",
                                 f->fname, jdf_basename, f->fname,
-                                f->fname,
+                                f->function_id, f->fname,
                                 f->fname, nbdata);
     }
 
@@ -865,6 +865,9 @@ static int jdf_dataflow_type(const jdf_dataflow_t *flow)
     jdf_dep_t *dl;
     int type = 0;
     for(dl = flow->deps; dl != NULL; dl = dl->next) {
+        if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+            continue;  /* skip WRITE-only flows even if they have empty input deps (for datatype) */
+        }
         type |= dl->dep_flags;
     }
     return type;
@@ -1121,11 +1124,18 @@ static void jdf_generate_structure(const jdf_t *jdf)
         }
     }
 
-    coutput("  /* The list of data repositories */\n");
-    for( f = jdf->functions; NULL != f; f = f->next ) {
-        if( 0 != function_has_data_output(f) )
-            coutput("  data_repo_t *%s_repository;\n", f->fname);
+    coutput("  /* The list of data repositories ");
+    for( nbdata = 0, f = jdf->functions; NULL != f; f = f->next ) {
+        if( 0 != function_has_data_output(f) ) {
+            coutput(" %s ", f->fname);
+            nbdata++;
+        }
     }
+    coutput("*/\n");
+    if(nbdata != 0 ) {
+        coutput("  data_repo_t* repositories[%d];\n", nbdata );
+    }
+
     coutput("} __dague_%s_internal_handle_t;\n"
             "\n", jdf_basename);
 
@@ -1159,8 +1169,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("#define %s_repo (__dague_handle->%s_repository)\n",
-                        f->fname, f->fname);
+                coutput("#define %s_repo (__dague_handle->repositories[%d])\n",
+                        f->fname, f->function_id);
         }
     }
 
@@ -1422,6 +1432,15 @@ static int jdf_generate_initfinal_data_for_dep(const jdf_dep_t *dep,
 
     switch( dep->guard->guard_type ) {
     case JDF_GUARD_UNCONDITIONAL:
+        if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) ) {
+            /* TODO */
+            string_arena_add_string(sa,
+                                    "    __d = (dague_ddesc_t*)NULL;\n"
+                                    "    refs[__flow_nb].ddesc = NULL;\n"
+                                    "    refs[__flow_nb].key = 0xffffffff;\n"
+                                    "    __flow_nb++;\n");
+                                    break;
+        }
         if( dep->guard->calltrue->var == NULL ) {
             /* Unconditional direct memory reference: this is a init or final data */
             jdf_generate_initfinal_data_for_call(dep->guard->calltrue, sa, 0);
@@ -1927,7 +1946,6 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                             "  .belongs_to = &%s,\n",
                             JDF_OBJECT_ONAME(flow));
 
-    
 
     string_arena_add_string(sa,
                             "};\n");
@@ -1985,6 +2003,10 @@ static int jdf_generate_dataflow( const jdf_t *jdf, const jdf_def_list_t *contex
 
         if( dl->guard->guard_type == JDF_GUARD_UNCONDITIONAL ) {
             sprintf(condname, "NULL");
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+                continue;  /* skip type declaration for WRITE-only flows */
+            }
+
             indepnorange = jdf_generate_dependency(jdf, flow, dl, dl->guard->calltrue,
                                                    JDF_OBJECT_ONAME(dl), condname, context) && indepnorange;
             string_arena_add_string(psa, "%s&%s", sep, JDF_OBJECT_ONAME(dl));
@@ -2098,9 +2120,14 @@ static char* has_ready_input_dependency(void **elt, void *pint)
             dep = dep->next;
         }
     } else {  /* This is a data */
-        while( NULL != dep ) {
+        for( ; NULL != dep; dep = dep->next ) {
             if( dep->dep_flags & JDF_DEP_FLOW_IN ) {
+                /* Skip the default type declaration for WRITE-only dependencies */
+                if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) )
+                    continue;
+
                 has_input = 1;
+
                 if( NULL == dep->guard->calltrue->var ) {
                     can_be_startup = 1;
                 }
@@ -2110,7 +2137,6 @@ static char* has_ready_input_dependency(void **elt, void *pint)
                     }
                 }
             }
-            dep = dep->next;
         }
     }
     if( (0 == can_be_startup) && has_input ) {
@@ -2708,6 +2734,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                             fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
 
                     case JDF_GUARD_UNCONDITIONAL:
+                        if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+                            fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
+                            break;
+                        }
+
                     case JDF_GUARD_BINARY:
                         if( NULL == dl->guard->calltrue->var )
                             fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
@@ -3074,8 +3105,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("   data_repo_destroy_nothreadsafe(handle->%s_repository);\n",
-                        f->fname);
+                coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
+                        f->function_id, f->fname);
         }
     }
 
@@ -3240,10 +3271,22 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         coutput("#  endif /* defined(DAGUE_PROF_TRACE) */\n");
     }
 
-    coutput("  /* Create the data repositories for this object */\n"
+    coutput("  /* Populate the data repositories for this handle */\n"
             "%s",
             UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
-                            "", "", "\n", "\n"));
+                            "", "", "\n", ""));
+    {
+        jdf_function_entry_t* f;
+
+        for( f = jdf->functions; NULL != f; f = f->next ) {
+            if( 0 != function_has_data_output(f) ) {
+                coutput("  __dague_handle->super.super.repo_array = __dague_handle->repositories;\n\n");
+                break;
+            }
+        }
+        if( NULL == f )
+            coutput("  __dague_handle->super.super.repo_array = NULL;\n");
+    }
 
     coutput("  __dague_handle->super.super.startup_hook = %s_startup;\n"
             "  __dague_handle->super.super.destructor   = (dague_destruct_fn_t)%s_destructor;\n"
@@ -3500,7 +3543,7 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
 {
     int dataindex;
 
-    if( call->var != NULL ) {
+    if( (NULL != call) && (NULL != call->var) ) {
         dataindex = jdf_data_input_index(jdf, call->func_or_mem, call->var);
         if( dataindex < 0 ) {
             if( dataindex == -1 ) {
@@ -3618,11 +3661,16 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
         sa2 = string_arena_new(64);
         sa_count = string_arena_new(64);
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
-            if ( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) {
-                jdf_fatal(JDF_OBJECT_LINENO(flow),
-                          "During code generation: unable to find an output flow for variable %s marked as WRITE\n",
-                          flow->varname );
-                break;
+            /* Special case for the arena definition for WRITE-only flows */
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
+                assert(JDF_GUARD_UNCONDITIONAL == dl->guard->guard_type);
+            } else {
+                if ( !(dl->dep_flags & JDF_DEP_FLOW_OUT) ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(flow),
+                              "During code generation: unable to find an output flow for variable %s marked as WRITE\n",
+                              flow->varname );
+                    break;
+                }
             }
 
             string_arena_init(sa2);
@@ -4531,6 +4579,10 @@ static void jdf_check_relatives( jdf_function_entry_t *f, jdf_dep_flags_t flow_t
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->dep_flags & flow_type) ) continue;
 
+            /* Skip the default type declaration for WRITE-only dependencies */
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) )
+                continue;
+
             if( (NULL != dl->guard->calltrue->var) ||
                 ((JDF_GUARD_TERNARY == dl->guard->guard_type) &&
                  (NULL != dl->guard->callfalse->var)) ) {
@@ -4645,6 +4697,9 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
 
         for(dl = fl->deps; dl != NULL; dl = dl->next) {
             if( !(dl->dep_flags & flow_type) ) continue;
+            /* Special case for the arena definition for WRITE-only flows */
+            if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) )
+                continue;
 
             string_arena_init(sa_tmp_type);
             string_arena_init(sa_tmp_nbelt);

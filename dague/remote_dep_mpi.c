@@ -294,7 +294,7 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         void *ret;
 
         item->action = DEP_CTL;
-        item->cmd.ctl.enable = -1;  /* turn off the MPI thread */
+        item->cmd.ctl.enable = -1;  /* turn off and return from the MPI thread */
         item->priority = 0;
         dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 
@@ -781,7 +781,8 @@ remote_dep_dequeue_nothread_progress(dague_context_t* context,
   have_same_pos:
     if( NULL != same_pos) {
         dague_list_nolock_push_front(&temp_list, (dague_list_item_t*)same_pos);
-        cycles++; /* as we still have pending messages of the same type, stay here for an extra loop */
+        /* if we still have pending messages of the same type, stay here for an extra loop */
+        if( cycles >= 0 ) cycles++;
     }
     dague_mpi_same_pos_items[position] = same_pos;
 

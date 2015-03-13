@@ -46,7 +46,7 @@ static void pins_init_papi_exec(dague_context_t * master_context) {
     exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, start_papi_exec_count);
     exec_end_prev   = PINS_REGISTER(EXEC_END, stop_papi_exec_count);
     dague_profiling_add_dictionary_keyword("PINS_EXEC", "fill:#00FF00",
-                                           sizeof(papi_exec_info_t), NULL,
+                                           sizeof(papi_exec_info_t), "kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:value4{int64_t}",
                                            &pins_prof_papi_exec_begin, &pins_prof_papi_exec_end);
 
     papi_socket_enabled = pins_is_module_enabled("papi_socket");

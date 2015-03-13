@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -111,19 +111,12 @@ int dplasma_datatype_define_contiguous( dague_datatype_t oldtype,
     /**
      * Define the TILE type.
      */
-    MPI_Type_contiguous(nb_elem, oldtype, newtype);
+    dague_type_create_contiguous(nb_elem, oldtype, newtype);
     MPI_Type_size(oldtype, &oldsize);
     if( resized >= 0 ) {
-#if defined(HAVE_MPI_20)
         MPI_Datatype tmp = *newtype;
-        MPI_Type_create_resized(tmp, 0, resized*oldsize, newtype);
+        dague_type_create_resized(tmp, 0, resized*oldsize, newtype);
         MPI_Type_free(&tmp);
-#else
-        int blocklens[] = {1, 1, 1};
-        MPI_Aint indices[] = {0, 0, resized*oldsize};
-        MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
-        MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
-#endif  /* defined(HAVE_MPI_20) */
     }
     MPI_Type_commit(newtype);
 #if defined(HAVE_MPI_20)
@@ -152,16 +145,9 @@ int dplasma_datatype_define_rectangle( dague_datatype_t oldtype,
     MPI_Type_contiguous(tile_nb * tile_mb, oldtype, newtype);
     MPI_Type_size(oldtype, &oldsize);
     if( resized >= 0 ) {
-#if defined(HAVE_MPI_20)
         MPI_Datatype tmp = *newtype;
-        MPI_Type_create_resized(tmp, 0, resized*oldsize, newtype);
+        dague_type_create_resized(tmp, 0, resized*oldsize, newtype);
         MPI_Type_free(&tmp);
-#else
-        int blocklens[] = {1, 1, 1};
-        MPI_Aint indices[] = {0, 0, resized*oldsize};
-        MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
-        MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
-#endif  /* defined(HAVE_MPI_20) */
     }
     MPI_Type_commit(newtype);
 #if defined(HAVE_MPI_20)
@@ -201,7 +187,7 @@ int dplasma_datatype_define_upper( dague_datatype_t oldtype,
         blocklens[i] = i + 1 - diag;
         indices[i] = i * tile_nb;
     }
-    MPI_Type_indexed(tile_nb-diag, blocklens+diag, indices+diag, oldtype, &tmp);
+    dague_type_create_indexed(tile_nb-diag, blocklens+diag, indices+diag, oldtype, &tmp);
     MPI_Type_size(oldtype, &oldsize);
 #if defined(HAVE_MPI_20)
     MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
@@ -245,7 +231,7 @@ int dplasma_datatype_define_lower( dague_datatype_t oldtype,
         blocklens[i] = tile_nb - i - diag;
         indices[i] = i * tile_nb + i + diag;
     }
-    MPI_Type_indexed(tile_nb-diag, blocklens, indices, oldtype, &tmp);
+    dague_type_create_indexed(tile_nb-diag, blocklens, indices, oldtype, &tmp);
     MPI_Type_size(oldtype, &oldsize);
 #if defined(HAVE_MPI_20)
     MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
