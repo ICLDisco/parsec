@@ -11,7 +11,6 @@
 
 typedef struct data_repo_entry_s data_repo_entry_t;
 typedef struct data_repo_head_s  data_repo_head_t;
-typedef struct data_repo_s       data_repo_t;
 
 #include <stdlib.h>
 #include <dague/sys/atomic.h>
