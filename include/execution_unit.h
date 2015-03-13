@@ -70,23 +70,21 @@ struct dague_execution_unit_s {
 #endif /* HAVE_PAPI */
 
 #if defined(PINS_ENABLE)
-    int num_counters;
-
     long long int starvation;
     long * steal_counters; /* this is for Stephanie and print_steals PINS module */
 
     /* Needed for papi_socket */
+    int num_socket_counters;
     char ** pins_papi_socket_event_name;
     int * pins_papi_socket_native_event;
     int num_socket_tasks;
+    int begin_end;
+    int num_tasks;
 
     /* Needed for papi_core */
+    int num_core_counters;
     char ** pins_papi_core_event_name;
     int * pins_papi_core_native_event;
-    int num_core_tasks;
-
-    /* To be removed later */
-    int num_tasks;
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)

@@ -59,7 +59,7 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
     int err, i;
     bool socket = false, core = false, started = false;
     
-    exec_unit->num_counters = 0;
+    exec_unit->num_core_counters = 0;
     exec_unit->pins_papi_core_event_name = (char**)calloc(NUM_CORE_EVENTS, sizeof(char*));
 	exec_unit->pins_papi_core_native_event = (int*)calloc(NUM_CORE_EVENTS, sizeof(int));
 	
@@ -120,7 +120,7 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 		
 		if(socket && core)
 		{
-			if(exec_unit->num_counters == NUM_CORE_EVENTS)
+			if(exec_unit->num_core_counters == NUM_CORE_EVENTS)
 			{
 				dague_output(0, "pins_thread_init_papi_core: thread %d couldn't add event '%s' because only %d events are allowed.\n",
 						exec_unit->th_id, token, NUM_CORE_EVENTS);
@@ -143,13 +143,13 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 			}
 			
 			/* Convert event name to code */
-			if(PAPI_OK == PAPI_event_name_to_code(token, &exec_unit->pins_papi_core_native_event[exec_unit->num_counters]) )
+			if(PAPI_OK == PAPI_event_name_to_code(token, &exec_unit->pins_papi_core_native_event[exec_unit->num_core_counters]) )
 			{
-				exec_unit->pins_papi_core_event_name[exec_unit->num_counters] = (char*)calloc(strlen(token), sizeof(char));
-				strcpy(exec_unit->pins_papi_core_event_name[exec_unit->num_counters], token);
+				exec_unit->pins_papi_core_event_name[exec_unit->num_core_counters] = (char*)calloc(strlen(token), sizeof(char));
+				strcpy(exec_unit->pins_papi_core_event_name[exec_unit->num_core_counters], token);
 			}
 			
-			if(PAPI_NULL == exec_unit->pins_papi_core_native_event[exec_unit->num_counters])
+			if(PAPI_NULL == exec_unit->pins_papi_core_native_event[exec_unit->num_core_counters])
 			{
 				dague_output(0, "No event derived from %s is supported on this system (use papi_native_avail for a complete list)\n",
 		                 token);
@@ -158,13 +158,13 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 		
 			/* Add events to the eventset */
 			if( PAPI_OK != (err = PAPI_add_event(exec_unit->papi_eventsets[PER_CORE_SET],
-				                                 exec_unit->pins_papi_core_native_event[exec_unit->num_counters])) ) 
+				                                 exec_unit->pins_papi_core_native_event[exec_unit->num_core_counters])) ) 
 			{
 				dague_output(0, "pins_thread_init_papi_core: failed to add event %s; ERROR: %s\n",
 				             token, PAPI_strerror(err));
 				return;
 			}
-			exec_unit->num_counters++;
+			exec_unit->num_core_counters++;
 		}
 		
 		socket = false;
@@ -175,7 +175,7 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 	free(mca_param_name);
 	free(token);
     
-    if(exec_unit->num_counters > 0)
+    if(exec_unit->num_core_counters > 0)
     {
 		/* Start the PAPI counters. */
 		if( PAPI_OK != (err = PAPI_start(exec_unit->papi_eventsets[PER_CORE_SET])) ) 
