@@ -97,10 +97,10 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         builder.event_types[event_name] = event_type
         builder.event_attributes[event_type] = str(dbp_dictionary_attributes(cdict))
         builder.event_convertors[event_type] = None
-        if str("PINS_EXEC") == event_name:
+
+        event_conv = dbp_dictionary_convertor(cdict)
+        if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
             event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
-        else:
-            event_conv = dbp_dictionary_convertor(cdict)
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
                                                                  event_conv, dbp_dictionary_keylen(cdict))
@@ -142,40 +142,47 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     # now split our work by the number of worker processes we're using
     if len(node_threads) < multiprocess:
         multiprocess = len(node_threads)
-    node_thread_chunks = chunk(node_threads, multiprocess)
     process_pipes = list()
     processes = list()
 
-    with Timer() as t:
-        for nt_chunk in node_thread_chunks:
-            my_end, their_end = Pipe()
-            process_pipes.append(my_end)
-            p = Process(target=construct_thread_in_process, args=
-                        (their_end, builder, filenames,
-                         nt_chunk, skeleton_only, report_progress))
-            processes.append(p)
-            p.start()
-        while process_pipes:
-            something_was_read = False
-            for pipe in process_pipes:
-                try:
-                    if not pipe.poll():
-                        continue
-                    something_was_read = True
-                    events, errors, threads = pipe.recv()
-                    for node_id, thread in threads.iteritems():
-                        builder.unordered_threads_by_node[node_id].update(thread)
-                    builder.events.append(events)
-                    builder.errors.append(errors)
-                    cond_print('<', report_progress, end='') # print comms progress
-                    sys.stdout.flush()
-                    process_pipes.remove(pipe)
-                except EOFError:
-                    process_pipes.remove(pipe)
-            if not something_was_read:
-                time.sleep(microsleep) # tiny sleep so as not to hog CPU
-        for p in processes:
-            p.join() # cleanup spawned processes
+    # If multiprocess is allowed spawn new processes in order to speed up the
+    # extraction of the events from the different profiling files. Otherwise,
+    # everything will be done locally in this thread.
+    if multiprocess:
+        node_thread_chunks = chunk(node_threads, multiprocess)
+        with Timer() as t:
+            for nt_chunk in node_thread_chunks:
+                my_end, their_end = Pipe()
+                process_pipes.append(my_end)
+                p = Process(target=construct_thread_in_process, args=
+                            (their_end, builder, filenames,
+                            nt_chunk, skeleton_only, report_progress))
+                processes.append(p)
+                p.start()
+            while process_pipes:
+                something_was_read = False
+                for pipe in process_pipes:
+                    try:
+                        if not pipe.poll():
+                            continue
+                        something_was_read = True
+                        events, errors, threads = pipe.recv()
+                        for node_id, thread in threads.iteritems():
+                            builder.unordered_threads_by_node[node_id].update(thread)
+                        builder.events.append(events)
+                        builder.errors.append(errors)
+                        cond_print('<', report_progress, end='') # print comms progress
+                        sys.stdout.flush()
+                        process_pipes.remove(pipe)
+                    except EOFError:
+                        process_pipes.remove(pipe)
+                if not something_was_read:
+                    time.sleep(microsleep) # tiny sleep so as not to hog CPU
+            for p in processes:
+                p.join() # cleanup spawned processes
+    else:
+        construct_thread_in_process(None, builder, filenames,
+                                    node_threads, skeleton_only, report_progress)
     # report progress
     cond_print('\nParsing the PBT files took ' + str(t.interval) + ' seconds' ,
                report_progress, end='')
@@ -425,7 +432,8 @@ cpdef construct_thread_in_process(pipe, builder, filenames, node_threads,
         builder.errors = pd.DataFrame.from_records(builder.errors)
     else:
         builder.errors = pd.DataFrame()
-    pipe.send((builder.events, builder.errors, builder.unordered_threads_by_node))
+    if None != pipe:
+        pipe.send((builder.events, builder.errors, builder.unordered_threads_by_node))
 
 
 thread_id_in_descrip = re.compile('.*thread\s+(\d+).*', re.IGNORECASE)
@@ -496,16 +504,16 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                              'type':event_type, 'begin':begin, 'end':end, 'duration':duration,
                              'flags':event_flags, 'id':event_id}
 
+                    cinfo = dbp_event_get_info(event_e)
+                    if cinfo != NULL:
+                        if None != builder.event_convertors[event_type]:
+                            event_info = parse_info(builder, event_type, <char*>cinfo)
+                            if None != event_info:
+                                #print(event_info)
+                                event.update(event_info)
                     if duration >= 0 and duration <= th_duration:
                         # VALID EVENT FOUND
                         builder.events.append(event)
-                        cinfo = dbp_event_get_info(event_e)
-                        if cinfo != NULL:
-                            if None != builder.event_convertors[event_type]:
-                                event_info = parse_info(builder, event_type, <char*>cinfo)
-                                if None != event_info:
-                                    print(event_info)
-                                    event.update(event_info)
                         if th_end < end:
                             th_end = end
                     else: # the event is 'not sane'
@@ -592,7 +600,7 @@ cdef class ExtendedEvent:
 
     def __init__(self, event_name, event_conv, event_len):
         fmt = '@'
-        tup = []
+        self.aev = []
         for ev in str.split(event_conv, ':'):
             if 0 == len(ev):
                 continue
@@ -606,7 +614,7 @@ cdef class ExtendedEvent:
             if 0 == len(ev_name):
                 continue
             ev_name = ev_name.replace(' ', '_')
-            tup.append(ev_name)
+            self.aev.append(ev_name)
             if ev_type == 'int32_t' or ev_type == 'int':
                 fmt += 'i'
             elif ev_type == 'int64_t':
@@ -615,8 +623,7 @@ cdef class ExtendedEvent:
                 fmt += 'd'
             elif ev_type == 'float':
                 fmt += 'f'
-        self.aev = namedtuple(event_name, tup)
-        #print('event[{0} = {1} fmt \'{2}\''.format(event_name, tup, fmt))
+        #print('event[{0}] = {1} fmt \'{2}\''.format(event_name, self.aev, fmt))
         self.ev_struct = struct.Struct(fmt)
         if event_len != len(self):
             print('Expected length differs from provided length for {0} extended event ({1} != {2})'.format(event_name, len(self), event_len))
@@ -625,7 +632,7 @@ cdef class ExtendedEvent:
     def __len__(self):
         return self.ev_struct.size
     def unpack(self, pybs):
-        return self.aev._make(self.ev_struct.unpack(pybs))
+        return zip(self.aev, self.ev_struct.unpack(pybs))
 
 # add parsing clauses to this function to get infos.
 cdef parse_info(builder, event_type, char * cinfo):
@@ -633,11 +640,10 @@ cdef parse_info(builder, event_type, char * cinfo):
 
     if None == builder.event_convertors[event_type]:
        return None
-    event_info = None
 
     try:
         pybs = cinfo[:len(builder.event_convertors[event_type])]
-        return builder.event_convertors[event_type].unpack(pybs)._asdict()
+        return builder.event_convertors[event_type].unpack(pybs)
     except Exception as e:
         print(e)
         return None
