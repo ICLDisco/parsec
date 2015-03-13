@@ -32,7 +32,7 @@ from operator import attrgetter, itemgetter
 from libc.stdlib cimport malloc, free
 from multiprocessing import Process, Pipe
 import multiprocessing
-
+import binascii
 import pandas as pd
 
 from parsec_trace_tables import * # the pure Python classes
@@ -41,7 +41,7 @@ from common_utils import *
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
 microsleep = 0.05
 
-cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
+cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=True,
            add_info=dict()):
     """ Given binary trace filenames, returns a PaRSEC Trace Table (PTT) object
 
@@ -643,6 +643,7 @@ cdef parse_info(builder, event_type, char * cinfo):
 
     try:
         pybs = cinfo[:len(builder.event_convertors[event_type])]
+        #print('hex = {}'.format(binascii.hexlify(pybs)))
         return builder.event_convertors[event_type].unpack(pybs)
     except Exception as e:
         print(e)
