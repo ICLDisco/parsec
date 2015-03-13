@@ -74,7 +74,7 @@ class ParsecTraceTables(object):
 
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
-    def __init__(self, events, event_types, event_names, event_attributes,
+    def __init__(self, events, event_types, event_names, event_attributes, event_convertors,
                  nodes, threads, information, errors):
         self.__version__ = self.__class__.class_version
         # core data
@@ -82,6 +82,7 @@ class ParsecTraceTables(object):
         self.event_types = event_types
         self.event_names = event_names
         self.event_attributes = event_attributes
+        self.event_convertors = event_convertors
         self.nodes = nodes
         self.threads = threads
         self.information = information

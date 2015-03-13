@@ -34,7 +34,7 @@ if 'Debug' == build_type:
     extra_compile_args.append('-O0') # Overwrite the default Cython compilation flags
 
 extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
-                                            '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
+                                    '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
                          include_dirs=['@PROJECT_SOURCE_DIR@/include',
                                        '@PROJECT_SOURCE_DIR@',
                                        '@PROJECT_BINARY_DIR@/include',
@@ -42,8 +42,6 @@ extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                        '@CMAKE_CURRENT_SOURCE_DIR@/../'],
                          depends=['setup.py.in',
                                   'pbt2ptt.pxd',
-                                  'pbt_info_parser.pxd',
-                                  'pbt_info_parser.pxi',
                                   '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
                                   '@PROJECT_SOURCE_DIR@/include/dbp.h',
                                   '@PROJECT_SOURCE_DIR@/include/os-spec-timing.h'],
