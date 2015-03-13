@@ -91,7 +91,7 @@ static int file_backend_extendable;
 static dague_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
 static pthread_key_t thread_specific_profiling_key;
- 
+
 static void set_last_error(const char *format, ...)
 {
     va_list ap;
