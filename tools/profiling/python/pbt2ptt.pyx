@@ -651,7 +651,7 @@ cdef class ExtendedEvent:
 
 # add parsing clauses to this function to get infos.
 cdef parse_info(builder, event_type, char * cinfo):
-    cdef bytes pybs;
+    cdef bytes pybs
 
     if None == builder.event_convertors[event_type]:
        return None
