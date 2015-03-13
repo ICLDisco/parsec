@@ -1,5 +1,5 @@
 ! -*- f90 -*-
-! Copyright (c) 2013      The University of Tennessee and The University
+! Copyright (c) 2013-2015 The University of Tennessee and The University
 !                         of Tennessee Research Foundation.  All rights
 !                         reserved.
 ! $COPYRIGHT$
@@ -69,7 +69,7 @@ module dague_profile_f08_interfaces
        IMPLICIT NONE
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: key_name(*)
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: attr(*)
-       INTEGER(KIND=C_SIZE_T), INTENT(IN),VALUE     :: info_length
+       INTEGER(KIND=C_SIZE_T), INTENT(IN), VALUE    :: info_length
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: conv_code(*)
        INTEGER(KIND=C_INT), INTENT(OUT)             :: key_start
        INTEGER(KIND=C_INT), INTENT(OUT)             :: key_end
@@ -88,7 +88,7 @@ module dague_profile_f08_interfaces
        INTEGER(KIND=C_INT), INTENT(IN),VALUE        :: key
        INTEGER(KIND=C_INT64_T), INTENT(IN),VALUE    :: event_id
        INTEGER(KIND=C_INT), INTENT(IN),VALUE        :: object_id
-       TYPE(c_ptr), INTENT(IN)                      :: info
+       TYPE(c_ptr), INTENT(IN), VALUE               :: info
        INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
      END SUBROUTINE dague_profile_trace_f08
   END INTERFACE dague_profile_trace_f08
