@@ -33,8 +33,11 @@ call_to_kernel(dague_execution_context_t * this_task)
  
     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
-    printf("Executing Task: %d\n",((dtd_task_t *)this_task)->task_id+1);
+    //printf("Executing Task: %d\n",((dtd_task_t *)this_task)->task_id+1);
     //printf("The data is: %d\n", *data);
+        
+    dague_atomic_add_32b(&count, 1); 
+      printf("total tasks executed: %d\n", count);
 
     dague_atomic_add_32b(data, 1); 
     
@@ -44,13 +47,17 @@ call_to_kernel(dague_execution_context_t * this_task)
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    int ncores = 8, k, uplo = 1, info;
-    int no_of_tasks = 20;
-    int size = 20;
+    int ncores = 2, k, uplo = 1, info;
+    int no_of_tasks = 2;
+    int size = 2;
 
     if(argv[1] != NULL){
         no_of_tasks = atoi(argv[1]);
     }
+    if(argv[2] != NULL){
+        size = atoi(argv[2]);
+    }
+
 
     dague = dague_init(ncores, &argc, &argv);
 
@@ -84,6 +91,7 @@ int main(int argc, char ** argv)
         printf("At index %d: %d\n", k, *data);
     } 
 
+    dague_context_start(dague);  
     for(int kk = 0; kk< no_of_tasks; kk++) {
         for( k = 0; k < total; k++ ) {
             insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel,     "Task",

@@ -30,19 +30,20 @@ multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
     dtd_task_t *current_task = (dtd_task_t *) task;
     int i;
 
-    /*printf("Current_task %p\t", current_task);
-    if(current_task->desc[flow_index].tile->last_user.task != NULL){
+    //printf("Current_task in releasing a tile: %d\tfor flow index: %d\n", current_task->task_id, flow_index);
+    /*if(current_task->desc[flow_index].tile->last_user.task != NULL){
         printf("Last user in tile : %p\n", current_task->desc[flow_index].tile->last_user.task);
     }else{
         printf("Last user in tile: NULL\n");
     
     }*/
 
-    i = dague_atomic_cas(&current_task->desc[flow_index].tile->last_user.task, current_task, NULL);
-        //printf("Successfully set to null for task with no descendant %d\n", i);
+    i = dague_atomic_cas(&(current_task->desc[flow_index].tile->last_user.task), current_task, NULL);
+    //printf("Successfully set to null for task with no descendant %d\n", i);
 
     /* if we can not successfully set the last user of the tile to NULL then we wait until we find a successor */
     if(i){
+        //printf("Successfully set to NULL\n");
         return 0; /* we are successful, we do not need to wait and there is no successor yet*/
     }else {
     /*
@@ -55,7 +56,10 @@ multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
           if(cnt<500) break;
         }
     */
-        while(current_task->desc[flow_index].task == NULL){}
+        
+        while(current_task->desc[flow_index].task == NULL){
+        }
+        //printf("Was releasing tile and then found a desc: %d\n", current_task->desc[flow_index].task->task_id);
 
         return 1;
     }
@@ -99,7 +103,6 @@ ordering_correctly_1(dague_execution_unit_t * eu,
           * Not iterating if there's no descendant for this flow
          */
         if(NULL == current_task->desc[i].task) {
-            //printf("No descendant for this flow %s id: %d and %d\n", current_task->super.function->name, current_task->task_id, i);
 #if defined(ATOMIC_WRITE_ENABLED)
             if(INOUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) || OUTPUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) 
                || current_task->dont_skip_releasing_data[i]){ 
@@ -140,8 +143,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             
         while(NULL != current_desc_task) {
 #if defined (SPIT_TRAVERSAL_INFO) 
-            printf("Current successor: %s \t %d\n", current_desc_task->super.function->name, current_desc_task->task_id);
-            printf("Total flow: %d  flow_satisfied: %d\n", current_desc_task->flow_count, current_desc_task->flow_satisfied); 
+            printf("Current successor: %s \t %d\nTotal flow: %d  flow_satisfied: %d\n", current_desc_task->super.function->name, current_desc_task->task_id, current_desc_task->flow_count, current_desc_task->flow_satisfied);
 #endif
 
             if (NULL != out_task) {
@@ -228,7 +230,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
            
             if(NULL != out_task){ /* If there's a OUT task after at least one INPUT task we assign the OUT task as
                                      the descendant for that flow for each of the other INPUT task(s) before it */
-            
+           
 #if defined (ATOMIC_WRITE_ENABLED) 
                 if(atomic_write_found){
                     current_succ->task->desc[current_succ->flow_index].op_type_parent = ATOMIC_WRITE;
@@ -254,10 +256,11 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 #else
                 if(INPUT == (current_succ->task->desc[current_succ->flow_index].op_type_parent & GET_OP_TYPE)){
 #endif
-                    current_succ->task->desc[current_succ->flow_index].task = NULL;
                     if (current_succ->next == NULL) { /* treating the INPUT tasks specially */
                         //multithread_dag_build_1((dague_execution_context_t *)current_succ->task, current_succ->flow_index);
                         current_succ->task->dont_skip_releasing_data[current_succ->flow_index] = 1;
+                    } else {
+                        current_succ->task->desc[current_succ->flow_index].task = NULL;
                     }
                 }
             }
