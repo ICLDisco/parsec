@@ -12,10 +12,14 @@
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
 
 #include "profiling.h"
+#include "dbp.h"
+
 extern int arena_memory_alloc_key, arena_memory_free_key;
 extern int arena_memory_used_key, arena_memory_unused_key;
-#define TRACE_MALLOC(key, size, ptr) dague_profiling_ts_trace(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, &size)
-#define TRACE_FREE(key, ptr)         dague_profiling_ts_trace(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, NULL)
+#define TRACE_MALLOC(key, size, ptr) dague_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL,\
+                                                                    &size, DAGUE_PROFILING_EVENT_COUNTER|DAGUE_PROFILING_EVENT_HAS_INFO)
+#define TRACE_FREE(key, ptr)         dague_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL,\
+                                                                    NULL, DAGUE_PROFILING_EVENT_COUNTER)
 #else
 #define TRACE_MALLOC(key, size, ptr) do {} while (0)
 #define TRACE_FREE(key, ptr) do {} while (0)
