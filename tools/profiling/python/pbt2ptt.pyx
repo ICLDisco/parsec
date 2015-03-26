@@ -489,14 +489,18 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
         # this would be a good place for a test for 'singleton' events.
         if KEY_IS_START( dbp_event_get_key(event_s) ):
 
+            event = dict()
+            event['info_start'] = None
+            event['info_end']   = None
+            
             cinfo = dbp_event_get_info(event_s)
             if cinfo != NULL:
                 if None != builder.event_convertors[event_type]:
                     try:
                         event_info = parse_info(builder, event_type, <char*>cinfo)
                         if None != event_info:
-                            #print(event_info)
-                            event[builder.event_names[event_type] + '_start'] = event_info
+                            #print(event_type, event_name, event_info)
+                            event['info_start'] = event_info
                     except:
                         print('Failed to extract info from the start event (handle_id {0} event_id {1})'.format(handle_id, event_id))
 
@@ -512,17 +516,25 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                         duration = end - begin
                     else:
                         duration = -1
-                    event = {'node_id':node_id, 'thread_id':thread_num, 'handle_id':handle_id,
-                             'type':event_type, 'begin':begin, 'end':end, 'duration':duration,
-                             'flags':event_flags, 'id':event_id}
+
+                    event['node_id'] = node_id
+                    event['thread_id'] = thread_num
+                    event['handle_id'] = handle_id
+                    event['type'] = event_type
+                    event['begin'] = begin
+                    event['end'] = end
+                    event['duration'] = duration
+                    event['flags'] = event_flags
+                    event['id'] = event_id
+                    
                     cinfo = dbp_event_get_info(event_e)
                     if cinfo != NULL:
                         if None != builder.event_convertors[event_type]:
                             try:
                                 event_info = parse_info(builder, event_type, <char*>cinfo)
                                 if None != event_info:
-                                    #print(event_info)
-                                    event[builder.event_names[event_type] + '_stop'] = event_info
+                                    #print(event_type, event_name, event_info)
+                                    event['info_stop'] = event_info
                             except:
                                 print('Failed to extract info from the stop event (handle_id {0} event_id {1})'.format(handle_id, event_id))
 
