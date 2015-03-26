@@ -60,12 +60,17 @@ if __name__ == '__main__':
     PajeContainerCreate = paje.PajeDef('PajeCreateContainer')
     PajeSetState = paje.PajeDef('PajeSetState', task_name='string')
     PajeEntityValue = paje.PajeDef('PajeDefineEntityValue')
+    PajeDefineVariableType = paje.PajeDef('PajeDefineVariableType')
+    PajeAddVariable = paje.PajeDef('PajeAddVariable')
+    PajeSubVariable = paje.PajeDef('PajeSubVariable')
 
     paje_ct = PajeContainerType.PajeEvent(Name="Application", Type="0")
     paje_pt = PajeContainerType.PajeEvent(Name="Process", Type=paje_ct)
     paje_vt = PajeContainerType.PajeEvent(Name="VP", Type=paje_pt)
     paje_tt = PajeContainerType.PajeEvent(Name="Thread", Type=paje_vt)
     paje_st = PajeStateType.PajeEvent(Name="CT_ST", Type=paje_tt)
+    paje_vt1 = PajeDefineVariableType.PajeEvent(Name="CT_VT1", Type=paje_tt, Color="1.0,1.0,1.0")
+    paje_vt2 = PajeDefineVariableType.PajeEvent(Name="CT_VT2", Type=paje_tt, Color="1.0,1.0,0.0")
 
     paje_entity_waiting = PajeEntityValue.PajeEvent(Name="Waiting", Type=paje_st, Color="0.2,0.2,0.2")
 
@@ -80,27 +85,44 @@ if __name__ == '__main__':
     paje_c_appli = PajeContainerCreate.PajeEvent(Name=store.information.exe, Time=0.000, Type=paje_ct, Container="0")
     paje_container_aliases = dict()
 
-    for nid in store.nodes['id'][:]:
-        paje_container_aliases["M%d"%(nid)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%d" % (nid), Type=paje_ct, Container=paje_c_appli)
-        for vpid in store.threads['vp_id'][store.threads.node_id == nid].unique():
-            paje_container_aliases["M%dV%d"%(nid,vpid)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (nid,vpid), Type=paje_ct,
-                                                                                        Container=paje_container_aliases["M%d"%(nid)])
-            for thid in store.threads[['thread_id','vp_id']][store.threads.node_id == nid]['thread_id'][store.threads.vp_id == vpid]:
-                paje_container_aliases["M%dT%d"%(nid,thid)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%dT%d" % (nid,vpid,thid), Type=paje_ct,
-                                                                                            Container=paje_container_aliases["M%dV%d"%(nid,vpid)])
-                PajeSetState.PajeEvent(Time=0.000, Type=paje_st, Container=paje_container_aliases["M%dT%d"%(nid,thid)], Value="Waiting", task_name="")
-
-    sev = store.events.sort(['node_id', 'thread_id', 'begin'])
-    for ev in store.events.iterrows():
-        key = "hid=%d:did=%d:tid=%d"%(ev[1].handle_id,ev[1].type,ev[1].id)
-        if key in task_names.keys():
-            PajeSetState.PajeEvent(Time=float(ev[1].begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev[1].node_id,ev[1].thread_id)],
-                                   Value=state_aliases[ev[1].type], task_name=task_names[key])
+    for tr in store.threads.iterrows():
+        t = tr[1]
+        if "M%d"%(t.node_id) not in paje_container_aliases:
+            paje_container_aliases["M%d"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%d" % (t.node_id), Type=paje_ct, Container=paje_c_appli)
+        if isinstance(t.vp_id, int):
+            if "M%dV%d"%(t.node_id, t.vp_id) not in paje_container_aliases:
+                paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (t.node_id,t.vp_id), Type=paje_ct,
+                                                                                                     Container=paje_container_aliases["M%d"%(t.node_id)])
+            if "M%dT%d"%(t.node_id, t.thread_id) not in paje_container_aliases:
+                paje_container_aliases["M%dT%d"%(t.node_id,t.thread_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.thread_id), Type=paje_ct,
+                                                                                                         Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
         else:
-            PajeSetState.PajeEvent(Time=float(ev[1].begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev[1].node_id,ev[1].thread_id)],
-                                   Value=state_aliases[ev[1].type], task_name=store.event_names[ev[1].type])
-        PajeSetState.PajeEvent(Time=float(ev[1].end), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev[1].node_id,ev[1].thread_id)],
-                               Value=paje_entity_waiting, task_name="Waiting")
+            if "M%dT%d"%(t.node_id, t.thread_id) not in paje_container_aliases:
+                paje_container_aliases["M%dT%d"%(t.node_id, t.thread_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.thread_id),
+                                                                                                          Type=paje_ct, Container=paje_container_aliases["M%d"%(t.node_id)])
+        PajeSetState.PajeEvent(Time=0.000, Type=paje_st, Container=paje_container_aliases["M%dT%d"%(t.node_id,t.thread_id)], Value="Waiting", task_name="")
+
+    counter_events = list()
+    sev = store.events.sort(['node_id', 'thread_id', 'begin'])
+    for evr in store.events.iterrows():
+        ev = evr[1]
+        if ev['flags'] & (1<<2) != 0:
+            counter_events.append( {'time': float(ev.begin), 'size':float(ev['info_start']['size']), 'node_id': ev.node_id } )
+            counter_events.append( {'time': float(ev.end), 'size': -1.0 * float(ev['info_start']['size']), 'node_id': ev.node_id } )
+        else:
+            key = "hid=%d:did=%d:tid=%d"%(ev.handle_id,ev.type,ev.id)
+            if key in task_names.keys():
+                PajeSetState.PajeEvent(Time=float(ev.begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
+                                        Value=state_aliases[ev.type], task_name=task_names[key])
+            else:
+                PajeSetState.PajeEvent(Time=float(ev.begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
+                                        Value=state_aliases[ev.type], task_name=store.event_names[ev.type])
+            PajeSetState.PajeEvent(Time=float(ev.end), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
+                                   Value=paje_entity_waiting, task_name="Waiting")
+
+    counter_events.sort(cmp = lambda x, y: cmp(x['time'], y['time']) )
+    for ce in counter_events:
+        PajeAddVariable.PajeEvent(Time=float(ce['time']), Type=paje_vt1, Container=paje_container_aliases["M%d"%(ce['node_id'])], Value=ce['size'])
 
     paje.endTrace();
 
