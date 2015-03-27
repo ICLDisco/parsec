@@ -500,7 +500,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                         event_info = parse_info(builder, event_type, <char*>cinfo)
                         if None != event_info:
                             #print(event_type, event_name, event_info)
-                            event['info_start'] = event_info
+                            event[builder.event_names[event_type] + '_start'] = event_info
                     except:
                         print('Failed to extract info from the start event (handle_id {0} event_id {1})'.format(handle_id, event_id))
 
@@ -534,7 +534,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                                 event_info = parse_info(builder, event_type, <char*>cinfo)
                                 if None != event_info:
                                     #print(event_type, event_name, event_info)
-                                    event['info_stop'] = event_info
+                                    event[builder.event_names[event_type] + '_stop'] = event_info
                             except:
                                 print('Failed to extract info from the stop event (handle_id {0} event_id {1})'.format(handle_id, event_id))
 
