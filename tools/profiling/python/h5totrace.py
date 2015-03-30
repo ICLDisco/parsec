@@ -128,7 +128,8 @@ if __name__ == '__main__':
     paje_vt = PajeDefineVariableType.PajeEvent(Name="CT_VT", Type=paje_tt, Color="1.0,1.0,1.0")
 
     if args.DAG:
-        paje_slt = PajeLinkType.PajeEvent(Name="DAG_LINK", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
+        paje_lslt = PajeLinkType.PajeEvent(Name="local_DAG_LINK", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
+        paje_rslt = PajeLinkType.PajeEvent(Name="remote_DAG_LINK", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
 
     paje_entity_waiting = PajeEntityValue.PajeEvent(Name="Waiting", Type=paje_st, Color="0.2,0.2,0.2")
 
@@ -232,7 +233,7 @@ if __name__ == '__main__':
                 key = "hid=%d:did=%d:tid=%d"%(ev.handle_id,ev.type,ev.id)
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
-                                      'start': float(ev.begin), 'end': float(ev.end) }
+                                      'start': float(ev.begin), 'end': float(ev.end), 'rank': ev.node_id }
                 if key in task_names.keys():
                     PajeSetState.PajeEvent(Time=float(ev.begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
                                            Value=state_aliases[ev.type], task_name=task_names[key])
@@ -258,8 +259,12 @@ if __name__ == '__main__':
                 except KeyError as e:
                     print("couldn't find %s in dag_info"%(e))
                     pass
-                PajeStartLink.PajeEvent(Time=src_info['end'], Type=paje_slt, Container=paje_c_appli, StartContainer=src_info['container'], Value="", Key="%d"%(nblink))
-                PajeEndLink.PajeEvent(Time=dst_info['start'], Type=paje_slt, Container=paje_c_appli, EndContainer=dst_info['container'], Value="", Key="%d"%(nblink))
+                if src_info['rank'] == dst_info['rank']:
+                    link_type=paje_lslt
+                else:
+                    link_type=paje_rslt
+                PajeStartLink.PajeEvent(Time=src_info['end'], Type=link_type, Container=paje_c_appli, StartContainer=src_info['container'], Value="", Key="%d"%(nblink))
+                PajeEndLink.PajeEvent(Time=dst_info['start'], Type=link_type, Container=paje_c_appli, EndContainer=dst_info['container'], Value="", Key="%d"%(nblink))
                 nblink = nblink+1
                 print("done %s -> %s"%(src_uid, dst_uid))
 
