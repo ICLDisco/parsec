@@ -77,6 +77,7 @@ struct dague_execution_unit_s {
     int num_socket_counters;
     char ** pins_papi_socket_event_name;
     int * pins_papi_socket_native_event;
+    int pins_prof_papi_socket[2];
     int num_socket_tasks;
     int begin_end;
     int num_tasks;
@@ -85,6 +86,7 @@ struct dague_execution_unit_s {
     int num_core_counters;
     char ** pins_papi_core_event_name;
     int * pins_papi_core_native_event;
+    int pins_prof_papi_core[2];
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
