@@ -9,12 +9,17 @@
 #include "dague/class/lifo.h"
 #include "data.h"
 
-#if defined(DAGUE_PROF_TRACE)
+#if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
+
 #include "profiling.h"
+#include "dbp.h"
+
 extern int arena_memory_alloc_key, arena_memory_free_key;
 extern int arena_memory_used_key, arena_memory_unused_key;
-#define TRACE_MALLOC(key, size, ptr) dague_profiling_ts_trace(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, &size)
-#define TRACE_FREE(key, ptr)         dague_profiling_ts_trace(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL, NULL)
+#define TRACE_MALLOC(key, size, ptr) dague_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL,\
+                                                                    &size, DAGUE_PROFILING_EVENT_COUNTER|DAGUE_PROFILING_EVENT_HAS_INFO)
+#define TRACE_FREE(key, ptr)         dague_profiling_ts_trace_flags(key, (uint64_t)ptr, PROFILE_OBJECT_ID_NULL,\
+                                                                    NULL, DAGUE_PROFILING_EVENT_COUNTER)
 #else
 #define TRACE_MALLOC(key, size, ptr) do {} while (0)
 #define TRACE_FREE(key, ptr) do {} while (0)
@@ -115,6 +120,7 @@ dague_arena_release_chunk(dague_arena_t* arena,
         DEBUG2(("Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
                 arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(dague_arena_chunk_t),
                 DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+        TRACE_FREE(arena_memory_free_key, chunk);
         arena->data_free(chunk);
     } else {
         DEBUG2(("Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
@@ -143,6 +149,7 @@ dague_data_copy_t *dague_arena_get_copy(dague_arena_t *arena, size_t count, int 
         size = DAGUE_ALIGN(arena->elem_size * count + arena->alignment + sizeof(dague_arena_chunk_t),
                            arena->alignment, size_t);
         chunk = (dague_arena_chunk_t*)arena->data_malloc(size);
+        TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
     }
     if(NULL == chunk) return NULL;  /* no more */
 

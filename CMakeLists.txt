@@ -125,7 +125,11 @@ endif()
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
-  "Enable the generation of the profiling information during execution" OFF)
+  "Enable the generation of the profiling information during
+  execution" OFF)
+option(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET
+  "Enable the profiling of active arena set to track memory usage of dague handles" OFF)
+mark_as_advanced(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
 option(PARSEC_PROF_TAU
   "Experimental usage of TAU profiling framework" ON)
 option(DAGUE_PROF_PAPI

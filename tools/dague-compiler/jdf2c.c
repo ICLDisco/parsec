@@ -1125,15 +1125,14 @@ static void jdf_generate_structure(const jdf_t *jdf)
     }
 
     coutput("  /* The list of data repositories ");
-    for( nbdata = 0, f = jdf->functions; NULL != f; f = f->next ) {
+    for(f = jdf->functions; NULL != f; f = f->next) {
         if( 0 != function_has_data_output(f) ) {
             coutput(" %s ", f->fname);
-            nbdata++;
         }
     }
     coutput("*/\n");
-    if(nbdata != 0 ) {
-        coutput("  data_repo_t* repositories[%d];\n", nbdata );
+    if(nbfunctions != 0 ) {
+        coutput("  data_repo_t* repositories[%d];\n", nbfunctions );
     }
 
     coutput("} __dague_%s_internal_handle_t;\n"
