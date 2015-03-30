@@ -9,31 +9,6 @@
 #include <stdlib.h>
 #include "profiling.h"
 
-void dague_profile_init_f08( int* ierr )
-{
-    *ierr = dague_profiling_init();
-}
-
-void dague_profile_fini_f08( int* ierr )
-{
-    *ierr = dague_profiling_fini();
-}
-
-void dague_profile_reset_f08( int* ierr )
-{
-    *ierr = dague_profiling_reset();
-}
-
-void dague_profile_dump_f08( int* ierr )
-{
-    *ierr = dague_profiling_dbp_dump();
-}
-
-void dague_profile_start_f08( const char *filename, const char *hr_info, int* ierr )
-{
-    *ierr = dague_profiling_dbp_start( filename, hr_info );
-}
-
 dague_thread_profiling_t*
 dague_profile_thread_init_f08( size_t length, const char *id_name, int* ierr)
 {
@@ -51,11 +26,4 @@ void dague_profile_add_dictionary_keyword_f08(const char* key_name, const char* 
                                                     info_length,
                                                     convertor_code,
                                                     key_start, key_end );
-}
-
-void dague_profile_trace_f08( dague_thread_profiling_t** ctx, int key,
-                              uint64_t event_id, uint32_t object_id,
-                              void *info, int* ierr )
-{
-    *ierr = dague_profiling_trace(*ctx, key, event_id, object_id, info);
 }

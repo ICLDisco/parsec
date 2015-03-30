@@ -1,5 +1,5 @@
 ! -*- f90 -*-
-! Copyright (c) 2013      The University of Tennessee and The University
+! Copyright (c) 2013-2015 The University of Tennessee and The University
 !                         of Tennessee Research Foundation.  All rights
 !                         reserved.
 ! $COPYRIGHT$
@@ -13,39 +13,39 @@ module dague_profile_f08_interfaces
   end type dague_profile_handle_t
 
   INTERFACE dague_profile_init_f08
-     SUBROUTINE dague_profile_init_f08(ierr) &
-          BIND(C, name="dague_profile_init_f08")
+     FUNCTION dague_profile_init_f08() &
+          BIND(C, name="dague_profiling_init")
        USE, intrinsic :: ISO_C_BINDING, only : C_INT
        IMPLICIT NONE
-       INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_init_f08
+       INTEGER(KIND=C_INT) :: dague_profile_init_f08
+     END FUNCTION dague_profile_init_f08
   END INTERFACE dague_profile_init_f08
 
   INTERFACE dague_profile_fini_f08
-     SUBROUTINE dague_profile_fini_f08(ierr) &
-          BIND(C, name="dague_profile_fini_f08")
+     FUNCTION dague_profile_fini_f08() &
+          BIND(C, name="dague_profiling_fini")
        USE, intrinsic :: ISO_C_BINDING, only : C_INT
        IMPLICIT NONE
-       INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_fini_f08
+       INTEGER(KIND=C_INT) :: dague_profile_fini_f08
+     END FUNCTION dague_profile_fini_f08
   END INTERFACE dague_profile_fini_f08
 
   INTERFACE dague_profile_reset_f08
-     SUBROUTINE dague_profile_reset_f08(ierr) &
-          BIND(C, name="dague_profile_reset_f08")
+     FUNCTION dague_profile_reset_f08() &
+          BIND(C, name="dague_profiling_reset")
        USE, intrinsic :: ISO_C_BINDING, only : C_INT
        IMPLICIT NONE
-       INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_reset_f08
+       INTEGER(KIND=C_INT) :: dague_profile_reset_f08
+     END FUNCTION dague_profile_reset_f08
   END INTERFACE dague_profile_reset_f08
 
   INTERFACE dague_profile_dump_f08
-     SUBROUTINE dague_profile_dump_f08(ierr) &
-          BIND(C, name="dague_profile_dump_f08")
-       USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
+     FUNCTION dague_profile_dump_f08() &
+          BIND(C, name="dague_profiling_dbp_dump")
+       USE, intrinsic :: ISO_C_BINDING, only : C_INT
        IMPLICIT NONE
-       INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_dump_f08
+       INTEGER(KIND=C_INT) :: dague_profile_dump_f08
+     END FUNCTION dague_profile_dump_f08
   END INTERFACE dague_profile_dump_f08
 
   INTERFACE dague_profile_thread_init_f08
@@ -69,7 +69,7 @@ module dague_profile_f08_interfaces
        IMPLICIT NONE
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: key_name(*)
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: attr(*)
-       INTEGER(KIND=C_SIZE_T), INTENT(IN),VALUE     :: info_length
+       INTEGER(KIND=C_SIZE_T), INTENT(IN), VALUE    :: info_length
        CHARACTER(KIND=C_CHAR), INTENT(IN)           :: conv_code(*)
        INTEGER(KIND=C_INT), INTENT(OUT)             :: key_start
        INTEGER(KIND=C_INT), INTENT(OUT)             :: key_end
@@ -78,19 +78,20 @@ module dague_profile_f08_interfaces
   END INTERFACE dague_profile_add_dictionary_keyword_08
 
   INTERFACE dague_profile_trace_f08
-     SUBROUTINE dague_profile_trace_f08(ctx, key, &
-          event_id, object_id, info, ierr) &
-          BIND(C, name="dague_profile_trace_f08")
-       USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_PTR, C_INT64_T
+     FUNCTION dague_profile_trace_f08(ctx, key, &
+          event_id, object_id, info, flags) &
+          BIND(C, name="dague_profiling_trace_flags")
+       USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_INT16_T, C_PTR, C_INT64_T
        IMPORT dague_profile_handle_t
        IMPLICIT NONE
-       TYPE(dague_profile_handle_t)                 :: ctx
-       INTEGER(KIND=C_INT), INTENT(IN),VALUE        :: key
-       INTEGER(KIND=C_INT64_T), INTENT(IN),VALUE    :: event_id
-       INTEGER(KIND=C_INT), INTENT(IN),VALUE        :: object_id
-       TYPE(c_ptr), INTENT(IN)                      :: info
-       INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-     END SUBROUTINE dague_profile_trace_f08
+       TYPE(dague_profile_handle_t), VALUE          :: ctx
+       INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: key
+       INTEGER(KIND=C_INT64_T), INTENT(IN), VALUE   :: event_id
+       INTEGER(KIND=C_INT), INTENT(IN), VALUE       :: object_id
+       TYPE(c_ptr), INTENT(IN), VALUE               :: info
+       INTEGER(KIND=C_INT16_T), INTENT(IN), VALUE   :: flags
+       INTEGER(KIND=C_INT)                          :: dague_profile_trace_f08
+     END FUNCTION dague_profile_trace_f08
   END INTERFACE dague_profile_trace_f08
 
   INTERFACE dague_profile_enable_f08
@@ -108,14 +109,14 @@ module dague_profile_f08_interfaces
   END INTERFACE dague_profile_disable_f08
 
   INTERFACE dague_profile_start_f08
-    SUBROUTINE dague_profile_start_f08(f_name, hr_info, ierr) &
-          BIND(C, name="dague_profile_start_f08")
+    FUNCTION dague_profile_start_f08(f_name, hr_info) &
+          BIND(C, name="dague_profiling_dbp_start")
       USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_CHAR
       IMPLICIT NONE
       CHARACTER(KIND=C_CHAR), INTENT(IN)           :: f_name(*)
       CHARACTER(KIND=C_CHAR), INTENT(IN)           :: hr_info(*)
-      INTEGER(KIND=C_INT), INTENT(OUT)             :: ierr
-    END SUBROUTINE dague_profile_start_f08
+      INTEGER(KIND=C_INT)                          :: dague_profile_start_f08
+    END FUNCTION dague_profile_start_f08
   END INTERFACE dague_profile_start_f08
 
 CONTAINS
@@ -127,7 +128,7 @@ CONTAINS
 
     INTEGER(KIND=c_int)                        :: c_err
 
-    call dague_profile_init_f08(c_err)
+    c_err = dague_profile_init_f08()
     if(present(ierr)) ierr = c_err;
   END SUBROUTINE dague_profile_init
 
@@ -137,7 +138,7 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
     INTEGER(KIND=c_int)                        :: c_err
 
-    call dague_profile_fini_f08(c_err)
+    c_err = dague_profile_fini_f08()
     if(present(ierr)) ierr = c_err;
   END SUBROUTINE dague_profile_fini
 
@@ -147,7 +148,7 @@ CONTAINS
     INTEGER, OPTIONAL, INTENT(OUT)             :: ierr
     INTEGER(KIND=c_int)                        :: c_err
 
-    call dague_profile_reset_f08(c_err)
+    c_err = dague_profile_reset_f08()
     if(present(ierr)) ierr = c_err;
   END SUBROUTINE dague_profile_reset
 
@@ -158,7 +159,7 @@ CONTAINS
 
     INTEGER(KIND=c_int)                        :: c_err
 
-    call dague_profile_dump_f08(c_err)
+    c_err = dague_profile_dump_f08()
     if(present(ierr)) ierr = c_err;
   END SUBROUTINE dague_profile_dump
 
@@ -221,7 +222,7 @@ CONTAINS
 
   SUBROUTINE dague_profile_trace(ctx, key, &
        event_id, object_id, info, ierr)
-    USE, intrinsic :: ISO_C_BINDING, only : C_INT, C_PTR, C_INT64_T
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT16_T, C_INT, C_INT64_T
     IMPLICIT NONE
     TYPE(dague_profile_handle_t)               :: ctx
     INTEGER, INTENT(IN)                        :: key
@@ -232,9 +233,11 @@ CONTAINS
 
     INTEGER(KIND=c_int)                        :: c_err
     INTEGER(KIND=c_int64_t)                    :: c_event_id
+    INTEGER(KIND=C_INT16_T)                    :: zero
 
     c_event_id = event_id
-    call dague_profile_trace_f08(ctx, key, event_id, object_id, info, c_err)
+    zero = 0
+    c_err = dague_profile_trace_f08(ctx, key, event_id, object_id, info, zero)
     if(present(ierr)) ierr = c_err;
   END SUBROUTINE dague_profile_trace
 
@@ -267,7 +270,7 @@ CONTAINS
     ALLOCATE(c_hr_info(LEN_TRIM(hr_info)+1))
     c_hr_info(:) = (/ (hr_info(i:i), i = 1, LEN_TRIM(hr_info)), c_null_char /)
 
-    call dague_profile_start_f08(c_fname, c_hr_info, c_ierr)
+    c_ierr = dague_profile_start_f08(c_fname, c_hr_info)
     if(present(ierr)) ierr = c_ierr;
     DEALLOCATE(c_fname)
     DEALLOCATE(c_hr_info)
