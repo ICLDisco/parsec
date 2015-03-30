@@ -44,6 +44,8 @@ if __name__ == '__main__':
                         action='append', dest='type_ignore', nargs='+')
     parser.add_argument('--ignore-thread', help='Set a thread name to ignore (multiple allowed, can be a pattern with /pattern/)',
                         action='append', dest='thread_ignore', nargs='+')
+    parser.add_argument('--dot-DAG', help='Include links of the DAG obtained from the DOT file', dest='DAG',
+                        action='store_true', default=False)
     parser.add_argument('--list', help='List the events names in the hdf5 file', action='store_true', dest='list')
     args = parser.parse_args()
 
@@ -67,12 +69,16 @@ if __name__ == '__main__':
         pass
 
     task_names = dict()
+    if args.DAG:
+        task_dot_id = dict()
+        dot_links = dict()
     if args.dot:
         try:
             dotfile = open(args.dot, 'r')
             for line in dotfile:
                 ls = line.find("label=\"")
                 ts = line.find("tooltip=\"")
+                ne = line.find(" ")
                 if ls >= 0 and ts >= 0:
                     label=line[ls+7:-1]
                     le = label.find("\",")
@@ -85,7 +91,17 @@ if __name__ == '__main__':
                     tooltip = tooltip[0:te]
 
                     ttfields = tooltip.split(':')
-                    task_names["%s:%s:%s"%(ttfields[0], ttfields[1], ttfields[3])] = label
+
+                    task_uid = "%s:%s:%s"%(ttfields[0], ttfields[1], ttfields[3])
+                    task_names[task_uid] = label
+                    if args.DAG:
+                        task_dot_id[ line[0:ne] ] = task_uid
+                        dot_links[ line[0:ne] ] = list()
+                elif args.DAG:
+                    ts = line.find(" -> ")
+                    ls = line.find("label")
+                    if ts >= 0 and ls >= 0:
+                        dot_links[ line[0:ne] ].append( line[ts + 4:ls - 2] )
             dotfile.close()
         except IOError as e:
             warning("Could not open %s: %s"% (args.dot, e))
@@ -100,6 +116,9 @@ if __name__ == '__main__':
     PajeDefineVariableType = paje.PajeDef('PajeDefineVariableType')
     PajeAddVariable = paje.PajeDef('PajeAddVariable')
     PajeSubVariable = paje.PajeDef('PajeSubVariable')
+    PajeStartLink = paje.PajeDef('PajeStartLink')
+    PajeEndLink   = paje.PajeDef('PajeEndLink')
+    PajeLinkType  = paje.PajeDef('PajeDefineLinkType')
 
     paje_ct = PajeContainerType.PajeEvent(Name="Application", Type="0")
     paje_pt = PajeContainerType.PajeEvent(Name="Process", Type=paje_ct)
@@ -107,6 +126,9 @@ if __name__ == '__main__':
     paje_tt = PajeContainerType.PajeEvent(Name="Thread", Type=paje_vt)
     paje_st = PajeStateType.PajeEvent(Name="CT_ST", Type=paje_tt)
     paje_vt = PajeDefineVariableType.PajeEvent(Name="CT_VT", Type=paje_tt, Color="1.0,1.0,1.0")
+
+    if args.DAG:
+        paje_slt = PajeLinkType.PajeEvent(Name="DAG_LINK", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
 
     paje_entity_waiting = PajeEntityValue.PajeEvent(Name="Waiting", Type=paje_st, Color="0.2,0.2,0.2")
 
@@ -187,6 +209,9 @@ if __name__ == '__main__':
                                                                                                           Type=paje_ct, Container=paje_container_aliases["M%d"%(t.node_id)])
         PajeSetState.PajeEvent(Time=0.000, Type=paje_st, Container=paje_container_aliases["M%dT%d"%(t.node_id,t.thread_id)], Value="Waiting", task_name="")
 
+    if args.DAG:
+        dag_info = dict()
+
     sev = store.events.sort(['node_id', 'thread_id', 'begin'])
     for evr in store.events.iterrows():
         ev = evr[1]
@@ -205,6 +230,9 @@ if __name__ == '__main__':
             #Don't forget to check if that container was ignored by the user
             if (ev['flags'] & (1<<2) == 0) and ("M%dT%d"%(ev.node_id,ev.thread_id) in paje_container_aliases):
                 key = "hid=%d:did=%d:tid=%d"%(ev.handle_id,ev.type,ev.id)
+                if args.DAG:
+                    dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
+                                      'start': float(ev.begin), 'end': float(ev.end) }
                 if key in task_names.keys():
                     PajeSetState.PajeEvent(Time=float(ev.begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
                                            Value=state_aliases[ev.type], task_name=task_names[key])
@@ -213,6 +241,27 @@ if __name__ == '__main__':
                                            Value=state_aliases[ev.type], task_name=store.event_names[ev.type])
                 PajeSetState.PajeEvent(Time=float(ev.end), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.thread_id)],
                                        Value=paje_entity_waiting, task_name="Waiting")
+
+    if args.DAG:
+        nblink = 0
+        for src, dstlist in dot_links.iteritems():
+            for dst in dstlist:
+                try:
+                    src_uid = task_dot_id[src]
+                    dst_uid = task_dot_id[dst]
+                except KeyError as e:
+                    print("couldn't find %s in task_dot_id"%(e))
+                    pass
+                try:
+                    src_info = dag_info[src_uid]
+                    dst_info = dag_info[dst_uid]
+                except KeyError as e:
+                    print("couldn't find %s in dag_info"%(e))
+                    pass
+                PajeStartLink.PajeEvent(Time=src_info['end'], Type=paje_slt, Container=paje_c_appli, StartContainer=src_info['container'], Value="", Key="%d"%(nblink))
+                PajeEndLink.PajeEvent(Time=dst_info['start'], Type=paje_slt, Container=paje_c_appli, EndContainer=dst_info['container'], Value="", Key="%d"%(nblink))
+                nblink = nblink+1
+                print("done %s -> %s"%(src_uid, dst_uid))
 
     for name,cer in counter_events.iteritems():
         if not cer['error']:
