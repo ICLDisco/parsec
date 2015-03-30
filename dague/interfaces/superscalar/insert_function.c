@@ -1841,13 +1841,23 @@ fake_hook_for_testing(dague_execution_unit_t * context,
     task_param_t *head_param = NULL, *current_param, *tmp_param;
     dague_ddesc_t *ddesc;
     dague_data_key_t key;
+    int tmp_op_type;
 
     //TODO: Build list of parameters and call insert task
+    int i;
 
-    for (int i=0; this_task->function->in[i] != NULL ; i++){
+    for (i=0; this_task->function->out[i] != NULL; i++){
+        tmp_op_type = this_task->function->out[i]->flow_flags;    
+    
+        if((tmp_op_type & FLOW_ACCESS_NONE) == FLOW_ACCESS_NONE) {
+            //printf("Has control flow going out\n");
+        }
+    }
+
+    for (i=0; this_task->function->in[i] != NULL ; i++){
         tmp_param = (task_param_t *) malloc(sizeof(task_param_t));
 
-        int tmp_op_type = this_task->function->in[i]->flow_flags;    
+        tmp_op_type = this_task->function->in[i]->flow_flags;    
         int op_type;
         int mask, pred_found = 0;
 
@@ -1858,6 +1868,7 @@ fake_hook_for_testing(dague_execution_unit_t * context,
         } else if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
               op_type = OUTPUT | REGION_FULL;  
         } else if((tmp_op_type & FLOW_ACCESS_NONE) == FLOW_ACCESS_NONE) {
+            //printf("Has control flow coming in\n");
 
             /*this_task->unused = 0; 
             dague_execution_context_t *T1 = malloc (sizeof(dague_execution_context_t)); 
