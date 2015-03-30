@@ -5,17 +5,17 @@
  * Copyright (c) 2004-2012 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart, 
+ * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
  *                         University of Stuttgart.  All rights reserved.
  * Copyright (c) 2004-2005 The Regents of the University of California.
  *                         All rights reserved.
  * Copyright (c) 2006      Cisco Systems, Inc.  All rights reserved.
  * Copyright (c) 2007      Los Alamos National Security, LLC.  All rights
- *                         reserved. 
+ *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  */
 
@@ -31,10 +31,10 @@
 #include "dague/utils/dague_environ.h"
 #include "dague/constants.h"
 
-#ifdef __WINDOWS__ 
-#define DAGUE_DEFAULT_TMPDIR "C:\\TEMP" 
-#else 
-#define DAGUE_DEFAULT_TMPDIR "/tmp" 
+#ifdef __WINDOWS__
+#define DAGUE_DEFAULT_TMPDIR "C:\\TEMP"
+#else
+#define DAGUE_DEFAULT_TMPDIR "/tmp"
 #endif
 
 /*
@@ -98,16 +98,17 @@ char **dague_environ_merge(char **minor, char **major)
 int dague_setenv(const char *name, const char *value, bool overwrite,
                 char ***env)
 {
-    int i;
+    int i, rc;
     char *newvalue, *compare;
     size_t len;
+    (void)rc;
 
     /* Make the new value */
 
     if (NULL == value) {
-        asprintf(&newvalue, "%s=", name);
+        rc = asprintf(&newvalue, "%s=", name);
     } else {
-        asprintf(&newvalue, "%s=%s", name, value);
+        rc = asprintf(&newvalue, "%s=%s", name, value);
     }
     if (NULL == newvalue) {
         return DAGUE_ERR_OUT_OF_RESOURCE;
@@ -137,7 +138,7 @@ int dague_setenv(const char *name, const char *value, bool overwrite,
 
     /* Make something easy to compare to */
 
-    asprintf(&compare, "%s=", name);
+    rc = asprintf(&compare, "%s=", name);
     if (NULL == compare) {
         free(newvalue);
         return DAGUE_ERR_OUT_OF_RESOURCE;
@@ -180,10 +181,11 @@ int dague_setenv(const char *name, const char *value, bool overwrite,
  */
 int dague_unsetenv(const char *name, char ***env)
 {
-    int i;
+    int i, rc;
     char *compare;
     size_t len;
     bool found;
+    (void)rc;
 
     /* Check for bozo case */
 
@@ -193,7 +195,7 @@ int dague_unsetenv(const char *name, char ***env)
 
     /* Make something easy to compare to */
 
-    asprintf(&compare, "%s=", name);
+    rc = asprintf(&compare, "%s=", name);
     if (NULL == compare) {
         return DAGUE_ERR_OUT_OF_RESOURCE;
     }
@@ -246,4 +248,3 @@ const char* dague_home_directory( void )
 
     return home;
 }
-
