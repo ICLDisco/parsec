@@ -100,11 +100,11 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
         event_conv = dbp_dictionary_convertor(cdict)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
-            event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
+            event_conv = 'kernel_type{int32_t};value1{int64_t};value2{int64_t};value3{int64_t};'
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
                                                                  event_conv, dbp_dictionary_keylen(cdict))
-            
+
     builder.event_names[-1] = '' # this is the default, for kernels without names
 
     # start with our nodes in the correct order
@@ -616,7 +616,7 @@ cdef class ExtendedEvent:
     def __init__(self, event_name, event_conv, event_len):
         fmt = '@'
         self.aev = []
-        for ev in str.split(event_conv, ':'):
+        for ev in str.split(event_conv, ';'):
             if 0 == len(ev):
                 continue
             ev_list = str.split(ev, '{', 2)
