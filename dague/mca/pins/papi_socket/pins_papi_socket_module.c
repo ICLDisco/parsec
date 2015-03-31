@@ -142,8 +142,11 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
 
     if(exec_unit->num_socket_counters > 0) {
         papi_socket_info_t info;
+        char* key_string;
         char* value_string;
         int string_size = 0;
+
+        asprintf(&key_string, "PINS_SOCKET_S%d_C%d", exec_unit->socket_id, exec_unit->core_id);
 
         for(i = 0; i < exec_unit->num_socket_counters; i++) {
             string_size += strlen(exec_unit->pins_papi_socket_event_name[i]) + strlen("{int64_t}"PARSEC_PAPI_SEPARATOR);
@@ -156,10 +159,11 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
             strcat(value_string, "{int64_t}"PARSEC_PAPI_SEPARATOR);
         }
 
-        dague_profiling_add_dictionary_keyword("PINS_SOCKET", "fill:#00AAFF",
+        dague_profiling_add_dictionary_keyword(key_string, "fill:#00AAFF",
                                                sizeof(papi_socket_info_t), value_string,
                                                &exec_unit->pins_prof_papi_socket[0],
                                                &exec_unit->pins_prof_papi_socket[1]);
+        free(key_string);
         free(value_string);
         /* Start the PAPI counters. */
         if( PAPI_OK != (err = PAPI_start(exec_unit->papi_eventsets[PER_SOCKET_SET])) ) {
