@@ -148,9 +148,9 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     # If multiprocess is allowed spawn new processes in order to speed up the
     # extraction of the events from the different profiling files. Otherwise,
     # everything will be done locally in this thread.
-    if multiprocess:
-        node_thread_chunks = chunk(node_threads, multiprocess)
-        with Timer() as t:
+    with Timer() as t:
+        if multiprocess:
+            node_thread_chunks = chunk(node_threads, multiprocess)
             for nt_chunk in node_thread_chunks:
                 my_end, their_end = Pipe()
                 process_pipes.append(my_end)
@@ -180,9 +180,9 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
                     time.sleep(microsleep) # tiny sleep so as not to hog CPU
             for p in processes:
                 p.join() # cleanup spawned processes
-    else:
-        construct_thread_in_process(None, builder, filenames,
-                                    node_threads, skeleton_only, report_progress)
+        else:
+            construct_thread_in_process(None, builder, filenames,
+                                        node_threads, skeleton_only, report_progress)
     # report progress
     cond_print('\nParsing the PBT files took ' + str(t.interval) + ' seconds' ,
                report_progress, end='')
