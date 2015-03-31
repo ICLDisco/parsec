@@ -42,7 +42,7 @@ from common_utils import *
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
 microsleep = 0.05
 
-logging.basicConfig(level=100, format='%(message)s')
+logging.basicConfig(level=10, format='%(message)s')
 logger = logging.getLogger(__name__)
 
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
@@ -103,12 +103,14 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         builder.event_convertors[event_type] = None
 
         event_conv = dbp_dictionary_convertor(cdict)
-        logger.log(40, "Event %s conv <%s>\n", event_name, event_conv)
+        event_length = dbp_dictionary_keylen(cdict)
+
+        logger.log(40, "Event %s conv <%s> length %d\n", event_name, event_conv, event_length)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
             event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
-                                                                 event_conv, dbp_dictionary_keylen(cdict))
+                                                                 event_conv, event_length)
             
     builder.event_names[-1] = '' # this is the default, for kernels without names
 
@@ -662,10 +664,12 @@ cdef class ExtendedEvent:
                 fmt += 'd'
             elif ev_type == 'float':
                 fmt += 'f'
-        #print('event[{0}] = {1} fmt \'{2}\''.format(event_name, self.aev, fmt))
+        logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, fmt)
         self.ev_struct = struct.Struct(fmt)
         if event_len != len(self):
-            print('Expected length differs from provided length for {0} extended event ({1} != {2})'.format(event_name, len(self), event_len))
+            logger.warning('Event %s discarded: expected length differs from provided length (%d != %d)\n'
+                           'Check the conversion format <%s>\n',
+                           event_name, len(self), event_len, fmt)
             event_len = event_len if event_len < len(self) else len(self)
         self.event_len = event_len
     def __len__(self):
