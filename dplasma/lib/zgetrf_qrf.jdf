@@ -1168,7 +1168,7 @@ setchoice_update(k, p, q)
 
   : A(k+p, k+q)
 
-  RW B <- choice setchoice(k, p, hmax)   [type = CHOICE]
+  READ B <- choice setchoice(k, p, hmax)   [type = CHOICE]
 
   /*
    * Release local choice
