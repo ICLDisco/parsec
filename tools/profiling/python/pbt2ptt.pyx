@@ -34,12 +34,16 @@ from multiprocessing import Process, Pipe
 import multiprocessing
 import binascii
 import pandas as pd
+import logging
 
 from parsec_trace_tables import * # the pure Python classes
 from common_utils import *
 
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
 microsleep = 0.05
+
+logging.basicConfig(level=100, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
            add_info=dict()):
@@ -99,6 +103,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         builder.event_convertors[event_type] = None
 
         event_conv = dbp_dictionary_convertor(cdict)
+        logger.log(40, "Event %s conv <%s>\n", event_name, event_conv)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
             event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
         if 0 != len(event_conv):
@@ -619,6 +624,13 @@ def chunk(xs, n):
 from collections import namedtuple
 import struct
 
+#
+# The event_conv must be a ; separated list of tuple using the following format:
+# [NAME{TYPE};]+, where NAME is a string and TYPE is one of: int, int32_t,
+# int64_t, float and double.
+#
+# The event_len is the length in bytes of the event.
+#
 cdef class ExtendedEvent:
     cdef object ev_struct
     cdef object aev
