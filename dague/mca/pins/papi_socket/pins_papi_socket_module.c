@@ -36,9 +36,7 @@ static void pins_fini_papi_socket(dague_context_t * master_context) {
 }
 
 static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
-    char* mca_param_name;
-    char* token;
-    char* temp;
+    char* mca_param_name, *token, *temp, *saveptr = NULL;
     int err, i;
     bool socket, core, started = false;
 
@@ -55,7 +53,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
     }
 
     mca_param_name = strdup(mca_param_string);
-    token = strtok(mca_param_name, ":");
+    token = strtok_r(mca_param_name, ":", &saveptr);
 
     if(token == NULL) {
         dague_output(0, "No PAPI events have been specified.  None will be recorded.\n");
@@ -79,7 +77,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
             free(temp);
         }
 
-        token = strtok(NULL, ":");
+        token = strtok_r(NULL, ":", &saveptr);
 
         if(token[0] == 'C') {
             temp = (char*)calloc(strlen(token),sizeof(char));
@@ -94,7 +92,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
             free(temp);
         }
 
-        token = strtok(NULL, ",");
+        token = strtok_r(NULL, ",", &saveptr);
 
         if(socket && core) {
             if(exec_unit->num_socket_counters == NUM_SOCKET_EVENTS) {
@@ -134,7 +132,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
             }
             exec_unit->num_socket_counters++;
         }
-        token = strtok(NULL, ":");
+        token = strtok_r(NULL, ":", &saveptr);
     }
 
     free(mca_param_name);
