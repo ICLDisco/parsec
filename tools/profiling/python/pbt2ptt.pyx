@@ -34,12 +34,16 @@ from multiprocessing import Process, Pipe
 import multiprocessing
 import binascii
 import pandas as pd
+import logging
 
 from parsec_trace_tables import * # the pure Python classes
 from common_utils import *
 
 multiprocess_io_cap = 9 # this seems to be a good default on ICL machines
 microsleep = 0.05
+
+logging.basicConfig(level=10, format='%(message)s')
+logger = logging.getLogger(__name__)
 
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
            add_info=dict()):
@@ -99,12 +103,15 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
         builder.event_convertors[event_type] = None
 
         event_conv = dbp_dictionary_convertor(cdict)
+        event_length = dbp_dictionary_keylen(cdict)
+
+        logger.log(40, "Event %s conv <%s> length %d\n", event_name, event_conv, event_length)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
-            event_conv = 'kernel_type{int32_t};value1{int64_t};value2{int64_t};value3{int64_t};'
+            event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
-                                                                 event_conv, dbp_dictionary_keylen(cdict))
-
+                                                                 event_conv, event_length)
+            
     builder.event_names[-1] = '' # this is the default, for kernels without names
 
     # start with our nodes in the correct order
@@ -148,9 +155,9 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     # If multiprocess is allowed spawn new processes in order to speed up the
     # extraction of the events from the different profiling files. Otherwise,
     # everything will be done locally in this thread.
-    if multiprocess:
-        node_thread_chunks = chunk(node_threads, multiprocess)
-        with Timer() as t:
+    with Timer() as t:
+        if multiprocess:
+            node_thread_chunks = chunk(node_threads, multiprocess)
             for nt_chunk in node_thread_chunks:
                 my_end, their_end = Pipe()
                 process_pipes.append(my_end)
@@ -180,9 +187,9 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
                     time.sleep(microsleep) # tiny sleep so as not to hog CPU
             for p in processes:
                 p.join() # cleanup spawned processes
-    else:
-        construct_thread_in_process(None, builder, filenames,
-                                    node_threads, skeleton_only, report_progress)
+        else:
+            construct_thread_in_process(None, builder, filenames,
+                                        node_threads, skeleton_only, report_progress)
     # report progress
     cond_print('\nParsing the PBT files took ' + str(t.interval) + ' seconds' ,
                report_progress, end='')
@@ -619,6 +626,13 @@ def chunk(xs, n):
 from collections import namedtuple
 import struct
 
+#
+# The event_conv must be a ; separated list of tuple using the following format:
+# [NAME{TYPE};]+, where NAME is a string and TYPE is one of: int, int32_t,
+# int64_t, float and double.
+#
+# The event_len is the length in bytes of the event.
+#
 cdef class ExtendedEvent:
     cdef object ev_struct
     cdef object aev
@@ -628,7 +642,7 @@ cdef class ExtendedEvent:
     def __init__(self, event_name, event_conv, event_len):
         fmt = '@'
         self.aev = []
-        for ev in str.split(event_conv, ';'):
+        for ev in str.split(event_conv, ':'):
             if 0 == len(ev):
                 continue
             ev_list = str.split(ev, '{', 2)
@@ -650,10 +664,12 @@ cdef class ExtendedEvent:
                 fmt += 'd'
             elif ev_type == 'float':
                 fmt += 'f'
-        #print('event[{0}] = {1} fmt \'{2}\''.format(event_name, self.aev, fmt))
+        logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, fmt)
         self.ev_struct = struct.Struct(fmt)
         if event_len != len(self):
-            print('Expected length differs from provided length for {0} extended event ({1} != {2})'.format(event_name, len(self), event_len))
+            logger.warning('Event %s discarded: expected length differs from provided length (%d != %d)\n'
+                           'Check the conversion format <%s>\n',
+                           event_name, len(self), event_len, fmt)
             event_len = event_len if event_len < len(self) else len(self)
         self.event_len = event_len
     def __len__(self):
