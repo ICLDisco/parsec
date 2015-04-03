@@ -20,12 +20,17 @@
 #include "profiling.h"
 #include "dague/class/barrier.h"
 
+#ifdef PINS_ENABLE
+#include "dague/mca/pins/pins.h"
+#endif
+
 #ifdef HAVE_PAPI
 /* for PAPI event sets in execution_unit */
 typedef enum PAPI_EVENTSETS {
         EXEC_SET,
         SELECT_SET,
         PER_SOCKET_SET,
+        PER_CORE_SET,
         EVENTSETS_COUNT
 } PAPI_EVENTSETS;
 #endif // HAVE_PAPI
@@ -60,13 +65,28 @@ struct dague_execution_unit_s {
 #endif
 
 #if defined(HAVE_PAPI)
-    long long int papi_last_read[5]; // TODO: magic number
+    long long int papi_last_read[5]; /* TODO: magic number */
     int papi_eventsets[EVENTSETS_COUNT];
 #endif /* HAVE_PAPI */
 
 #if defined(PINS_ENABLE)
     long long int starvation;
-    long * steal_counters; // this is for Stephanie and print_steals PINS module
+    long * steal_counters; /* this is for Stephanie and print_steals PINS module */
+
+    /* Needed for papi_socket */
+    int num_socket_counters;
+    char ** pins_papi_socket_event_name;
+    int * pins_papi_socket_native_event;
+    int pins_prof_papi_socket[2];
+    int num_socket_tasks;
+    int begin_end;
+    int num_tasks;
+
+    /* Needed for papi_core */
+    int num_core_counters;
+    char ** pins_papi_core_event_name;
+    int * pins_papi_core_native_event;
+    int pins_prof_papi_core[2];
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
