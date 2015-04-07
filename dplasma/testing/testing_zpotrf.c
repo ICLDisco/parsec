@@ -14,20 +14,12 @@
 #if defined(HAVE_CUDA)
 #include "dplasma/cores/cuda_zgemm.h"
 #endif
-#include "dplasma/lib/zpotrf_L.h"
-
-//#define STOP 1
-#if defined(STOP)
-static int gdb_hook=0;
-#endif
-
 
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaUpper;
-    uplo = PlasmaLower;
     int info = 0;
     int ret = 0;
 
@@ -70,31 +62,9 @@ int main(int argc, char ** argv)
         if(loud > 3) printf("Done\n");
     }
 #endif
-#if defined(STOP)
-    { // hook for gdb
-        char name[255];
-        gethostname(name, 255);
-        fprintf(stderr, "ssh -t %s gdb -p %d\n", name, getpid());
-        while( !gdb_hook ) {
-            sched_yield();
-        }
-    }
-#endif
-    
-    
-    /* PASTE_CODE doesn't work for enqueuing trigger now.
-     *
+
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
                               (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
-    */
-    SYNC_TIME_START();                                                  
-    dague_handle_t* DAGUE_zpotrf = dplasma_zpotrf_New(uplo, (tiled_matrix_desc_t*)&ddescA, &info);
-    dague_enqueue(dague, DAGUE_zpotrf);                               
-    dague_enqueue(dague, ((dague_zpotrf_L_handle_t*)DAGUE_zpotrf)->stop_trigger);                               
-    nb_local_tasks = DAGUE_zpotrf->nb_local_tasks;                    
-    if( loud > 2 ) SYNC_TIME_PRINT(rank, ("zpotrf\tDAG created\n"));
-
-
     PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
 
     dplasma_zpotrf_Destruct( DAGUE_zpotrf );

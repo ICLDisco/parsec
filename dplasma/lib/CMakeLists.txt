@@ -17,7 +17,6 @@ set(EXTRA_SOURCES
   map2_wrapper.c
   map2t_wrapper.c
   butterfly_map.c
-  release_trigger_wrapper.c
 )
 
 add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" ${EXTRA_SOURCES} )
@@ -100,7 +99,6 @@ list(APPEND generated_jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map.jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map2t.jdf
-  ${CMAKE_CURRENT_SOURCE_DIR}/release_trigger.jdf
 )
 
 jdf_rules(generated_files "${generated_jdf}")

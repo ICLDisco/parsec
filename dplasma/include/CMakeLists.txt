@@ -16,7 +16,6 @@ add_custom_target(dplasma_includes ALL DEPENDS dplasma.h SOURCES
 install(FILES
   dplasma.h
   dplasma_qr_param.h
-  dplasma_ft.h
   DESTINATION include)
 
 foreach(generated_header ${generated_headers})
