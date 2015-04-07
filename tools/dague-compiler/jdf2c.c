@@ -3008,7 +3008,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "{\n"
             "  uint32_t supported_dev = 0;\n"
             "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)dague_handle;\n"
-            "  dague_handle->context = context;\n"
             " \n"
             "  uint32_t wanted_devices = dague_handle->devices_mask; dague_handle->devices_mask = 0;\n"
             "  uint32_t _i;\n"

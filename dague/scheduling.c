@@ -609,6 +609,8 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
         dague_set_scheduler( context );
     }
 
+    handle->context = context;  /* save the context */
+
     PINS_HANDLE_INIT(handle);  /* PINS handle initialization */
 
     /* Update the number of pending objects */
