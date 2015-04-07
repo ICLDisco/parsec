@@ -102,13 +102,18 @@ int dague_context_wait(dague_context_t* context);
  * will be triggered. Inside the callback the handle should not be
  * modified.
  */
-typedef int (*dague_completion_cb_t)(dague_handle_t* dague_handle, void*);
+typedef int (*dague_event_cb_t)(dague_handle_t* dague_handle, void*);
 
 /* Accessors to set and get the completion callback and data */
 int dague_set_complete_callback(dague_handle_t* dague_handle,
-                                dague_completion_cb_t complete_cb, void* complete_data);
+                                dague_event_cb_t complete_cb, void* complete_data);
 int dague_get_complete_callback(const dague_handle_t* dague_handle,
-                                dague_completion_cb_t* complete_cb, void** complete_data);
+                                dague_event_cb_t* complete_cb, void** complete_data);
+/* Accessors to set and get the enqueue callback and data */
+int dague_set_enqueue_callback(dague_handle_t* dague_handle,
+                               dague_event_cb_t enqueue_cb, void* enqueue_data);
+int dague_get_enqueue_callback(const dague_handle_t* dague_handle,
+                               dague_event_cb_t* enqueue_cb, void** enqueue_data);
 
 /**< Retrieve the local object attached to a unique object id */
 dague_handle_t* dague_handle_lookup(uint32_t handle_id);

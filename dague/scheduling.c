@@ -182,8 +182,8 @@ int dague_check_complete_cb(dague_handle_t *dague_handle, dague_context_t *conte
         /* A dague object has been completed. Call the attached callback if
          * necessary, then update the main engine.
          */
-        if( NULL != dague_handle->complete_cb ) {
-            (void)dague_handle->complete_cb( dague_handle, dague_handle->complete_cb_data );
+        if( NULL != dague_handle->on_complete ) {
+            (void)dague_handle->on_complete( dague_handle, dague_handle->on_complete_data );
         }
         dague_atomic_dec_32b( &(context->active_objects) );
         PINS_HANDLE_FINI(dague_handle);
@@ -558,8 +558,8 @@ static void dague_compound_startup( dague_context_t *context,
     for( i = 0; i < compound_state->nb_objects; i++ ) {
         dague_handle_t* o = compound_state->objects_array[i];
         assert( NULL != o );
-        o->complete_cb = dague_composed_cb;
-        o->complete_cb_data = compound_object;
+        o->on_complete      = dague_composed_cb;
+        o->on_complete_data = compound_object;
     }
 }
 
@@ -605,17 +605,10 @@ int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
 
 int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
 {
-    dague_execution_context_t **startup_list;
-
     if( NULL == current_scheduler) {
         dague_set_scheduler( context );
     }
 
-    /* These pointers need to be initialized to NULL; doing it with calloc */
-    startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
-    if( NULL == startup_list ) {  /* bad bad */
-        return DAGUE_ERR_OUT_OF_RESOURCE;
-    }
     PINS_HANDLE_INIT(handle);  /* PINS handle initialization */
 
     /* Update the number of pending objects */
@@ -624,12 +617,23 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
     /* Enable the handle to interact with the communication engine */
     (void)dague_handle_register(handle);
 
+    /* If necessary trigger the on_enqueue callback */
+    if( NULL != handle->on_enqueue ) {
+        handle->on_enqueue(handle, handle->on_enqueue_data);
+    }
+
     if( handle->nb_local_tasks > 0 ) {
 
-        /* Retrieve all the early messages for this handle */
+         /* Retrieve all the early messages for this handle */
         (void)dague_remote_dep_new_object(handle);
         if( NULL != handle->startup_hook ) {
+            dague_execution_context_t **startup_list;
             int p;
+            /* These pointers need to be initialized to NULL; doing it with calloc */
+            startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
+            if( NULL == startup_list ) {  /* bad bad */
+                return DAGUE_ERR_OUT_OF_RESOURCE;
+            }
             handle->startup_hook(context, handle, startup_list);
             for(p = 0; p < vpmap_get_nb_vp(); p++) {
                 if( NULL != startup_list[p] ) {
@@ -645,12 +649,11 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
                     __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
                 }
             }
+            free(startup_list);
         }
     } else {
         dague_check_complete_cb(handle, context, handle->nb_local_tasks);
     }
-
-    free(startup_list);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;
