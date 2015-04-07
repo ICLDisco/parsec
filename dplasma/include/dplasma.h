@@ -51,6 +51,9 @@ static inline int dplasma_imin(int a, int b) { return (a < b) ? a : b; };
 
 #include <core_blas.h>
 
+/* Functions needed for subdag trigger */
+#include "dplasma_ft.h"
+
 /* Functions specific to QR */
 #include "dplasma_qr_param.h"
 

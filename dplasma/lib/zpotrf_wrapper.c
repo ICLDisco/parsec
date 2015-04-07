@@ -14,6 +14,37 @@
 
 #include "zpotrf_U.h"
 #include "zpotrf_L.h"
+#include "scheduling.h"
+#include "release_trigger.h"
+#include "datarepo.h"
+
+static void zpotrf_L_info_trigger_cb(dague_handle_t* target_handle, int myrank, int root, int NP, subdag_info_t* B, dague_execution_unit_t* eu, dague_execution_context_t* calling_task)
+{
+    ((dague_zpotrf_L_handle_t*)target_handle)->info_protection=0;
+
+    if(myrank == root){
+        dague_execution_context_t* task = B->task;
+        dague_handle_update_nbtask(calling_task->dague_handle, -1*(NP-1));
+        __dague_complete_execution(eu, task);
+    }else{
+        dague_handle_update_nbtask(calling_task->dague_handle, -1*(NP));
+    }
+}
+
+static void zpotrf_U_info_trigger_cb(dague_handle_t* target_handle, int myrank, int root, int NP, subdag_info_t* B, dague_execution_unit_t* eu, dague_execution_context_t* calling_task)
+{
+    ((dague_zpotrf_L_handle_t*)target_handle)->info_protection=0;
+
+    if(myrank == root){
+        dague_execution_context_t* task = B->task;
+        dague_handle_update_nbtask(calling_task->dague_handle, -1*(NP-1));
+        __dague_complete_execution(eu, task);
+    }else{
+        dague_handle_update_nbtask(calling_task->dague_handle, -1*(NP));
+    }
+}
+
+
 
 /**
  *******************************************************************************
@@ -74,8 +105,23 @@
 dague_handle_t*
 dplasma_zpotrf_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
-                    int *info )
+                    int *info)
 {
+    int NP = A->super.nodes;
+    int my_rank = A->super.myrank;
+    dague_hash_datadist_t* np_dist = dague_hash_datadist_create(NP, my_rank);
+
+    for(int i=0; i<NP; i++){
+        if(my_rank == i){
+            int* my_position = (int*)malloc(sizeof(int));
+            dague_hash_datadist_set_data(np_dist, my_position, i, 0, i, sizeof(int));
+        }else{
+            dague_hash_datadist_set_data(np_dist, NULL, i, 0, i, 0);
+        }
+    }
+
+    dague_handle_t* release_trigger = release_trigger_New(np_dist, NP);
+    
     dague_zpotrf_L_handle_t *dague_zpotrf = NULL;
     dague_handle_t *o = NULL;
 
@@ -87,9 +133,15 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
+        ((dague_release_trigger_handle_t*)release_trigger)->trigger_op = zpotrf_U_info_trigger_cb;
         o = (dague_handle_t*)dague_zpotrf_U_new( uplo, (dague_ddesc_t*)A, info);
+        ((dague_zpotrf_U_handle_t*)o)->stop_trigger = release_trigger;
+        ((dague_zpotrf_U_handle_t*)o)->np_dist = np_dist;
     } else {
+        ((dague_release_trigger_handle_t*)release_trigger)->trigger_op = zpotrf_L_info_trigger_cb;
         o = (dague_handle_t*)dague_zpotrf_L_new( uplo, (dague_ddesc_t*)A, info);
+        ((dague_zpotrf_L_handle_t*)o)->stop_trigger = release_trigger;
+        ((dague_zpotrf_L_handle_t*)o)->np_dist = np_dist;
     }
 
     dague_zpotrf = (dague_zpotrf_L_handle_t*)o;
@@ -99,7 +151,7 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             MPI_DOUBLE_COMPLEX, A->mb );
-
+    ((dague_release_trigger_handle_t*)release_trigger)->target_handle = o;
     return o;
 }
 
@@ -128,8 +180,13 @@ dplasma_zpotrf_Destruct( dague_handle_t *o )
 {
     dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)o;
 
+    dague_handle_t *release_trigger = dague_zpotrf->stop_trigger;
+    dague_hash_datadist_t *np_dist = dague_zpotrf->np_dist;
+
     dplasma_datatype_undefine_type( &(dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA]->opaque_dtt) );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    release_trigger_Destruct(release_trigger);
+    dague_hash_datadist_destroy(np_dist);
 }
 
 /**
@@ -181,7 +238,7 @@ dplasma_zpotrf_Destruct( dague_handle_t *o )
 int
 dplasma_zpotrf( dague_context_t *dague,
                 PLASMA_enum uplo,
-                tiled_matrix_desc_t *A )
+                tiled_matrix_desc_t *A)
 {
     dague_handle_t *dague_zpotrf = NULL;
     int info = 0, ginfo = 0 ;

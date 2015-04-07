@@ -11,6 +11,8 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
+#include "release_trigger.h"
+
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
 #include "dplasma/cores/cuda_zgemm.h"
@@ -40,6 +42,9 @@ INFO       [type = "int*"]
 descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 PRI_CHANGE [type = "int" hidden = on default = 0 ]
 PRI_MAX    [type = "int" hidden = on default = "(descA.mt * ( 3 + descA.mt * ( 2 + descA.mt )))" ]
+info_protection [type = "int" hidden = on default = 1]
+stop_trigger   [type = "dague_handle_t*" hidden=on default = NULL]
+np_dist    [type = "dague_hash_datadist_t*" hidden=on default = NULL]
 
 /**************************************************
  *                      POTRF                     *
@@ -66,9 +71,60 @@ BODY
     int ldak = BLKLDD( descA, k );
 
 #if !defined(DAGUE_DRY_RUN)
-    CORE_zpotrf(uplo, tempkn, T, ldak, &iinfo );
-    if( iinfo != 0 && *INFO == 0 )
-        *INFO = k*descA.nb+iinfo; /* Should return here */
+    if(info_protection){
+        CORE_zpotrf(uplo, tempkn, T, ldak, &iinfo );
+        if( iinfo != 0 && *INFO == 0 ){
+            *INFO = k*descA.nb+iinfo; /* Should return here */
+            /* skip all the following computation */
+            int src_rank = stop_trigger->context->my_rank;
+            dague_execution_context_t* stop_context = (dague_execution_context_t*)dague_thread_mempool_allocate(context->context_mempool);
+            stop_context->dague_handle = stop_trigger;
+            stop_context->function = stop_trigger->functions_array[0];
+            stop_context->locals[0].value = src_rank;
+
+            memset( stop_context->data, 0, sizeof(dague_data_pair_t) * stop_context->function->nb_flows);
+
+            subdag_info_t* subdag_info = (subdag_info_t*)malloc(sizeof(subdag_info_t));
+            subdag_info->flag = 22;
+            subdag_info->task = this_task;
+            subdag_info->failed_rank = src_rank;
+            subdag_info->k = k;
+            subdag_info->m = k;
+            subdag_info->n = k;
+
+            dague_data_copy_t* chunk = dague_arena_get_copy(((dague_release_trigger_handle_t*)stop_trigger)->arenas[DAGUE_release_trigger_DEFAULT_ARENA], 1, 0);
+
+            stop_context->data[0].data_out = chunk;
+            stop_context->data[0].data_out->device_private = subdag_info;
+            __dague_complete_execution(context, stop_context);
+            return -1;
+        }
+        /* last task, release the trigger in the backgroud */
+        if(k == descA.nt-1){
+            int src_rank = stop_trigger->context->my_rank;
+            dague_execution_context_t* stop_context = (dague_execution_context_t*)dague_thread_mempool_allocate(context->context_mempool);
+            stop_context->dague_handle = stop_trigger;
+            stop_context->function = stop_trigger->functions_array[0];
+            stop_context->locals[0].value = src_rank;
+
+            memset( stop_context->data, 0, sizeof(dague_data_pair_t) * stop_context->function->nb_flows);
+
+            subdag_info_t* subdag_info = (subdag_info_t*)malloc(sizeof(subdag_info_t));
+            subdag_info->flag = 22;
+            subdag_info->task = this_task;
+            subdag_info->failed_rank = src_rank;
+            subdag_info->k = k;
+            subdag_info->m = k;
+            subdag_info->n = k;
+
+            dague_data_copy_t* chunk = dague_arena_get_copy(((dague_release_trigger_handle_t*)stop_trigger)->arenas[DAGUE_release_trigger_DEFAULT_ARENA], 1, 0);
+
+            stop_context->data[0].data_out = chunk;
+            stop_context->data[0].data_out->device_private = subdag_info;
+            __dague_complete_execution(context, stop_context);
+            return -1;
+        }
+    }
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
@@ -108,10 +164,12 @@ BODY
     dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
 #if !defined(DAGUE_DRY_RUN)
-    CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
-               descA.mb, tempnn,
-               (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
-                                       C /*A(k, n)*/, ldak);
+    if(info_protection){
+        CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
+                descA.mb, tempnn,
+                (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
+                C /*A(k, n)*/, ldak);
+    }
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_ztrsm( %d, %d )\n\t( %s, %s, %s, %s, %d, %d, %f, A(%d,%d)[%p], %d,  A(%d,%d)[%p], %d)\n",
@@ -151,10 +209,12 @@ BODY
     int ldan = BLKLDD( descA, n );
 
 #if !defined(DAGUE_DRY_RUN)
-    CORE_zherk(PlasmaUpper, PlasmaConjTrans,
-               tempnn, descA.mb,
-               (double)-1.0, A /*A(k, n)*/, ldak,
-               (double) 1.0, T /*A(n, n)*/, ldan);
+    if(info_protection){
+        CORE_zherk(PlasmaUpper, PlasmaConjTrans,
+                tempnn, descA.mb,
+                (double)-1.0, A /*A(k, n)*/, ldak,
+                (double) 1.0, T /*A(n, n)*/, ldan);
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
     printlog(
              "CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
@@ -220,11 +280,13 @@ BODY
     int ldam = BLKLDD( descA, m );
 
 #if !defined(DAGUE_DRY_RUN)
-    CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans,
-               descA.mb, tempnn, descA.nb,
-               (dague_complex64_t)-1.0, A /*A(k, m)*/, ldak,
-                                        B /*A(k, n)*/, ldak,
-               (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
+    if(info_protection){
+        CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans,
+                descA.mb, tempnn, descA.nb,
+                (dague_complex64_t)-1.0, A /*A(k, m)*/, ldak,
+                B /*A(k, n)*/, ldak,
+                (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
+    }
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
