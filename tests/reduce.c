@@ -78,5 +78,9 @@ int main( int argc, char* argv[] )
 
     dague_fini(&dague);
 
+#if defined(HAVE_MPI)
+    MPI_Finalize();
+#endif  /* defined(HAVE_MPI) */
+
     return 0;
 }
