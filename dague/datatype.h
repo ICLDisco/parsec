@@ -14,17 +14,19 @@
 #define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
 typedef MPI_Datatype dague_datatype_t;
 
-#define dague_datatype_int8_t        MPI_INT8_T
-#define dague_datatype_int16_t       MPI_INT16_T
-#define dague_datatype_int32_t       MPI_INT32_T
-#define dague_datatype_int64_t       MPI_INT64_T
-#define dague_datatype_uint8_t       MPI_UINT8_T
-#define dague_datatype_uint16_t      MPI_UINT16_T
-#define dague_datatype_uint32_t      MPI_UINT32_T
-#define dague_datatype_uint64_t      MPI_UINT64_T
-#define dague_datatype_float_t       MPI_FLOAT
-#define dague_datatype_double_t      MPI_DOUBLE
-#define dague_datatype_long_double_t MPI_LONG_DOUBLE
+#define dague_datatype_int8_t             MPI_INT8_T
+#define dague_datatype_int16_t            MPI_INT16_T
+#define dague_datatype_int32_t            MPI_INT32_T
+#define dague_datatype_int64_t            MPI_INT64_T
+#define dague_datatype_uint8_t            MPI_UINT8_T
+#define dague_datatype_uint16_t           MPI_UINT16_T
+#define dague_datatype_uint32_t           MPI_UINT32_T
+#define dague_datatype_uint64_t           MPI_UINT64_T
+#define dague_datatype_float_t            MPI_FLOAT
+#define dague_datatype_double_t           MPI_DOUBLE
+#define dague_datatype_long_double_t      MPI_LONG_DOUBLE
+#define dague_datatype_complex_t          MPI_COMPLEX
+#define dague_datatype_double_complex_t   MPI_DOUBLE_COMPLEX
 
 #include "dague/datatype/datatype_mpi.h"
 
@@ -33,17 +35,19 @@ typedef MPI_Datatype dague_datatype_t;
 #define DAGUE_DATATYPE_NULL  NULL
 typedef void* dague_datatype_t;
 
-#define dague_datatype_int8_t        NULL
-#define dague_datatype_int16_t       NULL
-#define dague_datatype_int32_t       NULL
-#define dague_datatype_int64_t       NULL
-#define dague_datatype_uint8_t       NULL
-#define dague_datatype_uint16_t      NULL
-#define dague_datatype_uint32_t      NULL
-#define dague_datatype_uint64_t      NULL
-#define dague_datatype_float_t       NULL
-#define dague_datatype_double_t      NULL
-#define dague_datatype_long_double_t NULL
+#define dague_datatype_int8_t             NULL
+#define dague_datatype_int16_t            NULL
+#define dague_datatype_int32_t            NULL
+#define dague_datatype_int64_t            NULL
+#define dague_datatype_uint8_t            NULL
+#define dague_datatype_uint16_t           NULL
+#define dague_datatype_uint32_t           NULL
+#define dague_datatype_uint64_t           NULL
+#define dague_datatype_float_t            NULL
+#define dague_datatype_double_t           NULL
+#define dague_datatype_long_double_t      NULL
+#define dague_datatype_complex_t          NULL
+#define dague_datatype_double_complex_t   NULL
 
 BEGIN_C_DECLS
 
