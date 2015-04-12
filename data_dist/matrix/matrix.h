@@ -15,6 +15,7 @@
 #include "data_distribution.h"
 #include "data.h"
 #include "vpmap.h"
+#include "dague/utils/output.h"
 
 BEGIN_C_DECLS
 
@@ -44,6 +45,26 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
     default:
         return -1;
     }
+}
+
+/**
+ * Convert from a matrix type to a more traditional PaRSEC type usable for
+ * creating arenas.
+ */
+static inline int dague_traslate_matrix_type( enum matrix_type mt, dague_datatype_t* dt )
+{
+    switch(mt) {
+    case matrix_Byte:          *dt = dague_datatype_int8_t; break;
+    case matrix_Integer:       *dt = dague_datatype_int32_t; break;
+    case matrix_RealFloat:     *dt = dague_datatype_float_t; break;
+    case matrix_RealDouble:    *dt = dague_datatype_double_t; break;
+    case matrix_ComplexFloat:  *dt = dague_datatype_complex_t; break;
+    case matrix_ComplexDouble: *dt = dague_datatype_double_complex_t; break;
+    default:
+        dague_output(0, "Unknown matrix_type (%d)\n");
+        return -1;
+    }
+    return 0;
 }
 
 #define tiled_matrix_desc_type        0x01
