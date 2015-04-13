@@ -15,6 +15,7 @@
 #include "data_distribution.h"
 #include "data.h"
 #include "vpmap.h"
+#include "dague/datatype.h"
 #include "dague/utils/output.h"
 
 BEGIN_C_DECLS
