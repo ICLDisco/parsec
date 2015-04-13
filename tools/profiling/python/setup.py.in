@@ -2,12 +2,10 @@
 # build script for pbt2ptt
 # run python setup.py build_ext --inplace to build
 
-from __future__ import print_function
 from distutils import ccompiler, util
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext, extension
-from Cython.Build import cythonize
+from Cython.Distutils import build_ext
 import os.path
 import sys
 import socket
@@ -126,7 +124,7 @@ setup(
 )
 
 install_dir = distutils_dir_name('lib')
-print('Installed Python Trace Tables module to', install_dir)
+#print('Installed Python Trace Tables module to', install_dir)
 
 #
 # now fix the bash and fish environment scripts
