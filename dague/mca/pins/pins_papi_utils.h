@@ -13,5 +13,7 @@
 
 void pins_papi_init(dague_context_t * master_context);
 void pins_papi_thread_init(dague_execution_unit_t * exec_unit);
+int pins_papi_mca_string_parse(dague_execution_unit_t * exec_unit, char* mca_param_string, char*** event_names);
+int pins_papi_create_eventset(dague_execution_unit_t * exec_unit, int* eventset, char** event_names, int** native_events, int num_events);
 
 #endif
