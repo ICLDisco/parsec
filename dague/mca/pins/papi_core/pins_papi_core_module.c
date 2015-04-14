@@ -113,6 +113,7 @@ static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit) {
 
     free(exec_unit->pins_papi_core_event_names);
     free(exec_unit->pins_papi_core_native_events);
+    free(exec_unit->core_values);
 
     if( PAPI_OK != (err = PAPI_cleanup_eventset(exec_unit->papi_eventsets[PER_CORE_SET])) ) {
         dague_output(0, "pins_thread_fini_papi_core: failed to cleanup thread %d eventset; ERROR: %s\n",

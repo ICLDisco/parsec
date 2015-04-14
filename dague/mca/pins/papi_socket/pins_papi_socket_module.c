@@ -128,6 +128,7 @@ static void pins_thread_fini_papi_socket(dague_execution_unit_t * exec_unit) {
 
     free(exec_unit->pins_papi_socket_event_names);
     free(exec_unit->pins_papi_socket_native_events);
+    free(exec_unit->socket_values);
 
     if( PAPI_OK != (err = PAPI_cleanup_eventset(exec_unit->papi_eventsets[PER_SOCKET_SET])) ) {
         dague_output(0, "pins_thread_fini_papi_socket: failed to cleanup thread %d eventset; ERROR: %s\n",
