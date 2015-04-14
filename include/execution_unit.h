@@ -75,8 +75,9 @@ struct dague_execution_unit_s {
 
     /* Needed for papi_socket */
     int num_socket_counters;
-    char ** pins_papi_socket_event_name;
-    int * pins_papi_socket_native_event;
+    char ** pins_papi_socket_event_names;
+    int * pins_papi_socket_native_events;
+    long long * socket_values;
     int pins_prof_papi_socket[2];
     int num_socket_tasks;
     int begin_end;
@@ -84,8 +85,9 @@ struct dague_execution_unit_s {
 
     /* Needed for papi_core */
     int num_core_counters;
-    char ** pins_papi_core_event_name;
-    int * pins_papi_core_native_event;
+    char ** pins_papi_core_event_names;
+    int * pins_papi_core_native_events;
+    long long * core_values;
     int pins_prof_papi_core[2];
 #endif  /* defined(PINS_ENABLE) */
 

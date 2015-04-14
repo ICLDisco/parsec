@@ -38,12 +38,12 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
     
     exec_unit->papi_eventsets[PER_SOCKET_SET] = PAPI_NULL;
 
-    exec_unit->num_socket_counters = pins_papi_mca_string_parse(exec_unit, mca_param_string, &exec_unit->pins_papi_socket_event_name);
+    exec_unit->num_socket_counters = pins_papi_mca_string_parse(exec_unit, mca_param_string, &exec_unit->pins_papi_socket_event_names);
     if(exec_unit->num_socket_counters == 0)
         return;
 
-    if(-1 == pins_papi_create_eventset(exec_unit, &exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->pins_papi_socket_event_name,
-                                       &exec_unit->pins_papi_socket_native_event, exec_unit->num_socket_counters)) {
+    if(-1 == pins_papi_create_eventset(exec_unit, &exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->pins_papi_socket_event_names,
+                                       &exec_unit->pins_papi_socket_native_events, exec_unit->num_socket_counters)) {
         exec_unit->papi_eventsets[PER_SOCKET_SET] = PAPI_NULL;
         return;
     }
@@ -57,12 +57,12 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
     asprintf(&key_string, "PINS_SOCKET_S%d_C%d", exec_unit->socket_id, exec_unit->core_id);
 
     for(i = 0; i < exec_unit->num_socket_counters; i++)
-        string_size += strlen(exec_unit->pins_papi_socket_event_name[i]) + strlen("{int64_t}"PARSEC_PAPI_SEPARATOR);
+        string_size += strlen(exec_unit->pins_papi_socket_event_names[i]) + strlen("{int64_t}"PARSEC_PAPI_SEPARATOR);
 
     value_string = (char*)malloc((string_size+1) * sizeof(char));
     value_string[0] = '\0';
     for(i = 0; i < exec_unit->num_socket_counters; i++) {
-        strcat(value_string, exec_unit->pins_papi_socket_event_name[i]);
+        strcat(value_string, exec_unit->pins_papi_socket_event_names[i]);
         strcat(value_string, "{int64_t}"PARSEC_PAPI_SEPARATOR);
     }
 
@@ -117,17 +117,17 @@ static void pins_thread_fini_papi_socket(dague_execution_unit_t * exec_unit) {
     /* the counting should be stopped by now */
     for(i = 0; i < exec_unit->num_socket_counters; i++) {
         if( PAPI_OK != (err = PAPI_remove_event(exec_unit->papi_eventsets[PER_SOCKET_SET],
-                exec_unit->pins_papi_socket_native_event[i])) ) {
+                exec_unit->pins_papi_socket_native_events[i])) ) {
             dague_output(0, "pins_thread_fini_papi_socket: failed to remove event %s; ERROR: %s\n",
-                        exec_unit->pins_papi_socket_event_name[i], PAPI_strerror(err));
+                        exec_unit->pins_papi_socket_event_names[i], PAPI_strerror(err));
         }
     }
 
     for(i = 0; i < exec_unit->num_socket_counters; i++)
-        free(exec_unit->pins_papi_socket_event_name[i]);
+        free(exec_unit->pins_papi_socket_event_names[i]);
 
-    free(exec_unit->pins_papi_socket_event_name);
-    free(exec_unit->pins_papi_socket_native_event);
+    free(exec_unit->pins_papi_socket_event_names);
+    free(exec_unit->pins_papi_socket_native_events);
 
     if( PAPI_OK != (err = PAPI_cleanup_eventset(exec_unit->papi_eventsets[PER_SOCKET_SET])) ) {
         dague_output(0, "pins_thread_fini_papi_socket: failed to cleanup thread %d eventset; ERROR: %s\n",
