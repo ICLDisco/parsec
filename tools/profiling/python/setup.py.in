@@ -126,23 +126,3 @@ setup(
 install_dir = distutils_dir_name('lib')
 #print('Installed Python Trace Tables module to', install_dir)
 
-#
-# now fix the bash and fish environment scripts
-#
-import shutil
-
-bashfilename=os.path.join(package_dir, 'utilities','bash.env')
-if os.path.exists(bashfilename):
-    bash_env = open(bashfilename, 'r')
-    new_bash_env = ''
-    for line in bash_env.readlines():
-        if 'LIB_DIR' in line:
-            line = line.replace('LIB_DIR', install_dir)
-        new_bash_env += line
-    tmp_bash_env = open(bashfilename + '.tmp', 'w')
-    tmp_bash_env.write(new_bash_env)
-    bash_env.close()
-    tmp_bash_env.close()
-    shutil.move(bashfilename + '.tmp',
-                bashfilename)
-
