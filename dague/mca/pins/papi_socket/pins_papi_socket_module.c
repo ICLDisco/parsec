@@ -49,10 +49,11 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
     }
 
 	/* Add the dictionary keyword and start the PAPI counters */
-    papi_socket_info_t info;
     char* key_string;
     char* value_string;
     int string_size = 0;
+    
+    exec_unit->socket_values = (long long*)malloc(exec_unit->num_socket_counters * sizeof(long long));
 
     asprintf(&key_string, "PINS_SOCKET_S%d_C%d", exec_unit->socket_id, exec_unit->core_id);
 
@@ -79,38 +80,37 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
         return;
     }
 
-    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_SOCKET_SET], info.values)) ) {
+    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->socket_values)) ) {
         dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
                     exec_unit->th_id, PAPI_strerror(err));
         return;
     }
 
     (void)dague_profiling_trace(exec_unit->eu_profile, exec_unit->pins_prof_papi_socket[exec_unit->begin_end],
-                                45, 0, (void *)&info);
+                                45, 0, (void *)exec_unit->socket_values);
     exec_unit->begin_end = (exec_unit->begin_end + 1) % 2;
 }
 
 static void pins_thread_fini_papi_socket(dague_execution_unit_t * exec_unit) {
     int err, i;
-    papi_socket_info_t info;
 
     if( PAPI_NULL == exec_unit->papi_eventsets[PER_SOCKET_SET] )
         return;
 
     /* Stop the PAPI counters. */
-    if( PAPI_OK != (err = PAPI_stop(exec_unit->papi_eventsets[PER_SOCKET_SET], info.values)) ) {
+    if( PAPI_OK != (err = PAPI_stop(exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->socket_values)) ) {
         dague_output(0, "couldn't stop PAPI eventset for thread %d; ERROR: %s\n",
                     exec_unit->th_id, PAPI_strerror(err));
     } else {
         /* If the last profiling event was an 'end' event */
         if(exec_unit->begin_end == 0) {
             (void)dague_profiling_trace(exec_unit->eu_profile, exec_unit->pins_prof_papi_socket[0],
-                                        45, 0, (void *)&info);
+                                        45, 0, (void *)exec_unit->socket_values);
             (void)dague_profiling_trace(exec_unit->eu_profile, exec_unit->pins_prof_papi_socket[1],
-                                        45, 0, (void *)&info);
+                                        45, 0, (void *)exec_unit->socket_values);
         } else {
             (void)dague_profiling_trace(exec_unit->eu_profile, exec_unit->pins_prof_papi_socket[1],
-                                        45, 0, (void *)&info);
+                                        45, 0, (void *)exec_unit->socket_values);
         }
     }
 
@@ -147,18 +147,17 @@ static void stop_papi_socket(dague_execution_unit_t * exec_unit,
 
     exec_unit->num_socket_tasks++;
     if(exec_unit->num_socket_tasks == 5) {
-        papi_socket_info_t info;
         int err;
 
         exec_unit->num_socket_tasks = 0;
 
-        if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_SOCKET_SET], info.values)) ) {
+        if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_SOCKET_SET], exec_unit->socket_values)) ) {
             dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
                         exec_unit->th_id, PAPI_strerror(err));
             goto next_pins;
         }
         (void)dague_profiling_trace(exec_unit->eu_profile, exec_unit->pins_prof_papi_socket[exec_unit->begin_end],
-                                    45, 0, (void *)&info);
+                                    45, 0, (void *)exec_unit->socket_values);
         exec_unit->begin_end = (exec_unit->begin_end + 1) % 2;
     }
 

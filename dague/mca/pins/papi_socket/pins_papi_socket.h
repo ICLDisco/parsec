@@ -6,12 +6,6 @@
 #include "dague/mca/mca.h"
 #include "dague/mca/pins/pins.h"
 
-#define NUM_SOCKET_EVENTS 2
-
-typedef struct papi_socket_info_s {
-	long long values[NUM_SOCKET_EVENTS];
-} papi_socket_info_t;
-
 BEGIN_C_DECLS
 
 /**

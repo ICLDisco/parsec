@@ -6,12 +6,6 @@
 #include "dague/mca/mca.h"
 #include "dague/mca/pins/pins.h"
 
-#define NUM_CORE_EVENTS 2
-
-typedef struct papi_core_info_s {
-	long long values[NUM_CORE_EVENTS];
-} papi_core_info_t;
-
 BEGIN_C_DECLS
 
 /**

@@ -56,6 +56,8 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
         return;
     }
     
+    exec_unit->core_values = (long long*)malloc(exec_unit->num_core_counters * sizeof(long long));
+    
     /* Add the dictionary keyword and start the PAPI counters */
     char* key_string;
     char* value_string;
@@ -93,8 +95,7 @@ static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit) {
     if( PAPI_NULL == exec_unit->papi_eventsets[PER_CORE_SET] )
         return;
 
-    papi_core_info_t info;
-    if( PAPI_OK != (err = PAPI_stop(exec_unit->papi_eventsets[PER_CORE_SET], info.values)) ) {
+    if( PAPI_OK != (err = PAPI_stop(exec_unit->papi_eventsets[PER_CORE_SET], exec_unit->core_values)) ) {
         dague_output(0, "couldn't stop PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
     }
@@ -130,17 +131,16 @@ static void start_papi_core(dague_execution_unit_t * exec_unit,
     if( PAPI_NULL == exec_unit->papi_eventsets[PER_CORE_SET] )
         goto next_pins;
 
-    papi_core_info_t info;
     int err;
 
-    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_CORE_SET], info.values)) ) {
+    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_CORE_SET], exec_unit->core_values)) ) {
         dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
         goto next_pins;
     }
 
     (void)dague_profiling_trace(exec_unit->eu_profile, exec_unit->pins_prof_papi_core[0],
-                                45, 0, (void *)&info);
+                                45, 0, (void *)exec_unit->core_values);
 
   next_pins:
     /* call previous callback, if any */
@@ -156,17 +156,16 @@ static void stop_papi_core(dague_execution_unit_t * exec_unit,
     if( PAPI_NULL == exec_unit->papi_eventsets[PER_CORE_SET] )
         goto next_pins;
 
-    papi_core_info_t info;
     int err;
 
-    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_CORE_SET], info.values)) ) {
+    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_CORE_SET], exec_unit->core_values)) ) {
         dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
         goto next_pins;
     }
 
     (void)dague_profiling_trace(exec_unit->eu_profile, exec_unit->pins_prof_papi_core[1],
-                                45, 0, (void *)&info);
+                                45, 0, (void *)exec_unit->core_values);
 
   next_pins:
     /* call previous callback, if any */
