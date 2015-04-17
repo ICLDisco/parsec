@@ -35,7 +35,7 @@ static void pins_fini_papi_socket(dague_context_t * master_context) {
 
 static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
     int err, i;
-    
+
     exec_unit->papi_eventsets[PER_SOCKET_SET] = PAPI_NULL;
 
     exec_unit->num_socket_counters = pins_papi_mca_string_parse(exec_unit, mca_param_string, &exec_unit->pins_papi_socket_event_names);
@@ -52,7 +52,8 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit) {
     char* key_string;
     char* value_string;
     int string_size = 0;
-    
+
+    exec_unit->num_socket_tasks = 0;
     exec_unit->socket_values = (long long*)malloc(exec_unit->num_socket_counters * sizeof(long long));
 
     asprintf(&key_string, "PINS_SOCKET_S%d_C%d", exec_unit->socket_id, exec_unit->core_id);
