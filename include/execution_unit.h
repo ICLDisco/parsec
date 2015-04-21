@@ -24,17 +24,6 @@
 #include "dague/mca/pins/pins.h"
 #endif
 
-#ifdef HAVE_PAPI
-/* for PAPI event sets in execution_unit */
-typedef enum PAPI_EVENTSETS {
-        EXEC_SET,
-        SELECT_SET,
-        PER_SOCKET_SET,
-        PER_CORE_SET,
-        EVENTSETS_COUNT
-} PAPI_EVENTSETS;
-#endif // HAVE_PAPI
-
 #if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -66,7 +55,6 @@ struct dague_execution_unit_s {
 
 #if defined(HAVE_PAPI)
     long long int papi_last_read[5]; /* TODO: magic number */
-    int papi_eventsets[EVENTSETS_COUNT];
 #endif /* HAVE_PAPI */
 
 #if defined(PINS_ENABLE)
@@ -79,9 +67,9 @@ struct dague_execution_unit_s {
     int * pins_papi_socket_native_events;
     long long * socket_values;
     int pins_prof_papi_socket[2];
+    int socket_eventset;
     int num_socket_tasks;
     int begin_end;
-    int num_tasks;
 
     /* Needed for papi_core */
     int num_core_counters;
@@ -89,6 +77,7 @@ struct dague_execution_unit_s {
     int * pins_papi_core_native_events;
     long long * core_values;
     int pins_prof_papi_core[2];
+    int core_eventset;
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)

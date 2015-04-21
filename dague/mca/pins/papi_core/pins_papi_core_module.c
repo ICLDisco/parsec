@@ -44,15 +44,15 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 {
     int err, i;
     
-    exec_unit->papi_eventsets[PER_CORE_SET] = PAPI_NULL;
+    exec_unit->core_eventset = PAPI_NULL;
 
     exec_unit->num_core_counters = pins_papi_mca_string_parse(exec_unit, mca_param_string, &exec_unit->pins_papi_core_event_names);
     if(exec_unit->num_core_counters == 0)
         return;
 
-    if(-1 == pins_papi_create_eventset(exec_unit, &exec_unit->papi_eventsets[PER_CORE_SET], exec_unit->pins_papi_core_event_names,
+    if(-1 == pins_papi_create_eventset(exec_unit, &exec_unit->core_eventset, exec_unit->pins_papi_core_event_names,
                                        &exec_unit->pins_papi_core_native_events, exec_unit->num_core_counters)) {
-        exec_unit->papi_eventsets[PER_CORE_SET] = PAPI_NULL;
+        exec_unit->core_eventset = PAPI_NULL;
         return;
     }
     
@@ -83,7 +83,7 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
     free(key_string);
     free(value_string);
 
-    if( PAPI_OK != (err = PAPI_start(exec_unit->papi_eventsets[PER_CORE_SET])) ) {
+    if( PAPI_OK != (err = PAPI_start(exec_unit->core_eventset)) ) {
         dague_output(0, "couldn't start PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
     }
@@ -92,16 +92,16 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit) {
     int err, i;
 
-    if( PAPI_NULL == exec_unit->papi_eventsets[PER_CORE_SET] )
+    if( PAPI_NULL == exec_unit->core_eventset )
         return;
 
-    if( PAPI_OK != (err = PAPI_stop(exec_unit->papi_eventsets[PER_CORE_SET], exec_unit->core_values)) ) {
+    if( PAPI_OK != (err = PAPI_stop(exec_unit->core_eventset, exec_unit->core_values)) ) {
         dague_output(0, "couldn't stop PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
     }
     /* the counting should be stopped by now */
     for(i = 0; i < exec_unit->num_core_counters; i++) {
-        if( PAPI_OK != (err = PAPI_remove_event(exec_unit->papi_eventsets[PER_CORE_SET],
+        if( PAPI_OK != (err = PAPI_remove_event(exec_unit->core_eventset,
                                                 exec_unit->pins_papi_core_native_events[i])) ) {
             dague_output(0, "pins_thread_fini_papi_core: failed to remove event %s; ERROR: %s\n",
                          exec_unit->pins_papi_core_event_names[i], PAPI_strerror(err));
@@ -115,11 +115,11 @@ static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit) {
     free(exec_unit->pins_papi_core_native_events);
     free(exec_unit->core_values);
 
-    if( PAPI_OK != (err = PAPI_cleanup_eventset(exec_unit->papi_eventsets[PER_CORE_SET])) ) {
+    if( PAPI_OK != (err = PAPI_cleanup_eventset(exec_unit->core_eventset)) ) {
         dague_output(0, "pins_thread_fini_papi_core: failed to cleanup thread %d eventset; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
     }
-    if( PAPI_OK != (err = PAPI_destroy_eventset(&exec_unit->papi_eventsets[PER_CORE_SET])) ) {
+    if( PAPI_OK != (err = PAPI_destroy_eventset(&exec_unit->core_eventset)) ) {
         dague_output(0, "pins_thread_fini_papi_core: failed to destroy thread %d eventset; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
     }
@@ -129,12 +129,12 @@ static void start_papi_core(dague_execution_unit_t * exec_unit,
                             dague_execution_context_t * exec_context,
                             void * data)
 {
-    if( PAPI_NULL == exec_unit->papi_eventsets[PER_CORE_SET] )
+    if( PAPI_NULL == exec_unit->core_eventset )
         goto next_pins;
 
     int err;
 
-    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_CORE_SET], exec_unit->core_values)) ) {
+    if( PAPI_OK != (err = PAPI_read(exec_unit->core_eventset, exec_unit->core_values)) ) {
         dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
         goto next_pins;
@@ -154,12 +154,12 @@ static void start_papi_core(dague_execution_unit_t * exec_unit,
 static void stop_papi_core(dague_execution_unit_t * exec_unit,
                            dague_execution_context_t * exec_context,
                            void * data) {
-    if( PAPI_NULL == exec_unit->papi_eventsets[PER_CORE_SET] )
+    if( PAPI_NULL == exec_unit->core_eventset )
         goto next_pins;
 
     int err;
 
-    if( PAPI_OK != (err = PAPI_read(exec_unit->papi_eventsets[PER_CORE_SET], exec_unit->core_values)) ) {
+    if( PAPI_OK != (err = PAPI_read(exec_unit->core_eventset, exec_unit->core_values)) ) {
         dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
         goto next_pins;
