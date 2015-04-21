@@ -364,7 +364,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     with Timer() as t:
         trace.to_hdf(out, table=table, append=append,
                      complevel=compress[1], complib=compress[0])
-    cond_print('Wrote trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
+    cond_print('Generate trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
             cond_print('Unlinking {} after conversion'.format(filename), report_progress)
