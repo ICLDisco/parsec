@@ -28,7 +28,7 @@ if( NOT PYTHON_EXECUTABLE )
 endif( NOT PYTHON_EXECUTABLE )
 if( PYTHONINTERP_FOUND )
     add_custom_command(OUTPUT ${OUTPUT}
-                       COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} build
+                       COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} build_ext --inplace --quiet
                        COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
                        DEPENDS ${DEPS})
 

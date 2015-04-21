@@ -194,7 +194,7 @@ static dague_data_t* hash_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key
         data = OBJ_NEW(dague_data_t);
 
         data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->original = data;
+        data_copy->original = NULL;
         data_copy->device_private = e->actual_data;
 
         data->owner_device = 0;

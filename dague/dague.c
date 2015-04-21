@@ -1446,11 +1446,11 @@ void dague_destruct_dependencies(dague_dependencies_t* d)
  *
  */
 int dague_set_complete_callback( dague_handle_t* dague_handle,
-                                 dague_completion_cb_t complete_cb, void* complete_cb_data )
+                                 dague_event_cb_t complete_cb, void* complete_cb_data )
 {
-    if( NULL == dague_handle->complete_cb ) {
-        dague_handle->complete_cb      = complete_cb;
-        dague_handle->complete_cb_data = complete_cb_data;
+    if( NULL == dague_handle->on_complete ) {
+        dague_handle->on_complete      = complete_cb;
+        dague_handle->on_complete_data = complete_cb_data;
         return 0;
     }
     return -1;
@@ -1460,11 +1460,39 @@ int dague_set_complete_callback( dague_handle_t* dague_handle,
  *
  */
 int dague_get_complete_callback( const dague_handle_t* dague_handle,
-                                 dague_completion_cb_t* complete_cb, void** complete_cb_data )
+                                 dague_event_cb_t* complete_cb, void** complete_cb_data )
 {
-    if( NULL != dague_handle->complete_cb ) {
-        *complete_cb      = dague_handle->complete_cb;
-        *complete_cb_data = dague_handle->complete_cb_data;
+    if( NULL != dague_handle->on_complete ) {
+        *complete_cb      = dague_handle->on_complete;
+        *complete_cb_data = dague_handle->on_complete_data;
+        return 0;
+    }
+    return -1;
+}
+
+/**
+ *
+ */
+int dague_set_enqueue_callback( dague_handle_t* dague_handle,
+                                dague_event_cb_t enqueue_cb, void* enqueue_cb_data )
+{
+    if( NULL == dague_handle->on_enqueue ) {
+        dague_handle->on_enqueue      = enqueue_cb;
+        dague_handle->on_enqueue_data = enqueue_cb_data;
+        return 0;
+    }
+    return -1;
+}
+
+/**
+ *
+ */
+int dague_get_enqueue_callback( const dague_handle_t* dague_handle,
+                                dague_event_cb_t* enqueue_cb, void** enqueue_cb_data )
+{
+    if( NULL != dague_handle->on_enqueue ) {
+        *enqueue_cb      = dague_handle->on_enqueue;
+        *enqueue_cb_data = dague_handle->on_enqueue_data;
         return 0;
     }
     return -1;

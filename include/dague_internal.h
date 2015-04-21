@@ -58,11 +58,15 @@ struct dague_handle_s {
 #if defined(DAGUE_PROF_TRACE)
     const int*                 profiling_array;
 #endif  /* defined(DAGUE_PROF_TRACE) */
-    /* Completion callback. Triggered when all the tasks associated with
-     * a particular dague object have been completed.
+    /* A set of callbacks at critical moments in the lifetime of a handle:
+     * enqueue and completion. The enqueue is called when the handle is
+     * enqueue into a context, while the completion is triggered when all
+     * the tasks associated with a particular dague handle have been completed.
      */
-    dague_completion_cb_t      complete_cb;
-    void*                      complete_cb_data;
+    dague_event_cb_t           on_enqueue;
+    void*                      on_enqueue_data;
+    dague_event_cb_t           on_complete;
+    void*                      on_complete_data;
     dague_destruct_fn_t        destructor;
     dague_dependencies_t**     dependencies_array;
     data_repo_t**              repo_array;

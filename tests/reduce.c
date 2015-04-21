@@ -61,9 +61,12 @@ int main( int argc, char* argv[] )
                                                (tiled_matrix_desc_t*)&ddescA,
                                                NULL);
     /* Prepare the arena for the reduction */
-    dague_type_create_contiguous(nb, dague_datatype_double_t, &newtype);
+    dague_type_create_contiguous(nb, dague_datatype_float_t, &newtype);
+#if defined(HAVE_MPI)
+    MPI_Type_commit(&newtype);
+#endif  /* defined(HAVE_MPI) */
     dague_arena_construct(((dague_reduce_handle_t*)object)->arenas[DAGUE_reduce_DEFAULT_ARENA],
-                          nb*sizeof(double),
+                          nb*sizeof(float),
                           DAGUE_ARENA_ALIGNMENT_SSE,
                           newtype);
 
@@ -74,6 +77,10 @@ int main( int argc, char* argv[] )
     dague_map_operator_Destruct( object );
 
     dague_fini(&dague);
+
+#if defined(HAVE_MPI)
+    MPI_Finalize();
+#endif  /* defined(HAVE_MPI) */
 
     return 0;
 }
