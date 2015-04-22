@@ -12,6 +12,7 @@
 #include <mpi.h>
 #include "profiling.h"
 #include "dague/class/list.h"
+#include "dague/utils/mca_param.h"
 #include "data.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
@@ -823,6 +824,8 @@ static unsigned long get = 0;
 static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
 static int MPI_Data_plds_sk, MPI_Data_plds_ek;
 static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
+static int MPI_Enable_Profiling;
+static char* MPI_Enable_Profiling_String = NULL;
 
 typedef struct {
     int rank_src;
@@ -834,26 +837,40 @@ static char dague_profile_remote_dep_mpi_info_to_string[] = "";
 
 static void remote_dep_mpi_profiling_init(void)
 {
-    dague_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
-                                            sizeof(dague_profile_remote_dep_mpi_info_t),
-                                            dague_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Activate_sk, &MPI_Activate_ek);
-    dague_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
-                                            sizeof(dague_profile_remote_dep_mpi_info_t),
-                                            dague_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
-    dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
-                                            sizeof(dague_profile_remote_dep_mpi_info_t),
-                                            dague_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Data_plds_sk, &MPI_Data_plds_ek);
-    dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
-                                            sizeof(dague_profile_remote_dep_mpi_info_t),
-                                            dague_profile_remote_dep_mpi_info_to_string,
-                                            &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
+    if(MPI_Enable_Profiling_String == NULL) {
+        dague_mca_param_reg_string_name("profile_mpi", "ON/OFF",
+                                        "Switch for profiling MPI events like send and receive. (OFF to disable, ON to enable (default))",
+                                        false, false,
+                                        "ON", &MPI_Enable_Profiling_String);
+        if(1 == strcmp(MPI_Enable_Profiling_String, "ON")) {
+            MPI_Enable_Profiling = 1;
+        } else {
+            MPI_Enable_Profiling = 0;
+        }
+    }
 
-    MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
-    MPIsnd_prof = dague_profiling_thread_init( 2*1024*1024, "MPI isend");
-    MPIrcv_prof = dague_profiling_thread_init( 2*1024*1024, "MPI irecv");
+    if(MPI_Enable_Profiling == 1) {
+        dague_profiling_add_dictionary_keyword( "MPI_ACTIVATE", "fill:#FF0000",
+                                                sizeof(dague_profile_remote_dep_mpi_info_t),
+                                                dague_profile_remote_dep_mpi_info_to_string,
+                                                &MPI_Activate_sk, &MPI_Activate_ek);
+        dague_profiling_add_dictionary_keyword( "MPI_DATA_CTL", "fill:#000077",
+                                                sizeof(dague_profile_remote_dep_mpi_info_t),
+                                                dague_profile_remote_dep_mpi_info_to_string,
+                                                &MPI_Data_ctl_sk, &MPI_Data_ctl_ek);
+        dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_SND", "fill:#B08080",
+                                                sizeof(dague_profile_remote_dep_mpi_info_t),
+                                                dague_profile_remote_dep_mpi_info_to_string,
+                                                &MPI_Data_plds_sk, &MPI_Data_plds_ek);
+        dague_profiling_add_dictionary_keyword( "MPI_DATA_PLD_RCV", "fill:#80B080",
+                                                sizeof(dague_profile_remote_dep_mpi_info_t),
+                                                dague_profile_remote_dep_mpi_info_to_string,
+                                                &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
+
+        MPIctl_prof = dague_profiling_thread_init( 2*1024*1024, "MPI ctl");
+        MPIsnd_prof = dague_profiling_thread_init( 2*1024*1024, "MPI isend");
+        MPIrcv_prof = dague_profiling_thread_init( 2*1024*1024, "MPI irecv");
+    }
 }
 
 static void remote_dep_mpi_profiling_fini(void)
@@ -864,6 +881,7 @@ static void remote_dep_mpi_profiling_fini(void)
 }
 
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {           \
+        if(MPI_Enable_Profiling) {                                      \
         dague_profile_remote_dep_mpi_info_t __info;                     \
         dague_execution_context_t __exec_context;                       \
         dague_handle_t *__object = dague_handle_lookup( (rdw).handle_id ); \
@@ -874,6 +892,7 @@ static void remote_dep_mpi_profiling_fini(void)
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
         DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, &__info); \
+        }                                                               \
     } while(0)
 
 #define TAKE_TIME(PROF, KEY, I) DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL);
