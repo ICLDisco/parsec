@@ -14,8 +14,6 @@
 #include <papi.h>
 #include "execution_unit.h"
 
-#define PARSEC_PAPI_SEPARATOR ";"
-
 typedef struct parsec_pins_core_callback_s {
     parsec_pins_next_callback_t  default_cb;
     int                          papi_eventset;
@@ -140,14 +138,14 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit) {
         asprintf(&key_string, "PINS_CORE_S%d_C%d", exec_unit->socket_id, exec_unit->core_id);
 
         for(i = 0; i < event_cb->num_core_counters; i++) {
-            string_size += strlen(event_cb->pins_papi_core_event_name[i]) + strlen("{int64_t}"PARSEC_PAPI_SEPARATOR);
+            string_size += strlen(event_cb->pins_papi_core_event_name[i]) + strlen("{int64_t}"PARSEC_PINS_SEPARATOR);
         }
 
         value_string = (char*)calloc(string_size, sizeof(char));
 
         for(i = 0; i < event_cb->num_core_counters; i++) {
             strcat(value_string, event_cb->pins_papi_core_event_name[i]);
-            strcat(value_string, "{int64_t}"PARSEC_PAPI_SEPARATOR);
+            strcat(value_string, "{int64_t}"PARSEC_PINS_SEPARATOR);
         }
 
         dague_profiling_add_dictionary_keyword(key_string, "fill:#00AAFF",

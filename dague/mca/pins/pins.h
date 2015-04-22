@@ -5,6 +5,8 @@
 #include "dague_config.h"
 #include "dague/mca/mca.h"
 
+#define PARSEC_PINS_SEPARATOR ";"
+
 struct dague_context_s;
 struct dague_handle_s;
 struct dague_execution_unit_s;
