@@ -24,17 +24,6 @@
 #include "dague/mca/pins/pins.h"
 #endif
 
-#ifdef HAVE_PAPI
-/* for PAPI event sets in execution_unit */
-typedef enum PAPI_EVENTSETS {
-        EXEC_SET,
-        SELECT_SET,
-        PER_SOCKET_SET,
-        PER_CORE_SET,
-        EVENTSETS_COUNT
-} PAPI_EVENTSETS;
-#endif // HAVE_PAPI
-
 #if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -64,13 +53,10 @@ struct dague_execution_unit_s {
     int largest_simulation_date;
 #endif
 
-#if defined(HAVE_PAPI)
-    long long int papi_last_read[5]; /* TODO: magic number */
-    int papi_eventsets[EVENTSETS_COUNT];
-#endif /* HAVE_PAPI */
-
 #if defined(PINS_ENABLE)
+
     long long int starvation;
+#if 0  /* GB: REMOVE ASAP */
     long * steal_counters; /* this is for Stephanie and print_steals PINS module */
 
     /* Needed for papi_socket */
@@ -87,6 +73,9 @@ struct dague_execution_unit_s {
     char ** pins_papi_core_event_name;
     int * pins_papi_core_native_event;
     int pins_prof_papi_core[2];
+#endif
+
+    struct parsec_pins_next_callback_s pins_events_cb[PINS_FLAG_COUNT];
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)

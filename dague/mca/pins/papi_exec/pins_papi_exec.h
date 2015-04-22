@@ -10,8 +10,8 @@
 #define PAPI_EXEC_NATIVE_EVENT_NAMES {PAPI_L1_DCM, PAPI_L2_DCH, PAPI_L2_DCM, PAPI_L2_DCA}
 
 typedef struct papi_exec_info_s {
-	int kernel_type;
-	long long values[NUM_EXEC_EVENTS];
+    int kernel_type;
+    long long values[NUM_EXEC_EVENTS];
 } papi_exec_info_t;
 
 BEGIN_C_DECLS

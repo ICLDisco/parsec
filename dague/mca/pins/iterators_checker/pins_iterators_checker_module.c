@@ -15,37 +15,35 @@
 #include <stdio.h>
 
 /* init functions */
-static void pins_init_iterators_checker(dague_context_t * master_context);
-static void pins_fini_iterators_checker(dague_context_t * master_context);
+static void pins_thread_init_iterators_checker(struct dague_execution_unit_s* exec_unit);
+static void pins_thread_fini_iterators_checker(struct dague_execution_unit_s* exec_unit);
 
 /* PINS callbacks */
-static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_unit,
-                                               dague_execution_context_t * exec_context,
-                                               void * data);
+static void iterators_checker_exec_count_begin(dague_execution_unit_t* exec_unit,
+                                               dague_execution_context_t* exec_context,
+                                               struct parsec_pins_next_callback_s* data);
 const dague_pins_module_t dague_pins_iterators_checker_module = {
     &dague_pins_iterators_checker_component,
     {
-        pins_init_iterators_checker,
-        pins_fini_iterators_checker,
         NULL,
         NULL,
         NULL,
-        NULL
+        NULL,
+        pins_thread_init_iterators_checker,
+        pins_thread_fini_iterators_checker
     }
 };
 
-static parsec_pins_callback * exec_begin_prev; /* courtesy calls to previously-registered cbs */
-
-static void pins_init_iterators_checker(dague_context_t * master_context) {
-    (void)master_context;
-
-    exec_begin_prev = PINS_REGISTER(EXEC_BEGIN, iterators_checker_exec_count_begin);
+static void pins_thread_init_iterators_checker(struct dague_execution_unit_s* exec_unit)
+{
+    struct parsec_pins_next_callback_s* event_cb =
+        (struct parsec_pins_next_callback_s*)malloc(sizeof(struct parsec_pins_next_callback_s));
+    PINS_REGISTER(exec_unit, EXEC_BEGIN, iterators_checker_exec_count_begin, event_cb);
 }
 
-static void pins_fini_iterators_checker(dague_context_t * master_context) {
-    (void)master_context;
-    // replace original registrants
-    PINS_REGISTER(EXEC_BEGIN, exec_begin_prev);
+static void pins_thread_fini_iterators_checker(struct dague_execution_unit_s* exec_unit)
+{
+    PINS_UNREGISTER(exec_unit, EXEC_BEGIN, iterators_checker_exec_count_begin, NULL);
 }
 
 /*
@@ -76,9 +74,9 @@ static dague_ontask_iterate_t print_link(dague_execution_unit_t *eu,
     return DAGUE_ITERATE_CONTINUE;
 }
 
-static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_unit,
-                                               dague_execution_context_t * exec_context,
-                                               void *_data)
+static void iterators_checker_exec_count_begin(dague_execution_unit_t* exec_unit,
+                                               dague_execution_context_t* exec_context,
+                                               struct parsec_pins_next_callback_s* _data)
 {
     char  str[TASK_STR_LEN];
     const dep_t *final_deps[MAX_PARAM_COUNT];
@@ -109,9 +107,5 @@ static void iterators_checker_exec_count_begin(dague_execution_unit_t * exec_uni
             fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d is remote\n",
                     str, i, nbfo);
     }
-
-    // keep the contract with the previous registrant
-    if (exec_begin_prev != NULL) {
-        (*exec_begin_prev)(exec_unit, exec_context, _data);
-    }
+    (void)_data;
 }
