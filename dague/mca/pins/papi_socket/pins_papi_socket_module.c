@@ -200,7 +200,7 @@ static void pins_thread_fini_papi_socket(dague_execution_unit_t* exec_unit)
 
     PINS_UNREGISTER(exec_unit, EXEC_END, stop_papi_socket, (parsec_pins_next_callback_t**)&event_cb);
 
-    if( PAPI_NULL == event_cb->papi_eventset )
+    if( (NULL == event_cb) || (PAPI_NULL == event_cb->papi_eventset) )
         return;
 
     /* Stop the PAPI counters. */

@@ -36,6 +36,45 @@ static void stop_papi_core(dague_execution_unit_t * exec_unit,
 
 static char* mca_param_string;
 
+static void pins_cleanup_event(parsec_pins_core_callback_t* event_cb,
+                               papi_core_info_t* pinfo)
+{
+    int i, err;
+
+    if(PAPI_NULL != event_cb->papi_eventset) {
+        if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, pinfo->values)) ) {
+            dague_output(0, "couldn't stop PAPI eventset ERROR: %s\n",
+                         PAPI_strerror(err));
+        }
+        /* the counting should be stopped by now */
+        for(i = 0; i < event_cb->num_core_counters; i++) {
+            if( PAPI_OK != (err = PAPI_remove_event(event_cb->papi_eventset,
+                                                    event_cb->pins_papi_core_native_event[i])) ) {
+                dague_output(0, "failed to remove event %s; ERROR: %s\n",
+                             event_cb->pins_papi_core_event_name[i], PAPI_strerror(err));
+            }
+        }
+        if( PAPI_OK != (err = PAPI_cleanup_eventset(event_cb->papi_eventset)) ) {
+            dague_output(0, "failed to cleanup eventset (ERROR: %s)\n", PAPI_strerror(err));
+        }
+
+        if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
+            dague_output(0, "failed to destroy PAPI eventset (ERROR: %s)\n", PAPI_strerror(err));
+        }
+    }
+
+    for(i = 0; i < event_cb->num_core_counters; i++)
+        if( NULL != event_cb->pins_papi_core_event_name[i] )
+        free(event_cb->pins_papi_core_event_name[i]);
+
+    if( NULL != event_cb->pins_papi_core_event_name )
+        free(event_cb->pins_papi_core_event_name);
+    if( NULL != event_cb->pins_papi_core_native_event)
+        free(event_cb->pins_papi_core_native_event);
+
+    free(event_cb);
+}
+
 static void pins_init_papi_core(dague_context_t * master_context)
 {
     pins_papi_init(master_context);
@@ -44,14 +83,14 @@ static void pins_init_papi_core(dague_context_t * master_context)
                                     "PAPI event to be saved.\n",
                                     false, false,
                                     "", &mca_param_string);
-
 }
 
 static void pins_fini_papi_core(dague_context_t * master_context)
 {
 }
 
-static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit) {
+static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
+{
     char *mca_param_name, *token, *saveptr = NULL;
     int err, i;
     bool socket, core, started = false;
@@ -163,49 +202,24 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit) {
                       (parsec_pins_next_callback_t*)event_cb);
         PINS_REGISTER(exec_unit, EXEC_END, stop_papi_core,
                       (parsec_pins_next_callback_t*)event_cb);
+        return;  /* we're done here */
     }
+    papi_core_info_t info;
+    pins_cleanup_event(event_cb, NULL);
 }
 
 static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit)
 {
     parsec_pins_core_callback_t* event_cb;
-    int err, i;
+    papi_core_info_t info;
 
     PINS_UNREGISTER(exec_unit, EXEC_BEGIN, start_papi_core, (parsec_pins_next_callback_t**)&event_cb);
     PINS_UNREGISTER(exec_unit, EXEC_END, stop_papi_core, (parsec_pins_next_callback_t**)&event_cb);
 
-    if( PAPI_NULL == event_cb->papi_eventset )
+    if( (NULL == event_cb) || (PAPI_NULL == event_cb->papi_eventset) )
         return;
 
-    papi_core_info_t info;
-    if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, info.values)) ) {
-        dague_output(0, "couldn't stop PAPI eventset for thread %d; ERROR: %s\n",
-                     exec_unit->th_id, PAPI_strerror(err));
-    }
-    /* the counting should be stopped by now */
-    for(i = 0; i < event_cb->num_core_counters; i++) {
-        if( PAPI_OK != (err = PAPI_remove_event(event_cb->papi_eventset,
-                                                event_cb->pins_papi_core_native_event[i])) ) {
-            dague_output(0, "pins_thread_fini_papi_core: failed to remove event %s; ERROR: %s\n",
-                         event_cb->pins_papi_core_event_name[i], PAPI_strerror(err));
-        }
-    }
-
-    for(i = 0; i < event_cb->num_core_counters; i++)
-        free(event_cb->pins_papi_core_event_name[i]);
-
-    free(event_cb->pins_papi_core_event_name);
-    free(event_cb->pins_papi_core_native_event);
-
-    if( PAPI_OK != (err = PAPI_cleanup_eventset(event_cb->papi_eventset)) ) {
-        dague_output(0, "pins_thread_fini_papi_core: failed to cleanup thread %d eventset; ERROR: %s\n",
-                     exec_unit->th_id, PAPI_strerror(err));
-    }
-    if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
-        dague_output(0, "pins_thread_fini_papi_core: failed to destroy thread %d eventset; ERROR: %s\n",
-                     exec_unit->th_id, PAPI_strerror(err));
-    }
-    free(event_cb);
+    pins_cleanup_event(event_cb, &info);
 }
 
 static void start_papi_core(dague_execution_unit_t* exec_unit,
