@@ -54,27 +54,6 @@ struct dague_execution_unit_s {
 #endif
 
 #if defined(PINS_ENABLE)
-
-    long long int starvation;
-#if 0  /* GB: REMOVE ASAP */
-    long * steal_counters; /* this is for Stephanie and print_steals PINS module */
-
-    /* Needed for papi_socket */
-    int num_socket_counters;
-    char ** pins_papi_socket_event_name;
-    int * pins_papi_socket_native_event;
-    int pins_prof_papi_socket[2];
-    int num_socket_tasks;
-    int begin_end;
-    int num_tasks;
-
-    /* Needed for papi_core */
-    int num_core_counters;
-    char ** pins_papi_core_event_name;
-    int * pins_papi_core_native_event;
-    int pins_prof_papi_core[2];
-#endif
-
     struct parsec_pins_next_callback_s pins_events_cb[PINS_FLAG_COUNT];
 #endif  /* defined(PINS_ENABLE) */
 
