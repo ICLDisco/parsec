@@ -12,6 +12,10 @@
 
 #define NUM_DEFAULT_EVENTS 4  /* default number of events */
 
+typedef struct parsec_pins_papi_values_s {
+    long long values[NUM_DEFAULT_EVENTS];
+} parsec_pins_papi_values_t;
+
 typedef struct parsec_pins_papi_event_s {
     int        socket;
     int        core;
@@ -29,8 +33,10 @@ typedef struct parsec_pins_papi_events_s {
 /* CORES_PER_SOCKET is now in CMAKE config,
  * until dague-hwloc is updated to support dynamic determination */
 
-void pins_papi_init(dague_context_t * master_context);
-void pins_papi_thread_init(dague_execution_unit_t * exec_unit);
+int pins_papi_init(dague_context_t * master_context);
+int pins_papi_fini(dague_context_t * master_context);
+int pins_papi_thread_init(dague_execution_unit_t * exec_unit);
+int pins_papi_thread_fini(dague_execution_unit_t * exec_unit);
 
 /**
  * Parse a string into PAPI events and returns the event array initialized with the
