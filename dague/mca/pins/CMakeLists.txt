@@ -1,4 +1,5 @@
-set(PINS_SOURCES "pins.c pins_init.c")
+set(PINS_SOURCES mca/pins/pins.c mca/pins/pins_init.c)
 IF(PAPI_FOUND)
-  SET(APPEND PINS_SOURCES pins/pins_papi_utils.c)
+  SET(APPEND PINS_SOURCES mca/pins/pins_papi_utils.c)
 endIF(PAPI_FOUND)
+set(MCA_pins_SOURCES ${PINS_SOURCES})
