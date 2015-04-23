@@ -838,11 +838,12 @@ static char dague_profile_remote_dep_mpi_info_to_string[] = "";
 static void remote_dep_mpi_profiling_init(void)
 {
     if(MPI_Enable_Profiling_String == NULL) {
-        dague_mca_param_reg_string_name("profile_mpi", "ON/OFF",
+        dague_mca_param_reg_string_name("profile", "mpi",
                                         "Switch for profiling MPI events like send and receive. (OFF to disable, ON to enable (default))",
                                         false, false,
                                         "ON", &MPI_Enable_Profiling_String);
-        if(1 == strcmp(MPI_Enable_Profiling_String, "ON")) {
+
+        if(0 == strcmp(MPI_Enable_Profiling_String, "ON")) {
             MPI_Enable_Profiling = 1;
         } else {
             MPI_Enable_Profiling = 0;
@@ -881,7 +882,7 @@ static void remote_dep_mpi_profiling_fini(void)
 }
 
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {           \
-        if(MPI_Enable_Profiling) {                                      \
+        if(MPI_Enable_Profiling == 1) {                                 \
         dague_profile_remote_dep_mpi_info_t __info;                     \
         dague_execution_context_t __exec_context;                       \
         dague_handle_t *__object = dague_handle_lookup( (rdw).handle_id ); \
