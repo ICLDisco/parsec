@@ -46,7 +46,7 @@ logging.basicConfig(level=10, format='%(message)s')
 logger = logging.getLogger(__name__)
 
 # This should be identical to the C PARSEC_PINS_SEPARATOR
-PARSEC_PINS_SEPARATOR = ":"
+PARSEC_PINS_SEPARATOR = ";"
 
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
            add_info=dict()):
