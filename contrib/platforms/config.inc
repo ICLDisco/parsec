@@ -71,7 +71,7 @@ if [ -n "${PLASMA_DIR}" ]; then
   PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 fi
 
-if [ -n "${PAPI_DIR}" -a -f "$PAPI_DIR/lib/libpapi.so" -a -n "${PROFILE}" ]; then
+if [ -n "${PAPI_DIR}" -a -f "$PAPI_DIR/lib/libpapi.so" ]; then
     PROFILE="${PROFILE} -DPAPI_DIR=${PAPI_DIR}"
 fi
 
