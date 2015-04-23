@@ -24,9 +24,11 @@ int pins_papi_init(dague_context_t * master_context)
         init_done = 1;
         err = PAPI_library_init(PAPI_VER_CURRENT); /* this has to happen before threads get created */
         if( PAPI_VER_CURRENT != err ) {
-            dague_output(0, "Failed to initialize PAPI. All components depending on PAPI will be disabled.");
+            dague_output(0, "Failed to initialize PAPI (%x != %x[expected]). All components depending on PAPI will be disabled.",
+                         PAPI_VER_CURRENT, err);
             return -1;
         }
+        dague_output(0, "Using PAPI version %x\n", PAPI_VER_CURRENT);
         /*PAPI_set_debug(PAPI_VERB_ECONT);*/
         err = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self ));
         if( err != PAPI_OK ) {
@@ -69,6 +71,9 @@ int pins_papi_thread_init(dague_execution_unit_t * exec_unit)
 
 int pins_papi_thread_fini(dague_execution_unit_t * exec_unit)
 {
+    int err = PAPI_unregister_thread();
+    if ( err != PAPI_OK )
+        dague_output(0, "PAPI_unregister_thread failed (%s).\n", PAPI_strerror(err));
     return 0;
 }
 

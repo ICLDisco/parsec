@@ -189,6 +189,7 @@ static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit)
         return;
 
     pins_cleanup_event(event_cb, &info);
+    pins_papi_thread_fini(exec_unit);
     /* If the last profiling event was an 'end' event */
     if(event_cb->begin_end == 0) {
         (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[0],
@@ -206,9 +207,6 @@ static void parsec_pins_papi_read(dague_execution_unit_t* exec_unit,
     parsec_pins_core_callback_t* event_cb = (parsec_pins_core_callback_t*)cb_data;
     parsec_pins_papi_values_t info;
     int err;
-
-    if( PAPI_NULL == event_cb->papi_eventset )
-        return;
 
     if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info.values)) ) {
         dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
