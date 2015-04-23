@@ -42,7 +42,7 @@ static void pins_init_papi_socket(dague_context_t * master_context)
 }
 
 static void pins_cleanup_event(parsec_pins_socket_callback_t* event_cb,
-                               papi_socket_info_t* pinfo)
+                               parsec_pins_papi_values_t* pinfo)
 {
     int i, err;
 
@@ -88,11 +88,11 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
     event_cb->num_counters = 0;
     event_cb->num_tasks = 0;
     event_cb->begin_end = 0;
-    event_cb->pins_papi_event_name = (char**)calloc(NUM_SOCKET_EVENTS, sizeof(char*));
-    event_cb->pins_papi_native_event = (int*)calloc(NUM_SOCKET_EVENTS, sizeof(int));
+    event_cb->pins_papi_event_name = (char**)calloc(NUM_DEFAULT_EVENTS, sizeof(char*));
+    event_cb->pins_papi_native_event = (int*)calloc(NUM_DEFAULT_EVENTS, sizeof(int));
     event_cb->papi_eventset = PAPI_NULL;
 
-    for(i = 0; i < NUM_SOCKET_EVENTS; i++) {
+    for(i = 0; i < NUM_DEFAULT_EVENTS; i++) {
         event_cb->pins_papi_event_name[i] = NULL;
         event_cb->pins_papi_native_event[i] = PAPI_NULL;
     }
@@ -140,9 +140,9 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
         token = strtok_r(NULL, ",", &saveptr);
 
         if(socket && core) {
-            if(event_cb->num_counters == NUM_SOCKET_EVENTS) {
+            if(event_cb->num_counters == NUM_DEFAULT_EVENTS) {
                 dague_output(0, "pins_thread_init_papi_socket: thread %d couldn't add event '%s' because only %d events are allowed.\n",
-                             exec_unit->th_id, token, NUM_SOCKET_EVENTS);
+                             exec_unit->th_id, token, NUM_DEFAULT_EVENTS);
                 break;
             }
 
@@ -184,7 +184,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
     free(token);
 
     if(event_cb->num_counters > 0) {
-        papi_socket_info_t info;
+        parsec_pins_papi_values_t info;
         char* key_string;
         char* value_string;
         int string_size = 0;
@@ -203,7 +203,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
         }
 
         dague_profiling_add_dictionary_keyword(key_string, "fill:#00AAFF",
-                                               sizeof(papi_socket_info_t), value_string,
+                                               event_cb->num_counters * sizeof(long long), value_string,
                                                &event_cb->pins_prof_event[0],
                                                &event_cb->pins_prof_event[1]);
         free(key_string);
@@ -227,7 +227,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
         PINS_REGISTER(exec_unit, EXEC_END, stop_papi_socket, (parsec_pins_next_callback_t*)event_cb);
         return;
     }
-    papi_socket_info_t info;
+    parsec_pins_papi_values_t info;
     pins_cleanup_event(event_cb, &info);
     free(event_cb);
 }
@@ -235,7 +235,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
 static void pins_thread_fini_papi_socket(dague_execution_unit_t* exec_unit)
 {
     parsec_pins_socket_callback_t* event_cb;
-    papi_socket_info_t info;
+    parsec_pins_papi_values_t info;
     int err, i;
 
     PINS_UNREGISTER(exec_unit, EXEC_END, stop_papi_socket, (parsec_pins_next_callback_t**)&event_cb);
@@ -266,7 +266,7 @@ static void stop_papi_socket(dague_execution_unit_t* exec_unit,
 
     event_cb->num_tasks++;
     if(event_cb->num_tasks == 5) {
-        papi_socket_info_t info;
+        parsec_pins_papi_values_t info;
         int err;
 
 

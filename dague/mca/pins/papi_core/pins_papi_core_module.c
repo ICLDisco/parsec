@@ -33,7 +33,7 @@ static char* mca_param_string;
 static parsec_pins_papi_events_t* pins_papi_core_events = NULL;
 
 static void pins_cleanup_event(parsec_pins_core_callback_t* event_cb,
-                               papi_core_info_t* pinfo)
+                               parsec_pins_papi_values_t* pinfo)
 {
     int i, err;
 
@@ -77,7 +77,7 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 {
     parsec_pins_core_callback_t* event_cb = NULL;
     parsec_pins_papi_event_t* event;
-    papi_core_info_t info;
+    parsec_pins_papi_values_t info;
     int i, my_socket, my_core, err;
     bool started = false;
     char* conv_string = NULL;
@@ -180,7 +180,7 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit)
 {
     parsec_pins_core_callback_t* event_cb;
-    papi_core_info_t info;
+    parsec_pins_papi_values_t info;
 
     PINS_UNREGISTER(exec_unit, EXEC_BEGIN, parsec_pins_papi_read, (parsec_pins_next_callback_t**)&event_cb);
     PINS_UNREGISTER(exec_unit, EXEC_END, parsec_pins_papi_read, (parsec_pins_next_callback_t**)&event_cb);
@@ -204,7 +204,7 @@ static void parsec_pins_papi_read(dague_execution_unit_t* exec_unit,
                                   parsec_pins_next_callback_t* cb_data)
 {
     parsec_pins_core_callback_t* event_cb = (parsec_pins_core_callback_t*)cb_data;
-    papi_core_info_t info;
+    parsec_pins_papi_values_t info;
     int err;
 
     if( PAPI_NULL == event_cb->papi_eventset )
