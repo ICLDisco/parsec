@@ -31,7 +31,13 @@ FOREACH (COMPONENT ${MCA_COMPONENTS})
                    ENDIF()
            ENDFOREACH(MODULE)
            SET(MCA_STATIC_COMPONENTS_ACCESSORS "${MCA_STATIC_COMPONENTS_ACCESSORS}  register_base_component(\"${COMPONENT}\");")
-           FILE(GLOB MCA_${COMPONENT}_SOURCES ${MCA_BASE_DIR}/${COMPONENT}/[^\\.]*.c)
+
+           IF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
+             include("${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt")
+           ELSE( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
+             FILE(GLOB MCA_${COMPONENT}_SOURCES ${MCA_BASE_DIR}/${COMPONENT}/[^\\.]*.c)
+           ENDIF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
+
            FOREACH(SRC ${MCA_${COMPONENT}_SOURCES})
                LIST(APPEND MCA_EXTRA_SOURCES ${SRC}) # this will include sources in the component top-level dir
            ENDFOREACH(SRC ${MCA_${COMPONENT}_SOURCES})
