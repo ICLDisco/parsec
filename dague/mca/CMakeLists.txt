@@ -37,6 +37,7 @@ FOREACH (COMPONENT ${MCA_COMPONENTS})
            ELSE( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
              FILE(GLOB MCA_${COMPONENT}_SOURCES ${MCA_BASE_DIR}/${COMPONENT}/[^\\.]*.c)
            ENDIF( EXISTS "${MCA_BASE_DIR}/${COMPONENT}/CMakeLists.txt" )
+           MESSAGE(STATUS "Component ${COMPONENT} sources: ${MCA_${COMPONENT}_SOURCES}")
 
            FOREACH(SRC ${MCA_${COMPONENT}_SOURCES})
                LIST(APPEND MCA_EXTRA_SOURCES ${SRC}) # this will include sources in the component top-level dir
