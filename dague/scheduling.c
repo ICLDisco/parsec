@@ -147,7 +147,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
+    PINS(eu_context, EXEC_BEGIN, exec_context);
     DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
     /**
@@ -161,13 +161,13 @@ int __dague_execute( dague_execution_unit_t* eu_context,
 #endif
         rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
         if( DAGUE_HOOK_RETURN_NEXT != rc ) {
-            PINS(EXEC_END, eu_context, exec_context, NULL);
+            PINS(eu_context, EXEC_END, exec_context);
             return rc;
         }
         exec_context->chore_id++;
     } while(NULL != function->incarnations[exec_context->chore_id].hook);
     /* We're out of luck, no more chores */
-    PINS(EXEC_END, eu_context, exec_context, NULL  );
+    PINS(eu_context, EXEC_END, exec_context);
     return DAGUE_HOOK_RETURN_ERROR;
 }
 
@@ -313,7 +313,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     int rc = 0;
 
     /* complete execution==add==push (also includes exec of immediates) */
-    PINS(COMPLETE_EXEC_BEGIN, eu_context, exec_context, NULL);
+    PINS(eu_context, COMPLETE_EXEC_BEGIN, exec_context);
 
     if( NULL != exec_context->function->prepare_output ) {
         exec_context->function->prepare_output( eu_context, exec_context );
@@ -322,7 +322,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
     __dague_complete_task(exec_context->dague_handle, eu_context->virtual_process->dague_context);
-    PINS(COMPLETE_EXEC_END, eu_context, exec_context, NULL);
+    PINS(eu_context, COMPLETE_EXEC_END, exec_context);
     AYU_TASK_COMPLETE(exec_context);
 
     /* Succesfull execution. The context is ready to be released, all
@@ -366,7 +366,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     dague_statistics_per_eu("EU", eu_context);
 #endif
     /* first select begin, right before the wait_for_the... goto label */
-    PINS(SELECT_BEGIN, eu_context, NULL, NULL);
+    PINS(eu_context, SELECT_BEGIN, NULL);
 
     /* The main loop where all the threads will spend their time */
   wait_for_the_next_round:
@@ -405,15 +405,10 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
         }
 
-        /* time how long it takes to get a task, if indeed we get one */
-        dague_time_t select_begin = take_time();
         exec_context = current_scheduler->module.select(eu_context);
 
         if( exec_context != NULL ) {
-            dague_time_t select_end = take_time();
-            uint64_t select_time = diff_time(select_begin, select_end);
-            PINS(SELECT_END, eu_context, exec_context, (void *)select_time);
-            /* select end, and record with it the amount of time actually spent selecting */
+            PINS(eu_context, SELECT_END, exec_context);
             misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -428,11 +423,11 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
             }
 #endif
 
-            PINS(PREPARE_INPUT_BEGIN, eu_context, exec_context, NULL);
+            PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_HOOK_RETURN_DONE:
             {
-                PINS(PREPARE_INPUT_END, eu_context, exec_context, NULL);
+                PINS(eu_context, PREPARE_INPUT_END, exec_context);
                 int rv = 0;
                 /* We're good to go ... */
                 rv = __dague_execute( eu_context, exec_context );
@@ -447,7 +442,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
             }
 
             // subsequent select begins
-            PINS(SELECT_BEGIN, eu_context, NULL, NULL);
+            PINS(eu_context, SELECT_BEGIN, NULL);
         } else {
             misses_in_a_row++;
         }
@@ -487,7 +482,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     // final select end - can we mark this as special somehow?
     // actually, it will already be obviously special, since it will be the only select
     // that has no context
-    PINS(SELECT_END, eu_context, NULL, NULL);
+    PINS(eu_context, SELECT_END, NULL);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     STATUS(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",

@@ -45,6 +45,9 @@ microsleep = 0.05
 logging.basicConfig(level=10, format='%(message)s')
 logger = logging.getLogger(__name__)
 
+# This should be identical to the C PARSEC_PINS_SEPARATOR
+PARSEC_PINS_SEPARATOR = ";"
+
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
            add_info=dict()):
     """ Given binary trace filenames, returns a PaRSEC Trace Table (PTT) object
@@ -107,11 +110,11 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
         logger.log(40, "Event %s conv <%s> length %d\n", event_name, event_conv, event_length)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
-            event_conv = 'kernel_type{int32_t};value1{int64_t};value2{int64_t};value3{int64_t};'
+            event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
                                                                  event_conv, event_length)
-            
+
     builder.event_names[-1] = '' # this is the default, for kernels without names
 
     # start with our nodes in the correct order
@@ -364,7 +367,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     with Timer() as t:
         trace.to_hdf(out, table=table, append=append,
                      complevel=compress[1], complib=compress[0])
-    cond_print('Wrote trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
+    cond_print('Generate trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
             cond_print('Unlinking {} after conversion'.format(filename), report_progress)
@@ -472,8 +475,8 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
 
     for i in range(dbp_thread_nb_infos(cthread)):
         th_info = dbp_thread_get_info(cthread, i)
-        key = dbp_info_get_key(th_info);
-        value = dbp_info_get_value(th_info);
+        key = dbp_info_get_key(th_info)
+        value = dbp_info_get_value(th_info)
         add_kv(thread, key, value)
 
     # sanity check events
@@ -499,7 +502,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
             event = dict()
             event['info_start'] = None
             event['info_end']   = None
-            
+
             cinfo = dbp_event_get_info(event_s)
             if cinfo != NULL:
                 if None != builder.event_convertors[event_type]:
@@ -533,7 +536,7 @@ cdef construct_thread(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                     event['duration'] = duration
                     event['flags'] = event_flags
                     event['id'] = event_id
-                    
+
                     cinfo = dbp_event_get_info(event_e)
                     if cinfo != NULL:
                         if None != builder.event_convertors[event_type]:
@@ -627,9 +630,9 @@ from collections import namedtuple
 import struct
 
 #
-# The event_conv must be a ; separated list of tuple using the following format:
-# [NAME{TYPE};]+, where NAME is a string and TYPE is one of: int, int32_t,
-# int64_t, float and double.
+# The event_conv must be a PARSEC_PINS_SEPARATOR separated list of tuple using
+# the following format: [NAME{TYPE}PARSEC_PINS_SEPARATOR]+, where NAME is a string and TYPE is one
+# of: int, int32_t, int64_t, float and double.
 #
 # The event_len is the length in bytes of the event.
 #
@@ -642,7 +645,7 @@ cdef class ExtendedEvent:
     def __init__(self, event_name, event_conv, event_len):
         fmt = '@'
         self.aev = []
-        for ev in str.split(event_conv, ';'):
+        for ev in str.split(event_conv, PARSEC_PINS_SEPARATOR):
             if 0 == len(ev):
                 continue
             ev_list = str.split(ev, '{', 2)

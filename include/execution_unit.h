@@ -53,31 +53,8 @@ struct dague_execution_unit_s {
     int largest_simulation_date;
 #endif
 
-#if defined(HAVE_PAPI)
-    long long int papi_last_read[5]; /* TODO: magic number */
-#endif /* HAVE_PAPI */
-
 #if defined(PINS_ENABLE)
-    long long int starvation;
-    long * steal_counters; /* this is for Stephanie and print_steals PINS module */
-
-    /* Needed for papi_socket */
-    int num_socket_counters;
-    char ** pins_papi_socket_event_names;
-    int * pins_papi_socket_native_events;
-    long long * socket_values;
-    int pins_prof_papi_socket[2];
-    int socket_eventset;
-    int num_socket_tasks;
-    int begin_end;
-
-    /* Needed for papi_core */
-    int num_core_counters;
-    char ** pins_papi_core_event_names;
-    int * pins_papi_core_native_events;
-    long long * core_values;
-    int pins_prof_papi_core[2];
-    int core_eventset;
+    struct parsec_pins_next_callback_s pins_events_cb[PINS_FLAG_COUNT];
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
