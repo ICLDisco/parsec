@@ -128,13 +128,14 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
             }
 
             /* Convert event name to code */
-            if(PAPI_OK != PAPI_event_name_to_code(token, &event->pins_papi_native_event) ) {
-                dague_output(0, "Could not convert %s to a valid PAPI event name. Ignore the event\n", token);
+            if(PAPI_OK != (err = PAPI_event_name_to_code(token, &event->pins_papi_native_event)) ) {
+                dague_output(0, "%s: Could not convert %s to a valid PAPI event name (%s). Ignore the event\n",
+                             __func__, token, PAPI_strerror(err));
             } else {
                 if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
                                                      event->pins_papi_native_event)) ) {
-                    dague_output(0, "%s: Unsupported event %s; ERROR: %s. Discard the event.\n",
-                                 __func__, token, PAPI_strerror(err));
+                    dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
+                                 __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
                     continue;
                 }
                 dague_output(0, "Valid PAPI event %s on %d socket (-1 for all), %d core (-1 for all) and frequency %d\n",

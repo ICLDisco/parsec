@@ -25,13 +25,9 @@ typedef struct parsec_pins_core_callback_s {
     parsec_pins_papi_events_t*   events_list;
 } parsec_pins_core_callback_t;
 
-static void start_papi_core(dague_execution_unit_t * exec_unit,
-                            dague_execution_context_t * exec_context,
-                            parsec_pins_next_callback_t* data);
-
-static void stop_papi_core(dague_execution_unit_t * exec_unit,
-                           dague_execution_context_t * exec_context,
-                           parsec_pins_next_callback_t* data);
+static void parsec_pins_papi_read(dague_execution_unit_t* exec_unit,
+                                  dague_execution_context_t* exec_context,
+                                  parsec_pins_next_callback_t* cb_data);
 
 static char* mca_param_string;
 static parsec_pins_papi_events_t* pins_papi_core_events = NULL;
@@ -165,9 +161,9 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
                                     45, 0, (void *)&info);
         event_cb->begin_end = (event_cb->begin_end + 1) & 0x1;  /* aka. % 2 */
 
-        PINS_REGISTER(exec_unit, EXEC_BEGIN, start_papi_core,
+        PINS_REGISTER(exec_unit, EXEC_BEGIN, parsec_pins_papi_read,
                       (parsec_pins_next_callback_t*)event_cb);
-        PINS_REGISTER(exec_unit, EXEC_END, stop_papi_core,
+        PINS_REGISTER(exec_unit, EXEC_END, parsec_pins_papi_read,
                       (parsec_pins_next_callback_t*)event_cb);
         free(conv_string);
         return;  /* we're done here */
@@ -186,8 +182,8 @@ static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit)
     parsec_pins_core_callback_t* event_cb;
     papi_core_info_t info;
 
-    PINS_UNREGISTER(exec_unit, EXEC_BEGIN, start_papi_core, (parsec_pins_next_callback_t**)&event_cb);
-    PINS_UNREGISTER(exec_unit, EXEC_END, stop_papi_core, (parsec_pins_next_callback_t**)&event_cb);
+    PINS_UNREGISTER(exec_unit, EXEC_BEGIN, parsec_pins_papi_read, (parsec_pins_next_callback_t**)&event_cb);
+    PINS_UNREGISTER(exec_unit, EXEC_END, parsec_pins_papi_read, (parsec_pins_next_callback_t**)&event_cb);
 
     if( (NULL == event_cb) || (PAPI_NULL == event_cb->papi_eventset) )
         return;
@@ -203,9 +199,9 @@ static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit)
     free(event_cb);
 }
 
-static void start_papi_core(dague_execution_unit_t* exec_unit,
-                            dague_execution_context_t* exec_context,
-                            parsec_pins_next_callback_t* cb_data)
+static void parsec_pins_papi_read(dague_execution_unit_t* exec_unit,
+                                  dague_execution_context_t* exec_context,
+                                  parsec_pins_next_callback_t* cb_data)
 {
     parsec_pins_core_callback_t* event_cb = (parsec_pins_core_callback_t*)cb_data;
     papi_core_info_t info;
@@ -220,28 +216,9 @@ static void start_papi_core(dague_execution_unit_t* exec_unit,
         return;
     }
 
-    (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[0],
+    (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[event_cb->begin_end],
                                 45, 0, (void *)&info);
-}
-
-static void stop_papi_core(dague_execution_unit_t* exec_unit,
-                           dague_execution_context_t* exec_context,
-                           parsec_pins_next_callback_t* cb_data)
-{
-    parsec_pins_core_callback_t* event_cb = (parsec_pins_core_callback_t*)cb_data;
-    papi_core_info_t info;
-    int err;
-
-    if( PAPI_NULL == event_cb->papi_eventset )
-        return;
-
-    if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info.values)) ) {
-        dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
-                     exec_unit->th_id, PAPI_strerror(err));
-        return;
-    }
-    (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[1],
-                                45, 0, (void *)&info);
+    event_cb->begin_end = (event_cb->begin_end + 1) & 0x1;  /* aka. % 2 */
 }
 
 const dague_pins_module_t dague_pins_papi_core_module = {
