@@ -46,7 +46,7 @@ logging.basicConfig(level=10, format='%(message)s')
 logger = logging.getLogger(__name__)
 
 # This should be identical to the C PARSEC_PINS_SEPARATOR
-cdef char PARSEC_PINS_SEPARATOR = ':'
+PARSEC_PINS_SEPARATOR = ":"
 
 cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=False,
            add_info=dict()):
@@ -630,8 +630,8 @@ from collections import namedtuple
 import struct
 
 #
-# The event_conv must be a PARSEC_PAPI_SEPARATOR separated list of tuple using
-# the following format: [NAME{TYPE}PARSEC_PAPI_SEPARATOR]+, where NAME is a string and TYPE is one
+# The event_conv must be a PARSEC_PINS_SEPARATOR separated list of tuple using
+# the following format: [NAME{TYPE}PARSEC_PINS_SEPARATOR]+, where NAME is a string and TYPE is one
 # of: int, int32_t, int64_t, float and double.
 #
 # The event_len is the length in bytes of the event.
@@ -645,7 +645,7 @@ cdef class ExtendedEvent:
     def __init__(self, event_name, event_conv, event_len):
         fmt = '@'
         self.aev = []
-        for ev in str.split(event_conv, PARSEC_PAPI_SEPARATOR):
+        for ev in str.split(event_conv, PARSEC_PINS_SEPARATOR):
             if 0 == len(ev):
                 continue
             ev_list = str.split(ev, '{', 2)
