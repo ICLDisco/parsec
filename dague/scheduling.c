@@ -512,6 +512,9 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
+    if( dague_context->__dague_internal_finalization_in_progress ) {
+        PINS_THREAD_FINI(eu_context);
+    }
     return nbiterations;
 }
 

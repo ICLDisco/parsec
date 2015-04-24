@@ -791,11 +791,7 @@ int dague_fini( dague_context_t** pcontext )
     context->__dague_internal_finalization_in_progress = 1;
     dague_barrier_wait( &(context->barrier) );
 
-    for (p = 0; p < context->nb_vp; p++) {
-        for (c = 0; c < context->virtual_processes[p]->nb_cores; c++) {
-            PINS_THREAD_FINI(context->virtual_processes[p]->execution_units[c]);
-        }
-    }
+    PINS_THREAD_FINI(context->virtual_processes[0]->execution_units[0]);
 
     PINS_FINI(context);
 
