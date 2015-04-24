@@ -5,15 +5,11 @@
  */
 
 #include "dague_config.h"
-#if defined(HAVE_PAPI)
 #include <papi.h>
-#endif
 #include "pins_papi_utils.h"
 #include "dague/utils/output.h"
 
-#if defined(HAVE_PAPI)
 static int init_done = 0;
-#endif  /* defined(HAVE_PAPI) */
 
 /**
  * This function should be called once per application in order to enable
@@ -21,27 +17,26 @@ static int init_done = 0;
  */
 int pins_papi_init(dague_context_t * master_context)
 {
-    int err = -1;
+    int err;
 
     (void)master_context;
-#if defined(HAVE_PAPI)
     if( !init_done ) {
         init_done = 1;
         err = PAPI_library_init(PAPI_VER_CURRENT); /* this has to happen before threads get created */
         if( PAPI_VER_CURRENT != err ) {
-            dague_output(0, "Failed to initialize PAPI. All components depending on PAPI will be disabled.");
+            dague_output(0, "Failed to initialize PAPI (%x != %x[expected]). All components depending on PAPI will be disabled.",
+                         PAPI_VER_CURRENT, err);
             return -1;
         }
+        dague_output(0, "Using PAPI version %x\n", PAPI_VER_CURRENT);
         /*PAPI_set_debug(PAPI_VERB_ECONT);*/
         err = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self ));
         if( err != PAPI_OK ) {
             dague_output(0, "PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
             return -2;
         }
-        err = 0;
     }
-#endif /* HAVE_PAPI */
-    return err;
+    return 0;
 }
 
 /**
@@ -59,18 +54,15 @@ int pins_papi_fini(dague_context_t * master_context)
  */
 int pins_papi_thread_init(dague_execution_unit_t * exec_unit)
 {
-    int err = -1;
+    int err;
 
     (void)exec_unit;
-#if defined(HAVE_PAPI)
     err = PAPI_register_thread();
     if( err != PAPI_OK ) {
         dague_output(0, "PAPI_register_thread failed (%s). All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
         return -1;
-    } else
-        err = 0;
-#endif /* HAVE_PAPI */
-    return err;
+    }
+    return 0;
 }
 
 /**
@@ -79,6 +71,9 @@ int pins_papi_thread_init(dague_execution_unit_t * exec_unit)
 
 int pins_papi_thread_fini(dague_execution_unit_t * exec_unit)
 {
+    int err = PAPI_unregister_thread();
+    if ( err != PAPI_OK )
+        dague_output(0, "PAPI_unregister_thread failed (%s).\n", PAPI_strerror(err));
     return 0;
 }
 
@@ -208,4 +203,25 @@ int parsec_pins_papi_events_free(parsec_pins_papi_events_t** pevents)
     free(events);
     *pevents = NULL;
     return 0;
+}
+
+void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
+                                    parsec_pins_papi_values_t* pinfo)
+{
+    int i, err;
+
+    if(PAPI_NULL != event_cb->papi_eventset) {
+        if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, pinfo->values)) ) {
+            dague_output(0, "couldn't stop PAPI eventset ERROR: %s\n",
+                         PAPI_strerror(err));
+        }
+        if( PAPI_OK != (err = PAPI_cleanup_eventset(event_cb->papi_eventset)) ) {
+            dague_output(0, "failed to cleanup eventset (ERROR: %s)\n", PAPI_strerror(err));
+        }
+
+        if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
+            dague_output(0, "failed to destroy PAPI eventset (ERROR: %s)\n", PAPI_strerror(err));
+        }
+        event_cb->papi_eventset = PAPI_NULL;
+    }
 }

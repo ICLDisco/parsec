@@ -30,6 +30,17 @@ typedef struct parsec_pins_papi_events_s {
     parsec_pins_papi_event_t*    events;
 } parsec_pins_papi_events_t;
 
+typedef struct parsec_pins_papi_callback_s {
+    parsec_pins_next_callback_t  default_cb;
+    int                          papi_eventset;
+    int                          num_counters;
+    int                          pins_prof_event[2];
+    int                          begin_end;
+    int                          num_tasks;
+    int                          frequency;
+    parsec_pins_papi_events_t*   events_list;
+} parsec_pins_papi_callback_t;
+
 /* CORES_PER_SOCKET is now in CMAKE config,
  * until dague-hwloc is updated to support dynamic determination */
 
@@ -49,5 +60,11 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_list);
  * Free a list of PAPI events.
  */
 int parsec_pins_papi_events_free(parsec_pins_papi_events_t** pevents);
+
+/**
+ * Close all PAPI related structures from a cb event.
+ */
+void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
+                                    parsec_pins_papi_values_t* pinfo);
 
 #endif
