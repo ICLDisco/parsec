@@ -61,4 +61,10 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_list);
  */
 int parsec_pins_papi_events_free(parsec_pins_papi_events_t** pevents);
 
+/**
+ * Close all PAPI related structures from a cb event.
+ */
+void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
+                                    parsec_pins_papi_values_t* pinfo);
+
 #endif

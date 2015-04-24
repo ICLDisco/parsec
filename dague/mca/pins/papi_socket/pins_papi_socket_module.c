@@ -21,27 +21,6 @@ static void stop_papi_socket(dague_execution_unit_t* exec_unit,
 static char* mca_param_string;
 static parsec_pins_papi_events_t* pins_papi_socket_events = NULL;
 
-static void pins_cleanup_event(parsec_pins_papi_callback_t* event_cb,
-                               parsec_pins_papi_values_t* pinfo)
-{
-    int i, err;
-
-    if(PAPI_NULL != event_cb->papi_eventset) {
-        if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, pinfo->values)) ) {
-            dague_output(0, "couldn't stop PAPI eventset ERROR: %s\n",
-                         PAPI_strerror(err));
-        }
-        if( PAPI_OK != (err = PAPI_cleanup_eventset(event_cb->papi_eventset)) ) {
-            dague_output(0, "failed to cleanup eventset (ERROR: %s)\n", PAPI_strerror(err));
-        }
-
-        if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
-            dague_output(0, "failed to destroy PAPI eventset (ERROR: %s)\n", PAPI_strerror(err));
-        }
-        event_cb->papi_eventset = PAPI_NULL;
-    }
-}
-
 static void pins_init_papi_socket(dague_context_t * master_context)
 {
     pins_papi_init(master_context);
@@ -97,7 +76,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
             if( PAPI_OK != (err = PAPI_create_eventset(&event_cb->papi_eventset)) ) {
                 dague_output(0, "%s: thread %d couldn't create the PAPI event set; ERROR: %s\n",
                              __func__, exec_unit->th_id, PAPI_strerror(err));
-                pins_cleanup_event(event_cb, &info);
+                parsec_pins_papi_event_cleanup(event_cb, &info);
                 free(event_cb); event_cb = NULL;
                 continue;
             }
@@ -157,7 +136,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
     }
   cleanup_and_return:
     if( NULL != event_cb ) {
-        pins_cleanup_event(event_cb, &info);
+        parsec_pins_papi_event_cleanup(event_cb, &info);
         free(event_cb); event_cb = NULL;
     }
     if( NULL != conv_string )
@@ -177,7 +156,7 @@ static void pins_thread_fini_papi_socket(dague_execution_unit_t* exec_unit)
 
     pins_papi_thread_fini(exec_unit);
     if( PAPI_NULL == event_cb->papi_eventset ) {
-        pins_cleanup_event(event_cb, &info);
+        parsec_pins_papi_event_cleanup(event_cb, &info);
 
         /* If the last profiling event was an 'end' event */
         if(event_cb->begin_end == 0) {

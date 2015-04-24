@@ -204,3 +204,24 @@ int parsec_pins_papi_events_free(parsec_pins_papi_events_t** pevents)
     *pevents = NULL;
     return 0;
 }
+
+void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
+                                    parsec_pins_papi_values_t* pinfo)
+{
+    int i, err;
+
+    if(PAPI_NULL != event_cb->papi_eventset) {
+        if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, pinfo->values)) ) {
+            dague_output(0, "couldn't stop PAPI eventset ERROR: %s\n",
+                         PAPI_strerror(err));
+        }
+        if( PAPI_OK != (err = PAPI_cleanup_eventset(event_cb->papi_eventset)) ) {
+            dague_output(0, "failed to cleanup eventset (ERROR: %s)\n", PAPI_strerror(err));
+        }
+
+        if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
+            dague_output(0, "failed to destroy PAPI eventset (ERROR: %s)\n", PAPI_strerror(err));
+        }
+        event_cb->papi_eventset = PAPI_NULL;
+    }
+}
