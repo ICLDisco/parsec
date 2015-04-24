@@ -134,11 +134,16 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         }
         event = &events->events[events->num_counters];
 
-        for( token = strtok_r(token, ":", &save_lptr); NULL != token; token = strtok_r(NULL, ":", &save_lptr) ) {
+        save_lptr = NULL;
+        for( ; NULL != token;
+             strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr), token = save_lptr ) {
+
             if(token[0] == 'S') {
                 if(token[1] != '*') {
                     event->socket = atoi(&token[1]);
                 }
+                strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr);
+                token = save_lptr;
                 continue;
             }
 
@@ -146,11 +151,15 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 if(token[1] != '*') {
                     event->core = atoi(&token[1]);
                 }
+                strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr);
+                token = save_lptr;
                 continue;
             }
 
             if(token[0] == 'F') {
                 event->frequency = atoi(&token[1]);
+                strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr);
+                token = save_lptr;
                 continue;
             }
             if( event->frequency <= 0 ) {
