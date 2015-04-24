@@ -135,8 +135,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         event = &events->events[events->num_counters];
 
         save_lptr = NULL;
-        for( ; NULL != token;
-             strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr), token = save_lptr ) {
+        for( ; NULL != token; ) {
 
             if(token[0] == 'S') {
                 if(token[1] != '*') {
