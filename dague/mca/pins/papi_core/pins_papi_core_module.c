@@ -14,17 +14,6 @@
 #include <papi.h>
 #include "execution_unit.h"
 
-typedef struct parsec_pins_core_callback_s {
-    parsec_pins_next_callback_t  default_cb;
-    int                          papi_eventset;
-    int                          num_counters;
-    int                          pins_prof_event[2];
-    int                          begin_end;
-    int                          num_tasks;
-    int                          frequency;
-    parsec_pins_papi_events_t*   events_list;
-} parsec_pins_core_callback_t;
-
 static void parsec_pins_papi_read(dague_execution_unit_t* exec_unit,
                                   dague_execution_context_t* exec_context,
                                   parsec_pins_next_callback_t* cb_data);
@@ -32,7 +21,7 @@ static void parsec_pins_papi_read(dague_execution_unit_t* exec_unit,
 static char* mca_param_string;
 static parsec_pins_papi_events_t* pins_papi_core_events = NULL;
 
-static void pins_cleanup_event(parsec_pins_core_callback_t* event_cb,
+static void pins_cleanup_event(parsec_pins_papi_callback_t* event_cb,
                                parsec_pins_papi_values_t* pinfo)
 {
     int i, err;
@@ -49,6 +38,7 @@ static void pins_cleanup_event(parsec_pins_core_callback_t* event_cb,
         if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
             dague_output(0, "failed to destroy PAPI eventset (ERROR: %s)\n", PAPI_strerror(err));
         }
+        event_cb->papi_eventset = PAPI_NULL;
     }
 }
 
@@ -75,7 +65,7 @@ static void pins_fini_papi_core(dague_context_t * master_context)
 
 static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 {
-    parsec_pins_core_callback_t* event_cb = NULL;
+    parsec_pins_papi_callback_t* event_cb = NULL;
     parsec_pins_papi_event_t* event;
     parsec_pins_papi_values_t info;
     int i, my_socket, my_core, err;
@@ -100,7 +90,7 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
         if(!started) {  /* create the event and the PAPI eventset */
             pins_papi_thread_init(exec_unit);
 
-            event_cb = (parsec_pins_core_callback_t*)malloc(sizeof(parsec_pins_core_callback_t));
+            event_cb = (parsec_pins_papi_callback_t*)malloc(sizeof(parsec_pins_papi_callback_t));
             event_cb->papi_eventset = PAPI_NULL;
             event_cb->num_counters = 0;
             event_cb->events_list = pins_papi_core_events;
@@ -109,8 +99,8 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
             event_cb->num_tasks = 0;
             /* Create an empty eventset */
             if( PAPI_OK != (err = PAPI_create_eventset(&event_cb->papi_eventset)) ) {
-                dague_output(0, "pins_thread_init_papi_socket: thread %d couldn't create the PAPI event set; ERROR: %s\n",
-                             exec_unit->th_id, PAPI_strerror(err));
+                dague_output(0, "%s: thread %d couldn't create the PAPI event set; ERROR: %s\n",
+                             __func__, exec_unit->th_id, PAPI_strerror(err));
                 pins_cleanup_event(event_cb, &info);
                 free(event_cb); event_cb = NULL;
                 continue;
@@ -134,13 +124,15 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
             free(tmp);
         }
     }
+
     if( (NULL != event_cb) && (0 != event_cb->num_counters) ) {
         char* key_string;
 
         asprintf(&key_string, "PINS_CORE_S%d_C%d", exec_unit->socket_id, exec_unit->core_id);
 
         dague_profiling_add_dictionary_keyword(key_string, "fill:#00AAFF",
-                                               sizeof(uint64_t) * event_cb->num_counters, conv_string,
+                                               sizeof(long long) * event_cb->num_counters,
+                                               conv_string,
                                                &event_cb->pins_prof_event[0],
                                                &event_cb->pins_prof_event[1]);
         free(key_string);
@@ -179,24 +171,26 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
 
 static void pins_thread_fini_papi_core(dague_execution_unit_t * exec_unit)
 {
-    parsec_pins_core_callback_t* event_cb;
+    parsec_pins_papi_callback_t* event_cb;
     parsec_pins_papi_values_t info;
 
     PINS_UNREGISTER(exec_unit, EXEC_BEGIN, parsec_pins_papi_read, (parsec_pins_next_callback_t**)&event_cb);
     PINS_UNREGISTER(exec_unit, EXEC_END, parsec_pins_papi_read, (parsec_pins_next_callback_t**)&event_cb);
 
-    if( (NULL == event_cb) || (PAPI_NULL == event_cb->papi_eventset) )
+    if( NULL == event_cb )
         return;
 
-    pins_cleanup_event(event_cb, &info);
     pins_papi_thread_fini(exec_unit);
-    /* If the last profiling event was an 'end' event */
-    if(event_cb->begin_end == 0) {
-        (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[0],
+    if( PAPI_NULL == event_cb->papi_eventset ) {
+        pins_cleanup_event(event_cb, &info);
+        /* If the last profiling event was an 'end' event */
+        if(event_cb->begin_end == 0) {
+            (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[0],
+                                        45, 0, (void *)&info);
+        }
+        (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[1],
                                     45, 0, (void *)&info);
     }
-    (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[1],
-                                45, 0, (void *)&info);
     free(event_cb);
 }
 
@@ -204,7 +198,7 @@ static void parsec_pins_papi_read(dague_execution_unit_t* exec_unit,
                                   dague_execution_context_t* exec_context,
                                   parsec_pins_next_callback_t* cb_data)
 {
-    parsec_pins_core_callback_t* event_cb = (parsec_pins_core_callback_t*)cb_data;
+    parsec_pins_papi_callback_t* event_cb = (parsec_pins_papi_callback_t*)cb_data;
     parsec_pins_papi_values_t info;
     int err;
 
