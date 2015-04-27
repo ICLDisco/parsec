@@ -344,11 +344,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
             case 'H':
                 if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
-#if defined(HAVE_HWLOC)
-                 dague_hwloc_allow_ht(strtol(optarg, (char **) NULL, 10)); break;
-#else
-                 fprintf(stderr, "Option H (hyper-threading) disabled without HWLOC\n");
-#endif  /* defined(HAVE_HWLOC */
+                exit(-10);  /* No kidding! */
 
             case 'V':
                 if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
