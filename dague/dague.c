@@ -764,7 +764,7 @@ static void dague_vp_fini( dague_vp_t *vp )
 int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
-    int nb_total_comp_threads, t, p, c;
+    int nb_total_comp_threads, p;
 
     /**
      * We need to force the main thread to drain all possible pending messages
@@ -801,8 +801,8 @@ int dague_fini( dague_context_t** pcontext )
 
     /* The first execution unit is for the master thread */
     if( nb_total_comp_threads > 1 ) {
-        for(t = 1; t < nb_total_comp_threads; t++) {
-            pthread_join( context->pthreads[t], NULL );
+        for(p = 1; p < nb_total_comp_threads; p++) {
+            pthread_join( context->pthreads[p], NULL );
         }
         free(context->pthreads);
         context->pthreads = NULL;
