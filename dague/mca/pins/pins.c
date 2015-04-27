@@ -106,6 +106,5 @@ int parsec_pins_unregister_callback(struct dague_execution_unit_s* exec_unit,
     }
     assert(cb_event->cb_func == cb);
     *cb_data = cb_event->cb_data;
-    *cb_event = *cb_event->cb_data;
     return 0;
 }
