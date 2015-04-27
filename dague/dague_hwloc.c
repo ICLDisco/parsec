@@ -14,12 +14,13 @@
 #endif  /* defined(HAVE_HWLOC) */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
 static int first_init = 1;
 #endif  /* defined(HAVE_HWLOC) */
-static int ht = 1;
+static int hyperth_per_core = 1;
 
 #if defined(HAVE_HWLOC_PARENT_MEMBER)
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->parent
@@ -100,30 +101,19 @@ int dague_hwloc_distance( int id1, int id2 )
     return 0;
 }
 
-/* Previously use for the vpmap initialisation form hardware.
- * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+/**
+ *
  */
 int dague_hwloc_master_id( int level, int processor_id )
 {
 #if defined(HAVE_HWLOC)
-    int count = 0, div = 0, real_cores, cores;
     unsigned int i;
+    int ncores;
 
-    real_cores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
-    cores = real_cores;
-    div = cores;
+    ncores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
 
-    if( 0 < (processor_id / cores) ) {
-        while(processor_id) {
-            if( (processor_id % div) == 0) {
-                processor_id = count;
-                break;
-            }
-            count++;
-            div++;
-            if( real_cores == count ) count = 0;
-        }
-    }
+    /* If we are using hyper-threads */
+    processor_id = processor_id % ncores;
 
     for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++) {
         hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
@@ -143,8 +133,8 @@ int dague_hwloc_master_id( int level, int processor_id )
     return -1;
 }
 
-/* Previously use for the vpmap initialisation form hardware.
- * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+/**
+ *
  */
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
@@ -201,7 +191,12 @@ int dague_hwloc_nb_real_cores(void)
 #if defined(HAVE_HWLOC)
     return hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
 #else
-    return -1;
+    int nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
+    if(nb_cores == -1) {
+        perror("sysconf(_SC_NPROCESSORS_ONLN). Expect at least one.\n");
+        nb_cores = 1;
+    }
+    return nb_cores;
 #endif
 }
 
@@ -434,33 +429,30 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 }
 
+/*
+ * Define the number of hyper-threads accepted per core.
+ */
 int dague_hwloc_allow_ht(int htnb)
 {
     assert( htnb > 0 );
-#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
-    dague_hwloc_init();
 
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     /* Check the validity of the parameter. Correct otherwise  */
-    if (htnb > 1){
-        int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU)/hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+    if (htnb > 1) {
+        int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) / hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
         if( htnb > pu_per_core){
             printf("Warning:: HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
-            ht=pu_per_core;
-        }else{
-            ht=htnb;
+            htnb = pu_per_core;
         }
     }
-    ht=htnb;
-    return ht;
-#else
-    /* Without hwloc, trust your user to give a correct parameter */
-    ht = htnb;
-    return ht;
 #endif
+    /* Without hwloc, trust your user to give a correct parameter */
+    hyperth_per_core = htnb;
+    return hyperth_per_core;
 }
 
 int dague_hwloc_get_ht(void)
 {
-    return ht;
+    return hyperth_per_core;
 }
 
