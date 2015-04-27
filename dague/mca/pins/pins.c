@@ -65,15 +65,8 @@ int parsec_pins_register_callback(struct dague_execution_unit_s* exec_unit,
     }
 
     parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
-    while( NULL != cb_event->cb_data ) {
-        cb_event = cb_event->cb_data;
-    }
-    /* This event is the last one */
-    assert(NULL == cb_event->cb_func);
 
-    /* Only one event can be registered per call */
-    cb_data->cb_func = NULL;
-    cb_data->cb_data = NULL;
+    *cb_data = *cb_event;
 
     cb_event->cb_func = cb_func;
     cb_event->cb_data = cb_data;
@@ -106,5 +99,6 @@ int parsec_pins_unregister_callback(struct dague_execution_unit_s* exec_unit,
     }
     assert(cb_event->cb_func == cb);
     *cb_data = cb_event->cb_data;
+    *cb_event = **cb_data;
     return 0;
 }
