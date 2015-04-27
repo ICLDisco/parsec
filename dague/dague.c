@@ -804,6 +804,11 @@ int dague_fini( dague_context_t** pcontext )
     /* From now on all the thrteads have been shut-off, and they are supposed to
      * have cleaned all their provate memory. Unleash the global cleaning process.
      */
+    for(p = 0; p < context->nb_vp; p++) {
+        dague_vp_fini(context->virtual_processes[p]);
+        free(context->virtual_processes[p]);
+        context->virtual_processes[p] = NULL;
+    }
 
     PINS_FINI(context);
 
@@ -816,12 +821,6 @@ int dague_fini( dague_context_t** pcontext )
     dague_remove_scheduler( context );
 
     dague_data_fini(context);
-
-    for(p = 0; p < context->nb_vp; p++) {
-        dague_vp_fini(context->virtual_processes[p]);
-        free(context->virtual_processes[p]);
-        context->virtual_processes[p] = NULL;
-    }
 
     dague_device_remove(dague_device_cpus);
     free(dague_device_cpus);
