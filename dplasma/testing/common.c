@@ -343,34 +343,12 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'H':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead\n", long_options[opt].name);
                 exit(-10);  /* No kidding! */
 
             case 'V':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
-                if( !strncmp(optarg, "display", 7 )) {
-                    vpmap_display_map(stderr);
-                } else {
-                    /* Change the vpmap choice: first cancel the previous one */
-                    vpmap_fini();
-                    if( !strncmp(optarg, "flat", 4) ) {
-                        /* default case (handled in dague_init) */
-                    } else if( !strncmp(optarg, "hwloc", 5) ) {
-                        vpmap_init_from_hardware_affinity();
-                    } else if( !strncmp(optarg, "file:", 5) ) {
-                        vpmap_init_from_file(optarg + 5);
-                    } else if( !strncmp(optarg, "rr:", 3) ) {
-                        int n, p, co;
-                        sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
-                        vpmap_init_from_parameters(n, p, co);
-                        iparam[IPARAM_NCORES] = co;
-                    } else {
-                        fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s\n", optarg);
-                        print_usage();
-                        exit(1);
-                    }
-                }
-                break;
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead\n", long_options[opt].name);
+                exit(-10);  /* No kidding! */
 
             case '.':
                 add_dot = optarg;
