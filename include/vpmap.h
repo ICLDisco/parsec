@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _VPMAP_H_
 #define _VPMAP_H_
 
@@ -17,7 +23,8 @@ void vpmap_fini(void);
  */
 
 /**
- * initialize the vpmap using hardware affinity
+ * Initialize the vpmap based on the HWLOC hardware locality information. Do not
+ * initialize more than the expected number of cores.
  *   Create one thread per core
  *   Create one vp per socket
  *   Bind threads of the same vp on the different cores of the
@@ -25,7 +32,7 @@ void vpmap_fini(void);
  *   Uses hwloc
  * @return 0 if success; -1 if the initialization was not possible.
  */
-int vpmap_init_from_hardware_affinity(void);
+int vpmap_init_from_hardware_affinity(int nbcores);
 
 /**
  * initialize the vpmap using a simple nbvp x nbthreadspervp
