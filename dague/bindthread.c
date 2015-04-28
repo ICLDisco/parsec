@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -42,11 +42,9 @@ int dague_bindthread(int cpu, int ht)
         marcel_vpset_vp(&vpset, cpu);
         marcel_apply_vpset(&vpset);
     }
-
 #elif defined(HAVE_HWLOC)
     {
-        dague_hwloc_init();
-        cpu=dague_hwloc_bind_on_core_index(cpu, ht);
+        cpu = dague_hwloc_bind_on_core_index(cpu, ht);
         if(cpu == -1 ) {
             DEBUG(("Core binding on node %i failed\n", cpu));
             return -1;
@@ -84,12 +82,10 @@ int dague_bindthread(int cpu, int ht)
         int                           ret;
 
         ap.affinity_tag = 1; /* non-null affinity tag */
-        ret = thread_policy_set(
-                                mach_thread_self(),
-                                THREAD_AFFINITY_POLICY,
-                                (integer_t*) &ap,
-                                THREAD_AFFINITY_POLICY_COUNT
-                                );
+        ret = thread_policy_set( mach_thread_self(),
+                                 THREAD_AFFINITY_POLICY,
+                                 (integer_t*) &ap,
+                                 THREAD_AFFINITY_POLICY_COUNT );
         if(ret != 0) {
             return -1;
         }
