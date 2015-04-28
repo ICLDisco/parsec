@@ -259,7 +259,8 @@ void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_ti
 }
 
 int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, unsigned *n_sz){
-    unsigned width, height;
+    unsigned width = 0;
+    unsigned height = 0;
     /* int abs_m, abs_n; */
     unsigned type_index_n, type_index_m;
     int success = 1;
@@ -347,6 +348,7 @@ int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, un
             */
             height = seg.b_sz.m2;
             break;
+        default: assert(0);
     }
 
     if( !height || !width ){

@@ -193,7 +193,7 @@ static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescC,
                            tiled_matrix_desc_t *ddescCfinal )
 {
-    int info_solution;
+    int info_solution = 1;
     double Cinitnorm, Cdplasmanorm, Rnorm;
     double eps, result;
 
