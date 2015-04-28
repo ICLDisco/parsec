@@ -189,7 +189,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #endif  /* defined(HAVE_HWLOC) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
-    eu-> _eu_rusage_first_call=1;
+    eu-> _eu_rusage_first_call = 1;
 #endif
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -283,7 +283,7 @@ static void dague_vp_init( dague_vp_t *vp,
         if( 1 == pi )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
         else if( 1 < pi )
-            printf("multiple core to bind on... for now, do nothing\n");
+            fprintf(stderr, "multiple core to bind on... for now, do nothing\n");
     }
 }
 
@@ -417,18 +417,19 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      * execution flows but where work stealing is prevented.
      */
     {
+        /* Change the vpmap choice: first cancel the previous one if any */
+        vpmap_fini();
+
         if( dague_cmd_line_is_taken(cmd_line, "vpmap") ) {
             char* optarg = NULL;
             GET_STR_ARGV(cmd_line, "vpmap", optarg);
             if( !strncmp(optarg, "display", 7 )) {
                 display_vpmap = 1;
             } else {
-                /* Change the vpmap choice: first cancel the previous one */
-                vpmap_fini();
                 if( !strncmp(optarg, "flat", 4) ) {
                     /* default case (handled in dague_init) */
                 } else if( !strncmp(optarg, "hwloc", 5) ) {
-                    vpmap_init_from_hardware_affinity();
+                    vpmap_init_from_hardware_affinity(nb_cores);
                 } else if( !strncmp(optarg, "file:", 5) ) {
                     vpmap_init_from_file(optarg + 5);
                 } else if( !strncmp(optarg, "rr:", 3) ) {
@@ -804,11 +805,6 @@ int dague_fini( dague_context_t** pcontext )
     /* From now on all the thrteads have been shut-off, and they are supposed to
      * have cleaned all their provate memory. Unleash the global cleaning process.
      */
-    for(p = 0; p < context->nb_vp; p++) {
-        dague_vp_fini(context->virtual_processes[p]);
-        free(context->virtual_processes[p]);
-        context->virtual_processes[p] = NULL;
-    }
 
     PINS_FINI(context);
 
@@ -827,6 +823,12 @@ int dague_fini( dague_context_t** pcontext )
     dague_device_cpus = NULL;
 
     dague_devices_fini(context);
+
+    for(p = 0; p < context->nb_vp; p++) {
+        dague_vp_fini(context->virtual_processes[p]);
+        free(context->virtual_processes[p]);
+        context->virtual_processes[p] = NULL;
+    }
 
     AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
