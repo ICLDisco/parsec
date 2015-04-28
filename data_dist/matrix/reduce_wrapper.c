@@ -20,7 +20,6 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
 {
     dague_reduce_col_handle_t* handle;
     dague_datatype_t oldtype, newtype;
-    int newsize;
 
     assert(src->mtype == dest->mtype);
     if( -1 == dague_traslate_matrix_type(src->mtype, &oldtype) ) {
@@ -28,14 +27,23 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
         return NULL;
     }
     dague_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
-    MPI_Type_size(newtype, &newsize);
-
     handle = dague_reduce_col_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
 
+#ifdef HAVE_MPI
+    {
+        MPI_Aint extent;
+        MPI_Type_size(newtype, &extent);
+        dague_arena_construct(handle->arenas[DAGUE_reduce_col_DEFAULT_ARENA],
+                              extent,
+                              DAGUE_ARENA_ALIGNMENT_SSE,
+                              newtype);
+    }
+#else
     dague_arena_construct(handle->arenas[DAGUE_reduce_col_DEFAULT_ARENA],
-                          newsize,
+                          src->mb*src->nb,
                           DAGUE_ARENA_ALIGNMENT_SSE,
-                          newtype);
+                          NULL);
+#endif
 
     return (dague_handle_t*)handle;
 }
@@ -53,7 +61,6 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
 {
     dague_reduce_row_handle_t* handle;
     dague_datatype_t oldtype, newtype;
-    int newsize;
 
     assert(src->mtype == dest->mtype);
     if( -1 == dague_traslate_matrix_type(src->mtype, &oldtype) ) {
@@ -61,15 +68,23 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
         return NULL;
     }
     dague_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
-    MPI_Type_size(newtype, &newsize);
-
     handle = dague_reduce_row_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
 
-    dague_arena_construct(handle->arenas[DAGUE_reduce_row_DEFAULT_ARENA],
-                          newsize,
+#ifdef HAVE_MPI
+    {
+        MPI_Aint extent;
+        MPI_Type_size(newtype, &extent);
+        dague_arena_construct(handle->arenas[DAGUE_reduce_row_DEFAULT_ARENA],
+                          extent,
                           DAGUE_ARENA_ALIGNMENT_SSE,
                           newtype);
-
+    }
+#else
+    dague_arena_construct(handle->arenas[DAGUE_reduce_row_DEFAULT_ARENA],
+                          src->mb*src->nb,
+                          DAGUE_ARENA_ALIGNMENT_SSE,
+                          NULL);
+#endif
     return (dague_handle_t*)handle;
 }
 
