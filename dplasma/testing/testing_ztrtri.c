@@ -150,7 +150,7 @@ static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *Ainv )
 {
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
-    int info_solution;
+    int info_solution = 1;
     double Anorm, Ainvnorm, Rnorm;
     double Rcond;
     double eps, result;

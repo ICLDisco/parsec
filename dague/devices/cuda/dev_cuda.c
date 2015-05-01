@@ -365,7 +365,6 @@ int dague_gpu_init(dague_context_t *dague_context)
     int use_cuda_index, use_cuda;
     int cuda_mask, cuda_verbosity;
     int ndevices, i, j, k;
-    int isdouble = 0;
     CUresult status;
 
     use_cuda_index = dague_mca_param_reg_int_name("device_cuda", "enabled",
@@ -706,11 +705,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
 
     for(i = 0; i < dague_nb_devices; i++) {
         size_t how_much_we_allocate;
-#if CUDA_VERSION < 3020
-        unsigned int total_mem, free_mem, initial_free_mem;
-#else
-        size_t total_mem, free_mem, initial_free_mem;
-#endif  /* CUDA_VERSION < 3020 */
+        size_t total_mem, initial_free_mem;
         uint32_t mem_elem_per_gpu = 0;
 
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
@@ -726,11 +721,11 @@ int dague_gpu_data_register( dague_context_t *dague_context,
          * so we need to adapt to this.
          */
         cuMemGetInfo( &initial_free_mem, &total_mem );
-        free_mem = initial_free_mem;
         /* We allocate 9/10 of the available memory */
         how_much_we_allocate = (9 * initial_free_mem) / 10;
 
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+        size_t free_mem = initial_free_mem;
         /*
          * We allocate a bunch of tiles that will be used
          * during the computations
@@ -750,11 +745,7 @@ int dague_gpu_data_register( dague_context_t *dague_context,
             cuda_status = (cudaError_t)cuMemAlloc( &device_ptr, eltsize);
             DAGUE_CUDA_CHECK_ERROR( "cuMemAlloc ", cuda_status,
                                     ({
-#if CUDA_VERSION < 3020
-                                        unsigned int _free_mem, _total_mem;
-#else
                                         size_t _free_mem, _total_mem;
-#endif  /* CUDA_VERSION < 3020 */
                                         cuMemGetInfo( &_free_mem, &_total_mem );
                                         WARNING(("Per context: free mem %zu total mem %zu (allocated tiles %u)\n",
                                                  _free_mem, _total_mem, mem_elem_per_gpu));
@@ -1188,9 +1179,9 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
     /* p is head */
     dague_list_item_t *p = gpu_device->sort_starting_p;
 
-    int i, j, NB_SORT = 10, space_p, space_q, space_min;
+    int i, j, NB_SORT = 10, space_q, space_min;
 
-    dague_list_item_t *q, *prev_p, *prev_q, *min_p;
+    dague_list_item_t *q, *prev_p, *min_p;
     for (i = 0; i < NB_SORT; i++) {
         if ( p == &(sort_list->ghost_element) ) {
             break;
@@ -1225,9 +1216,8 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
 
         }
         p = (dague_list_item_t*)min_p->list_next;
-       
     }
-    
+
     if (lock_required) {
         dague_atomic_unlock(&(sort_list->atomic_lock));
     }
@@ -1251,14 +1241,12 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_e
     dague_gpu_context_t *w2r_task = (dague_gpu_context_t *)malloc(sizeof(dague_gpu_context_t));
  //   dague_execution_context_t *ec = (dague_execution_context_t *)malloc(sizeof(dague_execution_context_t));
     dague_execution_context_t *ec = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
-    dague_function_t *w2r_func;
 
-    int i, nb_cleaned, nb_poped;
-    dague_gpu_data_copy_t *owned_lru_gpu_elem, *cpu_copy, *temp_loc[MAX_PARAM_COUNT];
+    int nb_cleaned;
+    dague_gpu_data_copy_t *owned_lru_gpu_elem;
     dague_data_t* original;
 
     nb_cleaned = 0;
-    nb_poped = 0;
 
     dague_list_item_t * p = (dague_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
     while(nb_cleaned < DAGUE_GPU_W2R_NB_MOVE_OUT) {
@@ -1286,14 +1274,12 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_e
         return NULL;
     } else {   
         OBJ_CONSTRUCT(w2r_task, dague_list_item_t);
-      //  w2r_func = (dague_function_t *)malloc(sizeof(dague_function_t));
-      //  w2r_func->nb_flows = nb_cleaned;
         ec->priority = INT32_MAX;
         ec->function = NULL;
         w2r_task->ec = ec;
         w2r_task->task_type = GPU_TASK_TYPE_D2HTRANSFER;
         return w2r_task;
-    } 
+    }
 }
 
 int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task, dague_execution_unit_t *eu_context)

@@ -1,3 +1,9 @@
+/**
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 
 #include <string.h>
@@ -10,6 +16,7 @@
 #include "dague_hwloc.h"
 #include "vpmap.h"
 #include "debug.h"
+#include "dague/utils/output.h"
 
 #define DEFAULT_NB_CORE 128
 #define MAX_STR_SIZE 12
@@ -93,7 +100,6 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, i
         return;
     int nb_real_cores = DEFAULT_NB_CORE;
 #if defined(HAVE_HWLOC)
-    dague_hwloc_init();
     nb_real_cores = dague_hwloc_nb_real_cores();
     nbht = dague_hwloc_get_ht();
 #endif /* HAVE_HWLOC */
@@ -154,12 +160,10 @@ static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores, int 
     memcpy(ht, map[vp].threads[thread]->ht, map[vp].threads[thread]->nbcores * sizeof(int));
 }
 
-int vpmap_init_from_hardware_affinity(void)
+int vpmap_init_from_hardware_affinity(int nbcores)
 {
 #if defined(HAVE_HWLOC)
-    int v, t, c, ht;
-
-    dague_hwloc_init();
+    int vp_id, th_id, core_id, ht_id;
 
     /* Compute the number of VP according to the number of objects at the
      * lowest level between sockets and NUMA nodes */
@@ -167,49 +171,49 @@ int vpmap_init_from_hardware_affinity(void)
     nbvp = dague_hwloc_get_nb_objects(level);
     nbht = dague_hwloc_get_ht();
 
-    if (nbvp > 0 ) {
-        map = (vpmap_t*)malloc(nbvp * sizeof(vpmap_t));
-
-        /* Define the VP map:
-         * threads are distributed in order on the cores (hwloc numbering, ensure locality)
-         */
-        c=0;
-        vpmap_nb_total_threads = 0;
-
-        for(v = 0; v < nbvp; v++) {
-            nbthreadspervp = dague_hwloc_nb_cores_per_obj(level, v)*nbht;
-            map[v].nbthreads = nbthreadspervp;
-            vpmap_nb_total_threads += nbthreadspervp;
-
-            map[v].threads = (vpmap_thread_t**)calloc(nbthreadspervp, sizeof(vpmap_thread_t*));
-
-            for(t = 0; t < nbthreadspervp; t+=nbht) {
-                for (ht=0; ht < nbht ; ht++){
-                    map[v].threads[t+ht] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
-                    map[v].threads[t+ht]->nbcores = 1;
-                    map[v].threads[t+ht]->cores[0] = c;
-                    if (nbht > 1)
-                        map[v].threads[t+ht]->ht[0] = ht;
-                    else
-                        map[v].threads[t+ht]->ht[0] = -1;
-                }
-                c++;
-            }
-        }
-
-        vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
-        vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
-        vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
-
-        return 0;
-    }else{
-        vpmap_init_from_flat(dague_hwloc_nb_real_cores());
+    if (nbvp <= 0 ) {
+        vpmap_init_from_flat(nbcores);
         return 0;
     }
+
+    map = (vpmap_t*)calloc(nbvp, sizeof(vpmap_t));
+    /* Define the VP map:
+     * threads are distributed in order on the cores (hwloc numbering, ensure locality)
+     */
+    core_id = 0;
+    vpmap_nb_total_threads = 0;
+
+    for( vp_id = 0; vp_id < nbvp; vp_id++ ) {
+        nbthreadspervp = dague_hwloc_nb_cores_per_obj(level, vp_id) * nbht;
+        vpmap_nb_total_threads += nbthreadspervp;
+
+        map[vp_id].nbthreads = nbthreadspervp;
+        map[vp_id].threads   = (vpmap_thread_t**)calloc(nbthreadspervp, sizeof(vpmap_thread_t*));
+
+        for( th_id = 0; th_id < nbthreadspervp; th_id += nbht ) {
+            for( ht_id = 0; ht_id < nbht ; ht_id++ ) {
+                map[vp_id].threads[th_id + ht_id] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
+                map[vp_id].threads[th_id + ht_id]->nbcores = 1;
+                map[vp_id].threads[th_id + ht_id]->cores[0] = core_id;
+                map[vp_id].threads[th_id + ht_id]->ht[0] = ht_id;
+                if( 0 == --nbcores ) {
+                    map[vp_id].nbthreads = th_id + ht_id + 1;
+                    nbvp = vp_id + 1;  /* Update the number of valid VP */
+                    goto complete_and_return;
+                }
+            }
+            core_id++;
+        }
+    }
+  complete_and_return:
+    vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_in_vp_datamap;
+    vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_datamap;
+    vpmap_get_core_affinity = vpmap_get_core_affinity_datamap;
+
+    return 0;
 #else
     return -1;
 #endif
-
 }
 
 int vpmap_init_from_file(const char *filename)

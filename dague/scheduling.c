@@ -85,7 +85,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
                 "Block Input Operations      : %10ld\n"
                 "Block Output Operations     : %10ld\n"
                 "=============================================================\n\n"
-                ,str, eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
+                , str, eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
                 usr, sys, usr + sys,
                 (current.ru_minflt  - eu->_eu_rusage.ru_minflt), (current.ru_majflt  - eu->_eu_rusage.ru_majflt),
                 (current.ru_nswap   - eu->_eu_rusage.ru_nswap) , (current.ru_nvcsw   - eu->_eu_rusage.ru_nvcsw),

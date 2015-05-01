@@ -61,8 +61,6 @@ int main(int argc, char ** argv)
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, 3872);
-    dplasma_zplrnt( dague, 0,
-                    (tiled_matrix_desc_t *)&ddescB, 2354);
     if(loud > 2) printf("Done\n");
 
     for ( u=0; u<2; u++) {
@@ -98,6 +96,8 @@ int main(int argc, char ** argv)
         /* Create A and X */
         dplasma_zlacpy( dague, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
+        dplasma_zplrnt( dague, 0,
+                        (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,  (tiled_matrix_desc_t *)&ddescX );
 
@@ -141,6 +141,8 @@ int main(int argc, char ** argv)
         /* Create A and X */
         dplasma_zlacpy( dague, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
+        dplasma_zplrnt( dague, 0,
+                        (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,  (tiled_matrix_desc_t *)&ddescX );
 
@@ -188,6 +190,8 @@ int main(int argc, char ** argv)
         /* Create A and X */
         dplasma_zlacpy( dague, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
+        dplasma_zplrnt( dague, 0,
+                        (tiled_matrix_desc_t *)&ddescB, 2354);
         dplasma_zlacpy( dague, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,  (tiled_matrix_desc_t *)&ddescX );
 
