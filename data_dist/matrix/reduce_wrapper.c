@@ -31,7 +31,7 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
 
 #ifdef HAVE_MPI
     {
-        MPI_Aint extent;
+        int extent;
         MPI_Type_size(newtype, &extent);
         dague_arena_construct(handle->arenas[DAGUE_reduce_col_DEFAULT_ARENA],
                               extent,
@@ -72,7 +72,7 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
 
 #ifdef HAVE_MPI
     {
-        MPI_Aint extent;
+        int extent;
         MPI_Type_size(newtype, &extent);
         dague_arena_construct(handle->arenas[DAGUE_reduce_row_DEFAULT_ARENA],
                           extent,
