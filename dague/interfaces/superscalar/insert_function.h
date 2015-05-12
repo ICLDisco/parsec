@@ -11,6 +11,23 @@
 #define DTD_ENABLED
 #define ATOMIC_WRITE_ENABLED
 
+
+/* 
+    **  Details of Flags **
+    
+ *  INPUT:          Data is used in read-only mode, no modification is done.
+ *  OUTPUT:         Data is used in write-only, written only, not read.
+ *  INOUT:          Data is read and written both.
+ *  ATOMIC_WRITE:   Data is used like OUTPUT but the ordering of the tasks having this flag is not maintained by the scheduler.
+                    It is the responsibility of the user to make sure data is written atomically. Treated like INPUT by the scheduler.
+ *  SCRATCH:        Will be used by the task as scratch pad, does not effect the DAG, tells the runtime to allocate memory specified 
+                    by the user.
+ *  VALUE:          Tells the runtime to copy the value as a parameter of the task.
+
+ */
+
+
+
 #define GET_OP_TYPE 0xf00
 typedef enum {  INPUT=0x100,
                 OUTPUT=0x200,

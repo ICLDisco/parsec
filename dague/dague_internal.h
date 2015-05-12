@@ -14,6 +14,9 @@
 #include "dague/dague_description_structures.h"
 #include "dague/profiling.h"
 
+#define DAGUE_HANDLE_FLAG_PTG 0x01
+#define DAGUE_HANDLE_FLAG_DTD 0x02
+
 /**
  * A classical way to find the container that contains a particular structure.
  * Read more at http://en.wikipedia.org/wiki/Offsetof.
@@ -49,6 +52,7 @@ struct dague_handle_s {
     uint32_t                   nb_functions;
     int32_t                    priority;
     uint32_t                   devices_mask;
+    uint32_t                   handle_flags;
     dague_context_t           *context;
     dague_startup_fn_t         startup_hook;
     const dague_function_t**   functions_array;
