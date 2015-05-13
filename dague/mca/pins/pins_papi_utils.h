@@ -32,13 +32,14 @@ typedef struct parsec_pins_papi_events_s {
 
 typedef struct parsec_pins_papi_callback_s {
     parsec_pins_next_callback_t  default_cb;
-    int                          papi_eventset;
-    int                          num_counters;
-    int                          pins_prof_event[2];
-    int                          begin_end;
-    int                          num_tasks;
-    int                          frequency;
-    parsec_pins_papi_events_t*   events_list;
+    int                          num_eventsets;
+    int*                         papi_eventset;
+    int*                         num_counters;
+    int*                         pins_prof_event;
+    int*                         begin_end;
+    int*                         num_tasks;
+    int*                         frequency;
+    parsec_pins_papi_events_t**  events_list;
 } parsec_pins_papi_callback_t;
 
 /* CORES_PER_SOCKET is now in CMAKE config,
