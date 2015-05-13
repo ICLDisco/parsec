@@ -1,8 +1,15 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+
 #include "schedmicro_data.h"
 #include "stdarg.h"
 #include "data_distribution.h"
 #include "data.h"
-#include "vpmap.h"
+#include "dague/vpmap.h"
 #include "debug.h"
 
 #include <assert.h>

@@ -33,7 +33,7 @@
 #endif
 
 #include "dague_prof_grapher.h"
-#include "vpmap.h"
+#include "dague/vpmap.h"
 
 char *DAGUE_SCHED_NAME[] = {
     "", /* default */

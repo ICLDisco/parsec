@@ -8,7 +8,6 @@
 
 #include "data_distribution.h"
 #include "data.h"
-#include "vpmap.h"
 
 typedef struct dague_hash_datadist_entry_s {
     uint32_t      key;  /**< Unique key */

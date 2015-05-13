@@ -5,6 +5,7 @@
  */
 
 #include "hash_datadist.h"
+#include "dague/vpmap.h"
 
 #define DEFAULT_HASH_SIZE 65536
 

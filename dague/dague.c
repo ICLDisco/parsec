@@ -35,7 +35,7 @@
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
 #include "stats-internal.h"
-#include "vpmap.h"
+#include "dague/vpmap.h"
 #include "dague/utils/mca_param.h"
 #include "dague/utils/installdirs.h"
 #include "dague/devices/device.h"

@@ -12,7 +12,7 @@
 #include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"
-#include "vpmap.h"
+#include "dague/vpmap.h"
 #include "dague/mca/pins/pins.h"
 #include "os-spec-timing.h"
 #include "remote_dep.h"

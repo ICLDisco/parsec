@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -14,7 +14,6 @@
 #include "precision.h"
 #include "data_distribution.h"
 #include "data.h"
-#include "vpmap.h"
 #include "dague/datatype.h"
 #include "dague/utils/output.h"
 
@@ -108,14 +107,6 @@ tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, 
 
 int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
 int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
-
-static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
-{
-    assert( vpmap_get_nb_vp() > 0 );
-    assert( pos <= tdesc->nb_local_tiles );
-    (void)tdesc;
-    return pos % vpmap_get_nb_vp();
-}
 
 struct dague_execution_unit_s;
 typedef int (*dague_operator_t)( struct dague_execution_unit_s *eu, const void* src, void* dst, void* op_data, ... );

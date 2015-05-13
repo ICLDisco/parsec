@@ -14,7 +14,7 @@
 #endif
 
 #include "dague_hwloc.h"
-#include "vpmap.h"
+#include "dague/vpmap.h"
 #include "debug.h"
 #include "dague/utils/output.h"
 

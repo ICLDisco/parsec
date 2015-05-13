@@ -1,31 +1,24 @@
 
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif /* HAVE_MPI */
 
 #include "dague_config.h"
 #include "dague_internal.h"
 #include "debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_tabular.h"
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <math.h>
-
+#include "dague/vpmap.h"
 #include "dague.h"
 #include "data.h"
+
+#include <math.h>
+
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif /* HAVE_MPI */
 
 static uint32_t      twoDTD_rank_of(    dague_ddesc_t* ddesc, ... );
 static uint32_t      twoDTD_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);

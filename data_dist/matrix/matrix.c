@@ -5,14 +5,7 @@
  */
 /************************************************************
  *distributed matrix generation
- ************************************************************/#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <string.h>
-#if defined(HAVE_MPI)
-#include <mpi.h>
-#endif
+ ************************************************************/
 
 #include "dague_config.h"
 #include "dague_internal.h"
@@ -21,6 +14,10 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
+
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#endif
 
 static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...);
 
@@ -191,8 +188,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* Submatrix derived parameters */
     tdesc->mt = (i+m-1)/mb - i/mb + 1;
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
-
-    assert(vpmap_get_nb_vp() > 0);
 
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);

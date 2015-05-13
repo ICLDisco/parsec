@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 The University of Tennessee and The University
+ * Copyright (c) 2011-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,6 +12,7 @@
 #include "scheduling.h"
 #include "datarepo.h"
 #include "dague/devices/device.h"
+#include "dague/vpmap.h"
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};

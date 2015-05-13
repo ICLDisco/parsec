@@ -17,6 +17,7 @@ extern "C" %{
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/cores/dplasma_zcores.h"
+#include "dague/vpmap.h"
 
 static pthread_mutex_t mumps_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int mumps_init = 0;
