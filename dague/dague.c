@@ -48,7 +48,7 @@
 #include "profiling.h"
 #endif
 
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
 #ifdef HAVE_HWLOC
 #include "hbbuffer.h"
 #endif

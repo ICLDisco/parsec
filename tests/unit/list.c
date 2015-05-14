@@ -12,9 +12,6 @@
 #if defined(HAVE_MPI)
 #include <mpi.h>
 #endif
-#if defined(HAVE_HWLOC)
-#include "dague_hwloc.h"
-#endif
 #include "dague/class/list.h"
 #include "os-spec-timing.h"
 #include "bindthread.h"
@@ -269,9 +266,6 @@ int main(int argc, char *argv[])
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
     }
 #endif
-#if defined(HAVE_HWLOC)
-    dague_hwloc_init();
-#endif
 
     while( (ch = getopt(argc, argv, "c:n:N:h?")) != -1 ) {
         switch(ch) {
@@ -390,9 +384,6 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
-#if defined(HAVE_HWLOC)
-    dague_hwloc_fini();
-#endif  /* HAVE_HWLOC_BITMAP */
 #if defined(HAVE_MPI)
     MPI_Finalized(&ch);
 #endif

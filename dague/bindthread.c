@@ -11,7 +11,7 @@
 #include "debug.h"
 #include "bindthread.h"
 #if defined(HAVE_HWLOC)
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
 #elif defined(ARCH_COMPAQ)
 #  include <sys/types.h>
 #  include <sys/resource.h>
@@ -92,7 +92,7 @@ int dague_bindthread(int cpu, int ht)
     }
 #endif /* Architectures */
 
-#endif /* WITH_HWLOC     */
+#endif /* WITH_HWLO     */
 
     return cpu;
 }

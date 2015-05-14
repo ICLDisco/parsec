@@ -13,7 +13,7 @@
 #include <mpi.h>
 #endif
 
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
 #include "dague/vpmap.h"
 #include "debug.h"
 #include "dague/utils/output.h"

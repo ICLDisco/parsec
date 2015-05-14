@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2014 The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -21,6 +21,7 @@
 #include "dague/class/dequeue.h"
 #include "maxheap.h"
 #include "dague/mca/pins/pins.h"
+#include "dague/dague_hwloc.h"
 
 #define dague_heap_priority_comparator (offsetof(dague_heap_t, priority))
 static int SYSTEM_NEIGHBOR = 0;

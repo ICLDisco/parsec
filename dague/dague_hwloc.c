@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,7 @@
 #include "debug.h"
 #include "dague/utils/output.h"
 
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
 #if defined(HAVE_HWLOC)
 #include <hwloc.h>
 #endif  /* defined(HAVE_HWLOC) */

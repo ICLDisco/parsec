@@ -1,12 +1,11 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
  */
 #include "dague_config.h"
 #include "dague.h"
-#include "dague_hwloc.h"
 #include "execution_unit.h"
 #include <dague/utils/mca_param.h>
 #include "dague/mca/mca_repository.h"
