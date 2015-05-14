@@ -1,11 +1,11 @@
 extern "C" %{
 #include "dague_internal.h"
-#include <dague.h>
-#include <data_distribution.h>
-#include <data_dist/matrix/matrix.h>
-#include <data.h>
-#include <dague/utils/mca_param.h>
-#include <arena.h>
+#include "dague.h"
+#include "data_distribution.h"
+#include "data_dist/matrix/matrix.h"
+#include "data.h"
+#include "dague/utils/mca_param.h"
+#include "dague/arena.h"
 #include <stdlib.h>
 
 #define SWAP(_x, _y) {int t = _x; _x = _y; _y = t;}

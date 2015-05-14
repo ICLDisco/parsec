@@ -6,7 +6,7 @@
 
 #include "dague.h"
 #include "execution_unit.h"
-#include "arena.h"
+#include "dague/arena.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dague/datatype.h"
 #include <math.h>

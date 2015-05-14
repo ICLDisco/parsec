@@ -1,25 +1,25 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include <dague/sys/atomic.h>
+#include "dague/sys/atomic.h"
 
-#include <dague/utils/mca_param.h>
-#include <dague/constants.h>
+#include "dague/utils/mca_param.h"
+#include "dague/constants.h"
 
 #if defined(HAVE_CUDA)
 #include "dague.h"
 #include "data.h"
-#include <dague/devices/cuda/dev_cuda.h>
+#include "dague/devices/cuda/dev_cuda.h"
 #include "profiling.h"
 #include "execution_unit.h"
-#include "arena.h"
-#include <dague/utils/output.h>
-#include <dague/utils/argv.h>
+#include "dague/arena.h"
+#include "dague/utils/output.h"
+#include "dague/utils/argv.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>

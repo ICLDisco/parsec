@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2012-2014 The University of Tennessee and The University
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "data.h"
+#include "dague_config.h"
 #include "dague/class/lifo.h"
 #include "dague/constants.h"
 #include "dague/devices/device.h"
 #include "dague/utils/output.h"
 #include "data.h"
-#include "arena.h"
+#include "dague/arena.h"
 
 static dague_lifo_t dague_data_lifo;
 static dague_lifo_t dague_data_copies_lifo;

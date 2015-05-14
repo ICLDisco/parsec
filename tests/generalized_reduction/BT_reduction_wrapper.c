@@ -1,6 +1,12 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_internal.h"
-#include <data_distribution.h>
-#include <arena.h>
+#include "data_distribution.h"
+#include "dague/arena.h"
 
 #if defined(HAVE_MPI)
 #include <mpi.h>

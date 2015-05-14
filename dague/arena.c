@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include <dague_config.h>
-#include "arena.h"
+#include "dague_config.h"
+#include "dague/arena.h"
 #include "dague/class/lifo.h"
 #include "data.h"
 

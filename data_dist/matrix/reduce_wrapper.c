@@ -8,7 +8,7 @@
 #include "dague_internal.h"
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
-#include "arena.h"
+#include "dague/arena.h"
 #include "reduce_col.h"
 #include "reduce_row.h"
 

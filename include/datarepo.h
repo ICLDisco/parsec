@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,11 +13,11 @@ typedef struct data_repo_entry_s data_repo_entry_t;
 typedef struct data_repo_head_s  data_repo_head_t;
 
 #include <stdlib.h>
-#include <dague/sys/atomic.h>
+#include "dague/sys/atomic.h"
 #include "stats.h"
 #include "debug.h"
 #include "execution_unit.h"
-#include "arena.h"
+#include "dague/arena.h"
 
 #define MAX_DATAREPO_HASH 4096
 

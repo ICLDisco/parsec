@@ -1,9 +1,9 @@
 extern "C" %{
-#include <dague.h>
-#include <data_distribution.h>
-#include <data.h>
-#include <dague/utils/mca_param.h>
-#include <arena.h>
+#include "dague.h"
+#include "data_distribution.h"
+#include "data.h"
+#include "dague/utils/mca_param.h"
+#include "dague/arena.h"
 
 #include <assert.h>
 #include <stdarg.h>

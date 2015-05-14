@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,9 +10,8 @@
 #include "scheduling.h"
 #include "execution_unit.h"
 #include "data.h"
-#include "arena.h"
+#include "dague/arena.h"
 #include <stdio.h>
-#include "arena.h"
 
 /**
  * Indicator for the status of the communication engine. The following values are valid:
