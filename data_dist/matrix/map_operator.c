@@ -5,7 +5,7 @@
  */
 
 #include "dague.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "dague/remote_dep.h"
 #include "matrix.h"
 #include "dague_prof_grapher.h"

@@ -6,10 +6,10 @@
  */
 
 #include "dague_config.h"
-#include <dague/devices/device.h>
-#include <dague/utils/mca_param.h>
-#include <dague/constants.h>
-#include "debug.h"
+#include "dague/devices/device.h"
+#include "dague/utils/mca_param.h"
+#include "dague/constants.h"
+#include "dague/debug.h"
 #include "execution_unit.h"
 
 #include <stdlib.h>

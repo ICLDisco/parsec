@@ -1113,8 +1113,8 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include <dague.h>\n"
-            "#include <debug.h>\n"
+    houtput("#include \"dague.h\"\n"
+            "#include \"dague/debug.h\"\n"
             "#include <assert.h>\n\n");
 
     houtput("#define MAX_GLOBAL_COUNT 50\n");

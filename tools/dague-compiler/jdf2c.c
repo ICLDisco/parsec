@@ -1027,13 +1027,13 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include <dague.h>\n"
-            "#include <dague/constants.h>\n"
-            "#include <data_distribution.h>\n"
-            "#include <data.h>\n"
-            "#include <debug.h>\n"
-            "#include <dague/ayudame.h>\n"
-            "#include <dague/devices/device.h> \n"
+    houtput("#include \"dague.h\"\n"
+            "#include \"dague/constants.h\"\n"
+            "#include \"data_distribution.h\"\n"
+            "#include \"data.h\"\n"
+            "#include \"dague/debug.h\"\n"
+            "#include \"dague/ayudame.h\"\n"
+            "#include \"dague/devices/device.h\"\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 
@@ -1094,7 +1094,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     sa2 = string_arena_new(64);
 
     coutput("#include <dague.h>\n"
-            "#include \"debug.h\"\n"
+            "#include \"dague/debug.h\"\n"
             "#include \"dague/scheduling.h\"\n"
             "#include \"dague/mca/pins/pins.h\"\n"
             "#include \"dague/remote_dep.h\"\n"

@@ -2,7 +2,7 @@
 #include "stdarg.h"
 #include "data_distribution.h"
 #include "data.h"
-#include "debug.h"
+#include "dague/debug.h"
 
 typedef struct {
     dague_ddesc_t super;

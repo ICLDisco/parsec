@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,8 +9,8 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "debug.h"
-#include <dague/sys/atomic.h>
+#include "dague/debug.h"
+#include "dague/sys/atomic.h"
 #include <stdlib.h>
 #include "dague/class/lifo.h"
 #include "dague/class/list.h"

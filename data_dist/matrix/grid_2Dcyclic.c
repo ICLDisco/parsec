@@ -9,7 +9,7 @@
 #include "dague.h"
 #include "grid_2Dcyclic.h"
 #include "dague/vpmap.h"
-#include "debug.h"
+#include "dague/debug.h"
 
 #include <math.h>
 #include <assert.h>

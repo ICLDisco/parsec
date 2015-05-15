@@ -9,7 +9,7 @@
 #include "scalapack_convert.h"
 #include "data_distribution.h"
 #include "matrix.h"
-#include "debug.h"
+#include "dague/debug.h"
 
 #ifdef HAVE_STRING_H
 #include <string.h>

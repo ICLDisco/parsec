@@ -7,7 +7,7 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_tabular.h"
 #include "dague/vpmap.h"

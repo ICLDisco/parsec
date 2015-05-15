@@ -10,8 +10,8 @@
 #include "dague_config.h"
 #include "dague_internal.h"
 
-#include "debug.h"
-#include <dague/sys/atomic.h>
+#include "dague/debug.h"
+#include "dague/sys/atomic.h"
 #include "dague/class/list_item.h"
 #include <stdlib.h>
 

@@ -12,7 +12,7 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/ip/sched_ip.h"
 #include "dague/class/dequeue.h"

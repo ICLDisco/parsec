@@ -10,7 +10,7 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/local_rectangle_cyclic.h"
 #include "dague/devices/device.h"

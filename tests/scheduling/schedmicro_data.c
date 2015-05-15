@@ -10,7 +10,7 @@
 #include "data_distribution.h"
 #include "data.h"
 #include "dague/vpmap.h"
-#include "debug.h"
+#include "dague/debug.h"
 
 #include <assert.h>
 
