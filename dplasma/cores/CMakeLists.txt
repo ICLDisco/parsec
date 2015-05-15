@@ -99,7 +99,6 @@ if( CUDA_FOUND )
     set(CUDA_SM_TARGETS 11 13 20 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
   endif()
 
-  set(CUDA_SM_TARGETS 11 13 20 35)
   set(CUDA_NVCC_FLAGS_11 -maxrregcount 32 -arch sm_11 -DCUDA_SM_VERSION=11)
   set(CUDA_NVCC_FLAGS_13 -maxrregcount 32 -arch sm_13 -DCUDA_SM_VERSION=13)
   set(CUDA_NVCC_FLAGS_20                  -arch sm_20 -DCUDA_SM_VERSION=20)
