@@ -11,7 +11,7 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "dague/debug.h"
 #include "dague/class/dequeue.h"
 
@@ -19,7 +19,7 @@
 #include "dague/mca/sched/sched_local_queues_utils.h"
 #include "dague/mca/sched/ltq/sched_ltq.h"
 #include "dague/class/dequeue.h"
-#include "maxheap.h"
+#include "dague/maxheap.h"
 #include "dague/mca/pins/pins.h"
 #include "dague/dague_hwloc.h"
 

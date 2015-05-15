@@ -8,9 +8,9 @@
 #include "dague/debug.h"
 #include "dague/remote_dep.h"
 #include "matrix.h"
-#include "dague_prof_grapher.h"
+#include "dague/dague_prof_grapher.h"
 #include "dague/scheduling.h"
-#include "datarepo.h"
+#include "dague/datarepo.h"
 #include "dague/devices/device.h"
 #include "dague/vpmap.h"
 

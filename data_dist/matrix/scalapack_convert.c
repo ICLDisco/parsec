@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "scalapack_convert.h"
 #include "data_distribution.h"
 #include "matrix.h"
@@ -19,7 +19,7 @@
 #endif
 #include <stdio.h>
 #ifdef HAVE_MPI
-#include "mpi.h"
+#include <mpi.h>
 #endif
 
 #if !defined(UINT_MAX)

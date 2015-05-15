@@ -10,7 +10,6 @@
 #if defined(HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
-#include "dague_prof_grapher.h"
 
 int main(int argc, char *argv[])
 {

@@ -7,10 +7,10 @@
 #ifndef DAGUE_GPU_DATA_H_HAS_BEEN_INCLUDED
 #define DAGUE_GPU_DATA_H_HAS_BEEN_INCLUDED
 
-#include <dague_config.h>
-#include "dague_internal.h"
-#include <dague/class/dague_object.h>
-#include <dague/devices/device.h>
+#include "dague_config.h"
+#include "dague/dague_internal.h"
+#include "dague/class/dague_object.h"
+#include "dague/devices/device.h"
 
 #if defined(HAVE_CUDA)
 #include "dague/class/list_item.h"
@@ -19,7 +19,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include <dague/utils/zone_malloc.h>
+#include "dague/utils/zone_malloc.h"
 
 BEGIN_C_DECLS
 

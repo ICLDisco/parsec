@@ -134,6 +134,6 @@
 #define restrict
 #endif
 
-#include "dague_config_bottom.h"
+#include "dague/dague_config_bottom.h"
 
 #endif  /*DAGUE_CONFIG_H_HAS_BEEN_INCLUDED */

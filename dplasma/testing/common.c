@@ -31,7 +31,6 @@
 #include <dague/devices/cuda/dev_cuda.h>
 #endif
 
-#include "dague_prof_grapher.h"
 #include "dague/vpmap.h"
 
 char *DAGUE_SCHED_NAME[] = {

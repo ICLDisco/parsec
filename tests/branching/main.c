@@ -10,7 +10,6 @@
 #if defined(HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
-#include "dague_prof_grapher.h"
 
 int main(int argc, char *argv[])
 {
@@ -50,10 +49,6 @@ int main(int argc, char *argv[])
 
         dague_context_wait(dague);
     }
-
-#if defined(DAGUE_PROF_GRAPHER)
-    dague_prof_grapher_fini();
-#endif
 
     free_data(ddescA);
 

@@ -9,7 +9,7 @@
 #endif /* HAVE_MPI */
 
 #include "dague_config.h"
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "dague/debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/local_rectangle_cyclic.h"

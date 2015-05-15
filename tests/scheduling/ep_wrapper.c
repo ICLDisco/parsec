@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dague_internal.h"
+#include "dague.h"
 #include <stdio.h>
 
 #include "data_distribution.h"

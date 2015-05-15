@@ -7,7 +7,7 @@
 #ifndef DATA_H_HAS_BEEN_INCLUDED
 #define DATA_H_HAS_BEEN_INCLUDED
 
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "dague/types.h"
 
 /**

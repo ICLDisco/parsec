@@ -11,7 +11,6 @@
 #include <string.h>
 #include <assert.h>
 
-#include "dague_internal.h"
 #include "dplasma/lib/butterfly_map.h"
 
 seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){

@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
 #include "dague/arena.h"

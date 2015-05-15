@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "dague/debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"

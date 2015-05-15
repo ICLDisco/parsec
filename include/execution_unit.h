@@ -15,8 +15,8 @@
 
 #include <pthread.h>
 #include <stdint.h>
-#include "hbbuffer.h"
-#include "mempool.h"
+#include "dague/hbbuffer.h"
+#include "dague/mempool.h"
 #include "dague/profiling.h"
 #include "dague/class/barrier.h"
 

@@ -11,7 +11,7 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "dague/debug.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/rnd/sched_rnd.h"

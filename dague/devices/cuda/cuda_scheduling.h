@@ -7,7 +7,7 @@
 #include "dague_config.h"
 
 #if defined(HAVE_CUDA)
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dague/profiling.h"
 #include "execution_unit.h"
