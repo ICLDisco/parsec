@@ -355,7 +355,7 @@ static int remote_dep_dequeue_off(dague_context_t* context)
 }
 
 #define YIELD_TIME 5000
-#include "bindthread.h"
+#include "dague/bindthread.h"
 
 static int do_nano = 0;
 

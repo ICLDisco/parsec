@@ -14,7 +14,7 @@
 #endif
 #include "dague/class/list.h"
 #include "dague/os-spec-timing.h"
-#include "bindthread.h"
+#include "dague/bindthread.h"
 
 static unsigned int NBELT = 8192;
 static unsigned int NBTIMES = 1000000;

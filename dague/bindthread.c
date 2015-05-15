@@ -9,7 +9,7 @@
 #undef HAVE_MPI
 #undef DAGUE_DEBUG_HISTORY
 #include "debug.h"
-#include "bindthread.h"
+#include "dague/bindthread.h"
 #if defined(HAVE_HWLOC)
 #include "dague/dague_hwloc.h"
 #elif defined(ARCH_COMPAQ)
