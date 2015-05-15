@@ -11,8 +11,6 @@
 #include "dague_config.h"
 #include "dague/types.h"
 
-#include "profiling.h"
-
 #if defined(HAVE_STDARG_H)
 #include <stdarg.h>
 #endif  /* defined(HAVE_STDARG_H) */
@@ -21,6 +19,7 @@
 #endif  /* defined(HAVE_UNISTD_H) */
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #ifdef HAVE_MPI
 #include "mpi.h"

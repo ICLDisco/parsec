@@ -7,7 +7,7 @@
 #include "dague_config.h"
 #include "dague_prof_grapher.h"
 #if defined(DAGUE_PROF_TRACE)
-#include "dbp.h"
+#include "dague/dague_binary_profile.h"
 #endif
 
 #if defined(DAGUE_PROF_GRAPHER)

@@ -8,8 +8,8 @@
 
 #if defined(HAVE_CUDA)
 #include "dague_internal.h"
-#include <dague/devices/cuda/dev_cuda.h>
-#include "profiling.h"
+#include "dague/devices/cuda/dev_cuda.h"
+#include "dague/profiling.h"
 #include "execution_unit.h"
 #include "dague/scheduling.h"
 
@@ -17,10 +17,6 @@
 #include <cuda_runtime_api.h>
 #include <errno.h>
 #include "dague/class/lifo.h"
-
-#if defined(DAGUE_PROF_TRACE)
-#include "dbp.h"
-#endif /* defined(DAGUE_PROF_TRACE) */
 
 /**
  * Define functions names

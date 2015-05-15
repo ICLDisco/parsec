@@ -12,7 +12,7 @@
 #include "dague/class/list_item.h"
 #include "dague_description_structures.h"
 #include "dague.h"
-#include "profiling.h"
+#include "dague/profiling.h"
 
 /**
  * A classical way to find the container that contains a particular structure.

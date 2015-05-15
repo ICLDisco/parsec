@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,6 +12,12 @@
 #include <stddef.h>
 #include <string.h>
 #include <stdlib.h>
+
+/** DAGuE Binary Profile format. */
+
+#define DAGUE_PROFILING_EVENT_HAS_INFO     (1<<0)
+#define DAGUE_PROFILING_EVENT_RESCHEDULED  (1<<1)
+#define DAGUE_PROFILING_EVENT_COUNTER      (1<<2)
 
 BEGIN_C_DECLS
 /**

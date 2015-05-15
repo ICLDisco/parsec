@@ -14,8 +14,8 @@
 #include <stdarg.h>
 #include <errno.h>
 
-#include "profiling.h"
-#include "dbp.h"
+#include "dague/profiling.h"
+#include "dague/dague_binary_profile.h"
 #include "dbpreader.h"
 
 typedef struct memalloc_event_s {

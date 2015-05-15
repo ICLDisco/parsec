@@ -1,6 +1,6 @@
 # pbt2ptt python definition file
 
-cdef extern from "dbp.h":
+cdef extern from "dague/dague_binary_profile.h":
    ctypedef struct dague_thread_profiling_t:
       pass
 

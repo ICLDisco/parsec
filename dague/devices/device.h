@@ -10,7 +10,7 @@
 #include "dague_config.h"
 #include "dague/class/list_item.h"
 #if defined(DAGUE_PROF_TRACE)
-#include "profiling.h"
+#include "dague/profiling.h"
 #endif  /* defined(DAGUE_PROF_TRACE) */
 #include "dague.h"
 #include "data_distribution.h"

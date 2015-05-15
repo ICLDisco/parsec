@@ -26,8 +26,8 @@
 #include <fcntl.h>
 #include <pthread.h>
 
-#include "profiling.h"
-#include "dbp.h"
+#include "dague/profiling.h"
+#include "dague/dague_binary_profile.h"
 #include "data_distribution.h"
 #include "debug.h"
 #include "dague/class/fifo.h"

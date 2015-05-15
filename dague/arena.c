@@ -12,7 +12,6 @@
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
 
 #include "profiling.h"
-#include "dbp.h"
 
 extern int arena_memory_alloc_key, arena_memory_free_key;
 extern int arena_memory_used_key, arena_memory_unused_key;

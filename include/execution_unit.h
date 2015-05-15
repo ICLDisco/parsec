@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -17,7 +17,7 @@
 #include <stdint.h>
 #include "hbbuffer.h"
 #include "mempool.h"
-#include "profiling.h"
+#include "dague/profiling.h"
 #include "dague/class/barrier.h"
 
 #ifdef PINS_ENABLE

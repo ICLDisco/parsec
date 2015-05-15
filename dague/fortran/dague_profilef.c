@@ -3,11 +3,11 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include <dague_config.h>
-#include <dague.h>
+#include "dague_config.h"
+#include "dague.h"
 #include <string.h>
 #include <stdlib.h>
-#include "profiling.h"
+#include "dague/profiling.h"
 
 dague_thread_profiling_t*
 dague_profile_thread_init_f08( size_t length, const char *id_name, int* ierr)

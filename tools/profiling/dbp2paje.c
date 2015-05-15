@@ -18,8 +18,8 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#include "profiling.h"
-#include "dbp.h"
+#include "dague/profiling.h"
+#include "dague/dague_binary_profile.h"
 #include "dbpreader.h"
 
 #ifdef DEBUG
