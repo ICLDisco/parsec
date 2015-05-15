@@ -87,6 +87,7 @@ static inline void dague_ddesc_destroy(dague_ddesc_t *d)
 }
 
 #if defined(DAGUE_PROF_TRACE)
+#include "dague/profiling.h"
 /* TODO: Fix me pleaseeeeeee */
 #define dague_ddesc_set_key(d, k) do {                                  \
         char dim[strlen(k) + strlen( (d)->key_dim ) + 4];               \
