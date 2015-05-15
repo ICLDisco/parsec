@@ -9,7 +9,7 @@
 #include "dague/remote_dep.h"
 #include "matrix.h"
 #include "dague_prof_grapher.h"
-#include "scheduling.h"
+#include "dague/scheduling.h"
 #include "datarepo.h"
 #include "dague/devices/device.h"
 #include "dague/vpmap.h"

@@ -13,7 +13,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "scheduling.h"
+#include "dague/scheduling.h"
 
 #define RECURSIVE_GEQRT
 

@@ -14,7 +14,6 @@
 #include <dague/devices/cuda/dev_cuda.h>
 #include "dague.h"
 #include "execution_unit.h"
-#include "scheduling.h"
 #include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
 

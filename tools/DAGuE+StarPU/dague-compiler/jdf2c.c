@@ -1193,8 +1193,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
     sa2 = string_arena_new(64);
 
     coutput("#include <dague.h>\n"
-            "#include <scheduling.h>\n"
-            "#include <dague/remote_dep.h>\n"
+            "#include \"dague/scheduling.h\"\n"
+            "#include \"dague/remote_dep.h\"\n"
             "#if defined(HAVE_PAPI)\n"
             "#include <papime.h>\n"
             "#endif\n"

@@ -1095,20 +1095,19 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("#include <dague.h>\n"
             "#include \"debug.h\"\n"
-            "#include <scheduling.h>\n"
-            "#include <dague/mca/pins/pins.h>\n"
-            "#include <dague/remote_dep.h>\n"
-            "#include <datarepo.h>\n"
-            "#include <data.h>\n"
-            "#include <dague_prof_grapher.h>\n"
-            "#include <mempool.h>\n"
+            "#include \"dague/scheduling.h\"\n"
+            "#include \"dague/mca/pins/pins.h\"\n"
+            "#include \"dague/remote_dep.h\"\n"
+            "#include \"datarepo.h\"\n"
+            "#include \"data.h\"\n"
+            "#include \"dague_prof_grapher.h\"\n"
+            "#include \"mempool.h\"\n"
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
             "#if defined(DAGUE_PROF_GRAPHER)\n"
             "#include \"dague_prof_grapher.h\"\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
-            "#include <mempool.h>\n"
             "#include <alloca.h>\n",
             jdf_basename,
             jdf_basename, nbfunctions,

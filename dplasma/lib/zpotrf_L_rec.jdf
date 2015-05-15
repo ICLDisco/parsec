@@ -11,7 +11,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/local_rectangle_cyclic.h"
-#include "scheduling.h"
+#include "dague/scheduling.h"
 
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>

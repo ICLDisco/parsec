@@ -11,6 +11,7 @@
 #include <dague/devices/cuda/dev_cuda.h>
 #include "profiling.h"
 #include "execution_unit.h"
+#include "dague/scheduling.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>

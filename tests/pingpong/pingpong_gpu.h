@@ -1,13 +1,13 @@
 #ifndef _pingpong_gpu_h_
 #define _pingpong_gpu_h_
 
-#include <dague.h>
-#include <data_distribution.h>
-#include <data.h>
-#include <dague/devices/cuda/dev_cuda.h>
-#include <dague/utils/output.h>
-#include <dague/class/fifo.h>
-#include "scheduling.h"
+#include "dague.h"
+#include "data_distribution.h"
+#include "data.h"
+#include "dague/devices/cuda/dev_cuda.h"
+#include "dague/utils/output.h"
+#include "dague/class/fifo.h"
+#include "dague/scheduling.h"
 
 extern int dague_cuda_output_stream;
 

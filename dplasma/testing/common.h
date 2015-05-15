@@ -21,7 +21,6 @@
 #include <core_blas.h>
 /* dague things */
 #include "dague.h"
-#include "scheduling.h"
 #include "profiling.h"
 #include "dplasma.h"
 /* timings */
