@@ -1182,8 +1182,6 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  DEBUG3((\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\",    \\\n"
             "           (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP)));    \\\n"
             "  (DEPS)->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | (FLAG);                                \\\n"
-            "  DAGUE_STAT_INCREASE(mem_bitarray,  sizeof(dague_dependencies_t) + STAT_MALLOC_OVERHEAD +   \\\n"
-            "                   (_vmax - _vmin) * sizeof(dague_dependencies_union_t));                    \\\n"
             "  (DEPS)->symbol = (vSYMBOL);                                                                \\\n"
             "  (DEPS)->min = _vmin;                                                                       \\\n"
             "  (DEPS)->max = _vmax;                                                                       \\\n"
@@ -2339,9 +2337,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting),
             indent(nesting), nbdefinitions);
 
-    coutput("%s  DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
-            "%s  DAGUE_LIST_ITEM_SINGLETON(new_dynamic_context);\n",
-            indent(nesting),
+    coutput("%s  DAGUE_LIST_ITEM_SINGLETON(new_dynamic_context);\n",
             indent(nesting));
     if( NULL != f->priority ) {
         coutput("%s  new_dynamic_context->priority = __dague_handle->super.super.priority + priority_of_%s_%s_as_expr_fct(new_dynamic_context->dague_handle, new_dynamic_context->locals);\n",

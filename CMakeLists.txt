@@ -134,8 +134,6 @@ option(PARSEC_PROF_TAU
   "Experimental usage of TAU profiling framework" ON)
 option(DAGUE_PROF_PAPI
   "Enable PAPI performance hardware counters" OFF)
-option(DAGUE_PROF_STATS
-  "Enable the generation of short statistics information during execution (microbenchmarking)" OFF)
 option(DAGUE_PROF_RUSAGE_EU
   "Print the rusage per execution unit for each progress" OFF)
 option(DAGUE_PROF_TRACE_SCHEDULING_EVENTS

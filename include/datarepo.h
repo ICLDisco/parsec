@@ -14,7 +14,6 @@ typedef struct data_repo_head_s  data_repo_head_t;
 
 #include <stdlib.h>
 #include "dague/sys/atomic.h"
-#include "stats.h"
 #include "dague/debug.h"
 #include "execution_unit.h"
 #include "dague/arena.h"
@@ -110,7 +109,6 @@ data_repo_create_nothreadsafe(unsigned int hashsize_hint, unsigned int nbdata)
     res = (data_repo_t*)calloc(1, sizeof(data_repo_t) + sizeof(data_repo_head_t) * hashsize);
     res->nbentries = hashsize;
     res->nbdata = nbdata;
-    DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_t) + sizeof(data_repo_head_t) * (hashsize-1) + STAT_MALLOC_OVERHEAD);
     return res;
 }
 
@@ -178,8 +176,6 @@ __data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *rep
     e->data_repo_next_entry = (volatile dague_list_item_t *)repo->heads[h].first_entry;
     repo->heads[h].first_entry = e;
     repo->heads[h].size++;
-    DAGUE_STAT_INCREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
-    DAGUE_STATMAX_UPDATE(counter_hashtable_collisions_size, repo->heads[h].size);
     dague_atomic_unlock(&repo->heads[h].lock);
     DEBUG3(("entry %p/%" PRIu64 " of hash table %s has been allocated with an usage count of %u/%u and is retained %d at %s:%d\n",
             e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained, file, line));
@@ -232,7 +228,6 @@ __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint6
         dague_atomic_unlock(&repo->heads[h].lock);
 
         dague_thread_mempool_free(e->data_repo_mempool_owner, e );
-        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG3(("entry %p/%" PRIu64 " of HT %s has %u/%u usage count and %s retained: not freeing it at %s:%d\n",
                      e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
@@ -286,7 +281,6 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t us
         repo->heads[h].size--;
         dague_atomic_unlock(&repo->heads[h].lock);
         dague_thread_mempool_free(e->data_repo_mempool_owner, e );
-        DAGUE_STAT_DECREASE(mem_hashtable, sizeof(data_repo_entry_t)+(repo->nbdata-1)*sizeof(dague_arena_chunk_t*) + STAT_MALLOC_OVERHEAD);
     } else {
         DEBUG3(("entry %p/%" PRIu64 " of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
                      e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
@@ -309,7 +303,6 @@ static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
         }
     }
 #endif  /* DAGUE_DEBUG_VERBOSE != 0 */
-    DAGUE_STAT_DECREASE(mem_hashtable,  sizeof(data_repo_t) + sizeof(data_repo_head_t) * (repo->nbentries-1) + STAT_MALLOC_OVERHEAD);
     free(repo);
 }
 

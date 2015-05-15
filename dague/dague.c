@@ -34,7 +34,6 @@
 #include "datarepo.h"
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
-#include "stats-internal.h"
 #include "dague/vpmap.h"
 #include "dague/utils/mca_param.h"
 #include "dague/utils/installdirs.h"
@@ -1223,7 +1222,6 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 #endif  /* defined(DAGUE_PROF_GRAPHER) */
 
     if( completed ) {
-        DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
         /* This task is ready to be executed as all dependencies are solved.
          * Queue it into the ready_list passed as an argument.
@@ -1241,7 +1239,6 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
                     ((char*)exec_context) + sizeof(dague_list_item_t),
                     sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) );
             new_context->mempool_owner = mpool;
-            DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
             AYU_ADD_TASK(new_context);
 
             DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",

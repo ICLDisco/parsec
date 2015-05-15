@@ -9,7 +9,6 @@
 #include "dague/mca/mca_repository.h"
 #include "dague/mca/sched/sched.h"
 #include "profiling.h"
-#include "stats.h"
 #include "datarepo.h"
 #include "execution_unit.h"
 #include "dague/vpmap.h"
@@ -148,7 +147,6 @@ int __dague_execute( dague_execution_unit_t* eu_context,
 #endif
 
     PINS(eu_context, EXEC_BEGIN, exec_context);
-    DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
     /**
      * Try all the incarnation until one agree to execute.
@@ -330,7 +328,6 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
      */
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
     /* Release the execution context */
-    DAGUE_STAT_DECREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     dague_thread_mempool_free( eu_context->context_mempool, exec_context );
     return rc;
 }
@@ -401,7 +398,6 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
-            DAGUE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
             nanosleep(&rqtp, NULL);
         }
 
