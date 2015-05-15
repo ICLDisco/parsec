@@ -13,7 +13,7 @@
 #include <mpi.h>
 #endif
 #include "dague/class/list.h"
-#include "os-spec-timing.h"
+#include "dague/os-spec-timing.h"
 #include "bindthread.h"
 
 static unsigned int NBELT = 8192;

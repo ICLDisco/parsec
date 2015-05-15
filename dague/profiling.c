@@ -32,6 +32,7 @@
 #include "debug.h"
 #include "dague/class/fifo.h"
 #include "dague/dague_hwloc.h"
+#include "dague/os-spec-timing.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))
 

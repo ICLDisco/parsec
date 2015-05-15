@@ -11,7 +11,6 @@
 #include <inttypes.h>
 #include <pthread.h>
 
-#include "os-spec-timing.h"
 #include "dague/class/list.h"
 
 /** DAGuE Binary Profile format. */

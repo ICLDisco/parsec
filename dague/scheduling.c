@@ -14,7 +14,7 @@
 #include "execution_unit.h"
 #include "dague/vpmap.h"
 #include "dague/mca/pins/pins.h"
-#include "os-spec-timing.h"
+#include "dague/os-spec-timing.h"
 #include "remote_dep.h"
 
 #include "dague/ayudame.h"

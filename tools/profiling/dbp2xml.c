@@ -13,6 +13,7 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
+#include "dague/os-spec-timing.h"
 #include "profiling.h"
 #include "dbp.h"
 #include "dbpreader.h"

@@ -14,7 +14,7 @@
 
 #define DAGUE_LIFO_ALIGNMENT_DEFAULT 5
 #include "dague/class/lifo.h"
-#include "os-spec-timing.h"
+#include "dague/os-spec-timing.h"
 #include "bindthread.h"
 
 static unsigned int NBELT = 8192;
