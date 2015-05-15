@@ -8,7 +8,6 @@
  */
 #include "dague.h"
 #include "dplasma.h"
-#include "remote_dep.h"
 #include "dague/arena.h"
 
 #define dplasma_comm MPI_COMM_WORLD

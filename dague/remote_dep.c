@@ -6,7 +6,7 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "remote_dep.h"
+#include "dague/remote_dep.h"
 #include "scheduling.h"
 #include "execution_unit.h"
 #include "data.h"

@@ -30,7 +30,7 @@
 #include "dague/class/list.h"
 #include "scheduling.h"
 #include "dague/class/barrier.h"
-#include "remote_dep.h"
+#include "dague/remote_dep.h"
 #include "datarepo.h"
 #include "bindthread.h"
 #include "dague_prof_grapher.h"
