@@ -644,18 +644,17 @@ configure_file (
 
 install(FILES
   ${PROJECT_INCLUDE_DIR}/dague_config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config_bottom.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/data.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/profiling.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
   DESTINATION include)
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/ayudame.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/constants.h
   ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/dague_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
   DESTINATION include/dague)
 
 # pkg-config file
