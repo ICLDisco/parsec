@@ -552,13 +552,13 @@ ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 ###
 ##
 #
-set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dague/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} DAGUE_COMPILE_INPLACE)
 if(NOT DAGUE_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dague/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
 
 #
@@ -639,30 +639,30 @@ add_subdirectory(tests)
 
 # Configuration header
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 
 install(FILES
   ${PROJECT_INCLUDE_DIR}/dague_config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/data.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.h
   DESTINATION include)
 
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/ayudame.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/constants.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/types.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/dague_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/ayudame.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/constants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/data_distribution.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
   DESTINATION include/dague)
 
 # pkg-config file
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
 
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)
