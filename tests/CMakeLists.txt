@@ -13,7 +13,7 @@ macro(dague_addtest lang target input)
                         COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
                         LINK_FLAGS "${${target}_LDFLAGS}")
   target_link_libraries(${target} ${${target}_LIBS})
-  install(TARGETS ${target} RUNTIME DESTINATION bin)
+  #  install(TARGETS ${target} RUNTIME DESTINATION bin)
 
 endmacro(dague_addtest)
 

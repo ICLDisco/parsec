@@ -26,7 +26,7 @@ macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
                             COMPILE_FLAGS "${testings_addexec_CFLAGS}"
                             LINK_FLAGS "${testings_addexec_LDFLAGS} ${LOCAL_FORTRAN_LINK_FLAGS} ${COREBLAS_LDFLAGS}") 
     target_link_libraries(${testings_addexec_EXEC} ${testings_addexec_LIBS} ${COREBLAS_LIBRARIES})
-    install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION bin)
+    #    install(TARGETS ${testings_addexec_EXEC} RUNTIME DESTINATION bin)
     list(APPEND ${OUTPUTLIST} ${testings_addexec_EXEC})
   endforeach()
 
