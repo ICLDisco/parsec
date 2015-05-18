@@ -6,7 +6,6 @@ extern "C" %{
  */
 
 #include "dague.h"
-#include "data_distribution.h"
 #include "matrix.h"
 #include <math.h>
 

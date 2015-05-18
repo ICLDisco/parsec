@@ -12,7 +12,7 @@
 #include "data_dist/matrix/two_dim_tabular.h"
 #include "dague/vpmap.h"
 #include "dague.h"
-#include "data.h"
+#include "dague/data.h"
 
 #include <math.h>
 

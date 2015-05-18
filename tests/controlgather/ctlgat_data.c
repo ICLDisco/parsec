@@ -1,7 +1,13 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "ctlgat_data.h"
 #include "stdarg.h"
-#include "data_distribution.h"
-#include "data.h"
+#include "dague/data_distribution.h"
+#include "dague/data.h"
 #include "dague/debug.h"
 
 #include <assert.h>

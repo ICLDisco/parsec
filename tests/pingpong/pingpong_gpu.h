@@ -1,9 +1,15 @@
+/*
+ * Copyright (c) 2014-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _pingpong_gpu_h_
 #define _pingpong_gpu_h_
 
 #include "dague.h"
-#include "data_distribution.h"
-#include "data.h"
+#include "dague/data_distribution.h"
+#include "dague/data.h"
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dague/utils/output.h"
 #include "dague/class/fifo.h"

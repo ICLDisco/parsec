@@ -1,8 +1,13 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _choice_wrapper_h
 #define _choice_wrapper_h
 
-#include <dague.h>
-#include <data_distribution.h>
+#include "dague.h"
 
 /**
  * @param [IN] A    the data, already distributed and allocated

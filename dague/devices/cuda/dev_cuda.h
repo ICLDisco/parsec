@@ -129,7 +129,7 @@ void dump_GPU_state(gpu_device_t* gpu_device);
  */
 typedef dague_data_copy_t dague_gpu_data_copy_t;
 
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 
 /*
  * Data [un]registering

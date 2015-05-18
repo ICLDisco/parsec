@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2014-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,7 @@
 #include "dague.h"
 #include <stdio.h>
 
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 #include "dague/arena.h"
 
 #include "ep.h"

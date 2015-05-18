@@ -12,8 +12,8 @@
 #include <stdarg.h>
 #include <assert.h>
 #include "precision.h"
-#include "data_distribution.h"
-#include "data.h"
+#include "dague/data_distribution.h"
+#include "dague/data.h"
 #include "dague/datatype.h"
 #include "dague/utils/output.h"
 

@@ -9,7 +9,7 @@
 #include "dague/remote_dep.h"
 #include "dague/scheduling.h"
 #include "dague/execution_unit.h"
-#include "data.h"
+#include "dague/data.h"
 #include "dague/arena.h"
 #include <stdio.h>
 

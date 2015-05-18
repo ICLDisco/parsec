@@ -3,7 +3,7 @@
 
 #include <starpu.h>
 #include "dague.h"
-//#include "data_distribution.h"
+//#include "dague/data_distribution.h"
 
 extern int nblocks;
 extern int matrix_rank;

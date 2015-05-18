@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,7 @@
 #include "dague/profiling.h"
 #endif  /* defined(DAGUE_PROF_TRACE) */
 #include "dague.h"
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 
 #define DAGUE_DEV_NONE       0x00
 #define DAGUE_DEV_CPU        0x01

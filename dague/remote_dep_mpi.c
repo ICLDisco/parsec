@@ -12,7 +12,7 @@
 #include <mpi.h>
 #include "profiling.h"
 #include "dague/class/list.h"
-#include "data.h"
+#include "dague/data.h"
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 

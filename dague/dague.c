@@ -26,14 +26,14 @@
 #include "dague/mca/pins/pins.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/utils/output.h"
-#include "data.h"
+#include "dague/data.h"
 #include "dague/class/list.h"
-#include "scheduling.h"
+#include "dague/scheduling.h"
 #include "dague/class/barrier.h"
 #include "dague/remote_dep.h"
 #include "dague/datarepo.h"
 #include "dague/bindthread.h"
-#include "dague_prof_grapher.h"
+#include "dague/dague_prof_grapher.h"
 #include "dague/vpmap.h"
 #include "dague/utils/mca_param.h"
 #include "dague/utils/installdirs.h"
@@ -44,12 +44,12 @@
 #include "dague/mca/mca_repository.h"
 
 #ifdef DAGUE_PROF_TRACE
-#include "profiling.h"
+#include "dague/profiling.h"
 #endif
 
 #include "dague/dague_hwloc.h"
 #ifdef HAVE_HWLOC
-#include "hbbuffer.h"
+#include "dague/hbbuffer.h"
 #endif
 
 #ifdef HAVE_CUDA
@@ -1970,7 +1970,7 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
 /**
  * Array based local data handling.
  */
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 static uint32_t return_local_u(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
 static int32_t  return_local_s(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
 static dague_data_t* return_data(dague_ddesc_t *unused, ...) { (void)unused; return NULL; };

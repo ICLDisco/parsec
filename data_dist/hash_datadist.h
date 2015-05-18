@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef HASH_DATATIST_H
 #define HASH_DATATIST_H
 
@@ -6,8 +12,8 @@
 #include <stdarg.h>
 #include <assert.h>
 
-#include "data_distribution.h"
-#include "data.h"
+#include "dague/data_distribution.h"
+#include "dague/data.h"
 
 typedef struct dague_hash_datadist_entry_s {
     uint32_t      key;  /**< Unique key */

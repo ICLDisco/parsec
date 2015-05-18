@@ -9,7 +9,7 @@
 #include "dague/constants.h"
 #include "dague/devices/device.h"
 #include "dague/utils/output.h"
-#include "data.h"
+#include "dague/data.h"
 #include "dague/arena.h"
 
 static dague_lifo_t dague_data_lifo;

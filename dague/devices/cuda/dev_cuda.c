@@ -13,7 +13,7 @@
 
 #if defined(HAVE_CUDA)
 #include "dague.h"
-#include "data.h"
+#include "dague/data.h"
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dague/profiling.h"
 #include "dague/execution_unit.h"

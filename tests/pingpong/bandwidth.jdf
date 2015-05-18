@@ -1,7 +1,7 @@
 extern "C" %{
 #include "dague.h"
-#include "data_distribution.h"
-#include "data.h"
+#include "dague/data_distribution.h"
+#include "dague/data.h"
 #include "dague/utils/mca_param.h"
 #include "dague/arena.h"
 

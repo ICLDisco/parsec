@@ -32,7 +32,7 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "dague/devices/device.h"
 #include "dague/vpmap.h"
-#include "data.h"
+#include "dague/data.h"
 
 #if !defined(UINT_MAX)
 #define UINT_MAX (~0UL)

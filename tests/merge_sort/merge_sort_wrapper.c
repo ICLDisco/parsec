@@ -5,7 +5,7 @@
  */
 
 #include "dague.h"
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 #include "dague/arena.h"
 
 #if defined(HAVE_MPI)
