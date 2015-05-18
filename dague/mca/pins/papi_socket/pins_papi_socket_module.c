@@ -12,7 +12,7 @@
 #include "dague/utils/mca_param.h"
 #include <stdio.h>
 #include <papi.h>
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 
 static void stop_papi_socket(dague_execution_unit_t* exec_unit,
                              dague_execution_context_t* exec_context,

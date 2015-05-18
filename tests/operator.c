@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int

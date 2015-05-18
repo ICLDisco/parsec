@@ -29,7 +29,7 @@
 #include "dague/profiling.h"
 #include "dague/dague_binary_profile.h"
 #include "data_distribution.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "dague/class/fifo.h"
 #include "dague/dague_hwloc.h"
 #include "dague/os-spec-timing.h"

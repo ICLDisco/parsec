@@ -15,7 +15,7 @@ typedef struct data_repo_head_s  data_repo_head_t;
 #include <stdlib.h>
 #include "dague/sys/atomic.h"
 #include "dague/debug.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 #include "dague/arena.h"
 
 #define MAX_DATAREPO_HASH 4096

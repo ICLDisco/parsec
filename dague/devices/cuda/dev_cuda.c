@@ -16,7 +16,7 @@
 #include "data.h"
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dague/profiling.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 #include "dague/arena.h"
 #include "dague/utils/output.h"
 #include "dague/utils/argv.h"

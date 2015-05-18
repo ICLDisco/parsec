@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,7 @@
 #if defined(HAVE_STDDEF_H)
 #include <stddef.h>
 #endif  /* HAVE_STDDEF_H */
-#include "debug.h"
+#include "dague/debug.h"
 
 #include <dague/sys/atomic.h>
 #include "dague/class/lifo.h"

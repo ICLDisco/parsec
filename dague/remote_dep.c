@@ -7,8 +7,8 @@
 #include "dague_config.h"
 #include "dague_internal.h"
 #include "dague/remote_dep.h"
-#include "scheduling.h"
-#include "execution_unit.h"
+#include "dague/scheduling.h"
+#include "dague/execution_unit.h"
 #include "data.h"
 #include "dague/arena.h"
 #include <stdio.h>

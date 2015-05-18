@@ -1,10 +1,16 @@
+/*
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <errno.h>
 #include <stdio.h>
 #include "dague_config.h"
 #include "dague/mca/pins/pins.h"
 #include "pins_task_profiler.h"
-#include "profiling.h"
-#include "execution_unit.h"
+#include "dague/profiling.h"
+#include "dague/execution_unit.h"
 
 /* init functions */
 static void pins_thread_init_task_profiler(struct dague_execution_unit_s * exec_unit);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,10 +11,10 @@
 
 typedef unsigned long remote_dep_datakey_t;
 
-#include "debug.h"
+#include "dague/debug.h"
 #include <string.h>
 
-#include "dague_description_structures.h"
+#include "dague/dague_description_structures.h"
 #include "dague/class/lifo.h"
 
 #define DAGUE_ACTION_DEPS_MASK                  0x00FFFFFF

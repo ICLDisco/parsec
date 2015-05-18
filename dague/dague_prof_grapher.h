@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,7 +10,7 @@
 #include "dague_config.h"
 
 #include "dague_internal.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 
 BEGIN_C_DECLS
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012      The University of Tennessee and The University
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -40,7 +40,7 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
     return __compare_and_swaplp( (volatile long*)location, &old, new_value );
 }
 #else
-#include "debug.h"
+#include "dague/debug.h"
 static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )

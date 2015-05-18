@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -11,9 +11,9 @@
 #define _cuda_zgemm_h_
 
 #include "dague_config.h"
-#include <dague/devices/cuda/dev_cuda.h>
+#include "dague/devices/cuda/dev_cuda.h"
 #include "dague.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 #include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
 

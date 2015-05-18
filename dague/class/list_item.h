@@ -176,7 +176,7 @@ dague_list_item_ring_push_sorted( dague_list_item_t* ring,
     return ring;
 }
 
-/* This is debug helpers for list items accounting */
+/* This is debu helpers for list items accounting */
 #if defined(DAGUE_DEBUG_ENABLE)
 #define DAGUE_ITEMS_VALIDATE(ITEMS)                                     \
     do {                                                                \

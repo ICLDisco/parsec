@@ -8,7 +8,7 @@
 #define PINS_PAPI_UTILS_H
 
 #include "dague.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 
 #define NUM_DEFAULT_EVENTS 4  /* default number of events */
 

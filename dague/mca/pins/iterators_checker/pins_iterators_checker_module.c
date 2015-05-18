@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2014 The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,8 +7,8 @@
 #include "dague_config.h"
 #include "dague/mca/pins/pins.h"
 #include "pins_iterators_checker.h"
-#include "profiling.h"
-#include "execution_unit.h"
+#include "dague/profiling.h"
+#include "dague/execution_unit.h"
 #include "data.h"
 
 #include <errno.h>

@@ -14,7 +14,7 @@
 #include <cuComplex.h>
 #endif
 #include "dague.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 #include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"

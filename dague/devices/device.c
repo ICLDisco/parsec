@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,7 +10,7 @@
 #include "dague/utils/mca_param.h"
 #include "dague/constants.h"
 #include "dague/debug.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 
 #include <stdlib.h>
 

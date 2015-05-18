@@ -15,7 +15,7 @@
 
 #include "dague/dague_hwloc.h"
 #include "dague/vpmap.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "dague/utils/output.h"
 
 #define DEFAULT_NB_CORE 128

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,7 +10,7 @@
 #include "dague/dague_internal.h"
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dague/profiling.h"
-#include "execution_unit.h"
+#include "dague/execution_unit.h"
 #include "dague/scheduling.h"
 
 #include <cuda.h>

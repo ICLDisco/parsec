@@ -5,10 +5,10 @@
  */
 
 #include "dague_config.h"
-#include "pins.h"
+#include "dague/mca/pins/pins.h"
 #include "dague/mca/mca_repository.h"
-#include "execution_unit.h"
-#include "profiling.h"
+#include "dague/execution_unit.h"
+#include "dague/profiling.h"
 #include "dague/utils/mca_param.h"
 
 #define MAX_NAME_SIZE 100 /* arbitrary module name limit for 'safety' */

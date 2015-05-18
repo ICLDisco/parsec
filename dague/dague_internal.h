@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2013 The University of Tennessee and The University
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,10 +8,10 @@
 #define DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague.h"
 #include "dague/types.h"
 #include "dague/class/list_item.h"
-#include "dague_description_structures.h"
-#include "dague.h"
+#include "dague/dague_description_structures.h"
 #include "dague/profiling.h"
 
 /**

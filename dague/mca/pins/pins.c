@@ -8,9 +8,9 @@
 #include "dague_config.h"
 #include <stdlib.h>
 #include <assert.h>
-#include "pins.h"
-#include "debug.h"
-#include "execution_unit.h"
+#include "dague/mca/pins/pins.h"
+#include "dague/debug.h"
+#include "dague/execution_unit.h"
 
 static int registration_disabled;
 

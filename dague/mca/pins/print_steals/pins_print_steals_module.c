@@ -1,10 +1,16 @@
+/*
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "pins_print_steals.h"
 #include "dague/mca/pins/pins.h"
 #ifdef HAVE_PAPI
 #include <papi.h>
 #endif
-#include "debug.h"
-#include "execution_unit.h"
+#include "dague/debug.h"
+#include "dague/execution_unit.h"
 
 static void pins_init_print_steals(dague_context_t* master_context);
 static void pins_thread_init_print_steals(dague_execution_unit_t* exec_unit);

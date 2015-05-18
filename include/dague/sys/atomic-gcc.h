@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -38,7 +38,7 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 #else
-#include "debug.h"
+#include "dague/debug.h"
 static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )
@@ -58,7 +58,7 @@ static inline int dague_atomic_cas_128b( volatile __uint128_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 #else
-#include "debug.h"
+#include "dague/debug.h"
 static inline int dague_atomic_cas_128b( volatile uint64_t* location,
                                          uint64_t old_value,
                                          uint64_t new_value )

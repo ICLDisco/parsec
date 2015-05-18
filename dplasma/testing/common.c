@@ -6,8 +6,8 @@
  */
 #include "dague_config.h"
 #include "dague.h"
-#include "execution_unit.h"
-#include <dague/utils/mca_param.h>
+#include "dague/execution_unit.h"
+#include "dague/utils/mca_param.h"
 #include "dague/mca/mca_repository.h"
 
 #include "common.h"

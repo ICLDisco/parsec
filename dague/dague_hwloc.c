@@ -6,7 +6,7 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "dague/utils/output.h"
 
 #include "dague/dague_hwloc.h"
