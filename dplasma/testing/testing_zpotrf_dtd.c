@@ -216,6 +216,7 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);  
+    dague_context_start(dague);
 
     /* Testing Insert Function */
     for(k=0;k<total;k++){

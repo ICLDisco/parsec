@@ -1,4 +1,5 @@
 #include <stdarg.h>
+#include "dague_config.h"
 #include "dague.h"
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
@@ -20,7 +21,6 @@
 #define MAX_TASK_CLASS 10
 #define TASK_HASH_TABLE_SIZE (100*1000)
 #define TILE_HASH_TABLE_SIZE (100*10)
-#define FUNCTION_HASH_TABLE_SIZE (10)
 
 //#define PRINT_F_STRUCTURE
 //#define SPIT_TRAVERSAL_INFO
@@ -67,13 +67,6 @@ release_deps_of_dtd(struct dague_execution_unit_s *,
 static dague_hook_return_t
 complete_hook_of_dtd(struct dague_execution_unit_s *,
                      dague_execution_context_t *);
-
-/* Fake body of a task required for the last fake task, implemented for bounded window */
-int
-fake_call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this_task)
-{
-    return 0;
-}
 
 /* This function infact decrements the dague handles task counter by executing one fake task after all the real tasks has been inserted in the dague context
  * Arguments:   - handle (dague_dtd_handle_t *)
@@ -598,6 +591,7 @@ test_hook_of_dtd_task(dague_execution_unit_t * context,
         rc = current_task->fpointer(context, current_task->orig_task);
         if(rc == DAGUE_HOOK_RETURN_DONE) {
             dague_atomic_add_32b(&(((dague_dtd_handle_t*)current_task->super.dague_handle)->tasks_scheduled),1);
+            //printf("task scheduled: %d\n", ((dague_dtd_handle_t*)current_task->super.dague_handle)->tasks_scheduled);
         }
         if(((dague_dtd_handle_t*)current_task->super.dague_handle)->total_tasks_to_be_exec == ((dague_dtd_handle_t*)current_task->super.dague_handle)->tasks_scheduled){
             dague_handle_update_nbtask(current_task->orig_task->dague_handle, -1); 
@@ -681,7 +675,7 @@ dtd_startup_tasks(dague_context_t * context,
 void
 dtd_destructor(__dague_dtd_internal_handle_t * handle)
 {
-    uint32_t i, j;
+    uint32_t i, j, k;
 #if defined(DAGUE_PROF_TRACE)
         free((void *)handle->super.super.profiling_array);
 #endif /* defined(DAGUE_PROF_TRACE) */
@@ -693,10 +687,30 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
         if (func != NULL){
             for (j=0; j< func->nb_flows; j++){
                 if(func->in[j] != NULL && func->in[j]->flow_flags == FLOW_ACCESS_READ){
-                    free(func->in[j]);
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++){
+                        if (func->in[j]->dep_in[k] != NULL){
+                            free((void*)func->in[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++){
+                        if (func->in[j]->dep_out[k] != NULL){
+                            free((void*)func->in[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->in[j]);
                 }
                 if(func->out[j] != NULL){
-                    free(func->out[j]);
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++){
+                        if (func->out[j]->dep_in[k] != NULL){
+                            free((void*)func->out[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++){
+                        if (func->out[j]->dep_out[k] != NULL){
+                            free((void*)func->out[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->out[j]);
                 }
             }
             dague_mempool_destruct(func_parent->context_mempool);
@@ -747,9 +761,16 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
     }
     for (i=0;i<TILE_HASH_TABLE_SIZE;i++){
         bucket_element_tile_t *bucket = handle->super.tile_h_table->buckets[i];
-        if( bucket != NULL)
-            free((dtd_tile_t *)bucket->tile);
-        free((bucket_element_tile_t *)handle->super.tile_h_table->buckets[i]);
+        bucket_element_tile_t *tmp_bucket;
+        if( bucket != NULL) {
+            /* cleaning chains */
+            while (bucket != NULL){
+                tmp_bucket = bucket;
+                free((dtd_tile_t *)bucket->tile);
+                bucket = bucket->next;
+                free(tmp_bucket);
+            }
+        }
     }
     for (i=0;i<DAGUE_dtd_NB_FUNCTIONS;i++){
         free((bucket_element_f_t *)handle->super.function_h_table->buckets[i]);
@@ -1658,9 +1679,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         free(startup_list);
         first_time = 0;
     }
-    if(task_id %1000 ==0 ){
-        usleep (1); 
-    }
 }
 
 /* ------------ */
@@ -1723,6 +1741,24 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
 #endif
         function = create_function(__dague_handle, fpointer, name, count_of_params, size_of_param, count_of_params);
         track_function_created_or_not = 1;
+    } else { /* Because I am tracking things that does not make a lot of sense hence */
+        int count_of_params = 0;
+        long unsigned int size_of_param = 0;
+
+        current_paramm = head_paramm;
+    
+        while(current_paramm != NULL){
+            count_of_params++;
+            current_paramm = current_paramm->next;
+        }
+        
+        if(function->nb_flows < count_of_params){
+            function->nb_flows = count_of_params;
+            flow_set_flag[function->function_id] = 0;
+        }
+        else if(function->nb_flows > count_of_params){
+            function->nb_flows = count_of_params;
+        }
     }
 
     dague_mempool_t * context_mempool_in_function = ((dague_dtd_function_t*) function)->context_mempool;
@@ -1756,9 +1792,18 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     temp_task->belongs_to_function = function->function_id;
     temp_task->super.function = __dague_handle->super.functions_array[(temp_task->belongs_to_function)];
 
-    temp_task->total_flow = temp_task->super.function->nb_flows;
-    temp_task->flow_count = temp_task->super.function->nb_flows;
     temp_task->ready_mask = 0;
+    temp_task->task_id = task_id;
+    temp_task->total_flow = temp_task->super.function->nb_flows;
+    temp_task->flow_count = temp_task->super.function->nb_flows+1; /* +1 to make sure the task is completely ready before it gets executed */
+    temp_task->fpointer = fpointer;
+    temp_task->super.locals[0].value = task_id;
+    temp_task->name = name;
+    temp_task->super.priority = 0;
+    temp_task->super.hook_id = 0;
+    temp_task->super.chore_id = 0;
+    temp_task->super.unused = 0;
+
 
     head_of_param_list = (task_param_t *) (((char *)temp_task) + sizeof(dtd_task_t)); /* Getting the pointer allocated from mempool */
     current_param = head_of_param_list;  
@@ -1767,6 +1812,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
 
     current_paramm = head_paramm;
 
+    struct user *last_user = (struct user *) malloc(sizeof(struct user));
     while(current_paramm != NULL){
         tmp = current_paramm->pointer_to_tile;
         tile = (dtd_tile_t *) tmp;
@@ -1784,29 +1830,50 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
                     set_flow_in_function(__dague_handle, temp_task, tile_op_type, flow_index, tile_type_index);
                 }
 
-                if(NULL != tile->last_user.task) {
-                    if (tile->last_user.task == temp_task){
-                        temp_task->flow_satisfied++;
-                    } //else { /* Setting descendant only if the tasks are diferrent from each other */
-                        set_descendant(tile->last_user.task, tile->last_user.flow_index,
-                                   temp_task, flow_index, tile->last_user.op_type,
+                last_user->flow_index   = tile->last_user.flow_index;
+                last_user->op_type      = tile->last_user.op_type;
+                last_user->task         = tile->last_user.task;
+                    
+                tile->last_user.flow_index       = flow_index;
+                tile->last_user.op_type          = tile_op_type;
+                temp_task->desc[flow_index].op_type_parent = tile_op_type;
+                temp_task->desc[flow_index].tile = tile; /* Saving tile pointer foreach flow in a task*/
+
+
+                dtd_task_t *parent;
+                int no_parent = 1;
+
+                if(NULL != (parent = last_user->task)) {
+                    int ii = dague_atomic_cas(&(tile->last_user.task), parent, temp_task);
+                    if(ii){
+                        no_parent = 0;
+                        set_descendant(parent, last_user->flow_index,
+                                   temp_task, flow_index, last_user->op_type,
                                    tile_op_type);
-                    //}
-                    if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
-                        set_dependencies_for_function((dague_handle_t *)__dague_handle,
-                                                  (dague_function_t *)temp_task->super.function, NULL,
-                                                  flow_index, 0, tile_type_index);
-                    } else {
-                        set_dependencies_for_function((dague_handle_t *)__dague_handle,
-                                                      (dague_function_t *)tile->last_user.task->super.function,
-                                                      (dague_function_t *)temp_task->super.function,
-                                                      tile->last_user.flow_index, flow_index, tile_type_index);
-                    }
-                } else {
-                    if(INPUT == (tile_op_type & GET_OP_TYPE)){
+                        if (parent == temp_task){
+                            dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1);
+                        }
+                        if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
+                            set_dependencies_for_function((dague_handle_t *)__dague_handle,
+                                                      (dague_function_t *)temp_task->super.function, NULL,
+                                                      flow_index, 0, tile_type_index);
+                        } else {
+                            set_dependencies_for_function((dague_handle_t *)__dague_handle,
+                                                          (dague_function_t *)parent->super.function,
+                                                          (dague_function_t *)temp_task->super.function,
+                                                          last_user->flow_index, flow_index, tile_type_index);
+                        }
+
+                    } 
+                } 
+
+                if (no_parent) {
+                    dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1);
+
+                    if(INPUT == (tile_op_type & GET_OP_TYPE) || ATOMIC_WRITE == (tile_op_type & GET_OP_TYPE)){
                         temp_task->dont_skip_releasing_data[flow_index] = 1; /* Saving the Flow for which a Task is the first one to use the data and the operation is INPUT */
                     }
-                    temp_task->flow_satisfied++;
+
                     if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT)
                         set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL,
                                                   (dague_function_t *)temp_task->super.function,
@@ -1815,15 +1882,10 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
                         set_dependencies_for_function((dague_handle_t *)__dague_handle,
                                                   (dague_function_t *)temp_task->super.function, NULL,
                                                   flow_index, 0, tile_type_index);
-                    
                 }
 
-                tile->last_user.flow_index       = flow_index;
-                tile->last_user.op_type          = tile_op_type;
                 tile->last_user.task             = temp_task;
-                temp_task->desc[flow_index].tile = tile; /* Saving tile pointer foreach flow in a task*/
-                temp_task->desc[flow_index].op_type_parent = tile_op_type;            
-    
+
                 flow_index++;
             }
         } else if ((tile_op_type & GET_OP_TYPE) == SCRATCH){
@@ -1859,17 +1921,10 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     flow_set_flag[temp_task->belongs_to_function] = 1;
 
     /* Assigning values to task objects  */
-    temp_task->super.locals[0].value = task_id;
-    temp_task->fpointer = fpointer;
     temp_task->param_list = head_of_param_list;
-    temp_task->task_id = task_id;
-    //temp_task->total_flow = flow_index;
-    //temp_task->flow_count = flow_index;
-    temp_task->name = name;
-    temp_task->super.priority = 0;
-    temp_task->super.hook_id = 0;
-    temp_task->super.chore_id = 0;
-    temp_task->super.unused = 0;
+
+    dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks),1);
+    dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1); /* in attempt to make the task not ready till the whole body is constructed */
 
     if(!__dague_handle->super.context->active_objects) {
         //printf("Context not attached\n");
@@ -1898,11 +1953,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
     task_id++;
     _internal_task_counter++;
-    //printf("internal task counter: %s \t %d\n", temp_task->super.function->name, task_id);
-    /* __dague_handle->super.nb_local_tasks = _internal_task_counter; 
-    __dague_handle->super.nb_local_tasks++; */
     /* Atomically increasing the nb_local_tasks_counter */
-    dague_atomic_add_32b((int *) &(__dague_handle->super.nb_local_tasks),1);
     __dague_handle->tasks_created = _internal_task_counter;
 
     int task_window_size = 1;
@@ -1922,13 +1973,13 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
             DAGUE_LIST_ITEM_SINGLETON(tmp_task);
 
             if (NULL != startup_list[vpid]) {
-                //dague_list_item_ring_merge((dague_list_item_t *)tmp_task,
-                  //             (dague_list_item_t *) (startup_list[vpid]));
-                dague_list_item_ring_merge((dague_list_item_t *) (startup_list[vpid]), 
-                                           (dague_list_item_t *)tmp_task);
-            } else{
-                startup_list[vpid] = (dague_execution_context_t*)tmp_task;
+                dague_list_item_ring_merge((dague_list_item_t *)tmp_task,
+                               (dague_list_item_t *) (startup_list[vpid]));
             }
+                /*dague_list_item_ring_merge((dague_list_item_t *) (startup_list[vpid]), 
+                                           (dague_list_item_t *)tmp_task);
+            } else{*/
+            startup_list[vpid] = (dague_execution_context_t*)tmp_task;
             vpid = (vpid+1)%__dague_handle->super.context->nb_vp; /* spread the tasks across all the VPs */
             tmp_task = ring;
         }
@@ -1956,10 +2007,15 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
 
 static dague_ontask_iterate_t copy_content(dague_execution_unit_t *eu, const dague_execution_context_t *newcontext,
               const dague_execution_context_t *oldcontext, const dep_t *dep, dague_dep_data_description_t *data,
-              int src_rank, int dst_rank, int dst_vpid, void *param) {
-
+              int src_rank, int dst_rank, int dst_vpid, void *param) 
+{
     uint8_t *val = (uint8_t *) &(oldcontext->unused);
     *val += 1;    
+
+    uint8_t *val1 = (uint8_t *) &(newcontext->unused);
+    dague_flow_t* parent_outflow = (dague_flow_t*)(dep->flow);
+    //printf("flow_index_pred: %d\n", parent_outflow->flow_index);
+    *val1 = parent_outflow->flow_index;
 
     memcpy(param, newcontext, sizeof(dague_execution_context_t));
     return DAGUE_ITERATE_STOP;
@@ -1969,9 +2025,11 @@ static int
 fake_hook_for_testing(dague_execution_unit_t * context,
                       dague_execution_context_t * this_task)
 {
-    static int count = 0;
-    printf ("%d\n",count ++);
-    //OBJ_RETAIN((dague_object_t *)this_task);
+    static int counter = 0;
+
+    //printf("------------\nTask counter is: %d\n--------------\n", counter++);
+    
+    int count = 0;
     dague_dtd_handle_t *dtd_handle = __dtd_handle;
     int total_flows = 0;  
     const char *name = this_task->function->name; 
@@ -1983,18 +2041,13 @@ fake_hook_for_testing(dague_execution_unit_t * context,
     //TODO: Build list of parameters and call insert task
     int i;
 
-    /*for (i=0; this_task->function->out[i] != NULL; i++){
-        tmp_op_type = this_task->function->out[i]->flow_flags;    
-    
-        if((tmp_op_type) == FLOW_ACCESS_NONE) {
-            dague_data_t *fake_data = calloc(1, sizeof(dague_data_t));
-            fake_data->key = rand(); 
-        }
-    }*/
+    data_repo_entry_t *entry;
+    dague_execution_context_t *T1;
 
     for (i=0; this_task->function->in[i] != NULL ; i++){
         tmp_param = (task_param_t *) malloc(sizeof(task_param_t));
 
+        dague_data_copy_t* copy;
         tmp_op_type = this_task->function->in[i]->flow_flags;    
         int op_type;
         int mask, pred_found = 0;
@@ -2006,35 +2059,47 @@ fake_hook_for_testing(dague_execution_unit_t * context,
         } else if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
               op_type = OUTPUT | REGION_FULL;  
         } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
+            op_type = INOUT | REGION_FULL;  
             //printf("\n\nTask: %s \tHas control flow coming in at index: %d and flow_index: %d\n", this_task->function->name, i, this_task->function->in[i]->flow_index);
 
-            /*this_task->unused = 0; 
-            dague_execution_context_t *T1 = malloc (sizeof(dague_execution_context_t)); 
+            this_task->unused = 0; 
+            T1 = malloc (sizeof(dague_execution_context_t)); 
             mask = 1 << i;
             this_task->function->iterate_predecessors(context, this_task,  mask, copy_content, (void*)T1);
             if (this_task->unused != 0) {
                 pred_found = 1;
-            }   
+            } else {
+                pred_found = 2;
+                continue;
+            }  
 
-            if (pred_found) {*/
-                /*printf("Has pred\n");
-                printf("pred is: %s\n", T1->function->name);*/
-           /* } else {
+            if (pred_found == 1) {
+                //printf("Has pred\n");
+                //printf("pred is: %s\n", T1->function->name);
+                uint64_t id = T1->function->key(T1->dague_handle, T1->locals);
+                entry = data_repo_lookup_entry(T1->dague_handle->repo_array[T1->function->function_id], id); 
+                copy = entry->data[T1->unused];
+                //printf("asdAD\n"); 
+            } else {
                 //printf("first _task\n");
 
-            }*/          
-    
-            continue;
+            }          
+           
+            //continue;
         }else {
             continue;
         } 
 
         //ddesc = this_task->data[i].data_in->original->ddesc;
-        //if (!pred_found) {
+        if (pred_found == 0) {
             ddesc = (dague_ddesc_t *)this_task->data[i].data_in->original;
             key = this_task->data[i].data_in->original->key;
-            dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);    
-        //}    
+        } else if (pred_found == 1){    
+            //printf(" Copy found is: %p \n", copy);
+            ddesc = (dague_ddesc_t *)copy->original;
+            key   =  copy->original->key; 
+        }
+        dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);    
 
         tmp_param->pointer_to_tile = (void *)tile;
         tmp_param->operation_type = op_type;
@@ -2046,19 +2111,21 @@ fake_hook_for_testing(dague_execution_unit_t * context,
         } else {
             current_param->next = tmp_param;
         }
+        count ++;
         current_param = tmp_param;
     }
 
-    #if 0 
     for (i=0; this_task->function->out[i] != NULL; i++){
         tmp_op_type = this_task->function->out[i]->flow_flags;    
         if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
+            tmp_param = (task_param_t *) malloc(sizeof(task_param_t));
+
             //printf("\n\nTask: %s \tHas control flow going out at index: %d and flow_index: %d\n", this_task->function->name, i, this_task->function->out[i]->flow_index);
-            dague_data_t *fake_data = calloc(1, sizeof(dague_data_t));
+            dague_data_t *fake_data = OBJ_NEW(dague_data_t);
             fake_data->key = rand(); 
-            dague_data_copy_t *fake_data_copy = calloc(1, sizeof(dague_data_copy_t));
+            dague_data_copy_t *fake_data_copy = OBJ_NEW(dague_data_copy_t);
             fake_data_copy->original = fake_data; 
-            this_task->data[i].data_out = fake_data_copy;
+            this_task->data[this_task->function->out[i]->flow_index].data_out = fake_data_copy;
             //printf("fake_copy address: %p\n", fake_data_copy);
 
 
@@ -2073,12 +2140,29 @@ fake_hook_for_testing(dague_execution_unit_t * context,
                 current_param->next = tmp_param;
             }
             current_param = tmp_param;*/
+            ddesc = (dague_ddesc_t *)fake_data;
+            key   =  fake_data->key;
+            dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);    
+            //printf("tile address: %p\n", tile);
+
+            int op_type = INOUT | REGION_FULL;  
+            tmp_param->pointer_to_tile = (void *)tile;
+            tmp_param->operation_type = op_type;
+            tmp_param->tile_type_index = REGION_FULL; 
+            tmp_param->next = NULL;
+
+            if(head_param == NULL){
+                head_param = tmp_param;
+            } else {
+                current_param->next = tmp_param;
+            }
+            count ++;
+            current_param = tmp_param;
         }
     } 
-    #endif
 
     /* testing Insert Task */
-    
+    //printf("task is : %s, count of param %d\n", this_task->function->name, count); 
     insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
                          this_task,
                          (char *)name, head_param);
@@ -2095,14 +2179,13 @@ fake_hook_for_testing(dague_execution_unit_t * context,
 void 
 copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle)
 {
+    //printf("total Tasks: %d\n", handle->nb_local_tasks);
     int total_functions = handle->nb_functions;
     int i;
     for (i=0; i<total_functions; i++){
         dtd_handle->actual_hook[i].hook = handle->functions_array[i]->incarnations->hook;
-        //actual_hook[i].hook = handle->functions_array[i]->incarnations->hook;
+        /* TODO: copy all the hook accordingly */
         dague_hook_t **hook_not_const = (dague_hook_t **)&(handle->functions_array[i]->incarnations->hook);
         *hook_not_const = &fake_hook_for_testing;
     } 
-
-
 }

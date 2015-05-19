@@ -299,6 +299,8 @@ int main(int argc, char ** argv)
     int iinfo;
     int anb, nb, ldl;
 
+    dague_context_start(dague);
+
     /* Testing insert task function */
     for (k = 0; k < minMNT; k++) {
         tempkm = k == ddescA.super.mt-1 ? (ddescA.super.m)-k*(ddescA.super.mb) : ddescA.super.mb;

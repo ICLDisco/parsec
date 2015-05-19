@@ -285,6 +285,7 @@ int main(int argc, char ** argv)
     int side = PlasmaLeft;
     int trans = PlasmaConjTrans;
 
+    dague_context_start(dague);
 
     /* Testing Insert Function */
     for (k = 0; k < minMNT; k++) {

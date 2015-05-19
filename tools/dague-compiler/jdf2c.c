@@ -774,7 +774,7 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
 
     string_arena_init(sa);
 
-    if( 0 == function_has_data_output(f) ) {
+    if( 0 == 1  /*function_has_data_output(f)*/ ) {  /* for tracking the control flows */
         string_arena_add_string(sa,
                                 "  %s_nblocal_tasks = %s_%s_internal_init(__dague_handle);\n"
                                 "  (void)%s_nblocal_tasks;\n",
@@ -1165,7 +1165,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
         jdf_function_entry_t* f;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            if( 0 != function_has_data_output(f) )
+            if( 0 != 1  /*function_has_data_output(f)*/ )  /* including the repo for tracking the control flows */
                 coutput("#define %s_repo (__dague_handle->repositories[%d])\n",
                         f->fname, f->function_id);
         }
@@ -3096,7 +3096,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
         jdf_function_entry_t* f;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            if( 0 != function_has_data_output(f) )
+            if( 0 != 1 /*function_has_data_output(f)*/ )  /* for tracking the control flows */
                 coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
                         f->function_id, f->fname);
         }
@@ -3272,7 +3272,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         jdf_function_entry_t* f;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            if( 0 != function_has_data_output(f) ) {
+            if( 0 != 1 /*function_has_data_output(f)*/ ) {  /* for tracking the control flows */
                 coutput("  __dague_handle->super.super.repo_array = __dague_handle->repositories;\n\n");
                 break;
             }
@@ -4298,6 +4298,8 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
     int has_output_data = function_has_data_output(f);
+    
+    has_output_data = 1; /* For tracking control flow in DTD */
 
     coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, uint32_t action_mask, dague_remote_deps_t *deps)\n"
             "{\n"
