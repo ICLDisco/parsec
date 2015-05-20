@@ -1,29 +1,29 @@
 #include <stdarg.h>
 #include "dague_config.h"
 #include "dague.h"
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/memory_pool.h"
-#include "data.h"
-#include "debug.h"
-#include "scheduling.h"
+#include "dague/data.h"
+#include "dague/debug.h"
+#include "dague/scheduling.h"
 #include "dague/mca/pins/pins.h"
-#include "remote_dep.h"
-#include "datarepo.h"
-#include "dague_prof_grapher.h"
+#include "dague/remote_dep.h"
+#include "dague/datarepo.h"
+#include "dague/dague_prof_grapher.h"
 #include "dague/dague_prof_grapher.c"
-#include "mempool.h"
+#include "dague/mempool.h"
 #include "dague/devices/device.h"
 #include "dague/constants.h"
-#include "dague/interfaces/superscalar/insert_function_internal.h"
+#include "dague/vpmap.h"
 
-#define MAX_TASK_CLASS 10
-#define TASK_HASH_TABLE_SIZE (100*1000)
+//#define TASK_HASH_TABLE_SIZE (100*1000)
+#define TASK_HASH_TABLE_SIZE (10) /* Do not use for shared */
 #define TILE_HASH_TABLE_SIZE (100*10)
 
 //#define PRINT_F_STRUCTURE
-//#define SPIT_TRAVERSAL_INFO
+//#define DUMP_TRAVERSAL_INFO
 #define DAG_BUILD_2
 #define OVERLAP_STRATEGY_1
 //#define OVERLAP_STRATEGY_2
@@ -98,7 +98,7 @@ increment_task_counter(dague_dtd_handle_t *__dague_handle)
             vpid = (vpid+1)%__dague_handle->super.context->nb_vp; /* spread the tasks across all the VPs */
             tmp_task = ring;
         }
-        (dague_list_item_t*) __dague_handle->ready_task = tmp_task; /* can not be any contention */
+        __dague_handle->ready_task = NULL;
 
         int p;
         for(p = 0; p < vpmap_get_nb_vp(); p++) {
@@ -157,7 +157,8 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
 static inline char*
 color_hash(char *name)
 {
-    int c, i, r1, r2, g1, g2, b1, b2;
+    int c, r1, r2, g1, g2, b1, b2;
+    uint32_t i;
     char *color=(char *)calloc(7,sizeof(char));
 
     r1 = 0xA3;
@@ -420,7 +421,7 @@ tile_insert_h_t(hash_table *hash_table,
  */
 dtd_task_t*
 find_task(hash_table* hash_table,
-          uint32_t key, int task_h_size)
+          int32_t key, int task_h_size)
 {
     uint32_t hash_val = hash_key(key, task_h_size);
     bucket_element_task_t *current;
@@ -578,7 +579,6 @@ static int
 test_hook_of_dtd_task(dague_execution_unit_t * context,
                       dague_execution_context_t * this_task)
 {
-    const dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) this_task->dague_handle;
     dtd_task_t * current_task                = (dtd_task_t*)this_task;
 
     DAGUE_TASK_PROF_TRACE(context->eu_profile,
@@ -663,7 +663,7 @@ dtd_startup_tasks(dague_context_t * context,
         vpid              = (vpid+1)%context->nb_vp; /* spread the tasks across all the VPs */
         tmp_task          = ring;
     }
-    (dague_list_item_t*) dague_dtd_handle->ready_task = NULL; /* can not be any contention */
+    dague_dtd_handle->ready_task = NULL;
 
     return 0;
 }
@@ -815,7 +815,6 @@ dtd_startup(dague_context_t * context,
         if (!(wanted_devices & (1 << _i)))
             continue;
         dague_device_t *device = dague_devices_get(_i);
-        dague_ddesc_t *dague_ddesc;
 
         if (NULL == device)
             continue;
@@ -924,9 +923,7 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
                      void *param)
 {
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
-    dague_dtd_handle_t* dague_dtd_handle = (dague_dtd_handle_t*) old_context->dague_handle;
-    int task_id = new_context->locals[0].value, is_ready = 0;
-    char *parent, *dest;
+    int is_ready = 0;
     dtd_task_t *current_task = (dtd_task_t*) new_context;
     dtd_task_t *parent_task  = (dtd_task_t*)old_context;
 
@@ -950,7 +947,8 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
 #endif
 
     if(is_ready){
-        #if defined (SPIT_TRAVERSAL_INFO) 
+        #if defined (DUMP_TRAVERSAL_INFO) 
+            int task_id = new_context->locals[0].value;
             printf("------\ntask Ready: %s \t %d\nTotal flow: %d  flow_count: %d\n-----\n", current_task->super.function->name, current_task->task_id, current_task->total_flow, current_task->flow_count);
         #endif
 
@@ -1042,7 +1040,7 @@ complete_hook_of_dtd(dague_execution_unit_t* context,
                      dague_execution_context_t* this_task)
 {
     dtd_task_t *task = (dtd_task_t*) this_task; 
-#if defined(SPIT_TRAVERSAL_INFO)
+#if defined(DUMP_TRAVERSAL_INFO)
     static int counter= 0;
     dague_atomic_add_32b(&counter,1);
     printf("------------------------------------------------\nexecution done of task: %s \t %d\ntask done %d \n", this_task->function->name, task->task_id, counter);
@@ -1110,7 +1108,13 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             desc_dep->function_id   = 100; /* 100 is used to indicate data is coming from memory */
             desc_dep->dep_index     = parent_flow_index;
             desc_dep->belongs_to    = parent_function->out[parent_flow_index];
+            desc_dep->flow          = NULL;
+            desc_dep->direct_data   = NULL;
             desc_dep->dep_datatype_index = tile_type_index; /* specific for cholesky, will need to change */
+            desc_dep->datatype.type.cst     = 0;
+            desc_dep->datatype.layout.cst   = NULL;
+            desc_dep->datatype.count.cst    = 0;
+            desc_dep->datatype.displ.cst    = 0;
 
             for (i=0; i<MAX_DEP_IN_COUNT; i++) {
                 if (NULL == parent_function->out[parent_flow_index]->dep_out[i]) {
@@ -1146,7 +1150,13 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             desc_dep->function_id   = 100; /* 100 is used to indicate data is coming from memory */
             desc_dep->dep_index     = desc_flow_index;
             desc_dep->belongs_to    = desc_function->in[desc_flow_index];
+            desc_dep->flow          = NULL;
+            desc_dep->direct_data   = NULL;
             desc_dep->dep_datatype_index = tile_type_index; /* specific for cholesky, will need to change */
+            desc_dep->datatype.type.cst     = 0;
+            desc_dep->datatype.layout.cst   = NULL;
+            desc_dep->datatype.count.cst    = 0;
+            desc_dep->datatype.displ.cst    = 0;
 
             for (i=0; i<MAX_DEP_IN_COUNT; i++) {
                 if (NULL == desc_function->in[desc_flow_index]->dep_in[i]) {
@@ -1215,7 +1225,12 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             parent_dep->flow            = desc_function->in[desc_flow_index];
             parent_dep->dep_index       = parent_flow_index;
             parent_dep->belongs_to      = parent_function->out[parent_flow_index];
+            parent_dep->direct_data     = NULL;
             parent_dep->dep_datatype_index = tile_type_index;
+            parent_dep->datatype.type.cst     = 0;
+            parent_dep->datatype.layout.cst   = NULL;
+            parent_dep->datatype.count.cst    = 0;
+            parent_dep->datatype.displ.cst    = 0;
 
             for(i=0; i<MAX_DEP_OUT_COUNT; i++) {
                 if(NULL == parent_function->out[parent_flow_index]->dep_out[i]) {
@@ -1233,7 +1248,12 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             desc_dep->flow          = parent_function->out[parent_flow_index];
             desc_dep->dep_index     = desc_flow_index;
             desc_dep->belongs_to    = desc_function->in[desc_flow_index];
+            desc_dep->direct_data   = NULL;
             desc_dep->dep_datatype_index = tile_type_index;
+            desc_dep->datatype.type.cst     = 0;
+            desc_dep->datatype.layout.cst   = NULL;
+            desc_dep->datatype.count.cst    = 0;
+            desc_dep->datatype.displ.cst    = 0;
 
             for(i=0; i<MAX_DEP_IN_COUNT; i++) {
                 if(NULL == desc_function->in[desc_flow_index]->dep_in[i]) {
@@ -1345,6 +1365,14 @@ set_flow_in_function(dague_dtd_handle_t *__dague_handle,
     flow->flow_index    = flow_index;
     flow->flow_datatype_mask = 1<<tile_type_index;
 
+    int i;
+    for (i=0; i<MAX_DEP_IN_COUNT; i++){
+        flow->dep_in[i] = NULL;
+    }
+    for (i=0; i<MAX_DEP_OUT_COUNT; i++){
+        flow->dep_out[i] = NULL;
+    }
+
     if ((tile_op_type & GET_OP_TYPE) == INPUT) {
         flow->flow_flags = FLOW_ACCESS_READ;
     } else if ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
@@ -1439,7 +1467,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     dtd_task_t *current_task = NULL, *temp_task, *task_to_be_in_hasht = NULL;
 
     temp_task = (dtd_task_t *)dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools); /* Creating Task object */
-    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
   
     /*printf("Orignal Address : %p\t", temp_task);
     int n = ((uintptr_t)temp_task) & 0xF; 
@@ -1659,7 +1686,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
             vpid = (vpid+1)%__dague_handle->super.context->nb_vp; /* spread the tasks across all the VPs */
             tmp_task = ring;
         }
-        (dague_list_item_t*) __dague_handle->ready_task = tmp_task; /* can not be any contention */
+        __dague_handle->ready_task = NULL;
 
         int p;
         for(p = 0; p < vpmap_get_nb_vp(); p++) {
@@ -1767,7 +1794,6 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     dtd_task_t *current_task = NULL, *temp_task, *task_to_be_in_hasht = NULL;
 
     temp_task = (dtd_task_t *) dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools); /* Creating Task object */
-    DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     temp_task->flow_satisfied = 0;
     for(int i=0;i<MAX_DESC;i++){
@@ -1976,14 +2002,11 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
                 dague_list_item_ring_merge((dague_list_item_t *)tmp_task,
                                (dague_list_item_t *) (startup_list[vpid]));
             }
-                /*dague_list_item_ring_merge((dague_list_item_t *) (startup_list[vpid]), 
-                                           (dague_list_item_t *)tmp_task);
-            } else{*/
             startup_list[vpid] = (dague_execution_context_t*)tmp_task;
             vpid = (vpid+1)%__dague_handle->super.context->nb_vp; /* spread the tasks across all the VPs */
             tmp_task = ring;
         }
-        (dague_list_item_t*) __dague_handle->ready_task = NULL; /* can not be any contention */
+        __dague_handle->ready_task = NULL; 
 
         int p;
         for(p = 0; p < vpmap_get_nb_vp(); p++) {
