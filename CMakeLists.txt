@@ -281,7 +281,7 @@ if(_match_icc)
     # 1419: warning about extern functions being declared in .c
     #       files
     # 1572: cuda compares floats with 0.0f.
-    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
+    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572 -wd10237" )
   ENDIF( HAVE_WD )
 endif(_match_icc)
 
