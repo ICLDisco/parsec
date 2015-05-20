@@ -15,7 +15,7 @@ cxx_compiler = '@CMAKE_CXX_COMPILER@'.replace('FILEPATH=', '')
 
 build_type = '@CMAKE_BUILD_TYPE@'
 
-extra_compile_args = []
+extra_compile_args = util.split_quoted('@C_WFLAGS@')
 if c_compiler.endswith('icc'):
     extra_compile_args.extend(['-wd47', '-static-intel'])
 
