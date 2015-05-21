@@ -663,14 +663,14 @@ install(FILES
   DESTINATION include/dague/class)
     
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic-gcc.h  
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic-macosx.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic-ppc-bgp.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic-ppc.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic-x86_32.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic-x86_64.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/sys/atomic-xlc.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-gcc.h  
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-macosx.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc-bgp.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_32.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_64.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-xlc.h
   DESTINATION include/dague/sys)
 
 

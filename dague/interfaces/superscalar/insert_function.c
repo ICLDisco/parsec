@@ -23,7 +23,7 @@
 #define TILE_HASH_TABLE_SIZE (100*10)
 
 //#define PRINT_F_STRUCTURE
-//#define DUMP_TRAVERSAL_INFO
+#define DUMP_TRAVERSAL_INFO
 #define DAG_BUILD_2
 #define OVERLAP_STRATEGY_1
 //#define OVERLAP_STRATEGY_2
@@ -591,7 +591,7 @@ test_hook_of_dtd_task(dague_execution_unit_t * context,
         rc = current_task->fpointer(context, current_task->orig_task);
         if(rc == DAGUE_HOOK_RETURN_DONE) {
             dague_atomic_add_32b(&(((dague_dtd_handle_t*)current_task->super.dague_handle)->tasks_scheduled),1);
-            //printf("task scheduled: %d\n", ((dague_dtd_handle_t*)current_task->super.dague_handle)->tasks_scheduled);
+            printf("task scheduled: %d\n", ((dague_dtd_handle_t*)current_task->super.dague_handle)->tasks_scheduled);
         }
         if(((dague_dtd_handle_t*)current_task->super.dague_handle)->total_tasks_to_be_exec == ((dague_dtd_handle_t*)current_task->super.dague_handle)->tasks_scheduled){
             dague_handle_update_nbtask(current_task->orig_task->dague_handle, -1); 
@@ -2202,13 +2202,18 @@ fake_hook_for_testing(dague_execution_unit_t * context,
 void 
 copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle)
 {
-    //printf("total Tasks: %d\n", handle->nb_local_tasks);
+    printf("total Tasks: %d\n", handle->nb_local_tasks);
     int total_functions = handle->nb_functions;
-    int i;
+    int i, j;
     for (i=0; i<total_functions; i++){
-        dtd_handle->actual_hook[i].hook = handle->functions_array[i]->incarnations->hook;
-        /* TODO: copy all the hook accordingly */
-        dague_hook_t **hook_not_const = (dague_hook_t **)&(handle->functions_array[i]->incarnations->hook);
-        *hook_not_const = &fake_hook_for_testing;
+        for (j =0; handle->functions_array[i]->incarnations[j].hook != NULL; j++){
+            if (handle->functions_array[i]->incarnations[j].type == DAGUE_DEV_CPU){
+                dtd_handle->actual_hook[i].hook = handle->functions_array[i]->incarnations[j].hook;
+            }
+        }
+        for (j =0; handle->functions_array[i]->incarnations[j].hook != NULL; j++){
+            dague_hook_t **hook_not_const = (dague_hook_t **)&(handle->functions_array[i]->incarnations[j].hook);
+            *hook_not_const = &fake_hook_for_testing;
+        }
     } 
 }
