@@ -1030,7 +1030,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#include \"dague.h\"\n"
             "#include \"dague/constants.h\"\n"
             "#include \"dague/data_distribution.h\"\n"
-            "#include \"dague/data.h\"\n"
+            "#include \"dague/data_internal.h\"\n"
             "#include \"dague/debug.h\"\n"
             "#include \"dague/ayudame.h\"\n"
             "#include \"dague/devices/device.h\"\n"

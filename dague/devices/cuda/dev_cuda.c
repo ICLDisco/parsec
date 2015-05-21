@@ -13,7 +13,7 @@
 
 #if defined(HAVE_CUDA)
 #include "dague.h"
-#include "dague/data.h"
+#include "dague/data_internal.h"
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dague/profiling.h"
 #include "dague/execution_unit.h"
@@ -909,7 +909,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
         temp_loc[i] = NULL;
         master = this_task->data[i].data_in->original;
-        gpu_elem = dague_data_get_copy(master, gpu_device->super.device_index);
+        gpu_elem = DAGUE_DATA_GET_COPY(master, gpu_device->super.device_index);
         /* There is already a copy on the device */
         if( NULL != gpu_elem ) continue;
 
@@ -1138,7 +1138,7 @@ static inline int dague_gpu_check_space_needed(gpu_device_t *gpu_device, dague_g
         if(NULL == this_task->function->in[i]) continue;
         data = this_task->data[i].data_in;
         original = data->original;
-        if( NULL != dague_data_get_copy(original, gpu_device->super.device_index) ) {
+        if( NULL != DAGUE_DATA_GET_COPY(original, gpu_device->super.device_index) ) {
             continue;
         }
         if(this_task->function->in[i]->flow_flags & FLOW_ACCESS_READ)

@@ -1,5 +1,5 @@
 extern "C" %{
-  /* This simple example does not need to include anything */
+   /* This simple example does not need to include anything */
 %}
 
 NT

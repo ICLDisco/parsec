@@ -12,6 +12,7 @@
 #include <assert.h>
 
 #include "dplasma/lib/butterfly_map.h"
+#include "dague/data_internal.h"
 
 seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){
     int am, an, bm, bn, cm, cn, dm, dn, em, en, fm, fn;

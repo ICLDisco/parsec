@@ -13,7 +13,7 @@
 #include <assert.h>
 
 #include "dague/data_distribution.h"
-#include "dague/data.h"
+#include "dague/data_internal.h"
 
 typedef struct dague_hash_datadist_entry_s {
     uint32_t      key;  /**< Unique key */

@@ -15,9 +15,10 @@
 #include "dague/data_distribution.h"
 #include "dague/data.h"
 #include "dague/datatype.h"
-#include "dague/utils/output.h"
 
 BEGIN_C_DECLS
+
+struct dague_execution_unit_s;
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
@@ -61,7 +62,7 @@ static inline int dague_traslate_matrix_type( enum matrix_type mt, dague_datatyp
     case matrix_ComplexFloat:  *dt = dague_datatype_complex_t; break;
     case matrix_ComplexDouble: *dt = dague_datatype_double_complex_t; break;
     default:
-        dague_output(0, "Unknown matrix_type (%d)\n");
+        fprintf(stderr, "%s:%d Unknown matrix_type (%d)\n", __func__, __LINE__, mt);
         return -1;
     }
     return 0;
@@ -111,13 +112,13 @@ int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
 struct dague_execution_unit_s;
 typedef int (*dague_operator_t)( struct dague_execution_unit_s *eu, const void* src, void* dst, void* op_data, ... );
 
-typedef int (*tiled_matrix_unary_op_t )( dague_execution_unit_t *eu,
+typedef int (*tiled_matrix_unary_op_t )( struct dague_execution_unit_s *eu,
                                          const tiled_matrix_desc_t *desc1,
                                          void *data1,
                                          int uplo, int m, int n,
                                          void *args );
 
-typedef int (*tiled_matrix_binary_op_t)( dague_execution_unit_t *eu,
+typedef int (*tiled_matrix_binary_op_t)( struct dague_execution_unit_s *eu,
                                          const tiled_matrix_desc_t *desc1,
                                          const tiled_matrix_desc_t *desc2,
                                          const void *data1, void *data2,

@@ -7,7 +7,7 @@
 #include "dague_config.h"
 #include "dague/arena.h"
 #include "dague/class/lifo.h"
-#include "dague/data.h"
+#include "dague/data_internal.h"
 
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
 
