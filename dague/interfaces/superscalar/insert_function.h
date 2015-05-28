@@ -48,7 +48,7 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
 #define DEFAULT 0x1
 #define LOWER_TILE 0x2
 #define LITTLE_T 0x3
-#define DAGUE_dtd_NB_FUNCTIONS 15
+#define DAGUE_dtd_NB_FUNCTIONS 25
 #define DTD_TASK_COUNT 10000
 #define PASSED_BY_REF 1
 #define UNPACK_VALUE 1

@@ -19,7 +19,7 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    PLASMA_enum uplo = PlasmaUpper;
+    PLASMA_enum uplo = PlasmaLower;
     int info = 0;
     int ret = 0;
 

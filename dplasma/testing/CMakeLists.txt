@@ -60,6 +60,7 @@ set(TESTS
   testing_zpotrf_dtd.c
   testing_zgetrf_incpiv_dtd.c
   testing_zgeqrf_dtd.c
+  testing_zpotrf_ptg_dtd_composite.c
 )
 if( DPLASMA_DEBUG_QR_PIVGEN )
   list(APPEND TESTS testing_zpivgen.c)

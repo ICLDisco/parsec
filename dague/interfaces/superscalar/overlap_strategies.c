@@ -142,9 +142,9 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 #endif
             
         while(NULL != current_desc_task) {
-#if defined (DUMP_TRAVERSAL_INFO) 
-            printf("Current successor: %s \t %d\nTotal flow: %d  flow_satisfied: %d\n", current_desc_task->super.function->name, current_desc_task->task_id, current_desc_task->flow_count, current_desc_task->flow_satisfied);
-#endif
+            if (dump_traversal_info) {
+                printf("Current successor: %s \t %d\nTotal flow: %d  flow_satisfied: %d\n", current_desc_task->super.function->name, current_desc_task->task_id, current_desc_task->flow_count, current_desc_task->flow_satisfied);
+            }
 
             if (NULL != out_task) {
                 break;

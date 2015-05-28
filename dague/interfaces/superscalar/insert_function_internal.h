@@ -1,6 +1,7 @@
-#include "dague_internal.h"
-#include "data.h"
-#include "datarepo.h"
+#include "dague/dague_internal.h"
+#include "dague/data.h"
+#include "dague/data_internal.h"
+#include "dague/datarepo.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -8,11 +9,13 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <assert.h>
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 #include "dague/interfaces/superscalar/insert_function.h"
 
+int dump_traversal_info; /* For printing traversal info */
+int dump_function_info; /* For printing function_structure info */
 
-dague_dtd_handle_t *__dtd_handle;
+dague_dtd_handle_t *__dtd_handle; /* for testing purpose of automatic insertion from Awesome PTG approach */
 
 typedef struct bucket_element_f_s bucket_element_f_t;
 typedef struct bucket_element_tile_s bucket_element_tile_t;
@@ -57,10 +60,9 @@ struct dtd_task_s {
     int ready_mask;
     char *name;
     uint8_t belongs_to_function;
-    uint8_t first_and_input[MAX_DESC]; /* saves flow for which a task may be first one 
-                                and it's operation type is INPUT on that DATA */
     uint8_t dont_skip_releasing_data[MAX_DESC]; /* Saves flow index for which we have to release data of a TASK 
-                                  with INPUT operation */
+                                  with INPUT and ATOMIC_WRITE operation */
+    dague_execution_context_t *orig_task; //for testing purpose will be removed
     task_param_t *param_list;
 };
 
@@ -135,7 +137,9 @@ struct dague_dtd_handle_s {
     int total_task_class;
     int tasks_created;
     int tasks_scheduled;
-    struct hook_info actual_hook[15]; 
+    struct hook_info actual_hook[DAGUE_dtd_NB_FUNCTIONS];/* from here to end is for the testing interface */
+    int total_tasks_to_be_exec;
+    //hash_table *tile_ctl_table; // ready task list head
 };
 
 struct __dague_dtd_internal_handle_s {
@@ -179,3 +183,6 @@ void tile_insert_h_t(hash_table *tile_h_table,
 
 int data_lookup_of_dtd_task(dague_execution_unit_t *,
                             dague_execution_context_t *);
+
+
+void copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle);
