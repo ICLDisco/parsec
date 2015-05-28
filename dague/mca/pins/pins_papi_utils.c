@@ -176,9 +176,9 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                                                      event->pins_papi_native_event)) ) {
                     dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
                                  __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
-                    continue;
+                    break;
                 }
-                dague_output(0, "Valid PAPI event %s on %d socket (-1 for all), %d core (-1 for all) and frequency %d\n",
+                dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d\n",
                              token, event->socket, event->core, event->frequency);
                 /* We have a valid event, let's move to the next */
                 event->pins_papi_event_name = strdup(token);
@@ -216,7 +216,7 @@ int parsec_pins_papi_events_free(parsec_pins_papi_events_t** pevents)
 void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
                                     parsec_pins_papi_values_t* pinfo)
 {
-    int i, err;
+    int err;
 
     if(PAPI_NULL != event_cb->papi_eventset) {
         if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, pinfo->values)) ) {
