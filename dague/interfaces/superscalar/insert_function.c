@@ -12,7 +12,6 @@
 #include "dague/remote_dep.h"
 #include "dague/datarepo.h"
 #include "dague/dague_prof_grapher.h"
-#include "dague/dague_prof_grapher.c"
 #include "dague/mempool.h"
 #include "dague/devices/device.h"
 #include "dague/constants.h"
@@ -203,7 +202,7 @@ static inline void
 print_color_graph(char* name)
 {
     char *color = color_hash(name);
-    fprintf(grapher_file,"#%s",color);
+    /*fprintf(grapher_file,"#%s",color); */
     free(color); 
 }
 char *
@@ -887,7 +886,7 @@ dague_dtd_new(dague_context_t* context,
 
     __dague_handle->dtd_data_repository             = data_repo_create_nothreadsafe(DTD_TASK_COUNT, MAX_DEP_OUT_COUNT);
 #if defined(DAGUE_PROF_TRACE)
-    __dague_handle->super.super.profiling_array     = calloc (2 * task_class_counter, sizeof(int));
+    __dague_handle->super.super.profiling_array     = calloc (2 * DAGUE_dtd_NB_FUNCTIONS , sizeof(int));
 #endif /* defined(DAGUE_PROF_TRACE) */
 
     __dague_handle->super.tasks_created         = 0; /* For the testing of PTG inserting in DTD */ 
@@ -1535,7 +1534,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         tmp = va_arg(args, void *);
         tile = (dtd_tile_t *) tmp;
         tile_op_type = va_arg(args, int);
-        current_param->tile_type_index = DEFAULT;
+        current_param->tile_type_index = REGION_FULL;
 
         if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
             tile_type_index = tile_op_type & GET_REGION_INFO;
@@ -1857,7 +1856,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
         tmp = current_paramm->pointer_to_tile;
         tile = (dtd_tile_t *) tmp;
         tile_op_type = current_paramm->operation_type;
-        current_param->tile_type_index = DEFAULT;
+        current_param->tile_type_index = REGION_FULL;
 
         if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
             tile_type_index = tile_op_type & GET_REGION_INFO;
