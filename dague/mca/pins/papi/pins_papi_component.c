@@ -20,6 +20,7 @@
 
 #include "dague/mca/pins/pins.h"
 #include "dague/mca/pins/papi/pins_papi.h"
+#include "dague/utils/mca_param.h"
 
 /*
  * Local function
