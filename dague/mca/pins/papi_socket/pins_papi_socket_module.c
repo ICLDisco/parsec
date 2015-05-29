@@ -56,7 +56,7 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
 
     /* Set all the matching events */
     for( i = 0; i < pins_papi_socket_events->num_counters; i++ ) {
-        event = &pins_papi_socket_events->events[i];
+        event = pins_papi_socket_events->events[i];
         if( (event->socket != -1) && (event->socket != my_socket) )
             continue;
         if( (event->core != -1) && (event->core != my_core) )
