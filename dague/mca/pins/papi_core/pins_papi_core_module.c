@@ -72,10 +72,9 @@ static void pins_thread_init_papi_core(dague_execution_unit_t * exec_unit)
             event_cb = (parsec_pins_papi_callback_t*)malloc(sizeof(parsec_pins_papi_callback_t));
             event_cb->papi_eventset = PAPI_NULL;
             event_cb->num_counters = 0;
-            event_cb->events_list = pins_papi_core_events;
+            event_cb->event     = event;
             event_cb->frequency = event->frequency;
             event_cb->begin_end = 0;
-            event_cb->num_tasks = 0;
             /* Create an empty eventset */
             if( PAPI_OK != (err = PAPI_create_eventset(&event_cb->papi_eventset)) ) {
                 dague_output(0, "%s: thread %d couldn't create the PAPI event set; ERROR: %s\n",

@@ -68,10 +68,10 @@ static void pins_thread_init_papi_socket(dague_execution_unit_t * exec_unit)
             event_cb = (parsec_pins_papi_callback_t*)malloc(sizeof(parsec_pins_papi_callback_t));
             event_cb->papi_eventset = PAPI_NULL;
             event_cb->num_counters = 0;
-            event_cb->events_list = pins_papi_socket_events;
+            event_cb->event = event;
             event_cb->frequency = event->frequency;
             event_cb->begin_end = 0;
-            event_cb->num_tasks = 0;
+
             /* Create an empty eventset */
             if( PAPI_OK != (err = PAPI_create_eventset(&event_cb->papi_eventset)) ) {
                 dague_output(0, "%s: thread %d couldn't create the PAPI event set; ERROR: %s\n",
@@ -177,8 +177,7 @@ static void stop_papi_socket(dague_execution_unit_t* exec_unit,
     parsec_pins_papi_values_t info;
     int err;
 
-    event_cb->num_tasks++;
-    if(event_cb->num_tasks < event_cb->frequency)
+    if(0 != --event_cb->frequency)
         return;
 
     if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info.values)) ) {
@@ -189,7 +188,7 @@ static void stop_papi_socket(dague_execution_unit_t* exec_unit,
     (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[event_cb->begin_end],
                                 45, 0, (void *)&info);
     event_cb->begin_end = (event_cb->begin_end + 1) & 0x1;  /* aka. % 2 */
-    event_cb->num_tasks = 0;
+    event_cb->frequency = event_cb->event->frequency;
 }
 
 const dague_pins_module_t dague_pins_papi_socket_module = {
