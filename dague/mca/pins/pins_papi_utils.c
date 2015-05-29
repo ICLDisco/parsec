@@ -10,6 +10,7 @@
 #include "dague/utils/output.h"
 
 static int init_done = 0;
+static int init_status = DAGUE_SUCCESS;
 
 /**
  * This function should be called once per application in order to enable
@@ -20,12 +21,12 @@ int pins_papi_init(dague_context_t * master_context)
     int err;
 
     (void)master_context;
-    if( !init_done ) {
-        init_done = 1;
+    if( 0 == init_done++ ) {
         err = PAPI_library_init(PAPI_VER_CURRENT); /* this has to happen before threads get created */
         if( PAPI_VER_CURRENT != err ) {
             dague_output(0, "Failed to initialize PAPI (%x != %x[expected]). All components depending on PAPI will be disabled.",
                          PAPI_VER_CURRENT, err);
+            init_status = -1;
             return -1;
         }
         dague_output(0, "Using PAPI version %x\n", PAPI_VER_CURRENT);
@@ -33,10 +34,11 @@ int pins_papi_init(dague_context_t * master_context)
         err = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self ));
         if( err != PAPI_OK ) {
             dague_output(0, "PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
+            init_status = -2;
             return -2;
         }
     }
-    return 0;
+    return init_status;
 }
 
 /**
@@ -45,7 +47,7 @@ int pins_papi_init(dague_context_t * master_context)
  */
 int pins_papi_fini(dague_context_t * master_context)
 {
-    return 0;
+    return DAGUE_SUCCESS;
 }
 
 /**
@@ -54,13 +56,13 @@ int pins_papi_fini(dague_context_t * master_context)
  */
 int pins_papi_thread_init(dague_execution_unit_t * exec_unit)
 {
-    int err;
+    if( 0 == init_done ) return -1;
 
     (void)exec_unit;
-    err = PAPI_register_thread();
+    int err = PAPI_register_thread();
     if( err != PAPI_OK ) {
         dague_output(0, "PAPI_register_thread failed (%s). All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
-        return -1;
+        return -2;
     }
     return 0;
 }
@@ -71,6 +73,9 @@ int pins_papi_thread_init(dague_execution_unit_t * exec_unit)
 
 int pins_papi_thread_fini(dague_execution_unit_t * exec_unit)
 {
+    if( 0 == init_done ) return -1;
+
+    (void)exec_unit;
     int err = PAPI_unregister_thread();
     if ( err != PAPI_OK )
         dague_output(0, "PAPI_unregister_thread failed (%s).\n", PAPI_strerror(err));
@@ -78,33 +83,49 @@ int pins_papi_thread_fini(dague_execution_unit_t * exec_unit)
 }
 
 /**
- * Grow the events array to the expected number. Resize the internal array, and
- * copy the old data into the new position. Can be used to create the initial set
- * as long as the correct value for num_events (0) and for the pointer to the
- * array of events (NULL) are set into the events structure.
+ * Insert a new event into an already existing list of events. If the compact argument
+ * is set, then the event will be matched with all the existing events in order to find
+ * a similar class of event (core/uncore, same frequency and same PAPI component).
+ * If the matching is succesful the new event will be chained to the previous events of
+ * the same class. Otherwise, and this is also true when the compact argument is not
+ * set, a new entry in the array will be create.
  *
- * Returns: 0 if the events has been succesfully grown.
+ * Returns: 0 if the event has been succesfully inserted
  *         -1 in all other cases. The events have been left untouched.
  */
-static int grow_events(parsec_pins_papi_events_t* events, int size)
+static int insert_event(parsec_pins_papi_events_t* events_array,
+                        parsec_pins_papi_event_t* event,
+                        int compact)
 {
     void* tmp;
     int i;
 
-    assert(size > events->num_counters);
-    tmp = realloc(events->events, size * sizeof(parsec_pins_papi_event_t));
-    if( NULL == tmp )  /* realloc failed */
-        return -1;
-    events->events = (parsec_pins_papi_event_t*)tmp;
-
-    for(i = events->num_counters; i < size; i++) {
-        events->events[i].pins_papi_event_name = NULL;
-        events->events[i].pins_papi_native_event = PAPI_NULL;
-        events->events[i].socket = -1;
-        events->events[i].core = -1;
-        events->events[i].frequency = 1;
+    if( NULL != events_array->events ) {
+        for( i = 0; i < events_array->num_counters; i++ ) {
+            parsec_pins_papi_event_t* head = events_array->events[i];
+            if( (NULL != head) &&
+                (head->papi_location == event->papi_location) && (head->papi_component_index == event->papi_component_index) &&
+                (head->papi_update_type == event->papi_update_type) ) {
+                event->next = head;
+                events_array->events[i] = event;
+                return 0;
+            }
+        }
     }
-    events->num_allocated_counters = size;
+    /* we failed to chain the event to a similar event family. Create a new one */
+    if( events_array->num_counters == events_array->num_allocated_counters ) {
+        events_array->num_allocated_counters <<= 1;  /* twice as big */
+        tmp = realloc(events_array->events,  events_array->num_allocated_counters * sizeof(parsec_pins_papi_event_t*));
+        if( NULL == tmp )  /* realloc failed */
+            return -1;
+        events_array->events = (parsec_pins_papi_event_t**)tmp;
+        /* force the newly allocated events array to zero */
+        for(i = events_array->num_counters; i < events_array->num_allocated_counters; i++) {
+            events_array->events[i] = NULL;
+        }
+    }
+    events_array->events[events_array->num_counters] = event;
+    events_array->num_counters++;
     return 0;
 }
 
@@ -117,7 +138,6 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 
     events->num_counters = 0;
     events->events = NULL;
-    grow_events(events, NUM_DEFAULT_EVENTS);
 
     mca_param_name = strdup(events_str);
     token = strtok_r(mca_param_name, ",", &save_hptr);
@@ -129,10 +149,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     }
 
     while(token != NULL) {
-        if( events->num_counters == events->num_allocated_counters ) {
-            grow_events(events, 2 * events->num_allocated_counters);
-        }
-        event = &events->events[events->num_counters];
+        event = calloc( 1, sizeof(parsec_pins_papi_event_t) );
 
         save_lptr = NULL;
         for( ; NULL != token; ) {
@@ -172,6 +189,8 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 dague_output(0, "%s: Could not convert %s to a valid PAPI event name (%s). Ignore the event\n",
                              __func__, token, PAPI_strerror(err));
             } else {
+                PAPI_event_info_t papi_info;
+
                 if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
                                                      event->pins_papi_native_event)) ) {
                     dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
@@ -180,12 +199,26 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 }
                 dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d\n",
                              token, event->socket, event->core, event->frequency);
+                /* Remove the event to prevent issues with adding events from incompatible classes */
+                PAPI_remove_event(tmp_eventset, event->pins_papi_native_event);
+
+                if( PAPI_OK != (err = PAPI_get_event_info(event->pins_papi_native_event, &papi_info)) ) {
+                    dague_output(0, "%s: Impossible to extract information about event %s [%x](ERROR: %s). Discard the event.\n",
+                                 __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
+                    break;
+                }
+                event->papi_component_index = papi_info.component_index;
+                event->papi_location        = papi_info.location;
+                event->papi_data_type       = papi_info.data_type;
+                event->papi_update_type     = papi_info.update_type;
+
                 /* We have a valid event, let's move to the next */
                 event->pins_papi_event_name = strdup(token);
                 events->num_counters++;
             }
-            break;
         }
+        insert_event(events, event, true);
+
         token = strtok_r(NULL, ",", &save_hptr);
     }
 
@@ -203,7 +236,7 @@ int parsec_pins_papi_events_free(parsec_pins_papi_events_t** pevents)
     int i;
 
     for( i = 0; i < events->num_counters; i++ ) {
-        event = &events->events[i];
+        event = events->events[i];
         if( NULL != event->pins_papi_event_name )
             free(event->pins_papi_event_name);
     }
