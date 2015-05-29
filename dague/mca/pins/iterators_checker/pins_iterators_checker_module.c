@@ -9,7 +9,7 @@
 #include "pins_iterators_checker.h"
 #include "dague/profiling.h"
 #include "dague/execution_unit.h"
-#include "dague/data.h"
+#include "dague/data_internal.h"
 
 #include <errno.h>
 #include <stdio.h>

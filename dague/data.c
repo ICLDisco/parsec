@@ -9,7 +9,7 @@
 #include "dague/constants.h"
 #include "dague/devices/device.h"
 #include "dague/utils/output.h"
-#include "dague/data.h"
+#include "dague/data_internal.h"
 #include "dague/arena.h"
 
 static dague_lifo_t dague_data_lifo;
@@ -377,4 +377,21 @@ void dague_dump_data(dague_data_t* data)
         if( NULL != data->device_copies[i])
             dague_dump_data_copy(data->device_copies[i]);
     }
+}
+
+dague_data_copy_t*
+dague_data_get_copy(dague_data_t* data, uint32_t device)
+{
+    return DAGUE_DATA_GET_COPY(data, device);
+}
+
+void dague_data_copy_release(dague_data_copy_t* copy)
+{
+    /* TODO: Move the copy back to the CPU before destroying it */
+    DAGUE_DATA_COPY_RELEASE(copy);
+}
+
+void* dague_data_copy_get_ptr(dague_data_copy_t* data)
+{
+    return DAGUE_DATA_COPY_GET_PTR(data);
 }

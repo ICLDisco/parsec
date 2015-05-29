@@ -26,7 +26,7 @@
 #include "dague/mca/pins/pins.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/utils/output.h"
-#include "dague/data.h"
+#include "dague/data_internal.h"
 #include "dague/class/list.h"
 #include "dague/scheduling.h"
 #include "dague/class/barrier.h"

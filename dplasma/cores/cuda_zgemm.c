@@ -17,6 +17,7 @@
 #include "dague/execution_unit.h"
 #include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
+#include "dague/data_internal.h"
 #include "dague/utils/output.h"
 #include "cuda_zgemm.h"
 #include <cublas.h>

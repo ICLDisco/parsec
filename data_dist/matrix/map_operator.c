@@ -13,6 +13,7 @@
 #include "dague/datarepo.h"
 #include "dague/devices/device.h"
 #include "dague/vpmap.h"
+#include "dague/data_internal.h"
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};

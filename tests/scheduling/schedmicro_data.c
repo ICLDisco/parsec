@@ -8,7 +8,7 @@
 #include "schedmicro_data.h"
 #include <stdarg.h>
 #include "dague/data_distribution.h"
-#include "dague/data.h"
+#include "dague/data_internal.h"
 #include "dague/vpmap.h"
 #include "dague/debug.h"
 

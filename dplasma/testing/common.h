@@ -22,6 +22,7 @@
 /* dague things */
 #include "dague.h"
 #include "dague/profiling.h"
+#include "dague/dague_internal.h"
 #include "dplasma.h"
 /* timings */
 #include "common_timing.h"
