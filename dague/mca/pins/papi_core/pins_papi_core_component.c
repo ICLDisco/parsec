@@ -3,9 +3,9 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  *
  * These symbols are in a file by themselves to provide nice linker
@@ -44,11 +44,11 @@ const dague_pins_base_component_t dague_pins_papi_core_component = {
         DAGUE_VERSION_MINOR,
 
         /* Component open and close functions */
-        NULL, 
-        NULL, 
-        pins_papi_core_component_query, 
+        NULL,
+        NULL,
+        pins_papi_core_component_query,
         /*< specific query to return the module and add it to the list of available modules */
-        NULL, 
+        NULL,
         "", /*< no reserve */
     },
     {
@@ -70,4 +70,3 @@ static int pins_papi_core_component_query(mca_base_module_t **module, int *prior
     *module = (mca_base_module_t *)ptr;
     return MCA_SUCCESS;
 }
-
