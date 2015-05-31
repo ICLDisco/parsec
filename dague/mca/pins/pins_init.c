@@ -26,9 +26,8 @@ static mca_base_component_t **pins_components = NULL;
  */
 void pins_init(dague_context_t* master_context)
 {
-    int i = 0;
+    int i = 0, err, priority = -1;
     dague_pins_module_t *module = NULL;
-    int priority = -1;
     char **user_list;
 
 #if defined(DAGUE_PROF_TRACE)
@@ -52,8 +51,13 @@ void pins_init(dague_context_t* master_context)
     for(i = 0; pins_components[i] != NULL; i++) {
         if( mca_components_belongs_to_user_list(user_list, pins_components[i]->mca_component_name) ) {
             if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                DEBUG(("query component %d returns priority %d\n", i, priority));
+                err = pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+                if( err != DAGUE_SUCCESS ) {
+                    DEBUG(("query function for component %s return no module\n", pins_components[i]->mca_component_name));
+                    continue;
+                }
+                DEBUG(("query function for component %s[%d] returns priority %d\n",
+                       pins_components[i]->mca_component_name, i, priority));
                 if (NULL != module->module.init) {
                     module->module.init(master_context);
                 }
