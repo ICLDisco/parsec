@@ -48,7 +48,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
     parsec_pins_papi_event_t* event;
     parsec_pins_papi_values_t info;
     int i, my_socket, my_core, err;
-    char *conv_string, *datatype;
+    char *conv_string = NULL, *datatype;
 
     if( NULL == pins_papi_events )
         return;
@@ -132,7 +132,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                                                    &event_cb->pins_prof_event[0],
                                                    &event_cb->pins_prof_event[1]);
             free(key_string);
-            printf("Starting eventset: i = %d   eventset value: %d   PAPI_NULL = %d\n", i, event_cb->papi_eventset, PAPI_NULL);
+
             if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
                 dague_output(0, "couldn't start PAPI eventset for thread %d; ERROR: %s\n",
                              exec_unit->th_id, PAPI_strerror(err));
@@ -146,6 +146,8 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 continue;
                 /*goto cleanup_and_return;*/
             }
+            dague_output(0, "PAPI event %s core %d socket %d frequency %d enabled\n",
+                         conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
 
             (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[event_cb->begin_end],
                                         45, 0, (void *)&info);

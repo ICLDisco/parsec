@@ -149,17 +149,28 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     }
 
     while(token != NULL) {
-        event = calloc( 1, sizeof(parsec_pins_papi_event_t) );
 
         save_lptr = NULL;
-        for( ; NULL != token; ) {
+        for( token = strtok_r(token, ":", &save_lptr);
+             NULL != token;
+             token = strtok_r(NULL, ":", &save_lptr) ) {
+
+            /* Handle the event creation. If the event is not NULL then we inherited a failed event
+             * from a previous iteration. So, clean it up and use it as is.
+             */
+            if( NULL == event ) {
+                event = calloc( 1, sizeof(parsec_pins_papi_event_t) );
+            } else {
+                memset( event, 0, sizeof(parsec_pins_papi_event_t) );
+            }
+            event->socket = -1;
+            event->core = -1;
+            event->frequency = 1;
 
             if(token[0] == 'S') {
                 if(token[1] != '*') {
                     event->socket = atoi(&token[1]);
                 }
-                strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr);
-                token = save_lptr;
                 continue;
             }
 
@@ -167,15 +178,11 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 if(token[1] != '*') {
                     event->core = atoi(&token[1]);
                 }
-                strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr);
-                token = save_lptr;
                 continue;
             }
 
             if(token[0] == 'F') {
                 event->frequency = atoi(&token[1]);
-                strtok_r((NULL == save_lptr ? token : NULL), ":", &save_lptr);
-                token = save_lptr;
                 continue;
             }
             if( event->frequency <= 0 ) {
@@ -188,6 +195,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
             if(PAPI_OK != (err = PAPI_event_name_to_code(token, &event->pins_papi_native_event)) ) {
                 dague_output(0, "%s: Could not convert %s to a valid PAPI event name (%s). Ignore the event\n",
                              __func__, token, PAPI_strerror(err));
+                break;
             } else {
                 PAPI_event_info_t papi_info;
 
@@ -214,11 +222,10 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 
                 /* We have a valid event, let's move to the next */
                 event->pins_papi_event_name = strdup(token);
-                events->num_counters++;
+                /* We now have a valid event ready to be monitored */
+                insert_event(events, event, true);
             }
         }
-        insert_event(events, event, true);
-
         token = strtok_r(NULL, ",", &save_hptr);
     }
 
