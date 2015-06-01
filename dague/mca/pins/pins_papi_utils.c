@@ -131,10 +131,11 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
 
 parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 {
-    char *mca_param_name, *token, *save_hptr = NULL, *save_lptr = NULL;
+    char *mca_param_name, *token, *save_hptr = NULL;
     int err, i, socket, core, tmp_eventset = PAPI_NULL;
     parsec_pins_papi_events_t* events = (parsec_pins_papi_events_t*)malloc(sizeof(parsec_pins_papi_events_t));
-    parsec_pins_papi_event_t* event;
+    parsec_pins_papi_event_t* event = NULL;
+    PAPI_event_info_t papi_info;
 
     events->num_counters = 0;
     events->events = NULL;
@@ -150,41 +151,33 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 
     while(token != NULL) {
 
-        save_lptr = NULL;
-        for( token = strtok_r(token, ":", &save_lptr);
-             NULL != token;
-             token = strtok_r(NULL, ":", &save_lptr) ) {
+        if( NULL == event ) {
+            event = calloc( 1, sizeof(parsec_pins_papi_event_t) );
+        } else {
+            memset(event, 0, sizeof(parsec_pins_papi_event_t));
+        }
+        event->socket = -1;
+        event->core = -1;
+        event->frequency = 1;
 
-            /* Handle the event creation. If the event is not NULL then we inherited a failed event
-             * from a previous iteration. So, clean it up and use it as is.
-             */
-            if( NULL == event ) {
-                event = calloc( 1, sizeof(parsec_pins_papi_event_t) );
-            } else {
-                memset( event, 0, sizeof(parsec_pins_papi_event_t) );
-            }
-            event->socket = -1;
-            event->core = -1;
-            event->frequency = 1;
+        for(  /* none */; NULL != token;
+                        token = strchr(token, (int)':'), token++ ) {
 
             if(token[0] == 'S') {
-                if(token[1] != '*') {
+                if(token[1] != '*')
                     event->socket = atoi(&token[1]);
-                }
                 continue;
             }
-
             if(token[0] == 'C') {
-                if(token[1] != '*') {
+                if(token[1] != '*')
                     event->core = atoi(&token[1]);
-                }
                 continue;
             }
-
             if(token[0] == 'F') {
                 event->frequency = atoi(&token[1]);
                 continue;
             }
+            /* Make sure the event contains only valid values */
             if( event->frequency <= 0 ) {
                 dague_output(0, "%s: Unsupported frequency (%d must be > 0). Discard the event.\n",
                              __func__, token);
@@ -196,35 +189,35 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 dague_output(0, "%s: Could not convert %s to a valid PAPI event name (%s). Ignore the event\n",
                              __func__, token, PAPI_strerror(err));
                 break;
-            } else {
-                PAPI_event_info_t papi_info;
-
-                if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
-                                                     event->pins_papi_native_event)) ) {
-                    dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
-                                 __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
-                    break;
-                }
-                dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d\n",
-                             token, event->socket, event->core, event->frequency);
-                /* Remove the event to prevent issues with adding events from incompatible classes */
-                PAPI_remove_event(tmp_eventset, event->pins_papi_native_event);
-
-                if( PAPI_OK != (err = PAPI_get_event_info(event->pins_papi_native_event, &papi_info)) ) {
-                    dague_output(0, "%s: Impossible to extract information about event %s [%x](ERROR: %s). Discard the event.\n",
-                                 __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
-                    break;
-                }
-                event->papi_component_index = papi_info.component_index;
-                event->papi_location        = papi_info.location;
-                event->papi_data_type       = papi_info.data_type;
-                event->papi_update_type     = papi_info.update_type;
-
-                /* We have a valid event, let's move to the next */
-                event->pins_papi_event_name = strdup(token);
-                /* We now have a valid event ready to be monitored */
-                insert_event(events, event, true);
             }
+            /* We're good to go, let's add the event to our queues */
+            if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
+                                                 event->pins_papi_native_event)) ) {
+                dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
+                             __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
+                break;
+            }
+            dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d\n",
+                         token, event->socket, event->core, event->frequency);
+            /* Remove the event to prevent issues with adding events from incompatible classes */
+            PAPI_remove_event(tmp_eventset, event->pins_papi_native_event);
+
+            if( PAPI_OK != (err = PAPI_get_event_info(event->pins_papi_native_event, &papi_info)) ) {
+                dague_output(0, "%s: Impossible to extract information about event %s [%x](ERROR: %s). Discard the event.\n",
+                             __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
+                break;
+            }
+            event->papi_component_index = papi_info.component_index;
+            event->papi_location        = papi_info.location;
+            event->papi_data_type       = papi_info.data_type;
+            event->papi_update_type     = papi_info.update_type;
+
+            /* We have a valid event, let's move to the next */
+            event->pins_papi_event_name = strdup(token);
+            /* We now have a valid event ready to be monitored */
+            insert_event(events, event, true);
+            event = NULL;
+            break;  /* the internal loop should not be completed */
         }
         token = strtok_r(NULL, ",", &save_hptr);
     }

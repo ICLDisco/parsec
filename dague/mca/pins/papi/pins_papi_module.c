@@ -42,12 +42,61 @@ static void pins_fini_papi(dague_context_t * master_context)
     }
 }
 
+static int register_event_cb(dague_execution_unit_t * exec_unit,
+                             parsec_pins_papi_callback_t* event_cb,
+                             const char* conv_string,
+                             int event_id)
+{
+    char* key_string;
+    parsec_pins_papi_values_t info;
+    int err;
+
+    assert( NULL != event_cb );
+    asprintf(&key_string, "PINS_PAPI_S%d_C%d_F%d_%d",
+             exec_unit->socket_id, exec_unit->core_id, event_cb->frequency, event_id);
+
+    dague_profiling_add_dictionary_keyword(key_string, "fill:#00AAFF",
+                                           sizeof(long long) * event_cb->num_counters,
+                                           conv_string,
+                                           &event_cb->pins_prof_event[0],
+                                           &event_cb->pins_prof_event[1]);
+    free(key_string);
+
+    if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
+        dague_output(0, "couldn't start PAPI eventset for thread %d; ERROR: %s\n",
+                     exec_unit->th_id, PAPI_strerror(err));
+        event_cb->num_counters = 0;
+        return DAGUE_ERROR;
+    }
+
+    if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info.values)) ) {
+        dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
+                     exec_unit->th_id, PAPI_strerror(err));
+        return DAGUE_ERROR;
+    }
+    dague_output(0, "PAPI event %s core %d socket %d frequency %d enabled\n",
+                 conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
+
+    (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[event_cb->begin_end],
+                                45, 0, (void *)&info);
+
+    event_cb->begin_end = (event_cb->begin_end + 1) & 0x1;  /* aka. % 2 */
+
+    if(event_cb->frequency == 1) {
+        PINS_REGISTER(exec_unit, EXEC_BEGIN, pins_papi_read,
+                      (parsec_pins_next_callback_t*)event_cb);
+    }
+    PINS_REGISTER(exec_unit, EXEC_END, pins_papi_read,
+                  (parsec_pins_next_callback_t*)event_cb);
+    return DAGUE_SUCCESS;
+}
+
 static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
 {
     parsec_pins_papi_callback_t* event_cb = NULL;
     parsec_pins_papi_event_t* event;
     parsec_pins_papi_values_t info;
-    int i, my_socket, my_core, err;
+    int i, my_socket, my_core, err, event_id = 0;
     char *conv_string = NULL, *datatype;
 
     if( NULL == pins_papi_events )
@@ -62,8 +111,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
         event = pins_papi_events->events[i];
         conv_string = NULL;
 
-      redo_event:
-        do {
+        for( ; NULL != event; event = event->next ) {
             if( (event->socket != -1) && (event->socket != my_socket) )
                 continue;
             if( (event->core != -1) && (event->core != my_core) )
@@ -71,6 +119,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
 
             if( NULL == event_cb ) {  /* create the event and the PAPI eventset */
 
+              force_a_new_event_cb:  /* read the comment below to understand why we need this label */
                 event_cb = (parsec_pins_papi_callback_t*)malloc(sizeof(parsec_pins_papi_callback_t));
 
                 event_cb->papi_eventset = PAPI_NULL;
@@ -83,17 +132,30 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 if( PAPI_OK != (err = PAPI_create_eventset(&event_cb->papi_eventset)) ) {
                     dague_output(0, "%s: thread %d couldn't create the PAPI event set; ERROR: %s\n",
                                  __func__, exec_unit->th_id, PAPI_strerror(err));
+                    /* Destroy the event it is unsafe to use */
+                    free(event_cb); event_cb = NULL;
                     continue;
                 }
             } else {
                 /* We are trying to hook on an already allocated event. If we don't have the same frequency
-                 * we must fail, then force the registration of the event_cb and then finally add this
-                 * event again.
+                 * we should fail and force the registration of the event_cb built so far, and then finally
+                 * add this event again to an empty event_cb.
                  */
-                if( event_cb->frequency != event->frequency )
-                    goto register_callback;
-            }
+                if( event_cb->frequency != event->frequency ) {
 
+                    err = register_event_cb(exec_unit, event_cb, conv_string, event_id);
+                    event_id++;  /* next event_id */
+                    free(conv_string);
+                    conv_string = NULL;
+                    if( DAGUE_SUCCESS == err )
+                        /* We registered the event_cb built so far. We now need to create a fresh one for the ongoing event. */
+                        goto force_a_new_event_cb;
+
+                    /* We have a failure. Destroy the event_cb and move forward */
+                    parsec_pins_papi_event_cleanup(event_cb, &info);
+                    free(event_cb); event_cb = NULL;
+                }
+            }
             /* Add events to the eventset */
             if( PAPI_OK != (err = PAPI_add_event(event_cb->papi_eventset,
                                                  event->pins_papi_native_event)) ) {
@@ -117,60 +179,14 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 asprintf(&conv_string, "%s%s{%s}"PARSEC_PINS_SEPARATOR, tmp, event->pins_papi_event_name, datatype);
                 free(tmp);
             }
-            event = event->next;  /* next event */
-        } while( NULL != event );
-
-      register_callback:
-        if( NULL != event_cb ) {
-            char* key_string;
-
-            asprintf(&key_string, "PINS_PAPI_S%d_C%d_F%d", exec_unit->socket_id, exec_unit->core_id, event_cb->frequency);
-
-            dague_profiling_add_dictionary_keyword(key_string, "fill:#00AAFF",
-                                                   sizeof(long long) * event_cb->num_counters,
-                                                   conv_string,
-                                                   &event_cb->pins_prof_event[0],
-                                                   &event_cb->pins_prof_event[1]);
-            free(key_string);
-
-            if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
-                dague_output(0, "couldn't start PAPI eventset for thread %d; ERROR: %s\n",
-                             exec_unit->th_id, PAPI_strerror(err));
-                event_cb->num_counters = 0;
-                continue;
-            }
-
-            if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info.values)) ) {
-                dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
-                             exec_unit->th_id, PAPI_strerror(err));
-                continue;
-                /*goto cleanup_and_return;*/
-            }
-            dague_output(0, "PAPI event %s core %d socket %d frequency %d enabled\n",
-                         conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
-
-            (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->pins_prof_event[event_cb->begin_end],
-                                        45, 0, (void *)&info);
-
-            event_cb->begin_end = (event_cb->begin_end + 1) & 0x1;  /* aka. % 2 */
-
-            free(conv_string);
-
-            if(event_cb->frequency == 1) {
-                PINS_REGISTER(exec_unit, EXEC_BEGIN, pins_papi_read,
-                              (parsec_pins_next_callback_t*)event_cb);
-            }
-            PINS_REGISTER(exec_unit, EXEC_END, pins_papi_read,
-                          (parsec_pins_next_callback_t*)event_cb);
-            /* Mark the event_cb as NULL so that we allocate a new one during the next round */
-            event_cb = NULL;
-            goto redo_event;
         }
     }
 
     if( NULL != event_cb ) {
-        parsec_pins_papi_event_cleanup(event_cb, &info);
-        free(event_cb); event_cb = NULL;
+        if( DAGUE_SUCCESS != (err = register_event_cb(exec_unit, event_cb, conv_string, event_id)) ) {
+            parsec_pins_papi_event_cleanup(event_cb, &info);
+            free(event_cb);
+        }
     }
     if( NULL != conv_string )
         free(conv_string);
@@ -185,10 +201,16 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
     do {
         /* Should this be in a loop to unregister all the callbacks for this thread? */
         PINS_UNREGISTER(exec_unit, EXEC_END, pins_papi_read, (parsec_pins_next_callback_t**)&event_cb);
-
         if( NULL == event_cb )
             return;
 
+        if( 1 == event_cb->frequency ) {  /* this must have an EXEC_BEGIN */
+            parsec_pins_papi_callback_t* start_cb;
+            PINS_UNREGISTER(exec_unit, EXEC_BEGIN, pins_papi_read, (parsec_pins_next_callback_t**)&start_cb);
+            if( NULL == start_cb ) {
+                dague_output(0, "Unsettling exception of an event with frequency 1 but without a start callback. Ignored.\n");
+            }
+        }
         if( PAPI_NULL == event_cb->papi_eventset ) {
             parsec_pins_papi_event_cleanup(event_cb, &info);
 
