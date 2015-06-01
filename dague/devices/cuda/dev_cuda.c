@@ -1415,7 +1415,7 @@ void dump_GPU_state(gpu_device_t* gpu_device)
            (unsigned long long)gpu_device->super.transferred_data_in, (unsigned long long)gpu_device->super.transferred_data_out,
            (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
     for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
-       // dump_exec_stream(&gpu_device->exec_stream[i]);
+        dump_exec_stream(&gpu_device->exec_stream[i]);
     }
     if( !dague_ulist_is_empty(&gpu_device->gpu_mem_lru) ) {
         printf("#\n# LRU list\n#\n");
