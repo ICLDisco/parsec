@@ -9,6 +9,7 @@ import argparse
 import sys
 import os
 import re
+import math
 
 def warning(*objs):
     print("WARNING: ", *objs, file=sys.stderr)
@@ -197,7 +198,7 @@ if __name__ == '__main__':
             continue
         if "M%d"%(t.node_id) not in paje_container_aliases:
             paje_container_aliases["M%d"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%d" % (t.node_id), Type=paje_ct, Container=paje_c_appli)
-        if isinstance(t.vp_id, int):
+        if not math.isnan(t.vp_id):
             if "M%dV%d"%(t.node_id, t.vp_id) not in paje_container_aliases:
                 paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dV%d" % (t.node_id,t.vp_id), Type=paje_ct,
                                                                                                      Container=paje_container_aliases["M%d"%(t.node_id)])
@@ -205,9 +206,23 @@ if __name__ == '__main__':
                 paje_container_aliases["M%dT%d"%(t.node_id,t.thread_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.thread_id), Type=paje_ct,
                                                                                                          Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
         else:
-            if "M%dT%d"%(t.node_id, t.thread_id) not in paje_container_aliases:
-                paje_container_aliases["M%dT%d"%(t.node_id, t.thread_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.thread_id),
-                                                                                                          Type=paje_ct, Container=paje_container_aliases["M%d"%(t.node_id)])
+            match = re.search(r'GPU\ ([0-9]+)\-([0-9]+)', t.description)
+            if match is not None:
+                gpu_id = int(match.group(1))
+                if "M%dGPU%d"%(t.node_id,gpu_id) not in paje_container_aliases:
+                    paje_container_aliases["M%dGPU%d"%(t.node_id,gpu_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dGPU%d"%(t.node_id, gpu_id), Type=paje_ct,
+                                                                                                          Container=paje_container_aliases["M%d"%(t.node_id)])
+                if "M%dT%d"%(t.node_id, t.thread_id) not in paje_container_aliases:
+                    paje_container_aliases["M%dT%d"%(t.node_id,t.thread_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d"%(t.node_id,t.thread_id), Type=paje_ct,
+                                                                                                             Container=paje_container_aliases["M%dGPU%d"%(t.node_id,gpu_id)])
+            else:
+                print("Found %d"%(-1))
+                if "M%dUnknown"%(t.node_id) not in paje_container_aliases:
+                    paje_container_aliases["M%dUnknown"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dUnknown"%(t.node_id), Type=paje_ct,
+                                                                                                     Container=paje_container_aliases["M%d"%(t.node_id)])
+                if "M%dT%d"%(t.node_id, t.thread_id) not in paje_container_aliases:
+                    paje_container_aliases["M%dT%d"%(t.node_id, t.thread_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.thread_id),
+                                                                                                              Type=paje_ct, Container=paje_container_aliases["M%dUnknown"%(t.node_id)])
         PajeSetState.PajeEvent(Time=0.000, Type=paje_st, Container=paje_container_aliases["M%dT%d"%(t.node_id,t.thread_id)], Value="Waiting", task_name="")
 
     if args.DAG:

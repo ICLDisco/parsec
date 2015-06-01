@@ -521,9 +521,19 @@ int dague_gpu_init(dague_context_t *dague_context)
             }
 #if defined(DAGUE_PROF_TRACE)
             exec_stream->profiling = dague_profiling_thread_init( 2*1024*1024, DAGUE_PROFILE_STREAM_STR, i, j );
-            exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;
-            exec_stream->prof_event_key_start    = -1;
-            exec_stream->prof_event_key_end      = -1;
+            if(j == 0) {
+                exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN;
+                exec_stream->prof_event_key_start    = dague_cuda_movein_key_start;
+                exec_stream->prof_event_key_end      = dague_cuda_movein_key_end;
+            } else if(j == 1) {
+                exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT;
+                exec_stream->prof_event_key_start    = dague_cuda_moveout_key_start;
+                exec_stream->prof_event_key_end      = dague_cuda_moveout_key_end;
+            } else {
+                exec_stream->prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_EXEC;
+                exec_stream->prof_event_key_start    = -1;
+                exec_stream->prof_event_key_end      = -1;
+            }
 #endif  /* defined(DAGUE_PROF_TRACE) */
         }
 
@@ -564,24 +574,6 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device->sort_starting_p = NULL;
         dague_devices_add(dague_context, &(gpu_device->super));
     }
-
-    /**
-     * Reconfigure the stream 0 and 1 for input and outputs.
-     */
-#if defined(DAGUE_PROF_TRACE)
-    for( i = 0; i < ndevices; i++ ) {
-        gpu_device_t *gpu_device = (gpu_device_t*)dague_devices_get(i);
-        if( (NULL == gpu_device) || (DAGUE_DEV_CUDA != gpu_device->super.type) ) continue;
-
-        gpu_device->exec_stream[0].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_IN;
-        gpu_device->exec_stream[0].prof_event_key_start    = dague_cuda_movein_key_start;
-        gpu_device->exec_stream[0].prof_event_key_end      = dague_cuda_movein_key_end;
-
-        gpu_device->exec_stream[1].prof_event_track_enable = dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_DATA_OUT;
-        gpu_device->exec_stream[1].prof_event_key_start    = dague_cuda_moveout_key_start;
-        gpu_device->exec_stream[1].prof_event_key_end      = dague_cuda_moveout_key_end;
-    }
-#endif  /* defined(DAGUE_PROF_TRACE) */
 
 #if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     for( i = 0; i < ndevices; i++ ) {
@@ -1410,11 +1402,11 @@ int progress_stream( gpu_device_t* gpu_device,
 
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
-#if DAGUE_OUTPUT_VERBOSE >= 3                                                                   
+#if DAGUE_OUTPUT_VERBOSE >= 3
             if( task->type == GPU_TASK_TYPE_D2HTRANSFER ) {
                 DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                       "GPU: Completed Transfer(task %p) on stream %p\n",
-                                      (void*)task->ec, 
+                                      (void*)task->ec,
                                       (void*)exec_stream->cuda_stream));
             }
             else {
@@ -1426,12 +1418,13 @@ int progress_stream( gpu_device_t* gpu_device,
 #endif
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
-            DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable,
+            DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable &&
+                                       (task->task_type != GPU_TASK_TYPE_D2HTRANSFER),
                                      exec_stream->profiling,
-                                     (-1 == exec_stream->prof_event_key_end ?
-                                      DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
-                                                              task->ec->function->function_id) :
-                                      exec_stream->prof_event_key_end),
+                                       (-1 == exec_stream->prof_event_key_end ?
+                                        DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
+                                                                task->ec->function->function_id) :
+                                        exec_stream->prof_event_key_end),
                                      task->ec);
             task = NULL;  /* Try to schedule another task */
             goto grab_a_task;
