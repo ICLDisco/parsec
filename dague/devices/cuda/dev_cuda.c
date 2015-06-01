@@ -1418,15 +1418,14 @@ int progress_stream( gpu_device_t* gpu_device,
 #endif
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
-            if( task->task_type != GPU_TASK_TYPE_D2HTRANSFER ) {
-                DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable && task->ec->function,
-                                         exec_stream->profiling,
-                                         (-1 == exec_stream->prof_event_key_end ?
-                                          DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
-                                                                  task->ec->function->function_id) :
-                                          exec_stream->prof_event_key_end),
-                                         task->ec);
-            }
+            DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable &&
+                                       (task->task_type != GPU_TASK_TYPE_D2HTRANSFER),
+                                     exec_stream->profiling,
+                                       (-1 == exec_stream->prof_event_key_end ?
+                                        DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
+                                                                task->ec->function->function_id) :
+                                        exec_stream->prof_event_key_end),
+                                     task->ec);
             task = NULL;  /* Try to schedule another task */
             goto grab_a_task;
         }
