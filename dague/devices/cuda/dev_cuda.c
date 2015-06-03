@@ -960,7 +960,6 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     dague_data_t* original = in_elem->original;
     dague_gpu_data_copy_t* gpu_elem = task_data->data_out;
     int transfer_from = -1;
-    CUstream stream = gpu_stream->cuda_stream;
 
     /* If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
