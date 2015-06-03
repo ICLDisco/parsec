@@ -641,8 +641,7 @@ int dague_gpu_init(dague_context_t *dague_context)
 int dague_gpu_fini(void)
 {
     gpu_device_t* gpu_device;
-    CUresult status;
-    int i, j, k;
+    int i;
 
     for(i = 0; i < dague_devices_enabled(); i++) {
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
