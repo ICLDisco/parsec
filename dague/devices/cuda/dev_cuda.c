@@ -433,10 +433,10 @@ int dague_gpu_init(dague_context_t *dague_context)
     }
 #if defined(DAGUE_PROF_TRACE)
     dague_profiling_add_dictionary_keyword( "movein", "fill:#33FF33",
-                                            0, NULL,
+                                            sizeof(intptr_t), "pointer{int64_t}",
                                             &dague_cuda_movein_key_start, &dague_cuda_movein_key_end);
     dague_profiling_add_dictionary_keyword( "moveout", "fill:#ffff66",
-                                            0, NULL,
+                                            sizeof(intptr_t), "pointer{int64_t}",
                                             &dague_cuda_moveout_key_start, &dague_cuda_moveout_key_end);
     dague_profiling_add_dictionary_keyword( "cuda", "fill:#66ff66",
                                             0, NULL,
@@ -960,6 +960,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     dague_data_t* original = in_elem->original;
     dague_gpu_data_copy_t* gpu_elem = task_data->data_out;
     int transfer_from = -1;
+    CUstream stream = gpu_stream->cuda_stream;
 
     /* If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
@@ -994,6 +995,20 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                               "GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d\n",
                               original->key, in_elem->device_private, (void*)gpu_elem->device_private, original->nb_elts, gpu_device->super.device_index));
+
+
+#if defined(DAGUE_PROF_TRACE)
+        if( gpu_stream->prof_event_track_enable ) {
+            dague_execution_context_t *this_task = gpu_task->ec;
+
+            assert(-1 != gpu_stream->prof_event_key_start);
+            DAGUE_PROFILING_TRACE(gpu_stream->profiling,
+                                  gpu_stream->prof_event_key_start,
+                                  this_task->function->key(this_task->dague_handle, this_task->locals),
+                                  this_task->dague_handle->handle_id,
+                                  &original);
+        }
+#endif
 
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
@@ -1370,14 +1385,23 @@ int progress_stream( gpu_device_t* gpu_device,
 #endif
             exec_stream->tasks[exec_stream->end] = NULL;
             exec_stream->end = (exec_stream->end + 1) % exec_stream->max_events;
-            DAGUE_TASK_PROF_TRACE_IF(exec_stream->prof_event_track_enable &&
-                                       (task->task_type != GPU_TASK_TYPE_D2HTRANSFER),
-                                     exec_stream->profiling,
-                                       (-1 == exec_stream->prof_event_key_end ?
-                                        DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
-                                                                task->ec->function->function_id) :
-                                        exec_stream->prof_event_key_end),
-                                     task->ec);
+#if defined(DAGUE_PROF_TRACE)
+            if( exec_stream->prof_event_track_enable ) {
+                if( task->task_type == GPU_TASK_TYPE_D2HTRANSFER ) {
+                    assert( exec_stream->prof_event_key_end == dague_cuda_moveout_key_end );
+                    DAGUE_PROFILING_TRACE(exec_stream->profiling,
+                                          exec_stream->prof_event_key_end,
+                                          -1, 0, NULL);
+                } else {
+                    DAGUE_TASK_PROF_TRACE(exec_stream->profiling,
+                                          (-1 == exec_stream->prof_event_key_end ?
+                                           DAGUE_PROF_FUNC_KEY_END(task->ec->dague_handle,
+                                                                   task->ec->function->function_id) :
+                                           exec_stream->prof_event_key_end),
+                                          task->ec);
+                }
+            }
+#endif /* (DAGUE_PROF_TRACE) */
             task = NULL;  /* Try to schedule another task */
             goto grab_a_task;
         }

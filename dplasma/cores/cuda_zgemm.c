@@ -146,14 +146,6 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         }
     }
 
-    DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                             gpu_stream->profiling,
-                             (-1 == gpu_stream->prof_event_key_start ?
-                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
-                                                        this_task->function->function_id) :
-                              gpu_stream->prof_event_key_start),
-                             this_task);
-
     for( i = 0; i < this_task->function->nb_parameters; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
@@ -312,13 +304,16 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                       "GPU:\tMove D2H data <%x> from GPU %d %p -> %p requested\n",
                                       this_task->function->in[i]->name, original->key, gpu_device->cuda_index,
                                       (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
-                DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                                         gpu_stream->profiling,
-                                         (-1 == gpu_stream->prof_event_key_start ?
-                                          DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
-                                                                    this_task->function->function_id) :
-                                          gpu_stream->prof_event_key_start),
-                                         this_task);
+#if defined(DAGUE_PROF_TRACE)
+                if( gpu_stream->prof_event_track_enable ) {
+                    assert( -1 != gpu_stream->prof_event_key_start );
+                    DAGUE_PROFILING_TRACE(gpu_stream->profiling,
+                                          gpu_stream->prof_event_key_start,
+                                          this_task->function->key(this_task->dague_handle, this_task->locals),
+                                          this_task->dague_handle->handle_id,
+                                          &original);
+                }
+#endif /* (DAGUE_PROF_TRACE) */
                 /* Move the data back into main memory */
                 status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
                                                          (CUdeviceptr)gpu_copy->device_private,
