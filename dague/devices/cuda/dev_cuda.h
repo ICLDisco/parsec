@@ -142,7 +142,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
                              dague_gpu_context_t *gpu_task,
-                             CUstream stream );
+                             dague_gpu_exec_stream_t *gpu_stream );
 
 /* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);

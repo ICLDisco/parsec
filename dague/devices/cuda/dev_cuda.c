@@ -778,7 +778,7 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
         OBJ_RELEASE(gpu_copy);  /* removed from the FIFO */
         DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                               "Release copy %p, attached to %p, in map %p",
-                              gpu_copy, original, ddesc));
+                              gpu_copy, original, (NULL != original ? original->ddesc : NULL)));
         assert( gpu_copy->device_index == gpu_device->super.device_index );
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         cuMemFree( (CUdeviceptr)gpu_copy->device_private );
@@ -796,7 +796,7 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
         OBJ_RELEASE(gpu_copy);  /* removed from the FIFO */
         DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                               "Release owned copy %p, attached to %p, in map %p",
-                              gpu_copy, original, ddesc));
+                              gpu_copy, original, (NULL != original ? original->ddesc : NULL)));
         assert( gpu_copy->device_index == gpu_device->super.device_index );
         if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
             WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n",
@@ -954,7 +954,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
                              dague_gpu_context_t *gpu_task,
-                             CUstream stream )
+                             dague_gpu_exec_stream_t *gpu_stream )
 {
     dague_data_copy_t* in_elem = task_data->data_in;
     dague_data_t* original = in_elem->original;
@@ -997,7 +997,8 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 
         /* Push data into the GPU */
         status = (cudaError_t)cuMemcpyHtoDAsync( (CUdeviceptr)gpu_elem->device_private,
-                                                 in_elem->device_private, original->nb_elts, stream );
+                                                 in_elem->device_private, original->nb_elts,
+                                                 gpu_stream->cuda_stream );
         DAGUE_CUDA_CHECK_ERROR( "cuMemcpyHtoDAsync to device ", status,
                                 { WARNING(("<<%p>> -> <<%p>> [%d]\n", in_elem->device_private, gpu_elem->device_private, original->nb_elts));
                                     return -1; } );

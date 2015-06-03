@@ -80,7 +80,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
                               gpu_device->cuda_index, this_task->function->in[i]->name,
                               (int)this_task->data[i].data_out->original->key));
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
-                                       &(this_task->data[i]), gpu_task, gpu_stream->cuda_stream );
+                                       &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
             return ret;
         }
