@@ -56,13 +56,13 @@ int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
 
 static inline
 int gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
-                           dague_gpu_context_t* this_task,
-                           dague_gpu_exec_stream_t* gpu_stream);
+                             dague_gpu_context_t* this_task,
+                             dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
-                           dague_gpu_context_t* this_task,
-                           dague_gpu_exec_stream_t* gpu_stream);
+                          dague_gpu_context_t* this_task,
+                          dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int  gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
@@ -74,8 +74,7 @@ typedef struct dague_zgemm_args_s {
     dague_complex64_t alpha, beta;
     PLASMA_enum transA, transB;
     int M, N, K;
-    int Am, An, lda, Bm, Bn, ldb, Cm, Cn, ldc;
-    dague_ddesc_t *ddescA, *ddescB, *ddescC;
+    int lda, ldb, ldc;
 } dague_zgemm_args_t;
 
 #include <dague/devices/cuda/cuda_scheduling.h>
@@ -101,7 +100,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     dague_data_copy_t         *data, *local;
     const dague_flow_t        *flow;
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
 
         this_task->data[i].data_out = NULL;
@@ -146,7 +145,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         }
     }
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
@@ -268,7 +267,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
         return return_code;
     }
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
         flow = this_task->function->in[i];
@@ -401,16 +400,16 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                int pushout,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K,
-               dague_complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
-                                        int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
-               dague_complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc )
+               dague_complex64_t alpha, int lda,
+                                        int ldb,
+               dague_complex64_t beta,  int ldc )
 {
     int i, dev_index, data_index = 0;
     dague_zgemm_args_t *gpu_task;
     dague_handle_t* handle = this_task->dague_handle;
 
     /* Step one: Find the first data in WRITE mode */
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if( (NULL == this_task->function->out[i]) ||
             (this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
             data_index = this_task->function->out[i]->flow_index;
@@ -451,18 +450,9 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->M        = M;
     gpu_task->N        = N;
     gpu_task->K        = K;
-    gpu_task->Am       = Am;
-    gpu_task->An       = An;
     gpu_task->lda      = lda;
-    gpu_task->Bm       = Bm;
-    gpu_task->Bn       = Bn;
     gpu_task->ldb      = ldb;
-    gpu_task->Cm       = Cm;
-    gpu_task->Cn       = Cn;
     gpu_task->ldc      = ldc;
-    gpu_task->ddescA   = (dague_ddesc_t*)descA;
-    gpu_task->ddescB   = (dague_ddesc_t*)descB;
-    gpu_task->ddescC   = (dague_ddesc_t*)descC;
 
     return gpu_kernel_scheduler_zgemm( eu_context, (dague_gpu_context_t*)gpu_task, dev_index );
 }

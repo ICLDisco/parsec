@@ -377,9 +377,9 @@ BODY [type=CUDA dyld=cublasZgemm]
                          ( n == k+1 ),
                          PlasmaNoTrans, PlasmaConjTrans,
                          tempmm, descA.mb, descA.mb,
-                         (dague_complex64_t)-1.0, m, k, &descA, ldam,
-                                                  n, k, &descA, ldan,
-                         (dague_complex64_t) 1.0, m, n, &descA, ldam);
+                         (dague_complex64_t)-1.0, ldam,
+                                                  ldan,
+                         (dague_complex64_t) 1.0, ldam);
         printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              k, m, n,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
