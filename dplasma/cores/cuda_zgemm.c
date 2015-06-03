@@ -271,7 +271,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                     { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                gpu_copy->device_private, original->device_copies[0]->device_private));
                                         return_code = -2;
-                                        goto release_and_return_error;} );    
+                                        goto release_and_return_error;} );
         }
         return return_code;
     }
@@ -292,6 +292,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
+                OBJ_RETAIN(gpu_copy);
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             }
         }
@@ -372,6 +373,7 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
          */
         this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
 
+        OBJ_RETAIN(gpu_copy);
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         } else {

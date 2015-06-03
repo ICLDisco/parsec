@@ -708,6 +708,7 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
         gpu_elem->device_private = (void*)(long)device_ptr;
         gpu_elem->device_index = gpu_device->super.device_index;
         mem_elem_per_gpu++;
+        OBJ_RETAIN(gpu_elem);
         dague_ulist_fifo_push( &gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
         cuMemGetInfo( &free_mem, &total_mem );
     }
@@ -774,7 +775,8 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
     while(NULL != (item = dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru)) ) {
         dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
         dague_data_t* original = gpu_copy->original;
-        assert(1 <= gpu_copy->super.super.obj_reference_count);
+
+        OBJ_RELEASE(gpu_copy);  /* removed from the FIFO */
         DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                               "Release copy %p, attached to %p, in map %p",
                               gpu_copy, original, ddesc));
@@ -791,6 +793,8 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
     while(NULL != (item = dague_ulist_fifo_pop(&gpu_device->gpu_mem_owned_lru)) ) {
         dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
         dague_data_t* original = gpu_copy->original;
+
+        OBJ_RELEASE(gpu_copy);  /* removed from the FIFO */
         DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                               "Release owned copy %p, attached to %p, in map %p",
                               gpu_copy, original, ddesc));
@@ -866,6 +870,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         find_another_data:
             lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
+                OBJ_RELEASE(lru_gpu_elem);
                 /* Make sure all remaining temporary locations are set to NULL */
                 for( ;  i < this_task->function->nb_flows; temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
@@ -920,6 +925,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         this_task->data[i].data_out = gpu_elem;
         move_data_count--;
         temp_loc[i] = gpu_elem;
+        OBJ_RETAIN(gpu_elem);
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
     }
     if( 0 != move_data_count ) {
@@ -1232,6 +1238,7 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_t
         cpu_copy = original->device_copies[0];
         cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
         cpu_copy->version = owned_lru_gpu_elem->version;
+        OBJ_RETAIN(owned_lru_gpu_elem);
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)owned_lru_gpu_elem);
         owned_lru_gpu_elem->readers --;
         assert(owned_lru_gpu_elem->readers >= 0);
