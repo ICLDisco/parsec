@@ -78,23 +78,6 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-        if(iparam[IPARAM_NGPUS] > 0) {
-            if(loud > 3) printf("+++ Load GPU kernel ... ");
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescC,
-                                    MT*NT, MB*NB*sizeof(dague_complex64_t));
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescA,
-                                    MT*KT, MB*NB*sizeof(dague_complex64_t));
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescB,
-                                    KT*NT, MB*NB*sizeof(dague_complex64_t));
-            if(loud > 3) printf("Done\n");
-        }
-#endif
-
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm,
                                   (tA, tB, alpha,
@@ -107,14 +90,6 @@ int main(int argc, char ** argv)
         PASTE_CODE_PROGRESS_KERNEL(dague, zgemm);
 
         dplasma_zgemm_Destruct( DAGUE_zgemm );
-
-#if defined(HAVE_CUDA)
-        if(iparam[IPARAM_NGPUS] > 0) {
-            dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
-            dague_gpu_data_unregister((dague_ddesc_t*)&ddescB);
-            dague_gpu_data_unregister((dague_ddesc_t*)&ddescC);
-        }
-#endif
 
         dague_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);

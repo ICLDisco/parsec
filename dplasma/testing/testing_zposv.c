@@ -75,18 +75,6 @@ int main(int argc, char ** argv)
                                        nodes, rank, MB, NB, LDA, N, 0, 0,
                                        N, N, P, uplo[u]));
 
-        /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-        if(iparam[IPARAM_NGPUS] > 0)
-        {
-            if(loud > 3) printf("+++ Load GPU kernel ... ");
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescA,
-                                    MT*NT, MB*NB*sizeof(dague_complex64_t) );
-            if(loud > 3) printf("Done\n");
-        }
-#endif
-
         /*********************************************************************
          *               First Check ( ZPOSV )
          */
@@ -270,12 +258,6 @@ int main(int argc, char ** argv)
             }
             printf("***************************************************\n");
         }
-
-#if defined(HAVE_CUDA)
-        if(iparam[IPARAM_NGPUS] > 0) {
-            dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
-        }
-#endif
 
         dague_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);

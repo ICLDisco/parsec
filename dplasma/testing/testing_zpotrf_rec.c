@@ -52,28 +52,12 @@ int main(int argc, char ** argv)
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        if(loud > 3) printf("+++ Load GPU kernel ... ");
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescA,
-                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
-        if(loud > 3) printf("Done\n");
-    }
-#endif
-
     PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf_rec,
                               (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
     PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf_rec);
 
     dplasma_zpotrf_rec_Destruct( DAGUE_zpotrf_rec );
     dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
-    }
-#endif
 
     if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);

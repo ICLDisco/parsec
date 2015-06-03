@@ -132,15 +132,6 @@ typedef dague_data_copy_t dague_gpu_data_copy_t;
 #include "dague/data_distribution.h"
 
 /*
- * Data [un]registering
- */
-int dague_gpu_data_register( dague_context_t *dague_context,
-                             dague_ddesc_t   *data,
-                             int              nbelem,
-                             size_t           eltsize );
-int dague_gpu_data_unregister( dague_ddesc_t* data );
-
-/*
  * Data movement
  */
 int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,

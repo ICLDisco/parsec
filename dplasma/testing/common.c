@@ -602,19 +602,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 
     TIME_START();
 
-#if defined(HAVE_CUDA)
-    /* if the use of GPUs is specified on the command line updated the environment
-     * prior to the runtime initialization.
-     */
-    if(iparam[IPARAM_NGPUS] > 0) {
-        char *param, value[128];
-        param = dague_mca_param_env_var("device_cuda_enabled");
-        snprintf(value, 128, "%d", iparam[IPARAM_NGPUS]);
-        setenv(param, value, 1);
-        free(param);
-    }
-#endif
-
     if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
         char *ignored;
         (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
