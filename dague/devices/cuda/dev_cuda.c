@@ -47,6 +47,7 @@ static char* cuda_lib_path = NULL;
 static int
 dague_cuda_memory_reserve( gpu_device_t* gpu_device,
                            int           memory_percentage,
+                           int           number_of_elements,
                            size_t        eltsize );
 static int
 dague_cuda_memory_release( gpu_device_t* gpu_device );
@@ -366,7 +367,7 @@ dague_cuda_handle_unregister(dague_device_t* device, dague_handle_t* handle)
 
 int dague_gpu_init(dague_context_t *dague_context)
 {
-    int cuda_memory_block_size, cuda_memory_percentage;
+    int cuda_memory_block_size, cuda_memory_percentage, cuda_memory_number_of_blocks = -1;
     int show_caps_index, show_caps = 0;
     int use_cuda_index, use_cuda;
     int cuda_mask, cuda_verbosity;
@@ -391,6 +392,9 @@ int dague_gpu_init(dague_context_t *dague_context)
     (void)dague_mca_param_reg_int_name("device_cuda", "memory_use",
                                        "The percentage of the total GPU memory to be used by this PaRSEC context",
                                        false, false, 95, &cuda_memory_percentage);
+    (void)dague_mca_param_reg_int_name("device_cuda", "memory_number_of_blocks",
+                                       "Alternative to device_cuda_memory_use: sets exactly the number of blocks to allocate (-1 means to use a percentage of the available memory)",
+                                       false, false, -1, &cuda_memory_number_of_blocks);
     if( 0 == use_cuda ) {
         return -1;  /* Nothing to do around here */
     }
@@ -579,6 +583,7 @@ int dague_gpu_init(dague_context_t *dague_context)
 
         if( DAGUE_SUCCESS != dague_cuda_memory_reserve(gpu_device,
                                                        cuda_memory_percentage,
+                                                       cuda_memory_number_of_blocks,
                                                        cuda_memory_block_size) ) {
             free(gpu_device);
             continue;
@@ -665,6 +670,7 @@ int dague_gpu_fini(void)
 static int
 dague_cuda_memory_reserve( gpu_device_t* gpu_device,
                            int           memory_percentage,
+                           int           number_blocks,
                            size_t        eltsize )
 {
     CUresult status;
@@ -681,7 +687,33 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
 
     /* Determine how much memory we can allocate */
     cuMemGetInfo( &initial_free_mem, &total_mem );
-    how_much_we_allocate = (memory_percentage * initial_free_mem) / 100;
+    if( number_blocks != -1 ) {
+        if( number_blocks == 0 ) {
+            WARNING(("**** Error: 0 bytes of memory requested on CUDA device %s\n", gpu_device->super.name));
+            return DAGUE_ERROR;
+        } else {
+            how_much_we_allocate = number_blocks * eltsize;
+        }
+    } else {
+        /** number_blocks == -1 means memory_percentage is used */
+        how_much_we_allocate = (memory_percentage * initial_free_mem) / 100;
+    }
+    if( how_much_we_allocate > initial_free_mem ) {
+        /** Handle the case of jokers who require more than 100% of memory,
+         *  and eleventh case of computer scientists who don't know how
+         *  to divide a number by another
+         */
+        WARNING(("**** Requested %d bytes on CUDA device %s, but only %d bytes are available -- reducing allocation to max available\n",
+                 how_much_we_allocate, initial_free_mem));
+        how_much_we_allocate = initial_free_mem;
+    }
+    if( how_much_we_allocate < eltsize ) {
+        /** Handle another kind of jokers entirely, and cases of
+         *  not enough memory on the device
+         */
+        WARNING(("**** Cannot allocate at least one element on CUDA device %s\n", gpu_device->super.name));
+        return DAGUE_ERROR;
+    }
 
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     size_t free_mem = initial_free_mem;
