@@ -52,7 +52,7 @@ void pins_init(dague_context_t* master_context)
         if( mca_components_belongs_to_user_list(user_list, pins_components[i]->mca_component_name) ) {
             if (pins_components[i]->mca_query_component != NULL) {
                 err = pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                if( err != DAGUE_SUCCESS ) {
+                if( err != MCA_SUCCESS ) {
                     DEBUG(("query function for component %s return no module\n", pins_components[i]->mca_component_name));
                     continue;
                 }

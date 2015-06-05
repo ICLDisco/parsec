@@ -17,7 +17,6 @@
 #include "dague_config.h"
 #include "dague.h"
 
-#include "dague/include/dague/constants.h"
 #include "dague/mca/pins/pins.h"
 #include "dague/mca/pins/iterators_checker/pins_iterators_checker.h"
 
@@ -68,5 +67,5 @@ static int pins_iterators_checker_component_query(mca_base_module_t **module, in
     void *ptr = (void*)&dague_pins_iterators_checker_module;
     *priority = 50;
     *module = (mca_base_module_t *)ptr;
-    return DAGUE_SUCCESS;
+    return MCA_SUCCESS;
 }
