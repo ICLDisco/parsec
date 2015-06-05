@@ -43,7 +43,9 @@ static void pins_thread_init_iterators_checker(struct dague_execution_unit_s* ex
 
 static void pins_thread_fini_iterators_checker(struct dague_execution_unit_s* exec_unit)
 {
-    PINS_UNREGISTER(exec_unit, EXEC_BEGIN, iterators_checker_exec_count_begin, NULL);
+    struct parsec_pins_next_callback_s* event_cb;
+    PINS_UNREGISTER(exec_unit, EXEC_BEGIN, iterators_checker_exec_count_begin, &event_cb);
+    free(event_cb);
 }
 
 /*
