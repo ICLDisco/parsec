@@ -295,6 +295,19 @@ struct dague_execution_context_s {
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_execution_context_t);
 
+#define DAGUE_COPY_EXECUTION_CONTEXT(dest, src) \
+    do {                                                                \
+        /* this should not be copied over from the old execution context */ \
+        dague_thread_mempool_t *_mpool = (dest)->mempool_owner;         \
+        /* we copy everything but the dague_list_item_t at the beginning, to \
+         * avoid copying uninitialized stuff from the stack             \
+         */                                                             \
+        memcpy( ((char*)(dest)) + sizeof(dague_list_item_t),            \
+                ((char*)(src)) + sizeof(dague_list_item_t),             \
+                sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) ); \
+        (dest)->mempool_owner = _mpool;                                 \
+    } while (0)
+
 /**
  * Profiling data.
  */

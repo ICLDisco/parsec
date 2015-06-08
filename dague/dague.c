@@ -1228,17 +1228,8 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
          */
         {
             dague_execution_context_t* new_context;
-            dague_thread_mempool_t *mpool;
             new_context = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
-            /* this should not be copied over from the old execution context */
-            mpool = new_context->mempool_owner;
-            /* we copy everything but the dague_list_item_t at the beginning, to
-             * avoid copying uninitialized stuff from the stack
-             */
-            memcpy( ((char*)new_context) + sizeof(dague_list_item_t),
-                    ((char*)exec_context) + sizeof(dague_list_item_t),
-                    sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) );
-            new_context->mempool_owner = mpool;
+            DAGUE_COPY_EXECUTION_CONTEXT(new_context, exec_context);
             AYU_ADD_TASK(new_context);
 
             DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",
