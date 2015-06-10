@@ -12,9 +12,6 @@
 
 struct dague_context_s;
 
-typedef struct dague_data_s dague_data_t;
-typedef struct dague_data_copy_s dague_data_copy_t;
-
 typedef uint8_t dague_data_coherency_t;
 #define    DATA_COHERENCY_INVALID   ((dague_data_coherency_t)0x0)
 #define    DATA_COHERENCY_OWNED     ((dague_data_coherency_t)0x1)
