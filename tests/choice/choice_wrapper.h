@@ -8,6 +8,7 @@
 #define _choice_wrapper_h
 
 #include "dague.h"
+#include "dague/types.h"
 
 /**
  * @param [IN] A    the data, already distributed and allocated
