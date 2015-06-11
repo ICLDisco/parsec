@@ -1827,7 +1827,6 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     task_param_t *current_paramm;
     static int handle_id = 0;
     static uint32_t task_id = 0, _internal_task_counter=0;
-    static int task_class_counter = 0;
     static uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     int next_arg=-1, i, flow_index = 0;
     int tile_op_type;
@@ -1839,7 +1838,6 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
         handle_id = __dague_handle->super.handle_id;
         task_id = 0;
         _internal_task_counter = 0;
-        task_class_counter = 0;
         for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
             flow_set_flag[i] = 0;
         }
@@ -1869,7 +1867,6 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
         track_function_created_or_not = 1;
     } else { /* Because I am tracking things that does not make a lot of sense hence */
         int count_of_params = 0;
-        long unsigned int size_of_param = 0;
 
         current_paramm = head_paramm;
     

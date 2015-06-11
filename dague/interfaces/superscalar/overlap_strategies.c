@@ -198,7 +198,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 
             /* Assinging higher priority to sucessors of RW flow */
             if (task_is_ready == DAGUE_ITERATE_CONTINUE && 
-                current_task->desc[i].op_type_parent & GET_OP_TYPE == INOUT) {
+                (current_task->desc[i].op_type_parent & GET_OP_TYPE) == INOUT) {
                 current_succ->task->super.priority = 10; 
             }
 
