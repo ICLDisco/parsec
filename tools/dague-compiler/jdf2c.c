@@ -3180,7 +3180,6 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
                                   dump_string, NULL, "", "  int ", "_nblocal_tasks;\n", "_nblocal_tasks;\n") );
 
-    coutput("  __dague_handle->super.super.handle_flags    = DAGUE_HANDLE_FLAG_PTG;\n");
     coutput("  __dague_handle->super.super.nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n", jdf_basename);
     coutput("  __dague_handle->super.super.dependencies_array = (dague_dependencies_t **)\n"
             "              calloc(DAGUE_%s_NB_FUNCTIONS, sizeof(dague_dependencies_t *));\n",

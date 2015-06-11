@@ -1347,6 +1347,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
+        /* Copying data in data-repo if there is data */
         if( oldcontext->data[src_flow->flow_index].data_out != NULL ) {
             /* BEWARE: This increment is required to be done here. As the target task
              * bits are marked, another thread can now enable the task. Once schedulable
