@@ -8,6 +8,7 @@ set(BASE_SOURCES
   class/dague_lifo.c
   class/dague_fifo.c
   class/dague_dequeue.c
+  class/hash_table.c
   utils/installdirs.c
   utils/os_path.c
   utils/dague_environ.c
