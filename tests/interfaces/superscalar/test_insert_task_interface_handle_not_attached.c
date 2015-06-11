@@ -6,11 +6,11 @@
 #include <string.h>
 /* dague things */
 #include "dague.h"
-#include "scheduling.h"
-#include "profiling.h"
+#include "dague/scheduling.h"
+#include "dague/profiling.h"
 //#include "common_timing.h"
 #ifdef DAGUE_VTRACE
-#include "vt_user.h"
+#include "dague/vt_user.h"
 #endif
 
 
@@ -21,7 +21,7 @@
 double time_elapsed = 0.0;
 
 int
-call_to_kernel(dague_execution_context_t * this_task)
+call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {   
     static int count=0;
     int *uplo, *uplo2, *uplo1;
@@ -77,7 +77,7 @@ int main(int argc, char ** argv)
 
     printf("Test: %d\n",dague_context_test(dague));
     printf("Local_task_count: %d\n",DAGUE_dtd_handle->super.nb_local_tasks );
-    dague_atomic_add_32b(&DAGUE_dtd_handle->super.nb_local_tasks, 1); 
+    increment_task_counter(DAGUE_dtd_handle); 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
     dague_context_wait(dague);  
 

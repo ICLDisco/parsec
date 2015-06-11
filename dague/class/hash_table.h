@@ -1,4 +1,5 @@
-#include "dague/dague_internal.h"
+#include "dague_config.h"
+#include "dague/class/dague_object.h"
 
 typedef struct generic_hash_table hash_table;
 

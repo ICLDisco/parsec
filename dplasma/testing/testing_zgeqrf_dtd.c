@@ -12,7 +12,7 @@
 
 
 
-int call_to_kernel_GE_QRT(dague_execution_context_t *this_task)
+int call_to_kernel_GE_QRT(dague_execution_unit_t *context, dague_execution_context_t *this_task)
 {
     int *m;
     int *n;
@@ -47,7 +47,7 @@ int call_to_kernel_GE_QRT(dague_execution_context_t *this_task)
 }
 
 int
-call_to_kernel_UN_MQR(dague_execution_context_t * this_task)
+call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     PLASMA_enum *side;
     PLASMA_enum *trans;
@@ -96,7 +96,7 @@ call_to_kernel_UN_MQR(dague_execution_context_t * this_task)
 
 
 int
-call_to_kernel_TS_QRT(dague_execution_context_t * this_task)
+call_to_kernel_TS_QRT(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     int *m;
     int *n;
@@ -135,7 +135,7 @@ call_to_kernel_TS_QRT(dague_execution_context_t * this_task)
 }
 
 int
-call_to_kernel_TS_MQR(dague_execution_context_t * this_task)
+call_to_kernel_TS_MQR(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     PLASMA_enum *side;
     PLASMA_enum *trans;

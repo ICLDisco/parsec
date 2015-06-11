@@ -657,23 +657,6 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
   DESTINATION include/dague)
 
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dague_object.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list_item.h
-  DESTINATION include/dague/class)
-    
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-gcc.h  
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-macosx.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc-bgp.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_32.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_64.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-xlc.h
-  DESTINATION include/dague/sys)
-
-
 # pkg-config file
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"

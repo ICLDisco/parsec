@@ -788,21 +788,6 @@ int dague_fini( dague_context_t** pcontext )
 
     PINS_THREAD_FINI(context->virtual_processes[0]->execution_units[0]);
 
-    /**
-     * We need to force the main thread to drain all possible pending messages
-     * on the communication layer. This is not an issue in a distributed run,
-     * but on a single node run with MPI support, objects can be created (and
-     * thus context_id additions might be pending on the communication layer).
-     */
-#if defined(DISTRIBUTED)
-    if( (1 == dague_communication_engine_up) &&
-        (context->nb_nodes == 1) &&
-        DAGUE_THREAD_IS_MASTER(context->virtual_processes[0]->execution_units[0]) ) {
-        /* check for remote deps completion */
-        dague_remote_dep_progress(context->virtual_processes[0]->execution_units[0]);
-    }
-#endif /* defined(DISTRIBUTED) */
-
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
@@ -1349,6 +1334,8 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
         /* Copying data in data-repo if there is data */
         if( oldcontext->data[src_flow->flow_index].data_out != NULL ) {
+            arg->output_entry->data[src_flow->flow_index] = oldcontext->data[src_flow->flow_index].data_out;
+            arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
              * bits are marked, another thread can now enable the task. Once schedulable
              * the task will try to access its input data and decrement their ref count.

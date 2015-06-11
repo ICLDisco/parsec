@@ -12,7 +12,7 @@
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
 int
-call_to_kernel_GE_TRF_INC(dague_execution_context_t * this_task)
+call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     int *m;
     int *n;
@@ -48,7 +48,7 @@ call_to_kernel_GE_TRF_INC(dague_execution_context_t * this_task)
 }
 
 int
-call_to_kernel_GE_SSM(dague_execution_context_t * this_task)
+call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     int *m;
     int *n;
@@ -87,7 +87,7 @@ call_to_kernel_GE_SSM(dague_execution_context_t * this_task)
 }
 
 int
-call_to_kernel_TS_TRF(dague_execution_context_t * this_task)
+call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     int *m;
     int *n;
@@ -139,7 +139,7 @@ call_to_kernel_TS_TRF(dague_execution_context_t * this_task)
 }
 
 int
-call_to_kernel_SS_SSM(dague_execution_context_t * this_task)
+call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     int *m1;
     int *n1;

@@ -6,11 +6,10 @@
 #include <string.h>
 /* dague things */
 #include "dague.h"
-#include "scheduling.h"
-#include "profiling.h"
+#include "dague/profiling.h"
 //#include "common_timing.h"
 #ifdef DAGUE_VTRACE
-#include "vt_user.h"
+#include "dague/vt_user.h"
 #endif
 
 
@@ -21,7 +20,7 @@
 
 double time_elapsed = 0.0;
 int
-call_to_kernel_type_1(dague_execution_context_t * this_task)
+call_to_kernel_type_1(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {   
     static int count=0;
     dague_data_copy_t *gDATA;
@@ -40,7 +39,7 @@ call_to_kernel_type_1(dague_execution_context_t * this_task)
 }
 
 int
-call_to_kernel_type_2(dague_execution_context_t * this_task)
+call_to_kernel_type_2(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {   
     static int count=0;
     dague_data_copy_t *gDATA;

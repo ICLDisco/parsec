@@ -13,11 +13,9 @@
 
 #include <stdio.h>
 
-static char* mca_param_string;
-
 /* init functions */
-static void pins_handle_init_dtd_to_ptg(struct dague_handle_s * handle);
-static void pins_handle_fini_dtd_to_ptg(struct dague_handle_s * handle);
+static void pins_handle_init_ptg_to_dtd(struct dague_handle_s * handle);
+static void pins_handle_fini_ptg_to_dtd(struct dague_handle_s * handle);
 
 
 const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
@@ -25,17 +23,18 @@ const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
     {
         NULL,
         NULL,
-        pins_handle_init_dtd_to_ptg,
-        pins_handle_fini_dtd_to_ptg,
+        pins_handle_init_ptg_to_dtd,
+        pins_handle_fini_ptg_to_dtd,
         NULL,
         NULL
     }
 };
 
-static void pins_handle_init_dtd_to_ptg(struct dague_handle_s * handle)
+static void pins_handle_init_ptg_to_dtd(struct dague_handle_s * handle)
 {
     /* Adding code to instrument testing insert_task interface */
     int ii = 0;
+    testing_ptg_to_dtd = 99;
 
     __dtd_handle = dague_dtd_new(handle->context, 4, handle->nb_local_tasks, &ii);
     dague_handle_update_nbtask(handle, 1);
@@ -43,6 +42,6 @@ static void pins_handle_init_dtd_to_ptg(struct dague_handle_s * handle)
     /* END */
 }
 
-static void pins_handle_fini_dtd_to_ptg(struct dague_handle_s * handle)
+static void pins_handle_fini_ptg_to_dtd(struct dague_handle_s * handle)
 {
 }

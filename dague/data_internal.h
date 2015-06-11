@@ -7,9 +7,8 @@
 #ifndef DATA_INTERNAL_H_HAS_BEEN_INCLUDED
 #define DATA_INTERNAL_H_HAS_BEEN_INCLUDED
 
-#include "dague.h"
-#include "dague/class/dague_object.h"
-#include "dague/class/list_item.h"
+#include "dague/dague_internal.h"
+#include "dague/data.h"
 #include "dague/types.h"
 
 /**
@@ -55,7 +54,7 @@ struct dague_data_copy_s {
 
     struct dague_data_copy_s *older;                 /**< unused yet */
     dague_data_t             *original;
-    struct dague_arena_chunk_s      *arena_chunk;           /**< If this is an arena-based data, keep
+    dague_arena_chunk_t      *arena_chunk;           /**< If this is an arena-based data, keep
                                                       *   the chunk pointer here, to avoid
                                                       *   risky pointers arithmetic (pointers mis-alignment
                                                       *   depending on many parameters) */

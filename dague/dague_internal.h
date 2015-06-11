@@ -31,6 +31,9 @@ typedef struct dague_data_pair_s       dague_data_pair_t;
 typedef struct dague_dependencies_s    dague_dependencies_t;
 typedef struct data_repo_s             data_repo_t;
 
+/**< The most basic execution flow. Each virtual process includes
+ *   multiple execution units (posix threads + local data) */
+typedef struct dague_execution_unit_s  dague_execution_unit_t;
 /**< Each MPI process includes multiple virtual processes (and a
  *   single comm. thread) */
 typedef struct dague_vp_s              dague_vp_t;

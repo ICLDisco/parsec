@@ -17,7 +17,7 @@
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
 int
-call_to_kernel_PO(dague_execution_context_t * this_task)
+call_to_kernel_PO(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     PLASMA_enum *uplo;
     int *tempkm, *ldak, *iinfo;
@@ -39,7 +39,7 @@ call_to_kernel_PO(dague_execution_context_t * this_task)
 }
 
 int
-call_to_kernel_TR(dague_execution_context_t * this_task)
+call_to_kernel_TR(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     PLASMA_enum *side, *uplo, *trans, *diag;
     int  *tempmm, *nb, *ldak, *ldam, *alpha;
@@ -73,7 +73,7 @@ call_to_kernel_TR(dague_execution_context_t * this_task)
 }
 
 int
-call_to_kernel_HE(dague_execution_context_t * this_task)
+call_to_kernel_HE(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     PLASMA_enum *uplo, *trans;
     int *mb, *ldam, *tempmm, *alpha, *beta;
@@ -106,7 +106,7 @@ call_to_kernel_HE(dague_execution_context_t * this_task)
 
 
 int
-call_to_kernel_GE(dague_execution_context_t * this_task)
+call_to_kernel_GE(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
     PLASMA_enum *transA, *transB;
     int *tempmm, *mb, *ldam, *ldan;
@@ -181,8 +181,8 @@ int main(int argc, char ** argv)
     PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
 
     /* initializing matrix structure */
-    LDA = max( LDA, N );
-    LDB = max( LDB, N );
+    LDA = dplasma_imax( LDA, N );
+    LDB = dplasma_imax( LDB, N );
     SMB = 1;
     SNB = 1;
 
@@ -199,17 +199,6 @@ int main(int argc, char ** argv)
     dplasma_zplghe( dague, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
-
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        if(loud > 3) printf("+++ Load GPU kernel ... ");
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescA,
-                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
-        if(loud > 3) printf("Done\n");
-    }
-#endif
 
     sym_two_dim_block_cyclic_t *__ddescA = &ddescA;
     total = ddescA.super.mt;
@@ -285,7 +274,7 @@ int main(int argc, char ** argv)
     TIME_START();*/
 
     /*dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle); */
-    dague_atomic_add_32b(&DAGUE_dtd_handle->super.nb_local_tasks, 1); 
+    increment_task_counter(DAGUE_dtd_handle); 
     dague_context_wait(dague);
 
 
