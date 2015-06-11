@@ -95,10 +95,11 @@ int main(int argc, char ** argv)
     for (k = 0; k < total; k++){
         dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc,k,k))->device_copies[0];
         int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
-        //printf("At index %d: %d\n", k, *data);
+        printf("At index %d:\t%d\n", k, *data);
     } 
 
     dague_context_start(dague);  
+
     for(kk = 0; kk< no_of_tasks; kk++) {
         for( k = 0; k < total; k++ ) {
             insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel,     "Task",
@@ -108,7 +109,6 @@ int main(int argc, char ** argv)
     }
 
     increment_task_counter(DAGUE_dtd_handle); 
-    //dague_context_start(dague);  
     dague_context_wait(dague);  
 
     //printf("Finally \n");

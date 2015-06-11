@@ -22,7 +22,6 @@ double time_elapsed = 0.0;
 int
 call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {   
-    static int count=0;
     int *uplo, *uplo2, *uplo1;
     double *uplo3;
     dague_data_copy_t *data;
