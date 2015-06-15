@@ -138,6 +138,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     PAPI_event_info_t papi_info;
 
     events->num_counters = 0;
+    events->num_allocated_counters = 0;
     events->events = NULL;
 
     mca_param_name = strdup(events_str);
