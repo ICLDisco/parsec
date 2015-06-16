@@ -631,8 +631,12 @@ import struct
 
 #
 # The event_conv must be a PARSEC_PINS_SEPARATOR separated list of tuple using
-# the following format: [NAME{TYPE}PARSEC_PINS_SEPARATOR]+, where NAME is a string and TYPE is one
-# of: int, int32_t, int64_t, float and double.
+# the following format: [NAME{TYPE}PARSEC_PINS_SEPARATOR]+, where NAME is a string and TYPE is one:
+# of: signed char, unsigned char, short, unsigned short, int, unsigned int, long, unsigned long,
+# long long, unsigned long long, float, double,
+# int8_t, int16_t, int32_t, int64_t, int128_t,
+# uint8_t, uint16_t, uint32_t, uint64_t and uint128_t.
+# Note that the formats in Python differ from POSIX formatting (https://docs.python.org/2/library/struct.html#format-characters)
 #
 # The event_len is the length in bytes of the event.
 #
@@ -659,14 +663,33 @@ cdef class ExtendedEvent:
                 continue
             ev_name = ev_name.replace(' ', '_')
             self.aev.append(ev_name)
-            if ev_type == 'int32_t' or ev_type == 'int':
+            if ev_type == 'int8_t' or ev_type == 'signed char':
+                fmt += 'b'
+            elif ev_type == 'uint8_t' or ev_type == 'unsigned char':
+                fmt += 'B'
+            elif ev_type == ' int16_t' or ev_type == 'short':
+                fmt += 'h'
+            elif ev_type == 'uint16_t' or ev_type == 'unsigned short':
+                fmt += 'H'
+            elif ev_type == 'int32_t' or ev_type == 'int':
                 fmt += 'i'
-            elif ev_type == 'int64_t':
+            elif ev_type == 'uint32_t' or ev_type == 'unsigned int':
+                fmt += 'I'
+            elif ev_type == 'int64_t' or ev_type == 'long':
                 fmt += 'l'
+            elif ev_type == 'uint64_t' or ev_type == 'unsigned long':
+                fmt += 'L'
+            elif ev_type == 'int128_t' or ev_type == 'long long':
+                fmt += 'q'
+            elif ev_type == 'uint128_t' or ev_type == 'unsigned long long':
+                fmt += 'Q'
             elif ev_type == 'double':
                 fmt += 'd'
             elif ev_type == 'float':
                 fmt += 'f'
+            else:
+                logger.warning('Unknown format %s', ev_type)
+
         logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, fmt)
         self.ev_struct = struct.Struct(fmt)
         if event_len != len(self):
