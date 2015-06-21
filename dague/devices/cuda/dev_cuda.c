@@ -817,8 +817,6 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
 #else
         zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
 #endif
-        if( NULL != original )
-            dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
         OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
     }
     while(NULL != (item = dague_ulist_fifo_pop(&gpu_device->gpu_mem_owned_lru)) ) {
@@ -839,7 +837,6 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
 #else
         zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
 #endif
-        dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
         OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
     }
 
@@ -901,12 +898,12 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         find_another_data:
             lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
-                OBJ_RELEASE(lru_gpu_elem);
                 /* Make sure all remaining temporary locations are set to NULL */
                 for( ;  i < this_task->function->nb_flows; temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
             }
             DAGUE_LIST_ITEM_SINGLETON(lru_gpu_elem);
+            OBJ_RELEASE(lru_gpu_elem);
 
             /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
              * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
@@ -939,7 +936,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
                     zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
-                    free(lru_gpu_elem);
+                    OBJ_RELEASE(lru_gpu_elem); assert( NULL == lru_gpu_elem );
                     goto malloc_data;
 #endif
                 }

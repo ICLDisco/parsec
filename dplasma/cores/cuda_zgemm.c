@@ -56,13 +56,13 @@ int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
 
 static inline
 int gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
-                             dague_gpu_context_t* this_task,
-                             dague_gpu_exec_stream_t* gpu_stream);
+                           dague_gpu_context_t* this_task,
+                           dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
-                          dague_gpu_context_t* this_task,
-                          dague_gpu_exec_stream_t* gpu_stream);
+                           dague_gpu_context_t* this_task,
+                           dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int  gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
@@ -282,8 +282,8 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
         if(NULL == flow)
             flow = this_task->function->out[i];
 
-        original = this_task->data[i].data_out->original;
         gpu_copy = this_task->data[i].data_out;
+        original = gpu_copy->original;
         assert(original == this_task->data[i].data_in->original);
         if( flow->flow_flags & FLOW_ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
@@ -291,7 +291,6 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
-                OBJ_RETAIN(gpu_copy);
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             }
         }
@@ -352,11 +351,17 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->out[i]) continue;
-        if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) continue;
 
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;
         cpu_copy = original->device_copies[0];
+
+        if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
+            /* Do not propagate GPU copies to successors (temporary solution) */
+            this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
+            continue;
+        }
+
         /* There might be a race condition here. We can't assume the first CPU
          * version is the corresponding CPU copy, as a new CPU-bound data
          * might have been created meanwhile.
@@ -372,7 +377,6 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
          */
         this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
 
-        OBJ_RETAIN(gpu_copy);
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         } else {

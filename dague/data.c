@@ -38,7 +38,7 @@ static void dague_data_copy_destruct(dague_data_copy_t* obj)
     /* If the copy is still attached to a data we should detach it first */
     if( NULL != obj->original) {
         dague_data_copy_detach(obj->original, obj, obj->device_index);
-        obj->original = NULL;
+        assert( NULL == obj->original );
     }
 
     if( obj->flags & DAGUE_DATA_FLAG_ARENA ) {
