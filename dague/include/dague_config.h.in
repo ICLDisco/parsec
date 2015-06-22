@@ -123,7 +123,7 @@
 #define DAGUE_AWK_PREFIX "@AWK_EXECUTABLE@"
 
 /* Default PATH to look for the CUDA .so files */
-#define DAGUE_LIB_CUDA_PREFIX ".;@CMAKE_BINARY_DIR@/dplasma/cores"
+#define DAGUE_LIB_CUDA_PREFIX ".;@CUDA_cublas_LIBRARY@;@CMAKE_BINARY_DIR@/dplasma/cores"
 
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
