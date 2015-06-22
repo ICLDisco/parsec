@@ -59,7 +59,7 @@ if __name__ == '__main__':
                 large_handle_size = len(handle_group)
                 hid = h_id
         print('selecting only events of handle', hid)
-        thread_group_events = trace.events.groupby(['thread_id', 'type', 'handle_id'])
+        thread_group_events = trace.events.groupby(['stream_id', 'type', 'handle_id'])
         # but since the groups may be out-of-order, we need to prepare to
         # collect the information, then sum it, and then plot it in a separate loop
         # after sorting the sums:
@@ -78,7 +78,7 @@ if __name__ == '__main__':
         for (th_id, event_type, handle_id), group in thread_group_events:
             if event_type != select_event and handle_id != hid:
                 continue
-            total = group['duration'].sum()
+            total = pandas.Series(group['end'] - group['begin']).sum()
 
             first = group['begin'].min()
             if first < thread_bars[th_id]['first']:
