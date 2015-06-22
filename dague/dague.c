@@ -236,7 +236,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         free(binding);
     }
     if( NULL != eu->eu_profile ) {
-        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "boundto", startup->bindto);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "th_id", eu->th_id);
         PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
     }
 #endif /* DAGUE_PROF_TRACE */
