@@ -8,7 +8,8 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import mpl_prefs
 import ptt_utils
-import os, sys
+import os
+import sys
 import itertools
 import pandas
 
@@ -23,6 +24,7 @@ std_x = 3
 std_y = 3
 ext = 'pdf'
 
+
 def plot_colormap(trace, x_axis, y_axis, filters,
                   bins=bins, tiers=tiers, std_x=std_x, std_y=std_y,
                   trace_descrip='', filters_descrip='',
@@ -33,10 +35,10 @@ def plot_colormap(trace, x_axis, y_axis, filters,
 
     if std_x:
         x_avg = events[x_axis].mean()
-        events = events[:][events[x_axis] - x_avg  <= events[x_axis].std() * std_x]
+        events = events[:][events[x_axis] - x_avg <= events[x_axis].std() * std_x]
     if std_y:
         y_avg = events[y_axis].mean()
-        events = events[:][events[y_axis] - y_avg  <= events[y_axis].std() * std_y]
+        events = events[:][events[y_axis] - y_avg <= events[y_axis].std() * std_y]
 
     label = '{}: {:.1f} gflops/s'.format(trace.sched.upper(),
                                          trace.gflops)
@@ -93,7 +95,7 @@ def plot_colormap(trace, x_axis, y_axis, filters,
              horizontalalignment='left',
              verticalalignment='top',
              fontsize=40, color='white',
-             alpha=0.5,family='monospace',
+             alpha=0.5, family='monospace',
              transform=ax.transAxes)
 
     fig.set_size_inches(12, 8)
@@ -101,12 +103,13 @@ def plot_colormap(trace, x_axis, y_axis, filters,
 
     std_str = str(std_y)
     if std_y != std_x:
-        str_str += '-{}'.format(std_x)
-    filename = re.sub('[\(\)\' :]' , '',
+        std_str += '-{}'.format(std_x)
+    filename = re.sub('[\(\)\' :]', '',
                       ('{}_vs_{}_{}'.format(y_axis, x_axis, trace_descrip) +
                        '_{}_{}SD'.format(filters_descrip, std_str) +
                        '_colormap.{}'.format(ext)))
     fig.savefig(filename, bbox_inches='tight')
+
 
 def print_help():
     print('')
@@ -177,9 +180,9 @@ if __name__ == '__main__':
     traces = automerge_trace_sets(trace_sets.values())
 
     for trace, name in zip(traces, trace_sets.keys()):
-        if slice_st_start != None or slice_st_stop != None:
+        if slice_st_start is None or slice_st_stop is None:
             event_subtypes = mpl_prefs.kernel_names[trace.exe][slice_st_start:slice_st_stop]
-        if slice_t_start != None or slice_t_stop != None:
+        if slice_t_start is None or slice_t_stop is None:
             event_types = mpl_prefs.kernel_names[trace.exe][slice_t_start:slice_t_stop]
 
         if papi_core_all:
@@ -209,7 +212,7 @@ if __name__ == '__main__':
         for y_axis in y_axes:
             for type_pair in type_pairs:
                 filters = []
-                if len(type_pair) == 2: # it's a tuple
+                if len(type_pair) == 2:  # it's a tuple
                     filters.append('type==.event_types[\'' + type_pair[0] + '\']')
                     filters.append('kernel_type==.event_types[\''+type_pair[1]+'\']')
                 else:
@@ -219,9 +222,7 @@ if __name__ == '__main__':
                 try:
                     plot_colormap(trace, x_axis, y_axis, filters,
                                   trace_descrip=name, filters_descrip=str(type_pair),
-                                  std_x = std_x, std_y = std_y, ext=ext, bins=bins)
+                                  std_x=std_x, std_y=std_y, ext=ext, bins=bins)
                 except AttributeError as ae:
                     print(ae)
                     continue
-
-
