@@ -77,6 +77,10 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
+    if dbp != NULL:
+        print("None of the following files can be opened {}".format(filenames))
+        return None
+
     # determine amount of multiprocessing
     if isinstance(multiprocess, bool):
         if multiprocess:
