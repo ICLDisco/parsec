@@ -34,7 +34,7 @@ typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc
                                );
 #else
-typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h, 
+typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h,
                                  char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
                                                           dague_complex64_t *d_B, int ldb,
@@ -212,21 +212,21 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     status = cudaSuccess;
 #if (CUDA_VERSION < 4000) || 1 /* todo: always use legacy cublas until we understand how to get the cublas_handle in API v5 */
     cublasSetKernelStream( gpu_stream->cuda_stream );
-    cublas_fnzgemm( lapack_const(args->transA), lapack_const(args->transB), 
+    cublas_fnzgemm( lapack_const(args->transA), lapack_const(args->transB),
                 args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
                 args->beta,  (dague_complex64_t*)d_C, args->ldc );
     status = cublasGetError();
 #else
-{ 
+{
     cudaStream_t current_stream;
     cublasHandle_t handle = cublasGetCurrentCtx(); /* todo: available in cuda API 4 only */
     cublasGetStream_v2 ( handle, &current_stream );
     cublasSetStream_v2 ( handle, &gpu_stream->cuda_srtream );
-    status = 
+    status =
     cublas_fnzgemm( handle,
-                lapack_const(args->transA), lapack_const(args->transB), 
+                lapack_const(args->transA), lapack_const(args->transB),
                 args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
@@ -292,6 +292,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+                continue;  /* done with this element, go for the next one */
             }
         }
         if( flow->flow_flags & FLOW_ACCESS_WRITE ) {
@@ -307,7 +308,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             if( args->pushout ) {  /* n == (k + 1) */
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                                      "GPU:\tMove D2H data <%x> from GPU %d %p -> %p requested\n",
+                                      "GPU:\tMove D2H data <%s:%x> from GPU %d %p -> %p requested\n",
                                       this_task->function->in[i]->name, original->key, gpu_device->cuda_index,
                                       (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
@@ -379,6 +380,9 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                  "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
+                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__));
         } else {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
         }
