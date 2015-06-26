@@ -18,7 +18,7 @@ TMKL=$(MKLDIR)  -lmkl_scalapack_lp64 -lmkl_intel_lp64 -lmkl_core -lmkl_intel_thr
 
 TLIBS=$(TMKL)
 SLIBS=$(SMKL)
-TARGETS=pdpotrf tpdpotrf pdgetrf tpdgetrf pdgeqrf tpdgeqrf pdsyev tpdsyev
+TARGETS=pdpotrf tpdpotrf pdgetrf tpdgetrf pdgeqrf tpdgeqrf pdsyev tpdsyev pdgemm tpdgemm
 
 all: $(TARGETS)
 
