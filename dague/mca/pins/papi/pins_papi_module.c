@@ -211,7 +211,7 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
                 dague_output(0, "Unsettling exception of an event with frequency 1 but without a start callback. Ignored.\n");
             }
         }
-        if( PAPI_NULL == event_cb->papi_eventset ) {
+        if( PAPI_NULL != event_cb->papi_eventset ) {
             parsec_pins_papi_event_cleanup(event_cb, &info);
 
             /* If the last profiling event was an 'end' event */
