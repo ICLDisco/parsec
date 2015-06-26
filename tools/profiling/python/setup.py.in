@@ -18,6 +18,13 @@ build_type = '@CMAKE_BUILD_TYPE@'
 extra_compile_args = util.split_quoted('@C_WFLAGS@')
 if c_compiler.endswith('icc'):
     extra_compile_args.extend(['-wd47', '-static-intel'])
+# I don't know how to automatically check for this but on some
+# systems the python, and therefore cython, are build with the
+# -f-stack-protector on. If we are not using the same flag, importing
+# the .so will be impossible due to the lack of the symbols related
+# to the stack protector. In this case one must enable the line
+# below.
+extra_compile_args.extend(['-fno-stack-protector'])
 
 # libs = ['irc', 'imf', 'dague-base']
 libs = ['dague-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
