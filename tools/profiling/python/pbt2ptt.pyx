@@ -77,7 +77,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     cdef char ** c_filenames = string_list_to_c_strings(filenames)
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
-    if dbp != NULL:
+    if dbp == NULL:
         print("None of the following files can be opened {}".format(filenames))
         return None
 
@@ -557,10 +557,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                         if th_end < end:
                             th_end = end
                     else: # the event is 'not sane'
-                        error_msg = ('event of class {} id {} at {}'.format(
-                            event_name, event_id, stream_id) +
-                                     ' has a unreasonable duration.\n')
-                        event.update({'error_msg':error_msg})
+                        event.update({'error_msg':'event has a unreasonable duration.'})
                         # we still store error events, in the same format as a normal event
                         # we simply add an error message column, and put them in a different table.
                         # Users who wish to use these events can simply merge them with the events table.
@@ -571,11 +568,9 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
 
             else: # the event is not complete
                 # this will change once singleton events are enabled.
-                error_msg = 'event of class {} id {} at {} does not have a match.\n'.format(
-                    event_name, event_id, stream_id)
                 error = {'node_id':node_id, 'stream_id':stream_id, 'handle_id':handle_id,
                          'type':event_type, 'begin':begin, 'end':0,
-                         'flags':event_flags, 'id':event_id, 'error_msg': error_msg}
+                         'flags':event_flags, 'id':event_id, 'error_msg':'event lack completion match.'}
                 builder.errors.append(error)
         dbp_iterator_next(it_s)
         event_s = dbp_iterator_current(it_s)
