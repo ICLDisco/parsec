@@ -75,6 +75,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         last_iterate_flag = 0;
         /* 
          * Not iterating if there's no descendant for this flow
+           or the descendant is itself
          */
         if(current_task == current_task->desc[i].task) {
             continue;
@@ -157,7 +158,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 
             tmp_task = current_desc_task;
 
-            if(NULL != current_desc_task->desc[dst_flow->flow_index].task) {
+            if(NULL != current_desc_task->desc[dst_flow->flow_index].task &&
+                current_desc_task->desc[dst_flow->flow_index].task != current_desc_task) {
                 /* Check to stop building chain of ATOMIC_WRITE tasks when we find any task with 
                    other type of operation like INPUT, INOUT or OUTPUT */
                 if(atomic_write_found && ((current_desc_task->desc[dst_flow->flow_index].op_type & GET_OP_TYPE) != ATOMIC_WRITE)) {
@@ -176,7 +178,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                     * If yes we treat that as the task that needs to wait for the whole chain to finish.
                     * Otherwise we treat as another INPUT task in the chain 
                     */
-                    if((current_desc_task->desc[dst_flow->flow_index].op_type_parent & GET_REGION_INFO) && (current_desc_task->desc[dst_flow->flow_index].op_type & GET_REGION_INFO)) {
+                    if((current_desc_task->desc[dst_flow->flow_index].op_type_parent & GET_REGION_INFO) & (current_desc_task->desc[dst_flow->flow_index].op_type & GET_REGION_INFO)) {
                         op_type_out_task = current_desc_task->desc[dst_flow->flow_index].op_type;
                         flow_index_out_task = current_desc_task->desc[dst_flow->flow_index].flow_index; 
                         out_task = current_desc_task->desc[dst_flow->flow_index].task;
@@ -190,18 +192,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 
         /* Activating all successors for each flow and setting the last OUT task as the descendant */
         current_succ = head_succ;        
-        int task_is_ready = 0;
+        int task_is_ready;
         while(NULL != current_succ) {
-            task_is_ready = 0;
-            task_is_ready = ontask(eu, (dague_execution_context_t*)current_succ->task, (dague_execution_context_t*)current_task, 
-                        current_succ->deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
-
-            /* Assinging higher priority to sucessors of RW flow */
-            if (task_is_ready == DAGUE_ITERATE_CONTINUE && 
-                (current_task->desc[i].op_type_parent & GET_OP_TYPE) == INOUT) {
-                current_succ->task->super.priority = 10; 
-            }
-
             /* If there's a OUT task after at least one INPUT task we assign the OUT task as
              * the descendant for that flow for each of the other INPUT task(s) before it 
              */
@@ -231,6 +223,13 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                     }
                 }
             }
+    
+            task_is_ready = 0;
+            task_is_ready = ontask(eu, (dague_execution_context_t*)current_succ->task, (dague_execution_context_t*)current_task, 
+                        current_succ->deps, &data, rank_src, rank_dst, 
+                        vpid_dst, ontask_arg);
+
+            vpid_dst = (vpid_dst+1)%current_task->super.dague_handle->context->nb_vp; 
             tmp_succ = current_succ;
             current_succ = current_succ->next;
             free((dague_flow_t *)(tmp_succ->deps->flow));

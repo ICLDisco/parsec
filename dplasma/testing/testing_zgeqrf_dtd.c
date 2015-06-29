@@ -64,7 +64,6 @@ call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t
     dague_complex64_t *WORK;
     int *ldwork;
 
-
     dague_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &side,
                           UNPACK_VALUE, &trans,
@@ -89,7 +88,6 @@ call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t
 
     CORE_zunmqr(*side, *trans, *m, *n, *k, *ib,
                 A, *lda, T, *ldt, C, *ldc, WORK, *ldwork);
-
 
     return 0;
 }
@@ -258,8 +256,6 @@ int main(int argc, char ** argv)
     dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
     dague_handle_t* DAGUE_zgeqrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
-
-
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
@@ -268,8 +264,6 @@ int main(int argc, char ** argv)
                         (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
     if(loud > 3) printf("Done\n");
-
-
 
     two_dim_block_cyclic_t *__ddescA = &ddescA;
     two_dim_block_cyclic_t *__ddescT = &ddescT;
@@ -285,7 +279,7 @@ int main(int argc, char ** argv)
     int side = PlasmaLeft;
     int trans = PlasmaConjTrans;
 
-    dague_context_start(dague);
+    //dague_context_start(dague);
 
     /* Testing Insert Function */
     for (k = 0; k < minMNT; k++) {
@@ -363,7 +357,7 @@ int main(int argc, char ** argv)
                                      sizeof(int),           &ib,                               VALUE,
                                      PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, n),     INOUT | REGION_FULL,
                                      sizeof(int),           &ldak,                             VALUE,
-                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, n),     INOUT | REGION_FULL,
+                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, n),     INOUT | REGION_FULL | LOCALITY,
                                      sizeof(int),           &ldam,                             VALUE,
                                      PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, k),     INPUT | REGION_FULL,
                                      sizeof(int),           &ldam,                             VALUE,
@@ -376,7 +370,6 @@ int main(int argc, char ** argv)
             }
         }
     }
-
 
 
     increment_task_counter(DAGUE_dtd_handle); 

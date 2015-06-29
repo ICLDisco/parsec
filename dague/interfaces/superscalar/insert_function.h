@@ -35,7 +35,8 @@ typedef enum {  INPUT=0x100,
 typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
                 REGION_L=1<<1,   
                 REGION_D=1<<2,
-                REGION_U=1<<3
+                REGION_U=1<<3,
+                LOCALITY=1<<4
              } dtd_regions;
 
 #define DAGUE_dtd_NB_FUNCTIONS  25
@@ -57,7 +58,7 @@ typedef struct dague_dtd_handle_s dague_dtd_handle_t;
 typedef struct dague_dtd_function_s dague_dtd_function_t;
 typedef struct __dague_dtd_internal_handle_s __dague_dtd_internal_handle_t;
 
-typedef int (task_func)(dague_execution_unit_t *, dague_execution_context_t *); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
+typedef int (task_func)(struct dague_execution_unit_s *, dague_execution_context_t *); /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
 
 dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                         dague_ddesc_t *ddesc, int i, int j);

@@ -39,14 +39,14 @@ struct task_param_s {
  * All the fields store info about the descendant except
    op_type_parent(operation type ex. INPUT, INOUT or OUTPUT). 
  */ 
-struct descendant_info { 
+typedef struct descendant_info_s { 
     /* Info about the current_task and not about descendant */
     int         op_type_parent; 
     int         op_type;
     uint8_t     flow_index;
     dtd_task_t  *task;
     dtd_tile_t  *tile;
-};
+}descendant_info_t;
 
 /* Structure to hold list of Read-ONLY successors of a task */
 /* Structure to be used for correct ordering strategy 1 in multi-threaded env */
@@ -63,10 +63,11 @@ struct dtd_task_s {
     uint32_t                    ref_count;
     uint32_t                    task_id;
     int                         total_flow;
-    struct                      descendant_info desc[MAX_DESC];
+    descendant_info_t           desc[MAX_DESC];
     int                         flow_count;
     int                         flow_satisfied;
     int                         ready_mask;
+    uint8_t                     locality; /* the vpid of data for locality flag */
     char                        *name;
     uint8_t                     belongs_to_function;
     /* Saves flow index for which we have to release data of a TASK 
@@ -198,7 +199,7 @@ void ordering_correctly_1(dague_execution_unit_t * eu,
 void
 set_task(dtd_task_t *temp_task, void *tmp, dtd_tile_t *tile,
          int tile_op_type, task_param_t *current_param,
-         struct user *last_user, uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val, 
+         uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val, 
          dague_dtd_handle_t *__dague_handle, int *flow_index, int *next_arg);
 
 void 

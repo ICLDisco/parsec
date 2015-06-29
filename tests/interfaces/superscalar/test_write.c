@@ -18,6 +18,8 @@
 #include "dplasma/testing/common_timing.h"
 
 
+#define SIZE 1000000 
+int count[SIZE];
 
 double time_elapsed = 0.0;
 
@@ -32,7 +34,7 @@ call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this
  
     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
-    dague_atomic_inc_32b(data);    
+    *data = *data + 1;    
 
     return 0;
 }
@@ -40,7 +42,7 @@ call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    int ncores = 32, kk, k, uplo = 1, info;
+    int ncores = 20, kk, k, uplo = 1, info;
     int no_of_tasks = 8;
     int size = 1;
 
@@ -55,15 +57,12 @@ int main(int argc, char ** argv)
    
     dague = dague_init(ncores, &argc, &argv);
 
-
     two_dim_block_cyclic_t ddescDATA;
     two_dim_block_cyclic_init(&ddescDATA, matrix_Integer, matrix_Tile, 1/*nodes*/, 0/*rank*/, 1, 1,/* tile_size*/
                               size, size, /* Global matrix size*/ 0, 0, /* starting point */ size, size, 1, 1, 1);  
-
     ddescDATA.mat = calloc((size_t)ddescDATA.super.nb_local_tiles * (size_t) ddescDATA.super.bsiz,
                                         (size_t) dague_datadist_getsizeoftype(ddescDATA.super.mtype)); 
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
-
 
     dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
 
@@ -90,7 +89,7 @@ int main(int argc, char ** argv)
     for(kk = 0; kk< no_of_tasks; kk++) {
         for( k = 0; k < total; k++ ) {
             insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel,     "Task",
-                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, k, k),   ATOMIC_WRITE | REGION_FULL,
+                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, k, k),   INOUT | REGION_FULL,
                                      0);
         }
     }
@@ -106,7 +105,6 @@ int main(int argc, char ** argv)
     } */
 
     TIME_STOP();
-
     printf("Time Elapsed:\t");
     printf("\n%lf\n",time_elapsed);
     
