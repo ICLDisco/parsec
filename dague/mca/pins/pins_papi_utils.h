@@ -41,7 +41,7 @@ typedef struct parsec_pins_papi_callback_s {
     int                          num_counters;
     int                          pins_prof_event[2];
     int                          begin_end;
-    int                          frequency;
+    int                          trigger;
     parsec_pins_papi_event_t*    event;
 } parsec_pins_papi_callback_t;
 
