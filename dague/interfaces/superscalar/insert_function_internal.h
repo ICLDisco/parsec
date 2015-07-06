@@ -141,7 +141,7 @@ struct dague_dtd_handle_s {
     hash_table      *function_h_table; 
     hash_table      *tile_h_table; 
     /* ring of initial ready tasks */
-    dtd_task_t      *ready_task; 
+    dague_execution_context_t      **startup_list; 
     int             total_task_class;
     int             tasks_created;
     int             tasks_scheduled;

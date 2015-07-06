@@ -623,27 +623,7 @@ dtd_startup_tasks(dague_context_t * context,
                   dague_execution_context_t ** pready_list)
 {
     dague_dtd_handle_t* dague_dtd_handle = (dague_dtd_handle_t*)__dague_handle;
-    int vpid = 0;
-
-    /* from here dtd_task specific loop starts */
-    dague_list_item_t *tmp_task = (dague_list_item_t*) dague_dtd_handle->ready_task;
-    dague_list_item_t *ring;
-
-    while(NULL != tmp_task) {
-        ring = dague_list_item_ring_chop (tmp_task);
-        DAGUE_LIST_ITEM_SINGLETON(tmp_task);
-
-        if (NULL != pready_list[vpid]) {
-            dague_list_item_ring_merge((dague_list_item_t *)tmp_task,
-                           (dague_list_item_t *) (pready_list[vpid]));
-        }
-
-        pready_list[vpid] = (dague_execution_context_t*)tmp_task;
-        /* spread the tasks across all the VPs */
-        vpid              = (vpid+1)%context->nb_vp; 
-        tmp_task          = ring;
-    }
-    dague_dtd_handle->ready_task = NULL;
+    pready_list = dague_dtd_handle->startup_list;
 
     return 0;
 }
@@ -736,6 +716,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
     }
 
     /* dtd handle specific */
+    free(handle->super.startup_list);
     for (i=0;i<task_hash_table_size;i++) {
         free((bucket_element_task_t *)handle->super.task_h_table->buckets[i]);
     }
@@ -852,7 +833,7 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.tile_hash_table_size      = tile_hash_table_size;
     __dague_handle->super.task_hash_table_size      = task_hash_table_size;
     __dague_handle->super.function_hash_table_size  = DAGUE_dtd_NB_FUNCTIONS;
-    __dague_handle->super.ready_task                = NULL;
+    __dague_handle->super.startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*));
     __dague_handle->super.total_task_class          = task_class_counter;
     __dague_handle->super.task_h_table              = OBJ_NEW(hash_table);
     hash_table_init(__dague_handle->super.task_h_table, 
@@ -1452,6 +1433,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     void *tmp, *value_block, *current_val; 
     static int first_time = 1;
     static int task_window_size = 8;
+    static int vpid = 0;
 
     /* resetting static variables for each handle */
     if(__dague_handle->super.handle_id != handle_id) { 
@@ -1614,11 +1596,13 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         int ii = dague_atomic_cas(&(temp_task->ready_mask), 0, 1);
         if(ii) {
             DAGUE_LIST_ITEM_SINGLETON(temp_task);
-            if(NULL != __dague_handle->ready_task) {
-                dague_list_item_ring_push((dague_list_item_t*)__dague_handle->ready_task,
-                                          (dague_list_item_t*)temp_task);
+            
+            if (NULL != __dague_handle->startup_list[vpid]) {
+                dague_list_item_ring_merge((dague_list_item_t *)temp_task,
+                               (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
             }
-            __dague_handle->ready_task = temp_task;
+            __dague_handle->startup_list[vpid] = (dague_execution_context_t*)temp_task;
+            vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
         }
     }
 
@@ -1643,9 +1627,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
             first_time = 0;
         }
     }
-    /*if(NULL != __dague_handle->ready_task) {
-        schedule_tasks (__dague_handle);
-    }*/
 }
 
 /* Function that sets all dependencies between tasks according to the operation type of that task 
@@ -1774,35 +1755,14 @@ set_task(dtd_task_t *temp_task, void *tmp, dtd_tile_t *tile,
     current_param->operation_type = tile_op_type;
 }
 
-/* Funciton to schedule tasks in PaRSEC's scheduler
+/* Function to schedule tasks in PaRSEC's scheduler
  * Arguments:   - Dague handle that has the list of ready tasks (dague_dtd_handle_t *)
  * Returns:     - void 
  */
 void 
 schedule_tasks (dague_dtd_handle_t *__dague_handle)
 {
-    dague_execution_context_t **startup_list;
-    startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*));
-
-    int vpid = 0;
-    /* from here dtd_task specific loop starts*/
-    dague_list_item_t *tmp_task = (dague_list_item_t*) __dague_handle->ready_task;
-    dague_list_item_t *ring;
-
-    while(NULL != tmp_task) {
-        ring = dague_list_item_ring_chop (tmp_task);
-        DAGUE_LIST_ITEM_SINGLETON(tmp_task);
-
-        if (NULL != startup_list[vpid]) {
-            dague_list_item_ring_merge((dague_list_item_t *)tmp_task,
-                           (dague_list_item_t *) (startup_list[vpid]));
-        }
-        startup_list[vpid] = (dague_execution_context_t*)tmp_task;
-        /* spread the tasks across all the VPs */
-        vpid = (vpid+1)%__dague_handle->super.context->nb_vp; 
-        tmp_task = ring;
-    }
-    __dague_handle->ready_task = NULL; 
+    dague_execution_context_t **startup_list = __dague_handle->startup_list;
 
     int p;
     for(p = 0; p < vpmap_get_nb_vp(); p++) {
@@ -1818,9 +1778,9 @@ schedule_tasks (dague_dtd_handle_t *__dague_handle)
             /* We should add these tasks on the system queue when there is one */
             __dague_schedule( __dague_handle->super.context->virtual_processes[p]->execution_units[0], 
                             startup_list[p] );
+            startup_list[p] = NULL;
         }
     }
-    free(startup_list);
 }
 
 /* ------------ */
@@ -1850,6 +1810,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     int track_function_created_or_not = 0;
     task_param_t *head_of_param_list, *current_param, *tmp_param;
     void *tmp, *value_block, *current_val; 
+    static int vpid = 0;
 
     if(__dague_handle->super.handle_id != handle_id) {
         handle_id = __dague_handle->super.handle_id;
@@ -1990,11 +1951,12 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     /* Building list of initial ready task */
     if(temp_task->flow_count == temp_task->flow_satisfied && !temp_task->ready_mask) {
         DAGUE_LIST_ITEM_SINGLETON(temp_task);
-        if(NULL != __dague_handle->ready_task) {
-            dague_list_item_ring_push((dague_list_item_t*)__dague_handle->ready_task,
-                                      (dague_list_item_t*)temp_task);
+        if (NULL != __dague_handle->startup_list[vpid]) {
+            dague_list_item_ring_merge((dague_list_item_t *)temp_task,
+                           (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
         }
-        __dague_handle->ready_task = temp_task;
+        __dague_handle->startup_list[vpid] = (dague_execution_context_t*)temp_task;
+        vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
     }
 
 #if defined(DAGUE_PROF_TRACE)

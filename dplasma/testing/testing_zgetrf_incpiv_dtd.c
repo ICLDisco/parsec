@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -286,7 +286,6 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_t *__ddescA    = &ddescA;
     two_dim_block_cyclic_t *__ddescL    = &ddescL;
     two_dim_block_cyclic_t *__ddescIPIV = &ddescIPIV;
-    SYNC_TIME_START();
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);  
 
@@ -299,7 +298,8 @@ int main(int argc, char ** argv)
     int iinfo;
     int anb, nb, ldl;
 
-    //dague_context_start(dague);
+    SYNC_TIME_START();
+    dague_context_start(dague);
 
     /* Testing insert task function */
     for (k = 0; k < minMNT; k++) {

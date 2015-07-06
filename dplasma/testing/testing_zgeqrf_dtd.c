@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2015      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -267,7 +267,6 @@ int main(int argc, char ** argv)
 
     two_dim_block_cyclic_t *__ddescA = &ddescA;
     two_dim_block_cyclic_t *__ddescT = &ddescT;
-    SYNC_TIME_START();
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);  
 
@@ -279,7 +278,8 @@ int main(int argc, char ** argv)
     int side = PlasmaLeft;
     int trans = PlasmaConjTrans;
 
-    //dague_context_start(dague);
+    SYNC_TIME_START();
+    dague_context_start(dague);
 
     /* Testing Insert Function */
     for (k = 0; k < minMNT; k++) {
