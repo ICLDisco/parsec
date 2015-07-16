@@ -11,9 +11,6 @@
 #
 ##########
 
-mark_as_advanced(FORCE PAPI_DIR PAPI_INCLUDE_DIR PAPI_LIBRARY)
-set(PAPI_DIR "" CACHE PATH "Root directory containing the PAPI package")
-
 find_package(PkgConfig QUIET)
 
 if( PAPI_DIR )
@@ -41,6 +38,7 @@ message(STATUS "The PAPI Library is found at ${PAPI_LIBRARY}")
 
 set(PAPI_LIBRARIES ${PAPI_LIBRARY} )
 set(PAPI_INCLUDE_DIRS ${PAPI_INCLUDE_DIR} )
+mark_as_advanced(FORCE PAPI_DIR PAPI_INCLUDE_DIR PAPI_LIBRARY)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(PAPI DEFAULT_MSG
