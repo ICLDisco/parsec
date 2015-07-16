@@ -1,9 +1,12 @@
+# Always look for PAPI to avoid CMake complaints about manually-specified
+# variables not used.
+find_package(PAPI QUIET)
+
 if (PINS_ENABLE)
   if (NOT DAGUE_PROF_TRACE)
     MESSAGE(STATUS "Module ${MODULE} not selectable: DAGUE_PROF_TRACE disabled.")
   else (NOT DAGUE_PROF_TRACE)
     if (NOT PAPI_FOUND)
-      find_package(PAPI)
       set(HAVE_PAPI ${PAPI_FOUND})
       set(HAVE_PAPI ${PAPI_FOUND} PARENT_SCOPE)
       set(PAPI_FOUND ${PAPI_FOUND} PARENT_SCOPE)
