@@ -286,7 +286,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
 #if defined(DAGUE_DEBUG_ENABLE)
             else {
                 assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
-                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state 
+                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state
                      || copy->data_transfer_status );
                 assert( data->device_copies[i]->version <= copy->version );
             }
