@@ -4159,7 +4159,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
         if(JDF_FLOW_TYPE_CTL & fl->flow_flags) continue;
         if(fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
             if(fl->flow_flags & JDF_FLOW_TYPE_READ)
-                coutput("this_task->data[%d].data_out->version++;\n", di);
+                coutput("this_task->data[%d].data_out->version++;  /* %s */\n", di, fl->varname);
             else
                 coutput("if( NULL !=  this_task->data[%d].data_out) this_task->data[%d].data_out->version++;\n",
                         di, di);
