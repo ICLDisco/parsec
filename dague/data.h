@@ -81,4 +81,9 @@ dague_data_transfer_ownership_to_copy(dague_data_t* map,
 DAGUE_DECLSPEC void dague_dump_data_copy(dague_data_copy_t* copy);
 DAGUE_DECLSPEC void dague_dump_data(dague_data_t* copy);
 
+DAGUE_DECLSPEC dague_data_t *
+dague_data_get( dague_data_t **holder,
+                dague_ddesc_t *desc,
+                dague_data_key_t key, void *ptr, size_t size );
+
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

@@ -32,35 +32,9 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
                          dague_data_key_t key)
 {
     assert( pos <= matrix->nb_local_tiles );
-    dague_data_t* data = matrix->data_map[pos];
-
-    if( NULL == data ) {
-        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
-        data = OBJ_NEW(dague_data_t);
-
-        data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->device_private = ptr;
-
-        data->owner_device = 0;
-        data->key = key;
-        data->ddesc = &matrix->super;
-        data->nb_elts = matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype);
-        dague_data_copy_attach(data, data_copy, 0);
-
-        if( !dague_atomic_cas(&matrix->data_map[pos], NULL, data) ) {
-            dague_data_copy_detach(data, data_copy, 0);
-            OBJ_RELEASE(data_copy);
-            data = matrix->data_map[pos];
-        }
-    } else {
-        /* Do we have a copy of this data */
-        if( NULL == data->device_copies[0] ) {
-            dague_data_copy_t* data_copy = dague_data_copy_new(data, 0);
-            data_copy->device_private = ptr;
-        }
-    }
-    assert( data->key == key );
-    return data;
+    return dague_data_get( matrix->data_map + pos,
+                           &(matrix->super), key, ptr,
+                           matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype) );
 }
 
 void

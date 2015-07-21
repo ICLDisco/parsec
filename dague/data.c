@@ -395,3 +395,39 @@ void* dague_data_copy_get_ptr(dague_data_copy_t* data)
 {
     return DAGUE_DATA_COPY_GET_PTR(data);
 }
+
+dague_data_t *
+dague_data_get( dague_data_t **holder,
+                dague_ddesc_t *desc,
+                dague_data_key_t key, void *ptr, size_t size )
+{
+    dague_data_t *data = *holder;
+
+    if( NULL == data ) {
+        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
+        data = OBJ_NEW(dague_data_t);
+
+        data_copy->coherency_state = DATA_COHERENCY_OWNED;
+        data_copy->device_private = ptr;
+
+        data->owner_device = 0;
+        data->key = key;
+        data->ddesc = desc;
+        data->nb_elts = size;
+        dague_data_copy_attach(data, data_copy, 0);
+
+        if( !dague_atomic_cas(holder, NULL, data) ) {
+            dague_data_copy_detach(data, data_copy, 0);
+            OBJ_RELEASE(data_copy);
+            data = *holder;
+        }
+    } else {
+        /* Do we have a copy of this data */
+        if( NULL == data->device_copies[0] ) {
+            dague_data_copy_t* data_copy = dague_data_copy_new(data, 0);
+            data_copy->device_private = ptr;
+        }
+    }
+    assert( data->key == key );
+    return data;
+}
