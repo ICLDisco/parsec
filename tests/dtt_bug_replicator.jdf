@@ -1,0 +1,44 @@
+extern "C" %{
+/*
+ * Copyright (c) 2015      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+/* Globals
+ */
+dataA      [type = "dague_ddesc_t *"]
+
+descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+
+TS(k)
+
+// Execution space
+k = 0 .. descA.nt-1
+
+// Parallel partitioning
+:dataA(0, 0)
+
+// Parameters
+RW A <- k==0 ? dataA(0, 0) : A TS(k-1)
+     -> A TR(k, k+1..descA.nt-1)
+RW B <- dataA(0, 0)
+     -> B TR(k, k+1..descA.nt-1)
+BODY
+END
+
+TR(k,n)
+k = 0 .. descA.nt-2
+n = k+1 .. descA.nt-1
+
+:dataA(1,1)
+
+READ A <- A TS(k)
+READ B <- B TS(k)
+
+BODY
+END
+
