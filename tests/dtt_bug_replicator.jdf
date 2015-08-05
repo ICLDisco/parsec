@@ -25,6 +25,7 @@ k = 0 .. descA.nt-1
 // Parameters
 RW A <- k==0 ? dataA(0, 0) : A TS(k-1)
      -> A TR(k, k+1..descA.nt-1)
+     -> k<descA.nt-1 ? A TS(k+1)
 RW B <- dataA(0, 0)
      -> B TR(k, k+1..descA.nt-1)
 BODY
