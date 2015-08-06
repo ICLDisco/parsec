@@ -132,8 +132,6 @@ option(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET
 mark_as_advanced(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
 option(PARSEC_PROF_TAU
   "Experimental usage of TAU profiling framework" ON)
-option(DAGUE_PROF_PAPI
-  "Enable PAPI performance hardware counters" ON)
 option(DAGUE_PROF_RUSAGE_EU
   "Print the rusage per execution unit for each progress" OFF)
 option(DAGUE_PROF_TRACE_SCHEDULING_EVENTS
