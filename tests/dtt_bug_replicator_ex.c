@@ -30,29 +30,27 @@ int main( int argc, char** argv )
     dague_handle_t* handle;
     MPI_Datatype tile_dtt;
     dague_dtt_bug_replicator_handle_t *dtt_handle;;
-    int nodes, rank, P;
+    int nodes, rank;
     (void)argc; (void)argv;
    
-    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &P);
+    MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nodes);
     MPI_Comm_size(MPI_COMM_WORLD, &nodes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     dague = dague_init(1, &argc, &argv);
     assert( NULL != dague );
-
-    P = nodes/sqrt(nodes);
-    while( (double)(nodes/P) != (nodes/(double)P )) P++;
-
+    
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_RealDouble, matrix_Tile,
                                    nodes, rank, NB, NB, N, N, 0, 0,
-                                   N, N, 1, 1, P));
+                                   N, N, 1, 1, 1));
 
     handle = (dague_handle_t*) (dtt_handle = dague_dtt_bug_replicator_new(&ddescA.super.super));
     assert( NULL != handle );
 
     dague_type_create_contiguous(NB*NB, dague_datatype_double_t, &tile_dtt);
     MPI_Type_set_name(tile_dtt, "TILE_DTT");
+    MPI_Type_commit(&tile_dtt); 
     dague_arena_construct(dtt_handle->arenas[DAGUE_dtt_bug_replicator_DEFAULT_ARENA],
                           NB*NB*sizeof(double),
                           DAGUE_ARENA_ALIGNMENT_SSE, tile_dtt);

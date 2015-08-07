@@ -11,10 +11,9 @@ extern "C" %{
 /* Globals
  */
 dataA      [type = "dague_ddesc_t *"]
-
 descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 
-TS(k)
+PING(k)
 
 // Execution space
 k = 0 .. descA.nt-1
@@ -23,23 +22,25 @@ k = 0 .. descA.nt-1
 :dataA(0, 0)
 
 // Parameters
-RW A <- k==0 ? dataA(0, 0) : A TS(k-1)
-     -> A TR(k, k+1..descA.nt-1)
-     -> k<descA.nt-1 ? A TS(k+1)
-RW B <- dataA(0, 0)
-     -> B TR(k, k+1..descA.nt-1)
+RW A <- k==0 ? dataA(0, 0) : A PONG(k-1)
+     -> k<descA.nt-1 ? A PONG(k)
+RW B <- k==0 ? dataA(0, 0) : B PONG(k-1)
+     -> k<descA.nt-1 ? B PONG(k)
 BODY
+printf("_-^^-__-^^-__ PING %d\n", k);
 END
 
-TR(k,n)
+PONG(k)
 k = 0 .. descA.nt-2
-n = k+1 .. descA.nt-1
 
-:dataA(1,1)
+:dataA(0,1)
 
-READ A <- A TS(k)
-READ B <- B TS(k)
+READ A <- A PING(k)
+       -> A PING(k+1)
+READ B <- B PING(k)
+       -> B PING(k+1)
 
 BODY
+printf("_-^^-__-^^-__ PONG %d\n", k);
 END
 
