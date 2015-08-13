@@ -87,6 +87,7 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
     dtd_task_t *current_task = (dtd_task_t *)this_task;
     task_param_t *current_param = current_task->param_list;
     int next_arg;
+    int i = 0;
     void **tmp;
     dague_data_copy_t *tmp_data;
     va_list arguments;
@@ -98,8 +99,10 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
         if(UNPACK_VALUE == next_arg) {
              memcpy(tmp, &(current_param->pointer_to_tile), sizeof(uintptr_t));
         }else if (UNPACK_DATA == next_arg) {
-            tmp_data = ((dtd_tile_t*)(current_param->pointer_to_tile))->data_copy;
+            //tmp_data = ((dtd_tile_t*)(current_param->pointer_to_tile))->data_copy;
+            tmp_data = this_task->data[i].data_out;
             memcpy(tmp, &tmp_data, sizeof(dague_data_copy_t *));
+            i++;
         }else if (UNPACK_SCRATCH == next_arg) {
              memcpy(tmp, &(current_param->pointer_to_tile), sizeof(uintptr_t));
         }
@@ -1659,6 +1662,10 @@ set_task(dtd_task_t *temp_task, void *tmp, dtd_tile_t *tile,
         tile_type_index = tile_op_type & GET_REGION_INFO;
         current_param->tile_type_index = tile_type_index;
         current_param->pointer_to_tile = tmp;                
+
+        temp_task->super.data[*flow_index].data_in = tile->data_copy;        
+        temp_task->super.data[*flow_index].data_out = tile->data_copy;        
+        temp_task->super.data[*flow_index].data_repo = NULL;        
 
         if(tile !=NULL) {
             if(0 == flow_set_flag[temp_task->belongs_to_function]) {
