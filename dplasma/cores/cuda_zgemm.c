@@ -34,7 +34,7 @@ typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc
                                );
 #else
-typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h, 
+typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h,
                                  char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
                                                           dague_complex64_t *d_B, int ldb,
@@ -56,13 +56,13 @@ int gpu_kernel_push_zgemm( gpu_device_t* gpu_device,
 
 static inline
 int gpu_kernel_submit_zgemm( gpu_device_t* gpu_device,
-                             dague_gpu_context_t* this_task,
-                             dague_gpu_exec_stream_t* gpu_stream);
+                           dague_gpu_context_t* this_task,
+                           dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int gpu_kernel_pop_zgemm( gpu_device_t* gpu_device,
-                          dague_gpu_context_t* this_task,
-                          dague_gpu_exec_stream_t* gpu_stream);
+                           dague_gpu_context_t* this_task,
+                           dague_gpu_exec_stream_t* gpu_stream);
 
 static inline
 int  gpu_kernel_epilog_zgemm( gpu_device_t* gpu_device,
@@ -145,6 +145,14 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
         }
     }
 
+    DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                             gpu_stream->profiling,
+                             (-1 == gpu_stream->prof_event_key_start ?
+                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
+                                                        this_task->function->function_id) :
+                              gpu_stream->prof_event_key_start),
+                             this_task);
+
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
@@ -204,21 +212,21 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     status = cudaSuccess;
 #if (CUDA_VERSION < 4000) || 1 /* todo: always use legacy cublas until we understand how to get the cublas_handle in API v5 */
     cublasSetKernelStream( gpu_stream->cuda_stream );
-    cublas_fnzgemm( lapack_const(args->transA), lapack_const(args->transB), 
+    cublas_fnzgemm( lapack_const(args->transA), lapack_const(args->transB),
                 args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
                 args->beta,  (dague_complex64_t*)d_C, args->ldc );
     status = cublasGetError();
 #else
-{ 
+{
     cudaStream_t current_stream;
     cublasHandle_t handle = cublasGetCurrentCtx(); /* todo: available in cuda API 4 only */
     cublasGetStream_v2 ( handle, &current_stream );
     cublasSetStream_v2 ( handle, &gpu_stream->cuda_srtream );
-    status = 
+    status =
     cublas_fnzgemm( handle,
-                lapack_const(args->transA), lapack_const(args->transB), 
+                lapack_const(args->transA), lapack_const(args->transB),
                 args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
@@ -274,8 +282,8 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
         if(NULL == flow)
             flow = this_task->function->out[i];
 
-        original = this_task->data[i].data_out->original;
         gpu_copy = this_task->data[i].data_out;
+        original = gpu_copy->original;
         assert(original == this_task->data[i].data_in->original);
         if( flow->flow_flags & FLOW_ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
@@ -283,8 +291,8 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
-                OBJ_RETAIN(gpu_copy);
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+                continue;  /* done with this element, go for the next one */
             }
         }
         if( flow->flow_flags & FLOW_ACCESS_WRITE ) {
@@ -300,19 +308,16 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             if( args->pushout ) {  /* n == (k + 1) */
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                                      "GPU:\tMove D2H data <%x> from GPU %d %p -> %p requested\n",
+                                      "GPU:\tMove D2H data <%s:%x> from GPU %d %p -> %p requested\n",
                                       this_task->function->in[i]->name, original->key, gpu_device->cuda_index,
                                       (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
-#if defined(DAGUE_PROF_TRACE)
-                if( gpu_stream->prof_event_track_enable ) {
-                    assert( -1 != gpu_stream->prof_event_key_start );
-                    DAGUE_PROFILING_TRACE(gpu_stream->profiling,
-                                          gpu_stream->prof_event_key_start,
-                                          this_task->function->key(this_task->dague_handle, this_task->locals),
-                                          this_task->dague_handle->handle_id,
-                                          &original);
-                }
-#endif /* (DAGUE_PROF_TRACE) */
+                DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
+                                         gpu_stream->profiling,
+                                         (-1 == gpu_stream->prof_event_key_start ?
+                                          DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
+                                                                    this_task->function->function_id) :
+                                          gpu_stream->prof_event_key_start),
+                                         this_task);
                 /* Move the data back into main memory */
                 status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
                                                          (CUdeviceptr)gpu_copy->device_private,
@@ -347,11 +352,17 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->out[i]) continue;
-        if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) continue;
 
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;
         cpu_copy = original->device_copies[0];
+
+        if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
+            /* Do not propagate GPU copies to successors (temporary solution) */
+            this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
+            continue;
+        }
+
         /* There might be a race condition here. We can't assume the first CPU
          * version is the corresponding CPU copy, as a new CPU-bound data
          * might have been created meanwhile.
@@ -367,9 +378,11 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
          */
         this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
 
-        OBJ_RETAIN(gpu_copy);
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                  "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
+                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__));
         } else {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
         }

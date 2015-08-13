@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import parsec_trace_tables as ptt
-import sys, os, shutil, re # file utilities, etc.
+import sys
+import os
+import shutil
+import re
 import multiprocessing
 import functools
 
@@ -9,15 +12,18 @@ filename_regex = re.compile('(\w+).*(\.prof|\.h5)(.*)-([a-zA-Z0-9]{6})')
 default_name_infos = ['gflops', 'N', 'sched']
 group_by_defaults = ['worldsize', 'SYNC_TIME_ELAPSED', 'cwd', 'exe']
 
+
 class TraceAndName():
     def __init__(self, trace, filename):
         self.trace = trace
         self.filename = filename
 
+
 class GroupedList(list):
     def __init__(self, init_list=None):
         if init_list:
             self.extend(init_list)
+
 
 def preprocess_traces(filenames, name_infos=default_name_infos, dry_run=False,
                       enhance_filenames=True, force_enhance=False):
@@ -43,6 +49,7 @@ def preprocess_traces(filenames, name_infos=default_name_infos, dry_run=False,
 
     return fname_groups
 
+
 def group_trace_filenames(filenames, group_by=group_by_defaults):
     """ groups PBT filenames from different ranks of the same trace.
 
@@ -60,7 +67,7 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
     """
 
     if hasattr(filenames, '__grouped_marker__'):
-        return filenames # do not attempt to regroup previously-grouped filenames
+        return filenames  # do not attempt to regroup previously-grouped filenames
 
     finished_groups = GroupedList()
     unfinished_groups = dict()
@@ -83,6 +90,7 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
         else:
             # initially group by start_time
             import pbt2ptt
+
             infonly_trace = pbt2ptt.read([filename], skeleton_only=True)
             # PBT files related are supposed to have the same hr_id
             if hasattr(infonly_trace, 'exe'):
@@ -90,10 +98,10 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
                 if hr_id not in unfinished_groups:
                     unfinished_groups[hr_id] = list()
                 unfinished_groups[hr_id].append(TraceAndName(infonly_trace, filename))
-            else: # ungroupable - fail fast.
+            else:  # ungroupable - fail fast.
                 print('One of the traces does not have a start_time information attribute.')
                 print('As a result, these traces cannot be accurately grouped.')
-                return [filenames] # we must return a list of lists
+                return [filenames]  # we must return a list of lists
 
     # now that we've done the initial grouping, check for conflicts
     for key, unfinished_group in unfinished_groups.iteritems():
@@ -104,7 +112,7 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
             comparers[key] = None
         for key in comparers.keys():
             if key not in unfinished_group[0].trace.information:
-                del comparers[key] # eliminate things they don't have
+                del comparers[key]  # eliminate things they don't have
             else:
                 comparers[key] = unfinished_group[0].trace.information[key]
         for trace_and_name in unfinished_group[:1]:
@@ -117,7 +125,7 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
                               unfinished_group[0].trace.information[key]) +
                           'in file {}.'.format(unfinished_group[0].filename))
                     print('File {} will be skipped on the first grouping attempt.'.format(
-                          trace_and_name.filename))
+                        trace_and_name.filename))
                     try:
                         unfinished_group.conflicts.append(trace_and_name)
                     except:
@@ -143,12 +151,12 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
                 print('skipping this set of files:')
                 for filename in only_the_filenames:
                     print('    ' + filename)
-                continue # skip this set altogether
+                continue  # skip this set altogether
 
-        only_the_filenames.__grouped_marker__ = True # mark as correctly grouped
+        only_the_filenames.__grouped_marker__ = True  # mark as correctly grouped
         finished_groups.append(only_the_filenames)
 
-    finished_groups.__grouped_marker__ = True # mark entire list as correctly grouped
+    finished_groups.__grouped_marker__ = True  # mark entire list as correctly grouped
     return finished_groups
 
 # NOTE TO SELF:
@@ -156,7 +164,9 @@ def group_trace_filenames(filenames, group_by=group_by_defaults):
 # CREATE OLD TO NEW CONVERTER
 # FIX UNENHANCE TO RECOGNIZE OLD AND NEW - then maybe don't need to write new converter...?
 
-old_renamed_piece   = '.G-prof-'
+old_renamed_piece = '.G-prof-'
+
+
 def enhance_trace_filenames(filenames, name_infos=default_name_infos,
                             dry_run=False, force_enhance=False):
     """ Renames PBTs to a filename with more useful information than the default.
@@ -165,10 +175,11 @@ def enhance_trace_filenames(filenames, name_infos=default_name_infos,
     but may work anyway, depending on various factors.
     """
     renamed_files = list()
-    if ptt.is_ptt( filenames[0] ):
+    if ptt.is_ptt(filenames[0]):
         trace = ptt.ParsecTraceTables.from_hdf(filenames[0], skeleton_only=True)
     else:
         import pbt2ptt
+
         trace = pbt2ptt.read(filenames, skeleton_only=True)
         if trace.last_error != 0:
             print('{} does not appear to be a reasonable set of filenames.'.format(filenames))
@@ -198,9 +209,9 @@ def enhance_trace_filenames(filenames, name_infos=default_name_infos,
         dirname = os.path.dirname(full_filename)
         filename = os.path.basename(full_filename)
         match = filename_regex.match(filename)
-        if match: # new style
+        if match:  # new style
             new_filename = match.group(1).strip('_') + match.group(2) + '-' + new_chunk + match.group(4)
-        else: # old-style (more likely to do over-renaming)
+        else:  # old-style (more likely to do over-renaming)
             if old_renamed_piece in filename:
                 print('Warning - this file ({}) appears to have been renamed previously.'.format(filename))
                 if not force_enhance:
@@ -216,7 +227,7 @@ def enhance_trace_filenames(filenames, name_infos=default_name_infos,
                 ptt_name = ptt.ptt_name(filename)
                 new_ptt_name = ptt.ptt_name(new_filename)
                 if (os.path.exists(dirname + os.sep + ptt_name) and
-                    not os.path.exists(dirname + os.sep + new_ptt_name)):
+                        not os.path.exists(dirname + os.sep + new_ptt_name)):
                     print('Also renaming corresponding PTT file {}'.format(ptt_name))
                     shutil.move(dirname + os.sep + ptt_name,
                                 dirname + os.sep + new_ptt_name)
@@ -224,7 +235,7 @@ def enhance_trace_filenames(filenames, name_infos=default_name_infos,
                 print('WARNING: enhance would have overwritten file {} !'.format(dirname + os.sep +
                                                                                  new_filename))
                 print('This move operation has been skipped.')
-                renamed_files.append(dirname + os.sep + filename) # still return filename
+                renamed_files.append(dirname + os.sep + filename)  # still return filename
         else:
             renamed_files.append(dirname + os.sep + filename)
             if filename != new_filename:
@@ -232,7 +243,10 @@ def enhance_trace_filenames(filenames, name_infos=default_name_infos,
                       'to {}.'.format(new_filename))
     return renamed_files
 
+
 old_unrenamer = re.compile('(\w+)' + old_renamed_piece + '.*-(\w+)')
+
+
 def revert_trace_filenames(filenames, dry_run=False):
     """ Reverts 'enhanced' filenames to their originals, where possible. """
     for filename in filenames:
@@ -264,6 +278,7 @@ def revert_trace_filenames(filenames, dry_run=False):
         else:
             print('File {} already has its original name.'.format(original_name))
 
+
 def autoload_traces(filenames, convert=True, unlink=False,
                     enhance_filenames=False, skeleton_only=False,
                     report_progress=True, force_reconvert=False,
@@ -279,7 +294,7 @@ def autoload_traces(filenames, convert=True, unlink=False,
     ptts = list()
 
     # convert or separate into PTTs and PBTs
-    if convert: # then turn everything into a PTT
+    if convert:  # then turn everything into a PTT
         for fn_group in pbt_groups[:]:
             if len(fn_group) == 1 and ptt.is_ptt(fn_group[0]):
                 ptts.append(fn_group[0])
@@ -292,14 +307,14 @@ def autoload_traces(filenames, convert=True, unlink=False,
                     force_reconvert=force_reconvert, multiprocess=multiprocess)
                 ptts.append(converted_filename)
                 pbt_groups.remove(fn_group)
-    else: # separate into already-PTTs and PBTs
+    else:  # separate into already-PTTs and PBTs
         for fn_group in pbt_groups[:]:
             ptt_name = ptt.ptt_name(fn_group[0])
             h5_conflicts = find_h5_conflicts(fn_group)
             if ptt.is_ptt(fn_group[0]):
                 ptts.append(fn_group)
                 pbt_groups.remove(fn_group)
-            elif os.path.exists(ptt_name): # passed a PBT name, but previous conversion exists
+            elif os.path.exists(ptt_name):  # passed a PBT name, but previous conversion exists
                 ptts.append([ptt_name])
                 pbt_groups.remove(fn_group)
             elif len(h5_conflicts) > 0:
@@ -312,7 +327,7 @@ def autoload_traces(filenames, convert=True, unlink=False,
         if multiprocess:
             pool = multiprocessing.Pool(multiprocessing.cpu_count())
         else:
-            pool = multiprocessing.Pool( 1 )
+            pool = multiprocessing.Pool(1)
 
         if report_progress:
             print('loading PTTs...')
@@ -328,7 +343,8 @@ def autoload_traces(filenames, convert=True, unlink=False,
 
     # LOAD PBTs
     for group in pbt_groups:
-        import pbt2ptt # don't do this if not necessary
+        import pbt2ptt  # don't do this if not necessary
+
         if report_progress:
             print('loading PBT group {}'.format(group))
         trace = pbt2ptt.read(
@@ -338,14 +354,17 @@ def autoload_traces(filenames, convert=True, unlink=False,
 
     return traces
 
+
 def compress_many(filenames, clevel=5):
     pool = multiprocessing.Pool(processes=multiprocessing.cpu_count())
     pool.map(compress_h5, filenames)
+
 
 def compress_h5(filename, clevel=5):
     if ptt.is_ptt(filename):
         os.system('h5repack -f GZIP={} {} {}'.format(clevel, filename, filename + '.ctmp'))
         shutil.move(filename + '.ctmp', filename)
+
 
 def print_help():
     print('')
@@ -377,6 +396,7 @@ def print_help():
     print(' can be found in the info dictionary of the trace group')
     print('')
 
+
 if __name__ == '__main__':
     dry_run = False
     convert = True
@@ -387,7 +407,7 @@ if __name__ == '__main__':
     filenames = list()
     args = list()
 
-    for arg in sys.argv[1:]: # skip our executable name
+    for arg in sys.argv[1:]:  # skip our executable name
         if os.path.exists(arg):
             filenames.append(arg)
         else:
@@ -440,13 +460,14 @@ if __name__ == '__main__':
     # binary trace files by default anymore. It tended to confuse matters,
     # and it inadvertently encourages continued use of those binary traces.
     # processed_filename_groups = preprocess_traces(filenames, dry_run=dry_run,
-    #                                               enhance_filenames=False,
+    # enhance_filenames=False,
     #                                               force_enhance=force_enhance,
     #                                               name_infos=name_infos)
 
     if convert:
         for fn_group in processed_filename_groups:
             import pbt2ptt
+
             fn_group = pbt2ptt.convert(fn_group, unlink=unlink, report_progress=True,
                                        force_reconvert=False, multiprocess=True)
 

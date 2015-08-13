@@ -72,11 +72,11 @@ static int pins_papi_component_query(mca_base_module_t **module, int *priority)
                                  pins_papi_enabled, &pins_papi_enabled);
     *module = NULL;
     if( 0 == pins_papi_enabled )
-        return DAGUE_ERROR;
+        return MCA_ERROR;
 
     /* module type should be: const mca_base_module_t ** */
     void *ptr = (void*)&dague_pins_papi_module;
     *priority = 4;
     *module = (mca_base_module_t *)ptr;
-    return DAGUE_SUCCESS;
+    return MCA_SUCCESS;
 }

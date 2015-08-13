@@ -236,7 +236,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         free(binding);
     }
     if( NULL != eu->eu_profile ) {
-        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "boundto", startup->bindto);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "th_id", eu->th_id);
         PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
     }
 #endif /* DAGUE_PROF_TRACE */
@@ -612,13 +613,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         dague_profiling_add_dictionary_keyword( "ARENA_ACTIVE_SET", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &arena_memory_used_key, &arena_memory_unused_key);
-#endif
+#endif  /* defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET) */
         dague_profiling_add_dictionary_keyword( "TASK_MEMORY", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &task_memory_alloc_key, &task_memory_free_key);
         dague_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
+        /* Ready to rock! The profiling must be on by default */
+        dague_profiling_start();
     }
 #endif  /* DAGUE_PROF_TRACE */
 

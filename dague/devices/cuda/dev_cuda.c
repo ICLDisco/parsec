@@ -736,10 +736,16 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
                                     break;
                                 }) );
         gpu_elem = OBJ_NEW(dague_data_copy_t);
+        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                              "Allocate CUDA copy %p [ref_count %d] for data [%p]\n",
+                              gpu_elem, gpu_elem->super.obj_reference_count, NULL));
         gpu_elem->device_private = (void*)(long)device_ptr;
         gpu_elem->device_index = gpu_device->super.device_index;
         mem_elem_per_gpu++;
         OBJ_RETAIN(gpu_elem);
+        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                              "Retain and insert CUDA copy %p [ref_count %d] in LRU in %s\n",
+                              gpu_elem, gpu_elem->super.obj_reference_count, __func__));
         dague_ulist_fifo_push( &gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
         cuMemGetInfo( &free_mem, &total_mem );
     }
@@ -782,6 +788,39 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
     return DAGUE_SUCCESS;
 }
 
+static void dague_cuda_memory_release_list(gpu_device_t* gpu_device,
+                                           dague_list_t* list)
+{
+    dague_list_item_t* item;
+
+    while(NULL != (item = dague_ulist_fifo_pop(list)) ) {
+        dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
+        dague_data_t* original = gpu_copy->original;
+
+        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                              "Release CUDA copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p, in map %p in %s",
+                              gpu_copy, gpu_copy->device_private, gpu_copy->super.super.obj_reference_count,
+                              original, (NULL != original ? original->ddesc : NULL), __func__));
+        assert( gpu_copy->device_index == gpu_device->super.device_index );
+        if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
+            WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n",
+                     gpu_device->cuda_index, original->key));
+        }
+#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+        cuMemFree( (CUdeviceptr)gpu_copy->device_private );
+#else
+        zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
+#endif
+        gpu_copy->device_private = NULL;
+
+        /* At this point the data copies should have no attachement to a data_t. Thus,
+         * before we get here (aka below dague_fini), the destructor of the data
+         * collection must have been called, releasing all the copies.
+         */
+        OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
+    }
+}
+
 /**
  * This function release the CUDA memory reserved for this device.
  *
@@ -795,53 +834,15 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
 {
     CUresult status;
 
-    dague_list_item_t* item;
 #if 0
     dump_GPU_state(gpu_device); // debug only
 #endif
     status = cuCtxPushCurrent( gpu_device->ctx );
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_release) cuCtxPushCurrent ", status,
                             {continue;} );
-    /* Free memory on GPU */
-    while(NULL != (item = dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru)) ) {
-        dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-        dague_data_t* original = gpu_copy->original;
-
-        OBJ_RELEASE(gpu_copy);  /* removed from the FIFO */
-        DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
-                              "Release copy %p, attached to %p, in map %p",
-                              gpu_copy, original, (NULL != original ? original->ddesc : NULL)));
-        assert( gpu_copy->device_index == gpu_device->super.device_index );
-#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-        cuMemFree( (CUdeviceptr)gpu_copy->device_private );
-#else
-        zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
-#endif
-        if( NULL != original )
-            dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
-        OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
-    }
-    while(NULL != (item = dague_ulist_fifo_pop(&gpu_device->gpu_mem_owned_lru)) ) {
-        dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-        dague_data_t* original = gpu_copy->original;
-
-        OBJ_RELEASE(gpu_copy);  /* removed from the FIFO */
-        DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
-                              "Release owned copy %p, attached to %p, in map %p",
-                              gpu_copy, original, (NULL != original ? original->ddesc : NULL)));
-        assert( gpu_copy->device_index == gpu_device->super.device_index );
-        if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
-            WARNING(("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!\n",
-                     gpu_device->cuda_index, original->key));
-        }
-#if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-        cuMemFree( (CUdeviceptr)gpu_copy->device_private );
-#else
-        zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
-#endif
-        dague_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
-        OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
-    }
+    /* Free all memory on GPU */
+    dague_cuda_memory_release_list(gpu_device, &gpu_device->gpu_mem_lru);
+    dague_cuda_memory_release_list(gpu_device, &gpu_device->gpu_mem_owned_lru);
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     if( gpu_device->memory ) {
@@ -892,7 +893,9 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
         gpu_elem = OBJ_NEW(dague_data_copy_t);
-
+        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                              "Allocate CUDA copy %p [ref_count %d] for data %p\n",
+                              gpu_elem, gpu_elem->super.super.obj_reference_count, master));
     malloc_data:
         gpu_elem->device_private = zone_malloc(gpu_device->memory, master->nb_elts);
         if( NULL == gpu_elem->device_private ) {
@@ -901,12 +904,15 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         find_another_data:
             lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
-                OBJ_RELEASE(lru_gpu_elem);
                 /* Make sure all remaining temporary locations are set to NULL */
                 for( ;  i < this_task->function->nb_flows; temp_loc[i++] = NULL );
                 break;  /* Go and cleanup */
             }
             DAGUE_LIST_ITEM_SINGLETON(lru_gpu_elem);
+            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                  "Release LRU-retrieved CUDA copy %p [ref_count %d] in %s\n",
+                                  lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count, __func__));
+            OBJ_RELEASE(lru_gpu_elem);
 
             /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
              * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
@@ -939,7 +945,10 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
                     zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
-                    free(lru_gpu_elem);
+                    DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                          "Release LRU-retrieved CUDA copy %p [ref_count %d: must be 0] in %s\n",
+                                          lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count, __func__));
+                    OBJ_RELEASE(lru_gpu_elem); assert( NULL == lru_gpu_elem );
                     goto malloc_data;
 #endif
                 }
@@ -957,6 +966,9 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         move_data_count--;
         temp_loc[i] = gpu_elem;
         OBJ_RETAIN(gpu_elem);
+        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                              "Retain and insert CUDA copy %p [ref_count %d] in LRU in %s\n",
+                              gpu_elem, gpu_elem->super.super.obj_reference_count, __func__));
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
     }
     if( 0 != move_data_count ) {
@@ -1213,89 +1225,85 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
     return 0;
 }
 
-static inline int dague_lru_contains(dague_list_t *list, dague_gpu_data_copy_t *element)
-{
-    dague_list_item_t *p = (dague_list_item_t *)list->ghost_element.list_next;
-    while (p != &(list->ghost_element)) {
-        if ( ((dague_gpu_data_copy_t*)p)->device_private == element->device_private) {
-            return 1;
-        }
-        p = (dague_list_item_t *)p->list_next;
-    }
-    return 0;
-}
-
+/**
+ * Transfer at most the DAGUE_GPU_W2R_NB_MOVE_OUT oldest data from the GPU back
+ * to main memory. Create a single task to move them all out, then switch the
+ * GPU data copy in shared mode.
+ */
 dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_execution_unit_t *eu_context)
 {
-    dague_gpu_context_t *w2r_task = (dague_gpu_context_t *)malloc(sizeof(dague_gpu_context_t));
- //   dague_execution_context_t *ec = (dague_execution_context_t *)malloc(sizeof(dague_execution_context_t));
-    dague_execution_context_t *ec = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
-
-    int nb_cleaned;
-    dague_gpu_data_copy_t *owned_lru_gpu_elem;
+    dague_gpu_context_t *w2r_task = NULL;
+    dague_execution_context_t *ec = NULL;
+    dague_gpu_data_copy_t *gpu_copy;
     dague_data_t* original;
+    dague_list_item_t* item = (dague_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
+    int nb_cleaned = 0;
 
-    nb_cleaned = 0;
-
-    dague_list_item_t * p = (dague_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
     while(nb_cleaned < DAGUE_GPU_W2R_NB_MOVE_OUT) {
-        if ( p == &(gpu_device->gpu_mem_owned_lru.ghost_element) ) {
+        /* Find a data copy that has no pending users on the GPU, and can be
+         * safely moved back on the main memory */
+        if( item == &(gpu_device->gpu_mem_owned_lru.ghost_element) ) {
             break;
         }
-        owned_lru_gpu_elem = (dague_gpu_data_copy_t *)p;
-        original = owned_lru_gpu_elem->original;
-        if (original->device_copies[0]->readers != 0) {
-            p = (dague_list_item_t *)p->list_next;
-        } else {
-            dague_list_item_ring_chop((dague_list_item_t*)owned_lru_gpu_elem);
-            DAGUE_LIST_ITEM_SINGLETON(owned_lru_gpu_elem);
-            owned_lru_gpu_elem->readers ++;
-            ec->data[nb_cleaned].data_out = owned_lru_gpu_elem;
-            nb_cleaned ++;
-           // if (dague_lru_contains(&gpu_device->gpu_mem_owned_lru, owned_lru_gpu_elem)) assert(0);
+        gpu_copy = (dague_gpu_data_copy_t*)item;
+        original = gpu_copy->original;
+        if( (0 != gpu_copy->readers) || (0 != original->device_copies[0]->readers) ) {
+            item = (dague_list_item_t*)item->list_next;  /* conversion needed for volatile */
+            continue;
         }
+        if( NULL == ec ) {  /* allocate on-demand */
+            ec = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
+            if( NULL == ec )  /* we're running out of memory. Bail out. */
+                break;
+        }
+        dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
+        DAGUE_LIST_ITEM_SINGLETON(gpu_copy);
+        gpu_copy->readers++;
+        ec->data[nb_cleaned].data_out = gpu_copy;
+        nb_cleaned++;
     }
 
-    if (nb_cleaned == 0) {
-       // free(ec);
-        dague_thread_mempool_free(eu_context->context_mempool, ec);
-        free(w2r_task);
+    if( 0 == nb_cleaned )
         return NULL;
-    } else {
-        OBJ_CONSTRUCT(w2r_task, dague_list_item_t);
-        ec->priority = INT32_MAX;
-        ec->function = NULL;
-        w2r_task->ec = ec;
-        w2r_task->task_type = GPU_TASK_TYPE_D2HTRANSFER;
-        return w2r_task;
-    }
+
+    w2r_task = (dague_gpu_context_t *)malloc(sizeof(dague_gpu_context_t));
+    OBJ_CONSTRUCT(w2r_task, dague_list_item_t);
+    ec->priority = INT32_MAX;
+    ec->function = NULL;
+    w2r_task->ec = ec;
+    w2r_task->task_type = GPU_TASK_TYPE_D2HTRANSFER;
+    return w2r_task;
 }
 
-int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task, dague_execution_unit_t *eu_context)
+/**
+ * Complete a data copy transfer originated from the engine.
+ */
+int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device,
+                            dague_gpu_context_t *w2r_task,
+                            dague_execution_unit_t *eu_context)
 {
-    assert(w2r_task->task_type == GPU_TASK_TYPE_D2HTRANSFER);
-    int i;
-    dague_gpu_data_copy_t *owned_lru_gpu_elem, *cpu_copy;
+    dague_gpu_data_copy_t *gpu_copy, *cpu_copy;
+    dague_execution_context_t *ec = w2r_task->ec;
     dague_data_t* original;
-    for (i = 0; i < 1; i++) {
-        owned_lru_gpu_elem = w2r_task->ec->data[i].data_out;
-        owned_lru_gpu_elem->coherency_state = DATA_COHERENCY_SHARED;
-        original = owned_lru_gpu_elem->original;
+    int i;
+
+    assert(w2r_task->task_type == GPU_TASK_TYPE_D2HTRANSFER);
+    for( i = 0; (i < DAGUE_GPU_W2R_NB_MOVE_OUT) && (NULL != (gpu_copy = ec->data[i].data_out)); i++ ) {
+        gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
+        original = gpu_copy->original;
         cpu_copy = original->device_copies[0];
         cpu_copy->coherency_state =  DATA_COHERENCY_SHARED;
-        cpu_copy->version = owned_lru_gpu_elem->version;
-        OBJ_RETAIN(owned_lru_gpu_elem);
-        dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)owned_lru_gpu_elem);
-        owned_lru_gpu_elem->readers --;
-        assert(owned_lru_gpu_elem->readers >= 0);
+        cpu_copy->version = gpu_copy->version;
+        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                              "Mirror on CPU and move CUDA copy %p [ref_count %d] in LRU in %s\n",
+                              gpu_copy, gpu_copy->super.super.obj_reference_count, __func__));
+        dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+        gpu_copy->readers--;
+        assert(gpu_copy->readers >= 0);
     }
-    //free(w2r_task->ec);
     dague_thread_mempool_free(eu_context->context_mempool, w2r_task->ec);
- //   w2r_task->ec = NULL;
     free(w2r_task);
-    w2r_task = NULL;
     return 0;
-
 }
 
 

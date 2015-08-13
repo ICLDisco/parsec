@@ -148,6 +148,9 @@ dague_data_copy_t *dague_arena_get_copy(dague_arena_t *arena, size_t count, int 
         size = DAGUE_ALIGN(arena->elem_size * count + arena->alignment + sizeof(dague_arena_chunk_t),
                            arena->alignment, size_t);
         chunk = (dague_arena_chunk_t*)arena->data_malloc(size);
+        OBJ_CONSTRUCT(&chunk->item, dague_list_item_t);
+        chunk->refcount = 1;
+
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
     }
     if(NULL == chunk) return NULL;  /* no more */

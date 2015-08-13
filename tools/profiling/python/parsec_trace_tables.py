@@ -36,7 +36,7 @@ class ParsecTraceTables(object):
     core DataFrame (2D matrix/table) object names:
         events
         nodes
-        threads
+        streams
         errors (similar to events, but populated with broken/invalid events)
 
     core Series (1D; dictionary) object names:
@@ -67,15 +67,13 @@ class ParsecTraceTables(object):
 
     """
     class_version = 1.0 # created 2013.10.22 after move to pandas
-    basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'type',
-                           'begin', 'end', 'duration', 'flags', 'id']
-    HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
-                           'nodes', 'threads', 'information', 'errors']
+    HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes', 'event_convertors',
+                           'nodes', 'streams', 'information', 'errors']
 
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
     def __init__(self, events, event_types, event_names, event_attributes, event_convertors,
-                 nodes, threads, information, errors):
+                 nodes, streams, information, errors):
         self.__version__ = self.__class__.class_version
         # core data
         self.events = events
@@ -84,11 +82,9 @@ class ParsecTraceTables(object):
         self.event_attributes = event_attributes
         self.event_convertors = event_convertors
         self.nodes = nodes
-        self.threads = threads
+        self.streams = streams
         self.information = information
         self.errors = errors
-        # metadata
-        self.basic_columns = ParsecTraceTables.basic_event_columns
 
     def to_hdf(self, filename, table=False, append=False, overwrite=True,
                complevel=0, complib='blosc'):
@@ -116,7 +112,8 @@ class ParsecTraceTables(object):
         return self.__getattr__(name)
 
     def __repr__(self):
-        return describe_dict(self.information)
+        return describe_dict(self.information, sep=' ') + '\nAvailable information tables ' + \
+            ' '.join(self.HDF_TOP_LEVEL_NAMES) + '\nAvailable events ' + ' '.join([i for i in self.event_names])
 
     def name(self, infos=default_descriptors, add_infos=None):
         """ Returns a dash-separated description of the basic trace info.
@@ -164,14 +161,12 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
         events = store['events']
     else:
         events = pd.DataFrame()
-    try:
-        for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
+    for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
+        try:
             top_level.append(store[name])
-    except KeyError as ke:
-        print(filename)
-        print(ke)
-        print(store['information']) # hopefully this doesn't also raise...
-        raise ke
+        except KeyError as ke:
+            print('Failed to find column named {} in file {}. Adding an empty column.'.format(name, filename))
+            top_level.append(name)
 
     trace = ParsecTraceTables(events, *top_level)
     if keep_store:
@@ -293,7 +288,7 @@ def find_trace_sets(traces, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sche
 def automerge_trace_sets(trace_sets):
     """ Given a list of trace lists, returns a list of merged traces.
 
-    Merges only the events, threads, and nodes, along with the top-level "information" struct.
+    Merges only the events, streams, and nodes, along with the top-level "information" struct.
     Intended for use after 'find_trace_sets'.
 
     Dangerous for use with groups of traces that do not really belong to a reasonably-defined set.
@@ -306,25 +301,25 @@ def automerge_trace_sets(trace_sets):
         for trace in p_set[1:]:
             # ADD UNIQUE ID
             #
-            # add start time as id to every row in events and threads DataFrames
+            # add start time as id to every row in events and streams DataFrames
             # so that it is still possible to 'split' the merged trace
             # based on start_time id, which should differ for every run...
             if trace == p_set[1]:
                 start_time_array = np.empty(len(merged_trace.events), dtype=int)
                 start_time_array.fill(merged_trace.start_time)
                 merged_trace.events['start_time'] = pd.Series(start_time_array)
-                merged_trace.threads['start_time'] = pd.Series(
-                    start_time_array[:len(merged_trace.threads)])
+                merged_trace.streams['start_time'] = pd.Series(
+                    start_time_array[:len(merged_trace.streams)])
             start_time_array = np.empty(len(trace.events), dtype=int)
             start_time_array.fill(trace.start_time)
             events = trace.events
             events['start_time'] = pd.Series(start_time_array)
-            threads = trace.threads
-            threads['start_time'] = pd.Series(start_time_array[:len(threads)])
+            streams = trace.streams
+            streams['start_time'] = pd.Series(start_time_array[:len(streams)])
             # CONCATENATE EVENTS
             merged_trace.events = pd.concat([merged_trace.events, events])
             merged_trace.nodes = pd.concat([merged_trace.nodes, trace.nodes])
-            merged_trace.threads = pd.concat([merged_trace.threads, threads])
+            merged_trace.streams = pd.concat([merged_trace.streams, streams])
         merged_trace.information = match_dicts([trace.information for trace in p_set])
         merged_traces.append(merged_trace)
     return merged_traces

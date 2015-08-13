@@ -154,9 +154,6 @@ int dague_profiling_init( void )
 
     assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
 
-    /* default start time is time of call of profiling init.
-     * Can be reset once explicitly by the user. */
-    dague_profiling_start();
     /**
      * As we called the _start function automatically, the timing will be
      * based on this moment. By forcing back the __already_called to 0, we
@@ -497,7 +494,7 @@ dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
     size_t this_event_length;
     dague_time_t now;
 
-    if( -1 == file_backend_fd ) {
+    if( (-1 == file_backend_fd) || (!start_called) ) {
         return -1;
     }
 
