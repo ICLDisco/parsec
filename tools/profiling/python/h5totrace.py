@@ -10,6 +10,30 @@ import sys
 import os
 import re
 import math
+import time
+
+# update_progress() : Displays or updates a console progress bar
+## Accepts a float between 0 and 1. Any int will be converted to a float.
+## A value under 0 represents a 'halt'.
+## A value at 1 or bigger represents 100%
+def update_progress(progress):
+    barLength = 10 # Modify this to change the length of the progress bar
+    status = ""
+    if isinstance(progress, int):
+        progress = float(progress)
+    if not isinstance(progress, float):
+        progress = 0
+        status = "error: progress var must be float\r\n"
+    if progress < 0:
+        progress = 0
+        status = "Halt...\r\n"
+    if progress >= 1:
+        progress = 1
+        status = "Done...\r\n"
+    block = int(round(barLength*progress))
+    text = "\rPercent: [{0}] {1}% {2}".format( "#"*block + "-"*(barLength-block), progress*100, status)
+    sys.stdout.write(text)
+    sys.stdout.flush()
 
 def warning(*objs):
     print("WARNING: ", *objs, file=sys.stderr)
@@ -43,15 +67,15 @@ if __name__ == '__main__':
                         action='append', dest='counters', nargs='+')
     parser.add_argument('--ignore-type', help='Set an event name to ignore (multiple allowed, can be a pattern with /pattern/)',
                         action='append', dest='type_ignore', nargs='+')
-    parser.add_argument('--ignore-thread', help='Set a thread name to ignore (multiple allowed, can be a pattern with /pattern/)',
-                        action='append', dest='thread_ignore', nargs='+')
+    parser.add_argument('--ignore-stream', help='Set a stream name to ignore (multiple allowed, can be a pattern with /pattern/)',
+                        action='append', dest='stream_ignore', nargs='+')
     parser.add_argument('--dot-DAG', help='Include links of the DAG obtained from the DOT file', dest='DAG',
                         action='store_true', default=False)
     parser.add_argument('--list', help='List the events names in the hdf5 file', action='store_true', dest='list')
     args = parser.parse_args()
 
     store = pd.HDFStore(args.input)
-    if( not 'events' in store or not 'threads' in store or not 'event_names' in store ):
+    if( not 'events' in store or not 'streams' in store or not 'event_names' in store ):
         warning('This HDF5 store does not hold a PaRSEC profile')
         sys.exit(1)
 
@@ -124,7 +148,7 @@ if __name__ == '__main__':
     paje_ct = PajeContainerType.PajeEvent(Name="Application", Type="0")
     paje_pt = PajeContainerType.PajeEvent(Name="Process", Type=paje_ct)
     paje_vt = PajeContainerType.PajeEvent(Name="VP", Type=paje_pt)
-    paje_tt = PajeContainerType.PajeEvent(Name="Thread", Type=paje_vt)
+    paje_tt = PajeContainerType.PajeEvent(Name="Stream", Type=paje_vt)
     paje_st = PajeStateType.PajeEvent(Name="CT_ST", Type=paje_tt)
     paje_vt = PajeDefineVariableType.PajeEvent(Name="CT_VT", Type=paje_tt, Color="1.0,1.0,1.0")
 
@@ -180,21 +204,21 @@ if __name__ == '__main__':
             index=store.event_names[store.event_names.str.contains(pattern)].index.tolist()
             types_to_ignore += index
 
-    threads_to_ignore = list()
-    if args.thread_ignore:
-        args.thread_ignore = [item for sublist in args.thread_ignore for item in sublist]
-        for c in args.thread_ignore:
+    streams_to_ignore = list()
+    if args.stream_ignore:
+        args.stream_ignore = [item for sublist in args.stream_ignore for item in sublist]
+        for c in args.stream_ignore:
             p = re.search('^\/(.*)\/$', c)
             if p:
                 pattern = p.group(1)
             else:
                 pattern = "^%s$"%(c)
-            index=store.threads[store.threads.description.str.contains(pattern)].index.tolist()
-            threads_to_ignore += index
-            print(threads_to_ignore)
+            index=store.streams[store.streams.description.str.contains(pattern)].index.tolist()
+            streams_to_ignore += index
+            print(streams_to_ignore)
 
-    for trindex, t in store.threads.iterrows():
-        if trindex in threads_to_ignore:
+    for trindex, t in store.streams.iterrows():
+        if trindex in streams_to_ignore:
             continue
         if "M%d"%(t.node_id) not in paje_container_aliases:
             paje_container_aliases["M%d"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%d" % (t.node_id), Type=paje_ct, Container=paje_c_appli)
@@ -216,20 +240,29 @@ if __name__ == '__main__':
                     paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d"%(t.node_id,t.stream_id), Type=paje_ct,
                                                                                                              Container=paje_container_aliases["M%dGPU%d"%(t.node_id,gpu_id)])
             else:
-                print("Found %d"%(-1))
-                if "M%dUnknown"%(t.node_id) not in paje_container_aliases:
-                    paje_container_aliases["M%dUnknown"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dUnknown"%(t.node_id), Type=paje_ct,
-                                                                                                     Container=paje_container_aliases["M%d"%(t.node_id)])
-                if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
-                    paje_container_aliases["M%dT%d"%(t.node_id, t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id),
-                                                                                                              Type=paje_ct, Container=paje_container_aliases["M%dUnknown"%(t.node_id)])
-        PajeSetState.PajeEvent(Time=0.000, Type=paje_st, Container=paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)], Value="Waiting", task_name="")
+                match = re.search(r'MPI.*', t.description)
+                if match is not None:
+                    if "M%dMPI"%(t.node_id) not in paje_container_aliases:
+                        paje_container_aliases["M%dMPI"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dMPI" % (t.node_id), Type=paje_ct, Container=paje_c_appli)
+                else:
+                    print("Found unknown stream description '%s' at stream_id %d"%(t.description, trindex))
+                    if "M%dUnknown"%(t.node_id) not in paje_container_aliases:
+                        paje_container_aliases["M%dUnknown"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dUnknown"%(t.node_id), Type=paje_ct,
+                                                                                                        Container=paje_container_aliases["M%d"%(t.node_id)])
+                    if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
+                        paje_container_aliases["M%dT%d"%(t.node_id, t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id),
+                                                                                                                Type=paje_ct, Container=paje_container_aliases["M%dUnknown"%(t.node_id)])
+                        PajeSetState.PajeEvent(Time=0.000, Type=paje_st, Container=paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)], Value="Waiting", task_name="")
 
     if args.DAG:
         dag_info = dict()
 
     sev = store.events.sort(['node_id', 'stream_id', 'begin'])
+    progress = 0.0
+    delta = 1.0 / len(store.events)
     for evr in store.events.iterrows():
+        update_progress( progress )
+        progress = progress + delta
         ev = evr[1]
         if (ev['type'] in types_to_ignore):
             continue
