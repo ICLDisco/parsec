@@ -461,7 +461,6 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
 
-
     /* HQR */
     if(-1 == iparam[IPARAM_QR_HLVL_SZE])
         iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_NNODES];
@@ -565,8 +564,8 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
-    iparam[IPARAM_SMB] = -'p';
-    iparam[IPARAM_SNB] = -'q';
+    iparam[IPARAM_SMB] = 0;
+    iparam[IPARAM_SNB] = 0;
 }
 
 #ifdef DAGUE_PROF_TRACE
