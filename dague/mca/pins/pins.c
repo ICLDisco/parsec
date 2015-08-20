@@ -14,9 +14,6 @@
 
 static int registration_disabled;
 
-parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
-//parsec_pins_callback * pins_callback_array[PINS_FLAG_COUNT] = {0};
-
 void parsec_pins_instrument(struct dague_execution_unit_s* exec_unit,
                             PINS_FLAG method_flag,
                             struct dague_execution_context_s* task)
