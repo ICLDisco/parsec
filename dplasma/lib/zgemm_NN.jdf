@@ -55,7 +55,7 @@ next  = inline_c %{ return (q     + 1) % Q; %}
 
 READ A <- (q    == first) ? dataA(m, k) : A READ_A(m, k, prev)
        -> (next != first) ? A READ_A(m, k, next)
-       -> A GEMM(m, q .. descA.nt-1 .. Q, k)
+       -> A GEMM(m, q .. (descC.nt-1) .. Q, k)
 
 CTL ctl <- (k != descA.nt-1) ? ctl READ_A( m, k+1, q )
         -> (k != 0         ) ? ctl READ_A( m, k-1, q )
@@ -81,14 +81,14 @@ next  = inline_c %{ return (p     + 1) % P; %}
 
 READ B <- (p    == first) ? dataB(k, n) : B READ_B(k, n, prev)
        -> (next != first) ? B READ_B(k, n, next)
-       -> B GEMM(p .. descA.mt-1 .. P, n, k)
+       -> B GEMM(p .. (descC.mt-1) .. P, n, k)
 
 CTL ctl <- (k != descB.mt-1) ? ctl READ_B( k+1, n, p )
         -> (k != 0         ) ? ctl READ_B( k-1, n, p )
 
 BODY
 {
-     printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.dataB->myrank, k, n);
+    printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.dataB->myrank, k, n);
 }
 END
 
