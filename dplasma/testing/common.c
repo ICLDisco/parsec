@@ -520,7 +520,7 @@ static void print_arguments(int* iparam)
                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
             fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
-        if(iparam[IPARAM_HNB] * iparam[IPARAM_HMB] != 1)
+        if(iparam[IPARAM_HNB] != iparam[IPARAM_NB] || iparam[IPARAM_HMB] != iparam[IPARAM_MB])
             fprintf(stderr, "#+++++ HMB x HNB            : %d x %d\n", iparam[IPARAM_HMB], iparam[IPARAM_HNB]);
     }
 }
@@ -577,8 +577,8 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
-    iparam[IPARAM_SMB] = -'p';
-    iparam[IPARAM_SNB] = -'q';
+    iparam[IPARAM_SMB] = 0;
+    iparam[IPARAM_SNB] = 0;
 }
 
 #ifdef DAGUE_PROF_TRACE

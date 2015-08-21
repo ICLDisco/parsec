@@ -4078,24 +4078,27 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     /**
      * Generate code for the simulation.
      */
-    coutput("  /** Update staring simulation date */\n"
+    coutput("  /** Update starting simulation date */\n"
             "#if defined(DAGUE_SIM)\n"
-            "  this_task->sim_exec_date = 0;\n");
+            "  {\n"
+            "    this_task->sim_exec_date = 0;\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-        coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
-                "    this_task->sim_exec_date = e%s->sim_exec_date;\n",
-                fl->varname,
-                fl->varname,
+        coutput("    data_repo_entry_t *e%s = this_task->data[%d].data_repo;\n"
+                "    if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
+                "      this_task->sim_exec_date = e%s->sim_exec_date;\n",
+                fl->varname, fl->flow_index,
+                fl->varname, fl->varname,
                 fl->varname);
     }
-    coutput("  if( this_task->function->sim_cost_fct != NULL ) {\n"
-            "    this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+    coutput("    if( this_task->function->sim_cost_fct != NULL ) {\n"
+            "      this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+            "    }\n"
+            "    if( context->largest_simulation_date < this_task->sim_exec_date )\n"
+            "      context->largest_simulation_date = this_task->sim_exec_date;\n"
             "  }\n"
-            "  if( context->largest_simulation_date < this_task->sim_exec_date )\n"
-            "    context->largest_simulation_date = this_task->sim_exec_date;\n"
             "#endif\n");
 
     jdf_generate_code_cache_awareness_update(jdf, f);
@@ -4159,7 +4162,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
         if(JDF_FLOW_TYPE_CTL & fl->flow_flags) continue;
         if(fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
             if(fl->flow_flags & JDF_FLOW_TYPE_READ)
-                coutput("this_task->data[%d].data_out->version++;\n", di);
+                coutput("this_task->data[%d].data_out->version++;  /* %s */\n", di, fl->varname);
             else
                 coutput("if( NULL !=  this_task->data[%d].data_out) this_task->data[%d].data_out->version++;\n",
                         di, di);
