@@ -1,25 +1,27 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "debug.h"
+#include "dague/debug.h"
+#include "dague/utils/output.h"
 
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
 #if defined(HAVE_HWLOC)
 #include <hwloc.h>
 #endif  /* defined(HAVE_HWLOC) */
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #if defined(HAVE_HWLOC)
 static hwloc_topology_t topology;
 static int first_init = 1;
 #endif  /* defined(HAVE_HWLOC) */
-static int ht = 1;
+static int hyperth_per_core = 1;
 
 #if defined(HAVE_HWLOC_PARENT_MEMBER)
 #define HWLOC_GET_PARENT(OBJ)  (OBJ)->parent
@@ -28,6 +30,22 @@ static int ht = 1;
 #endif  /* defined(HAVE_HWLOC_PARENT_MEMBER) */
 
 #define MAX(x, y) ( (x)>(y)?(x):(y) )
+
+/**
+ * Print the cpuset as a string prefaced with the provided message.
+ */
+static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
+{
+    char *str = NULL;
+    /*#if (DAGUE_DEBUG_VERBOSE != 0) && defined(HAVE_HWLOC_BITMAP)*/
+#if defined(HAVE_HWLOC_BITMAP)
+    hwloc_bitmap_asprintf(&str,  cpuset);
+#else
+    hwloc_cpuset_asprintf(&str, cpuset);
+#endif /* DAGUE_DEBUG_VERBOSE */
+    dague_output(0, "%s %s\n", msg, str);
+    free(str);
+}
 
 int dague_hwloc_init(void)
 {
@@ -100,30 +118,19 @@ int dague_hwloc_distance( int id1, int id2 )
     return 0;
 }
 
-/* Previously use for the vpmap initialisation form hardware.
- * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+/**
+ *
  */
 int dague_hwloc_master_id( int level, int processor_id )
 {
 #if defined(HAVE_HWLOC)
-    int count = 0, div = 0, real_cores, cores;
     unsigned int i;
+    int ncores;
 
-    real_cores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
-    cores = real_cores;
-    div = cores;
+    ncores = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
 
-    if( 0 < (processor_id / cores) ) {
-        while(processor_id) {
-            if( (processor_id % div) == 0) {
-                processor_id = count;
-                break;
-            }
-            count++;
-            div++;
-            if( real_cores == count ) count = 0;
-        }
-    }
+    /* If we are using hyper-threads */
+    processor_id = processor_id % ncores;
 
     for(i = 0; i < hwloc_get_nbobjs_by_depth(topology, level); i++) {
         hwloc_obj_t obj = hwloc_get_obj_by_depth(topology, level, i);
@@ -143,8 +150,8 @@ int dague_hwloc_master_id( int level, int processor_id )
     return -1;
 }
 
-/* Previously use for the vpmap initialisation form hardware.
- * Should be obsolete as we now rely on the native hwloc topology to extrat the vp dedistribution.
+/**
+ *
  */
 unsigned int dague_hwloc_nb_cores( int level, int master_id )
 {
@@ -201,7 +208,12 @@ int dague_hwloc_nb_real_cores(void)
 #if defined(HAVE_HWLOC)
     return hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
 #else
-    return -1;
+    int nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
+    if(nb_cores == -1) {
+        perror("sysconf(_SC_NPROCESSORS_ONLN). Expect at least one.\n");
+        nb_cores = 1;
+    }
+    return nb_cores;
 #endif
 }
 
@@ -281,16 +293,45 @@ int dague_hwloc_nb_levels(void)
 #endif  /* defined(HAVE_HWLOC) */
 }
 
+char *dague_hwloc_get_binding(void)
+{
+#if defined(HAVE_HWLOC)
+    char *binding;
+    hwloc_cpuset_t cpuset;
+
+#if !defined(HAVE_HWLOC_BITMAP)
+    cpuset = hwloc_cpuset_alloc();
+    hwloc_cpuset_singlify(cpuset);
+#else
+    cpuset = hwloc_bitmap_alloc();
+    hwloc_bitmap_singlify(cpuset);
+#endif
+
+    /** No need to check for return code: the set will be unchanged (0x0)
+     *  if get_cpubind fails */
+    hwloc_get_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD);
+
+#if !defined(HAVE_HWLOC_BITMAP)
+    hwloc_cpuset_asprintf(&binding, cpuset);
+    hwloc_cpuset_free(cpuset);
+#else
+    hwloc_bitmap_asprintf(&binding, cpuset);
+    hwloc_bitmap_free(cpuset);
+#endif
+    return binding;
+#endif
+    return strdup("No_Binding_Information");
+}
 
 int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 {
     (void)cpu_index; (void)local_ht_index;
 #if defined(HAVE_HWLOC)
-    hwloc_obj_t      obj, core;      /* Hwloc object    */
-    hwloc_cpuset_t   cpuset;   /* Hwloc cpuset    */
+    hwloc_obj_t      obj, core;      /* HWLOC object */
+    hwloc_cpuset_t   cpuset;         /* HWLOC cpuset */
 
     /* Get the core of index cpu_index */
-    core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
+    obj = core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
     if (!core) {
         WARNING(("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )\n",
                  cpu_index,  dague_hwloc_nb_real_cores()));
@@ -298,8 +339,8 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     }
    /* Get the cpuset of the core if not using SMT/HyperThreading,
     * get the cpuset of the designated child object (PU) otherwise */
-    if ( local_ht_index > -1) {
-        if ( (uint32_t)local_ht_index < core->arity )
+    if( local_ht_index > -1) {
+        if( (uint32_t)local_ht_index < core->arity )
             obj = core->children[local_ht_index];
         else
             obj = core->children[0];
@@ -310,8 +351,6 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
             return -1;
         }
     }
-    else
-        obj = core;
 
     /* Get a copy of its cpuset that we may modify.  */
 #if !defined(HAVE_HWLOC_BITMAP)
@@ -324,14 +363,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 
     /* And try to bind ourself there.  */
     if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
-        char *str = NULL;
-#if !defined(HAVE_HWLOC_BITMAP)
-        hwloc_cpuset_asprintf(&str, obj->cpuset);
-#else
-        hwloc_bitmap_asprintf(&str, obj->cpuset);
-#endif
-        WARNING(("dague_hwloc: couldn't bind to cpuset %s\n", str));
-        free(str);
+        dague_hwloc_print_cpuset( "WARNING: dague_hwloc: couldn't bind to cpuset", obj->cpuset );
 
         /* Free our cpuset copy */
 #if !defined(HAVE_HWLOC_BITMAP)
@@ -342,6 +374,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
         return -1;
     }
     DEBUG2(("Thread bound on core index %i, [HT %i ]\n", cpu_index, local_ht_index));
+    dague_hwloc_print_cpuset("Thread bound on ", cpuset);
 
     /* Get the number at Proc level*/
     cpu_index = obj->os_index;
@@ -364,11 +397,10 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     unsigned cpu_index;
     int first_free;
     hwloc_obj_t obj;
-    hwloc_cpuset_t binding_mask=hwloc_bitmap_alloc();
+    hwloc_cpuset_t binding_mask = hwloc_bitmap_alloc();
 
     /* For each index in the mask, get the associated cpu object and use its cpuset to add it to the binding mask */
-    hwloc_bitmap_foreach_begin(cpu_index, cpuset)
-    {
+    hwloc_bitmap_foreach_begin(cpu_index, cpuset) {
         /* Get the core of index cpu */
         obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
         if (!obj) {
@@ -376,25 +408,15 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         } else {
             hwloc_bitmap_or(binding_mask, binding_mask, obj->cpuset);
         }
-    }
-    hwloc_bitmap_foreach_end();
+    } hwloc_bitmap_foreach_end();
 
     if (hwloc_set_cpubind(topology, binding_mask, HWLOC_CPUBIND_THREAD)) {
-        char *str = NULL;
-        hwloc_bitmap_asprintf(&str, binding_mask);
-        WARNING(("Couldn't bind to cpuset %s\n", str));
-        free(str);
+        dague_hwloc_print_cpuset("Couldn't bind to cpuset ", binding_mask);
         return -1;
     }
 
-#if (DAGUE_DEBUG_VERBOSE != 0) && defined(HAVE_HWLOC_BITMAP)
-    {
-        char *str = NULL;
-        hwloc_bitmap_asprintf(&str,  binding_mask);
-        DEBUG2(("Thread bound on the cpuset  %s\n", str));
-        free(str);
-    }
-#endif /* DAGUE_DEBUG_VERBOSE */
+    dague_hwloc_print_cpuset("[BEFORE] Thread bound on the cpuset ", cpuset);
+    dague_hwloc_print_cpuset("[AFTER ] Thread bound on the cpuset ", binding_mask);
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
@@ -405,33 +427,30 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 }
 
+/*
+ * Define the number of hyper-threads accepted per core.
+ */
 int dague_hwloc_allow_ht(int htnb)
 {
     assert( htnb > 0 );
-#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
-    dague_hwloc_init();
 
+#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
     /* Check the validity of the parameter. Correct otherwise  */
-    if (htnb > 1){
-        int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU)/hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
+    if (htnb > 1) {
+        int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) / hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
         if( htnb > pu_per_core){
             printf("Warning:: HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
-            ht=pu_per_core;
-        }else{
-            ht=htnb;
+            htnb = pu_per_core;
         }
     }
-    ht=htnb;
-    return ht;
-#else
-    /* Without hwloc, trust your user to give a correct parameter */
-    ht = htnb;
-    return ht;
 #endif
+    /* Without hwloc, trust your user to give a correct parameter */
+    hyperth_per_core = htnb;
+    return hyperth_per_core;
 }
 
 int dague_hwloc_get_ht(void)
 {
-    return ht;
+    return hyperth_per_core;
 }
 

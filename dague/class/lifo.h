@@ -193,9 +193,9 @@ static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
                              ohead,
                              nhead ) )
             break;
-         ohead = lifo->lifo_head;
-         item = DAGUE_LIFO_KHEAD(lifo, ohead);
-         nitem = DAGUE_LIST_ITEM_NEXT(item);
+        ohead = lifo->lifo_head;
+        item = DAGUE_LIFO_KHEAD(lifo, ohead);
+        nitem = DAGUE_LIST_ITEM_NEXT(item);
         /* Do some kind of pause to release the bus */
     }
     if( item == lifo->lifo_ghost ) return NULL;

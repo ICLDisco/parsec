@@ -1,22 +1,20 @@
 /*
- * Copyright (c) 2012-2013 The University of Tennessee and The University
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
-#include "pins.h"
+#include "dague/mca/pins/pins.h"
 #include "dague/mca/mca_repository.h"
-#include "execution_unit.h"
-#include "profiling.h"
+#include "dague/execution_unit.h"
+#include "dague/profiling.h"
 #include "dague/utils/mca_param.h"
 
 #define MAX_NAME_SIZE 100 /* arbitrary module name limit for 'safety' */
 
 static int num_modules_activated = 0;
 static dague_pins_module_t **modules_activated = NULL;
-
-extern parsec_pins_callback *pins_array[];
 
 static mca_base_component_t **pins_components = NULL;
 
@@ -26,21 +24,16 @@ static mca_base_component_t **pins_components = NULL;
  * other components have been initialized, so as to allow the interfacing of
  * PINS measurements with working PaRSEC subsystems.
  */
-void pins_init(dague_context_t * master_context)
+void pins_init(dague_context_t* master_context)
 {
-    int i = 0;
+    int i = 0, err, priority = -1;
     dague_pins_module_t *module = NULL;
-    int priority = -1;
     char **user_list;
 
 #if defined(DAGUE_PROF_TRACE)
     char * modules_activated_str = NULL;
 #endif /* DAGUE_PROF_TRACE */
 
-    for (; i < PINS_FLAG_COUNT; i++) {
-        if (pins_array[i] == NULL)
-            pins_array[i] = &pins_empty_callback;
-    }
     DEBUG(("Initialized PaRSEC PINS callbacks to pins_empty_callback()"));
     user_list = mca_components_get_user_selection("pins");
     if( NULL == user_list ) {
@@ -58,18 +51,23 @@ void pins_init(dague_context_t * master_context)
     for(i = 0; pins_components[i] != NULL; i++) {
         if( mca_components_belongs_to_user_list(user_list, pins_components[i]->mca_component_name) ) {
             if (pins_components[i]->mca_query_component != NULL) {
-                pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
-                DEBUG(("query component %d returns priority %d\n", i, priority));
+                err = pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
+                if( err != MCA_SUCCESS ) {
+                    DEBUG(("query function for component %s return no module\n", pins_components[i]->mca_component_name));
+                    continue;
+                }
+                DEBUG(("query function for component %s[%d] returns priority %d\n",
+                       pins_components[i]->mca_component_name, i, priority));
                 if (NULL != module->module.init) {
                     module->module.init(master_context);
-                    DEBUG(("Activated PINS module %s.\n",
-                           module->component->base_version.mca_component_name));
-                    modules_activated[num_modules_activated++] = module;
-#if defined(DAGUE_PROF_TRACE)
-                    strncat(modules_activated_str, pins_components[i]->mca_component_name, MAX_NAME_SIZE);
-                    strncat(modules_activated_str, ",", 1);
-#endif
                 }
+                DEBUG(("Activated PINS module %s.\n",
+                       module->component->base_version.mca_component_name));
+                modules_activated[num_modules_activated++] = module;
+#if defined(DAGUE_PROF_TRACE)
+                strncat(modules_activated_str, pins_components[i]->mca_component_name, MAX_NAME_SIZE);
+                strncat(modules_activated_str, ",", 1);
+#endif
             }
         }
     }
@@ -90,7 +88,8 @@ void pins_init(dague_context_t * master_context)
 /**
  * pins_fini must call fini methods of all modules
  */
-void pins_fini(dague_context_t * master_context) {
+void pins_fini(dague_context_t* master_context)
+{
     int i = 0;
 
     if (NULL != modules_activated) {
@@ -120,9 +119,13 @@ void pins_fini(dague_context_t * master_context) {
  * interfacing of PINS measurements with working PaRSEC subsystems.
  * It MUST NOT be called BEFORE pins_init().
  */
-void pins_thread_init(dague_execution_unit_t * exec_unit) {
-    int i = 0;
-
+void pins_thread_init(dague_execution_unit_t* exec_unit)
+{
+    int i;
+    for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
+        exec_unit->pins_events_cb[i].cb_func = NULL;
+        exec_unit->pins_events_cb[i].cb_data = NULL;
+    }
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
             if ( NULL != modules_activated[i]->module.thread_init)
@@ -130,14 +133,17 @@ void pins_thread_init(dague_execution_unit_t * exec_unit) {
         }
     }
 
-    parsec_instrument(THREAD_INIT, exec_unit, NULL, NULL);
+    PINS(exec_unit, THREAD_INIT, NULL);
 }
 
 /**
  * called in scheduling.c, which is not ideal
  */
-void pins_thread_fini(dague_execution_unit_t * exec_unit) {
+void pins_thread_fini(dague_execution_unit_t* exec_unit)
+{
     int i = 0;
+
+    PINS(exec_unit, THREAD_FINI, NULL);
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
@@ -146,7 +152,10 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
         }
     }
 
-    parsec_instrument(THREAD_FINI, exec_unit, NULL, NULL);
+    for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
+        assert(NULL == exec_unit->pins_events_cb[i].cb_func);
+        assert(NULL == exec_unit->pins_events_cb[i].cb_data);
+    }
 }
 
 /**
@@ -157,7 +166,8 @@ void pins_thread_fini(dague_execution_unit_t * exec_unit) {
  *
  * It MUST NOT be called BEFORE pins_init().
  */
-void pins_handle_init(dague_handle_t * handle) {
+void pins_handle_init(dague_handle_t* handle)
+{
     int i = 0;
 
     if (NULL != modules_activated) {
@@ -166,14 +176,13 @@ void pins_handle_init(dague_handle_t * handle) {
                 modules_activated[i]->module.handle_init(handle);
         }
     }
-
-    parsec_instrument(HANDLE_INIT, NULL, NULL, (void *)handle);
 }
 
 /**
  * Currently uncalled in the PaRSEC DPLAMSA testing executables
  */
-void pins_handle_fini(dague_handle_t * handle) {
+void pins_handle_fini(dague_handle_t * handle)
+{
     int i = 0;
 
     if (NULL != modules_activated) {
@@ -182,15 +191,14 @@ void pins_handle_fini(dague_handle_t * handle) {
                 modules_activated[i]->module.handle_fini(handle);
         }
     }
-
-    parsec_instrument(HANDLE_FINI, NULL, NULL, (void *)handle);
 }
 
 /**
  * Convenient functions for application that want to overwrite the MCA
  *  default behavior.
  */
-void pins_enable_modules (const char * const modules[]) {
+void pins_enable_modules (const char * const modules[])
+{
     int i, l;
     char *str;
     int idx;
@@ -220,7 +228,8 @@ void pins_enable_modules (const char * const modules[]) {
   A future version could assemble a list of modules enabled based on which
   modules are "init"ed, and check against that array.
  */
-int pins_is_module_enabled(char * name) {
+int parsec_pins_is_module_enabled(char * name)
+{
     int i = 0;
 
     if (NULL != modules_activated) {

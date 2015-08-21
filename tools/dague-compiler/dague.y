@@ -1,6 +1,6 @@
 %{
 /**
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -196,15 +196,21 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE OPTION
 
-%nonassoc RANGE QUESTION_MARK COLON
-%nonassoc LESS LEQ MORE MEQ
-%right NOT
-%left EQUAL NOTEQUAL
-%left AND OR XOR
-%left MODULO SHL SHR
-%left PLUS MINUS
-%left TIMES DIV
+/* C99 operator precedence: http://en.cppreference.com/w/c/language/operator_precedence */
+%nonassoc RANGE
 %left COMMA
+%right ASSIGNMENT
+%right QUESTION_MARK COLON
+%left OR
+%left AND
+%left XOR
+%left EQUAL NOTEQUAL
+%left LESS LEQ MORE MEQ
+%left SHL SHR
+%left PLUS MINUS
+%left MODULO TIMES DIV
+%right NOT
+%left OPEN_PAR CLOSE_PAR
 
 %debug
 /*%pure-parser*/
@@ -537,6 +543,16 @@ dependency:   ARROW guarded_call properties
                       expr = jdf_find_property( property, "type", &property );
                       property->next = $3;
                   }
+                  /* Validate the WRITE only data allocation */
+                  if( (JDF_GUARD_UNCONDITIONAL == $2->guard_type) && (NULL == $2->guard) && (NULL == $2->callfalse) ) {
+                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
+                          if($1 != JDF_DEP_FLOW_IN) {
+                              jdf_fatal(JDF_OBJECT_LINENO($2),
+                                        "Automatic data allocation only supported in IN dependencies.\n");
+                              YYERROR;
+                          }
+                      }
+                  }
 
                   $2->properties   = property;
                   d->dep_flags     = $1;
@@ -645,6 +661,22 @@ guarded_call: call
                   $$ = g;
                   assert( 0 != JDF_OBJECT_LINENO($1) );
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
+              }
+       |
+              {
+                  jdf_call_t *c = new(jdf_call_t);
+                  c->var = NULL;
+                  c->func_or_mem = strdup(PARSEC_WRITE_MAGIC_NAME);
+                  c->parameters = NULL;
+                  JDF_OBJECT_LINENO(c) = current_lineno;
+
+                  jdf_guarded_call_t *g = new(jdf_guarded_call_t);
+                  g->guard_type = JDF_GUARD_UNCONDITIONAL;
+                  g->guard = NULL;
+                  g->calltrue = c;
+                  g->callfalse = NULL;
+                  $$ = g;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
               }
        ;
 

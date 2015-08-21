@@ -7,10 +7,15 @@
 #include "dague.h"
 #include "choice_wrapper.h"
 #include "choice_data.h"
+#include "dague/data_distribution.h"
 #if defined(HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
-#include "dague_prof_grapher.h"
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(HAVE_MPI) */
+#include <stdlib.h>
+#include <stdio.h>
 
 int main(int argc, char *argv[])
 {
@@ -50,7 +55,7 @@ int main(int argc, char *argv[])
     choice = choice_new(ddescA, size, decision, nb, world);
     dague_enqueue(dague, choice);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     choice_destroy(choice);
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,16 +8,16 @@
 #include "dague_internal.h"
 #include "dague/mca/mca_repository.h"
 #include "dague/mca/sched/sched.h"
-#include "profiling.h"
-#include "stats.h"
+#include "dague/profiling.h"
 #include "datarepo.h"
-#include "execution_unit.h"
-#include "vpmap.h"
+#include "dague/execution_unit.h"
+#include "dague/vpmap.h"
 #include "dague/mca/pins/pins.h"
-#include "os-spec-timing.h"
-#include "remote_dep.h"
+#include "dague/os-spec-timing.h"
+#include "dague/remote_dep.h"
 
 #include "dague/ayudame.h"
+#include "dague/constants.h"
 
 #include <signal.h>
 #if defined(HAVE_STRING_H)
@@ -84,7 +84,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
                 "Block Input Operations      : %10ld\n"
                 "Block Output Operations     : %10ld\n"
                 "=============================================================\n\n"
-                ,str, eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
+                , str, eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
                 usr, sys, usr + sys,
                 (current.ru_minflt  - eu->_eu_rusage.ru_minflt), (current.ru_majflt  - eu->_eu_rusage.ru_majflt),
                 (current.ru_nswap   - eu->_eu_rusage.ru_nswap) , (current.ru_nvcsw   - eu->_eu_rusage.ru_nvcsw),
@@ -104,7 +104,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu) { (vo
 /**
  * Disabled by now.
  */
-int __dague_progress_task( dague_execution_unit_t* eu_context,
+int __dague_context_wait_task( dague_execution_unit_t* eu_context,
                            dague_execution_context_t* task )
 {
     (void)eu_context;
@@ -146,7 +146,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    DAGUE_STAT_DECREASE(counter_nbtasks, 1ULL);
+    PINS(eu_context, EXEC_BEGIN, exec_context);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
     /**
      * Try all the incarnation until one agree to execute.
@@ -158,11 +158,14 @@ int __dague_execute( dague_execution_unit_t* eu_context,
                tmp, function->incarnations[exec_context->chore_id].type));
 #endif
         rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
-        if( DAGUE_HOOK_RETURN_NEXT != rc )
+        if( DAGUE_HOOK_RETURN_NEXT != rc ) {
+            PINS(eu_context, EXEC_END, exec_context);
             return rc;
+        }
         exec_context->chore_id++;
     } while(NULL != function->incarnations[exec_context->chore_id].hook);
     /* We're out of luck, no more chores */
+    PINS(eu_context, EXEC_END, exec_context);
     return DAGUE_HOOK_RETURN_ERROR;
 }
 
@@ -171,24 +174,29 @@ static inline int all_tasks_done(dague_context_t* context)
     return (context->active_objects == 0);
 }
 
+int dague_check_complete_cb(dague_handle_t *dague_handle, dague_context_t *context, int remaining)
+{
+   if( 0 == remaining ) {
+        /* A dague object has been completed. Call the attached callback if
+         * necessary, then update the main engine.
+         */
+        if( NULL != dague_handle->on_complete ) {
+            (void)dague_handle->on_complete( dague_handle, dague_handle->on_complete_data );
+        }
+        dague_atomic_dec_32b( &(context->active_objects) );
+        PINS_HANDLE_FINI(dague_handle);
+        return 1;
+    }
+    return 0;
+}
+
 int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context)
 {
     int remaining;
 
     assert( dague_handle->nb_local_tasks != 0 );
     remaining = dague_atomic_dec_32b( &(dague_handle->nb_local_tasks) );
-
-    if( 0 == remaining ) {
-        /* A dague object has been completed. Call the attached callback if
-         * necessary, then update the main engine.
-         */
-        if( NULL != dague_handle->complete_cb ) {
-            (void)dague_handle->complete_cb( dague_handle, dague_handle->complete_cb_data );
-        }
-        dague_atomic_dec_32b( &(context->active_objects) );
-        return 1;
-    }
-    return 0;
+    return dague_check_complete_cb(dague_handle, context, remaining);
 }
 
 dague_sched_module_t *current_scheduler                  = NULL;
@@ -302,6 +310,9 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
 {
     int rc = 0;
 
+    /* complete execution==add==push (also includes exec of immediates) */
+    PINS(eu_context, COMPLETE_EXEC_BEGIN, exec_context);
+
     if( NULL != exec_context->function->prepare_output ) {
         exec_context->function->prepare_output( eu_context, exec_context );
     }
@@ -309,6 +320,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
     __dague_complete_task(exec_context->dague_handle, eu_context->virtual_process->dague_context);
+    PINS(eu_context, COMPLETE_EXEC_END, exec_context);
     AYU_TASK_COMPLETE(exec_context);
 
     /* Succesfull execution. The context is ready to be released, all
@@ -316,12 +328,11 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
      */
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
     /* Release the execution context */
-    DAGUE_STAT_DECREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
     dague_thread_mempool_free( eu_context->context_mempool, exec_context );
     return rc;
 }
 
-void* __dague_progress( dague_execution_unit_t* eu_context )
+int __dague_context_wait( dague_execution_unit_t* eu_context )
 {
     uint64_t misses_in_a_row;
     dague_context_t* dague_context = eu_context->virtual_process->dague_context;
@@ -342,17 +353,17 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
         /* The master thread might not have to trigger the barrier if the other
          * threads have been activated by a previous start.
          */
-        if( !(DAGUE_CONTEXT_FLAG_MAIN_IN & dague_context->flags) ) {
-            dague_context->flags |= DAGUE_CONTEXT_FLAG_MAIN_IN;
+        if( DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE & dague_context->flags ) {
             goto skip_first_barrier;
         }
+        dague_context->flags |= DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE;
     }
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
     dague_statistics_per_eu("EU", eu_context);
 #endif
     /* first select begin, right before the wait_for_the... goto label */
-    PINS(SELECT_BEGIN, eu_context, NULL, NULL);
+    PINS(eu_context, SELECT_BEGIN, NULL);
 
     /* The main loop where all the threads will spend their time */
   wait_for_the_next_round:
@@ -368,36 +379,32 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 
     if( NULL == current_scheduler ) {
-        fprintf(stderr, "DAGuE: Main thread entered dague_progress, while scheduler is not selected yet!\n");
-        return (void *)-1;
+        fprintf(stderr, "DAGuE: Main thread entered dague_context_wait, while scheduler is not selected yet!\n");
+        return -1;
     }
 
   skip_first_barrier:
     while( !all_tasks_done(dague_context) ) {
-#if defined(DISTRIBUTED) && !defined(DAGUE_REMOTE_DEP_USE_THREADS)
-        if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
+#if defined(DISTRIBUTED)
+        if( (1 == dague_communication_engine_up) &&
+            (eu_context->virtual_process[0].dague_context->nb_nodes == 1) &&
+            DAGUE_THREAD_IS_MASTER(eu_context) ) {
             /* check for remote deps completion */
             while(dague_remote_dep_progress(eu_context) > 0)  {
                 misses_in_a_row = 0;
             }
         }
-#endif /* defined(DISTRIBUTED) && !defined(DAGUE_REMOTE_DEP_USE_THREADS)*/
+#endif /* defined(DISTRIBUTED) */
 
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
-            DAGUE_STATACC_ACCUMULATE(time_starved, rqtp.tv_nsec/1000);
             nanosleep(&rqtp, NULL);
         }
 
-        /* time how long it takes to get a task, if indeed we get one */
-        dague_time_t select_begin = take_time();
         exec_context = current_scheduler->module.select(eu_context);
 
         if( exec_context != NULL ) {
-            dague_time_t select_end = take_time();
-            uint64_t select_time = diff_time(select_begin, select_end);
-            PINS(SELECT_END, eu_context, exec_context, (void *)select_time);
-            /* select end, and record with it the amount of time actually spent selecting */
+            PINS(eu_context, SELECT_END, exec_context);
             misses_in_a_row = 0;
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -412,21 +419,16 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
 #endif
 
-            PINS(PREPARE_INPUT_BEGIN, eu_context, exec_context, NULL);
+            PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
             switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
             case DAGUE_HOOK_RETURN_DONE:
             {
-                PINS(PREPARE_INPUT_END, eu_context, exec_context, NULL);
+                PINS(eu_context, PREPARE_INPUT_END, exec_context);
                 int rv = 0;
                 /* We're good to go ... */
-                PINS(EXEC_BEGIN, eu_context, exec_context, NULL);
                 rv = __dague_execute( eu_context, exec_context );
-                PINS(EXEC_END, eu_context, exec_context, NULL  );
                 if( 0 == rv ) {
-                    /* complete execution==add==push (also includes exec of immediates) */
-                    PINS(COMPLETE_EXEC_BEGIN, eu_context, exec_context, NULL);
                     __dague_complete_execution( eu_context, exec_context );
-                    PINS(COMPLETE_EXEC_END, eu_context, exec_context, NULL);
                 }
                 nbiterations++;
                 break;
@@ -436,7 +438,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
             }
 
             // subsequent select begins
-            PINS(SELECT_BEGIN, eu_context, NULL, NULL);
+            PINS(eu_context, SELECT_BEGIN, NULL);
         } else {
             misses_in_a_row++;
         }
@@ -476,7 +478,7 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     // final select end - can we mark this as special somehow?
     // actually, it will already be obviously special, since it will be the only select
     // that has no context
-    PINS(SELECT_END, eu_context, NULL, NULL);
+    PINS(eu_context, SELECT_END, NULL);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     STATUS(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
@@ -506,7 +508,10 @@ void* __dague_progress( dague_execution_unit_t* eu_context )
     }
 #endif  /* DAGUE_REPORT_STATISTICS */
 
-    return (void*)((long)nbiterations);
+    if( dague_context->__dague_internal_finalization_in_progress ) {
+        PINS_THREAD_FINI(eu_context);
+    }
+    return nbiterations;
 }
 
 /************ COMPOSITION OF DAGUE_OBJECTS ****************/
@@ -547,8 +552,8 @@ static void dague_compound_startup( dague_context_t *context,
     for( i = 0; i < compound_state->nb_objects; i++ ) {
         dague_handle_t* o = compound_state->objects_array[i];
         assert( NULL != o );
-        o->complete_cb = dague_composed_cb;
-        o->complete_cb_data = compound_object;
+        o->on_complete      = dague_composed_cb;
+        o->on_complete_data = compound_object;
     }
 }
 
@@ -592,29 +597,40 @@ int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
     return old_priority;
 }
 
-int dague_enqueue( dague_context_t* context, dague_handle_t* object)
+int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
 {
-    dague_execution_context_t **startup_list;
-
     if( NULL == current_scheduler) {
         dague_set_scheduler( context );
     }
 
-    /* These pointers need to be initialized to NULL; doing it with calloc */
-    startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
+    handle->context = context;  /* save the context */
 
-    /* Enable the object to interact with the communication engine */
-    (void)dague_handle_register(object);
+    PINS_HANDLE_INIT(handle);  /* PINS handle initialization */
 
-    if( object->nb_local_tasks > 0 ) {
-        /* Update the number of pending objects */
-        dague_atomic_inc_32b( &(context->active_objects) );
+    /* Update the number of pending objects */
+    dague_atomic_inc_32b( &(context->active_objects) );
 
-        /* Retreive all the early messages for this object */
-        (void)dague_remote_dep_new_object(object);
-        if( NULL != object->startup_hook ) {
+    /* Enable the handle to interact with the communication engine */
+    (void)dague_handle_register(handle);
+
+    /* If necessary trigger the on_enqueue callback */
+    if( NULL != handle->on_enqueue ) {
+        handle->on_enqueue(handle, handle->on_enqueue_data);
+    }
+
+    if( handle->nb_local_tasks > 0 ) {
+
+         /* Retrieve all the early messages for this handle */
+        (void)dague_remote_dep_new_object(handle);
+        if( NULL != handle->startup_hook ) {
+            dague_execution_context_t **startup_list;
             int p;
-            object->startup_hook(context, object, startup_list);
+            /* These pointers need to be initialized to NULL; doing it with calloc */
+            startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
+            if( NULL == startup_list ) {  /* bad bad */
+                return DAGUE_ERR_OUT_OF_RESOURCE;
+            }
+            handle->startup_hook(context, handle, startup_list);
             for(p = 0; p < vpmap_get_nb_vp(); p++) {
                 if( NULL != startup_list[p] ) {
                     dague_list_t temp;
@@ -629,10 +645,11 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
                     __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
                 }
             }
+            free(startup_list);
         }
+    } else {
+        dague_check_complete_cb(handle, context, handle->nb_local_tasks);
     }
-
-    free(startup_list);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;
@@ -643,33 +660,37 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* object)
 
 static inline int
 __dague_context_cas_or_flag(dague_context_t* context,
-                            int flags)
+                            uint32_t flags)
 {
     uint32_t current_flags = context->flags;
+    /* if the flags are already set don't reset them */
+    if( flags == (current_flags & flags) ) return 0;
     return dague_atomic_cas(&context->flags,
                             current_flags,
                             current_flags | flags);
 }
 
 /**
- * If there are enqueued handle to be executed launch the other threads and then
- * return. Mark the internal structures in such a way that we can't start the
- * context mutiple times without completions.
+ * If there are enqueued handles waiting to be executed launch the other threads
+ * and then return. Mark the internal structures in such a way that we can't
+ * start the context mutiple times without completions.
  *
  * @returns: 0 if the other threads in this context have been started, -1 if the
- * context was already active, -2 if there was nothing to do and no threads have
+ * context was already active, -2 if there was nothing to do and no threads hav
  * been activated.
  */
-int dague_start( dague_context_t* context )
+int dague_context_start( dague_context_t* context )
 {
     /* No active work */
     if(all_tasks_done(context)) return -2;
     /* Context already active */
-    if( DAGUE_CONTEXT_FLAG_ACTIVE & context->flags )
+    if( DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags )
         return -1;
     /* Start up the context */
-    if( __dague_context_cas_or_flag(context, DAGUE_CONTEXT_FLAG_ACTIVE) ) {
+    if( __dague_context_cas_or_flag(context, DAGUE_CONTEXT_FLAG_COMM_ACTIVE) ) {
         (void)dague_remote_dep_on(context);
+        /* Mark the context so that we will skip the initial barrier during the _wait */
+        context->flags |= DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE;
         /* Wake up the other threads */
         dague_barrier_wait( &(context->barrier) );
         return 0;
@@ -682,7 +703,7 @@ int dague_start( dague_context_t* context )
  *
  * @returns: 0 if the context is active, any other value otherwide.
  */
-int dague_test( dague_context_t* context )
+int dague_context_test( dague_context_t* context )
 {
     return !all_tasks_done(context);
 }
@@ -691,42 +712,23 @@ int dague_test( dague_context_t* context )
  * If the context is active the current thread (which must be the thread that
  * created the context will join the other active threads to complete the tasks
  * enqueued on the context. This function is blocking, the return is only
- * possible upon completion of all tasks on the context.
+ * possible upon completion of all active handles in the context.
  */
-int dague_wait( dague_context_t* context )
+int dague_context_wait( dague_context_t* context )
 {
     int ret = 0;
+
     if( __dague_context_cas_or_flag(context,
-                                    DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN) ) {
+                                    DAGUE_CONTEXT_FLAG_COMM_ACTIVE) ) {
         (void)dague_remote_dep_on(context);
     }
 
-    ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
+    ret = __dague_context_wait( context->virtual_processes[0]->execution_units[0] );
 
     context->__dague_internal_finalization_counter++;
     (void)dague_remote_dep_off(context);
-    context->flags ^= DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN;
-    return ret;
-}
-
-/**
- * Partial progress of an active context. The thread will return upon completion
- * of some amount of pending work.
- *
- * @returns: 0 is the context is still active, any other value otherwise.
- */
-int dague_progress(dague_context_t* context)
-{
-    int ret = 0;
-    if( __dague_context_cas_or_flag(context,
-                                    DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN) ) {
-        (void)dague_remote_dep_on(context);
-    }
-
-    ret = (int)(long)__dague_progress( context->virtual_processes[0]->execution_units[0] );
-
-    context->__dague_internal_finalization_counter++;
-    (void)dague_remote_dep_off(context);
-    context->flags ^= DAGUE_CONTEXT_FLAG_ACTIVE|DAGUE_CONTEXT_FLAG_MAIN_IN;
+    assert(context->flags & DAGUE_CONTEXT_FLAG_COMM_ACTIVE);
+    assert(context->flags & DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE);
+    context->flags ^= (DAGUE_CONTEXT_FLAG_COMM_ACTIVE | DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE);
     return ret;
 }

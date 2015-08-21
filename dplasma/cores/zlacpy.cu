@@ -6,6 +6,7 @@
 #include <cuda.h>
 #include "data_dist/matrix/precision.h"
 
+#define PRECISION_z
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif  /* defined(PRECISION_z) || defined(PRECISION_c) */
@@ -27,16 +28,23 @@ zlacpy_kernel(
     const dague_complex64_t *dA, int ldda, dague_complex64_t alpha,
     dague_complex64_t       *dB, int lddb)
 {
+    cuDoubleComplex *A=(cuDoubleComplex*)dA,
+                    *B=(cuDoubleComplex*)dB,
+                    a=*(cuDoubleComplex*)&alpha;
     // dA and dB iterate across row i
     int i = blockIdx.x*blockDim.x + threadIdx.x;
     if ( i < m ) {
-        dA += i;
-        dB += i;
-        const dague_complex64_t *dAend = dA + n*ldda;
-        for( ;dA < dAend; ) {
-            *dB = (*dA)*alpha + *dB;
-            dA += ldda;
-            dB += lddb;
+        A += i;
+        B += i;
+        const cuDoubleComplex *Aend = A + n*ldda;
+        for( ;A < Aend; ) {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+            *B = cuCfma( a, *A, *B );
+#else
+            *B += a * *A;
+#endif
+            A += ldda;
+            B += lddb;
         }
     }
 }

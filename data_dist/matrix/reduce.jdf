@@ -1,12 +1,11 @@
 extern "C" %{
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague.h"
-#include "data_distribution.h"
 #include "matrix.h"
 #include <math.h>
 
@@ -26,16 +25,20 @@ reduce(l, p)
   l = 1 .. depth+1
   p = 0 .. (MT / (1<<l))
 
-  : A( p )
+  : A(p,0)
 
-  READ A <- (1 == l) ? A(2*p) : C reduce( l - 1, 2 * p )
-  READ B <- ((p * (1 << l) + (1 << (l-1))) >  MT)  ? A(0) /*ELEM_NEUTRE(0)*/ 
-         <- ((1 == l) & ((p * (1 << l) + (1 << (l-1)) <= MT))) ? A(2*p+1)
-         <- ((1 != l) & ((p * (1 << l) + (1 << (l-1)) <= MT))) ? C reduce(l - 1, p * 2 + 1)
-  WRITE C -> ((depth+1) == l) ? R(p)
+  READ A <- (1 == l) ? A(2*p, 0) : C reduce( l - 1, 2 * p )
+  READ B <- ((p * (1 << l) + (1 << (l-1))) >=  MT)  ? A(0,0) /*ELEM_NEUTRE(0)*/
+         <- ((1 == l) & ((p * (1 << l) + (1 << (l-1)) < MT))) ? A(2*p+1,0)
+         <- ((1 != l) & ((p * (1 << l) + (1 << (l-1)) < MT))) ? C reduce(l - 1, p * 2 + 1)
+  WRITE C <- [type = DEFAULT]
+          -> ((depth+1) == l) ? R(p, 0)
           -> (((depth+1) != l) & (0 == (p%2))) ? A reduce(l+1, p/2)
           -> (((depth+1) != l) & (0 != (p%2))) ? B reduce(l+1, p/2)
 BODY
-  printf( "reduce(l = %d, p = %d) %d %d (p [%d .. %d])\n",
+  printf( "reduce(level = %d, process = %d) %d %d (p [%d .. %d])\n",
           l, p, p * (1 << l), p * (1 << l) + (1 << (l-1)), 0, (MT / (1<<l)) );
 END
+extern "C" %{
+
+%}

@@ -1,6 +1,7 @@
 extern "C" %{
-#include "dague_internal.h"
+#include "dague.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "touch.h"
 %}
 
 A          [type = "two_dim_block_cyclic_t*"]

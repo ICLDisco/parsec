@@ -17,7 +17,7 @@ module dague_f08_interfaces
     end type dague_context_t
 
 ABSTRACT INTERFACE
-SUBROUTINE dague_completion_cb(handle, cbdata) BIND(C)
+SUBROUTINE dague_event_cb(handle, cbdata) BIND(C)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR
     IMPORT dague_handle_t
     IMPLICIT NONE
@@ -81,16 +81,38 @@ FUNCTION dague_enqueue_f08(context, handle) &
 END FUNCTION dague_enqueue_f08
 END INTERFACE dague_enqueue_f08
 
-INTERFACE dague_progress_f08
-FUNCTION dague_progress_f08(context) &
-           BIND(C, name="dague_progress")
+INTERFACE dague_context_wait_f08
+FUNCTION dague_context_wait_f08(context) &
+           BIND(C, name="dague_context_wait")
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPORT dague_context_t
     IMPLICIT NONE
     TYPE(dague_context_t), VALUE, INTENT(IN)    :: context
-    INTEGER(KIND=c_int)                         :: dague_progress_f08
-END FUNCTION dague_progress_f08
-END INTERFACE dague_progress_f08
+    INTEGER(KIND=c_int)                         :: dague_context_wait_f08
+END FUNCTION dague_context_wait_f08
+END INTERFACE dague_context_wait_f08
+
+INTERFACE dague_context_start_f08
+FUNCTION dague_context_start_f08(context) &
+           BIND(C, name="dague_context_start")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPORT dague_context_t
+    IMPLICIT NONE
+    TYPE(dague_context_t), VALUE, INTENT(IN)    :: context
+    INTEGER(KIND=c_int)                         :: dague_context_start_f08
+END FUNCTION dague_context_start_f08
+END INTERFACE dague_context_start_f08
+
+INTERFACE dague_context_test_f08
+FUNCTION dague_context_test_f08(context) &
+           BIND(C, name="dague_context_test")
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPORT dague_context_t
+    IMPLICIT NONE
+    TYPE(dague_context_t), VALUE, INTENT(IN)    :: context
+    INTEGER(KIND=c_int)                         :: dague_context_test_f08
+END FUNCTION dague_context_test_f08
+END INTERFACE dague_context_test_f08
 
 INTERFACE  dague_set_complete_callback_f08
 SUBROUTINE dague_set_complete_callback_f08(handle, complete_cb, &
@@ -119,6 +141,34 @@ SUBROUTINE dague_get_complete_callback_f08(handle, complete_cb, &
     INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
 END SUBROUTINE dague_get_complete_callback_f08
 END INTERFACE  dague_get_complete_callback_f08
+
+INTERFACE  dague_set_enqueue_callback_f08
+SUBROUTINE dague_set_enqueue_callback_f08(handle, enqueue_cb, &
+                                          enqueue_data, ierr) &
+           BIND( C, name="dague_set_enqueue_callback_f08")
+    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
+    IMPORT dague_handle_t
+    IMPLICIT NONE
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(C_FUNPTR), INTENT(IN)              :: enqueue_cb
+    TYPE(C_PTR), INTENT(IN)                 :: enqueue_data
+    INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
+END SUBROUTINE dague_set_enqueue_callback_f08
+END INTERFACE  dague_set_enqueue_callback_f08
+
+INTERFACE  dague_get_enqueue_callback_f08
+SUBROUTINE dague_get_enqueue_callback_f08(handle, enqueue_cb, &
+                                          enqueue_data, ierr) &
+           BIND(C, name="dague_get_enqueue_callback_f08")
+    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
+    IMPORT dague_handle_t
+    IMPLICIT NONE
+    TYPE(dague_handle_t), VALUE, INTENT(IN) :: handle
+    TYPE(C_FUNPTR), INTENT(OUT)             :: enqueue_cb
+    TYPE(C_PTR), INTENT(OUT)                :: enqueue_data
+    INTEGER(KIND=C_INT), INTENT(OUT)        :: ierr
+END SUBROUTINE dague_get_enqueue_callback_f08
+END INTERFACE  dague_get_enqueue_callback_f08
 
 INTERFACE  dague_set_priority_f08
 SUBROUTINE dague_set_priority_f08(handle, priority, &
@@ -179,23 +229,43 @@ SUBROUTINE dague_enqueue(context, handle, ierr)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_enqueue
 
-SUBROUTINE dague_progress(context, ierr)
+SUBROUTINE dague_context_wait(context, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT
     IMPLICIT NONE
     TYPE(dague_context_t), INTENT(IN)          :: context
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     INTEGER(KIND=C_INT)                        :: c_err
 
-    c_err = dague_progress_f08(context)
+    c_err = dague_context_wait_f08(context)
     if(present(ierr)) ierr = c_err
-END SUBROUTINE dague_progress
+END SUBROUTINE dague_context_wait
+
+SUBROUTINE dague_context_start(context, ierr)
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPLICIT NONE
+    TYPE(dague_context_t), INTENT(IN)          :: context
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
+    INTEGER(KIND=C_INT)                        :: c_err
+
+    c_err = dague_context_start_f08(context)
+    if(present(ierr)) ierr = c_err
+END SUBROUTINE dague_context_start
+
+SUBROUTINE dague_context_test(context, ierr)
+    USE, intrinsic :: ISO_C_BINDING, only : C_INT
+    IMPLICIT NONE
+    TYPE(dague_context_t), INTENT(IN)          :: context
+    INTEGER(KIND=C_INT), INTENT(OUT)           :: ierr
+
+    ierr = dague_context_test_f08(context)
+END SUBROUTINE dague_context_test
 
 SUBROUTINE dague_set_complete_callback(handle, complete_cb, &
                                        complete_data, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
     IMPLICIT NONE
     TYPE(dague_handle_t)                       :: handle
-    PROCEDURE(dague_completion_cb), BIND(C)    :: complete_cb
+    PROCEDURE(dague_event_cb), BIND(C)         :: complete_cb
     TYPE(C_PTR), INTENT(IN)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
     TYPE(C_FUNPTR)                             :: c_fct
@@ -212,7 +282,7 @@ SUBROUTINE dague_get_complete_callback(handle, complete_cb, &
     USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
     IMPLICIT NONE
     TYPE(dague_handle_t)                        :: handle
-    PROCEDURE(dague_completion_cb), POINTER, INTENT(OUT) :: complete_cb
+    PROCEDURE(dague_event_cb), POINTER, INTENT(OUT) :: complete_cb
     TYPE(C_PTR), INTENT(OUT)                    :: complete_data
     INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
     TYPE(C_FUNPTR)                              :: c_fun
@@ -223,6 +293,40 @@ SUBROUTINE dague_get_complete_callback(handle, complete_cb, &
     call C_F_PROCPOINTER(c_fun, complete_cb)
     if(present(ierr)) ierr = c_err
 END SUBROUTINE dague_get_complete_callback
+
+SUBROUTINE dague_set_enqueue_callback(handle, enqueue_cb, &
+                                      enqueue_data, ierr)
+    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT, C_FUNPTR
+    IMPLICIT NONE
+    TYPE(dague_handle_t)                       :: handle
+    PROCEDURE(dague_event_cb), BIND(C)         :: enqueue_cb
+    TYPE(C_PTR), INTENT(IN)                    :: enqueue_data
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT) :: ierr
+    TYPE(C_FUNPTR)                             :: c_fct
+    INTEGER(KIND=C_INT)                        :: c_err
+
+    c_fct = C_FUNLOC(enqueue_cb)
+    call dague_set_enqueue_callback_f08(handle, c_fct, &
+                                        enqueue_data, c_err)
+    if(present(ierr)) ierr = c_err
+END SUBROUTINE dague_set_enqueue_callback
+
+SUBROUTINE dague_get_enqueue_callback(handle, enqueue_cb, &
+                                      enqueue_data, ierr)
+    USE, intrinsic :: ISO_C_BINDING, only : C_PTR, C_INT
+    IMPLICIT NONE
+    TYPE(dague_handle_t)                        :: handle
+    PROCEDURE(dague_event_cb), POINTER, INTENT(OUT) :: enqueue_cb
+    TYPE(C_PTR), INTENT(OUT)                    :: enqueue_data
+    INTEGER(KIND=C_INT), OPTIONAL, INTENT(OUT)  :: ierr
+    TYPE(C_FUNPTR)                              :: c_fun
+    INTEGER(KIND=C_INT)                         :: c_err
+
+    call dague_get_enqueue_callback_f08(handle, c_fun, &
+                                        enqueue_data, c_err)
+    call C_F_PROCPOINTER(c_fun, enqueue_cb)
+    if(present(ierr)) ierr = c_err
+END SUBROUTINE dague_get_enqueue_callback
 
 SUBROUTINE dague_set_priority(handle, priority, ierr)
     USE, intrinsic :: ISO_C_BINDING, only : C_INT

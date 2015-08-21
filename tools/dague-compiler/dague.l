@@ -170,7 +170,6 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
 <body_init>{WHITE}*\n {    current_lineno++;
                            YY_POP_STATE();
                            YY_PUSH_STATE(body);                            }
-^{WHITE}*(?i:body)    { YY_PUSH_STATE(body); }
 <body>^{WHITE}*(?i:end) { YY_POP_STATE();
                           YYLVAL(string) = extern_code(yytext, strlen(yytext) - 3, 1);
                           ECHO; return BODY_END;                           }

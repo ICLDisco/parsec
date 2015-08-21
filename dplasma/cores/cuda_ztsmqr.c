@@ -14,13 +14,14 @@
 #include <cuComplex.h>
 #endif
 #include "dague.h"
-#include "execution_unit.h"
-#include "scheduling.h"
 #include "dague/class/fifo.h"
-#include "datarepo.h"
+#include "dague/execution_unit.h"
+#include "dague/devices/cuda/dev_cuda.h"
+#include "dague/data_internal.h"
 #include "data_dist/matrix/matrix.h"
 #include "dague/utils/output.h"
 #include "cuda_ztsmqr.h"
+
 #include <cublas.h>
 
 #define flow_A1  0
@@ -201,7 +202,7 @@ gpu_kernel_push_ztsmqr( gpu_device_t            *gpu_device,
                               gpu_device->cuda_index, this_task->function->in[i]->name,
                               this_task->data[i].data_out->original->key));
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
-                                       &(this_task->data[i]), gpu_task, gpu_stream->cuda_stream );
+                                       &(this_task->data[i]), gpu_task, (dague_gpu_exec_stream_t*)gpu_stream->cuda_stream );
         if( ret < 0 ) {
             goto release_and_return_error;
         }

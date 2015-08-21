@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "dague_config.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "data.h"
+#include "dague/data_internal.h"
 
 int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, dague_complex64_t* A, int lda)
 {

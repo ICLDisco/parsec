@@ -12,23 +12,17 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/subtile.h"
-#include "recursive.h"
-#include "dplasma_zrecursive.h"
-#include "dplasma/cores/dplasma_zcores.h"
+#include "dague/recursive.h"
 
-#if defined(HAVE_CUDA)
-#include <dague/devices/cuda/dev_cuda.h>
+#include "dplasma_zrecursive.h"
 #include "dplasma/cores/cuda_ztsmqr.h"
-#endif  /* defined(HAVE_CUDA) */
 
 #define RECURSIVE_GEQRT
 #define RECURSIVE_TSQRT
 #define RECURSIVE_UNMQR
 #define RECURSIVE_TSMQR
-
-//#define DAGUE_DRY_RUN
-
 %}
 
 dataA   [type = "dague_ddesc_t *"]

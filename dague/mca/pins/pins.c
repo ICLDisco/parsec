@@ -1,22 +1,37 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 /* PaRSEC Performance Instrumentation Callback System */
+#include "dague_config.h"
 #include <stdlib.h>
-#include "pins.h"
-#include "debug.h"
+#include <assert.h>
+#include "dague/mca/pins/pins.h"
+#include "dague/debug.h"
+#include "dague/execution_unit.h"
 
 static int registration_disabled;
 
 parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
+//parsec_pins_callback * pins_callback_array[PINS_FLAG_COUNT] = {0};
 
-void parsec_instrument(PINS_FLAG method_flag,
-                       struct dague_execution_unit_s * exec_unit,
-                       struct dague_execution_context_s * task,
-                       void * data)
+void parsec_pins_instrument(struct dague_execution_unit_s* exec_unit,
+                            PINS_FLAG method_flag,
+                            struct dague_execution_context_s* task)
 {
-    (*(pins_array[method_flag]))(exec_unit, task, data);
+    assert( method_flag < PINS_FLAG_COUNT );
+
+    parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
+    while( NULL != cb_event->cb_func ) {
+        cb_event->cb_func(exec_unit, task, cb_event->cb_data);
+        cb_event = cb_event->cb_data;
+    }
 }
 
 /* convenience method provided 'just in case' */
-void pins_disable_registration(int disable)
+void parsec_pins_disable_registration(int disable)
 {
     if (disable) {
         DEBUG3(("PINS registration is disabled.\n"));
@@ -27,64 +42,63 @@ void pins_disable_registration(int disable)
 }
 
 /**
- The behavior of the PaRSEC PINS system is undefined if
- pins_register_callback is not called at least once before
- any call to parsec_instrument.
+ * Register a new callback for a particular PINS event. The provided cb_data
+ * must not be NULL, as it is used to chain the callback with all the previous
+ * ones.
  */
-parsec_pins_callback * pins_register_callback(PINS_FLAG method_flag, parsec_pins_callback * cb)
+int parsec_pins_register_callback(struct dague_execution_unit_s* exec_unit,
+                                  PINS_FLAG method_flag,
+                                  parsec_pins_callback cb_func,
+                                  struct parsec_pins_next_callback_s* cb_data)
 {
-    if (!pins_array[0]) {
-        int i = 0;
-        for (; i < PINS_FLAG_COUNT; i++) {
-            if (pins_array[i] == NULL)
-                pins_array[i] = &pins_empty_callback;
-        }
-        DEBUG(("Initialized PaRSEC PINS callbacks to empty_callback()"));
+    if( method_flag >= PINS_FLAG_COUNT ) {
+        DEBUG(("PINS register MUST called on a non valid type of event."));
+        return -1;
     }
-    if (method_flag < PINS_FLAG_COUNT) {
-        if (registration_disabled) {
-            DEBUG2(("NOTE: PINS has been disabled by command line argument, causing this registration to fail."));
-            return NULL;
-        }
-        else {
-            parsec_pins_callback * prev = pins_array[method_flag];
-            if (NULL == cb) /* ignore silently */
-                return prev;
-            else
-                pins_array[method_flag] = cb;
-            return prev;
-        }
+    if( NULL == cb_data ) {
+        DEBUG(("PINS registration MUST be called with a non-NULL data. Discard PINS module"));
+        return -1;
     }
-    else {
-        DEBUG(("WARNING: Attempted to use the invalid flag %d with PaRSEC Performance Instrumentation!\n", method_flag));
+    if (registration_disabled) {
+        DEBUG2(("NOTE: PINS has been disabled by command line argument, causing this registration to be ignored."));
+        return 0;
     }
-    return NULL;
+
+    parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
+
+    *cb_data = *cb_event;
+
+    cb_event->cb_func = cb_func;
+    cb_event->cb_data = cb_data;
+
+    return 0;
 }
 
-parsec_pins_callback * pins_unregister_callback(PINS_FLAG method_flag)
+int parsec_pins_unregister_callback(struct dague_execution_unit_s* exec_unit,
+                                    PINS_FLAG method_flag,
+                                    parsec_pins_callback cb,
+                                    struct parsec_pins_next_callback_s** cb_data)
 {
-    if (method_flag < PINS_FLAG_COUNT) {
-        if (registration_disabled) {
-            DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail."));
-            return NULL;
-        }
-        else {
-            parsec_pins_callback * prev = pins_array[method_flag];
-            pins_array[method_flag] = &pins_empty_callback;
-            return prev;
-        }
+    *cb_data = NULL;
+    if( method_flag >= PINS_FLAG_COUNT ) {
+        DEBUG(("PINS unregister MUST called on a non valid type of event."));
+        return -1;
     }
-    else {
-        DEBUG(("WARNING: Attempted to use the invalid flag %d with PaRSEC Performance Instrumentation!\n", method_flag));
+    if (registration_disabled) {
+        DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail."));
+        return -1;
     }
-    return NULL;
-}
 
-void pins_empty_callback(struct dague_execution_unit_s * exec_unit, struct dague_execution_context_s * task, void * data)
-{
-    // do nothing
-    (void) exec_unit;
-    (void) task;
-    (void) data;
+    parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
+    while( (NULL != cb_event->cb_data) && (cb != cb_event->cb_func) ) {
+        cb_event = cb_event->cb_data;
+    }
+    if( NULL == cb_event->cb_data ) {
+        DEBUG(("Unmatched call to PINS unregister"));
+        return -1;
+    }
+    assert(cb_event->cb_func == cb);
+    *cb_data = cb_event->cb_data;
+    *cb_event = **cb_data;
+    return 0;
 }
-

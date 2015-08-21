@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,11 +12,13 @@
 #include <stdarg.h>
 #include <assert.h>
 #include "precision.h"
-#include "data_distribution.h"
-#include "data.h"
-#include "vpmap.h"
+#include "dague/data_distribution.h"
+#include "dague/data.h"
+#include "dague/datatype.h"
 
 BEGIN_C_DECLS
+
+struct dague_execution_unit_s;
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
@@ -44,6 +46,26 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
     default:
         return -1;
     }
+}
+
+/**
+ * Convert from a matrix type to a more traditional PaRSEC type usable for
+ * creating arenas.
+ */
+static inline int dague_traslate_matrix_type( enum matrix_type mt, dague_datatype_t* dt )
+{
+    switch(mt) {
+    case matrix_Byte:          *dt = dague_datatype_int8_t; break;
+    case matrix_Integer:       *dt = dague_datatype_int32_t; break;
+    case matrix_RealFloat:     *dt = dague_datatype_float_t; break;
+    case matrix_RealDouble:    *dt = dague_datatype_double_t; break;
+    case matrix_ComplexFloat:  *dt = dague_datatype_complex_t; break;
+    case matrix_ComplexDouble: *dt = dague_datatype_double_complex_t; break;
+    default:
+        fprintf(stderr, "%s:%d Unknown matrix_type (%d)\n", __func__, __LINE__, mt);
+        return -1;
+    }
+    return 0;
 }
 
 #define tiled_matrix_desc_type        0x01
@@ -87,24 +109,16 @@ tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, 
 int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
 int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
 
-static inline int32_t tiled_matrix_get_vpid(tiled_matrix_desc_t *tdesc, int pos)
-{
-    assert( vpmap_get_nb_vp() > 0 );
-    assert( pos <= tdesc->nb_local_tiles );
-    (void)tdesc;
-    return pos % vpmap_get_nb_vp();
-}
-
 struct dague_execution_unit_s;
 typedef int (*dague_operator_t)( struct dague_execution_unit_s *eu, const void* src, void* dst, void* op_data, ... );
 
-typedef int (*tiled_matrix_unary_op_t )( dague_execution_unit_t *eu,
+typedef int (*tiled_matrix_unary_op_t )( struct dague_execution_unit_s *eu,
                                          const tiled_matrix_desc_t *desc1,
                                          void *data1,
                                          int uplo, int m, int n,
                                          void *args );
 
-typedef int (*tiled_matrix_binary_op_t)( dague_execution_unit_t *eu,
+typedef int (*tiled_matrix_binary_op_t)( struct dague_execution_unit_s *eu,
                                          const tiled_matrix_desc_t *desc1,
                                          const tiled_matrix_desc_t *desc2,
                                          const void *data1, void *data2,
@@ -120,20 +134,20 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
 extern void
 dague_map_operator_Destruct( dague_handle_t* o );
 
-extern struct dague_handle_t*
+extern dague_handle_t*
 dague_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t op,
                       void* op_data );
 
-extern void dague_reduce_col_Destruct( struct dague_handle_t *o );
+extern void dague_reduce_col_Destruct( dague_handle_t *o );
 
-extern struct dague_handle_t*
+extern dague_handle_t*
 dague_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       dague_operator_t op,
                       void* op_data );
-extern void dague_reduce_row_Destruct( struct dague_handle_t *o );
+extern void dague_reduce_row_Destruct( dague_handle_t *o );
 
 /*
  * Macro to get the block leading dimension

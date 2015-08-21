@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -26,30 +26,30 @@
 #include "dague/mca/pins/pins.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/utils/output.h"
-#include "data.h"
+#include "dague/data_internal.h"
 #include "dague/class/list.h"
-#include "scheduling.h"
+#include "dague/scheduling.h"
 #include "dague/class/barrier.h"
-#include "remote_dep.h"
-#include "datarepo.h"
-#include "bindthread.h"
-#include "dague_prof_grapher.h"
-#include "stats-internal.h"
-#include "vpmap.h"
+#include "dague/remote_dep.h"
+#include "dague/datarepo.h"
+#include "dague/bindthread.h"
+#include "dague/dague_prof_grapher.h"
+#include "dague/vpmap.h"
 #include "dague/utils/mca_param.h"
 #include "dague/utils/installdirs.h"
 #include "dague/devices/device.h"
 #include "dague/utils/cmd_line.h"
+#include "dague/utils/mca_param_cmd_line.h"
 
 #include "dague/mca/mca_repository.h"
 
 #ifdef DAGUE_PROF_TRACE
-#include "profiling.h"
+#include "dague/profiling.h"
 #endif
 
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
 #ifdef HAVE_HWLOC
-#include "hbbuffer.h"
+#include "dague/hbbuffer.h"
 #endif
 
 #ifdef HAVE_CUDA
@@ -70,6 +70,9 @@ int queue_add_begin, queue_add_end;
 int queue_remove_begin, queue_remove_end;
 #endif  /* defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS) */
 int device_delegate_begin, device_delegate_end;
+int arena_memory_alloc_key, arena_memory_free_key;
+int arena_memory_used_key, arena_memory_unused_key;
+int task_memory_alloc_key, task_memory_free_key;
 #endif  /* DAGUE_PROF_TRACE */
 
 #ifdef HAVE_HWLOC
@@ -184,12 +187,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->socket_id        = 0;
 #endif  /* defined(HAVE_HWLOC) */
 
-#if defined(PINS_ENABLE)
-    eu->starvation      = 0;
-#endif  /* defined(PINS_ENABLE) */
-
 #if defined(DAGUE_PROF_RUSAGE_EU)
-    eu-> _eu_rusage_first_call=1;
+    eu-> _eu_rusage_first_call = 1;
 #endif
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
@@ -227,12 +226,18 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         eu->datarepo_mempools[pi] = &(eu->virtual_process->datarepo_mempools[pi].thread_mempools[eu->th_id]);
 
 #ifdef DAGUE_PROF_TRACE
-    eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
-                                                  DAGUE_PROFILE_THREAD_STR,
-                                                  eu->th_id,
-                                                  eu->virtual_process->vp_id );
+    {
+        char *binding = dague_hwloc_get_binding();
+        eu->eu_profile = dague_profiling_thread_init( 2*1024*1024,
+                                                      DAGUE_PROFILE_THREAD_STR,
+                                                      eu->th_id,
+                                                      eu->virtual_process->vp_id,
+                                                      binding);
+        free(binding);
+    }
     if( NULL != eu->eu_profile ) {
-        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "boundto", startup->bindto);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "th_id", eu->th_id);
         PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
     }
 #endif /* DAGUE_PROF_TRACE */
@@ -251,7 +256,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         return NULL;
     }
 
-    return __dague_progress(eu);
+    return (void*)(long)__dague_context_wait(eu);
 }
 
 static void dague_vp_init( dague_vp_t *vp,
@@ -278,7 +283,7 @@ static void dague_vp_init( dague_vp_t *vp,
         if( 1 == pi )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
         else if( 1 < pi )
-            printf("multiple core to bind on... for now, do nothing\n");
+            fprintf(stderr, "multiple core to bind on... for now, do nothing\n");
     }
 }
 
@@ -311,6 +316,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     __dague_temporary_thread_initialization_t *startup;
     dague_context_t* context;
     dague_cmd_line_t *cmd_line = NULL;
+    char **environ = NULL;
+    char **env_variable, *env_name, *env_value;
 
     dague_debug_init(); /* First thing ever ! */
     dague_installdirs_open();
@@ -341,6 +348,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                              "Virtual process map");
     dague_cmd_line_make_opt3(cmd_line, 'H', "ht", "ht", 1,
                              "Enable hyperthreading");
+    dague_mca_cmd_line_setup(cmd_line);
 
     if( (NULL != pargc) && (0 != *pargc) ) {
         dague_app_name = strdup( (*pargv)[0] );
@@ -355,33 +363,46 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             dague_app_name = strdup( "app_name_XXXXXX" );
         }
     }
+
+    ret = dague_mca_cmd_line_process_args(cmd_line, &environ, &environ);
+    if( environ != NULL ) {
+        for(env_variable = environ;
+            *env_variable != NULL;
+            env_variable++) {
+            env_name = *env_variable;
+            for(env_value = env_name; *env_value != '\0' && *env_value != '='; env_value++)
+                /* nothing */;
+            if(*env_value == '=') {
+                *env_value = '\0';
+                env_value++;
+            }
+            setenv(env_name, env_value, 1);
+            free(*env_variable);
+        }
+        free(environ);
+    }
+
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
+
+    if( dague_cmd_line_is_taken(cmd_line, "ht") ) {
+#if defined(HAVE_HWLOC)
+        int hyperth = 0;
+        GET_INT_ARGV(cmd_line, "ht", hyperth);
+        dague_hwloc_allow_ht(hyperth);
+#else
+        fprintf(stderr, "Option ht (hyper-threading) is only supported when HWLOC is enabled.\n");
+#endif  /* defined(HAVE_HWLOC) */
+    }
 
     /* Set a default the number of cores if not defined by parameters
      * - with hwloc if available
      * - with sysconf otherwise (hyperthreaded core number)
      */
     if( nb_cores <= 0 ) {
-#if defined(HAVE_HWLOC)
         nb_cores = dague_hwloc_nb_real_cores();
-#else
-        nb_cores = sysconf(_SC_NPROCESSORS_ONLN);
-        if(nb_cores == -1) {
-            perror("sysconf(_SC_NPROCESSORS_ONLN)\n");
-            nb_cores = 1;
-        }
-#endif  /* defined(HAVE_HWLOC) */
     }
-
-#if defined(HAVE_HWLOC)
-    if( dague_cmd_line_is_taken(cmd_line, "ht") ) {
-        int hyperth = 0;
-        GET_INT_ARGV(cmd_line, "ht", hyperth);
-        dague_hwloc_allow_ht(hyperth);
-    }
-#endif  /* defined(HAVE_HWLOC) */
 
     if( dague_cmd_line_is_taken(cmd_line, "gpus") ) {
         fprintf(stderr, "Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.\n");
@@ -391,28 +412,40 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     GET_STR_ARGV(cmd_line, "dague_bind_comm", comm_binding_parameter);
     GET_STR_ARGV(cmd_line, "dague_bind", binding_parameter);
 
-    if( dague_cmd_line_is_taken(cmd_line, "vpmap") ) {
-        char* optarg = NULL;
-        GET_STR_ARGV(cmd_line, "vpmap", optarg);
-        if( !strncmp(optarg, "display", 7 )) {
-            display_vpmap = 1;
-        } else {
-            /* Change the vpmap choice: first cancel the previous one */
-            vpmap_fini();
-            if( !strncmp(optarg, "flat", 4) ) {
-                /* default case (handled in dague_init) */
-            } else if( !strncmp(optarg, "hwloc", 5) ) {
-                vpmap_init_from_hardware_affinity();
-            } else if( !strncmp(optarg, "file:", 5) ) {
-                vpmap_init_from_file(optarg + 5);
-            } else if( !strncmp(optarg, "rr:", 3) ) {
-                int n, p, co;
-                sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
-                vpmap_init_from_parameters(n, p, co);
+    /**
+     * Initializa the VPMAP, the discrete domains hosting
+     * execution flows but where work stealing is prevented.
+     */
+    {
+        /* Change the vpmap choice: first cancel the previous one if any */
+        vpmap_fini();
+
+        if( dague_cmd_line_is_taken(cmd_line, "vpmap") ) {
+            char* optarg = NULL;
+            GET_STR_ARGV(cmd_line, "vpmap", optarg);
+            if( !strncmp(optarg, "display", 7 )) {
+                display_vpmap = 1;
             } else {
-                fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s. Fallback to default!\n", optarg);
+                if( !strncmp(optarg, "flat", 4) ) {
+                    /* default case (handled in dague_init) */
+                } else if( !strncmp(optarg, "hwloc", 5) ) {
+                    vpmap_init_from_hardware_affinity(nb_cores);
+                } else if( !strncmp(optarg, "file:", 5) ) {
+                    vpmap_init_from_file(optarg + 5);
+                } else if( !strncmp(optarg, "rr:", 3) ) {
+                    int n, p, co;
+                    sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
+                    vpmap_init_from_parameters(n, p, co);
+                } else {
+                    fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s. Fallback to default!\n", optarg);
+                }
             }
+        } else {
+            /* Default case if vpmap has not been initialized */
+            if(vpmap_get_nb_vp() == -1)
+                vpmap_init_from_flat(nb_cores);
         }
+        nb_vp = vpmap_get_nb_vp();
     }
 
     if( dague_cmd_line_is_taken(cmd_line, "dot") ) {
@@ -426,11 +459,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             dague_enable_dot = strdup(optarg);
         }
     }
-    /* Default case if vpmap has not been initialized */
-    if(vpmap_get_nb_vp() == -1)
-        vpmap_init_from_flat(nb_cores);
-
-    nb_vp = vpmap_get_nb_vp();
 
     context = (dague_context_t*)malloc(sizeof(dague_context_t) + (nb_vp-1) * sizeof(dague_vp_t*));
 
@@ -501,15 +529,28 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #endif /* DAGUE_DEBUG_VERBOSE != 0 */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
+    /**
+     * Parameters defining the default ARENA behavior. Handle with care they can lead to
+     * significant memory consumption or to a significant overhead in memory management
+     * (allocation/deallocation). These values are only used by ARENAs constructed with
+     * the default constructor (not the extended one).
+     */
+    dague_mca_param_reg_sizet_name("arena", "max_used", "The maxmimum amount of memory each arena can"
+                                   " hold (0 for unlimited)",
+                                   false, false, dague_arena_max_allocated_memory, &dague_arena_max_allocated_memory);
+    dague_mca_param_reg_sizet_name("arena", "max_used", "The maxmimum amount of memory each arena can"
+                                   " cache (0 for unlimited)",
+                                   false, false, dague_arena_max_cached_memory, &dague_arena_max_cached_memory);
+
     dague_mca_param_reg_string_name("profile", "filename",
 #if defined(DAGUE_PROF_TRACE)
-                                 "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
-                                 false, false,
+                                    "Path to the profiling file (<none> to disable, <app> for app name, <*> otherwise)",
+                                    false, false,
 #else
-                                 "Path to the profiling file (unused due to profiling being turned off during building)",
-                                 false, true,  /* profiling disabled: read-only */
+                                    "Path to the profiling file (unused due to profiling being turned off during building)",
+                                    false, true,  /* profiling disabled: read-only */
 #endif  /* defined(DAGUE_PROF_TRACE) */
-                                 "<none>", &dague_enable_profiling);
+                                    "<none>", &dague_enable_profiling);
 #if defined(DAGUE_PROF_TRACE)
     if( (0 != strncasecmp(dague_enable_profiling, "<none>", 6)) && (0 == dague_profiling_init( )) ) {
         int i, l;
@@ -565,9 +606,22 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                                 0, NULL,
                                                 &queue_remove_begin, &queue_remove_end);
 #  endif /* DAGUE_PROF_TRACE_SCHEDULING_EVENTS */
+#if defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
+        dague_profiling_add_dictionary_keyword( "ARENA_MEMORY", "fill:#B9B243",
+                                                sizeof(size_t), "size{int64_t}",
+                                                &arena_memory_alloc_key, &arena_memory_free_key);
+        dague_profiling_add_dictionary_keyword( "ARENA_ACTIVE_SET", "fill:#B9B243",
+                                                sizeof(size_t), "size{int64_t}",
+                                                &arena_memory_used_key, &arena_memory_unused_key);
+#endif  /* defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET) */
+        dague_profiling_add_dictionary_keyword( "TASK_MEMORY", "fill:#B9B243",
+                                                sizeof(size_t), "size{int64_t}",
+                                                &task_memory_alloc_key, &task_memory_free_key);
         dague_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
+        /* Ready to rock! The profiling must be on by default */
+        dague_profiling_start();
     }
 #endif  /* DAGUE_PROF_TRACE */
 
@@ -659,7 +713,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     free(startup);
 
     /* Introduce communication thread */
-    context->nb_nodes = dague_remote_dep_init(context);
+    (void)dague_remote_dep_init(context);
     dague_statistics("DAGuE");
 
     AYU_INIT();
@@ -713,22 +767,46 @@ static void dague_vp_fini( dague_vp_t *vp )
 int dague_fini( dague_context_t** pcontext )
 {
     dague_context_t* context = *pcontext;
-    int nb_total_comp_threads, t, p, c;
+    int nb_total_comp_threads, p;
+
+    /**
+     * We need to force the main thread to drain all possible pending messages
+     * on the communication layer. This is not an issue in a distributed run,
+     * but on a single node run with MPI support, objects can be created (and
+     * thus context_id additions might be pending on the communication layer).
+     */
+#if defined(DISTRIBUTED)
+    if( (1 == dague_communication_engine_up) &&  /* engine enabled */
+        (context->nb_nodes == 1) &&  /* single node: otherwise the messages will
+                                      * be drained by the communication thread */
+        DAGUE_THREAD_IS_MASTER(context->virtual_processes[0]->execution_units[0]) ) {
+        /* check for remote deps completion */
+        dague_remote_dep_progress(context->virtual_processes[0]->execution_units[0]);
+    }
+#endif /* defined(DISTRIBUTED) */
+
+    /* Now wait until every thread is back */
+    context->__dague_internal_finalization_in_progress = 1;
+    dague_barrier_wait( &(context->barrier) );
+
+    PINS_THREAD_FINI(context->virtual_processes[0]->execution_units[0]);
 
     nb_total_comp_threads = 0;
     for(p = 0; p < context->nb_vp; p++) {
         nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
     }
 
-    /* Now wait until every thread is back */
-    context->__dague_internal_finalization_in_progress = 1;
-    dague_barrier_wait( &(context->barrier) );
-
-    for (p = 0; p < context->nb_vp; p++) {
-        for (c = 0; c < context->virtual_processes[p]->nb_cores; c++) {
-            PINS_THREAD_FINI(context->virtual_processes[p]->execution_units[c]);
+    /* The first execution unit is for the master thread */
+    if( nb_total_comp_threads > 1 ) {
+        for(p = 1; p < nb_total_comp_threads; p++) {
+            pthread_join( context->pthreads[p], NULL );
         }
+        free(context->pthreads);
+        context->pthreads = NULL;
     }
+    /* From now on all the thrteads have been shut-off, and they are supposed to
+     * have cleaned all their provate memory. Unleash the global cleaning process.
+     */
 
     PINS_FINI(context);
 
@@ -736,32 +814,23 @@ int dague_fini( dague_context_t** pcontext )
     dague_profiling_dbp_dump();
 #endif  /* DAGUE_PROF_TRACE */
 
-    /* The first execution unit is for the master thread */
-    if( nb_total_comp_threads > 1 ) {
-        for(t = 1; t < nb_total_comp_threads; t++) {
-            pthread_join( context->pthreads[t], NULL );
-        }
-        free(context->pthreads);
-        context->pthreads = NULL;
-    }
-
     (void) dague_remote_dep_fini(context);
 
     dague_remove_scheduler( context );
 
     dague_data_fini(context);
 
-    for(p = 0; p < context->nb_vp; p++) {
-        dague_vp_fini(context->virtual_processes[p]);
-        free(context->virtual_processes[p]);
-        context->virtual_processes[p] = NULL;
-    }
-
     dague_device_remove(dague_device_cpus);
     free(dague_device_cpus);
     dague_device_cpus = NULL;
 
     dague_devices_fini(context);
+
+    for(p = 0; p < context->nb_vp; p++) {
+        dague_vp_fini(context->virtual_processes[p]);
+        free(context->virtual_processes[p]);
+        context->virtual_processes[p] = NULL;
+    }
 
     AYU_FINI();
 #ifdef DAGUE_PROF_TRACE
@@ -873,20 +942,28 @@ dague_check_IN_dependencies_with_mask( const dague_handle_t *dague_handle,
             }
         } else {
             if( !(flow->flow_flags & FLOW_HAS_IN_DEPS) ) continue;
-            /* Data case: resolved only if we found a data already ready */
-            active = 0;
-            for( j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
-                dep = flow->dep_in[j];
-                if( NULL != dep->cond ) {
-                    /* Check if the condition apply on the current setting */
-                    assert( dep->cond->op == EXPR_OP_INLINE );
-                    if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) )
-                        continue;  /* doesn't match */
-                    /* the condition triggered let's check if it's for a data */
-                }  /* otherwise we have an input flow without a condition, it MUST be final */
-                if( 0xFF == dep->function_id )
-                    active = (1 << flow->flow_index);
-                break;
+            if( NULL == flow->dep_in[0] ) {
+                /** As the flow is tagged with FLOW_HAS_IN_DEPS and there is no
+                 * dep_in we are in the case where a write only dependency used
+                 * an in dependency to specify the arena where the data should
+                 * be allocated.
+                 */
+                active = (1 << flow->flow_index);
+            } else {
+                /* Data case: resolved only if we found a data already ready */
+                for( active = 0, j = 0; (j < MAX_DEP_IN_COUNT) && (NULL != flow->dep_in[j]); j++ ) {
+                    dep = flow->dep_in[j];
+                    if( NULL != dep->cond ) {
+                        /* Check if the condition apply on the current setting */
+                        assert( dep->cond->op == EXPR_OP_INLINE );
+                        if( 0 == dep->cond->inline_func32(dague_handle, exec_context->locals) )
+                            continue;  /* doesn't match */
+                        /* the condition triggered let's check if it's for a data */
+                    }  /* otherwise we have an input flow without a condition, it MUST be final */
+                    if( 0xFF == dep->function_id )
+                        active = (1 << flow->flow_index);
+                    break;
+                }
             }
         }
         ret |= active;
@@ -1148,25 +1225,14 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 #endif  /* defined(DAGUE_PROF_GRAPHER) */
 
     if( completed ) {
-        DAGUE_STAT_INCREASE(counter_nbtasks, 1ULL);
 
         /* This task is ready to be executed as all dependencies are solved.
          * Queue it into the ready_list passed as an argument.
          */
         {
             dague_execution_context_t* new_context;
-            dague_thread_mempool_t *mpool;
             new_context = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
-            /* this should not be copied over from the old execution context */
-            mpool = new_context->mempool_owner;
-            /* we copy everything but the dague_list_item_t at the beginning, to
-             * avoid copying uninitialized stuff from the stack
-             */
-            memcpy( ((char*)new_context) + sizeof(dague_list_item_t),
-                    ((char*)exec_context) + sizeof(dague_list_item_t),
-                    sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) );
-            new_context->mempool_owner = mpool;
-            DAGUE_STAT_INCREASE(mem_contexts, sizeof(dague_execution_context_t) + STAT_MALLOC_OVERHEAD);
+            DAGUE_COPY_EXECUTION_CONTEXT(new_context, exec_context);
             AYU_ADD_TASK(new_context);
 
             DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",
@@ -1190,12 +1256,8 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
                 DEBUG3(("  Task %s is immediate and will be executed ASAP\n", tmp1));
-                PINS(EXEC_BEGIN, eu_context, new_context, (void *)1);
                 __dague_execute(eu_context, new_context);
-                PINS(EXEC_END, eu_context, new_context, (void *)1);
-                PINS(COMPLETE_EXEC_BEGIN, eu_context, new_context, (void *)1);
                 __dague_complete_execution(eu_context, new_context);
-                PINS(COMPLETE_EXEC_END, eu_context, new_context, (void *)1);
 #if 0 /* TODO */
                 SET_HIGHEST_PRIORITY(new_context, dague_execution_context_priority_comparator);
                 DAGUE_LIST_ITEM_SINGLETON(&(new_context->list_item));
@@ -1371,11 +1433,11 @@ void dague_destruct_dependencies(dague_dependencies_t* d)
  *
  */
 int dague_set_complete_callback( dague_handle_t* dague_handle,
-                                 dague_completion_cb_t complete_cb, void* complete_cb_data )
+                                 dague_event_cb_t complete_cb, void* complete_cb_data )
 {
-    if( NULL == dague_handle->complete_cb ) {
-        dague_handle->complete_cb      = complete_cb;
-        dague_handle->complete_cb_data = complete_cb_data;
+    if( NULL == dague_handle->on_complete ) {
+        dague_handle->on_complete      = complete_cb;
+        dague_handle->on_complete_data = complete_cb_data;
         return 0;
     }
     return -1;
@@ -1385,11 +1447,39 @@ int dague_set_complete_callback( dague_handle_t* dague_handle,
  *
  */
 int dague_get_complete_callback( const dague_handle_t* dague_handle,
-                                 dague_completion_cb_t* complete_cb, void** complete_cb_data )
+                                 dague_event_cb_t* complete_cb, void** complete_cb_data )
 {
-    if( NULL != dague_handle->complete_cb ) {
-        *complete_cb      = dague_handle->complete_cb;
-        *complete_cb_data = dague_handle->complete_cb_data;
+    if( NULL != dague_handle->on_complete ) {
+        *complete_cb      = dague_handle->on_complete;
+        *complete_cb_data = dague_handle->on_complete_data;
+        return 0;
+    }
+    return -1;
+}
+
+/**
+ *
+ */
+int dague_set_enqueue_callback( dague_handle_t* dague_handle,
+                                dague_event_cb_t enqueue_cb, void* enqueue_cb_data )
+{
+    if( NULL == dague_handle->on_enqueue ) {
+        dague_handle->on_enqueue      = enqueue_cb;
+        dague_handle->on_enqueue_data = enqueue_cb_data;
+        return 0;
+    }
+    return -1;
+}
+
+/**
+ *
+ */
+int dague_get_enqueue_callback( const dague_handle_t* dague_handle,
+                                dague_event_cb_t* enqueue_cb, void** enqueue_cb_data )
+{
+    if( NULL != dague_handle->on_enqueue ) {
+        *enqueue_cb      = dague_handle->on_enqueue;
+        *enqueue_cb_data = dague_handle->on_enqueue_data;
         return 0;
     }
     return -1;
@@ -1514,10 +1604,12 @@ void dague_handle_free(dague_handle_t *handle)
 }
 
 /**< Decrease task number of the object by nb_tasks. */
-void dague_handle_dec_nbtask( dague_handle_t* handle, uint32_t nb_tasks )
+void dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks )
 {
-    assert( handle->nb_local_tasks >= nb_tasks );
-    dague_atomic_sub_32b((int32_t*)&handle->nb_local_tasks, (int32_t)nb_tasks);
+    int remaining;
+
+    remaining = dague_atomic_add_32b((int32_t*)&handle->nb_local_tasks, (int32_t)nb_tasks);
+    dague_check_complete_cb(handle, handle->context, remaining);
 }
 
 /**< Print DAGuE usage message */
@@ -1872,7 +1964,7 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
 /**
  * Array based local data handling.
  */
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 static uint32_t return_local_u(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
 static int32_t  return_local_s(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
 static dague_data_t* return_data(dague_ddesc_t *unused, ...) { (void)unused; return NULL; };
@@ -2077,4 +2169,37 @@ void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup,
                                                             show_complete );
     }
     dague_atomic_unlock( &object_array_lock );
+}
+
+/** deps is an array of size MAX_PARAM_COUNT
+ *  Returns the number of output deps on which there is a final output
+ */
+int dague_task_deps_with_final_output(const dague_execution_context_t *task,
+                                      const dep_t **deps)
+{
+    const dague_function_t *f;
+    const dague_flow_t  *flow;
+    const dep_t          *dep;
+    int fi, di, nbout = 0;
+
+    f = task->function;
+    for(fi = 0; fi < f->nb_flows && f->out[fi] != NULL; fi++) {
+        flow = f->out[fi];
+        if( ! (SYM_OUT & flow->sym_type ) )
+            continue;
+        for(di = 0; di < MAX_DEP_OUT_COUNT && flow->dep_out[di] != NULL; di++) {
+            dep = flow->dep_out[di];
+            if( dep->function_id != (uint8_t)-1 )
+                continue;
+            if( NULL != dep->cond ) {
+                assert( EXPR_OP_INLINE == dep->cond->op );
+                if( dep->cond->inline_func32(task->dague_handle, task->locals) )
+                    continue;
+            }
+            deps[nbout] = dep;
+            nbout++;
+        }
+    }
+
+    return nbout;
 }

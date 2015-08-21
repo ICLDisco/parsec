@@ -11,14 +11,11 @@
 #if defined(HAVE_MPI)
 #include <mpi.h>
 #endif
-#if defined(HAVE_HWLOC)
-#include "dague_hwloc.h"
-#endif
 
 #define DAGUE_LIFO_ALIGNMENT_DEFAULT 5
 #include "dague/class/lifo.h"
-#include "os-spec-timing.h"
-#include "bindthread.h"
+#include "dague/os-spec-timing.h"
+#include "dague/bindthread.h"
 
 static unsigned int NBELT = 8192;
 static unsigned int NBTIMES = 1000000;
@@ -226,9 +223,6 @@ int main(int argc, char *argv[])
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
     }
 #endif
-#if defined(HAVE_HWLOC)
-    dague_hwloc_init();
-#endif
     while( (ch = getopt(argc, argv, "c:n:N:h?")) != -1 ) {
         switch(ch) {
         case 'c':
@@ -341,9 +335,6 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
-#if defined(HAVE_HWLOC)
-    dague_hwloc_fini();
-#endif  /* HAVE_HWLOC_BITMAP */
 #if defined(HAVE_MPI)
     MPI_Finalized(&ch);
 #endif

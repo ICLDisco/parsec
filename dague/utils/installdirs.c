@@ -3,9 +3,9 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
- * 
+ *
  * Additional copyrights may follow
- * 
+ *
  * $HEADER$
  *
  */
@@ -94,7 +94,7 @@ dague_installdirs_windows(void)
          * always consider OMPI as 32 bit application.
          */
         if( ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\DAGUE", 0, KEY_READ, &dague_key) ||
-            ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\Wow6432Node\\DAGUE", 0, KEY_READ, &dague_key) ) {    
+            ERROR_SUCCESS == RegOpenKeyEx(HKEY_LOCAL_MACHINE, "Software\\Wow6432Node\\DAGUE", 0, KEY_READ, &dague_key) ) {
                 for( i = 0; true; i++) {
                 valueLength = 1024;
                 valueName[0] = '\0';
@@ -164,14 +164,16 @@ static int dague_installdirs_from_env(void)
 #define EXPAND_STRING(field)                                            \
     do {                                                                \
         if (NULL != (start_pos = strstr(retval, "${" #field "}"))) {    \
+            int rc;                                                     \
             tmp = retval;                                               \
             *start_pos = '\0';                                          \
             end_pos = start_pos + strlen("${" #field "}");              \
-            asprintf(&retval, "%s%s%s", tmp,                            \
+            rc = asprintf(&retval, "%s%s%s", tmp,                       \
                      dague_install_dirs.field + destdir_offset,         \
                      end_pos);                                          \
             free(tmp);                                                  \
             changed = true;                                             \
+            (void)rc;                                                   \
         }                                                               \
     } while (0)
 
@@ -189,11 +191,11 @@ dague_installdirs_expand_internal(const char* input, bool is_setup)
     char *destdir = NULL;
     size_t destdir_offset = 0;
 
-    /* This is subtle, and worth explaining.  
+    /* This is subtle, and worth explaining.
 
        If we substitute in any ${FIELD} values, we need to prepend it
        with the value of the $DAGUE_DESTDIR environment variable -- if
-       it is set.  
+       it is set.
 
        We need to handle at least three cases properly (assume that
        configure was invoked with --prefix=/opt/dague and no other
@@ -377,4 +379,3 @@ int dague_installdirs_close(void)
 
     return DAGUE_SUCCESS;
 }
-

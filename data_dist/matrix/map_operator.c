@@ -1,17 +1,19 @@
 /*
- * Copyright (c) 2011-2013 The University of Tennessee and The University
+ * Copyright (c) 2011-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague.h"
-#include "debug.h"
-#include "remote_dep.h"
+#include "dague/debug.h"
+#include "dague/remote_dep.h"
 #include "matrix.h"
-#include "dague_prof_grapher.h"
-#include "scheduling.h"
-#include "datarepo.h"
+#include "dague/dague_prof_grapher.h"
+#include "dague/scheduling.h"
+#include "dague/datarepo.h"
 #include "dague/devices/device.h"
+#include "dague/vpmap.h"
+#include "dague/data_internal.h"
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};
@@ -156,48 +158,19 @@ static inline int final_data_of_map_operator(dague_execution_context_t *this_tas
     return __flow_nb;
 }
 
-static inline int
-expr_of_p1_for_flow_of_map_operator_dep_in_fct(const dague_handle_t *__dague_handle_parent,
-                                                const assignment_t *assignments)
-{
-    (void)__dague_handle_parent;
-    return assignments[0].value;
-}
-
-static const expr_t expr_of_p1_for_flow_of_map_operator_dep_in = {
-    .op = EXPR_OP_INLINE,
-    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_in_fct }
-};
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
-    .call_params = {
-        &expr_of_p1_for_flow_of_map_operator_dep_in
-    }
+    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } }
 };
 
-static inline int
-expr_of_p1_for_flow_of_map_operator_dep_out_fct(const dague_handle_t *__dague_handle_parent,
-                                                 const assignment_t *assignments)
-{
-    (void)__dague_handle_parent;
-    return (assignments[0].value + 1);
-}
-static const expr_t expr_of_p1_for_flow_of_map_operator_dep_out = {
-    .op = EXPR_OP_INLINE,
-    .u_expr = { .inline_func_int32 = expr_of_p1_for_flow_of_map_operator_dep_out_fct }
-};
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .dep_index = 1,
     .flow = &flow_of_map_operator,
     .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
-    .call_params = {
-        &expr_of_p1_for_flow_of_map_operator_dep_out
-    }
 };
 
 static const dague_flow_t flow_of_map_operator = {

@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include "data_dist/matrix/precision.h"
 
+#define PRECISION_z
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #include <cuComplex.h>
 #endif  /* defined(PRECISION_z) || defined(PRECISION_c) */
@@ -31,16 +32,16 @@
 
 extern "C" void
 magmablas_zgemm_kernel_T_N_32_32_8_8_8_ssrfb2(int k, int n, int m,
-					       double *dt, int ldt,
-					       double *dwork, int ldwork,
-					       double *dwork1, int ldwork1,
-					       double *da1  , int lda1, CUstream stream);
+					       dague_complex64_t *dt, int ldt,
+					       dague_complex64_t *dwork, int ldwork,
+					       dague_complex64_t *dwork1, int ldwork1,
+					       dague_complex64_t *da1  , int lda1, CUstream stream);
 extern "C" void
 magmablas_zgemm_kernel_T_N_32_32_8_8_8_ssrfb(int k, int n, int m,
-					      double *v_ref, int ldv,
-					      double *da2_ref, int lda2,
-					      double *dwork, int ldwork,
-					      double *da1  , int lda1, CUstream stream);
+					      dague_complex64_t *v_ref, int ldv,
+					      dague_complex64_t *da2_ref, int lda2,
+					      dague_complex64_t *dwork, int ldwork,
+					      dague_complex64_t *da1  , int lda1, CUstream stream);
 
 extern "C" int
 GENERATE_SM_VERSION_NAME(ZSSRFB)(int m, int n, int *k, dague_complex64_t *dv, int *ldv,
@@ -109,6 +110,13 @@ GENERATE_SM_VERSION_NAME(ZSSRFB)(int m, int n, int *k, dague_complex64_t *dv, in
 	    The leading dimension of the array WORK. LDWORK >= max(1,2*K);
 
     ===================================================================      */
+#if defined(PRECISION_z) || defined(PRECISION_c)
+  cuDoubleComplex mone = make_cuDoubleComplex(-1., 0.),
+                  one = make_cuDoubleComplex(1., 0.);
+#else
+  double mone = -1.,
+         one = 1.;
+#endif
 
   #define dwork_ref(a_1,a_2) (dwork+(a_2)*(*ldwork) + a_1)
   #define da2_ref(a_1,a_2)   (da2+(a_2)*(*lda2) + a_1)
@@ -162,8 +170,8 @@ GENERATE_SM_VERSION_NAME(ZSSRFB)(int m, int n, int *k, dague_complex64_t *dv, in
   /* 5. A2 = A2 - V (dwork+k) */
   // start = get_current_time();
   cublasSetKernelStream( stream );
-  cublasZgemm('n', 'n', m, n, *k, -1.f, (cuDoubleComplex*)dv_ref(0, 0), *ldv,
-	      (cuDoubleComplex*)dwork+(*k), *ldwork, 1.f, (cuDoubleComplex*)da2_ref(0,0), *lda2);
+  cublasZgemm('n', 'n', m, n, *k, mone, (cuDoubleComplex*)dv_ref(0, 0), *ldv,
+	      (cuDoubleComplex*)dwork+(*k), *ldwork, one, (cuDoubleComplex*)da2_ref(0,0), *lda2);
   // end = get_current_time();
   // printf("%5.2f \n", 2.*m*n*(*k)/(1000000.*GetTimerValue(start,end)));
 

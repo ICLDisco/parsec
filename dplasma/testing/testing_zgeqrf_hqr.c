@@ -106,7 +106,7 @@ int main(int argc, char ** argv)
     /* lets rock! */
     SYNC_TIME_START();
     TIME_START();
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     SYNC_TIME_PRINT(rank,
                     ("zgeqrf HQR computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %f gflops\n",

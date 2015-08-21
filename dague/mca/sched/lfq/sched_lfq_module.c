@@ -11,8 +11,8 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
-#include "debug.h"
+#include "dague/dague_internal.h"
+#include "dague/debug.h"
 #include "dague/class/dequeue.h"
 
 #include "dague/mca/sched/sched.h"
@@ -20,6 +20,7 @@
 #include "dague/mca/sched/lfq/sched_lfq.h"
 #include "dague/class/dequeue.h"
 #include "dague/mca/pins/pins.h"
+#include "dague/dague_hwloc.h"
 
 static int SYSTEM_NEIGHBOR = 0;
 

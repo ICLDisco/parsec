@@ -3,7 +3,6 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dague_internal.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/subtile.h"
 

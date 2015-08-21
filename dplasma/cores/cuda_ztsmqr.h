@@ -10,12 +10,7 @@
 #ifndef _cuda_ztsmqr_h_
 #define _cuda_ztsmqr_h_
 
-#include "dague_config.h"
-#include <dague/devices/cuda/dev_cuda.h>
 #include "dague.h"
-#include "execution_unit.h"
-#include "scheduling.h"
-#include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
 
 int gpu_kernel_init_ztsmqr( dague_context_t* dague_context );

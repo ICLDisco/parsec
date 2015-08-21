@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -24,17 +24,19 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <pthread.h>
 
-#include "profiling.h"
-#include "dbp.h"
-#include "data_distribution.h"
-#include "debug.h"
+#include "dague/profiling.h"
+#include "dague/dague_binary_profile.h"
+#include "dague/data_distribution.h"
+#include "dague/debug.h"
 #include "dague/class/fifo.h"
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
+#include "dague/os-spec-timing.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-#define MINIMAL_EVENT_BUFFER_SIZE          (1024*1024)
+#define MINIMAL_EVENT_BUFFER_SIZE          (10*sysconf(_SC_PAGESIZE))
 #ifndef HOST_NAME_MAX
 #if defined(MAC_OS_X)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
@@ -89,6 +91,7 @@ static int file_backend_extendable;
 
 static dague_profiling_binary_file_header_t *profile_head = NULL;
 static char *bpf_filename = NULL;
+static pthread_key_t thread_specific_profiling_key;
 
 static void set_last_error(const char *format, ...)
 {
@@ -135,6 +138,8 @@ int dague_profiling_init( void )
 
     if( __profile_initialized ) return -1;
 
+    pthread_key_create(&thread_specific_profiling_key, NULL);
+
     OBJ_CONSTRUCT( &threads, dague_list_t );
 
     dague_prof_keys = (dague_profiling_key_t*)calloc(128, sizeof(dague_profiling_key_t));
@@ -149,9 +154,6 @@ int dague_profiling_init( void )
 
     assert( sizeof(dague_profiling_binary_file_header_t) < event_buffer_size );
 
-    /* default start time is time of call of profiling init.
-     * Can be reset once explicitly by the user. */
-    dague_profiling_start();
     /**
      * As we called the _start function automatically, the timing will be
      * based on this moment. By forcing back the __already_called to 0, we
@@ -160,17 +162,6 @@ int dague_profiling_init( void )
      */
     __already_called = 0;
     dague_profile_enabled = 1;  /* turn on the profiling */
-
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    {
-        /* shared timestamp allows grouping profiles from different nodes */
-        unsigned long long int timestamp = (unsigned long long int)dague_start_time.tv_sec;
-        MPI_Bcast(&timestamp, 1, MPI_LONG_LONG, 0, MPI_COMM_WORLD);
-        PROFILING_SAVE_uint64INFO("start_time", timestamp);
-    }
-#else
-    PROFILING_SAVE_uint64INFO("start_time", dague_start_time.tv_sec);
-#endif /* DISTRIBUTED && HAVE_MPI */
 
     /* add the hostname, for the sake of explicit profiling */
     char buf[HOST_NAME_MAX];
@@ -230,6 +221,10 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
     int rc; (void)rc;
 
     if( !__profile_initialized ) return NULL;
+    if( -1 == file_backend_fd ) {
+        set_last_error("Profiling system: dague_profiling_thread_init: call before dague_profiling_dbp_start");
+        return NULL;
+    }
     /** Remark: maybe calloc would be less perturbing for the measurements,
      *  if we consider that we don't care about the _init phase, but only
      *  about the measurement phase that happens later.
@@ -240,6 +235,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
         fprintf(stderr, "*** %s\n", dague_profiling_strerror());
         return NULL;
     }
+    pthread_setspecific(thread_specific_profiling_key, res);
 
     OBJ_CONSTRUCT(res, dague_list_item_t);
     va_start(ap, format);
@@ -498,7 +494,7 @@ dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
     size_t this_event_length;
     dague_time_t now;
 
-    if( -1 == file_backend_fd ) {
+    if( (-1 == file_backend_fd) || (!start_called) ) {
         return -1;
     }
 
@@ -532,10 +528,23 @@ dague_profiling_trace_flags(dague_thread_profiling_t* context, int key,
     return 0;
 }
 
-int dague_profiling_trace( dague_thread_profiling_t* context, int key,
-                           uint64_t event_id, uint32_t handle_id, void *info )
+int
+dague_profiling_ts_trace_flags(int key,
+                               uint64_t event_id, uint32_t object_id,
+                               void *info, uint16_t flags)
 {
-    return dague_profiling_trace_flags( context, key, event_id, handle_id, info, 0 );
+    dague_thread_profiling_t* context = (dague_thread_profiling_t*)
+        pthread_getspecific(thread_specific_profiling_key);
+    return dague_profiling_trace_flags(context, key, event_id, object_id,
+                                       info, flags);
+}
+
+int dague_profiling_ts_trace(int key, uint64_t event_id, uint32_t object_id, void *info)
+{
+    dague_thread_profiling_t* context = (dague_thread_profiling_t*)
+        pthread_getspecific(thread_specific_profiling_key);
+    return dague_profiling_trace_flags(context, key, event_id, object_id,
+                                       info, 0);
 }
 
 static int64_t dump_global_infos(int *nbinfos)
@@ -753,6 +762,10 @@ static int64_t dump_thread(int *nbth)
         it != DAGUE_LIST_ITERATOR_END( &threads );
         it = DAGUE_LIST_ITERATOR_NEXT( it ) ) {
         thread = (dague_thread_profiling_t*)it;
+
+        if(thread->nb_events == 0)
+            continue; /** We don't store threads with no events at all */
+
         th_size = thread_size(thread);
 
         if( pos + th_size >= event_avail_space ) {
@@ -819,6 +832,10 @@ int dague_profiling_dbp_dump( void )
         set_last_error("Profiling system: User Error: dague_profiling_dbp_dump before dague_profiling_dbp_start()");
         return -1;
     }
+    if( NULL == profile_head ) {
+        set_last_error("Profiling system: User Error: dague_profiling_dbp_dump before dague_profiling_dbp_start()");
+        return -1;
+    }
 
     /* Flush existing events buffer, unconditionally */
     DAGUE_LIST_ITERATOR(&threads, it, {
@@ -875,8 +892,12 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
 #if defined(HAVE_MPI)
     char *unique_str;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+    int MPI_ready;
+    (void)MPI_Initialized(&MPI_ready);
+    if(MPI_ready) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
+    }
 #endif
 
     if( !__profile_initialized ) return -1;

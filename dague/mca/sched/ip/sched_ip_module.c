@@ -11,8 +11,8 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
-#include "debug.h"
+#include "dague/dague_internal.h"
+#include "dague/debug.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/mca/sched/ip/sched_ip.h"
 #include "dague/class/dequeue.h"
@@ -62,13 +62,14 @@ static int flow_ip_init(dague_execution_unit_t* eu_context, struct dague_barrier
 
 static dague_execution_context_t *sched_ip_select( dague_execution_unit_t *eu_context )
 {
-	dague_execution_context_t * context =
-		(dague_execution_context_t*)dague_list_pop_back((dague_list_t*)eu_context->scheduler_object);
-	if (NULL != context)
+    dague_execution_context_t * context =
+        (dague_execution_context_t*)dague_list_pop_back((dague_list_t*)eu_context->scheduler_object);
+
 #if defined(PINS_ENABLE)
-		context->victim_core = SYSTEM_NEIGHBOR;
+    if (NULL != context)
+        context->victim_core = SYSTEM_NEIGHBOR;
 #endif
-	return context;
+    return context;
 }
 
 static int sched_ip_schedule( dague_execution_unit_t* eu_context,

@@ -3,7 +3,7 @@
  * Copyright (c) 2004-2007 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2013 The University of Tennessee and The University
+ * Copyright (c) 2004-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -64,8 +64,10 @@
  * The types of MCA parameters.
  */
 typedef enum {
-    /** The parameter is of type integer. */
+    /** The parameter is of type signed integer. */
     DAGUE_MCA_PARAM_TYPE_INT,
+    /** The parameter is of type size_t. */
+    DAGUE_MCA_PARAM_TYPE_SIZET,
     /** The parameter is of type string. */
     DAGUE_MCA_PARAM_TYPE_STRING,
 
@@ -190,7 +192,7 @@ DAGUE_DECLSPEC int dague_mca_param_recache_files(void);
  *
  * @retval DAGUE_ERROR Upon failure to register the parameter.
  * @retval index Index value that can be used with
- * dague_mca_param_lookup_string() to retrieve the value of the
+ * dague_mca_param_lookup_int() to retrieve the value of the
  * parameter.
  *
  * Note that the type should always be a framework or a level name
@@ -215,6 +217,55 @@ DAGUE_DECLSPEC int dague_mca_param_recache_files(void);
                               bool read_only,
                               int default_value,
                               int *current_value);
+
+/**
+ * Register a size_t MCA parameter that is not associated with a
+ * component.
+ *
+ * @param type [in] Although this parameter is not associated with
+ * a component, it still must have a string type name that will
+ * act as a prefix (string).
+ * @param param_name [in] The name of the parameter being
+ * registered (string).
+ * @param help_msg [in] A string describing the use and valid
+ * values of the parameter (string).
+ * @param internal [in] Indicates whether the parameter is internal
+ * (i.e., not to be shown to users) or not (bool).
+ * @param read_only [in] Indicates whether the parameter value can
+ * ever change (bool).
+ * @param default_value [in] The value that is used for this
+ * parameter if the user does not supply one.
+ * @param current_value [out] After registering the parameter, look
+ * up its current value and return it unless current_value is
+ * NULL.
+ *
+ * @retval DAGUE_ERROR Upon failure to register the parameter.
+ * @retval index Index value that can be used with
+ * dague_mca_param_lookup_size_t() to retrieve the value of the
+ * parameter.
+ *
+ * Note that the type should always be a framework or a level name
+ * (e.g., "btl" or "mpi") -- it should not include the component
+ * name, even if the component is the base of a framework.  Hence,
+ * "btl_base" is not a valid type name.  Specifically, registering
+ * a parameter with an unrecognized type is not an error, but
+ * ompi_info has a hard-coded list of frameworks and levels;
+ * parameters that have recongized types, although they can be
+ * used by the user, will not be displayed by ompi_info.
+ *
+ * Note that if you use dague_mca_param_find() to lookup the index
+ * of the registered parameter, the "component" argument should be
+ * NULL (because it is not specified in this registration
+ * function, and is therefore registered with a NULL value).
+ */
+ DAGUE_DECLSPEC int
+ dague_mca_param_reg_sizet_name(const char *type,
+                                const char *param_name,
+                                const char *help_msg,
+                                bool internal,
+                                bool read_only,
+                                size_t default_value,
+                                size_t *current_value);
 
 /**
  * Register a string MCA parameter that is not associated with a
@@ -323,6 +374,24 @@ DAGUE_DECLSPEC int dague_mca_param_deregister(int index);
 DAGUE_DECLSPEC int dague_mca_param_lookup_int(int index, int *value);
 
 /**
+ * Look up a size_t MCA parameter.
+ *
+ * @param index Index previous returned from
+ * mca_param_reg_sizet().
+ * @param value Pointer to int where the parameter value will be
+ * stored.
+ *
+ * @return DAGUE_ERROR Upon failure.  The contents of value are
+ * undefined.
+ * @return DAGUE_SUCCESS Upon success.  value will be filled with the
+ * parameter's current value.
+ *
+ * The value of a specific MCA parameter can be looked up using the
+ * return value from mca_param_reg_sizet().
+ */
+DAGUE_DECLSPEC int dague_mca_param_lookup_sizet(int index, size_t *value);
+
+/**
  * Look up a string MCA parameter.
  *
  * @param index Index previous returned from
@@ -389,6 +458,26 @@ dague_mca_param_lookup_source(int index,
 DAGUE_DECLSPEC int dague_mca_param_set_int(int index, int value);
 
 /**
+ * Sets an "override" value for a size_t MCA parameter.
+ *
+ * @param index [in] Index of MCA parameter to set
+ * @param value [in] The size_t value to set
+ *
+ * @retval DAGUE_ERROR If the parameter was not found.
+ * @retval DAGUE_SUCCESS Upon success.
+ *
+ * This function sets a size_t value on the MCA parameter
+ * indicated by the index value index.  This value will be used in
+ * lieu of any other value from any other MCA source (environment
+ * variable, file, etc.) until the value is unset with
+ * mca_param_unset().
+ *
+ * This function may be invoked multiple times; each time, the
+ * last "set" value is replaced with the newest value.
+ */
+DAGUE_DECLSPEC int dague_mca_param_set_sizet(int index, size_t value);
+
+/**
  * Sets an "override" value for an string MCA parameter.
  *
  * @param index [in] Index of MCA parameter to set
@@ -414,7 +503,7 @@ DAGUE_DECLSPEC int dague_mca_param_set_string(int index, char *value);
 
 /**
  * Unset a parameter that was previously set by
- * dague_mca_param_set_int() or dague_mca_param_set_string().
+ * dague_mca_param_set_*().
  *
  * @param index [in] Index of MCA parameter to set
  *
@@ -454,10 +543,10 @@ DAGUE_DECLSPEC char *dague_mca_param_env_var(const char *param_name);
  * It is not always convenient to widely propagate a parameter's index
  * value, or it may be necessary to look up the parameter from a
  * different component -- where it is not possible to have the return
- * value from mca_param_reg_int() or mca_param_reg_string().
+ * value from mca_param_reg_*().
  * This function can be used to look up the index of any registered
  * parameter.  The returned index can be used with
- * dague_mca_param_lookup_int() and dague_mca_param_lookup_string().
+ * dague_mca_param_lookup_*().
  */
 DAGUE_DECLSPEC int
 dague_mca_param_find(const char *type,
@@ -485,6 +574,28 @@ dague_mca_param_find_int_name(const char *type,
                               const char *param_name,
                               char **env,
                               int *current_value);
+
+/**
+ * Find an MCA parameter (in an env array) that is not associated with a
+ * component.
+ *
+ * @param type [in] Although this parameter is not associated with
+ * a component, it still must have a string type name that will
+ * act as a prefix (string).
+ * @param param_name [in] The name of the parameter being
+ * registered (string).
+ * @param env [in] NULL-terminated list of strings (e.g., from an environment).
+ * @param current_value [out] Return the current value (if found).
+ *
+ * @retval DAGUE_ERROR If the parameter was not found.
+ *
+ * Look for a specific MCA parameter in an environment and return its value
+ */
+DAGUE_DECLSPEC int
+dague_mca_param_find_sizet_name(const char *type,
+                                const char *param_name,
+                                char **env,
+                                size_t *current_value);
 
 /**
  * Find a string MCA parameter (in an env array) that is not associated with a
@@ -548,7 +659,7 @@ dague_mca_param_check_exclusive_string(const char *type_a,
  * Set the "internal" flag on an MCA parameter to true or false.
  *
  * @param index [in] Index previous returned from
- * mca_param_reg_string() or mca_param_reg_int().
+ * mca_param_reg_*().
  * @param internal [in] Boolean indicating whether the MCA
  * parameter is internal (private) or public.
  *
@@ -581,9 +692,9 @@ dague_mca_param_set_internal(int index, bool internal);
  * This function is used to obtain a list of all the currently
  * registered MCA parameters along with their associated types
  * (currently: string or integer).  The results from this function
- * can be used to repeatedly invoke dague_mca_param_lookup_int()
- * and/or mca_param_lookup_string() to obtain a comprehensive
- * list of all MCA parameters and their current values.
+ * can be used to repeatedly invoke dague_mca_param_lookup_*()
+ * to obtain a comprehensive list of all MCA parameters and
+ * their current values.
  *
  * Releasing the list, and all the items in the list, is a
  * relatively complicated process.  Use the companion function

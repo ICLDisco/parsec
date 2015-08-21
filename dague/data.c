@@ -1,16 +1,16 @@
 /*
- * Copyright (c) 2012-2014 The University of Tennessee and The University
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#include "data.h"
+#include "dague_config.h"
 #include "dague/class/lifo.h"
-#include <dague/constants.h>
-#include <dague/devices/device.h>
-#include <dague/utils/output.h>
-#include "data.h"
-#include "arena.h"
+#include "dague/constants.h"
+#include "dague/devices/device.h"
+#include "dague/utils/output.h"
+#include "dague/data_internal.h"
+#include "dague/arena.h"
 
 static dague_lifo_t dague_data_lifo;
 static dague_lifo_t dague_data_copies_lifo;
@@ -38,7 +38,7 @@ static void dague_data_copy_destruct(dague_data_copy_t* obj)
     /* If the copy is still attached to a data we should detach it first */
     if( NULL != obj->original) {
         dague_data_copy_detach(obj->original, obj, obj->device_index);
-        obj->original = NULL;
+        assert( NULL == obj->original );
     }
 
     if( obj->flags & DAGUE_DATA_FLAG_ARENA ) {
@@ -286,7 +286,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
 #if defined(DAGUE_DEBUG_ENABLE)
             else {
                 assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
-                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state 
+                     || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state
                      || copy->data_transfer_status );
                 assert( data->device_copies[i]->version <= copy->version );
             }
@@ -377,4 +377,57 @@ void dague_dump_data(dague_data_t* data)
         if( NULL != data->device_copies[i])
             dague_dump_data_copy(data->device_copies[i]);
     }
+}
+
+dague_data_copy_t*
+dague_data_get_copy(dague_data_t* data, uint32_t device)
+{
+    return DAGUE_DATA_GET_COPY(data, device);
+}
+
+void dague_data_copy_release(dague_data_copy_t* copy)
+{
+    /* TODO: Move the copy back to the CPU before destroying it */
+    DAGUE_DATA_COPY_RELEASE(copy);
+}
+
+void* dague_data_copy_get_ptr(dague_data_copy_t* data)
+{
+    return DAGUE_DATA_COPY_GET_PTR(data);
+}
+
+dague_data_t *
+dague_data_get( dague_data_t **holder,
+                dague_ddesc_t *desc,
+                dague_data_key_t key, void *ptr, size_t size )
+{
+    dague_data_t *data = *holder;
+
+    if( NULL == data ) {
+        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
+        data = OBJ_NEW(dague_data_t);
+
+        data_copy->coherency_state = DATA_COHERENCY_OWNED;
+        data_copy->device_private = ptr;
+
+        data->owner_device = 0;
+        data->key = key;
+        data->ddesc = desc;
+        data->nb_elts = size;
+        dague_data_copy_attach(data, data_copy, 0);
+
+        if( !dague_atomic_cas(holder, NULL, data) ) {
+            dague_data_copy_detach(data, data_copy, 0);
+            OBJ_RELEASE(data_copy);
+            data = *holder;
+        }
+    } else {
+        /* Do we have a copy of this data */
+        if( NULL == data->device_copies[0] ) {
+            dague_data_copy_t* data_copy = dague_data_copy_new(data, 0);
+            data_copy->device_private = ptr;
+        }
+    }
+    assert( data->key == key );
+    return data;
 }

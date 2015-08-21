@@ -36,7 +36,7 @@ class ParsecTraceTables(object):
     core DataFrame (2D matrix/table) object names:
         events
         nodes
-        threads
+        streams
         errors (similar to events, but populated with broken/invalid events)
 
     core Series (1D; dictionary) object names:
@@ -67,27 +67,24 @@ class ParsecTraceTables(object):
 
     """
     class_version = 1.0 # created 2013.10.22 after move to pandas
-    basic_event_columns = ['node_id', 'thread_id',  'handle_id', 'type',
-                           'begin', 'end', 'duration', 'flags', 'id']
-    HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes',
-                           'nodes', 'threads', 'information', 'errors']
+    HDF_TOP_LEVEL_NAMES = ['event_types', 'event_names', 'event_attributes', 'event_convertors',
+                           'nodes', 'streams', 'information', 'errors']
 
     # the init function should not ordinarily be used
     # it is better to use from_hdf(), from_native(), or autoload()
-    def __init__(self, events, event_types, event_names, event_attributes,
-                 nodes, threads, information, errors):
+    def __init__(self, events, event_types, event_names, event_attributes, event_convertors,
+                 nodes, streams, information, errors):
         self.__version__ = self.__class__.class_version
         # core data
         self.events = events
         self.event_types = event_types
         self.event_names = event_names
         self.event_attributes = event_attributes
+        self.event_convertors = event_convertors
         self.nodes = nodes
-        self.threads = threads
+        self.streams = streams
         self.information = information
         self.errors = errors
-        # metadata
-        self.basic_columns = ParsecTraceTables.basic_event_columns
 
     def to_hdf(self, filename, table=False, append=False, overwrite=True,
                complevel=0, complib='blosc'):
@@ -108,14 +105,15 @@ class ParsecTraceTables(object):
         this allows certain 'known' attribute abbreviations (e.g. 'NB -> PARAM_NB)
         and automatically searches the 'information' dictionary """
         try:
-            return nice_val(self.information, unalias_key(self.information, name))
+            return self.information[unalias_key(self.information, name)]
         except:
             return object.__getattribute__(self, name)
     def __getitem__(self, name):
         return self.__getattr__(name)
 
     def __repr__(self):
-        return describe_dict(self.information)
+        return describe_dict(self.information, sep=' ') + '\nAvailable information tables ' + \
+            ' '.join(self.HDF_TOP_LEVEL_NAMES) + '\nAvailable events ' + ' '.join([i for i in self.event_names])
 
     def name(self, infos=default_descriptors, add_infos=None):
         """ Returns a dash-separated description of the basic trace info.
@@ -163,14 +161,12 @@ def from_hdf(filename, skeleton_only=False, keep_store=False):
         events = store['events']
     else:
         events = pd.DataFrame()
-    try:
-        for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
+    for name in ParsecTraceTables.HDF_TOP_LEVEL_NAMES:
+        try:
             top_level.append(store[name])
-    except KeyError as ke:
-        print(filename)
-        print(ke)
-        print(store['information']) # hopefully this doesn't also raise...
-        raise ke
+        except KeyError as ke:
+            print('Failed to find column named {} in file {}. Adding an empty column.'.format(name, filename))
+            top_level.append(name)
 
     trace = ParsecTraceTables(events, *top_level)
     if keep_store:
@@ -216,7 +212,7 @@ def alias_info_on_load(trace):
 
     try:
         if info.exe.endswith('potrf'):
-            nice_val(info, 'POTRF_PRI_CHANGE')
+            info['POTRF_PRI_CHANGE']
     except KeyError as ke:
         info['POTRF_PRI_CHANGE'] = 0
 
@@ -258,7 +254,7 @@ def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
             used_keys.append(real_key)
             # get the value before we add the key to the description,
             # in case the key isn't present and we raise an exception
-            value = nice_val(dict_, real_key)
+            value = dict_[real_key]
 
             if include_key and key_length > 0:
                 description += '{}'.format(key[:key_length].lower())
@@ -276,18 +272,6 @@ def describe_dict(dict_, keys=default_descriptors, sep=' ', key_val_sep=None,
             pass # key doesn't exist - just ignore
     return description[:-len(sep)] # remove last 'sep'
 
-
-def nice_val(dict_, key):
-    """ Edits return values for common usage. """
-    if key == 'exe':
-        m = re.match('.*testing_(\w+)', dict_[key])
-        return m.group(1)
-    if key == 'hostname':
-        return dict_[key].split('.')[0]
-    else:
-        return dict_[key]
-
-
 def find_trace_sets(traces, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sched', 'exe', 'hostname'] ):
     trace_sets = dict()
     for trace in traces:
@@ -304,7 +288,7 @@ def find_trace_sets(traces, on=['cmdline']): #['N', 'M', 'NB', 'MB', 'IB', 'sche
 def automerge_trace_sets(trace_sets):
     """ Given a list of trace lists, returns a list of merged traces.
 
-    Merges only the events, threads, and nodes, along with the top-level "information" struct.
+    Merges only the events, streams, and nodes, along with the top-level "information" struct.
     Intended for use after 'find_trace_sets'.
 
     Dangerous for use with groups of traces that do not really belong to a reasonably-defined set.
@@ -317,25 +301,25 @@ def automerge_trace_sets(trace_sets):
         for trace in p_set[1:]:
             # ADD UNIQUE ID
             #
-            # add start time as id to every row in events and threads DataFrames
+            # add start time as id to every row in events and streams DataFrames
             # so that it is still possible to 'split' the merged trace
             # based on start_time id, which should differ for every run...
             if trace == p_set[1]:
                 start_time_array = np.empty(len(merged_trace.events), dtype=int)
                 start_time_array.fill(merged_trace.start_time)
                 merged_trace.events['start_time'] = pd.Series(start_time_array)
-                merged_trace.threads['start_time'] = pd.Series(
-                    start_time_array[:len(merged_trace.threads)])
+                merged_trace.streams['start_time'] = pd.Series(
+                    start_time_array[:len(merged_trace.streams)])
             start_time_array = np.empty(len(trace.events), dtype=int)
             start_time_array.fill(trace.start_time)
             events = trace.events
             events['start_time'] = pd.Series(start_time_array)
-            threads = trace.threads
-            threads['start_time'] = pd.Series(start_time_array[:len(threads)])
+            streams = trace.streams
+            streams['start_time'] = pd.Series(start_time_array[:len(streams)])
             # CONCATENATE EVENTS
             merged_trace.events = pd.concat([merged_trace.events, events])
             merged_trace.nodes = pd.concat([merged_trace.nodes, trace.nodes])
-            merged_trace.threads = pd.concat([merged_trace.threads, threads])
+            merged_trace.streams = pd.concat([merged_trace.streams, streams])
         merged_trace.information = match_dicts([trace.information for trace in p_set])
         merged_traces.append(merged_trace)
     return merged_traces

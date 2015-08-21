@@ -7,10 +7,10 @@
 #ifndef DAGUE_GPU_DATA_H_HAS_BEEN_INCLUDED
 #define DAGUE_GPU_DATA_H_HAS_BEEN_INCLUDED
 
-#include <dague_config.h>
-#include "dague_internal.h"
-#include <dague/class/dague_object.h>
-#include <dague/devices/device.h>
+#include "dague_config.h"
+#include "dague/dague_internal.h"
+#include "dague/class/dague_object.h"
+#include "dague/devices/device.h"
 
 #if defined(HAVE_CUDA)
 #include "dague/class/list_item.h"
@@ -19,7 +19,7 @@
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
-#include <dague/utils/zone_malloc.h>
+#include "dague/utils/zone_malloc.h"
 
 BEGIN_C_DECLS
 
@@ -44,6 +44,8 @@ extern int dague_cuda_moveout_key_end;
 extern int dague_cuda_own_GPU_key_start;
 extern int dague_cuda_own_GPU_key_end;
 #endif  /* defined(PROFILING) */
+
+#define GPU_TASK_TYPE_D2HTRANSFER 111
 
 extern float *device_load, *device_weight;
 
@@ -127,16 +129,7 @@ void dump_GPU_state(gpu_device_t* gpu_device);
  */
 typedef dague_data_copy_t dague_gpu_data_copy_t;
 
-#include "data_distribution.h"
-
-/*
- * Data [un]registering
- */
-int dague_gpu_data_register( dague_context_t *dague_context,
-                             dague_ddesc_t   *data,
-                             int              nbelem,
-                             size_t           eltsize );
-int dague_gpu_data_unregister( dague_ddesc_t* data );
+#include "dague/data_distribution.h"
 
 /*
  * Data movement
@@ -149,7 +142,18 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              int32_t type,
                              dague_data_pair_t* task_data,
                              dague_gpu_context_t *gpu_task,
-                             CUstream stream );
+                             dague_gpu_exec_stream_t *gpu_stream );
+
+/* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
+int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);
+void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);
+int dague_gpu_free_workspace(gpu_device_t * gpu_device);
+
+
+/* sort pending task list by number of spaces needed */
+int dague_gpu_sort_pending_list(gpu_device_t *gpu_device);
+dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_execution_unit_t *eu_context);
+int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task, dague_execution_unit_t *eu_context);
 
 /* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);

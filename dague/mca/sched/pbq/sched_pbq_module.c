@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2014 The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -11,8 +11,8 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
-#include "debug.h"
+#include "dague/dague_internal.h"
+#include "dague/debug.h"
 #include "dague/class/dequeue.h"
 
 #include "dague/mca/sched/sched.h"
@@ -20,6 +20,8 @@
 #include "dague/mca/sched/pbq/sched_pbq.h"
 #include "dague/class/dequeue.h"
 #include "dague/mca/pins/pins.h"
+#include "dague/dague_hwloc.h"
+
 static int SYSTEM_NEIGHBOR = 0;
 
 #if defined(DAGUE_PROF_TRACE) && 0

@@ -1,13 +1,19 @@
+/*
+ * Copyright (c) 2014-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _pingpong_gpu_h_
 #define _pingpong_gpu_h_
 
-#include <dague.h>
-#include <data_distribution.h>
-#include <data.h>
-#include <dague/devices/cuda/dev_cuda.h>
-#include <dague/utils/output.h>
-#include <dague/class/fifo.h>
-#include "scheduling.h"
+#include "dague.h"
+#include "dague/data_distribution.h"
+#include "dague/data.h"
+#include "dague/devices/cuda/dev_cuda.h"
+#include "dague/utils/output.h"
+#include "dague/class/fifo.h"
+#include "dague/scheduling.h"
 
 extern int dague_cuda_output_stream;
 
@@ -16,7 +22,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
                            dague_gpu_context_t     *gpu_task,
                            dague_gpu_exec_stream_t *gpu_stream)
 {
-    int i, ret, space_needed = 0;
+    int i, ret = 0, space_needed = 0;
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_data_t              *original;
     dague_data_copy_t         *data, *local;
@@ -74,7 +80,7 @@ gpu_kernel_push_bandwidth( gpu_device_t            *gpu_device,
                               gpu_device->cuda_index, this_task->function->in[i]->name,
                               (int)this_task->data[i].data_out->original->key));
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
-                                       &(this_task->data[i]), gpu_task, gpu_stream->cuda_stream );
+                                       &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
             return ret;
         }

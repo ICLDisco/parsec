@@ -21,8 +21,8 @@
 #include <core_blas.h>
 /* dague things */
 #include "dague.h"
-#include "scheduling.h"
-#include "profiling.h"
+#include "dague/profiling.h"
+#include "dague/dague_internal.h"
 #include "dplasma.h"
 /* timings */
 #include "common_timing.h"
@@ -56,6 +56,8 @@ enum iparam_t {
   IPARAM_MB,           /* Number of rows in a tile          */
   IPARAM_SNB,          /* Number of columns in a super-tile */
   IPARAM_SMB,          /* Number of rows in a super-tile    */
+  IPARAM_HMB,          /* Small MB for recursive hdags */
+  IPARAM_HNB,          /* Small NB for recursive hdags */
   IPARAM_CHECK,        /* Checking activated or not         */
   IPARAM_CHECKINV,     /* Inverse Checking activated or not */
   IPARAM_VERBOSE,      /* How much noise do we want?        */
@@ -69,7 +71,6 @@ enum iparam_t {
   IPARAM_QR_TSRR,      /* Enable/disable the round-robin on TS domain */
   IPARAM_BUT_LEVEL,    /* Butterfly level */
   IPARAM_SCHEDULER,    /* User-selected scheduler */
-  IPARAM_SMALL_NB,      /* Small NB for recursive */
   IPARAM_SIZEOF
 };
 
@@ -107,6 +108,8 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
   int NB    = iparam[IPARAM_NB];\
   int SMB   = iparam[IPARAM_SMB];\
   int SNB   = iparam[IPARAM_SNB];\
+  int HMB   = iparam[IPARAM_HMB];\
+  int HNB   = iparam[IPARAM_HNB];\
   int MT    = (M%MB==0) ? (M/MB) : (M/MB+1); \
   int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
   int KT    = (K%MB==0) ? (K/MB) : (K/MB+1); \
@@ -125,14 +128,14 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
 #define PASTE_CODE_FLOPS( FORMULA, PARAMS ) \
-  double gflops, flops = FORMULA PARAMS;
+  double gflops = -1.0, flops = FORMULA PARAMS;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
-  double gflops, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
+  double gflops = -1.0, flops = (2. * FADD PARAMS + 6. * FMUL PARAMS);
 #else
 #define PASTE_CODE_FLOPS_COUNT(FADD,FMUL,PARAMS) \
-  double gflops, flops = (FADD PARAMS + FMUL PARAMS);
+  double gflops = -1.0, flops = (FADD PARAMS + FMUL PARAMS);
 #endif
 
 /*******************************
@@ -191,7 +194,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
-    dague_progress(DAGUE);                                              \
+    dague_context_wait(DAGUE);                                              \
     if( loud > 3 )                                                      \
         TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
@@ -219,6 +222,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     PROFILING_SAVE_iINFO("PARAM_MB", iparam[IPARAM_MB]);                \
     PROFILING_SAVE_iINFO("PARAM_SNB", iparam[IPARAM_SNB]);              \
     PROFILING_SAVE_iINFO("PARAM_SMB", iparam[IPARAM_SMB]);              \
+    PROFILING_SAVE_iINFO("PARAM_HNB", iparam[IPARAM_HNB]);              \
     PROFILING_SAVE_iINFO("PARAM_CHECK", iparam[IPARAM_CHECK]);          \
     PROFILING_SAVE_iINFO("PARAM_CHECKINV", iparam[IPARAM_CHECKINV]);    \
     PROFILING_SAVE_iINFO("PARAM_VERBOSE", iparam[IPARAM_VERBOSE]);      \

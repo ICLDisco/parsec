@@ -21,6 +21,10 @@ STARTUP(i, j, k)
   i = 0 .. NI-1
   j = 0 .. NJ-1
   k = 0 .. NK-1
+
+  valid1 = i == 1 && j == 1
+  valid2 = (i == 1) && (j == 1)
+
   prio = inline_c %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
 
   : A(i,0)
@@ -36,6 +40,7 @@ BODY
     fprintf(stderr, "priority(%d, %d, %d): %d\n",
             i, j, k, prio );
 #endif
+    assert(valid1 == valid2);
 }
 END
 
@@ -122,7 +127,7 @@ int main( int argc, char** argv )
     handle->arenas[DAGUE_startup_DEFAULT_ARENA] = &arena;
     handle->pri = 0;
     dague_enqueue( dague, (dague_handle_t*)handle );
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     /* No priority */
     handle = dague_startup_new( &descA, ni, nj, nk );
@@ -142,7 +147,7 @@ int main( int argc, char** argv )
                (double)time_elapsed);
     }
     TIMER_START(time_elapsed);
-    dague_progress(dague);
+    dague_context_wait(dague);
     TIMER_STOP(time_elapsed);
     printf("DAG execution [%d] in %ld micro-sec\n", handle->pri, time_elapsed);
 
@@ -164,7 +169,7 @@ int main( int argc, char** argv )
                (double)time_elapsed);
     }
     TIMER_START(time_elapsed);
-    dague_progress(dague);
+    dague_context_wait(dague);
     TIMER_STOP(time_elapsed);
     printf("DAG execution [%d] in %ld micro-sec\n", handle->pri, time_elapsed);
 
@@ -186,7 +191,7 @@ int main( int argc, char** argv )
                (double)time_elapsed);
     }
     TIMER_START(time_elapsed);
-    dague_progress(dague);
+    dague_context_wait(dague);
     TIMER_STOP(time_elapsed);
     printf("DAG execution [%d] in %ld micro-sec\n", handle->pri, time_elapsed);
 
@@ -209,7 +214,7 @@ int main( int argc, char** argv )
                (double)time_elapsed);
     }
     TIMER_START(time_elapsed);
-    dague_progress(dague);
+    dague_context_wait(dague);
     TIMER_STOP(time_elapsed);
     printf("DAG execution [%d] in %ld micro-sec\n", handle->pri, time_elapsed);
 

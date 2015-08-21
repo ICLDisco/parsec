@@ -9,6 +9,7 @@
 #define _DPLASMA_ZRECURSIVE_H_
 
 #include "data_dist/matrix/subtile.h"
+#include "dplasma/lib/memory_pool.h"
 
 dague_handle_t* dplasma_zgeqrfr_geqrt_New(tiled_matrix_desc_t *A,  tiled_matrix_desc_t *T,  dague_memory_pool_t *work);
 dague_handle_t* dplasma_zgeqrfr_tsqrt_New(tiled_matrix_desc_t *A1, tiled_matrix_desc_t *A2, tiled_matrix_desc_t *T, dague_memory_pool_t *tau, dague_memory_pool_t *work);

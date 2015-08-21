@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2014 The University of Tennessee and The University
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * $COPYRIGHT
@@ -8,7 +8,7 @@
 
 #ifndef _RBT_MAPPING_H_
 #define _RBT_MAPPING_H_
-#include "include/data_distribution.h"
+#include "dague/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 
 typedef struct{

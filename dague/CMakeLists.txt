@@ -59,6 +59,9 @@ set(SOURCES
   ${MCA_EXTRA_SOURCES}
 )
 
+if( NOT MPI_C_FOUND )
+  list(APPEND SOURCES datatype/datatype.c)
+endif( NOT MPI_C_FOUND )
 if( HWLOC_FOUND )
   list(APPEND SOURCES dague_hwloc.c)
 endif( HWLOC_FOUND )
@@ -66,10 +69,6 @@ endif( HWLOC_FOUND )
 if (CUDA_FOUND)
   list(APPEND SOURCES devices/cuda/dev_cuda.c)
 endif (CUDA_FOUND)
-
-if( DAGUE_PROF_STATS )
-  list(APPEND SOURCES stats.c)
-endif( DAGUE_PROF_STATS )
 
 if( DAGUE_PROF_GRAPHER )
   list(APPEND SOURCES dague_prof_grapher.c)
@@ -79,7 +78,7 @@ endif( DAGUE_PROF_GRAPHER )
 # Setup targets
 #
 if( BUILD_DAGUE )
-  add_library(dague-base STATIC ${BASE_SOURCES})
+  add_library(dague-base ${BASE_SOURCES})
   set_target_properties(dague-base PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   set_target_properties(dague-base PROPERTIES POSITION_INDEPENDENT_CODE ON)
   if (MPI_C_FOUND)
@@ -87,16 +86,20 @@ if( BUILD_DAGUE )
   endif (MPI_C_FOUND)
   target_link_libraries(dague-base ${EXTRA_LIBS})
 
-  install(TARGETS dague-base ARCHIVE DESTINATION lib)
+  install(TARGETS dague-base
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib)
 
-  add_library(dague STATIC ${SOURCES})
+  add_library(dague ${SOURCES})
   set_target_properties(dague PROPERTIES COMPILE_FLAGS "-DYYERROR_VERBOSE")
   if (MPI_C_FOUND)
     set_target_properties(dague PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
   endif (MPI_C_FOUND)
   target_link_libraries(dague dague-base ${EXTRA_LIBS})
 
-  install(TARGETS dague ARCHIVE DESTINATION lib)
+  install(TARGETS dague
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib)
 
   install(FILES utils/help-mca-param.txt DESTINATION share/dague)
 ENDIF( BUILD_DAGUE )

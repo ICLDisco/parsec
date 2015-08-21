@@ -99,7 +99,7 @@ DAGUE_DECLSPEC extern bool dague_output_redirected_to_syslog;
 DAGUE_DECLSPEC extern int dague_output_redirected_syslog_pri;
 
 /**
- * \class dague_output_stream_t 
+ * \class dague_output_stream_t
  *
  * Structure used to request the opening of a DAGUE output stream.  A
  * pointer to this structure is passed to dague_output_open() to tell
@@ -129,7 +129,7 @@ struct dague_output_stream_t {
      * more output and diagnostics should be displayed.
      */
     int lds_verbose_level;
-    
+
     /**
      * When dague_output_stream_t::lds_want_syslog is true, this field is
      * examined to see what priority output from the stream should be
@@ -143,7 +143,7 @@ struct dague_output_stream_t {
     /**
      * When dague_output_stream_t::lds_want_syslog is true, this field is
      * examined to see what ident value should be passed to openlog(3).
-     * 
+     *
      * If a NULL value is given, the string "opal" is used.
      */
 #if !defined(__WINDOWS__)
@@ -153,7 +153,7 @@ struct dague_output_stream_t {
 #else
     HANDLE lds_syslog_ident;
 #endif  /* !defined(__WINDOWS__) */
-    
+
     /**
      * String prefix added to all output on the stream.
      *
@@ -163,7 +163,7 @@ struct dague_output_stream_t {
      * to an internal structure in the call to dague_output_open()!
      */
     char *lds_prefix;
-    
+
     /**
      * String suffix added to all output on the stream.
      *
@@ -211,7 +211,7 @@ struct dague_output_stream_t {
      * If this field is true, stream output is sent to stderr.
      */
     bool lds_want_stderr;
-    
+
     /**
      * Whether to send stream output to a file or not.
      *
@@ -249,7 +249,7 @@ struct dague_output_stream_t {
 
 /**
  * Convenience typedef
- */    
+ */
 typedef struct dague_output_stream_t dague_output_stream_t;
 
 /**
@@ -508,7 +508,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
                                                       char **olddir,
                                                       char **oldprefix);
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if DAGUE_DEBUG_VERBOSE > 0
 /**
  * Main macro for use in sending debugging output to output streams;
  * will be "compiled out" when DAGUE is configured without
@@ -559,4 +559,3 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_output_stream_t);
 END_C_DECLS
 
 #endif /* DAGUE_OUTPUT_H_ */
-

@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
 {
     dague_context_t* dague;
     int rank, world, cores;
-    int size, nt, nb;
+    int nt, nb;
     tiled_matrix_desc_t *ddescA;
     dague_handle_t *BT_reduction;
 
@@ -43,15 +43,13 @@ int main(int argc, char *argv[])
         nt = (int)strtol(argv[1], NULL, 0);
     }
 
-    size = nt*nb;
-
     ddescA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
     dague_ddesc_set_key((dague_ddesc_t *)ddescA, "A");
 
     BT_reduction = BT_reduction_new(ddescA, nb, nt);
     dague_enqueue(dague, BT_reduction);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_handle_free((dague_handle_t*)BT_reduction);
     free_data(ddescA);

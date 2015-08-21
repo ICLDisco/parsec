@@ -10,7 +10,7 @@ extern "C" %{
  * @precisions normal z -> s d c
  *
  */
-#include "dague_internal.h"
+#include "dague/dague_internal.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma_zrecursive.h"

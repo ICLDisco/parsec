@@ -1,5 +1,5 @@
 /*
- * Copyright (c)      2013 The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,7 @@
 #include "dague.h"
 #include "ep_wrapper.h"
 #include "schedmicro_data.h"
-#include "os-spec-timing.h"
+#include "dague/os-spec-timing.h"
 #if defined(HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
                 dague_enqueue(dague, ep);
 
                 start = take_time();
-                dague_progress(dague);
+                dague_context_wait(dague);
                 end = take_time();
 
                 ep_destroy(ep);

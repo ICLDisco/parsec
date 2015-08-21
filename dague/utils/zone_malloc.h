@@ -12,8 +12,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define ZONE_MALLOC_UNIT_SIZE (1024*1024)
-
 #define SEGMENT_EMPTY      1
 #define SEGMENT_FULL       2
 #define SEGMENT_UNDEFINED  3
@@ -46,10 +44,10 @@ zone_malloc_t* zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_s
 void* zone_malloc_fini(zone_malloc_t** gdata);
 
 /**
- * Allocate a memory area of length nb_units. In worst case the search is linear
+ * Allocate a memory area of length size bytes. In worst case the search is linear
  * with the number of existing allocations.
  */
-void *zone_malloc(zone_malloc_t *gdata, int nb_units);
+void *zone_malloc(zone_malloc_t *gdata, size_t size);
 
 /**
  * Release a specific memory zone. When possible this memory zone is

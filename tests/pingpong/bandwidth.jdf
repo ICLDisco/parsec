@@ -1,9 +1,9 @@
 extern "C" %{
-#include <dague.h>
-#include <data_distribution.h>
-#include <data.h>
-#include <dague/utils/mca_param.h>
-#include <arena.h>
+#include "dague.h"
+#include "dague/data_distribution.h"
+#include "dague/data_internal.h"
+#include "dague/utils/mca_param.h"
+#include "dague/arena.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -117,7 +117,7 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
     f = va_arg(ap, int);
     va_end(ap);
 
-    assert( (f < dat->size) && (f >= 0) );
+    assert( (f < dat->size) && (f >= 0) ); (void)dat;
 
     return (uint32_t)f;
 }
@@ -334,16 +334,12 @@ int main(int argc, char *argv[])
 
     dague = dague_init(cores, &argc, &argv);
 
-#if defined(HAVE_CUDA)
-    dague_gpu_data_register(dague, ddescA, frags, size*sizeof(uint8_t));
-#endif
-
     for(i = 0; i < 2; i++) {
         bw_test = bandwidth_new(ddescA, loops, frags, size, world);
 
         gettimeofday(&tstart, NULL);
         dague_enqueue(dague, bw_test);
-        dague_progress(dague);
+        dague_context_wait(dague);
         gettimeofday(&tend, NULL);
 
         if( 0 != i ) {

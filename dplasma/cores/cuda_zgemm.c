@@ -14,11 +14,10 @@
 #include <cuComplex.h>
 #endif
 #include "dague.h"
-#include "execution_unit.h"
-#include "scheduling.h"
+#include "dague/execution_unit.h"
 #include "dague/class/fifo.h"
-#include "datarepo.h"
 #include "data_dist/matrix/matrix.h"
+#include "dague/data_internal.h"
 #include "dague/utils/output.h"
 #include "cuda_zgemm.h"
 #include <cublas.h>
@@ -35,7 +34,7 @@ typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc
                                );
 #else
-typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h, 
+typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h,
                                  char TRANSA, char TRANSB, int m, int n, int k,
                                  dague_complex64_t alpha, dague_complex64_t *d_A, int lda,
                                                           dague_complex64_t *d_B, int ldb,
@@ -75,8 +74,7 @@ typedef struct dague_zgemm_args_s {
     dague_complex64_t alpha, beta;
     PLASMA_enum transA, transB;
     int M, N, K;
-    int Am, An, lda, Bm, Bn, ldb, Cm, Cn, ldc;
-    dague_ddesc_t *ddescA, *ddescB, *ddescC;
+    int lda, ldb, ldc;
 } dague_zgemm_args_t;
 
 #include <dague/devices/cuda/cuda_scheduling.h>
@@ -102,7 +100,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
     dague_data_copy_t         *data, *local;
     const dague_flow_t        *flow;
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
 
         this_task->data[i].data_out = NULL;
@@ -155,7 +153,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
                               gpu_stream->prof_event_key_start),
                              this_task);
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->in[i]) continue;
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
@@ -164,7 +162,7 @@ gpu_kernel_push_zgemm( gpu_device_t            *gpu_device,
                               gpu_device->cuda_index, this_task->function->in[i]->name,
                               this_task->data[i].data_out->original->key));
         ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
-                                       &(this_task->data[i]), gpu_task, gpu_stream->cuda_stream );
+                                       &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
             goto release_and_return_error;
         }
@@ -214,21 +212,21 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     status = cudaSuccess;
 #if (CUDA_VERSION < 4000) || 1 /* todo: always use legacy cublas until we understand how to get the cublas_handle in API v5 */
     cublasSetKernelStream( gpu_stream->cuda_stream );
-    cublas_fnzgemm( lapack_const(args->transA), lapack_const(args->transB), 
+    cublas_fnzgemm( lapack_const(args->transA), lapack_const(args->transB),
                 args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
                 args->beta,  (dague_complex64_t*)d_C, args->ldc );
     status = cublasGetError();
 #else
-{ 
+{
     cudaStream_t current_stream;
     cublasHandle_t handle = cublasGetCurrentCtx(); /* todo: available in cuda API 4 only */
     cublasGetStream_v2 ( handle, &current_stream );
     cublasSetStream_v2 ( handle, &gpu_stream->cuda_srtream );
-    status = 
+    status =
     cublas_fnzgemm( handle,
-                lapack_const(args->transA), lapack_const(args->transB), 
+                lapack_const(args->transA), lapack_const(args->transB),
                 args->M, args->N, args->K,
                 args->alpha, (dague_complex64_t*)d_A, args->lda,
                              (dague_complex64_t*)d_B, args->ldb,
@@ -261,7 +259,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
     int return_code = 0, how_many = 0, i;
     cudaError_t status;
 
-    if (gpu_task->task_type == 111) {
+    if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
         for( i = 0; i < 1; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             original = gpu_copy->original;
@@ -272,20 +270,20 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                     { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                gpu_copy->device_private, original->device_copies[0]->device_private));
                                         return_code = -2;
-                                        goto release_and_return_error;} );    
+                                        goto release_and_return_error;} );
         }
         return return_code;
     }
 
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
         flow = this_task->function->in[i];
         if(NULL == flow)
             flow = this_task->function->out[i];
 
-        original = this_task->data[i].data_out->original;
         gpu_copy = this_task->data[i].data_out;
+        original = gpu_copy->original;
         assert(original == this_task->data[i].data_in->original);
         if( flow->flow_flags & FLOW_ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
@@ -294,6 +292,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
                 dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+                continue;  /* done with this element, go for the next one */
             }
         }
         if( flow->flow_flags & FLOW_ACCESS_WRITE ) {
@@ -309,7 +308,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
             if( args->pushout ) {  /* n == (k + 1) */
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                                      "GPU:\tMove D2H data <%x> from GPU %d %p -> %p requested\n",
+                                      "GPU:\tMove D2H data <%s:%x> from GPU %d %p -> %p requested\n",
                                       this_task->function->in[i]->name, original->key, gpu_device->cuda_index,
                                       (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
@@ -353,11 +352,17 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if(NULL == this_task->function->out[i]) continue;
-        if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) continue;
 
         gpu_copy = this_task->data[this_task->function->out[i]->flow_index].data_out;
         original = gpu_copy->original;
         cpu_copy = original->device_copies[0];
+
+        if( !(this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
+            /* Do not propagate GPU copies to successors (temporary solution) */
+            this_task->data[this_task->function->out[i]->flow_index].data_out = cpu_copy;
+            continue;
+        }
+
         /* There might be a race condition here. We can't assume the first CPU
          * version is the corresponding CPU copy, as a new CPU-bound data
          * might have been created meanwhile.
@@ -375,6 +380,9 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
 
         if( args->pushout ) {  /* n == (k  + 1) */
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
+                                  "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
+                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__));
         } else {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
         }
@@ -405,16 +413,16 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                int pushout,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K,
-               dague_complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
-                                        int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
-               dague_complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc )
+               dague_complex64_t alpha, int lda,
+                                        int ldb,
+               dague_complex64_t beta,  int ldc )
 {
     int i, dev_index, data_index = 0;
     dague_zgemm_args_t *gpu_task;
     dague_handle_t* handle = this_task->dague_handle;
 
     /* Step one: Find the first data in WRITE mode */
-    for( i = 0; i < this_task->function->nb_parameters; i++ ) {
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if( (NULL == this_task->function->out[i]) ||
             (this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
             data_index = this_task->function->out[i]->flow_index;
@@ -455,18 +463,9 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     gpu_task->M        = M;
     gpu_task->N        = N;
     gpu_task->K        = K;
-    gpu_task->Am       = Am;
-    gpu_task->An       = An;
     gpu_task->lda      = lda;
-    gpu_task->Bm       = Bm;
-    gpu_task->Bn       = Bn;
     gpu_task->ldb      = ldb;
-    gpu_task->Cm       = Cm;
-    gpu_task->Cn       = Cn;
     gpu_task->ldc      = ldc;
-    gpu_task->ddescA   = (dague_ddesc_t*)descA;
-    gpu_task->ddescB   = (dague_ddesc_t*)descB;
-    gpu_task->ddescC   = (dague_ddesc_t*)descC;
 
     return gpu_kernel_scheduler_zgemm( eu_context, (dague_gpu_context_t*)gpu_task, dev_index );
 }

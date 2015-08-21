@@ -32,6 +32,8 @@ def plot_Y_vs_X_scatter_and_sorted(traces, x_axis, y_axis, filters,
 
     for trace in traces:
         events = trace.filter_events(filters)
+        if x_axis == 'duration':
+            events['duration'] = pandas.Series(events['end'] - events['begin'])
 
         if std_x:
             x_avg = events[x_axis].mean()

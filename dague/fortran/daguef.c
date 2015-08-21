@@ -36,17 +36,31 @@ void dague_fini_f08(dague_context_t** context, int* ierr)
 }
 
 void dague_set_complete_callback_f08(dague_handle_t** object,
-                                     dague_completion_cb_t complete_cb,
+                                     dague_event_cb_t complete_cb,
                                      void* cb_data, int* ierr)
 {
     *ierr = dague_set_complete_callback(*object, complete_cb, cb_data);
 }
 
 void dague_get_complete_callback_f08(dague_handle_t** object,
-                                     dague_completion_cb_t* complete_cb,
+                                     dague_event_cb_t* complete_cb,
                                      void** cb_data, int* ierr)
 {
     *ierr = dague_get_complete_callback(*object, complete_cb, cb_data);
+}
+
+void dague_set_enqueue_callback_f08(dague_handle_t** object,
+                                    dague_event_cb_t enqueue_cb,
+                                    void* cb_data, int* ierr)
+{
+    *ierr = dague_set_enqueue_callback(*object, enqueue_cb, cb_data);
+}
+
+void dague_get_enqueue_callback_f08(dague_handle_t** object,
+                                    dague_event_cb_t* enqueue_cb,
+                                    void** cb_data, int* ierr)
+{
+    *ierr = dague_get_enqueue_callback(*object, enqueue_cb, cb_data);
 }
 
 void dague_set_priority_f08(dague_handle_t** object, int priority, int* ierr)

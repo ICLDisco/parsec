@@ -80,7 +80,7 @@
  ******************************************************************************/
 dague_handle_t*
 dplasma_zgeqrf_rec_New( tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *T )
+                        tiled_matrix_desc_t *T )
 {
     dague_zgeqrf_rec_handle_t* object;
     int ib = T->mb;

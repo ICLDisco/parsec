@@ -1,5 +1,5 @@
 #include "dague_config.h"
-#include "debug.h"
+#include "dague/debug.h"
 #include "dague/mca/mca.h"
 #include "dague/utils/mca_param.h"
 #include <string.h>

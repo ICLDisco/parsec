@@ -9,9 +9,6 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dague/devices/cuda/dev_cuda.h"
-#include "../lib/memory_pool.h"
-#include "../lib/zgeqrf_rec.h"
 
 static int check_orthogonality(dague_context_t *dague, int loud,
                                tiled_matrix_desc_t *Q);
@@ -37,9 +34,6 @@ int main(int argc, char ** argv)
     iparam[IPARAM_SNB] = 1;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
 
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
@@ -87,60 +81,17 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
     if(loud > 3) printf("Done\n");
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        if(loud > 3) printf("+++ Load GPU kernel ... ");
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescA,
-                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescT,
-                                MT*NT, IB*NB*sizeof(dague_complex64_t) );
-        if(loud > 3) printf("Done\n");
-    }
-#endif
-
     /* Create DAGuE */
     PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf_rec,
                               ((tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescT));
 
-    if (iparam[IPARAM_SMALL_NB] == 0) {
-        iparam[IPARAM_SMALL_NB] = iparam[IPARAM_NB]; /* default small nb = nb */
-    }
-
-    {
-        dague_zgeqrf_rec_handle_t* myzgeqrf_handle = (dague_zgeqrf_rec_handle_t*)DAGUE_zgeqrf_rec;
-        myzgeqrf_handle->smallnb = iparam[IPARAM_SMALL_NB];
-        if ( (myzgeqrf_handle->smallnb % iparam[IPARAM_IB] != 0) &&
-             (myzgeqrf_handle->smallnb != iparam[IPARAM_NB]) )
-        {
-            myzgeqrf_handle->smallnb = (myzgeqrf_handle->smallnb / iparam[IPARAM_IB]) * iparam[IPARAM_IB];
-            fprintf(stderr, "Small nb should be a muliple of IB or equal to NB: set to min( (snb/IB)*IB, NB ) = %d\n", myzgeqrf_handle->smallnb);
-        }
-        myzgeqrf_handle->smallnb = dplasma_imin( myzgeqrf_handle->smallnb, iparam[IPARAM_NB] );
-    }
-
     /* lets rock! */
     PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf_rec);
     dplasma_zgeqrf_rec_Destruct( DAGUE_zgeqrf_rec );
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
-        dague_gpu_data_unregister((dague_ddesc_t*)&ddescT);
-    }
-#endif
-
     dague_handle_sync_ids();
 
     if( check ) {
-
-        /* remove GPU devices, they are not required for check */
-        for (int i = 1; i < dague_nb_devices; i++) {
-                dague_device_remove(dague_devices_get(i));
-        }
-
         if (M >= N) {
             if(loud > 2) printf("+++ Generate the Q ...");
             dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);

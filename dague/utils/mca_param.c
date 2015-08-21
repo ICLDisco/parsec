@@ -241,6 +241,32 @@ int dague_mca_param_reg_int_name(const char *type,
 }
 
 /*
+ * Register a size_t MCA parameter that is not associated with a
+ * component
+ */
+int dague_mca_param_reg_sizet_name(const char *type,
+                                   const char *param_name,
+                                   const char *help_msg,
+                                   bool internal,
+                                   bool read_only,
+                                   size_t default_value,
+                                   size_t *current_value)
+{
+    int ret;
+    dague_mca_param_storage_t storage;
+    dague_mca_param_storage_t lookup;
+
+    storage.sizetval = default_value;
+    ret = param_register(type, NULL, param_name, help_msg,
+                         DAGUE_MCA_PARAM_TYPE_SIZET, internal, read_only,
+                         &storage, NULL, NULL, &lookup);
+    if (ret >= 0 && NULL != current_value) {
+        *current_value = lookup.sizetval;
+    }
+    return ret;
+}
+
+/*
  * Register a string MCA parameter that is not associated with a
  * component
  */
@@ -296,6 +322,20 @@ int dague_mca_param_lookup_int(int index, int *value)
   return DAGUE_ERROR;
 }
 
+/*
+ * Look up a size_t MCA parameter.
+ */
+int dague_mca_param_lookup_sizet(int index, size_t *value)
+{
+  dague_mca_param_storage_t storage;
+
+  if (param_lookup(index, &storage, NULL, NULL)) {
+    *value = storage.sizetval;
+    return DAGUE_SUCCESS;
+  }
+  return DAGUE_ERROR;
+}
+
 
 /*
  * Set an integer parameter
@@ -307,6 +347,19 @@ int dague_mca_param_set_int(int index, int value)
     dague_mca_param_unset(index);
     storage.intval = value;
     param_set_override(index, &storage, DAGUE_MCA_PARAM_TYPE_INT);
+    return DAGUE_SUCCESS;
+}
+
+/*
+ * Set a size_t parameter
+ */
+int dague_mca_param_set_sizet(int index, size_t value)
+{
+    dague_mca_param_storage_t storage;
+
+    dague_mca_param_unset(index);
+    storage.sizetval = value;
+    param_set_override(index, &storage, DAGUE_MCA_PARAM_TYPE_SIZET);
     return DAGUE_SUCCESS;
 }
 
@@ -627,6 +680,11 @@ int dague_mca_param_build_env(char ***env, int *num_env, bool internal)
                              storage.intval);
                     dague_argv_append(num_env, env, str);
                     free(str);
+                } else if (DAGUE_MCA_PARAM_TYPE_SIZET == array[i].mbp_type) {
+                    asprintf(&str, "%s=%lu", array[i].mbp_env_var_name,
+                             storage.sizetval);
+                    dague_argv_append(num_env, env, str);
+                    free(str);
                 } else if (DAGUE_MCA_PARAM_TYPE_STRING == array[i].mbp_type) {
                     if (NULL != storage.stringval) {
                         asprintf(&str, "%s=%s", array[i].mbp_env_var_name,
@@ -839,6 +897,7 @@ static int read_keys_from_registry(HKEY hKey, char *sub_key, char *current_name)
             storage.intval  = (int)word_lpData;
             override.intval = (int)word_lpData;
             param_type = DAGUE_MCA_PARAM_TYPE_INT;
+            /* DAGUE_MCA_PARAM_TYPE_SIZET not supported */
         }
         if( !retCode ) {
             (void)param_register( type_name, NULL, str_key_name, NULL,
@@ -1038,6 +1097,26 @@ static int param_register(const char *type_name,
                 }
             }
 
+            /* Both are SIZE_T */
+
+            else if (DAGUE_MCA_PARAM_TYPE_SIZET == array[i].mbp_type &&
+                     DAGUE_MCA_PARAM_TYPE_SIZET == param.mbp_type) {
+                if (NULL != default_value) {
+                    array[i].mbp_default_value.sizetval =
+                        param.mbp_default_value.sizetval;
+                }
+                if (NULL != file_value) {
+                    array[i].mbp_file_value.sizetval =
+                        param.mbp_file_value.sizetval;
+                    array[i].mbp_file_value_set = true;
+                }
+                if (NULL != override_value) {
+                    array[i].mbp_override_value.sizetval =
+                        param.mbp_override_value.sizetval;
+                    array[i].mbp_override_value_set = true;
+                }
+            }
+
             /* Both are STRING */
 
             else if (DAGUE_MCA_PARAM_TYPE_STRING == array[i].mbp_type &&
@@ -1081,10 +1160,7 @@ static int param_register(const char *type_name,
             /* If the original is INT and the new is STRING, or the original
              is STRING and the new is INT, this is an developer error. */
 
-            else if ((DAGUE_MCA_PARAM_TYPE_INT    == array[i].mbp_type &&
-                      DAGUE_MCA_PARAM_TYPE_STRING == param.mbp_type) ||
-                     (DAGUE_MCA_PARAM_TYPE_STRING == array[i].mbp_type &&
-                      DAGUE_MCA_PARAM_TYPE_INT    == param.mbp_type)) {
+            else if (param.mbp_type != array[i].mbp_type) {
 #if defined(DAGUE_DEBUG_ENABLE)
                 dague_show_help("help-mca-param.txt",
                                 "re-register with different type",
@@ -1286,6 +1362,8 @@ static bool param_set_override(size_t index,
     array = DAGUE_VALUE_ARRAY_GET_BASE(&mca_params, dague_mca_param_t);
     if (DAGUE_MCA_PARAM_TYPE_INT == type) {
         array[index].mbp_override_value.intval = storage->intval;
+    } else if (DAGUE_MCA_PARAM_TYPE_SIZET == type) {
+        array[index].mbp_override_value.sizetval = storage->sizetval;
     } else if (DAGUE_MCA_PARAM_TYPE_STRING == type) {
         if (NULL != storage->stringval) {
             array[index].mbp_override_value.stringval =
@@ -1355,6 +1433,7 @@ static bool param_lookup(size_t index, dague_mca_param_storage_t *storage,
     /* Ensure that MCA param has a good type */
 
     if (DAGUE_MCA_PARAM_TYPE_INT != array[index].mbp_type &&
+        DAGUE_MCA_PARAM_TYPE_SIZET != array[index].mbp_type &&
         DAGUE_MCA_PARAM_TYPE_STRING != array[index].mbp_type) {
         return false;
     }
@@ -1438,6 +1517,8 @@ static bool lookup_override(dague_mca_param_t *param,
     if (param->mbp_override_value_set) {
         if (DAGUE_MCA_PARAM_TYPE_INT == param->mbp_type) {
             storage->intval = param->mbp_override_value.intval;
+        } else if (DAGUE_MCA_PARAM_TYPE_SIZET == param->mbp_type) {
+            storage->sizetval = param->mbp_override_value.sizetval;
         } else if (DAGUE_MCA_PARAM_TYPE_STRING == param->mbp_type) {
             storage->stringval = strdup(param->mbp_override_value.stringval);
         }
@@ -1500,6 +1581,8 @@ static bool lookup_env(dague_mca_param_t *param,
     if (NULL != env) {
         if (DAGUE_MCA_PARAM_TYPE_INT == param->mbp_type) {
             storage->intval = (int)strtol(env,(char**)NULL,0);
+        } else if (DAGUE_MCA_PARAM_TYPE_SIZET == param->mbp_type) {
+            storage->sizetval = (size_t)strtoll(env,(char**)NULL,0);
         } else if (DAGUE_MCA_PARAM_TYPE_STRING == param->mbp_type) {
             storage->stringval = strdup(env);
         }
@@ -1591,6 +1674,13 @@ static bool lookup_file(dague_mca_param_t *param,
                 } else {
                     param->mbp_file_value.intval = 0;
                 }
+            } else if (DAGUE_MCA_PARAM_TYPE_SIZET == param->mbp_type) {
+                if (NULL != fv->mbpfv_value) {
+                    param->mbp_file_value.sizetval =
+                        (size_t)strtoll(fv->mbpfv_value,(char**)NULL,0);
+                } else {
+                    param->mbp_file_value.sizetval = 0;
+                }
             } else {
                 param->mbp_file_value.stringval = fv->mbpfv_value;
                 fv->mbpfv_value = NULL;
@@ -1645,6 +1735,10 @@ static bool set(dague_mca_param_type_t type,
     switch (type) {
     case DAGUE_MCA_PARAM_TYPE_INT:
         dest->intval = src->intval;
+        break;
+
+    case DAGUE_MCA_PARAM_TYPE_SIZET:
+        dest->sizetval = src->sizetval;
         break;
 
     case DAGUE_MCA_PARAM_TYPE_STRING:
@@ -1857,6 +1951,34 @@ int dague_mca_param_find_int_name(const char *type,
             ptr = strchr(env[i], '=');
             ptr++;
             *current_value = strtol(ptr, NULL, 10);
+            rc = DAGUE_SUCCESS;
+            break;
+        }
+    }
+    free(tmp);
+    return rc;
+}
+
+int dague_mca_param_find_sizet_name(const char *type,
+                                    const char *param_name,
+                                    char **env,
+                                    size_t *current_value)
+{
+    char *tmp, *ptr;
+    int len, i;
+    int rc = DAGUE_ERR_NOT_FOUND;
+
+    if (NULL == env) {
+        return DAGUE_ERR_NOT_FOUND;
+    }
+
+    asprintf(&tmp, "%s%s_%s", mca_prefix, type, param_name);
+    len = strlen(tmp);
+    for (i=0; NULL != env[i]; i++) {
+        if (0 == strncmp(tmp, env[i], len)) {
+            ptr = strchr(env[i], '=');
+            ptr++;
+            *current_value = (size_t)strtoll(ptr, NULL, 10);
             rc = DAGUE_SUCCESS;
             break;
         }

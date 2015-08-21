@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -19,7 +19,6 @@
 #define _SCHED_LOCAL_QUEUES_UTILS_H
 
 #include "dague_config.h"
-#include "dague_hwloc.h"
 
 typedef struct {
     dague_dequeue_t   *system_queue;

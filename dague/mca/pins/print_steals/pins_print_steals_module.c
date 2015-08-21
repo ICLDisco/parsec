@@ -1,21 +1,26 @@
+/*
+ * Copyright (c) 2012-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "pins_print_steals.h"
 #include "dague/mca/pins/pins.h"
 #ifdef HAVE_PAPI
 #include <papi.h>
 #endif
-#include "debug.h"
-#include "execution_unit.h"
+#include "dague/debug.h"
+#include "dague/execution_unit.h"
 
-static void pins_init_print_steals(dague_context_t * master_context);
-static void pins_fini_print_steals(dague_context_t * master_context);
-static void pins_thread_init_print_steals(dague_execution_unit_t * exec_unit);
-static void pins_thread_fini_print_steals(dague_execution_unit_t * exec_unit);
+static void pins_init_print_steals(dague_context_t* master_context);
+static void pins_thread_init_print_steals(dague_execution_unit_t* exec_unit);
+static void pins_thread_fini_print_steals(dague_execution_unit_t* exec_unit);
 
 const dague_pins_module_t dague_pins_print_steals_module = {
     &dague_pins_print_steals_component,
     {
         pins_init_print_steals,
-        pins_fini_print_steals,
+        NULL,
         NULL,
         NULL,
         pins_thread_init_print_steals,
@@ -23,10 +28,14 @@ const dague_pins_module_t dague_pins_print_steals_module = {
     }
 };
 
-static void stop_print_steals_count(dague_execution_unit_t * exec_unit, 
-                                    dague_execution_context_t * exec_context, void * data);
+typedef struct parsec_pins_print_steals_data_s {
+    parsec_pins_next_callback_t cb_data;
+    long steal_counters[1];
+} parsec_pins_print_steals_data_t;
 
-static parsec_pins_callback * select_end_prev; // courtesy call to previously-registered callback
+static void stop_print_steals_count(dague_execution_unit_t* exec_unit,
+                                    dague_execution_context_t* exec_context,
+                                    parsec_pins_next_callback_t* data);
 
 #define THREAD_NUM(exec_unit) (exec_unit->virtual_process->vp_id *      \
                                exec_unit->virtual_process->dague_context->nb_vp + \
@@ -34,40 +43,45 @@ static parsec_pins_callback * select_end_prev; // courtesy call to previously-re
 
 static int total_cores;
 
-static void pins_init_print_steals(dague_context_t * master) {
-    select_end_prev   = PINS_REGISTER(SELECT_END,   stop_print_steals_count);
+static void pins_init_print_steals(dague_context_t* master)
+{
     total_cores = master->nb_vp * master->virtual_processes[0]->nb_cores;
 }
 
-static void pins_fini_print_steals(dague_context_t * master) {
-    (void)master;
-    PINS_REGISTER(SELECT_END,   select_end_prev);
+static void pins_thread_init_print_steals(dague_execution_unit_t* exec_unit)
+{
+    parsec_pins_print_steals_data_t* event_cb =
+        (parsec_pins_print_steals_data_t*)calloc(1, sizeof(parsec_pins_print_steals_data_t) +
+                                                 (total_cores + 2) * sizeof(long));
+    PINS_REGISTER(exec_unit, SELECT_END, stop_print_steals_count,
+                  (parsec_pins_next_callback_t*)event_cb);
 }
 
-static void pins_thread_init_print_steals(dague_execution_unit_t * exec_unit) {
-    exec_unit->steal_counters = calloc(sizeof(long), total_cores + 2);
-}
+static void pins_thread_fini_print_steals(dague_execution_unit_t* exec_unit)
+{
+    parsec_pins_print_steals_data_t* event_cb;
+    PINS_UNREGISTER(exec_unit, SELECT_END, stop_print_steals_count,
+                  (parsec_pins_next_callback_t**)&event_cb);
 
-static void pins_thread_fini_print_steals(dague_execution_unit_t * exec_unit) {
     for (int k = 0; k < total_cores + 2; k++)
-        printf("%7ld ", exec_unit->steal_counters[k]);
+        printf("%7ld ", event_cb->steal_counters[k]);
     printf("\n");
-    free(exec_unit->steal_counters);
+    free(event_cb);
 }
 
-static void stop_print_steals_count(dague_execution_unit_t * exec_unit, 
-                                    dague_execution_context_t * exec_context, 
-                                    void * data) {
-    unsigned long long victim_core_num = (unsigned long long)data;
+static void stop_print_steals_count(dague_execution_unit_t* exec_unit,
+                                    dague_execution_context_t* exec_context,
+                                    parsec_pins_next_callback_t* data)
+{
+    parsec_pins_print_steals_data_t* event_cb = (parsec_pins_print_steals_data_t*)data;
+    /**
+     * This is plain wrong and it could not have been working.
+     */
+    unsigned long long victim_core_num = 0;
 
     if (exec_context != NULL)
-        exec_unit->steal_counters[victim_core_num] += 1;
+        event_cb->steal_counters[victim_core_num] += 1;
     else
-        exec_unit->steal_counters[victim_core_num + 1] += 1;
-
-    // keep the contract with the previous registrant
-    if (select_end_prev != NULL) {
-        (*select_end_prev)(exec_unit, exec_context, data);
-    }
+        event_cb->steal_counters[victim_core_num + 1] += 1;
+    (void)exec_unit;
 }
-

@@ -16,7 +16,7 @@ enable_testing()
 include(CTest)
 
 set(MPI_TEST_CMD
-      "mpirun" CACHE STRING
+      "mpiexec" CACHE STRING
       "A command to run distributed memory testings")
 if( "${MPI_TEST_CMD}" STREQUAL "" )
     MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
@@ -125,13 +125,13 @@ endif()
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
-  "Enable the generation of the profiling information during execution" OFF)
+  "Enable the generation of the profiling information during
+  execution" OFF)
+option(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET
+  "Enable the profiling of active arena set to track memory usage of dague handles" OFF)
+mark_as_advanced(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
 option(PARSEC_PROF_TAU
   "Experimental usage of TAU profiling framework" ON)
-option(DAGUE_PROF_PAPI
-  "Enable PAPI performance hardware counters" OFF)
-option(DAGUE_PROF_STATS
-  "Enable the generation of short statistics information during execution (microbenchmarking)" OFF)
 option(DAGUE_PROF_RUSAGE_EU
   "Print the rusage per execution unit for each progress" OFF)
 option(DAGUE_PROF_TRACE_SCHEDULING_EVENTS
@@ -279,7 +279,7 @@ if(_match_icc)
     # 1419: warning about extern functions being declared in .c
     #       files
     # 1572: cuda compares floats with 0.0f.
-    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
+    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572 -wd10237" )
   ENDIF( HAVE_WD )
 endif(_match_icc)
 
@@ -437,15 +437,21 @@ IF( BUILD_DAGUE )
     find_package(CUDA QUIET)
     set(HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
+      message(STATUS "Found CUDA ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
       if(CUDA_VERSION VERSION_LESS "3.0")
         set(CUDA_HOST_COMPILATION_CPP OFF)
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
       list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
+      if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        list(APPEND EXTRA_LIBS "-framework cuda")
+      else(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        list(APPEND EXTRA_LIBS cuda)
+      endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       CMAKE_PUSH_CHECK_STATE()
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
-      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES}")
+      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES};-lcuda")
       if(CUDA_VERSION VERSION_LESS "4.0")
           set(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
       else()
@@ -544,13 +550,13 @@ ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 ###
 ##
 #
-set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dague/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} DAGUE_COMPILE_INPLACE)
 if(NOT DAGUE_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dague/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
 
 #
@@ -631,30 +637,30 @@ add_subdirectory(tests)
 
 # Configuration header
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 
 install(FILES
   ${PROJECT_INCLUDE_DIR}/dague_config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config_bottom.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/profiling.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.h
   DESTINATION include)
 
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/ayudame.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/constants.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/ayudame.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/constants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
   DESTINATION include/dague)
 
 # pkg-config file
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
 
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)

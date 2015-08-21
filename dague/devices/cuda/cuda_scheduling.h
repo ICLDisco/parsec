@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,19 +7,16 @@
 #include "dague_config.h"
 
 #if defined(HAVE_CUDA)
-#include "dague_internal.h"
-#include <dague/devices/cuda/dev_cuda.h>
-#include "profiling.h"
-#include "execution_unit.h"
+#include "dague/dague_internal.h"
+#include "dague/devices/cuda/dev_cuda.h"
+#include "dague/profiling.h"
+#include "dague/execution_unit.h"
+#include "dague/scheduling.h"
 
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #include <errno.h>
 #include "dague/class/lifo.h"
-
-#if defined(DAGUE_PROF_TRACE)
-#include "dbp.h"
-#endif /* defined(DAGUE_PROF_TRACE) */
 
 /**
  * Define functions names
@@ -185,7 +182,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
              this_task->ec->priority ));
     /* Everything went fine so far, the result is correct and back in the main memory */
     DAGUE_LIST_ITEM_SINGLETON(this_task);
-    if (this_task->task_type == 111) {
+    if (this_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
         dague_gpu_W2R_task_fini(gpu_device, this_task, eu_context);
         this_task = progress_task;
         goto fetch_task_from_shared_queue;

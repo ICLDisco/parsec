@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,10 +8,10 @@
 /*  unset options that make debug.h unpure, we need bindthread to compile standalone for unit tests */
 #undef HAVE_MPI
 #undef DAGUE_DEBUG_HISTORY
-#include "debug.h"
-#include "bindthread.h"
+#include "dague/debug.h"
+#include "dague/bindthread.h"
 #if defined(HAVE_HWLOC)
-#include "dague_hwloc.h"
+#include "dague/dague_hwloc.h"
 #elif defined(ARCH_COMPAQ)
 #  include <sys/types.h>
 #  include <sys/resource.h>
@@ -42,11 +42,9 @@ int dague_bindthread(int cpu, int ht)
         marcel_vpset_vp(&vpset, cpu);
         marcel_apply_vpset(&vpset);
     }
-
 #elif defined(HAVE_HWLOC)
     {
-        dague_hwloc_init();
-        cpu=dague_hwloc_bind_on_core_index(cpu, ht);
+        cpu = dague_hwloc_bind_on_core_index(cpu, ht);
         if(cpu == -1 ) {
             DEBUG(("Core binding on node %i failed\n", cpu));
             return -1;
@@ -84,19 +82,17 @@ int dague_bindthread(int cpu, int ht)
         int                           ret;
 
         ap.affinity_tag = 1; /* non-null affinity tag */
-        ret = thread_policy_set(
-                                mach_thread_self(),
-                                THREAD_AFFINITY_POLICY,
-                                (integer_t*) &ap,
-                                THREAD_AFFINITY_POLICY_COUNT
-                                );
+        ret = thread_policy_set( mach_thread_self(),
+                                 THREAD_AFFINITY_POLICY,
+                                 (integer_t*) &ap,
+                                 THREAD_AFFINITY_POLICY_COUNT );
         if(ret != 0) {
             return -1;
         }
     }
 #endif /* Architectures */
 
-#endif /* WITH_HWLOC     */
+#endif /* WITH_HWLO     */
 
     return cpu;
 }

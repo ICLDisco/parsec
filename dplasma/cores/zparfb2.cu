@@ -120,10 +120,7 @@
 #include <cublas.h>
 #include <plasma.h>
 
-#if defined(PRECISION_z) || defined(PRECISION_c)
-#include <cuComplex.h>
-#endif  /* defined(PRECISION_z) || defined(PRECISION_c) */
-
+#define PRECISION_z
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -271,7 +268,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB2)(PLASMA_enum side, PLASMA_enum trans, PLASMA_en
 
 #if defined (LACPY)
             magmablas_zlacpy( 'A', K, N1,
-                              A1, LDA1, zone,
+                              A1, LDA1, *(dague_complex64_t*)&zone,
                               WORK, LDWORK, stream );
 #endif /* LACPY */
 
@@ -294,10 +291,10 @@ GENERATE_SM_VERSION_NAME(ZPARFB2)(PLASMA_enum side, PLASMA_enum trans, PLASMA_en
                 cublasZgemm( PLASMA_TRANS_TO_CUBLAS_TRANS(trans), 'N',
                             K, N2, K,
                             zone,
-                            T, LDT,
-                            WORK, LDWORK,
-                            0.0,
-                            WORKC, LDWORKC);
+                            (cuDoubleComplex*)T, LDT,
+                            (cuDoubleComplex*)WORK, LDWORK,
+                            zzero,
+                            (cuDoubleComplex*)WORKC, LDWORKC);
             }
 
             /* A1 = A1 - W */
@@ -316,7 +313,7 @@ GENERATE_SM_VERSION_NAME(ZPARFB2)(PLASMA_enum side, PLASMA_enum trans, PLASMA_en
 
 #if defined (LACPY)
             magmablas_zlacpy( 'A', K, N1,
-                              WORKC, LDWORKC, mzone,
+                              WORKC, LDWORKC, *(dague_complex64_t*)&mzone,
                               A1, LDA1, stream );
 #endif /* LACPY */
 

@@ -69,6 +69,8 @@ int main(int argc, char *argv[])
     dplasma_zprint( dague, uplo, &ddescA);
 #endif
 
+goto fin;
+
     /* Step 2 - Conversion of the tiled band to 1D band storage */
     PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
         two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
@@ -83,7 +85,7 @@ int main(int argc, char *argv[])
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            MPI_DOUBLE_COMPLEX, MB);
     dague_enqueue(dague, (dague_handle_t*)DAGUE_diag_band_to_rect);
-    dague_progress(dague);
+    dague_context_wait(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 #ifdef PRINTF_HEAVY
     printf("########### BAND (converted from A)\n");
@@ -245,7 +247,7 @@ int main(int argc, char *argv[])
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescBAND);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
-
+fin:
     cleanup_dague(dague, iparam);
 
     return EXIT_SUCCESS;

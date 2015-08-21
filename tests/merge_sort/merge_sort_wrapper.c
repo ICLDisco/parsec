@@ -1,6 +1,12 @@
-#include "dague_internal.h"
-#include <data_distribution.h>
-#include <arena.h>
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#include "dague.h"
+#include "dague/data_distribution.h"
+#include "dague/arena.h"
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
@@ -18,7 +24,7 @@ static MPI_Datatype block;
  *
  * @return the dague object to schedule.
  */
-dague_handle_t *merge_sort_new(struct tiled_matrix_desc_t *A, int nb, int nt)
+dague_handle_t *merge_sort_new(tiled_matrix_desc_t *A, int nb, int nt)
 {
     dague_merge_sort_handle_t *o = NULL;
 

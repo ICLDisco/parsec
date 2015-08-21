@@ -80,6 +80,7 @@ subs = {
     ('',                    '',                    'crealf',              'creal'               ),
     ('',                    '',                    'cimagf',              'cimag'               ),
     ('',                    '',                    'conjf',               'conj'                ),
+    ('',                    '',                    'cuCfmaf',             'cuCfma'              ),
 
     ('cblas_sasum','cblas_dasum','cblas_scasum','cblas_dzasum'),
     ('CORE_sasum','CORE_dasum','CORE_scasum','CORE_dzasum'),

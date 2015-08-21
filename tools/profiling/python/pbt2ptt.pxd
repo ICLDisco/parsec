@@ -1,6 +1,6 @@
 # pbt2ptt python definition file
 
-cdef extern from "dbp.h":
+cdef extern from "dague/dague_binary_profile.h":
    ctypedef struct dague_thread_profiling_t:
       pass
 
@@ -37,7 +37,7 @@ cdef extern from "dbpreader.h":
    char * dbp_info_get_value(dbp_info_t * info)
 
    dbp_multifile_reader_t* dbp_reader_open_files(int nbfiles, char * files[])
-   dbp_multifile_reader_t* dbp_reader_open_default_files() # this one is for debugging only
+   int dbp_reader_read_threads(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_files(dbp_multifile_reader_t * dbp)
    int dbp_reader_nb_dictionary_entries(dbp_multifile_reader_t * dbp)
    int dbp_reader_worldsize(dbp_multifile_reader_t * dbp)
@@ -83,12 +83,10 @@ cdef extern from "dbpreader.h":
    long long int dbp_event_get_event_id(dbp_event_t *e)
    int dbp_event_get_handle_id(dbp_event_t *e)
    long long int dbp_event_get_timestamp(dbp_event_t *e)
-   void *dbp_event_get_info(dbp_event_t *e)
+   char *dbp_event_get_info(dbp_event_t *e)
    int   dbp_event_info_len(dbp_event_t *e, dbp_multifile_reader_t *dbp)
 
    enum: OPEN_ERROR
 
    # DEBUG
    void dbp_file_print(dbp_file_t* file)
-
-include "pbt_info_parser.pxd"

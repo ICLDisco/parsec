@@ -1,18 +1,27 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#include "remote_dep.h"
-#include "scheduling.h"
-#include "execution_unit.h"
-#include "data.h"
-#include "arena.h"
+#include "dague/remote_dep.h"
+#include "dague/scheduling.h"
+#include "dague/execution_unit.h"
+#include "dague/data_internal.h"
+#include "dague/arena.h"
 #include <stdio.h>
-#include "arena.h"
+
+/**
+ * Indicator for the status of the communication engine. The following values are valid:
+ * - -1: the engine is not initialized (e.g. MPI is not up and running)
+ * -  0: any value > 0 indicate communication capabilities
+ * -  1: the communication capabilities are enabled (internal engine is initialized)
+ * -  2: communication thread is running
+ * -  3: communication thread is up but sleeping
+ */
+int dague_communication_engine_up = -1;
 
 #ifdef DISTRIBUTED
 
@@ -149,7 +158,7 @@ int dague_remote_dep_off(dague_context_t* context)
     return remote_dep_off(context);
 }
 
-int dague_remote_dep_set_ctx( dague_context_t* context, void* opaque_comm_ctx ) 
+int dague_remote_dep_set_ctx( dague_context_t* context, void* opaque_comm_ctx )
 {
     dague_remote_dep_fini( context );
     context->comm_ctx = opaque_comm_ctx;
@@ -158,7 +167,7 @@ int dague_remote_dep_set_ctx( dague_context_t* context, void* opaque_comm_ctx )
 
 int dague_remote_dep_progress(dague_execution_unit_t* eu_context)
 {
-    return remote_dep_progress(eu_context);
+    return remote_dep_progress(eu_context->virtual_process[0].dague_context, 1);
 }
 
 

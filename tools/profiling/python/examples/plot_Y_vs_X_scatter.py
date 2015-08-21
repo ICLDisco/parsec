@@ -29,6 +29,8 @@ def plot_Y_vs_X_scatter(traces, x_axis, y_axis, filters,
 
     for trace in traces:
         events = trace.filter_events(filters)
+        # add a column with he duration
+        events['duration'] = pandas.Series(events['end'] - events['begin'])
 
         events = events.sort(x_axis)
         events = events[int(len(events) * lo_cut * 0.01):

@@ -1,8 +1,14 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "cholesky_data.h"
 #include <plasma.h>
-#include "stdarg.h"
+#include <stdarg.h>
 #include <starpu.h>
-//#include "data_distribution.h"
+//#include "dague/data_distribution.h"
 #include "precision.h"
 
 int matrix_rank;
