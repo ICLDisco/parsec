@@ -831,10 +831,9 @@ typedef struct {
     uint64_t tid;  // 8
     uint32_t hid;  // 16
     uint8_t  fid;  // 20
-    char func[19]; // 21
-} dague_profile_remote_dep_mpi_info_t; // 40 bytes
+} dague_profile_remote_dep_mpi_info_t; // 24 bytes
 
-static char dague_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};dst{int32_t};tid{int64_t};hid{int32_t};fid{int8_t};func{char[19]}";
+static char dague_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};dst{int32_t};tid{int64_t};hid{int32_t};fid{int8_t};pad{char[3]}";
 
 static void remote_dep_mpi_profiling_init(void)
 {
@@ -869,18 +868,15 @@ static void remote_dep_mpi_profiling_fini(void)
 
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {           \
         dague_profile_remote_dep_mpi_info_t __info;                     \
-        dague_execution_context_t __exec_context;                       \
-        dague_handle_t *__object = dague_handle_lookup( (rdw).handle_id ); \
-        __exec_context.function = __object->functions_array[(rdw).function_id ]; \
-        __exec_context.dague_handle = __object;                         \
-        memcpy(&__exec_context.locals, (rdw).locals, MAX_LOCAL_COUNT * sizeof(assignment_t)); \
-        dague_snprintf_execution_context(__info.func, 19, &__exec_context); \
+        const dague_function_t *__function;                             \
+        dague_handle_t *__object;                                       \
+        __object = dague_handle_lookup( (rdw).handle_id );              \
+        __function = __object->functions_array[(rdw).function_id ];     \
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
         __info.hid = __object->handle_id;                               \
-        __info.tid = __exec_context.function->key(__object,             \
-                                                  __exec_context.locals); \
-        __info.fid = __exec_context.function->function_id;              \
+        __info.fid = __function->function_id;                           \
+        __info.tid = __function->key(__object, (rdw).locals);           \
         DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, &__info); \
     } while(0)
 
