@@ -101,7 +101,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldcm = BLKLDD(descC, m);
 
     return gpu_zgemm(context, this_task,
-                     ( k == descA.mt-1 ), descA.mt-k,
+                     ( k == descA.mt-1 ),
                      transA, transB,
                      tempmm, tempnn, tempkk,
                      alpha, ldak,
