@@ -186,7 +186,7 @@ BODY [type=CUDA dyld=cublasZgemm]
 
 #if !defined(DAGUE_DRY_RUN)
     gpu_zgemm( context, this_task,
-               pushout, dague_imin( m-k, n-k );
+               pushout, dague_imin( m-k, n-k ),
                PlasmaNoTrans, PlasmaNoTrans,
                tempmm, tempnn, descA.mb,
                -1., ldam,
