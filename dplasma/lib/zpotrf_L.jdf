@@ -89,7 +89,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go for the sequential CPU version */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -166,7 +166,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go for the sequential CPU version */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -242,7 +242,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go for the sequential CPU version */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -318,7 +318,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     }
     else
         /* Go to next kernel */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -360,7 +360,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go to CPU sequential kernel */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
