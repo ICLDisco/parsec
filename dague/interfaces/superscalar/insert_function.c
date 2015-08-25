@@ -1438,8 +1438,8 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     int track_function_created_or_not=0;
     task_param_t *head_of_param_list, *current_param, *tmp_param = NULL;
     void *tmp, *value_block, *current_val; 
-    static int first_time = 1;
-    static int task_window_size = 8;
+    static int task_window_size = 2;
+    static int last_window_size = 2;
     static int vpid = 0;
 
     /* resetting static variables for each handle */
@@ -1450,8 +1450,8 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
             flow_set_flag[i] = 0;
         }
-        first_time = 1;
-        task_window_size = 8;
+        task_window_size = 2;
+        last_window_size = task_window_size;
     }
 
     va_start(args, name);
@@ -1637,9 +1637,12 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     if((__dague_handle->tasks_created % task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
-        if (first_time){
-            task_window_size = 400;
-            first_time = 0;
+        if ( last_window_size == task_window_size ) {
+            task_window_size *= 2;
+            last_window_size = task_window_size;
+        }
+        if ( task_window_size == 128 ) {
+            task_window_size *= 2;
         }
     }
 }
