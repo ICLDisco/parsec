@@ -686,7 +686,11 @@ cdef class ExtendedEvent:
             elif ev_type == 'float':
                 fmt += 'f'
             else:
-                logger.warning('Unknown format %s', ev_type)
+                m = re.search('char\[([0-9]+)\]', ev_type)
+                if m is None:
+                    logger.warning('Unknown format %s', ev_type)
+                else:
+                    fmt += "%ss"%(m.group(1))
 
         logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, fmt)
         self.ev_struct = struct.Struct(fmt)
