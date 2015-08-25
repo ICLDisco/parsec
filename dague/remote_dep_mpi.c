@@ -826,12 +826,15 @@ static int MPI_Data_plds_sk, MPI_Data_plds_ek;
 static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
 
 typedef struct {
-    int rank_src;
-    int rank_dst;
-    char func[16];
-} dague_profile_remote_dep_mpi_info_t;
+    int rank_src;  // 0
+    int rank_dst;  // 4
+    uint64_t tid;  // 8
+    uint32_t hid;  // 16
+    uint8_t  fid;  // 20
+    char func[19]; // 21
+} dague_profile_remote_dep_mpi_info_t; // 40 bytes
 
-static char dague_profile_remote_dep_mpi_info_to_string[] = "";
+static char dague_profile_remote_dep_mpi_info_to_string[] = "src{int32_t};dst{int32_t};tid{int64_t};hid{int32_t};fid{int8_t};func{char[19]}";
 
 static void remote_dep_mpi_profiling_init(void)
 {
@@ -871,9 +874,13 @@ static void remote_dep_mpi_profiling_fini(void)
         __exec_context.function = __object->functions_array[(rdw).function_id ]; \
         __exec_context.dague_handle = __object;                         \
         memcpy(&__exec_context.locals, (rdw).locals, MAX_LOCAL_COUNT * sizeof(assignment_t)); \
-        dague_snprintf_execution_context(__info.func, 16, &__exec_context); \
+        dague_snprintf_execution_context(__info.func, 19, &__exec_context); \
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
+        __info.hid = __object->handle_id;                               \
+        __info.tid = __exec_context.function->key(__object,             \
+                                                  __exec_context.locals); \
+        __info.fid = __exec_context.function->function_id;              \
         DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, &__info); \
     } while(0)
 
