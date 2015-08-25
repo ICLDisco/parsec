@@ -28,19 +28,19 @@ readA(m, n) [profile = off]
   : dataA(m,n)
 
   READ  A    <- dataA(m,n)
-             -> (m == n)           ? A zlauum(m)                 [type = LOWER_TILE]
-             -> (m == n) & (m > 0) ? A ztrmm(n, 0 .. (n-1))      [type = LOWER_TILE]
-             -> (m >  n)           ? A zherk(m, n)
-             -> (m >  n)           ? B ztrmm(m, n)
-             -> (m >  n) & (n > 0) ? A zgemm(m, 0..(n-1), n)
-             -> (m > (n+1))        ? B zgemm(m, n, (n+1)..(m-1))
+             -> (m == n)           ? A lauum_zlauum(m)                 [type = LOWER_TILE]
+             -> (m == n) & (m > 0) ? A lauum_ztrmm(n, 0 .. (n-1))      [type = LOWER_TILE]
+             -> (m >  n)           ? A lauum_zherk(m, n)
+             -> (m >  n)           ? B lauum_ztrmm(m, n)
+             -> (m >  n) & (n > 0) ? A lauum_zgemm(m, 0..(n-1), n)
+             -> (m > (n+1))        ? B lauum_zgemm(m, n, (n+1)..(m-1))
 BODY
 {
     /* nothing */
 }
 END
 
-zherk(k, n)
+lauum_zherk(k, n)
   /* Execution Space */
   k = 1 .. (descA.mt-1)
   n = 0 .. (k-1)
@@ -48,13 +48,13 @@ zherk(k, n)
   /* Locality */
   : dataA(n, n)
 
-  CTL   ctl0 -> ctl0 ztrmm(k, n)
+  CTL   ctl0 -> ctl0 lauum_ztrmm(k, n)
 
   READ  A    <- A readA(k, n)
 
-  RW    C    <- (k == (n+1)) ? A zlauum(n)                       [type = LOWER_TILE]
-             <- (k >  (n+1)) ? C zherk(k-1, n)                   [type = LOWER_TILE]
-             -> (k <  (descA.mt-1)) ? C zherk(k+1, n)            [type = LOWER_TILE]
+  RW    C    <- (k == (n+1)) ? A lauum_zlauum(n)                       [type = LOWER_TILE]
+             <- (k >  (n+1)) ? C lauum_zherk(k-1, n)                   [type = LOWER_TILE]
+             -> (k <  (descA.mt-1)) ? C lauum_zherk(k+1, n)            [type = LOWER_TILE]
              -> (k == (descA.mt-1)) ? dataA(n, n)                [type = LOWER_TILE]
 
 BODY
@@ -76,7 +76,7 @@ BODY
 }
 END
 
-zgemm(k, n, m)
+lauum_zgemm(k, n, m)
   /* Execution Space */
   k = 2     .. (descA.mt-1)
   n = 0     .. (k-2)
@@ -85,15 +85,15 @@ zgemm(k, n, m)
   /* Locality */
   : dataA(m, n)
 
-  CTL   ctl1 -> ctl1 ztrmm(k, m)
-  CTL   ctl2 -> ctl2 ztrmm(k, n)
+  CTL   ctl1 -> ctl1 lauum_ztrmm(k, m)
+  CTL   ctl2 -> ctl2 lauum_ztrmm(k, n)
 
   READ  A    <- A readA(k, m)
   READ  B    <- A readA(k, n)
-  RW    C    <- (k == (m+1)) ? B ztrmm(m, n)
-             <- (k >  (m+1)) ? C zgemm(k-1, n, m)
+  RW    C    <- (k == (m+1)) ? B lauum_ztrmm(m, n)
+             <- (k >  (m+1)) ? C lauum_zgemm(k-1, n, m)
              -> (k == (descA.mt-1)) ? dataA(m, n)
-             -> (k <  (descA.mt-1)) ? C zgemm(k+1, n, m)
+             -> (k <  (descA.mt-1)) ? C lauum_zgemm(k+1, n, m)
 
 BODY
 {
@@ -115,7 +115,7 @@ BODY
 }
 END
 
-ztrmm(k, n)
+lauum_ztrmm(k, n)
   /* Execution Space */
   k = 1 .. (descA.mt-1)
   n = 0 .. (k-1)
@@ -123,14 +123,14 @@ ztrmm(k, n)
   /* Locality */
   : dataA(k,n)
 
-  CTL   ctl0 <- ctl0 zherk(k, n)
-  CTL   ctl1 <- ctl1 zgemm(k, n, (n+1)..(k-1))
-  CTL   ctl2 <- ctl2 zgemm(k, 0..(n-1), n)
-  CTL   ctl3 -> ctl3 zlauum(k)
+  CTL   ctl0 <- ctl0 lauum_zherk(k, n)
+  CTL   ctl1 <- ctl1 lauum_zgemm(k, n, (n+1)..(k-1))
+  CTL   ctl2 <- ctl2 lauum_zgemm(k, 0..(n-1), n)
+  CTL   ctl3 -> ctl3 lauum_zlauum(k)
 
   READ  A    <- A readA(k, k)                              [type = LOWER_TILE]
   RW    B    <- A readA(k, n)
-             -> (k <  (descA.mt-1)) ? C zgemm(k+1, n, k)
+             -> (k <  (descA.mt-1)) ? C lauum_zgemm(k+1, n, k)
              -> (k == (descA.mt-1)) ? dataA(k, n)
 
 BODY
@@ -151,17 +151,17 @@ BODY
 }
 END
 
-zlauum(k)
+lauum_zlauum(k)
   /* Execution Space */
   k = 0..(descA.mt-1)
 
   /* Locality */
   : dataA(k,k)
 
-  CTL   ctl3 <- ctl3 ztrmm(k, 0..(k-1))
+  CTL   ctl3 <- ctl3 lauum_ztrmm(k, 0..(k-1))
 
   RW    A    <- A readA(k,k)                           [type = LOWER_TILE]
-             -> (k <  (descA.mt-1)) ? C zherk(k+1, k)  [type = LOWER_TILE]
+             -> (k <  (descA.mt-1)) ? C lauum_zherk(k+1, k)  [type = LOWER_TILE]
              -> (k == (descA.mt-1)) ? dataA(k, k)      [type = LOWER_TILE]
 
 BODY

@@ -114,7 +114,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
         logger.log(40, "Event %s conv <%s> length %d\n", event_name, event_conv, event_length)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
-            event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
+            event_conv = 'kernel_type{int32_t}'+PARSEC_PINS_SEPARATOR+'value1{int64_t}'+PARSEC_PINS_SEPARATOR+'value2{int64_t}'+PARSEC_PINS_SEPARATOR+'value3{int64_t}'+PARSEC_PINS_SEPARATOR
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
                                                                  event_conv, event_length)
