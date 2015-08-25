@@ -84,7 +84,7 @@ dplasma_zlauum_New( PLASMA_enum uplo,
         dague_lauum = (dague_handle_t*)dague_zlauum_U_new(
             uplo, (dague_ddesc_t*)A );
 
-        /* Lower part of A with diagonal part */
+        /* Upper part of A with diagonal part */
         dplasma_add2arena_upper( ((dague_zlauum_U_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_U_UPPER_TILE_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,

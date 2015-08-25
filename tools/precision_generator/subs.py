@@ -189,6 +189,7 @@ subs = {
     ('slamch','dlamch','slamch','dlamch'),
     ('slarnv','dlarnv','slarnv','dlarnv'),
     ('slauum','dlauum','clauum','zlauum'),
+    ('spoinv','dpoinv','cpoinv','zpoinv'),
     ('spotri','dpotri','cpotri','zpotri'),
     ('strtri','dtrtri','ctrtri','ztrtri'),
     ('strsmpl','dtrsmpl','ctrsmpl','ztrsmpl'),

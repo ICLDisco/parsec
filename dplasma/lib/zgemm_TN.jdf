@@ -91,7 +91,9 @@ READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.
        -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
 RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA.mt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
+
 BODY [type=CUDA dyld=cublasZgemm]
+{
     dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
     int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
@@ -101,12 +103,13 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldcm = BLKLDD(descC, m);
 
     return gpu_zgemm(context, this_task,
-                     ( k == descA.nt-1 ),
+                     ( k == descA.mt-1 ), descA.mt-k,
                      transA, transB,
                      tempmm, tempnn, tempkk,
                      alpha, ldak,
                      ldbk,
                      lbeta, ldcm);
+}
 END
 
 BODY
