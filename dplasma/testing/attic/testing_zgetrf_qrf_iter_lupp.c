@@ -151,7 +151,7 @@ int main(int argc, char ** argv)
                     /* lets rock! */
                     SYNC_TIME_START();
                     TIME_START();
-                    dague_progress(dague);
+                    dague_context_wait(dague);
                     SYNC_TIME_STOP();
                     gflops = (flops/1e9)/(sync_time_elapsed);
                     dplasma_zgetrf_Destruct( DAGUE_zgetrf );
@@ -168,7 +168,7 @@ int main(int argc, char ** argv)
                     /* lets rock! */
                     SYNC_TIME_START();
                     TIME_START();
-                    dague_progress(dague);
+                    dague_context_wait(dague);
                     SYNC_TIME_STOP();
                     gflops = (flops/1e9)/(sync_time_elapsed);
                     dplasma_zgetrf_nopiv_Destruct( DAGUE_zgetrf_nopiv );

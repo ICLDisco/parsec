@@ -5,8 +5,8 @@
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
-#include "debug.h"
+#include "dague/dague_internal.h"
+#include "dague/debug.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,7 +31,8 @@
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "dague/devices/device.h"
-#include "data.h"
+#include "dague/vpmap.h"
+#include "dague/data.h"
 
 #if !defined(UINT_MAX)
 #define UINT_MAX (~0UL)

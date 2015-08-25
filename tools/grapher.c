@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,7 @@
 #include <stdarg.h>
 
 #include "dague.h"
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 
 static uint32_t pseudo_rank_of(struct dague_ddesc *mat, ...)
 {

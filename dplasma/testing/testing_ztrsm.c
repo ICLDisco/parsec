@@ -193,7 +193,7 @@ static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescC,
                            tiled_matrix_desc_t *ddescCfinal )
 {
-    int info_solution;
+    int info_solution = 1;
     double Cinitnorm, Cdplasmanorm, Rnorm;
     double eps, result;
 
@@ -202,7 +202,7 @@ static int check_solution( dague_context_t *dague, int loud,
     Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, ddescC );
     Cdplasmanorm = dplasma_zlange( dague, PlasmaInfNorm, ddescCfinal );
 
-    dplasma_zgeadd( dague, PlasmaUpperLower, -1.0, ddescC,
+    dplasma_zgeadd( dague, PlasmaNoTrans, PlasmaUpperLower, -1.0, ddescC,
                                                    ddescCfinal );
 
     Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, ddescCfinal );

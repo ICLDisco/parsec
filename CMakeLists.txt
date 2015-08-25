@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.8.8)
+cmake_minimum_required (VERSION 2.8.7)
 project (DAGUE C)
 enable_language(Fortran OPTIONAL)
 enable_language(CXX OPTIONAL)
@@ -7,7 +7,7 @@ include(CMakeDependentOption)
 include(CMakePushCheckState)
 
 # The current version number
-set (DAGUE_VERSION_MAJOR 1)
+set (DAGUE_VERSION_MAJOR 2)
 set (DAGUE_VERSION_MINOR 0)
 
 # CTest system
@@ -16,7 +16,7 @@ enable_testing()
 include(CTest)
 
 set(MPI_TEST_CMD
-      "mpirun" CACHE STRING
+      "mpiexec" CACHE STRING
       "A command to run distributed memory testings")
 if( "${MPI_TEST_CMD}" STREQUAL "" )
     MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
@@ -65,6 +65,8 @@ option(DAGUE_WANT_HOME_CONFIG_FILES
 set(DAGUEPP_CFLAGS "--noline" CACHE STRING "Additional daguepp precompiling flags" )
 mark_as_advanced(DAGUEPP_CFLAGS)
 
+option(DAGUE_WITH_DEVEL_HEADERS "Install additional header files in include/daguepp to compile generated files from JDF" OFF)
+
 ## Multicore scheduler parameters
 mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
 option(DAGUE_SCHED_REPORT_STATISTICS
@@ -97,7 +99,7 @@ option(DAGUE_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
 option(DAGUE_GPU_CUDA_ALLOC_PER_TILE
   "Tile based allocation engine for GPU memory (instead of internal management
-  of a complete allocation)" ON)
+  of a complete allocation)" OFF)
 mark_as_advanced(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
 option(DAGUE_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
@@ -125,13 +127,13 @@ endif()
 
 ### Profiling options
 option(DAGUE_PROF_TRACE
-  "Enable the generation of the profiling information during execution" OFF)
+  "Enable the generation of the profiling information during
+  execution" OFF)
+option(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET
+  "Enable the profiling of active arena set to track memory usage of dague handles" OFF)
+mark_as_advanced(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
 option(PARSEC_PROF_TAU
   "Experimental usage of TAU profiling framework" ON)
-option(DAGUE_PROF_PAPI
-  "Enable PAPI performance hardware counters" OFF)
-option(DAGUE_PROF_STATS
-  "Enable the generation of short statistics information during execution (microbenchmarking)" OFF)
 option(DAGUE_PROF_RUSAGE_EU
   "Print the rusage per execution unit for each progress" OFF)
 option(DAGUE_PROF_TRACE_SCHEDULING_EVENTS
@@ -279,7 +281,7 @@ if(_match_icc)
     # 1419: warning about extern functions being declared in .c
     #       files
     # 1572: cuda compares floats with 0.0f.
-    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572" )
+    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572 -wd10237" )
   ENDIF( HAVE_WD )
 endif(_match_icc)
 
@@ -388,6 +390,7 @@ check_function_exists(getopt_long HAVE_GETOPT_LONG)
 check_include_files(errno.h HAVE_ERRNO_H)
 check_include_files(stddef.h HAVE_STDDEF_H)
 check_include_files(stdbool.h HAVE_STDBOOL_H)
+check_include_files(ctype.h HAVE_CTYPE_H)
 check_function_exists(getrusage HAVE_GETRUSAGE)
 check_symbol_exists(RUSAGE_THREAD sys/resource.h HAVE_RUSAGE_THREAD)
 check_include_files(limits.h HAVE_LIMITS_H)
@@ -436,15 +439,21 @@ IF( BUILD_DAGUE )
     find_package(CUDA QUIET)
     set(HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
+      message(STATUS "Found CUDA ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
       if(CUDA_VERSION VERSION_LESS "3.0")
         set(CUDA_HOST_COMPILATION_CPP OFF)
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
       list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
+      if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        list(APPEND EXTRA_LIBS "-framework cuda")
+      else(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+        list(APPEND EXTRA_LIBS cuda)
+      endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       CMAKE_PUSH_CHECK_STATE()
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
-      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES}")
+      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES};-lcuda")
       if(CUDA_VERSION VERSION_LESS "4.0")
           set(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
       else()
@@ -543,13 +552,13 @@ ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 ###
 ##
 #
-set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dague/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
 STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} DAGUE_COMPILE_INPLACE)
 if(NOT DAGUE_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/include")
+  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dague/include")
 endif(NOT DAGUE_COMPILE_INPLACE)
 
 #
@@ -608,11 +617,11 @@ if( BUILD_DAGUE )
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
     #include(FortranCInterface)
-    #FortranCInterface_HEADER(src/fortran/f2c_mangle.h
+    #FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
     #                         MACRO_NAMESPACE "DAGUE_"
     #                         SYMBOL_NAMESPACE "dague_")
     #                         SYMBOLS mysub daguef:my_sub)
-    add_subdirectory(src/fortran)
+    add_subdirectory(dague/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
 
@@ -630,30 +639,120 @@ add_subdirectory(tests)
 
 # Configuration header
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config.h.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague_config.h.in"
   "${PROJECT_INCLUDE_DIR}/dague_config.h")
 
 install(FILES
   ${PROJECT_INCLUDE_DIR}/dague_config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague_config_bottom.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/data_distribution.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/profiling.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/vpmap.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.h
   DESTINATION include)
 
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/ayudame.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/constants.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/dague/types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/ayudame.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/constants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
   DESTINATION include/dague)
+
+# Install header files for jdf generated code
+if( DAGUE_WITH_DEVEL_HEADERS )
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/arena.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/bindthread.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_binary_profile.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_hwloc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_internal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_prof_grapher.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/data_internal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/datarepo.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/debug.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/hbbuffer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_description_structures.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/execution_unit.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/os-spec-timing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/maxheap.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mempool.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/remote_dep.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/scheduling.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/output.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/vpmap.h
+    DESTINATION include/daguepp/dague )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/mca.h
+    DESTINATION include/daguepp/dague/mca )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_papi_utils.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_tau_utils.h
+    DESTINATION include/daguepp/dague/mca/pins )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype/datatype_mpi.h
+    DESTINATION include/daguepp/dague/datatype )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/argv.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/cmd_line.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/dague_environ.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/installdirs.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/keyval_lex.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/keyval_parse.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/mca_param_cmd_line.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/mca_param.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/mca_param_internal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/os_path.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/output.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/show_help.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/show_help_lex.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/zone_malloc.h
+    DESTINATION include/daguepp/dague/utils )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/barrier.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dague_object.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dague_value_array.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dequeue.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/fifo.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/lifo.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list_item.h
+    DESTINATION include/daguepp/dague/class )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-gcc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-macosx.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc-bgp.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_32.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_64.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-xlc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic.h
+    DESTINATION include/daguepp/dague/sys )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/device.h
+    DESTINATION include/daguepp/dague/devices )
+
+  install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/cuda_scheduling.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/dev_cuda.h
+    DESTINATION include/daguepp/dague/devices/cuda )
+
+endif(DAGUE_WITH_DEVEL_HEADERS)
 
 # pkg-config file
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/include/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
 
 install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)

@@ -1,10 +1,18 @@
+/*
+ * Copyright (c) 2012-2014 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * $COPYRIGHT
+ *
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
-#include "dague_internal.h"
 #include "dplasma/lib/butterfly_map.h"
+#include "dague/data_internal.h"
 
 seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){
     int am, an, bm, bn, cm, cn, dm, dn, em, en, fm, fn;
@@ -251,7 +259,8 @@ void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_ti
 }
 
 int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, unsigned *n_sz){
-    unsigned width, height;
+    unsigned width = 0;
+    unsigned height = 0;
     /* int abs_m, abs_n; */
     unsigned type_index_n, type_index_m;
     int success = 1;
@@ -339,6 +348,7 @@ int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, un
             */
             height = seg.b_sz.m2;
             break;
+        default: assert(0);
     }
 
     if( !height || !width ){
@@ -353,11 +363,11 @@ int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, un
     return success;
 }
 
-int segment_to_arena_index(const dague_seg_ddesc_t but_ddesc, int m, int n){
+int segment_to_arena_index(const dague_seg_ddesc_t* but_ddesc, int m, int n){
     /* if using named types in the JDF or the default type, then you need to
      * offset the following value by the number of named+default types used
      */
-    return segment_to_type_index(but_ddesc.seg_info, m, n);
+    return segment_to_type_index(but_ddesc->seg_info, m, n);
 }
 
 int segment_to_type_index(const seg_info_t seg, int m, int n){

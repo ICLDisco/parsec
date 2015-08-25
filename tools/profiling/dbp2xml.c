@@ -13,8 +13,9 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
-#include "profiling.h"
-#include "dbp.h"
+#include "dague/os-spec-timing.h"
+#include "dague/profiling.h"
+#include "dague/dague_binary_profile.h"
 #include "dbpreader.h"
 
 #ifdef DEBUG
@@ -84,10 +85,10 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                             start, end);
 
                     if( dbp_event_get_flags( e ) & DAGUE_PROFILING_EVENT_HAS_INFO ) {
-                        /** TODO fprintf(tracefile, "       <INFO>%s</INFO>\n", infostr); */
+                        /** TODO fprintf(tracefile, "       <INFO><![CDATA[%s]]></INFO>\n", infostr); */
                     }
                     if( dbp_event_get_flags( g ) & DAGUE_PROFILING_EVENT_HAS_INFO ) {
-                        /** TODO fprintf(tracefile, "       <INFO ATEND=\"true\">%s</INFO>\n", infostr); */
+                        /** TODO fprintf(tracefile, "       <INFO ATEND=\"true\"><![CDATA[%s]]></INFO>\n", infostr); */
                     }
                     fprintf(tracefile, "                  </EVENT>\n");
 
@@ -127,7 +128,7 @@ static int dump_xml( const char* filename, const dbp_multifile_reader_t *dbp )
     for(ifd = 0; ifd < dbp_reader_nb_files(dbp); ifd++) {
         file = dbp_reader_get_file(dbp, ifd);
         for(i = 0; i < dbp_file_nb_infos(file); i++) {
-            fprintf(tracefile, "    <INFO NAME=\"%s\">%s</INFO>\n",
+    fprintf(tracefile, "    <INFO NAME=\"%s\"><![CDATA[%s]]></INFO>\n",
                     dbp_info_get_key(dbp_file_get_info(file, i)),
                     dbp_info_get_value(dbp_file_get_info(file, i)));
         }

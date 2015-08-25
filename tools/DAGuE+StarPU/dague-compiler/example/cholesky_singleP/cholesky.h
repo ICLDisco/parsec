@@ -19,8 +19,8 @@
 #line 2 "cholesky.c"
 #ifndef _cholesky_h_
 #define _cholesky_h_
-#include <dague.h>
-#include <debug.h>
+#include "dague.h"
+#include "dague/debug.h"
 #include <assert.h>
 
 #define MAX_GLOBAL_COUNT 50

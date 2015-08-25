@@ -1,7 +1,13 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "choice_data.h"
-#include "stdarg.h"
-#include "data_distribution.h"
-#include "data.h"
+#include <stdarg.h>
+#include "dague/data_distribution.h"
+#include "dague/data_internal.h"
 
 #include <assert.h>
 
@@ -91,7 +97,7 @@ static int vpid_of(dague_ddesc_t *desc, ...)
 }
 
 #if defined(DAGUE_PROF_TRACE)
-static uint32_t data_key(struct dague_ddesc *desc, ...)
+static uint32_t data_key(struct dague_ddesc_s *desc, ...)
 {
     int k;
     va_list ap;

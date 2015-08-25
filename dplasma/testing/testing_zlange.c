@@ -358,7 +358,7 @@ int main(int argc, char ** argv)
                         printf("       | Ndag - Nlap | / Nlap = %e\n", normdag);
                         ret |= 1;
 
-                        dplasma_zgeadd(dague, uplo[u], -1.,
+                        dplasma_zgeadd(dague, PlasmaNoTrans, uplo[u], -1.,
                                        (tiled_matrix_desc_t *)&ddescA,
                                        (tiled_matrix_desc_t *)&ddescA0 );
 

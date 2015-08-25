@@ -20,7 +20,10 @@ int main(int argc, char *argv[])
     dague_handle_t *a2a;
 
 #if defined(HAVE_MPI)
-    MPI_Init(&argc, &argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -41,7 +44,7 @@ int main(int argc, char *argv[])
     a2a = a2a_new(ddescA, ddescB, size, repeat);
     dague_enqueue(dague, a2a);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     dague_handle_free(a2a);
     dague_fini(&dague);

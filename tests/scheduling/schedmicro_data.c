@@ -1,8 +1,16 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+
 #include "schedmicro_data.h"
-#include "stdarg.h"
-#include "data_distribution.h"
-#include "data.h"
-#include "vpmap.h"
+#include <stdarg.h>
+#include "dague/data_distribution.h"
+#include "dague/data_internal.h"
+#include "dague/vpmap.h"
+#include "dague/debug.h"
 
 #include <assert.h>
 
@@ -74,7 +82,7 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
     k = va_arg(ap, int);
     va_end(ap);
 
-    assert( k < dat->size && k >= 0 );
+    assert( k < dat->size && k >= 0 ); (void)dat;
 
     return (uint32_t)k;
 }

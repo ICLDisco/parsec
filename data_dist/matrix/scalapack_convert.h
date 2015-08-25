@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,11 +8,11 @@
 #define __SCALAPACK_CONVERT_H__
 
 #include "dague_config.h"
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 #include "matrix.h"
 
 #ifdef HAVE_MPI
-#include "mpi.h"
+#include <mpi.h>
 #endif/* HAVE_MPI */
 
 typedef struct scalapack_info_t {

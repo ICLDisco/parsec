@@ -8,8 +8,10 @@ import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import mpl_prefs
 import ptt_utils
-import os, sys
+import os
+import sys
 import itertools
+import pandas
 
 # defaults
 y_axes = ['PAPI_L3']
@@ -22,6 +24,7 @@ std_x = 3
 std_y = 3
 ext = 'pdf'
 
+
 def plot_colormap(trace, x_axis, y_axis, filters,
                   bins=bins, tiers=tiers, std_x=std_x, std_y=std_y,
                   trace_descrip='', filters_descrip='',
@@ -32,10 +35,10 @@ def plot_colormap(trace, x_axis, y_axis, filters,
 
     if std_x:
         x_avg = events[x_axis].mean()
-        events = events[:][events[x_axis] - x_avg  <= events[x_axis].std() * std_x]
+        events = events[:][events[x_axis] - x_avg <= events[x_axis].std() * std_x]
     if std_y:
         y_avg = events[y_axis].mean()
-        events = events[:][events[y_axis] - y_avg  <= events[y_axis].std() * std_y]
+        events = events[:][events[y_axis] - y_avg <= events[y_axis].std() * std_y]
 
     label = '{}: {:.1f} gflops/s'.format(trace.sched.upper(),
                                          trace.gflops)
@@ -86,20 +89,13 @@ def plot_colormap(trace, x_axis, y_axis, filters,
              alpha=0.5, family='monospace',
              transform=ax.transAxes)
 
-    short_exe = trace.exe
-    if trace.exe == 'dpotrf':
-        short_exe = 'PO'
-    elif trace.exe == 'dgetrf':
-        short_exe = 'LU'
-    elif trace.exe == 'dgeqrf':
-        short_exe = 'QR'
-    descrip_text = '{} {}\n{} {}'.format(y_axis, trace.sched, short_exe, trace.gflops)
+    descrip_text = '{} {}\n{} {}'.format(y_axis, trace.sched, trace.exe, trace.gflops)
 
     fig.text(0.15, 0.85, descrip_text,
              horizontalalignment='left',
              verticalalignment='top',
              fontsize=40, color='white',
-             alpha=0.5,family='monospace',
+             alpha=0.5, family='monospace',
              transform=ax.transAxes)
 
     fig.set_size_inches(12, 8)
@@ -107,12 +103,13 @@ def plot_colormap(trace, x_axis, y_axis, filters,
 
     std_str = str(std_y)
     if std_y != std_x:
-        str_str += '-{}'.format(std_x)
-    filename = re.sub('[\(\)\' :]' , '',
+        std_str += '-{}'.format(std_x)
+    filename = re.sub('[\(\)\' :]', '',
                       ('{}_vs_{}_{}'.format(y_axis, x_axis, trace_descrip) +
                        '_{}_{}SD'.format(filters_descrip, std_str) +
                        '_colormap.{}'.format(ext)))
     fig.savefig(filename, bbox_inches='tight')
+
 
 def print_help():
     print('')
@@ -121,9 +118,9 @@ def print_help():
     print(' It will accept sets of traces as well, and will attempt to merge them if encountered.')
     print(' usage: <script_name> [PROFILE FILENAMES] [--event-types=TYPE1,TYPE2] [--event-subtypes=TYPE1,TYPE2] [--y-axis=Y_AXIS_DATUM]')
     print('')
-    print(' --event-types    : Filters by event major type, e.g. GEMM, POTRF, PAPI_L12_EXEC')
-    print(' --y-axis         : Y axis datum, e.g. duration, begin, end, PAPI_L2')
-    print(' --x-axis         : X axis datum, e.g. duration, begin, end, PAPI_L2')
+    print(' --event-types    : Filters by event major type, e.g. GEMM, POTRF, etc.')
+    print(' --y-axis         : Y axis datum, e.g. duration, begin, end, etc.')
+    print(' --x-axis         : X axis datum, e.g. duration, begin, end, etc.')
     print(' --event-subtypes : Filters by PAPI_L12 event kernel type, e.g. GEMM, POTRF, SYRK')
     print('')
 
@@ -175,7 +172,7 @@ if __name__ == '__main__':
                 event_subtypes.append(arg)
 
     traces = ptt_utils.autoload_traces(filenames, convert=True, unlink=False,
-                                          skeleton_only=False, enhance_filenames=True)
+                                       skeleton_only=False, enhance_filenames=True)
 
     # then divide the traces into sets based on equivalent command lines
     trace_sets = find_trace_sets(traces, on=['exe', 'N', 'NB', 'IB', 'sched'])
@@ -183,9 +180,9 @@ if __name__ == '__main__':
     traces = automerge_trace_sets(trace_sets.values())
 
     for trace, name in zip(traces, trace_sets.keys()):
-        if slice_st_start != None or slice_st_stop != None:
+        if slice_st_start is None or slice_st_stop is None:
             event_subtypes = mpl_prefs.kernel_names[trace.exe][slice_st_start:slice_st_stop]
-        if slice_t_start != None or slice_t_stop != None:
+        if slice_t_start is None or slice_t_stop is None:
             event_types = mpl_prefs.kernel_names[trace.exe][slice_t_start:slice_t_stop]
 
         if papi_core_all:
@@ -193,7 +190,7 @@ if __name__ == '__main__':
             event_subtypes = []
             # find the PAPI_CORE_EXEC event(s)
             for event_name in trace.event_types.keys():
-                if event_name.startswith('PAPI_CORE_EXEC_'):
+                if event_name.startswith('PAPI_'):
                     event_types.append(event_name)
                     y_axes = papi_core_utils.PAPICoreEventValueLabelGetter()[event_name]
                     break
@@ -206,18 +203,26 @@ if __name__ == '__main__':
             event_subtypes = mpl_prefs.kernel_names[trace.exe]
             type_pairs = list(itertools.product(event_types, event_subtypes))
 
+        # Add the duration series
+        trace.events['duration'] = pandas.Series(trace.events['end'] - trace.events['begin'])
+        if not x_axis in trace.events.keys():
+            print('Event {} not available in the trace. Choices are {}'.format(x_axis, [i for i in trace.events.keys()]))
+            sys.exit(-1)
+
         for y_axis in y_axes:
             for type_pair in type_pairs:
                 filters = []
-                if len(type_pair) == 2: # it's a tuple
+                if len(type_pair) == 2:  # it's a tuple
                     filters.append('type==.event_types[\'' + type_pair[0] + '\']')
                     filters.append('kernel_type==.event_types[\''+type_pair[1]+'\']')
                 else:
                     filters.append('type==.event_types[\'' + type_pair + '\']')
 
                 print('plotting {} vs {} for {} in {}'.format(y_axis, x_axis, filters, trace))
-                plot_colormap(trace, x_axis, y_axis, filters,
-                              trace_descrip=name, filters_descrip=str(type_pair),
-                              std_x = std_x, std_y = std_y, ext=ext, bins=bins)
-
-
+                try:
+                    plot_colormap(trace, x_axis, y_axis, filters,
+                                  trace_descrip=name, filters_descrip=str(type_pair),
+                                  std_x=std_x, std_y=std_y, ext=ext, bins=bins)
+                except AttributeError as ae:
+                    print(ae)
+                    continue

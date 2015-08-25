@@ -18,8 +18,8 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#include "profiling.h"
-#include "dbp.h"
+#include "dague/profiling.h"
+#include "dague/dague_binary_profile.h"
 #include "dbpreader.h"
 
 #ifdef DEBUG
@@ -377,12 +377,12 @@ static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
     static int nextid = 0;
     uidentry_t *n;
     va_list va;
+    int rc; (void)rc;
     hash_key_t h;
     int idx;
     size_t length = strlen(first);
     char *where;
     const char *arg;
-    int rc;
 
     va_start(va, first);
     h = uid_hash_va(first, va);
@@ -444,6 +444,8 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
 {
     uidentry_t *n, *p;
     int parent_id, son_id;
+    int rc; (void)rc;
+    char binding_info[1024]; /**< Risk of buffer overflow. A better approach should be used... */
 
     const char *identifier = dbp_thread_get_hr_id(th);
 
@@ -457,7 +459,6 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
     if ( sscanf( identifier, DAGUE_PROFILE_STREAM_STR, &parent_id, &son_id ) == 2 )
     {
         char *gpu_name, *stream_name;
-        int rc;
 
         /* Create name */
         rc = asprintf( &gpu_name,    "GPU %d",    parent_id); assert(rc!=-1);
@@ -484,10 +485,9 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
 
         free(gpu_name); free(stream_name);
     }
-    else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id ) == 2 )
+    else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id, binding_info ) == 3 )
     {
         char *vp_name, *thrd_name;
-        int rc;
 
         /* Create name */
         rc = asprintf( &vp_name,   "VP %d",     parent_id); assert(rc!=-1);
@@ -506,7 +506,6 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
         free(vp_name); free(thrd_name);
     }
     else {
-        int rc;
         rc = asprintf( &(n->alias), "%sT%s", mpi_alias, n->uid ); assert(rc!=-1);
         addContainer (0.00000, n->alias, "CT_T", mpi_alias, identifier, "");
     }
@@ -601,6 +600,7 @@ static int dump_one_event( dague_list_t *consolidated_events,
     cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
                                         dbp_event_info_len(estart, dbp) +
                                         dbp_event_info_len(eend,   dbp) );
+    OBJ_CONSTRUCT(cev, dague_list_item_t);
 
     cev->event_id  = dbp_event_get_event_id(  estart );
     cev->handle_id = dbp_event_get_handle_id( estart );

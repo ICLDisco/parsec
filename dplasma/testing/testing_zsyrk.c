@@ -175,7 +175,7 @@ static int check_solution( dague_context_t *dague, int loud,
                            dague_complex64_t beta,  int M,  int N,  int Cseed,
                            sym_two_dim_block_cyclic_t *ddescCfinal )
 {
-    int info_solution;
+    int info_solution = 1;
     double Anorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
     double eps, result;
     int MB = ddescCfinal->super.mb;
@@ -212,7 +212,7 @@ static int check_solution( dague_context_t *dague, int loud,
 
     Clapacknorm = dplasma_zlansy( dague, PlasmaInfNorm, uplo, (tiled_matrix_desc_t*)&ddescC );
 
-    dplasma_zgeadd( dague, uplo, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
+    dplasma_zgeadd( dague, PlasmaNoTrans, uplo, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
                                        (tiled_matrix_desc_t*)&ddescC );
 
     Rnorm = dplasma_zlansy( dague, PlasmaMaxNorm, uplo, (tiled_matrix_desc_t*)&ddescC );

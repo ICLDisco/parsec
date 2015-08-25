@@ -40,8 +40,12 @@ jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, NULL, NULL, NULL, 
 static void usage(void)
 {
     fprintf(stderr,
-            "Usage:\n"
+            "Usage: daguepp [OPTIONS] [-- COMPILER_OPTIONS]\n"
             "  Compile a JDF into a DAGuE representation (.h and .c files)\n"
+            "  and compile that .c file into a .o file (unless -E is specified)\n"
+            "  unrecognized options and COMPILER_OPTIONS are all added to the options\n"
+            "  passed to the final compiler.\n"
+            "  recognized OPTIONS are the following:\n"
             "  --debug|-d         Enable bison debug output\n"
             "  --input|-i         Input File (JDF) (default '%s')\n"
             "  --output|-o        Set the BASE name for .c, .h, .o and function name (no default).\n"
@@ -119,7 +123,7 @@ static char** prepare_execv_arguments(void)
 
 static void parse_args(int argc, char *argv[])
 {
-    int ch;
+    int ch, i;
     int wmasked = 0;
     int wmutexinput = 0;
     int wremoteref = 0;
@@ -226,6 +230,10 @@ static void parse_args(int argc, char *argv[])
             /* save the option for later */
             dague_argv_append(&token_count, &extra_argv, optarg);
         }
+    }
+
+    for (i = optind; i < argc; i++) {
+        dague_argv_append(&token_count, &extra_argv, argv[i]);
     }
 
     JDF_COMPILER_GLOBAL_ARGS.noline = !print_jdf_line;

@@ -8,7 +8,7 @@
  */
 
 #include "a2a_data.h"
-#include "stdarg.h"
+#include <stdarg.h>
 #include <data_dist/matrix/two_dim_rectangle_cyclic.h>
 
 #include <assert.h>

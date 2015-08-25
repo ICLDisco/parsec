@@ -1,4 +1,11 @@
+/*
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "hash_datadist.h"
+#include "dague/vpmap.h"
 
 #define DEFAULT_HASH_SIZE 65536
 
@@ -188,13 +195,14 @@ static dague_data_t* hash_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key
         data = OBJ_NEW(dague_data_t);
 
         data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->original = data;
+        data_copy->original = NULL;
         data_copy->device_private = e->actual_data;
 
         data->owner_device = 0;
-        data->key = key;
-        data->nb_elts = e->size;
-        data->device_copies[0] = data_copy;
+        data->key          = key;
+        data->ddesc        = ddesc;
+        data->nb_elts      = e->size;
+        dague_data_copy_attach(data, data_copy, 0);
 
         if( !dague_atomic_cas(&e->data, NULL, data) ) {
             free(data_copy);

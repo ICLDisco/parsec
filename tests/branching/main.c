@@ -10,7 +10,6 @@
 #if defined(HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
-#include "dague_prof_grapher.h"
 
 int main(int argc, char *argv[])
 {
@@ -21,7 +20,10 @@ int main(int argc, char *argv[])
     dague_handle_t *branching;
 
 #if defined(HAVE_MPI)
-    MPI_Init(&argc, &argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -45,12 +47,8 @@ int main(int argc, char *argv[])
     if( NULL != branching ) {
         dague_enqueue(dague, branching);
 
-        dague_progress(dague);
+        dague_context_wait(dague);
     }
-
-#if defined(DAGUE_PROF_GRAPHER)
-    dague_prof_grapher_fini();
-#endif
 
     free_data(ddescA);
 

@@ -1,11 +1,12 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include <core_blas.h>
 #include <dague.h>
+#include <dague/constants.h>
 #include "dplasma.h"
 #include "dplasmatypes.h"
 
@@ -13,12 +14,14 @@
 
 int dplasma_get_extent( MPI_Datatype dt, MPI_Aint* extent )
 {
+    int rc;
 #if defined(HAVE_MPI_20)
     MPI_Aint lb = 0; (void)lb;
-    return MPI_Type_get_extent(dt, &lb, extent);
+    rc = MPI_Type_get_extent(dt, &lb, extent);
 #else
-    return MPI_Type_extent( dt, extent);
+    rc = MPI_Type_extent( dt, extent);
 #endif  /* defined(HAVE_MPI_20) */
+    return (MPI_SUCCESS == rc ? DAGUE_SUCCESS : DAGUE_ERROR);
 }
 
 int dplasma_add2arena_contiguous( dague_arena_t *arena,
@@ -30,14 +33,24 @@ int dplasma_add2arena_contiguous( dague_arena_t *arena,
 {
     dague_datatype_t newtype;
     MPI_Aint extent = 0;
+    int rc;
 
     (void)elem_size;
 
-    dplasma_datatype_define_contiguous(oldtype, nb_elem, resized, &newtype);
-    dplasma_get_extent(newtype, &extent);
-    dague_arena_construct(arena, extent, alignment, newtype);
+    rc = dplasma_datatype_define_contiguous(oldtype, nb_elem, resized, &newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dplasma_get_extent(newtype, &extent);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dague_arena_construct(arena, extent, alignment, newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
 
-    return 0;
+    return DAGUE_SUCCESS;
 }
 
 int dplasma_add2arena_rectangle( dague_arena_t *arena,
@@ -50,12 +63,22 @@ int dplasma_add2arena_rectangle( dague_arena_t *arena,
 {
     dague_datatype_t newtype;
     MPI_Aint extent = 0;
+    int rc;
 
     (void)elem_size;
 
-    dplasma_datatype_define_rectangle(oldtype, tile_mb, tile_nb, resized, &newtype);
-    dplasma_get_extent(newtype, &extent);
-    dague_arena_construct(arena, extent, alignment, newtype);
+    rc = dplasma_datatype_define_rectangle(oldtype, tile_mb, tile_nb, resized, &newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dplasma_get_extent(newtype, &extent);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dague_arena_construct(arena, extent, alignment, newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
 
     return 0;
 }
@@ -78,11 +101,22 @@ int dplasma_add2arena_upper( dague_arena_t *arena,
 {
     dague_datatype_t newtype;
     MPI_Aint extent = 0;
+    int rc;
     (void)elem_size;
 
-    dplasma_datatype_define_upper( oldtype, tile_mb, diag, &newtype);
-    dplasma_get_extent(newtype, &extent);
-    dague_arena_construct(arena, extent, alignment, newtype);
+    rc = dplasma_datatype_define_upper( oldtype, tile_mb, diag, &newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dplasma_get_extent(newtype, &extent);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dague_arena_construct(arena, extent, alignment, newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+
     return 0;
 }
 
@@ -94,11 +128,22 @@ int dplasma_add2arena_lower( dague_arena_t *arena,
 {
     dague_datatype_t newtype;
     MPI_Aint extent = 0;
+    int rc;
     (void)elem_size;
 
-    dplasma_datatype_define_lower( oldtype, tile_mb, diag, &newtype);
-    dplasma_get_extent(newtype, &extent);
-    dague_arena_construct(arena, extent, alignment, newtype);
+    rc = dplasma_datatype_define_lower( oldtype, tile_mb, diag, &newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dplasma_get_extent(newtype, &extent);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+    rc = dague_arena_construct(arena, extent, alignment, newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
+
     return 0;
 }
 
@@ -107,23 +152,27 @@ int dplasma_datatype_define_contiguous( dague_datatype_t oldtype,
                                         int resized,
                                         dague_datatype_t* newtype )
 {
-    int oldsize;
+    int oldsize, rc;
+
+    /* Check if the type is valid and supported by the MPI library */
+    rc = MPI_Type_size(oldtype, &oldsize);
+    if( 0 == oldsize ) {
+        return DAGUE_NOT_SUPPORTED;
+    }
     /**
      * Define the TILE type.
      */
-    MPI_Type_contiguous(nb_elem, oldtype, newtype);
-    MPI_Type_size(oldtype, &oldsize);
+    rc = dague_type_create_contiguous(nb_elem, oldtype, newtype);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
     if( resized >= 0 ) {
-#if defined(HAVE_MPI_20)
         MPI_Datatype tmp = *newtype;
-        MPI_Type_create_resized(tmp, 0, resized*oldsize, newtype);
+        rc = dague_type_create_resized(tmp, 0, resized*oldsize, newtype);
+        if( DAGUE_SUCCESS != rc ) {
+            return rc;
+        }
         MPI_Type_free(&tmp);
-#else
-        int blocklens[] = {1, 1, 1};
-        MPI_Aint indices[] = {0, 0, resized*oldsize};
-        MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
-        MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
-#endif  /* defined(HAVE_MPI_20) */
     }
     MPI_Type_commit(newtype);
 #if defined(HAVE_MPI_20)
@@ -136,7 +185,7 @@ int dplasma_datatype_define_contiguous( dague_datatype_t oldtype,
         MPI_Type_set_name(*newtype, newtype_name);
     }
 #endif  /* defined(HAVE_MPI_20) */
-    return 0;
+    return DAGUE_SUCCESS;
 }
 
 int dplasma_datatype_define_rectangle( dague_datatype_t oldtype,
@@ -145,23 +194,24 @@ int dplasma_datatype_define_rectangle( dague_datatype_t oldtype,
                                        int resized,
                                        dague_datatype_t* newtype )
 {
-    int oldsize;
+    int oldsize, rc;
+
+    /* Check if the type is valid and supported by the MPI library */
+    MPI_Type_size(oldtype, &oldsize);
+    if( 0 == oldsize ) {
+        return DAGUE_NOT_SUPPORTED;
+    }
     /**
      * Define the TILE type.
      */
     MPI_Type_contiguous(tile_nb * tile_mb, oldtype, newtype);
-    MPI_Type_size(oldtype, &oldsize);
     if( resized >= 0 ) {
-#if defined(HAVE_MPI_20)
         MPI_Datatype tmp = *newtype;
-        MPI_Type_create_resized(tmp, 0, resized*oldsize, newtype);
+        rc = dague_type_create_resized(tmp, 0, resized*oldsize, newtype);
+        if( DAGUE_SUCCESS != rc ) {
+            return rc;
+        }
         MPI_Type_free(&tmp);
-#else
-        int blocklens[] = {1, 1, 1};
-        MPI_Aint indices[] = {0, 0, resized*oldsize};
-        MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
-        MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
-#endif  /* defined(HAVE_MPI_20) */
     }
     MPI_Type_commit(newtype);
 #if defined(HAVE_MPI_20)
@@ -174,7 +224,7 @@ int dplasma_datatype_define_rectangle( dague_datatype_t oldtype,
         MPI_Type_set_name(*newtype, newtype_name);
     }
 #endif  /* defined(HAVE_MPI_20) */
-    return 0;
+    return DAGUE_SUCCESS;
 }
 
 int dplasma_datatype_define_tile( dague_datatype_t oldtype,
@@ -188,7 +238,7 @@ int dplasma_datatype_define_upper( dague_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
                                    dague_datatype_t* newtype )
 {
-    int *blocklens, *indices, oldsize;
+    int *blocklens, *indices, oldsize, rc;
     unsigned int i;
     MPI_Datatype tmp;
 
@@ -201,7 +251,10 @@ int dplasma_datatype_define_upper( dague_datatype_t oldtype,
         blocklens[i] = i + 1 - diag;
         indices[i] = i * tile_nb;
     }
-    MPI_Type_indexed(tile_nb-diag, blocklens+diag, indices+diag, oldtype, &tmp);
+    rc = dague_type_create_indexed(tile_nb-diag, blocklens+diag, indices+diag, oldtype, &tmp);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
     MPI_Type_size(oldtype, &oldsize);
 #if defined(HAVE_MPI_20)
     MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
@@ -225,14 +278,14 @@ int dplasma_datatype_define_upper( dague_datatype_t oldtype,
     MPI_Type_free(&tmp);
     free(blocklens);
     free(indices);
-    return 0;
+    return DAGUE_SUCCESS;
 }
 
 int dplasma_datatype_define_lower( dague_datatype_t oldtype,
                                    unsigned int tile_nb, int diag,
                                    dague_datatype_t* newtype )
 {
-    int *blocklens, *indices, oldsize;
+    int *blocklens, *indices, oldsize, rc;
     unsigned int i;
     MPI_Datatype tmp;
 
@@ -245,7 +298,10 @@ int dplasma_datatype_define_lower( dague_datatype_t oldtype,
         blocklens[i] = tile_nb - i - diag;
         indices[i] = i * tile_nb + i + diag;
     }
-    MPI_Type_indexed(tile_nb-diag, blocklens, indices, oldtype, &tmp);
+    rc = dague_type_create_indexed(tile_nb-diag, blocklens, indices, oldtype, &tmp);
+    if( DAGUE_SUCCESS != rc ) {
+        return rc;
+    }
     MPI_Type_size(oldtype, &oldsize);
 #if defined(HAVE_MPI_20)
     MPI_Type_create_resized(tmp, 0, tile_nb*tile_nb*oldsize, newtype);
@@ -269,12 +325,12 @@ int dplasma_datatype_define_lower( dague_datatype_t oldtype,
     MPI_Type_free(&tmp);
     free(blocklens);
     free(indices);
-    return 0;
+    return DAGUE_SUCCESS;
 }
 
 int dplasma_datatype_undefine_type(dague_datatype_t* type)
 {
-    return MPI_Type_free(type);
+    return (MPI_SUCCESS == MPI_Type_free(type) ? DAGUE_SUCCESS : DAGUE_ERROR);
 }
 
 #else /* HAVE_MPI */
@@ -290,8 +346,7 @@ int dplasma_add2arena_contiguous( dague_arena_t *arena,
     (void)nb_elem;
     (void)resized;
 
-    dague_arena_construct(arena, elem_size, alignment, NULL);
-    return 0;
+    return dague_arena_construct(arena, elem_size, alignment, NULL);
 }
 
 int dplasma_add2arena_rectangle( dague_arena_t *arena,
@@ -307,8 +362,7 @@ int dplasma_add2arena_rectangle( dague_arena_t *arena,
     (void)tile_nb;
     (void)resized;
 
-    dague_arena_construct(arena, elem_size, alignment, NULL);
-    return 0;
+    return dague_arena_construct(arena, elem_size, alignment, NULL);
 }
 
 int dplasma_add2arena_tile( dague_arena_t *arena,
@@ -320,8 +374,7 @@ int dplasma_add2arena_tile( dague_arena_t *arena,
     (void)oldtype;
     (void)tile_mb;
 
-    dague_arena_construct(arena, elem_size, alignment, NULL);
-    return 0;
+    return dague_arena_construct(arena, elem_size, alignment, NULL);
 }
 
 int dplasma_add2arena_upper( dague_arena_t *arena,
@@ -334,8 +387,7 @@ int dplasma_add2arena_upper( dague_arena_t *arena,
     (void)tile_mb;
     (void)diag;
 
-    dague_arena_construct(arena, elem_size, alignment, NULL);
-    return 0;
+    return dague_arena_construct(arena, elem_size, alignment, NULL);
 }
 
 int dplasma_add2arena_lower( dague_arena_t *arena,
@@ -348,8 +400,7 @@ int dplasma_add2arena_lower( dague_arena_t *arena,
     (void)tile_mb;
     (void)diag;
 
-    dague_arena_construct(arena, elem_size, alignment, NULL);
-    return 0;
+    return dague_arena_construct(arena, elem_size, alignment, NULL);
 }
 
 #endif /* HAVE_MPI */

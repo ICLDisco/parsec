@@ -131,9 +131,13 @@ void print_execution_space(Relation S)
 //
 void print_default_task_placement(node_t *task_node)
 {
-    string_arena_t *sa = string_arena_new(16);
-    jdfoutput("  : %s\n\n", dump_data(sa, task_node));
-    string_arena_free(sa);
+    if(NULL != task_node){
+        string_arena_t *sa = string_arena_new(16);
+        jdfoutput("  : %s\n\n", dump_data(sa, task_node));
+        string_arena_free(sa);
+    }else{
+        jdfoutput("  : BOGUS_AFFINITY()\n\n");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

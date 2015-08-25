@@ -1,26 +1,23 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 /************************************************************
  *distributed matrix generation
- ************************************************************/#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <string.h>
-#if defined(HAVE_MPI)
-#include <mpi.h>
-#endif
+ ************************************************************/
 
 #include "dague_config.h"
-#include "dague_internal.h"
-#include "data.h"
-#include "data_distribution.h"
+#include "dague/dague_internal.h"
+#include "dague/data_internal.h"
+#include "dague/data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
+
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#endif
 
 static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...);
 
@@ -35,34 +32,9 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
                          dague_data_key_t key)
 {
     assert( pos <= matrix->nb_local_tiles );
-    dague_data_t* data = matrix->data_map[pos];
-
-    if( NULL == data ) {
-        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
-        data = OBJ_NEW(dague_data_t);
-
-        data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->device_private = ptr;
-
-        data->owner_device = 0;
-        data->key = key;
-        data->nb_elts = matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype);
-        dague_data_copy_attach(data, data_copy, 0);
-
-        if( !dague_atomic_cas(&matrix->data_map[pos], NULL, data) ) {
-            dague_data_copy_detach(data, data_copy, 0);
-            OBJ_RELEASE(data_copy);
-            data = matrix->data_map[pos];
-        }
-    } else {
-        /* Do we have a copy of this data */
-        if( NULL == data->device_copies[0] ) {
-            dague_data_copy_t* data_copy = dague_data_copy_new(data, 0);
-            data_copy->device_private = ptr;
-        }
-    }
-    assert( data->key == key );
-    return data;
+    return dague_data_get( matrix->data_map + pos,
+                           &(matrix->super), key, ptr,
+                           matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype) );
 }
 
 void
@@ -82,6 +54,9 @@ dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
                  * dependency between the dague_data_copy_t and the dague_data_t
                  */
                 OBJ_DESTRUCT(data);
+#if defined(DAGUE_DEBUG_ENABLE)
+                ((dague_object_t *) (data))->obj_magic_id = DAGUE_OBJ_MAGIC_ID;
+#endif
                 OBJ_RELEASE(data);
             }
         }
@@ -187,8 +162,6 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     /* Submatrix derived parameters */
     tdesc->mt = (i+m-1)/mb - i/mb + 1;
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
-
-    assert(vpmap_get_nb_vp() > 0);
 
 #if defined(DAGUE_PROF_TRACE)
     asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);

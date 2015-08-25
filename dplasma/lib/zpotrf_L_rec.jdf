@@ -11,7 +11,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/local_rectangle_cyclic.h"
-#include "scheduling.h"
+#include "dague/scheduling.h"
 
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
@@ -374,12 +374,13 @@ BODY [type=CUDA dyld=cublasZgemm]
     if (tempmm > smallnb || descA.nb > smallnb) {
 
         int ret = gpu_zgemm(context, this_task,
-                            ( n == k+1 ), n-k,
+                            ( n == k+1 ),
                             PlasmaNoTrans, PlasmaConjTrans,
                             tempmm, descA.mb, descA.mb,
-                            (dague_complex64_t)-1.0, m, k, &descA, ldam,
-                                                     n, k, &descA, ldan,
-                            (dague_complex64_t) 1.0, m, n, &descA, ldam);
+                            (dague_complex64_t)-1.0, ldam,
+                                                     ldan,
+                            (dague_complex64_t) 1.0, ldam);
+
         printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              k, m, n,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
@@ -397,7 +398,7 @@ BODY [type=CUDA dyld=cublasZgemm]
                                         B /*A(n, k)*/, ldan,
                (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
 #endif  /* !defined(DAGUE_DRY_RUN) */
-    
+
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              k, m, n,
              plasma_const( PlasmaNoTrans ),  plasma_const( PlasmaConjTrans ),
@@ -455,7 +456,7 @@ BODY
                                         (dague_complex64_t) 1.0,
                                         (tiled_matrix_desc_t *)small_descC);
         dague_zgemm->devices_mask = 1;
-        
+
         cbdata_zgemm = (cb_data_t *) malloc(sizeof(cb_data_t));
         cbdata_zgemm->context = context;
         cbdata_zgemm->task = this_task;
@@ -469,7 +470,7 @@ BODY
 
         dague_enqueue(context->virtual_process->dague_context, dague_zgemm);
         return -1;
-    } else 
+    } else
 #endif /* defined(RECURSIVE_GEMM) */
 
     {
@@ -480,7 +481,7 @@ BODY
                                         B /*A(n, k)*/, ldan,
                (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
 #endif  /* !defined(DAGUE_DRY_RUN) */
-    
+
     }
 
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",

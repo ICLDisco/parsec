@@ -12,14 +12,6 @@ echo "#"
 # if you don't like intel MPI, comment this out.
 . /mnt/scratch/sw/intel/impi/4.1.1.036/bin64/mpivars.sh intel64
 
-for bindir in /home/bouteill/parsec/deps/*/bin ; do
-  PATH=$bindir:$PATH
-done
-for pkgdir in /home/bouteill/parsec/deps/*/lib/pkgconfig ; do
-  PKG_CONFIG_PATH=$pkgdir:$PKG_CONFIG_PATH
-done
-export PATH PKG_CONFIG_PATH
-
 # These are override variables you can set (here or in the env) to alter defaults
 #CXX=${CXX:="/mnt/scratch/sw/intel/bin/icpc"}
 #FC=${FC:="/mnt/scratch/sw/intel/bin/ifort"}

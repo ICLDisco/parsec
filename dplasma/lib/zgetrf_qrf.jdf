@@ -17,6 +17,7 @@ extern "C" %{
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dplasma/lib/memory_pool.h"
 #include "dplasma/cores/dplasma_zcores.h"
+#include "dague/vpmap.h"
 
 static pthread_mutex_t mumps_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int mumps_init = 0;
@@ -1168,7 +1169,7 @@ setchoice_update(k, p, q)
 
   : A(k+p, k+q)
 
-  RW B <- choice setchoice(k, p, hmax)   [type = CHOICE]
+  READ B <- choice setchoice(k, p, hmax)   [type = CHOICE]
 
   /*
    * Release local choice
@@ -1364,7 +1365,7 @@ BODY
             }
         }
 
-        dague_handle_dec_nbtask( this_task->dague_handle, nb_tasks );
+        dague_handle_update_nbtask( this_task->dague_handle, -nb_tasks );
     }
 }
 END

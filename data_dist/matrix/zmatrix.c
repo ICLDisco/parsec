@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -25,7 +25,7 @@
 #include <mpi.h>
 #endif
 
-#include "data_distribution.h"
+#include "dague/data_distribution.h"
 #include "matrix.h"
 
 #define COMPLEX

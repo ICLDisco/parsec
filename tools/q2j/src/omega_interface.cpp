@@ -4831,6 +4831,9 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     if( _q2j_produce_shmem_jdf )
         return false;
 
+    if( (NULL==ref1) || (NULL==ref2) )
+        return true;
+
     comm_mtrx = tree_to_str(DA_array_base(ref1));
     refr_mtrx = tree_to_str(DA_array_base(ref2));
 

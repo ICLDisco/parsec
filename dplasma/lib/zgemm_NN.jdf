@@ -30,23 +30,35 @@ beta   [type = dague_complex64_t]
 
 dataA  [type = "dague_ddesc_t *"]
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+Adist  [type = "dague_ddesc_t *" aligned = dataA]
 dataB  [type = "dague_ddesc_t *"]
 descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+Bdist  [type = "dague_ddesc_t *" aligned = dataB]
 dataC  [type = "dague_ddesc_t *"]
 descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
+P      [type = "int" ]
+Q      [type = "int" ]
 
 /**************************************************
  *                       READ_A                   *
  **************************************************/
-READ_A(m, k)  [profile = off]
+READ_A(m, k, q)  [profile = off]
 
 m = 0 .. descA.mt-1
 k = 0 .. descA.nt-1
+q = 0 .. Q-1
+first = inline_c %{ return  k % Q; %}
+prev  = inline_c %{ return (q + Q - 1) % Q; %}
+next  = inline_c %{ return (q     + 1) % Q; %}
 
-: dataA(m, k)
+: Adist(m, q)
 
-READ A <- dataA(m, k)
-       -> A GEMM(m, 0, k)
+READ A <- (q    == first) ? dataA(m, k) : A READ_A(m, k, prev)
+       -> (next != first) ? A READ_A(m, k, next)
+       -> A GEMM(m, q .. (descC.nt-1) .. Q, k)
+
+CTL ctl <- (k != descA.nt-1) ? ctl READ_A( m, k+1, q )
+        -> (k != 0         ) ? ctl READ_A( m, k-1, q )
 BODY
 {
     printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.dataA->myrank, m, k);
@@ -56,18 +68,27 @@ END
 /**************************************************
  *                       READ_B                   *
  **************************************************/
-READ_B(k, n)  [profile = off]
+READ_B(k, n, p)  [profile = off]
 
 k = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
+p = 0 .. P-1
+first = inline_c %{ return  k % P; %}
+prev  = inline_c %{ return (p + P - 1) % P; %}
+next  = inline_c %{ return (p     + 1) % P; %}
 
-: dataB(k, n)
+: Bdist(p, n)
 
-READ B <- dataB(k, n)
-       -> B GEMM(0, n, k)
+READ B <- (p    == first) ? dataB(k, n) : B READ_B(k, n, prev)
+       -> (next != first) ? B READ_B(k, n, next)
+       -> B GEMM(p .. (descC.mt-1) .. P, n, k)
+
+CTL ctl <- (k != descB.mt-1) ? ctl READ_B( k+1, n, p )
+        -> (k != 0         ) ? ctl READ_B( k-1, n, p )
+
 BODY
 {
-     printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.dataB->myrank, k, n);
+    printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.dataB->myrank, k, n);
 }
 END
 
@@ -81,37 +102,42 @@ m = 0 .. descC.mt-1
 n = 0 .. descC.nt-1
 k = 0 .. descA.nt-1
 
+p  = inline_c %{ return m % P; %}
+q  = inline_c %{ return n % Q; %}
+
 // Parallel partitioning
 : dataC(m, n)
 
 // Parameters
-READ A <- (n == 0)            ? A READ_A(m, k) : A GEMM( m, (n+descC.nt-1) % descC.nt, k )
-       -> (n <= (descC.nt-2)) ? A GEMM( m, (n+1) % descC.nt, k )
-READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.mt, n, k )
-       -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
-RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
-BODY [type=CUDA dyld=cublasZgemm]
-        dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
-        int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
-        int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
-        int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
-        int ldam = BLKLDD(descA, m);
-        int ldbk = BLKLDD(descB, k);
-        int ldcm = BLKLDD(descC, m);
+READ A <- A READ_A(m, k, q)
+READ B <- B READ_B(k, n, p)
 
-        return gpu_zgemm(context, this_task,
-                         ( k == descA.nt-1 ), descA.nt-k,
-                         transA, transB,
-                         tempmm, tempnn, tempkk,
-                         alpha, m, k, &descA, ldam,
-                         k, n, &descB, ldbk,
-                         lbeta, m, n, &descC, ldcm);
+RW   C <- (k == descA.nt-1) ? dataC(m, n) : C GEMM( m, n, k+1 )
+       -> (k == 0         ) ? dataC(m, n) : C GEMM( m, n, k-1 )
+
+BODY [type=CUDA dyld=cublasZgemm]
+{
+    dague_complex64_t lbeta = (k == descA.nt-1) ? beta : (dague_complex64_t)1.0;
+    int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
+    int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
+    int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
+    int ldam = BLKLDD(descA, m);
+    int ldbk = BLKLDD(descB, k);
+    int ldcm = BLKLDD(descC, m);
+
+    return gpu_zgemm(context, this_task,
+                     ( k == descA.nt-1 ),
+                     transA, transB,
+                     tempmm, tempnn, tempkk,
+                     alpha, ldam,
+                     ldbk,
+                     lbeta, ldcm);
+}
 END
 
 BODY
 {
-    dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
+    dague_complex64_t lbeta = (k == descA.nt-1) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
     int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
     int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;

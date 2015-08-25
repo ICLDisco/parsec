@@ -104,9 +104,9 @@ BODY [type=CUDA dyld=cublasZgemm]
                      ( k == descA.mt-1 ), descA.mt-1,
                      transA, transB,
                      tempmm, tempnn, tempkk,
-                     alpha, k, m, &descA, ldak,
-                     k, n, &descB, ldbk,
-                     lbeta, m, n, &descC, ldcm);
+                     alpha, ldak,
+                     ldbk,
+                     lbeta, ldcm);
 END
 
 BODY

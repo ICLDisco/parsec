@@ -1,17 +1,15 @@
 extern "C" %{
 /*
- *  Copyright (c) 2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
  *
  * @precisions normal z -> s d c
  *
  */
 
-#include "dague_internal.h"
-#include "data_distribution.h"
+#include "dague.h"
+#include "dague/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_MPI)

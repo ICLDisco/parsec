@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2014 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -10,6 +10,7 @@
 #include "common.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "dague/data_internal.h"
 
 /* Including the bulge chassing */
 #define FADDS_ZHBRDT(__n) (-1)
@@ -56,7 +57,7 @@ int main(int argc, char *argv[])
     if( check ) {
         printf( "No check implemented yet.\n" );
 
-#if defined(DISTRIBUTED)
+#if defined(HAVE_MPI)
         /* Regenerate A, distributed so that the random generators are doing
          * the same things */
         PASTE_CODE_ALLOCATE_MATRIX(ddescAcpy, 1,
@@ -109,7 +110,7 @@ int main(int argc, char *argv[])
                 }
             }
         }
-#endif  /* defined(DISTRIBUTED) */
+#endif  /* defined(HAVE_MPI) */
     }
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 

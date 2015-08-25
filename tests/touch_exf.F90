@@ -33,7 +33,7 @@ end interface
 
   call dague_enqueue( context, handle )
 
-  call dague_progress(context)
+  call dague_context_wait(context)
 
   call dague_fini(context)
 

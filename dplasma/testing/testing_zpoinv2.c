@@ -67,23 +67,6 @@ int main(int argc, char ** argv)
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, random_seed + 1);
     if(loud > 3) printf("Done\n");
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        if(loud > 3) printf("+++ Load GPU kernel ... ");
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescA,
-                                NT*NT, MB*NB*sizeof(dague_complex64_t) );
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescB,
-                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
-        dague_gpu_data_register(dague,
-                                (dague_ddesc_t*)&ddescC,
-                                MT*NT, MB*NB*sizeof(dague_complex64_t) );
-        if(loud > 3) printf("Done\n");
-    }
-#endif
-
     if (async) {
         PASTE_CODE_ENQUEUE_KERNEL(dague, zpoinv2,
                                   (uplo,
@@ -104,14 +87,6 @@ int main(int argc, char ** argv)
                                P, Q, NB, M, N,
                                gflops=(flops/1e9)/sync_time_elapsed));
     }
-
-#if defined(HAVE_CUDA)
-    if(iparam[IPARAM_NGPUS] > 0) {
-        dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
-        dague_gpu_data_unregister((dague_ddesc_t*)&ddescB);
-        dague_gpu_data_unregister((dague_ddesc_t*)&ddescC);
-    }
-#endif
 
     if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);

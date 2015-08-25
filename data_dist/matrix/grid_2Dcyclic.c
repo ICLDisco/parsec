@@ -1,29 +1,21 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <assert.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <stdint.h>
-#include <math.h>
-
-#ifdef HAVE_MPI
-#include <mpi.h>
-#endif /* HAVE_MPI */
-
 #include "dague_config.h"
 #include "dague.h"
 #include "grid_2Dcyclic.h"
-#include "vpmap.h"
-#include "debug.h"
+#include "dague/vpmap.h"
+#include "dague/debug.h"
 
+#include <math.h>
+#include <assert.h>
+#ifdef HAVE_MPI
+#include <mpi.h>
+#endif /* HAVE_MPI */
 
 int default_vp_data_dist();
 

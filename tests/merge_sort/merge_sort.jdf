@@ -1,0 +1,403 @@
+extern "C" %{
+/*
+ * Copyright (c) 2013-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+#include "dague.h"
+#include "dague/data_distribution.h"
+#include "data_dist/matrix/matrix.h"
+#include "dague/data.h"
+#include "dague/utils/mca_param.h"
+#include "dague/arena.h"
+#include <stdlib.h>
+
+#define SWAP(_x, _y) {int t = _x; _x = _y; _y = t;}
+#define SET(_a,_b,_c,_d,_e, _A) {_A[0]=_a; _A[1]=_b; _A[2]=_c; _A[3]=_d; _A[4]=_e;}
+
+int sort_5(int *elems){
+    int a,b,c,d,e;
+
+    a = elems[0];
+    b = elems[1];
+    c = elems[2];
+    d = elems[3];
+    e = elems[4];
+
+    if(b > a){ // a>=b
+        SWAP(a,b);
+    }
+
+    if(d > c){ // c>=d
+        SWAP(c,d);
+    }
+
+    if(c > a){ // a>=c>=d
+        /* if "c>a" then we had c>a>=b, so after the swaps we will have a>c>=d */
+        SWAP(a,c);
+        SWAP(b,d);
+    }
+
+    if(e > c){
+        if(e > a){ // e,a,c,d
+            if(b > c){     // e,a,b,c,d *
+                // we know that "max{a,c}>b" already
+                SET(e,a,b,c,d, elems);
+                return 0;
+            }else{
+                if(b > d){ // e,a,c,b,d **
+                    SET(e,a,c,b,d, elems);
+                    return 1;
+                }else{     // e,a,c,d,b **
+                    SET(e,a,c,d,b, elems);
+                    return 2;
+                }
+            }
+        }else{ // a,e,c,d
+            if(b > c){
+                if(b > e){ // a,b,e,c,d **
+                    SET(a,b,e,c,d, elems);
+                    return 3;
+                }else{     // a,e,b,c,d **
+                    SET(a,e,b,c,d, elems);
+                    return 4;
+                }
+            }else{
+                if(b > d){ // a,e,c,b,d **
+                    SET(a,e,c,b,d, elems);
+                    return 5;
+                }else{     // a,e,c,d,b **
+                    SET(a,e,c,d,b, elems);
+                    return 6;
+                }
+            }
+        }
+    }else{
+        if(e > d){ // a,c,e,d
+            if(b > e){
+                if(b > c){ // a,b,c,e,d **
+                    SET(a,b,c,e,d, elems);
+                    return 7;
+                }else{     // a,c,b,e,d **
+                    SET(a,c,b,e,d, elems);
+                    return 8;
+                }
+            }else{
+                if(b > d){ // a,c,e,b,d **
+                    SET(a,c,e,b,d, elems);
+                    return 9;
+                }else{     // a,c,e,d,b **
+                    SET(a,c,e,d,b, elems);
+                    return 10;
+                }
+            }
+        }else{ // a,c,d,e
+            if(b > d){
+                if(b > c){ // a,b,c,d,e
+                    SET(a,b,c,d,e, elems);
+                    return 11;
+                }else{     // a,c,b,d,e
+                    SET(a,c,b,d,e, elems);
+                    return 12;
+                }
+            }else{
+                if(b > e){ // a,c,d,b,e
+                    SET(a,c,d,b,e, elems);
+                    return 13;
+                }else{     // a,c,d,e,b
+                    SET(a,c,d,e,b, elems);
+                    return 14;
+                }
+            }
+        }
+    }
+    return -1;
+}
+
+/* functions needed for the reduction */
+int compute_offset(int N, int t){
+    uint32_t i, cnt=0, offset=0;
+
+    for(i=0; i<8*sizeof(N); i++){
+        if( (1<<i)&N ){
+            cnt++;
+        }
+        if( cnt == (uint32_t)t )
+            return offset;
+
+        if( (1<<i)&N ){
+            offset += (1<<i);
+        }
+    }
+    assert(0);
+    return 0;
+}
+
+int count_bits(int N){
+    uint32_t i, cnt=0;
+    for(i=0; i<8*sizeof(N); i++){
+        if( (1<<i)&N ){
+            cnt++;
+        }
+    }
+    return cnt;
+}
+
+int log_of_tree_size(int N, int t){
+    uint32_t i, cnt=0;
+    for(i=0; i<8*sizeof(N); i++){
+        if( (1<<i)&N ){
+            cnt++;
+        }
+        if( cnt == (uint32_t)t ) return i;
+    }
+    assert(0);
+    return 0;
+}
+
+int index_to_tree(int N, int idx){
+    uint32_t i, cnt=0;
+    for(i=0; i<8*sizeof(N); i++){
+        if( (1<<i)&N ){
+            cnt++;
+            if( idx < (1<<i) )
+                return cnt;
+            else
+                idx -= (1<<i);
+        }
+    }
+    assert(0);
+    return 0;
+}
+
+int global_to_local_index(int N, int idx){
+    uint32_t i;
+    for(i=0; i<8*sizeof(N); i++){
+        if( (1<<i)&N ){
+            if( idx < (1<<i) )
+                return idx;
+            else
+                idx -= (1<<i);
+        }
+    }
+    assert(0);
+    return 0;
+}
+
+#if defined(HAVE_MPI)
+#define MY_TYPE MPI_INT
+#else
+#define MY_TYPE NULL
+#endif  /* defined(HAVE_MPI) */
+%}
+
+dataA      [type = "struct tiled_matrix_desc_t *"]
+NB         [type = int]
+NT         [type = int]
+
+/*
+ *
+ */
+INIT_DATA(i)
+  i = 0..NT-1
+
+  : dataA(i,0)
+
+  RW A <- dataA(i,0)
+       -> A SORT(i)
+
+BODY
+   for(int j=0; j<5; j++){
+       *(((int *)A)+j) = random();
+   }
+END
+
+
+
+/*
+ *
+ */
+SORT(i)
+  i = 0..NT-1
+
+  : dataA(i,0)
+
+  RW A <- A INIT_DATA(i)
+       -> A REDUCE(i) [ type= DEFAULT layout= MY_TYPE count= NB ]
+
+BODY
+   int type;
+
+   type = sort_5((int *)A);
+   assert( type >= 0 ); (void)type;
+
+END
+
+
+
+/*
+ *
+ */
+REDUCE(i)
+  // Execution space
+  i  = 0..NT-1
+  t  = inline_c %{ return index_to_tree(NT,i); %}
+  li = inline_c %{ return global_to_local_index(NT,i); %}
+  sz = inline_c %{ return log_of_tree_size(NT, t); %}
+
+  : dataA(i,0)
+
+  RW A <- A SORT(i)
+       -> ((sz>0) && (0==li%2)) ? A MERGE(t,1,li/2) [ type= DEFAULT layout= MY_TYPE count= NB ]
+       -> ((sz>0) && (0!=li%2)) ? B MERGE(t,1,li/2) [ type= DEFAULT layout= MY_TYPE count= NB ]
+       -> (sz==0) ? B LINEAR_REDUC(1) [ type= DEFAULT layout= MY_TYPE count= NB ]
+BODY
+  /* nothing */
+END
+
+
+/*
+ *
+ */
+MERGE(t,s,i)
+  // Execution space
+  tree_count  = inline_c %{ return count_bits(NT); %}
+  t  = 1 .. tree_count
+  sz = inline_c %{ return log_of_tree_size(NT, t); %}
+  s  = 1 .. sz
+  lvl = sz-s
+  i  = 0 .. inline_c %{ return (1<<lvl)-1; %}
+  offset = inline_c %{return compute_offset(NT, t); %}
+  data_size = inline_c %{ return NB*(1<<s); %}
+
+  // Parallel partitioning
+  : dataA(offset+i*2,0)
+
+  // Parameters
+
+  READ  A <- (1==s) ? A REDUCE(offset+i*2)
+          <- (1<s)  ? C MERGE(t,s-1,i*2)
+
+  READ  B <- (1==s) ? A REDUCE(offset+i*2+1)
+          <- (1<s)  ? C MERGE(t, s-1, i*2+1)
+
+  WRITE C -> ((sz!=s) && (0==i%2)) ? A MERGE(t, s+1, i/2)  [ type= DEFAULT layout= MY_TYPE count= data_size ]
+          -> ((sz!=s) && (0!=i%2)) ? B MERGE(t, s+1, i/2)  [ type= DEFAULT layout= MY_TYPE count= data_size ]
+          -> (sz==s)               ? B LINEAR_REDUC(t)     [ type= DEFAULT layout= MY_TYPE count= data_size/2 ]
+
+BODY
+  int jc,ja,jb;
+  int *Aptr, *Bptr, *Cptr;
+
+  Aptr = (int *)A;
+  Bptr = (int *)B;
+  Cptr = (int *)C;
+
+  ja=jb=0;
+  for(jc=0; jc<data_size; jc++){
+      if( (ja < data_size/2) && ((Aptr[ja] > Bptr[jb]) || (jb == data_size/2)) ){
+          Cptr[jc] = Aptr[ja];
+          ja++;
+      }else{
+          Cptr[jc] = Bptr[jb];
+          jb++;
+      }
+  }
+
+  assert( (ja==jb) && (ja==data_size/2) );
+
+END
+
+
+/*
+ *
+ */
+LINEAR_REDUC(i)
+  tree_count  = inline_c %{ return count_bits(NT); %}
+  i  = 1 .. tree_count
+  sz = inline_c %{ return log_of_tree_size(NT, i); %}
+  offset = inline_c %{return compute_offset(NT, i); %}
+
+  a_size = inline_c %{ int tot_sz=0; for(int prev_i=tree_count; prev_i>i; prev_i--){int prev_sz = log_of_tree_size(NT, prev_i); tot_sz+=(1<<prev_sz);} return ((tree_count>i) ? NB*tot_sz : 0); %}
+  b_size = inline_c %{ return NB*(1<<sz); %}
+  c_size = inline_c %{ return a_size + b_size; %}
+
+  : dataA(offset,0)
+
+  READ  A <- (tree_count==i) ? T LINE_TERMINATOR(0)
+          <- (tree_count<i)  ? C LINEAR_REDUC(i+1)
+  READ  B <- (0==sz) ? A REDUCE(offset)
+          <- (0<sz)  ? C MERGE(i, sz, 0)
+
+  WRITE C -> (1<i)  ? A LINEAR_REDUC(i-1) [ type= DEFAULT layout= MY_TYPE count= c_size ]
+          -> (1==i) ? C RESULT(0)         [ type= DEFAULT layout= MY_TYPE count= c_size ]
+BODY
+  int jc,ja,jb;
+  int *Aptr, *Bptr, *Cptr;
+
+  Aptr = (int *)A;
+  Bptr = (int *)B;
+  Cptr = (int *)C;
+
+  if( 1==i ){
+      assert(0==offset);
+  }
+
+  /* if this is the first task in the chain then "A" is bogus. Ignore it. */
+  if(tree_count==i){
+      assert(b_size==c_size);
+      memcpy(C, B, c_size*sizeof(int));
+  }else{
+      assert((a_size+b_size)==c_size);
+      ja=jb=0;
+      for(jc=0; jc<c_size; jc++){
+          if( (ja < a_size) && ((Aptr[ja] > Bptr[jb]) || (jb == b_size)) ){
+              Cptr[jc] = Aptr[ja];
+              ja++;
+          }else{
+              Cptr[jc] = Bptr[jb];
+              jb++;
+          }
+      }
+  }
+
+END
+
+
+RESULT(j)
+    j = 0..0
+    i = 1
+    offset = inline_c %{return compute_offset(NT, i); %}
+
+    : dataA(offset, 0)
+
+    READ C <- C LINEAR_REDUC(1)
+BODY
+  int jc;
+  int *Cptr = (int *)C;
+
+  if( 0==((__dague_handle->super.super.context)->my_rank) ){
+      for(jc=0; jc<NT*NB; jc++){
+          printf("%d\n",Cptr[jc]);
+      }
+  }
+END
+
+
+
+LINE_TERMINATOR(j)
+    j = 0..0
+    tree_count = inline_c %{ return count_bits(NT); %}
+    i = tree_count
+    offset = inline_c %{return compute_offset(NT, i); %}
+
+    : dataA(offset, 0)
+
+    WRITE T -> A LINEAR_REDUC(tree_count)
+BODY
+ /* nothing */
+
+END
+
+
+

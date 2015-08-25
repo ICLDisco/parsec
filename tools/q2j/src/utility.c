@@ -853,6 +853,7 @@ static matrix_variable_t *find_all_matrices(node_t *node){
  */
 node_t *get_locality(node_t *task_node){
     int i, first, step;
+    node_t *affinity=NULL;
 
     if( BLKBOX_TASK == task_node->type ){
         return DA_kid(task_node,3);
@@ -883,9 +884,15 @@ node_t *get_locality(node_t *task_node){
      */
     for(i=first; i<DA_kid_count(task_node); i+=step){
         if( isArrayOut(task_node, i) ){
-            return DA_kid(task_node,i);
+            if(NULL != affinity){
+                // If there are multiple output tiles avoid making a choice.
+                // Generate a comment instead and let the developer choose.
+                return NULL;
+            }
+            affinity=DA_kid(task_node,i);
         }
     }
+    return affinity;
 
     fprintf(stderr,"WARNING: task: \"%s\" does not alter any memory regions!", task_node->function->fname);
     return NULL;
@@ -3298,7 +3305,7 @@ char *tree_to_body(node_t *node){
     // the definitions of the variables found in the call. Also generate declarations for
     // the variables based on their types.
     j=0;
-    for(i=first; i<node->u.kids.kid_count; i+=step){
+    for(i=first; i<DA_kid_count(node)-1; i+=step){
         char *param;
         node_t *var_node;
         if( j > 0 ){
@@ -3390,7 +3397,10 @@ char *tree_to_body(node_t *node){
             free(id);
         }else{
             char *symname = DA_kid(node,i)->var_symname;
-            assert(NULL != symname);
+            if(NULL == symname){
+                fprintf(stderr,"Node \"%s\" (of %s) has no symname\n",tree_to_str(DA_kid(node,i)), tree_to_str(node) );
+                abort();
+            }
             param = tree_to_str(DA_kid(node,i));
             kernel_call = append_to_string( kernel_call, symname, NULL, 0);
             /*

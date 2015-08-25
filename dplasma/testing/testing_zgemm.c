@@ -78,23 +78,6 @@ int main(int argc, char ** argv)
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
-    /* load the GPU kernel */
-#if defined(HAVE_CUDA)
-        if(iparam[IPARAM_NGPUS] > 0) {
-            if(loud > 3) printf("+++ Load GPU kernel ... ");
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescC,
-                                    MT*NT, MB*NB*sizeof(dague_complex64_t));
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescA,
-                                    MT*KT, MB*NB*sizeof(dague_complex64_t));
-            dague_gpu_data_register(dague,
-                                    (dague_ddesc_t*)&ddescB,
-                                    KT*NT, MB*NB*sizeof(dague_complex64_t));
-            if(loud > 3) printf("Done\n");
-        }
-#endif
-
         /* Create DAGuE */
         PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm,
                                   (tA, tB, alpha,
@@ -107,14 +90,6 @@ int main(int argc, char ** argv)
         PASTE_CODE_PROGRESS_KERNEL(dague, zgemm);
 
         dplasma_zgemm_Destruct( DAGUE_zgemm );
-
-#if defined(HAVE_CUDA)
-        if(iparam[IPARAM_NGPUS] > 0) {
-            dague_gpu_data_unregister((dague_ddesc_t*)&ddescA);
-            dague_gpu_data_unregister((dague_ddesc_t*)&ddescB);
-            dague_gpu_data_unregister((dague_ddesc_t*)&ddescC);
-        }
-#endif
 
         dague_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
@@ -236,7 +211,7 @@ static int check_solution( dague_context_t *dague, int loud,
                            dague_complex64_t beta,  int M,  int N,  int Cseed,
                            two_dim_block_cyclic_t *ddescCfinal )
 {
-    int info_solution;
+    int info_solution = 1;
     double Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
     double eps, result;
     int K  = ( transA == PlasmaNoTrans ) ? An : Am ;
@@ -282,7 +257,7 @@ static int check_solution( dague_context_t *dague, int loud,
 
     Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
 
-    dplasma_zgeadd( dague, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
+    dplasma_zgeadd( dague, PlasmaNoTrans, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
                                                    (tiled_matrix_desc_t*)&ddescC );
 
     Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC);

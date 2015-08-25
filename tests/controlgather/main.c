@@ -20,7 +20,10 @@ int main(int argc, char *argv[])
     dague_handle_t *ctlgat;
 
 #if defined(HAVE_MPI)
-    MPI_Init(&argc, &argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -39,7 +42,7 @@ int main(int argc, char *argv[])
     ctlgat = ctlgat_new(ddescA, size, nb);
     dague_enqueue(dague, ctlgat);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     free_data(ddescA);
 

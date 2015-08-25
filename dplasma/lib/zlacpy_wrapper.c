@@ -187,7 +187,7 @@ dplasma_zlacpy( dague_context_t *dague,
     }
 
     if ( (A->m > B->m) || (A->n > B->n) ) {
-        dplasma_error("dplasma_zlacpy", "illegal matrix A (B can't contain A)");
+        dplasma_error("dplasma_zlacpy", "illegal matrix A (B is smaller than A)");
         return -3;
     }
 

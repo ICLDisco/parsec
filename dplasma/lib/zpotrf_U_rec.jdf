@@ -11,7 +11,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/local_rectangle_cyclic.h"
-#include "scheduling.h"
+#include "dague/scheduling.h"
 
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
@@ -133,7 +133,7 @@ BODY
         return -1;
 
     }
-    else 
+    else
 #endif /* !defined(RECURSIVE_POTRF) */
     {
 #if !defined(DAGUE_DRY_RUN)
@@ -224,7 +224,7 @@ BODY
 
     }
     else
-#endif  /* !defined(RECURSIVE_TRSM) */ 
+#endif  /* !defined(RECURSIVE_TRSM) */
 
     {
 
@@ -314,7 +314,7 @@ BODY
         dague_enqueue(context->virtual_process->dague_context, dague_zherk);
         return -1;
     }
-    else 
+    else
 #endif /* !defined(RECURSIVE_HERK) */
     {
 
@@ -367,12 +367,12 @@ BODY [type=CUDA dyld=cublasZgemm]
     if (tempnn > smallnb || descA.nb > smallnb) {
 
         int ret = gpu_zgemm(context, this_task,
-                            ( m == k+1 ), m-k,
+                            ( m == k+1 ),
                             PlasmaConjTrans, PlasmaNoTrans,
                             descA.mb, tempnn, descA.nb,
-                            (dague_complex64_t)-1.0, k, m, &descA, ldak,
-                                                     k, n, &descA, ldak,
-                            (dague_complex64_t) 1.0, m, n, &descA, ldam);
+                            (dague_complex64_t)-1.0, ldak,
+                                                     ldak,
+                            (dague_complex64_t) 1.0, ldam);
 
         printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
                  k, m, n,
@@ -458,12 +458,12 @@ BODY
         dague_set_complete_callback(dague_zgemm,
                                     complete_recursive_dague_callback,
                                     (void *)cbdata_zgemm);
-        
+
         dague_enqueue(context->virtual_process->dague_context, dague_zgemm);
         return -1;
-    } else 
+    } else
 #endif /* defined(RECURSIVE_GEMM) */
-    
+
     {
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans,

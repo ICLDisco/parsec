@@ -124,18 +124,19 @@ def do_demo(filenames, translate=False):
         print('Now, we will select only the exec events from thread 7.')
         print('We will also pick only certain pieces of the statistics to show, using the same')
         print('syntax that is used to pick rows out of any regular DataFrame.\n')
-        onlyexec = onlyexec[:][onlyexec.thread_id == 7]
+        onlyexec = onlyexec[:][onlyexec.stream_id == 7]
         print('Again, our view of the dataframe has changed:')
         print(onlyexec[trace.basic_columns].describe()[:]['count':'std'])
         print('')
         print('It is also possible to perform both operations in one query, like so:')
         onlyexec = trace.events[:][(trace.events['type'] == trace.event_types[event_name]) &
-                                     (trace.events.thread_id == 7) ]
+                                     (trace.events.stream_id == 7) ]
         print('Note that the description is the same as for the previous subset.')
         print(onlyexec[trace.basic_columns].describe()[:]['count':'std'])
         print('')
         print('Now, a simple sort of EXEC events from thread 7 by duration, in ascending order.')
         with Timer() as t:
+            onlyexec['duration'] = pandas.Series(onlyexec['end'] - onlyexec['begin'])
             srted = onlyexec.sort_index(by=['duration'], ascending=[True])
         print('That sort only took ' + str(t.interval) + ' seconds.')
 
@@ -162,7 +163,7 @@ def do_demo(filenames, translate=False):
 
         print(srted)
 
-        print(srted[ pce_vals[event_name] + ['kernel_type', 'thread_id']
+        print(srted[ pce_vals[event_name] + ['kernel_type', 'stream_id']
                  ].describe().loc['mean':'std',:])
         print('')
 

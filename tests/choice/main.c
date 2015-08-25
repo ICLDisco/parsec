@@ -7,10 +7,15 @@
 #include "dague.h"
 #include "choice_wrapper.h"
 #include "choice_data.h"
+#include "dague/data_distribution.h"
 #if defined(HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(HAVE_STRING_H) */
-#include "dague_prof_grapher.h"
+#if defined(HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(HAVE_MPI) */
+#include <stdlib.h>
+#include <stdio.h>
 
 int main(int argc, char *argv[])
 {
@@ -22,7 +27,10 @@ int main(int argc, char *argv[])
     dague_handle_t *choice;
 
 #if defined(HAVE_MPI)
-    MPI_Init(&argc, &argv);
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #else
@@ -47,18 +55,9 @@ int main(int argc, char *argv[])
     choice = choice_new(ddescA, size, decision, nb, world);
     dague_enqueue(dague, choice);
 
-    dague_progress(dague);
+    dague_context_wait(dague);
 
     choice_destroy(choice);
-
-#if defined(DAGUE_PROF_TRACE)
-    {
-        char *pname;
-        asprintf(&pname, "choice-%d.profile", rank);
-        dague_profiling_dump_dbp(pname);
-        free(pname);
-    }
-#endif
 
     dague_fini(&dague);
 

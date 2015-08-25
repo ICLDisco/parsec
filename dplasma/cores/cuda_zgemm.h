@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -11,10 +11,9 @@
 #define _cuda_zgemm_h_
 
 #include "dague_config.h"
-#include <dague/devices/cuda/dev_cuda.h>
+#include "dague/devices/cuda/dev_cuda.h"
 #include "dague.h"
-#include "execution_unit.h"
-#include "scheduling.h"
+#include "dague/execution_unit.h"
 #include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
 
@@ -25,8 +24,8 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
                int pushout, int nb,
                PLASMA_enum transA, PLASMA_enum transB,
                int M, int N, int K, 
-               dague_complex64_t alpha, int Am, int An, const tiled_matrix_desc_t *descA, int lda,
-                                        int Bm, int Bn, const tiled_matrix_desc_t *descB, int ldb,
-               dague_complex64_t beta,  int Cm, int Cn, const tiled_matrix_desc_t *descC, int ldc );
+               dague_complex64_t alpha, int lda,
+                                        int ldb,
+               dague_complex64_t beta,  int ldc );
 
 #endif /* _cuda_zgemm_h_ */

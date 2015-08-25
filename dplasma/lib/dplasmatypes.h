@@ -2,14 +2,13 @@
 #define DPLASMA_DATATYPE_H_HAS_BEEN_INCLUDED
 
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include <dague.h>
+#include "dague.h"
 #include "dplasma.h"
-#include "remote_dep.h"
-#include "arena.h"
+#include "dague/arena.h"
 
 #define dplasma_comm MPI_COMM_WORLD
 
@@ -40,10 +39,10 @@ int dplasma_datatype_define_lower( dague_datatype_t oldtype,
 
 int dplasma_datatype_undefine_type(dague_datatype_t* type);
 
-#define dplasma_progress( object )              \
-    do {                                        \
+#define dplasma_progress( object )                  \
+    do {                                            \
         /*MPI_Barrier(dplasma_comm);*/              \
-        dague_progress( object );               \
+        dague_context_wait( object );               \
     } while (0)
 
 #else
@@ -62,7 +61,7 @@ int dplasma_datatype_undefine_type(dague_datatype_t* type);
 # define dplasma_datatype_undefine_type( type ) ( *(type) = NULL )
 
 #define dplasma_progress( object )              \
-  dague_progress( object );
+  dague_context_wait( object );
 
 #endif
 
