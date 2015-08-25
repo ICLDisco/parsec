@@ -946,16 +946,20 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
                    current_task->total_flow, current_task->flow_count); 
         }
 
+#if defined (OVERLAP) 
         int ii = dague_atomic_cas(&(current_task->ready_mask), 0, 1);
         if(ii) { 
+#endif
             arg->ready_lists[dst_vpid] = (dague_execution_context_t*)
             dague_list_item_ring_push_sorted( (dague_list_item_t*)arg->ready_lists[dst_vpid],
                                                &current_task->super.list_item,
                                                dague_execution_context_priority_comparator );
             return DAGUE_ITERATE_CONTINUE; /* Returns the status of the task being activated */
+#if defined (OVERLAP) 
          }else {
              return DAGUE_ITERATE_STOP;
          }
+#endif
     } else {
         return DAGUE_ITERATE_STOP;
     }
@@ -1529,8 +1533,12 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     temp_task->task_id = task_id;
     temp_task->locality = 0;
     temp_task->total_flow = temp_task->super.function->nb_flows;
+#if defined(OVERLAP)
     /* +1 to make sure the task is completely ready before it gets executed */
     temp_task->flow_count = temp_task->super.function->nb_flows+1;
+#else
+    temp_task->flow_count = temp_task->super.function->nb_flows;
+#endif
     temp_task->fpointer = fpointer;
     temp_task->super.locals[0].value = task_id;
     temp_task->name = name;
@@ -1580,11 +1588,13 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     /* Assigning values to task objects  */
     temp_task->param_list = head_of_param_list;
-    
 
     dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks),1);
+   
+#if defined (OVERLAP) 
     /* in attempt to make the task not ready till the whole body is constructed */
     dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1); 
+#endif
 
     if(!__dague_handle->super.context->active_objects) {
         task_id++;
@@ -1596,17 +1606,20 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     /* Building list of initial ready task */
     if(temp_task->flow_count == temp_task->flow_satisfied) {
+#if defined (OVERLAP) 
         int ii = dague_atomic_cas(&(temp_task->ready_mask), 0, 1);
         if(ii) {
+#endif
             DAGUE_LIST_ITEM_SINGLETON(temp_task);
-            
             if (NULL != __dague_handle->startup_list[vpid]) {
                 dague_list_item_ring_merge((dague_list_item_t *)temp_task,
                                (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
             }
             __dague_handle->startup_list[vpid] = (dague_execution_context_t*)temp_task;
             vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
+#if defined (OVERLAP) 
         }
+#endif
     }
 
 #if defined(DAGUE_PROF_TRACE)
@@ -1622,7 +1635,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     /* Atomically increasing the nb_local_tasks_counter */
     __dague_handle->tasks_created = _internal_task_counter;
 
-
     if((__dague_handle->tasks_created % task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
         if (first_time){
@@ -1633,7 +1645,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 }
 
 /* Function that sets all dependencies between tasks according to the operation type of that task 
- * on the data and also created relationship between master structures.
+ * on the data and also creates relationship between master structures.
  * Arguments:   - the current task (dtd_task_t *)
                 - pointer to the tile/data (void *)
                 - pointer to the tile/data (tile *)
@@ -1691,14 +1703,20 @@ set_task(dtd_task_t *temp_task, void *tmp, dtd_tile_t *tile,
             dtd_task_t *parent;
             int no_parent = 1;
             if(NULL != (parent = last_user.task)) {
+#if defined (OVERLAP)
                 int ii = dague_atomic_cas(&(tile->last_user.task), parent, temp_task);
                 if(ii) {
+#endif
                     no_parent = 0;
                     set_descendant(parent, last_user.flow_index,
                                temp_task, *flow_index, last_user.op_type,
                                tile_op_type);
                     if (parent == temp_task) {
+#if defined (OVERLAP)
                         dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1);
+#else
+                        temp_task->flow_satisfied++;
+#endif
                     }
                     if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
                         if (testing_ptg_to_dtd) {
@@ -1715,10 +1733,16 @@ set_task(dtd_task_t *temp_task, void *tmp, dtd_tile_t *tile,
                                                       last_user.flow_index, *flow_index, tile_type_index);
                         }
                     }
+#if defined (OVERLAP)
                 } 
+#endif
             } 
             if (no_parent) {
+#if defined (OVERLAP)
                 dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1);
+#else
+                temp_task->flow_satisfied++;
+#endif
 
                 if(INPUT == (tile_op_type & GET_OP_TYPE) || ATOMIC_WRITE == (tile_op_type & GET_OP_TYPE)) {
                     /* Saving the Flow for which a Task is the first one to
@@ -1829,9 +1853,11 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     }
 
     /* Creating master function structures */
+    /* Hash table lookup to check if the function structure exists or not */
     dague_function_t *function = find_function(__dague_handle->function_h_table,
                                                fpointer,
-                                               __dague_handle->function_hash_table_size); /* Hash table lookup to check if the function structure exists or not */
+                                               __dague_handle->function_hash_table_size);     
+        
     if( NULL == function ) {
         /* calculating the size of parameters for each task class*/
         int count_of_params = 0;

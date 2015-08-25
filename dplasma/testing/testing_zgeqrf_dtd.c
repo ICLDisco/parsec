@@ -279,7 +279,9 @@ int main(int argc, char ** argv)
     int trans = PlasmaConjTrans;
 
     SYNC_TIME_START();
+#if defined (OVERLAP)
     dague_context_start(dague);
+#endif
 
     /* Testing Insert Function */
     for (k = 0; k < minMNT; k++) {

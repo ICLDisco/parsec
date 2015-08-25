@@ -87,10 +87,14 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             if (INOUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) || 
                 OUTPUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) ||
                 (current_task->dont_skip_releasing_data[i])) { 
+#if defined (OVERLAP) 
                 if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
+#endif
                     continue;
+#if defined (OVERLAP) 
                 } else {
                 }
+#endif
             } else  {
                 continue;
             }
@@ -167,7 +171,11 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                     op_type_out_task = current_desc_task->desc[dst_flow->flow_index].op_type;
                     flow_index_out_task = current_desc_task->desc[dst_flow->flow_index].flow_index; 
                     out_task = current_desc_task->desc[dst_flow->flow_index].task;
+#if defined (OVERLAP) 
                     dague_atomic_add_32b((int *) &(out_task->flow_count),-1);
+#else
+                    out_task->flow_count--;
+#endif
                 }
 
                 /* check to deal with ATOMIC_WRITE when building chain of INPUT tasks */
@@ -182,11 +190,14 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                         op_type_out_task = current_desc_task->desc[dst_flow->flow_index].op_type;
                         flow_index_out_task = current_desc_task->desc[dst_flow->flow_index].flow_index; 
                         out_task = current_desc_task->desc[dst_flow->flow_index].task;
+#if defined (OVERLAP) 
                         dague_atomic_add_32b((int *) &(out_task->flow_count),-1);
+#else
+                        out_task->flow_count--;
+#endif
                     }
                 }
             }
-
             current_desc_task = tmp_task->desc[dst_flow->flow_index].task;
         }
 
@@ -209,7 +220,12 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                 current_succ->task->desc[current_succ->flow_index].op_type = op_type_out_task;
                 current_succ->task->desc[current_succ->flow_index].flow_index = flow_index_out_task;
                 current_succ->task->desc[current_succ->flow_index].task = out_task;
+
+#if defined (OVERLAP) 
                 dague_atomic_add_32b((int *) &(out_task->flow_count),1);
+#else
+                out_task->flow_count++;
+#endif
             } else {
                 if(INPUT == (current_succ->task->desc[current_succ->flow_index].op_type_parent & GET_OP_TYPE) 
                    || ATOMIC_WRITE == (current_succ->task->desc[current_succ->flow_index].op_type_parent & GET_OP_TYPE)) {

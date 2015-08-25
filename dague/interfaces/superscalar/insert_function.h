@@ -14,10 +14,12 @@
  *  INPUT:          Data is used in read-only mode, no modification is done.
  *  OUTPUT:         Data is used in write-only, written only, not read.
  *  INOUT:          Data is read and written both.
- *  ATOMIC_WRITE:   Data is used like OUTPUT but the ordering of the tasks having this flag is not maintained by the scheduler.
-                    It is the responsibility of the user to make sure data is written atomically. Treated like INPUT by the scheduler.
- *  SCRATCH:        Will be used by the task as scratch pad, does not effect the DAG, tells the runtime to allocate memory specified 
-                    by the user.
+ *  ATOMIC_WRITE:   Data is used like OUTPUT but the ordering of the tasks having this flag is not maintained 
+                    by the scheduler.
+                    It is the responsibility of the user to make sure data is written atomically. 
+                    Treated like INPUT by the scheduler.
+ *  SCRATCH:        Will be used by the task as scratch pad, does not effect the DAG, tells the runtime 
+                    to allocate memory specified by the user.
  *  VALUE:          Tells the runtime to copy the value as a parameter of the task.
 
  */
@@ -46,6 +48,8 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
 #define UNPACK_DATA             2
 #define UNPACK_SCRATCH          3
 #define MAX_DESC                25
+
+#define OVERLAP                 1
 
 #define TILE_OF(DAGUE, DDESC, I, J) \
     tile_manage(DAGUE, &(__ddesc##DDESC->super.super), I, J)

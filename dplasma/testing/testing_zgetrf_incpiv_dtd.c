@@ -299,7 +299,9 @@ int main(int argc, char ** argv)
     int anb, nb, ldl;
 
     SYNC_TIME_START();
+#if defined (OVERLAP)
     dague_context_start(dague);
+#endif
 
     /* Testing insert task function */
     for (k = 0; k < minMNT; k++) {
