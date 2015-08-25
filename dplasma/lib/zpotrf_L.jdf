@@ -199,7 +199,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ret;
 
     ret = gpu_zgemm(context, this_task,
-                    ( n == k+1 ),
+                    ( n == k+1 ), n-k,
                     PlasmaNoTrans, PlasmaConjTrans,
                     tempmm, descA.mb, descA.mb,
                     (dague_complex64_t)-1.0, ldam,

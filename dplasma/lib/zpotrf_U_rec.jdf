@@ -367,7 +367,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     if (tempnn > smallnb || descA.nb > smallnb) {
 
         int ret = gpu_zgemm(context, this_task,
-                            ( m == k+1 ),
+                            ( m == k+1 ), m-k,
                             PlasmaConjTrans, PlasmaNoTrans,
                             descA.mb, tempnn, descA.nb,
                             (dague_complex64_t)-1.0, ldak,
