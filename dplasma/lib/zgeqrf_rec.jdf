@@ -20,7 +20,7 @@ extern "C" %{
 #if defined(HAVE_CUDA)
 #include "dplasma/cores/cuda_ztsmqr.h"
 #endif
-    
+
 #define RECURSIVE_GEQRT
 #define RECURSIVE_TSQRT
 #define RECURSIVE_UNMQR
