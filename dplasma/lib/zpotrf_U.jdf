@@ -11,6 +11,11 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
+#if defined(HAVE_RECURSIVE)
+#include "data_dist/matrix/subtile.h"
+#include "dague/recursive.h"
+#endif
+
 #if defined(HAVE_CUDA)
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dplasma/cores/cuda_zgemm.h"
@@ -18,10 +23,10 @@ extern "C" %{
 
 /*
  * Priorities used in this jdf:
- *      - POTRF(k)    : (MT-k)**3
- *      - HERK(k,n)   : (MT-n)**3 + 3 * (n - k)
- *      - TRSM(n,k)   : (MT-n)**3 + 3 * (n - k) * (2 * MT - k - n - 1)
- *      - GEMM(m,n,k) : (MT-n)**3 + 3 * (n - m) * (2 * MT - m - n - 1) + 6 * (n - k)
+ *      - potrf_zpotrf(k)    : (MT-k)**3
+ *      - potrf_zherk(k,n)   : (MT-n)**3 + 3 * (n - k)
+ *      - potrf_ztrsm(n,k)   : (MT-n)**3 + 3 * (n - k) * (2 * MT - k - n - 1)
+ *      - potrf_zgemm(m,n,k) : (MT-n)**3 + 3 * (n - m) * (2 * MT - m - n - 1) + 6 * (n - k)
  *
  * So max priority is:
  *      (MT - PRI_CHANGE)**3 + 3 * MT * (2 * MT - PRI_CHANGE - 1) + 6 * MT  < (MT**3 + 6 MT**2 + 3 MT)
@@ -40,11 +45,12 @@ INFO       [type = "int*"]
 descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 PRI_CHANGE [type = "int" hidden = on default = 0 ]
 PRI_MAX    [type = "int" hidden = on default = "(descA.mt * ( 3 + descA.mt * ( 2 + descA.mt )))" ]
+smallnb    [type = "int" hidden = on default = "descA.mb" ]
 
 /**************************************************
- *                      POTRF                     *
+ *                      potrf_zpotrf                     *
  **************************************************/
-POTRF(k) [high_priority = on]
+potrf_zpotrf(k) [high_priority = on]
 
 // Execution space
 k = 0 .. descA.nt-1
@@ -53,11 +59,39 @@ k = 0 .. descA.nt-1
 :dataA(k, k)
 
 // Parameters
-RW T <- (k == 0) ? dataA(k, k) : T HERK(k-1, k)
-     -> T TRSM(k, k+1..descA.nt-1)
+RW T <- (k == 0) ? dataA(k, k) : T potrf_zherk(k-1, k)
+     -> T potrf_ztrsm(k, k+1..descA.nt-1)
      -> dataA(k, k)
 
 ; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k) * (descA.nt - k) * (descA.nt - k) : PRI_MAX
+
+BODY [type=RECURSIVE]
+{
+    int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
+    int iinfo = 0;
+
+    if (tempkn > smallnb)
+    {
+        subtile_desc_t *small_descT;
+        dague_handle_t *dague_zpotrf;
+
+        small_descT = subtile_desc_create( &(descA), k, k,
+                                           smallnb, smallnb, 0, 0, tempkn, tempkn );
+        small_descT->mat = T;
+
+        dague_zpotrf = dplasma_zpotrf_New(uplo, (tiled_matrix_desc_t *)small_descT, &iinfo );
+
+        dague_recursivecall( context, this_task,
+                             dague_zpotrf, dplasma_zpotrf_Destruct,
+                             1, small_descT );
+
+        return -1;
+    }
+    else
+        /* Go for the sequential CPU version */
+        return NEXT;
+}
+END
 
 BODY
 {
@@ -79,9 +113,9 @@ END
 
 
 /**************************************************
- *                      TRSM                      *
+ *                      potrf_ztrsm                      *
  **************************************************/
-TRSM(k, n) [high_priority = on]
+potrf_ztrsm(k, n) [high_priority = on]
 
 // Execution space
 k = 0   .. descA.nt-2
@@ -91,21 +125,55 @@ n = k+1 .. descA.nt-1
 : dataA(k, n)
 
 // Parameters
-READ  T <- T POTRF(k)
-RW    C <- (k == 0) ? dataA(k, n) : C GEMM(k, n, k-1)
-        -> A HERK(k, n)
-        -> A GEMM(n, n+1..descA.nt-1, k)
-        -> B GEMM(k+1..n-1, n, k)
+READ  T <- T potrf_zpotrf(k)
+RW    C <- (k == 0) ? dataA(k, n) : C potrf_zgemm(k, n, k-1)
+        -> A potrf_zherk(k, n)
+        -> A potrf_zgemm(n, n+1..descA.nt-1, k)
+        -> B potrf_zgemm(k+1..n-1, n, k)
         -> dataA(k, n)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - k - n - 1) * (n - k) : PRI_MAX
+
+BODY [type=RECURSIVE]
+{
+    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+
+    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    {
+        subtile_desc_t *small_descT;
+        subtile_desc_t *small_descC;
+        dague_handle_t* dague_ztrsm;
+
+        small_descT = subtile_desc_create( &(descA), k, k,
+                                           smallnb, smallnb, 0, 0, descA.mb, descA.mb );
+        small_descT->mat = T;
+
+        small_descC = subtile_desc_create( &(descA), k, n,
+                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descC->mat = C;
+
+        dague_ztrsm = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper,
+                                        PlasmaConjTrans, PlasmaNonUnit,
+                                        (dague_complex64_t)1.0,
+                                        (tiled_matrix_desc_t *)small_descT,
+                                        (tiled_matrix_desc_t *)small_descC );
+
+        dague_recursivecall( context, this_task,
+                             dague_ztrsm, dplasma_ztrsm_Destruct,
+                             2, small_descT, small_descC );
+
+        return -1;
+    }
+    else
+        /* Go for the sequential CPU version */
+        return NEXT;
+}
+END
 
 BODY
 {
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
-
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
@@ -126,9 +194,9 @@ END
 
 
 /**************************************************
- *                      HERK                      *
+ *                      potrf_zherk                      *
  **************************************************/
-HERK(k, n) [high_priority = on]
+potrf_zherk(k, n) [high_priority = on]
 
 // Execution space
 k = 0   .. descA.nt-2
@@ -138,11 +206,44 @@ n = k+1 .. descA.nt-1
 : dataA(n, n)
 
 //Parameters
-READ  A <- C TRSM(k, n)
-RW    T <- (k == 0)   ? dataA(n, n) : T HERK(k-1, n)
-        -> (n == k+1) ? T POTRF(n)  : T HERK(k+1, n)
+READ  A <- C potrf_ztrsm(k, n)
+RW    T <- (k == 0)   ? dataA(n, n) : T potrf_zherk(k-1, n)
+        -> (n == k+1) ? T potrf_zpotrf(n)  : T potrf_zherk(k+1, n)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * (n - k) : PRI_MAX
+
+BODY [type=RECURSIVE]
+{
+    int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
+
+    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    {
+        subtile_desc_t *small_descT;
+        subtile_desc_t *small_descA;
+        dague_handle_t* dague_zherk;
+
+        small_descT = subtile_desc_create( &(descA), n, n,
+                                           smallnb, smallnb, 0, 0, tempnn, tempnn );
+        small_descT->mat = T;
+
+        small_descA = subtile_desc_create( &(descA), k, n,
+                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descA->mat = A;
+
+        dague_zherk = dplasma_zherk_New( PlasmaUpper, PlasmaConjTrans,
+                                         (double)-1.0, (tiled_matrix_desc_t*) small_descA,
+                                         (double)1.0,  (tiled_matrix_desc_t*) small_descT);
+
+        dague_recursivecall( context, this_task,
+                             dague_zherk, dplasma_zherk_Destruct,
+                             2, small_descA, small_descT );
+        return -1;
+    }
+    else
+        /* Go for the sequential CPU version */
+        return NEXT;
+}
+END
 
 BODY
 {
@@ -167,10 +268,10 @@ BODY
 END
 
 /**************************************************
- *                      GEMM                      *
+ *                      potrf_zgemm                      *
  **************************************************/
 // Name
-GEMM(m, n, k)
+potrf_zgemm(m, n, k)
 
 // Execution space
 k = 0   .. descA.mt-3
@@ -181,10 +282,10 @@ n = m+1 .. descA.nt-1
 : dataA(m, n)
 
 // Parameters
-READ  A <- C TRSM(k, m)
-READ  B <- C TRSM(k, n)
-RW    C <- (k == 0)   ? dataA(m, n)  : C GEMM(m, n, k-1)
-        -> (m == k+1) ? C TRSM(m, n) : C GEMM(m, n, k+1)
+READ  A <- C potrf_ztrsm(k, m)
+READ  B <- C potrf_ztrsm(k, n)
+RW    C <- (k == 0)   ? dataA(m, n)  : C potrf_zgemm(m, n, k-1)
+        -> (m == k+1) ? C potrf_ztrsm(m, n) : C potrf_zgemm(m, n, k+1)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - m - n - 3) * (n - m) + 6 * (n - k) : PRI_MAX
 
@@ -193,23 +294,73 @@ BODY [type=CUDA dyld=cublasZgemm]
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
+    int ret;
 
-    int ret = gpu_zgemm(context, this_task,
-                        ( m == k+1 ), m-k, 
+    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    {
+        ret = gpu_zgemm(context, this_task,
+                        ( m == k+1 ), m-k,
                         PlasmaConjTrans, PlasmaNoTrans,
-                        descA.mb, tempnn, descA.mb,
+                        descA.mb, tempnn, descA.nb,
                         (dague_complex64_t)-1.0, ldak,
                                                  ldak,
                         (dague_complex64_t) 1.0, ldam);
 
-    printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
-             m, n, k,
-             plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
-             descA.mb, tempnn, descA.mb,
-             -1.0, k, m, A, ldak,
-                   k, n, B, ldak,
-              1.0, m, n, C, ldam);
-    return ret;
+        printlog("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+                 m, n, k,
+                 plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
+                 descA.mb, tempnn, descA.mb,
+                 -1.0, k, m, A, ldak,
+                       k, n, B, ldak,
+                  1.0, m, n, C, ldam);
+
+        return ret;
+    }
+    else
+        /* Go to next kernel */
+        return NEXT;
+}
+END
+
+BODY [type=RECURSIVE]
+{
+    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+
+    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    {
+        subtile_desc_t *small_descA;
+        subtile_desc_t *small_descB;
+        subtile_desc_t *small_descC;
+        dague_handle_t *dague_zgemm;
+
+        small_descA = subtile_desc_create( &(descA), k, m,
+                                           smallnb, smallnb, 0, 0, descA.mb, descA.nb );
+        small_descA->mat = A;
+
+        small_descB = subtile_desc_create( &(descA), k, n,
+                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descB->mat = B;
+
+        small_descC = subtile_desc_create( &(descA), m, n,
+                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descC->mat = C;
+
+        dague_zgemm = dplasma_zgemm_New(PlasmaConjTrans, PlasmaNoTrans,
+                                        (dague_complex64_t)-1.0,
+                                        (tiled_matrix_desc_t *)small_descA,
+                                        (tiled_matrix_desc_t *)small_descB,
+                                        (dague_complex64_t) 1.0,
+                                        (tiled_matrix_desc_t *)small_descC);
+
+        dague_recursivecall( context, this_task,
+                             dague_zgemm, dplasma_zgemm_Destruct,
+                             3, small_descA, small_descB, small_descC );
+
+        return -1;
+    }
+    else
+        /* Go to CPU sequential kernel */
+        return NEXT;
 }
 END
 
@@ -227,7 +378,7 @@ BODY
                (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
-    printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %e, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %e, A(%d,%d)[%p], %d)\n",
+    printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              m, n, k,
              plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
              descA.mb, tempnn, descA.nb,
