@@ -33,7 +33,6 @@ set(sources
         two_dim_tabular.c
         grid_2Dcyclic.c
         two_dim_rectangle_cyclic.c
-        local_rectangle_cyclic.c
         sym_two_dim_rectangle_cyclic.c
         vector_two_dim_cyclic.c
         reduce_wrapper.c
