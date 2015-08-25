@@ -10,8 +10,9 @@
 
 BEGIN_C_DECLS
 
-/*
- * Exploit the tiled_matrix_desc to recursively split a single tile part of a tiled_matrix_desc_t
+/**
+ * Exploit the tiled_matrix_desc to recursively split a single tile part of a
+ * tiled_matrix_desc_t
  */
 typedef struct subtile_desc_s {
     tiled_matrix_desc_t super;
@@ -20,10 +21,12 @@ typedef struct subtile_desc_s {
 } subtile_desc_t;
 
 /**
- * Initialize a descriptor to apply a recursive call on a single tile of a more general tile descriptor.
+ * Initialize a descriptor to apply a recursive call on a single tile of a more
+ * general tile descriptor.
  *
  * @param[in] tdesc
- *        tiled_matrix_descriptor which owns the tile that will be split into smaller tiles.
+ *        tiled_matrix_descriptor which owns the tile that will be split into
+ *        smaller tiles.
  *
  * @param[in] mt
  *        Row coordinate of the tile to split int the larger matrix.
@@ -38,10 +41,12 @@ typedef struct subtile_desc_s {
  *        Number of columns in each subtiles
  *
  * @param[in] i
- *        Row index of the first element of the submatrix. 0 beeing the first row of the original tile.
+ *        Row index of the first element of the submatrix. 0 beeing the first
+ *        row of the original tile.
  *
  * @param[in] j
- *        Column index of the first element of the submatrix. 0 beeing the first row of the original tile.
+ *        Column index of the first element of the submatrix. 0 beeing the first
+ *        row of the original tile.
  *
  * @param[in] m
  *        Number of rows in the submatrix.
@@ -50,7 +55,8 @@ typedef struct subtile_desc_s {
  *        Number of columns in the submatrix.
  *
  * @return
- *       Descriptor of the tile (mt, nt) of tdesc split in tiles of size mb by nb.
+ *       Descriptor of the tile (mt, nt) of tdesc split in tiles of size mb by
+ *       nb.
  *
  */
 subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,

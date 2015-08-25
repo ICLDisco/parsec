@@ -21,6 +21,7 @@ subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
 {
     subtile_desc_t *sdesc = malloc( sizeof(subtile_desc_t) );
     dague_ddesc_t *o = &(sdesc->super.super);
+    (void)mt; (void)nt;
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(sdesc->super), tdesc->mtype, matrix_Lapack, 0,
