@@ -43,12 +43,6 @@ if( BUILD_DAGUE )
     message(FATAL_ERROR "Building the DAGuE layer requires the DAGuE tools")
   endif( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
 endif( BUILD_DAGUE )
-option(BUILD_DPLASMA
-       "Compile the DPLASMA layer" ON)
-mark_as_advanced(BUILD_DPLASMA)
-if( BUILD_DPLASMA AND NOT BUILD_DAGUE )
-  message(FATAL_ERROR "Building the DPLASMA layer requires the DAGuE framework")
-endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
 
 ### Misc options
 option(BUILD_SHARED_LIBS
@@ -632,9 +626,7 @@ ENDIF( BUILD_DAGUE )
 # List of files that will go through documentation generation
 SET( PARSEC_ALL_SRCS "" CACHE INTERNAL "List of sources with internal documentation" )
 
-IF( BUILD_DPLASMA )
-  add_subdirectory(dplasma)
-ENDIF ( BUILD_DPLASMA )
+add_subdirectory(dplasma)
 add_subdirectory(tests)
 
 # Configuration header
