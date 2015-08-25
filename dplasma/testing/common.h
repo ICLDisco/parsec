@@ -195,8 +195,8 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
                           nb_local_tasks,                               \
                           nb_local_tasks/time_elapsed));                \
-    SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d M= %7d N= %7d : %14f gflops\n", \
-                           P, Q, NB, M, N,                              \
+    SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \
+                           P, Q, NB, N,                                 \
                            gflops=(flops/1e9)/sync_time_elapsed));      \
     PROFILING_SAVE_dINFO("TIME_ELAPSED", time_elapsed);                 \
     PROFILING_SAVE_dINFO("SYNC_TIME_ELAPSED", sync_time_elapsed);       \
