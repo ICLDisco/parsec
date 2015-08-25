@@ -51,6 +51,7 @@ set(JDF
   zpotrf_U_rec.jdf zpotrf_L_rec.jdf
   ztrtri_L.jdf ztrtri_U.jdf
   zlauum_L.jdf zlauum_U.jdf
+  zpoinv_L.jdf zpoinv_U.jdf
   # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
@@ -146,6 +147,7 @@ set(SOURCES
   ztrtri_wrapper.c
   zlauum_wrapper.c
   zpotri_wrapper.c
+  zpoinv_wrapper.c
   #
   zgelqf_wrapper.c
   zgelqs_wrapper.c

@@ -23,10 +23,10 @@ extern "C" %{
 
 /*
  * Priorities used in this jdf:
- *      - POTRF(k)    : (MT-k)**3
- *      - HERK(k,m)   : (MT-m)**3 + 3 * (m - k)
- *      - TRSM(m,k)   : (MT-m)**3 + 3 * (m - k) * (2 * MT - k - m - 1)
- *      - GEMM(m,n,k) : (MT-m)**3 + 3 * (m - n) * (2 * MT - m - n - 1) + 6 * (m - k)
+ *      - potrf_zpotrf(k)    : (MT-k)**3
+ *      - potrf_zherk(k,m)   : (MT-m)**3 + 3 * (m - k)
+ *      - potrf_ztrsm(m,k)   : (MT-m)**3 + 3 * (m - k) * (2 * MT - k - m - 1)
+ *      - potrf_zgemm(m,n,k) : (MT-m)**3 + 3 * (m - n) * (2 * MT - m - n - 1) + 6 * (m - k)
  *
  * So max priority is:
  *      (MT - PRI_CHANGE)**3 + 3 * MT * (2 * MT - PRI_CHANGE - 1) + 6 * MT  < (MT**3 + 6 MT**2 + 3 MT)
@@ -48,9 +48,9 @@ PRI_MAX    [type = "int" hidden = on default = "(descA.mt * ( 3 + descA.mt * ( 2
 smallnb    [type = "int" hidden = on default = "descA.mb" ]
 
 /**************************************************
- *                      POTRF                     *
+ *                      potrf_zpotrf                     *
  **************************************************/
-POTRF(k) [high_priority = on]
+potrf_zpotrf(k) [high_priority = on]
 
 // Execution space
 k = 0 .. descA.mt-1
@@ -59,8 +59,8 @@ k = 0 .. descA.mt-1
 :dataA(k, k)
 
 // Parameters
-RW T <- (k == 0) ? dataA(k, k) : T HERK(k-1, k)
-     -> T TRSM(k+1..descA.mt-1, k)
+RW T <- (k == 0) ? dataA(k, k) : T potrf_zherk(k-1, k)
+     -> T potrf_ztrsm(k+1..descA.mt-1, k)
      -> dataA(k, k)
 
 ; (k >= (descA.mt - PRI_CHANGE)) ? (descA.mt - k) * (descA.mt - k) * (descA.mt - k) : PRI_MAX
@@ -114,9 +114,9 @@ END
 
 
 /**************************************************
- *                      TRSM                      *
+ *                      potrf_ztrsm                      *
  **************************************************/
-TRSM(m, k) [high_priority = on]
+potrf_ztrsm(m, k) [high_priority = on]
 
 // Execution space
 m = 1 .. descA.mt-1
@@ -126,11 +126,11 @@ k = 0 .. m-1
 : dataA(m, k)
 
 // Parameters
-READ  T <- T POTRF(k)
-RW    C <- (k == 0) ? dataA(m, k) : C GEMM(m, k, k-1)
-        -> A HERK(k, m)
-        -> A GEMM(m, k+1..m-1, k)
-        -> B GEMM(m+1..descA.mt-1, m, k)
+READ  T <- T potrf_zpotrf(k)
+RW    C <- (k == 0) ? dataA(m, k) : C potrf_zgemm(m, k, k-1)
+        -> A potrf_zherk(k, m)
+        -> A potrf_zgemm(m, k+1..m-1, k)
+        -> B potrf_zgemm(m+1..descA.mt-1, m, k)
         -> dataA(m, k)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - k - m - 1) * (m - k) : PRI_MAX
@@ -196,9 +196,9 @@ END
 
 
 /**************************************************
- *                      HERK                      *
+ *                      potrf_zherk                      *
  **************************************************/
-HERK(k, m) [high_priority = on]
+potrf_zherk(k, m) [high_priority = on]
 
 // Execution space
 k = 0   .. descA.mt-2
@@ -208,9 +208,9 @@ m = k+1 .. descA.mt-1
 : dataA(m, m)
 
 //Parameters
-READ  A <- C TRSM(m, k)
-RW    T <- (k == 0)   ? dataA(m, m) : T HERK(k-1, m)
-        -> (m == k+1) ? T POTRF(m)  : T HERK(k+1, m)
+READ  A <- C potrf_ztrsm(m, k)
+RW    T <- (k == 0)   ? dataA(m, m) : T potrf_zherk(k-1, m)
+        -> (m == k+1) ? T potrf_zpotrf(m)  : T potrf_zherk(k+1, m)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * (m - k) : PRI_MAX
 
@@ -269,10 +269,10 @@ BODY
 END
 
 /**************************************************
- *                      GEMM                      *
+ *                      potrf_zgemm                      *
  **************************************************/
 // Name
-GEMM(m, n, k)
+potrf_zgemm(m, n, k)
 
 // Execution space
 k = 0   .. descA.mt-3
@@ -283,10 +283,10 @@ n = k+1 .. m-1
 : dataA(m, n)
 
 // Parameters
-READ  A <- C TRSM(m, k)
-READ  B <- C TRSM(n, k)
-RW    C <- (k == 0)   ? dataA(m, n)  : C GEMM(m, n, k-1)
-        -> (n == k+1) ? C TRSM(m, n) : C GEMM(m, n, k+1)
+READ  A <- C potrf_ztrsm(m, k)
+READ  B <- C potrf_ztrsm(n, k)
+RW    C <- (k == 0)   ? dataA(m, n)  : C potrf_zgemm(m, n, k-1)
+        -> (n == k+1) ? C potrf_ztrsm(m, n) : C potrf_zgemm(m, n, k+1)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - m - n - 3) * (m - n) + 6 * (m - k) : PRI_MAX
 
@@ -300,7 +300,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     if ( (tempmm > smallnb) || (descA.nb > smallnb) )
     {
         ret = gpu_zgemm(context, this_task,
-                        ( n == k+1 ),
+                        ( n == k+1 ), n-k,
                         PlasmaNoTrans, PlasmaConjTrans,
                         tempmm, descA.mb, descA.mb,
                         (dague_complex64_t)-1.0, ldam,
