@@ -89,41 +89,42 @@ void iparam_default_solve(int* iparam);
 void iparam_default_gemm(int* iparam);
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
 
-#define PASTE_CODE_IPARAM_LOCALS(iparam) \
-  int rank  = iparam[IPARAM_RANK];\
-  int nodes = iparam[IPARAM_NNODES];\
-  int cores = iparam[IPARAM_NCORES];\
-  int gpus  = iparam[IPARAM_NGPUS];\
-  int P     = iparam[IPARAM_P];\
-  int Q     = iparam[IPARAM_Q];\
-  int M     = iparam[IPARAM_M];\
-  int N     = iparam[IPARAM_N];\
-  int K     = iparam[IPARAM_K];\
-  int NRHS  = K;\
-  int LDA   = max(M, iparam[IPARAM_LDA]);\
-  int LDB   = max(N, iparam[IPARAM_LDB]);\
-  int LDC   = max(K, iparam[IPARAM_LDC]);\
-  int IB    = iparam[IPARAM_IB];\
-  int MB    = iparam[IPARAM_MB];\
-  int NB    = iparam[IPARAM_NB];\
-  int SMB   = iparam[IPARAM_SMB];\
-  int SNB   = iparam[IPARAM_SNB];\
-  int HMB   = iparam[IPARAM_HMB];\
-  int HNB   = iparam[IPARAM_HNB];\
-  int MT    = (M%MB==0) ? (M/MB) : (M/MB+1); \
-  int NT    = (N%NB==0) ? (N/NB) : (N/NB+1); \
-  int KT    = (K%MB==0) ? (K/MB) : (K/MB+1); \
-  int check = iparam[IPARAM_CHECK];\
-  int check_inv = iparam[IPARAM_CHECKINV];\
-  int loud  = iparam[IPARAM_VERBOSE];\
-  int scheduler = iparam[IPARAM_SCHEDULER];\
-  int random_seed = iparam[IPARAM_RANDOM_SEED];\
-  int matrix_init = iparam[IPARAM_MATRIX_INIT];\
-  int nb_local_tasks = 0;                                               \
-  int butterfly_level = iparam[IPARAM_BUT_LEVEL];\
-  (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
-  (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT;(void)SMB;(void)SNB;(void)check;(void)loud;\
-  (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;(void)random_seed;(void)matrix_init;
+#define PASTE_CODE_IPARAM_LOCALS(iparam)                                \
+    int rank  = iparam[IPARAM_RANK];                                    \
+    int nodes = iparam[IPARAM_NNODES];                                  \
+    int cores = iparam[IPARAM_NCORES];                                  \
+    int gpus  = iparam[IPARAM_NGPUS];                                   \
+    int P     = iparam[IPARAM_P];                                       \
+    int Q     = iparam[IPARAM_Q];                                       \
+    int M     = iparam[IPARAM_M];                                       \
+    int N     = iparam[IPARAM_N];                                       \
+    int K     = iparam[IPARAM_K];                                       \
+    int NRHS  = K;                                                      \
+    int LDA   = max(M, iparam[IPARAM_LDA]);                             \
+    int LDB   = max(N, iparam[IPARAM_LDB]);                             \
+    int LDC   = max(K, iparam[IPARAM_LDC]);                             \
+    int IB    = iparam[IPARAM_IB];                                      \
+    int MB    = iparam[IPARAM_MB];                                      \
+    int NB    = iparam[IPARAM_NB];                                      \
+    int SMB   = iparam[IPARAM_SMB];                                     \
+    int SNB   = iparam[IPARAM_SNB];                                     \
+    int HMB   = iparam[IPARAM_HMB];                                     \
+    int HNB   = iparam[IPARAM_HNB];                                     \
+    int MT    = (M%MB==0) ? (M/MB) : (M/MB+1);                          \
+    int NT    = (N%NB==0) ? (N/NB) : (N/NB+1);                          \
+    int KT    = (K%MB==0) ? (K/MB) : (K/MB+1);                          \
+    int check = iparam[IPARAM_CHECK];                                   \
+    int check_inv = iparam[IPARAM_CHECKINV];                            \
+    int loud  = iparam[IPARAM_VERBOSE];                                 \
+    int scheduler = iparam[IPARAM_SCHEDULER];                           \
+    int random_seed = iparam[IPARAM_RANDOM_SEED];                       \
+    int matrix_init = iparam[IPARAM_MATRIX_INIT];                       \
+    int nb_local_tasks = 0;                                             \
+    int butterfly_level = iparam[IPARAM_BUT_LEVEL];                     \
+    (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
+    (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT; \
+    (void)SMB;(void)SNB;(void)HMB;(void)HNB;(void)check;(void)loud;     \
+    (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;(void)random_seed;(void)matrix_init;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
