@@ -28,7 +28,6 @@ set(TESTS
   #
   # Cholesky
   testing_zpotrf.c
-  testing_zpotrf_rec.c
   testing_zposv.c
   testing_ztrtri.c
   testing_zpoinv.c

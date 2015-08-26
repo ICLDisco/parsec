@@ -48,7 +48,6 @@ set(JDF
   #
   # Cholesky
   zpotrf_U.jdf zpotrf_L.jdf
-  zpotrf_U_rec.jdf zpotrf_L_rec.jdf
   ztrtri_L.jdf ztrtri_U.jdf
   zlauum_L.jdf zlauum_U.jdf
   zpoinv_L.jdf zpoinv_U.jdf
@@ -142,7 +141,6 @@ set(SOURCES
   # Cholesky
   zposv_wrapper.c
   zpotrf_wrapper.c
-  zpotrf_rec_wrapper.c
   zpotrs_wrapper.c
   ztrtri_wrapper.c
   zlauum_wrapper.c
