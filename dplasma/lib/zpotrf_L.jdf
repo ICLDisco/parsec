@@ -48,7 +48,7 @@ PRI_MAX    [type = "int" hidden = on default = "(descA.mt * ( 3 + descA.mt * ( 2
 smallnb    [type = "int" hidden = on default = "descA.mb" ]
 
 /**************************************************
- *                      potrf_zpotrf                     *
+ *               potrf_zpotrf                     *
  **************************************************/
 potrf_zpotrf(k) [high_priority = on]
 
@@ -85,7 +85,7 @@ BODY [type=RECURSIVE]
                              dague_zpotrf, dplasma_zpotrf_Destruct,
                              1, small_descT );
 
-        return -1;
+        return DAGUE_HOOK_RETURN_AGAIN;
     }
     else
         /* Go for the sequential CPU version */
@@ -113,7 +113,7 @@ END
 
 
 /**************************************************
- *                      potrf_ztrsm                      *
+ *               potrf_ztrsm                      *
  **************************************************/
 potrf_ztrsm(m, k) [high_priority = on]
 
@@ -162,7 +162,7 @@ BODY [type=RECURSIVE]
                              dague_ztrsm, dplasma_ztrsm_Destruct,
                              2, small_descT, small_descC );
 
-        return -1;
+        return DAGUE_HOOK_RETURN_AGAIN;
     }
     else
         /* Go for the sequential CPU version */
@@ -195,7 +195,7 @@ END
 
 
 /**************************************************
- *                      potrf_zherk                      *
+ *               potrf_zherk                      *
  **************************************************/
 potrf_zherk(k, m) [high_priority = on]
 
@@ -238,7 +238,7 @@ BODY [type=RECURSIVE]
         dague_recursivecall( context, this_task,
                              dague_zherk, dplasma_zherk_Destruct,
                              2, small_descA, small_descT );
-        return -1;
+        return DAGUE_HOOK_RETURN_AGAIN;
     }
     else
         /* Go for the sequential CPU version */
@@ -268,7 +268,7 @@ BODY
 END
 
 /**************************************************
- *                      potrf_zgemm                      *
+ *               potrf_zgemm                      *
  **************************************************/
 // Name
 potrf_zgemm(m, n, k)
@@ -356,7 +356,7 @@ BODY [type=RECURSIVE]
                              dague_zgemm, dplasma_zgemm_Destruct,
                              3, small_descA, small_descB, small_descC );
 
-        return -1;
+        return DAGUE_HOOK_RETURN_AGAIN;
     }
     else
         /* Go to CPU sequential kernel */
