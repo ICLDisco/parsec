@@ -71,6 +71,8 @@ if __name__ == '__main__':
                         action='append', dest='stream_ignore', nargs='+')
     parser.add_argument('--dot-DAG', help='Include links of the DAG obtained from the DOT file', dest='DAG',
                         action='store_true', default=False)
+    parser.add_argument('--COMM', help='Include links of communications', dest='COMM',
+                        action='store_true', default=False)
     parser.add_argument('--list', help='List the events names in the hdf5 file', action='store_true', dest='list')
     args = parser.parse_args()
 
@@ -155,6 +157,10 @@ if __name__ == '__main__':
     if args.DAG:
         paje_lslt = PajeLinkType.PajeEvent(Name="local_DAG_LINK", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
         paje_rslt = PajeLinkType.PajeEvent(Name="remote_DAG_LINK", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
+    if args.COMM:
+        paje_lcom = PajeLinkType.PajeEvent(Name="MPI_Comm", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
+        paje_sndl = PajeLinkType.PajeEvent(Name="Task_to_MPI", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
+        paje_rcvl = PajeLinkType.PajeEvent(Name="MPI_to_Task", Type=paje_ct, StartContainerType=paje_tt, EndContainerType=paje_tt)
 
     paje_entity_waiting = PajeEntityValue.PajeEvent(Name="Waiting", Type=paje_st, Color="0.2,0.2,0.2")
 
@@ -257,7 +263,6 @@ if __name__ == '__main__':
     if args.DAG:
         dag_info = dict()
 
-    sev = store.events.sort(['node_id', 'stream_id', 'begin'])
     progress = 0.0
     delta = 1.0 / len(store.events)
     for evr in store.events.iterrows():
@@ -290,6 +295,42 @@ if __name__ == '__main__':
                                            Value=state_aliases[ev.type], task_name=store.event_names[ev.type])
                 PajeSetState.PajeEvent(Time=float(ev.end), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                        Value=paje_entity_waiting, task_name="Waiting")
+
+
+    if args.COMM:
+        try:
+            snd_type = store.event_types['MPI_DATA_PLD_SND']
+            rcv_type = store.event_types['MPI_DATA_PLD_SND']
+        except KeyError:
+            warning("You requested to display communication, but no MPI event types were logged in this profile")
+        else:
+            sends = store.events[ store.events.type == snd_type ]
+            nblink = 0
+            for sendr in sends.iterrows():
+                send = sendr[1]
+                recvs = store.events[ ( (store.events.type == rcv_type) &
+                                        (store.events.fid == send['fid']) &
+                                        (store.events.hid == send['hid']) &
+                                        (store.events.tid == send['tid']) ) ]
+                if len(recvs) != 1:
+                    warning("Send with handle id %d, function id %d and task id %d has %d reception matching, when 1 was expected -- ignoring communication"%(send['hid'], send['fid'], send['tid'], len(recvs)))
+                    continue
+                recv = recvs.iloc[0]
+                PajeSetState.PajeEvent(Time=float(send.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
+                                       Value=state_aliases[send.type], task_name=store.event_names[send.type])
+                PajeSetState.PajeEvent(Time=float(send.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
+                                       Value=paje_entity_waiting, task_name="Waiting")
+                PajeSetState.PajeEvent(Time=float(recv.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(recv.node_id)],
+                                       Value=state_aliases[recv.type], task_name=store.event_names[recv.type])
+                PajeSetState.PajeEvent(Time=float(recv.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(recv.node_id)],
+                                       Value=paje_entity_waiting, task_name="Waiting")
+                PajeStartLink.PajeEvent(Time=float(send.begin), Type=paje_lcom, Container=paje_c_appli,
+                                        StartContainer = paje_container_aliases["M%dMPI"%(send.src)],
+                                        Value = "", Key="%d"%(nblink))
+                PajeEndLink.PajeEvent(Time=float(recv.end), Type=paje_lcom, Container=paje_c_appli,
+                                      EndContainer = paje_container_aliases["M%dMPI"%(recv.dst)],
+                                      Value = "", Key="%d"%(nblink))
+                nblink = nblink + 1
 
     if args.DAG:
         nblink = 0
