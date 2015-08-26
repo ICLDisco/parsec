@@ -875,9 +875,13 @@ static void remote_dep_mpi_profiling_fini(void)
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
         __info.hid = __object->handle_id;                               \
-        __info.fid = __function->function_id;                           \
+        /** Recompute the base profiling key of that function */        \
+        __info.fid =                                                    \
+            DAGUE_PROF_FUNC_KEY_START(__object,                         \
+                                      __function->function_id) / 2;     \
         __info.tid = __function->key(__object, (rdw).locals);           \
-        DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, &__info); \
+        DAGUE_PROFILING_TRACE((PROF), (KEY), (I),                       \
+                              PROFILE_OBJECT_ID_NULL, &__info);         \
     } while(0)
 
 #define TAKE_TIME(PROF, KEY, I) DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL);
