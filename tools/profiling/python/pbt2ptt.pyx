@@ -78,7 +78,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
     if dbp == NULL:
-        print("None of the following files can be opened {}".format(filenames))
+        print("None of the following files can be opened {0}".format(filenames))
         return None
 
     # determine amount of multiprocessing
@@ -254,7 +254,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
             errors = pd.concat(builder.errors)
         else:
             errors = pd.DataFrame()
-    cond_print('Constructed additional structures in {} seconds.'.format(t.interval),
+    cond_print('Constructed additional structures in {0} seconds.'.format(t.interval),
                report_progress)
 
     trace = ParsecTraceTables(events, event_types, event_names, event_attributes, event_convertors,
@@ -305,7 +305,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
         return None
     if len(filenames) == 1 and not force_reconvert:
         if is_ptt(filenames[0]):
-            cond_print('File {} is already a PTT. Not converting.'.format(filenames[0]),
+            cond_print('File {0} is already a PTT. Not converting.'.format(filenames[0]),
                        report_progress)
             return filenames[0]
 
@@ -318,20 +318,18 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
         try:
             if validate_existing:
                 from_hdf(existing_h5, skeleton_only=True)
-            cond_print(
-                'PTT {} already exists. '.format(
-                    existing_h5) +
-                'Conversion not forced.', report_progress)
+            cond_print('PTT {0} already exists. Conversion not forced.'.format(existing_h5),
+                       report_progress)
             return existing_h5 # file already exists
         except:
             cond_print(
-                'Possibly pre-existant PTT {} already exists, but cannot be validated. '.format(
+                'Possibly pre-existant PTT {0} already exists, but cannot be validated. '.format(
                     existing_h5) +
                 'Conversion will proceed.', report_progress)
             pass # something went wrong, so try conversion anyway
 
     # convert
-    cond_print('Converting {}'.format(filenames), report_progress)
+    cond_print('Converting {0}'.format(filenames), report_progress)
     trace = read(filenames, report_progress=report_progress,
                  multiprocess=multiprocess, add_info=add_info, skeleton_only=skeleton_only)
 
@@ -371,10 +369,10 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     with Timer() as t:
         trace.to_hdf(out, table=table, append=append,
                      complevel=compress[1], complib=compress[0])
-    cond_print('Generate trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
+    cond_print('Generate trace to HDF5 format in {0} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
-            cond_print('Unlinking {} after conversion'.format(filename), report_progress)
+            cond_print('Unlinking {0} after conversion'.format(filename), report_progress)
             os.unlink(filename)
     return out
 
@@ -714,7 +712,7 @@ cdef parse_info(builder, event_type, char * cinfo):
 
     try:
         pybs = cinfo[:len(builder.event_convertors[event_type])]
-        #print('hex = {}'.format(binascii.hexlify(pybs)))
+        #print('hex = {0}'.format(binascii.hexlify(pybs)))
         return builder.event_convertors[event_type].unpack(pybs)
     except Exception as e:
         print(e)
