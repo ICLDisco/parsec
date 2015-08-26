@@ -520,7 +520,7 @@ static void print_arguments(int* iparam)
                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
             fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
-        if(iparam[IPARAM_HNB] != iparam[IPARAM_NB] || iparam[IPARAM_HMB] != iparam[IPARAM_MB])
+        if((iparam[IPARAM_HNB] != iparam[IPARAM_NB]) || (iparam[IPARAM_HMB] != iparam[IPARAM_MB]))
             fprintf(stderr, "#+++++ HMB x HNB            : %d x %d\n", iparam[IPARAM_HMB], iparam[IPARAM_HNB]);
     }
 }

@@ -89,7 +89,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go for the sequential CPU version */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -105,8 +105,7 @@ BODY
             *INFO = k*descA.mb+iinfo; /* Should return here */
 #endif /* !defined(DAGUE_DRY_RUN) */
 
-    printlog(
-             "CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
+    printlog("CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
              k,
              plasma_const(uplo), tempkm, k, k, T, descA.mb, iinfo );
 }
@@ -167,7 +166,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go for the sequential CPU version */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -243,7 +242,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go for the sequential CPU version */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -319,7 +318,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     }
     else
         /* Go to next kernel */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 
@@ -361,7 +360,7 @@ BODY [type=RECURSIVE]
     }
     else
         /* Go to CPU sequential kernel */
-        return NEXT;
+        return DAGUE_HOOK_RETURN_NEXT;
 }
 END
 

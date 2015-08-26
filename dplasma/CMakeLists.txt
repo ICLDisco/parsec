@@ -13,6 +13,13 @@ if(DPLASMA_GPU_WITH_MAGMA)
   message(WARNING "MAGMA is not supported yet, ignored.")
 endif()
 
+option(DPLASMA_WITH_RECURSIVE
+  "Enable recursive kernels to be called when available" OFF)
+if(DPLASMA_WITH_RECURSIVE)
+  # TODO: This will need to be added to the futur dplasma_config.h.in
+  add_definitions(-DHAVE_RECURSIVE)
+endif()
+
 if(NOT DPLASMA_PRECISIONS)
   set(DPLASMA_PRECISIONS "s;d;c;z" CACHE STRING "The precisions to compile in dplasma (accepts a colon separated list of s;d;c;z)" FORCE)
 else()
