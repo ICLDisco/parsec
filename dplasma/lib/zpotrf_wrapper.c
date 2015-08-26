@@ -21,7 +21,7 @@
  * @ingroup dplasma_complex64
  *
  *  dplasma_zpotrf_setrecursive - Set the recursive size parameter to enable
- *  recursive DAGs to be used.
+ *  recursive DAGs.
  *
  *******************************************************************************
  *

@@ -58,6 +58,7 @@ int    dplasma_zgelqs_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, t
 int    dplasma_zgels( dague_context_t *dague, PLASMA_enum trans, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B );
 int    dplasma_zgeqrf( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 int    dplasma_zgeqrf_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
+int    dplasma_zgeqrf_rec( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, int hnb);
 int    dplasma_zgeqrs( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B );
 int    dplasma_zgeqrs_param( dague_context_t *dague, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *B );
 int    dplasma_zgesv ( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B );
@@ -239,6 +240,7 @@ void dplasma_zplrnt_Destruct( dague_handle_t *o );
  * Routines to set parameters in recursive DAGs
  */
 void dplasma_zpotrf_setrecursive( dague_handle_t *o, int hmb );
+void dplasma_zgeqrf_setrecursive( dague_handle_t *o, int hnb );
 
 /**********************************************************
  * Check routines
@@ -290,10 +292,5 @@ int dplasma_zheev( dague_context_t *dague, const PLASMA_enum jobz, const PLASMA_
 void dplasma_zhbrdt_Destruct( dague_handle_t *o );
 void dplasma_zheev_Destruct( dague_handle_t *o );
 void dplasma_zherbt_Destruct( dague_handle_t *o );
-
-/* recursive QR */
-int    dplasma_zgeqrf_rec( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
-dague_handle_t* dplasma_zgeqrf_rec_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
-void dplasma_zgeqrf_rec_Destruct( dague_handle_t *o );
 
 #endif /* _DPLASMA_Z_H_ */
