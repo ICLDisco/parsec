@@ -794,7 +794,8 @@ static int read_threads(dbp_file_t *dbp, const dague_profiling_binary_file_heade
             assert( b->next_buffer_file_offset != -1 );
             next = refer_events_buffer(dbp->fd, b->next_buffer_file_offset);
             if( NULL == next ) {
-                fprintf(stderr, "Unable to read thread entry: Profile file broken\n");
+                fprintf(stderr, "Unable to read thread entry %d/%d at offset %llx: Profile file broken\n",
+                        head->nb_threads-nb, head->nb_threads, b->next_buffer_file_offset);
                 release_events_buffer( b );
                 return -1;
             }
@@ -912,7 +913,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
 
         read_infos(&dbp->files[n], &dbp->header);
 
-        if( read_threads(&dbp->files[n], &dbp->header) != 0 ) {
+        if( read_threads(&dbp->files[n], &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",
                     n, dbp->files[n].filename);
             dbp->files[n].error = -THREADS_BROKEN;
