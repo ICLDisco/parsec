@@ -72,7 +72,7 @@ int    dplasma_zpoinv( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_de
 int    dplasma_zpoinv_sync( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 int    dplasma_zposv ( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int    dplasma_zpotrf( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
-int    dplasma_zpotrf_rec( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
+int    dplasma_zpotrf_rec( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, int hmb );
 int    dplasma_zpotrs( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int    dplasma_zpotri( dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A);
 int    dplasma_ztrtri( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum diag, tiled_matrix_desc_t *A );
@@ -154,7 +154,6 @@ dague_handle_t* dplasma_zgetrf_nopiv_New(tiled_matrix_desc_t *A, int *INFO);
 dague_handle_t* dplasma_zlauum_New( PLASMA_enum uplo, tiled_matrix_desc_t *A);
 dague_handle_t* dplasma_zpoinv_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, int *INFO);
 dague_handle_t* dplasma_zpotrf_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, int *INFO);
-dague_handle_t* dplasma_zpotrf_rec_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, int *INFO);
 dague_handle_t* dplasma_ztrtri_New( PLASMA_enum uplo, PLASMA_enum diag, tiled_matrix_desc_t *A, int *info);
 dague_handle_t* dplasma_zunglq_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *Q);
 dague_handle_t* dplasma_zunglq_param_New(dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Q);
@@ -212,7 +211,6 @@ void dplasma_zgetrf_nopiv_Destruct( dague_handle_t *o );
 void dplasma_zlauum_Destruct( dague_handle_t *o );
 void dplasma_zpoinv_Destruct( dague_handle_t *o );
 void dplasma_zpotrf_Destruct( dague_handle_t *o );
-void dplasma_zpotrf_rec_Destruct( dague_handle_t *o );
 void dplasma_ztrtri_Destruct( dague_handle_t *o );
 void dplasma_zunglq_Destruct( dague_handle_t *o );
 void dplasma_zunglq_param_Destruct( dague_handle_t *o );
@@ -236,6 +234,11 @@ void dplasma_zlaswp_Destruct( dague_handle_t *o );
 void dplasma_zplghe_Destruct( dague_handle_t *o );
 void dplasma_zplgsy_Destruct( dague_handle_t *o );
 void dplasma_zplrnt_Destruct( dague_handle_t *o );
+
+/**********************************************************
+ * Routines to set parameters in recursive DAGs
+ */
+void dplasma_zpotrf_setrecursive( dague_handle_t *o, int hmb );
 
 /**********************************************************
  * Check routines
