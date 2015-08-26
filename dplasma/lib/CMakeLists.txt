@@ -80,7 +80,6 @@ set(JDF
   zhetrd_b2s.jdf
   ztrdsm.jdf
   ztrmdm.jdf
-  zgeqrf_rec.jdf
   zgeqrfr_geqrt.jdf
   zgeqrfr_unmqr.jdf
   zgeqrfr_tsqrt.jdf
@@ -186,7 +185,6 @@ set(SOURCES
   zhetrs_wrapper.c
   ztrdsm_wrapper.c
   zheev_wrapper.c
-  zgeqrf_rec_wrapper.c
 )
 precisions_rules_py(generated_wrappers
                  "${SOURCES}"
