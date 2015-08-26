@@ -138,6 +138,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     PAPI_event_info_t papi_info;
 
     events->num_counters = 0;
+    events->num_allocated_counters = 0;
     events->events = NULL;
 
     mca_param_name = strdup(events_str);
@@ -174,7 +175,24 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 continue;
             }
             if(token[0] == 'F') {
-                event->frequency = atoi(&token[1]);
+                char* temp_save = NULL;
+                char* temp_string = strdup(&token[1]);
+                char* temp_token = strtok_r(temp_string, ":", &temp_save);
+
+                if(strstr(temp_token, "s") != NULL){
+                    event->frequency_type = 1;
+                    event->frequency = 1;
+                    event->time = atof(temp_token);
+                    printf("Frequency by time!\nFrequency: %f seconds\n", event->time);
+                }
+                else{
+                    event->frequency_type = 0;
+                    event->frequency = atoi(temp_token);
+                    event->time = -1;
+                    printf("Frequency by task!\nFrequency: %d task(s)\n", event->frequency);
+                }
+
+                /*event->frequency = atoi(&token[1]);*/
                 continue;
             }
             /* Make sure the event contains only valid values */
@@ -193,12 +211,26 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
             /* We're good to go, let's add the event to our queues */
             if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
                                                  event->pins_papi_native_event)) ) {
-                dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
-                             __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
-                break;
+                /* Removing all events from an eventset does not reset the type of the eventset,
+                 * generating errors when different classes of events are added. Thus, let's make
+                 * sure we are not in this case.
+                 */
+                (void)PAPI_cleanup_eventset(tmp_eventset);  /* just do it and don't complain */
+                if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
+                                                     event->pins_papi_native_event)) ) {
+                    dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
+                                 __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
+                    break;
+                }
             }
-            dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d\n",
-                         token, event->socket, event->core, event->frequency);
+            if(event->frequency_type == 0){
+                dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d tasks\n",
+                             token, event->socket, event->core, event->frequency);
+            }
+            else{
+                dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %f seconds\n",
+                             token, event->socket, event->core, event->time);
+            }
             /* Remove the event to prevent issues with adding events from incompatible classes */
             PAPI_remove_event(tmp_eventset, event->pins_papi_native_event);
 
@@ -225,6 +257,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     free(mca_param_name);
     if( PAPI_NULL != tmp_eventset ) {
         (void)PAPI_cleanup_eventset(tmp_eventset);  /* just do it and don't complain */
+        (void)PAPI_destroy_eventset(&tmp_eventset);
     }
     return events;
 }
