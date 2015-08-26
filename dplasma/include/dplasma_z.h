@@ -179,6 +179,12 @@ dague_handle_t* dplasma_zplghe_New( double            bump, PLASMA_enum uplo, ti
 dague_handle_t* dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 dague_handle_t* dplasma_zplrnt_New( int diagdom,                              tiled_matrix_desc_t *A, unsigned long long int seed);
 
+/* Sub-kernels to recursive DAGs */
+dague_handle_t* dplasma_zgeqrfr_geqrt_New(tiled_matrix_desc_t *A,  tiled_matrix_desc_t *T,  dague_memory_pool_t *work);
+dague_handle_t* dplasma_zgeqrfr_tsmqr_New(tiled_matrix_desc_t *A1, tiled_matrix_desc_t *A2, tiled_matrix_desc_t *V, tiled_matrix_desc_t *T, dague_memory_pool_t *work);
+dague_handle_t* dplasma_zgeqrfr_tsqrt_New(tiled_matrix_desc_t *A1, tiled_matrix_desc_t *A2, tiled_matrix_desc_t *T, dague_memory_pool_t *tau, dague_memory_pool_t *work);
+dague_handle_t* dplasma_zgeqrfr_unmqr_New(tiled_matrix_desc_t *A,  tiled_matrix_desc_t *T,  tiled_matrix_desc_t *B, dague_memory_pool_t *work);
+
 /***********************************************************
  *               Destruct functions
  */
@@ -235,6 +241,12 @@ void dplasma_zlaswp_Destruct( dague_handle_t *o );
 void dplasma_zplghe_Destruct( dague_handle_t *o );
 void dplasma_zplgsy_Destruct( dague_handle_t *o );
 void dplasma_zplrnt_Destruct( dague_handle_t *o );
+
+/* Sub-kernels to recursive DAGs */
+void dplasma_zgeqrfr_geqrt_Destruct( dague_handle_t *o );
+void dplasma_zgeqrfr_tsmqr_Destruct( dague_handle_t *o );
+void dplasma_zgeqrfr_tsqrt_Destruct( dague_handle_t *o );
+void dplasma_zgeqrfr_unmqr_Destruct( dague_handle_t *o );
 
 /**********************************************************
  * Routines to set parameters in recursive DAGs
