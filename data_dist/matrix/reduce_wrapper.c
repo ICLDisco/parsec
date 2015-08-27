@@ -42,7 +42,7 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
     dague_arena_construct(handle->arenas[DAGUE_reduce_col_DEFAULT_ARENA],
                           src->mb*src->nb,
                           DAGUE_ARENA_ALIGNMENT_SSE,
-                          NULL);
+                          DAGUE_DATATYPE_NULL );
 #endif
 
     return (dague_handle_t*)handle;
@@ -83,7 +83,7 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
     dague_arena_construct(handle->arenas[DAGUE_reduce_row_DEFAULT_ARENA],
                           src->mb*src->nb,
                           DAGUE_ARENA_ALIGNMENT_SSE,
-                          NULL);
+                          DAGUE_DATATYPE_NULL);
 #endif
     return (dague_handle_t*)handle;
 }
