@@ -207,6 +207,11 @@ int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
     if( DAGUE_SUCCESS != rc ) {
         return rc;
     }
+#else
+    int oldsize = 0;
+    (void)uplo; (void)diag; (void)m; (void)resized;
+    dague_type_size( oldtype, &oldsize );
+    extent = oldsize * n * ld;
 #endif
 
     rc = dague_arena_construct(arena, extent, alignment, newtype);
@@ -220,6 +225,8 @@ int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
 int dague_matrix_del2arena( dague_arena_t *arena )
 {
     int rc = DAGUE_SUCCESS;
+    (void)arena;
+
 #if defined(HAVE_MPI)
     dague_matrix_undefine_type( &(arena->opaque_dtt) );
 #endif
