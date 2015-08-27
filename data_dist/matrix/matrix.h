@@ -34,6 +34,16 @@ enum matrix_storage {
     matrix_Tile          = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
 };
 
+/**
+ * Put our own definition of Upper/Lower/General values mathing the
+ * Cblas/Plasma/... ones to avoid teh dependency
+ */
+enum matrix_uplo {
+    matrix_Upper      = 121,
+    matrix_Lower      = 122,
+    matrix_UpperLower = 123
+};
+
 static inline int dague_datadist_getsizeoftype(enum matrix_type type)
 {
     switch( type ) {
@@ -52,7 +62,7 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
  * Convert from a matrix type to a more traditional PaRSEC type usable for
  * creating arenas.
  */
-static inline int dague_traslate_matrix_type( enum matrix_type mt, dague_datatype_t* dt )
+static inline int dague_translate_matrix_type( enum matrix_type mt, dague_datatype_t* dt )
 {
     switch(mt) {
     case matrix_Byte:          *dt = dague_datatype_int8_t; break;

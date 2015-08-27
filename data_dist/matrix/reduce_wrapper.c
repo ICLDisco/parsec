@@ -22,7 +22,7 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
     dague_datatype_t oldtype, newtype;
 
     assert(src->mtype == dest->mtype);
-    if( -1 == dague_traslate_matrix_type(src->mtype, &oldtype) ) {
+    if( -1 == dague_translate_matrix_type(src->mtype, &oldtype) ) {
         dague_output(0, "Unknown matrix type in %s.\n", __func__);
         return NULL;
     }
@@ -63,7 +63,7 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
     dague_datatype_t oldtype, newtype;
 
     assert(src->mtype == dest->mtype);
-    if( -1 == dague_traslate_matrix_type(src->mtype, &oldtype) ) {
+    if( -1 == dague_translate_matrix_type(src->mtype, &oldtype) ) {
         dague_output(0, "Unknown matrix type in %s.\n", __func__);
         return NULL;
     }

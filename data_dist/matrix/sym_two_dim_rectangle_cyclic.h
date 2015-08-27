@@ -31,10 +31,6 @@
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
 
-/* to not rely on Plasma there, put our definition of upper/lower values (same as Plasma for compatibility) */
-#define MatrixUpper         121
-#define MatrixLower         122
-
 typedef struct sym_two_dim_block_cyclic {
     tiled_matrix_desc_t super;
     grid_2Dcyclic_t grid;
