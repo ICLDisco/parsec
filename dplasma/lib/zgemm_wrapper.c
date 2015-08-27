@@ -181,7 +181,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
     dplasma_add2arena_tile(arena,
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           dague_datatype_double_complex_t, A->mb);
 
     return zgemm_object;
 }

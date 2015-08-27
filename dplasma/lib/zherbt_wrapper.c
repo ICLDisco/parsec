@@ -49,11 +49,11 @@ dplasma_zherbt_New( PLASMA_enum uplo, int IB,
         dplasma_add2arena_rectangle( dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA],
                                      A->mb*A->nb*sizeof(dague_complex64_t),
                                      DAGUE_ARENA_ALIGNMENT_SSE,
-                                     MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1);
+                                     dague_datatype_double_complex_t, A->mb, A->nb, -1);
         dplasma_add2arena_rectangle( dague_zherbt->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA],
                                      T->mb*T->nb*sizeof(dague_complex64_t),
                                      DAGUE_ARENA_ALIGNMENT_SSE,
-                                     MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
+                                     dague_datatype_double_complex_t, T->mb, T->nb, -1);
     }
 
     return (dague_handle_t*)dague_zherbt;

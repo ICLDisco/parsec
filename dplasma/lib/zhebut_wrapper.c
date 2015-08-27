@@ -151,7 +151,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zhebut_handle_t*)dague_zhebut)->arenas[i];
-            dague_matrix_add2arena_rect( arena, MPI_DOUBLE_COMPLEX, m_sz, A->nb, A->mb );
+            dague_matrix_add2arena_rect( arena, dague_datatype_double_complex_t, m_sz, A->nb, A->mb );
         }
     }
 
@@ -222,7 +222,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zgebut_handle_t*)dague_zgebut)->arenas[i];
-            dague_matrix_add2arena_rect( arena, MPI_DOUBLE_COMPLEX, m_sz, A->nb, A->mb );
+            dague_matrix_add2arena_rect( arena, dague_datatype_double_complex_t, m_sz, A->nb, A->mb );
         }
     }
 
@@ -293,7 +293,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zgebmm_handle_t*)dague_zgebmm)->arenas[i];
-            dague_matrix_add2arena_rect( arena, MPI_DOUBLE_COMPLEX, m_sz, A->nb, A->mb );
+            dague_matrix_add2arena_rect( arena, dague_datatype_double_complex_t, m_sz, A->nb, A->mb );
         }
     }
 

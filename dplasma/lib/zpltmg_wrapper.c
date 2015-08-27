@@ -210,13 +210,13 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
         dplasma_add2arena_tile( o->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(dague_complex64_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE_COMPLEX, A->mb );
+                                dague_datatype_double_complex_t, A->mb );
 
         /* Vector type */
         dplasma_add2arena_tile( o->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA],
                                 vectorsize,
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE_COMPLEX, A->mb );
+                                dague_datatype_double_complex_t, A->mb );
 
         dague_enqueue(dague, object);
         dplasma_progress(dague);
@@ -425,7 +425,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
     }
 
 #if defined(HAVE_MPI)
-    MPI_Bcast( &tau, 1, MPI_DOUBLE_COMPLEX, 0, MPI_COMM_WORLD );
+    MPI_Bcast( &tau, 1, dague_datatype_double_complex_t, 0, MPI_COMM_WORLD );
 #endif
 
     /* Compute the Householder matrix I - tau v * v' */

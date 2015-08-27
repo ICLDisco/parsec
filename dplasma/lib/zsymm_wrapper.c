@@ -102,7 +102,7 @@ dplasma_zsymm_New( PLASMA_enum side,
     dplasma_add2arena_tile(object->arenas[DAGUE_zsymm_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, C->mb);
+                           dague_datatype_double_complex_t, C->mb);
 
     return (dague_handle_t*)object;
 }

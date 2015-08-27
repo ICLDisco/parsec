@@ -114,19 +114,19 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
     dplasma_add2arena_tile( dague_trsmpl->arenas[DAGUE_ztrsmpl_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
+                            dague_datatype_double_complex_t, A->mb );
 
     /* IPIV */
     dplasma_add2arena_rectangle( dague_trsmpl->arenas[DAGUE_ztrsmpl_PIVOT_ARENA],
                                  A->mb*sizeof(int),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_INT, A->mb, 1, -1 );
+                                 dague_datatype_int_t, A->mb, 1, -1 );
 
     /* L */
     dplasma_add2arena_rectangle( dague_trsmpl->arenas[DAGUE_ztrsmpl_SMALL_L_ARENA],
                                  L->mb*L->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, L->mb, L->nb, -1);
+                                 dague_datatype_double_complex_t, L->mb, L->nb, -1);
 
     return (dague_handle_t*)dague_trsmpl;
 }

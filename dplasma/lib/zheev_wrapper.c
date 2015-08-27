@@ -102,7 +102,7 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
         dplasma_add2arena_tile(arena,
                                A->mb*A->nb*sizeof(dague_complex64_t),
                                DAGUE_ARENA_ALIGNMENT_SSE,
-                               MPI_DOUBLE_COMPLEX, A->mb);
+                               dague_datatype_double_complex_t, A->mb);
 
         return zheev_compound;
     }

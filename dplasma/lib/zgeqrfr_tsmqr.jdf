@@ -176,13 +176,13 @@ dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
     dplasma_add2arena_rectangle( ((dague_zgeqrfr_tsmqr_handle_t*)object)->arenas[DAGUE_zgeqrfr_tsmqr_DEFAULT_ARENA],
                             A1->mb*A1->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A1->mb , A1->nb, -1);
+                            dague_datatype_double_complex_t, A1->mb , A1->nb, -1);
 
     /* Little T */
     dplasma_add2arena_rectangle( ((dague_zgeqrfr_tsmqr_handle_t*)object)->arenas[DAGUE_zgeqrfr_tsmqr_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
+                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
 
     return object;
 }

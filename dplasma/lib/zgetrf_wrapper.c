@@ -99,13 +99,13 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
+                            dague_datatype_double_complex_t, A->mb );
 
     /* IPIV */
     dplasma_add2arena_rectangle( dague_getrf->arenas[DAGUE_zgetrf_PIVOT_ARENA],
                                  A->mb*sizeof(int),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_INT, 1, A->mb, -1 );
+                                 dague_datatype_int_t, 1, A->mb, -1 );
 
     return (dague_handle_t*)dague_getrf;
 }

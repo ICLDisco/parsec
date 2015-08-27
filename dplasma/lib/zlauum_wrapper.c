@@ -79,7 +79,7 @@ dplasma_zlauum_New( PLASMA_enum uplo,
         dplasma_add2arena_lower( ((dague_zlauum_L_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, A->mb, 1 );
+                                 dague_datatype_double_complex_t, A->mb, 1 );
     } else {
         dague_lauum = (dague_handle_t*)dague_zlauum_U_new(
             uplo, (dague_ddesc_t*)A );
@@ -88,13 +88,13 @@ dplasma_zlauum_New( PLASMA_enum uplo,
         dplasma_add2arena_upper( ((dague_zlauum_U_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_U_UPPER_TILE_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, A->mb, 1 );
+                                 dague_datatype_double_complex_t, A->mb, 1 );
     }
 
     dplasma_add2arena_tile(((dague_zlauum_L_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_L_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           dague_datatype_double_complex_t, A->mb);
 
     return dague_lauum;
 }

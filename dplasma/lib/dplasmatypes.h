@@ -21,12 +21,6 @@
     } while (0)
 
 #else
-# define MPI_DOUBLE_COMPLEX NULL
-# define MPI_COMPLEX        NULL
-# define MPI_DOUBLE         NULL
-# define MPI_FLOAT          NULL
-# define MPI_INTEGER        NULL
-# define MPI_INT            NULL
 
 #define dplasma_progress( object )              \
   dague_context_wait( object );

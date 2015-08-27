@@ -105,32 +105,32 @@ dplasma_map2t_New( PLASMA_enum uplo,
         dplasma_add2arena_tile( dague_map2t->arenas[DAGUE_map2t_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(dague_complex64_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE_COMPLEX, A->mb);
+                                dague_datatype_double_complex_t, A->mb);
         break;
     case matrix_ComplexFloat  :
         dplasma_add2arena_tile( dague_map2t->arenas[DAGUE_map2t_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(dague_complex32_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_COMPLEX, A->mb);
+                                dague_datatype_complex_t, A->mb);
         break;
     case matrix_RealDouble    :
         dplasma_add2arena_tile( dague_map2t->arenas[DAGUE_map2t_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(double),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE, A->mb);
+                                dague_datatype_double_t, A->mb);
         break;
     case matrix_RealFloat     :
         dplasma_add2arena_tile( dague_map2t->arenas[DAGUE_map2t_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(float),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_FLOAT, A->mb);
+                                dague_datatype_float_t, A->mb);
         break;
     case matrix_Integer       :
     default:
         dplasma_add2arena_tile( dague_map2t->arenas[DAGUE_map2t_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(int),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_INT, A->mb);
+                                dague_datatype_int_t, A->mb);
     }
     return (dague_handle_t*)dague_map2t;
 }
