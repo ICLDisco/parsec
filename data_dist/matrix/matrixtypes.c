@@ -175,7 +175,8 @@ int dague_matrix_undefine_type(dague_datatype_t* type)
 #endif /* defined(HAVE_MPI) */
 
 int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
-                            int uplo, int diag, int m, int n, int ld,
+                            int uplo, int diag,
+                            unsigned int m, unsigned int n, unsigned int ld,
                             size_t alignment, int resized )
 {
     dague_datatype_t newtype = NULL;
@@ -186,15 +187,15 @@ int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
     switch( uplo ) {
     case matrix_Lower:
     case matrix_Upper:
-        rc = dague_matrix_define_triangle( oldtype, uplo, diag, m, n, ld, &newtype);
+        rc = dague_matrix_define_triangle( oldtype, uplo, diag, m, n, ld, &newtype );
         break;
     case matrix_UpperLower:
     default:
         if ( m == ld ) {
-            rc = dague_matrix_define_contiguous( oldtype, ld * n, resized, &newtype);
+            rc = dague_matrix_define_contiguous( oldtype, ld * n, resized, &newtype );
         }
         else {
-            rc = dague_matrix_define_rectangle( oldtype, m, n, ld, resized, &newtype);
+            rc = dague_matrix_define_rectangle( oldtype, m, n, ld, resized, &newtype );
         }
     }
     if( DAGUE_SUCCESS != rc ) {
