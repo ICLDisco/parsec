@@ -54,8 +54,8 @@ dague_type_create_hvector( int count,
 
 static inline int
 dague_type_create_indexed( int count,
-                           const int array_of_blocklengths[],
-                           const int array_of_displacements[],
+                           /* const */ int array_of_blocklengths[],
+                           /* const */ int array_of_displacements[],
                            dague_datatype_t oldtype,
                            dague_datatype_t *newtype )
 {
@@ -69,7 +69,7 @@ dague_type_create_indexed( int count,
 static inline int
 dague_type_create_indexed_block( int count,
                                  int blocklength,
-                                 const int array_of_displacements[],
+                                 /* const */ int array_of_displacements[],
                                  dague_datatype_t oldtype,
                                  dague_datatype_t *newtype )
 {
