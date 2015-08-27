@@ -18,6 +18,12 @@
 #error __FILE__ should only be used when MPI support is enabled.
 #endif  /* !defined(HAVE_MPI) */
 
+static inline int
+dague_type_size( dague_datatype_t type, int *size )
+{
+    int rc = MPI_Type_size( type, size );
+    return (MPI_SUCCESS == rc ? DAGUE_SUCCESS : DAGUE_ERROR);
+}
 
 static inline int
 dague_type_create_contiguous( int count,
