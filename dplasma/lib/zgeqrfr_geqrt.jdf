@@ -175,13 +175,13 @@ extern "C" %{
 dague_handle_t*
 dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
                            tiled_matrix_desc_t *T,
-                           dague_memory_pool_t *work )
+                           void *work )
 {
     dague_zgeqrfr_geqrt_handle_t* object;
 
     object = dague_zgeqrfr_geqrt_new( (dague_ddesc_t*)A,
                                       (dague_ddesc_t*)T,
-                                      work );
+                                      (dague_memory_pool_t*)work );
 
     /* Default type */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrfr_geqrt_DEFAULT_ARENA],

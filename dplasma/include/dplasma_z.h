@@ -180,10 +180,10 @@ dague_handle_t* dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo, ti
 dague_handle_t* dplasma_zplrnt_New( int diagdom,                              tiled_matrix_desc_t *A, unsigned long long int seed);
 
 /* Sub-kernels to recursive DAGs */
-dague_handle_t* dplasma_zgeqrfr_geqrt_New(tiled_matrix_desc_t *A,  tiled_matrix_desc_t *T,  dague_memory_pool_t *work);
-dague_handle_t* dplasma_zgeqrfr_tsmqr_New(tiled_matrix_desc_t *A1, tiled_matrix_desc_t *A2, tiled_matrix_desc_t *V, tiled_matrix_desc_t *T, dague_memory_pool_t *work);
-dague_handle_t* dplasma_zgeqrfr_tsqrt_New(tiled_matrix_desc_t *A1, tiled_matrix_desc_t *A2, tiled_matrix_desc_t *T, dague_memory_pool_t *tau, dague_memory_pool_t *work);
-dague_handle_t* dplasma_zgeqrfr_unmqr_New(tiled_matrix_desc_t *A,  tiled_matrix_desc_t *T,  tiled_matrix_desc_t *B, dague_memory_pool_t *work);
+dague_handle_t* dplasma_zgeqrfr_geqrt_New(tiled_matrix_desc_t *A,  tiled_matrix_desc_t *T,  void *work);
+dague_handle_t* dplasma_zgeqrfr_tsmqr_New(tiled_matrix_desc_t *A1, tiled_matrix_desc_t *A2, tiled_matrix_desc_t *V, tiled_matrix_desc_t *T, void *work);
+dague_handle_t* dplasma_zgeqrfr_tsqrt_New(tiled_matrix_desc_t *A1, tiled_matrix_desc_t *A2, tiled_matrix_desc_t *T, void *tau, void *work);
+dague_handle_t* dplasma_zgeqrfr_unmqr_New(tiled_matrix_desc_t *A,  tiled_matrix_desc_t *T,  tiled_matrix_desc_t *B, void *work);
 
 /***********************************************************
  *               Destruct functions

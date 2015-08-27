@@ -188,15 +188,16 @@ dague_handle_t*
 dplasma_zgeqrfr_tsqrt_New( tiled_matrix_desc_t *A1,
                            tiled_matrix_desc_t *A2,
                            tiled_matrix_desc_t *T,
-                           dague_memory_pool_t *work,
-                           dague_memory_pool_t *tau )
+                           void *work,
+                           void *tau )
 {
     dague_zgeqrfr_tsqrt_handle_t* object;
 
     object = dague_zgeqrfr_tsqrt_new( (dague_ddesc_t*)A1,
                                       (dague_ddesc_t*)A2,
                                       (dague_ddesc_t*)T,
-                                      work, tau );
+                                      (dague_memory_pool_t*) work,
+                                      (dague_memory_pool_t*) tau );
 
     /* Default type */
     dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrfr_tsqrt_DEFAULT_ARENA],

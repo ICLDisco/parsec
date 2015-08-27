@@ -163,7 +163,7 @@ dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
                            tiled_matrix_desc_t *A2,
                            tiled_matrix_desc_t *V,
                            tiled_matrix_desc_t *T,
-                           dague_memory_pool_t *work )
+                           void *work )
 {
     dague_handle_t* object;
 
@@ -171,7 +171,7 @@ dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
                                                        (dague_ddesc_t*)A2,
                                                        (dague_ddesc_t*)V,
                                                        (dague_ddesc_t*)T,
-                                                       work );
+                                                       (dague_memory_pool_t*)work );
     /* Default type */
     dplasma_add2arena_rectangle( ((dague_zgeqrfr_tsmqr_handle_t*)object)->arenas[DAGUE_zgeqrfr_tsmqr_DEFAULT_ARENA],
                             A1->mb*A1->nb*sizeof(dague_complex64_t),
