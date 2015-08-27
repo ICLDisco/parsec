@@ -1081,6 +1081,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 
 void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size)
 {
+    (void)gpu_device; (void)gpu_stream; (void)size;
     void *work = NULL;
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
@@ -1102,6 +1103,7 @@ void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t*
 
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream)
 {
+    (void)gpu_device; (void)gpu_stream;
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     gpu_stream->workspace->stack_head ++;
     assert (gpu_stream->workspace->stack_head < DAGUE_GPU_MAX_WORKSPACE);
@@ -1111,6 +1113,7 @@ int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* 
 
 int dague_gpu_free_workspace(gpu_device_t * gpu_device)
 {
+    (void)gpu_device;
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     int i, j;
     for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
