@@ -29,6 +29,7 @@ endif(NOT DAGUE_COMPILE_INPLACE)
 
 set(sources
         matrix.c
+        matrixtypes.c
         map_operator.c
         two_dim_tabular.c
         grid_2Dcyclic.c

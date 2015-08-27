@@ -15,6 +15,7 @@
 #include "dague/data_distribution.h"
 #include "dague/data.h"
 #include "dague/datatype.h"
+#include "dague/arena.h"
 
 BEGIN_C_DECLS
 
@@ -180,6 +181,15 @@ dague_matrix_destroy_data( tiled_matrix_desc_t* matrix );
 
 dague_data_t*
 fake_data_of(dague_ddesc_t *mat, ...);
+
+/**
+ * Helper functions to create arenas of matrices with different shapes
+ */
+int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
+                            int uplo, int diag, int m, int n, int ld,
+                            size_t alignment, int resized );
+
+int dague_matrix_del2arena( dague_arena_t *arena );
 
 END_C_DECLS
 #endif /* _MATRIX_H_  */
