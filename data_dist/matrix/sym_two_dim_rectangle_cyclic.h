@@ -79,7 +79,7 @@ static inline size_t sym_twoDBC_coordinates_to_position(sym_two_dim_block_cyclic
     column = Ddesc->grid.crank; /* tile column considered */
 
     /**********************************/
-    if(Ddesc->uplo == MatrixLower ) {
+    if(Ddesc->uplo == matrix_Lower ) {
         nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
         if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
             nb_elem_col++;
