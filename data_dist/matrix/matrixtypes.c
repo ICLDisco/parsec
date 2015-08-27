@@ -28,7 +28,7 @@ int dague_matrix_define_contiguous( dague_datatype_t oldtype,
     int oldsize, rc;
 
     /* Check if the type is valid and supported by the MPI library */
-    rc = MPI_Type_size(oldtype, &oldsize);
+    rc = dague_type_size(oldtype, &oldsize);
     if( 0 == oldsize ) {
         return DAGUE_NOT_SUPPORTED;
     }
@@ -75,7 +75,7 @@ int dague_matrix_define_rectangle( dague_datatype_t oldtype,
     }
 
     /* Check if the type is valid and supported by the MPI library */
-    MPI_Type_size(oldtype, &oldsize);
+    dague_type_size(oldtype, &oldsize);
     if( 0 == oldsize ) {
         return DAGUE_NOT_SUPPORTED;
     }
@@ -149,7 +149,7 @@ int dague_matrix_define_triangle( dague_datatype_t oldtype,
     if( DAGUE_SUCCESS != rc ) {
         return rc;
     }
-    MPI_Type_size(oldtype, &oldsize);
+    dague_type_size(oldtype, &oldsize);
     dague_type_create_resized( tmp, 0, ld*n*oldsize, newtype );
 #if defined(HAVE_MPI_20)
     {
