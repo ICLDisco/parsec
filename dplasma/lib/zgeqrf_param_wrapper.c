@@ -163,10 +163,10 @@ dplasma_zgeqrf_param_Destruct( dague_handle_t *o )
 {
     dague_zgeqrf_param_handle_t *dague_zgeqrf_param = (dague_zgeqrf_param_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LITTLE_T_ARENA  ] );
 
     dague_private_memory_fini( dague_zgeqrf_param->p_work );
     dague_private_memory_fini( dague_zgeqrf_param->p_tau  );

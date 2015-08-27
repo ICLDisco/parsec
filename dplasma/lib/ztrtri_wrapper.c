@@ -132,8 +132,8 @@ dplasma_ztrtri_Destruct( dague_handle_t *o )
 {
     dague_ztrtri_L_handle_t *otrtri = (dague_ztrtri_L_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(otrtri->arenas[DAGUE_ztrtri_L_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(otrtri->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( otrtri->arenas[DAGUE_ztrtri_L_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( otrtri->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

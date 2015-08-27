@@ -218,8 +218,8 @@ dplasma_zgeqrfr_unmqr_Destruct( dague_handle_t *object )
 {
     dague_zgeqrfr_unmqr_handle_t *dague_zunmqr_panel = (dague_zgeqrfr_unmqr_handle_t *)object;
 
-    dplasma_datatype_undefine_type( &(dague_zunmqr_panel->arenas[DAGUE_zgeqrfr_unmqr_DEFAULT_ARENA ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zunmqr_panel->arenas[DAGUE_zgeqrfr_unmqr_LITTLE_T_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zunmqr_panel->arenas[DAGUE_zgeqrfr_unmqr_DEFAULT_ARENA ] );
+    dague_matrix_del2arena( dague_zunmqr_panel->arenas[DAGUE_zgeqrfr_unmqr_LITTLE_T_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zunmqr_panel);
 }

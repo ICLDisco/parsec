@@ -134,8 +134,8 @@ dplasma_zpoinv_Destruct( dague_handle_t *o )
 {
     dague_zpoinv_L_handle_t *dague_zpoinv = (dague_zpoinv_L_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ]->opaque_dtt) );
-    /* dplasma_datatype_undefine_type( &(dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA]->opaque_dtt) ); */
+    dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ] );
+    /* dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA] ); */
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

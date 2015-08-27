@@ -180,7 +180,7 @@ void
 dplasma_zsyr2k_Destruct( dague_handle_t *o )
 {
     dague_zsyr2k_LN_handle_t *zsyr2k_object = (dague_zsyr2k_LN_handle_t*)o;
-    dplasma_datatype_undefine_type( &(zsyr2k_object->arenas[DAGUE_zsyr2k_LN_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( zsyr2k_object->arenas[DAGUE_zsyr2k_LN_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(zsyr2k_object);
 }
 

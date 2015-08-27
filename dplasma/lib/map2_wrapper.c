@@ -164,7 +164,7 @@ dplasma_map2_Destruct( dague_handle_t *o )
         free( omap2->op_args );
     }
 
-    dplasma_datatype_undefine_type( &(omap2->arenas[DAGUE_map2_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( omap2->arenas[DAGUE_map2_DEFAULT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(omap2);
 }

@@ -206,9 +206,9 @@ dplasma_zlantr_Destruct( dague_handle_t *o )
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlantr->Tdist) );
     free( dague_zlantr->Tdist );
 
-    dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA] );
+    dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA] );
+    dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

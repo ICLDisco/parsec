@@ -221,8 +221,8 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
         dague_enqueue(dague, object);
         dplasma_progress(dague);
 
-        dplasma_datatype_undefine_type( &(o->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA]->opaque_dtt) );
-        dplasma_datatype_undefine_type( &(o->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ]->opaque_dtt) );
+        dague_matrix_del2arena( o->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA] );
+        dague_matrix_del2arena( o->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ] );
         DAGUE_INTERNAL_HANDLE_DESTRUCT(object);
         return 0;
     } else {

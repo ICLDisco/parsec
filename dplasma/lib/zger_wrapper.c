@@ -77,8 +77,8 @@ dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
 static inline void
 dplasma_zger_internal_Destruct( dague_handle_t *o )
 {
-    dplasma_datatype_undefine_type( &(((dague_zger_handle_t *)o)->arenas[DAGUE_zger_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(((dague_zger_handle_t *)o)->arenas[DAGUE_zger_VECTOR_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( ((dague_zger_handle_t *)o)->arenas[DAGUE_zger_DEFAULT_ARENA] );
+    dague_matrix_del2arena( ((dague_zger_handle_t *)o)->arenas[DAGUE_zger_VECTOR_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

@@ -124,8 +124,8 @@ dplasma_zlauum_Destruct( dague_handle_t *o )
 {
     dague_zlauum_L_handle_t *olauum = (dague_zlauum_L_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(olauum->arenas[DAGUE_zlauum_L_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(olauum->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( olauum->arenas[DAGUE_zlauum_L_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( olauum->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

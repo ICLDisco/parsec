@@ -189,9 +189,9 @@ dplasma_zlansy_Destruct( dague_handle_t *o )
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlansy->Tdist) );
     free( dague_zlansy->Tdist );
 
-    dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_DEFAULT_ARENA] );
+    dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA] );
+    dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

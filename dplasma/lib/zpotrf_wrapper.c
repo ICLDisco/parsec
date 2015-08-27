@@ -172,7 +172,7 @@ dplasma_zpotrf_Destruct( dague_handle_t *o )
 {
     dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

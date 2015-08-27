@@ -209,7 +209,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 void
 dplasma_zgemm_Destruct( dague_handle_t *o )
 {
-    //dplasma_datatype_undefine_type( &(((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
+    //dague_matrix_del2arena( ((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

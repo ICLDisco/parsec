@@ -85,7 +85,7 @@ void
 dplasma_ztrdsm_Destruct( dague_handle_t *o )
 {
     dague_ztrdsm_handle_t *otrdsm = (dague_ztrdsm_handle_t *)o;
-    dplasma_datatype_undefine_type( &(otrdsm->arenas[DAGUE_ztrdsm_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( otrdsm->arenas[DAGUE_ztrdsm_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

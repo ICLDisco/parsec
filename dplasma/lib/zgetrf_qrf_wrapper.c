@@ -281,13 +281,13 @@ dplasma_zgetrf_qrf_Destruct( dague_handle_t *o )
 {
     dague_zgetrf_qrf_handle_t *dague_zgetrf_qrf = (dague_zgetrf_qrf_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA     ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA  ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_ReduceVec_ARENA ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_CHOICE_ARENA    ]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA     ] );
+    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA  ] );
+    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_ReduceVec_ARENA ] );
+    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_CHOICE_ARENA    ] );
 
     dague_private_memory_fini( dague_zgetrf_qrf->p_work );
     dague_private_memory_fini( dague_zgetrf_qrf->p_tau  );

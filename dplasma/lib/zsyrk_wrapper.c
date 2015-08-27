@@ -148,7 +148,7 @@ void
 dplasma_zsyrk_Destruct( dague_handle_t *o )
 {
     dague_zsyrk_LN_handle_t *zsyrk_object = (dague_zsyrk_LN_handle_t*)o;
-    dplasma_datatype_undefine_type( &(zsyrk_object->arenas[DAGUE_zsyrk_LN_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( zsyrk_object->arenas[DAGUE_zsyrk_LN_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(zsyrk_object);
 }
 

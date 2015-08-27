@@ -196,7 +196,7 @@ dplasma_ztrmm_Destruct( dague_handle_t *o )
 {
     dague_ztrmm_LLN_handle_t *otrmm = (dague_ztrmm_LLN_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(otrmm->arenas[DAGUE_ztrmm_LLN_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( otrmm->arenas[DAGUE_ztrmm_LLN_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

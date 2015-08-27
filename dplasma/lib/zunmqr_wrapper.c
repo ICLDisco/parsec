@@ -218,9 +218,9 @@ dplasma_zunmqr_Destruct( dague_handle_t *object )
 {
     dague_zunmqr_LC_handle_t *dague_zunmqr = (dague_zunmqr_LC_handle_t *)object;
 
-    dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zunmqr->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zunmqr->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( dague_zunmqr->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zunmqr->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA  ] );
 
     dague_private_memory_fini( dague_zunmqr->pool_0 );
     free( dague_zunmqr->pool_0 );

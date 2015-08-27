@@ -65,8 +65,8 @@ void dplasma_zherbt_Destruct( dague_handle_t *o )
 
     if( PlasmaLower == dague_zherbt->uplo ) {
 
-        dplasma_datatype_undefine_type( &(dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA   ]->opaque_dtt) );
-        dplasma_datatype_undefine_type( &(dague_zherbt->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA  ]->opaque_dtt) );
+        dague_matrix_del2arena( dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA   ] );
+        dague_matrix_del2arena( dague_zherbt->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA  ] );
 
         dague_private_memory_fini( dague_zherbt->pool_0 );
         free( dague_zherbt->pool_0 );

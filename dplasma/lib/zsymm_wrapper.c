@@ -131,7 +131,7 @@ void
 dplasma_zsymm_Destruct( dague_handle_t *o )
 {
     dague_zsymm_handle_t *zsymm_object = (dague_zsymm_handle_t*)o;
-    dplasma_datatype_undefine_type( &(zsymm_object->arenas[DAGUE_zsymm_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( zsymm_object->arenas[DAGUE_zsymm_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(zsymm_object);
 }
 

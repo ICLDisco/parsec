@@ -129,7 +129,7 @@ void
 dplasma_zhemm_Destruct( dague_handle_t *o )
 {
     dague_zhemm_handle_t *zhemm_object = (dague_zhemm_handle_t*)o;
-    dplasma_datatype_undefine_type( &(zhemm_object->arenas[DAGUE_zhemm_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( zhemm_object->arenas[DAGUE_zhemm_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(zhemm_object);
 }
 

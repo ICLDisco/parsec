@@ -148,10 +148,10 @@ dplasma_zgelqf_Destruct( dague_handle_t *o )
 {
     dague_zgelqf_handle_t *dague_zgelqf = (dague_zgelqf_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_LOWER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_UPPER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgelqf->arenas[DAGUE_zgelqf_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zgelqf->arenas[DAGUE_zgelqf_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( dague_zgelqf->arenas[DAGUE_zgelqf_LOWER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zgelqf->arenas[DAGUE_zgelqf_UPPER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zgelqf->arenas[DAGUE_zgelqf_LITTLE_T_ARENA  ] );
 
     dague_private_memory_fini( dague_zgelqf->p_work );
     dague_private_memory_fini( dague_zgelqf->p_tau  );

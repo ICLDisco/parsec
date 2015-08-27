@@ -78,7 +78,7 @@ int dplasma_zprint( dague_context_t *dague,
         dague_enqueue(dague, (dague_handle_t*)object);
         dplasma_progress(dague);
 
-        dplasma_datatype_undefine_type( &(object->arenas[DAGUE_zprint_DEFAULT_ARENA]->opaque_dtt) );
+        dague_matrix_del2arena( object->arenas[DAGUE_zprint_DEFAULT_ARENA] );
         DAGUE_INTERNAL_HANDLE_DESTRUCT( object );
         return 0;
     }

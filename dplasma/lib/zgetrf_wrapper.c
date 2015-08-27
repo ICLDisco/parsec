@@ -135,8 +135,8 @@ dplasma_zgetrf_Destruct( dague_handle_t *o )
 {
     dague_zgetrf_handle_t *dague_zgetrf = (dague_zgetrf_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA  ]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA] );
+    dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA  ] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf);
 }

@@ -106,7 +106,7 @@ dplasma_zgetrf_nopiv_Destruct( dague_handle_t *o )
 {
     dague_zgetrf_nopiv_handle_t *dague_zgetrf_nopiv = (dague_zgetrf_nopiv_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zgetrf_nopiv->arenas[DAGUE_zgetrf_nopiv_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zgetrf_nopiv->arenas[DAGUE_zgetrf_nopiv_DEFAULT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf_nopiv);
 }
