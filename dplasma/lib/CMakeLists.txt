@@ -8,7 +8,6 @@ set(generated_jdf "")
 
 set(EXTRA_SOURCES
   memory_pool.c
-  dplasmatypes.c
   dplasmaaux.c
   dplasma_hqr.c
   dplasma_hqr_dbg.c

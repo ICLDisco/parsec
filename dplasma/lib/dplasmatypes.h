@@ -13,31 +13,6 @@
 #define dplasma_comm MPI_COMM_WORLD
 
 #if defined(HAVE_MPI)
-/**
- * A portable accessor across all MPI versions (1.1 and 2.0) for
- * accessing the extent of a datatype.
- */
-int dplasma_get_extent( MPI_Datatype dt, MPI_Aint* extent );
-int dplasma_datatype_define_contiguous( dague_datatype_t oldtype,
-                                        unsigned int nb_elem,
-                                        int resized,
-                                        dague_datatype_t* newtype );
-int dplasma_datatype_define_rectangle( dague_datatype_t oldtype,
-                                       unsigned int tile_mb,
-                                       unsigned int tile_nb,
-                                       int resized,
-                                       dague_datatype_t* newtype );
-int dplasma_datatype_define_tile( dague_datatype_t oldtype,
-                                  unsigned int tile_nb,
-                                  dague_datatype_t* newtype );
-int dplasma_datatype_define_upper( dague_datatype_t oldtype,
-                                   unsigned int tile_nb, int diag,
-                                   dague_datatype_t* newtype );
-int dplasma_datatype_define_lower( dague_datatype_t oldtype,
-                                   unsigned int tile_nb, int diag,
-                                   dague_datatype_t* newtype );
-
-int dplasma_datatype_undefine_type(dague_datatype_t* type);
 
 #define dplasma_progress( object )                  \
     do {                                            \
@@ -53,29 +28,50 @@ int dplasma_datatype_undefine_type(dague_datatype_t* type);
 # define MPI_INTEGER        NULL
 # define MPI_INT            NULL
 
-# define dplasma_datatype_define_contiguous( oldtype, nb_elem, resized, newtype) (*(newtype) = NULL)
-# define dplasma_datatype_define_rectangle( oldtype, tile_mb, tile_nb, resized, newtype) (*(newtype) = NULL)
-# define dplasma_datatype_define_tile(      oldtype, tile_nb, newtype ) (*(newtype) = NULL)
-# define dplasma_datatype_define_upper(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
-# define dplasma_datatype_define_lower(     oldtype, tile_nb, diag, newtype) (*(newtype) = NULL)
-# define dplasma_datatype_undefine_type( type ) ( *(type) = NULL )
-
 #define dplasma_progress( object )              \
   dague_context_wait( object );
 
 #endif
 
-int dplasma_add2arena_contiguous( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                                  dague_datatype_t oldtype,
-                                  unsigned int nb_elem, int resized );
-int dplasma_add2arena_rectangle( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                                 dague_datatype_t oldtype,
-                                 unsigned int tile_mb, unsigned int tile_nb, int resized );
-int dplasma_add2arena_tile( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                            dague_datatype_t oldtype, unsigned int tile_mb );
-int dplasma_add2arena_upper( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                             dague_datatype_t oldtype, unsigned int tile_mb, int diag );
-int dplasma_add2arena_lower( dague_arena_t *arena, size_t elem_size, size_t alignment,
-                             dague_datatype_t oldtype, unsigned int tile_mb, int diag );
+static inline int
+dplasma_add2arena_rectangle( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                             dague_datatype_t oldtype,
+                             unsigned int tile_mb, unsigned int tile_nb, int resized )
+{
+    (void)elem_size;
+    return dague_matrix_add2arena( arena, oldtype,
+                                   matrix_UpperLower, 1, tile_mb, tile_nb, tile_mb,
+                                   alignment, resized );
+}
+
+static inline int
+dplasma_add2arena_tile( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                        dague_datatype_t oldtype, unsigned int tile_mb )
+{
+    (void)elem_size;
+    return dague_matrix_add2arena( arena, oldtype,
+                                   matrix_UpperLower, 1, tile_mb, tile_mb, tile_mb,
+                                   alignment, -1 );
+}
+
+static inline int
+dplasma_add2arena_upper( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                         dague_datatype_t oldtype, unsigned int tile_mb, int diag )
+{
+    (void)elem_size;
+    return dague_matrix_add2arena( arena, oldtype,
+                                   matrix_Upper, diag, tile_mb, tile_mb, tile_mb,
+                                   alignment, -1 );
+}
+
+static inline int
+dplasma_add2arena_lower( dague_arena_t *arena, size_t elem_size, size_t alignment,
+                         dague_datatype_t oldtype, unsigned int tile_mb, int diag )
+{
+    (void)elem_size;
+    return dague_matrix_add2arena( arena, oldtype,
+                                   matrix_Lower, diag, tile_mb, tile_mb, tile_mb,
+                                   alignment, -1 );
+}
 
 #endif  /* DPLASMA_DATATYPE_H_HAS_BEEN_INCLUDED */
