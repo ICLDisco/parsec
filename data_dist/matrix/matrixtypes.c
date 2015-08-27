@@ -140,6 +140,7 @@ int dague_matrix_define_triangle( dague_datatype_t oldtype,
             blocklens[i] = m - i - diag;
             indices[i]   = i * ld + i + diag;
         }
+        diag = 0;
     }
     else
         return DAGUE_ERR_BAD_PARAM;
