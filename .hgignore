@@ -80,6 +80,7 @@ dplasma/lib/[sdc]trsm_[LR][LU][NT]\.jdf$
 dplasma/lib/[sdc]ger\.jdf$
 dplasma/lib/[sdc]lauum_[LU]\.jdf$
 dplasma/lib/[sdc]potrf_[LU]\.jdf$
+dplasma/lib/[sdc]poinv_[LU]\.jdf$
 dplasma/lib/[sdc]trtri_[LU]\.jdf$
 dplasma/lib/[sdc]gelqf\.jdf$
 dplasma/lib/[sdc]geqrf\.jdf$
@@ -138,6 +139,7 @@ dplasma/lib/[sdcz]trsm_[LR][LU][NT]\.[ch]$
 dplasma/lib/[sdcz]ger\.[ch]$
 dplasma/lib/[sdcz]lauum_[LU]\.[ch]$
 dplasma/lib/[sdcz]potrf_[LU]\.[ch]$
+dplasma/lib/[sdcz]poinv_[LU]\.[ch]$
 dplasma/lib/[sdcz]trtri_[LU]\.[ch]$
 dplasma/lib/[sdcz]gelqf\.[ch]$
 dplasma/lib/[sdcz]geqrf\.[ch]$
@@ -200,6 +202,7 @@ dplasma/lib/[sdc]ger_wrapper\.c$
 dplasma/lib/[sdc]lauum_wrapper\.c$
 dplasma/lib/[sdc]posv_wrapper\.c$
 dplasma/lib/[sdc]potrf_wrapper\.c$
+dplasma/lib/[sdc]poinv_wrapper\.c$
 dplasma/lib/[sdc]potrs_wrapper\.c$
 dplasma/lib/[sdc]potri_wrapper\.c$
 dplasma/lib/[sdc]trtri_wrapper\.c$
@@ -264,6 +267,7 @@ dplasma/testing/testing_[sdc]syr2k\.c$
 dplasma/testing/testing_[sdc]trmm\.c$
 dplasma/testing/testing_[sdc]trsm\.c$
 dplasma/testing/testing_[sdc]potrf\.c$
+dplasma/testing/testing_[sdc]poinv\.c$
 dplasma/testing/testing_[sdc]posv\.c$
 dplasma/testing/testing_[sdc]trtri\.c$
 dplasma/testing/testing_[sdc]gelqf\.c$
@@ -311,6 +315,7 @@ dplasma/testing/testing_[sdcz]syr2k$
 dplasma/testing/testing_[sdcz]trmm$
 dplasma/testing/testing_[sdcz]trsm$
 dplasma/testing/testing_[sdcz]potrf$
+dplasma/testing/testing_[sdcz]poinv$
 dplasma/testing/testing_[sdcz]posv$
 dplasma/testing/testing_[sdcz]trtri$
 dplasma/testing/testing_[sdcz]gelqf$
