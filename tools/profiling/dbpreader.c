@@ -911,7 +911,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         dbp->files[n].hr_id = strdup(head.hr_id);
         dbp->files[n].rank = head.rank;
 
-        read_infos(&dbp->files[n], &dbp->header);
+        read_infos(&dbp->files[n], &head /*dbp->header*/);
 
         if( read_threads(&dbp->files[n], &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",
