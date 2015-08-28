@@ -470,6 +470,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     cdef uint64_t end = 0
     cdef uint64_t th_begin
     cdef uint64_t th_end
+    cdef uint64_t prev_begin = 0
     cdef void * cinfo = NULL
 
     th_begin = sys.maxint
@@ -494,6 +495,9 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
         event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
         event_name = builder.event_names[event_type]
         begin = dbp_event_get_timestamp(event_s)
+        if begin < prev_begin:
+           raise Exception('Internal', 'event ordering impossible')
+        prev_begin = begin
         event_flags = dbp_event_get_flags(event_s)
         handle_id = dbp_event_get_handle_id(event_s)
         event_id = dbp_event_get_event_id(event_s)

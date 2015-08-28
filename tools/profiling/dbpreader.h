@@ -65,7 +65,7 @@ typedef struct dbp_event dbp_event_t;
 typedef struct dbp_event_iterator dbp_event_iterator_t;
 dbp_event_iterator_t *dbp_iterator_new_from_thread(const dbp_thread_t *th);
 dbp_event_iterator_t *dbp_iterator_new_from_iterator(const dbp_event_iterator_t *it);
-const dbp_event_t *dbp_iterator_current(const dbp_event_iterator_t *it);
+const dbp_event_t *dbp_iterator_current(dbp_event_iterator_t *it);
 const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it);
 const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it);
 void dbp_iterator_delete(dbp_event_iterator_t *it);
