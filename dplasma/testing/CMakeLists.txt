@@ -31,6 +31,7 @@ set(TESTS
   testing_zpotrf_rec.c
   testing_zposv.c
   testing_ztrtri.c
+  testing_zpoinv.c
   # QR/LQ
   testing_zgelqf.c
   testing_zgeqrf.c

@@ -113,8 +113,7 @@ typedef struct mca_base_module_2_0_0_t mca_base_module_2_0_0_t;
 /**
  * MCA component open function.
  *
- * @retval MCA_SUCCESS (or DAGUE_SUCCESS or ORTE_SUCCESS or
- * OMPI_SUCCESS) This component can be used in the process.
+ * @retval MCA_SUCCESS This component can be used in the process.
  *
  * @retval MCA_ERR_NOT_AVAILABLE Silently ignore this component for
  * the duration of the process (it may even be unloaded from the

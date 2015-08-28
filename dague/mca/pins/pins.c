@@ -14,14 +14,11 @@
 
 static int registration_disabled;
 
-parsec_pins_callback * pins_array[PINS_FLAG_COUNT] = { 0 };
-//parsec_pins_callback * pins_callback_array[PINS_FLAG_COUNT] = {0};
-
 void parsec_pins_instrument(struct dague_execution_unit_s* exec_unit,
                             PINS_FLAG method_flag,
                             struct dague_execution_context_s* task)
 {
-    assert( (method_flag >= 0) && (method_flag < PINS_FLAG_COUNT) );
+    assert( method_flag < PINS_FLAG_COUNT );
 
     parsec_pins_next_callback_t* cb_event = &exec_unit->pins_events_cb[method_flag];
     while( NULL != cb_event->cb_func ) {
@@ -51,7 +48,7 @@ int parsec_pins_register_callback(struct dague_execution_unit_s* exec_unit,
                                   parsec_pins_callback cb_func,
                                   struct parsec_pins_next_callback_s* cb_data)
 {
-    if( (method_flag < 0) || (method_flag >= PINS_FLAG_COUNT) ) {
+    if( method_flag >= PINS_FLAG_COUNT ) {
         DEBUG(("PINS register MUST called on a non valid type of event."));
         return -1;
     }
@@ -80,7 +77,7 @@ int parsec_pins_unregister_callback(struct dague_execution_unit_s* exec_unit,
                                     struct parsec_pins_next_callback_s** cb_data)
 {
     *cb_data = NULL;
-    if( (method_flag < 0) || (method_flag >= PINS_FLAG_COUNT) ) {
+    if( method_flag >= PINS_FLAG_COUNT ) {
         DEBUG(("PINS unregister MUST called on a non valid type of event."));
         return -1;
     }

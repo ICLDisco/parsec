@@ -461,7 +461,6 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
 
-
     /* HQR */
     if(-1 == iparam[IPARAM_QR_HLVL_SZE])
         iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_NNODES];
@@ -565,8 +564,8 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
-    iparam[IPARAM_SMB] = -'p';
-    iparam[IPARAM_SNB] = -'q';
+    iparam[IPARAM_SMB] = 0;
+    iparam[IPARAM_SNB] = 0;
 }
 
 #ifdef DAGUE_PROF_TRACE
@@ -601,19 +600,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 
     TIME_START();
-
-#if defined(HAVE_CUDA)
-    /* if the use of GPUs is specified on the command line updated the environment
-     * prior to the runtime initialization.
-     */
-    if(iparam[IPARAM_NGPUS] > 0) {
-        char *param, value[128];
-        param = dague_mca_param_env_var("device_cuda_enabled");
-        snprintf(value, 128, "%d", iparam[IPARAM_NGPUS]);
-        setenv(param, value, 1);
-        free(param);
-    }
-#endif
 
     if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
         char *ignored;

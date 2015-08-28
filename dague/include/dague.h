@@ -16,8 +16,6 @@ typedef struct dague_execution_context_s dague_execution_context_t;
 /**< The general context that holds all the threads of dague for this MPI process */
 typedef struct dague_context_s           dague_context_t;
 
-typedef struct dague_ddesc_s             dague_ddesc_t;
-
 /**
  * TO BE REMOVED.
  */

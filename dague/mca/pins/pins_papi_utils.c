@@ -138,6 +138,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     PAPI_event_info_t papi_info;
 
     events->num_counters = 0;
+    events->num_allocated_counters = 0;
     events->events = NULL;
 
     mca_param_name = strdup(events_str);
@@ -193,9 +194,17 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
             /* We're good to go, let's add the event to our queues */
             if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
                                                  event->pins_papi_native_event)) ) {
-                dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
-                             __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
-                break;
+                /* Removing all events from an eventset does not reset the type of the eventset,
+                 * generating errors when different classes of events are added. Thus, let's make
+                 * sure we are not in this case.
+                 */
+                (void)PAPI_cleanup_eventset(tmp_eventset);  /* just do it and don't complain */
+                if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
+                                                     event->pins_papi_native_event)) ) {
+                    dague_output(0, "%s: Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
+                                 __func__, token, event->pins_papi_native_event, PAPI_strerror(err));
+                    break;
+                }
             }
             dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d\n",
                          token, event->socket, event->core, event->frequency);
@@ -225,6 +234,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     free(mca_param_name);
     if( PAPI_NULL != tmp_eventset ) {
         (void)PAPI_cleanup_eventset(tmp_eventset);  /* just do it and don't complain */
+        (void)PAPI_destroy_eventset(&tmp_eventset);
     }
     return events;
 }

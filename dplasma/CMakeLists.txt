@@ -1,7 +1,7 @@
-IF( NOT BUILD_DPLASMA )
-  message(FATAL "The CMakeLists.txt in the dplasma directory is not supposed to be included if support for DPLASMA has been disabled")
-ENDIF( NOT BUILD_DPLASMA )
+cmake_minimum_required (VERSION 2.8)
 
+option(BUILD_DPLASMA
+       "Compile the DPLASMA layer" ON)
 mark_as_advanced(DPLASMA_DEBUG_QR_PIVGEN)
 option(DPLASMA_DEBUG_QR_PIVGEN
   "Enable the QR pivgen testings" OFF)
@@ -19,9 +19,19 @@ else()
   set(DPLASMA_PRECISIONS "${DPLASMA_PRECISIONS}" CACHE STRING "The precisions to compile in dplasma (accepts a colon separated list of s;d;c;z)" FORCE)
 endif()
 
+IF( NOT BUILD_DPLASMA )
+  RETURN()
+ENDIF( NOT BUILD_DPLASMA )
+
+if( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+  message(FATAL_ERROR "Building the DPLASMA layer requires the DAGuE framework")
+endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+
 #
 # Find packages to decide if we compile DPLASMA support or not
 #
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/")
+
 find_package(COREBLAS)
 if( PLASMA_SRC )
    list(APPEND COREBLAS_INCLUDE_DIRS ${PLASMA_SRC})

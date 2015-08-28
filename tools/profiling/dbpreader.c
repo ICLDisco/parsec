@@ -141,6 +141,9 @@ struct dbp_event_iterator {
     int64_t                          current_event_position;
     int64_t                          current_event_index;
     int64_t                          current_buffer_position;
+#ifndef _NDEBUG
+    uint64_t                         last_event_date;
+#endif
 };
 
 struct dbp_info {
@@ -234,6 +237,9 @@ dbp_event_iterator_t *dbp_iterator_new_from_thread(const dbp_thread_t *th)
     res->current_event_index = 0;
     res->current_buffer_position = (off_t)-1;
     res->current_events_buffer  = NULL;
+#ifndef _NDEBUG
+    res->last_event_date = 0;
+#endif
     (void)dbp_iterator_first(res);
     return res;
 }
@@ -247,14 +253,21 @@ dbp_event_iterator_t *dbp_iterator_new_from_iterator(const dbp_event_iterator_t 
     res->current_event_index = it->current_event_index;
     res->current_buffer_position = it->current_buffer_position;
     res->current_events_buffer = refer_events_buffer( it->thread->file->fd, res->current_buffer_position );
+#ifndef _NDEBUG
+    res->last_event_date = it->last_event_date;
+#endif
     return res;
 }
 
-const dbp_event_t *dbp_iterator_current(const dbp_event_iterator_t *it)
+const dbp_event_t *dbp_iterator_current(dbp_event_iterator_t *it)
 {
     if( it->current_events_buffer == NULL ||
         it->current_event.native == NULL )
         return NULL;
+#ifndef _NDEBUG
+    assert(it->current_event.native->event.timestamp >= it->last_event_date);
+    it->last_event_date = it->current_event.native->event.timestamp;
+#endif
     return &it->current_event;
 }
 
@@ -794,7 +807,8 @@ static int read_threads(dbp_file_t *dbp, const dague_profiling_binary_file_heade
             assert( b->next_buffer_file_offset != -1 );
             next = refer_events_buffer(dbp->fd, b->next_buffer_file_offset);
             if( NULL == next ) {
-                fprintf(stderr, "Unable to read thread entry: Profile file broken\n");
+                fprintf(stderr, "Unable to read thread entry %d/%d at offset %llx: Profile file broken\n",
+                        head->nb_threads-nb, head->nb_threads, b->next_buffer_file_offset);
                 release_events_buffer( b );
                 return -1;
             }
@@ -910,9 +924,9 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         dbp->files[n].hr_id = strdup(head.hr_id);
         dbp->files[n].rank = head.rank;
 
-        read_infos(&dbp->files[n], &dbp->header);
+        read_infos(&dbp->files[n], &head /*dbp->header*/);
 
-        if( read_threads(&dbp->files[n], &dbp->header) != 0 ) {
+        if( read_threads(&dbp->files[n], &head) != 0 ) {
             fprintf(stderr, "unable to read all threads of profile %d in file %s. File ignored.\n",
                     n, dbp->files[n].filename);
             dbp->files[n].error = -THREADS_BROKEN;

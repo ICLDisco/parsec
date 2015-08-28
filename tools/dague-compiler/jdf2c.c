@@ -1101,6 +1101,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include \"dague/datarepo.h\"\n"
             "#include \"dague/data.h\"\n"
             "#include \"dague/mempool.h\"\n"
+            "#include \"dague/utils/output.h\"\n"
             "#include \"%s.h\"\n\n"
             "#define DAGUE_%s_NB_FUNCTIONS %d\n"
             "#define DAGUE_%s_NB_DATA %d\n"
@@ -3012,8 +3013,10 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             " \n"
             "    if(NULL == device) continue;\n"
             "    if(NULL != device->device_handle_register)\n"
-            "      if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)dague_handle) ) continue;\n"
-            " \n"
+            "      if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)dague_handle) ) {\n"
+            "        dague_output_verbose(1, 0, \"Device %%s refused to register handle %%p\\n\", device->name, __dague_handle);\n"
+            "        continue;\n"
+            "      }\n"
             "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"
             "%s"
             "    }\n"
@@ -3027,10 +3030,14 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "      dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
                            ";\n"
                            "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "        dague_output_verbose(1, 0, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
+                           "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
                            "      }\n",
                            ";\n"
                            "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "        dague_output_verbose(1, 0, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
+                           "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
                            "      }\n"));
     coutput("  /* Remove all the chores without a backend device */\n"
@@ -3042,7 +3049,10 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    uint32_t j;\n"
             "    for( j = 0; NULL != chores[j].hook; j++ ) {\n"
             "      if(supported_dev & (1 << chores[j].type)) {\n"
-            "          if( j != index ) chores[index] = chores[j];\n"
+            "          if( j != index ) {\n"
+            "            chores[index] = chores[j];\n"
+            "            dague_output_verbose(1, 0, \"Device type %%i disabled for function %%s\"\n, chores[j].type, func->name);\n"
+            "          }\n"
             "          index++;\n"
             "      }\n"
             "    }\n"
@@ -4068,24 +4078,27 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     /**
      * Generate code for the simulation.
      */
-    coutput("  /** Update staring simulation date */\n"
+    coutput("  /** Update starting simulation date */\n"
             "#if defined(DAGUE_SIM)\n"
-            "  this_task->sim_exec_date = 0;\n");
+            "  {\n"
+            "    this_task->sim_exec_date = 0;\n");
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
 
         if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-        coutput("  if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
-                "    this_task->sim_exec_date = e%s->sim_exec_date;\n",
-                fl->varname,
-                fl->varname,
+        coutput("    data_repo_entry_t *e%s = this_task->data[%d].data_repo;\n"
+                "    if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
+                "      this_task->sim_exec_date = e%s->sim_exec_date;\n",
+                fl->varname, fl->flow_index,
+                fl->varname, fl->varname,
                 fl->varname);
     }
-    coutput("  if( this_task->function->sim_cost_fct != NULL ) {\n"
-            "    this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+    coutput("    if( this_task->function->sim_cost_fct != NULL ) {\n"
+            "      this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+            "    }\n"
+            "    if( context->largest_simulation_date < this_task->sim_exec_date )\n"
+            "      context->largest_simulation_date = this_task->sim_exec_date;\n"
             "  }\n"
-            "  if( context->largest_simulation_date < this_task->sim_exec_date )\n"
-            "    context->largest_simulation_date = this_task->sim_exec_date;\n"
             "#endif\n");
 
     jdf_generate_code_cache_awareness_update(jdf, f);
@@ -4149,7 +4162,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
         if(JDF_FLOW_TYPE_CTL & fl->flow_flags) continue;
         if(fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
             if(fl->flow_flags & JDF_FLOW_TYPE_READ)
-                coutput("this_task->data[%d].data_out->version++;\n", di);
+                coutput("this_task->data[%d].data_out->version++;  /* %s */\n", di, fl->varname);
             else
                 coutput("if( NULL !=  this_task->data[%d].data_out) this_task->data[%d].data_out->version++;\n",
                         di, di);

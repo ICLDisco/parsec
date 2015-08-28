@@ -44,10 +44,14 @@ def plot_traces(traces, y_axis, main_type, subtype=None, shared_name='',
             print('skipping trace \'{}\' with type pair {}'.format(trace.descrip(), type_pair) +
                   'because it has no events of the selected type.')
             continue
+
         if y_axis not in events:
-            print('skipping trace {} with type pair {}'.format(trace.descrip(), type_pair) +
-                  'because it has no events of the selected type with the Y-axis variable {}.'.format(y_axis))
-            continue
+            if y_axis = "duration":
+                events[y_axis] = pandas.Series(events['end'] - events['begin'])
+            else:
+                print('skipping trace {} with type pair {}'.format(trace.descrip(), type_pair) +
+                    'because it has no events of the selected type with the Y-axis variable {}.'.format(y_axis))
+                continue
 
         sorted_events = events.sort(y_axis)
 

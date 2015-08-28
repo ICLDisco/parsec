@@ -12,9 +12,6 @@
 
 struct dague_context_s;
 
-typedef struct dague_data_s dague_data_t;
-typedef struct dague_data_copy_s dague_data_copy_t;
-
 typedef uint8_t dague_data_coherency_t;
 #define    DATA_COHERENCY_INVALID   ((dague_data_coherency_t)0x0)
 #define    DATA_COHERENCY_OWNED     ((dague_data_coherency_t)0x1)
@@ -83,5 +80,10 @@ dague_data_transfer_ownership_to_copy(dague_data_t* map,
                                       uint8_t access_mode);
 DAGUE_DECLSPEC void dague_dump_data_copy(dague_data_copy_t* copy);
 DAGUE_DECLSPEC void dague_dump_data(dague_data_t* copy);
+
+DAGUE_DECLSPEC dague_data_t *
+dague_data_get( dague_data_t **holder,
+                dague_ddesc_t *desc,
+                dague_data_key_t key, void *ptr, size_t size );
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

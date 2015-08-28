@@ -102,11 +102,51 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
+            two_dim_block_cyclic_t *Adist, *Bdist;
+            int P, Q;
+
+            /* Create two fake descriptors for task distribution of the read tasks */
+            {
+                P = ((two_dim_block_cyclic_t*)A)->grid.rows;
+                Q = ((two_dim_block_cyclic_t*)A)->grid.cols;
+
+                Adist = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+
+                two_dim_block_cyclic_init(
+                    Adist, matrix_RealDouble, matrix_Tile,
+                    A->super.nodes, A->super.myrank,
+                    1, 1, /* Dimensions of the tiles              */
+                    dplasma_imax(A->mt, P), Q, /* Dimensions of the matrix             */
+                    0, 0, /* Starting points (not important here) */
+                    dplasma_imax(A->mt, P), Q, /* Dimensions of the sub-matrix         */
+                    1, 1, P);
+                Adist->super.super.data_of = fake_data_of;
+            }
+
+            {
+                P = ((two_dim_block_cyclic_t*)B)->grid.rows;
+                Q = ((two_dim_block_cyclic_t*)B)->grid.cols;
+
+                Bdist = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+
+                two_dim_block_cyclic_init(
+                    Bdist, matrix_RealDouble, matrix_Tile,
+                    B->super.nodes, B->super.myrank,
+                    1, 1, /* Dimensions of the tiles              */
+                    P, dplasma_imax(B->nt, Q), /* Dimensions of the matrix             */
+                    0, 0, /* Starting points (not important here) */
+                    P, dplasma_imax(B->nt, Q), /* Dimensions of the sub-matrix         */
+                    1, 1, P);
+                Bdist->super.super.data_of = fake_data_of;
+            }
+
             dague_zgemm_NN_handle_t* object;
             object = dague_zgemm_NN_new(transA, transB, alpha, beta,
-                                        (dague_ddesc_t*)A,
-                                        (dague_ddesc_t*)B,
-                                        (dague_ddesc_t*)C);
+                                        (dague_ddesc_t*)A, (dague_ddesc_t*)Adist,
+                                        (dague_ddesc_t*)B, (dague_ddesc_t*)Bdist,
+                                        (dague_ddesc_t*)C,
+                                        ((two_dim_block_cyclic_t*)B)->grid.rows,
+                                        ((two_dim_block_cyclic_t*)A)->grid.cols);
             arena = object->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
             zgemm_object = (dague_handle_t*)object;
         } else {
@@ -169,7 +209,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 void
 dplasma_zgemm_Destruct( dague_handle_t *o )
 {
-    dplasma_datatype_undefine_type( &(((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
+    //dplasma_datatype_undefine_type( &(((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

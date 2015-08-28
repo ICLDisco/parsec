@@ -30,6 +30,8 @@ Add_Subdirectory(profiling)
 Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)
 dague_addtest(C reduce reduce.c)
+jdf_rules(dtt_generated "${CMAKE_CURRENT_SOURCE_DIR}/dtt_bug_replicator.jdf")
+dague_addtest(C dtt_bug_replicator "dtt_bug_replicator_ex.c;${dtt_generated}")
 
 #jdf_rules(wc_generated "${CMAKE_CURRENT_SOURCE_DIR}/write_check.jdf")
 #string( REGEX REPLACE "write_check.[hc]" "" include_dir "${wc_generated}" )

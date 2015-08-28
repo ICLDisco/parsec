@@ -19,9 +19,10 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    PLASMA_enum uplo = PlasmaLower;
+    PLASMA_enum uplo = PlasmaUpper;
     int info = 0;
     int ret = 0;
+    int async = 1;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -34,6 +35,7 @@ int main(int argc, char ** argv)
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
+    flops += FLOPS_ZPOTRI((DagDouble_t)N);
 
     /* initializing matrix structure */
     LDA = dplasma_imax( LDA, N );
@@ -52,12 +54,19 @@ int main(int argc, char ** argv)
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf_rec,
-                              (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf_rec);
-
-    dplasma_zpotrf_rec_Destruct( DAGUE_zpotrf_rec );
-    dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+    if (async) {
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zpoinv,
+                                  (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zpoinv);
+        dplasma_zpoinv_Destruct( DAGUE_zpoinv );
+    }
+    else {
+        SYNC_TIME_START();
+        info = dplasma_zpoinv_sync( dague, uplo, (tiled_matrix_desc_t*)&ddescA );
+        SYNC_TIME_PRINT(rank, ("zpoinv\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
+                               P, Q, NB, N,
+                               gflops=(flops/1e9)/sync_time_elapsed));
+    }
 
     if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);
@@ -66,46 +75,26 @@ int main(int argc, char ** argv)
     if( !info && check ) {
         /* Check the factorization */
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-            sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
-                                       nodes, rank, MB, NB, LDA, N, 0, 0,
-                                       N, N, P, uplo));
-        dplasma_zplghe( dague, (double)(N), uplo,
+            two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile, nodes, rank,
+                                   MB, NB, LDA, N, 0, 0, N, N, 1, 1, P));
+        dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA0, random_seed);
 
-        ret |= check_zpotrf( dague, (rank == 0) ? loud : 0, uplo,
-                             (tiled_matrix_desc_t *)&ddescA,
-                             (tiled_matrix_desc_t *)&ddescA0);
-
-        /* Check the solution */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, rank, MB, NB, LDB, NRHS, 0, 0,
-                                   N, NRHS, SMB, SNB, P));
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, random_seed+1);
-
-        PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
-                                   nodes, rank, MB, NB, LDB, NRHS, 0, 0,
-                                   N, NRHS, SMB, SNB, P));
-        dplasma_zlacpy( dague, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
-
-        dplasma_zpotrs(dague, uplo,
-                       (tiled_matrix_desc_t *)&ddescA,
-                       (tiled_matrix_desc_t *)&ddescX );
-
-        ret |= check_zaxmb( dague, (rank == 0) ? loud : 0, uplo,
+        ret |= check_zpoinv( dague, (rank == 0) ? loud : 0, uplo,
                             (tiled_matrix_desc_t *)&ddescA0,
-                            (tiled_matrix_desc_t *)&ddescB,
-                            (tiled_matrix_desc_t *)&ddescX);
+                            (tiled_matrix_desc_t *)&ddescA );
+
+        if (ret) {
+            printf("-- Innversion is suspicious ! \n");
+        }
+        else
+        {
+            printf("-- Inversion is CORRECT ! \n");
+        }
 
         /* Cleanup */
         dague_data_free(ddescA0.mat); ddescA0.mat = NULL;
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0 );
-        dague_data_free(ddescB.mat); ddescB.mat = NULL;
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB );
-        dague_data_free(ddescX.mat); ddescX.mat = NULL;
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX );
     }
 
     dague_data_free(ddescA.mat); ddescA.mat = NULL;

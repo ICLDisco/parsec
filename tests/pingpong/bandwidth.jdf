@@ -334,10 +334,6 @@ int main(int argc, char *argv[])
 
     dague = dague_init(cores, &argc, &argv);
 
-#if defined(HAVE_CUDA)
-    dague_gpu_data_register(dague, ddescA, frags, size*sizeof(uint8_t));
-#endif
-
     for(i = 0; i < 2; i++) {
         bw_test = bandwidth_new(ddescA, loops, frags, size, world);
 

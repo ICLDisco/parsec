@@ -74,14 +74,15 @@ void* zone_malloc_fini(zone_malloc_t** gdata)
     return base_ptr;
 }
 
-void *zone_malloc(zone_malloc_t *gdata, int nb_units)
+void *zone_malloc(zone_malloc_t *gdata, size_t size)
 {
     segment_t *current_segment, *next_segment, *new_segment;
     int next_tid, current_tid, new_tid;
-    int cycled_through = 0;
+    int cycled_through = 0, nb_units;
 
     /* Let's start with the last remembered free slot */
     current_tid = gdata->next_tid;
+    nb_units = (size + gdata->unit_size - 1) / gdata->unit_size;
 
     do {
         current_segment = SEGMENT_AT_TID(gdata, current_tid);

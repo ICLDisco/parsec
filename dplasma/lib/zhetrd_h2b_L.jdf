@@ -318,7 +318,7 @@ ztsmqr_hetra1_out_A0(k,m1,i) [profile = off]
 BODY
 /* nothing */
  printlog("ztsmqr_hetra1_out_A0(%d, %d, %d) A(%d, %d)[%p]\n",
-          k, m1, i, m1, i, N);
+          k, m1, i, m1, i, M);
 END
 
 ztsmqr_hetra1(k,m1,i)

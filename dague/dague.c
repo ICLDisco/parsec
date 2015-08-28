@@ -236,7 +236,8 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         free(binding);
     }
     if( NULL != eu->eu_profile ) {
-        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "id", eu->th_id);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "boundto", startup->bindto);
+        PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "th_id", eu->th_id);
         PROFILING_THREAD_SAVE_iINFO(eu->eu_profile, "vp_id", eu->virtual_process->vp_id );
     }
 #endif /* DAGUE_PROF_TRACE */
@@ -612,13 +613,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         dague_profiling_add_dictionary_keyword( "ARENA_ACTIVE_SET", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &arena_memory_used_key, &arena_memory_unused_key);
-#endif
+#endif  /* defined(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET) */
         dague_profiling_add_dictionary_keyword( "TASK_MEMORY", "fill:#B9B243",
                                                 sizeof(size_t), "size{int64_t}",
                                                 &task_memory_alloc_key, &task_memory_free_key);
         dague_profiling_add_dictionary_keyword( "Device delegate", "fill:#EAE7C6",
                                                 0, NULL,
                                                 &device_delegate_begin, &device_delegate_end);
+        /* Ready to rock! The profiling must be on by default */
+        dague_profiling_start();
     }
 #endif  /* DAGUE_PROF_TRACE */
 
@@ -1228,17 +1231,8 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
          */
         {
             dague_execution_context_t* new_context;
-            dague_thread_mempool_t *mpool;
             new_context = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
-            /* this should not be copied over from the old execution context */
-            mpool = new_context->mempool_owner;
-            /* we copy everything but the dague_list_item_t at the beginning, to
-             * avoid copying uninitialized stuff from the stack
-             */
-            memcpy( ((char*)new_context) + sizeof(dague_list_item_t),
-                    ((char*)exec_context) + sizeof(dague_list_item_t),
-                    sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) );
-            new_context->mempool_owner = mpool;
+            DAGUE_COPY_EXECUTION_CONTEXT(new_context, exec_context);
             AYU_ADD_TASK(new_context);
 
             DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",

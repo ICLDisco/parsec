@@ -8,6 +8,7 @@
 #define branching_data_h
 
 #include "dague.h"
+#include "dague/types.h"
 
 dague_ddesc_t *create_and_distribute_data(int rank, int world, int size);
 void free_data(dague_ddesc_t *d);
