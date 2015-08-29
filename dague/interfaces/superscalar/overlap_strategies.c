@@ -67,7 +67,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
     uint8_t atomic_write_found;        
 
     /* Traversing through the successors, for each flow to build list of Read-Only tasks */ 
-    for(i=0; i<current_task->total_flow; i++) {
+    for(i=0; i<current_task->super.function->nb_flows; i++) {
         atomic_write_found = 0;
         head_succ = NULL;
         out_task = NULL;

@@ -8,6 +8,8 @@
 #include "dague/data_distribution.h"
 #include "dague.h"
 
+extern double time_double;
+
 /* 
     **  Details of Flags **
     

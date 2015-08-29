@@ -19,9 +19,12 @@
 #include "dague/vpmap.h"
 #include "dague/utils/mca_param.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
+#include "dplasma/testing/common_timing.h"
+
+double time_double = 0;
 
 static int task_hash_table_size = (10+1);
-static int tile_hash_table_size = (100*10+1);
+static int tile_hash_table_size = (10000*10+1);
 
 /* To create object of class dtd_task_t that inherits dague_execution_context_t
  * class 
@@ -835,6 +838,7 @@ dague_dtd_new(dague_context_t* context,
 
     __dague_handle->super.tile_hash_table_size      = tile_hash_table_size;
     __dague_handle->super.task_hash_table_size      = task_hash_table_size;
+    __dague_handle->super.task_id                   = 0;
     __dague_handle->super.function_hash_table_size  = DAGUE_dtd_NB_FUNCTIONS;
     __dague_handle->super.startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*));
     __dague_handle->super.total_task_class          = task_class_counter;
@@ -873,7 +877,9 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.super.profiling_array     = calloc (2 * DAGUE_dtd_NB_FUNCTIONS , sizeof(int));
 #endif /* defined(DAGUE_PROF_TRACE) */
 
-    __dague_handle->super.tasks_created         = 0; /* For the testing of PTG inserting in DTD */ 
+    /* Keeping trac of total tasks to be executed per handle for the window */
+    __dague_handle->super.tasks_created         = 0;
+    __dague_handle->super.task_window_size      = 1;
     __dague_handle->super.tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */ 
     __dague_handle->super.super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */ 
     __dague_handle->super.super.startup_hook    = dtd_startup;
@@ -943,7 +949,7 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
         if(dump_traversal_info) {  
             printf("------\ntask Ready: %s \t %d\nTotal flow: %d  flow_count:"
                    "%d\n-----\n", current_task->super.function->name, current_task->task_id,
-                   current_task->total_flow, current_task->flow_count); 
+                   current_task->super.function->nb_flows, current_task->flow_count); 
         }
 
 #if defined (OVERLAP) 
@@ -1431,27 +1437,20 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 {
     va_list args, args_for_size;
     static int handle_id=0;
-    static uint32_t task_id=0, _internal_task_counter=0;
     static uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     int next_arg, i, flow_index=0;
     int tile_op_type;
     int track_function_created_or_not=0;
     task_param_t *head_of_param_list, *current_param, *tmp_param = NULL;
     void *tmp, *value_block, *current_val; 
-    static int task_window_size = 2;
-    static int last_window_size = 2;
     static int vpid = 0;
 
     /* resetting static variables for each handle */
     if(__dague_handle->super.handle_id != handle_id) { 
         handle_id = __dague_handle->super.handle_id;
-        task_id = 0;
-        _internal_task_counter = 0;
         for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
             flow_set_flag[i] = 0;
         }
-        task_window_size = 2;
-        last_window_size = task_window_size;
     }
 
     va_start(args, name);
@@ -1530,9 +1529,8 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     temp_task->flow_satisfied = 0;
     temp_task->orig_task = NULL;
     temp_task->ready_mask = 0;
-    temp_task->task_id = task_id;
+    temp_task->task_id = __dague_handle->task_id;
     temp_task->locality = 0;
-    temp_task->total_flow = temp_task->super.function->nb_flows;
 #if defined(OVERLAP)
     /* +1 to make sure the task is completely ready before it gets executed */
     temp_task->flow_count = temp_task->super.function->nb_flows+1;
@@ -1540,8 +1538,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     temp_task->flow_count = temp_task->super.function->nb_flows;
 #endif
     temp_task->fpointer = fpointer;
-    temp_task->super.locals[0].value = task_id;
-    temp_task->name = name;
+    temp_task->super.locals[0].value = __dague_handle->task_id;
     temp_task->super.priority = 0;
     temp_task->super.hook_id = 0;
     temp_task->super.chore_id = 0;
@@ -1555,6 +1552,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     next_arg = va_arg(args, int);
 
+    //double time__ = get_cur_time();
     while(next_arg != 0) {
         tmp = va_arg(args, void *);
         tile = (dtd_tile_t *) tmp;
@@ -1572,12 +1570,13 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         
         next_arg = va_arg(args, int);
     }
+    //time__ = get_cur_time() - time__; 
+    //time_double += time__;
 
     if(tmp_param != NULL) {
         tmp_param->next = NULL;
     }
     va_end(args);
-
 
     /* Bypassing constness in function structure */
     dague_flow_t **in = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->in[flow_index]);
@@ -1597,7 +1596,8 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 #endif
 
     if(!__dague_handle->super.context->active_objects) {
-        task_id++;
+        assert(0);
+        __dague_handle->task_id++;
          /* executing the tasks as soon as we find it, if no engine is attached */
         __dague_execute(__dague_handle->super.context->virtual_processes[0]->execution_units[0], 
                         (dague_execution_context_t *)temp_task);         
@@ -1630,19 +1630,16 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 #endif /* defined(DAGUE_PROF_TRACE) */
 
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
-    task_id++;
-    _internal_task_counter++;
+    __dague_handle->task_id++;
+    //_internal_task_counter++;
     /* Atomically increasing the nb_local_tasks_counter */
-    __dague_handle->tasks_created = _internal_task_counter;
+    //__dague_handle->tasks_created = _internal_task_counter;
+    __dague_handle->tasks_created++;
 
-    if((__dague_handle->tasks_created % task_window_size) == 0 ) {
+    if((__dague_handle->tasks_created % __dague_handle->task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
-        if ( last_window_size == task_window_size ) {
-            task_window_size *= 2;
-            last_window_size = task_window_size;
-        }
-        if ( task_window_size == 128 ) {
-            task_window_size *= 2;
+        if ( __dague_handle->task_window_size <= 128 ) {
+            __dague_handle->task_window_size *= 2;
         }
     }
 }
@@ -1929,11 +1926,9 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     temp_task->flow_satisfied = 0;
     temp_task->ready_mask = 0;
     temp_task->task_id = task_id;
-    temp_task->total_flow = temp_task->super.function->nb_flows;
     temp_task->flow_count = temp_task->super.function->nb_flows+1; /* +1 to make sure the task is completely ready before it gets executed */
     temp_task->fpointer = fpointer;
     temp_task->super.locals[0].value = task_id;
-    temp_task->name = name;
     temp_task->super.priority = 0;
     temp_task->super.hook_id = 0;
     temp_task->super.chore_id = 0;
@@ -1975,6 +1970,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     /* Assigning values to task objects  */
     temp_task->param_list = head_of_param_list;
 
+    /* Atomically increasing the nb_local_tasks_counter */
     dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks),1);
     dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1); /* in attempt to make the task not ready till the whole body is constructed */
 
@@ -2005,7 +2001,6 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
     task_id++;
     _internal_task_counter++;
-    /* Atomically increasing the nb_local_tasks_counter */
     __dague_handle->tasks_created = _internal_task_counter;
 
     static int task_window_size = 1;
