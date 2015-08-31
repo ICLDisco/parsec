@@ -65,15 +65,14 @@ struct dtd_task_s {
     int                         flow_count;
     int                         flow_satisfied;
     int                         ready_mask;
-    uint8_t                     locality; /* the vpid of data for locality flag */
     uint8_t                     belongs_to_function;
     /* Saves flow index for which we have to release data of a TASK 
        with INPUT and ATOMIC_WRITE operation 
      */
     uint8_t                     dont_skip_releasing_data[MAX_DESC];     
-    descendant_info_t           desc[MAX_DESC];
     /* for testing PTG inserting task in DTD */
     dague_execution_context_t   *orig_task; 
+    descendant_info_t           desc[MAX_DESC];
     task_param_t                *param_list;
 };
 /* For creating objects of class dtd_task_t */
@@ -137,14 +136,15 @@ struct dague_dtd_handle_s {
     uint8_t         function_hash_table_size;
     int             task_id;
     int             task_window_size;
+    int             total_task_class;
+    int             tasks_created;
+    int             tasks_scheduled;
+    uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     hash_table      *task_h_table; 
     hash_table      *function_h_table; 
     hash_table      *tile_h_table; 
     /* ring of initial ready tasks */
     dague_execution_context_t      **startup_list; 
-    int             total_task_class;
-    int             tasks_created;
-    int             tasks_scheduled;
     /* from here to end is for the testing interface */
     struct          hook_info actual_hook[DAGUE_dtd_NB_FUNCTIONS];
     int             total_tasks_to_be_exec;

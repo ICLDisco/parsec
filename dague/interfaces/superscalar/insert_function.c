@@ -877,7 +877,10 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.super.profiling_array     = calloc (2 * DAGUE_dtd_NB_FUNCTIONS , sizeof(int));
 #endif /* defined(DAGUE_PROF_TRACE) */
 
-    /* Keeping trac of total tasks to be executed per handle for the window */
+    /* Keeping track of total tasks to be executed per handle for the window */
+    for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
+        __dague_handle->super.flow_set_flag[i]  = 0;
+    }
     __dague_handle->super.tasks_created         = 0;
     __dague_handle->super.task_window_size      = 1;
     __dague_handle->super.tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */ 
@@ -1437,21 +1440,12 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 {
     va_list args, args_for_size;
     static int handle_id=0;
-    static uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     int next_arg, i, flow_index=0;
     int tile_op_type;
     int track_function_created_or_not=0;
     task_param_t *head_of_param_list, *current_param, *tmp_param = NULL;
     void *tmp, *value_block, *current_val; 
     static int vpid = 0;
-
-    /* resetting static variables for each handle */
-    if(__dague_handle->super.handle_id != handle_id) { 
-        handle_id = __dague_handle->super.handle_id;
-        for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
-            flow_set_flag[i] = 0;
-        }
-    }
 
     va_start(args, name);
 
@@ -1530,7 +1524,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     temp_task->orig_task = NULL;
     temp_task->ready_mask = 0;
     temp_task->task_id = __dague_handle->task_id;
-    temp_task->locality = 0;
 #if defined(OVERLAP)
     /* +1 to make sure the task is completely ready before it gets executed */
     temp_task->flow_count = temp_task->super.function->nb_flows+1;
@@ -1561,7 +1554,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
         set_task(temp_task, tmp, tile,
                  tile_op_type, current_param,
-                 flow_set_flag, &current_val, 
+                 __dague_handle->flow_set_flag, &current_val, 
                  __dague_handle, &flow_index, &next_arg);
 
         tmp_param = current_param;
@@ -1583,7 +1576,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     *in = NULL;
     dague_flow_t **out = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->out[flow_index]);
     *out = NULL;
-    flow_set_flag[temp_task->belongs_to_function] = 1;
+    __dague_handle->flow_set_flag[temp_task->belongs_to_function] = 1;
 
     /* Assigning values to task objects  */
     temp_task->param_list = head_of_param_list;
@@ -1631,9 +1624,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
     __dague_handle->task_id++;
-    //_internal_task_counter++;
-    /* Atomically increasing the nb_local_tasks_counter */
-    //__dague_handle->tasks_created = _internal_task_counter;
     __dague_handle->tasks_created++;
 
     if((__dague_handle->tasks_created % __dague_handle->task_window_size) == 0 ) {
@@ -1685,11 +1675,6 @@ set_task(dtd_task_t *temp_task, void *tmp, dtd_tile_t *tile,
                 set_flow_in_function(__dague_handle, temp_task, tile_op_type, *flow_index, tile_type_index);
             }
     
-            /* using locality flag */
-            if (((tile_op_type & GET_REGION_INFO) & LOCALITY)) {
-                temp_task->locality = tile->data->owner_device;
-            }
-
             last_user.flow_index   = tile->last_user.flow_index;
             last_user.op_type      = tile->last_user.op_type;
             last_user.task         = tile->last_user.task;
