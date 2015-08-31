@@ -76,7 +76,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 
     /* WARNING: This has to be removed when padding will be removed */
 #if defined(HAVE_MPI)
-    if ( (storage == matrix_Lapack) && (P > 1)) {
+    if ( (storage == matrix_Lapack) && (nodes > 1) ) {
         if ( tdesc->lm % mb != 0 ) {
             fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
             MPI_Abort(MPI_COMM_WORLD, 2);
@@ -133,8 +133,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     tdesc->data_map = (dague_data_t**)calloc(tdesc->nb_local_tiles, sizeof(dague_data_t*));
 
     /* Update llm and lln */
-    tdesc->llm = Ddesc->nb_elem_r * mb;
-    tdesc->lln = Ddesc->nb_elem_c * nb;
+    if ( !((storage == matrix_Lapack) && (nodes == 1)) ) {
+        tdesc->llm = Ddesc->nb_elem_r * mb;
+        tdesc->lln = Ddesc->nb_elem_c * nb;
+    }
 
     /* set the methods */
     if( (nrst == 1) && (ncst == 1) ) {
