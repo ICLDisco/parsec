@@ -78,7 +78,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
     cdef dbp_multifile_reader_t * dbp = dbp_reader_open_files(len(filenames), c_filenames)
 
     if dbp == NULL:
-        print("None of the following files can be opened {}".format(filenames))
+        print("None of the following files can be opened {0}".format(filenames))
         return None
 
     # determine amount of multiprocessing
@@ -114,7 +114,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
 
         logger.log(40, "Event %s conv <%s> length %d\n", event_name, event_conv, event_length)
         if 0 == len(event_conv) and str("PINS_EXEC") == event_name:
-            event_conv = 'kernel_type{int32_t}:value1{int64_t}:value2{int64_t}:value3{int64_t}:'
+            event_conv = 'kernel_type{int32_t}'+PARSEC_PINS_SEPARATOR+'value1{int64_t}'+PARSEC_PINS_SEPARATOR+'value2{int64_t}'+PARSEC_PINS_SEPARATOR+'value3{int64_t}'+PARSEC_PINS_SEPARATOR
         if 0 != len(event_conv):
             builder.event_convertors[event_type] = ExtendedEvent(builder.event_names[event_type],
                                                                  event_conv, event_length)
@@ -254,7 +254,7 @@ cpdef read(filenames, report_progress=False, skeleton_only=False, multiprocess=F
             errors = pd.concat(builder.errors)
         else:
             errors = pd.DataFrame()
-    cond_print('Constructed additional structures in {} seconds.'.format(t.interval),
+    cond_print('Constructed additional structures in {0} seconds.'.format(t.interval),
                report_progress)
 
     trace = ParsecTraceTables(events, event_types, event_names, event_attributes, event_convertors,
@@ -305,7 +305,7 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
         return None
     if len(filenames) == 1 and not force_reconvert:
         if is_ptt(filenames[0]):
-            cond_print('File {} is already a PTT. Not converting.'.format(filenames[0]),
+            cond_print('File {0} is already a PTT. Not converting.'.format(filenames[0]),
                        report_progress)
             return filenames[0]
 
@@ -318,20 +318,18 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
         try:
             if validate_existing:
                 from_hdf(existing_h5, skeleton_only=True)
-            cond_print(
-                'PTT {} already exists. '.format(
-                    existing_h5) +
-                'Conversion not forced.', report_progress)
+            cond_print('PTT {0} already exists. Conversion not forced.'.format(existing_h5),
+                       report_progress)
             return existing_h5 # file already exists
         except:
             cond_print(
-                'Possibly pre-existant PTT {} already exists, but cannot be validated. '.format(
+                'Possibly pre-existant PTT {0} already exists, but cannot be validated. '.format(
                     existing_h5) +
                 'Conversion will proceed.', report_progress)
             pass # something went wrong, so try conversion anyway
 
     # convert
-    cond_print('Converting {}'.format(filenames), report_progress)
+    cond_print('Converting {0}'.format(filenames), report_progress)
     trace = read(filenames, report_progress=report_progress,
                  multiprocess=multiprocess, add_info=add_info, skeleton_only=skeleton_only)
 
@@ -371,10 +369,10 @@ cpdef convert(filenames, out=None, unlink=False, multiprocess=True,
     with Timer() as t:
         trace.to_hdf(out, table=table, append=append,
                      complevel=compress[1], complib=compress[0])
-    cond_print('Generate trace to HDF5 format in {} seconds.'.format(t.interval), report_progress)
+    cond_print('Generate trace to HDF5 format in {0} seconds.'.format(t.interval), report_progress)
     if unlink:
         for filename in filenames:
-            cond_print('Unlinking {} after conversion'.format(filename), report_progress)
+            cond_print('Unlinking {0} after conversion'.format(filename), report_progress)
             os.unlink(filename)
     return out
 
@@ -472,6 +470,7 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     cdef uint64_t end = 0
     cdef uint64_t th_begin
     cdef uint64_t th_end
+    cdef uint64_t prev_begin = 0
     cdef void * cinfo = NULL
 
     th_begin = sys.maxint
@@ -496,6 +495,9 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
         event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
         event_name = builder.event_names[event_type]
         begin = dbp_event_get_timestamp(event_s)
+        if begin < prev_begin:
+           raise Exception('Internal', 'event ordering impossible')
+        prev_begin = begin
         event_flags = dbp_event_get_flags(event_s)
         handle_id = dbp_event_get_handle_id(event_s)
         event_id = dbp_event_get_event_id(event_s)
@@ -686,7 +688,11 @@ cdef class ExtendedEvent:
             elif ev_type == 'float':
                 fmt += 'f'
             else:
-                logger.warning('Unknown format %s', ev_type)
+                m = re.search('char\[([0-9]+)\]', ev_type)
+                if m is None:
+                    logger.warning('Unknown format %s', ev_type)
+                else:
+                    fmt += "%ss"%(m.group(1))
 
         logger.log(1,  'event[%s] = %s fmt \'%s\'', event_name, self.aev, fmt)
         self.ev_struct = struct.Struct(fmt)
@@ -710,7 +716,7 @@ cdef parse_info(builder, event_type, char * cinfo):
 
     try:
         pybs = cinfo[:len(builder.event_convertors[event_type])]
-        #print('hex = {}'.format(binascii.hexlify(pybs)))
+        #print('hex = {0}'.format(binascii.hexlify(pybs)))
         return builder.event_convertors[event_type].unpack(pybs)
     except Exception as e:
         print(e)

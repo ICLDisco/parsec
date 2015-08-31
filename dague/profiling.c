@@ -33,10 +33,10 @@
 #include "dague/class/fifo.h"
 #include "dague/dague_hwloc.h"
 #include "dague/os-spec-timing.h"
+#include "dague/utils/mca_param.h"
 
 #define min(a, b) ((a)<(b)?(a):(b))
 
-#define MINIMAL_EVENT_BUFFER_SIZE          (10*sysconf(_SC_PAGESIZE))
 #ifndef HOST_NAME_MAX
 #if defined(MAC_OS_X)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
@@ -135,6 +135,7 @@ int dague_profiling_init( void )
 {
     dague_profiling_buffer_t dummy_events_buffer;
     long ps;
+    int dague_profiling_minimal_ebs;
 
     if( __profile_initialized ) return -1;
 
@@ -148,7 +149,19 @@ int dague_profiling_init( void )
 
     file_backend_extendable = 1;
     ps = sysconf(_SC_PAGESIZE);
-    event_buffer_size = ps * ((MINIMAL_EVENT_BUFFER_SIZE + ps) / ps);
+
+    dague_profiling_minimal_ebs = 10;
+    dague_mca_param_reg_int_name("profile", "buffer_pages", "Number of pages per profiling buffer"
+                                 "(default is 10, must be at least large enough to hold the binary file header)",
+                                 false, false, dague_profiling_minimal_ebs, &dague_profiling_minimal_ebs);
+    if( dague_profiling_minimal_ebs <= 0 )
+        dague_profiling_minimal_ebs = 10;
+    event_buffer_size = dague_profiling_minimal_ebs*ps;
+    while( event_buffer_size < sizeof(dague_profiling_binary_file_header_t) ){
+        dague_profiling_minimal_ebs++;
+        event_buffer_size = dague_profiling_minimal_ebs*ps;
+    }
+
     event_avail_space = event_buffer_size -
         ( (char*)&dummy_events_buffer.buffer[0] - (char*)&dummy_events_buffer);
 

@@ -21,10 +21,11 @@ int main(int argc, char *argv[])
 {
     dague_context_t* dague;
     int rank, world, cores;
-    int size, nb, i, c;
+    int size, nb, i, j, c;
     dague_ddesc_t *ddescA;
     int *decision;
     dague_handle_t *choice;
+    char **dargv, ***pargv;
 
 #if defined(HAVE_MPI)
     {
@@ -37,15 +38,38 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
-    cores = 1;
-    dague = dague_init(cores, &argc, &argv);
 
     size = 256;
-    if(argc < 2) {
+    dargv = NULL;
+    j = 0;
+    for(i = 0; i < argc; i++) {
+        if( strcmp(argv[i], "--") == 0 ) {
+            dargv = (char**)calloc( (argc-i+2), sizeof(char *));
+            dargv[j++] = strdup(argv[0]);
+            continue;
+        }
+        if( dargv ) {
+            dargv[j++] = argv[i];
+        }
+    }
+    if( !dargv ) {
+        dargv = (char**)calloc( 2, sizeof(char *));
+        dargv[j++] = strdup(argv[0]);
+    }
+    dargv[j] = NULL;
+
+    if(argc - j < 1) {
         nb = 2;
     } else {
         nb = atoi(argv[1]);
     }
+
+    cores = 1;
+    if(dargv == NULL)
+        pargv = NULL;
+    else
+        pargv = &dargv;
+    dague = dague_init(cores, &j, pargv);
 
     ddescA = create_and_distribute_data(rank, world, size);
     dague_ddesc_set_key(ddescA, "A");

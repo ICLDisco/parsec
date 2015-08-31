@@ -228,8 +228,6 @@
         sizeof(int)*nb,                      (IPIV),                  OUTPUT,\
         sizeof(PLASMA_Complex64_t)*min(m,n),    (NULL),               SCRATCH,\
         sizeof(int)*n,                          (NULL),               SCRATCH,\
-        sizeof(PLASMA_sequence*),           &(sequence),      VALUE,\
-        sizeof(PLASMA_request*),            &(request),       VALUE,\
         sizeof(PLASMA_bool),                &(check_info),    VALUE,\
         sizeof(int),                        &(iinfo),         VALUE,\
         0);}
@@ -289,8 +287,6 @@
         sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                     INOUT | LOCALITY,\
         sizeof(int),                        &(lda),           VALUE,\
         sizeof(int)*nb,                      (IPIV),                  OUTPUT,\
-        sizeof(PLASMA_sequence*),           &(sequence),      VALUE,\
-        sizeof(PLASMA_request*),            &(request),       VALUE,\
         sizeof(PLASMA_bool),                &(check_info),    VALUE,\
         sizeof(int),                        &(iinfo),         VALUE,\
         0);}
@@ -304,8 +300,6 @@
         sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                     INOUT,\
         sizeof(int),                        &(lda),           VALUE,\
         sizeof(int)*nb,                      (IPIV),                  OUTPUT,\
-        sizeof(PLASMA_sequence*),           &(sequence),      VALUE,\
-        sizeof(PLASMA_request*),            &(request),       VALUE,\
         sizeof(PLASMA_bool),                &(check_info),    VALUE,\
         sizeof(int),                        &(iinfo),         VALUE,\
         0);}
@@ -318,8 +312,6 @@
         sizeof(int),                        &(ib),            VALUE,\
         sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                     INOUT | LOCALITY,\
         sizeof(int),                        &(lda),           VALUE,\
-        sizeof(PLASMA_sequence*),           &(sequence),      VALUE,\
-        sizeof(PLASMA_request*),            &(request),       VALUE,\
         sizeof(int),                        &(iinfo),         VALUE,\
         0);}
 #pragma zgetrf_nopiv A
@@ -331,8 +323,6 @@
         sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                     INOUT,\
         sizeof(int),                        &(lda),           VALUE,\
         sizeof(int)*nb,                      (IPIV),                  OUTPUT,\
-        sizeof(PLASMA_sequence*),           &(sequence),      VALUE,\
-        sizeof(PLASMA_request*),            &(request),       VALUE,\
         sizeof(PLASMA_bool),                &(check_info),    VALUE,\
         sizeof(int),                        &(iinfo),         VALUE,\
         sizeof(int),                        &(nbthread),      VALUE,\
@@ -344,8 +334,6 @@
         sizeof(PLASMA_desc),                &(A),             VALUE,\
         sizeof(PLASMA_Complex64_t)*size,     (Amn),               INOUT,\
         sizeof(int)*A.n,                     (IPIV),              OUTPUT,\
-        sizeof(PLASMA_sequence*),           &(sequence),      VALUE,\
-        sizeof(PLASMA_request*),            &(request),       VALUE,\
         sizeof(PLASMA_bool),                &(check_info),    VALUE,\
         sizeof(int),                        &(iinfo),         VALUE,\
         sizeof(int),                        &(nbthread),      VALUE,\
@@ -479,8 +467,6 @@
         sizeof(int),                        &(lda),       VALUE,\
         sizeof(PLASMA_Complex32_t)*nb*nb,    (B),                 OUTPUT,\
         sizeof(int),                        &(ldb),       VALUE,\
-        sizeof(PLASMA_sequence*),           &(sequence),  VALUE,\
-        sizeof(PLASMA_request*),            &(request),   VALUE,\
         0);}
 #pragma zlag2c A B
 
@@ -805,8 +791,6 @@
         sizeof(int),                        &(n),         VALUE,\
         sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INOUT,\
         sizeof(int),                        &(lda),       VALUE,\
-        sizeof(PLASMA_sequence*),           &(sequence),  VALUE,\
-        sizeof(PLASMA_request*),            &(request),   VALUE,\
         sizeof(int),                        &(iinfo),     VALUE,\
         0);}
 #pragma zpotrf A
@@ -991,8 +975,6 @@
         sizeof(int),                        &(n),         VALUE,\
         sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INOUT,\
         sizeof(int),                        &(lda),       VALUE,\
-        sizeof(PLASMA_sequence*),           &(sequence),  VALUE,\
-        sizeof(PLASMA_request*),            &(request),   VALUE,\
         sizeof(int),                        &(iinfo),     VALUE,\
         0);}
 #pragma ztrtri A
@@ -1200,8 +1182,6 @@
         sizeof(int)*nb,                      (IPIV),                  OUTPUT,\
         sizeof(PLASMA_Complex64_t)*ib*nb,    (NULL),                  SCRATCH,\
         sizeof(int),                        &(nb),            VALUE,\
-        sizeof(PLASMA_sequence*),           &(sequence),      VALUE,\
-        sizeof(PLASMA_request*),            &(request),       VALUE,\
         sizeof(PLASMA_bool),                &(check_info),    VALUE,\
         sizeof(int),                        &(iinfo),         VALUE,\
         0);}
