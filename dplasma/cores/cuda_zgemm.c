@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -41,8 +41,6 @@ typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h,
                                  dague_complex64_t beta,  dague_complex64_t *d_C, int ldc
                                );
 #endif
-
-
 
 extern int dague_cuda_output_stream;
 
@@ -390,7 +388,6 @@ gpu_kernel_epilog_zgemm( gpu_device_t        *gpu_device,
     return 0;
 }
 
-
 /**
  * Try to execute a GEMM on a GPU.
  *
@@ -429,6 +426,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
             break;
         }
     }
+
     /* Which device is the owner of the data */
     dev_index = this_task->data[data_index].data_in->original->owner_device;
     if( dev_index <= 0 ) {  /* this is the first time we see this tile.
