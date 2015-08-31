@@ -45,6 +45,8 @@ set(SOURCES
   core_zhetrf_nopiv.c
   core_zhebut.c
   core_zamax.c
+  core_zgeadd.c
+  core_ztradd.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"

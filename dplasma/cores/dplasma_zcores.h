@@ -34,7 +34,19 @@ int CORE_zamax(PLASMA_enum storev, PLASMA_enum uplo, int M, int N,
                const PLASMA_Complex64_t *A, int lda, double *work);
 int CORE_zamax_tile( PLASMA_enum storev, PLASMA_enum uplo, const PLASMA_desc descA, double *work);
 
-int CORE_ztsmqr_wei(PLASMA_enum side, PLASMA_enum trans,
+int dplasma_core_ztradd(PLASMA_enum uplo, PLASMA_enum trans, int M, int N,
+                              dague_complex64_t  alpha,
+                        const dague_complex64_t *A, int LDA,
+                              dague_complex64_t  beta,
+                              dague_complex64_t *B, int LDB);
+
+int dplasma_core_zgeadd(PLASMA_enum trans, int M, int N,
+                              dague_complex64_t  alpha,
+                        const dague_complex64_t *A, int LDA,
+                              dague_complex64_t  beta,
+                              dague_complex64_t *B, int LDB);
+
+ int CORE_ztsmqr_wei(PLASMA_enum side, PLASMA_enum trans,
                     int M1, int N1, int M2, int N2, int K, int IB,
                     PLASMA_Complex64_t *A1, int LDA1,
                     PLASMA_Complex64_t *A2, int LDA2,
