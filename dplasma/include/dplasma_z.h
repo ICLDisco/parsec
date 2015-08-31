@@ -8,16 +8,20 @@
 #ifndef _DPLASMA_Z_H_
 #define _DPLASMA_Z_H_
 
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/matrix.h"
 
 /***********************************************************
  *               Blocking interface
  */
 /* Level 2 Blas */
+int dplasma_zgeadd( dague_context_t *dague, PLASMA_enum trans, dague_complex64_t alpha,
+                    const tiled_matrix_desc_t *A, dague_complex64_t beta, tiled_matrix_desc_t *B);
 int dplasma_zgerc( dague_context_t *dague, dague_complex64_t alpha,
                    const tiled_matrix_desc_t *X, const tiled_matrix_desc_t *Y, tiled_matrix_desc_t *A);
 int dplasma_zgeru( dague_context_t *dague, dague_complex64_t alpha,
                    const tiled_matrix_desc_t *X, const tiled_matrix_desc_t *Y, tiled_matrix_desc_t *A);
+int dplasma_ztradd( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum trans, dague_complex64_t alpha,
+                    const tiled_matrix_desc_t *A, dague_complex64_t beta, tiled_matrix_desc_t *B);
 
 /* Level 3 Blas */
 int dplasma_zgemm( dague_context_t *dague, PLASMA_enum transA, PLASMA_enum transB,
@@ -87,7 +91,6 @@ int    dplasma_zunmqr( dague_context_t *dague, PLASMA_enum side, PLASMA_enum tra
 int    dplasma_zunmqr_param( dague_context_t *dague, PLASMA_enum side, PLASMA_enum trans, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *B );
 
 /* Lapack Auxiliary */
-int    dplasma_zgeadd( dague_context_t *dague, PLASMA_enum transA, PLASMA_enum uplo, dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 int    dplasma_zlacpy( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 double dplasma_zlange( dague_context_t *dague, PLASMA_enum ntype, const tiled_matrix_desc_t *A);
 double dplasma_zlanhe( dague_context_t *dague, PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A);
@@ -108,8 +111,10 @@ int    dplasma_zprint( dague_context_t *dague, PLASMA_enum uplo, const tiled_mat
  *             Non-Blocking interface
  */
 /* Level 2 Blas */
-dague_handle_t* dplasma_zgerc_New( dague_complex64_t alpha, const tiled_matrix_desc_t *X, const tiled_matrix_desc_t *Y, tiled_matrix_desc_t *A);
-dague_handle_t* dplasma_zgeru_New( dague_complex64_t alpha, const tiled_matrix_desc_t *X, const tiled_matrix_desc_t *Y, tiled_matrix_desc_t *A);
+dague_handle_t* dplasma_zgeadd_New( PLASMA_enum trans, dague_complex64_t alpha, const tiled_matrix_desc_t *A, dague_complex64_t beta, tiled_matrix_desc_t *B);
+dague_handle_t* dplasma_zgerc_New ( dague_complex64_t alpha, const tiled_matrix_desc_t *X, const tiled_matrix_desc_t *Y, tiled_matrix_desc_t *A);
+dague_handle_t* dplasma_zgeru_New ( dague_complex64_t alpha, const tiled_matrix_desc_t *X, const tiled_matrix_desc_t *Y, tiled_matrix_desc_t *A);
+dague_handle_t* dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans, dague_complex64_t alpha, const tiled_matrix_desc_t *A, dague_complex64_t beta, tiled_matrix_desc_t *B);
 
 /* Level 3 Blas */
 dague_handle_t* dplasma_zgemm_New( PLASMA_enum transa, PLASMA_enum transb,
@@ -166,7 +171,6 @@ dague_handle_t* dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans, tiled_m
 dague_handle_t* dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *B);
 
 /* Auxiliary routines */
-dague_handle_t* dplasma_zgeadd_New( PLASMA_enum transA, PLASMA_enum uplo, dague_complex64_t alpha, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 dague_handle_t* dplasma_zlacpy_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 dague_handle_t* dplasma_zlange_New( PLASMA_enum ntype, const tiled_matrix_desc_t *A, double *norm);
 dague_handle_t* dplasma_zlanhe_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
@@ -189,8 +193,10 @@ dague_handle_t* dplasma_zgeqrfr_unmqr_New(tiled_matrix_desc_t *A,  tiled_matrix_
  *               Destruct functions
  */
 /* Level 2 Blas */
+void dplasma_zgeadd_Destruct( dague_handle_t *o );
 void dplasma_zgerc_Destruct( dague_handle_t *o );
 void dplasma_zgeru_Destruct( dague_handle_t *o );
+void dplasma_ztradd_Destruct( dague_handle_t *o );
 
 /* Level 3 Blas */
 void dplasma_zgemm_Destruct( dague_handle_t *o );
@@ -229,7 +235,6 @@ void dplasma_zunmqr_Destruct( dague_handle_t *o );
 void dplasma_zunmqr_param_Destruct( dague_handle_t *o );
 
 /* Auxiliary routines */
-void dplasma_zgeadd_Destruct( PLASMA_enum transA, dague_handle_t *o );
 void dplasma_zlacpy_Destruct( dague_handle_t *o );
 void dplasma_zlange_Destruct( dague_handle_t *o );
 void dplasma_zlanhe_Destruct( dague_handle_t *o );

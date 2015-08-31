@@ -181,9 +181,10 @@ static int check_solution( dague_context_t *dague, int loud,
     }
     dplasma_ztrmm(dague, PlasmaLeft, uplo, PlasmaNoTrans, diag,
                   1., A, (tiled_matrix_desc_t *)&A0 );
-    dplasma_zgeadd( dague, PlasmaNoTrans, PlasmaUpperLower, -1.0,
-                    (tiled_matrix_desc_t*)&A0,
-                    (tiled_matrix_desc_t*)&Id );
+
+    dplasma_zgeadd( dague, PlasmaNoTrans,
+                    -1.0, (tiled_matrix_desc_t*)&A0,
+                     1.0, (tiled_matrix_desc_t*)&Id );
 
     Anorm    = dplasma_zlantr( dague, PlasmaOneNorm, uplo, diag, A );
     Ainvnorm = dplasma_zlantr( dague, PlasmaOneNorm, uplo, diag, Ainv );
