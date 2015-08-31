@@ -44,7 +44,9 @@ dplasma/cores/core_[ds]sybut\.c$
 dplasma/cores/core_[ds]sydrk\.c$
 dplasma/cores/core_[ds]sytrf2_nopiv\.c$
 dplasma/cores/core_[ds]sytrf_nopiv\.c$
+dplasma/cores/core_[sdc]geadd\.c$
 dplasma/cores/core_[sdc]gemdm\.c$
+dplasma/cores/core_[sdc]tradd\.c$
 dplasma/cores/core_[sdc]trdv\.c$
 dplasma/cores/core_[sdc]trmdm\.c$
 dplasma/cores/core_chebut\.c$
@@ -116,8 +118,8 @@ dplasma/lib/[sdc]syrbt_[LU]\.jdf$
 dplasma/lib/[sdc]trdsm\.jdf$
 dplasma/lib/[sdc]trmdm\.jdf$
 
-dplasma/lib/map\\.[ch]$
-dplasma/lib/map2\\.[ch]$
+dplasma/lib/map\.[ch]$
+dplasma/lib/map2\.[ch]$
 dplasma/lib/[sdcz]lange_frb_cyclic\.[ch]$
 dplasma/lib/[sdcz]lange_one_cyclic\.[ch]$
 dplasma/lib/[sdcz]lansy\.[ch]$
@@ -270,6 +272,7 @@ dplasma/testing/testing_[sdc]potrf\.c$
 dplasma/testing/testing_[sdc]poinv\.c$
 dplasma/testing/testing_[sdc]posv\.c$
 dplasma/testing/testing_[sdc]trtri\.c$
+dplasma/testing/testing_[sdc]geadd\.c$
 dplasma/testing/testing_[sdc]gelqf\.c$
 dplasma/testing/testing_[sdc]geqrf\.c$
 dplasma/testing/testing_[c]unmqr\.c$
@@ -324,6 +327,7 @@ dplasma/testing/testing_[cz]unmqr$
 dplasma/testing/testing_[cz]unmlq$
 dplasma/testing/testing_[sd]ormqr$
 dplasma/testing/testing_[sd]ormlq$
+dplasma/testing/testing_[sdcz]geadd$
 dplasma/testing/testing_[sdcz]geqrf_hqr$
 dplasma/testing/testing_[sdcz]gelqf_hqr$
 dplasma/testing/testing_[cz]unmqr_hqr$
