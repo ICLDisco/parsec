@@ -52,7 +52,7 @@ extern float *device_load, *device_weight;
 typedef struct __dague_gpu_workspace {
     void* workspace[DAGUE_GPU_MAX_WORKSPACE];
     int stack_head;
-    int total_workspace;    
+    int total_workspace;
 } dague_gpu_workspace_t;
 
 typedef struct __dague_gpu_context {
@@ -143,17 +143,6 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                              dague_data_pair_t* task_data,
                              dague_gpu_context_t *gpu_task,
                              dague_gpu_exec_stream_t *gpu_stream );
-
-/* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
-int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);
-void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);
-int dague_gpu_free_workspace(gpu_device_t * gpu_device);
-
-
-/* sort pending task list by number of spaces needed */
-int dague_gpu_sort_pending_list(gpu_device_t *gpu_device);
-dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_execution_unit_t *eu_context);
-int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_task, dague_execution_unit_t *eu_context);
 
 /* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);
