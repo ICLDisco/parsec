@@ -577,8 +577,6 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
-    iparam[IPARAM_SMB] = 0;
-    iparam[IPARAM_SNB] = 0;
 }
 
 #ifdef DAGUE_PROF_TRACE
