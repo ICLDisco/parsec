@@ -13,7 +13,6 @@
 #include "dplasma/cores/dplasma_zcores.h"
 
 #include "map2.h"
-#include "map2t.h"
 
 typedef struct ztradd_args_s {
     PLASMA_enum       trans;
