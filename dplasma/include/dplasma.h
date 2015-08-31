@@ -63,11 +63,11 @@ static inline int dplasma_imin(int a, int b) { return (a < b) ? a : b; };
  * Map operations
  */
 int dplasma_map(  dague_context_t *dague, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t op, void *op_args);
-int dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
+int dplasma_map2( dague_context_t *dague, PLASMA_enum uplo, PLASMA_enum trans, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 int dplasma_map2t( dague_context_t *dague, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 
 dague_handle_t *dplasma_map_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t op, void *op_args);
-dague_handle_t *dplasma_map2_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
+dague_handle_t *dplasma_map2_New( PLASMA_enum uplo, PLASMA_enum trans, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 dague_handle_t *dplasma_map2t_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 
 void dplasma_map_Destruct( dague_handle_t *o );
