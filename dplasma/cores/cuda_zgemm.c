@@ -429,11 +429,13 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
 
     /* Which device is the owner of the data */
     dev_index = this_task->data[data_index].data_in->original->owner_device;
-    if( dev_index <= 0 ) {  /* this is the first time we see this tile.
+
+    /* 0 is CPU, and 1 is recursive device */
+    if( dev_index <= 1 ) {  /* this is the first time we see this tile.
                              * Let's decide which GPU will work on it. */
         int best_index = 0;  /* default value: first CPU device */
         float weight, best_weight = dague_device_load[0] + nb * dague_device_sweight[0];
-        for( dev_index = 1; dev_index < dague_devices_enabled(); dev_index++ ) {
+        for( dev_index = 2; dev_index < dague_devices_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */
             if(!(handle->devices_mask & (1 << dev_index))) continue;
             weight = dague_device_load[dev_index] + nb * dague_device_sweight[dev_index];
@@ -446,6 +448,7 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
         if( best_index == 0 ) {
             return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */
         }
+        assert( best_index != 1 );
         dev_index = best_index;
     }
 
