@@ -31,10 +31,6 @@
 /* structure equivalent to PLASMA_desc, but for distributed matrix data
  */
 
-/* to not rely on Plasma there, put our definition of upper/lower values (same as Plasma for compatibility) */
-#define MatrixUpper         121
-#define MatrixLower         122
-
 typedef struct sym_two_dim_block_cyclic {
     tiled_matrix_desc_t super;
     grid_2Dcyclic_t grid;
@@ -83,7 +79,7 @@ static inline size_t sym_twoDBC_coordinates_to_position(sym_two_dim_block_cyclic
     column = Ddesc->grid.crank; /* tile column considered */
 
     /**********************************/
-    if(Ddesc->uplo == MatrixLower ) {
+    if(Ddesc->uplo == matrix_Lower ) {
         nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
         if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
             nb_elem_col++;

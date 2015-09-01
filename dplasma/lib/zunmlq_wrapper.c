@@ -163,19 +163,19 @@ dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
     dplasma_add2arena_tile( ((dague_zunmlq_LC_handle_t*)object)->arenas[DAGUE_zunmlq_LC_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
+                            dague_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_upper( ((dague_zunmlq_LC_handle_t*)object)->arenas[DAGUE_zunmlq_LC_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
-                             MPI_DOUBLE_COMPLEX, A->mb, 0 );
+                             dague_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
     dplasma_add2arena_rectangle( ((dague_zunmlq_LC_handle_t*)object)->arenas[DAGUE_zunmlq_LC_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
+                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
 
     return object;
 }
@@ -205,9 +205,9 @@ dplasma_zunmlq_Destruct( dague_handle_t *object )
 {
     dague_zunmlq_LC_handle_t *dague_zunmlq = (dague_zunmlq_LC_handle_t *)object;
 
-    dplasma_datatype_undefine_type( &(dague_zunmlq->arenas[DAGUE_zunmlq_LC_DEFAULT_ARENA   ]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zunmlq->arenas[DAGUE_zunmlq_LC_UPPER_TILE_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zunmlq->arenas[DAGUE_zunmlq_LC_LITTLE_T_ARENA  ]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zunmlq->arenas[DAGUE_zunmlq_LC_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( dague_zunmlq->arenas[DAGUE_zunmlq_LC_UPPER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zunmlq->arenas[DAGUE_zunmlq_LC_LITTLE_T_ARENA  ] );
 
     dague_private_memory_fini( dague_zunmlq->pool_0 );
     free( dague_zunmlq->pool_0 );

@@ -326,8 +326,8 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
 
                 // now bubble down
                 dague_execution_context_t * bubbler = heap->top;
-                int is_next; /* flag keeps track of whether we are 'prev' or 'next' to our current PARENT.
-                              * the initial value doesn't matter since we're at the top and have no parent. */
+                int is_next = -1; /* flag keeps track of whether we are 'prev' or 'next' to our current PARENT.
+                                   * the initial value doesn't matter since we're at the top and have no parent. */
                 parent = NULL;
                 while (1) {
                     dague_execution_context_t * next = (dague_execution_context_t*)bubbler->list_item.list_next;

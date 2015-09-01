@@ -12,6 +12,7 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
 #include "dplasma/lib/zhbrdt.h"
@@ -102,7 +103,7 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
         dplasma_add2arena_tile(arena,
                                A->mb*A->nb*sizeof(dague_complex64_t),
                                DAGUE_ARENA_ALIGNMENT_SSE,
-                               MPI_DOUBLE_COMPLEX, A->mb);
+                               dague_datatype_double_complex_t, A->mb);
 
         return zheev_compound;
     }
@@ -141,7 +142,7 @@ dplasma_zheev_Destruct( dague_handle_t *o )
     dague_data_free(T->mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)T); free(T);
 
-    dplasma_datatype_undefine_type( &(((dague_diag_band_to_rect_handle_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( ((dague_diag_band_to_rect_handle_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA] );
 #endif
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

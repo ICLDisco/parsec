@@ -25,7 +25,7 @@ dague_handle_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
 
     dplasma_add2arena_rectangle( dague_zhbrdt->arenas[DAGUE_zhbrdt_DEFAULT_ARENA],
                                  (A->nb)*(A->mb)*sizeof(dague_complex64_t), 16,
-                                 MPI_DOUBLE_COMPLEX, 
+                                 dague_datatype_double_complex_t, 
                                  A->mb, A->nb, -1 );
     return (dague_handle_t*)dague_zhbrdt;
 }

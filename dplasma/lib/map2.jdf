@@ -15,24 +15,30 @@ extern "C" %{
  * Globals
  */
 uplo     [type = PLASMA_enum]
+trans    [type = PLASMA_enum]
 dataA    [type = "dague_ddesc_t *"]
 dataB    [type = "dague_ddesc_t *"]
 operator [type = "tiled_matrix_binary_op_t" ]
 op_args  [type = "void *" ]
 
-descA        [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
-descB        [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataB)" ]
-plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
-plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
+descA          [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+descB          [type="tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataB)" ]
+plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
+plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
+plasma_notrans [type="PLASMA_enum" hidden=on default=PlasmaNoTrans ]
+
+L_m_limit      [type="int" hidden=on default="(((uplo == plasma_upper) && (trans == plasma_notrans)) || ((uplo == plasma_lower) && (trans != plasma_notrans)) ? 0 : descA.mt-1)" ]
+U_n_limit      [type="int" hidden=on default="(((uplo == plasma_lower) && (trans == plasma_notrans)) || ((uplo == plasma_upper) && (trans != plasma_notrans)) ? 0 : descA.nt-1)" ]
 
 map_l_in_Amn(m, n)   [profile = off]
-  m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
+  m = 1 .. L_m_limit
   n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
 
   : dataA(m, n)
 
   RW A <- dataA(m, n)
-       -> A MAP_L(m, n)
+       -> (trans == plasma_notrans) ? A MAP_L(m, n)
+       -> (trans != plasma_notrans) ? A MAP_U(n, m)
 
 BODY
 {
@@ -42,14 +48,15 @@ END
 
 MAP_L(m, n)  [profile = off]
   // Execution space
-  m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
-  n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
+  m = 1 .. ((uplo == plasma_upper) ? 0 : descB.mt-1)
+  n = 0 .. ( m < descB.nt ? m-1 : descB.nt-1 )
 
   // Parallel partitioning
   : dataB(m, n)
 
   // Parameters
-  READ  A <- A map_l_in_Amn(m, n)
+  READ  A <- (trans == plasma_notrans) ? A map_l_in_Amn(m, n)
+          <- (trans != plasma_notrans) ? A map_u_in_Amn(n, m)
   RW    B <- dataB(m, n)
           -> dataB(m, n)
 
@@ -67,12 +74,13 @@ END
 
 map_u_in_Amn(m, n)  [profile = off]
   m = 0   .. descA.mt-1
-  n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
+  n = m+1 .. U_n_limit
 
   : dataA(m, n)
 
   RW A <- dataA(m, n)
-       -> A MAP_U(m, n)
+       -> (trans == plasma_notrans) ? A MAP_U(m, n)
+       -> (trans != plasma_notrans) ? A MAP_L(n, m)
 
 BODY
 {
@@ -82,14 +90,15 @@ END
 
 MAP_U(m, n)  [profile = off]
   // Execution space
-  m = 0   .. descA.mt-1
-  n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
+  m = 0   .. descB.mt-1
+  n = m+1 .. ((uplo == plasma_lower) ? 0 : descB.nt-1)
 
   // Parallel partitioning
   : dataB(m, n)
 
   // Parameters
-  READ  A <- A map_u_in_Amn(m, n)
+  READ  A <- (trans == plasma_notrans) ? A map_u_in_Amn(m, n)
+          <- (trans != plasma_notrans) ? A map_l_in_Amn(n, m)
   RW    B <- dataB(m, n)
           -> dataB(m, n)
 
@@ -106,7 +115,7 @@ BODY
 END
 
 map_diag_in_Akk(k)  [profile = off]
-  k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
+  k = 0 .. ( descB.mt < descB.nt ? descB.mt-1 : descB.nt-1 )
 
   : dataA(k, k)
 
@@ -121,7 +130,7 @@ END
 
 MAP_DIAG(k) [profile = off]
   // Execution space
-  k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
+  k = 0 .. ( descB.mt < descB.nt ? descB.mt-1 : descB.nt-1 )
 
   // Parallel partitioning
   : dataB(k, k)

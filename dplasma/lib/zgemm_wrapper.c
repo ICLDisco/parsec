@@ -11,6 +11,7 @@
 
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgemm_NN.h"
 #include "zgemm_NT.h"
@@ -181,7 +182,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
     dplasma_add2arena_tile(arena,
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           dague_datatype_double_complex_t, A->mb);
 
     return zgemm_object;
 }
@@ -209,7 +210,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 void
 dplasma_zgemm_Destruct( dague_handle_t *o )
 {
-    //dplasma_datatype_undefine_type( &(((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA]->opaque_dtt) );
+    //dague_matrix_del2arena( ((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

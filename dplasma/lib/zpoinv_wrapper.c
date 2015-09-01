@@ -88,7 +88,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
         /* dplasma_add2arena_upper( ((dague_zpoinv_U_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_U_UPPER_TILE_ARENA], */
         /*                          A->mb*A->nb*sizeof(dague_complex64_t), */
         /*                          DAGUE_ARENA_ALIGNMENT_SSE, */
-        /*                          MPI_DOUBLE_COMPLEX, A->mb, 1 ); */
+        /*                          dague_datatype_double_complex_t, A->mb, 1 ); */
     } else {
         o = (dague_handle_t*)dague_zpoinv_L_new( uplo, (dague_ddesc_t*)A /*, info */);
 
@@ -96,7 +96,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
         /* dplasma_add2arena_lower( ((dague_zpoinv_L_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA], */
         /*                          A->mb*A->nb*sizeof(dague_complex64_t), */
         /*                          DAGUE_ARENA_ALIGNMENT_SSE, */
-        /*                          MPI_DOUBLE_COMPLEX, A->mb, 1 ); */
+        /*                          dague_datatype_double_complex_t, A->mb, 1 ); */
     }
 
     dague_zpoinv = (dague_zpoinv_L_handle_t*)o;
@@ -104,7 +104,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
     dplasma_add2arena_tile( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb );
+                            dague_datatype_double_complex_t, A->mb );
 
     return o;
 }
@@ -134,8 +134,8 @@ dplasma_zpoinv_Destruct( dague_handle_t *o )
 {
     dague_zpoinv_L_handle_t *dague_zpoinv = (dague_zpoinv_L_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ]->opaque_dtt) );
-    /* dplasma_datatype_undefine_type( &(dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA]->opaque_dtt) ); */
+    dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ] );
+    /* dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA] ); */
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }
 

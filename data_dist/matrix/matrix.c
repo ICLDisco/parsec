@@ -132,26 +132,14 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->lnt = (ln%nb==0) ? (ln/nb) : (ln/nb+1);
 
     /* Update lm and ln to include the padding */
-    tdesc->lm = tdesc->lmt * tdesc->mb;
-    tdesc->ln = tdesc->lnt * tdesc->nb;
+    if ( storage != matrix_Lapack ) {
+        tdesc->lm = tdesc->lmt * tdesc->mb;
+        tdesc->ln = tdesc->lnt * tdesc->nb;
+    }
 
     /* Locally stored matrix dimensions */
     tdesc->llm = tdesc->lm;
     tdesc->lln = tdesc->ln;
-
-    /* WARNING: This has to be removed when padding will be removed */
-#if defined(HAVE_MPI)
-    if ( storage == matrix_Lapack ) {
-        if ( tdesc->lm % mb != 0 ) {
-            fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
-            MPI_Abort(MPI_COMM_WORLD, 2);
-        }
-        if ( tdesc->ln % nb != 0 ) {
-            fprintf(stderr, "In distributed with Lapack storage, ln has to be a multiple of nb\n");
-            MPI_Abort(MPI_COMM_WORLD, 2);
-        }
-    }
-#endif
 
     /* Submatrix parameters */
     tdesc->i = i;
