@@ -33,17 +33,17 @@ int main(int argc, char ** argv)
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
     int info_solution = 0;
-    int Aseed = 100;
-    int Cseed = 100;
+    int Aseed = 3872;
+    int Cseed = 2873;
     int tA, u, Am, An;
 
-    dague_complex64_t alpha = -1.; /*0.43;*/
-    dague_complex64_t beta  =  1.; /*0.78;*/
+    dague_complex64_t alpha = 0.43;
+    dague_complex64_t beta  = 0.78;
 
-/* #if defined(PRECISION_z) || defined(PRECISION_c) */
-/*     alpha -= I * 0.32; */
-/*     beta  += I * 0.21; */
-/* #endif */
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    alpha -= I * 0.32;
+    beta  += I * 0.21;
+#endif
 
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
