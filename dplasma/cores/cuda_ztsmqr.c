@@ -456,7 +456,7 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
      * Columns are distributed in a round-robin fashion
      */
     if ( dev_index <= 0 ) {
-        dev_index = n % (dague_devices_enabled()-1)+1;
+        dev_index = n % (dague_devices_enabled()-2)+2;
     }
 #else
     /**
@@ -485,7 +485,7 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
 
             assert( (A1_dev_index <= 0) && (A2_dev_index <= 0) );
 
-            for( dev_index = 1; dev_index < dague_devices_enabled(); dev_index++ ) {
+            for( dev_index = 2; dev_index < dague_devices_enabled(); dev_index++ ) {
                 /* Skip the device if it is not configured */
                 if(!(handle->devices_mask & (1 << dev_index))) continue;
                 weight = dague_device_load[dev_index] + dague_device_sweight[dev_index];
@@ -503,6 +503,7 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
     if( dev_index == 0 ) {
         return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */
     }
+    assert( dev_index > 1 );
 
     gpu_task = (dague_ztsmqr_args_t*)malloc(sizeof(dague_ztsmqr_args_t));
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
