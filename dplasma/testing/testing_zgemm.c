@@ -217,9 +217,9 @@ static int check_solution( dague_context_t *dague, int loud,
     int K  = ( transA == PlasmaNoTrans ) ? An : Am ;
     int MB = ddescCfinal->super.mb;
     int NB = ddescCfinal->super.nb;
-    int LDA = (Am%MB==0) ? Am : (Am/MB+1) * MB;
-    int LDB = (Bm%MB==0) ? Bm : (Bm/MB+1) * MB;
-    int LDC = ( M%MB==0) ? M  : ( M/MB+1) * MB;
+    int LDA = Am;
+    int LDB = Bm;
+    int LDC = M;
     int rank  = ddescCfinal->super.super.myrank;
 
     eps = LAPACKE_dlamch_work('e');
@@ -257,8 +257,8 @@ static int check_solution( dague_context_t *dague, int loud,
 
     Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
 
-    dplasma_zgeadd( dague, PlasmaNoTrans, PlasmaUpperLower, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
-                                                   (tiled_matrix_desc_t*)&ddescC );
+    dplasma_zgeadd( dague, PlasmaNoTrans, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
+                                           1.0, (tiled_matrix_desc_t*)&ddescC );
 
     Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC);
 

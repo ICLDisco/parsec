@@ -24,7 +24,7 @@
 #include "dplasma/lib/zgebmm.h"
 #include <lapacke.h>
 
-#if (DAGUE_zhebut_ARENA_INDEX_MIN != 0) || (DAGUE_zgebut_ARENA_INDEX_MIN != 0)
+#if (DAGUE_zhebut_ARENA_INDEX_MIN != 0) || (DAGUE_zgebut_ARENA_INDEX_MIN != 0) || (DAGUE_zgebmm_ARENA_INDEX_MIN != 0)
 #error Current zhebut can work only if not using named types.
 #endif
 
@@ -100,38 +100,6 @@ static dague_data_t *dague_rbt_data_of(dague_ddesc_t *desc, ...){
     return (void *)data_start;
 }
 
-#if defined(HAVE_MPI)
-/*
- * Don't change this function without updating dague_rbt_data_of().
- * Look at the comments at dague_rbt_data_of() for details.
- */
-static int dplasma_datatype_define_subarray( dague_datatype_t oldtype,
-                                             unsigned int tile_mb,
-                                             unsigned int tile_nb,
-                                             unsigned int seg_mb,
-                                             unsigned int seg_nb,
-                                             dague_datatype_t* newtype )
-{
-    MPI_Type_vector (seg_nb, seg_mb, tile_mb, oldtype, newtype);
-
-    MPI_Type_commit(newtype);
-#if defined(HAVE_MPI_20)
-    do{
-        char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
-        int len;
-
-        MPI_Type_get_name(oldtype, oldtype_name, &len);
-        snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "SEG %s %3u*%3u [%3ux%3u]", oldtype_name, seg_mb, seg_nb, tile_mb, tile_nb);
-        MPI_Type_set_name(*newtype, newtype_name);
-    }while(0); /* just for the scope */
-#endif  /* defined(HAVE_MPI_20) */
-
-    return 0;
-}
-
-#endif
-
-
 /* HE for Hermitian */
 
 /*
@@ -174,12 +142,8 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
     dague_zhebut = (dague_handle_t *)dague_zhebut_new(seg_descA, &seg_descA->super.super, U_before, U_after, nt, mt, pool_0);
 
-
     for(i=0; i<36; i++){
-#if defined(HAVE_MPI)
         dague_arena_t *arena;
-        dague_datatype_t newtype;
-        MPI_Aint extent = 0;
         int type_exists;
         unsigned int m_sz, n_sz;
 
@@ -187,17 +151,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zhebut_handle_t*)dague_zhebut)->arenas[i];
-            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
-                                              m_sz, n_sz, &newtype );
-            dplasma_get_extent(newtype, &extent);
-            dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
-        } else
-#endif
-        {
-            /* Oops, yet another arena allocated by the generated code for nothing
-             *   We free it for it. */
-            free( ((dague_zhebut_handle_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i]);
-            ((dague_zhebut_handle_t*)dague_zhebut)->arenas[DAGUE_zhebut_ARENA_INDEX_MIN + i] = NULL;
+            dague_matrix_add2arena_rect( arena, dague_datatype_double_complex_t, m_sz, A->nb, A->mb );
         }
     }
 
@@ -211,10 +165,7 @@ dplasma_zhebut_Destruct( dague_handle_t *o )
     dague_zhebut_handle_t *obut = (dague_zhebut_handle_t *)o;
 
     for(i=0; i<36; i++){
-        if( NULL != obut->arenas[i] ){
-            free( obut->arenas[i] );
-            obut->arenas[i] = NULL;
-        }
+        dague_matrix_del2arena( obut->arenas[i] );
     }
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);
@@ -263,10 +214,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
     dague_zgebut = (dague_handle_t *)dague_zgebut_new(seg_descA, &seg_descA->super.super, U_before, U_after, nt, mt, pool_0);
 
     for(i=0; i<36; i++){
-#if defined(HAVE_MPI)
-       dague_arena_t *arena;
-        dague_datatype_t newtype;
-        MPI_Aint extent = 0;
+        dague_arena_t *arena;
         int type_exists;
         unsigned int m_sz, n_sz;
 
@@ -274,15 +222,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zgebut_handle_t*)dague_zgebut)->arenas[i];
-            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
-                                              m_sz, n_sz, &newtype );
-            dplasma_get_extent(newtype, &extent);
-            dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
-        } else
-#endif
-        {
-            free(((dague_zgebut_handle_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i]);
-            ((dague_zgebut_handle_t*)dague_zgebut)->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] = NULL;
+            dague_matrix_add2arena_rect( arena, dague_datatype_double_complex_t, m_sz, A->nb, A->mb );
         }
     }
 
@@ -296,10 +236,7 @@ dplasma_zgebut_Destruct( dague_handle_t *o )
     dague_zgebut_handle_t *obut = (dague_zgebut_handle_t *)o;
 
     for(i=0; i<36; i++){
-        if( NULL != obut->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] ){
-            free( obut->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] );
-            obut->arenas[DAGUE_zgebut_ARENA_INDEX_MIN + i] = NULL;
-        }
+        dague_matrix_del2arena( obut->arenas[i] );
     }
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);
@@ -347,11 +284,8 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
     dague_zgebmm = (dague_handle_t *)dague_zgebmm_new(seg_descA, &seg_descA->super.super, U_but_vec, nt, mt, trans, pool_0);
 
-    for(i=0; i<36; i++) {
-#if defined(HAVE_MPI)
+    for(i=0; i<36; i++){
         dague_arena_t *arena;
-        dague_datatype_t newtype;
-        MPI_Aint extent = 0;
         int type_exists;
         unsigned int m_sz, n_sz;
 
@@ -359,15 +293,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 
         if( type_exists ){
             arena = ((dague_zgebmm_handle_t*)dague_zgebmm)->arenas[i];
-            dplasma_datatype_define_subarray( MPI_DOUBLE_COMPLEX, A->mb, A->nb,
-                                              m_sz, n_sz, &newtype );
-            dplasma_get_extent(newtype, &extent);
-            dague_arena_construct(arena, extent, DAGUE_ARENA_ALIGNMENT_SSE, newtype);
-        } else
-#endif
-        {
-            free(((dague_zgebmm_handle_t*)dague_zgebmm)->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i]);
-            ((dague_zgebmm_handle_t*)dague_zgebmm)->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] = NULL;
+            dague_matrix_add2arena_rect( arena, dague_datatype_double_complex_t, m_sz, A->nb, A->mb );
         }
     }
 
@@ -381,10 +307,7 @@ dplasma_zgebmm_Destruct( dague_handle_t *o )
     dague_zgebmm_handle_t *obmm = (dague_zgebmm_handle_t *)o;
 
     for(i=0; i<36; i++){
-        if( NULL != obmm->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] ){
-            free( obmm->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] );
-            obmm->arenas[DAGUE_zgebmm_ARENA_INDEX_MIN + i] = NULL;
-        }
+        dague_matrix_del2arena( obmm->arenas[i] );
     }
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(obmm);

@@ -7,7 +7,7 @@ if (MPI_C_FOUND)
                           "${MPI_C_COMPILE_FLAGS}")
 endif(MPI_C_FOUND)
 
-target_link_libraries(dague_distribution m)
+target_link_libraries(dague_distribution dague m)
 
 install(TARGETS dague_distribution
   ARCHIVE DESTINATION lib

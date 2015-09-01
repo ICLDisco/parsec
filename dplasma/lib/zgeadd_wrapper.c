@@ -10,12 +10,18 @@
 
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/cores/dplasma_zcores.h"
 
 #include "map2.h"
-#include "map2t.h"
+
+typedef struct ztradd_args_s {
+    PLASMA_enum       trans;
+    dague_complex64_t alpha;
+    dague_complex64_t beta;
+} ztradd_args_t;
 
 static int
-dplasma_zgeadd_operator( dague_execution_unit_t *eu,
+dplasma_ztradd_operator( dague_execution_unit_t *eu,
                          const tiled_matrix_desc_t *descA,
                          const tiled_matrix_desc_t *descB,
                          const void *_A, void *_B,
@@ -24,76 +30,104 @@ dplasma_zgeadd_operator( dague_execution_unit_t *eu,
 {
     const dague_complex64_t *A     = (dague_complex64_t*)_A;
     dague_complex64_t       *B     = (dague_complex64_t*)_B;
-    dague_complex64_t        alpha = *((dague_complex64_t*)args);
-    int j;
-    int tempmm, tempnn, ldam, ldbm;
-    (void)eu;
+    ztradd_args_t           *_args = (ztradd_args_t*)args;
+    PLASMA_enum              trans = _args->trans;
+    dague_complex64_t        alpha = _args->alpha;
+    dague_complex64_t        beta  = _args->beta;
 
-    tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
-    tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDD( *descA, m );
-    ldbm = BLKLDD( *descB, m );
-
-    switch ( uplo ) {
-    case PlasmaLower:
-        for (j = 0; j < tempnn; j++, tempmm--, A+=ldam+1, B+=ldbm+1) {
-            cblas_zaxpy(tempmm, CBLAS_SADDR(alpha), A, 1, B, 1);
-        }
-        break;
-    case PlasmaUpper:
-        for (j = 0; j < tempnn; j++, A+=ldam, B+=ldbm) {
-            cblas_zaxpy(j+1, CBLAS_SADDR(alpha), A, 1, B, 1);
-        }
-        break;
-    case PlasmaUpperLower:
-    default:
-        for (j = 0; j < tempnn; j++, A+=ldam, B+=ldbm) {
-            cblas_zaxpy(tempmm, CBLAS_SADDR(alpha), A, 1, B, 1);
-        }
-    }
-
-    return 0;
-}
-
-static int
-dplasma_zgeadd_t_operator( dague_execution_unit_t *eu,
-                         const tiled_matrix_desc_t *descA,
-                         const tiled_matrix_desc_t *descB,
-                         const void *_A, void *_B,
-                         PLASMA_enum uplo, int m, int n,
-                         void *args )
-{
-    const dague_complex64_t *A     = (dague_complex64_t*)_A;
-    dague_complex64_t       *B     = (dague_complex64_t*)_B;
-    dague_complex64_t        alpha = *((dague_complex64_t*)args);
-    int j;
     int tempmm, tempnn, ldam, ldbm;
     (void)eu;
 
     tempmm = ((m)==((descB->mt)-1)) ? ((descB->m)-(m*(descB->mb))) : (descB->mb);
     tempnn = ((n)==((descB->nt)-1)) ? ((descB->n)-(n*(descB->nb))) : (descB->nb);
-    ldam = BLKLDD( *descA, n );
+    if (trans == PlasmaNoTrans) {
+        ldam = BLKLDD( *descA, m );
+    }
+    else {
+        ldam = BLKLDD( *descA, n );
+    }
     ldbm = BLKLDD( *descB, m );
 
-    switch ( uplo ) {
-    case PlasmaLower:
-        for (j = 0; j < tempnn; j++, tempmm--, A+=ldam+1, B+=ldbm+1) {
-            cblas_zaxpy(tempmm, CBLAS_SADDR(alpha), A, ldam, B, 1);
-        }
-        break;
-    case PlasmaUpper:
-        for (j = 0; j < tempnn; j++, A+=1, B+=ldbm) {
-            cblas_zaxpy(j+1, CBLAS_SADDR(alpha), A, ldam, B, 1);
-        }
-        break;
-    case PlasmaUpperLower:
-    default:
-        for (j = 0; j < tempnn; j++, A+=1, B+=ldbm) {
-            cblas_zaxpy(tempmm, CBLAS_SADDR(alpha), A, ldam, B, 1);
-        }
-    }
+    return dplasma_core_ztradd( uplo, trans, tempmm, tempnn,
+                                alpha, A, ldam, beta, B, ldbm );
+}
 
-    return 0;
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64
+ *
+ * dplasma_ztradd_New - Generates an object that computes the operation B =
+ * alpha * op(A) + beta * B, where op(A) is one of op(A) = A or op(A) = A' or
+ * op(A) = conj(A')
+ * A and B are upper or lower trapezoidal matricesn or general matrices.
+ * This function combines both pztradd and pzgeadd functionnalities from PBLAS
+ * library.
+ *
+ * See dplasma_map2_New() for further information.
+ *
+ * WARNING: The computations are not done by this call.
+ *
+ *******************************************************************************
+ *
+ * @param[in] uplo
+ *          Specifies the shape of A and B matrices:
+ *          = PlasmaUpperLower: A and B are general matrices.
+ *          = PlasmaUpper: op(A) and B are upper trapezoidal matrices.
+ *          = PlasmaLower: op(A) and B are lower trapezoidal matrices.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is non-transposed, transposed, or
+ *          conjugate transposed
+ *          = PlasmaNoTrans:   op(A) = A
+ *          = PlasmaTrans:     op(A) = A'
+ *          = PlasmaConjTrans: op(A) = conj(A')
+ *
+ * @param[in] alpha
+ *          The scalar alpha
+ *
+ * @param[in] A
+ *          The descriptor of the distributed matrix A.
+ *
+ * @param[in] beta
+ *          The scalar beta
+ *
+ * @param[in,out] B
+ *          The descriptor of the distributed matrix B of size M-by-N.
+ *          On exit, the matrix B data are overwritten by the result of
+ *          alpha * op(A) + beta * B
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_ztradd_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_ztradd
+ * @sa dplasma_ztradd_Destruct
+ * @sa dplasma_ctradd_New
+ * @sa dplasma_dtradd_New
+ * @sa dplasma_stradd_New
+ *
+ ******************************************************************************/
+dague_handle_t*
+dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans,
+                    dague_complex64_t alpha,
+                    const tiled_matrix_desc_t *A,
+                    dague_complex64_t beta,
+                    tiled_matrix_desc_t *B)
+{
+    ztradd_args_t *args = (ztradd_args_t*)malloc(sizeof(ztradd_args_t));
+    args->trans = trans;
+    args->alpha = alpha;
+    args->beta  = beta;
+
+    return dplasma_map2_New( uplo, trans, A, B,
+                             dplasma_ztradd_operator, (void *)args );
 }
 
 /**
@@ -102,34 +136,36 @@ dplasma_zgeadd_t_operator( dague_execution_unit_t *eu,
  * @ingroup dplasma_complex64
  *
  * dplasma_zgeadd_New - Generates an object that computes the operation B =
- * alpha * opt(A) + B, and opt(A) is one of opt(A) = A or opt(A) = A'
- * 
- * See dplasma_map2_New() for further information.
+ * alpha * op(A) + beta * B, where op(A) is one of op(A) = A or op(A) = A' or
+ * op(A) = conj(A')
+ * A and B are general matrices.
+ *
+ * See dplasma_ztradd_New() for further information.
  *
  * WARNING: The computations are not done by this call.
  *
  *******************************************************************************
- * @param[in] transA
- *          Specifies whether the matrix opt(A) is non-transposed or transpoesd
- *          = PlasmaNoTrans: opt(A) = A;
- *          = PlasmaTrans: opt(A) = A';
  *
- * @param[in] uplo
- *          Specifies whether the matrix A is upper triangular or lower
- *          triangular:
- *          = PlasmaUpperLower: All matrix A is referenced;
- *          = PlasmaUpper: Upper triangle of A is referenced;
- *          = PlasmaLower: Lower triangle of A is referenced.
+ * @param[in] trans
+ *          Specifies whether the matrix A is non-transposed, transposed, or
+ *          conjugate transposed
+ *          = PlasmaNoTrans:   op(A) = A
+ *          = PlasmaTrans:     op(A) = A'
+ *          = PlasmaConjTrans: op(A) = conj(A')
  *
  * @param[in] alpha
  *          The scalar alpha
  *
  * @param[in] A
- *          The descriptor of the distributed matrix A of size M-by-N for PlasmaNoTrans or size N-by-M for PlasmaTrans.
+ *          The descriptor of the distributed matrix A.
+ *
+ * @param[in] beta
+ *          The scalar beta
  *
  * @param[in,out] B
  *          The descriptor of the distributed matrix B of size M-by-N.
- *          On exit, the matrix B data are overwritten by the result of alpha*opt(A)+B
+ *          On exit, the matrix B data are overwritten by the result of
+ *          alpha * op(A) + beta * B
  *
  *******************************************************************************
  *
@@ -149,21 +185,13 @@ dplasma_zgeadd_t_operator( dague_execution_unit_t *eu,
  *
  ******************************************************************************/
 dague_handle_t*
-dplasma_zgeadd_New( PLASMA_enum transA, PLASMA_enum uplo,
+dplasma_zgeadd_New( PLASMA_enum trans,
                     dague_complex64_t alpha,
                     const tiled_matrix_desc_t *A,
+                    dague_complex64_t beta,
                     tiled_matrix_desc_t *B)
 {
-    dague_complex64_t *a = (dague_complex64_t*)malloc(sizeof(dague_complex64_t));
-    *a = alpha;
-
-    if(transA == PlasmaNoTrans){
-        return dplasma_map2_New(uplo, A, B,
-                            dplasma_zgeadd_operator, (void *)a);
-    }else{
-        return dplasma_map2t_New(uplo, A, B,
-                            dplasma_zgeadd_t_operator, (void *)a);
-    }
+    return dplasma_ztradd_New( PlasmaUpperLower, trans, alpha, A, beta, B );
 }
 
 /**
@@ -171,8 +199,8 @@ dplasma_zgeadd_New( PLASMA_enum transA, PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlacpy_Destruct - Free the data structure associated to an object
- *  created with dplasma_zlacpy_New().
+ *  dplasma_ztradd_Destruct - Free the data structure associated to an object
+ *  created with dplasma_ztradd_New().
  *
  *******************************************************************************
  *
@@ -182,18 +210,14 @@ dplasma_zgeadd_New( PLASMA_enum transA, PLASMA_enum uplo,
  *
  *******************************************************************************
  *
- * @sa dplasma_zlacpy_New
- * @sa dplasma_zlacpy
+ * @sa dplasma_ztradd_New
+ * @sa dplasma_ztradd
  *
  ******************************************************************************/
 void
-dplasma_zgeadd_Destruct(PLASMA_enum transA, dague_handle_t *o )
+dplasma_ztradd_Destruct( dague_handle_t *o )
 {
-    if(transA == PlasmaNoTrans){
-        dplasma_map2_Destruct( o );
-    }else{
-        dplasma_map2t_Destruct( o );
-    }
+    dplasma_map2_Destruct( o );
 }
 
 /**
@@ -201,8 +225,35 @@ dplasma_zgeadd_Destruct(PLASMA_enum transA, dague_handle_t *o )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgeadd - Generates an object that computes the operation B =
- * alpha * opt(A) + B, and opt(A) is one of opt(A) = A or opt(A) = A'
+ *  dplasma_zgeadd_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zgeadd_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgeadd_New
+ * @sa dplasma_zgeadd
+ *
+ ******************************************************************************/
+void
+dplasma_zgeadd_Destruct( dague_handle_t *o )
+{
+    dplasma_ztradd_Destruct( o );
+}
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64
+ *
+ * dplasma_ztradd - Generates an object that computes the operation B = alpha *
+ * op(A) + beta * B, and op(A) is one of op(A) = A, or op(A) = A', or op(A) =
+ * conj(A')
  *
  * See dplasma_map2() for further information.
  *
@@ -211,27 +262,122 @@ dplasma_zgeadd_Destruct(PLASMA_enum transA, dague_handle_t *o )
  * @param[in,out] dague
  *          The dague context of the application that will run the operation.
  *
- * @param[in] transA
- *          Specifies whether the matrix opt(A) is non-transposed or transpoesd
- *          = PlasmaNoTrans: opt(A) = A;
- *          = PlasmaTrans: opt(A) = A';
- *
  * @param[in] uplo
- *          Specifies whether the matrix A is upper triangular or lower
- *          triangular:
- *          = PlasmaUpperLower: All matrix A is referenced;
- *          = PlasmaUpper: Upper triangle of A is referenced;
- *          = PlasmaLower: Lower triangle of A is referenced.
+ *          Specifies the shape of A and B matrices:
+ *          = PlasmaUpperLower: A and B are general matrices.
+ *          = PlasmaUpper: op(A) and B are upper trapezoidal matrices.
+ *          = PlasmaLower: op(A) and B are lower trapezoidal matrices.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is non-transposed, transposed, or
+ *          conjugate transposed
+ *          = PlasmaNoTrans:   op(A) = A
+ *          = PlasmaTrans:     op(A) = A'
+ *          = PlasmaConjTrans: op(A) = conj(A')
  *
  * @param[in] alpha
  *          The scalar alpha
  *
  * @param[in] A
- *          The descriptor of the distributed matrix A of size M-by-N for PlasmaNoTrans or size N-by-M for PlasmaTrans.
+ *          The descriptor of the distributed matrix A.
+ *
+ * @param[in] beta
+ *          The scalar beta
  *
  * @param[in,out] B
  *          The descriptor of the distributed matrix B of size M-by-N.
- *          On exit, the matrix B data are overwritten by the result of alpha*A+B
+ *          On exit, the matrix B data are overwritten by the result of
+ *          alpha * op(A) + beta * B
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_ztradd_New
+ * @sa dplasma_ztradd_Destruct
+ * @sa dplasma_ctradd
+ * @sa dplasma_dtradd
+ * @sa dplasma_stradd
+ *
+ ******************************************************************************/
+int
+dplasma_ztradd( dague_context_t *dague,
+                PLASMA_enum uplo,
+                PLASMA_enum trans,
+                dague_complex64_t alpha,
+                const tiled_matrix_desc_t *A,
+                dague_complex64_t beta,
+                tiled_matrix_desc_t *B)
+{
+    dague_handle_t *dague_ztradd = NULL;
+
+    if ((uplo != PlasmaUpperLower) &&
+        (uplo != PlasmaUpper)      &&
+        (uplo != PlasmaLower))
+    {
+        dplasma_error("dplasma_ztradd", "illegal value of uplo");
+        return -1;
+    }
+
+    if ((trans != PlasmaNoTrans) &&
+        (trans != PlasmaTrans)   &&
+        (trans != PlasmaConjTrans))
+    {
+        dplasma_error("dplasma_ztradd", "illegal value of trans");
+        return -2;
+    }
+
+    dague_ztradd = dplasma_ztradd_New(uplo, trans, alpha, A, beta, B);
+
+    if ( dague_ztradd != NULL )
+    {
+        dague_enqueue(dague, (dague_handle_t*)dague_ztradd);
+        dplasma_progress(dague);
+        dplasma_ztradd_Destruct( dague_ztradd );
+    }
+    return 0;
+}
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64
+ *
+ * dplasma_zgeadd - Generates an object that computes the operation B = alpha *
+ * op(A) + beta * B, and op(A) is one of op(A) = A, or op(A) = A', or op(A) =
+ * conj(A') with A and B two general matrices.
+ *
+ * See dplasma_tradd() for further information.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] dague
+ *          The dague context of the application that will run the operation.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is non-transposed, transposed, or
+ *          conjugate transposed
+ *          = PlasmaNoTrans:   op(A) = A
+ *          = PlasmaTrans:     op(A) = A'
+ *          = PlasmaConjTrans: op(A) = conj(A')
+ *
+ * @param[in] alpha
+ *          The scalar alpha
+ *
+ * @param[in] A
+ *          The descriptor of the distributed matrix A.
+ *
+ * @param[in] beta
+ *          The scalar beta
+ *
+ * @param[in,out] B
+ *          The descriptor of the distributed matrix B of size M-by-N.
+ *          On exit, the matrix B data are overwritten by the result of
+ *          alpha * op(A) + beta * B
  *
  *******************************************************************************
  *
@@ -250,36 +396,12 @@ dplasma_zgeadd_Destruct(PLASMA_enum transA, dague_handle_t *o )
  ******************************************************************************/
 int
 dplasma_zgeadd( dague_context_t *dague,
-                PLASMA_enum transA,
-                PLASMA_enum uplo,
+                PLASMA_enum trans,
                 dague_complex64_t alpha,
                 const tiled_matrix_desc_t *A,
+                dague_complex64_t beta,
                 tiled_matrix_desc_t *B)
 {
-    dague_handle_t *dague_zgeadd = NULL;
-
-    if ((uplo != PlasmaUpperLower) &&
-        (uplo != PlasmaUpper)      &&
-        (uplo != PlasmaLower))
-    {
-        dplasma_error("dplasma_zgeadd", "illegal value of uplo");
-        return -2;
-    }
-    
-    if ((transA != PlasmaNoTrans) &&
-        (uplo != PlasmaTrans))
-    {
-        dplasma_error("dplasma_zgeadd", "illegal value of trans");
-        return -2;
-    }
-
-    dague_zgeadd = dplasma_zgeadd_New(transA, uplo, alpha, A, B);
-
-    if ( dague_zgeadd != NULL )
-    {
-        dague_enqueue(dague, (dague_handle_t*)dague_zgeadd);
-        dplasma_progress(dague);
-        dplasma_zgeadd_Destruct(transA, dague_zgeadd );
-    }
-    return 0;
+    return dplasma_ztradd( dague, PlasmaUpperLower, trans,
+                           alpha, A, beta, B );
 }

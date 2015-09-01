@@ -1,0 +1,227 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+dataA  [type = "dague_ddesc_t *"]
+dataC  [type = "dague_ddesc_t *"]
+dataT  [type = "dague_ddesc_t *" aligned=dataA]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.nb)"]
+
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
+descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
+minMNT [type = "int" hidden=on default = "dplasma_imin(descA.nt, ((descA.m+descA.nb-1)/descA.nb))-1"]
+ib     [type = "int" hidden=on default = "descT.mb" ]
+
+
+zunmqr_zunmqr(k, n)
+  /* Execution space */
+  k = 0 .. minMNT
+  n = 0 .. descC.nt-1
+
+  : dataC(0, n)
+
+  READ  V <- A read_A(k)
+  READ  T <- T read_T(k)                                 [type = LITTLE_T]
+  RW    C <- (k == 0) ? dataC(0, n) : C zunmqr_zunmqr(k-1, n)
+          -> (k == descA.nt-1) ? dataC(0, n)
+          -> (k <  descA.nt-1) ? C zunmqr_zunmqr(k+1, n)
+
+BODY
+{
+    dague_complex64_t *lV = (dague_complex64_t*)V;
+    dague_complex64_t *lC = (dague_complex64_t*)C;
+    int tempm = descC.m - k * descC.nb;
+    int tempnn = (n == (descC.nt-1)) ? (descC.n - n * descC.nb) : descC.nb;
+    int tempkk = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldv = BLKLDD( descA, 0 );
+    int ldc = BLKLDD( descC, 0 );
+
+    printlog("CORE_zunmqr(%d, %d)\n", k, n);
+
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_W = dague_private_memory_pop( p_work );
+
+    CORE_zunmqr( PlasmaLeft, PlasmaConjTrans,
+                 tempm, tempnn, tempkk, ib,
+                 lV + k * descA.nb, ldv,
+                 T,                 descT.mb,
+                 lC + k * descA.nb, ldc,
+                 p_elem_W, descA.nb);
+
+    dague_private_memory_push( p_work, p_elem_W );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+read_A(k) [profile = off]
+  k = 0 .. minMNT
+
+  : dataA(0, k)
+
+  RW A <- dataA(0, k)
+       -> V zunmqr_zunmqr(k, 0 .. descC.nt-1)
+BODY
+{
+    /* nothing */
+}
+END
+
+read_T(k) [profile = off]
+  k = 0 .. descT.nt-1
+
+  : dataT(0, k)
+
+  RW T <- dataT(0, k)                               [type = LITTLE_T]
+       -> T zunmqr_zunmqr(k, 0 .. descC.nt-1)       [type = LITTLE_T]
+BODY
+{
+    /* nothing */
+}
+END
+
+extern "C" %{
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_Complex64_t
+ *
+ *  dplasma_zunmqr_New - Generates the dague object that overwrites the general
+ *  M-by-N matrix C with
+ *
+ *                  SIDE = 'L'     SIDE = 'R'
+ *  TRANS = 'N':      Q * C          C * Q
+ *  TRANS = 'C':      Q**H * C       C * Q**H
+ *
+ *  where Q is a unitary matrix defined as the product of k elementary
+ *  reflectors
+ *
+ *        Q = H(1) H(2) . . . H(k)
+ *
+ *  as returned by dplasma_zgeqrf(). Q is of order M if side = PlasmaLeft
+ *  and of order N if side = PlasmaRight.
+ *
+ * WARNING: The computations are not done by this call.
+ *
+ *******************************************************************************
+ *
+ * @param[in] side
+ *          @arg PlasmaLeft:  apply Q or Q**H from the left;
+ *          @arg PlasmaRight: apply Q or Q**H from the right.
+ *
+ * @param[in] trans
+ *          @arg PlasmaNoTrans:   no transpose, apply Q;
+ *          @arg PlasmaConjTrans: conjugate transpose, apply Q**H.
+ *
+ * @param[in] A
+ *          Descriptor of the matrix A of size M-by-K if side == PlasmaLeft, or
+ *          N-by-K if side == PlasmaRight factorized with the
+ *          dplasma_zgeqrf_New() routine.
+ *          On entry, the i-th column must contain the vector which
+ *          defines the elementary reflector H(i), for i = 1,2,...,k, as
+ *          returned by dplasma_zgeqrf_New() in the first k columns of its array
+ *          argument A.
+ *          If side == PlasmaLeft,  M >= K >= 0.
+ *          If side == PlasmaRight, N >= K >= 0.
+ *
+ * @param[in] T
+ *          Descriptor of the matrix T distributed exactly as the A matrix. T.mb
+ *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          of size A.mt * T.mb - by - A.nt * T.nb, with T.nb == A.nb.
+ *          This matrix is initialized during the call to dplasma_zgeqrf_New().
+ *
+ * @param[in,out] C
+ *          Descriptor of the M-by-N matrix C.
+ *          On exit, the matrix C is overwritten by the result.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval The dague object which describes the operation to perform
+ *                  NULL if one of the parameter is incorrect
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zunmqr_Destruct
+ * @sa dplasma_zunmqr
+ * @sa dplasma_cunmqr_New
+ * @sa dplasma_dormqr_New
+ * @sa dplasma_sormqr_New
+ * @sa dplasma_zgeqrf_New
+ *
+ ******************************************************************************/
+dague_handle_t*
+dplasma_zgeqrfr_unmqr_New( tiled_matrix_desc_t *A,
+                           tiled_matrix_desc_t *T,
+                           tiled_matrix_desc_t *C,
+                           void *p_work )
+{
+    dague_handle_t* object;
+
+    object = (dague_handle_t*)dague_zgeqrfr_unmqr_new( (dague_ddesc_t*)A,
+                                                       (dague_ddesc_t*)C,
+                                                       (dague_ddesc_t*)T,
+                                                       (dague_memory_pool_t*)p_work );
+
+    /* Default type */
+    dplasma_add2arena_rectangle( ((dague_zgeqrfr_unmqr_handle_t*)object)->arenas[DAGUE_zgeqrfr_unmqr_DEFAULT_ARENA],
+                                 A->mb*A->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 dague_datatype_double_complex_t, A->mb , A->nb, -1);
+
+    /* Little T */
+    dplasma_add2arena_rectangle( ((dague_zgeqrfr_unmqr_handle_t*)object)->arenas[DAGUE_zgeqrfr_unmqr_LITTLE_T_ARENA],
+                                 T->mb*T->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
+
+    return object;
+}
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zunmqr_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zunmqr_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] object
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zunmqr_New
+ * @sa dplasma_zunmqr
+ *
+ ******************************************************************************/
+void
+dplasma_zgeqrfr_unmqr_Destruct( dague_handle_t *object )
+{
+    dague_zgeqrfr_unmqr_handle_t *dague_zunmqr_panel = (dague_zgeqrfr_unmqr_handle_t *)object;
+
+    dague_matrix_del2arena( dague_zunmqr_panel->arenas[DAGUE_zgeqrfr_unmqr_DEFAULT_ARENA ] );
+    dague_matrix_del2arena( dague_zunmqr_panel->arenas[DAGUE_zgeqrfr_unmqr_LITTLE_T_ARENA] );
+
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zunmqr_panel);
+}
+
+%}
