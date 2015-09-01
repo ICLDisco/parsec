@@ -13,6 +13,7 @@ if( CUDA_FOUND )
     set(CORE_CUDA_SOURCES
         cuda_zgemm.c
         cuda_ztsmqr.c
+        dplasma_cuda_ztsmqr.c
     )
 else()
     set(CORE_CUDA_HEADERS "")
@@ -114,13 +115,6 @@ if( CUDA_FOUND )
   set( CUDA13_SOURCES ${CUDA11_SOURCES} )
   set( CUDA20_SOURCES
 #        zgemm_20_30.cu
-        ztsmqr.cu
-        zparfb.cu
-        zparfb2.cu
-        zlacpy.cu
-        zgemm_kernel_T_N_32_32_8_8_8_ssrfb.cu
-        zgemm_kernel_T_N_32_32_8_8_8_ssrfb2.cu
-        zssrfb.cu
   )
   set( CUDA30_SOURCES ${CUDA20_SOURCES} )
   set( CUDA35_SOURCES ${CUDA20_SOURCES} )

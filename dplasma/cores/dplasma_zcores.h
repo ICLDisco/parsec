@@ -46,22 +46,32 @@ int dplasma_core_zgeadd(PLASMA_enum trans, int M, int N,
                               dague_complex64_t  beta,
                               dague_complex64_t *B, int LDB);
 
- int CORE_ztsmqr_wei(PLASMA_enum side, PLASMA_enum trans,
-                    int M1, int N1, int M2, int N2, int K, int IB,
-                    PLASMA_Complex64_t *A1, int LDA1,
-                    PLASMA_Complex64_t *A2, int LDA2,
-                    const PLASMA_Complex64_t *V, int LDV,
-                    const PLASMA_Complex64_t *T, int LDT,
-                    PLASMA_Complex64_t *WORK, int LDWORK,
-                    PLASMA_Complex64_t *WORKC, int LDWORKC);
+#if defined(HAVE_CUDA)
+#include <cuda.h>
+int dplasma_cuda_zparfb(PLASMA_enum side, PLASMA_enum trans,
+                        PLASMA_enum direct, PLASMA_enum storev,
+                        int M1, int N1,
+                        int M2, int N2,
+                        int K, int L,
+                        dague_complex64_t *A1, int LDA1,
+                        dague_complex64_t *A2, int LDA2,
+                        const dague_complex64_t *V, int LDV,
+                        const dague_complex64_t *T, int LDT,
+                        dague_complex64_t *WORK, int LDWORK,
+                        dague_complex64_t *WORKC, int LDWORKC,
+                        CUstream stream);
 
-int CORE_zparfb_wei(PLASMA_enum side, PLASMA_enum trans, PLASMA_enum direct, PLASMA_enum storev,
-                    int M1, int N1, int M2, int N2, int K, int L,
-                    PLASMA_Complex64_t *A1, int LDA1,
-                    PLASMA_Complex64_t *A2, int LDA2,
-                    const PLASMA_Complex64_t *V, int LDV,
-                    const PLASMA_Complex64_t *T, int LDT,
-                    PLASMA_Complex64_t *WORK, int LDWORK,
-                    PLASMA_Complex64_t *WORKC, int LDWORKC);
+int dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
+                         int M1, int N1,
+                         int M2, int N2,
+                         int K, int IB,
+                         dague_complex64_t *A1, int LDA1,
+                         dague_complex64_t *A2, int LDA2,
+                         const dague_complex64_t *V, int LDV,
+                         const dague_complex64_t *T, int LDT,
+                         dague_complex64_t *WORK, int LDWORK,
+                         dague_complex64_t *WORKC, int LDWORKC,
+                         CUstream stream);
+#endif /* defined(HAVE_CUDA) */
 
 #endif /* _DPLASMA_Z_CORES_ */

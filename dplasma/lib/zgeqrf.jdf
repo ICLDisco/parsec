@@ -403,13 +403,10 @@ BODY [type=CUDA dyld=magmablas_ZTSMQR]
 #endif
 
     ret = gpu_ztsmqr( context, this_task,
-                      pushout_A1, pushout_A2,
+                      pushout_A1, pushout_A2, m, n, k,
                       PlasmaLeft, PlasmaConjTrans,
                       descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-                      k, n, &descA, ldak,
-                      m, n, &descA, ldam,
-                      m, k, &descA, ldam,
-                      m, k, &descT, descT.mb);
+                      ldak, ldam, ldam, descT.mb );
     return ret;
 }
 END
