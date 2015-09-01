@@ -101,6 +101,7 @@ BODY
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zpotrf(uplo, tempkn, T, ldak, &iinfo );
+
     if( iinfo != 0 && *INFO == 0 )
         *INFO = k*descA.nb+iinfo; /* Should return here */
 #endif  /* !defined(DAGUE_DRY_RUN) */
@@ -144,6 +145,8 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descC;
         dague_handle_t* dague_ztrsm;
 
+        dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
         small_descT = subtile_desc_create( &(descA), k, k,
                                            smallnb, smallnb, 0, 0, descA.mb, descA.mb );
         small_descT->mat = T;
@@ -174,6 +177,8 @@ BODY
 {
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
+
+    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
@@ -296,7 +301,11 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldam = BLKLDD( descA, m );
     int ret;
 
-    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    /*
+     * Transfer to GPU, only if ld == mb, and we are in tile storage, otherwise
+     * it is a recursive call and we have lapack layout storage with partial data
+     */
+    if ( !(ldam > descA.mb) )
     {
         ret = gpu_zgemm(context, this_task,
                         ( m == k+1 ), m-k,
