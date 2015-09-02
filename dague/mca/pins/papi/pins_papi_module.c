@@ -18,9 +18,6 @@
 static char* mca_param_string;
 static parsec_pins_papi_events_t* pins_papi_events = NULL;
 
-#define NTOS 0.000000001
-#define MTOS 0.000001
-
 static inline int
 pins_papi_read_and_trace(dague_execution_unit_t* exec_unit,
                          parsec_pins_papi_callback_t* event_cb)
@@ -45,31 +42,15 @@ static void pins_papi_trace(dague_execution_unit_t* exec_unit,
 {
     parsec_pins_papi_callback_t* event_cb = (parsec_pins_papi_callback_t*)cb_data;
 
-    if(event_cb->event->frequency_type == 1){
+    if(event_cb->event->frequency_type == 1 && event_cb->event->system_units >= 0){
         dague_time_t current_time = take_time();
+        float elapsed_time = (float)diff_time(event_cb->start_time, current_time);
 
-        if(strcmp(TIMER_UNIT, "nanosecond") == 0){
-            float elapsed_time = (float)diff_time(event_cb->start_time, current_time)*NTOS;
+        if(elapsed_time > event_cb->time){
+            dague_output(0, "[Thread %d] Elapsed Time: %f (%s) > %f\n", exec_unit->th_id, elapsed_time, units_name(event_cb->event->system_units), event_cb->time);
+            event_cb->start_time = current_time;
 
-            if(elapsed_time > event_cb->time){
-                dague_output(0, "[Thread %d] Elapsed Time: %f (seconds) > %f\n", exec_unit->th_id, elapsed_time, event_cb->time);
-                event_cb->start_time = current_time;
-
-                (void)pins_papi_read_and_trace(exec_unit, event_cb);
-            }
-        }
-        else if(strcmp(TIMER_UNIT, "cycles") == 0){
-            dague_output(0, "This system's time units are cycles.  Can't convert these to seconds...\n"); /* Figure out how to convert cycles to time */
-        }
-        else{ /* Microseconds */
-            float elapsed_time = (float)diff_time(event_cb->start_time, current_time)*MTOS;
-
-            if(elapsed_time > event_cb->time){
-                dague_output(0, "[Thread %d] Elapsed Time: %f (seconds) > %f\n", exec_unit->th_id, elapsed_time, event_cb->time);
-                event_cb->start_time = current_time;
-
-                (void)pins_papi_read_and_trace(exec_unit, event_cb);
-            }
+            (void)pins_papi_read_and_trace(exec_unit, event_cb);
         }
     }
     else{
@@ -139,8 +120,8 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
                      conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
     }
     else{
-        dague_output(0, "PAPI event %s core %d socket %d frequency %f seconds enabled\n",
-                     conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->time);
+        dague_output(0, "PAPI event %s core %d socket %d frequency %f %s enabled\n",
+                     conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->time, units_name(event_cb->event->system_units));
     }
 
     if(event_cb->event->frequency == 1) {

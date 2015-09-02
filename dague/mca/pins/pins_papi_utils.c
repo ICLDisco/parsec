@@ -8,6 +8,7 @@
 #include <papi.h>
 #include "pins_papi_utils.h"
 #include "dague/utils/output.h"
+#include "dague/include/dague/os-spec-timing.h"
 
 static int init_done = 0;
 static int init_status = DAGUE_SUCCESS;
@@ -129,10 +130,64 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
     return 0;
 }
 
+void convert_units(float *time, int source, int destination)
+{
+    if(destination == 0){ /* nanoseconds */
+        switch(source){
+        case 1:
+            *time *= 1000.0; /* us to ns */
+            break;
+        case 2:
+            *time *= 1000000.0; /* ms to ns */
+            break;
+        case 3:
+            *time *= 1000000000.0; /* s to ns */
+            break;
+        }
+    }
+    else if(destination == 1){ /* microseconds */
+        switch(source){
+        case 0:
+            *time *= .001; /* us to ns */
+            break;
+        case 2:
+            *time *= 1000.0; /* ms to ns */
+            break;
+        case 3:
+            *time *= 1000000.0; /* s to ns */
+            break;
+        }
+    }
+}
+
+const char* units_name(int units)
+{
+    switch(units){
+    case 0:
+        return "nanoseconds";
+        break;
+    case 1:
+        return "microseconds";
+        break;
+    case 2:
+        return "miliseconds";
+        break;
+    case 3:
+        return "seconds";
+        break;
+    case -1:
+        return "cycles";
+        break;
+    default:
+        return "units";
+        break;
+    }
+}
+
 parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 {
     char *mca_param_name, *token, *save_hptr = NULL;
-    int err, i, socket, core, tmp_eventset = PAPI_NULL;
+    int err, tmp_eventset = PAPI_NULL;
     parsec_pins_papi_events_t* events = (parsec_pins_papi_events_t*)malloc(sizeof(parsec_pins_papi_events_t));
     parsec_pins_papi_event_t* event = NULL;
     PAPI_event_info_t papi_info;
@@ -179,17 +234,46 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 char* temp_string = strdup(&token[1]);
                 char* temp_token = strtok_r(temp_string, ":", &temp_save);
 
-                if(strstr(temp_token, "s") != NULL){
+                if(strcmp(TIMER_UNIT, "nanosecond") == 0){
+                    event->system_units = 0;
+                }
+                else if(strcmp(TIMER_UNIT, "microseconds") == 0){
+                    event->system_units = 1;
+                }
+                else{
+                    event->system_units = -1;
+                }
+
+                if(strstr(temp_token, "ns") != NULL){
                     event->frequency_type = 1;
                     event->frequency = 1;
                     event->time = atof(temp_token);
-                    printf("Frequency by time!\nFrequency: %f seconds\n", event->time);
+                    if(event->system_units != 0)
+                        convert_units(&event->time, 0, event->system_units);
+                }
+                else if(strstr(temp_token, "us") != NULL){
+                    event->frequency_type = 1;
+                    event->frequency = 1;
+                    event->time = atof(temp_token);
+                    if(event->system_units != 1)
+                        convert_units(&event->time, 1, event->system_units);
+                }
+                else if(strstr(temp_token, "ms") != NULL){
+                    event->frequency_type = 1;
+                    event->frequency = 1;
+                    event->time = atof(temp_token);
+                    convert_units(&event->time, 2, event->system_units);
+                }
+                else if(strstr(temp_token, "s") != NULL){
+                    event->frequency_type = 1;
+                    event->frequency = 1;
+                    event->time = atof(temp_token);
+                    convert_units(&event->time, 3, event->system_units);
                 }
                 else{
                     event->frequency_type = 0;
                     event->frequency = atoi(temp_token);
                     event->time = -1;
-                    printf("Frequency by task!\nFrequency: %d task(s)\n", event->frequency);
                 }
 
                 /*event->frequency = atoi(&token[1]);*/
@@ -228,8 +312,8 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                              token, event->socket, event->core, event->frequency);
             }
             else{
-                dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %f seconds\n",
-                             token, event->socket, event->core, event->time);
+                dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %f %s\n",
+                             token, event->socket, event->core, event->time, units_name(event->system_units));
             }
             /* Remove the event to prevent issues with adding events from incompatible classes */
             PAPI_remove_event(tmp_eventset, event->pins_papi_native_event);

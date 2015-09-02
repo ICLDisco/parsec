@@ -24,6 +24,7 @@ typedef struct parsec_pins_papi_event_s {
     int                              frequency_type;
     int                              frequency;
     float                            time;
+    int                              system_units;
     char*                            pins_papi_event_name;
     int                              papi_component_index;
     int                              papi_location;
