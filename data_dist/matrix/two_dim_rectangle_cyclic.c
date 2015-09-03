@@ -65,13 +65,28 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
                                int P )
 {
     int temp, Q;
-    dague_ddesc_t *o = &(Ddesc->super.super);
+    dague_ddesc_t       *o     = &(Ddesc->super.super);
+    tiled_matrix_desc_t *tdesc = &(Ddesc->super);
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, storage, two_dim_block_cyclic_type,
+    tiled_matrix_desc_init( tdesc, mtype, storage, two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, nb, lm, ln, i, j, m, n );
     Ddesc->mat = NULL;  /* No data associated with the matrix yet */
+
+    /* WARNING: This has to be removed when padding will be removed */
+#if defined(HAVE_MPI)
+    if ( (storage == matrix_Lapack) && (nodes > 1) ) {
+        if ( tdesc->lm % mb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+        if ( tdesc->ln % nb != 0 ) {
+            fprintf(stderr, "In distributed with Lapack storage, ln has to be a multiple of nb\n");
+            MPI_Abort(MPI_COMM_WORLD, 2);
+        }
+    }
+#endif
 
     if(nodes < P)
         ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
@@ -90,36 +105,38 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     /* Compute the number of rows handled by the local process */
     Ddesc->nb_elem_r = 0;
     temp = Ddesc->grid.rrank * Ddesc->grid.strows; /* row coordinate of the first tile to handle */
-    while( temp < Ddesc->super.lmt ) {
-        if( (temp + (Ddesc->grid.strows)) < Ddesc->super.lmt ) {
+    while( temp < tdesc->lmt ) {
+        if( (temp + (Ddesc->grid.strows)) < tdesc->lmt ) {
             Ddesc->nb_elem_r += (Ddesc->grid.strows);
             temp += ((Ddesc->grid.rows) * (Ddesc->grid.strows));
             continue;
         }
-        Ddesc->nb_elem_r += ((Ddesc->super.lmt) - temp);
+        Ddesc->nb_elem_r += ((tdesc->lmt) - temp);
         break;
     }
 
     /* Compute the number of columns handled by the local process */
     Ddesc->nb_elem_c = 0;
     temp = Ddesc->grid.crank * Ddesc->grid.stcols;
-    while( temp < Ddesc->super.lnt ) {
-        if( (temp + (Ddesc->grid.stcols)) < Ddesc->super.lnt ) {
+    while( temp < tdesc->lnt ) {
+        if( (temp + (Ddesc->grid.stcols)) < tdesc->lnt ) {
             Ddesc->nb_elem_c += (Ddesc->grid.stcols);
             temp += (Ddesc->grid.cols) * (Ddesc->grid.stcols);
             continue;
         }
-        Ddesc->nb_elem_c += ((Ddesc->super.lnt) - temp);
+        Ddesc->nb_elem_c += ((tdesc->lnt) - temp);
         break;
     }
 
     /* Total number of tiles stored locally */
-    Ddesc->super.nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
-    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
+    tdesc->nb_local_tiles = Ddesc->nb_elem_r * Ddesc->nb_elem_c;
+    tdesc->data_map = (dague_data_t**)calloc(tdesc->nb_local_tiles, sizeof(dague_data_t*));
 
     /* Update llm and lln */
-    Ddesc->super.llm = Ddesc->nb_elem_r * mb;
-    Ddesc->super.lln = Ddesc->nb_elem_c * nb;
+    if ( !((storage == matrix_Lapack) && (nodes == 1)) ) {
+        tdesc->llm = Ddesc->nb_elem_r * mb;
+        tdesc->lln = Ddesc->nb_elem_c * nb;
+    }
 
     /* set the methods */
     if( (nrst == 1) && (ncst == 1) ) {
@@ -148,12 +165,12 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
            "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
-           Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes,
-           Ddesc->super.super.myrank,
-           Ddesc->super.mb, Ddesc->super.nb,
-           Ddesc->super.lm, Ddesc->super.ln,
-           Ddesc->super.i,  Ddesc->super.j,
-           Ddesc->super.m,  Ddesc->super.n,
+           Ddesc, tdesc->mtype, tdesc->super.nodes,
+           tdesc->super.myrank,
+           tdesc->mb, tdesc->nb,
+           tdesc->lm, tdesc->ln,
+           tdesc->i,  tdesc->j,
+           tdesc->m,  tdesc->n,
            Ddesc->grid.strows, Ddesc->grid.stcols,
            P, Q));
 }

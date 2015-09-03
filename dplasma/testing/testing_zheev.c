@@ -83,7 +83,7 @@ goto fin;
     dplasma_add2arena_tile(arena,
                            MB*NB*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, MB);
+                           dague_datatype_double_complex_t, MB);
     dague_enqueue(dague, (dague_handle_t*)DAGUE_diag_band_to_rect);
     dague_context_wait(dague);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));

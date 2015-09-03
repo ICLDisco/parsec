@@ -81,14 +81,32 @@ int main(int argc, char ** argv)
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
     if(loud > 3) printf("Done\n");
 
-    /* Create DAGuE */
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf,
-                              ((tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescT));
 
-    /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf);
-    dplasma_zgeqrf_Destruct( DAGUE_zgeqrf );
+    if(iparam[IPARAM_HNB] != iparam[IPARAM_NB])
+    {
+        SYNC_TIME_START();
+        dague_handle_t* DAGUE_zgeqrf = dplasma_zgeqrf_New( (tiled_matrix_desc_t*)&ddescA,
+                                                           (tiled_matrix_desc_t*)&ddescT );
+        /* Set the recursive size */
+        dplasma_zgeqrf_setrecursive( DAGUE_zgeqrf, iparam[IPARAM_HNB] );
+        dague_enqueue(dague, DAGUE_zgeqrf);
+        nb_local_tasks = DAGUE_zgeqrf->nb_local_tasks;
+        if( loud > 2 ) SYNC_TIME_PRINT(rank, ( "zgeqrf\tDAG created\n"));
+
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf);
+        dplasma_zgeqrf_Destruct( DAGUE_zgeqrf );
+
+        dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+    }
+    else
+    {
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf,
+                                  ((tiled_matrix_desc_t*)&ddescA,
+                                   (tiled_matrix_desc_t*)&ddescT));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf);
+
+        dplasma_zgeqrf_Destruct( DAGUE_zgeqrf );
+    }
 
     if( check ) {
         if (M >= N) {

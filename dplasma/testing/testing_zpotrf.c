@@ -52,11 +52,30 @@ int main(int argc, char ** argv)
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
-                              (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
+    if((iparam[IPARAM_HNB] != iparam[IPARAM_NB]) || (iparam[IPARAM_HMB] != iparam[IPARAM_MB]))
+    {
 
-    dplasma_zpotrf_Destruct( DAGUE_zpotrf );
+        SYNC_TIME_START();
+        dague_handle_t* DAGUE_zpotrf = dplasma_zpotrf_New( uplo, (tiled_matrix_desc_t*)&ddescA, &info );
+        /* Set the recursive size */
+        dplasma_zpotrf_setrecursive( DAGUE_zpotrf, iparam[IPARAM_HMB] );
+        dague_enqueue(dague, DAGUE_zpotrf);
+        nb_local_tasks = DAGUE_zpotrf->nb_local_tasks;
+        if( loud > 2 ) SYNC_TIME_PRINT(rank, ( "zpotrf\tDAG created\n"));
+
+        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
+        dplasma_zpotrf_Destruct( DAGUE_zpotrf );
+
+        dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+    }
+    else
+    {
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zpotrf,
+                                  (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
+        PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);
+
+        dplasma_zpotrf_Destruct( DAGUE_zpotrf );
+    }
 
     if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);

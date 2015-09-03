@@ -75,10 +75,10 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     assert( m < Ddesc->super.mt );
     assert( n < Ddesc->super.nt );
 
-    assert( (Ddesc->uplo == MatrixLower && m>=n) ||
-            (Ddesc->uplo == MatrixUpper && n>=m) );
-    if ( ((Ddesc->uplo == MatrixLower) && (m < n)) ||
-         ((Ddesc->uplo == MatrixUpper) && (m > n)) )
+    assert( (Ddesc->uplo == matrix_Lower && m>=n) ||
+            (Ddesc->uplo == matrix_Upper && n>=m) );
+    if ( ((Ddesc->uplo == matrix_Lower) && (m < n)) ||
+         ((Ddesc->uplo == matrix_Upper) && (m > n)) )
     {
         return UINT_MAX;
     }
@@ -140,8 +140,8 @@ static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
 #endif
     assert( Ddesc->super.storage == matrix_Tile );
-    assert( (Ddesc->uplo == MatrixLower && m>=n) ||
-            (Ddesc->uplo == MatrixUpper && n>=m) );
+    assert( (Ddesc->uplo == matrix_Lower && m>=n) ||
+            (Ddesc->uplo == matrix_Upper && n>=m) );
 
     pos = sym_twoDBC_coordinates_to_position(Ddesc, m, n);
 
@@ -191,8 +191,8 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
 #if defined(DISTRIBUTED)
     assert(desc->myrank == sym_twoDBC_rank_of(desc, m, n));
 #endif
-    assert( (Ddesc->uplo == MatrixLower && m>=n) ||
-            (Ddesc->uplo == MatrixUpper && n>=m) );
+    assert( (Ddesc->uplo == matrix_Lower && m>=n) ||
+            (Ddesc->uplo == matrix_Upper && n>=m) );
 
     /* Compute the local tile row */
     local_m = m / Ddesc->grid.rows;
@@ -256,7 +256,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
 
     /* find the number of tiles this process will handle */
     total = 0; /* number of tiles handled by the process */
-    if ( uplo == MatrixLower ) {
+    if ( uplo == matrix_Lower ) {
         int column = Ddesc->grid.crank; /* tile column considered */
         int nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
         if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )

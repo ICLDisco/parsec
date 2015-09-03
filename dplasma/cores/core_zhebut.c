@@ -13,7 +13,6 @@
 #include <core_blas.h>
 #include <cblas.h>
 #include "dplasma.h"
-#include "dplasma/lib/dplasmatypes.h"
 
 /*
 #define DEBUG_BUTTERFLY
@@ -79,7 +78,7 @@ void BFT_zQTL( int mb, int nb, int lda, int i_seg, int j_seg, int lvl, int N,
 #if defined(DEBUG_BUTTERFLY)
                 printf ("HE %lf %lf %lf %lf %lf %lf %lf\n", creal(C[j*lda+i]), creal(ri), creal(tl[j*lda+i]), creal(bl[j*lda+i]), creal(tr[i*lda+j]), creal(br[j*lda+i]), creal(rj));
 #endif
-            }    
+            }
         }
     }else{
         for (j=0; j<nb; j++) {

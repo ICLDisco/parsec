@@ -651,7 +651,6 @@ int dague_gpu_fini(void)
     for(i = 0; i < dague_devices_enabled(); i++) {
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
         if(DAGUE_DEV_CUDA != gpu_device->super.type) continue;
-
         dague_cuda_device_fini((dague_device_t*)gpu_device);
         dague_device_remove((dague_device_t*)gpu_device);
     }
@@ -1082,6 +1081,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 
 void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size)
 {
+    (void)gpu_device; (void)gpu_stream; (void)size;
     void *work = NULL;
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
@@ -1103,6 +1103,7 @@ void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t*
 
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream)
 {
+    (void)gpu_device; (void)gpu_stream;
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     gpu_stream->workspace->stack_head ++;
     assert (gpu_stream->workspace->stack_head < DAGUE_GPU_MAX_WORKSPACE);
@@ -1112,6 +1113,7 @@ int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* 
 
 int dague_gpu_free_workspace(gpu_device_t * gpu_device)
 {
+    (void)gpu_device;
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     int i, j;
     for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
@@ -1155,6 +1157,7 @@ void dump_list(dague_list_t *list)
         p = (dague_list_item_t *)p->list_next;
     }
 }
+
 
 int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
 {
@@ -1210,17 +1213,24 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
 
             /* insert min_p after prev_p */
             dague_list_nolock_add_after( sort_list, prev_p, min_p);
-            /*min_p->list_next = prev_p->list_next;
-            min_p->list_prev = prev_p;
-            prev_p->list_next->list_prev = min_p;
-            prev_p->list_next = min_p;*/
-
         }
         p = (dague_list_item_t*)min_p->list_next;
     }
 
     if (lock_required) {
         dague_atomic_unlock(&(sort_list->atomic_lock));
+    }
+    return 0;
+}
+
+static inline int dague_lru_contains(dague_list_t *list, dague_gpu_data_copy_t *element)
+{
+    dague_list_item_t *p = (dague_list_item_t *)list->ghost_element.list_next;
+    while (p != &(list->ghost_element)) {
+        if ( ((dague_gpu_data_copy_t*)p)->device_private == element->device_private) {
+            return 1;
+        }
+        p = (dague_list_item_t *)p->list_next;
     }
     return 0;
 }

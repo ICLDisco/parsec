@@ -8,14 +8,12 @@ set(generated_jdf "")
 
 set(EXTRA_SOURCES
   memory_pool.c
-  dplasmatypes.c
   dplasmaaux.c
   dplasma_hqr.c
   dplasma_hqr_dbg.c
   dplasma_systolic_qr.c
   map_wrapper.c
   map2_wrapper.c
-  map2t_wrapper.c
   butterfly_map.c
 )
 
@@ -48,7 +46,6 @@ set(JDF
   #
   # Cholesky
   zpotrf_U.jdf zpotrf_L.jdf
-  zpotrf_U_rec.jdf zpotrf_L_rec.jdf
   ztrtri_L.jdf ztrtri_U.jdf
   zlauum_L.jdf zlauum_U.jdf
   zpoinv_L.jdf zpoinv_U.jdf
@@ -81,8 +78,10 @@ set(JDF
   zhetrd_b2s.jdf
   ztrdsm.jdf
   ztrmdm.jdf
-  zgeqrt.jdf
-  zgeqrf_rec.jdf
+  zgeqrfr_geqrt.jdf
+  zgeqrfr_unmqr.jdf
+  zgeqrfr_tsqrt.jdf
+  zgeqrfr_tsmqr.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -99,7 +98,6 @@ endif( NOT ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
 list(APPEND generated_jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map.jdf
   ${CMAKE_CURRENT_SOURCE_DIR}/map2.jdf
-  ${CMAKE_CURRENT_SOURCE_DIR}/map2t.jdf
 )
 
 jdf_rules(generated_files "${generated_jdf}")
@@ -139,7 +137,6 @@ set(SOURCES
   # Cholesky
   zposv_wrapper.c
   zpotrf_wrapper.c
-  zpotrf_rec_wrapper.c
   zpotrs_wrapper.c
   ztrtri_wrapper.c
   zlauum_wrapper.c
@@ -185,8 +182,6 @@ set(SOURCES
   zhetrs_wrapper.c
   ztrdsm_wrapper.c
   zheev_wrapper.c
-  zgeqrt_wrapper.c
-  zgeqrf_rec_wrapper.c
 )
 precisions_rules_py(generated_wrappers
                  "${SOURCES}"

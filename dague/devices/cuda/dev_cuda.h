@@ -25,7 +25,7 @@ BEGIN_C_DECLS
 
 #define DAGUE_GPU_USE_PRIORITIES     1
 
-#define DAGUE_MAX_STREAMS            4
+#define DAGUE_MAX_STREAMS            6
 #define DAGUE_MAX_EVENTS_PER_STREAM  4
 #define DAGUE_GPU_MAX_WORKSPACE      2
 #define DAGUE_GPU_W2R_NB_MOVE_OUT    1
@@ -52,7 +52,7 @@ extern float *device_load, *device_weight;
 typedef struct __dague_gpu_workspace {
     void* workspace[DAGUE_GPU_MAX_WORKSPACE];
     int stack_head;
-    int total_workspace;    
+    int total_workspace;
 } dague_gpu_workspace_t;
 
 typedef struct __dague_gpu_context {

@@ -92,6 +92,7 @@ void print_usage(void)
             " -T --NB           : columns in a tile  (default: autotuned)\n"
             " -s --SMB          : rows of tiles in a supertile (default: 1)\n"
             " -S --SNB          : columns of tiles in a supertile (default: 1)\n"
+            " -z --HNB --HMB    : Inner NB/MB used for recursive algorithms (default: MB)\n"
             " -x --check        : verify the results\n"
             " -X --check_inv    : verify the results against the inverse\n"
             "\n"
@@ -225,6 +226,11 @@ static struct option long_options[] =
     {"seed",        required_argument,  0, 'R'},
     {"mtx",         required_argument,  0, 'b'},
 
+    /* Recursive options */
+    {"z",           required_argument,  0, 'z'},
+    {"HNB",         required_argument,  0, 'z'},
+    {"HMB",         required_argument,  0, 'z'},
+
     /* HERBT options */
     {"butlvl",      required_argument,  0, 'y'},
     {"y",           required_argument,  0, 'y'},
@@ -334,6 +340,9 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 
                 /* Butterfly parameters */
             case 'y': iparam[IPARAM_BUT_LEVEL] = atoi(optarg); break;
+
+                /* Recursive parameters */
+            case 'z': iparam[IPARAM_HNB] = iparam[IPARAM_HMB] = atoi(optarg); break;
 
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
@@ -460,6 +469,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(-'q' == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = (iparam[IPARAM_N]/iparam[IPARAM_NB])/iparam[IPARAM_Q];
     if(0 == iparam[IPARAM_SMB]) iparam[IPARAM_SMB] = 1;
     if(0 == iparam[IPARAM_SNB]) iparam[IPARAM_SNB] = 1;
+    if(0 == iparam[IPARAM_HMB]) iparam[IPARAM_HMB] = iparam[IPARAM_MB];
+    if(0 == iparam[IPARAM_HNB]) iparam[IPARAM_HNB] = iparam[IPARAM_NB];
 
     /* HQR */
     if(-1 == iparam[IPARAM_QR_HLVL_SZE])
@@ -509,6 +520,8 @@ static void print_arguments(int* iparam)
                     iparam[IPARAM_MB], iparam[IPARAM_NB]);
         if(iparam[IPARAM_SNB] * iparam[IPARAM_SMB] != 1)
             fprintf(stderr, "#+++++ SMB x SNB            : %d x %d\n", iparam[IPARAM_SMB], iparam[IPARAM_SNB]);
+        if((iparam[IPARAM_HNB] != iparam[IPARAM_NB]) || (iparam[IPARAM_HMB] != iparam[IPARAM_MB]))
+            fprintf(stderr, "#+++++ HMB x HNB            : %d x %d\n", iparam[IPARAM_HMB], iparam[IPARAM_HNB]);
     }
 }
 
@@ -564,8 +577,6 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'k';
     iparam[IPARAM_LDC] = -'m';
-    iparam[IPARAM_SMB] = 0;
-    iparam[IPARAM_SNB] = 0;
 }
 
 #ifdef DAGUE_PROF_TRACE
@@ -653,3 +664,4 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 #endif
     (void)iparam;
 }
+

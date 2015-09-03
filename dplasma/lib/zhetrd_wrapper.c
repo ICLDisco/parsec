@@ -50,22 +50,22 @@ dplasma_zhetrd( dague_context_t* dague,
         dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_L_DEFAULT_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1);
+                                 dague_datatype_double_complex_t, A->mb, A->nb, -1);
         dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_L_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
+                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
 #if 0
     } else {
         h2b = dague_zhetrd_h2b_U_new( ib, A, *A, T, *T, pool[3], pool[2], pool[1], pool[0] );
         dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_U_DEFAULT_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, A->mb, A->nb, -1);
+                                 dague_datatype_double_complex_t, A->mb, A->nb, -1);
         dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_U_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, T->mb, T->nb, -1);
+                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
 #endif
     }
     if( NULL == h2b ) { 
@@ -78,14 +78,14 @@ dplasma_zhetrd( dague_context_t* dague,
     dplasma_add2arena_tile(band2rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           dague_datatype_double_complex_t, A->mb);
 
     b2s = dague_zhetrd_b2s_new( DE, DE->mb-1 );
     if( NULL == b2s ) goto cleanup;
     dplasma_add2arena_rectangle(b2s->arenas[DAGUE_zhetrd_b2s_DEFAULT_ARENA], 
                                 DE->mb*DE->nb*sizeof(dague_complex64_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE_COMPLEX, DE->mb, DE->nb, -1);
+                                dague_datatype_double_complex_t, DE->mb, DE->nb, -1);
         
     dague_enqueue( dague, (dague_handle_t*)h2b );
     dague_enqueue( dague, (dague_handle_t*)band2rect );

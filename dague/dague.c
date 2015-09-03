@@ -90,6 +90,7 @@ static char *dague_enable_dot = NULL;
 static char *dague_app_name = NULL;
 static char *dague_enable_profiling = NULL;  /* profiling file when DAGUE_PROF_TRACE is on */
 static dague_device_t* dague_device_cpus = NULL;
+static dague_device_t* dague_device_recursive = NULL;
 
 /**
  * Object based task definition (no specialized constructor and destructor) */
@@ -639,6 +640,16 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         dague_device_cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
         dague_device_cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
     }
+    /* By now let's add one device for the recursive kernels */
+    {
+        dague_device_recursive = (dague_device_t*)calloc(1, sizeof(dague_device_t));
+        dague_device_recursive->name = "recursive";
+        dague_device_recursive->type = DAGUE_DEV_RECURSIVE;
+        dague_devices_add(context, dague_device_recursive);
+        /* TODO: This is plain WRONG, but should work by now */
+        dague_device_recursive->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
+        dague_device_recursive->device_dweight = nb_total_comp_threads * 4 * 2.27;
+    }
     dague_devices_select(context);
     dague_devices_freeze(context);
 
@@ -823,6 +834,10 @@ int dague_fini( dague_context_t** pcontext )
     dague_device_remove(dague_device_cpus);
     free(dague_device_cpus);
     dague_device_cpus = NULL;
+
+    dague_device_remove(dague_device_recursive);
+    free(dague_device_recursive);
+    dague_device_recursive = NULL;
 
     dague_devices_fini(context);
 

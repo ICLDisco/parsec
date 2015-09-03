@@ -28,14 +28,12 @@ set(TESTS
   #
   # Cholesky
   testing_zpotrf.c
-  testing_zpotrf_rec.c
   testing_zposv.c
   testing_ztrtri.c
   testing_zpoinv.c
   # QR/LQ
   testing_zgelqf.c
   testing_zgeqrf.c
-  testing_zgeqrf_rec.c
   testing_zunmqr.c
   testing_zunmlq.c
   testing_zgeqrf_hqr.c

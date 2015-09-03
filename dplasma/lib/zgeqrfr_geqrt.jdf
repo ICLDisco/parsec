@@ -1,0 +1,232 @@
+extern "C" %{
+/*
+ * Copyright (c) 2010-2013 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2013      Inria. All rights reserved.
+ * $COPYRIGHT
+ *
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+dataA  [type = "dague_ddesc_t *"]
+dataT  [type = "dague_ddesc_t *" aligned=dataA]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.nb)"]
+
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
+minMNT [type = "int" hidden=on default = "dplasma_imin(descA.nt, ((descA.m+descA.nb-1)/descA.nb))-1"]
+ib     [type = "int" hidden=on default = "descT.mb" ]
+
+zgeqrt_zgeqrt(k)
+  /* Execution space */
+  k = 0 .. minMNT
+
+  : dataA(0, k)
+
+  RW    A <- (0 == k) ? dataA(0, k) : C zgeqrt_zunmqr(k-1, k)
+          -> (k < (descA.nt-1)) ? V zgeqrt_zunmqr(k, k+1 ..  descA.nt-1)
+          -> dataA(0, k)
+
+  RW    T <- dataT(0, k)                                                 [type = LITTLE_T]
+          -> dataT(0, k)                                                 [type = LITTLE_T]
+          -> (k < (descA.nt-1)) ? T zgeqrt_zunmqr(k, k+1 ..  descA.nt-1) [type = LITTLE_T]
+
+BODY
+{
+    dague_complex64_t *lA = (dague_complex64_t*)A;
+    int tempm  = descA.m - k * descA.nb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int lda    = BLKLDD( descA, 0 );
+
+    printlog("CORE_zgeqrt(%d)\n"
+             "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+             k, k, k, A, k, k, T);
+
+#if !defined(DAGUE_DRY_RUN)
+
+    void *p_elem_tau  = dague_private_memory_pop( p_work );
+    void *p_elem_work = dague_private_memory_pop( p_work );
+
+    CORE_zgeqrt(tempm, tempkn, ib,
+                lA+k*descA.nb /* dataA(k,k) */, lda,
+                T             /* dataT(k,k) */, descT.mb,
+                p_elem_tau, p_elem_work );
+
+    dague_private_memory_push( p_work, p_elem_tau  );
+    dague_private_memory_push( p_work, p_elem_work );
+
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+zgeqrt_zunmqr(k, n)
+  /* Execution space */
+  k = 0   .. inline_c %{ return dplasma_imin((descA.nt-2), minMNT); %}
+  n = k+1 .. descA.nt-1
+
+  : dataA(0,n)
+
+  READ  V <- A zgeqrt_zgeqrt(k)
+  READ  T <- T zgeqrt_zgeqrt(k)             [type = LITTLE_T]
+  RW    C <- (k == 0) ? dataA(0, n) : C zgeqrt_zunmqr(k-1, n)
+          -> (k == minMNT) ? dataA(0, n)
+          -> (k <  minMNT) && ( n == k+1 ) ? A zgeqrt_zgeqrt(k+1)
+          -> (k <  minMNT) && ( n >  k+1 ) ? C zgeqrt_zunmqr(k+1, n)
+
+BODY
+{
+    dague_complex64_t *lV = (dague_complex64_t*)V;
+    dague_complex64_t *lC = (dague_complex64_t*)C;
+    int tempm = descA.m - k * descA.nb;
+    int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
+    int lda = BLKLDD( descA, 0 );
+
+    printlog("CORE_zunmqr(%d, %d)\n", k, n);
+
+#if !defined(DAGUE_DRY_RUN)
+    void *p_elem_W = dague_private_memory_pop( p_work );
+
+    CORE_zunmqr( PlasmaLeft, PlasmaConjTrans,
+                 tempm, tempnn, descA.nb, ib,
+                 lV + k * descA.nb, lda,
+                 T,                 descT.mb,
+                 lC + k * descA.nb, lda,
+                 p_elem_W, descA.nb);
+
+    dague_private_memory_push( p_work, p_elem_W );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+
+extern "C" %{
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ * dplasma_zgeqrfr_geqrt_New - Generates the object that computes the QR factorization
+ * a complex M-by-N matrix A: A = Q * R.
+ *
+ * The method used in this algorithm is a tile QR algorithm with a flat
+ * reduction tree.  It is recommended to use the super tiling parameter (SMB) to
+ * improve the performance of the factorization.
+ * A high SMB parameter reduces the communication volume, but also deteriorates
+ * the load balancing if too important. A small one increases the communication
+ * volume, but improves load balancing.
+ * A good SMB value should provide enough work to all available cores on one
+ * node. It is then recommended to set it to 4 when creating the matrix
+ * descriptor.
+ * For tiling, MB=200, and IB=32 usually give good results.
+ *
+ * This variant is good for square large problems.
+ * For other problems, see:
+ *   - dplasma_zgeqrfr_geqrt_param_New() parameterized with trees for tall and skinny
+ *     matrices
+ *   - dplasma_zgeqrfr_geqrt_param_New() parameterized with systolic tree if
+ *     computation load per node is very low.
+ *
+ * WARNING: The computations are not done by this call.
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to be factorized.
+ *          On entry, describes the M-by-N matrix A.
+ *          On exit, the elements on and above the diagonal of the array contain
+ *          the min(M,N)-by-N upper trapezoidal matrix R (R is upper triangular
+ *          if (M >= N); the elements below the diagonal represent the unitary
+ *          matrix Q as a product of elementary reflectors stored by tiles.
+ *          It cannot be used directly as in Lapack.
+ *
+ * @param[out] T
+ *          Descriptor of the matrix T distributed exactly as the A matrix. T.mb
+ *          defines the IB parameter of tile QR algorithm. This matrix must be
+ *          of size A.mt * T.mb - by - A.nt * T.nb, with T.nb == A.nb.
+ *          On exit, contains auxiliary information required to compute the Q
+ *          matrix, and/or solve the problem.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval NULL if incorrect parameters are given.
+ *          \retval The dague object describing the operation that can be
+ *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          destroy with dplasma_zgeqrfr_geqrt_Destruct();
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgeqrfr_geqrt
+ * @sa dplasma_zgeqrfr_geqrt_Destruct
+ * @sa dplasma_cgeqrfr_New
+ * @sa dplasma_dgeqrfr_New
+ * @sa dplasma_sgeqrfr_New
+ *
+ ******************************************************************************/
+dague_handle_t*
+dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
+                           tiled_matrix_desc_t *T,
+                           void *work )
+{
+    dague_zgeqrfr_geqrt_handle_t* object;
+
+    object = dague_zgeqrfr_geqrt_new( (dague_ddesc_t*)A,
+                                      (dague_ddesc_t*)T,
+                                      (dague_memory_pool_t*)work );
+
+    /* Default type */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrfr_geqrt_DEFAULT_ARENA],
+                                 A->mb*A->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 dague_datatype_double_complex_t, A->mb, A->nb, -1 );
+
+    /* Little T */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrfr_geqrt_LITTLE_T_ARENA],
+                                 T->mb*T->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
+
+    return (dague_handle_t*)object;
+}
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma_complex64_t
+ *
+ *  dplasma_zgeqrfr_geqrt_Destruct - Free the data structure associated to an object
+ *  created with dplasma_zgeqrfr_geqrt_New().
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] o
+ *          On entry, the object to destroy.
+ *          On exit, the object cannot be used anymore.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_zgeqrfr_geqrt_New
+ * @sa dplasma_zgeqrfr_geqrt
+ *
+ ******************************************************************************/
+void
+dplasma_zgeqrfr_geqrt_Destruct( dague_handle_t *o )
+{
+    dague_zgeqrfr_geqrt_handle_t *dague_zgeqrt = (dague_zgeqrfr_geqrt_handle_t *)o;
+
+    dague_matrix_del2arena( dague_zgeqrt->arenas[DAGUE_zgeqrfr_geqrt_DEFAULT_ARENA ] );
+    dague_matrix_del2arena( dague_zgeqrt->arenas[DAGUE_zgeqrfr_geqrt_LITTLE_T_ARENA] );
+
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgeqrt);
+}
+
+%}
