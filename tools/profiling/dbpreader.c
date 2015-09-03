@@ -377,7 +377,7 @@ dbp_event_iterator_t *dbp_iterator_find_matching_event_all_threads(const dbp_eve
     dbp_file_t *dbp_file;
     int th;
 
-    ref = dbp_iterator_current(pos);
+    ref = dbp_iterator_current((dbp_event_iterator_t *)pos);
     it = dbp_iterator_new_from_iterator(pos);
     if( dbp_iterator_move_to_matching_event(it, ref, start) )
         return it;
