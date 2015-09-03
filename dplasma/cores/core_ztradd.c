@@ -125,8 +125,8 @@ int dplasma_core_ztradd(PLASMA_enum uplo, PLASMA_enum trans, int M, int N,
 #if defined(PRECISION_z) || defined(PRECISION_c)
         case PlasmaConjTrans:
             for (j=0; j<N; j++, M--, A+=LDA+1, B+=LDB+1) {
-                for(i=0; i<M; i++) {
-                    B[i] = beta * B[i] + alpha * conj(A[ldam*i]);
+                for(int i=0; i<M; i++) {
+                    B[i] = beta * B[i] + alpha * conj(A[LDA*i]);
                 }
             }
             break;
@@ -156,8 +156,8 @@ int dplasma_core_ztradd(PLASMA_enum uplo, PLASMA_enum trans, int M, int N,
 #if defined(PRECISION_z) || defined(PRECISION_c)
         case PlasmaConjTrans:
             for (j=0; j<N; j++, A++, B+=LDB) {
-                for(i=0; i<=j; i++) {
-                    B[i] = beta * B[i] + alpha * conj(A[ldam*i]);
+                for(int i=0; i<=j; i++) {
+                    B[i] = beta * B[i] + alpha * conj(A[LDA*i]);
                 }
             }
             break;

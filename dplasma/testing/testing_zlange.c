@@ -358,8 +358,8 @@ int main(int argc, char ** argv)
                         printf("       | Ndag - Nlap | / Nlap = %e\n", normdag);
                         ret |= 1;
 
-                        dplasma_zgeadd(dague, PlasmaNoTrans, uplo[u], -1.,
-                                       (tiled_matrix_desc_t *)&ddescA,
+                        dplasma_zgeadd(dague, PlasmaNoTrans, uplo[u],
+                                       (tiled_matrix_desc_t *)&ddescA, -1.,
                                        (tiled_matrix_desc_t *)&ddescA0 );
 
                         normlap = LAPACKE_zlanhe_work(LAPACK_COL_MAJOR, normsstr[i][0], uplostr[u][0], M,

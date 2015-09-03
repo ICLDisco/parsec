@@ -107,8 +107,8 @@ int dplasma_core_zgeadd(PLASMA_enum trans, int M, int N,
 #if defined(PRECISION_z) || defined(PRECISION_c)
     case PlasmaConjTrans:
         for (j=0; j<N; j++, A++, B+=LDB) {
-            for(i=0; i<M; i++) {
-                B[i] = beta * B[i] + alpha * conj(A[ldam*i]);
+            for(int i=0; i<M; i++) {
+                B[i] = beta * B[i] + alpha * conj(A[LDA*i]);
             }
         }
         break;
