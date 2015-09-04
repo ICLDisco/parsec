@@ -12,6 +12,80 @@
 
 static int init_done = 0;
 static int init_status = DAGUE_SUCCESS;
+static const struct pins_papi_units_s {
+    char const* unit_name[4];
+    pins_papi_time_type_t unit_type;
+    float unit_conversion_to_seconds;
+} pins_papi_accepted_units[] = {
+    { .unit_name = {"cycles", NULL},                     TIME_CYCLES, 0.0 },
+    { .unit_name = {"nanosecond", "nano", "ns", NULL},   TIME_NS, 1e9 },
+    { .unit_name = {"microsecond", "micro", "us", NULL}, TIME_US, 1e6 },
+    { .unit_name = {"millisecond", "milli", "ms", NULL}, TIME_MS, 1e3 },
+    { .unit_name = {"second", "sec", "s", NULL},         TIME_S, 1.0 } };
+
+pins_papi_time_type_t system_units = 0;
+
+static inline const struct pins_papi_units_s* find_unit_by_name(char* name)
+{
+    int i, j;
+
+    for( i = 0; i < (sizeof(pins_papi_accepted_units) / sizeof(struct pins_papi_units_s)); j = 0, i++ ) {
+        for( j = 0; NULL != pins_papi_accepted_units[i].unit_name[j]; j++ ) {
+            if( 0 == strncmp(name, pins_papi_accepted_units[i].unit_name[j],
+                             strlen(pins_papi_accepted_units[i].unit_name[j])) ) {
+                return &pins_papi_accepted_units[i];
+            }
+        }
+    }
+    return NULL;
+}
+
+int find_unit_type_by_name(char* name, pins_papi_time_type_t* ptype)
+{
+    const struct pins_papi_units_s* unit = find_unit_by_name(name);
+    if( NULL == unit ) {
+        *ptype = TIME_CYCLES;
+        return -1;
+    }
+    *ptype = unit->unit_type;
+    return 0;
+}
+
+static inline const struct pins_papi_units_s* find_unit_by_type(pins_papi_time_type_t type)
+{
+    for( int i = 0; i < sizeof(pins_papi_accepted_units); i++ ) {
+        if( pins_papi_accepted_units[i].unit_type == type ) {
+            return &pins_papi_accepted_units[i];
+        }
+    }
+    return NULL;
+}
+
+const char* find_unit_name_by_type(pins_papi_time_type_t type)
+{
+    const struct pins_papi_units_s* unit = find_unit_by_type(type);
+    if( NULL == unit ) {
+        return "unknown unit";
+    }
+    return unit->unit_name[0];
+}
+
+
+int convert_units(float *time, int source, int destination)
+{
+    const struct pins_papi_units_s *src, *dst;
+
+    if( source == destination )  /* nothing to be done */
+        return 0;
+    src = find_unit_by_type(source);
+    dst = find_unit_by_type(destination);
+    if( (NULL == src) || (NULL == dst) )
+        return -1;
+
+    *time = *time * ((double)dst->unit_conversion_to_seconds /
+                     (double)src->unit_conversion_to_seconds);
+    return 0;
+}
 
 /**
  * This function should be called once per application in order to enable
@@ -19,7 +93,7 @@ static int init_status = DAGUE_SUCCESS;
  */
 int pins_papi_init(dague_context_t * master_context)
 {
-    int err;
+    int i, err;
 
     (void)master_context;
     if( 0 == init_done++ ) {
@@ -39,6 +113,12 @@ int pins_papi_init(dague_context_t * master_context)
             return -2;
         }
     }
+
+    if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
+        dague_output(0, "Could not find a propose time unit equivalent for %s. Fall back to %s\n",
+                     TIMER_UNIT, find_unit_name_by_type(system_units));
+    }
+
     return init_status;
 }
 
@@ -130,60 +210,6 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
     return 0;
 }
 
-void convert_units(float *time, int source, int destination)
-{
-    if(destination == 0){ /* nanoseconds */
-        switch(source){
-        case 1:
-            *time *= 1000.0; /* us to ns */
-            break;
-        case 2:
-            *time *= 1000000.0; /* ms to ns */
-            break;
-        case 3:
-            *time *= 1000000000.0; /* s to ns */
-            break;
-        }
-    }
-    else if(destination == 1){ /* microseconds */
-        switch(source){
-        case 0:
-            *time *= .001; /* us to ns */
-            break;
-        case 2:
-            *time *= 1000.0; /* ms to ns */
-            break;
-        case 3:
-            *time *= 1000000.0; /* s to ns */
-            break;
-        }
-    }
-}
-
-const char* units_name(int units)
-{
-    switch(units){
-    case 0:
-        return "nanoseconds";
-        break;
-    case 1:
-        return "microseconds";
-        break;
-    case 2:
-        return "miliseconds";
-        break;
-    case 3:
-        return "seconds";
-        break;
-    case -1:
-        return "cycles";
-        break;
-    default:
-        return "units";
-        break;
-    }
-}
-
 parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 {
     char *mca_param_name, *token, *save_hptr = NULL;
@@ -234,49 +260,31 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 char* temp_string = strdup(&token[1]);
                 char* temp_token = strtok_r(temp_string, ":", &temp_save);
 
-                if(strcmp(TIMER_UNIT, "nanosecond") == 0){
-                    event->system_units = 0;
+                event->frequency_type = 0;  /* reset */
+                event->frequency = 1;
+                /* the remaining of this field must contain a number, which can be either
+                 * a frequency or a time interval, and a unit. If the unit is missing then
+                 * we have a frequency, otherwise we assume a timer.
+                 */
+                char* remaining;
+                int value = (int)strtol(&token[1], &remaining, 10);
+                if( remaining == &token[1] ) { /* no conversion was possible */
+                    dague_output(0, "Impossible to convert the frequency [%s] of the PINS event %s. Assume frequency of 1.\n",
+                                 &token[1], token);
+                    continue;
                 }
-                else if(strcmp(TIMER_UNIT, "microseconds") == 0){
-                    event->system_units = 1;
+                if( value < 0 ) {
+                    dague_output(0, "Obtained a negative value [%ld:%s] for the frequency of the PINS event %s. Assume frequency of 1.\n",
+                                 value, &token[1], token);
+                    continue;
                 }
-                else{
-                    event->system_units = -1;
-                }
-
-                if(strstr(temp_token, "ns") != NULL){
+                const struct pins_papi_units_s* unit = find_unit_by_name(remaining);
+                if( NULL != unit ) {
                     event->frequency_type = 1;
                     event->frequency = 1;
-                    event->time = atof(temp_token);
-                    if(event->system_units != 0)
-                        convert_units(&event->time, 0, event->system_units);
+                    event->time = value;
+                    convert_units(&event->time, unit->unit_type, system_units);
                 }
-                else if(strstr(temp_token, "us") != NULL){
-                    event->frequency_type = 1;
-                    event->frequency = 1;
-                    event->time = atof(temp_token);
-                    if(event->system_units != 1)
-                        convert_units(&event->time, 1, event->system_units);
-                }
-                else if(strstr(temp_token, "ms") != NULL){
-                    event->frequency_type = 1;
-                    event->frequency = 1;
-                    event->time = atof(temp_token);
-                    convert_units(&event->time, 2, event->system_units);
-                }
-                else if(strstr(temp_token, "s") != NULL){
-                    event->frequency_type = 1;
-                    event->frequency = 1;
-                    event->time = atof(temp_token);
-                    convert_units(&event->time, 3, event->system_units);
-                }
-                else{
-                    event->frequency_type = 0;
-                    event->frequency = atoi(temp_token);
-                    event->time = -1;
-                }
-
-                /*event->frequency = atoi(&token[1]);*/
                 continue;
             }
             /* Make sure the event contains only valid values */
@@ -310,10 +318,9 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
             if(event->frequency_type == 0){
                 dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d tasks\n",
                              token, event->socket, event->core, event->frequency);
-            }
-            else{
+            } else {
                 dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %f %s\n",
-                             token, event->socket, event->core, event->time, units_name(event->system_units));
+                             token, event->socket, event->core, event->time, find_unit_name_by_type(system_units));
             }
             /* Remove the event to prevent issues with adding events from incompatible classes */
             PAPI_remove_event(tmp_eventset, event->pins_papi_native_event);

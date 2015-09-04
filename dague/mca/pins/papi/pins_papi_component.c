@@ -58,6 +58,7 @@ const dague_pins_base_component_t dague_pins_papi_component = {
         "", /*< no reserve */
     }
 };
+
 mca_base_component_t * pins_papi_static_component(void)
 {
     return (mca_base_component_t *)&dague_pins_papi_component;

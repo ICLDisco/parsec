@@ -12,10 +12,12 @@
 #include "dague/include/dague/os-spec-timing.h"
 
 #define NUM_DEFAULT_EVENTS 4  /* default number of events */
-
 typedef struct parsec_pins_papi_values_s {
     long long values[NUM_DEFAULT_EVENTS];
 } parsec_pins_papi_values_t;
+
+typedef enum {TIME_CYCLES, TIME_NS,TIME_US, TIME_MS, TIME_S} pins_papi_time_type_t;
+extern pins_papi_time_type_t system_units;
 
 typedef struct parsec_pins_papi_event_s {
     int                              socket;
@@ -24,7 +26,6 @@ typedef struct parsec_pins_papi_event_s {
     int                              frequency_type;
     int                              frequency;
     float                            time;
-    int                              system_units;
     char*                            pins_papi_event_name;
     int                              papi_component_index;
     int                              papi_location;
@@ -77,5 +78,10 @@ int parsec_pins_papi_events_free(parsec_pins_papi_events_t** pevents);
  */
 void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
                                     parsec_pins_papi_values_t* pinfo);
+
+/* Functions to manipulate timing units */
+extern const char* find_unit_name_by_type(pins_papi_time_type_t type);
+extern int find_unit_type_by_name(char* name, pins_papi_time_type_t* ptype);
+extern int convert_units(float *time, int source, int destination);
 
 #endif

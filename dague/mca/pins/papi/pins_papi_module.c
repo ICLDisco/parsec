@@ -42,18 +42,18 @@ static void pins_papi_trace(dague_execution_unit_t* exec_unit,
 {
     parsec_pins_papi_callback_t* event_cb = (parsec_pins_papi_callback_t*)cb_data;
 
-    if(event_cb->event->frequency_type == 1 && event_cb->event->system_units >= 0){
+    if(event_cb->event->frequency_type == 1) {
         dague_time_t current_time = take_time();
         float elapsed_time = (float)diff_time(event_cb->start_time, current_time);
 
         if(elapsed_time > event_cb->time){
-            dague_output(0, "[Thread %d] Elapsed Time: %f (%s) > %f\n", exec_unit->th_id, elapsed_time, units_name(event_cb->event->system_units), event_cb->time);
+            DAGUE_OUTPUT((0, "[Thread %d] Elapsed Time: %f (%s) > %f\n", exec_unit->th_id, elapsed_time,
+                          find_unit_name_by_type(system_units), event_cb->time));
             event_cb->start_time = current_time;
 
             (void)pins_papi_read_and_trace(exec_unit, event_cb);
         }
-    }
-    else{
+    } else {
         if(1 == event_cb->trigger ) {  /* trigger the event */
             (void)pins_papi_read_and_trace(exec_unit, event_cb);
             event_cb->trigger = event_cb->event->frequency;
@@ -118,10 +118,10 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
     if(event_cb->event->frequency_type == 0){
         dague_output(0, "PAPI event %s core %d socket %d frequency %d tasks enabled\n",
                      conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
-    }
-    else{
+    } else {
         dague_output(0, "PAPI event %s core %d socket %d frequency %f %s enabled\n",
-                     conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->time, units_name(event_cb->event->system_units));
+                     conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->time,
+                     find_unit_name_by_type(system_units));
     }
 
     if(event_cb->event->frequency == 1) {
