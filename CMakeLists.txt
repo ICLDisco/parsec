@@ -347,7 +347,7 @@ if( NOT HAVE_TIMESPEC_TV_NSEC )
 endif( NOT HAVE_TIMESPEC_TV_NSEC )
 check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
 if( HAVE_CLOCK_GETTIME )
-  list(APPEND EXTRA_LIBS rt)
+  list(APPEND EXTRA_LIBS -lrt)
 endif( HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
@@ -443,7 +443,7 @@ IF( BUILD_DAGUE )
       if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
         list(APPEND EXTRA_LIBS "-framework cuda")
       else(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-        list(APPEND EXTRA_LIBS cuda)
+        list(APPEND EXTRA_LIBS -lcuda)
       endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       CMAKE_PUSH_CHECK_STATE()
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
@@ -523,7 +523,7 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     # gfortran
     set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-fno-f2c -O0 -g")
-    list(APPEND EXTRA_LIBS gfortran)
+    list(APPEND EXTRA_LIBS -lgfortran)
   elseif(${CMAKE_Fortran_COMPILER_ID} STREQUAL "Intel")
     # ifort
     set (CMAKE_Fortran_FLAGS_RELEASE "-f77rtl -O3")
@@ -740,6 +740,7 @@ if( DAGUE_WITH_DEVEL_HEADERS )
 endif(DAGUE_WITH_DEVEL_HEADERS)
 
 # pkg-config file
+string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS}")
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
