@@ -256,10 +256,6 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 continue;
             }
             if(token[0] == 'F') {
-                char* temp_save = NULL;
-                char* temp_string = strdup(&token[1]);
-                char* temp_token = strtok_r(temp_string, ":", &temp_save);
-
                 event->frequency_type = 0;  /* reset */
                 event->frequency = 1;
                 /* the remaining of this field must contain a number, which can be either
