@@ -93,7 +93,7 @@ int convert_units(float *time, int source, int destination)
  */
 int pins_papi_init(dague_context_t * master_context)
 {
-    int i, err;
+    int err;
 
     (void)master_context;
     if( 0 == init_done++ ) {
@@ -108,15 +108,15 @@ int pins_papi_init(dague_context_t * master_context)
         /*PAPI_set_debug(PAPI_VERB_ECONT);*/
         err = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self ));
         if( err != PAPI_OK ) {
-            dague_output(0, "PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
+            dague_output(0, "PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.\n",
+                         PAPI_strerror(err));
             init_status = -2;
             return -2;
         }
-    }
-
-    if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
-        dague_output(0, "Could not find a propose time unit equivalent for %s. Fall back to %s\n",
-                     TIMER_UNIT, find_unit_name_by_type(system_units));
+        if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
+            dague_output(0, "Could not find a propose time unit equivalent for %s. Fall back to %s\n",
+                         TIMER_UNIT, find_unit_name_by_type(system_units));
+        }
     }
 
     return init_status;

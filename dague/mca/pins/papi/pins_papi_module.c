@@ -199,14 +199,14 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                     /* We have a failure. Destroy the event_cb and move forward */
                     parsec_pins_papi_event_cleanup(event_cb, &info);
                     free(event_cb); event_cb = NULL;
-                }
-                else{
+                } else {
                     if( event_cb->trigger_type == 0 && event_cb->trigger != event->frequency ) {
                         goto force_registration_and_start_new;
                     }
-                    else if( event_cb->trigger_type == 1 && event_cb->time != event->time ){
+                    if( event_cb->trigger_type == 1 && event_cb->time != event->time ) {
                         goto force_registration_and_start_new;
                     }
+                    assert(0);  /* any other value is plain wrong */
                 }
             }
             /* Add events to the eventset */
