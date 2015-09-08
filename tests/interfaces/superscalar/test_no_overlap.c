@@ -31,7 +31,7 @@ call_to_kernel_type_1(dague_execution_unit_t *context, dague_execution_context_t
  
     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
-    printf("Executing Task: %d\n",((dtd_task_t *)this_task)->task_id+1);
+    printf("Executing Task: %d\n",((dague_dtd_task_t *)this_task)->task_id+1);
     //printf("The data is: %d\n", *data);
 
     
@@ -50,7 +50,7 @@ call_to_kernel_type_2(dague_execution_unit_t *context, dague_execution_context_t
  
     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
-    printf("Executing Task: %d\n",((dtd_task_t *)this_task)->task_id+1);
+    printf("Executing Task: %d\n",((dague_dtd_task_t *)this_task)->task_id+1);
     //printf("The data is: %d\n", *data);
 
     dague_atomic_add_32b(data, 1); 

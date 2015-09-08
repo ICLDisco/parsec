@@ -16,8 +16,10 @@
 #endif
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
+struct dague_execution_unit_s;
+
 int
-call_to_kernel_PO(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_PO(struct dague_execution_unit_s *context, dague_execution_context_t * this_task)
 {
     PLASMA_enum *uplo;
     int *tempkm, *ldak, *iinfo;

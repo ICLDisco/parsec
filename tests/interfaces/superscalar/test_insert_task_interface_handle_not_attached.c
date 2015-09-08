@@ -35,7 +35,7 @@ call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this
                           UNPACK_VALUE, &uplo1 
                         );
 
-    printf("Executing Task: %d\n",((dtd_task_t *)this_task)->task_id+1);
+    printf("Executing Task: %d\n",((dague_dtd_task_t *)this_task)->task_id+1);
     printf("Parameter 1: %d\n", *uplo);
     printf("Parameter 2: %d\n", *uplo2);
     printf("Parameter 3: %d\n", *uplo1);

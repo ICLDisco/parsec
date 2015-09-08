@@ -2,13 +2,6 @@
 #include "dague/data.h"
 #include "dague/data_internal.h"
 #include "dague/datarepo.h"
-#include <stdarg.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <pthread.h>
-#include <assert.h>
 #include "dague/data_distribution.h"
 #include "dague/interfaces/superscalar/insert_function.h"
 #include "dague/class/hash_table.h"
@@ -19,7 +12,7 @@ int dump_function_info; /* For printing function_structure info */
 int testing_ptg_to_dtd; /* to detect ptg testing dtd */
 
 /* for testing purpose of automatic insertion from Awesome PTG approach */
-dague_dtd_handle_t *__dtd_handle; 
+dague_dtd_handle_t *__dtd_handle;
 
 typedef struct bucket_element_f_s       bucket_element_f_t;
 typedef struct bucket_element_tile_s    bucket_element_tile_t;
@@ -28,64 +21,64 @@ typedef struct bucket_element_task_s    bucket_element_task_t;
 typedef struct dtd_successor_list_s dtd_successor_list_t;
 
 /* Structure used to pack arguments of insert_task() */
-struct task_param_s {
+struct dague_dtd_task_param_s {
     void            *pointer_to_tile;
     int             operation_type;
     int             tile_type_index;
-    task_param_t    *next;
+    dague_dtd_task_param_t    *next;
 };
 
 /* Task structure derived from dague_execution_context_t.
  * All the fields store info about the descendant except
-   op_type_parent(operation type ex. INPUT, INOUT or OUTPUT). 
- */ 
-typedef struct descendant_info_s { 
+   op_type_parent(operation type ex. INPUT, INOUT or OUTPUT).
+ */
+typedef struct descendant_info_s {
     /* Info about the current_task and not about descendant */
-    int         op_type_parent; 
+    int         op_type_parent;
     int         op_type;
     uint8_t     flow_index;
-    dtd_task_t  *task;
-    dtd_tile_t  *tile;
+    dague_dtd_task_t  *task;
+    dague_dtd_tile_t  *tile;
 }descendant_info_t;
 
 /* Structure to hold list of Read-ONLY successors of a task */
 /* Structure to be used for correct ordering strategy 1 in multi-threaded env */
-struct dtd_successor_list_s { 
-    dtd_task_t              *task;
+struct dtd_successor_list_s {
+    dague_dtd_task_t        *task;
     dep_t                   *deps;
-    int                     flow_index;
+    int                      flow_index;
     dtd_successor_list_t    *next;
 };
 
-struct dtd_task_s {
+struct dague_dtd_task_s {
     dague_execution_context_t   super;
-    task_func*                  fpointer;
+    dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
     uint32_t                    task_id;
     int                         flow_count;
     int                         flow_satisfied;
     int                         ready_mask;
     uint8_t                     belongs_to_function;
-    /* Saves flow index for which we have to release data of a TASK 
-       with INPUT and ATOMIC_WRITE operation 
+    /* Saves flow index for which we have to release data of a TASK
+       with INPUT and ATOMIC_WRITE operation
      */
-    uint8_t                     dont_skip_releasing_data[MAX_DESC];     
+    uint8_t                     dont_skip_releasing_data[MAX_DESC];
     /* for testing PTG inserting task in DTD */
-    dague_execution_context_t   *orig_task; 
+    dague_execution_context_t   *orig_task;
     descendant_info_t           desc[MAX_DESC];
-    task_param_t                *param_list;
+    dague_dtd_task_param_t     *param_list;
 };
-/* For creating objects of class dtd_task_t */
-DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dtd_task_t); 
+/* For creating objects of class dague_dtd_task_t */
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_dtd_task_t);
 
 /** Tile structure **/
 struct user {
     uint8_t     flow_index;
     int         op_type;
-    dtd_task_t  *task;
+    dague_dtd_task_t  *task;
 };
 
-struct dtd_tile_s {
+struct dague_dtd_tile_s {
     uint32_t            rank;
     int32_t             vp_id;
     dague_data_key_t    key;
@@ -97,7 +90,7 @@ struct dtd_tile_s {
 
 /** Function Hash table elements **/
 struct bucket_element_f_s {
-    task_func*          key;
+    dague_dtd_funcptr_t *key;
     dague_function_t    *dtd_function;
     bucket_element_f_t  *next;
 };
@@ -105,7 +98,7 @@ struct bucket_element_f_s {
 /** Tile Hash table elements **/
 struct bucket_element_tile_s {
     dague_data_key_t        key;
-    dtd_tile_t              *tile;
+    dague_dtd_tile_t       *tile;
     dague_ddesc_t*          belongs_to;
     bucket_element_tile_t   *next;
 };
@@ -113,7 +106,7 @@ struct bucket_element_tile_s {
 /** Task Hash table elements **/
 struct bucket_element_task_s {
     int                     key;
-    dtd_task_t              *task;
+    dague_dtd_task_t              *task;
     bucket_element_task_t   *next;
 };
 
@@ -140,11 +133,11 @@ struct dague_dtd_handle_s {
     int             tasks_created;
     int             tasks_scheduled;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
-    hash_table      *task_h_table; 
-    hash_table      *function_h_table; 
-    hash_table      *tile_h_table; 
+    hash_table      *task_h_table;
+    hash_table      *function_h_table;
+    hash_table      *tile_h_table;
     /* ring of initial ready tasks */
-    dague_execution_context_t      **startup_list; 
+    dague_execution_context_t      **startup_list;
     /* from here to end is for the testing interface */
     struct          hook_info actual_hook[DAGUE_dtd_NB_FUNCTIONS];
     int             total_tasks_to_be_exec;
@@ -156,7 +149,7 @@ struct __dague_dtd_internal_handle_s {
 };
 
 /*
- * Extension of dague_function_t class 
+ * Extension of dague_function_t class
  */
 struct dague_dtd_function_s {
     dague_function_t    super;
@@ -178,12 +171,12 @@ void dtd_startup(dague_context_t *context,
                  dague_handle_t *dague_handle,
                  dague_execution_context_t **pready_list);
 
-dtd_tile_t* find_tile(hash_table *tile_h_table,
+dague_dtd_tile_t* find_tile(hash_table *tile_h_table,
                       uint32_t key, int h_size,
                       dague_ddesc_t *belongs_to);
 
 void tile_insert_h_t(hash_table *tile_h_table,
-                     uint32_t key, dtd_tile_t *tile,
+                     uint32_t key, dague_dtd_tile_t *tile,
                      int h_size, dague_ddesc_t *belongs_to);
 
 int data_lookup_of_dtd_task(dague_execution_unit_t *,
@@ -192,15 +185,15 @@ int data_lookup_of_dtd_task(dague_execution_unit_t *,
 void copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle);
 
 void ordering_correctly_1(dague_execution_unit_t * eu,
-                     const dague_execution_context_t * this_task, 
+                     const dague_execution_context_t * this_task,
                      uint32_t action_mask,
                      dague_ontask_function_t * ontask,
                      void *ontask_arg);
 void
-set_task(dtd_task_t *temp_task, void *tmp, dtd_tile_t *tile,
-         int tile_op_type, task_param_t *current_param,
-         uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val, 
+set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
+         int tile_op_type, dague_dtd_task_param_t *current_param,
+         uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val,
          dague_dtd_handle_t *__dague_handle, int *flow_index, int *next_arg);
 
-void 
+void
 schedule_tasks(dague_dtd_handle_t *__dague_handle);
