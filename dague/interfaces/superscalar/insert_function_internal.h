@@ -79,6 +79,7 @@ struct user {
 };
 
 struct dague_dtd_tile_s {
+    dague_list_item_t   super;
     uint32_t            rank;
     int32_t             vp_id;
     dague_data_key_t    key;
@@ -87,6 +88,8 @@ struct dague_dtd_tile_s {
     dague_ddesc_t       *ddesc;
     struct user         last_user;
 };
+/* For creating objects of class dague_dtd_tile_t */
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_dtd_tile_t);
 
 /** Function Hash table elements **/
 struct bucket_element_f_s {
@@ -133,6 +136,7 @@ struct dague_dtd_handle_s {
     int             tasks_created;
     int             tasks_scheduled;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
+    dague_mempool_t *tile_mempool;
     hash_table      *task_h_table;
     hash_table      *function_h_table;
     hash_table      *tile_h_table;

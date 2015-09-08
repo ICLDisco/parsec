@@ -20,16 +20,35 @@
 #include "dague/utils/mca_param.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 #include "dplasma/testing/common_timing.h"
+#include "dague/mca/sched/sched.h"
 
 double time_double = 0;
 
+extern dague_sched_module_t *current_scheduler;
+
+/* Copied from dague/scheduling.c, will need to be exposed */
+#define TIME_STEP 5410
+#define MIN(x, y) ( (x)<(y)?(x):(y) )
+static inline unsigned long exponential_backoff(uint64_t k)
+{
+    unsigned int n = MIN( 64, k );
+    unsigned int r = (unsigned int) ((double)n * ((double)rand()/(double)RAND_MAX));
+    return r * TIME_STEP;
+}
+
 static int task_hash_table_size = (10+1);
-static int tile_hash_table_size = (10000*10+1);
+static int tile_hash_table_size = (1000*100+1);
 
 /* To create object of class dague_dtd_task_t that inherits dague_execution_context_t
  * class
  */
 OBJ_CLASS_INSTANCE(dague_dtd_task_t, dague_execution_context_t,
+                   NULL, NULL);
+
+/* To create object of class dague_dtd_tile_t that inherits dague_list_item_t
+ * class
+ */
+OBJ_CLASS_INSTANCE(dague_dtd_tile_t, dague_list_item_t,
                    NULL, NULL);
 
 /**
@@ -60,11 +79,159 @@ static dague_hook_return_t
 complete_hook_of_dtd(struct dague_execution_unit_s *,
                      dague_execution_context_t *);
 
+/*  Function that is supposed to take the main thread into executing tasks and coming back to
+    building the DAG
+    Check if the engine is started or not
+    Check if anybody is left at the end or not
+    Assuming only Master thread will be calling this function
+ */
+void dague_execute_and_come_back
+(dague_context_t *context, dague_handle_t *dague_handle)
+{
+    uint64_t misses_in_a_row;
+    dague_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
+    dague_execution_context_t* exec_context;
+    int nbiterations = 0;
+    struct timespec rqtp;
+
+    rqtp.tv_sec = 0;
+    misses_in_a_row = 1;
+
+    /* Checking if the context has been started or not */
+    /* The master thread might not have to trigger the barrier if the other
+     * threads have been activated by a previous start.
+     */
+    if( DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags ) {
+
+    } else {
+        (void)dague_remote_dep_on(context);
+        /* Mark the context so that we will skip the initial barrier during the _wait */
+        context->flags |= DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE;
+        /* Wake up the other threads */
+        dague_barrier_wait( &(context->barrier) );
+    }
+
+    /* Change it to some threshold */
+    while(dague_handle->nb_local_tasks > 20 ) {
+        if( misses_in_a_row > 1 ) {
+            rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
+            nanosleep(&rqtp, NULL);
+        }
+
+        exec_context = current_scheduler->module.select(eu_context);
+
+        if( exec_context != NULL ) {
+            PINS(eu_context, SELECT_END, exec_context);
+            misses_in_a_row = 0;
+
+#if defined(DAGUE_SCHED_REPORT_STATISTICS)
+            {
+                uint32_t my_idx = dague_atomic_inc_32b(&sched_priority_trace_counter);
+                if(my_idx < DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
+                    sched_priority_trace[my_idx].step = eu_context->sched_nb_tasks_done++;
+                    sched_priority_trace[my_idx].thread_id = eu_context->th_id;
+                    sched_priority_trace[my_idx].vp_id     = eu_context->virtual_process->vp_id;
+                    sched_priority_trace[my_idx].priority  = exec_context->priority;
+                }
+            }
+#endif
+
+            PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
+            switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
+            case DAGUE_HOOK_RETURN_DONE:
+            {
+                PINS(eu_context, PREPARE_INPUT_END, exec_context);
+                int rv = 0;
+                /* We're good to go ... */
+                rv = __dague_execute( eu_context, exec_context );
+                if( 0 == rv ) {
+                    __dague_complete_execution( eu_context, exec_context );
+                }
+                nbiterations++;
+                break;
+            }
+            default:
+                assert( 0 ); /* Internal error: invalid return value for data_lookup function */
+            }
+
+            // subsequent select begins
+            PINS(eu_context, SELECT_BEGIN, NULL);
+        } else {
+            misses_in_a_row++;
+        }
+    }
+
+#if 0
+#if defined(DAGUE_PROF_RUSAGE_EU)
+    dague_statistics_per_eu("EU ", eu_context);
+#endif
+
+    /* We're all done ? */
+    dague_barrier_wait( &(context->barrier) );
+
+#if defined(DAGUE_SIM)
+    if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
+        dague_vp_t *vp;
+        int32_t my_vpid, my_idx;
+        int largest_date = 0;
+        for(my_vpid = 0; my_vpid < dague_context->nb_vp; my_vpid++) {
+            vp = dague_context->virtual_processes[my_vpid];
+            for(my_idx = 0; my_idx < vp->nb_cores; my_idx++) {
+                if( vp->execution_units[my_idx]->largest_simulation_date > largest_date )
+                    largest_date = vp->execution_units[my_idx]->largest_simulation_date;
+            }
+        }
+        dague_context->largest_simulation_date = largest_date;
+    }
+    dague_barrier_wait( &(context->barrier) );
+    eu_context->largest_simulation_date = 0;
+#endif
+
+// finalize_progress:
+    // final select end - can we mark this as special somehow?
+    // actually, it will already be obviously special, since it will be the only select
+    // that has no context
+    PINS(eu_context, SELECT_END, NULL);
+
+#if defined(DAGUE_SCHED_REPORT_STATISTICS)
+    STATUS(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
+            eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
+            (long long unsigned int)found_remote,
+            (long long unsigned int)found_victim,
+            (long long unsigned int)miss_local,
+            (long long unsigned int)miss_victim ));
+
+    if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
+        char  priority_trace_fname[64];
+        FILE *priority_trace = NULL;
+        sprintf(priority_trace_fname, "priority_trace-%d.dat", eu_context->virtual_process->dague_context->my_rank);
+        priority_trace = fopen(priority_trace_fname, "w");
+        if( NULL != priority_trace ) {
+            uint32_t my_idx;
+            fprintf(priority_trace,
+                    "#Step\tPriority\tThread\tVP\n"
+                    "#Tasks are ordered in execution order\n");
+            for(my_idx = 0; my_idx < MIN(sched_priority_trace_counter, DAGUE_SCHED_MAX_PRIORITY_TRACE_COUNTER); my_idx++) {
+                fprintf(priority_trace, "%d\t%d\t%d\t%d\n",
+                        sched_priority_trace[my_idx].step, sched_priority_trace[my_idx].priority,
+                        sched_priority_trace[my_idx].thread_id, sched_priority_trace[my_idx].vp_id);
+            }
+            fclose(priority_trace);
+        }
+    }
+#endif  /* DAGUE_REPORT_STATISTICS */
+
+    if( context->__dague_internal_finalization_in_progress ) {
+        PINS_THREAD_FINI(eu_context);
+    }
+#endif
+}
+
 /* This function infact decrements the dague handles task counter by executing
  * one fake task after all the real tasks has been inserted in the dague context.
  * Arguments:   - handle (dague_dtd_handle_t *)
  * Returns:     - void
-*/
+ */
 void
 increment_task_counter(dague_dtd_handle_t *__dague_handle)
 {
@@ -83,7 +250,7 @@ increment_task_counter(dague_dtd_handle_t *__dague_handle)
                 - variadic arguments (the number of arguments depends on the
                   arguments supplied while inserting this task)
  * Returns:     - void
-*/
+ */
 void
 dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
 {
@@ -500,7 +667,10 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                                 ddesc);
 
     if( NULL == tmp) {
-        dague_dtd_tile_t *temp_tile           = (dague_dtd_tile_t*) malloc(sizeof(dague_dtd_tile_t));
+        /* Creating Task object */
+        dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
+                                                          (dague_dtd_handle->tile_mempool->thread_mempools);
+        //dague_dtd_tile_t *temp_tile           = (dague_dtd_tile_t*) malloc(sizeof(dague_dtd_tile_t));
         temp_tile->key                  = ddesc->data_key(ddesc, i, j);
         temp_tile->rank                 = ddesc->rank_of_key(ddesc, temp_tile->key);
         temp_tile->vp_id                = ddesc->vpid_of_key(ddesc, temp_tile->key);
@@ -722,6 +892,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
     }
 
     /* dtd handle specific */
+    dague_mempool_destruct(handle->super.tile_mempool);
     free(handle->super.startup_list);
     for (i=0;i<task_hash_table_size;i++) {
         free((bucket_element_task_t *)handle->super.task_h_table->buckets[i]);
@@ -733,7 +904,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
             /* cleaning chains */
             while (bucket != NULL) {
                 tmp_bucket = bucket;
-                free((dague_dtd_tile_t *)bucket->tile);
+                //free((dague_dtd_tile_t *)bucket->tile);
                 bucket = bucket->next;
                 free(tmp_bucket);
             }
@@ -884,6 +1055,14 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.tasks_created         = 0;
     __dague_handle->super.task_window_size      = 1;
     __dague_handle->super.tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
+    /* allocating tile mempool */
+    dague_dtd_task_t fake_task;
+    __dague_handle->super.tile_mempool          = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
+    dague_mempool_construct( __dague_handle->super.tile_mempool,
+                             OBJ_CLASS(dague_dtd_tile_t), sizeof(dague_dtd_tile_t),
+                             ((char*)&fake_task.super.mempool_owner) - ((char*)&fake_task),
+                             1/* no. of threads*/ );
+
     __dague_handle->super.super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */
     __dague_handle->super.super.startup_hook    = dtd_startup;
     __dague_handle->super.super.destructor      = (dague_destruct_fn_t) dtd_destructor;
@@ -1630,6 +1809,10 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         schedule_tasks (__dague_handle);
         if ( __dague_handle->task_window_size <= 128 ) {
             __dague_handle->task_window_size *= 2;
+        } else {
+#if defined (OVERLAP)
+            dague_execute_and_come_back (__dague_handle->super.context, &__dague_handle->super);
+#endif
         }
     }
 }

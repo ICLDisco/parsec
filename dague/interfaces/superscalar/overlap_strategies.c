@@ -22,6 +22,7 @@ multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
      * wait until we find a successor
      */
     if(i) {
+        OBJ_RELEASE(current_task->desc[flow_index].tile);
         return 0; /* we are successful, we do not need to wait and there is no successor yet*/
     }else { /* we have a descendant but last time we checked we had none
              * so waiting for the descendant to show up in our list of descendants
