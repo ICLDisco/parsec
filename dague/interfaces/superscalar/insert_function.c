@@ -466,6 +466,41 @@ function_insert_h_t(hash_table *hash_table,
     }
 }
 
+/* Fucntion to remove tile from hash_table
+ */
+void
+find_and_remove_tile(hash_table *hash_table,
+                  uint32_t key, int h_size,
+                  dague_ddesc_t* belongs_to)
+{
+    bucket_element_tile_t *current, *prev = NULL;
+
+    uint32_t hash_val = hash_table->hash(key, h_size);
+    current           = hash_table->buckets[hash_val];
+
+    /* Finding the elememnt, the pointer to the tile in the bucket of Hash table
+     * is returned if found, else NULL is returned
+     */
+    if(current != NULL) {
+        while(current != NULL) {
+            if(current->key == key && current->belongs_to == belongs_to) {
+                break;
+            }
+            prev = current;
+            current = current->next;
+        }
+        if(NULL != current) {
+            //(dague_dtd_tile_t *)current->tile = NULL;
+            if ((prev != NULL || prev != current) && current->next != NULL) {
+                prev->next = current->next;
+            }
+        }else {
+        }
+    }else {
+    }
+
+}
+
 /* Function to search for a specific Tile(used in insert_task interface as
  * representative of a data) from the hash table that stores the tiles
  * Arguments:
