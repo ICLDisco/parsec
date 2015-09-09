@@ -92,10 +92,10 @@ dague_type_create_struct( int count,
                           /* const */ dague_datatype_t *array_of_types,
                           dague_datatype_t *newtype )
 {
-    int rc = MPI_Type_struct( count,
-                              array_of_blocklengths,
-                              array_of_displacements,
-                              array_of_types, newtype );
+    int rc = MPI_Type_create_struct( count,
+                                     array_of_blocklengths,
+                                     array_of_displacements,
+                                     array_of_types, newtype );
     return (MPI_SUCCESS == rc ? DAGUE_SUCCESS : DAGUE_ERROR);
 }
 

@@ -58,6 +58,10 @@ set(JDF
   zgelqf_param.jdf
   zunmqr_param_LC.jdf zunmqr_param_LN.jdf zunmqr_param_RN.jdf zunmqr_param_RC.jdf
   zunmlq_param_LC.jdf zunmlq_param_LN.jdf zunmlq_param_RN.jdf zunmlq_param_RC.jdf
+  zgeqrfr_geqrt.jdf
+  zgeqrfr_unmqr.jdf
+  zgeqrfr_tsqrt.jdf
+  zgeqrfr_tsmqr.jdf
   # LU
   zgetrf.jdf
   zgetrf_incpiv.jdf
@@ -78,10 +82,6 @@ set(JDF
   zhetrd_b2s.jdf
   ztrdsm.jdf
   ztrmdm.jdf
-  zgeqrfr_geqrt.jdf
-  zgeqrfr_unmqr.jdf
-  zgeqrfr_tsqrt.jdf
-  zgeqrfr_tsmqr.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
