@@ -23,7 +23,6 @@ typedef struct parsec_pins_papi_event_s {
     int                              socket;
     int                              core;
     int                              pins_papi_native_event;
-    int                              frequency_type;
     int                              frequency;
     float                            time;
     char*                            pins_papi_event_name;
@@ -46,7 +45,6 @@ typedef struct parsec_pins_papi_callback_s {
     int                          num_counters;
     int                          pins_prof_event[2];
     int                          begin_end;
-    int                          trigger_type;
     int                          trigger;
     float                        time;
     dague_time_t                 start_time;

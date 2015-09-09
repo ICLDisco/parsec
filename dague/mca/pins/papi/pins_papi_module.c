@@ -42,18 +42,20 @@ static void pins_papi_trace(dague_execution_unit_t* exec_unit,
 {
     parsec_pins_papi_callback_t* event_cb = (parsec_pins_papi_callback_t*)cb_data;
 
-    if(event_cb->event->frequency_type == 1) {
+    if(event_cb->event->frequency < 0) { /* time-based frequency */
         dague_time_t current_time = take_time();
         float elapsed_time = (float)diff_time(event_cb->start_time, current_time);
 
         if(elapsed_time > event_cb->time){
-            DAGUE_OUTPUT((0, "[Thread %d] Elapsed Time: %f (%s) > %f\n", exec_unit->th_id, elapsed_time,
-                          find_unit_name_by_type(system_units), event_cb->time));
+            dague_output(0, "[Thread %d] Elapsed Time: %f (%s) > %f\n", exec_unit->th_id, elapsed_time,
+                          find_unit_name_by_type(system_units), event_cb->time);
+            /*DAGUE_OUTPUT((0, "[Thread %d] Elapsed Time: %f (%s) > %f\n", exec_unit->th_id, elapsed_time,
+                         find_unit_name_by_type(system_units), event_cb->time));*/
             event_cb->start_time = current_time;
 
             (void)pins_papi_read_and_trace(exec_unit, event_cb);
         }
-    } else {
+    } else { /* task-based frequency */
         if(1 == event_cb->trigger ) {  /* trigger the event */
             (void)pins_papi_read_and_trace(exec_unit, event_cb);
             event_cb->trigger = event_cb->event->frequency;
@@ -101,7 +103,6 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
                                            &event_cb->pins_prof_event[1]);
     free(key_string);
 
-    event_cb->start_time = take_time();
     if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
         dague_output(0, "couldn't start PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
@@ -109,13 +110,14 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
         return DAGUE_ERROR;
     }
 
+    event_cb->start_time = take_time();
     /* the event is now ready. Trigger it once ! */
     if( DAGUE_SUCCESS != (err = pins_papi_read_and_trace(exec_unit, event_cb)) ) {
         dague_output(0, "PAPI event %s core %d socket %d frequency %d failed to generate. Disabled!\n",
                      conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
         return err;
     }
-    if(event_cb->event->frequency_type == 0){
+    if(event_cb->event->frequency > 0){ /* task-based frequency */
         dague_output(0, "PAPI event %s core %d socket %d frequency %d tasks enabled\n",
                      conv_string, event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
     } else {
@@ -168,7 +170,6 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 event_cb->papi_eventset = PAPI_NULL;
                 event_cb->num_counters  = 0;
                 event_cb->event         = event;
-                event_cb->trigger_type  = event->frequency_type;
                 event_cb->trigger       = event->frequency;
                 event_cb->time          = event->time;
                 event_cb->begin_end     = 0;
@@ -181,34 +182,8 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                     free(event_cb); event_cb = NULL;
                     continue;
                 }
-            } else {
-                /* We are trying to hook on an already allocated event. If we don't have the same frequency
-                 * we should fail and force the registration of the event_cb built so far, and then finally
-                 * add this event again to an empty event_cb.
-                 */
-                if( event_cb->trigger_type != event->frequency_type ){
-                  force_registration_and_start_new:
-                    err = register_event_cb(exec_unit, event_cb, conv_string, event_id);
-                    event_id++;  /* next event_id */
-                    free(conv_string);
-                    conv_string = NULL;
-                    if( DAGUE_SUCCESS == err )
-                        /* We registered the event_cb built so far. We now need to create a fresh one for the future events. */
-                        goto force_a_new_event_cb;
-
-                    /* We have a failure. Destroy the event_cb and move forward */
-                    parsec_pins_papi_event_cleanup(event_cb, &info);
-                    free(event_cb); event_cb = NULL;
-                } else {
-                    if( event_cb->trigger_type == 0 && event_cb->trigger != event->frequency ) {
-                        goto force_registration_and_start_new;
-                    }
-                    if( event_cb->trigger_type == 1 && event_cb->time != event->time ) {
-                        goto force_registration_and_start_new;
-                    }
-                    assert(0);  /* any other value is plain wrong */
-                }
             }
+
             /* Add events to the eventset */
             if( PAPI_OK != (err = PAPI_add_event(event_cb->papi_eventset,
                                                  event->pins_papi_native_event)) ) {

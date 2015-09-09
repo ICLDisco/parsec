@@ -93,7 +93,7 @@ int convert_units(float *time, int source, int destination)
  */
 int pins_papi_init(dague_context_t * master_context)
 {
-    int err;
+    int i, err;
 
     (void)master_context;
     if( 0 == init_done++ ) {
@@ -108,15 +108,15 @@ int pins_papi_init(dague_context_t * master_context)
         /*PAPI_set_debug(PAPI_VERB_ECONT);*/
         err = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self ));
         if( err != PAPI_OK ) {
-            dague_output(0, "PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.\n",
-                         PAPI_strerror(err));
+            dague_output(0, "PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
             init_status = -2;
             return -2;
         }
-        if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
-            dague_output(0, "Could not find a propose time unit equivalent for %s. Fall back to %s\n",
-                         TIMER_UNIT, find_unit_name_by_type(system_units));
-        }
+    }
+
+    if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
+        dague_output(0, "Could not find a propose time unit equivalent for %s. Fall back to %s\n",
+                     TIMER_UNIT, find_unit_name_by_type(system_units));
     }
 
     return init_status;
@@ -256,14 +256,17 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 continue;
             }
             if(token[0] == 'F') {
-                event->frequency_type = 0;  /* reset */
+                char* temp_save = NULL;
+                char* temp_string = strdup(&token[1]);
+                char* temp_token = strtok_r(temp_string, ":", &temp_save);
+
                 event->frequency = 1;
                 /* the remaining of this field must contain a number, which can be either
                  * a frequency or a time interval, and a unit. If the unit is missing then
                  * we have a frequency, otherwise we assume a timer.
                  */
                 char* remaining;
-                int value = (int)strtol(&token[1], &remaining, 10);
+                float value = strtof(&token[1], &remaining);
                 if( remaining == &token[1] ) { /* no conversion was possible */
                     dague_output(0, "Impossible to convert the frequency [%s] of the PINS event %s. Assume frequency of 1.\n",
                                  &token[1], token);
@@ -276,18 +279,15 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 }
                 const struct pins_papi_units_s* unit = find_unit_by_name(remaining);
                 if( NULL != unit ) {
-                    event->frequency_type = 1;
-                    event->frequency = 1;
+                    event->frequency = -1;
                     event->time = value;
                     convert_units(&event->time, unit->unit_type, system_units);
                 }
+                else {
+                    event->frequency = (int)value;
+                    printf("No units found.  Assuming task-based frequency: %d\n", event->frequency);
+                }
                 continue;
-            }
-            /* Make sure the event contains only valid values */
-            if( event->frequency <= 0 ) {
-                dague_output(0, "%s: Unsupported frequency (%d must be > 0). Discard the event.\n",
-                             __func__, token);
-                break;
             }
 
             /* Convert event name to code */
@@ -311,7 +311,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                     break;
                 }
             }
-            if(event->frequency_type == 0){
+            if(event->frequency > 0){
                 dague_output(0, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d tasks\n",
                              token, event->socket, event->core, event->frequency);
             } else {
