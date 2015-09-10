@@ -51,6 +51,12 @@ OBJ_CLASS_INSTANCE(dague_dtd_task_t, dague_execution_context_t,
 OBJ_CLASS_INSTANCE(dague_dtd_tile_t, dague_list_item_t,
                    NULL, NULL);
 
+/* To create object of class bucket_element_tile_t that inherits dague_list_item_t
+ * class
+ */
+OBJ_CLASS_INSTANCE(bucket_element_tile_t, dague_generic_bucket_t,
+                   NULL, NULL);
+
 /**
  * All the static functions should be declared before being defined.
  */
@@ -478,27 +484,54 @@ find_and_remove_tile(hash_table *hash_table,
     uint32_t hash_val = hash_table->hash(key, h_size);
     current           = hash_table->buckets[hash_val];
 
+    assert (current != NULL);
+
     /* Finding the elememnt, the pointer to the tile in the bucket of Hash table
      * is returned if found, else NULL is returned
      */
-    if(current != NULL) {
-        while(current != NULL) {
-            if(current->key == key && current->belongs_to == belongs_to) {
-                break;
-            }
-            prev = current;
-            current = current->next;
+    while(current != NULL) {
+        if(current->key == key && current->belongs_to == belongs_to) {
+            break;
         }
-        if(NULL != current) {
-            //(dague_dtd_tile_t *)current->tile = NULL;
-            if ((prev != NULL || prev != current) && current->next != NULL) {
+        prev = current;
+        current = current->next;
+    }
+    assert (current != NULL);
+    if(NULL != current) {
+        dague_dtd_tile_t *tile = current->tile;
+        int i = dague_atomic_cas(&(current->tile->last_user.task), NULL, NULL);
+        if (i) {
+            (dague_dtd_tile_t *)current->tile = NULL;
+            current->key = -1;
+            OBJ_RELEASE( tile );
+            /*if ( prev != NULL  && current->next != NULL) {
                 prev->next = current->next;
+            } else if ( prev != NULL && current->next == NULL ) {
+                prev->next = NULL;
+            } else if ( prev == NULL && current->next != NULL) {
+                hash_table->buckets[hash_val] = current->next;
+            } else {
+                hash_table->buckets[hash_val] = NULL;
             }
-        }else {
+            free (current);*/
         }
     }else {
     }
+}
 
+/* Function to insert tile in hash_table
+ */
+dague_dtd_tile_t *
+dague_dtd_tile_find
+( dague_dtd_handle_t *dague_handle, uint32_t key,
+  dague_ddesc_t   *ddesc )
+{
+    hash_table *hash_table          =  dague_handle->tile_h_table;
+
+    uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
+    uint32_t    hash            =  hash_table->hash ( combined_key, hash_table->size );
+
+    return (dague_dtd_tile_t *)hash_table_find ( hash_table, combined_key, hash );
 }
 
 /* Function to search for a specific Tile(used in insert_task interface as
@@ -533,6 +566,7 @@ find_tile(hash_table *hash_table,
             current = current->next;
         }
         if(NULL != current) {
+            assert(current->tile->super.super.obj_reference_count != 0);
             return (dague_dtd_tile_t *)current->tile;
         }else {
             return NULL;
@@ -540,6 +574,23 @@ find_tile(hash_table *hash_table,
     }else {
         return NULL;
     }
+}
+
+/* Function to insert tile in hash_table
+ */
+void
+dague_dtd_tile_insert
+( dague_dtd_handle_t *dague_handle, uint32_t key,
+  dague_dtd_tile_t   *tile, dague_ddesc_t   *ddesc )
+{
+    bucket_element_tile_t *bucket   = (bucket_element_tile_t *) dague_thread_mempool_allocate
+                                      (dague_handle->tile_hash_table_bucket_mempool->thread_mempools);
+    hash_table *hash_table          =  dague_handle->tile_h_table;
+
+    uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
+    uint32_t    hash            =  hash_table->hash ( combined_key, hash_table->size );
+
+    hash_table_insert ( hash_table, (dague_generic_bucket_t *)bucket, combined_key, (void *)tile, hash );
 }
 
 /* Function to insert tiles in the hash table
@@ -696,12 +747,16 @@ dague_dtd_tile_t*
 tile_manage(dague_dtd_handle_t *dague_dtd_handle,
             dague_ddesc_t *ddesc, int i, int j)
 {
-    dague_dtd_tile_t *tmp = find_tile(dague_dtd_handle->tile_h_table,
+    /*dague_dtd_tile_t *tmp = find_tile(dague_dtd_handle->tile_h_table,
                                 ddesc->data_key(ddesc, i, j),
                                 dague_dtd_handle->tile_hash_table_size,
-                                ddesc);
+                                ddesc); */
+    dague_dtd_tile_t * tmp = dague_dtd_tile_find
+    ( dague_dtd_handle, ddesc->data_key(ddesc, i, j),
+      ddesc );
 
-    if( NULL == tmp) {
+
+    if( NULL == tmp ) {
         /* Creating Task object */
         dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
                                                           (dague_dtd_handle->tile_mempool->thread_mempools);
@@ -715,13 +770,18 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
         temp_tile->last_user.flow_index = -1;
         temp_tile->last_user.op_type    = -1;
         temp_tile->last_user.task       = NULL;
-        tile_insert_h_t(dague_dtd_handle->tile_h_table,
+        dague_dtd_tile_insert
+        ( dague_dtd_handle, temp_tile->key,
+          temp_tile, ddesc );
+        /*tile_insert_h_t(dague_dtd_handle->tile_h_table,
                         temp_tile->key,
                         temp_tile,
                         dague_dtd_handle->tile_hash_table_size,
-                        ddesc);
+                        ddesc); */
         return temp_tile;
     }else {
+        assert(tmp->super.super.obj_reference_count != 0);
+        OBJ_RETAIN(tmp);
         return tmp;
     }
 }
@@ -939,7 +999,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
             /* cleaning chains */
             while (bucket != NULL) {
                 tmp_bucket = bucket;
-                //free((dague_dtd_tile_t *)bucket->tile);
+                free((dague_dtd_tile_t *)bucket->tile);
                 bucket = bucket->next;
                 free(tmp_bucket);
             }
@@ -948,9 +1008,9 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
     for (i=0;i<DAGUE_dtd_NB_FUNCTIONS;i++){
         free((bucket_element_f_t *)handle->super.function_h_table->buckets[i]);
     }
-    hash_table_fini(handle->super.task_h_table);
-    hash_table_fini(handle->super.tile_h_table);
-    hash_table_fini(handle->super.function_h_table);
+    hash_table_fini(handle->super.task_h_table, handle->super.task_hash_table_size);
+    hash_table_fini(handle->super.tile_h_table, handle->super.tile_hash_table_size);
+    hash_table_fini(handle->super.function_h_table, handle->super.function_hash_table_size);
 
     dague_handle_unregister(&handle->super.super);
     free(handle);
@@ -1092,9 +1152,16 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
     /* allocating tile mempool */
     dague_dtd_task_t fake_task;
+
     __dague_handle->super.tile_mempool          = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
     dague_mempool_construct( __dague_handle->super.tile_mempool,
                              OBJ_CLASS(dague_dtd_tile_t), sizeof(dague_dtd_tile_t),
+                             ((char*)&fake_task.super.mempool_owner) - ((char*)&fake_task),
+                             1/* no. of threads*/ );
+
+    __dague_handle->super.tile_hash_table_bucket_mempool  = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
+    dague_mempool_construct( __dague_handle->super.tile_hash_table_bucket_mempool,
+                             OBJ_CLASS(bucket_element_tile_t), sizeof(bucket_element_tile_t),
                              ((char*)&fake_task.super.mempool_owner) - ((char*)&fake_task),
                              1/* no. of threads*/ );
 

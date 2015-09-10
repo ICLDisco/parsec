@@ -22,8 +22,10 @@ multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
      * wait until we find a successor
      */
     if(i) {
-        find_and_remove_tile( ((dague_dtd_handle_t *)task->dague_handle)->tile_h_table, current_task->desc[flow_index].tile->key,  ((dague_dtd_handle_t *)task->dague_handle)->tile_hash_table_size, current_task->desc[flow_index].tile->ddesc);
-        OBJ_RELEASE(current_task->desc[flow_index].tile);
+        /*find_and_remove_tile( ((dague_dtd_handle_t *)task->dague_handle)->tile_h_table, current_task->desc[flow_index].tile->key,  ((dague_dtd_handle_t *)task->dague_handle)->tile_hash_table_size, current_task->desc[flow_index].tile->ddesc);
+        dague_dtd_tile_t *tile = find_tile (((dague_dtd_handle_t *)task->dague_handle)->tile_h_table, current_task->desc[flow_index].tile->key,  ((dague_dtd_handle_t *)task->dague_handle)->tile_hash_table_size, current_task->desc[flow_index].tile->ddesc );
+        assert ( tile == NULL);*/
+        //OBJ_RELEASE(current_task->desc[flow_index].tile);
         return 0; /* we are successful, we do not need to wait and there is no successor yet*/
     }else { /* we have a descendant but last time we checked we had none
              * so waiting for the descendant to show up in our list of descendants

@@ -100,11 +100,14 @@ struct bucket_element_f_s {
 
 /** Tile Hash table elements **/
 struct bucket_element_tile_s {
+    dague_generic_bucket_t  super;
     dague_data_key_t        key;
     dague_dtd_tile_t       *tile;
     dague_ddesc_t*          belongs_to;
     bucket_element_tile_t   *next;
 };
+/* For creating objects of class bucket_element_tile_t */
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(bucket_element_tile_t);
 
 /** Task Hash table elements **/
 struct bucket_element_task_s {
@@ -137,6 +140,7 @@ struct dague_dtd_handle_s {
     int             tasks_scheduled;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;
+    dague_mempool_t *tile_hash_table_bucket_mempool;
     hash_table      *task_h_table;
     hash_table      *function_h_table;
     hash_table      *tile_h_table;
