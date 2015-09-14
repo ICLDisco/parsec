@@ -529,9 +529,15 @@ dague_dtd_tile_find
     hash_table *hash_table          =  dague_handle->tile_h_table;
 
     uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
-    uint32_t    hash            =  hash_table->hash ( combined_key, hash_table->size );
+    uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
 
-    return (dague_dtd_tile_t *)hash_table_find ( hash_table, combined_key, hash );
+    /*bucket_element_tile_t *bucket = (bucket_element_tile_t *)hash_table_find ( hash_table, combined_key, hash );
+    return (dague_dtd_tile_t *)bucket->super.value; */
+    dague_dtd_tile_t *tile = hash_table_find ( hash_table, combined_key, hash );
+    if (tile != NULL) {
+        assert(tile->super.super.obj_reference_count > 0);
+    }
+    return tile;
 }
 
 /* Function to search for a specific Tile(used in insert_task interface as
@@ -588,7 +594,7 @@ dague_dtd_tile_insert
     hash_table *hash_table          =  dague_handle->tile_h_table;
 
     uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
-    uint32_t    hash            =  hash_table->hash ( combined_key, hash_table->size );
+    uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
 
     hash_table_insert ( hash_table, (dague_generic_bucket_t *)bucket, combined_key, (void *)tile, hash );
 }
@@ -751,10 +757,9 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                                 ddesc->data_key(ddesc, i, j),
                                 dague_dtd_handle->tile_hash_table_size,
                                 ddesc); */
-    dague_dtd_tile_t * tmp = dague_dtd_tile_find
+    dague_dtd_tile_t *tmp = dague_dtd_tile_find
     ( dague_dtd_handle, ddesc->data_key(ddesc, i, j),
       ddesc );
-
 
     if( NULL == tmp ) {
         /* Creating Task object */
@@ -781,7 +786,6 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
         return temp_tile;
     }else {
         assert(tmp->super.super.obj_reference_count != 0);
-        OBJ_RETAIN(tmp);
         return tmp;
     }
 }

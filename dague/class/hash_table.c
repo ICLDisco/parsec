@@ -47,7 +47,7 @@ hash_table_fini(hash_table *obj, int size_of_table)
 
     free(obj->buckets);
     OBJ_RELEASE(obj);
-    }
+}
 
 /* Function to insert element in the hash table
  * Arguments:
@@ -64,7 +64,7 @@ hash_table_insert
     bucket->value   = value;
 
     dague_list_t *bucket_list  = hash_table->bucket_list[hash];
-    dague_list_push_back ( bucket_list, current_bucket);
+    dague_list_push_back ( bucket_list, current_bucket );
 }
 
 /* Function to find element in the hash table
@@ -80,13 +80,28 @@ hash_table_find
     dague_list_t *bucket_list = hash_table->bucket_list[hash];
 
     current_bucket = (dague_generic_bucket_t *) DAGUE_LIST_ITERATOR_FIRST(bucket_list);
+
     /* Iterating the list to check if we have the element */
     while( current_bucket != (dague_generic_bucket_t *) DAGUE_LIST_ITERATOR_END(bucket_list) ) {
         if( current_bucket->key == key ) {
-            break;
+            return (void *)current_bucket->value;
         }
         dague_list_item_t *item = &(current_bucket->super);
         current_bucket = (dague_generic_bucket_t *)DAGUE_LIST_ITERATOR_NEXT(item);
     }
-    return (void *)current_bucket->value;
+    return (void *)NULL;
+    //return (void *)current_bucket;
+}
+
+/* Function to remove element from the hash table
+ * Arguments:
+ * Returns:
+ */
+void
+hash_table_remove
+( hash_table *hash_table,
+  uintptr_t key, uint32_t hash )
+{
+    dague_list_t *bucket_list = hash_table->bucket_list[hash];
+
 }
