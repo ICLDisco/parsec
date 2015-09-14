@@ -56,7 +56,7 @@ hash_table_fini(hash_table *obj, int size_of_table)
 void
 hash_table_insert
 ( hash_table *hash_table, dague_generic_bucket_t *bucket,
-  uintptr_t key, void *value, uint32_t hash )
+  uint64_t key, void *value, uint32_t hash )
 {
     dague_list_item_t *current_bucket = (dague_list_item_t *)bucket;
 
@@ -74,7 +74,7 @@ hash_table_insert
 void *
 hash_table_find
 ( hash_table *hash_table,
-  uintptr_t key, uint32_t hash )
+  uint64_t key, uint32_t hash )
 {
     dague_generic_bucket_t *current_bucket;
     dague_list_t *bucket_list = hash_table->bucket_list[hash];
@@ -84,7 +84,8 @@ hash_table_find
     /* Iterating the list to check if we have the element */
     while( current_bucket != (dague_generic_bucket_t *) DAGUE_LIST_ITERATOR_END(bucket_list) ) {
         if( current_bucket->key == key ) {
-            return (void *)current_bucket->value;
+            //return (void *)current_bucket->value;
+            return (void *)current_bucket;
         }
         dague_list_item_t *item = &(current_bucket->super);
         current_bucket = (dague_generic_bucket_t *)DAGUE_LIST_ITERATOR_NEXT(item);

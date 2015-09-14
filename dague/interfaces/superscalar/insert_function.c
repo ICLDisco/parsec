@@ -48,7 +48,7 @@ OBJ_CLASS_INSTANCE(dague_dtd_task_t, dague_execution_context_t,
 /* To create object of class dague_dtd_tile_t that inherits dague_list_item_t
  * class
  */
-OBJ_CLASS_INSTANCE(dague_dtd_tile_t, dague_list_item_t,
+OBJ_CLASS_INSTANCE(dague_dtd_tile_t, dague_generic_bucket_t,
                    NULL, NULL);
 
 /* To create object of class bucket_element_tile_t that inherits dague_list_item_t
@@ -528,15 +528,13 @@ dague_dtd_tile_find
 {
     hash_table *hash_table          =  dague_handle->tile_h_table;
 
-    uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
+    //uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
+    uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
     uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
 
     /*bucket_element_tile_t *bucket = (bucket_element_tile_t *)hash_table_find ( hash_table, combined_key, hash );
     return (dague_dtd_tile_t *)bucket->super.value; */
     dague_dtd_tile_t *tile = hash_table_find ( hash_table, combined_key, hash );
-    if (tile != NULL) {
-        assert(tile->super.super.obj_reference_count > 0);
-    }
     return tile;
 }
 
@@ -589,14 +587,15 @@ dague_dtd_tile_insert
 ( dague_dtd_handle_t *dague_handle, uint32_t key,
   dague_dtd_tile_t   *tile, dague_ddesc_t   *ddesc )
 {
-    bucket_element_tile_t *bucket   = (bucket_element_tile_t *) dague_thread_mempool_allocate
-                                      (dague_handle->tile_hash_table_bucket_mempool->thread_mempools);
+    /*bucket_element_tile_t *bucket   = (bucket_element_tile_t *) dague_thread_mempool_allocate
+                                      (dague_handle->tile_hash_table_bucket_mempool->thread_mempools); */
     hash_table *hash_table          =  dague_handle->tile_h_table;
 
-    uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
+    //uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
+    uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
     uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
 
-    hash_table_insert ( hash_table, (dague_generic_bucket_t *)bucket, combined_key, (void *)tile, hash );
+    hash_table_insert ( hash_table, (dague_generic_bucket_t *)tile, combined_key, (void *)tile, hash );
 }
 
 /* Function to insert tiles in the hash table
@@ -757,9 +756,8 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                                 ddesc->data_key(ddesc, i, j),
                                 dague_dtd_handle->tile_hash_table_size,
                                 ddesc); */
-    dague_dtd_tile_t *tmp = dague_dtd_tile_find
-    ( dague_dtd_handle, ddesc->data_key(ddesc, i, j),
-      ddesc );
+    dague_dtd_tile_t *tmp = dague_dtd_tile_find ( dague_dtd_handle, ddesc->data_key(ddesc, i, j),
+                                                  ddesc );
 
     if( NULL == tmp ) {
         /* Creating Task object */
@@ -775,9 +773,9 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
         temp_tile->last_user.flow_index = -1;
         temp_tile->last_user.op_type    = -1;
         temp_tile->last_user.task       = NULL;
-        dague_dtd_tile_insert
-        ( dague_dtd_handle, temp_tile->key,
-          temp_tile, ddesc );
+
+        dague_dtd_tile_insert ( dague_dtd_handle, temp_tile->key,
+                                temp_tile, ddesc );
         /*tile_insert_h_t(dague_dtd_handle->tile_h_table,
                         temp_tile->key,
                         temp_tile,
@@ -948,7 +946,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
                     free((void*)func->out[j]);
                 }
             }
-            dague_mempool_destruct(func_parent->context_mempool);
+            //dague_mempool_destruct(func_parent->context_mempool);
             free (func_parent->context_mempool);
             free(func);
         }

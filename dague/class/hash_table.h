@@ -23,7 +23,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(hash_table);
  */
 struct dague_generic_bucket_s {
     dague_list_item_t   super;
-    uintptr_t           key;
+    uint64_t           key;
     void               *value;
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_generic_bucket_t);
