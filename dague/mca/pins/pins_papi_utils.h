@@ -23,6 +23,7 @@ typedef struct parsec_pins_papi_event_s {
     int                              socket;
     int                              core;
     int                              pins_papi_native_event;
+    int                              group;
     int                              frequency;
     float                            time;
     char*                            pins_papi_event_name;
@@ -33,22 +34,30 @@ typedef struct parsec_pins_papi_event_s {
     struct parsec_pins_papi_event_s* next;
 } parsec_pins_papi_event_t;
 
+typedef struct parsec_pins_papi_frequency_group_s {
+    int          group_num;
+    int          num_counters;
+    int          pins_prof_event[2];
+    int          begin_end;
+    int          frequency;
+    int          trigger;
+    float        time;
+    dague_time_t start_time;
+} parsec_pins_papi_frequency_group_t;
+
 typedef struct parsec_pins_papi_events_s {
-    int                          num_counters;
-    int                          num_allocated_counters;
-    parsec_pins_papi_event_t**   events;
+    int                        num_counters;
+    int                        num_allocated_counters;
+    parsec_pins_papi_event_t** events;
 } parsec_pins_papi_events_t;
 
 typedef struct parsec_pins_papi_callback_s {
-    parsec_pins_next_callback_t  default_cb;
-    int                          papi_eventset;
-    int                          num_counters;
-    int                          pins_prof_event[2];
-    int                          begin_end;
-    int                          trigger;
-    float                        time;
-    dague_time_t                 start_time;
-    parsec_pins_papi_event_t*    event;
+    parsec_pins_next_callback_t         default_cb;
+    int                                 papi_eventset;
+    int                                 num_counters;
+    int                                 num_groups;
+    parsec_pins_papi_frequency_group_t* groups;
+    parsec_pins_papi_event_t*           event;
 } parsec_pins_papi_callback_t;
 
 /* CORES_PER_SOCKET is now in CMAKE config,

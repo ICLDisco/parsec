@@ -70,6 +70,16 @@ const char* find_unit_name_by_type(pins_papi_time_type_t type)
     return unit->unit_name[0];
 }
 
+const char* find_short_unit_name_by_type(pins_papi_time_type_t type)
+{
+    const struct pins_papi_units_s* unit = find_unit_by_type(type);
+    if( NULL == unit ) {
+        return "unknown unit";
+    }
+    if( unit->unit_type == TIME_CYCLES )
+        return unit->unit_name[0];
+    return unit->unit_name[2];
+}
 
 int convert_units(float *time, int source, int destination)
 {
@@ -115,7 +125,7 @@ int pins_papi_init(dague_context_t * master_context)
     }
 
     if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
-        dague_output(0, "Could not find a propose time unit equivalent for %s. Fall back to %s\n",
+        dague_output(0, "Could not find a proposed time unit equivalent for %s. Fall back to %s\n",
                      TIMER_UNIT, find_unit_name_by_type(system_units));
     }
 
@@ -184,12 +194,37 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
     if( NULL != events_array->events ) {
         for( i = 0; i < events_array->num_counters; i++ ) {
             parsec_pins_papi_event_t* head = events_array->events[i];
+            /* The events are PAPI compatible */
             if( (NULL != head) &&
                 (head->papi_location == event->papi_location) && (head->papi_component_index == event->papi_component_index) &&
                 (head->papi_update_type == event->papi_update_type) ) {
-                event->next = head;
-                events_array->events[i] = event;
-                return 0;
+                int group;
+                while(head != NULL){
+                    group = head->group;
+                    /* The events are frequency compatible (task-based and same frequency) */
+                    if( (event->frequency > 0 && head->frequency > 0) &&
+                        event->frequency == head->frequency ) {
+                        event->group = group;
+                        event->next = head->next;
+                        head->next = event;
+                        return 0;
+                    }
+                    /* The events are frequency compatible (time-based and same time) */
+                    if( (event->frequency < 0 && head->frequency < 0) &&
+                        event->time == head->time ) {
+                        event->group = group;
+                        event->next = head->next;
+                        head->next = event;
+                        return 0;
+                    }
+                    /* The event isn't frequency compatible with any current events, create a new frequency group. */
+                    if(head->next == NULL){
+                        event->group = group + 1;
+                        head->next = event;
+                        return 0;
+                    }
+                    head = head->next;
+                }
             }
         }
     }
@@ -205,6 +240,7 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
             events_array->events[i] = NULL;
         }
     }
+    event->group = 0;
     events_array->events[events_array->num_counters] = event;
     events_array->num_counters++;
     return 0;
@@ -285,7 +321,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 }
                 else {
                     event->frequency = (int)value;
-                    printf("No units found.  Assuming task-based frequency: %d\n", event->frequency);
+                    dague_output(0, "No units found.  Assuming task-based frequency: %d\n", event->frequency);
                 }
                 continue;
             }
@@ -373,15 +409,15 @@ void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
 
     if(PAPI_NULL != event_cb->papi_eventset) {
         if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, pinfo->values)) ) {
-            dague_output(0, "couldn't stop PAPI eventset ERROR: %s\n",
+            dague_output(0, "Couldn't stop PAPI eventset ERROR: %s\n",
                          PAPI_strerror(err));
         }
         if( PAPI_OK != (err = PAPI_cleanup_eventset(event_cb->papi_eventset)) ) {
-            dague_output(0, "failed to cleanup eventset (ERROR: %s)\n", PAPI_strerror(err));
+            dague_output(0, "Failed to cleanup eventset (ERROR: %s)\n", PAPI_strerror(err));
         }
 
         if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
-            dague_output(0, "failed to destroy PAPI eventset (ERROR: %s)\n", PAPI_strerror(err));
+            dague_output(0, "Failed to destroy PAPI eventset (ERROR: %s)\n", PAPI_strerror(err));
         }
         event_cb->papi_eventset = PAPI_NULL;
     }
