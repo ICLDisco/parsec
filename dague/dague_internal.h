@@ -229,6 +229,7 @@ struct dague_function_s {
     dague_traverse_function_t   *iterate_predecessors;
     dague_release_deps_t        *release_deps;
     dague_hook_t                *complete_execution;
+    dague_hook_t                *pushback;
     dague_hook_t                *fini;
 };
 

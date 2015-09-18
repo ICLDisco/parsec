@@ -21,15 +21,6 @@ multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
      * wait until we find a successor
      */
     if(i) {
-            /*printf ("\tTrying to free tile: %p, with ref_count: %d\n", current_task->desc[flow_index].tile, current_task->desc[flow_index].tile->super.super.super.obj_reference_count);
-        dague_dtd_tile_remove ( (dague_dtd_handle_t *)task->dague_handle, current_task->desc[flow_index].tile->key,
-                                 current_task->desc[flow_index].tile->ddesc );
-            printf ("\t\t failed to free tile: %p, with ref_count: %d\n", current_task->desc[flow_index].tile, current_task->desc[flow_index].tile->super.super.super.obj_reference_count);
-        if( current_task->desc[flow_index].tile->super.super.super.obj_reference_count == 1 ) {
-            printf ("freed tile: %p, with ref_count: %d\n", current_task->desc[flow_index].tile, current_task->desc[flow_index].tile->super.super.super.obj_reference_count);
-            dague_thread_mempool_free( ((dague_dtd_handle_t *)task->dague_handle)->tile_mempool->thread_mempools,
-                                         current_task->desc[flow_index].tile );
-        }*/
         return 0; /* we are successful, we do not need to wait and there is no successor yet*/
     }else { /* we have a descendant but last time we checked we had none
              * so waiting for the descendant to show up in our list of descendants
@@ -211,22 +202,6 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         }
 
         tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
-
-        /*OBJ_RELEASE(current_task->desc[i].tile);
-
-        if(current_task->desc[i].tile->super.super.super.obj_reference_count == 2) {
-            printf ("\tTrying to free tile: %p, with ref_count: %d\n", current_task->desc[i].tile, current_task->desc[i].tile->super.super.super.obj_reference_count);
-        dague_dtd_tile_remove ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile->key,
-                                 current_task->desc[i].tile->ddesc );
-            printf ("\t\t failed to free tile: %p, with ref_count: %d\n", current_task->desc[i].tile, current_task->desc[i].tile->super.super.super.obj_reference_count);
-        if( current_task->desc[i].tile->super.super.super.obj_reference_count == 1 ) {
-            printf ("freed tile: %p, with ref_count: %d\n", current_task->desc[i].tile, current_task->desc[i].tile->super.super.super.obj_reference_count);
-            dague_thread_mempool_free( ((dague_dtd_handle_t *)this_task->dague_handle)->tile_mempool->thread_mempools,
-                                         current_task->desc[i].tile );
-        }
-        }
-
-*/
 
         /* Activating all successors for each flow and setting the last OUT task as the descendant */
         current_succ = head_succ;

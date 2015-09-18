@@ -85,6 +85,20 @@ static dague_hook_return_t
 complete_hook_of_dtd(struct dague_execution_unit_s *,
                      dague_execution_context_t *);
 
+static dague_hook_return_t
+push_tasks_back_in_mempool(struct dague_execution_unit_s *,
+                     dague_execution_context_t *);
+
+/* Function tp push back tasks in their mempool once the execution are done */
+static dague_hook_return_t
+push_tasks_back_in_mempool
+(struct dague_execution_unit_s *eu, dague_execution_context_t *this_task)
+{
+    dague_dtd_function_t *function = (dague_dtd_function_t *)this_task->function;
+    dague_thread_mempool_free( function->context_mempool->thread_mempools, this_task );
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
 /*  Function that is supposed to take the main thread into executing tasks and coming back to
     building the DAG
     Check if the engine is started or not
@@ -472,53 +486,6 @@ function_insert_h_t(hash_table *hash_table,
     }
 }
 
-/* Fucntion to remove tile from hash_table
- */
-void
-find_and_remove_tile(hash_table *hash_table,
-                  uint32_t key, int h_size,
-                  dague_ddesc_t* belongs_to)
-{
-    bucket_element_tile_t *current, *prev = NULL;
-
-    uint32_t hash_val = hash_table->hash(key, h_size);
-    current           = hash_table->buckets[hash_val];
-
-    assert (current != NULL);
-
-    /* Finding the elememnt, the pointer to the tile in the bucket of Hash table
-     * is returned if found, else NULL is returned
-     */
-    while(current != NULL) {
-        if(current->key == key && current->belongs_to == belongs_to) {
-            break;
-        }
-        prev = current;
-        current = current->next;
-    }
-    assert (current != NULL);
-    if(NULL != current) {
-        dague_dtd_tile_t *tile = current->tile;
-        int i = dague_atomic_cas(&(current->tile->last_user.task), NULL, NULL);
-        if (i) {
-            (dague_dtd_tile_t *)current->tile = NULL;
-            current->key = -1;
-            OBJ_RELEASE( tile );
-            /*if ( prev != NULL  && current->next != NULL) {
-                prev->next = current->next;
-            } else if ( prev != NULL && current->next == NULL ) {
-                prev->next = NULL;
-            } else if ( prev == NULL && current->next != NULL) {
-                hash_table->buckets[hash_val] = current->next;
-            } else {
-                hash_table->buckets[hash_val] = NULL;
-            }
-            free (current);*/
-        }
-    }else {
-    }
-}
-
 /* Function to remove tile from hash_table
  */
 void
@@ -770,6 +737,7 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
         /* Creating Task object */
         dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
                                                           (dague_dtd_handle->tile_mempool->thread_mempools);
+        //printf("allocated : %p \n", temp_tile);
         //dague_dtd_tile_t *temp_tile           = (dague_dtd_tile_t*) malloc(sizeof(dague_dtd_tile_t));
         temp_tile->key                  = ddesc->data_key(ddesc, i, j);
         temp_tile->rank                 = ddesc->rank_of_key(ddesc, temp_tile->key);
@@ -799,15 +767,12 @@ void
 tile_release
 (dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
 {
-    //printf ("\tTrying to free tile: %p, with ref_count: %d\n", tile, tile->super.super.super.obj_reference_count);
     OBJ_RELEASE(tile);
     if( tile->super.super.super.obj_reference_count == 1 ) {
         dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
         if( tile->super.super.super.obj_reference_count == 1 ) {
-        //    printf ("freed tile: %p, with ref_count: %d\n", tile, tile->super.super.super.obj_reference_count);
+            //printf("freed : %p \n", tile);
             dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
-        } else {
-          //  printf ("\t\t failed to free tile: %p, with ref_count: %d\n", tile, tile->super.super.super.obj_reference_count);
         }
     }
 }
@@ -1667,6 +1632,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->prepare_input         = data_lookup_of_dtd_task;
     function->prepare_output        = NULL;
     function->complete_execution    = complete_hook_of_dtd;
+    function->pushback              = push_tasks_back_in_mempool;
 
     /* Inserting Fucntion structure in the hash table to keep track for each class of task */
     function_insert_h_t(__dague_handle->function_h_table, fpointer,
