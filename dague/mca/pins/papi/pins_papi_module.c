@@ -34,16 +34,17 @@ pins_papi_read_and_trace(dague_execution_unit_t* exec_unit,
     }
 
     int index = 0;
+    uint64_t check = 1;
     for(i = 0; i < event_cb->num_groups; i++) {
-        if(event_cb->to_read[i]) {
-            event_cb->to_read[i] = 0;
-            memcpy(event_cb->groups[i].info, info.values+index, event_cb->groups[i].num_counters * sizeof(long long));
+        if((event_cb->to_read & check) != 0) {
             (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[event_cb->groups[i].begin_end],
-                                        45, 0, (void*)event_cb->groups[i].info);
+                                        45, 0, (void*)&info.values[index]);
             event_cb->groups[i].begin_end = (event_cb->groups[i].begin_end + 1) & 0x1;  /* aka. % 2 */
         }
         index += event_cb->groups[i].num_counters;
+        check <<= 1;
     }
+    event_cb->to_read = 0;
     return DAGUE_SUCCESS;
 }
 
@@ -56,6 +57,7 @@ static void pins_papi_trace(dague_execution_unit_t* exec_unit,
     bool read = false;
     int i;
 
+    uint64_t set = 1;
     for(i = 0; i < event_cb->num_groups; i++) {
         if(event_cb->groups[i].frequency < 0) { /* time-based frequency */
             float elapsed_time = (float)diff_time(event_cb->groups[i].start_time, current_time);
@@ -66,15 +68,16 @@ static void pins_papi_trace(dague_execution_unit_t* exec_unit,
                 event_cb->groups[i].start_time = current_time;
 
                 read = true;
-                event_cb->to_read[i] = 1;
+                event_cb->to_read |= set;
             }
         } else { /* task-based frequency */
             if(1 == event_cb->groups[i].trigger ) {  /* trigger the event */
                 read = true;
-                event_cb->to_read[i] = 1;
+                event_cb->to_read |= set;
                 event_cb->groups[i].trigger = event_cb->groups[i].frequency;
             } else event_cb->groups[i].trigger--;
         }
+        set <<= 1;
     }
 
     if(read) {
@@ -113,7 +116,7 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
 
     assert( NULL != event_cb );
 
-    event_cb->to_read = (int*)malloc(event_cb->num_groups * sizeof(int));
+    event_cb->to_read = 0;
     for(i = 0; i < event_cb->num_groups; i++)
     {
         if(event_cb->groups[i].frequency > 0) {
@@ -130,8 +133,6 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
                                                &event_cb->groups[i].pins_prof_event[0],
                                                &event_cb->groups[i].pins_prof_event[1]);
         free(key_string);
-        event_cb->groups[i].info = (long long*)malloc(event_cb->groups[i].num_counters * sizeof(long long));
-        event_cb->to_read[i] = 0;
     }
 
     if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
@@ -204,8 +205,6 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 continue;
 
             if( NULL == event_cb ) {  /* create the event and the PAPI eventset */
-
-              force_a_new_event_cb:  /* read the comment below to understand why we need this label */
                 event_cb = (parsec_pins_papi_callback_t*)malloc(sizeof(parsec_pins_papi_callback_t));
                 event_cb->groups = (parsec_pins_papi_frequency_group_t*)malloc(sizeof(parsec_pins_papi_frequency_group_t));
 
@@ -330,7 +329,7 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
 {
     parsec_pins_papi_callback_t* event_cb;
     parsec_pins_papi_values_t info;
-    int err, i;
+    int i;
 
     do {
         /* Should this be in a loop to unregister all the callbacks for this thread? */
@@ -347,16 +346,16 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
         }
         if( PAPI_NULL != event_cb->papi_eventset ) {
             parsec_pins_papi_event_cleanup(event_cb, &info);
+
             int index = 0;
             for(i = 0; i < event_cb->num_groups; i++) {
-                memcpy(event_cb->groups[i].info, info.values+index, event_cb->groups[i].num_counters * sizeof(long long));
                 /* If the last profiling event was an 'end' event */
                 if(event_cb->groups[i].begin_end == 0) {
                     (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[0],
-                                                45, 0, (void *)event_cb->groups[i].info);
+                                                45, 0, (void *)&info.values[index]);
                 }
                 (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[1],
-                                            45, 0, (void *)event_cb->groups[i].info);
+                                            45, 0, (void *)&info.values[index]);
                 index += event_cb->groups[i].num_counters;
             }
         }

@@ -43,7 +43,6 @@ typedef struct parsec_pins_papi_frequency_group_s {
     int          trigger;
     float        time;
     dague_time_t start_time;
-    long long*   info;
 } parsec_pins_papi_frequency_group_t;
 
 typedef struct parsec_pins_papi_events_s {
@@ -57,7 +56,7 @@ typedef struct parsec_pins_papi_callback_s {
     int                                 papi_eventset;
     int                                 num_counters;
     int                                 num_groups;
-    int*                                to_read;
+    uint64_t                            to_read;
     parsec_pins_papi_frequency_group_t* groups;
     parsec_pins_papi_event_t*           event;
 } parsec_pins_papi_callback_t;
