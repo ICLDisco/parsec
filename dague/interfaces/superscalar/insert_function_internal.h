@@ -79,7 +79,7 @@ struct user {
 };
 
 struct dague_dtd_tile_s {
-    dague_list_item_t   super;
+    dague_generic_bucket_t   super;
     uint32_t            rank;
     int32_t             vp_id;
     dague_data_key_t    key;
@@ -140,7 +140,6 @@ struct dague_dtd_handle_s {
     int             tasks_scheduled;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;
-    dague_mempool_t *tile_hash_table_bucket_mempool;
     hash_table      *task_h_table;
     hash_table      *function_h_table;
     hash_table      *tile_h_table;
@@ -205,3 +204,22 @@ set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
 
 void
 schedule_tasks(dague_dtd_handle_t *__dague_handle);
+
+/* Function to remove tile from hash_table
+ */
+void
+dague_dtd_tile_remove
+( dague_dtd_handle_t *dague_handle, uint32_t key,
+  dague_ddesc_t   *ddesc );
+
+/* Function to find tile in hash_table
+ */
+dague_dtd_tile_t *
+dague_dtd_tile_find
+( dague_dtd_handle_t *dague_handle, uint32_t key,
+  dague_ddesc_t   *ddesc );
+
+
+void
+tile_release
+(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile);

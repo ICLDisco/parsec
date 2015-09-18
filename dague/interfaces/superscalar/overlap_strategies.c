@@ -17,15 +17,19 @@ multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
     dague_dtd_task_t *current_task = (dague_dtd_task_t *) task;
 
     int i = dague_atomic_cas(&(current_task->desc[flow_index].tile->last_user.task), current_task, NULL);
-
     /* if we can not successfully set the last user of the tile to NULL then we
      * wait until we find a successor
      */
     if(i) {
-        /*find_and_remove_tile( ((dague_dtd_handle_t *)task->dague_handle)->tile_h_table, current_task->desc[flow_index].tile->key,  ((dague_dtd_handle_t *)task->dague_handle)->tile_hash_table_size, current_task->desc[flow_index].tile->ddesc);
-        dague_dtd_tile_t *tile = find_tile (((dague_dtd_handle_t *)task->dague_handle)->tile_h_table, current_task->desc[flow_index].tile->key,  ((dague_dtd_handle_t *)task->dague_handle)->tile_hash_table_size, current_task->desc[flow_index].tile->ddesc );
-        assert ( tile == NULL);*/
-        //OBJ_RELEASE(current_task->desc[flow_index].tile);
+            /*printf ("\tTrying to free tile: %p, with ref_count: %d\n", current_task->desc[flow_index].tile, current_task->desc[flow_index].tile->super.super.super.obj_reference_count);
+        dague_dtd_tile_remove ( (dague_dtd_handle_t *)task->dague_handle, current_task->desc[flow_index].tile->key,
+                                 current_task->desc[flow_index].tile->ddesc );
+            printf ("\t\t failed to free tile: %p, with ref_count: %d\n", current_task->desc[flow_index].tile, current_task->desc[flow_index].tile->super.super.super.obj_reference_count);
+        if( current_task->desc[flow_index].tile->super.super.super.obj_reference_count == 1 ) {
+            printf ("freed tile: %p, with ref_count: %d\n", current_task->desc[flow_index].tile, current_task->desc[flow_index].tile->super.super.super.obj_reference_count);
+            dague_thread_mempool_free( ((dague_dtd_handle_t *)task->dague_handle)->tile_mempool->thread_mempools,
+                                         current_task->desc[flow_index].tile );
+        }*/
         return 0; /* we are successful, we do not need to wait and there is no successor yet*/
     }else { /* we have a descendant but last time we checked we had none
              * so waiting for the descendant to show up in our list of descendants
@@ -90,9 +94,10 @@ ordering_correctly_1(dague_execution_unit_t * eu,
              */
             if (INOUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) ||
                 OUTPUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) ||
-                (current_task->dont_skip_releasing_data[i])) {
+               (current_task->dont_skip_releasing_data[i])) {
 #if defined (OVERLAP)
                 if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
+                   tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
 #endif
                     continue;
 #if defined (OVERLAP)
@@ -205,6 +210,24 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             current_desc_task = tmp_task->desc[dst_flow->flow_index].task;
         }
 
+        tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
+
+        /*OBJ_RELEASE(current_task->desc[i].tile);
+
+        if(current_task->desc[i].tile->super.super.super.obj_reference_count == 2) {
+            printf ("\tTrying to free tile: %p, with ref_count: %d\n", current_task->desc[i].tile, current_task->desc[i].tile->super.super.super.obj_reference_count);
+        dague_dtd_tile_remove ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile->key,
+                                 current_task->desc[i].tile->ddesc );
+            printf ("\t\t failed to free tile: %p, with ref_count: %d\n", current_task->desc[i].tile, current_task->desc[i].tile->super.super.super.obj_reference_count);
+        if( current_task->desc[i].tile->super.super.super.obj_reference_count == 1 ) {
+            printf ("freed tile: %p, with ref_count: %d\n", current_task->desc[i].tile, current_task->desc[i].tile->super.super.super.obj_reference_count);
+            dague_thread_mempool_free( ((dague_dtd_handle_t *)this_task->dague_handle)->tile_mempool->thread_mempools,
+                                         current_task->desc[i].tile );
+        }
+        }
+
+*/
+
         /* Activating all successors for each flow and setting the last OUT task as the descendant */
         current_succ = head_succ;
         int task_is_ready;
@@ -240,6 +263,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                         current_succ->task->dont_skip_releasing_data[current_succ->flow_index] = 1;
                     } else {
                         current_succ->task->desc[current_succ->flow_index].task = NULL;
+                        tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
+                                        current_succ->task->desc[current_succ->flow_index].tile );
                     }
                 }
             }

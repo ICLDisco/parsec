@@ -519,6 +519,21 @@ find_and_remove_tile(hash_table *hash_table,
     }
 }
 
+/* Function to remove tile from hash_table
+ */
+void
+dague_dtd_tile_remove
+( dague_dtd_handle_t *dague_handle, uint32_t key,
+  dague_ddesc_t   *ddesc )
+{
+    hash_table *hash_table          =  dague_handle->tile_h_table;
+
+    uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
+    uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
+
+    hash_table_remove ( hash_table, combined_key, hash );
+}
+
 /* Function to insert tile in hash_table
  */
 dague_dtd_tile_t *
@@ -528,14 +543,10 @@ dague_dtd_tile_find
 {
     hash_table *hash_table          =  dague_handle->tile_h_table;
 
-    //uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
     uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
     uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
 
-    /*bucket_element_tile_t *bucket = (bucket_element_tile_t *)hash_table_find ( hash_table, combined_key, hash );
-    return (dague_dtd_tile_t *)bucket->super.value; */
-    dague_dtd_tile_t *tile = hash_table_find ( hash_table, combined_key, hash );
-    return tile;
+    return (dague_dtd_tile_t *) hash_table_find ( hash_table, combined_key, hash );
 }
 
 /* Function to search for a specific Tile(used in insert_task interface as
@@ -570,7 +581,7 @@ find_tile(hash_table *hash_table,
             current = current->next;
         }
         if(NULL != current) {
-            assert(current->tile->super.super.obj_reference_count != 0);
+            assert(current->tile->super.super.super.obj_reference_count != 0);
             return (dague_dtd_tile_t *)current->tile;
         }else {
             return NULL;
@@ -587,11 +598,8 @@ dague_dtd_tile_insert
 ( dague_dtd_handle_t *dague_handle, uint32_t key,
   dague_dtd_tile_t   *tile, dague_ddesc_t   *ddesc )
 {
-    /*bucket_element_tile_t *bucket   = (bucket_element_tile_t *) dague_thread_mempool_allocate
-                                      (dague_handle->tile_hash_table_bucket_mempool->thread_mempools); */
     hash_table *hash_table          =  dague_handle->tile_h_table;
 
-    //uintptr_t   combined_key    = (uintptr_t)key + (uintptr_t)ddesc;
     uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
     uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
 
@@ -758,7 +766,6 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                                 ddesc); */
     dague_dtd_tile_t *tmp = dague_dtd_tile_find ( dague_dtd_handle, ddesc->data_key(ddesc, i, j),
                                                   ddesc );
-
     if( NULL == tmp ) {
         /* Creating Task object */
         dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
@@ -783,8 +790,25 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                         ddesc); */
         return temp_tile;
     }else {
-        assert(tmp->super.super.obj_reference_count != 0);
+        assert(tmp->super.super.super.obj_reference_count > 0);
         return tmp;
+    }
+}
+
+void
+tile_release
+(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
+{
+    //printf ("\tTrying to free tile: %p, with ref_count: %d\n", tile, tile->super.super.super.obj_reference_count);
+    OBJ_RELEASE(tile);
+    if( tile->super.super.super.obj_reference_count == 1 ) {
+        dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
+        if( tile->super.super.super.obj_reference_count == 1 ) {
+        //    printf ("freed tile: %p, with ref_count: %d\n", tile, tile->super.super.super.obj_reference_count);
+            dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
+        } else {
+          //  printf ("\t\t failed to free tile: %p, with ref_count: %d\n", tile, tile->super.super.super.obj_reference_count);
+        }
     }
 }
 
@@ -910,7 +934,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
 {
     int i, j, k;
 #if defined(DAGUE_PROF_TRACE)
-        free((void *)handle->super.super.profiling_array);
+    free((void *)handle->super.super.profiling_array);
 #endif /* defined(DAGUE_PROF_TRACE) */
 
     for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
@@ -946,7 +970,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
                     free((void*)func->out[j]);
                 }
             }
-            //dague_mempool_destruct(func_parent->context_mempool);
+            dague_mempool_destruct(func_parent->context_mempool);
             free (func_parent->context_mempool);
             free(func);
         }
@@ -990,6 +1014,7 @@ dtd_destructor(__dague_dtd_internal_handle_t * handle)
 
     /* dtd handle specific */
     dague_mempool_destruct(handle->super.tile_mempool);
+    free (handle->super.tile_mempool);
     free(handle->super.startup_list);
     for (i=0;i<task_hash_table_size;i++) {
         free((bucket_element_task_t *)handle->super.task_h_table->buckets[i]);
@@ -1153,18 +1178,12 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.task_window_size      = 1;
     __dague_handle->super.tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
     /* allocating tile mempool */
-    dague_dtd_task_t fake_task;
+    dague_dtd_tile_t fake_tile;
 
     __dague_handle->super.tile_mempool          = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
     dague_mempool_construct( __dague_handle->super.tile_mempool,
                              OBJ_CLASS(dague_dtd_tile_t), sizeof(dague_dtd_tile_t),
-                             ((char*)&fake_task.super.mempool_owner) - ((char*)&fake_task),
-                             1/* no. of threads*/ );
-
-    __dague_handle->super.tile_hash_table_bucket_mempool  = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
-    dague_mempool_construct( __dague_handle->super.tile_hash_table_bucket_mempool,
-                             OBJ_CLASS(bucket_element_tile_t), sizeof(bucket_element_tile_t),
-                             ((char*)&fake_task.super.mempool_owner) - ((char*)&fake_task),
+                             ((char*)&fake_tile.super.mempool_owner) - ((char*)&fake_tile),
                              1/* no. of threads*/ );
 
     __dague_handle->super.super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */

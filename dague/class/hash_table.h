@@ -1,6 +1,7 @@
 #include "dague_config.h"
 #include "dague/class/dague_object.h"
 #include "dague/class/list_item.h"
+#include "dague/mempool.h"
 
 typedef struct generic_hash_table hash_table;
 typedef struct dague_generic_bucket_s dague_generic_bucket_t;
@@ -23,7 +24,8 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(hash_table);
  */
 struct dague_generic_bucket_s {
     dague_list_item_t   super;
-    uint64_t           key;
+    dague_thread_mempool_t *mempool_owner;
+    uint64_t            key;
     void               *value;
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_generic_bucket_t);
@@ -61,5 +63,13 @@ hash_table_insert( hash_table *hash_table, dague_generic_bucket_t *bucket,
  */
 void *
 hash_table_find( hash_table *hash_table,
+                uintptr_t key, uint32_t hash );
+
+/* Function to find element in the hash table
+ * Arguments:
+ * Returns:
+ */
+void
+hash_table_remove( hash_table *hash_table,
                 uintptr_t key, uint32_t hash );
 
