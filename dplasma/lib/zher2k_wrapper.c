@@ -153,7 +153,7 @@ dplasma_zher2k_New( PLASMA_enum uplo,
     dplasma_add2arena_tile(((dague_zher2k_LN_handle_t*)object)->arenas[DAGUE_zher2k_LN_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, C->mb);
+                           dague_datatype_double_complex_t, C->mb);
 
     return object;
 }
@@ -180,7 +180,7 @@ void
 dplasma_zher2k_Destruct( dague_handle_t *o )
 {
     dague_zher2k_LN_handle_t *zher2k_object = (dague_zher2k_LN_handle_t*)o;
-    dplasma_datatype_undefine_type( &(zher2k_object->arenas[DAGUE_zher2k_LN_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( zher2k_object->arenas[DAGUE_zher2k_LN_DEFAULT_ARENA] );
     DAGUE_INTERNAL_HANDLE_DESTRUCT(zher2k_object);
 }
 

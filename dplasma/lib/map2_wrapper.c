@@ -27,8 +27,8 @@
  * Column Major), they must have the same distribution. Otherwise the matrix A,
  * can be only stored in tile layout.
  *
- * See dplasma_zlacpy_New() or dplasma_zgeadd_New() as example of function using
- * the map2 operator.
+ * See dplasma_zlacpy_New(), dplasma_zgeadd_New() or dplasma_ztradd_New() as
+ * example of function using the map2 operator.
  *
  * WARNING: The computations are not done by this call.
  *
@@ -38,8 +38,16 @@
  *          Specifies on which part of matrices A and B, the operator must be
  *          applied
  *          = PlasmaUpperLower: All matrix is referenced.
- *          = PlasmaUpper:      Only upper part is refrenced.
+ *          = PlasmaUpper:      Only upper part is referenced.
  *          = PlasmaLower:      Only lower part is referenced.
+ *
+ * @param[in] trans
+ *          Specifies whether the matrix A is non-transposed or transposed when
+ *          given to the map function
+ *          = PlasmaNoTrans:   map( A(m,n), B(m,n) )
+ *          = PlasmaTrans:     map( A(n,m), B(m,n) )
+ *          = PlasmaConjTrans: map( A(n,m), B(m,n) ), and conj is forwarded to
+ *          the operator if required.
  *
  * @param[in] A
  *          Descriptor of the distributed matrix A. Any tiled matrix descriptor
@@ -80,6 +88,7 @@
  ******************************************************************************/
 dague_handle_t *
 dplasma_map2_New( PLASMA_enum uplo,
+                  PLASMA_enum trans,
                   const tiled_matrix_desc_t *A,
                   tiled_matrix_desc_t *B,
                   tiled_matrix_binary_op_t operator,
@@ -95,7 +104,24 @@ dplasma_map2_New( PLASMA_enum uplo,
         return NULL;
     }
 
-    dague_map2 = dague_map2_new( uplo,
+    if ((trans != PlasmaNoTrans) &&
+        (trans != PlasmaTrans)   &&
+        (trans != PlasmaConjTrans))
+    {
+        dplasma_error("dplasma_map2", "illegal value of trans");
+        return NULL;
+    }
+
+    if ( ((trans == PlasmaNoTrans) &&
+          ((A->mt != B->mt) || (A->nt != B->nt))) ||
+         ((trans != PlasmaNoTrans) &&
+          ((A->nt != B->mt) || (A->mt != B->nt))) )
+    {
+        dplasma_error("dplasma_map2", "dimension of A and B don't match");
+        return NULL;
+    }
+
+    dague_map2 = dague_map2_new( uplo, trans,
                                  (dague_ddesc_t*)A,
                                  (dague_ddesc_t*)B,
                                  operator, op_args );
@@ -105,32 +131,32 @@ dplasma_map2_New( PLASMA_enum uplo,
         dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(dague_complex64_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE_COMPLEX, A->mb);
+                                dague_datatype_double_complex_t, A->mb);
         break;
     case matrix_ComplexFloat  :
         dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(dague_complex32_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_COMPLEX, A->mb);
+                                dague_datatype_complex_t, A->mb);
         break;
     case matrix_RealDouble    :
         dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(double),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE, A->mb);
+                                dague_datatype_double_t, A->mb);
         break;
     case matrix_RealFloat     :
         dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(float),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_FLOAT, A->mb);
+                                dague_datatype_float_t, A->mb);
         break;
     case matrix_Integer       :
     default:
         dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(int),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_INT, A->mb);
+                                dague_datatype_int_t, A->mb);
     }
     return (dague_handle_t*)dague_map2;
 }
@@ -164,7 +190,7 @@ dplasma_map2_Destruct( dague_handle_t *o )
         free( omap2->op_args );
     }
 
-    dplasma_datatype_undefine_type( &(omap2->arenas[DAGUE_map2_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( omap2->arenas[DAGUE_map2_DEFAULT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(omap2);
 }
@@ -198,7 +224,7 @@ dplasma_map2_Destruct( dague_handle_t *o )
  *          Specifies on which part of matrices A and B, the operator must be
  *          applied
  *          = PlasmaUpperLower: All matrix is referenced.
- *          = PlasmaUpper:      Only upper part is refrenced.
+ *          = PlasmaUpper:      Only upper part is referenced.
  *          = PlasmaLower:      Only lower part is referenced.
  *
  * @param[in] A
@@ -238,6 +264,7 @@ dplasma_map2_Destruct( dague_handle_t *o )
 int
 dplasma_map2( dague_context_t *dague,
               PLASMA_enum uplo,
+              PLASMA_enum trans,
               const tiled_matrix_desc_t *A,
               tiled_matrix_desc_t *B,
               tiled_matrix_binary_op_t operator,
@@ -253,7 +280,7 @@ dplasma_map2( dague_context_t *dague,
         return -2;
     }
 
-    dague_map2 = dplasma_map2_New( uplo, A, B, operator, op_args );
+    dague_map2 = dplasma_map2_New( uplo, trans, A, B, operator, op_args );
 
     if ( dague_map2 != NULL )
     {

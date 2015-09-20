@@ -8,11 +8,12 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 if( CUDA_FOUND )
     set(CORE_CUDA_HEADERS
         cuda_zgemm.h
-#        cuda_ztsmqr.h
+        cuda_ztsmqr.h
     )
     set(CORE_CUDA_SOURCES
         cuda_zgemm.c
-#        cuda_ztsmqr.c
+        cuda_ztsmqr.c
+        dplasma_cuda_ztsmqr.c
     )
 else()
     set(CORE_CUDA_HEADERS "")
@@ -45,6 +46,8 @@ set(SOURCES
   core_zhetrf_nopiv.c
   core_zhebut.c
   core_zamax.c
+  core_zgeadd.c
+  core_ztradd.c
 )
 precisions_rules_py(generated_files
                  "${SOURCES}"

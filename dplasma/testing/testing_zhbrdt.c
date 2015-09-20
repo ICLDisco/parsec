@@ -93,14 +93,14 @@ int main(int argc, char *argv[])
                 else
                 {
                     PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
-                    MPI_Recv(dataout, 2*NB, MPI_DOUBLE_COMPLEX, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    MPI_Recv(dataout, 2*NB, dague_datatype_double_complex_t, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
             }
         }
         else
         {
             MPI_Datatype bidiagband_dtt;
-            MPI_Type_vector(NB, 2, MB+1, MPI_DOUBLE_COMPLEX, &bidiagband_dtt);
+            MPI_Type_vector(NB, 2, MB+1, dague_datatype_double_complex_t, &bidiagband_dtt);
 
             for(int t = 0; t < NT; t++) {
                 if(ddescA.super.super.rank_of(0,t) == (uint32_t)rank)

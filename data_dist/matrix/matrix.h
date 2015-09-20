@@ -15,6 +15,7 @@
 #include "dague/data_distribution.h"
 #include "dague/data.h"
 #include "dague/datatype.h"
+#include "dague/arena.h"
 
 BEGIN_C_DECLS
 
@@ -32,6 +33,16 @@ enum matrix_type {
 enum matrix_storage {
     matrix_Lapack        = 0, /**< LAPACK Layout or Column Major  */
     matrix_Tile          = 1, /**< Tile Layout or Column-Column Rectangular Block (CCRB) */
+};
+
+/**
+ * Put our own definition of Upper/Lower/General values mathing the
+ * Cblas/Plasma/... ones to avoid teh dependency
+ */
+enum matrix_uplo {
+    matrix_Upper      = 121,
+    matrix_Lower      = 122,
+    matrix_UpperLower = 123
 };
 
 static inline int dague_datadist_getsizeoftype(enum matrix_type type)
@@ -52,7 +63,7 @@ static inline int dague_datadist_getsizeoftype(enum matrix_type type)
  * Convert from a matrix type to a more traditional PaRSEC type usable for
  * creating arenas.
  */
-static inline int dague_traslate_matrix_type( enum matrix_type mt, dague_datatype_t* dt )
+static inline int dague_translate_matrix_type( enum matrix_type mt, dague_datatype_t* dt )
 {
     switch(mt) {
     case matrix_Byte:          *dt = dague_datatype_int8_t; break;
@@ -170,6 +181,29 @@ dague_matrix_destroy_data( tiled_matrix_desc_t* matrix );
 
 dague_data_t*
 fake_data_of(dague_ddesc_t *mat, ...);
+
+/**
+ * Helper functions to create arenas of matrices with different shapes
+ */
+int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
+                            int uplo, int diag,
+                            unsigned int m, unsigned int n, unsigned int ld,
+                            size_t alignment, int resized );
+
+int dague_matrix_del2arena( dague_arena_t *arena );
+
+
+#define dague_matrix_add2arena_tile( _arena_ , _oldtype_, _m_ ) \
+    dague_matrix_add2arena( (_arena_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_m_), (_m_), DAGUE_ARENA_ALIGNMENT_SSE, -1 )
+
+#define dague_matrix_add2arena_upper( _arena_ , _oldtype_, diag, _n_ ) \
+    dague_matrix_add2arena( (_arena_), (_oldtype_), matrix_Upper, (_diag_), (_n_), (_n_), (_n_), DAGUE_ARENA_ALIGNMENT_SSE, -1 )
+
+#define dague_matrix_add2arena_lower( _arena_ , _oldtype_, diag, _n_ ) \
+    dague_matrix_add2arena( (_arena_), (_oldtype_), matrix_Lower, (_diag_), (_n_), (_n_), (_n_), DAGUE_ARENA_ALIGNMENT_SSE, -1 )
+
+#define dague_matrix_add2arena_rect( _arena_ , _oldtype_, _m_, _n_, _ld_ ) \
+    dague_matrix_add2arena( (_arena_), (_oldtype_), matrix_UpperLower, 0, (_m_), (_n_), (_ld_), DAGUE_ARENA_ALIGNMENT_SSE, -1 )
 
 END_C_DECLS
 #endif /* _MATRIX_H_  */

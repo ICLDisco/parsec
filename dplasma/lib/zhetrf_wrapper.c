@@ -47,7 +47,7 @@ dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *INFO)
     dplasma_add2arena_tile(((dague_zhetrf_handle_t*)dague_zhetrf)->arenas[DAGUE_zhetrf_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           dague_datatype_double_complex_t, A->mb);
 
     return dague_zhetrf;
 }
@@ -57,7 +57,7 @@ dplasma_zhetrf_Destruct( dague_handle_t *o )
 {
     dague_zhetrf_handle_t *obut = (dague_zhetrf_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(obut->arenas[DAGUE_zhetrf_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( obut->arenas[DAGUE_zhetrf_DEFAULT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);
 }
@@ -77,7 +77,7 @@ dplasma_ztrmdm_New( tiled_matrix_desc_t *A)
     dplasma_add2arena_tile(((dague_ztrmdm_handle_t*)dague_ztrmdm)->arenas[DAGUE_ztrmdm_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           dague_datatype_double_complex_t, A->mb);
 
     return dague_ztrmdm;
 }
@@ -87,7 +87,7 @@ dplasma_ztrmdm_Destruct( dague_handle_t *o )
 {
     dague_ztrmdm_handle_t *obut = (dague_ztrmdm_handle_t *)o;
 
-    dplasma_datatype_undefine_type( &(obut->arenas[DAGUE_ztrmdm_DEFAULT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( obut->arenas[DAGUE_ztrmdm_DEFAULT_ARENA] );
 
     //dague_ztrmdm_destroy(obut);
     DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);

@@ -64,12 +64,12 @@ dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
     dplasma_add2arena_tile( zger_object->arenas[DAGUE_zger_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
-                            MPI_DOUBLE_COMPLEX, A->mb);
+                            dague_datatype_double_complex_t, A->mb);
 
     dplasma_add2arena_rectangle( zger_object->arenas[DAGUE_zger_VECTOR_ARENA],
                                  X->mb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
-                                 MPI_DOUBLE_COMPLEX, X->mb, 1, -1);
+                                 dague_datatype_double_complex_t, X->mb, 1, -1);
 
     return (dague_handle_t*)zger_object;
 }
@@ -77,8 +77,8 @@ dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
 static inline void
 dplasma_zger_internal_Destruct( dague_handle_t *o )
 {
-    dplasma_datatype_undefine_type( &(((dague_zger_handle_t *)o)->arenas[DAGUE_zger_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(((dague_zger_handle_t *)o)->arenas[DAGUE_zger_VECTOR_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( ((dague_zger_handle_t *)o)->arenas[DAGUE_zger_DEFAULT_ARENA] );
+    dague_matrix_del2arena( ((dague_zger_handle_t *)o)->arenas[DAGUE_zger_VECTOR_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

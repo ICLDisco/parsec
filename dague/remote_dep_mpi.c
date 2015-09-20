@@ -305,6 +305,9 @@ static int remote_dep_dequeue_fini(dague_context_t* context)
         pthread_join(dep_thread_id, &ret);
         assert((dague_context_t*)ret == context);
     }
+    else if ( dague_communication_engine_up == 1 ) {
+        remote_dep_mpi_fini(context);
+    }
 
     assert(NULL == dague_dequeue_pop_front(&dep_cmd_queue));
     OBJ_DESTRUCT(&dep_cmd_queue);
@@ -367,7 +370,7 @@ static void* remote_dep_dequeue_main(dague_context_t* context)
     remote_dep_bind_thread(context);
 
     remote_dep_mpi_init(context);
-    /* Now synchroniza with the main thread */
+    /* Now synchronize with the main thread */
     pthread_mutex_lock(&mpi_thread_mutex);
     pthread_cond_signal(&mpi_thread_condition);
 

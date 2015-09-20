@@ -14,6 +14,45 @@
  * However, this file contains only the support functions needed when MPI is not
  * available.
  */
+int dague_type_size( dague_datatype_t type,
+                     int *size )
+{
+    *size = 0;
+    switch( type ) {
+    case dague_datatype_int_t:
+        *size = sizeof( int ); break;
+    case dague_datatype_int8_t:
+        *size = sizeof( int8_t ); break;
+    case dague_datatype_int16_t:
+        *size = sizeof( int16_t ); break;
+    case dague_datatype_int32_t:
+        *size = sizeof( int32_t ); break;
+    case dague_datatype_int64_t:
+        *size = sizeof( int64_t ); break;
+    case dague_datatype_uint8_t:
+        *size = sizeof( uint8_t ); break;
+    case dague_datatype_uint16_t:
+        *size = sizeof( uint16_t ); break;
+    case dague_datatype_uint32_t:
+        *size = sizeof( uint32_t ); break;
+    case dague_datatype_uint64_t:
+        *size = sizeof( uint64_t ); break;
+    case dague_datatype_float_t:
+        *size = sizeof( float ); break;
+    case dague_datatype_double_t:
+        *size = sizeof( double ); break;
+    case dague_datatype_long_double_t:
+        *size = sizeof( long double ); break;
+    case dague_datatype_complex_t:
+        *size = 2 * sizeof( float ); break;
+    case dague_datatype_double_complex_t:
+        *size = 2 * sizeof( double ); break;
+    default:
+        return DAGUE_NOT_SUPPORTED;
+    }
+    return DAGUE_SUCCESS;
+}
+
 int dague_type_create_contiguous( int count,
                                   dague_datatype_t oldtype,
                                   dague_datatype_t* newtype )
