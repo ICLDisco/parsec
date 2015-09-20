@@ -998,4 +998,3 @@ void dague_profiling_disable(void)
     dague_profile_enabled = 0;
 }
 
-char *dague_profile_ddesc_key_to_string = "";

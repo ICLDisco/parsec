@@ -315,7 +315,6 @@ if __name__ == '__main__':
                                        Value=paje_entity_waiting, task_name="Waiting")
                 container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)] = ev.end
 
-
     if args.COMM:
         try:
             snd_type = store.event_types['MPI_DATA_PLD_SND']
