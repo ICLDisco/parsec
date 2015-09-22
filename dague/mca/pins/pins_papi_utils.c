@@ -12,6 +12,11 @@
 
 static int init_done = 0;
 static int init_status = DAGUE_SUCCESS;
+
+/**
+ * A structure to store the unit conversion information for the
+ * time-based frequency events.
+ */
 static const struct pins_papi_units_s {
     char const* unit_name[4];
     pins_papi_time_type_t unit_type;
@@ -25,6 +30,10 @@ static const struct pins_papi_units_s {
 
 pins_papi_time_type_t system_units = 0;
 
+/**
+ * A utility function for finding the pins_papi_units_s structure in the
+ * pins_papi_accepted_units array that corresponds to 'name'.
+ */
 static inline const struct pins_papi_units_s* find_unit_by_name(char* name)
 {
     int i, j;
@@ -40,6 +49,10 @@ static inline const struct pins_papi_units_s* find_unit_by_name(char* name)
     return NULL;
 }
 
+/**
+ * A utility function for finding the the correct pins_papi_time_type_t
+ * enumeration for 'name' and storing it in 'ptype'
+ */
 int find_unit_type_by_name(char* name, pins_papi_time_type_t* ptype)
 {
     const struct pins_papi_units_s* unit = find_unit_by_name(name);
@@ -51,6 +64,10 @@ int find_unit_type_by_name(char* name, pins_papi_time_type_t* ptype)
     return 0;
 }
 
+/**
+ * A utility function for finding the pins_papi_units_s structure in the
+ * pins_papi_accepted_units array that corresponds to 'type'.
+ */
 static inline const struct pins_papi_units_s* find_unit_by_type(pins_papi_time_type_t type)
 {
     for( int i = 0; i < sizeof(pins_papi_accepted_units); i++ ) {
@@ -61,6 +78,10 @@ static inline const struct pins_papi_units_s* find_unit_by_type(pins_papi_time_t
     return NULL;
 }
 
+/**
+ * A utility function for finding the full name of the unit type
+ * denoted by 'type'.
+ */
 const char* find_unit_name_by_type(pins_papi_time_type_t type)
 {
     const struct pins_papi_units_s* unit = find_unit_by_type(type);
@@ -70,6 +91,10 @@ const char* find_unit_name_by_type(pins_papi_time_type_t type)
     return unit->unit_name[0];
 }
 
+/**
+ * A utility function for finding the short name of the unit type
+ * denoted by 'type'.
+ */
 const char* find_short_unit_name_by_type(pins_papi_time_type_t type)
 {
     const struct pins_papi_units_s* unit = find_unit_by_type(type);
@@ -81,6 +106,11 @@ const char* find_short_unit_name_by_type(pins_papi_time_type_t type)
     return unit->unit_name[2];
 }
 
+/**
+ * Converts time from the units denoted by 'source' to the units denoted
+ * by 'destination' and stores the result in 'time'.  Returns -1 on failure
+ * and 0 on success.
+ */
 int convert_units(float *time, int source, int destination)
 {
     const struct pins_papi_units_s *src, *dst;
@@ -124,6 +154,9 @@ int pins_papi_init(dague_context_t * master_context)
         }
     }
 
+    /* If the TIMER_UNIT variable has been set, we use those units
+     * otherwise we stick with the default system units.
+     */
     if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
         dague_output(0, "Could not find a proposed time unit equivalent for %s. Fall back to %s\n",
                      TIMER_UNIT, find_unit_name_by_type(system_units));
@@ -176,10 +209,10 @@ int pins_papi_thread_fini(dague_execution_unit_t * exec_unit)
 /**
  * Insert a new event into an already existing list of events. If the compact argument
  * is set, then the event will be matched with all the existing events in order to find
- * a similar class of event (core/uncore, same frequency and same PAPI component).
+ * a similar class of event (same PAPI component) and a frequency group within that class.
  * If the matching is succesful the new event will be chained to the previous events of
  * the same class. Otherwise, and this is also true when the compact argument is not
- * set, a new entry in the array will be create.
+ * set, a new entry in the array will be created.
  *
  * Returns: 0 if the event has been succesfully inserted
  *         -1 in all other cases. The events have been left untouched.
@@ -191,7 +224,9 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
     void* tmp;
     int i;
 
+    /* If there are existing event classes... */
     if( NULL != events_array->events ) {
+        /* Iterate through all of the event classes to find a PAPI-compatible class. */
         for( i = 0; i < events_array->num_counters; i++ ) {
             parsec_pins_papi_event_t* head = events_array->events[i];
             /* The events are PAPI compatible */
@@ -199,6 +234,9 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
                 (head->papi_location == event->papi_location) && (head->papi_component_index == event->papi_component_index) &&
                 (head->papi_update_type == event->papi_update_type) ) {
                 int group;
+                /* Iterate through all of the groups in this event class to find a
+                 * frequency-compatible group, or add a new group.
+                 */
                 while(head != NULL){
                     group = head->group;
                     /* The events are frequency compatible (task-based and same frequency) */
@@ -246,6 +284,14 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
     return 0;
 }
 
+/**
+ * Parses the 'events_str' string from the user-specified mca parameter settings,
+ * and adds these events to an events list for this thread if they are valid PAPI
+ * events and have a valid socket, core, and frequency specified.
+ *
+ * Returns: A valid events list on success
+ *          NULL in all other cases.
+ */
 parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 {
     char *mca_param_name, *token, *save_hptr = NULL;
@@ -261,14 +307,16 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     mca_param_name = strdup(events_str);
     token = strtok_r(mca_param_name, ",", &save_hptr);
 
+    /* Create a temporary eventset for checking whether events are valid. */
     if( PAPI_OK != (err = PAPI_create_eventset(&tmp_eventset)) ) {
         dague_output(0, "%s: couldn't create the PAPI event set; ERROR: %s\n",
                      __func__, PAPI_strerror(err));
         return NULL;
     }
 
+    /* Iterate through the mca_param_name string to identify events and test them. */
     while(token != NULL) {
-
+        /* Reset the memory in the event so we're starting fresh. */
         if( NULL == event ) {
             event = calloc( 1, sizeof(parsec_pins_papi_event_t) );
         } else {
@@ -278,19 +326,27 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         event->core = -1;
         event->frequency = 1;
 
+        /* Iterate through the separate events in the string that are separated by a ':' character. */
         for(  /* none */; NULL != token;
                         token = strchr(token, (int)':'), token++ ) {
-
+            /* This token represents the socket for this event. */
             if(token[0] == 'S') {
                 if(token[1] != '*')
                     event->socket = atoi(&token[1]);
                 continue;
             }
+            /* This token represents the core for this event. */
             if(token[0] == 'C') {
                 if(token[1] != '*')
                     event->core = atoi(&token[1]);
                 continue;
             }
+
+            /* This token represents the frequency for this event, so we need to determine
+             * whether this is a task-based or time-based frequency.  If it is a time-based
+             * frequency, we must determine the units and convert the units specified into
+             * the units used by this system.
+             */
             if(token[0] == 'F') {
                 char* temp_save = NULL;
                 char* temp_string = strdup(&token[1]);
