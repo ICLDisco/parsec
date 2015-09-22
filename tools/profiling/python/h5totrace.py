@@ -282,7 +282,7 @@ if __name__ == '__main__':
                 warning('You requested to use counters for events of type %s, but such events are not marked as counter-types'%(type_name))
         else:
             #Don't forget to check if that container was ignored by the user
-            if (ev['flags'] & (1<<2) == 0) and ("M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
+            if ( (int(ev['flags']) & (1<<2)) == 0) and ("M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
                 key = "hid=%d:did=%d:tid=%d"%(ev.handle_id,ev.type,ev.id)
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
@@ -308,16 +308,16 @@ if __name__ == '__main__':
             nblink = 0
             for sendr in sends.iterrows():
                 send = sendr[1]
+                PajeSetState.PajeEvent(Time=float(send.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
+                                           Value=state_aliases[send.type], task_name=store.event_names[send.type])
+                PajeSetState.PajeEvent(Time=float(send.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
+                                           Value=paje_entity_waiting, task_name="Waiting")
                 recvs = store.events[ ( (store.events.type == rcv_type) &
                                         (store.events.fid == send['fid']) &
                                         (store.events.hid == send['hid']) &
                                         (store.events.tid == send['tid']) ) ]
                 for rrecv in recvs.iterrows():
                     recv = rrecv[1]
-                    PajeSetState.PajeEvent(Time=float(send.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
-                                           Value=state_aliases[send.type], task_name=store.event_names[send.type])
-                    PajeSetState.PajeEvent(Time=float(send.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(send.node_id)],
-                                           Value=paje_entity_waiting, task_name="Waiting")
                     PajeSetState.PajeEvent(Time=float(recv.begin), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(recv.node_id)],
                                            Value=state_aliases[recv.type], task_name=store.event_names[recv.type])
                     PajeSetState.PajeEvent(Time=float(recv.end), Type=paje_st, Container=paje_container_aliases["M%dMPI"%(recv.node_id)],
