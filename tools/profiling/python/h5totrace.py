@@ -293,7 +293,7 @@ if __name__ == '__main__':
 #                warning('You requested to use counters for events of type %s, but such events are not marked as counter-types'%(type_name))
         else:
             #Don't forget to check if that container was ignored by the user
-            if ( (int(ev['flags'] & (1<<2)) == 0) and ("M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
+            if ( (int(ev['flags']) & (1<<2)) == 0) and ("M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
                 if ev['end'] <= container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]:
                     #This event is entirely under the current event on that stream: skip it
                     continue
