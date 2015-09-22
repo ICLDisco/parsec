@@ -13,6 +13,8 @@ BEGIN_C_DECLS
 #include "dague.h"
 #include "dague/data_distribution.h"
 
+//typedef struct dague_execution_unit_s dague_execution_unit_t;
+
 /* TODO: REMOVE */
 extern double time_double;
 

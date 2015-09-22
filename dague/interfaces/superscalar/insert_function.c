@@ -388,7 +388,8 @@ profiling_trace(dague_dtd_handle_t *__dague_handle,
     char *str = fill_color(name);
     dague_profiling_add_dictionary_keyword(name, str,
            sizeof(dague_profile_ddesc_info_t) + flow_count * sizeof(assignment_t),
-           dague_profile_ddesc_key_to_string,
+           //dague_profile_ddesc_key_to_string,
+           "ddesc_unique_key{uint64_t};ddesc_data_id{uint32_t};ddessc_padding{uint32_t};k{int32_t};m{int32_t};n{int32_t}",
            (int *) &__dague_handle->super.profiling_array[0 +
                                                     2 *
                                                     function->function_id

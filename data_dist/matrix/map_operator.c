@@ -478,7 +478,7 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
     res->super.super.profiling_array = dague_map_operator_profiling_array;
     if( -1 == dague_map_operator_profiling_array[0] ) {
         dague_profiling_add_dictionary_keyword("operator", "fill:CC2828",
-                                               sizeof(dague_profile_ddesc_info_t), dague_profile_ddesc_key_to_string,
+                                               sizeof(dague_profile_ddesc_info_t), DAGUE_PROFILE_DDESC_INFO_CONVERTOR,
                                                (int*)&res->super.super.profiling_array[0 + 2 * dague_map_operator.function_id],
                                                (int*)&res->super.super.profiling_array[1 + 2 * dague_map_operator.function_id]);
     }

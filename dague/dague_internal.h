@@ -33,7 +33,7 @@ typedef struct data_repo_s             data_repo_t;
 
 /**< The most basic execution flow. Each virtual process includes
  *   multiple execution units (posix threads + local data) */
-typedef struct dague_execution_unit_s  dague_execution_unit_t;
+//typedef struct dague_execution_unit_s  dague_execution_unit_t;
 /**< Each MPI process includes multiple virtual processes (and a
  *   single comm. thread) */
 typedef struct dague_vp_s              dague_vp_t;
@@ -275,7 +275,7 @@ struct dague_minimal_execution_context_s {
 #endif /* defined(DAGUE_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
-    assignment_t            locals[MAX_LOCAL_COUNT];
+    assignment_t               locals[MAX_LOCAL_COUNT];
 };
 
 struct dague_execution_context_s {
@@ -283,16 +283,18 @@ struct dague_execution_context_s {
 #if defined(DAGUE_PROF_TRACE)
     dague_profile_ddesc_info_t prof_info;
 #endif /* defined(DAGUE_PROF_TRACE) */
+    /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
+     * prof_info so that the locals are part of the event specific infos */
+    assignment_t               locals[MAX_LOCAL_COUNT];
 #if defined(PINS_ENABLE)
-    int creator_core;
-    int victim_core;
-    int execution_core;
+    int                        creator_core;
+    int                        victim_core;
+    int                        execution_core;
 #endif /* defined(PINS_ENABLE) */
-    assignment_t            locals[MAX_LOCAL_COUNT];
 #if defined(DAGUE_SIM)
-    int                     sim_exec_date;
+    int                        sim_exec_date;
 #endif
-    dague_data_pair_t       data[MAX_PARAM_COUNT];
+    dague_data_pair_t          data[MAX_PARAM_COUNT];
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_execution_context_t);
 
