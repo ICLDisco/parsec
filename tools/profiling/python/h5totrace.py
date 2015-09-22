@@ -165,6 +165,8 @@ if __name__ == '__main__':
     paje_entity_waiting = PajeEntityValue.PajeEvent(Name="Waiting", Type=paje_st, Color="0.2,0.2,0.2")
 
     paje_container_aliases = dict()
+    container_endstate = dict()
+
     state_aliases = dict()
     for x in range(len(store.event_names)-1):
         color_code = int(store.event_attributes[x], 16)
@@ -235,6 +237,7 @@ if __name__ == '__main__':
             if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
                 paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id), Type=paje_ct,
                                                                                                          Container=paje_container_aliases["M%dV%d"%(t.node_id,t.vp_id)])
+                container_endstate["M%dT%d"%(t.node_id,t.stream_id)] = 0.0
         else:
             match = re.search(r'GPU\ ([0-9]+)\-([0-9]+)', t.description)
             if match is not None:
@@ -245,19 +248,24 @@ if __name__ == '__main__':
                 if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
                     paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d"%(t.node_id,t.stream_id), Type=paje_ct,
                                                                                                              Container=paje_container_aliases["M%dGPU%d"%(t.node_id,gpu_id)])
+                    container_endstate["M%dT%d"%(t.node_id,t.stream_id)] = 0.0
             else:
                 match = re.search(r'MPI.*', t.description)
                 if match is not None:
                     if "M%dMPI"%(t.node_id) not in paje_container_aliases:
-                        paje_container_aliases["M%dMPI"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dMPI" % (t.node_id), Type=paje_ct, Container=paje_c_appli)
+                        paje_container_aliases["M%dMPI"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dMPI" % (t.node_id),
+                                                                                                     Type=paje_ct, Container=paje_container_aliases["M%d"%(t.node_id)])
+                        container_endstate["M%dMPI"%(t.node_id)] = 0.0
                 else:
                     print("Found unknown stream description '%s' at stream_id %d"%(t.description, trindex))
                     if "M%dUnknown"%(t.node_id) not in paje_container_aliases:
                         paje_container_aliases["M%dUnknown"%(t.node_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dUnknown"%(t.node_id), Type=paje_ct,
                                                                                                         Container=paje_container_aliases["M%d"%(t.node_id)])
+                        container_endstate["M%dUnknown"%(t.node_id)] = 0.0
                     if "M%dT%d"%(t.node_id, t.stream_id) not in paje_container_aliases:
                         paje_container_aliases["M%dT%d"%(t.node_id, t.stream_id)] = PajeContainerCreate.PajeEvent(Time = 0.0000, Name = "M%dT%d" % (t.node_id,t.stream_id),
                                                                                                                 Type=paje_ct, Container=paje_container_aliases["M%dUnknown"%(t.node_id)])
+                        container_endstate["M%dT%d"%(t.node_id, t.stream_id)] = 0.0
                         PajeSetState.PajeEvent(Time=0.000, Type=paje_st, Container=paje_container_aliases["M%dT%d"%(t.node_id,t.stream_id)], Value="Waiting", task_name="")
 
     if args.DAG:
@@ -274,28 +282,38 @@ if __name__ == '__main__':
         if (ev['type'] in types_to_count):
             type_name = store.event_names[ ev['type'] ]
             info_name = '%s_start'%(type_name)
-            if(ev['flags'] & (1<<2) != 0) and ('size' in ev[info_name]):
+            if( (int(ev['flags']) & (1<<2)) != 0) and ('size' in ev[info_name]):
                 counter_events[type_name]['events'].append( {'time': float(ev.begin), 'size':float(ev[info_name ]['size']), 'node_id': ev.node_id } )
                 counter_events[type_name]['events'].append( {'time': float(ev.end), 'size': -1.0 * float(ev[info_name ]['size']), 'node_id': ev.node_id } )
-            elif not counter_events[ev['type']]['error']:
-                counter_events[type_name]['error'] = True
-                warning('You requested to use counters for events of type %s, but such events are not marked as counter-types'%(type_name))
+            else:
+                counter_events[type_name]['events'].append( {'time': float(ev.begin), 'size':1.0, 'node_id': ev.node_id } )
+                counter_events[type_name]['events'].append( {'time': float(ev.end),  'size':-1.0, 'node_id': ev.node_id } )
+#            elif not counter_events[ev['type']]['error']:
+#                counter_events[type_name]['error'] = True
+#                warning('You requested to use counters for events of type %s, but such events are not marked as counter-types'%(type_name))
         else:
             #Don't forget to check if that container was ignored by the user
-            if ( (int(ev['flags']) & (1<<2)) == 0) and ("M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
+            if ( (int(ev['flags'] & (1<<2)) == 0) and ("M%dT%d"%(ev.node_id,ev.stream_id) in paje_container_aliases):
+                if ev['end'] <= container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]:
+                    #This event is entirely under the current event on that stream: skip it
+                    continue
+                if ev['begin'] < container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]:
+                    begin_date = container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)]
+                else:
+                    begin_date = ev['begin']
                 key = "hid=%d:did=%d:tid=%d"%(ev.handle_id,ev.type,ev.id)
                 if args.DAG:
                     dag_info[key] = { 'container': paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                       'start': float(ev.begin), 'end': float(ev.end), 'rank': ev.node_id }
                 if key in task_names.keys():
-                    PajeSetState.PajeEvent(Time=float(ev.begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
+                    PajeSetState.PajeEvent(Time=float(begin_date), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                            Value=state_aliases[ev.type], task_name=task_names[key])
                 else:
-                    PajeSetState.PajeEvent(Time=float(ev.begin), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
+                    PajeSetState.PajeEvent(Time=float(begin_date), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                            Value=state_aliases[ev.type], task_name=store.event_names[ev.type])
                 PajeSetState.PajeEvent(Time=float(ev.end), Type=paje_st, Container=paje_container_aliases["M%dT%d"%(ev.node_id,ev.stream_id)],
                                        Value=paje_entity_waiting, task_name="Waiting")
-
+                container_endstate["M%dT%d"%(ev.node_id,ev.stream_id)] = ev.end
 
     if args.COMM:
         try:

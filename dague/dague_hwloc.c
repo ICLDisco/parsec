@@ -374,7 +374,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
         return -1;
     }
     DEBUG2(("Thread bound on core index %i, [HT %i ]\n", cpu_index, local_ht_index));
-    dague_hwloc_print_cpuset("Thread bound on ", cpuset);
+    /*dague_hwloc_print_cpuset("Thread bound on ", cpuset);*/
 
     /* Get the number at Proc level*/
     cpu_index = obj->os_index;

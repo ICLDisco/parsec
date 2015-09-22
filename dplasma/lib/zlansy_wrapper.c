@@ -150,13 +150,13 @@ dplasma_zlansy_New( PLASMA_enum norm,
     dplasma_add2arena_tile(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-                           MPI_DOUBLE_COMPLEX, A->mb);
+                           dague_datatype_double_complex_t, A->mb);
     dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_COL_ARENA],
                                 mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE, mb, nb, -1);
+                                dague_datatype_double_t, mb, nb, -1);
     dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlansy)->arenas[DAGUE_zlansy_ELT_ARENA],
                                 elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                MPI_DOUBLE, elt, 1, -1);
+                                dague_datatype_double_t, elt, 1, -1);
 
     return (dague_handle_t*)dague_zlansy;
 }
@@ -189,9 +189,9 @@ dplasma_zlansy_Destruct( dague_handle_t *o )
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlansy->Tdist) );
     free( dague_zlansy->Tdist );
 
-    dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_DEFAULT_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA]->opaque_dtt) );
-    dplasma_datatype_undefine_type( &(dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA]->opaque_dtt) );
+    dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_DEFAULT_ARENA] );
+    dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA] );
+    dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA] );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
 }

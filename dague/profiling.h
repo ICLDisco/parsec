@@ -200,11 +200,14 @@ uint64_t dague_profiling_get_time(void);
  *  (appropriately) in dague_profiling_add_dictionary_keyword
  */
 
+/** Do not change this structure without changing
+ *  appropriately the info profiling generation string below
+ */
 typedef struct {
     struct dague_ddesc_s *desc;
     uint32_t              id;
 } dague_profile_ddesc_info_t;
-extern char *dague_profile_ddesc_key_to_string;
+#define DAGUE_PROFILE_DDESC_INFO_CONVERTOR "ddesc_unique_key{uint64_t};ddesc_data_id{uint32_t};ddessc_padding{uint32_t}"
 
 #define DAGUE_PROFILE_STREAM_STR "GPU %d-%d"
 #define DAGUE_PROFILE_THREAD_STR "DAGuE Thread %d of VP %d Bound on %s"

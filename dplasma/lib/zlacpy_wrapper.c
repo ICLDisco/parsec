@@ -92,7 +92,7 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
 {
     dague_handle_t* object;
 
-    object = dplasma_map2_New(uplo, A, B,
+    object = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
                               dplasma_zlacpy_operator, NULL );
 
     return object;
