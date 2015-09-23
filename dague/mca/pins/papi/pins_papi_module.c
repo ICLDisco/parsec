@@ -378,7 +378,7 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
 
         bool has_begin = false;
         /* Determine whether EXEC_BEGIN was registered */
-        for(i = 0; i < event_cb->num_groups, i++) {
+        for(i = 0; i < event_cb->num_groups; i++) {
             if(event_cb->groups[i].frequency == 1) {
                 has_begin = true;
                 break;
