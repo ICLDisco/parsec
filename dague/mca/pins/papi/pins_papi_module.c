@@ -22,7 +22,7 @@ extern pins_papi_time_type_t system_units;
 
 /**
  * Determines which event groups within the events list in event_cb need to be read, and
- * supplies the appropriate portion of the array from PAPI_read to the dague_profiling_trace
+ * supplies the appropriate portion of the array from PAPI_read to the DAGUE_PROFILING_TRACE
  * function, which pushes this information into the global profiling information.
  */
 static inline int
@@ -44,7 +44,7 @@ pins_papi_read_and_trace(dague_execution_unit_t* exec_unit,
     for(i = 0; i < event_cb->num_groups; i++) {
         /* We need to read this group */
         if((event_cb->to_read & check) != 0) { /* This AND operation determines whether the bit corresponding to 'check' is set to 1 */
-            (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[event_cb->groups[i].begin_end],
+            (void)DAGUE_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[event_cb->groups[i].begin_end],
                                         45, 0, (void*)&info.values[index]);
             event_cb->groups[i].begin_end = (event_cb->groups[i].begin_end + 1) & 0x1;  /* aka. % 2 */
         }
@@ -400,10 +400,10 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
             for(i = 0; i < event_cb->num_groups; i++) {
                 /* If the last profiling event was an 'end' event */
                 if(event_cb->groups[i].begin_end == 0) {
-                    (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[0],
+                    (void)DAGUE_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[0],
                                                 45, 0, (void *)&info.values[index]);
                 }
-                (void)dague_profiling_trace(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[1],
+                (void)DAGUE_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[1],
                                             45, 0, (void *)&info.values[index]);
                 index += event_cb->groups[i].num_counters;
             }
