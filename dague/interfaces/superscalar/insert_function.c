@@ -22,6 +22,8 @@
 #include "dplasma/testing/common_timing.h"
 #include "dague/mca/sched/sched.h"
 
+int window_size = 2048;
+
 double time_double = 0;
 
 extern dague_sched_module_t *current_scheduler;
@@ -132,7 +134,7 @@ void dague_execute_and_come_back
     }
 
     /* Change it to some threshold */
-    while(dague_handle->nb_local_tasks > 20 ) {
+    while(dague_handle->nb_local_tasks > (window_size/10) ) {
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             nanosleep(&rqtp, NULL);
@@ -389,7 +391,8 @@ profiling_trace(dague_dtd_handle_t *__dague_handle,
     dague_profiling_add_dictionary_keyword(name, str,
            sizeof(dague_profile_ddesc_info_t) + flow_count * sizeof(assignment_t),
            //dague_profile_ddesc_key_to_string,
-           "ddesc_unique_key{uint64_t};ddesc_data_id{uint32_t};ddessc_padding{uint32_t};k{int32_t};m{int32_t};n{int32_t}",
+            DAGUE_PROFILE_DDESC_INFO_CONVERTOR,
+           //"ddesc_unique_key{uint64_t};ddesc_data_id{uint32_t};ddessc_padding{uint32_t};k{int32_t};m{int32_t};n{int32_t}",
            (int *) &__dague_handle->super.profiling_array[0 +
                                                     2 *
                                                     function->function_id
@@ -1897,7 +1900,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     if((__dague_handle->tasks_created % __dague_handle->task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
-        if ( __dague_handle->task_window_size <= 128 ) {
+        if ( __dague_handle->task_window_size <= window_size ) {
             __dague_handle->task_window_size *= 2;
         } else {
 #if defined (OVERLAP)

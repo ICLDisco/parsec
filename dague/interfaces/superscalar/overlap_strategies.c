@@ -201,7 +201,9 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             current_desc_task = tmp_task->desc[dst_flow->flow_index].task;
         }
 
+#if defined (OVERLAP)
         tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
+#endif
 
         /* Activating all successors for each flow and setting the last OUT task as the descendant */
         current_succ = head_succ;
@@ -238,8 +240,10 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                         current_succ->task->dont_skip_releasing_data[current_succ->flow_index] = 1;
                     } else {
                         current_succ->task->desc[current_succ->flow_index].task = NULL;
+#if defined (OVERLAP)
                         tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
                                         current_succ->task->desc[current_succ->flow_index].tile );
+#endif
                     }
                 }
             }
