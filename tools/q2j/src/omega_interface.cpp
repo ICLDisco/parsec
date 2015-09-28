@@ -71,6 +71,8 @@ extern int _q2j_add_phony_tasks;
 extern int _q2j_finalize_antideps;
 extern int _q2j_dump_mapping;
 extern int _q2j_direct_output;
+extern int _q2j_paranoid_cond;
+extern int _q2j_antidep_level;
 extern char *_q2j_data_prefix;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
@@ -87,6 +89,9 @@ static void dump_full_und(und_t *und);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+static int eval_int_expr_tree(expr_t *exp);
+static expr_t *expr_tree_to_simple_var(expr_t *exp);
+static const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R);
 static int process_end_condition(node_t *node, F_And *&R_root, map<string, Variable_ID> ivars, node_t *lb, Relation &R);
 set<expr_t *> find_all_EQs_with_var(const char *var_name, expr_t *exp);
 static inline set<expr_t *> find_all_GEs_with_var(const char *var_name, expr_t *exp);
@@ -98,7 +103,7 @@ static string _expr_tree_to_str(expr_t *exp);
 static inline const char *dump_expr_tree_to_str(expr_t *exp);
 static string _dump_expr(expr_t *exp);
 static int expr_tree_contains_var(expr_t *root, const char *var_name);
-static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars);
+char *expr_tree_contains_vars_outside_set(expr_t *root, set<const char *>vars);
 static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
 static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t *func);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
@@ -111,6 +116,7 @@ static inline void declare_global_vars(node_t *node);
 static void declare_globals_in_tree(node_t *node, set <char *> ind_names);
 static set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level);
 static Relation process_execution_space(node_t *node, node_t *func, int *status);
+expr_t *eliminate_var_using_transitivity(expr_t *exp, const char *var_name);
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -1708,29 +1714,33 @@ expr_t *solve_constraint_for_var(expr_t *constr_exp, const char *var_name){
  * This function returns 1 if the tree passes as first parameter contains
  * only variables in the set passed as second parameter, or no variables at all.
  */
-static int expr_tree_contains_only_vars_in_set(expr_t *root, set<const char *>vars){
+static char *expr_tree_contains_vars_outside_set(expr_t *root, set<const char *>vars){
     set<const char *>::iterator it;
+    char *tmp_str;
 
     if( NULL == root )
-        return 1;
+        return NULL;
 
     switch( root->type ){
         case IDENTIFIER:
             for ( it=vars.begin() ; it != vars.end(); it++ ){
                 if( !strcmp(*it, root->value.name) )
-                    return 1;
+                    return NULL;
             }
-            return 0;
+            return root->value.name;
         default:
-            if( !expr_tree_contains_only_vars_in_set(root->l, vars) )
-                return 0;
-            if( !expr_tree_contains_only_vars_in_set(root->r, vars) )
-                return 0;
-            return 1;
+            tmp_str = expr_tree_contains_vars_outside_set(root->l, vars);
+            if( NULL != tmp_str ){
+                return tmp_str;
+            }
+            tmp_str = expr_tree_contains_vars_outside_set(root->r, vars);
+            if( NULL != tmp_str ){
+                return tmp_str;
+            }
+            return NULL;
     }
-    return 1;
+    return NULL;
 }
-
 
 /*
  * This function returns 1 if the tree passed as first parameter contains the
@@ -1777,6 +1787,7 @@ bool eliminate_variable(expr_t *constraint, expr_t *exp, const char *var, Relati
 void eliminate_variables_that_have_solutions(expr_t *constraint, expr_t *exp, set<const char *> vars_in_bounds, Relation R){
     bool expression_becomes_simpler = true;
     int var_count;
+    bool expr_changed = false;
 
     if( !R.is_set() ){
         // Eliminate output variables
@@ -1785,6 +1796,8 @@ void eliminate_variables_that_have_solutions(expr_t *constraint, expr_t *exp, se
             for(int i=0; i<R.n_out(); i++){
                 const char *ovar = R.output_var(i+1)->char_name();
                 expression_becomes_simpler = eliminate_variable(constraint, exp, ovar, R);
+                if( expression_becomes_simpler )
+                    expr_changed = true;
             }
         }
     }
@@ -1818,45 +1831,125 @@ void eliminate_variables_that_have_solutions(expr_t *constraint, expr_t *exp, se
             if( var_is_ok ) continue;
             // If the variable is not ok, try to eliminate it.
             expression_becomes_simpler = eliminate_variable(constraint, exp, var, R);
+            if( expression_becomes_simpler )
+                expr_changed = true;
         }
     }
 
 }
 
 const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R){
-    char *lb = NULL, *ub = NULL;
-    stringstream ss;
-    set<expr_t *> ge_contraints = find_all_GEs_with_var(var_name, exp);
-    bool is_lb_simple = false, is_ub_simple = false;
-    bool is_lb_C = false, is_ub_C = false;
+    set<expr_t *> ge_contraints;
+
+    ge_contraints = find_all_GEs_with_var(var_name, exp);
 
     map<string, Free_Var_Decl *>::iterator g_it;
     for(g_it=global_vars.begin(); g_it != global_vars.end(); g_it++ ){
         vars_in_bounds.insert( strdup((*g_it).first.c_str()) );
     }
 
+    // If this output variable does not appear in the inequalities of the expression because
+    // it is equal to another output variable, then we have to find the bounds of the other
+    // output variable.  Consider the following example:
+    //
+    // var: k'
+    // exp: (m1==k') & (k>=(step+2)) & (descA.nt>=(k+1)) & (step>=0) & (step'>=(step+1)) & (m1>=(step'+2)) & (descA.nt>=(m1+1))
+    // R:   {[step,k] -> [step',k',k'] : 0 <= step < step' <= k'-2 && step+2 <= k < descA.nt && k' < descA.nt}
+    if( ge_contraints.begin() == ge_contraints.end() ){
+        set<expr_t *> eqs;
+        expr_t *eq_exp, *rslt_exp;
+
+#if defined(DEBUG_BOUND_RESOLUTION)
+        cerr << "  found no GE constraints, trying equivalent variables\n";
+#endif
+
+        eqs = find_all_EQs_with_var(var_name, exp);
+        set<expr_t *>::iterator e_it;
+        for(e_it=eqs.begin(); e_it!=eqs.end(); e_it++){
+            expr_t *equiv_var;
+
+            eq_exp = *e_it;
+            rslt_exp = solve_constraint_for_var(eq_exp, var_name);
+#if defined(DEBUG_BOUND_RESOLUTION)
+            cerr << "    found expression:" << dump_expr_tree_to_str(rslt_exp) << "\n";
+#endif
+            equiv_var = expr_tree_to_simple_var(rslt_exp); 
+            if( NULL != equiv_var ){
+                char *equiv_var_name = equiv_var->value.name;
+#if defined(DEBUG_BOUND_RESOLUTION)
+                cerr << "      trying variable " << equiv_var_name << "\n";
+#endif
+                return do_find_bounds_of_var(exp, equiv_var_name, vars_in_bounds, R);
+            }
+        }
+    }
+
+    return do_find_bounds_of_var(exp, var_name, vars_in_bounds, R);
+}
+
+
+const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const char *> vars_in_bounds, Relation R){
+    char *lb = NULL, *ub = NULL;
+    stringstream ss;
+    set<expr_t *> ge_contraints;
+    bool is_lb_simple = false, is_ub_simple = false;
+    bool is_lb_C = false, is_ub_C = false;
+    int bounds_found = 0;
     set<expr_t *>::iterator e_it;
+
+#if defined(DEBUG_BOUND_RESOLUTION)
+    cerr << "v-------------------------v\n";
+#endif
+
+    ge_contraints = find_all_GEs_with_var(var_name, exp);
+
     for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
+        char *bad_var;
         expr_t *rslt_exp;
         expr_t *constraint = *e_it;
         int c = getVarCoeff(constraint, var_name);
         Q2J_ASSERT(c);
 
+#if defined(DEBUG_BOUND_RESOLUTION)
+        cerr << "Solving " << expr_tree_to_str(constraint) << " for var: " << var_name << "\n";
+#endif
+
         rslt_exp = solve_constraint_for_var(constraint, var_name);
 
         // If the expression has variables we don't want it to contain, we must try to eliminate them
-        if( !expr_tree_contains_only_vars_in_set(rslt_exp, vars_in_bounds) ){
+        bad_var = expr_tree_contains_vars_outside_set(rslt_exp, vars_in_bounds);
+        if( NULL != bad_var ){
+#if defined(DEBUG_BOUND_RESOLUTION)
+            cerr << " Unhappy with the result: " << expr_tree_to_str(rslt_exp) << "\n";
+            cerr << "   because of var: " << bad_var << "\n";
+#endif
             eliminate_variables_that_have_solutions(constraint, exp, vars_in_bounds, R);
+#if defined(DEBUG_BOUND_RESOLUTION)
+            cerr << " Solving processed constraint: " << expr_tree_to_str(constraint) << " for var: " << var_name << "\n";
+#endif
             // Solve again, now that we got rid of as many variables as we could.
             rslt_exp = solve_constraint_for_var(constraint, var_name);
+#if defined(DEBUG_BOUND_RESOLUTION)
+            cerr << "   Result: " << expr_tree_to_str(rslt_exp) << "\n";
+#endif
         }
 
         // If the expression still has variables we don't want it to contain, we need to ignore it
-        if( !expr_tree_contains_only_vars_in_set(rslt_exp, vars_in_bounds) ){
-            continue;
+        bad_var = expr_tree_contains_vars_outside_set(rslt_exp, vars_in_bounds);
+        if( NULL != bad_var ){
+            expr_t *new_exp;
+#if defined(DEBUG_BOUND_RESOLUTION)
+            cerr << "     Still unhappy with the result, trying transitivity.\n";
+#endif
+            new_exp = eliminate_var_using_transitivity(exp, bad_var);
+#if defined(DEBUG_BOUND_RESOLUTION)
+            cerr << "     Trying expression: " << expr_tree_to_str(new_exp) << "\n";
+#endif
+            return find_bounds_of_var(new_exp, var_name, vars_in_bounds, R);
         }
 
         if( c > 0 ){ // then lower bound
+            bounds_found++;
             if( NULL == lb ){
                 is_lb_simple = is_expr_simple(rslt_exp);
                 lb = strdup( expr_tree_to_str(rslt_exp) );
@@ -1866,6 +1959,7 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
                 asprintf(&lb, "dague_imax((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
             }
         }else{ // else upper bound
+            bounds_found++;
             if( NULL == ub ){
                 is_ub_simple = is_expr_simple(rslt_exp);
                 ub = strdup( expr_tree_to_str(rslt_exp) );
@@ -1894,6 +1988,18 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
         free(lb);
     }else{
         ss << "??";
+#if defined(DEBUG_BOUND_RESOLUTION)
+        cerr << "ERROR: UNRESOLVED LOWER BOUND:\n";
+        cerr << " var: " << var_name << "\n"; 
+        cerr << " exp: " << expr_tree_to_str(exp) << "\n";
+        cerr << " R:   " << R.print_with_subs_to_string(false) << "\n";
+        cerr << " List of GE constraints:\n";
+        for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
+            expr_t *constraint = *e_it;
+            cerr << "    " << expr_tree_to_str(constraint) << "\n";
+        }
+        cerr << "\n";
+#endif
     }
 
 
@@ -1908,7 +2014,23 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
         free(ub);
     }else{
         ss << "??";
+#if defined(DEBUG_BOUND_RESOLUTION)
+        cerr << "ERROR: UNRESOLVED UPPER BOUND:\n";
+        cerr << " var: " << var_name << "\n"; 
+        cerr << " exp: " << expr_tree_to_str(exp) << "\n";
+        cerr << " R:   " << R.print_with_subs_to_string(false) << "\n";
+        cerr << " List of GE constraints:\n";
+        for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
+            expr_t *constraint = *e_it;
+            cerr << "    " << expr_tree_to_str(constraint) << "\n";
+        }
+        cerr << "\n";
+#endif
     }
+
+#if defined(DEBUG_BOUND_RESOLUTION)
+    cerr << "^-------------------------^\n";
+#endif
 
     return strdup(ss.str().c_str());
 }
@@ -1953,7 +2075,7 @@ expr_t *createGEZero(expr_t *exp){
 // This function uses the transitivity of the ">=" operator to eliminate variables from
 // the GEs.  As an example, if we are trying to eliminate X from: X-a>=0 && b-X-1>=0 we
 // solve for "X" and get: b-1>=X && X>=a which due to transitivity gives us: b-1>=a
-expr_t *eliminate_var_using_transitivity(expr_t *exp, const char *var_name, Relation R){
+expr_t *eliminate_var_using_transitivity(expr_t *exp, const char *var_name){
     set<expr_t *> ges;
     set<expr_t *> ubs, lbs;
     set<expr_t *>::iterator it;
@@ -2408,6 +2530,8 @@ expr_t *cnstr_to_tree(Constraint_Handle cnstr, int cnstr_type){
     expr_t *e_cns;
 
     for(Constr_Vars_Iter cvi(cnstr); cvi; cvi++){
+        int int_const = (*cvi).coef;
+
         expr_t *e_cns = (expr_t *)calloc( 1, sizeof(expr_t) );
         e_cns->type = INTCONSTANT;
         e_cns->value.int_const = (*cvi).coef;
@@ -2660,10 +2784,30 @@ void tree_to_omega_set(expr_t *tree, Constraint_Handle &handle, map<string, Vari
 
 }
 
+static expr_t *intersect_expr_trees(expr_t *e1, expr_t *e2){
+ 
+    if( NULL == e1 ){
+        return e2;
+    }
+    if( NULL == e2 ){
+        return e1;
+    }
+
+    expr_t *e_and = (expr_t *)calloc( 1, sizeof(expr_t) );
+    e_and->type = L_AND;
+    e_and->l = e1;
+    e_and->r = e2;
+
+    return e_and;
+}
+
 expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es){
     Relation S_rslt;
     set<expr_t *> e_set;
     set<expr_t *>::iterator e_it;
+    expr_t *unsimplified=NULL;
+    bool ignore_constraint=false;
+    expr_t *full_exp;
 
     findAllConstraints(tree, e_set);
 
@@ -2676,6 +2820,7 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
         // Create a new Set
         set<string>vars;
         find_all_vars(e, vars);
+
         S_tmp = Relation(S_es.n_set());
 
         for(int i=1; i<=S_es.n_set(); i++){
@@ -2696,14 +2841,24 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
                 map<string, Free_Var_Decl *>::iterator g_it;
                 g_it = global_vars.find(var_name);
                 if( global_vars.end() == g_it ){
-                    fprintf(stderr,"    Variable \"%s\" was expected to be global, but it is not\n", var_name.c_str());
-                    fprintf(stderr,"expression: \"%s\"\nRelation:  ",expr_tree_to_str(tree));
-                    S_es.print_with_subs();
-                    abort();
+                    if( _q2j_paranoid_cond ){
+                        unsimplified = intersect_expr_trees(unsimplified, e);
+                    }else{
+                        cerr << "WARNING: Expression: \"" << expr_tree_to_str(e) << "\" will be omitted from ";
+                        cerr << "generated conditions due to unknown variable \"" << var_name.c_str() << "\". ";
+                        cerr << "If the expression contains output variables (i.e., k', m1', etc) then this ";
+                        cerr << "ommision is harmless (and necessary).\n";
+                    }
+                    ignore_constraint = true;
+                    break;
                 }
                 // And get a reference to the local version of the variable in S_tmp.
                 all_vars[var_name] = S_tmp.get_local(g_it->second);
             }
+        }
+        if( ignore_constraint ){
+            ignore_constraint = false;
+            continue;
         }
 
         F_And *S_root = S_tmp.add_and();
@@ -2739,7 +2894,14 @@ expr_t *simplify_constraint_based_on_execution_space(expr_t *tree, Relation S_es
         S_diff.Null();
     }
 
-    return relation_to_tree( S_rslt );
+    expr_t *simpl_exp = relation_to_tree(S_rslt);
+    if( _q2j_paranoid_cond ){
+        full_exp = intersect_expr_trees(unsimplified, simpl_exp);
+    }else{
+        full_exp = simpl_exp;
+    }
+
+    return full_exp;
 }
 
 
@@ -2803,6 +2965,7 @@ list< pair<expr_t *,Relation> > simplify_conditions_and_split_disjunctions(Relat
 //
 expr_t *simplify_condition(expr_t *expr, Relation R, Relation S_es){
     int dst_count = R.n_out();
+
     for(int i=0; i<dst_count; i++){
         const char *ovar = strdup(R.output_var(i+1)->char_name());
         // If we find the variable in an EQ then we solve for the variable and
@@ -2813,7 +2976,7 @@ expr_t *simplify_condition(expr_t *expr, Relation R, Relation S_es){
         }else{
             // If the variable is in no EQs but it's in GEs, we have to use transitivity
             // to eliminate it.  For example: X-a>=0 && b-X-1>=0 => b-1>=X && X>=a => b-1>=a
-            expr = eliminate_var_using_transitivity(expr, ovar, R);
+            expr = eliminate_var_using_transitivity(expr, ovar);
         }
         free((void *)ovar);
     }
@@ -3180,7 +3343,6 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
         list<Relation *>::iterator rel_it = relation_fifo.begin();
         if( rel_it != relation_fifo.end() ){
             Rtrnsv = *(*rel_it);
-            Rtrnsv.simplify(2,2);
 #if defined(DEBUG_ANTI)
             Rtrnsv.print_with_subs();
             printf("--->\n");
@@ -3188,7 +3350,6 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
             rel_it++;
             for ( ; rel_it != relation_fifo.end(); rel_it++){
                 Relation Rtmp = *(*rel_it);
-                Rtmp.simplify(2,2);
 #if defined(DEBUG_ANTI)
                 Rtmp.print_with_subs();
                 printf("--->\n");
@@ -3201,7 +3362,6 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
 #endif /* DEBUG_ANTI */
         }
         Rt = Rtrnsv;
-        Rt.simplify(2,2);
         Rtrnsv = Relation::Null();
         if( Ra.is_null() ){
 #if defined(DEBUG_ANTI)
@@ -3224,10 +3384,10 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
             printf("Computing the union:\n");
 #endif /* DEBUG_ANTI */
             Relation Ru = Union(Ra, Rt);
+
 #if defined(DEBUG_ANTI)
             printf("Simplifying the union\n");
 #endif /* DEBUG_ANTI */
-            Ru.simplify(2,2);
 #if defined(DEBUG_ANTI)
             printf("Returning the union\n");
 #endif /* DEBUG_ANTI */
@@ -3245,7 +3405,7 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
         printf("%s -> %s\n",cur_nd->task_name, next_node->task_name);
 #endif /* DEBUG_ANTI */
 
-        // If the next node (Ni) has not already been visited, or if the source and sink of the edge we
+        // If the next node (Ni) has _not_ already been visited, or if the source and sink of the edge we
         // are finalizing are the same (loop carried self edge) and the next node is that (source/sink) node.
         if( (visited_nodes.find(next_node) == visited_nodes.end()) || ((src_nd == snk_nd) && (next_node == snk_nd)) ){
             relation_fifo.push_back((*it)->R);
@@ -3258,7 +3418,7 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rt, Relation Ra, set<t
     }
 
 
-    Ra.simplify(2,2);
+//    Ra.simplify(2,2);
     return Ra;
 }
 
@@ -3320,7 +3480,7 @@ bool are_relations_equivalent(Relation *Ra, Relation *Rb){
 ////////////////////////////////////////////////////////////////////////////////
 //
 
-void copy_task_graph_node_except_edge(tg_node_t *org_nd, map<char *, tg_node_t *> &task_to_node, dep_t *dep){
+void copy_task_graph_node_except_edge(tg_node_t *org_nd, map<char *, tg_node_t *> &task_to_node, dep_t *dep, int level){
     tg_node_t *new_nd;
 
     // See if there is already a node in the graph for this task
@@ -3342,6 +3502,11 @@ void copy_task_graph_node_except_edge(tg_node_t *org_nd, map<char *, tg_node_t *
         Q2J_ASSERT(dep->src->function->fname);
         Q2J_ASSERT(dep->dst->function);
         Q2J_ASSERT(dep->dst->function->fname);
+
+        // for the first level, run the algorithm without the ANTI edges.
+        if( (0 == level) && (EDGE_ANTI == tmp_edge->type) ){
+            continue;
+        }
 
         if( !strcmp(new_nd->task_name, dep->src->function->fname) &&
             !strcmp(tmp_edge->dst->task_name, dep->dst->function->fname) &&
@@ -3368,13 +3533,34 @@ void copy_task_graph_node_except_edge(tg_node_t *org_nd, map<char *, tg_node_t *
 
 }
 
+
+void erase_task_graph(map<char *, tg_node_t *> &task_to_node){
+    map<char *, tg_node_t *>::iterator it;
+    for(it=task_to_node.begin(); it!=task_to_node.end(); ++it){
+        tg_node_t *node = it->second;
+        // Free all the edges of the node
+        for (list<tg_edge_t *>::iterator e_it = node->edges.begin(); e_it != node->edges.end(); e_it++){
+            tg_edge_t *tmp_edge = *e_it;
+            delete(tmp_edge->R);
+            free(tmp_edge);
+        }
+        // Free the name
+        free(node->task_name);
+        // Free the node itself
+        free(node);
+    }
+}
+
 void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *dep, Relation fnl_rel){
     list <tg_edge_t *> new_edges;
     tg_node_t *src_task;
 
     // Find the task in the graph or die.
     map<char *, tg_node_t *>::iterator t_it = task_to_node.find(dep->src->function->fname);
-    assert( t_it != task_to_node.end() );
+    if( t_it == task_to_node.end() ){
+        fprintf(stderr,"FATAL ERROR: update_synch_edge_on_graph() should never fail to find the task\n");
+        abort();
+    }
     src_task = t_it->second;
 
     // Get the name of the destination task of the synch edge we are trying to update.
@@ -3402,7 +3588,7 @@ void update_synch_edge_on_graph(map<char *, tg_node_t *> task_to_node, dep_t *de
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void create_copy_of_graph_excluding_edge(map<char *, tg_node_t *> task_to_node, dep_t *dep, tg_node_t **new_source_node, tg_node_t **new_sink_node){
+map<char *, tg_node_t *> create_copy_of_graph_excluding_edge(map<char *, tg_node_t *> task_to_node, dep_t *dep, tg_node_t **new_source_node, tg_node_t **new_sink_node, int level){
     map<char *, tg_node_t *> tmp_task_to_node;
     tg_node_t *new_src_nd, *new_snk_nd;
     node_t *src_node, *dst_node;
@@ -3419,7 +3605,7 @@ void create_copy_of_graph_excluding_edge(map<char *, tg_node_t *> task_to_node, 
     map<char *, tg_node_t *>::iterator it;
     for(it=task_to_node.begin(); it!=task_to_node.end(); ++it){
         tg_node_t *old_nd = it->second;
-        copy_task_graph_node_except_edge(old_nd, tmp_task_to_node, dep);
+        copy_task_graph_node_except_edge(old_nd, tmp_task_to_node, dep, level);
     }
 
     // Find the node that constitutes the source of this dependency in the new graph.
@@ -3428,10 +3614,11 @@ void create_copy_of_graph_excluding_edge(map<char *, tg_node_t *> task_to_node, 
     new_snk_nd = find_node_in_graph(dst_node->function->fname, tmp_task_to_node);
     Q2J_ASSERT(new_snk_nd);
 
+    // The caller will use the source to traverse the graph, but we return the map to free the memory.
     *new_source_node = new_src_nd;
     *new_sink_node = new_snk_nd;
 
-    return;
+    return tmp_task_to_node; 
 }
 
 
@@ -3502,22 +3689,20 @@ map<char *, set<dep_t *> > prune_ctrl_deps(set<dep_t *> ctrl_deps, set<dep_t *> 
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-void free_task_graph(map<char *, tg_node_t *> task_to_node){
-    return;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-//
 map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps){
     map<char *, set<dep_t *> > resulting_map;
     set<dep_t *> rslt_ctrl_deps;
-    int level, max_level=2;
+    int level, max_level=1;
+    
+    if( _q2j_antidep_level > 0 ){
+        max_level = _q2j_antidep_level;
+    }
 
     rslt_ctrl_deps = ctrl_deps;
     // TODO: we can add an intermediate level by killing all the anti-deps to self without
     // TODO: computing transitive edges. Just compute the TC of the cycles.
-    for(level=0; level<max_level; level++){
-        fprintf(stderr, "Finalizing synch edges. Level %d/%d\n",level, max_level-1);
+    for(level=1; level<=max_level; level++){
+        fprintf(stderr, "Finalizing synch edges. Level %d/%d\n",level, max_level);
         rslt_ctrl_deps = do_finalize_synch_edges(rslt_ctrl_deps, flow_deps, level);
         fprintf(stderr, "\n");
     }
@@ -3548,9 +3733,12 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
 ////////////////////////////////////////////////////////////////////////////////
 //
+#include <fstream>
 set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level){
     map<char *, tg_node_t *> task_to_node;
     set<dep_t *> rslt_ctrl_deps;
+    int trans_edge_count = 0;
+    ofstream clog;
 
     // ============
     // Create a graph I_G with the different tasks (task-classes, actually) as nodes
@@ -3572,6 +3760,7 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
     // set of necessary control edges.  It is yet to be determined if the algorithm
     // leads to a minimum set of control edges, for an arbitrary order of operations.
 
+    clog.open ("anti.log", ios::out | ios::app);
 
     // For every anti-edge, repeat the same steps.
     int count = 0;
@@ -3581,7 +3770,10 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
         list<tg_node_t *> node_stack;
         Relation Rt, Ra;
         tg_node_t *source_node, *sink_node;
+        map<char *, tg_node_t *> temp_graph;
 
+
+        // 0
         fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
@@ -3594,7 +3786,8 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
 
         // Step 1) make a temporary copy of I_G, G, that doesn't include the
         //         anti-edge we are trying to reduce.
-        create_copy_of_graph_excluding_edge(task_to_node, dep, &source_node, &sink_node);
+
+        temp_graph = create_copy_of_graph_excluding_edge(task_to_node, dep, &source_node, &sink_node, level);
 
 #if defined(DEBUG_ANTI)
         printf("\n>>>>>>>>>>\n   >>>>>>> Processing: %s --> %s\n",source_node->task_name, sink_node->task_name);
@@ -3602,6 +3795,7 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
 
         // Step 2) for each pair of nodes N1,N2 in G, replace all the edges that
         //         go from N1 to N2 with their union.
+        // 1
         fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
@@ -3617,6 +3811,7 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
 
         // Step 3) Add to every node a tautologic Relation to self:
         // {[p1,p2,...,pn] -> [p1,p2,...,pn] : TRUE}.
+        // 2
         fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
@@ -3625,9 +3820,10 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
         visited_nodes.insert(source_node);
         add_tautologic_cycles(source_node, visited_nodes);
 
-        if( level > 0 ){
+        if( 2 == level ){
             // Step 4) Find all cycles, compute their transitive closures and union them into node.cycle
 
+            // 3
             fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%",
                     count / 5, count % 5, (int)(ctrl_deps.size()),
                     ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
@@ -3645,6 +3841,7 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
 
         // Step 5) Find the union of the transitive edges that start at source_node and end at
         // sink_node
+        // 4
         fprintf(stderr, "\r%4d - %d / %4d : %3.0f%%  ",
                 count / 5, count % 5, (int)(ctrl_deps.size()),
                 ((double)count / (double)(ctrl_deps.size() * 5.)) * 100.);
@@ -3656,15 +3853,19 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
 #endif /* DEBUG_ANTI */
         visited_nodes.clear();
         relation_fifo.clear();
+         
         Ra = find_transitive_edge(source_node, Rt, Ra, visited_nodes, relation_fifo, source_node, sink_node, 1);
         Ra.simplify(2,2);
 
+        erase_task_graph(temp_graph);
+        temp_graph.clear();
+
+#define DEBUG_ANTI
 #if defined(DEBUG_ANTI)
         if( Ra.is_null() ){
-            printf("find_transitive_edge() found no transitive edge\n");
+            clog << "\nfind_transitive_edge() found no transitive edge\n";
         }else{
-            printf("Ra:  ");
-            Ra.print_with_subs();
+            clog << "\nRa:  " << Ra.print_with_subs_to_string(false) << "\n";
         }
 #endif /* DEBUG_ANTI */
 
@@ -3674,19 +3875,16 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
             Rsync_finalized = Rsync;
         }else{
 #if defined(DEBUG_ANTI)
-            printf("Subtracting from:\n  ");
-            Rsync.print_with_subs();
-            fflush(stdout);
+            clog << "Subtracting from:  " << Rsync.print_with_subs_to_string(false) << "\n";
 #endif /* DEBUG_ANTI */
 
+            trans_edge_count++;
             Rsync_finalized = Difference(Rsync, Ra);
 
 #if defined(DEBUG_ANTI)
-            printf("==> Result:\n  ");
-            Rsync_finalized.print_with_subs();
-            printf("Updating the task graph\n");
-            fflush(stdout);
+            clog << "==> Result:  " << Rsync_finalized.print_with_subs_to_string(false) << "\n\n";
 #endif /* DEBUG_ANTI */
+#undef DEBUG_ANTI
 
             update_synch_edge_on_graph(task_to_node, dep, Rsync_finalized);
         }
@@ -3702,6 +3900,8 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
         }
     }
 
+    clog.close();
+
     // Release the memory taken by the Relations in the
     // old list and then free the dep structures.
     it=ctrl_deps.begin();
@@ -3716,7 +3916,9 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
         free(dep);
     }
 
-    free_task_graph(task_to_node);
+    erase_task_graph(task_to_node);
+
+    fprintf(stderr,"\nTransitive edges used to finalize antidependencies: %d\n",trans_edge_count);
 
     return rslt_ctrl_deps;
 }
@@ -4547,6 +4749,116 @@ static string _dump_expr(expr_t *exp){
     }
     return string();
 }
+
+static expr_t *expr_tree_to_simple_var(expr_t *exp){
+
+    if( NULL == exp )
+        return NULL;
+
+    switch( exp->type ){
+        case IDENTIFIER:
+            return exp;
+
+        case INTCONSTANT:
+        case EQ_OP:
+        case GE:
+        case L_AND:
+        case L_OR:
+            return NULL;
+
+        case ADD:
+        case SUB:
+            if( 0 == eval_int_expr_tree(exp->l) ){
+                // If it's an addition with zero, ignore the zero and go deeper
+                return expr_tree_to_simple_var(exp->r);
+            }else if( 0 == eval_int_expr_tree(exp->r) ){
+                // If it's an addition with zero, ignore the zero and go deeper
+                return expr_tree_to_simple_var(exp->l);
+            }
+            break;
+
+        case MUL:
+            if( 1 == eval_int_expr_tree(exp->l) ){
+                // If it's a multiplication with one, ignore the one and go deeper
+                return expr_tree_to_simple_var(exp->r);
+            }else if( 1 == eval_int_expr_tree(exp->r) ){
+                // If it's a multiplication with one, ignore the one and go deeper
+                return expr_tree_to_simple_var(exp->l);
+            }
+            break;
+
+        case DIV:
+            if( 1 == eval_int_expr_tree(exp->r) ){
+                // If it's a division by one, ignore the one and go to the nominator
+                return expr_tree_to_simple_var(exp->l);
+            }
+            break;
+
+        default:
+            break;
+    }
+    return NULL;
+}
+
+static inline int value_to_return(int value){
+
+    if( (0 == value) || (1 == value) ){
+        return value;
+    }
+
+    return -1;
+}
+
+/*
+ * This function returns 0 (zero), 1 (one), or -1 (minus one).
+ * The minus one is to be treated by the caller as an error value,
+ * the other two values indicate that the expression tree actually
+ * evaluated to zero, or one.
+*/
+static int eval_int_expr_tree(expr_t *exp){
+    int l,r, value=-1;
+
+    if( NULL == exp )
+        return -1;
+
+    switch( exp->type ){
+
+        case IDENTIFIER:
+        case EQ_OP:
+        case GE:
+        case L_AND:
+        case L_OR:
+            return -1;
+
+        case INTCONSTANT:
+            return value_to_return(exp->value.int_const);
+
+        case ADD:
+            l = eval_int_expr_tree(exp->l);
+            r = eval_int_expr_tree(exp->r);
+            return value_to_return(l+r);
+
+        case SUB:
+            l = eval_int_expr_tree(exp->l);
+            r = eval_int_expr_tree(exp->r);
+            return value_to_return(l-r);
+
+        case MUL:
+            l = eval_int_expr_tree(exp->l);
+            r = eval_int_expr_tree(exp->r);
+            return value_to_return(l*r);
+
+        case DIV:
+            l = eval_int_expr_tree(exp->l);
+            r = eval_int_expr_tree(exp->r);
+            if( 0 != l%r )
+                return -1;
+            return value_to_return(l/r);
+
+    }
+    return -1;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 ////////////////////////////////////////////////////////////////////////////////
