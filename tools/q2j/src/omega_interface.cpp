@@ -1859,10 +1859,6 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
         set<expr_t *> eqs;
         expr_t *eq_exp, *rslt_exp;
 
-#if defined(DEBUG_BOUND_RESOLUTION)
-        cerr << "  found no GE constraints, trying equivalent variables\n";
-#endif
-
         eqs = find_all_EQs_with_var(var_name, exp);
         set<expr_t *>::iterator e_it;
         for(e_it=eqs.begin(); e_it!=eqs.end(); e_it++){
@@ -1870,15 +1866,9 @@ const char *find_bounds_of_var(expr_t *exp, const char *var_name, set<const char
 
             eq_exp = *e_it;
             rslt_exp = solve_constraint_for_var(eq_exp, var_name);
-#if defined(DEBUG_BOUND_RESOLUTION)
-            cerr << "    found expression:" << dump_expr_tree_to_str(rslt_exp) << "\n";
-#endif
             equiv_var = expr_tree_to_simple_var(rslt_exp); 
             if( NULL != equiv_var ){
                 char *equiv_var_name = equiv_var->value.name;
-#if defined(DEBUG_BOUND_RESOLUTION)
-                cerr << "      trying variable " << equiv_var_name << "\n";
-#endif
                 return do_find_bounds_of_var(exp, equiv_var_name, vars_in_bounds, R);
             }
         }
@@ -1897,10 +1887,6 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
     int bounds_found = 0;
     set<expr_t *>::iterator e_it;
 
-#if defined(DEBUG_BOUND_RESOLUTION)
-    cerr << "v-------------------------v\n";
-#endif
-
     ge_contraints = find_all_GEs_with_var(var_name, exp);
 
     for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
@@ -1910,41 +1896,21 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
         int c = getVarCoeff(constraint, var_name);
         Q2J_ASSERT(c);
 
-#if defined(DEBUG_BOUND_RESOLUTION)
-        cerr << "Solving " << expr_tree_to_str(constraint) << " for var: " << var_name << "\n";
-#endif
-
         rslt_exp = solve_constraint_for_var(constraint, var_name);
 
         // If the expression has variables we don't want it to contain, we must try to eliminate them
         bad_var = expr_tree_contains_vars_outside_set(rslt_exp, vars_in_bounds);
         if( NULL != bad_var ){
-#if defined(DEBUG_BOUND_RESOLUTION)
-            cerr << " Unhappy with the result: " << expr_tree_to_str(rslt_exp) << "\n";
-            cerr << "   because of var: " << bad_var << "\n";
-#endif
             eliminate_variables_that_have_solutions(constraint, exp, vars_in_bounds, R);
-#if defined(DEBUG_BOUND_RESOLUTION)
-            cerr << " Solving processed constraint: " << expr_tree_to_str(constraint) << " for var: " << var_name << "\n";
-#endif
             // Solve again, now that we got rid of as many variables as we could.
             rslt_exp = solve_constraint_for_var(constraint, var_name);
-#if defined(DEBUG_BOUND_RESOLUTION)
-            cerr << "   Result: " << expr_tree_to_str(rslt_exp) << "\n";
-#endif
         }
 
         // If the expression still has variables we don't want it to contain, we need to ignore it
         bad_var = expr_tree_contains_vars_outside_set(rslt_exp, vars_in_bounds);
         if( NULL != bad_var ){
             expr_t *new_exp;
-#if defined(DEBUG_BOUND_RESOLUTION)
-            cerr << "     Still unhappy with the result, trying transitivity.\n";
-#endif
             new_exp = eliminate_var_using_transitivity(exp, bad_var);
-#if defined(DEBUG_BOUND_RESOLUTION)
-            cerr << "     Trying expression: " << expr_tree_to_str(new_exp) << "\n";
-#endif
             return find_bounds_of_var(new_exp, var_name, vars_in_bounds, R);
         }
 
@@ -1988,18 +1954,6 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
         free(lb);
     }else{
         ss << "??";
-#if defined(DEBUG_BOUND_RESOLUTION)
-        cerr << "ERROR: UNRESOLVED LOWER BOUND:\n";
-        cerr << " var: " << var_name << "\n"; 
-        cerr << " exp: " << expr_tree_to_str(exp) << "\n";
-        cerr << " R:   " << R.print_with_subs_to_string(false) << "\n";
-        cerr << " List of GE constraints:\n";
-        for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
-            expr_t *constraint = *e_it;
-            cerr << "    " << expr_tree_to_str(constraint) << "\n";
-        }
-        cerr << "\n";
-#endif
     }
 
 
@@ -2014,23 +1968,7 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
         free(ub);
     }else{
         ss << "??";
-#if defined(DEBUG_BOUND_RESOLUTION)
-        cerr << "ERROR: UNRESOLVED UPPER BOUND:\n";
-        cerr << " var: " << var_name << "\n"; 
-        cerr << " exp: " << expr_tree_to_str(exp) << "\n";
-        cerr << " R:   " << R.print_with_subs_to_string(false) << "\n";
-        cerr << " List of GE constraints:\n";
-        for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
-            expr_t *constraint = *e_it;
-            cerr << "    " << expr_tree_to_str(constraint) << "\n";
-        }
-        cerr << "\n";
-#endif
     }
-
-#if defined(DEBUG_BOUND_RESOLUTION)
-    cerr << "^-------------------------^\n";
-#endif
 
     return strdup(ss.str().c_str());
 }
