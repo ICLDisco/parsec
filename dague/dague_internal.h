@@ -46,6 +46,7 @@ typedef void (*dague_startup_fn_t)(dague_context_t *context,
 typedef void (*dague_destruct_fn_t)(dague_handle_t* dague_handle);
 
 struct dague_handle_s {
+    dague_list_item_t             super;
     /** All dague_handle_t structures hold these two arrays **/
     uint32_t                   handle_id;
     volatile uint32_t          nb_local_tasks;
@@ -71,6 +72,8 @@ struct dague_handle_s {
     dague_dependencies_t**     dependencies_array;
     data_repo_t**              repo_array;
 };
+
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
 
 #define DAGUE_DEVICES_ALL				   UINT32_MAX
 

@@ -23,10 +23,12 @@
 #include "dague/mca/sched/sched.h"
 
 int window_size = 2048;
-
 double time_double = 0;
 
 extern dague_sched_module_t *current_scheduler;
+
+
+dague_mempool_t *handle_mempool;
 
 /* Copied from dague/scheduling.c, will need to be exposed */
 #define TIME_STEP 5410
@@ -59,6 +61,188 @@ OBJ_CLASS_INSTANCE(dague_dtd_tile_t, dague_generic_bucket_t,
 OBJ_CLASS_INSTANCE(bucket_element_tile_t, dague_generic_bucket_t,
                    NULL, NULL);
 
+/* To create object of class dague_handle_t that inherits dague_object_t
+ * class
+ */
+OBJ_CLASS_INSTANCE(dague_handle_t, dague_list_item_t,
+                   NULL, NULL);
+
+/* constructor for dague_handle_t
+ */
+void
+dague_dtd_handle_constructor
+(dague_dtd_handle_t *dague_handle)
+{
+    int i;
+
+    dague_handle->startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*));
+
+    dague_handle->tile_hash_table_size      = tile_hash_table_size;
+    dague_handle->task_hash_table_size      = task_hash_table_size;
+    dague_handle->function_hash_table_size  = DAGUE_dtd_NB_FUNCTIONS;
+
+    dague_handle->task_h_table              = OBJ_NEW(hash_table);
+    hash_table_init(dague_handle->task_h_table,
+                    dague_handle->task_hash_table_size,
+                    sizeof(bucket_element_task_t*), &hash_key);
+    dague_handle->tile_h_table              = OBJ_NEW(hash_table);
+    hash_table_init(dague_handle->tile_h_table,
+                    dague_handle->tile_hash_table_size,
+                    sizeof(bucket_element_tile_t*), &hash_key);
+    dague_handle->function_h_table          = OBJ_NEW(hash_table);
+    hash_table_init(dague_handle->function_h_table,
+                    dague_handle->function_hash_table_size,
+                    sizeof(bucket_element_f_t *), &hash_key);
+
+    dague_handle->super.functions_array     = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
+
+    for(i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
+        dague_handle->super.functions_array[i] = NULL;
+    }
+
+    dague_handle->super.dependencies_array  = (dague_dependencies_t **) calloc(DAGUE_dtd_NB_FUNCTIONS, sizeof(dague_dependencies_t *));
+    dague_handle->arenas_size               = 1;
+    dague_handle->arenas = (dague_arena_t **) malloc(dague_handle->arenas_size * sizeof(dague_arena_t *));
+
+    for (i = 0; i < dague_handle->arenas_size; i++) {
+        dague_handle->arenas[i] = (dague_arena_t *) calloc(1, sizeof(dague_arena_t));
+    }
+
+#if defined(DAGUE_PROF_TRACE)
+    dague_handle->super.profiling_array     = calloc (2 * DAGUE_dtd_NB_FUNCTIONS , sizeof(int));
+#endif /* defined(DAGUE_PROF_TRACE) */
+
+    dague_dtd_tile_t fake_tile;
+    dague_handle->tile_mempool          = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
+    dague_mempool_construct( dague_handle->tile_mempool,
+                             OBJ_CLASS(dague_dtd_tile_t), sizeof(dague_dtd_tile_t),
+                             ((char*)&fake_tile.super.mempool_owner) - ((char*)&fake_tile),
+                             1/* no. of threads*/ );
+
+}
+
+/* desctructor for dague_handle_t
+ */
+void
+dague_dtd_handle_destructor
+(dague_dtd_handle_t *dague_handle)
+{
+int i, j, k;
+#if defined(DAGUE_PROF_TRACE)
+    free((void *)dague_handle->super.profiling_array);
+#endif /* defined(DAGUE_PROF_TRACE) */
+
+    for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
+        dague_function_t *func = (dague_function_t *) dague_handle->super.functions_array[i];
+
+        dague_dtd_function_t *func_parent = (dague_dtd_function_t *)func;
+        if (func != NULL) {
+            for (j=0; j< func->nb_flows; j++) {
+                if(func->in[j] != NULL && func->in[j]->flow_flags == FLOW_ACCESS_READ) {
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
+                        if (func->in[j]->dep_in[k] != NULL) {
+                            free((void*)func->in[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
+                        if (func->in[j]->dep_out[k] != NULL) {
+                            free((void*)func->in[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->in[j]);
+                }
+                if(func->out[j] != NULL) {
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
+                        if (func->out[j]->dep_in[k] != NULL) {
+                            free((void*)func->out[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
+                        if (func->out[j]->dep_out[k] != NULL) {
+                            free((void*)func->out[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->out[j]);
+                }
+            }
+            dague_mempool_destruct(func_parent->context_mempool);
+            free (func_parent->context_mempool);
+            free(func);
+        }
+    }
+    free(dague_handle->super.functions_array);
+    dague_handle->super.functions_array = NULL;
+    dague_handle->super.nb_functions = 0;
+
+    for (i = 0; i < (uint32_t) dague_handle->arenas_size; i++) {
+            if (dague_handle->arenas[i] != NULL) {
+                free(dague_handle->arenas[i]);
+                dague_handle->arenas[i] = NULL;
+        }
+    }
+
+    free(dague_handle->arenas);
+    dague_handle->arenas      = NULL;
+    dague_handle->arenas_size = 0;
+
+    /* Destroy the data repositories for this object */
+    for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
+        dague_destruct_dependencies(dague_handle->super.dependencies_array[i]);
+        dague_handle->super.dependencies_array[i] = NULL;
+    }
+
+    free(dague_handle->super.dependencies_array);
+    dague_handle->super.dependencies_array = NULL;
+
+    /* Unregister the handle from the devices */
+    for (i = 0; i < dague_nb_devices; i++) {
+        if (!(dague_handle->super.devices_mask & (1 << i)))
+            continue;
+        dague_handle->super.devices_mask ^= (1 << i);
+        dague_device_t *device = dague_devices_get(i);
+        if ((NULL == device) || (NULL == device->device_handle_unregister))
+            continue;
+        if (DAGUE_SUCCESS != device->device_handle_unregister(device, &dague_handle->super))
+            continue;
+    }
+
+    /* dtd handle specific */
+    dague_mempool_destruct(dague_handle->tile_mempool);
+    free (dague_handle->tile_mempool);
+    free(dague_handle->startup_list);
+
+#if 0
+    for (i=0;i<task_hash_table_size;i++) {
+        free((bucket_element_task_t *)dague_handle->task_h_table->buckets[i]);
+    }
+    for (i=0;i<tile_hash_table_size;i++) {
+        bucket_element_tile_t *bucket = handle->super.tile_h_table->buckets[i];
+        bucket_element_tile_t *tmp_bucket;
+        if( bucket != NULL) {
+            /* cleaning chains */
+            while (bucket != NULL) {
+                tmp_bucket = bucket;
+                free((dague_dtd_tile_t *)bucket->tile);
+                bucket = bucket->next;
+                free(tmp_bucket);
+            }
+        }
+    }
+    for (i=0;i<DAGUE_dtd_NB_FUNCTIONS;i++){
+        free((bucket_element_f_t *)handle->super.function_h_table->buckets[i]);
+    }
+#endif
+    hash_table_fini(dague_handle->task_h_table, dague_handle->task_hash_table_size);
+    hash_table_fini(dague_handle->tile_h_table, dague_handle->tile_hash_table_size);
+    hash_table_fini(dague_handle->function_h_table, dague_handle->function_hash_table_size);
+}
+
+/* To create object of class dague_dtd_handle_t that inherits dague_handle_t
+ * class
+ */
+OBJ_CLASS_INSTANCE(dague_dtd_handle_t, dague_handle_t,
+                  dague_dtd_handle_constructor, dague_dtd_handle_destructor);
+
 /**
  * All the static functions should be declared before being defined.
  */
@@ -90,6 +274,179 @@ complete_hook_of_dtd(struct dague_execution_unit_s *,
 static dague_hook_return_t
 push_tasks_back_in_mempool(struct dague_execution_unit_s *,
                      dague_execution_context_t *);
+
+/* Function to initialize dague_handle_mempool
+ */
+void
+dague_dtd_init
+()
+{
+    dague_dtd_handle_t  fake_handle, *dague_handle;
+
+    handle_mempool          = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
+    dague_mempool_construct( handle_mempool,
+                             OBJ_CLASS(dague_dtd_handle_t), sizeof(dague_dtd_handle_t),
+                             ((char*)&fake_handle.mempool_owner) - ((char*)&fake_handle),
+                             1/* no. of threads*/ );
+
+
+    dague_handle = (dague_dtd_handle_t *)dague_thread_mempool_allocate(handle_mempool->thread_mempools);
+    dague_thread_mempool_free( handle_mempool->thread_mempools, dague_handle );
+
+    if (testing_ptg_to_dtd == 99) {
+        testing_ptg_to_dtd = 0;
+    } else {
+        testing_ptg_to_dtd = 1;
+    }
+
+    /* Registering mca param for printing out traversal info */
+    (void)dague_mca_param_reg_int_name("dtd", "traversal_info",
+                                       "Show graph traversal info",
+                                           false, false, 0, &dump_traversal_info);
+
+    /* Registering mca param for printing out function_structure info */
+    (void)dague_mca_param_reg_int_name("dtd", "function_info",
+                                       "Show master structure info",
+                                       false, false, 0, &dump_function_info);
+
+    /* Registering mca param for tile hash table size */
+    (void)dague_mca_param_reg_int_name("dtd", "tile_hash_size",
+                                       "Registers the supplied size overriding the default size of tile hash table",
+                                       false, false, tile_hash_table_size, &tile_hash_table_size);
+
+    /* Registering mca param for task hash table size */
+    (void)dague_mca_param_reg_int_name("dtd", "task_hash_size",
+                                       "Registers the supplied size overriding the default size of task hash table",
+                                       false, false, task_hash_table_size, &task_hash_table_size);
+
+}
+
+/* Function to return the handle to the mempool */
+void
+dague_dtd_fini
+()
+{
+    assert(handle_mempool != NULL);
+
+    /*dague_dtd_handle_t *ret = NULL;
+    while ( ret = (dague_dtd_handle_t *)dague_lifo_pop( &handle_mempool->thread_mempools->mempool ) != NULL ) {
+        OBJ_RELEASE(ret);
+    }*/
+
+    dague_mempool_destruct(handle_mempool);
+    free (handle_mempool);
+#if 0
+    int i, j, k;
+#if defined(DAGUE_PROF_TRACE)
+    free((void *)handle->super.super.profiling_array);
+#endif /* defined(DAGUE_PROF_TRACE) */
+
+    for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
+        dague_function_t *func = (dague_function_t *) handle->super.super.functions_array[i];
+
+        dague_dtd_function_t *func_parent = (dague_dtd_function_t *)func;
+        if (func != NULL) {
+            for (j=0; j< func->nb_flows; j++) {
+                if(func->in[j] != NULL && func->in[j]->flow_flags == FLOW_ACCESS_READ) {
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
+                        if (func->in[j]->dep_in[k] != NULL) {
+                            free((void*)func->in[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
+                        if (func->in[j]->dep_out[k] != NULL) {
+                            free((void*)func->in[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->in[j]);
+                }
+                if(func->out[j] != NULL) {
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
+                        if (func->out[j]->dep_in[k] != NULL) {
+                            free((void*)func->out[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
+                        if (func->out[j]->dep_out[k] != NULL) {
+                            free((void*)func->out[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->out[j]);
+                }
+            }
+            dague_mempool_destruct(func_parent->context_mempool);
+            free (func_parent->context_mempool);
+            free(func);
+        }
+    }
+    free(handle->super.super.functions_array);
+    handle->super.super.functions_array = NULL;
+    handle->super.super.nb_functions = 0;
+
+    for (i = 0; i < (uint32_t) handle->super.arenas_size; i++) {
+            if (handle->super.arenas[i] != NULL) {
+                free(handle->super.arenas[i]);
+                handle->super.arenas[i] = NULL;
+        }
+    }
+
+    free(handle->super.arenas);
+    handle->super.arenas      = NULL;
+    handle->super.arenas_size = 0;
+
+    /* Destroy the data repositories for this object */
+    data_repo_destroy_nothreadsafe(handle->dtd_data_repository);
+    for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
+        dague_destruct_dependencies(handle->super.super.dependencies_array[i]);
+        handle->super.super.dependencies_array[i] = NULL;
+    }
+
+    free(handle->super.super.dependencies_array);
+    handle->super.super.dependencies_array = NULL;
+
+    /* Unregister the handle from the devices */
+    for (i = 0; i < dague_nb_devices; i++) {
+        if (!(handle->super.super.devices_mask & (1 << i)))
+            continue;
+        handle->super.super.devices_mask ^= (1 << i);
+        dague_device_t *device = dague_devices_get(i);
+        if ((NULL == device) || (NULL == device->device_handle_unregister))
+            continue;
+        if (DAGUE_SUCCESS != device->device_handle_unregister(device, &handle->super.super))
+            continue;
+    }
+
+    /* dtd handle specific */
+    dague_mempool_destruct(handle->super.tile_mempool);
+    free (handle->super.tile_mempool);
+    free(handle->super.startup_list);
+    for (i=0;i<task_hash_table_size;i++) {
+        free((bucket_element_task_t *)handle->super.task_h_table->buckets[i]);
+    }
+    for (i=0;i<tile_hash_table_size;i++) {
+        bucket_element_tile_t *bucket = handle->super.tile_h_table->buckets[i];
+        bucket_element_tile_t *tmp_bucket;
+        if( bucket != NULL) {
+            /* cleaning chains */
+            while (bucket != NULL) {
+                tmp_bucket = bucket;
+                free((dague_dtd_tile_t *)bucket->tile);
+                bucket = bucket->next;
+                free(tmp_bucket);
+            }
+        }
+    }
+    for (i=0;i<DAGUE_dtd_NB_FUNCTIONS;i++){
+        free((bucket_element_f_t *)handle->super.function_h_table->buckets[i]);
+    }
+    hash_table_fini(handle->super.task_h_table, handle->super.task_hash_table_size);
+    hash_table_fini(handle->super.tile_h_table, handle->super.tile_hash_table_size);
+    hash_table_fini(handle->super.function_h_table, handle->super.function_hash_table_size);
+
+    dague_handle_unregister(&handle->super.super);
+    free(handle);
+#endif
+}
 
 /* Function tp push back tasks in their mempool once the execution are done */
 static dague_hook_return_t
@@ -899,117 +1256,11 @@ dtd_startup_tasks(dague_context_t * context,
  * Returns:     - void
  */
 void
-dtd_destructor(__dague_dtd_internal_handle_t * handle)
+dtd_destructor
+(dague_dtd_handle_t *dague_handle)
 {
-    int i, j, k;
-#if defined(DAGUE_PROF_TRACE)
-    free((void *)handle->super.super.profiling_array);
-#endif /* defined(DAGUE_PROF_TRACE) */
-
-    for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
-        dague_function_t *func = (dague_function_t *) handle->super.super.functions_array[i];
-
-        dague_dtd_function_t *func_parent = (dague_dtd_function_t *)func;
-        if (func != NULL) {
-            for (j=0; j< func->nb_flows; j++) {
-                if(func->in[j] != NULL && func->in[j]->flow_flags == FLOW_ACCESS_READ) {
-                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
-                        if (func->in[j]->dep_in[k] != NULL) {
-                            free((void*)func->in[j]->dep_in[k]);
-                        }
-                    }
-                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
-                        if (func->in[j]->dep_out[k] != NULL) {
-                            free((void*)func->in[j]->dep_out[k]);
-                        }
-                    }
-                    free((void*)func->in[j]);
-                }
-                if(func->out[j] != NULL) {
-                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
-                        if (func->out[j]->dep_in[k] != NULL) {
-                            free((void*)func->out[j]->dep_in[k]);
-                        }
-                    }
-                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
-                        if (func->out[j]->dep_out[k] != NULL) {
-                            free((void*)func->out[j]->dep_out[k]);
-                        }
-                    }
-                    free((void*)func->out[j]);
-                }
-            }
-            dague_mempool_destruct(func_parent->context_mempool);
-            free (func_parent->context_mempool);
-            free(func);
-        }
-    }
-    free(handle->super.super.functions_array);
-    handle->super.super.functions_array = NULL;
-    handle->super.super.nb_functions = 0;
-
-    for (i = 0; i < (uint32_t) handle->super.arenas_size; i++) {
-            if (handle->super.arenas[i] != NULL) {
-                free(handle->super.arenas[i]);
-                handle->super.arenas[i] = NULL;
-        }
-    }
-
-    free(handle->super.arenas);
-    handle->super.arenas      = NULL;
-    handle->super.arenas_size = 0;
-
-    /* Destroy the data repositories for this object */
-    data_repo_destroy_nothreadsafe(handle->dtd_data_repository);
-    for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
-        dague_destruct_dependencies(handle->super.super.dependencies_array[i]);
-        handle->super.super.dependencies_array[i] = NULL;
-    }
-
-    free(handle->super.super.dependencies_array);
-    handle->super.super.dependencies_array = NULL;
-
-    /* Unregister the handle from the devices */
-    for (i = 0; i < dague_nb_devices; i++) {
-        if (!(handle->super.super.devices_mask & (1 << i)))
-            continue;
-        handle->super.super.devices_mask ^= (1 << i);
-        dague_device_t *device = dague_devices_get(i);
-        if ((NULL == device) || (NULL == device->device_handle_unregister))
-            continue;
-        if (DAGUE_SUCCESS != device->device_handle_unregister(device, &handle->super.super))
-            continue;
-    }
-
-    /* dtd handle specific */
-    dague_mempool_destruct(handle->super.tile_mempool);
-    free (handle->super.tile_mempool);
-    free(handle->super.startup_list);
-    for (i=0;i<task_hash_table_size;i++) {
-        free((bucket_element_task_t *)handle->super.task_h_table->buckets[i]);
-    }
-    for (i=0;i<tile_hash_table_size;i++) {
-        bucket_element_tile_t *bucket = handle->super.tile_h_table->buckets[i];
-        bucket_element_tile_t *tmp_bucket;
-        if( bucket != NULL) {
-            /* cleaning chains */
-            while (bucket != NULL) {
-                tmp_bucket = bucket;
-                free((dague_dtd_tile_t *)bucket->tile);
-                bucket = bucket->next;
-                free(tmp_bucket);
-            }
-        }
-    }
-    for (i=0;i<DAGUE_dtd_NB_FUNCTIONS;i++){
-        free((bucket_element_f_t *)handle->super.function_h_table->buckets[i]);
-    }
-    hash_table_fini(handle->super.task_h_table, handle->super.task_hash_table_size);
-    hash_table_fini(handle->super.tile_h_table, handle->super.tile_hash_table_size);
-    hash_table_fini(handle->super.function_h_table, handle->super.function_hash_table_size);
-
-    dague_handle_unregister(&handle->super.super);
-    free(handle);
+    dague_handle_unregister( &dague_handle->super );
+    dague_thread_mempool_free( handle_mempool->thread_mempools, dague_handle );
 }
 
 /* This is the hook that connects the function to start initial ready tasks with the context.
@@ -1067,44 +1318,20 @@ dague_dtd_new(dague_context_t* context,
               int task_class_counter,
               int arena_count, int *info)
 {
-
-    if (testing_ptg_to_dtd == 99) {
-        testing_ptg_to_dtd = 0;
-    } else {
-        testing_ptg_to_dtd = 1;
-    }
-
-    /* Registering mca param for printing out traversal info */
-    (void)dague_mca_param_reg_int_name("dtd", "traversal_info",
-                                       "Show graph traversal info",
-                                           false, false, 0, &dump_traversal_info);
-
-    /* Registering mca param for printing out function_structure info */
-    (void)dague_mca_param_reg_int_name("dtd", "function_info",
-                                       "Show master structure info",
-                                       false, false, 0, &dump_function_info);
-
-    /* Registering mca param for tile hash table size */
-    (void)dague_mca_param_reg_int_name("dtd", "tile_hash_size",
-                                       "Registers the supplied size overriding the default size of tile hash table",
-                                       false, false, tile_hash_table_size, &tile_hash_table_size);
-
-    /* Registering mca param for task hash table size */
-    (void)dague_mca_param_reg_int_name("dtd", "task_hash_size",
-                                       "Registers the supplied size overriding the default size of task hash table",
-                                       false, false, task_hash_table_size, &task_hash_table_size);
-
     int i;
 
-    __dague_dtd_internal_handle_t *__dague_handle   = (__dague_dtd_internal_handle_t *) calloc (1, sizeof(__dague_dtd_internal_handle_t) );
+    //__dague_dtd_internal_handle_t *__dague_handle   = (__dague_dtd_internal_handle_t *) calloc (1, sizeof(__dague_dtd_internal_handle_t) );
 
-    __dague_handle->super.tile_hash_table_size      = tile_hash_table_size;
-    __dague_handle->super.task_hash_table_size      = task_hash_table_size;
-    __dague_handle->super.task_id                   = 0;
-    __dague_handle->super.function_hash_table_size  = DAGUE_dtd_NB_FUNCTIONS;
-    __dague_handle->super.startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*));
-    __dague_handle->super.total_task_class          = task_class_counter;
-    __dague_handle->super.task_h_table              = OBJ_NEW(hash_table);
+    dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *)dague_thread_mempool_allocate(handle_mempool->thread_mempools);
+
+    /*__dague_handle->super.tile_hash_table_size      = tile_hash_table_size;
+    __dague_handle->super.task_hash_table_size      = task_hash_table_size; */
+    //__dague_handle->task_id                   = 0;
+    //__dague_handle->super.function_hash_table_size  = DAGUE_dtd_NB_FUNCTIONS;
+    //__dague_handle->super.startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*));
+
+    __dague_handle->total_task_class          = task_class_counter;
+    /*__dague_handle->super.task_h_table              = OBJ_NEW(hash_table);
     hash_table_init(__dague_handle->super.task_h_table,
                     __dague_handle->super.task_hash_table_size,
                     sizeof(bucket_element_task_t*), &hash_key);
@@ -1115,17 +1342,18 @@ dague_dtd_new(dague_context_t* context,
     __dague_handle->super.function_h_table          = OBJ_NEW(hash_table);
     hash_table_init(__dague_handle->super.function_h_table,
                     __dague_handle->super.function_hash_table_size,
-                    sizeof(bucket_element_f_t *), &hash_key);
-    __dague_handle->super.INFO                      = info; /* zpotrf specific; should be removed */
-    __dague_handle->super.super.context             = context;
-    __dague_handle->super.super.devices_mask        = DAGUE_DEVICES_ALL;
-    __dague_handle->super.super.nb_functions        = DAGUE_dtd_NB_FUNCTIONS;
-    __dague_handle->super.super.functions_array     = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
+                    sizeof(bucket_element_f_t *), &hash_key); */
+    __dague_handle->INFO                      = info; /* zpotrf specific; should be removed */
+    __dague_handle->super.context             = context;
+    __dague_handle->super.devices_mask        = DAGUE_DEVICES_ALL;
+    __dague_handle->super.nb_functions        = DAGUE_dtd_NB_FUNCTIONS;
+    //__dague_handle->super.super.functions_array     = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
 
-    for(i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
+    /*for(i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
         __dague_handle->super.super.functions_array[i] = NULL;
-    }
+    }*/
 
+    #if 0
     __dague_handle->super.super.dependencies_array  = (dague_dependencies_t **) calloc(DAGUE_dtd_NB_FUNCTIONS, sizeof(dague_dependencies_t *));
     __dague_handle->super.arenas_size               = arena_count/arena_count;
     __dague_handle->super.arenas = (dague_arena_t **) malloc(__dague_handle->super.arenas_size * sizeof(dague_arena_t *));
@@ -1138,14 +1366,19 @@ dague_dtd_new(dague_context_t* context,
 #if defined(DAGUE_PROF_TRACE)
     __dague_handle->super.super.profiling_array     = calloc (2 * DAGUE_dtd_NB_FUNCTIONS , sizeof(int));
 #endif /* defined(DAGUE_PROF_TRACE) */
+    #endif
 
     /* Keeping track of total tasks to be executed per handle for the window */
     for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
-        __dague_handle->super.flow_set_flag[i]  = 0;
+        __dague_handle->flow_set_flag[i]  = 0;
+        /* Added new */
+        __dague_handle->super.functions_array[i] = NULL;
     }
-    __dague_handle->super.tasks_created         = 0;
-    __dague_handle->super.task_window_size      = 1;
-    __dague_handle->super.tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
+    __dague_handle->tasks_created         = 0;
+    __dague_handle->task_window_size      = 1;
+    __dague_handle->tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
+
+#if 0
     /* allocating tile mempool */
     dague_dtd_tile_t fake_tile;
 
@@ -1154,13 +1387,13 @@ dague_dtd_new(dague_context_t* context,
                              OBJ_CLASS(dague_dtd_tile_t), sizeof(dague_dtd_tile_t),
                              ((char*)&fake_tile.super.mempool_owner) - ((char*)&fake_tile),
                              1/* no. of threads*/ );
-
-    __dague_handle->super.super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */
-    __dague_handle->super.super.startup_hook    = dtd_startup;
-    __dague_handle->super.super.destructor      = (dague_destruct_fn_t) dtd_destructor;
+#endif
+    __dague_handle->super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */
+    __dague_handle->super.startup_hook    = dtd_startup;
+    __dague_handle->super.destructor      = (dague_destruct_fn_t) dtd_destructor;
 
     /* for testing interface*/
-    __dague_handle->super.total_tasks_to_be_exec = arena_count;
+    __dague_handle->total_tasks_to_be_exec = arena_count;
 
     (void) dague_handle_reserve_id((dague_handle_t *) __dague_handle);
     return (dague_dtd_handle_t*) __dague_handle;

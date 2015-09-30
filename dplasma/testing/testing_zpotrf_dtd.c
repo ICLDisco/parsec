@@ -30,13 +30,13 @@ call_to_kernel_PO(struct dague_execution_unit_s *context, dague_execution_contex
                           UNPACK_VALUE, &tempkm,
                           UNPACK_DATA,  &data,
                           UNPACK_VALUE, &ldak,
-                          UNPACK_VALUE, &iinfo 
+                          UNPACK_VALUE, &iinfo
                         );
 
-    void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)data); 
+    void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)data);
 
     CORE_zpotrf(*uplo, *tempkm, TT, *ldak, iinfo);
-    
+
     return DAGUE_HOOK_RETURN_DONE;
 }
 
@@ -59,7 +59,7 @@ call_to_kernel_TR(dague_execution_unit_t *context, dague_execution_context_t * t
                           UNPACK_DATA,  &gT,
                           UNPACK_VALUE, &ldak,
                           UNPACK_DATA,  &gC,
-                          UNPACK_VALUE, &ldam 
+                          UNPACK_VALUE, &ldam
                         );
 
     void *T = DAGUE_DATA_COPY_GET_PTR(gT);
@@ -92,7 +92,7 @@ call_to_kernel_HE(dague_execution_unit_t *context, dague_execution_context_t * t
                           UNPACK_VALUE, &ldam,
                           UNPACK_VALUE, &beta,
                           UNPACK_DATA,  &gT,
-                          UNPACK_VALUE, &ldam 
+                          UNPACK_VALUE, &ldam
                         );
 
     void *A = DAGUE_DATA_COPY_GET_PTR(gA);
@@ -193,8 +193,6 @@ int main(int argc, char ** argv)
                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
-    dague_handle_t* DAGUE_zpotrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
@@ -202,11 +200,16 @@ int main(int argc, char ** argv)
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
+    dague_dtd_init();
+    SYNC_TIME_START();
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
+    dague_handle_t* DAGUE_zpotrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
+
     sym_two_dim_block_cyclic_t *__ddescA = &ddescA;
     total = ddescA.super.mt;
-    SYNC_TIME_START();
+    //SYNC_TIME_START();
 
-    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);  
+    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 
 #if defined(OVERLAP)
     dague_context_start(dague);
@@ -279,9 +282,10 @@ int main(int argc, char ** argv)
     TIME_START();*/
 
     /*dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle); */
-    increment_task_counter(DAGUE_dtd_handle); 
+    increment_task_counter(DAGUE_dtd_handle);
     dague_context_wait(dague);
 
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zpotrf_dtd);
 
     if( loud > 3 )
         TIME_PRINT(rank, ("\t%d tasks computed,\t%f task/s rate\n",
@@ -291,7 +295,8 @@ int main(int argc, char ** argv)
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zpotrf_dtd);
+    dague_dtd_fini();
+
     if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);
         ret |= 1;

@@ -126,6 +126,7 @@ struct hook_info{
  */
 struct dague_dtd_handle_s {
     dague_handle_t  super;
+    dague_thread_mempool_t *mempool_owner;
     /* The array of datatypes, the region_info */
     dague_arena_t   **arenas;
     int             arenas_size;
@@ -223,3 +224,6 @@ dague_dtd_tile_find
 void
 tile_release
 (dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile);
+
+uint32_t
+hash_key (uintptr_t key, int size);

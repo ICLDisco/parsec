@@ -85,9 +85,12 @@ void dague_dtd_unpack_args(dague_execution_context_t *this_task, ...);
 
 /* This should not use intrenql structure ot should not be public */
 typedef struct  __dague_dtd_internal_handle_s __dague_dtd_internal_handle_t;
-void dtd_destructor(__dague_dtd_internal_handle_t * handle);
+void dtd_destructor(dague_dtd_handle_t *);
 
 void increment_task_counter(dague_dtd_handle_t *);
+
+void dague_dtd_init ();
+void dague_dtd_fini ();
 
 END_C_DECLS
 

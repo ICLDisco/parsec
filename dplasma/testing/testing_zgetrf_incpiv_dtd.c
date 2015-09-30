@@ -32,13 +32,13 @@ call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_conte
                           UNPACK_DATA,  &gA,
                           UNPACK_VALUE, &lda,
                           UNPACK_DATA,  &gIPIV,
-                          UNPACK_VALUE, &check_info, 
-                          UNPACK_VALUE, &iinfo 
+                          UNPACK_VALUE, &check_info,
+                          UNPACK_VALUE, &iinfo
                           );
 
 
-    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA); 
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV); 
+    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA);
+    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_zgetrf_incpiv(*m, *n, *ib, A, *lda, IPIV, &info);
     if (info != 0 && check_info)
@@ -76,10 +76,10 @@ call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &lda
                           );
 
-    void *L = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL); 
-    void *D = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gD); 
-    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA); 
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV); 
+    void *L = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL);
+    void *D = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gD);
+    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA);
+    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_zgessm(*m, *n, *k, *ib, IPIV, D, *ldd, A, *lda);
 
@@ -120,18 +120,18 @@ call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &ldl,
                           UNPACK_DATA,  &gIPIV,
                           UNPACK_SCRATCH, &WORK,
-                          UNPACK_VALUE, &ldwork, 
-                          UNPACK_VALUE, &check_info, 
-                          UNPACK_VALUE, &iinfo 
+                          UNPACK_VALUE, &ldwork,
+                          UNPACK_VALUE, &check_info,
+                          UNPACK_VALUE, &iinfo
                         );
 
-    void *U = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gU); 
-    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA); 
-    void *L = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL); 
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV); 
+    void *U = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gU);
+    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA);
+    void *L = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL);
+    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_ztstrf(*m, *n, *ib, *nb, U, *ldu, A, *lda, L, *ldl, IPIV, WORK, *ldwork, &info);
-    
+
     if (info != 0 && check_info)
         printf("Gtstrf something is wrong\n");
 
@@ -174,14 +174,14 @@ call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &ldl1,
                           UNPACK_DATA,  &gL2,
                           UNPACK_VALUE, &ldl2,
-                          UNPACK_DATA, &gIPIV 
+                          UNPACK_DATA, &gIPIV
                           );
 
-    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1); 
-    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2); 
-    void *L1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL1); 
-    void *L2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL2); 
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV); 
+    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1);
+    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2);
+    void *L1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL1);
+    void *L2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL2);
+    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_zssssm(*m1, *n1, *m2, *n2, *k, *ib, A1, *lda1, A2, *lda2, L1, *ldl1, L2, *ldl2, IPIV);
 
@@ -260,6 +260,8 @@ int main(int argc, char ** argv)
                                                       nodes, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
 
+    dague_dtd_init();
+
     dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
     dague_handle_t* DAGUE_zgetrf_inc_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
@@ -287,7 +289,7 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_t *__ddescL    = &ddescL;
     two_dim_block_cyclic_t *__ddescIPIV = &ddescIPIV;
 
-    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);  
+    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 
     int k, m, n;
     int ldak, ldam;
@@ -408,7 +410,7 @@ int main(int argc, char ** argv)
 
     #endif
 
-    increment_task_counter(DAGUE_dtd_handle); 
+    increment_task_counter(DAGUE_dtd_handle);
     dague_context_wait(dague);
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
@@ -417,6 +419,7 @@ int main(int argc, char ** argv)
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zgetrf_inc_dtd);
 
+    dague_dtd_fini();
 
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );

@@ -37,8 +37,8 @@ int call_to_kernel_GE_QRT(dague_execution_unit_t *context, dague_execution_conte
                         );
 
 
-    void *AA = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)A); 
-    void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)T); 
+    void *AA = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)A);
+    void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)T);
 
 
     CORE_zgeqrt(*m, *n, *ib, AA, *lda, TT, *ldt, TAU, WORK);
@@ -78,7 +78,7 @@ call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_DATA,  &gC,
                           UNPACK_VALUE, &ldc,
                           UNPACK_SCRATCH, &WORK,
-                          UNPACK_VALUE, &ldwork 
+                          UNPACK_VALUE, &ldwork
                         );
 
 
@@ -123,9 +123,9 @@ call_to_kernel_TS_QRT(dague_execution_unit_t *context, dague_execution_context_t
                         );
 
 
-    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1); 
-    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2); 
-    void *T = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gT); 
+    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1);
+    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2);
+    void *T = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gT);
 
     CORE_ztsqrt(*m, *n, *ib, A1, *lda1, A2, *lda2, T, *ldt, TAU, WORK);
 
@@ -176,10 +176,10 @@ call_to_kernel_TS_MQR(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &ldwork
                         );
 
-    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1); 
-    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2); 
-    void *V = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gV); 
-    void *T = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gT); 
+    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1);
+    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2);
+    void *V = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gV);
+    void *T = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gT);
 
     CORE_ztsmqr(*side, *trans, *m1, *n1, *m2, *n2, *k, *ib,
                 A1, *lda1, A2, *lda2, V, *ldv, T, *ldt, WORK, *ldwork);
@@ -250,6 +250,7 @@ int main(int argc, char ** argv)
                                nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                M, NRHS, SMB, SNB, P));
 
+    dague_dtd_init();
 
 
     int info = 0;
@@ -268,7 +269,7 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_t *__ddescA = &ddescA;
     two_dim_block_cyclic_t *__ddescT = &ddescT;
 
-    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);  
+    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 
     int k, m, n;
     int ldak, ldam;
@@ -288,9 +289,9 @@ int main(int argc, char ** argv)
         tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-(k*ddescA.super.mb) : ddescA.super.mb;
         tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-(k*ddescA.super.nb) : ddescA.super.nb;
         ldak = BLKLDD(ddescA.super, k);
-    
+
         //printf("K: %d\n",k);
-    
+
         insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_GE_QRT,            "geqrt",
                              sizeof(int),           &tempkm,                           VALUE,
                              sizeof(int),           &tempkn,                           VALUE,
@@ -326,7 +327,7 @@ int main(int argc, char ** argv)
         }
         for (m = k+1; m < ddescA.super.mt; m++) {
             tempmm = m == ddescA.super.mt-1 ? ddescA.super.m-(m*ddescA.super.mb) : ddescA.super.mb;
-            ldam = BLKLDD(ddescA.super, m); 
+            ldam = BLKLDD(ddescA.super, m);
                 //printf("M: %d\n",m);
 
             insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_TS_QRT,             "tsqrt",
@@ -374,7 +375,7 @@ int main(int argc, char ** argv)
     }
 
 
-    increment_task_counter(DAGUE_dtd_handle); 
+    increment_task_counter(DAGUE_dtd_handle);
     dague_context_wait(dague);
 
     #if 0
@@ -394,6 +395,7 @@ int main(int argc, char ** argv)
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zgeqrf_dtd);
 
+    dague_dtd_fini();
 
     if( check ) {
         if (M >= N) {
