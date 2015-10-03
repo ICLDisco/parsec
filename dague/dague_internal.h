@@ -25,7 +25,6 @@ BEGIN_C_DECLS
 
 typedef struct dague_function_s        dague_function_t;
 typedef struct dague_remote_deps_s     dague_remote_deps_t;
-typedef struct dague_arena_s           dague_arena_t;
 typedef struct dague_arena_chunk_s     dague_arena_chunk_t;
 typedef struct dague_data_pair_s       dague_data_pair_t;
 typedef struct dague_dependencies_s    dague_dependencies_t;
