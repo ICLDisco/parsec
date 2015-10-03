@@ -1,15 +1,21 @@
-#include <stdio.h>
+/**
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
 #include "dague_config.h"
-#include "dague.h"
+#include "dague/dague_internal.h"
+
+#include <stdio.h>
 #include "dague/data_distribution.h"
 #include "dague/remote_dep.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
 /* This function releases the ownership of data once the task is done with it
  * Arguments:   - the task who wants to release the data (dague_dtd_task_t *)
-                - the index of the flow for which this data was being used (int)
+ - the index of the flow for which this data was being used (int)
  * Returns:     - 0 if the task successfully released data /
-                  1 if the task got a descendant before releasing ownership (int)
+ 1 if the task got a descendant before releasing ownership (int)
  */
 int
 multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
@@ -65,6 +71,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
     uint8_t tmp_flow_index, last_iterate_flag=0;
     uint8_t atomic_write_found;
 
+    (void)action_mask;
+
     /* Traversing through the successors, for each flow to build list of Read-Only tasks */
     for(i=0; i<current_task->super.function->nb_flows; i++) {
         atomic_write_found = 0;
@@ -74,7 +82,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         last_iterate_flag = 0;
         /*
          * Not iterating if there's no descendant for this flow
-           or the descendant is itself
+         or the descendant is itself
          */
         if(current_task == current_task->desc[i].task) {
             continue;
@@ -85,10 +93,10 @@ ordering_correctly_1(dague_execution_unit_t * eu,
              */
             if (INOUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) ||
                 OUTPUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) ||
-               (current_task->dont_skip_releasing_data[i])) {
+                (current_task->dont_skip_releasing_data[i])) {
 #if defined (OVERLAP)
                 if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
-                   tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
+                    tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
 #endif
                     continue;
 #if defined (OVERLAP)
@@ -109,7 +117,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         current_desc_task = current_task->desc[i].task;
 
         /* checking if the first descendant is the ATOMIC_WRITE or not, otherwise ATOMIC_WRITE is treated as
-           normal INOUT and OUTPUT*/
+         normal INOUT and OUTPUT*/
         if((current_task->desc[i].op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
             atomic_write_found = 1;
         }
@@ -124,8 +132,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         while(NULL != current_desc_task) {
             if (dump_traversal_info) {
                 printf("Current successor: %s \t %d\nTotal flow: %d  flow_satisfied: %d\n",
-                        current_desc_task->super.function->name, current_desc_task->task_id,
-                        current_desc_task->flow_count, current_desc_task->flow_satisfied);
+                       current_desc_task->super.function->name, current_desc_task->task_id,
+                       current_desc_task->flow_count, current_desc_task->flow_satisfied);
             }
 
             if (NULL != out_task) {
@@ -163,9 +171,9 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             tmp_task = current_desc_task;
 
             if(NULL != current_desc_task->desc[dst_flow->flow_index].task &&
-                current_desc_task->desc[dst_flow->flow_index].task != current_desc_task) {
+               current_desc_task->desc[dst_flow->flow_index].task != current_desc_task) {
                 /* Check to stop building chain of ATOMIC_WRITE tasks when we find any task with
-                   other type of operation like INPUT, INOUT or OUTPUT */
+                 other type of operation like INPUT, INOUT or OUTPUT */
                 if(atomic_write_found && ((current_desc_task->desc[dst_flow->flow_index].op_type & GET_OP_TYPE) != ATOMIC_WRITE)) {
                     last_iterate_flag = 1;
                     op_type_out_task = current_desc_task->desc[dst_flow->flow_index].op_type;
@@ -182,10 +190,10 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                 if(!atomic_write_found && ((current_desc_task->desc[dst_flow->flow_index].op_type & GET_OP_TYPE) != INPUT)) {
                     last_iterate_flag = 1;
                     /**
-                    * Checking if the last task in the chain of INPUT task has any overlapping region or not.
-                    * If yes we treat that as the task that needs to wait for the whole chain to finish.
-                    * Otherwise we treat as another INPUT task in the chain
-                    */
+                     * Checking if the last task in the chain of INPUT task has any overlapping region or not.
+                     * If yes we treat that as the task that needs to wait for the whole chain to finish.
+                     * Otherwise we treat as another INPUT task in the chain
+                     */
                     if((current_desc_task->desc[dst_flow->flow_index].op_type_parent & GET_REGION_INFO) & (current_desc_task->desc[dst_flow->flow_index].op_type & GET_REGION_INFO)) {
                         op_type_out_task = current_desc_task->desc[dst_flow->flow_index].op_type;
                         flow_index_out_task = current_desc_task->desc[dst_flow->flow_index].flow_index;
@@ -207,7 +215,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 
         /* Activating all successors for each flow and setting the last OUT task as the descendant */
         current_succ = head_succ;
-        int task_is_ready;
+        int task_is_ready; /* TODO: What the point of this variable ?*/
         while(NULL != current_succ) {
             /* If there's a OUT task after at least one INPUT task we assign the OUT task as
              * the descendant for that flow for each of the other INPUT task(s) before it
@@ -215,8 +223,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             if(NULL != out_task) {
                 if(atomic_write_found) {
                     /* the op type is usually or'd with region info, in this case it does not
-                       make a difference.
-                    */
+                     make a difference.
+                     */
                     current_succ->task->desc[current_succ->flow_index].op_type_parent = ATOMIC_WRITE;
                 } else {
                     current_succ->task->desc[current_succ->flow_index].op_type_parent = INPUT;
@@ -242,7 +250,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                         current_succ->task->desc[current_succ->flow_index].task = NULL;
 #if defined (OVERLAP)
                         tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
-                                        current_succ->task->desc[current_succ->flow_index].tile );
+                                       current_succ->task->desc[current_succ->flow_index].tile );
 #endif
                     }
                 }
@@ -250,8 +258,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 
             task_is_ready = 0;
             task_is_ready = ontask(eu, (dague_execution_context_t*)current_succ->task, (dague_execution_context_t*)current_task,
-                        current_succ->deps, &data, rank_src, rank_dst,
-                        vpid_dst, ontask_arg);
+                                   current_succ->deps, &data, rank_src, rank_dst,
+                                   vpid_dst, ontask_arg);
 
             vpid_dst = (vpid_dst+1)%current_task->super.dague_handle->context->nb_vp;
             tmp_succ = current_succ;
