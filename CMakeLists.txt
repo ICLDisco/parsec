@@ -645,6 +645,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_config_bottom.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
   DESTINATION include/dague)
