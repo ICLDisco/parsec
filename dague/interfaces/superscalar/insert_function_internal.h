@@ -141,6 +141,7 @@ struct dague_dtd_handle_s {
     int             tasks_scheduled;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;
+    dague_mempool_t *hash_table_bucket_mempool;
     hash_table      *task_h_table;
     hash_table      *function_h_table;
     hash_table      *tile_h_table;
@@ -160,10 +161,11 @@ struct __dague_dtd_internal_handle_s {
  * Extension of dague_function_t class
  */
 struct dague_dtd_function_s {
-    dague_function_t    super;
+    dague_function_t     super;
+    dague_dtd_funcptr_t *fpointer;
     dague_mempool_t     *context_mempool;
-    int                 count_of_params;
-    long unsigned int   size_of_param;
+    int                  count_of_params;
+    long unsigned int    size_of_param;
 };
 
 /* Function prototypes */

@@ -262,8 +262,6 @@ int main(int argc, char ** argv)
 
     dague_dtd_init();
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
-    dague_handle_t* DAGUE_zgetrf_inc_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
 
 
@@ -289,7 +287,6 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_t *__ddescL    = &ddescL;
     two_dim_block_cyclic_t *__ddescIPIV = &ddescIPIV;
 
-    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 
     int k, m, n;
     int ldak, ldam;
@@ -301,6 +298,11 @@ int main(int argc, char ** argv)
     int anb, nb, ldl;
 
     SYNC_TIME_START();
+
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
+    dague_handle_t* DAGUE_zgetrf_inc_dtd = (dague_handle_t *) DAGUE_dtd_handle;
+
+    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 #if defined (OVERLAP)
     dague_context_start(dague);
 #endif
