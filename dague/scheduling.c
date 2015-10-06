@@ -601,7 +601,7 @@ int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
     return old_priority;
 }
 
-int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
+int dague_enqueue( dague_context_t* context, dague_handle_t* handle )
 {
     if( NULL == current_scheduler) {
         dague_set_scheduler( context );
@@ -680,7 +680,7 @@ __dague_context_cas_or_flag(dague_context_t* context,
  * start the context mutiple times without completions.
  *
  * @returns: 0 if the other threads in this context have been started, -1 if the
- * context was already active, -2 if there was nothing to do and no threads hav
+ * context was already active, -2 if there was nothing to do and no threads have
  * been activated.
  */
 int dague_context_start( dague_context_t* context )
