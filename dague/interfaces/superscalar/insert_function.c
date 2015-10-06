@@ -147,6 +147,7 @@ dague_dtd_handle_destructor
     free((void *)dague_handle->super.profiling_array);
 #endif /* defined(DAGUE_PROF_TRACE) */
 
+#if 0
     for (i = 0; i <DAGUE_dtd_NB_FUNCTIONS; i++) {
         dague_function_t *func = (dague_function_t *) dague_handle->super.functions_array[i];
 
@@ -185,6 +186,7 @@ dague_dtd_handle_destructor
             free(func);
         }
     }
+#endif
     free(dague_handle->super.functions_array);
     dague_handle->super.functions_array = NULL;
     dague_handle->super.nb_functions = 0;
@@ -1310,6 +1312,42 @@ dtd_destructor(dague_dtd_handle_t *dague_handle)
     for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
         if( dague_handle->super.functions_array[i] != NULL ) {
             dague_dtd_function_release( dague_handle, ((dague_dtd_function_t *)(dague_handle->super.functions_array[i]))->fpointer );
+
+            dague_function_t *func = dague_handle->super.functions_array[i];
+            dague_dtd_function_t *func_parent = (dague_dtd_function_t *)func;
+
+            int j, k;
+            for (j=0; j< func->nb_flows; j++) {
+                if(func->in[j] != NULL && func->in[j]->flow_flags == FLOW_ACCESS_READ) {
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
+                        if (func->in[j]->dep_in[k] != NULL) {
+                            free((void*)func->in[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
+                        if (func->in[j]->dep_out[k] != NULL) {
+                            free((void*)func->in[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->in[j]);
+                }
+                if(func->out[j] != NULL) {
+                    for(k=0; k<MAX_DEP_IN_COUNT; k++) {
+                        if (func->out[j]->dep_in[k] != NULL) {
+                            free((void*)func->out[j]->dep_in[k]);
+                        }
+                    }
+                    for(k=0; k<MAX_DEP_OUT_COUNT; k++) {
+                        if (func->out[j]->dep_out[k] != NULL) {
+                            free((void*)func->out[j]->dep_out[k]);
+                        }
+                    }
+                    free((void*)func->out[j]);
+                }
+            }
+            dague_mempool_destruct(func_parent->context_mempool);
+            free (func_parent->context_mempool);
+            free(func);
         }
     }
     dague_handle_unregister( &dague_handle->super );
