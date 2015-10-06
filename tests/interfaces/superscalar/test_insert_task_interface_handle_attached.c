@@ -21,18 +21,18 @@ double time_elapsed = 0.0;
 
 int
 call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this_task)
-{   
+{
     int *uplo, *uplo2, *uplo1;
     double *uplo3;
     dague_data_copy_t *data;
 
-     dague_dtd_unpack_args(this_task,
+    dague_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &uplo,
                           UNPACK_VALUE, &uplo2,
                           UNPACK_VALUE, &uplo3,
                           UNPACK_DATA,  &data,
-                          UNPACK_VALUE, &uplo1 
-                        );
+                          UNPACK_VALUE, &uplo1
+                          );
 
     printf("Executing Task: %d\n",((dague_dtd_task_t *)this_task)->task_id+1);
     printf("Parameter 1: %d\n", *uplo);
@@ -59,7 +59,7 @@ int main(int argc, char ** argv)
 
     dague = dague_init(ncores, &argc, &argv);
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 1); /* 1 = arena_count */
 
     TIME_START();
 
@@ -76,12 +76,12 @@ int main(int argc, char ** argv)
 
     printf("Test: %d\n",dague_context_test(dague));
     printf("Local_task_count: %d\n",DAGUE_dtd_handle->super.nb_local_tasks );
-    increment_task_counter(DAGUE_dtd_handle); 
-    dague_context_wait(dague);  
+    increment_task_counter(DAGUE_dtd_handle);
+    dague_context_wait(dague);
 
     printf("Time Elapsed:\t");
     printf("\n%lf\n",no_of_tasks/time_elapsed);
-    
+
     dague_fini(&dague);
     return 0;
 }

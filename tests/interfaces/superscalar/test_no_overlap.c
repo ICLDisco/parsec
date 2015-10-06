@@ -78,11 +78,11 @@ int main(int argc, char ** argv)
                               size, size, /* Global matrix size*/ 0, 0, /* starting point */ size, size, 1, 1, 1);
 
     ddescDATA.mat = calloc((size_t)ddescDATA.super.nb_local_tiles * (size_t) ddescDATA.super.bsiz,
-                                        (size_t) dague_datadist_getsizeoftype(ddescDATA.super.mtype));
+                           (size_t) dague_datadist_getsizeoftype(ddescDATA.super.mtype));
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
 
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
 
     two_dim_block_cyclic_t *__ddescDATA = &ddescDATA;
     dague_ddesc_t *ddesc = &(ddescDATA.super.super);
@@ -103,10 +103,10 @@ int main(int argc, char ** argv)
     }
 
     for(int kk = 0; kk< total; kk++) {
-            insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_type_2,     "Atomic_write",
-                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   ATOMIC_WRITE | REGION_FULL,
-                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   INOUT | REGION_FULL,
-                                     0);
+        insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_type_2,     "Atomic_write",
+                                 PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   ATOMIC_WRITE | REGION_FULL,
+                                 PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   INOUT | REGION_FULL,
+                                 0);
         for( k = 0; k < kk-1; k++ ) {
             insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_type_1,     "Input",
                                      PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, kk, kk),   INPUT | REGION_FULL,

@@ -18,23 +18,23 @@
 #include "dplasma/testing/common_timing.h"
 
 
-#define SIZE 1000000 
+#define SIZE 1000000
 int count[SIZE];
 
 double time_elapsed = 0.0;
 
 int
 call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this_task)
-{   
+{
     dague_data_copy_t *gDATA;
 
     dague_dtd_unpack_args(this_task,
                           UNPACK_DATA,  &gDATA
                           );
- 
+
     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
-    *data = *data + 1;    
+    *data = *data + 1;
 
     return 0;
 }
@@ -52,19 +52,19 @@ int main(int argc, char ** argv)
             size = atoi(argv[2]);
         }
     }
-    
+
     int i;
-   
+
     dague = dague_init(ncores, &argc, &argv);
 
     two_dim_block_cyclic_t ddescDATA;
     two_dim_block_cyclic_init(&ddescDATA, matrix_Integer, matrix_Tile, 1/*nodes*/, 0/*rank*/, 1, 1,/* tile_size*/
-                              size, size, /* Global matrix size*/ 0, 0, /* starting point */ size, size, 1, 1, 1);  
+                              size, size, /* Global matrix size*/ 0, 0, /* starting point */ size, size, 1, 1, 1);
     ddescDATA.mat = calloc((size_t)ddescDATA.super.nb_local_tiles * (size_t) ddescDATA.super.bsiz,
-                                        (size_t) dague_datadist_getsizeoftype(ddescDATA.super.mtype)); 
+                           (size_t) dague_datadist_getsizeoftype(ddescDATA.super.mtype));
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
 
     two_dim_block_cyclic_t *__ddescDATA = &ddescDATA;
     dague_ddesc_t *ddesc = &(ddescDATA.super.super);
@@ -76,15 +76,15 @@ int main(int argc, char ** argv)
     TIME_START();
 
     int total = ddescDATA.super.mt;
-    
-    /*printf("Initially \n");
-    for (k = 0; k < total; k++){
-        dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc,k,k))->device_copies[0];
-        int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
-        printf("At index %d:\t%d\n", k, *data);
-    } */
 
-    dague_context_start(dague);  
+    /*printf("Initially \n");
+     for (k = 0; k < total; k++){
+     dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc,k,k))->device_copies[0];
+     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
+     printf("At index %d:\t%d\n", k, *data);
+     } */
+
+    dague_context_start(dague);
 
     for(kk = 0; kk< no_of_tasks; kk++) {
         for( k = 0; k < total; k++ ) {
@@ -94,20 +94,20 @@ int main(int argc, char ** argv)
         }
     }
 
-    increment_task_counter(DAGUE_dtd_handle); 
-    dague_context_wait(dague);  
+    increment_task_counter(DAGUE_dtd_handle);
+    dague_context_wait(dague);
 
     /*printf("Finally \n");
-    for (k = 0; k < total; k++){
-        dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc,k,k))->device_copies[0];
-        int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
-        printf("At index %d:\t%d\n", k, *data);
-    } */
+     for (k = 0; k < total; k++){
+     dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc,k,k))->device_copies[0];
+     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
+     printf("At index %d:\t%d\n", k, *data);
+     } */
 
     TIME_STOP();
     printf("Time Elapsed:\t");
     printf("\n%lf\n",time_elapsed);
-    
+
     dague_fini(&dague);
     return 0;
 }
