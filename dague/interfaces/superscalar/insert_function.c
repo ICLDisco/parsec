@@ -283,16 +283,16 @@ iterate_successors_of_dtd_task(dague_execution_unit_t * eu,
                                dague_ontask_function_t * ontask,
                                void *ontask_arg);
 static int
-release_deps_of_dtd(struct dague_execution_unit_s *,
+release_deps_of_dtd(dague_execution_unit_t *,
                     dague_execution_context_t *,
                     uint32_t, dague_remote_deps_t *);
 
 static dague_hook_return_t
-complete_hook_of_dtd(struct dague_execution_unit_s *,
+complete_hook_of_dtd(dague_execution_unit_t *,
                      dague_execution_context_t *);
 
 static dague_hook_return_t
-push_tasks_back_in_mempool(struct dague_execution_unit_s *,
+push_tasks_back_in_mempool(dague_execution_unit_t *,
                            dague_execution_context_t *);
 
 /* Function to initialize dague_handle_mempool
@@ -478,7 +478,7 @@ dague_dtd_fini()
 
 /* Function tp push back tasks in their mempool once the execution are done */
 static dague_hook_return_t
-push_tasks_back_in_mempool(struct dague_execution_unit_s *eu,
+push_tasks_back_in_mempool(dague_execution_unit_t *eu,
                            dague_execution_context_t *this_task)
 {
     dague_dtd_function_t *function = (dague_dtd_function_t *)this_task->function;
@@ -644,7 +644,6 @@ dague_execute_and_come_back(dague_context_t *context,
 void
 increment_task_counter(dague_dtd_handle_t *__dague_handle)
 {
-
     /* Scheduling all the remaining tasks */
     schedule_tasks (__dague_handle);
 
@@ -846,9 +845,9 @@ find_function(hash_table *hash_table,
 /* Function to insert master structures in hash_table
  */
 void
-dague_dtd_function_insert
-( dague_dtd_handle_t *dague_handle, dague_dtd_funcptr_t *key,
-  dague_dtd_function_t *value )
+dague_dtd_function_insert( dague_dtd_handle_t   *dague_handle,
+                           dague_dtd_funcptr_t  *key,
+                           dague_dtd_function_t *value )
 {
     dague_generic_bucket_t *bucket  =  (dague_generic_bucket_t *)dague_thread_mempool_allocate(dague_handle->hash_table_bucket_mempool->thread_mempools);
 
@@ -861,8 +860,8 @@ dague_dtd_function_insert
 /* Function to remove master structure from hash_table
  */
 void
-dague_dtd_function_remove
-( dague_dtd_handle_t *dague_handle, dague_dtd_funcptr_t *key )
+dague_dtd_function_remove( dague_dtd_handle_t  *dague_handle,
+                           dague_dtd_funcptr_t *key )
 {
     hash_table *hash_table      =  dague_handle->function_h_table;
     uint32_t    hash            =  hash_table->hash ( (uint64_t)key, hash_table->size );
@@ -945,10 +944,9 @@ void
 dague_dtd_tile_remove( dague_dtd_handle_t *dague_handle, uint32_t key,
                        dague_ddesc_t      *ddesc )
 {
-    hash_table *hash_table          =  dague_handle->tile_h_table;
-
-    uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
-    uint32_t    hash            =  hash_table->hash ( combined_key, hash_table->size );
+    hash_table *hash_table   =  dague_handle->tile_h_table;
+    uint64_t    combined_key = (uint64_t)ddesc << 32 | (uint64_t)key;
+    uint32_t    hash         =  hash_table->hash ( combined_key, hash_table->size );
 
     hash_table_remove ( hash_table, combined_key, hash );
 }
@@ -959,10 +957,9 @@ dague_dtd_tile_t *
 dague_dtd_tile_find( dague_dtd_handle_t *dague_handle, uint32_t key,
                      dague_ddesc_t      *ddesc )
 {
-    hash_table *hash_table          =  dague_handle->tile_h_table;
-
-    uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
-    uint32_t    hash            =  hash_table->hash ( combined_key, hash_table->size );
+    hash_table *hash_table   =  dague_handle->tile_h_table;
+    uint64_t    combined_key = (uint64_t)ddesc << 32 | (uint64_t)key;
+    uint32_t    hash         =  hash_table->hash ( combined_key, hash_table->size );
 
     return (dague_dtd_tile_t *) hash_table_find ( hash_table, combined_key, hash );
 }
@@ -974,10 +971,9 @@ dague_dtd_tile_insert( dague_dtd_handle_t *dague_handle, uint32_t key,
                        dague_dtd_tile_t   *tile,
                        dague_ddesc_t      *ddesc )
 {
-    hash_table *hash_table          =  dague_handle->tile_h_table;
-
-    uint64_t    combined_key    = (uint64_t)ddesc << 32 | (uint64_t)key;
-    uint32_t    hash            =  hash_table->hash ( combined_key, hash_table->size );
+    hash_table *hash_table   =  dague_handle->tile_h_table;
+    uint64_t    combined_key = (uint64_t)ddesc << 32 | (uint64_t)key;
+    uint32_t    hash         =  hash_table->hash ( combined_key, hash_table->size );
 
     hash_table_insert ( hash_table, (dague_generic_bucket_t *)tile, combined_key, (void *)tile, hash );
 }
@@ -1301,7 +1297,7 @@ dtd_startup_tasks(dague_context_t * context,
 {
     dague_dtd_handle_t* dague_dtd_handle = (dague_dtd_handle_t*)__dague_handle;
     (void)context; (void)pready_list;
-#error "Affectation of pready_list is not returned (Mathieu)"
+    //#error "Affectation of pready_list is not returned (Mathieu)"
     pready_list = dague_dtd_handle->startup_list;
 
     /* It doesn't do what is said in the comment. Fix that or remove the function!*/
@@ -1317,13 +1313,15 @@ dtd_destructor(dague_dtd_handle_t *dague_handle)
 {
     int i;
     for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
-        if( dague_handle->super.functions_array[i] != NULL ) {
-            dague_dtd_function_release( dague_handle, ((dague_dtd_function_t *)(dague_handle->super.functions_array[i]))->fpointer );
+        dague_function_t     *func = dague_handle->super.functions_array[i];
+        dague_dtd_function_t *dtd_func = (dague_dtd_function_t *)func;
 
-            dague_function_t *func = dague_handle->super.functions_array[i];
-            dague_dtd_function_t *func_parent = (dague_dtd_function_t *)func;
 
+        if( func != NULL ) {
             int j, k;
+
+            dague_dtd_function_release( dague_handle, dtd_func->fpointer );
+
             for (j=0; j< func->nb_flows; j++) {
                 if(func->in[j] != NULL && func->in[j]->flow_flags == FLOW_ACCESS_READ) {
                     for(k=0; k<MAX_DEP_IN_COUNT; k++) {
@@ -1352,8 +1350,8 @@ dtd_destructor(dague_dtd_handle_t *dague_handle)
                     free((void*)func->out[j]);
                 }
             }
-            dague_mempool_destruct(func_parent->context_mempool);
-            free(func_parent->context_mempool);
+            dague_mempool_destruct(dtd_func->context_mempool);
+            free(dtd_func->context_mempool);
             free(func);
         }
     }
@@ -1626,7 +1624,7 @@ release_deps_of_dtd(dague_execution_unit_t* eu,
 
     iterate_successors_of_dtd_task(eu, (dague_execution_context_t*)this_task, action_mask, dtd_release_dep_fct, &arg);
 
-    struct dague_vp_s **vps = eu->virtual_process->dague_context->virtual_processes;
+    dague_vp_t **vps = eu->virtual_process->dague_context->virtual_processes;
     for (__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {
         if (NULL == arg.ready_lists[__vp_id]) {
             continue;
@@ -1977,7 +1975,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function_insert_h_t(__dague_handle->function_h_table, fpointer,
                        (dague_function_t *)function, __dague_handle->function_hash_table_size);
 #endif
-    dague_dtd_function_insert( __dague_handle, fpointer, function );
+    dague_dtd_function_insert( __dague_handle, fpointer, dtd_function );
     __dague_handle->super.functions_array[function_counter] = (dague_function_t *) function;
     function_counter++;
     return function;
