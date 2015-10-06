@@ -18,6 +18,7 @@
 #include "string_arena.h"
 #include "jdf2c_utils.h"
 #include "jdf2c.h"
+#include "dague/profiling.h"
 
 extern const char *yyfilename;
 
@@ -577,6 +578,7 @@ static char *dump_profiling_init(void **elem, void *arg)
     char *fname = f->fname;
     unsigned char R, G, B;
     int nb_locals;
+    string_arena_t *profiling_convertor_params;
 
     if( !jdf_property_get_int(f->properties, "profile", 1) ) {
         return NULL;
@@ -588,17 +590,23 @@ static char *dump_profiling_init(void **elem, void *arg)
     info->idx++;
 
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
+    profiling_convertor_params = string_arena_new(64);
+    UTIL_DUMP_LIST_FIELD(profiling_convertor_params, f->locals, next, name, dump_string, NULL,
+                         DAGUE_PROFILE_DDESC_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
 
     string_arena_add_string(info->sa,
                             "dague_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(dague_profile_ddesc_info_t)+%d*sizeof(assignment_t),\n"
-                            "                                       dague_profile_ddesc_key_to_string,\n"
+                            "                                       \"%s\",\n"
                             "                                       (int*)&__dague_handle->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
-                            "                                       (int*)&__dague_handle->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);",
+                            "                                       (int*)&__dague_handle->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);\n",
                             fname, R, G, B,
                             nb_locals,
+                            string_arena_get_string(profiling_convertor_params),
                             jdf_basename, fname, fname,
                             jdf_basename, fname, fname);
+
+    string_arena_free(profiling_convertor_params);
 
     return string_arena_get_string(info->sa);
 }

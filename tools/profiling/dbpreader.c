@@ -533,6 +533,8 @@ static void read_infos(dbp_file_t *dbp, dague_profiling_binary_file_header_t *he
     nbthis = 0;
     pos = 0;
     while( nb < dbp->nb_infos ) {
+        assert( PROFILING_BUFFER_TYPE_GLOBAL_INFO == info->buffer_type );
+
         ib = (dague_profiling_info_buffer_t*)&info->buffer[pos];
         id = (dbp_info_t *)malloc(sizeof(dbp_info_t));
         id->key = (char*)malloc(ib->info_size+1);

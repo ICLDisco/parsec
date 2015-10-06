@@ -827,7 +827,9 @@ static int64_t dump_thread(int *nbth)
     }
 
     b->this_buffer.nb_threads = nbthis;
-    write_down_existing_buffer(b, pos);
+    if(nbthis > 0) {
+        write_down_existing_buffer(b, pos);
+    }
 
     *nbth = nb;
     return off;
@@ -998,4 +1000,3 @@ void dague_profiling_disable(void)
     dague_profile_enabled = 0;
 }
 
-char *dague_profile_ddesc_key_to_string = "";

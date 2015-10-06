@@ -23,6 +23,8 @@ extern int yyparse (void);
 char *q2j_input_file_name  = NULL;
 int _q2j_annot_API         = Q2J_ANN_UNSET;
 int _q2j_dump_mapping      = 0;
+int _q2j_paranoid_cond     = 0;
+int _q2j_antidep_level     = 0;
 int _q2j_direct_output     = 0;
 int _q2j_add_phony_tasks   = 0;
 int _q2j_verbose_warnings  = 0;
@@ -121,6 +123,10 @@ static void parse_line(char *line){
         _q2j_verbose_warnings = value;
     }else if( !strcmp(key,"direct_output") ){
         _q2j_direct_output = value;
+    }else if( !strcmp(key,"generate_paranoid_conditions") ){
+        _q2j_paranoid_cond = value;
+    }else if( !strcmp(key,"antidepentency_finalization_level") ){
+        _q2j_antidep_level = value;
     }else if( !strcmp(key,"check_unknown_functions") ){
         _q2j_check_unknown_functions = value;
     }
@@ -203,6 +209,8 @@ int main(int argc, char **argv){
                 _q2j_generate_line_numbers = 1;
             }else if( !strcmp(argv[arg],"-anti") ){
                 _q2j_finalize_antideps = 1;
+            }else if( !strcmp(argv[arg],"-advanced_anti") ){
+                _q2j_antidep_level = 2;
             }else if( !strcmp(argv[arg],"-mapping") ){
                 _q2j_dump_mapping = 1;
             }else if( !strcmp(argv[arg],"-check_unknown") ){
