@@ -1247,8 +1247,9 @@ test_hook_of_dtd_task(dague_execution_unit_t    *context,
             dague_handle_update_nbtask(orig_handle, -1);
         }
     }
-    else { /* this is the default behavior */
+    else { /* This is the default behavior */
         rc = dtd_task->fpointer(context, this_task);
+        assert( rc == DAGUE_HOOK_RETURN_DONE );
     }
 
     return rc;
