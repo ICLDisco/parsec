@@ -277,7 +277,7 @@ int main(int argc, char ** argv)
     int trans = PlasmaConjTrans;
 
     SYNC_TIME_START();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4, 1, &info); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
     dague_handle_t* DAGUE_zgeqrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 #if defined (OVERLAP)
