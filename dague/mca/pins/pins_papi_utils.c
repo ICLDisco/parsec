@@ -266,6 +266,7 @@ static int insert_event(parsec_pins_papi_events_t* events_array,
             }
         }
     }
+
     /* we failed to chain the event to a similar event family. Create a new one */
     if( events_array->num_counters == events_array->num_allocated_counters ) {
         events_array->num_allocated_counters <<= 1;  /* twice as big */

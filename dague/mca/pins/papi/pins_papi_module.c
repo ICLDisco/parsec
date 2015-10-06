@@ -209,10 +209,10 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
  */
 static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
 {
-    parsec_pins_papi_callback_t* event_cb = NULL;
+    parsec_pins_papi_callback_t* event_cb;
     parsec_pins_papi_event_t* event;
     parsec_pins_papi_values_t info;
-    int i, my_socket, my_core, err, event_id = 0;
+    int i, my_socket, my_core, err;
     char **conv_string = NULL, *datatype;
 
     if( NULL == pins_papi_events ) /* There aren't any events, so nothing to do. */
@@ -226,6 +226,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
     /* Iterate through all of the event classes */
     for( i = 0; i < pins_papi_events->num_counters; i++ ) {
         event = pins_papi_events->events[i];
+        event_cb = NULL;
         conv_string = NULL;
 
         /* Iterate through all of the events in the event class. */
@@ -338,25 +339,29 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 }
             }
         }
-    }
+        /* If we could successfully create an event_cb, we need to register it. */
+        if( NULL != event_cb ) {
+            /* Register the event_cb with this exec_unit and conv_string.  Note: i is used for the event_id */
+            if( DAGUE_SUCCESS != (err = register_event_cb(exec_unit, event_cb, conv_string, i)) ) {
+                dague_output(0, "Unable to register event_cb %d starting with '%s' on socket %d and core %d\n",
+                             i, event_cb->event->pins_papi_event_name, my_socket, my_core);
 
-    /* Shouldn't 'register_event_cb()' happen within the outer for loop before conv_string becomes NULL again? */
-    if( NULL != event_cb ) {
-        if( DAGUE_SUCCESS != (err = register_event_cb(exec_unit, event_cb, conv_string, event_id)) ) {
-            parsec_pins_papi_event_cleanup(event_cb, &info);
-            free(event_cb->groups);
-            while(event_cb->event != NULL) {
-                parsec_pins_papi_event_t* temp_event = event_cb->event->next;
-                free(event_cb->event);
-                event_cb->event = temp_event;
+                parsec_pins_papi_event_cleanup(event_cb, &info);
+                free(event_cb->groups);
+                while(event_cb->event != NULL) {
+                    parsec_pins_papi_event_t* temp_event = event_cb->event->next;
+                    free(event_cb->event);
+                    event_cb->event = temp_event;
+                }
+                free(event_cb);
             }
-            free(event_cb);
         }
-    }
-    if( NULL != conv_string ) {
-        for(i = 0; i < event_cb->num_groups; i++)
-            free(conv_string[i]);
-        free(conv_string);
+        if( NULL != conv_string ) {
+            int n;
+            for(n = 0; n < event_cb->num_groups; n++)
+                free(conv_string[n]);
+            free(conv_string);
+        }
     }
 }
 
