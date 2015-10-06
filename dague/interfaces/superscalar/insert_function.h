@@ -76,7 +76,7 @@ typedef int (dague_dtd_funcptr_t)(dague_execution_unit_t *, dague_execution_cont
 dague_dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                               dague_ddesc_t *ddesc, int i, int j);
 
-dague_dtd_handle_t* dague_dtd_new(dague_context_t *, int, int, int* );
+dague_dtd_handle_t* dague_dtd_new(dague_context_t *, int );
 
 void insert_task_generic_fptr(dague_dtd_handle_t *,
                               dague_dtd_funcptr_t *, char *, ...);

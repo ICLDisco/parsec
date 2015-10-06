@@ -64,7 +64,7 @@ struct dague_dtd_task_s {
      */
     uint8_t                     dont_skip_releasing_data[MAX_DESC];
     /* for testing PTG inserting task in DTD */
-    dague_execution_context_t   *orig_task;
+    dague_execution_context_t  *orig_task;
     descendant_info_t           desc[MAX_DESC];
     dague_dtd_task_param_t     *param_list;
 };
@@ -130,13 +130,11 @@ struct dague_dtd_handle_s {
     /* The array of datatypes, the region_info */
     dague_arena_t   **arenas;
     int             arenas_size;
-    int             *INFO; //zpotrf specific; should be removed
     int             tile_hash_table_size;
     int             task_hash_table_size;
     uint8_t         function_hash_table_size;
     int             task_id;
     int             task_window_size;
-    int             total_task_class;
     int             tasks_created;
     int             tasks_scheduled;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
