@@ -10,6 +10,7 @@ int dump_traversal_info; /* For printing traversal info */
 int dump_function_info; /* For printing function_structure info */
 
 int testing_ptg_to_dtd; /* to detect ptg testing dtd */
+extern int window_size;
 
 /* for testing purpose of automatic insertion from Awesome PTG approach */
 dague_dtd_handle_t *__dtd_handle;
@@ -179,14 +180,6 @@ void dtd_startup(dague_context_t *context,
                  dague_handle_t *dague_handle,
                  dague_execution_context_t **pready_list);
 
-dague_dtd_tile_t* find_tile(hash_table *tile_h_table,
-                      uint32_t key, int h_size,
-                      dague_ddesc_t *belongs_to);
-
-void tile_insert_h_t(hash_table *tile_h_table,
-                     uint32_t key, dague_dtd_tile_t *tile,
-                     int h_size, dague_ddesc_t *belongs_to);
-
 int data_lookup_of_dtd_task(dague_execution_unit_t *,
                             dague_execution_context_t *);
 
@@ -211,14 +204,14 @@ schedule_tasks(dague_dtd_handle_t *__dague_handle);
 void
 dague_dtd_tile_remove
 ( dague_dtd_handle_t *dague_handle, uint32_t key,
-  dague_ddesc_t   *ddesc );
+  dague_ddesc_t      *ddesc );
 
 /* Function to find tile in hash_table
  */
 dague_dtd_tile_t *
 dague_dtd_tile_find
 ( dague_dtd_handle_t *dague_handle, uint32_t key,
-  dague_ddesc_t   *ddesc );
+  dague_ddesc_t      *ddesc );
 
 
 void
@@ -227,3 +220,7 @@ tile_release
 
 uint32_t
 hash_key (uintptr_t key, int size);
+
+static int
+fake_hook_for_testing
+( dague_execution_unit_t *, dague_execution_context_t * );
