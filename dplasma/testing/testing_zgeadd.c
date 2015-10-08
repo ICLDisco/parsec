@@ -84,9 +84,9 @@ int main(int argc, char ** argv)
         }
 
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-                                   two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
-                                                          nodes, rank, MB, NB, LDA, LDA, 0, 0,
-                                                          Am, An, SMB, SNB, P));
+            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, rank, MB, NB, LDA, LDA, 0, 0,
+                                   Am, An, SMB, SNB, P));
 
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
 
@@ -189,14 +189,14 @@ int main(int argc, char ** argv)
                                            (tiled_matrix_desc_t *)&ddescC );
         if ( rank == 0 ) {
             if (info_solution == 0) {
-                printf(" ---- TESTING ZGEADD (%s, %s) ...... PASSED !\n",
-                       uplostr[u], transstr[tA]);
+                printf(" ---- TESTING ZGEADD (%s) ...... PASSED !\n",
+                       transstr[tA]);
             }
             else {
-                    printf(" ---- TESTING ZGEADD (%s, %s) ... FAILED !\n",
-                           uplostr[u], transstr[tA]);
-                }
-                printf("***************************************************\n");
+                printf(" ---- TESTING ZGEADD (%s) ... FAILED !\n",
+                       transstr[tA]);
+            }
+            printf("***************************************************\n");
         }
 
         dague_data_free(ddescA.mat);
@@ -255,17 +255,17 @@ static int check_tr_solution( dague_context_t *dague, int loud,
     Cdplasmanorm = dplasma_zlantr( dague, PlasmaFrobeniusNorm, uplo, PlasmaNonUnit, ddescC2 );
 
     PASTE_CODE_ALLOCATE_MATRIX(localA, 1,
-        two_dim_block_cyclic, (&localA, matrix_ComplexDouble, matrix_Lapack,
-                               1, rank, MB, NB, LDA, An, 0, 0,
-                               Am, An, 1, 1, 1));
+                               two_dim_block_cyclic, (&localA, matrix_ComplexDouble, matrix_Lapack,
+                                                      1, rank, MB, NB, LDA, An, 0, 0,
+                                                      Am, An, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(localC, 1,
-        two_dim_block_cyclic, (&localC, matrix_ComplexDouble, matrix_Lapack,
-                               1, rank, MB, NB, LDC, N, 0, 0,
-                               M, N, 1, 1, 1));
+                               two_dim_block_cyclic, (&localC, matrix_ComplexDouble, matrix_Lapack,
+                                                      1, rank, MB, NB, LDC, N, 0, 0,
+                                                      M, N, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(localC2, 1,
-        two_dim_block_cyclic, (&localC2, matrix_ComplexDouble, matrix_Lapack,
-                               1, rank, MB, NB, LDC, N, 0, 0,
-                               M, N, 1, 1, 1));
+                               two_dim_block_cyclic, (&localC2, matrix_ComplexDouble, matrix_Lapack,
+                                                      1, rank, MB, NB, LDC, N, 0, 0,
+                                                      M, N, 1, 1, 1));
 
     dplasma_zlacpy( dague, PlasmaUpperLower, ddescA,  (tiled_matrix_desc_t *)&localA  );
     dplasma_zlacpy( dague, PlasmaUpperLower, ddescC,  (tiled_matrix_desc_t *)&localC  );
@@ -341,17 +341,17 @@ static int check_ge_solution( dague_context_t *dague, int loud,
     Cdplasmanorm = dplasma_zlange( dague, PlasmaFrobeniusNorm, ddescC2 );
 
     PASTE_CODE_ALLOCATE_MATRIX(localA, 1,
-        two_dim_block_cyclic, (&localA, matrix_ComplexDouble, matrix_Lapack,
-                               1, rank, MB, NB, LDA, An, 0, 0,
-                               Am, An, 1, 1, 1));
+                               two_dim_block_cyclic, (&localA, matrix_ComplexDouble, matrix_Lapack,
+                                                      1, rank, MB, NB, LDA, An, 0, 0,
+                                                      Am, An, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(localC, 1,
-        two_dim_block_cyclic, (&localC, matrix_ComplexDouble, matrix_Lapack,
-                               1, rank, MB, NB, LDC, N, 0, 0,
-                               M, N, 1, 1, 1));
+                               two_dim_block_cyclic, (&localC, matrix_ComplexDouble, matrix_Lapack,
+                                                      1, rank, MB, NB, LDC, N, 0, 0,
+                                                      M, N, 1, 1, 1));
     PASTE_CODE_ALLOCATE_MATRIX(localC2, 1,
-        two_dim_block_cyclic, (&localC2, matrix_ComplexDouble, matrix_Lapack,
-                               1, rank, MB, NB, LDC, N, 0, 0,
-                               M, N, 1, 1, 1));
+                               two_dim_block_cyclic, (&localC2, matrix_ComplexDouble, matrix_Lapack,
+                                                      1, rank, MB, NB, LDC, N, 0, 0,
+                                                      M, N, 1, 1, 1));
 
     dplasma_zlacpy( dague, PlasmaUpperLower, ddescA,  (tiled_matrix_desc_t *)&localA  );
     dplasma_zlacpy( dague, PlasmaUpperLower, ddescC,  (tiled_matrix_desc_t *)&localC  );
