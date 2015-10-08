@@ -278,12 +278,7 @@ int main(int argc, char ** argv)
         }
     }
 
-    /*SYNC_TIME_START();
-    TIME_START();*/
-
-    /*dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle); */
-    increment_task_counter(DAGUE_dtd_handle);
-    dague_context_wait(dague);
+    dague_dtd_wait( dague, DAGUE_dtd_handle );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zpotrf_dtd);
 

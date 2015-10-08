@@ -412,8 +412,7 @@ int main(int argc, char ** argv)
 
     #endif
 
-    increment_task_counter(DAGUE_dtd_handle);
-    dague_context_wait(dague);
+    dague_dtd_wait( dague, DAGUE_dtd_handle );
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,

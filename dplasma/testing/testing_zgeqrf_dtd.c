@@ -374,9 +374,7 @@ int main(int argc, char ** argv)
         }
     }
 
-
-    increment_task_counter(DAGUE_dtd_handle);
-    dague_context_wait(dague);
+    dague_dtd_wait( dague, DAGUE_dtd_handle );
 
     #if 0
     /* Create DAGuE */
