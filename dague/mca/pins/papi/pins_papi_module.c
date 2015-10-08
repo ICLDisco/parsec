@@ -20,6 +20,8 @@ static parsec_pins_papi_events_t* pins_papi_events = NULL;
 
 extern pins_papi_time_type_t system_units;
 
+int max_supported_events;
+
 /**
  * Determines which event groups within the events list in event_cb need to be read, and
  * supplies the appropriate portion of the array from PAPI_read to the DAGUE_PROFILING_TRACE
@@ -29,11 +31,11 @@ static inline int
 pins_papi_read_and_trace(dague_execution_unit_t* exec_unit,
                          parsec_pins_papi_callback_t* event_cb)
 {
-    parsec_pins_papi_values_t info;
+    parsec_pins_papi_values_t* info = alloca(max_supported_events * sizeof(parsec_pins_papi_values_t));
     int err, i;
 
     /* Read the current values of the counters in event_cb's eventset and store them in info.values */
-    if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info.values)) ) {
+    if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info->values)) ) {
         dague_output(0, "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
                      exec_unit->th_id, PAPI_strerror(err));
         return DAGUE_ERROR;
@@ -45,7 +47,7 @@ pins_papi_read_and_trace(dague_execution_unit_t* exec_unit,
         /* We need to read this group */
         if((event_cb->to_read & check) != 0) { /* This AND operation determines whether the bit corresponding to 'check' is set to 1 */
             DAGUE_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[event_cb->groups[i].begin_end],
-                                  45, 0, (void*)&info.values[index]);
+                                  45, 0, (void*)info+index);
             event_cb->groups[i].begin_end = (event_cb->groups[i].begin_end + 1) & 0x1;  /* aka. % 2 */
         }
         index += event_cb->groups[i].num_counters; /* Move the index to the next group. */
@@ -105,6 +107,14 @@ static void pins_init_papi(dague_context_t * master_context)
 {
     pins_papi_init(master_context);
 
+    int i, num;
+    max_supported_events = PAPI_get_cmp_opt(PAPI_MAX_HWCTRS,NULL,0);
+    for(i = 1; i < PAPI_num_components(); i++) {
+        num = PAPI_get_cmp_opt(PAPI_MAX_HWCTRS,NULL,i);
+        if(num > max_supported_events)
+            max_supported_events = num;
+    }
+
     dague_mca_param_reg_string_name("pins", "papi_event",
                                     "PAPI events to be gathered at both socket and core level with task and/or time based frequency.\n",
                                     false, false,
@@ -136,6 +146,20 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
 
     assert( NULL != event_cb );
 
+    /* Start the PAPI eventset */
+    if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
+        dague_output(0, "couldn't start PAPI eventset for thread %d; ERROR: %s\n",
+                     exec_unit->th_id, PAPI_strerror(err));
+        event_cb->num_counters = 0;
+        return DAGUE_ERROR;
+    }
+
+    /* Set all of the frequency groups' start times to now */
+    dague_time_t start_time = take_time();
+    for(i = 0; i < event_cb->num_groups; i++) {
+        event_cb->groups[i].start_time = start_time;
+    }
+
     event_cb->to_read = 0; /* Sets the bit string denoting whether groups should be read to all 0's */
     /* Create the dictionary entries for each frequency group. */
     for(i = 0; i < event_cb->num_groups; i++)
@@ -154,20 +178,6 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
                                                &event_cb->groups[i].pins_prof_event[0],
                                                &event_cb->groups[i].pins_prof_event[1]);
         free(key_string);
-    }
-
-    /* Start the PAPI eventset */
-    if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
-        dague_output(0, "couldn't start PAPI eventset for thread %d; ERROR: %s\n",
-                     exec_unit->th_id, PAPI_strerror(err));
-        event_cb->num_counters = 0;
-        return DAGUE_ERROR;
-    }
-
-    /* Set all of the frequency groups' start times to now */
-    dague_time_t start_time = take_time();
-    for(i = 0; i < event_cb->num_groups; i++) {
-        event_cb->groups[i].start_time = start_time;
     }
 
     /* the event is now ready. Trigger it once ! */
@@ -211,8 +221,8 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
 {
     parsec_pins_papi_callback_t* event_cb;
     parsec_pins_papi_event_t* event;
-    parsec_pins_papi_values_t info;
-    int i, my_socket, my_core, err;
+    parsec_pins_papi_values_t* info = alloca(max_supported_events * sizeof(parsec_pins_papi_values_t));
+    int i, my_socket, my_core, err, max_counters;
     char **conv_string = NULL, *datatype;
 
     if( NULL == pins_papi_events ) /* There aren't any events, so nothing to do. */
@@ -228,6 +238,8 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
         event = pins_papi_events->events[i];
         event_cb = NULL;
         conv_string = NULL;
+
+        max_counters = PAPI_get_cmp_opt(PAPI_MAX_HWCTRS,NULL,event->papi_component_index);
 
         /* Iterate through all of the events in the event class. */
         for( ; NULL != event; event = event->next ) {
@@ -262,6 +274,13 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                     free(event_cb); event_cb = NULL;
                     continue;
                 }
+            }
+
+            /* Can we have any more events in this eventset? */
+            if(event_cb->num_counters >= max_counters) {
+                dague_output(0, "On your system, PAPI component %d supports a maximum of %d counters, you are trying to add more that that.\n",
+                             event->papi_component_index, max_counters);
+                break;
             }
 
             /* Add the event to the eventset */
@@ -346,7 +365,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 dague_output(0, "Unable to register event_cb %d starting with '%s' on socket %d and core %d\n",
                              i, event_cb->event->pins_papi_event_name, my_socket, my_core);
 
-                parsec_pins_papi_event_cleanup(event_cb, &info);
+                parsec_pins_papi_event_cleanup(event_cb, info);
                 free(event_cb->groups);
                 while(event_cb->event != NULL) {
                     parsec_pins_papi_event_t* temp_event = event_cb->event->next;
@@ -372,7 +391,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
 static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
 {
     parsec_pins_papi_callback_t* event_cb;
-    parsec_pins_papi_values_t info;
+    parsec_pins_papi_values_t* info = alloca(max_supported_events * sizeof(parsec_pins_papi_values_t));
     int i;
 
     do {
@@ -399,17 +418,17 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
         }
         /* Clean up the eventset, and perform final recordings. */
         if( PAPI_NULL != event_cb->papi_eventset ) {
-            parsec_pins_papi_event_cleanup(event_cb, &info);
+            parsec_pins_papi_event_cleanup(event_cb, info);
 
             int index = 0;
             for(i = 0; i < event_cb->num_groups; i++) {
                 /* If the last profiling event was an 'end' event */
                 if(event_cb->groups[i].begin_end == 0) {
                     DAGUE_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[0],
-                                          45, 0, (void *)&info.values[index]);
+                                          45, 0, (void *)info+index);
                 }
                 DAGUE_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[1],
-                                      45, 0, (void *)&info.values[index]);
+                                      45, 0, (void *)info+index);
                 index += event_cb->groups[i].num_counters;
             }
         }
