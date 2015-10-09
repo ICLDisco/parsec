@@ -144,23 +144,23 @@ dplasma_cuda_zparfb(PLASMA_enum side, PLASMA_enum trans,
                 /* Wc = V * op(T) */
                 cublasZgemm( 'N', lapack_const(trans),
                              M2, K, K,
-                             zone,  V,     LDV,
-                             T,     LDT,
-                             zzero, WORKC, LDWORKC );
+                             zone,  (cuDoubleComplex*)V,     LDV,
+                                    (cuDoubleComplex*)T,     LDT,
+                             zzero, (cuDoubleComplex*)WORKC, LDWORKC );
 
                 /* A1 = A1 - opt(T) * W */
                 cublasZgemm( lapack_const(trans), 'N',
                              K, N1, K,
-                             mzone, T,    LDT,
-                             WORK, LDWORK,
-                             zone,  A1,   LDA1 );
+                             mzone, (cuDoubleComplex*)T,    LDT,
+                                    (cuDoubleComplex*)WORK, LDWORK,
+                             zone,  (cuDoubleComplex*)A1,   LDA1 );
 
                 /* A2 = A2 - Wc * W */
                 cublasZgemm( 'N', 'N',
                              M2, N2, K,
-                             mzone, WORKC, LDWORKC,
-                             WORK,  LDWORK,
-                             zone,  A2,    LDA2 );
+                             mzone, (cuDoubleComplex*)WORKC, LDWORKC,
+                                    (cuDoubleComplex*)WORK,  LDWORK,
+                             zone,  (cuDoubleComplex*)A2,    LDA2 );
             }
         }
         else {

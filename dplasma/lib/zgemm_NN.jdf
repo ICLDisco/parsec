@@ -30,35 +30,23 @@ beta   [type = dague_complex64_t]
 
 dataA  [type = "dague_ddesc_t *"]
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-Adist  [type = "dague_ddesc_t *" aligned = dataA]
 dataB  [type = "dague_ddesc_t *"]
 descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
-Bdist  [type = "dague_ddesc_t *" aligned = dataB]
 dataC  [type = "dague_ddesc_t *"]
 descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
-P      [type = "int" ]
-Q      [type = "int" ]
 
 /**************************************************
  *                       READ_A                   *
  **************************************************/
-READ_A(m, k, q)  [profile = off]
+READ_A(m, k)  [profile = off]
 
 m = 0 .. descA.mt-1
 k = 0 .. descA.nt-1
-q = 0 .. Q-1
-first = inline_c %{ return  k % Q; %}
-prev  = inline_c %{ return (q + Q - 1) % Q; %}
-next  = inline_c %{ return (q     + 1) % Q; %}
 
-: Adist(m, q)
+: dataA(m, k)
 
-READ A <- (q    == first) ? dataA(m, k) : A READ_A(m, k, prev)
-       -> (next != first) ? A READ_A(m, k, next)
-       -> A GEMM(m, q .. (descC.nt-1) .. Q, k)
-
-CTL ctl <- (k != descA.nt-1) ? ctl READ_A( m, k+1, q )
-        -> (k != 0         ) ? ctl READ_A( m, k-1, q )
+READ A <- dataA(m, k)
+       -> A GEMM(m, 0, k)
 BODY
 {
     printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.dataA->myrank, m, k);
@@ -68,23 +56,15 @@ END
 /**************************************************
  *                       READ_B                   *
  **************************************************/
-READ_B(k, n, p)  [profile = off]
+READ_B(k, n)  [profile = off]
 
 k = 0 .. descB.mt-1
 n = 0 .. descB.nt-1
-p = 0 .. P-1
-first = inline_c %{ return  k % P; %}
-prev  = inline_c %{ return (p + P - 1) % P; %}
-next  = inline_c %{ return (p     + 1) % P; %}
 
-: Bdist(p, n)
+: dataB(k, n)
 
-READ B <- (p    == first) ? dataB(k, n) : B READ_B(k, n, prev)
-       -> (next != first) ? B READ_B(k, n, next)
-       -> B GEMM(p .. (descC.mt-1) .. P, n, k)
-
-CTL ctl <- (k != descB.mt-1) ? ctl READ_B( k+1, n, p )
-        -> (k != 0         ) ? ctl READ_B( k-1, n, p )
+READ B <- dataB(k, n)
+       -> B GEMM(0, n, k)
 
 BODY
 {
@@ -102,16 +82,14 @@ m = 0 .. descC.mt-1
 n = 0 .. descC.nt-1
 k = 0 .. descA.nt-1
 
-p  = inline_c %{ return m % P; %}
-q  = inline_c %{ return n % Q; %}
-
 // Parallel partitioning
 : dataC(m, n)
 
 // Parameters
-READ A <- A READ_A(m, k, q)
-READ B <- B READ_B(k, n, p)
-
+READ A <- (n == 0)            ? A READ_A(m, k) : A GEMM( m, (n+descC.nt-1) % descC.nt, k )
+       -> (n <= (descC.nt-2)) ? A GEMM( m, (n+1) % descC.nt, k )
+READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.mt, n, k )
+       -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
 RW   C <- (k == descA.nt-1) ? dataC(m, n) : C GEMM( m, n, k+1 )
        -> (k == 0         ) ? dataC(m, n) : C GEMM( m, n, k-1 )
 
