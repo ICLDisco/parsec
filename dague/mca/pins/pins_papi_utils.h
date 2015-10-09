@@ -11,9 +11,8 @@
 #include "dague/execution_unit.h"
 #include "dague/include/dague/os-spec-timing.h"
 
-#define NUM_DEFAULT_EVENTS 1  /* default number of events */
 typedef struct parsec_pins_papi_values_s {
-    long long values[NUM_DEFAULT_EVENTS];
+    long long values[1];
 } parsec_pins_papi_values_t;
 
 typedef enum {TIME_CYCLES, TIME_NS,TIME_US, TIME_MS, TIME_S} pins_papi_time_type_t;
