@@ -18,8 +18,9 @@
 double time_elapsed = 0.0;
 
 int
-call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t *this_task)
 {
+    (void)context; (void)this_task;
     /* Does nothing */
     return 0;
 }
@@ -28,7 +29,7 @@ call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    int ncores = 8, kk, k, uplo = 1, info;
+    int ncores = 8, kk, k;
     int no_of_tasks = 8;
     int size = 1;
 
@@ -39,11 +40,7 @@ int main(int argc, char ** argv)
         }
     }
 
-    int i;
-
     dague = dague_init(ncores, &argc, &argv);
-
-
     two_dim_block_cyclic_t ddescDATA;
     two_dim_block_cyclic_init(&ddescDATA, matrix_Integer, matrix_Tile, 1/*nodes*/, 0/*rank*/, 1, 1,/* tile_size*/
                               size, size, /* Global matrix size*/ 0, 0, /* starting point */ size, size, 1, 1, 1);
@@ -52,12 +49,8 @@ int main(int argc, char ** argv)
                            (size_t) dague_datadist_getsizeoftype(ddescDATA.super.mtype));
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
 
-
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
-
-    two_dim_block_cyclic_t *__ddescDATA = &ddescDATA;
-    dague_ddesc_t *ddesc = &(ddescDATA.super.super);
-
+    dague_dtd_init();
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 
@@ -74,9 +67,10 @@ int main(int argc, char ** argv)
         }
     }
 
-    increment_task_counter(DAGUE_dtd_handle);
-    dague_context_wait(dague);
+    dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_handle_destruct(DAGUE_dtd_handle);
 
+    dague_dtd_fini();
     dague_fini(&dague);
     return 0;
 }

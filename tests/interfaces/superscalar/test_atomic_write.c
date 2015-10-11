@@ -7,7 +7,6 @@
 /* dague things */
 #include "dague.h"
 #include "dague/profiling.h"
-//#include "common_timing.h"
 #ifdef DAGUE_VTRACE
 #include "dague/vt_user.h"
 #endif
@@ -24,6 +23,7 @@ double time_elapsed = 0.0;
 int
 call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     dague_data_copy_t *gDATA;
 
     dague_dtd_unpack_args(this_task,
@@ -40,7 +40,7 @@ call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this
 int main(int argc, char ** argv)
 {
     dague_context_t* dague;
-    int ncores = 32, kk, k, uplo = 1, info;
+    int ncores = 32, kk, k;
     int no_of_tasks = 8;
     int size = 1;
 
@@ -51,10 +51,7 @@ int main(int argc, char ** argv)
         }
     }
 
-    int i;
-
     dague = dague_init(ncores, &argc, &argv);
-
 
     two_dim_block_cyclic_t ddescDATA;
     two_dim_block_cyclic_init(&ddescDATA, matrix_Integer, matrix_Tile, 1/*nodes*/, 0/*rank*/, 1, 1,/* tile_size*/
@@ -65,10 +62,10 @@ int main(int argc, char ** argv)
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
 
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_init();
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
 
     two_dim_block_cyclic_t *__ddescDATA = &ddescDATA;
-    dague_ddesc_t *ddesc = &(ddescDATA.super.super);
 
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
@@ -77,13 +74,6 @@ int main(int argc, char ** argv)
     TIME_START();
 
     int total = ddescDATA.super.mt;
-
-    /*printf("Initially \n");
-     for (k = 0; k < total; k++){
-     dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc,k,k))->device_copies[0];
-     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
-     printf("At index %d:\t%d\n", k, *data);
-     } */
 
     dague_context_start(dague);
 
@@ -95,8 +85,8 @@ int main(int argc, char ** argv)
         }
     }
 
-    increment_task_counter(DAGUE_dtd_handle);
-    dague_context_wait(dague);
+    dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_handle_destruct(DAGUE_dtd_handle);
 
     /*printf("Finally \n");
      for (k = 0; k < total; k++){
@@ -110,6 +100,7 @@ int main(int argc, char ** argv)
     printf("Time Elapsed:\t");
     printf("\n%lf\n",time_elapsed);
 
+    dague_dtd_fini();
     dague_fini(&dague);
     return 0;
 }
