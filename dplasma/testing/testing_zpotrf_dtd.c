@@ -21,6 +21,7 @@ struct dague_execution_unit_s;
 int
 call_to_kernel_PO(struct dague_execution_unit_s *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     PLASMA_enum *uplo;
     int *tempkm, *ldak, *iinfo;
     dague_data_copy_t *data;
@@ -43,6 +44,7 @@ call_to_kernel_PO(struct dague_execution_unit_s *context, dague_execution_contex
 int
 call_to_kernel_TR(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     PLASMA_enum *side, *uplo, *trans, *diag;
     int  *tempmm, *nb, *ldak, *ldam, *alpha;
     dague_data_copy_t *gC;
@@ -77,6 +79,7 @@ call_to_kernel_TR(dague_execution_unit_t *context, dague_execution_context_t * t
 int
 call_to_kernel_HE(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     PLASMA_enum *uplo, *trans;
     int *mb, *ldam, *tempmm, *alpha, *beta;
     dague_data_copy_t *gA;
@@ -110,6 +113,7 @@ call_to_kernel_HE(dague_execution_unit_t *context, dague_execution_context_t * t
 int
 call_to_kernel_GE(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     PLASMA_enum *transA, *transB;
     int *tempmm, *mb, *ldam, *ldan;
     double *alpha, *beta;
@@ -151,7 +155,7 @@ int main(int argc, char ** argv)
     PLASMA_enum uplo = PlasmaLower;
     int info = 0;
     int ret = 0;
-    int m, k, n, total , task_flags = 0; // loop counter
+    int m, k, n, total; // loop counter
 
     /* Parameters passed on to Insert_task() */
     int tempkm, tempmm, ldak, iinfo, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
@@ -202,7 +206,7 @@ int main(int argc, char ** argv)
 
     dague_dtd_init();
     SYNC_TIME_START();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
     dague_handle_t* DAGUE_zpotrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
     sym_two_dim_block_cyclic_t *__ddescA = &ddescA;
@@ -278,7 +282,7 @@ int main(int argc, char ** argv)
         }
     }
 
-    dague_dtd_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zpotrf_dtd);
 

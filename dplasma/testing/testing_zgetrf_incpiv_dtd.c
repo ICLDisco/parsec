@@ -14,6 +14,7 @@
 int
 call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     int *m;
     int *n;
     int *ib;
@@ -50,6 +51,7 @@ call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_conte
 int
 call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     int *m;
     int *n;
     int *k;
@@ -76,7 +78,6 @@ call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &lda
                           );
 
-    void *L = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL);
     void *D = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gD);
     void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA);
     void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
@@ -89,6 +90,7 @@ call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t
 int
 call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     int *m;
     int *n;
     int *ib;
@@ -141,6 +143,7 @@ call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t
 int
 call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     int *m1;
     int *n1;
     int *m2;
@@ -299,7 +302,7 @@ int main(int argc, char ** argv)
 
     SYNC_TIME_START();
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
     dague_handle_t* DAGUE_zgetrf_inc_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
@@ -412,7 +415,7 @@ int main(int argc, char ** argv)
 
     #endif
 
-    dague_dtd_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,

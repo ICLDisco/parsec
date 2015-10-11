@@ -14,6 +14,7 @@
 
 int call_to_kernel_GE_QRT(dague_execution_unit_t *context, dague_execution_context_t *this_task)
 {
+    (void)context;
     int *m;
     int *n;
     int *ib;
@@ -49,6 +50,7 @@ int call_to_kernel_GE_QRT(dague_execution_unit_t *context, dague_execution_conte
 int
 call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     PLASMA_enum *side;
     PLASMA_enum *trans;
     int *m;
@@ -96,6 +98,7 @@ call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t
 int
 call_to_kernel_TS_QRT(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     int *m;
     int *n;
     int *ib;
@@ -135,6 +138,7 @@ call_to_kernel_TS_QRT(dague_execution_unit_t *context, dague_execution_context_t
 int
 call_to_kernel_TS_MQR(dague_execution_unit_t *context, dague_execution_context_t * this_task)
 {
+    (void)context;
     PLASMA_enum *side;
     PLASMA_enum *trans;
     int *m1;
@@ -252,9 +256,6 @@ int main(int argc, char ** argv)
 
     dague_dtd_init();
 
-
-    int info = 0;
-
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
@@ -277,7 +278,7 @@ int main(int argc, char ** argv)
     int trans = PlasmaConjTrans;
 
     SYNC_TIME_START();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
     dague_handle_t* DAGUE_zgeqrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 #if defined (OVERLAP)
@@ -360,7 +361,7 @@ int main(int argc, char ** argv)
                                      sizeof(int),           &ib,                               VALUE,
                                      PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, n),     INOUT | REGION_FULL,
                                      sizeof(int),           &ldak,                             VALUE,
-                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, n),     INOUT | REGION_FULL | LOCALITY,
+                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, n),     INOUT | REGION_FULL,
                                      sizeof(int),           &ldam,                             VALUE,
                                      PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, k),     INPUT | REGION_FULL,
                                      sizeof(int),           &ldam,                             VALUE,
@@ -374,7 +375,7 @@ int main(int argc, char ** argv)
         }
     }
 
-    dague_dtd_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
 
     #if 0
     /* Create DAGuE */
