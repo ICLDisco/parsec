@@ -96,7 +96,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                 (current_task->dont_skip_releasing_data[i])) {
 #if defined (OVERLAP)
                 if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
-                    tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
+                    dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
 #endif
                     continue;
 #if defined (OVERLAP)
@@ -210,7 +210,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         }
 
 #if defined (OVERLAP)
-        tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
+        dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
 #endif
 
         /* Activating all successors for each flow and setting the last OUT task as the descendant */
@@ -249,7 +249,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                     } else {
                         current_succ->task->desc[current_succ->flow_index].task = NULL;
 #if defined (OVERLAP)
-                        tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
+                        dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
                                        current_succ->task->desc[current_succ->flow_index].tile );
 #endif
                     }
@@ -267,6 +267,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             free((dague_flow_t *)(tmp_succ->deps->flow));
             free(tmp_succ->deps);
             free(tmp_succ);
+            (void)task_is_ready;
         }
     }
 }
