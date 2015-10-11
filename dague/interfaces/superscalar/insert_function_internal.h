@@ -1,3 +1,14 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
+#ifndef INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
+#define INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
+
+BEGIN_C_DECLS
+
 #include "dague/dague_internal.h"
 #include "dague/data.h"
 #include "dague/data_internal.h"
@@ -9,15 +20,11 @@
 int dump_traversal_info; /* For printing traversal info */
 int dump_function_info; /* For printing function_structure info */
 
-int testing_ptg_to_dtd; /* to detect ptg testing dtd */
+extern int testing_ptg_to_dtd; /* to detect ptg testing dtd */
 extern int window_size;
 
 /* for testing purpose of automatic insertion from Awesome PTG approach */
 dague_dtd_handle_t *__dtd_handle;
-
-typedef struct bucket_element_f_s       bucket_element_f_t;
-typedef struct bucket_element_tile_s    bucket_element_tile_t;
-typedef struct bucket_element_task_s    bucket_element_task_t;
 
 typedef struct dtd_successor_list_s dtd_successor_list_t;
 
@@ -35,11 +42,11 @@ struct dague_dtd_task_param_s {
  */
 typedef struct descendant_info_s {
     /* Info about the current_task and not about descendant */
-    int         op_type_parent;
-    int         op_type;
-    uint8_t     flow_index;
-    dague_dtd_task_t  *task;
-    dague_dtd_tile_t  *tile;
+    int                 op_type_parent;
+    int                 op_type;
+    uint8_t             flow_index;
+    dague_dtd_task_t   *task;
+    dague_dtd_tile_t   *tile;
 }descendant_info_t;
 
 /* Structure to hold list of Read-ONLY successors of a task */
@@ -92,31 +99,6 @@ struct dague_dtd_tile_s {
 /* For creating objects of class dague_dtd_tile_t */
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_dtd_tile_t);
 
-/** Function Hash table elements **/
-struct bucket_element_f_s {
-    dague_dtd_funcptr_t *key;
-    dague_function_t    *dtd_function;
-    bucket_element_f_t  *next;
-};
-
-/** Tile Hash table elements **/
-struct bucket_element_tile_s {
-    dague_generic_bucket_t  super;
-    dague_data_key_t        key;
-    dague_dtd_tile_t       *tile;
-    dague_ddesc_t*          belongs_to;
-    bucket_element_tile_t   *next;
-};
-/* For creating objects of class bucket_element_tile_t */
-DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(bucket_element_tile_t);
-
-/** Task Hash table elements **/
-struct bucket_element_task_s {
-    int                     key;
-    dague_dtd_task_t              *task;
-    bucket_element_task_t   *next;
-};
-
 /* for testing abstraction for PaRsec */
 struct hook_info{
     dague_hook_t *hook;
@@ -138,6 +120,7 @@ struct dague_dtd_handle_s {
     int             task_window_size;
     int             tasks_created;
     int             tasks_scheduled;
+    uint8_t         function_counter;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;
     dague_mempool_t *hash_table_bucket_mempool;
@@ -149,11 +132,6 @@ struct dague_dtd_handle_s {
     /* from here to end is for the testing interface */
     struct          hook_info actual_hook[DAGUE_dtd_NB_FUNCTIONS];
     int             total_tasks_to_be_exec;
-};
-
-struct __dague_dtd_internal_handle_s {
-    dague_dtd_handle_t  super;
-    data_repo_t         *dtd_data_repository;
 };
 
 /*
@@ -215,12 +193,34 @@ dague_dtd_tile_find
 
 
 void
-tile_release
+dague_dtd_tile_release
 (dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile);
 
 uint32_t
 hash_key (uintptr_t key, int size);
 
-static int
-fake_hook_for_testing
-( dague_execution_unit_t *, dague_execution_context_t * );
+int
+testing_hook_of_dtd_task(dague_execution_unit_t    *context,
+                         dague_execution_context_t *this_task);
+
+void
+dague_dtd_tile_insert( dague_dtd_handle_t *dague_handle, uint32_t key,
+                       dague_dtd_tile_t   *tile,
+                       dague_ddesc_t      *ddesc );
+
+dague_dtd_function_t *
+dague_dtd_function_find( dague_dtd_handle_t  *dague_handle,
+                         dague_dtd_funcptr_t *key );
+
+dague_function_t*
+create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointer, char* name,
+                int count_of_params, long unsigned int size_of_param, int flow_count);
+
+void
+profiling_trace(dague_dtd_handle_t *__dague_handle,
+                dague_function_t *function, char* name,
+                int flow_count);
+
+END_C_DECLS
+
+#endif  /* INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED */

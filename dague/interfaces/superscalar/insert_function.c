@@ -3,10 +3,10 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+#include <stdlib.h>
+
 #include "dague_config.h"
 #include "dague/dague_internal.h"
-
-#include <stdlib.h>
 #include "dague/scheduling.h"
 #include "dague/remote_dep.h"
 #include "dague/devices/device.h"
@@ -16,15 +16,49 @@
 #include "dague/mca/sched/sched.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
-int window_size = 2048;
-int threshold_size = 204;
-double time_double = 0;
+int window_size                 =  2048;
+uint32_t threshold_size         =  204;
 static int task_hash_table_size = (10+1);
 static int tile_hash_table_size = (1000*100+1);
+int testing_ptg_to_dtd = 0;
 
 extern dague_sched_module_t *current_scheduler;
 
+/* Global mempool for all the dague handles that will be created for a run */
 dague_mempool_t *handle_mempool = NULL;
+
+/**
+ * All the static functions should be declared before being defined.
+ */
+static int
+hook_of_dtd_task(dague_execution_unit_t *context,
+                      dague_execution_context_t *this_task);
+static int
+dtd_startup_tasks(dague_context_t *context,
+                  dague_dtd_handle_t * __dague_handle,
+                  dague_execution_context_t **pready_list);
+static int
+dtd_is_ready(const dague_dtd_task_t *dest, int dest_flow_index);
+
+static void
+iterate_successors_of_dtd_task(dague_execution_unit_t *eu,
+                               const dague_execution_context_t *this_task,
+                               uint32_t action_mask,
+                               dague_ontask_function_t *ontask,
+                               void *ontask_arg);
+static int
+release_deps_of_dtd(dague_execution_unit_t *,
+                    dague_execution_context_t *,
+                    uint32_t, dague_remote_deps_t *);
+
+static dague_hook_return_t
+complete_hook_of_dtd(dague_execution_unit_t *,
+                     dague_execution_context_t *);
+
+static dague_hook_return_t
+push_tasks_back_in_mempool(dague_execution_unit_t *,
+                           dague_execution_context_t *);
+
 
 /* Copied from dague/scheduling.c, will need to be exposed */
 #define TIME_STEP 5410
@@ -48,19 +82,13 @@ OBJ_CLASS_INSTANCE(dague_dtd_task_t, dague_execution_context_t,
 OBJ_CLASS_INSTANCE(dague_dtd_tile_t, dague_generic_bucket_t,
                    NULL, NULL);
 
-/* To create object of class bucket_element_tile_t that inherits dague_list_item_t
- * class
- */
-OBJ_CLASS_INSTANCE(bucket_element_tile_t, dague_generic_bucket_t,
-                   NULL, NULL);
-
-/* To create object of class dague_handle_t that inherits dague_object_t
+/* To create object of class dague_handle_t that inherits dague_list_t
  * class
  */
 OBJ_CLASS_INSTANCE(dague_handle_t, dague_list_item_t,
                    NULL, NULL);
 
-/* constructor for dague_handle_t
+/* constructor for dague_handle_dtd_t
  */
 void
 dague_dtd_handle_constructor
@@ -73,19 +101,20 @@ dague_dtd_handle_constructor
     dague_handle->tile_hash_table_size      = tile_hash_table_size;
     dague_handle->task_hash_table_size      = task_hash_table_size;
     dague_handle->function_hash_table_size  = DAGUE_dtd_NB_FUNCTIONS;
+    dague_handle->function_counter          = 0;
 
     dague_handle->task_h_table              = OBJ_NEW(hash_table);
     hash_table_init(dague_handle->task_h_table,
                     dague_handle->task_hash_table_size,
-                    sizeof(bucket_element_task_t*), &hash_key);
+                    &hash_key);
     dague_handle->tile_h_table              = OBJ_NEW(hash_table);
     hash_table_init(dague_handle->tile_h_table,
                     dague_handle->tile_hash_table_size,
-                    sizeof(bucket_element_tile_t*), &hash_key);
+                    &hash_key);
     dague_handle->function_h_table          = OBJ_NEW(hash_table);
     hash_table_init(dague_handle->function_h_table,
                     dague_handle->function_hash_table_size,
-                    sizeof(bucket_element_f_t *), &hash_key);
+                    &hash_key);
 
     dague_handle->super.functions_array     = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
 
@@ -121,7 +150,7 @@ dague_dtd_handle_constructor
 
 }
 
-/* desctructor for dague_handle_t
+/* desctructor for dague_dtd_handle_t
  */
 void
 dague_dtd_handle_destructor
@@ -185,37 +214,6 @@ dague_dtd_handle_destructor
 OBJ_CLASS_INSTANCE(dague_dtd_handle_t, dague_handle_t,
                    dague_dtd_handle_constructor, dague_dtd_handle_destructor);
 
-/**
- * All the static functions should be declared before being defined.
- */
-static int
-hook_of_dtd_task(dague_execution_unit_t * context,
-                      dague_execution_context_t * this_task);
-static int
-dtd_startup_tasks(dague_context_t * context,
-                  __dague_dtd_internal_handle_t * __dague_handle,
-                  dague_execution_context_t ** pready_list);
-static int
-dtd_is_ready(const dague_dtd_task_t *dest, int dest_flow_index);
-
-static void
-iterate_successors_of_dtd_task(dague_execution_unit_t * eu,
-                               const dague_execution_context_t * this_task,
-                               uint32_t action_mask,
-                               dague_ontask_function_t * ontask,
-                               void *ontask_arg);
-static int
-release_deps_of_dtd(dague_execution_unit_t *,
-                    dague_execution_context_t *,
-                    uint32_t, dague_remote_deps_t *);
-
-static dague_hook_return_t
-complete_hook_of_dtd(dague_execution_unit_t *,
-                     dague_execution_context_t *);
-
-static dague_hook_return_t
-push_tasks_back_in_mempool(dague_execution_unit_t *,
-                           dague_execution_context_t *);
 
 /* Function to initialize dague_handle_mempool
  */
@@ -230,15 +228,8 @@ dague_dtd_init()
                              ((char*)&fake_handle.mempool_owner) - ((char*)&fake_handle),
                              1/* no. of threads*/ );
 
-
     dague_handle = (dague_dtd_handle_t *)dague_thread_mempool_allocate(handle_mempool->thread_mempools);
     dague_thread_mempool_free( handle_mempool->thread_mempools, dague_handle );
-
-    if (testing_ptg_to_dtd == 99) {
-        testing_ptg_to_dtd = 0;
-    } else {
-        testing_ptg_to_dtd = 1;
-    }
 
     /* Registering mca param for printing out traversal info */
     (void)dague_mca_param_reg_int_name("dtd", "traversal_info",
@@ -268,7 +259,7 @@ dague_dtd_init()
     /* Registering mca param for threshold size */
     (void)dague_mca_param_reg_int_name("dtd", "threshold_size",
                                        "Registers the supplied size overriding the default size of threshold size",
-                                       false, false, threshold_size, &threshold_size);
+                                       false, false, threshold_size, (int *)&threshold_size);
 
 }
 
@@ -282,7 +273,7 @@ dague_dtd_fini()
     free (handle_mempool);
 }
 
-/* Function tp push back tasks in their mempool once the execution are done */
+/* Function to push back tasks in their mempool once the execution are done */
 static dague_hook_return_t
 push_tasks_back_in_mempool(dague_execution_unit_t *eu,
                            dague_execution_context_t *this_task)
@@ -369,7 +360,6 @@ dague_execute_and_come_back(dague_context_t *context,
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
 
-            // subsequent select begins
             PINS(eu_context, SELECT_BEGIN, NULL);
         } else {
             misses_in_a_row++;
@@ -378,7 +368,7 @@ dague_execute_and_come_back(dague_context_t *context,
 }
 
 void
-decrement_task_counter ( dague_dtd_handle_t  *dague_handle )
+decrement_task_counter( dague_dtd_handle_t  *dague_handle )
 {
     /* decrementing the extra task we initialized the handle with */
     __dague_complete_task( &(dague_handle->super), dague_handle->super.context);
@@ -387,31 +377,17 @@ decrement_task_counter ( dague_dtd_handle_t  *dague_handle )
 }
 
 void
-dague_dtd_wait( dague_context_t     *dague,
-                dague_dtd_handle_t  *dague_handle )
+dague_dtd_handle_wait( dague_context_t     *dague,
+                       dague_dtd_handle_t  *dague_handle )
 {
+    (void)dague;
     /* Scheduling all the remaining tasks */
     schedule_tasks (dague_handle);
 
-    int tmp_threshold = threshold_size;
+    uint32_t tmp_threshold = threshold_size;
     threshold_size = 1;
     dague_execute_and_come_back (dague_handle->super.context, &dague_handle->super);
     threshold_size = tmp_threshold;
-}
-
-/* This function infact decrements the dague handles task counter by executing
- * one fake task after all the real tasks has been inserted in the dague context.
- * Arguments:   - handle (dague_dtd_handle_t *)
- * Returns:     - void
- */
-void
-increment_task_counter(dague_dtd_handle_t *__dague_handle)
-{
-    /* Scheduling all the remaining tasks */
-    schedule_tasks (__dague_handle);
-
-    /* decrementing the extra task we initialized the handle with */
-    __dague_complete_task( &(__dague_handle->super), __dague_handle->super.context);
 }
 
 /* Unpacks all the arguments of a task, the variables(in which the actual values
@@ -539,9 +515,7 @@ profiling_trace(dague_dtd_handle_t *__dague_handle,
     char *str = fill_color(name);
     dague_profiling_add_dictionary_keyword(name, str,
                                            sizeof(dague_profile_ddesc_info_t) + flow_count * sizeof(assignment_t),
-                                           //dague_profile_ddesc_key_to_string,
                                            DAGUE_PROFILE_DDESC_INFO_CONVERTOR,
-                                           //"ddesc_unique_key{uint64_t};ddesc_data_id{uint32_t};ddessc_padding{uint32_t};k{int32_t};m{int32_t};n{int32_t}",
                                            (int *) &__dague_handle->super.profiling_array[0 +
                                                                                           2 *
                                                                                           function->function_id
@@ -620,18 +594,19 @@ dague_dtd_function_find( dague_dtd_handle_t  *dague_handle,
     }
 }
 
-/* Function to release the master structures inserted into the hash table
- * and push the generic buckets for hash table back in the mempool
+
+/* Function to insert tile in hash_table
  */
 void
-dague_dtd_function_release( dague_dtd_handle_t  *dague_handle,
-                            dague_dtd_funcptr_t *key )
+dague_dtd_tile_insert( dague_dtd_handle_t *dague_handle, uint32_t key,
+                       dague_dtd_tile_t   *tile,
+                       dague_ddesc_t      *ddesc )
 {
-    dague_generic_bucket_t *bucket = dague_dtd_function_find_internal ( dague_handle, key );
-    assert (bucket != NULL);
-    bucket->super.super.obj_reference_count = 1;
-    dague_dtd_function_remove ( dague_handle, key );
-    dague_thread_mempool_free( dague_handle->hash_table_bucket_mempool->thread_mempools, bucket );
+    hash_table *hash_table   =  dague_handle->tile_h_table;
+    uint64_t    combined_key = (uint64_t)ddesc << 32 | (uint64_t)key;
+    uint32_t    hash         =  hash_table->hash ( combined_key, hash_table->size );
+
+    hash_table_insert ( hash_table, (dague_generic_bucket_t *)tile, combined_key, (void *)tile, hash );
 }
 
 /* Function to remove tile from hash_table
@@ -660,57 +635,34 @@ dague_dtd_tile_find( dague_dtd_handle_t *dague_handle, uint32_t key,
     return (dague_dtd_tile_t *) hash_table_find ( hash_table, combined_key, hash );
 }
 
-/* Function to insert tile in hash_table
+/* release tile from hash table and push back in the mempool
  */
 void
-dague_dtd_tile_insert( dague_dtd_handle_t *dague_handle, uint32_t key,
-                       dague_dtd_tile_t   *tile,
-                       dague_ddesc_t      *ddesc )
+dague_dtd_tile_release(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
 {
-    hash_table *hash_table   =  dague_handle->tile_h_table;
-    uint64_t    combined_key = (uint64_t)ddesc << 32 | (uint64_t)key;
-    uint32_t    hash         =  hash_table->hash ( combined_key, hash_table->size );
-
-    hash_table_insert ( hash_table, (dague_generic_bucket_t *)tile, combined_key, (void *)tile, hash );
-}
-
-#if 0
-/* Function to manage tiles once insert_task() is called, this functions is to
- * generate tasks from PTG and insert it using insert task interface.
- * This function checks if the tile structure(dague_dtd_tile_t) is created for the data
- * already or not.
- * Arguments:   - dague handle (dague_dtd_handle_t *)
-                - data descriptor (dague_ddesc_t *)
-                - key of this data (dague_data_key_t)
- * Returns:     - tile, creates one if not already created, and returns that
-                  tile, (dague_dtd_tile_t *)
- */
-dague_dtd_tile_t*
-tile_manage_for_testing(dague_dtd_handle_t *dague_dtd_handle,
-                        dague_ddesc_t *ddesc, dague_data_key_t key)
-{
-    dague_dtd_tile_t *tmp = NULL;
-    /* tmp = find_tile(dague_dtd_handle->tile_h_table, key,
-                       dague_dtd_handle->tile_hash_table_size, ddesc); */
-    (void)dague_dtd_handle;
-
-    if( NULL == tmp) {
-        dague_dtd_tile_t *temp_tile     = (dague_dtd_tile_t*) malloc(sizeof(dague_dtd_tile_t));
-        temp_tile->key                  = key;
-        temp_tile->rank                 = 0;
-        temp_tile->vp_id                = 0;
-        temp_tile->data                 = (dague_data_t*)ddesc;
-        temp_tile->data_copy            = temp_tile->data->device_copies[0];
-        temp_tile->ddesc                = NULL;
-        temp_tile->last_user.flow_index = -1;
-        temp_tile->last_user.op_type    = -1;
-        temp_tile->last_user.task       = NULL;
-        return temp_tile;
-    } else {
-        return tmp;
+    OBJ_RELEASE(tile);
+    if( tile->super.super.super.obj_reference_count == 1 ) {
+        dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
+        if( tile->super.super.super.obj_reference_count == 1 ) {
+            assert(tile->super.super.refcount == 0);
+            dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
+        }
     }
 }
-#endif
+
+/* Function to release the master structures inserted into the hash table
+ * and push the generic buckets for hash table back in the mempool
+ */
+void
+dague_dtd_function_release( dague_dtd_handle_t  *dague_handle,
+                            dague_dtd_funcptr_t *key )
+{
+    dague_generic_bucket_t *bucket = dague_dtd_function_find_internal ( dague_handle, key );
+    assert (bucket != NULL);
+    bucket->super.super.obj_reference_count = 1;
+    dague_dtd_function_remove ( dague_handle, key );
+    dague_thread_mempool_free( dague_handle->hash_table_bucket_mempool->thread_mempools, bucket );
+}
 
 /* Function to manage tiles once insert_task() is called
  * This function checks if the tile structure(dague_dtd_tile_t) is created for the
@@ -728,7 +680,7 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
     dague_dtd_tile_t *tmp = dague_dtd_tile_find ( dague_dtd_handle, ddesc->data_key(ddesc, i, j),
                                                   ddesc );
     if( NULL == tmp ) {
-        /* Creating Task object */
+        /* Creating Tile object */
         dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
                                                           (dague_dtd_handle->tile_mempool->thread_mempools);
         temp_tile->key                  = ddesc->data_key(ddesc, i, j);
@@ -750,43 +702,6 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
     }
 }
 
-/* release tile from hash table and push back in the mempool
- */
-void
-tile_release(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
-{
-    OBJ_RELEASE(tile);
-    if( tile->super.super.super.obj_reference_count == 1 ) {
-        dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
-        if( tile->super.super.super.obj_reference_count == 1 ) {
-            dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
-        }
-    }
-}
-
-/* This function sets the descendant of a task, the descendant checks the "last
- * user" of a tile to see if there's a last user.
- * If there is, the descsendant calls this function and sets itself as the
- * descendant of the parent task * Arguments:
-                - parent task (dague_dtd_task_t *)
-                - flow index of parent for which we are setting the descendant (uint8_t)
-                - the descendant task (dague_dtd_task_t *)
-                - flow index of descendant task (uint8_t)
-                - operation type of parent on the data (int)
-                - operation type of descendant on the data (int)
- * Returns:     - void
- */
-void
-set_descendant(dague_dtd_task_t *parent_task, uint8_t parent_flow_index,
-               dague_dtd_task_t *desc_task, uint8_t desc_flow_index,
-               int parent_op_type, int desc_op_type)
-{
-    (void)parent_op_type;
-    parent_task->desc[parent_flow_index].flow_index = desc_flow_index;
-    parent_task->desc[parent_flow_index].op_type    = desc_op_type;
-    parent_task->desc[parent_flow_index].task       = desc_task;
-}
-
 /**
  * This function acts as the hook to connect the PaRSEC task with the actual task.
  * The function users passed while inserting task in PaRSEC is called in this procedure.
@@ -800,43 +715,29 @@ hook_of_dtd_task(dague_execution_unit_t    *context,
                       dague_execution_context_t *this_task)
 {
     dague_dtd_task_t   *dtd_task   = (dague_dtd_task_t*)this_task;
-    dague_dtd_handle_t *dtd_handle = (dague_dtd_handle_t*)(dtd_task->super.dague_handle);
-    dague_execution_context_t *orig_task = dtd_task->orig_task;
     int rc = 0;
 
     DAGUE_TASK_PROF_TRACE(context->eu_profile,
                           this_task->dague_handle->profiling_array[2 * this_task->function->function_id],
                           this_task);
 
-    /**
-     * Check to see which interface, if it is the PTG inserting task in DTD then
-     * this condition will be true
-     */
-    if(orig_task != NULL) {
-        dague_handle_t *orig_handle = orig_task->dague_handle;
-
-        rc = dtd_task->fpointer(context, orig_task);
-        if(rc == DAGUE_HOOK_RETURN_DONE) {
-            dague_atomic_add_32b(&(dtd_handle->tasks_scheduled), 1);
-        }
-
-        if(dtd_handle->total_tasks_to_be_exec == dtd_handle->tasks_scheduled)
-        {
-            dague_handle_update_nbtask(orig_handle, -1);
-        }
-        else if ((orig_handle->nb_local_tasks == 1) &&
-                 (dtd_handle->tasks_created == dtd_handle->tasks_scheduled))
-        {
-            dague_handle_update_nbtask(orig_handle, -1);
-        }
-    }
-    else { /* This is the default behavior */
-        rc = dtd_task->fpointer(context, this_task);
-        assert( rc == DAGUE_HOOK_RETURN_DONE );
-    }
+    rc = dtd_task->fpointer(context, this_task);
+    assert( rc == DAGUE_HOOK_RETURN_DONE );
 
     return rc;
 }
+
+/* chores and dague_function_t structure initialization
+ * This is for the ptg inserting task in dtd mode
+ */
+static const __dague_chore_t dtd_chore_for_testing[] = {
+    {.type      = DAGUE_DEV_CPU,
+     .evaluate  = NULL,
+     .hook      = testing_hook_of_dtd_task },
+    {.type      = DAGUE_DEV_NONE,
+     .evaluate  = NULL,
+     .hook      = NULL},             /* End marker */
+};
 
 /* chores and dague_function_t structure initialization */
 static const __dague_chore_t dtd_chore[] = {
@@ -860,26 +761,59 @@ static symbol_t symb_dtd_taskid = {
 };
 
 /* To make it consistent with PaRSEC we need to intialize and have function we do not use at this point */
-static inline uint64_t DTD_identity_hash(const __dague_dtd_internal_handle_t * __dague_handle,
+static inline uint64_t DTD_identity_hash(const dague_dtd_handle_t * __dague_handle,
                                          const assignment_t * assignments)
 {
     (void)__dague_handle;
     return (uint64_t)assignments[0].value;
 }
 
-/* This function is called when the handle is enqueued in the context.
- * Arguments:   - the dague context (dague_context_t *)
-                - dague handle (dague_internal_handle_t *)
-                - list of PaRSEC tasks (dague_execution_context_t **)
- * Returns:     - 0 (int)
+/* dague_dtd_new()
+ * Intializes all the needed members and returns the DAGUE handle
+ * Arguments:   - Dague context
+ - Total number of arenas
+ * Returns:     - DAGUE handle
+ * For correct profiling the task_class_counter should be correct
  */
-static int
-dtd_startup_tasks(dague_context_t * context,
-                  __dague_dtd_internal_handle_t * __dague_handle,
-                  dague_execution_context_t ** pready_list)
+dague_dtd_handle_t *
+dague_dtd_handle_new(dague_context_t* context,
+                     int arena_count)
 {
-    (void)context; (void)pready_list;
-    return 0;
+    dague_dtd_handle_t *__dague_handle;
+    int i;
+
+    assert( handle_mempool != NULL );
+    __dague_handle = (dague_dtd_handle_t *)dague_thread_mempool_allocate(handle_mempool->thread_mempools);
+
+    __dague_handle->super.context             = context;
+    __dague_handle->super.on_enqueue          = NULL;
+    __dague_handle->super.on_enqueue_data     = NULL;
+    __dague_handle->super.on_complete         = NULL;
+    __dague_handle->super.on_complete_data    = NULL;
+    __dague_handle->super.devices_mask        = DAGUE_DEVICES_ALL;
+    __dague_handle->super.nb_functions        = DAGUE_dtd_NB_FUNCTIONS;
+
+    /* Keeping track of total tasks to be executed per handle for the window */
+    for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
+        __dague_handle->flow_set_flag[i]  = 0;
+        /* Added new */
+        __dague_handle->super.functions_array[i] = NULL;
+    }
+    __dague_handle->tasks_created         = 0;
+    __dague_handle->task_window_size      = 1;
+    __dague_handle->tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
+    __dague_handle->super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */
+    __dague_handle->super.startup_hook    = dtd_startup;
+    __dague_handle->super.destructor      = (dague_destruct_fn_t) dague_dtd_handle_destruct;
+    __dague_handle->function_counter      = 0;
+
+    /* for testing interface*/
+    __dague_handle->total_tasks_to_be_exec = arena_count;
+
+    if (!testing_ptg_to_dtd) {
+        (void) dague_handle_reserve_id((dague_handle_t *) __dague_handle);
+    }
+    return (dague_dtd_handle_t*) __dague_handle;
 }
 
 /* Clean up function to clean memory allocated dynamically for the run
@@ -887,12 +821,14 @@ dtd_startup_tasks(dague_context_t * context,
  * Returns:     - void
  */
 void
-dtd_destructor(dague_dtd_handle_t *dague_handle)
+dague_dtd_handle_destruct(dague_dtd_handle_t *dague_handle)
 {
-    decrement_task_counter ( dague_handle );
+    if (!testing_ptg_to_dtd) {
+        decrement_task_counter ( dague_handle );
+    }
     int i;
     for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
-        dague_function_t     *func = dague_handle->super.functions_array[i];
+        const dague_function_t     *func = dague_handle->super.functions_array[i];
         dague_dtd_function_t *dtd_func = (dague_dtd_function_t *)func;
 
         if( func != NULL ) {
@@ -930,11 +866,28 @@ dtd_destructor(dague_dtd_handle_t *dague_handle)
             }
             dague_mempool_destruct(dtd_func->context_mempool);
             free(dtd_func->context_mempool);
-            free(func);
+            free((void*)func);
         }
     }
-    dague_handle_unregister( &dague_handle->super );
+    if (!testing_ptg_to_dtd) {
+        dague_handle_unregister( &dague_handle->super );
+    }
     dague_thread_mempool_free( handle_mempool->thread_mempools, dague_handle );
+}
+
+/* This function is called when the handle is enqueued in the context.
+ * Arguments:   - the dague context (dague_context_t *)
+                - dague handle (dague_internal_handle_t *)
+                - list of PaRSEC tasks (dague_execution_context_t **)
+ * Returns:     - 0 (int)
+ */
+static int
+dtd_startup_tasks(dague_context_t * context,
+                  dague_dtd_handle_t * __dague_handle,
+                  dague_execution_context_t **pready_list)
+{
+    (void)context; (void)__dague_handle; (void)pready_list;
+    return 0;
 }
 
 /* This is the hook that connects the function to start initial ready tasks with the context.
@@ -950,11 +903,11 @@ dtd_startup(dague_context_t * context,
             dague_execution_context_t ** pready_list)
 {
     uint32_t supported_dev = 0;
-    __dague_dtd_internal_handle_t *__dague_handle = (__dague_dtd_internal_handle_t *) dague_handle;
+    dague_dtd_handle_t *__dague_handle = (dague_dtd_handle_t *) dague_handle;
 
     /* Create the PINS DATA pointers if PINS is enabled */
 #if defined(PINS_ENABLE)
-    __dague_handle->super.super.context = context;
+    __dague_handle->super.context = context;
 #endif /* defined(PINS_ENABLE) */
 
     uint32_t wanted_devices = dague_handle->devices_mask;
@@ -975,53 +928,7 @@ dtd_startup(dague_context_t * context,
         dague_handle->devices_mask |= (1 << _i);
     }
 
-    dtd_startup_tasks(context, (__dague_dtd_internal_handle_t *) dague_handle, pready_list);
-}
-
-/* dague_dtd_new()
- * Intializes all the needed members and returns the DAGUE handle
- * Arguments:   - Dague context
- - Total number of arenas
- * Returns:     - DAGUE handle
- * For correct profiling the task_class_counter should be correct
- */
-dague_dtd_handle_t *
-dague_dtd_new(dague_context_t* context,
-              int arena_count)
-{
-    dague_dtd_handle_t *__dague_handle;
-    int i;
-
-    assert( handle_mempool != NULL );
-    __dague_handle = (dague_dtd_handle_t *)dague_thread_mempool_allocate(handle_mempool->thread_mempools);
-
-    __dague_handle->super.context             = context;
-    __dague_handle->super.on_enqueue          = NULL;
-    __dague_handle->super.on_enqueue_data     = NULL;
-    __dague_handle->super.on_complete         = NULL;
-    __dague_handle->super.on_complete_data    = NULL;
-    __dague_handle->super.devices_mask        = DAGUE_DEVICES_ALL;
-    __dague_handle->super.nb_functions        = DAGUE_dtd_NB_FUNCTIONS;
-
-    /* Keeping track of total tasks to be executed per handle for the window */
-    for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
-        __dague_handle->flow_set_flag[i]  = 0;
-        /* Added new */
-        __dague_handle->super.functions_array[i] = NULL;
-    }
-    __dague_handle->tasks_created         = 0;
-    __dague_handle->task_window_size      = 1;
-    __dague_handle->tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
-
-    __dague_handle->super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */
-    __dague_handle->super.startup_hook    = dtd_startup;
-    __dague_handle->super.destructor      = (dague_destruct_fn_t) dtd_destructor;
-
-    /* for testing interface*/
-    __dague_handle->total_tasks_to_be_exec = arena_count;
-
-    (void) dague_handle_reserve_id((dague_handle_t *) __dague_handle);
-    return (dague_dtd_handle_t*) __dague_handle;
+    dtd_startup_tasks(context, (dague_dtd_handle_t *) dague_handle, pready_list);
 }
 
 /* DTD version of is_completed()
@@ -1033,6 +940,7 @@ static int
 dtd_is_ready(const dague_dtd_task_t *dest,
              int dest_flow_index)
 {
+    (void)dest_flow_index;
     dague_dtd_task_t *dest_task = (dague_dtd_task_t*)dest;
     if ( dest_task->flow_count == dague_atomic_inc_32b(&(dest_task->flow_satisfied))) {
         return 1;
@@ -1046,20 +954,21 @@ dtd_is_ready(const dague_dtd_task_t *dest,
 dague_ontask_iterate_t
 dtd_release_dep_fct( dague_execution_unit_t *eu,
                      const dague_execution_context_t* new_context,
-                     const dague_execution_context_t * old_context,
-                     const dep_t * deps,
-                     dague_dep_data_description_t * data,
+                     const dague_execution_context_t *old_context,
+                     const dep_t *deps,
+                     dague_dep_data_description_t *data,
                      int src_rank, int dst_rank, int dst_vpid,
                      void *param)
 {
+    (void)eu; (void)data; (void)src_rank; (void)dst_rank; (void)old_context;
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
     int is_ready = 0;
     dague_dtd_task_t *current_task = (dague_dtd_task_t*) new_context;
-    dague_dtd_task_t *parent_task  = (dague_dtd_task_t*)old_context;
 
     is_ready = dtd_is_ready(current_task, deps->flow->flow_index);
 
 #if defined(DAGUE_PROF_GRAPHER)
+    dague_dtd_task_t *parent_task  = (dague_dtd_task_t*)old_context;
     /* Check to not print stuff redundantly */
     if(!parent_task->dont_skip_releasing_data[deps->dep_index]) {
         dague_flow_t * origin_flow = (dague_flow_t*) calloc(1, sizeof(dague_flow_t));
@@ -1101,7 +1010,6 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
     } else {
         return DAGUE_ITERATE_STOP;
     }
-
 }
 
 /* This function iterates over all the successors of a task and activates them
@@ -1109,23 +1017,25 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
  *
  */
 static void
-iterate_successors_of_dtd_task(dague_execution_unit_t * eu,
-                               const dague_execution_context_t * this_task,
+iterate_successors_of_dtd_task(dague_execution_unit_t *eu,
+                               const dague_execution_context_t *this_task,
                                uint32_t action_mask,
-                               dague_ontask_function_t * ontask,
+                               dague_ontask_function_t *ontask,
                                void *ontask_arg)
 {
+    (void)eu; (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
     ordering_correctly_1(eu, this_task, action_mask, ontask, ontask_arg);
 }
 
 /* To be consistent with PaRSECs structures, is not used or implemented */
 static void
-iterate_predecessors_of_dtd_task(dague_execution_unit_t * eu,
-                                 const dague_execution_context_t * this_task,
+iterate_predecessors_of_dtd_task(dague_execution_unit_t *eu,
+                                 const dague_execution_context_t *this_task,
                                  uint32_t action_mask,
-                                 dague_ontask_function_t * ontask,
+                                 dague_ontask_function_t *ontask,
                                  void *ontask_arg)
 {
+    (void)eu; (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
 }
 
 /* Release dependencies after a task is done.
@@ -1133,11 +1043,12 @@ iterate_predecessors_of_dtd_task(dague_execution_unit_t * eu,
  * Those ready tasks are scheduled in here
  */
 static int
-release_deps_of_dtd(dague_execution_unit_t* eu,
-                    dague_execution_context_t* this_task,
+release_deps_of_dtd(dague_execution_unit_t *eu,
+                    dague_execution_context_t *this_task,
                     uint32_t action_mask,
-                    dague_remote_deps_t* deps)
+                    dague_remote_deps_t *deps)
 {
+    (void)deps;
     dague_release_dep_fct_arg_t arg;
     int __vp_id;
 
@@ -1198,9 +1109,10 @@ complete_hook_of_dtd(dague_execution_unit_t* context,
 
 /* prepare_input function, to be consistent with PaRSEC */
 int
-data_lookup_of_dtd_task(dague_execution_unit_t * context,
-                        dague_execution_context_t * this_task)
+data_lookup_of_dtd_task(dague_execution_unit_t *context,
+                        dague_execution_context_t *this_task)
 {
+    (void)context; (void)this_task;
     return DAGUE_HOOK_RETURN_DONE;
 }
 
@@ -1252,7 +1164,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             /* specific for cholesky, will need to change */
             desc_dep->dep_datatype_index = tile_type_index;
             desc_dep->datatype.type.cst     = 0;
-            desc_dep->datatype.layout.cst   = NULL;
+            desc_dep->datatype.layout.cst   = 0;
             desc_dep->datatype.count.cst    = 0;
             desc_dep->datatype.displ.cst    = 0;
 
@@ -1295,7 +1207,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             desc_dep->direct_data   = NULL;
             desc_dep->dep_datatype_index = tile_type_index; /* specific for cholesky, will need to change */
             desc_dep->datatype.type.cst     = 0;
-            desc_dep->datatype.layout.cst   = NULL;
+            desc_dep->datatype.layout.cst   = 0;
             desc_dep->datatype.count.cst    = 0;
             desc_dep->datatype.displ.cst    = 0;
 
@@ -1377,7 +1289,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             parent_dep->direct_data     = NULL;
             parent_dep->dep_datatype_index = tile_type_index;
             parent_dep->datatype.type.cst     = 0;
-            parent_dep->datatype.layout.cst   = NULL;
+            parent_dep->datatype.layout.cst   = 0;
             parent_dep->datatype.count.cst    = 0;
             parent_dep->datatype.displ.cst    = 0;
 
@@ -1400,7 +1312,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             desc_dep->direct_data   = NULL;
             desc_dep->dep_datatype_index = tile_type_index;
             desc_dep->datatype.type.cst     = 0;
-            desc_dep->datatype.layout.cst   = NULL;
+            desc_dep->datatype.layout.cst   = 0;
             desc_dep->datatype.count.cst    = 0;
             desc_dep->datatype.displ.cst    = 0;
 
@@ -1433,16 +1345,6 @@ dague_function_t*
 create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointer, char* name,
                 int count_of_params, long unsigned int size_of_param, int flow_count)
 {
-    static int handle_id = 0;
-    static uint8_t function_counter = 0;
-
-    /* TODO: Instead of resetting counter we need to keep track of which handles
-             we have already encountered already */
-     if(__dague_handle->super.handle_id != handle_id) {
-        handle_id = __dague_handle->super.handle_id;
-        function_counter = 0;
-    }
-
     dague_dtd_function_t *dtd_function = (dague_dtd_function_t *) calloc(1, sizeof(dague_dtd_function_t));
     dague_function_t *function = (dague_function_t *) dtd_function;
 
@@ -1474,7 +1376,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     __dague_chore_t **incarnations = (__dague_chore_t **)&(function->incarnations);
 
     *name_not_const                 = name;
-    function->function_id           = function_counter;
+    function->function_id           = __dague_handle->function_counter++;
     function->nb_flows              = flow_count;
     /* set to one so that prof_grpaher prints the task id properly */
     function->nb_parameters         = 1;
@@ -1488,7 +1390,11 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->dependencies_goal     = 0;
     function->key                   = (dague_functionkey_fn_t *)DTD_identity_hash;
     function->fini                  = NULL;
-    *incarnations                   = (__dague_chore_t *)dtd_chore;
+    if (!testing_ptg_to_dtd) {
+        *incarnations                   = (__dague_chore_t *)dtd_chore;
+    } else {
+        *incarnations                   = (__dague_chore_t *)dtd_chore_for_testing;
+    }
     function->iterate_successors    = iterate_successors_of_dtd_task;
     function->iterate_predecessors  = iterate_predecessors_of_dtd_task;
     function->release_deps          = release_deps_of_dtd;
@@ -1499,8 +1405,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
 
     /* Inserting Function structure in the hash table to keep track for each class of task */
     dague_dtd_function_insert( __dague_handle, fpointer, dtd_function );
-    __dague_handle->super.functions_array[function_counter] = (dague_function_t *) function;
-    function_counter++;
+    __dague_handle->super.functions_array[function->function_id] = (dague_function_t *) function;
     return function;
 }
 
@@ -1554,217 +1459,27 @@ set_flow_in_function(dague_dtd_handle_t *__dague_handle,
     }
 }
 
-/*
- * INSERT Task Function.
- * Each time the user calls it a task is created with the respective parameters
-   the user has passed.
- * For each task class a structure known as "function" is created as well.
-   (e.g. for Cholesky 4 function structures are created for each task class).
- * The flow of data from each task to others and all other dependencies are
-   tracked from this function.
+/* This function sets the descendant of a task, the descendant checks the "last
+ * user" of a tile to see if there's a last user.
+ * If there is, the descsendant calls this function and sets itself as the
+ * descendant of the parent task * Arguments:
+                - parent task (dague_dtd_task_t *)
+                - flow index of parent for which we are setting the descendant (uint8_t)
+                - the descendant task (dague_dtd_task_t *)
+                - flow index of descendant task (uint8_t)
+                - operation type of parent on the data (int)
+                - operation type of descendant on the data (int)
+ * Returns:     - void
  */
 void
-insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
-                         dague_dtd_funcptr_t* fpointer,
-                         char* name, ...)
+set_descendant(dague_dtd_task_t *parent_task, uint8_t parent_flow_index,
+               dague_dtd_task_t *desc_task, uint8_t desc_flow_index,
+               int parent_op_type, int desc_op_type)
 {
-    va_list args, args_for_size;
-    static int handle_id=0;
-    int next_arg, i, flow_index=0;
-    int tile_op_type;
-    int track_function_created_or_not=0;
-    dague_dtd_task_param_t *head_of_param_list, *current_param, *tmp_param = NULL;
-    void *tmp, *value_block, *current_val;
-    static int vpid = 0;
-
-    va_start(args, name);
-
-    /* Creating master function structures */
-    /* Hash table lookup to check if the function structure exists or not */
-    dague_function_t *function = (dague_function_t *)dague_dtd_function_find
-                                                    ( __dague_handle, fpointer );
-
-    if( NULL == function ) {
-        /* calculating the size of parameters for each task class*/
-        int flow_count_master=0;
-        int count_of_params = 0;
-        long unsigned int size_of_param = 0;
-        va_copy(args_for_size, args);
-        next_arg = va_arg(args_for_size, int);
-        while(next_arg != 0) {
-            count_of_params ++;
-            tmp = va_arg(args_for_size, void *);
-            tile_op_type = va_arg(args_for_size, int);
-
-            if((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) {
-                size_of_param += next_arg;
-            } else {
-                flow_count_master++;
-            }
-            next_arg = va_arg(args_for_size, int);
-        }
-
-        va_end(args_for_size);
-
-        if (dump_function_info) {
-            printf("Function Created for task Class: %s\n Has %d parameters\n"
-                   "Total Size: %lu\n", name, count_of_params, size_of_param);
-        }
-
-        function = create_function(__dague_handle, fpointer, name, count_of_params,
-                                   size_of_param, flow_count_master);
-        track_function_created_or_not = 1;
-    }
-
-    dague_mempool_t *context_mempool_in_function = ((dague_dtd_function_t*) function)->context_mempool;
-
-    dague_dtd_tile_t *tile;
-    dague_dtd_task_t *temp_task;
-
-    /* Creating Task object */
-    temp_task = (dague_dtd_task_t *)dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools);
-
-    /*printf("Orignal Address : %p\t", temp_task);
-     int n = ((uintptr_t)temp_task) & 0xF;
-     printf("n is : %lx\n", n);
-
-     uintptr_t ptrr =  ((((uintptr_t)temp_task)+16)/16)*16;
-     printf("New Address :%lx \t", ptrr);
-     n = ((uintptr_t)ptrr) & 0xF;
-     printf("n is : %lx\n", n);*/
-
-    for(i=0;i<MAX_DESC;i++) {
-        // temp_task->desc[i].op_type_parent = -1;
-        //temp_task->desc[i].op_type        = -1;
-        //temp_task->desc[i].flow_index     = -1;
-        temp_task->desc[i].task           = NULL;
-        temp_task->dont_skip_releasing_data[i] = 0;
-    }
-    /*for(i=0;i<MAX_PARAM_COUNT;i++) {
-     temp_task->super.data[i].data_repo = NULL;
-     temp_task->super.data[i].data_in   = NULL;
-     temp_task->super.data[i].data_out  = NULL;
-     }*/
-
-    temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
-    temp_task->belongs_to_function = function->function_id;
-    temp_task->super.function = __dague_handle->super.functions_array[(temp_task->belongs_to_function)];
-    temp_task->flow_satisfied = 0;
-    temp_task->orig_task = NULL;
-    temp_task->ready_mask = 0;
-    temp_task->task_id = __dague_handle->task_id;
-#if defined(OVERLAP)
-    /* +1 to make sure the task is completely ready before it gets executed */
-    temp_task->flow_count = temp_task->super.function->nb_flows+1;
-#else
-    temp_task->flow_count = temp_task->super.function->nb_flows;
-#endif
-    temp_task->fpointer = fpointer;
-    temp_task->super.locals[0].value = __dague_handle->task_id;
-    temp_task->super.priority = 0;
-    temp_task->super.hook_id = 0;
-    temp_task->super.chore_id = 0;
-    temp_task->super.unused = 0;
-
-    /* Getting the pointer to allocated memory by mempool */
-    head_of_param_list = (dague_dtd_task_param_t *) (((char *)temp_task) + sizeof(dague_dtd_task_t));
-    current_param = head_of_param_list;
-    value_block = ((char *)head_of_param_list) + ((dague_dtd_function_t*)function)->count_of_params * sizeof(dague_dtd_task_param_t);
-    current_val = value_block;
-
-    next_arg = va_arg(args, int);
-
-    //double time__ = get_cur_time();
-    while(next_arg != 0) {
-        tmp = va_arg(args, void *);
-        tile = (dague_dtd_tile_t *) tmp;
-        tile_op_type = va_arg(args, int);
-        current_param->tile_type_index = REGION_FULL;
-
-        set_task(temp_task, tmp, tile,
-                 tile_op_type, current_param,
-                 __dague_handle->flow_set_flag, &current_val,
-                 __dague_handle, &flow_index, &next_arg);
-
-        tmp_param = current_param;
-        current_param = current_param + 1;
-        tmp_param->next = current_param;
-
-        next_arg = va_arg(args, int);
-    }
-    //time__ = get_cur_time() - time__;
-    //time_double += time__;
-
-    if(tmp_param != NULL) {
-        tmp_param->next = NULL;
-    }
-    va_end(args);
-
-    /* Bypassing constness in function structure */
-    dague_flow_t **in = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->in[flow_index]);
-    *in = NULL;
-    dague_flow_t **out = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->out[flow_index]);
-    *out = NULL;
-    __dague_handle->flow_set_flag[temp_task->belongs_to_function] = 1;
-
-    /* Assigning values to task objects  */
-    temp_task->param_list = head_of_param_list;
-
-    dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks),1);
-
-#if defined (OVERLAP)
-    /* in attempt to make the task not ready till the whole body is constructed */
-    dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1);
-#endif
-
-    if(!__dague_handle->super.context->active_objects) {
-        assert(0);
-        __dague_handle->task_id++;
-        /* executing the tasks as soon as we find it, if no engine is attached */
-        __dague_execute(__dague_handle->super.context->virtual_processes[0]->execution_units[0],
-                        (dague_execution_context_t *)temp_task);
-        return;
-    }
-
-    /* Building list of initial ready task */
-    if(temp_task->flow_count == temp_task->flow_satisfied) {
-#if defined (OVERLAP)
-        int ii = dague_atomic_cas(&(temp_task->ready_mask), 0, 1);
-        if(ii) {
-#endif
-            DAGUE_LIST_ITEM_SINGLETON(temp_task);
-            if (NULL != __dague_handle->startup_list[vpid]) {
-                dague_list_item_ring_merge((dague_list_item_t *)temp_task,
-                                           (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
-            }
-            __dague_handle->startup_list[vpid] = (dague_execution_context_t*)temp_task;
-            vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
-#if defined (OVERLAP)
-        }
-#endif
-    }
-
-#if defined(DAGUE_PROF_TRACE)
-    if(track_function_created_or_not) {
-        profiling_trace(__dague_handle, function, name, flow_index);
-        track_function_created_or_not = 0;
-    }
-#endif /* defined(DAGUE_PROF_TRACE) */
-
-    /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
-    __dague_handle->task_id++;
-    __dague_handle->tasks_created++;
-
-    if((__dague_handle->tasks_created % __dague_handle->task_window_size) == 0 ) {
-        schedule_tasks (__dague_handle);
-        if ( __dague_handle->task_window_size <= window_size ) {
-            __dague_handle->task_window_size *= 2;
-        } else {
-#if defined (OVERLAP)
-            dague_execute_and_come_back (__dague_handle->super.context, &__dague_handle->super);
-#endif
-        }
-    }
+    (void)parent_op_type;
+    parent_task->desc[parent_flow_index].flow_index = desc_flow_index;
+    parent_task->desc[parent_flow_index].op_type    = desc_op_type;
+    parent_task->desc[parent_flow_index].task       = desc_task;
 }
 
 /* Function that sets all dependencies between tasks according to the operation type of that task
@@ -1837,14 +1552,14 @@ set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
 #endif
                     }
                     if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
-                        if (testing_ptg_to_dtd) {
+                        if (!testing_ptg_to_dtd) {
                             set_dependencies_for_function((dague_handle_t *)__dague_handle,
                                                           (dague_function_t *)temp_task->super.function, NULL,
                                                           *flow_index, 0, tile_type_index);
                         }
 
                     } else {
-                        if (testing_ptg_to_dtd) {
+                        if (!testing_ptg_to_dtd) {
                             set_dependencies_for_function((dague_handle_t *)__dague_handle,
                                                           (dague_function_t *)parent->super.function,
                                                           (dague_function_t *)temp_task->super.function,
@@ -1870,14 +1585,14 @@ set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
                 }
 
                 if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
-                    if (testing_ptg_to_dtd) {
+                    if (!testing_ptg_to_dtd) {
                         set_dependencies_for_function((dague_handle_t *)__dague_handle, NULL,
                                                       (dague_function_t *)temp_task->super.function,
                                                       0, *flow_index, tile_type_index);
                     }
                 }
                 if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
-                    if (testing_ptg_to_dtd) {
+                    if (!testing_ptg_to_dtd) {
                         set_dependencies_for_function((dague_handle_t *)__dague_handle,
                                                       (dague_function_t *)temp_task->super.function, NULL,
                                                       *flow_index, 0, tile_type_index);
@@ -1931,182 +1646,195 @@ schedule_tasks (dague_dtd_handle_t *__dague_handle)
         }
     }
 }
-#if 0
-/* ------------ */
 
-/*  Everything under this is for testing the insert task interface by using the
- existing PTG tests so not to be counted as a part of insert task interface
- */
-/* ------------ */
 /*
  * INSERT Task Function.
- * Each time the user calls it a task is created with the respective parameters the user has passed.
- * For each task class a structure known as "function" is created as well. (e.g. for Cholesky 4 function
- structures are created for each task class).
- * The flow of data from each task to others and all other dependencies are tracked from this function.
+ * Each time the user calls it a task is created with the respective parameters
+   the user has passed.
+ * For each task class a structure known as "function" is created as well.
+   (e.g. for Cholesky 4 function structures are created for each task class).
+ * The flow of data from each task to others and all other dependencies are
+   tracked from this function.
  */
 void
-insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
-                                     dague_dtd_funcptr_t* fpointer, dague_execution_context_t *orig_task,
-                                     char* name, dague_dtd_task_param_t *head_paramm)
+insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
+                         dague_dtd_funcptr_t* fpointer,
+                         char* name, ...)
 {
-    dague_dtd_task_param_t *current_paramm;
-    static int handle_id = 0;
-    static uint32_t task_id = 0, _internal_task_counter=0;
-    static uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
-    int next_arg=-1, i, flow_index = 0;
+    va_list args, args_for_size;
+    int next_arg, i, flow_index=0;
     int tile_op_type;
-    int track_function_created_or_not = 0;
-    dague_dtd_task_param_t *head_of_param_list, *current_param, *tmp_param;
+#if defined(DAGUE_PROF_TRACE)
+    int track_function_created_or_not=0;
+#endif
+    dague_dtd_task_param_t *head_of_param_list, *current_param, *tmp_param = NULL;
     void *tmp, *value_block, *current_val;
     static int vpid = 0;
 
-    if(__dague_handle->super.handle_id != handle_id) {
-        handle_id = __dague_handle->super.handle_id;
-        task_id = 0;
-        _internal_task_counter = 0;
-        for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
-            flow_set_flag[i] = 0;
-        }
-    }
+    va_start(args, name);
 
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
-    dague_function_t *function = find_function(__dague_handle->function_h_table,
-                                               fpointer,
-                                               __dague_handle->function_hash_table_size);
+    dague_function_t *function = (dague_function_t *)dague_dtd_function_find
+                                                    ( __dague_handle, fpointer );
 
     if( NULL == function ) {
         /* calculating the size of parameters for each task class*/
+        int flow_count_master=0;
         int count_of_params = 0;
         long unsigned int size_of_param = 0;
+        va_copy(args_for_size, args);
+        next_arg = va_arg(args_for_size, int);
+        while(next_arg != 0) {
+            count_of_params ++;
+            tmp = va_arg(args_for_size, void *);
+            tile_op_type = va_arg(args_for_size, int);
 
-        current_paramm = head_paramm;
-
-        while(current_paramm != NULL) {
-            count_of_params++;
-            current_paramm = current_paramm->next;
+            if((tile_op_type & GET_OP_TYPE) == VALUE || (tile_op_type & GET_OP_TYPE) == SCRATCH) {
+                size_of_param += next_arg;
+            } else {
+                flow_count_master++;
+            }
+            next_arg = va_arg(args_for_size, int);
         }
+
+        va_end(args_for_size);
 
         if (dump_function_info) {
-            printf("Function Created for task Class: %s\n Has %d parameters\n Total Size: %lu\n", name, count_of_params, size_of_param);
+            printf("Function Created for task Class: %s\n Has %d parameters\n"
+                   "Total Size: %lu\n", name, count_of_params, size_of_param);
         }
 
-        function = create_function(__dague_handle, fpointer, name, count_of_params, size_of_param, count_of_params);
+        function = create_function(__dague_handle, fpointer, name, count_of_params,
+                                   size_of_param, flow_count_master);
+#if defined(DAGUE_PROF_TRACE)
         track_function_created_or_not = 1;
-    } else { /* Because I am tracking things that does not make a lot of sense hence */
-        int count_of_params = 0;
-
-        current_paramm = head_paramm;
-
-        while(current_paramm != NULL) {
-            count_of_params++;
-            current_paramm = current_paramm->next;
-        }
-
-        if(function->nb_flows < count_of_params) {
-            function->nb_flows = count_of_params;
-            flow_set_flag[function->function_id] = 0;
-        }
-        else if(function->nb_flows > count_of_params) {
-            function->nb_flows = count_of_params;
-        }
+#endif
     }
 
-    dague_mempool_t * context_mempool_in_function = ((dague_dtd_function_t*) function)->context_mempool;
+    dague_mempool_t *context_mempool_in_function = ((dague_dtd_function_t*) function)->context_mempool;
 
     dague_dtd_tile_t *tile;
     dague_dtd_task_t *temp_task;
 
-    temp_task = (dague_dtd_task_t *) dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools); /* Creating Task object */
-    for(i=0;i<MAX_DESC;i++) {
-        temp_task->desc[i].op_type_parent = -1;
-        temp_task->desc[i].op_type        = -1;
-        temp_task->desc[i].flow_index     = -1;
-        temp_task->desc[i].task           = NULL;
+    /* Creating Task object */
+    temp_task = (dague_dtd_task_t *)dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools);
 
+    /*printf("Orignal Address : %p\t", temp_task);
+     int n = ((uintptr_t)temp_task) & 0xF;
+     printf("n is : %lx\n", n);
+
+     uintptr_t ptrr =  ((((uintptr_t)temp_task)+16)/16)*16;
+     printf("New Address :%lx \t", ptrr);
+     n = ((uintptr_t)ptrr) & 0xF;
+     printf("n is : %lx\n", n);*/
+
+    for(i=0;i<MAX_DESC;i++) {
+        // temp_task->desc[i].op_type_parent = -1;
+        //temp_task->desc[i].op_type        = -1;
+        //temp_task->desc[i].flow_index     = -1;
+        temp_task->desc[i].task           = NULL;
         temp_task->dont_skip_releasing_data[i] = 0;
     }
-    for(i=0;i<MAX_PARAM_COUNT;i++) {
-        temp_task->super.data[i].data_repo = NULL;
-        temp_task->super.data[i].data_in   = NULL;
-        temp_task->super.data[i].data_out  = NULL;
-    }
-
-
-    dague_execution_context_t *orig_task_copy =(dague_execution_context_t *) malloc(sizeof(dague_execution_context_t));
-    memcpy(orig_task_copy, orig_task, sizeof(dague_execution_context_t));
-    temp_task->orig_task = orig_task_copy;
+    /*for(i=0;i<MAX_PARAM_COUNT;i++) {
+     temp_task->super.data[i].data_repo = NULL;
+     temp_task->super.data[i].data_in   = NULL;
+     temp_task->super.data[i].data_out  = NULL;
+     }*/
 
     temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     temp_task->belongs_to_function = function->function_id;
     temp_task->super.function = __dague_handle->super.functions_array[(temp_task->belongs_to_function)];
     temp_task->flow_satisfied = 0;
+    temp_task->orig_task = NULL;
     temp_task->ready_mask = 0;
-    temp_task->task_id = task_id;
-    temp_task->flow_count = temp_task->super.function->nb_flows+1; /* +1 to make sure the task is completely ready before it gets executed */
+    temp_task->task_id = __dague_handle->task_id;
+#if defined(OVERLAP)
+    /* +1 to make sure the task is completely ready before it gets executed */
+    temp_task->flow_count = temp_task->super.function->nb_flows+1;
+#else
+    temp_task->flow_count = temp_task->super.function->nb_flows;
+#endif
     temp_task->fpointer = fpointer;
-    temp_task->super.locals[0].value = task_id;
+    temp_task->super.locals[0].value = __dague_handle->task_id;
     temp_task->super.priority = 0;
     temp_task->super.hook_id = 0;
     temp_task->super.chore_id = 0;
     temp_task->super.unused = 0;
 
-    head_of_param_list = (dague_dtd_task_param_t *) (((char *)temp_task) + sizeof(dague_dtd_task_t)); /* Getting the pointer allocated from mempool */
+    /* Getting the pointer to allocated memory by mempool */
+    head_of_param_list = (dague_dtd_task_param_t *) (((char *)temp_task) + sizeof(dague_dtd_task_t));
     current_param = head_of_param_list;
     value_block = ((char *)head_of_param_list) + ((dague_dtd_function_t*)function)->count_of_params * sizeof(dague_dtd_task_param_t);
     current_val = value_block;
 
-    current_paramm = head_paramm;
+    next_arg = va_arg(args, int);
 
-    struct user *last_user = (struct user *) malloc(sizeof(struct user));
-    while(current_paramm != NULL) {
-        tmp = current_paramm->pointer_to_tile;
+    while(next_arg != 0) {
+        tmp = va_arg(args, void *);
         tile = (dague_dtd_tile_t *) tmp;
-        tile_op_type = current_paramm->operation_type;
+        tile_op_type = va_arg(args, int);
         current_param->tile_type_index = REGION_FULL;
 
         set_task(temp_task, tmp, tile,
                  tile_op_type, current_param,
-                 flow_set_flag, &current_val,
+                 __dague_handle->flow_set_flag, &current_val,
                  __dague_handle, &flow_index, &next_arg);
 
         tmp_param = current_param;
         current_param = current_param + 1;
         tmp_param->next = current_param;
 
-        current_paramm = current_paramm->next;
+        next_arg = va_arg(args, int);
     }
+
+    if(tmp_param != NULL) {
+        tmp_param->next = NULL;
+    }
+    va_end(args);
 
     /* Bypassing constness in function structure */
     dague_flow_t **in = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->in[flow_index]);
     *in = NULL;
     dague_flow_t **out = (dague_flow_t **)&(__dague_handle->super.functions_array[temp_task->belongs_to_function]->out[flow_index]);
     *out = NULL;
-    flow_set_flag[temp_task->belongs_to_function] = 1;
+    __dague_handle->flow_set_flag[temp_task->belongs_to_function] = 1;
 
     /* Assigning values to task objects  */
     temp_task->param_list = head_of_param_list;
 
-    /* Atomically increasing the nb_local_tasks_counter */
     dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks),1);
-    dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1); /* in attempt to make the task not ready till the whole body is constructed */
+
+#if defined (OVERLAP)
+    /* in attempt to make the task not ready till the whole body is constructed */
+    dague_atomic_add_32b((int *)&(temp_task->flow_satisfied),1);
+#endif
 
     if(!__dague_handle->super.context->active_objects) {
-        task_id++;
-        __dague_execute(__dague_handle->super.context->virtual_processes[0]->execution_units[0], (dague_execution_context_t *)temp_task);  /* executing the tasks as soon as we find it if no engine is attached */
+        assert(0);
+        __dague_handle->task_id++;
+        /* executing the tasks as soon as we find it, if no engine is attached */
+        __dague_execute(__dague_handle->super.context->virtual_processes[0]->execution_units[0],
+                        (dague_execution_context_t *)temp_task);
         return;
     }
 
     /* Building list of initial ready task */
-    if(temp_task->flow_count == temp_task->flow_satisfied && !temp_task->ready_mask) {
-        DAGUE_LIST_ITEM_SINGLETON(temp_task);
-        if (NULL != __dague_handle->startup_list[vpid]) {
-            dague_list_item_ring_merge((dague_list_item_t *)temp_task,
-                                       (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
+    if(temp_task->flow_count == temp_task->flow_satisfied) {
+#if defined (OVERLAP)
+        int ii = dague_atomic_cas(&(temp_task->ready_mask), 0, 1);
+        if(ii) {
+#endif
+            DAGUE_LIST_ITEM_SINGLETON(temp_task);
+            if (NULL != __dague_handle->startup_list[vpid]) {
+                dague_list_item_ring_merge((dague_list_item_t *)temp_task,
+                                           (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
+            }
+            __dague_handle->startup_list[vpid] = (dague_execution_context_t*)temp_task;
+            vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
+#if defined (OVERLAP)
         }
-        __dague_handle->startup_list[vpid] = (dague_execution_context_t*)temp_task;
-        vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
+#endif
     }
 
 #if defined(DAGUE_PROF_TRACE)
@@ -2117,194 +1845,17 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
 #endif /* defined(DAGUE_PROF_TRACE) */
 
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
-    task_id++;
-    _internal_task_counter++;
-    __dague_handle->tasks_created = _internal_task_counter;
+    __dague_handle->task_id++;
+    __dague_handle->tasks_created++;
 
-    static int task_window_size = 1;
-
-    if((__dague_handle->tasks_created % task_window_size) == 0 ) {
+    if((__dague_handle->tasks_created % __dague_handle->task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
-    }
-}
-
+        if ( __dague_handle->task_window_size <= window_size ) {
+            __dague_handle->task_window_size *= 2;
+        } else {
+#if defined (OVERLAP)
+            dague_execute_and_come_back (__dague_handle->super.context, &__dague_handle->super);
 #endif
-#if 0
-/* To copy the dague_context_t of the predecessor needed for tracking control flow
- *
- */
-static dague_ontask_iterate_t copy_content(dague_execution_unit_t *eu,
-                const dague_execution_context_t *newcontext,
-                const dague_execution_context_t *oldcontext,
-                const dep_t *dep, dague_dep_data_description_t *data,
-                int src_rank, int dst_rank, int dst_vpid, void *param)
-{
-    /* assinging 1 to "unused" field in dague_context_t of the successor to indicate we found a predecesor */
-    uint8_t *val = (uint8_t *) &(oldcontext->unused);
-    *val += 1;
-
-    /* Saving the flow index of the parent in the "unused" field of the predecessor */
-    uint8_t *val1 = (uint8_t *) &(newcontext->unused);
-    dague_flow_t* parent_outflow = (dague_flow_t*)(dep->flow);
-    *val1 = parent_outflow->flow_index;
-
-    memcpy(param, newcontext, sizeof(dague_execution_context_t));
-    return DAGUE_ITERATE_STOP;
-}
-
-static int
-fake_hook_for_testing(dague_execution_unit_t * context,
-                      dague_execution_context_t * this_task)
-{
-    int count = 0;
-    dague_dtd_handle_t *dtd_handle = __dtd_handle;
-    const char *name = this_task->function->name;
-    dague_dtd_task_param_t *head_param = NULL, *current_param = NULL, *tmp_param = NULL;
-    dague_ddesc_t *ddesc;
-    dague_data_key_t key;
-    int tmp_op_type;
-
-    int i;
-
-    data_repo_entry_t *entry;
-    dague_execution_context_t *T1;
-
-    for (i=0; this_task->function->in[i] != NULL ; i++) {
-        tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
-
-        dague_data_copy_t* copy;
-        tmp_op_type = this_task->function->in[i]->flow_flags;
-        int op_type;
-        int mask, pred_found = 0;
-
-        if ((tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_RW) {
-            op_type = INOUT | REGION_FULL;
-        } else if((tmp_op_type & FLOW_ACCESS_READ) == FLOW_ACCESS_READ) {
-            op_type = INPUT | REGION_FULL;
-        } else if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
-            op_type = OUTPUT | REGION_FULL;
-        } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
-            op_type = INOUT | REGION_FULL;
-
-            this_task->unused = 0;
-            T1 = malloc (sizeof(dague_execution_context_t));
-            mask = 1 << i;
-            this_task->function->iterate_predecessors(context, this_task,  mask, copy_content, (void*)T1);
-            if (this_task->unused != 0) {
-                pred_found = 1;
-            } else {
-                pred_found = 2;
-                continue;
-            }
-
-            if (pred_found == 1) {
-                uint64_t id = T1->function->key(T1->dague_handle, T1->locals);
-                entry = data_repo_lookup_entry(T1->dague_handle->repo_array[T1->function->function_id], id);
-                copy = entry->data[T1->unused];
-            } else {
-            }
-        }else {
-            continue;
-        }
-
-        if (pred_found == 0) {
-            ddesc = (dague_ddesc_t *)this_task->data[i].data_in->original;
-            key = this_task->data[i].data_in->original->key;
-            OBJ_RETAIN(this_task->data[i].data_in);
-        } else if (pred_found == 1) {
-            ddesc = (dague_ddesc_t *)copy->original;
-            key   =  copy->original->key;
-        }
-        dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
-
-        tmp_param->pointer_to_tile = (void *)tile;
-        tmp_param->operation_type = op_type;
-        tmp_param->tile_type_index = REGION_FULL;
-        tmp_param->next = NULL;
-
-        if(head_param == NULL) {
-            head_param = tmp_param;
-        } else {
-            current_param->next = tmp_param;
-        }
-        count ++;
-        current_param = tmp_param;
-    }
-
-    for (i=0; this_task->function->out[i] != NULL; i++) {
-        int op_type;
-        tmp_op_type = this_task->function->out[i]->flow_flags;
-        dague_data_copy_t* copy;
-        tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
-        int pred_found = 0;
-        if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
-            op_type = OUTPUT | REGION_FULL;
-        } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
-            pred_found = 1;
-            op_type = INOUT | REGION_FULL;
-
-            dague_data_t *fake_data = OBJ_NEW(dague_data_t);
-            fake_data->key = rand();
-            dague_data_copy_t *fake_data_copy = OBJ_NEW(dague_data_copy_t);
-            copy = fake_data_copy;
-            fake_data_copy->original = fake_data;
-            this_task->data[this_task->function->out[i]->flow_index].data_out = fake_data_copy;
-
-            ddesc = (dague_ddesc_t *)fake_data;
-            key   =  fake_data->key;
-        } else {
-            continue;
-        }
-
-        if (pred_found == 0) {
-            ddesc = (dague_ddesc_t *)this_task->data[i].data_out->original;
-            key = this_task->data[i].data_out->original->key;
-            OBJ_RETAIN(this_task->data[i].data_out);
-        } else if (pred_found == 1) {
-            ddesc = (dague_ddesc_t *)copy->original;
-            key   = copy->original->key;
-        }
-        dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
-
-        tmp_param->pointer_to_tile = (void *)tile;
-        tmp_param->operation_type = op_type;
-        tmp_param->tile_type_index = REGION_FULL;
-        tmp_param->next = NULL;
-
-        if(head_param == NULL) {
-            head_param = tmp_param;
-        } else {
-            current_param->next = tmp_param;
-        }
-        count ++;
-        current_param = tmp_param;
-
-    }
-
-    /* testing Insert Task */
-    //insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
-     //                                    this_task, (char *)name, head_param);
-
-    return DAGUE_HOOK_RETURN_DONE;
-}
-
-void
-copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle)
-{
-    int total_functions = handle->nb_functions;
-    int i, j;
-    for (i=0; i<total_functions; i++) {
-        for (j =0; handle->functions_array[i]->incarnations[j].hook != NULL; j++) {
-            /* saving the CPU hook only */
-            if (handle->functions_array[i]->incarnations[j].type == DAGUE_DEV_CPU) {
-                dtd_handle->actual_hook[i].hook = handle->functions_array[i]->incarnations[j].hook;
-            }
-        }
-        for (j =0; handle->functions_array[i]->incarnations[j].hook != NULL; j++) {
-            /* copying ther dake hook in all the hooks (CPU, GPU etc) */
-            dague_hook_t **hook_not_const = (dague_hook_t **)&(handle->functions_array[i]->incarnations[j].hook);
-            *hook_not_const = &fake_hook_for_testing;
         }
     }
 }
-#endif

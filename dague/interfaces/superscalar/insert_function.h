@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -12,9 +12,6 @@ BEGIN_C_DECLS
 #include <stdarg.h>
 #include "dague.h"
 #include "dague/data_distribution.h"
-
-/* TODO: REMOVE */
-extern double time_double;
 
 /*
     **  Details of Flags **
@@ -46,11 +43,9 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
                 REGION_L=1<<1,
                 REGION_D=1<<2,
                 REGION_U=1<<3,
-                LOCALITY=1<<4
              } dtd_regions;
 
 #define DAGUE_dtd_NB_FUNCTIONS  25
-#define DTD_TASK_COUNT          10000
 #define PASSED_BY_REF           1
 #define UNPACK_VALUE            1
 #define UNPACK_DATA             2
@@ -74,18 +69,16 @@ typedef int (dague_dtd_funcptr_t)(dague_execution_unit_t *, dague_execution_cont
 dague_dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                               dague_ddesc_t *ddesc, int i, int j);
 
-dague_dtd_handle_t* dague_dtd_new(dague_context_t *, int );
-
 void insert_task_generic_fptr(dague_dtd_handle_t *,
                               dague_dtd_funcptr_t *, char *, ...);
 
 void dague_dtd_unpack_args(dague_execution_context_t *this_task, ...);
 
-/* This should not use intrenql structure ot should not be public */
-typedef struct  __dague_dtd_internal_handle_s __dague_dtd_internal_handle_t;
-void dtd_destructor(dague_dtd_handle_t *);
+dague_dtd_handle_t* dague_dtd_handle_new(dague_context_t *, int );
+void dague_dtd_handle_destruct(dague_dtd_handle_t *);
 
-void increment_task_counter(dague_dtd_handle_t *);
+void dague_dtd_handle_wait( dague_context_t     *dague,
+                            dague_dtd_handle_t  *dague_handle );
 
 void dague_dtd_init ();
 void dague_dtd_fini ();
