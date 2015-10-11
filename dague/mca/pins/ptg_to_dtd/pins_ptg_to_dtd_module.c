@@ -18,7 +18,6 @@
 static void pins_handle_init_ptg_to_dtd(struct dague_handle_s * handle);
 static void pins_handle_fini_ptg_to_dtd(struct dague_handle_s * handle);
 
-
 const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
     &dague_pins_ptg_to_dtd_component,
     {
@@ -34,21 +33,74 @@ const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
 static void pins_handle_init_ptg_to_dtd(dague_handle_t *handle)
 {
     /* Adding code to instrument testing insert_task interface */
-    testing_ptg_to_dtd = 99;
+    testing_ptg_to_dtd = 1;
 
-    /* I really don't get why the number of tasks is not handled through the original handle.
-     Please, put a comment to explain and justify your choice */
+    if(handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
+        return;
+    }
 
-    __dtd_handle = dague_dtd_new(handle->context, handle->nb_local_tasks);
+    dague_dtd_init();
+    __dtd_handle = dague_dtd_handle_new(handle->context, handle->nb_local_tasks);
     dague_handle_update_nbtask(handle, 1);
     copy_chores(handle, __dtd_handle);
-    /* END */
 }
 
 static void pins_handle_fini_ptg_to_dtd(dague_handle_t *handle)
 {
+    (void)handle;
+
+    if(handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
+        return;
+    }
+
+    //__dague_complete_task( &(__dtd_handle->super), __dtd_handle->super.context);
+    //dague_dtd_handle_destruct(__dtd_handle);
+    //dague_dtd_fini();
 }
 
+/**
+ * This function acts as the hook to connect the PaRSEC task with the actual task.
+ * The function users passed while inserting task in PaRSEC is called in this procedure.
+ * Called internally by the scheduler
+ * Arguments:
+ *   - the execution unit (dague_execution_unit_t *)
+ *   - the PaRSEC task (dague_execution_context_t *)
+ */
+int
+testing_hook_of_dtd_task(dague_execution_unit_t    *context,
+                      dague_execution_context_t *this_task)
+{
+    dague_dtd_task_t   *dtd_task   = (dague_dtd_task_t*)this_task;
+    dague_dtd_handle_t *dtd_handle = (dague_dtd_handle_t*)(dtd_task->super.dague_handle);
+    dague_execution_context_t *orig_task = dtd_task->orig_task;
+    int rc = 0;
+
+    DAGUE_TASK_PROF_TRACE(context->eu_profile,
+                          this_task->dague_handle->profiling_array[2 * this_task->function->function_id],
+                          this_task);
+
+    /**
+     * Check to see which interface, if it is the PTG inserting task in DTD then
+     * this condition will be true
+     */
+        dague_handle_t *orig_handle = orig_task->dague_handle;
+        rc = dtd_task->fpointer(context, orig_task);
+        if(rc == DAGUE_HOOK_RETURN_DONE) {
+            dague_atomic_add_32b(&(dtd_handle->tasks_scheduled), 1);
+        }
+
+        if(dtd_handle->total_tasks_to_be_exec == dtd_handle->tasks_scheduled)
+        {
+            dague_handle_update_nbtask(orig_handle, -1);
+        }
+        else if ((orig_handle->nb_local_tasks == 1) &&
+                 (dtd_handle->tasks_created == dtd_handle->tasks_scheduled))
+        {
+            dague_handle_update_nbtask(orig_handle, -1);
+        }
+
+    return rc;
+}
 /* Function to manage tiles once insert_task() is called, this functions is to
  * generate tasks from PTG and insert it using insert task interface.
  * This function checks if the tile structure(dague_dtd_tile_t) is created for the data
@@ -73,7 +125,7 @@ tile_manage_for_testing(dague_dtd_handle_t *dague_dtd_handle,
         temp_tile->vp_id                = 0;
         temp_tile->data                 = (dague_data_t*)ddesc;
         temp_tile->data_copy            = temp_tile->data->device_copies[0];
-        temp_tile->ddesc                = NULL;
+        temp_tile->ddesc                = ddesc;
         temp_tile->last_user.flow_index = -1;
         temp_tile->last_user.op_type    = -1;
         temp_tile->last_user.task       = NULL;
@@ -100,10 +152,11 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
                                      char* name, dague_dtd_task_param_t *head_paramm)
 {
     dague_dtd_task_param_t *current_paramm;
-    static int handle_id = 0;
     int next_arg=-1, i, flow_index = 0;
     int tile_op_type;
+#if defined(DAGUE_PROF_TRACE)
     int track_function_created_or_not = 0;
+#endif
     dague_dtd_task_param_t *head_of_param_list, *current_param, *tmp_param;
     void *tmp, *value_block, *current_val;
     static int vpid = 0;
@@ -130,7 +183,9 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
         }
 
         function = create_function(__dague_handle, fpointer, name, count_of_params, size_of_param, count_of_params);
+#if defined(DAGUE_PROF_TRACE)
         track_function_created_or_not = 1;
+#endif
     }
 
     dague_mempool_t * context_mempool_in_function = ((dague_dtd_function_t*) function)->context_mempool;
@@ -238,14 +293,14 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
 #endif /* defined(DAGUE_PROF_TRACE) */
 
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
-    __dague_handle->task_id++;
-    __dague_handle->tasks_created++;
+    dague_atomic_add_32b((int *)&(__dague_handle->task_id),1);
+    dague_atomic_add_32b((int *)&(__dague_handle->tasks_created),1);
 
     if((__dague_handle->tasks_created % __dague_handle->task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
-        if ( __dague_handle->task_window_size <= window_size ) {
+        /*if ( __dague_handle->task_window_size <= window_size ) {
             __dague_handle->task_window_size *= 2;
-        }
+        }*/
     }
 }
 
@@ -258,6 +313,8 @@ static dague_ontask_iterate_t copy_content(dague_execution_unit_t *eu,
                 const dep_t *dep, dague_dep_data_description_t *data,
                 int src_rank, int dst_rank, int dst_vpid, void *param)
 {
+    (void)eu; (void)newcontext; (void)oldcontext; (void)dep; (void)data; (void)src_rank;
+    (void)dst_rank; (void)dst_vpid; (void)param;
     /* assinging 1 to "unused" field in dague_context_t of the successor to indicate we found a predecesor */
     uint8_t *val = (uint8_t *) &(oldcontext->unused);
     *val += 1;
@@ -270,6 +327,7 @@ static dague_ontask_iterate_t copy_content(dague_execution_unit_t *eu,
     memcpy(param, newcontext, sizeof(dague_execution_context_t));
     return DAGUE_ITERATE_STOP;
 }
+
 static int
 fake_hook_for_testing(dague_execution_unit_t * context,
                       dague_execution_context_t * this_task)
@@ -400,8 +458,8 @@ fake_hook_for_testing(dague_execution_unit_t * context,
     }
 
     /* testing Insert Task */
-    //insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
-     //                                    this_task, (char *)name, head_param);
+    insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
+                                         this_task, (char *)name, head_param);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
