@@ -20,9 +20,8 @@ OBJ_CLASS_INSTANCE(dague_generic_bucket_t, dague_list_item_t, NULL, NULL);
 */
 void
 hash_table_init(hash_table *obj, int size_of_table,
-                int size_of_each_bucket, hash_fn *hash)
+                hash_fn    *hash)
 {
-    obj->buckets  = calloc(size_of_table, size_of_each_bucket);
     obj->size     = size_of_table;
     obj->hash     = hash;
     obj->bucket_list = calloc(size_of_table, sizeof(dague_list_t *));
@@ -45,7 +44,6 @@ hash_table_fini(hash_table *obj, int size_of_table)
         free(obj->bucket_list[i]);
     }
 
-    free(obj->buckets);
     free(obj->bucket_list);
     OBJ_RELEASE(obj);
 }

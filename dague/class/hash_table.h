@@ -15,7 +15,6 @@ struct generic_hash_table {
     dague_object_t    super;
     uint32_t          size;
     hash_fn          *hash;
-    void            **buckets;
     void            **bucket_list;
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(hash_table);
@@ -39,7 +38,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_generic_bucket_t);
 */
 void
 hash_table_init(hash_table *obj, int size_of_table,
-                int size_of_each_bucket, hash_fn *hash);
+                hash_fn    *hash);
 
 /* Function to destroy generic hash table
  * Arguments:   - hash table (hash_table *)
