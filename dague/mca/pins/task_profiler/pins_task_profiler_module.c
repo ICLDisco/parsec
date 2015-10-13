@@ -63,7 +63,7 @@ static void task_profiler_exec_count_begin(struct dague_execution_unit_s*      e
                                            struct parsec_pins_next_callback_s* cb_data)
 {
     if (NULL != task->dague_handle->profiling_array)
-        dague_profiling_trace(exec_unit->eu_profile,
+        DAGUE_PROFILING_TRACE(exec_unit->eu_profile,
                               task->dague_handle->profiling_array[2 * task->function->function_id],
                               (*task->function->key)(task->dague_handle, task->locals),
                               task->dague_handle->handle_id,
@@ -76,7 +76,7 @@ static void task_profiler_exec_count_end(struct dague_execution_unit_s*      exe
                                          struct parsec_pins_next_callback_s* cb_data)
 {
     if (NULL != task->dague_handle->profiling_array)
-        dague_profiling_trace(exec_unit->eu_profile,
+        DAGUE_PROFILING_TRACE(exec_unit->eu_profile,
                               task->dague_handle->profiling_array[1 + 2 * task->function->function_id],
                               (*task->function->key)(task->dague_handle, task->locals),
                               task->dague_handle->handle_id,
