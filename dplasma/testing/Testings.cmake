@@ -104,6 +104,10 @@ foreach(prec ${DPLASMA_PRECISIONS})
   #   add_test(shm_${prec}geqrf_p2     ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 2 --tsrr=0 -v=5)
   #   add_test(shm_${prec}geqrf_p3     ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf_param -N 4000 -t 200 -i 32 -x --qr_a=2 --treel 3 --tsrr=0 -v=5)
   #
+  # The insert_task interface
+  add_test(shm_${prec}potrf_dtd  ${SHM_TEST_CMD_LIST} ./testing_${prec}potrf_dtd  -N 874 -K 367 -t 76 -i 23 ${OPTIONS})
+  add_test(shm_${prec}geqrf_dtd  ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf_dtd  -N 874 -K 367 -t 76 -i 23 ${OPTIONS})
+  add_test(shm_${prec}getrf_incpiv_dtd  ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_incpiv_dtd  -N 874 -K 367 -t 76 -i 23 ${OPTIONS})
 endforeach()
 
 #

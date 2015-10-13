@@ -25,7 +25,6 @@ BEGIN_C_DECLS
 
 typedef struct dague_function_s        dague_function_t;
 typedef struct dague_remote_deps_s     dague_remote_deps_t;
-typedef struct dague_arena_s           dague_arena_t;
 typedef struct dague_arena_chunk_s     dague_arena_chunk_t;
 typedef struct dague_data_pair_s       dague_data_pair_t;
 typedef struct dague_dependencies_s    dague_dependencies_t;
@@ -33,7 +32,7 @@ typedef struct data_repo_s             data_repo_t;
 
 /**< The most basic execution flow. Each virtual process includes
  *   multiple execution units (posix threads + local data) */
-typedef struct dague_execution_unit_s  dague_execution_unit_t;
+//typedef struct dague_execution_unit_s  dague_execution_unit_t;
 /**< Each MPI process includes multiple virtual processes (and a
  *   single comm. thread) */
 typedef struct dague_vp_s              dague_vp_t;
@@ -46,6 +45,7 @@ typedef void (*dague_startup_fn_t)(dague_context_t *context,
 typedef void (*dague_destruct_fn_t)(dague_handle_t* dague_handle);
 
 struct dague_handle_s {
+    dague_list_item_t             super;
     /** All dague_handle_t structures hold these two arrays **/
     uint32_t                   handle_id;
     volatile uint32_t          nb_local_tasks;
@@ -71,6 +71,8 @@ struct dague_handle_s {
     dague_dependencies_t**     dependencies_array;
     data_repo_t**              repo_array;
 };
+
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
 
 #define DAGUE_DEVICES_ALL				   UINT32_MAX
 
@@ -229,6 +231,7 @@ struct dague_function_s {
     dague_traverse_function_t   *iterate_predecessors;
     dague_release_deps_t        *release_deps;
     dague_hook_t                *complete_execution;
+    dague_hook_t                *pushback;
     dague_hook_t                *fini;
 };
 

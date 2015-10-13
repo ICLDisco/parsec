@@ -269,10 +269,10 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                     }
                 }
             }
-            if( set_parameters > 1 ) {
+            /*if( set_parameters > 1 ) {
                 ERROR(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__));
-            }
+            }*/ /* Change it as soon as dtd has a running version */
             DEBUG2(( "thread %d of VP %d Schedules %s\n",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) ));
@@ -328,7 +328,11 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
      */
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
     /* Release the execution context */
-    dague_thread_mempool_free( eu_context->context_mempool, exec_context );
+    if( exec_context->function->pushback == NULL ){
+        dague_thread_mempool_free( eu_context->context_mempool, exec_context );
+    } else {
+        exec_context->function->pushback( eu_context, exec_context );
+    }
     return rc;
 }
 
@@ -597,7 +601,7 @@ int32_t dague_set_priority( dague_handle_t* object, int32_t new_priority )
     return old_priority;
 }
 
-int dague_enqueue( dague_context_t* context, dague_handle_t* handle)
+int dague_enqueue( dague_context_t* context, dague_handle_t* handle )
 {
     if( NULL == current_scheduler) {
         dague_set_scheduler( context );
@@ -676,7 +680,7 @@ __dague_context_cas_or_flag(dague_context_t* context,
  * start the context mutiple times without completions.
  *
  * @returns: 0 if the other threads in this context have been started, -1 if the
- * context was already active, -2 if there was nothing to do and no threads hav
+ * context was already active, -2 if there was nothing to do and no threads have
  * been activated.
  */
 int dague_context_start( dague_context_t* context )
