@@ -48,6 +48,13 @@ hash_table_fini(hash_table *obj, int size_of_table)
     OBJ_RELEASE(obj);
 }
 
+/* Bucket element's reference accounting:
+ * Everytime we insert a bucket in the hashtable,
+ * we increment the object's ref. count. Everytime
+ * we find an element in the hash table, we
+ * increment the ref. count.
+ */
+
 /* Function to insert element in the hash table
  * Arguments:
  * Returns:
@@ -102,20 +109,26 @@ hash_table_find
  * Arguments:
  * Returns:
  */
-void
+void *
 hash_table_remove
 ( hash_table *hash_table,
   uint64_t key, uint32_t hash )
 {
     dague_list_t *bucket_list = hash_table->bucket_list[hash];
     dague_list_item_t *current_bucket = hash_table_find ( hash_table, key, hash );
+    /* Making sure if we are trying to remove something it is there in the first place */
+    assert(current_bucket != NULL);
 
     if( current_bucket != NULL ) {
         dague_list_lock ( bucket_list );
+        /* The following release is to account for the increment in hash_table_find() */
         OBJ_RELEASE(current_bucket);
-        if( current_bucket->super.obj_reference_count == 1 ) {
+        if( current_bucket->super.obj_reference_count == 2 ) {
             dague_list_nolock_remove ( bucket_list, current_bucket );
+            /* To account for the increment in hash_table_insert() */
+            OBJ_RELEASE(current_bucket);
         }
         dague_list_unlock ( bucket_list );
     }
+    return (void *)current_bucket;
 }
