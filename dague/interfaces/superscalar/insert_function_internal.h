@@ -22,6 +22,7 @@ int dump_function_info; /* For printing function_structure info */
 
 extern int testing_ptg_to_dtd; /* to detect ptg testing dtd */
 extern int window_size;
+extern int my_rank;
 
 /* for testing purpose of automatic insertion from Awesome PTG approach */
 dague_dtd_handle_t *__dtd_handle;
@@ -220,6 +221,10 @@ void
 profiling_trace(dague_dtd_handle_t *__dague_handle,
                 dague_function_t *function, char* name,
                 int flow_count);
+
+void
+dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,
+                        uint32_t             key );
 
 END_C_DECLS
 

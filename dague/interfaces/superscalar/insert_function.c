@@ -21,6 +21,7 @@ uint32_t threshold_size         =  204;
 static int task_hash_table_size = (10+1);
 static int tile_hash_table_size = (1000*100+1);
 int testing_ptg_to_dtd = 0;
+int my_rank = -1;
 
 extern dague_sched_module_t *current_scheduler;
 
@@ -278,7 +279,12 @@ static dague_hook_return_t
 push_tasks_back_in_mempool(dague_execution_unit_t *eu,
                            dague_execution_context_t *this_task)
 {
-    dague_dtd_function_t *function = (dague_dtd_function_t *)this_task->function;
+    uint32_t key = ((dague_dtd_task_t *)this_task)->task_id;
+    dague_dtd_handle_t      *dague_handle   = (dague_dtd_handle_t *)this_task->dague_handle;
+
+    dague_dtd_task_release( dague_handle, key );
+
+    dague_dtd_function_t *function          = (dague_dtd_function_t *)this_task->function;
     (void)eu;
     dague_thread_mempool_free( function->context_mempool->thread_mempools, this_task );
     return DAGUE_HOOK_RETURN_DONE;
@@ -543,6 +549,57 @@ hash_key (uintptr_t key, int size)
     return hash_val;
 }
 
+/* Function to insert task structures in hash_table
+ */
+void
+dague_dtd_task_insert( dague_dtd_handle_t   *dague_handle,
+                       uint32_t              key,
+                       dague_dtd_task_t     *value )
+{
+    dague_generic_bucket_t *bucket  =  (dague_generic_bucket_t *)dague_thread_mempool_allocate(dague_handle->hash_table_bucket_mempool->thread_mempools);
+
+    hash_table *hash_table          =  dague_handle->task_h_table;
+    uint32_t    hash                =  hash_table->hash ( key, hash_table->size );
+
+    hash_table_insert ( hash_table, (dague_generic_bucket_t *)bucket, key, (void *)value, hash );
+}
+
+/* Function to remove master structure from hash_table
+ */
+void *
+dague_dtd_task_remove( dague_dtd_handle_t  *dague_handle,
+                       uint32_t             key )
+{
+    hash_table *hash_table      =  dague_handle->task_h_table;
+    uint32_t    hash            =  hash_table->hash ( key, hash_table->size );
+
+    return hash_table_remove ( hash_table, key, hash );
+}
+
+/* Function to find master structure in hash_table
+ */
+dague_generic_bucket_t *
+dague_dtd_task_find_internal( dague_dtd_handle_t  *dague_handle,
+                              uint32_t             key )
+{
+    hash_table *hash_table      =  dague_handle->task_h_table;
+    uint32_t    hash            =  hash_table->hash( key, hash_table->size );
+
+    return hash_table_find ( hash_table, key, hash );
+}
+
+dague_dtd_task_t *
+dague_dtd_task_find( dague_dtd_handle_t  *dague_handle,
+                     uint32_t             key )
+{
+    dague_generic_bucket_t *bucket = dague_dtd_task_find_internal ( dague_handle, key );
+    if( bucket != NULL ) {
+        return (dague_dtd_task_t *)bucket->value;
+    } else {
+        return NULL;
+    }
+}
+
 /* Function to insert master structures in hash_table
  */
 void
@@ -593,7 +650,6 @@ dague_dtd_function_find( dague_dtd_handle_t  *dague_handle,
         return NULL;
     }
 }
-
 
 /* Function to insert tile in hash_table
  */
@@ -659,8 +715,19 @@ dague_dtd_function_release( dague_dtd_handle_t  *dague_handle,
 {
     dague_generic_bucket_t *bucket = dague_dtd_function_find_internal ( dague_handle, key );
     assert (bucket != NULL);
-    bucket->super.super.obj_reference_count = 1;
+    bucket->super.super.obj_reference_count = 2;
     dague_dtd_function_remove ( dague_handle, key );
+    dague_thread_mempool_free( dague_handle->hash_table_bucket_mempool->thread_mempools, bucket );
+}
+
+/* Function to release the task structures inserted into the hash table
+ * and push the generic buckets for hash table back in the mempool
+ */
+void
+dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,
+                        uint32_t             key )
+{
+    dague_generic_bucket_t *bucket = dague_dtd_task_remove ( dague_handle, key );
     dague_thread_mempool_free( dague_handle->hash_table_bucket_mempool->thread_mempools, bucket );
 }
 
@@ -695,6 +762,7 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
 
         dague_dtd_tile_insert ( dague_dtd_handle, temp_tile->key,
                                 temp_tile, ddesc );
+        OBJ_RETAIN(temp_tile);
         return temp_tile;
     }else {
         assert(tmp->super.super.super.obj_reference_count > 0);
@@ -779,6 +847,7 @@ dague_dtd_handle_t *
 dague_dtd_handle_new(dague_context_t* context,
                      int arena_count)
 {
+    my_rank = context->my_rank;
     dague_dtd_handle_t *__dague_handle;
     int i;
 
@@ -1845,6 +1914,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 #endif /* defined(DAGUE_PROF_TRACE) */
 
     /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
+    dague_dtd_task_insert( __dague_handle, temp_task->task_id, temp_task );
     __dague_handle->task_id++;
     __dague_handle->tasks_created++;
 
