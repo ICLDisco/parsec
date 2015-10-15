@@ -127,7 +127,7 @@ setup(
     url='http://icl.cs.utk.edu/parsec/',
     package_dir={ '': package_dir },
     cmdclass = {'build_ext': local_compiler_build_ext},
-    ext_modules = cythonize(extensions, gdb_debug=debuggeron)
+    ext_modules = cythonize(extensions)
 )
 
 install_dir = distutils_dir_name('lib')
