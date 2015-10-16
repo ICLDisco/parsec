@@ -12,7 +12,7 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 
 #include "ztrsmpl_qrf.h"
 

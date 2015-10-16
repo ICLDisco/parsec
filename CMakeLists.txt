@@ -647,6 +647,7 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/data_distribution.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/private_mempool.h
   DESTINATION include/dague)
 
 # Install header files for jdf generated code

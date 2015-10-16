@@ -15,7 +15,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 #include "dplasma/cores/dplasma_zcores.h"
 #include "dague/vpmap.h"
 
