@@ -317,7 +317,6 @@ dague_execute_and_come_back(dague_context_t *context,
         dague_barrier_wait( &(context->barrier) );
     }
 
-    /* Change it to some threshold */
     while(dague_handle->nb_local_tasks > threshold_size ) {
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);

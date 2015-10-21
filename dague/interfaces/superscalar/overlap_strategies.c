@@ -96,7 +96,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                 (current_task->dont_skip_releasing_data[i])) {
 #if defined (OVERLAP)
                 if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
-                    dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
+                    dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
+                                              current_task->desc[i].tile );
 #endif
                     continue;
 #if defined (OVERLAP)
