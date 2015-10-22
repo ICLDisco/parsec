@@ -704,7 +704,7 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
     ciscanon = compute_canonical_data_location( c->func_or_mem, c->parameters, &cstr, &ccanon );
     discanon = compute_canonical_data_location( d->func_or_mem, d->parameters, &dstr, &dcanon );
 
-    if( strcmp(ccanon, dcanon) ) {
+    if( strcmp(ccanon, dcanon) && strcmp(dcanon, "__parsec_write_type()") ) {
         /* d does not have the same representation as c..
          * There is a risk: depends on the data distribution...,
          *  on expression evaluations, etc...
