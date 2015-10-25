@@ -1058,11 +1058,12 @@ static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
  * QUARK, or General annotation API is accepted.
  */
 static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type){
-    int i, dim;
+    int i, dim, rc;
     // FIXME: This will create variables with names like A.nt, but in the "real" code, these will be structure members. Is that ok?
     node_t *container_block, *ind_vars[2];
     matrix_variable_t *curr;
-
+    (void)rc;
+    
     assert( NULL != list );
     assert( (Q2J_ANN_QUARK == _q2j_annot_API) || (Q2J_ANN_GENER == _q2j_annot_API) );
 
@@ -1095,7 +1096,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
             node_t *new_node, *scond, *econd, *incr, *body;
 
             // Create the induction variable.
-            asprintf(&ind_var_name,"%c",'m'+dim); //
+            rc = asprintf(&ind_var_name,"%c",'m'+dim); //
             ind_vars[dim] = DA_create_ID(ind_var_name);
             free(ind_var_name); // DA_create_ID() will copy the string anyway.
 
@@ -1104,12 +1105,15 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
 
             // Build a string that matches the name of the upper bound for PLASMA matrices.
             switch(dim){
-                case 0:  asprintf(&(tmp_str), "desc%s.mt", curr_matrix);
-                         break;
-                case 1:  asprintf(&(tmp_str), "desc%s.nt", curr_matrix);
-                         break;
-                default: fprintf(stderr,"FATAL ERROR in add_phony_INOUT_task_loops(): Currently only 2D matrices are supported\n");
-                         abort();
+                case 0:
+                    rc = asprintf(&(tmp_str), "desc%s.mt", curr_matrix);
+                    break;
+                case 1:
+                    rc = asprintf(&(tmp_str), "desc%s.nt", curr_matrix);
+                    break;
+                default:
+                    fprintf(stderr,"FATAL ERROR in add_phony_INOUT_task_loops(): Currently only 2D matrices are supported\n");
+                    abort();
             }
 
             // Create the comparison of the induction variable against the upper bound (end condition, econd).
@@ -1151,17 +1155,17 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
             // so don't change them without changing them there as well.
             if( TASK_IN == task_type ){
 //FIXME: replace asprintf() with more portable code.
-                asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
+                rc = asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
             }else if( TASK_OUT == task_type ){
-                asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
+                rc = asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
             }else{
                 assert(0);
             }
         }else if( Q2J_ANN_GENER == _q2j_annot_API ){
             if( TASK_IN == task_type ){
-                asprintf(&(tmp_str), "DAGUE_IN_%s", curr_matrix);
+                rc = asprintf(&(tmp_str), "DAGUE_IN_%s", curr_matrix);
             }else if( TASK_OUT == task_type ){
-                asprintf(&(tmp_str), "DAGUE_OUT_%s", curr_matrix);
+                rc = asprintf(&(tmp_str), "DAGUE_OUT_%s", curr_matrix);
             }else{
                 assert(0);
             }

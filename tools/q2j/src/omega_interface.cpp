@@ -103,7 +103,7 @@ static string _expr_tree_to_str(expr_t *exp);
 static inline const char *dump_expr_tree_to_str(expr_t *exp);
 static string _dump_expr(expr_t *exp);
 static int expr_tree_contains_var(expr_t *root, const char *var_name);
-char *expr_tree_contains_vars_outside_set(expr_t *root, set<const char *>vars);
+static char *expr_tree_contains_vars_outside_set(expr_t *root, set<const char *>vars);
 static void convert_if_condition_to_Omega_relation(node_t *node, bool in_else, F_And *R_root, map<string, Variable_ID> ivars, Relation &R);
 static void add_invariants_to_Omega_relation(F_And *R_root, Relation &R, node_t *func);
 static expr_t *solve_directly_solvable_EQ(expr_t *exp, const char *var_name, Relation R);
@@ -1886,7 +1886,8 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
     bool is_lb_C = false, is_ub_C = false;
     int bounds_found = 0;
     set<expr_t *>::iterator e_it;
-
+    int rc;
+    
     ge_contraints = find_all_GEs_with_var(var_name, exp);
 
     for(e_it=ge_contraints.begin(); e_it!=ge_contraints.end(); e_it++){
@@ -1922,7 +1923,7 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
             }else{
                 is_lb_simple = true;
                 is_lb_C = true;
-                asprintf(&lb, "dague_imax((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
+                rc = asprintf(&lb, "dague_imax((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
             }
         }else{ // else upper bound
             bounds_found++;
@@ -1932,17 +1933,17 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
             }else{
                 is_ub_simple = true;
                 is_ub_C = true;
-                asprintf(&ub, "dague_imin((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
+                rc = asprintf(&ub, "dague_imin((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
             }
         }
 
     }
 
     if( is_lb_C ){
-        asprintf(&lb, "inline_c %%{ return %s; %%}",lb);
+        rc = asprintf(&lb, "inline_c %%{ return %s; %%}",lb);
     }
     if( is_ub_C ){
-        asprintf(&ub, "inline_c %%{ return %s; %%}",ub);
+        rc = asprintf(&ub, "inline_c %%{ return %s; %%}",ub);
     }
 
     if( NULL != lb ){
@@ -3631,7 +3632,7 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
     map<char *, set<dep_t *> > resulting_map;
     set<dep_t *> rslt_ctrl_deps;
     int level, max_level=1;
-    
+
     if( _q2j_antidep_level > 0 ){
         max_level = _q2j_antidep_level;
     }
