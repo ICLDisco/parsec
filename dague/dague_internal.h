@@ -385,7 +385,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 /**
  * This is a convenience macro for the wrapper file. Do not call this destructor
  * directly from the applications, or face memory leaks as it only release the
- * most internal structues, while leaving the datatypes and the tasks management
+ * most internal structures, while leaving the datatypes and the tasks management
  * buffers untouched. Instead, from the application layer call the _Destruct.
  */
 #define DAGUE_INTERNAL_HANDLE_DESTRUCT(OBJ)                            \
