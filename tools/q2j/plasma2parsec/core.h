@@ -66,6 +66,96 @@
         0);}
 #pragma zgemm A B C
 
+#define QUARK_CORE_potrf_zgemm(quark, task_flags, transA, transB, m, n, k, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
+    QUARK_Insert_Task((quark), CORE_potrf_zgemm_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(transB),    VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(int),                        &(k),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INPUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(beta),      VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),                 INOUT,\
+        sizeof(int),                        &(ldc),       VALUE,\
+        0);}
+#pragma potrf_zgemm A B C
+
+#define QUARK_CORE_trtri_zgemm(quark, task_flags, transA, transB, m, n, k, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
+    QUARK_Insert_Task((quark), CORE_trtri_zgemm_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(transB),    VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(int),                        &(k),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INPUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(beta),      VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),                 INOUT,\
+        sizeof(int),                        &(ldc),       VALUE,\
+        0);}
+#pragma trtri_zgemm A B C
+
+#define QUARK_CORE_lauum_zgemm(quark, task_flags, transA, transB, m, n, k, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
+    QUARK_Insert_Task((quark), CORE_lauum_zgemm_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(transB),    VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(int),                        &(k),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INPUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(beta),      VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),                 INOUT,\
+        sizeof(int),                        &(ldc),       VALUE,\
+        0);}
+#pragma lauum_zgemm A B C
+
+#define QUARK_CORE_hemm_zgemmNN(quark, task_flags, transA, transB, m, n, k, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
+    QUARK_Insert_Task((quark), CORE_hemm_zgemmNN_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(transB),    VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(int),                        &(k),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INPUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(beta),      VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),                 INOUT,\
+        sizeof(int),                        &(ldc),       VALUE,\
+        0);}
+#pragma hemm_zgemmNN A B C
+
+#define QUARK_CORE_hemm_zgemmNC(quark, task_flags, transA, transB, m, n, k, nb, alpha, A, lda, B, ldb, beta, C, ldc) { \
+    QUARK_Insert_Task((quark), CORE_hemm_zgemmNC_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(transB),    VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(int),                        &(k),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INPUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(beta),      VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),                 INOUT,\
+        sizeof(int),                        &(ldc),       VALUE,\
+        0);}
+#pragma hemm_zgemmNC A B C
+
 #define QUARK_CORE_zgemm2(quark, task_flags, transA, transB, m, n, k, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
     QUARK_Insert_Task((quark), CORE_zgemm_quark, (task_flags),\
         sizeof(PLASMA_enum),                &(transA),    VALUE,\
@@ -366,6 +456,23 @@
         0);}
 #pragma zhemm A B C
 
+#define QUARK_CORE_hemm_zhemm(quark, task_flags, side, uplo, m, n, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
+    QUARK_Insert_Task((quark), CORE_hemm_zhemm_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(side),    VALUE,\
+        sizeof(PLASMA_enum),                &(uplo),    VALUE,\
+        sizeof(int),                        &(m),       VALUE,\
+        sizeof(int),                        &(n),       VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),   VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),               INPUT,\
+        sizeof(int),                        &(lda),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),               INPUT,\
+        sizeof(int),                        &(ldb),     VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(beta),    VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),               INOUT,\
+        sizeof(int),                        &(ldc),     VALUE,\
+        0);}
+#pragma hemm_zhemm A B C
+
 #define QUARK_CORE_zher2k(quark, task_flags, uplo, trans, n, k, nb, alpha, A, lda, B, ldb, beta, C, ldc) {\
     QUARK_Insert_Task((quark), CORE_zher2k_quark, (task_flags),\
         sizeof(PLASMA_enum),                &(uplo),      VALUE,\
@@ -417,6 +524,36 @@
         sizeof(int),                        &(ldc),       VALUE,\
         0);}
 #pragma zherk A C
+
+#define QUARK_CORE_potrf_zherk(quark, task_flags, uplo, trans, n, k, nb, alpha, A, lda, beta, C, ldc) {\
+    QUARK_Insert_Task((quark), CORE_potrf_zherk_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(PLASMA_enum),                &(trans),     VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(int),                        &(k),         VALUE,\
+        sizeof(double),                     &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(double),                     &(beta),      VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),                 INOUT,\
+        sizeof(int),                        &(ldc),       VALUE,\
+        0);}
+#pragma potrf_zherk A C
+
+#define QUARK_CORE_lauum_zherk(quark, task_flags, uplo, trans, n, k, nb, alpha, A, lda, beta, C, ldc) {\
+    QUARK_Insert_Task((quark), CORE_lauum_zherk_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(PLASMA_enum),                &(trans),     VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(int),                        &(k),         VALUE,\
+        sizeof(double),                     &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(double),                     &(beta),      VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (C),                 INOUT,\
+        sizeof(int),                        &(ldc),       VALUE,\
+        0);}
+#pragma lauum_zherk A C
 
 #define QUARK_CORE_zlacpy(quark, task_flags, uplo, m, n, nb, A, lda, B, ldb) {\
     QUARK_Insert_Task((quark), CORE_zlacpy_quark, (task_flags),\
@@ -708,6 +845,15 @@
         0);}
 #pragma zlauum A
 
+#define QUARK_CORE_lauum_zlauum(quark, task_flags, uplo, n, nb, A, lda) {\
+    QUARK_Insert_Task((quark), CORE_lauum_zlauum_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(uplo),  VALUE,\
+        sizeof(int),                        &(n),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),             INOUT,\
+        sizeof(int),                        &(lda),   VALUE,\
+        0);}
+#pragma lauum_zlauum A
+
 #define QUARK_CORE_zpamm(quark, task_flags, op, side, storev, m, n, k, l, A1, lda1, A2, lda2, V, ldv, W, ldw) {\
     QUARK_Insert_Task((quark), CORE_zpamm_quark, (task_flags),\
         sizeof(int),                        &(op),      VALUE,\
@@ -794,6 +940,16 @@
         sizeof(int),                        &(iinfo),     VALUE,\
         0);}
 #pragma zpotrf A
+
+#define QUARK_CORE_potrf_zpotrf(quark, task_flags, uplo, n, nb, A, lda, sequence, request, iinfo) {\
+    QUARK_Insert_Task((quark), CORE_potrf_zpotrf_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INOUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(int),                        &(iinfo),     VALUE,\
+        0);}
+#pragma potrf_zpotrf A
 
 #define QUARK_CORE_zshiftw(quark, task_flags, s, cl, m, n, L, A, W) {\
     QUARK_Insert_Task((quark), CORE_zshiftw_quark, (task_flags),\
@@ -935,6 +1091,22 @@
         0);}
 #pragma ztrmm A B
 
+#define QUARK_CORE_lauum_ztrmm(quark, task_flags, side, uplo, transA, diag, m, n, nb, alpha, A, lda, B, ldb) {\
+    QUARK_Insert_Task((quark), CORE_lauum_ztrmm_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(side),      VALUE,\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(diag),      VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INOUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        0);}
+#pragma lauum_ztrmm A B
+
 #define QUARK_CORE_ztrmm_p2(quark, task_flags, side, uplo, transA, diag, m, n, nb, alpha, A, lda, B, ldb) {\
     QUARK_Insert_Task((quark), CORE_ztrmm_p2_quark, (task_flags),\
         sizeof(PLASMA_enum),                &(side),      VALUE,\
@@ -967,6 +1139,54 @@
         0);}
 #pragma ztrsm A B
 
+#define QUARK_CORE_potrf_ztrsm(quark, task_flags, side, uplo, transA, diag, m, n, nb, alpha, A, lda, B, ldb) {\
+    QUARK_Insert_Task((quark), CORE_potrf_ztrsm_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(side),      VALUE,\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(diag),      VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INOUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        0);}
+#pragma potrf_ztrsm A B
+
+#define QUARK_CORE_trtri_ztrsmR(quark, task_flags, side, uplo, transA, diag, m, n, nb, alpha, A, lda, B, ldb) {\
+    QUARK_Insert_Task((quark), CORE_trtri_ztrsmR_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(side),      VALUE,\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(diag),      VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INOUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        0);}
+#pragma trtri_ztrsmR A B
+
+#define QUARK_CORE_trtri_ztrsmL(quark, task_flags, side, uplo, transA, diag, m, n, nb, alpha, A, lda, B, ldb) {\
+    QUARK_Insert_Task((quark), CORE_trtri_ztrsmL_quark, (task_flags),\
+        sizeof(PLASMA_enum),                &(side),      VALUE,\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(PLASMA_enum),                &(transA),    VALUE,\
+        sizeof(PLASMA_enum),                &(diag),      VALUE,\
+        sizeof(int),                        &(m),         VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(PLASMA_Complex64_t),         &(alpha),     VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INPUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (B),                 INOUT,\
+        sizeof(int),                        &(ldb),       VALUE,\
+        0);}
+#pragma trtri_ztrsmL A B
+
 #define QUARK_CORE_ztrtri(quark, task_flags, uplo, diag, n, nb, A, lda, sequence, request, iinfo) {\
     QUARK_Insert_Task(\
         quark, (CORE_ztrtri_quark), task_flags,\
@@ -978,6 +1198,18 @@
         sizeof(int),                        &(iinfo),     VALUE,\
         0);}
 #pragma ztrtri A
+
+#define QUARK_CORE_trtri_ztrtri(quark, task_flags, uplo, diag, n, nb, A, lda, sequence, request, iinfo) {\
+    QUARK_Insert_Task(\
+        quark, (CORE_trtri_ztrtri_quark), task_flags,\
+        sizeof(PLASMA_enum),                &(uplo),      VALUE,\
+        sizeof(PLASMA_enum),                &(diag),      VALUE,\
+        sizeof(int),                        &(n),         VALUE,\
+        sizeof(PLASMA_Complex64_t)*nb*nb,    (A),                 INOUT,\
+        sizeof(int),                        &(lda),       VALUE,\
+        sizeof(int),                        &(iinfo),     VALUE,\
+        0);}
+#pragma trtri_ztrtri A
 
 #define QUARK_CORE_ztslqt(quark, task_flags, m, n, ib, nb, A1, lda1, A2, lda2, T, ldt) {\
     QUARK_Insert_Task((quark), CORE_ztslqt_quark, (task_flags),\
