@@ -343,7 +343,7 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
      * Then we will try to take ownership of the Global Deque and try to pull the tasks from there and build a list.
      */
     dague_list_t *task_list = OBJ_NEW(dague_list_t);
-    dague_list_item_t *current_list_item, tmp_list_item;
+    dague_list_item_t *current_list_item;
 
     /* push task in the global deque */
     dague_list_push_back( dtd_global_deque, (dague_list_item_t*)__this_task );
@@ -354,8 +354,6 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
         * in our local list.
         */
         while( (current_list_item = dague_list_nolock_pop_front(dtd_global_deque)) != NULL  ) {
-            //dague_list_nolock_push_back( task_list, (dague_list_item_t*)current_list_item );
-
             dague_execution_context_t *this_task = (dague_execution_context_t *)current_list_item;
 
             int count = 0;
@@ -491,146 +489,9 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
         /* Releaseing the lock */
         dague_atomic_unlock(&dtd_global_deque->atomic_lock);
     }
-#if 0
-    /* If we have tasks in our local list we insert them in dtd */
-    //while( (current_list_item = dague_list_nolock_pop_front(task_list)) != NULL ) {
-        dague_execution_context_t *this_task = (dague_execution_context_t *)current_list_item;
-
-        int count = 0;
-        dague_dtd_handle_t *dtd_handle = __dtd_handle;
-        const char *name = this_task->function->name;
-        dague_dtd_task_param_t *head_param = NULL, *current_param = NULL, *tmp_param = NULL;
-        dague_ddesc_t *ddesc;
-        dague_data_key_t key;
-        int tmp_op_type;
-
-        int i;
-
-        data_repo_entry_t *entry;
-        dague_execution_context_t *T1;
-
-        for (i=0; this_task->function->in[i] != NULL ; i++) {
-            tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
-
-            dague_data_copy_t* copy;
-            tmp_op_type = this_task->function->in[i]->flow_flags;
-            int op_type;
-            int mask, pred_found = 0;
-
-            if ((tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_RW) {
-                op_type = INOUT | REGION_FULL;
-            } else if((tmp_op_type & FLOW_ACCESS_READ) == FLOW_ACCESS_READ) {
-                op_type = INPUT | REGION_FULL;
-            } else if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
-                op_type = OUTPUT | REGION_FULL;
-            } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
-                op_type = INOUT | REGION_FULL;
-
-                this_task->unused = 0;
-                T1 = malloc (sizeof(dague_execution_context_t));
-                mask = 1 << i;
-                this_task->function->iterate_predecessors(context, this_task,  mask, copy_content, (void*)T1);
-                if (this_task->unused != 0) {
-                    pred_found = 1;
-                } else {
-                    pred_found = 2;
-                    continue;
-                }
-
-                if (pred_found == 1) {
-                    uint64_t id = T1->function->key(T1->dague_handle, T1->locals);
-                    entry = data_repo_lookup_entry(T1->dague_handle->repo_array[T1->function->function_id], id);
-                    copy = entry->data[T1->unused];
-                } else {
-                }
-            }else {
-                continue;
-            }
-
-            if (pred_found == 0) {
-                ddesc = (dague_ddesc_t *)this_task->data[i].data_in->original;
-                key = this_task->data[i].data_in->original->key;
-                OBJ_RETAIN(this_task->data[i].data_in);
-            } else if (pred_found == 1) {
-                ddesc = (dague_ddesc_t *)copy->original;
-                key   =  copy->original->key;
-            }
-            dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
-
-            tmp_param->pointer_to_tile = (void *)tile;
-            tmp_param->operation_type = op_type;
-            tmp_param->tile_type_index = REGION_FULL;
-            tmp_param->next = NULL;
-
-            if(head_param == NULL) {
-                head_param = tmp_param;
-            } else {
-                current_param->next = tmp_param;
-            }
-            count ++;
-            current_param = tmp_param;
-        }
-
-        for (i=0; this_task->function->out[i] != NULL; i++) {
-            int op_type;
-            tmp_op_type = this_task->function->out[i]->flow_flags;
-            dague_data_copy_t* copy;
-            tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
-            int pred_found = 0;
-            if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
-                op_type = OUTPUT | REGION_FULL;
-            } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
-                pred_found = 1;
-                op_type = INOUT | REGION_FULL;
-
-                dague_data_t *fake_data = OBJ_NEW(dague_data_t);
-                fake_data->key = rand();
-                dague_data_copy_t *fake_data_copy = OBJ_NEW(dague_data_copy_t);
-                copy = fake_data_copy;
-                fake_data_copy->original = fake_data;
-                this_task->data[this_task->function->out[i]->flow_index].data_out = fake_data_copy;
-
-                ddesc = (dague_ddesc_t *)fake_data;
-                key   =  fake_data->key;
-            } else {
-                continue;
-            }
-
-            if (pred_found == 0) {
-                ddesc = (dague_ddesc_t *)this_task->data[i].data_out->original;
-                key = this_task->data[i].data_out->original->key;
-                OBJ_RETAIN(this_task->data[i].data_out);
-            } else if (pred_found == 1) {
-                ddesc = (dague_ddesc_t *)copy->original;
-                key   = copy->original->key;
-            }
-            dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
-
-            tmp_param->pointer_to_tile = (void *)tile;
-            tmp_param->operation_type = op_type;
-            tmp_param->tile_type_index = REGION_FULL;
-            tmp_param->next = NULL;
-
-            if(head_param == NULL) {
-                head_param = tmp_param;
-            } else {
-                current_param->next = tmp_param;
-            }
-            count ++;
-            current_param = tmp_param;
-
-        }
-
-        /* testing Insert Task */
-        insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
-                                             this_task, (char *)name, head_param);
-
-    //}
-#endif
 
     free(task_list);
     return DAGUE_HOOK_RETURN_ASYNC;
-    //return DAGUE_HOOK_RETURN_DONE;
 }
 
 void
