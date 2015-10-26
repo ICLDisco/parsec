@@ -161,7 +161,7 @@ dague_dtd_handle_destructor
     free((void *)dague_handle->super.profiling_array);
 #endif /* defined(DAGUE_PROF_TRACE) */
 
-    dague_handle->super.functions_array = NULL;
+    free(dague_handle->super.functions_array);
     dague_handle->super.nb_functions = 0;
 
     for (i = 0; i < dague_handle->arenas_size; i++) {
