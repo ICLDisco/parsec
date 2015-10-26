@@ -42,12 +42,12 @@
 #   define DEBUG_UND(_ARG)
 #endif
 
-extern int  _q2j_annot_API;
+extern int   _q2j_annot_API;
 extern char *q2j_input_file_name;
 extern char *_q2j_data_prefix;
-extern int _q2j_generate_line_numbers;
-extern int _q2j_direct_output;
-extern int _q2j_check_unknown_functions;
+extern int   _q2j_generate_line_numbers;
+extern int   _q2j_direct_output;
+extern int   _q2j_check_unknown_functions;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
 
@@ -57,10 +57,10 @@ static int _ind_depth=0;
 static int _task_count=0;
 static node_t *_q2j_pending_invariants_head=NULL;
 static void replace_subtree(node_t *new_var, node_t *old_var,
-                     node_t *new_i,  node_t *new_j,
-                     node_t *new_m,  node_t *new_n, 
-                     node_t *new_mt, node_t *new_nt,
-                     node_t *desc_prnt, int kid_num, node_t *root);
+                            node_t *new_i,  node_t *new_j,
+                            node_t *new_m,  node_t *new_n,
+                            node_t *new_mt, node_t *new_nt,
+                            node_t *desc_prnt, int kid_num, node_t *root);
 extern void dump_all_unds(var_t *head);
 
 // For the JDF generation we need to emmit some things in special ways,
@@ -95,9 +95,6 @@ static char *size_to_pool_name(char *size_str);
 static int isArrayLocal(node_t *task_node, int index);
 static int isArrayOut(node_t *task_node, int index);
 static int isArrayIn(node_t *task_node, int index);
-static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, int task_type);
-static void add_entry_task_loops(matrix_variable_t *list, node_t *node);
-static void add_exit_task_loops(matrix_variable_t *list, node_t *node);
 static matrix_variable_t *find_all_matrices(node_t *node);
 static int is_definition_seen(dague_list_t *var_def_list, char *param);
 static void mark_definition_as_seen(dague_list_t *var_def_list, char *param);
@@ -196,7 +193,7 @@ void add_variable_use_or_def(node_t *node, int rw, int type, int task_count){
 #endif // DEBUG_UND_1
                 if( und->node == node ){
                     DEBUG_UND("   |-> Same node, returning\n");
-                    return; 
+                    return;
                 }
                 curr_task = und->node->task->task_node;
                 if( node_equiv_simple(curr_task, trgt_task) && node_equiv_simple(und->node, node) ){
@@ -206,7 +203,7 @@ void add_variable_use_or_def(node_t *node, int rw, int type, int task_count){
                         DEBUG_UND("   |-> Nodes are equivalent but UNDs have different \"rw\" type.\n");
                         und->rw |= rw;
                     }
-                    return; 
+                    return;
                 }
             }
 #if defined(DEBUG_UND_1)
@@ -216,7 +213,7 @@ void add_variable_use_or_def(node_t *node, int rw, int type, int task_count){
 #endif // DEBUG_UND_1
             if( und->node == node ){
                 DEBUG_UND("   |-> Same node, returning\n");
-                return; 
+                return;
             }
             curr_task = und->node->task->task_node;
             if( node_equiv_simple(curr_task, trgt_task) && node_equiv_simple(und->node, node) ){
@@ -298,15 +295,15 @@ int DA_tree_contains_only_known_vars(node_t *node, char **known_vars){
         return 1;
 
     switch( node->type ){
-        case IDENTIFIER:
-        case S_U_MEMBER:
-            var_name = tree_to_str(node);
-            for (int i=0; NULL != known_vars[i]; i++){
-                if( !strcmp(known_vars[i], var_name) )
-                    return 1;
-            }
-            free(var_name);
-            return 0;
+    case IDENTIFIER:
+    case S_U_MEMBER:
+        var_name = tree_to_str(node);
+        for (int i=0; NULL != known_vars[i]; i++){
+            if( !strcmp(known_vars[i], var_name) )
+                return 1;
+        }
+        free(var_name);
+        return 0;
     }
 
     if( BLOCK == node->type ){
@@ -417,7 +414,7 @@ void DA_parentize(node_t *node){
 }
 
 void dump_tree(node_t node, int off){
-     _ind_depth = off;
+    _ind_depth = off;
     char *str = tree_to_str(&node);
     printf("%s", str);
     free(str);
@@ -533,9 +530,13 @@ static jdf_function_entry_t *jdf_register_addfunction( jdf_t        *jdf,
     }
 
 #if 0
-    f->next = jdf->functions;
-    jdf->functions = f;
+    /* Insert to the head */
+    {
+        f->next = jdf->functions;
+        jdf->functions = f;
+    }
 #else
+    /* Insert to the queue */
     {
         jdf_function_entry_t *n = jdf->functions;
         if (jdf->functions == NULL )
@@ -572,7 +573,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
         kid_count = node->u.kids.kid_count;
 
         if( !strcmp("QUARK_Insert_Task", DA_kid(node,0)->u.var_name) ){
- 
+
             if( (Q2J_ANN_QUARK != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
                 fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
                 fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
@@ -591,7 +592,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             }
 
         } else if( !strcmp("Insert_Task", DA_kid(node,0)->u.var_name) ){
- 
+
             if( (Q2J_ANN_GENER != _q2j_annot_API) && (Q2J_ANN_UNSET != _q2j_annot_API) ){
                 fprintf(stderr,"ERROR: Mixed annotation APIs not supported.\n");
                 fprintf(stderr,"ERROR: Error occured while processing call:\n%s\n", tree_to_str(node) );
@@ -618,7 +619,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
         //
 
         fname = call_to_task_name( tmp_task_name, mult_kernel_occ ? (int32_t)node->lineno : -1 );
-            
+
         f = jdf_register_addfunction( &_q2j_jdf, fname, node );
         task = (task_t *)calloc(1, sizeof(task_t));
         task->task_node = node;
@@ -670,7 +671,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
         params = DA_kid(node,1);
         deps = DA_kid(node,4);
 
-//TODO: "update the code that sets mult_kernel_occ to look at the pragma blackboxtask directives"
+        //TODO: "update the code that sets mult_kernel_occ to look at the pragma blackboxtask directives"
         fname = call_to_task_name( DA_var_name(DA_kid(node,0)), mult_kernel_occ ? (int32_t)node->lineno : -1 );
 
         f = jdf_register_addfunction( &_q2j_jdf, fname, node );
@@ -702,7 +703,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
             data_ref->function = f;
             data_ref->var_symname = DA_var_name(DA_kid(tmp_dep, 1)); // this is the "local" data.
             int rw = is_dep_USE(tmp_dep) ? UND_READ : UND_WRITE;
-//FIXME: "do not pass UND_IGNORE, add types to the pragma API instead"
+            //FIXME: "do not pass UND_IGNORE, add types to the pragma API instead"
             add_variable_use_or_def( data_ref, rw, UND_IGNORE, _task_count );
         }
         _task_count++;
@@ -898,9 +899,9 @@ node_t *get_locality(node_t *task_node){
     return NULL;
 }
 
-/* 
+/*
  * kernel_exists() uses the functions is_definition_seen() and mark_definition_as_seen()
- * not because this code does anything with uses and definitions but as a 
+ * not because this code does anything with uses and definitions but as a
  * set::find() and set::insert() in C++ stl terminology.
  */
 static inline int kernel_exists(char *task_name){
@@ -1046,14 +1047,6 @@ int analyze_deps(node_t *node){
 }
 
 
-static void add_entry_task_loops(matrix_variable_t *list, node_t *node){
-    add_phony_INOUT_task_loops(list, node, TASK_IN);
-}
-
-static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
-    add_phony_INOUT_task_loops(list, node, TASK_OUT);
-}
-
 /*
  * QUARK, or General annotation API is accepted.
  */
@@ -1063,7 +1056,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
     node_t *container_block, *ind_vars[2];
     matrix_variable_t *curr;
     (void)rc;
-    
+
     assert( NULL != list );
     assert( (Q2J_ANN_QUARK == _q2j_annot_API) || (Q2J_ANN_GENER == _q2j_annot_API) );
 
@@ -1105,15 +1098,15 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
 
             // Build a string that matches the name of the upper bound for PLASMA matrices.
             switch(dim){
-                case 0:
-                    rc = asprintf(&(tmp_str), "desc%s.mt", curr_matrix);
-                    break;
-                case 1:
-                    rc = asprintf(&(tmp_str), "desc%s.nt", curr_matrix);
-                    break;
-                default:
-                    fprintf(stderr,"FATAL ERROR in add_phony_INOUT_task_loops(): Currently only 2D matrices are supported\n");
-                    abort();
+            case 0:
+                rc = asprintf(&(tmp_str), "desc%s.mt", curr_matrix);
+                break;
+            case 1:
+                rc = asprintf(&(tmp_str), "desc%s.nt", curr_matrix);
+                break;
+            default:
+                fprintf(stderr,"FATAL ERROR in add_phony_INOUT_task_loops(): Currently only 2D matrices are supported\n");
+                abort();
             }
 
             // Create the comparison of the induction variable against the upper bound (end condition, econd).
@@ -1122,7 +1115,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
             // Reclaim some memory.
             free(tmp_str);
 
-            // Create the incement (i++).
+            // Create the increment (i++).
             incr = DA_create_B_expr( EXPR, ind_vars[dim], DA_create_Unary(INC_OP) );
 
             // Create an empty body.
@@ -1149,12 +1142,12 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
             phony_var = DA_create_ID("phony");
 
             // Create a variable to hold the task name in QUARK specific format.
-            // WARNING: The string prefices DAGUE_IN_ and DAGUE_OUT_ are also used in 
-            // omega_interface.c:is_phony_Entry_task() and 
+            // WARNING: The string prefices DAGUE_IN_ and DAGUE_OUT_ are also used in
+            // omega_interface.c:is_phony_Entry_task() and
             // omega_interface.c:is_phony_Exit_task()
             // so don't change them without changing them there as well.
             if( TASK_IN == task_type ){
-//FIXME: replace asprintf() with more portable code.
+                //FIXME: replace asprintf() with more portable code.
                 rc = asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
             }else if( TASK_OUT == task_type ){
                 rc = asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
@@ -1180,13 +1173,13 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
         if( Q2J_ANN_QUARK == _q2j_annot_API ){
             // Create the function-call.
             f_call = DA_create_Fcall("QUARK_Insert_Task", phony_var, task_name_var, phony_var,
-                                             phony_var, matrix_element, DA_create_ID("INOUT"),
-                                             DA_create_Int_const(0), NULL);
+                                     phony_var, matrix_element, DA_create_ID("INOUT"),
+                                     DA_create_Int_const(0), NULL);
         }else if( Q2J_ANN_GENER == _q2j_annot_API ){
             // Create the function-call.
             f_call = DA_create_Fcall("Insert_Task", task_name_var,
-                                             matrix_element, DA_create_ID("INOUT"),
-                                             NULL);
+                                     matrix_element, DA_create_ID("INOUT"),
+                                     NULL);
         }
         f_call->enclosing_loop = enclosing_loop;
 
@@ -1204,6 +1197,14 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
     }
 
     return;
+}
+
+static void add_entry_task_loops(matrix_variable_t *list, node_t *node){
+    add_phony_INOUT_task_loops(list, node, TASK_IN);
+}
+
+static void add_exit_task_loops(matrix_variable_t *list, node_t *node){
+    add_phony_INOUT_task_loops(list, node, TASK_OUT);
 }
 
 void add_entry_and_exit_task_loops(node_t *node){
@@ -1232,7 +1233,7 @@ static int is_matching_var(char *iv_str, char *old_var){
     // if iv_str is not the first part of old_var, they don't match
     if( old_var != strstr(old_var, iv_str) )
         return 0;
-    
+
     // if iv_str and old_len have the same size, they are identical
     if( old_len == iv_len )
         return 1;
@@ -1248,24 +1249,24 @@ static int is_matching_var(char *iv_str, char *old_var){
 }
 
 static int var_name_to_num(char *name, int prfx_len){
-   int len; 
-   len = strlen(name);
+    int len;
+    len = strlen(name);
 
-   if( prfx_len > len )
-       return -1;
-   if( prfx_len == len )
-       return 0;
+    if( prfx_len > len )
+        return -1;
+    if( prfx_len == len )
+        return 0;
 
-   return atoi( (const char *)&name[prfx_len] );
+    return atoi( (const char *)&name[prfx_len] );
 
 }
 
 static void do_rename_ivar(char *iv_str, char *new_name, node_t *node){
 
     if( IDENTIFIER == node->type ){
-       if( strcmp(node->u.var_name, iv_str) == 0 ){
-           node->u.var_name = new_name;
-       }
+        if( strcmp(node->u.var_name, iv_str) == 0 ){
+            node->u.var_name = new_name;
+        }
     }
 
     if( BLOCK == node->type ){
@@ -1333,33 +1334,33 @@ void rename_induction_variables(node_t *node){
     }
 
     switch( node->type ){
-        case FOR:
-            iv_node = DA_loop_induction_variable(node);
-            iv_str = DA_var_name(iv_node);
+    case FOR:
+        iv_node = DA_loop_induction_variable(node);
+        iv_str = DA_var_name(iv_node);
 
-            if( 0 == pos ){
-                iv_names[pos] = iv_str;
-                pos++;
-                break;
-            }
-
-            if( is_var_repeating(iv_str, iv_names) ){
-                iv_str = rename_ivar(iv_str, iv_names, node);
-            }
-            if( pos >= len-1 ){
-                // The array that holds the list needs to be resized
-                uintptr_t old_size;
-                char **tmp_ptr;
-                old_size = len*sizeof(char *);
-                len*=2;
-                tmp_ptr = (char **)calloc(len, sizeof(char *));
-                memcpy(tmp_ptr, iv_names, old_size);
-                iv_names = tmp_ptr;
-            }
-            // Add the new variable into the list (iv_names)
+        if( 0 == pos ){
             iv_names[pos] = iv_str;
             pos++;
             break;
+        }
+
+        if( is_var_repeating(iv_str, iv_names) ){
+            iv_str = rename_ivar(iv_str, iv_names, node);
+        }
+        if( pos >= len-1 ){
+            // The array that holds the list needs to be resized
+            uintptr_t old_size;
+            char **tmp_ptr;
+            old_size = len*sizeof(char *);
+            len*=2;
+            tmp_ptr = (char **)calloc(len, sizeof(char *));
+            memcpy(tmp_ptr, iv_names, old_size);
+            iv_names = tmp_ptr;
+        }
+        // Add the new variable into the list (iv_names)
+        iv_names[pos] = iv_str;
+        pos++;
+        break;
     }
 
     if( BLOCK == node->type ){
@@ -1394,7 +1395,7 @@ void convert_OUTPUT_to_INOUT(node_t *node){
         step  = 2;
     }else{
         fprintf(stderr, "ERROR: Annotation API is unset. It should be either QUARK, or GENERAL.\n");
-assert(0);
+        assert(0);
         return;
     }
 
@@ -1545,22 +1546,22 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
     ivar_side = is_acceptable_econd(node, DA_var_name(ivar));
     if( IVAR_NOT_FOUND == ivar_side ){
         switch( node->type ){
-            case L_AND:
-                lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
-                rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
-                if( NULL == lhs || NULL == rhs ){
-                    break;
-                }
-                tmp = DA_create_B_expr(L_AND, lhs, rhs);
-                return tmp;
-            case L_OR:
-                lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
-                rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
-                if( NULL == lhs || NULL == rhs ){
-                    break;
-                }
-                tmp = DA_create_B_expr(L_OR, lhs, rhs);
-                return tmp;
+        case L_AND:
+            lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
+            rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
+            if( NULL == lhs || NULL == rhs ){
+                break;
+            }
+            tmp = DA_create_B_expr(L_AND, lhs, rhs);
+            return tmp;
+        case L_OR:
+            lhs = _DA_canonicalize_for_econd(DA_kid(node,0),ivar);
+            rhs = _DA_canonicalize_for_econd(DA_kid(node,1),ivar);
+            if( NULL == lhs || NULL == rhs ){
+                break;
+            }
+            tmp = DA_create_B_expr(L_OR, lhs, rhs);
+            return tmp;
         }
         printf("Cannot canonicalize end condition of for() loop: ");
         dump_tree(*node, 0);
@@ -1571,28 +1572,28 @@ static node_t *_DA_canonicalize_for_econd(node_t *node, node_t *ivar){
     // If the variable is on the left hand side
     if( IVAR_IS_LEFT == ivar_side ){
         switch( node->type ){
-            case LT:  // since the var is in the left, do nothing, that's the canonical form.
-                return node;
+        case LT:  // since the var is in the left, do nothing, that's the canonical form.
+            return node;
 
-            case LE:  // add one to the RHS and convert LE to LT
-                tmp = DA_create_B_expr(ADD, DA_rel_rhs(node), DA_create_Int_const(1));
-                tmp = DA_create_relation(LT, DA_rel_lhs(node), tmp);
-                return tmp;
+        case LE:  // add one to the RHS and convert LE to LT
+            tmp = DA_create_B_expr(ADD, DA_rel_rhs(node), DA_create_Int_const(1));
+            tmp = DA_create_relation(LT, DA_rel_lhs(node), tmp);
+            return tmp;
 
             // If the variable is on the left and we have a GE or GT,
             // then we are in a loop that uses a decrementing modifier.
-            case GE:  // subtract one from the RHS to convert GE to GT
-                tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_Int_const(1));
-                tmp = DA_create_relation(GT, DA_rel_lhs(node), tmp);
-                return tmp;
-            case GT:  // There is nothing I can do here, convert_loop_from_decr_to_incr() will take care of this.
-                return node;
+        case GE:  // subtract one from the RHS to convert GE to GT
+            tmp = DA_create_B_expr(SUB, DA_rel_rhs(node), DA_create_Int_const(1));
+            tmp = DA_create_relation(GT, DA_rel_lhs(node), tmp);
+            return tmp;
+        case GT:  // There is nothing I can do here, convert_loop_from_decr_to_incr() will take care of this.
+            return node;
 
-            default: 
-                printf("Cannot canonicalize end condition of for() loop: ");
-                dump_tree(*node, 0);
-                printf("\n");
-                break;
+        default:
+            printf("Cannot canonicalize end condition of for() loop: ");
+            dump_tree(*node, 0);
+            printf("\n");
+            break;
         }
     }else if( IVAR_IS_RIGHT == ivar_side ){
         // If the variable is on the RHS, flip the relation operator, exchange LHS and RHS and call myself again.
@@ -1615,14 +1616,14 @@ node_t *DA_copy_tree(node_t *node){
     return new_node;
 }
 
-/* 
-  This function copies a tree but messes up the following pointers
-  (they keep pointing to the old structures):
-     node_t *parent;
-     node_t *enclosing_loop;
-     node_t *enclosing_if;
-     task_t *task;
-     jdf_function_entry_t *function;
+/*
+ This function copies a tree but messes up the following pointers
+ (they keep pointing to the old structures):
+ node_t *parent;
+ node_t *enclosing_loop;
+ node_t *enclosing_if;
+ task_t *task;
+ jdf_function_entry_t *function;
 
  */
 static node_t *_DA_copy_tree(node_t *node){
@@ -1707,51 +1708,51 @@ int node_equiv_simple(node_t *n1, node_t *n2){
     }else{
         // If it's a leaf examine it in a case by case fashion.
         switch ( n1->type ){
-            case IDENTIFIER:
-                {
-                    char *nm1 = DA_var_name(n1);
-                    char *nm2 = DA_var_name(n2);
-                    if( (NULL == nm1) || (NULL == nm2) || strcmp(nm1, nm2) ){
-                        return 0;
-                    }
-                }
-                break;
+        case IDENTIFIER:
+        {
+            char *nm1 = DA_var_name(n1);
+            char *nm2 = DA_var_name(n2);
+            if( (NULL == nm1) || (NULL == nm2) || strcmp(nm1, nm2) ){
+                return 0;
+            }
+        }
+        break;
 
-            case INTCONSTANT:
-                {
-                    int64_t i1 = n1->const_val.i64_value;
-                    int64_t i2 = n2->const_val.i64_value;
-                    if( i1 != i2 ){
-                        return 0;
-                    }
-                }
-                break;
+        case INTCONSTANT:
+        {
+            int64_t i1 = n1->const_val.i64_value;
+            int64_t i2 = n2->const_val.i64_value;
+            if( i1 != i2 ){
+                return 0;
+            }
+        }
+        break;
 
-            case FLOATCONSTANT:
-                {
-                    double d1 = n1->const_val.f64_value;
-                    double d2 = n2->const_val.f64_value;
-                    if( d1 != d2 ){
-                        return 0;
-                    }
-                }
-                break;
+        case FLOATCONSTANT:
+        {
+            double d1 = n1->const_val.f64_value;
+            double d2 = n2->const_val.f64_value;
+            if( d1 != d2 ){
+                return 0;
+            }
+        }
+        break;
 
-            case STRING_LITERAL:
-                {
-                    char *s1 = n1->const_val.str;
-                    char *s2 = n2->const_val.str;
-                    if( strcmp(s1,s2) ){
-                        return 0;
-                    }
-                }
-                break;
+        case STRING_LITERAL:
+        {
+            char *s1 = n1->const_val.str;
+            char *s2 = n2->const_val.str;
+            if( strcmp(s1,s2) ){
+                return 0;
+            }
+        }
+        break;
 
-            default:
-                if( n1 != n2 ){
-                    return 0;
-                }
-                break;
+        default:
+            if( n1 != n2 ){
+                return 0;
+            }
+            break;
         }
     }
 
@@ -1760,17 +1761,17 @@ int node_equiv_simple(node_t *n1, node_t *n2){
 }
 
 int replace_bounds_in_tree(node_t *new_var, node_t *old_var,
-                            node_t *new_i,  node_t *new_j,
-                            node_t *new_m,  node_t *new_n, 
-                            node_t *new_mt, node_t *new_nt,
-                            node_t *node){
+                           node_t *new_i,  node_t *new_j,
+                           node_t *new_m,  node_t *new_n,
+                           node_t *new_mt, node_t *new_nt,
+                           node_t *node){
     int ret;
 
     if( BLOCK == node->type ){
         node_t *tmp;
         for(tmp=node->u.block.first; NULL != tmp; tmp = tmp->next){
             ret = replace_bounds_in_tree(new_var, old_var, new_i, new_j,
-                                   new_m, new_n, new_mt, new_nt, tmp);
+                                         new_m, new_n, new_mt, new_nt, tmp);
             if( ret ){
                 fprintf(stderr,"ERROR during inlining: A matrix reference should never be a top level statement\n");
                 fprintf(stderr,"Offending statement follows:\n");
@@ -1790,12 +1791,12 @@ int replace_bounds_in_tree(node_t *new_var, node_t *old_var,
                 }
             }
             ret = replace_bounds_in_tree(new_var, old_var, new_i, new_j,
-                                   new_m, new_n, new_mt, new_nt, DA_kid(node,i));
+                                         new_m, new_n, new_mt, new_nt, DA_kid(node,i));
             if( ret ){
-//                printf("Found %s inside a tree of type: %s\n",tree_to_str(DA_kid(node,i)), DA_type_name(node));
+                //                printf("Found %s inside a tree of type: %s\n",tree_to_str(DA_kid(node,i)), DA_type_name(node));
                 replace_subtree(new_var, old_var, new_i, new_j,
                                 new_m, new_n, new_mt, new_nt, DA_kid(node,i), i, node);
-//                printf("    Replaced it with: %s\n",tree_to_str(DA_kid(node,i)));
+                //                printf("    Replaced it with: %s\n",tree_to_str(DA_kid(node,i)));
             }
         }
     }
@@ -1805,7 +1806,7 @@ int replace_bounds_in_tree(node_t *new_var, node_t *old_var,
 
 void replace_subtree(node_t *new_var, node_t *old_var,
                      node_t *new_i,  node_t *new_j,
-                     node_t *new_m,  node_t *new_n, 
+                     node_t *new_m,  node_t *new_n,
                      node_t *new_mt, node_t *new_nt,
                      node_t *desc_prnt, int kid_num, node_t *root){
 
@@ -1825,56 +1826,56 @@ void replace_subtree(node_t *new_var, node_t *old_var,
     }
 
     switch( desc_prnt->type ){
-        case S_U_MEMBER:
-            prop = DA_var_name(DA_kid(desc_prnt,1));
+    case S_U_MEMBER:
+        prop = DA_var_name(DA_kid(desc_prnt,1));
 
-            if( !strcmp(prop,"m") )
-                DA_kid(root,kid_num) = new_m;
-            if( !strcmp(prop,"n") )
-                DA_kid(root,kid_num) = new_n;
-            if( !strcmp(prop,"mt") )
-                DA_kid(root,kid_num) = new_mt;
-            if( !strcmp(prop,"nt") )
-                DA_kid(root,kid_num) = new_nt;
+        if( !strcmp(prop,"m") )
+            DA_kid(root,kid_num) = new_m;
+        if( !strcmp(prop,"n") )
+            DA_kid(root,kid_num) = new_n;
+        if( !strcmp(prop,"mt") )
+            DA_kid(root,kid_num) = new_mt;
+        if( !strcmp(prop,"nt") )
+            DA_kid(root,kid_num) = new_nt;
 
-            // For "mb" and "nb" just change the name of the matrix to the new one.
-            if( !strcmp(prop,"mb") || !strcmp(prop,"nb") ){
-                DA_kid(desc_prnt,0) = new_var;
-            }
+        // For "mb" and "nb" just change the name of the matrix to the new one.
+        if( !strcmp(prop,"mb") || !strcmp(prop,"nb") ){
+            DA_kid(desc_prnt,0) = new_var;
+        }
 
-            break;
+        break;
 
-        case ARRAY:
-            new_name = DA_var_name(new_var);
-            DA_kid(desc_prnt,0) = DA_create_ID(new_name);
-            tmp = DA_create_B_expr(ADD, new_i, DA_kid(desc_prnt,1));
-            DA_kid(desc_prnt,1) = tmp;
+    case ARRAY:
+        new_name = DA_var_name(new_var);
+        DA_kid(desc_prnt,0) = DA_create_ID(new_name);
+        tmp = DA_create_B_expr(ADD, new_i, DA_kid(desc_prnt,1));
+        DA_kid(desc_prnt,1) = tmp;
 
-            tmp = DA_create_B_expr(ADD, new_j, DA_kid(desc_prnt,2));
-            DA_kid(desc_prnt,2) = tmp;
+        tmp = DA_create_B_expr(ADD, new_j, DA_kid(desc_prnt,2));
+        DA_kid(desc_prnt,2) = tmp;
 
-            break;
+        break;
 
-        default:
-            assert(0);
+    default:
+        assert(0);
     }
 }
 
 /* */
 /*
-- example
+ - example
 
-call:
-  plasma_pzgeqrf_quark(
-            plasma_desc_submatrix(A, k*A.mb, k*A.nb, A.m-k*A.mb, tempkn),
-            plasma_desc_submatrix(T, k*T.mb, k*T.nb, T.m-k*T.mb, tempkn),
-            sequence, request);
+ call:
+ plasma_pzgeqrf_quark(
+ plasma_desc_submatrix(A, k*A.mb, k*A.nb, A.m-k*A.mb, tempkn),
+ plasma_desc_submatrix(T, k*T.mb, k*T.nb, T.m-k*T.mb, tempkn),
+ sequence, request);
 
-definition:
-  void plasma_pzgeqrf_quark(PLASMA_desc A, PLASMA_desc T,
-                          PLASMA_sequence *sequence, PLASMA_request *request)
+ definition:
+ void plasma_pzgeqrf_quark(PLASMA_desc A, PLASMA_desc T,
+ PLASMA_sequence *sequence, PLASMA_request *request)
 
-*/
+ */
 void inline_function_body(node_t *func_body, node_t *call_site){
 #if 0
     char *fname;
@@ -1936,7 +1937,7 @@ void inline_function_body(node_t *func_body, node_t *call_site){
                     node_t *newDesc_mb, *newDesc_nb, *newDesc_i, *newDesc_j;
                     node_t *newDesc_m, *newDesc_n, *newDesc_mt, *newDesc_nt;
                     node_t *sub_desc = DA_kid(a_param,1);
-//                    printf("^^^^ param was a call to plasma_desc_submatrix( %s )\n", tree_to_str(sub_desc));
+                    //                    printf("^^^^ param was a call to plasma_desc_submatrix( %s )\n", tree_to_str(sub_desc));
 
                     newDesc_mb = DA_create_B_expr( S_U_MEMBER, sub_desc, DA_create_ID("mb") );
                     newDesc_nb = DA_create_B_expr( S_U_MEMBER, sub_desc, DA_create_ID("nb") );
@@ -1946,32 +1947,32 @@ void inline_function_body(node_t *func_body, node_t *call_site){
                     newDesc_n  = DA_kid(a_param,5);
 
                     newDesc_mt = DA_ADD(
-                                         DA_SUB( 
-                                                 DA_DIV(
-                                                         DA_SUB(
-                                                                 DA_ADD( newDesc_i, newDesc_m),
-                                                                 DA_create_Int_const(1)
-                                                               ),
-                                                         newDesc_mb
-                                                       ),
-                                                 DA_DIV( newDesc_i, newDesc_mb)
-                                               ),
-                                         DA_create_Int_const(1)
-                                       );
-                    
+                        DA_SUB(
+                            DA_DIV(
+                                DA_SUB(
+                                    DA_ADD( newDesc_i, newDesc_m),
+                                    DA_create_Int_const(1)
+                                       ),
+                                newDesc_mb
+                                   ),
+                            DA_DIV( newDesc_i, newDesc_mb)
+                                ),
+                        DA_create_Int_const(1)
+                                        );
+
                     newDesc_nt = DA_ADD(
-                                         DA_SUB( 
-                                                 DA_DIV(
-                                                         DA_SUB(
-                                                                 DA_ADD( newDesc_j, newDesc_n),
-                                                                 DA_create_Int_const(1)
-                                                               ),
-                                                         newDesc_nb
-                                                       ),
-                                                 DA_DIV( newDesc_j, newDesc_nb)
-                                               ),
-                                         DA_create_Int_const(1)
-                                       );
+                        DA_SUB(
+                            DA_DIV(
+                                DA_SUB(
+                                    DA_ADD( newDesc_j, newDesc_n),
+                                    DA_create_Int_const(1)
+                                       ),
+                                newDesc_nb
+                                   ),
+                            DA_DIV( newDesc_j, newDesc_nb)
+                                ),
+                        DA_create_Int_const(1)
+                                        );
 
                     replace_bounds_in_tree(sub_desc,
                                            tmp_param,
@@ -2086,24 +2087,24 @@ static int is_decrementing(node_t *node){
     node_t *modifier = DA_for_modifier(node);
 
     switch(modifier->type){
-        case EXPR: // ++ or --
-            if( (INC_OP == DA_exp_lhs(modifier)->type) || (INC_OP == DA_exp_rhs(modifier)->type) ){
-                rslt = 0;
-            }else if( (DEC_OP == DA_exp_lhs(modifier)->type) || (DEC_OP == DA_exp_rhs(modifier)->type) ){
-                rslt = 1;
-            }
-            break;
-        case ADD_ASSIGN: // +=
+    case EXPR: // ++ or --
+        if( (INC_OP == DA_exp_lhs(modifier)->type) || (INC_OP == DA_exp_rhs(modifier)->type) ){
             rslt = 0;
-            break;
-        case SUB_ASSIGN: // -=
+        }else if( (DEC_OP == DA_exp_lhs(modifier)->type) || (DEC_OP == DA_exp_rhs(modifier)->type) ){
             rslt = 1;
-            break;
-        default:
-            printf("Cannot analyze modifier type \"%s\" of for() loop: ", DA_type_name(modifier));
-            dump_tree(*node, 0);
-            printf("\n");
-            assert(0);
+        }
+        break;
+    case ADD_ASSIGN: // +=
+        rslt = 0;
+        break;
+    case SUB_ASSIGN: // -=
+        rslt = 1;
+        break;
+    default:
+        printf("Cannot analyze modifier type \"%s\" of for() loop: ", DA_type_name(modifier));
+        dump_tree(*node, 0);
+        printf("\n");
+        assert(0);
     }
     return rslt;
 }
@@ -2188,19 +2189,19 @@ int DA_canonicalize_for(node_t *node){
 }
 
 node_t *DA_loop_lb(node_t *node){
-   node_t *scond = DA_for_scond(node);
-   if( (NULL == scond) || (ASSIGN != scond->type) ){
-       return NULL;
-   }
-   return DA_assgn_rhs(scond);
+    node_t *scond = DA_for_scond(node);
+    if( (NULL == scond) || (ASSIGN != scond->type) ){
+        return NULL;
+    }
+    return DA_assgn_rhs(scond);
 }
 
 node_t *DA_loop_ub(node_t *node){
-   node_t *econd = DA_for_econd(node);
-   if( (NULL == econd) || (LT != econd->type) ){
-       return NULL;
-   }
-   return DA_rel_rhs(econd);
+    node_t *econd = DA_for_econd(node);
+    if( (NULL == econd) || (LT != econd->type) ){
+        return NULL;
+    }
+    return DA_rel_rhs(econd);
 }
 
 node_t *DA_create_ID(char *name){
@@ -2425,22 +2426,22 @@ node_t *DA_create_Exit(){
 node_t *DA_exp_to_ind(node_t *node){
     node_t *lhs, *rhs;
     switch(node->type){
-        case MUL:
-            lhs = node->u.kids.kids[0];
-            rhs = node->u.kids.kids[1];
+    case MUL:
+        lhs = node->u.kids.kids[0];
+        rhs = node->u.kids.kids[1];
 
-            assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
-            if( INTCONSTANT == lhs->type ){
-                return rhs;
-            }else{
-                return lhs;
-            }
+        assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
+        if( INTCONSTANT == lhs->type ){
+            return rhs;
+        }else{
+            return lhs;
+        }
     }
 
     return node;
 }
 
-/* 
+/*
  * This function expects to find something like
  * "3*x", or "x*3" in which case it returns "3".
  * If it finds anything else, it returns 1
@@ -2448,16 +2449,16 @@ node_t *DA_exp_to_ind(node_t *node){
 int DA_exp_to_const(node_t *node){
     node_t *lhs, *rhs;
     switch(node->type){
-        case MUL:
-            lhs = node->u.kids.kids[0];
-            rhs = node->u.kids.kids[1];
+    case MUL:
+        lhs = node->u.kids.kids[0];
+        rhs = node->u.kids.kids[1];
 
-            assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
-            if( INTCONSTANT == lhs->type ){
-                return DA_int_val(lhs);
-            }else if( INTCONSTANT == rhs->type ){
-                return DA_int_val(rhs);
-            }
+        assert( INTCONSTANT == lhs->type || INTCONSTANT == rhs->type );
+        if( INTCONSTANT == lhs->type ){
+            return DA_int_val(lhs);
+        }else if( INTCONSTANT == rhs->type ){
+            return DA_int_val(rhs);
+        }
     }
 
     return 1;
@@ -2466,18 +2467,18 @@ int DA_exp_to_const(node_t *node){
 
 int DA_flip_rel_op(int type){
     switch(type){
-        case LT:
-            return GT;
-        case LE:
-            return GE;
-        case GT:
-            return LT;
-        case GE:
-            return LT;
-        case EQ_OP:
-            return EQ_OP;
-        case NE_OP:
-            return NE_OP;
+    case LT:
+        return GT;
+    case LE:
+        return GE;
+    case GT:
+        return LT;
+    case GE:
+        return LT;
+    case EQ_OP:
+        return EQ_OP;
+    case NE_OP:
+        return NE_OP;
     }
     return 0;
 }
@@ -2487,13 +2488,13 @@ int DA_flip_rel_op(int type){
  */
 int DA_is_rel(node_t *node){
     switch(node->type){
-        case LT:
-        case LE:
-        case GT:
-        case GE:
-        case EQ_OP:
-        case NE_OP:
-            return 1;
+    case LT:
+    case LE:
+    case GT:
+    case GE:
+    case EQ_OP:
+    case NE_OP:
+        return 1;
     }
     return 0;
 }
@@ -2503,13 +2504,13 @@ int DA_is_rel(node_t *node){
  */
 int DA_is_scf(node_t *node){
     switch(node->type){
-        case BLOCK:
-        case SWITCH:
-        case WHILE:
-        case FOR:
-        case DO:
-        case IF:
-            return 1;
+    case BLOCK:
+    case SWITCH:
+    case WHILE:
+    case FOR:
+    case DO:
+    case IF:
+        return 1;
     }
     return 0;
 }
@@ -2530,10 +2531,10 @@ int DA_is_if(node_t *node){
  */
 int DA_is_loop(node_t *node){
     switch(node->type){
-        case WHILE:
-        case FOR:
-        case DO:
-            return 1;
+    case WHILE:
+    case FOR:
+    case DO:
+        return 1;
     }
     return 0;
 }
@@ -2545,23 +2546,23 @@ static int DA_quark_LOCALITY_FLAG(node_t *node){
         return 0;
 
     switch(node->type){
-        case IDENTIFIER:
-            if( !strcmp(node->u.var_name, "LOCALITY") ){
-                return 1;
-            }
-            return 0;
+    case IDENTIFIER:
+        if( !strcmp(node->u.var_name, "LOCALITY") ){
+            return 1;
+        }
+        return 0;
 
-        case B_OR:
-            rslt1 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[0]);
-            if( rslt1 > 0 ) return 1;
-            rslt2 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[1]);
-            if( rslt2 > 0 ) return 1;
+    case B_OR:
+        rslt1 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[0]);
+        if( rslt1 > 0 ) return 1;
+        rslt2 = DA_quark_LOCALITY_FLAG(node->u.kids.kids[1]);
+        if( rslt2 > 0 ) return 1;
 
-            return 0;
+        return 0;
 
-        default:
-            fprintf(stderr,"DA_quark_LOCALITY_FLAG(): unsupported flag type for dep\n");
-            exit(-1);
+    default:
+        fprintf(stderr,"DA_quark_LOCALITY_FLAG(): unsupported flag type for dep\n");
+        exit(-1);
 
     }
     return 0;
@@ -2573,29 +2574,29 @@ static int DA_quark_TYPE(node_t *node){
         return -1;
 
     switch(node->type){
-        case IDENTIFIER:
-            if( !strcmp(node->u.var_name, "QUARK_REGION_U") ){
-                return 0x2;
-            }
-            if( !strcmp(node->u.var_name, "QUARK_REGION_L") ){
-                return 0x4;
-            }
-            if( !strcmp(node->u.var_name, "QUARK_REGION_D") ){
-                return 0x1;
-            }
-            return UND_IGNORE;
+    case IDENTIFIER:
+        if( !strcmp(node->u.var_name, "QUARK_REGION_U") ){
+            return 0x2;
+        }
+        if( !strcmp(node->u.var_name, "QUARK_REGION_L") ){
+            return 0x4;
+        }
+        if( !strcmp(node->u.var_name, "QUARK_REGION_D") ){
+            return 0x1;
+        }
+        return UND_IGNORE;
 
-        case B_OR:
-            rslt1 = DA_quark_TYPE(node->u.kids.kids[0]);
-            if( rslt1 < 0 ) return -1;
-            rslt2 = DA_quark_TYPE(node->u.kids.kids[1]);
-            if( rslt2 < 0 ) return -1;
+    case B_OR:
+        rslt1 = DA_quark_TYPE(node->u.kids.kids[0]);
+        if( rslt1 < 0 ) return -1;
+        rslt2 = DA_quark_TYPE(node->u.kids.kids[1]);
+        if( rslt2 < 0 ) return -1;
 
-            return rslt1 | rslt2;
+        return rslt1 | rslt2;
 
-        default:
-            fprintf(stderr,"DA_quark_TYPE(): unsupported flag type for dep\n");
-            exit(-1);
+    default:
+        fprintf(stderr,"DA_quark_TYPE(): unsupported flag type for dep\n");
+        exit(-1);
 
     }
     return -1;
@@ -2607,29 +2608,29 @@ static int DA_INOUT(node_t *node){
         return -1;
 
     switch(node->type){
-        case IDENTIFIER:
-            if( !strcmp(node->u.var_name, "INPUT") ){
-                return UND_READ;
-            }
-            if( !strcmp(node->u.var_name, "OUTPUT") ){
-                return UND_WRITE;
-            }
-            if( !strcmp(node->u.var_name, "INOUT") ){
-                return UND_RW;
-            }
-            return UND_IGNORE;
+    case IDENTIFIER:
+        if( !strcmp(node->u.var_name, "INPUT") ){
+            return UND_READ;
+        }
+        if( !strcmp(node->u.var_name, "OUTPUT") ){
+            return UND_WRITE;
+        }
+        if( !strcmp(node->u.var_name, "INOUT") ){
+            return UND_RW;
+        }
+        return UND_IGNORE;
 
-        case B_OR:
-            rslt1 = DA_INOUT(node->u.kids.kids[0]);
-            if( rslt1 < 0 ) return -1;
-            rslt2 = DA_INOUT(node->u.kids.kids[1]);
-            if( rslt2 < 0 ) return -1;
+    case B_OR:
+        rslt1 = DA_INOUT(node->u.kids.kids[0]);
+        if( rslt1 < 0 ) return -1;
+        rslt2 = DA_INOUT(node->u.kids.kids[1]);
+        if( rslt2 < 0 ) return -1;
 
-            return rslt1 | rslt2;
+        return rslt1 | rslt2;
 
-        default:
-            fprintf(stderr,"DA_INOUT(): unsupported flag type for dep\n");
-            exit(-1);
+    default:
+        fprintf(stderr,"DA_INOUT(): unsupported flag type for dep\n");
+        exit(-1);
 
     }
     return -1;
@@ -2659,283 +2660,283 @@ char *DA_type_name(node_t *node){
 
     switch(node->type){
 
-        case IDENTIFIER:
-            str = strdup("IDENTIFIER");
-            break;
-        case INTCONSTANT:
-            str = strdup("INTCONSTANT");
-            break;
-        case FLOATCONSTANT:
-            str = strdup("FLOATCONSTANT");
-            break;
-        case STRING_LITERAL:
-            str = strdup("STRING_LITERAL");
-            break;
-        case SIZEOF:
-            str = strdup("SIZEOF");
-            break;
-        case PTR_OP:
-            str = strdup("PTR_OP");
-            break;
-        case INC_OP:
-            str = strdup("INC_OP");
-            break;
-        case DEC_OP:
-            str = strdup("DEC_OP");
-            break;
-        case LEFT_OP:
-            str = strdup("LEFT_OP");
-            break;
-        case RIGHT_OP:
-            str = strdup("RIGHT_OP");
-            break;
-        case LE_OP:
-            str = strdup("LE_OP");
-            break;
-        case GE_OP:
-            str = strdup("GE_OP");
-            break;
-        case EQ_OP:
-            str = strdup("EQ_OP");
-            break;
-        case NE_OP:
-            str = strdup("NE_OP");
-            break;
-        case L_AND:
-            str = strdup("L_AND");
-            break;
-        case L_OR:
-            str = strdup("L_OR");
-            break;
-        case MUL_ASSIGN:
-            str = strdup("MUL_ASSIGN");
-            break;
-        case DIV_ASSIGN:
-            str = strdup("DIV_ASSIGN");
-            break;
-        case MOD_ASSIGN:
-            str = strdup("MOD_ASSIGN");
-            break;
-        case ADD_ASSIGN:
-            str = strdup("ADD_ASSIGN");
-            break;
-        case SUB_ASSIGN:
-            str = strdup("SUB_ASSIGN");
-            break;
-        case LEFT_ASSIGN:
-            str = strdup("LEFT_ASSIGN");
-            break;
-        case RIGHT_ASSIGN:
-            str = strdup("RIGHT_ASSIGN");
-            break;
-        case AND_ASSIGN:
-            str = strdup("AND_ASSIGN");
-            break;
-        case XOR_ASSIGN:
-            str = strdup("XOR_ASSIGN");
-            break;
-        case OR_ASSIGN:
-            str = strdup("OR_ASSIGN");
-            break;
-        case TYPE_NAME:
-            str = strdup("TYPE_NAME");
-            break;
-        case TYPEDEF:
-            str = strdup("TYPEDEF");
-            break;
-        case EXTERN:
-            str = strdup("EXTERN");
-            break;
-        case STATIC:
-            str = strdup("STATIC");
-            break;
-        case AUTO:
-            str = strdup("AUTO");
-            break;
-        case REGISTER:
-            str = strdup("REGISTER");
-            break;
-        case CHAR:
-            str = strdup("CHAR");
-            break;
-        case SHORT:
-            str = strdup("SHORT");
-            break;
-        case INT:
-            str = strdup("INT");
-            break;
-        case LONG:
-            str = strdup("LONG");
-            break;
-        case SIGNED:
-            str = strdup("SIGNED");
-            break;
-        case UNSIGNED:
-            str = strdup("UNSIGNED");
-            break;
-        case FLOAT:
-            str = strdup("FLOAT");
-            break;
-        case DOUBLE:
-            str = strdup("DOUBLE");
-            break;
-        case CONST:
-            str = strdup("CONST");
-            break;
-        case VOLATILE:
-            str = strdup("VOLATILE");
-            break;
-        case VOID:
-            str = strdup("VOID");
-            break;
-        case STRUCT:
-            str = strdup("STRUCT");
-            break;
-        case UNION:
-            str = strdup("UNION");
-            break;
-        case ENUM:
-            str = strdup("ENUM");
-            break;
-        case ELLIPSIS:
-            str = strdup("ELLIPSIS");
-            break;
-        case CASE:
-            str = strdup("CASE");
-            break;
-        case DEFAULT:
-            str = strdup("DEFAULT");
-            break;
-        case IF:
-            str = strdup("IF");
-            break;
-        case ELSE:
-            str = strdup("ELSE");
-            break;
-        case SWITCH:
-            str = strdup("SWITCH");
-            break;
-        case WHILE:
-            str = strdup("WHILE");
-            break;
-        case DO:
-            str = strdup("DO");
-            break;
-        case FOR:
-            str = strdup("FOR");
-            break;
-        case GOTO:
-            str = strdup("GOTO");
-            break;
-        case CONTINUE:
-            str = strdup("CONTINUE");
-            break;
-        case BREAK:
-            str = strdup("BREAK");
-            break;
-        case RETURN:
-            str = strdup("RETURN");
-            break;
+    case IDENTIFIER:
+        str = strdup("IDENTIFIER");
+        break;
+    case INTCONSTANT:
+        str = strdup("INTCONSTANT");
+        break;
+    case FLOATCONSTANT:
+        str = strdup("FLOATCONSTANT");
+        break;
+    case STRING_LITERAL:
+        str = strdup("STRING_LITERAL");
+        break;
+    case SIZEOF:
+        str = strdup("SIZEOF");
+        break;
+    case PTR_OP:
+        str = strdup("PTR_OP");
+        break;
+    case INC_OP:
+        str = strdup("INC_OP");
+        break;
+    case DEC_OP:
+        str = strdup("DEC_OP");
+        break;
+    case LEFT_OP:
+        str = strdup("LEFT_OP");
+        break;
+    case RIGHT_OP:
+        str = strdup("RIGHT_OP");
+        break;
+    case LE_OP:
+        str = strdup("LE_OP");
+        break;
+    case GE_OP:
+        str = strdup("GE_OP");
+        break;
+    case EQ_OP:
+        str = strdup("EQ_OP");
+        break;
+    case NE_OP:
+        str = strdup("NE_OP");
+        break;
+    case L_AND:
+        str = strdup("L_AND");
+        break;
+    case L_OR:
+        str = strdup("L_OR");
+        break;
+    case MUL_ASSIGN:
+        str = strdup("MUL_ASSIGN");
+        break;
+    case DIV_ASSIGN:
+        str = strdup("DIV_ASSIGN");
+        break;
+    case MOD_ASSIGN:
+        str = strdup("MOD_ASSIGN");
+        break;
+    case ADD_ASSIGN:
+        str = strdup("ADD_ASSIGN");
+        break;
+    case SUB_ASSIGN:
+        str = strdup("SUB_ASSIGN");
+        break;
+    case LEFT_ASSIGN:
+        str = strdup("LEFT_ASSIGN");
+        break;
+    case RIGHT_ASSIGN:
+        str = strdup("RIGHT_ASSIGN");
+        break;
+    case AND_ASSIGN:
+        str = strdup("AND_ASSIGN");
+        break;
+    case XOR_ASSIGN:
+        str = strdup("XOR_ASSIGN");
+        break;
+    case OR_ASSIGN:
+        str = strdup("OR_ASSIGN");
+        break;
+    case TYPE_NAME:
+        str = strdup("TYPE_NAME");
+        break;
+    case TYPEDEF:
+        str = strdup("TYPEDEF");
+        break;
+    case EXTERN:
+        str = strdup("EXTERN");
+        break;
+    case STATIC:
+        str = strdup("STATIC");
+        break;
+    case AUTO:
+        str = strdup("AUTO");
+        break;
+    case REGISTER:
+        str = strdup("REGISTER");
+        break;
+    case CHAR:
+        str = strdup("CHAR");
+        break;
+    case SHORT:
+        str = strdup("SHORT");
+        break;
+    case INT:
+        str = strdup("INT");
+        break;
+    case LONG:
+        str = strdup("LONG");
+        break;
+    case SIGNED:
+        str = strdup("SIGNED");
+        break;
+    case UNSIGNED:
+        str = strdup("UNSIGNED");
+        break;
+    case FLOAT:
+        str = strdup("FLOAT");
+        break;
+    case DOUBLE:
+        str = strdup("DOUBLE");
+        break;
+    case CONST:
+        str = strdup("CONST");
+        break;
+    case VOLATILE:
+        str = strdup("VOLATILE");
+        break;
+    case VOID:
+        str = strdup("VOID");
+        break;
+    case STRUCT:
+        str = strdup("STRUCT");
+        break;
+    case UNION:
+        str = strdup("UNION");
+        break;
+    case ENUM:
+        str = strdup("ENUM");
+        break;
+    case ELLIPSIS:
+        str = strdup("ELLIPSIS");
+        break;
+    case CASE:
+        str = strdup("CASE");
+        break;
+    case DEFAULT:
+        str = strdup("DEFAULT");
+        break;
+    case IF:
+        str = strdup("IF");
+        break;
+    case ELSE:
+        str = strdup("ELSE");
+        break;
+    case SWITCH:
+        str = strdup("SWITCH");
+        break;
+    case WHILE:
+        str = strdup("WHILE");
+        break;
+    case DO:
+        str = strdup("DO");
+        break;
+    case FOR:
+        str = strdup("FOR");
+        break;
+    case GOTO:
+        str = strdup("GOTO");
+        break;
+    case CONTINUE:
+        str = strdup("CONTINUE");
+        break;
+    case BREAK:
+        str = strdup("BREAK");
+        break;
+    case RETURN:
+        str = strdup("RETURN");
+        break;
 
-        case EMPTY:
-            str = strdup("EMPTY");
-            break;
-        case ADDR_OF:
-            str = strdup("ADDR_OF");
-            break;
-        case STAR:
-            str = strdup("STAR");
-            break;
-        case PLUS:
-            str = strdup("PLUS");
-            break;
-        case MINUS:
-            str = strdup("MINUS");
-            break;
-        case TILDA:
-            str = strdup("TILDA");
-            break;
-        case BANG:
-            str = strdup("BANG");
-            break;
-        case ASSIGN:
-            str = strdup("ASSIGN");
-            break;
-        case COND:
-            str = strdup("COND");
-            break;
-        case ARRAY:
-            str = strdup("ARRAY");
-            break;
-        case FCALL:
-            str = strdup("FCALL");
-            break;
-        case EXPR:
-            str = strdup("EXPR");
-            break;
-        case ADD:
-            str = strdup("ADD");
-            break;
-        case SUB:
-            str = strdup("SUB");
-            break;
-        case MUL:
-            str = strdup("MUL");
-            break;
-        case DIV:
-            str = strdup("DIV");
-            break;
-        case MOD:
-            str = strdup("MOD");
-            break;
-        case B_AND:
-            str = strdup("B_AND");
-            break;
-        case B_XOR:
-            str = strdup("B_XOR");
-            break;
-        case B_OR:
-            str = strdup("B_OR");
-            break;
-        case LSHIFT:
-            str = strdup("LSHIFT");
-            break;
-        case RSHIFT:
-            str = strdup("RSHIFT");
-            break;
-        case LT:
-            str = strdup("LT");
-            break;
-        case GT:
-            str = strdup("GT");
-            break;
-        case LE:
-            str = strdup("LE");
-            break;
-        case GE:
-            str = strdup("GE");
-            break;
-        case DEREF:
-            str = strdup("DEREF");
-            break;
-        case S_U_MEMBER:
-            str = strdup("S_U_MEMBER");
-            break;
-        case COMMA_EXPR:
-            str = strdup("COMMA_EXPR");
-            break;
-        case BLOCK:
-            str = strdup("BLOCK");
-            break;
-        case COND_DATA:
-            str = strdup("COND_DATA");
-            break;
-        case BLKBOX_TASK:
-            str = strdup("BLACKBOX_TASK");
-            break;
-        default:
-            str = strdup("UNKNOWN_TYPE");
-            break;
+    case EMPTY:
+        str = strdup("EMPTY");
+        break;
+    case ADDR_OF:
+        str = strdup("ADDR_OF");
+        break;
+    case STAR:
+        str = strdup("STAR");
+        break;
+    case PLUS:
+        str = strdup("PLUS");
+        break;
+    case MINUS:
+        str = strdup("MINUS");
+        break;
+    case TILDA:
+        str = strdup("TILDA");
+        break;
+    case BANG:
+        str = strdup("BANG");
+        break;
+    case ASSIGN:
+        str = strdup("ASSIGN");
+        break;
+    case COND:
+        str = strdup("COND");
+        break;
+    case ARRAY:
+        str = strdup("ARRAY");
+        break;
+    case FCALL:
+        str = strdup("FCALL");
+        break;
+    case EXPR:
+        str = strdup("EXPR");
+        break;
+    case ADD:
+        str = strdup("ADD");
+        break;
+    case SUB:
+        str = strdup("SUB");
+        break;
+    case MUL:
+        str = strdup("MUL");
+        break;
+    case DIV:
+        str = strdup("DIV");
+        break;
+    case MOD:
+        str = strdup("MOD");
+        break;
+    case B_AND:
+        str = strdup("B_AND");
+        break;
+    case B_XOR:
+        str = strdup("B_XOR");
+        break;
+    case B_OR:
+        str = strdup("B_OR");
+        break;
+    case LSHIFT:
+        str = strdup("LSHIFT");
+        break;
+    case RSHIFT:
+        str = strdup("RSHIFT");
+        break;
+    case LT:
+        str = strdup("LT");
+        break;
+    case GT:
+        str = strdup("GT");
+        break;
+    case LE:
+        str = strdup("LE");
+        break;
+    case GE:
+        str = strdup("GE");
+        break;
+    case DEREF:
+        str = strdup("DEREF");
+        break;
+    case S_U_MEMBER:
+        str = strdup("S_U_MEMBER");
+        break;
+    case COMMA_EXPR:
+        str = strdup("COMMA_EXPR");
+        break;
+    case BLOCK:
+        str = strdup("BLOCK");
+        break;
+    case COND_DATA:
+        str = strdup("COND_DATA");
+        break;
+    case BLKBOX_TASK:
+        str = strdup("BLACKBOX_TASK");
+        break;
+    default:
+        str = strdup("UNKNOWN_TYPE");
+        break;
     }
 
     return str;
@@ -2946,28 +2947,28 @@ node_t *DA_loop_induction_variable(node_t *loop){
     node_t *n0, *n1, *n2, *tmp;
 
     switch(loop->type){
-        case WHILE:
-        case DO:
-            return NULL;
-        case FOR:
-            n0 = DA_for_scond(loop);
-            n1 = DA_for_econd(loop);
-            n2 = DA_for_modifier(loop);
-            assert( (NULL != n0) && (NULL != n1) && (NULL != n2) );
-            if( ASSIGN != n0->type ){
-                fprintf(stderr,"Don't know how to extract induction variable from type: %s\n",DA_type_name(n0));
-                assert(0);
-            }
-            tmp = DA_assgn_lhs(n0);
-            if( IDENTIFIER != tmp->type ){
-                fprintf(stderr,"Don't know how to deal with LHS of type: %s\n",DA_type_name(tmp));
-                assert(0);
-            }
+    case WHILE:
+    case DO:
+        return NULL;
+    case FOR:
+        n0 = DA_for_scond(loop);
+        n1 = DA_for_econd(loop);
+        n2 = DA_for_modifier(loop);
+        assert( (NULL != n0) && (NULL != n1) && (NULL != n2) );
+        if( ASSIGN != n0->type ){
+            fprintf(stderr,"Don't know how to extract induction variable from type: %s\n",DA_type_name(n0));
+            assert(0);
+        }
+        tmp = DA_assgn_lhs(n0);
+        if( IDENTIFIER != tmp->type ){
+            fprintf(stderr,"Don't know how to deal with LHS of type: %s\n",DA_type_name(tmp));
+            assert(0);
+        }
 
-            return tmp;
-            
-        default:
-            return NULL;
+        return tmp;
+
+    default:
+        return NULL;
     }
 }
 
@@ -3096,14 +3097,14 @@ static char *size_to_pool_name(char *size_str){
 
     /* See if a pool of this size exists already, and if so return it. */
     DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
-    {
-        var_def_item_t *true_item = (var_def_item_t *)list_item;
-        assert(NULL != true_item->var);
-        assert(NULL != true_item->def);
-        if( !strcmp(true_item->var, size_str) ){
-            return true_item->def;
-        }
-    });
+                         {
+                             var_def_item_t *true_item = (var_def_item_t *)list_item;
+                             assert(NULL != true_item->var);
+                             assert(NULL != true_item->def);
+                             if( !strcmp(true_item->var, size_str) ){
+                                 return true_item->def;
+                             }
+                         });
 
     /* If control reached here, it means that we didn't find a pool of the given size. */
     pool_name = append_to_string( strdup("pool_"), int_to_str(pool_count), NULL, 0);
@@ -3120,7 +3121,7 @@ static char *size_to_pool_name(char *size_str){
 
 string_arena_t *create_pool_declarations(){
     string_arena_t *sa = NULL;
-    
+
     sa = string_arena_new(64);
     DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
                          {
@@ -3169,7 +3170,7 @@ void jdf_register_pools( jdf_t *jdf )
                              e->properties[1].expr->jdf_var = strdup(true_item->var);
 
                              if ( jdf->globals == NULL) {
-                                  jdf->globals = e;
+                                 jdf->globals = e;
                              } else {
                                  prev->next = e;
                              }
@@ -3185,14 +3186,14 @@ void jdf_register_pools( jdf_t *jdf )
 static int is_definition_seen(dague_list_t *var_def_list, char *param){
     int i = 0;
     DAGUE_ULIST_ITERATOR(var_def_list, item,
-    {
-        i++;
-        var_def_item_t *true_item = (var_def_item_t *)item;
-        assert( NULL != true_item->var );
-        if( !strcmp(true_item->var, param) ) {
-            return i;
-        }
-    });
+                         {
+                             i++;
+                             var_def_item_t *true_item = (var_def_item_t *)item;
+                             assert( NULL != true_item->var );
+                             if( !strcmp(true_item->var, param) ) {
+                                 return i;
+                             }
+                         });
     return 0;
 }
 
@@ -3519,551 +3520,551 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
         int j, base_name_len, max_arg_len[4];
 
         switch( node->type ){
-            case IDENTIFIER:
-                if( NULL != node->var_type ){
-                    // I don't think this code does anything any more.
-                    // It was an early hack due to lack of symbol table.
-                    str = append_to_string(strdup("("), node->var_type, NULL, 0);
-                    str = append_to_string(str, ")", NULL, 0);
+        case IDENTIFIER:
+            if( NULL != node->var_type ){
+                // I don't think this code does anything any more.
+                // It was an early hack due to lack of symbol table.
+                str = append_to_string(strdup("("), node->var_type, NULL, 0);
+                str = append_to_string(str, ")", NULL, 0);
+            }
+            /*
+             * JDF & QUARK specific optimization:
+             * Add the keyword "desc" infront of the variable to
+             * differentiate the matrix from the struct.
+             */
+            if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
+                char *type = st_type_of_variable(node->u.var_name, node->symtab);
+                if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
+                    str = strdup("desc");
                 }
-                /*
-                 * JDF & QUARK specific optimization:
-                 * Add the keyword "desc" infront of the variable to
-                 * differentiate the matrix from the struct.
-                 */
-                if( (NULL == node->parent) || (ARRAY != node->parent->type) ){
-                    char *type = st_type_of_variable(node->u.var_name, node->symtab);
-                    if( (NULL != type) && !strcmp("PLASMA_desc", type) ){
-                        str = strdup("desc");
-                    }
-                }
+            }
 
-                tmp = (char *)return_string_or_substitute(node->u.var_name, subs);
+            tmp = (char *)return_string_or_substitute(node->u.var_name, subs);
 
-                return append_to_string(str, strdup(tmp), NULL, 0);
+            return append_to_string(str, strdup(tmp), NULL, 0);
 
-            case INTCONSTANT:
-                if( NULL != node->var_type ){
-                    int len = 24+strlen(node->var_type)+2;
-                    tmp = (char *)calloc(len, sizeof(char));
-                    snprintf(tmp, len, "(%s)%"PRIu64, node->var_type, node->const_val.i64_value);
-                }else{
-                    tmp = (char *)calloc(24,sizeof(char));
-                    snprintf(tmp, 24, "%"PRIu64, node->const_val.i64_value);
-                }
-                return tmp;
+        case INTCONSTANT:
+            if( NULL != node->var_type ){
+                int len = 24+strlen(node->var_type)+2;
+                tmp = (char *)calloc(len, sizeof(char));
+                snprintf(tmp, len, "(%s)%"PRIu64, node->var_type, node->const_val.i64_value);
+            }else{
+                tmp = (char *)calloc(24,sizeof(char));
+                snprintf(tmp, 24, "%"PRIu64, node->const_val.i64_value);
+            }
+            return tmp;
 
-            case FLOATCONSTANT: 
-                if( NULL != node->var_type ){
-                    int len = 32+strlen(node->var_type)+2;
-                    tmp = (char *)calloc(len, sizeof(char));
-                    snprintf(tmp, len, "(%s)%lf", node->var_type,node->const_val.f64_value);
-                }else{
-                    tmp = (char *)calloc(32,sizeof(char));
-                    snprintf(tmp, 32, "%lf", node->const_val.f64_value);
-                }
-                return tmp;
+        case FLOATCONSTANT:
+            if( NULL != node->var_type ){
+                int len = 32+strlen(node->var_type)+2;
+                tmp = (char *)calloc(len, sizeof(char));
+                snprintf(tmp, len, "(%s)%lf", node->var_type,node->const_val.f64_value);
+            }else{
+                tmp = (char *)calloc(32,sizeof(char));
+                snprintf(tmp, 32, "%lf", node->const_val.f64_value);
+            }
+            return tmp;
 
-            case STRING_LITERAL:
-                return strdup(node->const_val.str);
+        case STRING_LITERAL:
+            return strdup(node->const_val.str);
 
-            case INC_OP:
-                return strdup("++");
+        case INC_OP:
+            return strdup("++");
 
-            case DEC_OP:
-                return strdup("--");
+        case DEC_OP:
+            return strdup("--");
 
-            case SIZEOF:
-                str = strdup("sizeof(");
-                if(node->u.kids.kid_count ){
-                    str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
-                }else{
-                    str = append_to_string( str, node->u.var_name, NULL, 0 );
-                }
+        case SIZEOF:
+            str = strdup("sizeof(");
+            if(node->u.kids.kid_count ){
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
+            }else{
+                str = append_to_string( str, node->u.var_name, NULL, 0 );
+            }
+            str = append_to_string( str, ")", NULL, 0 );
+            return str;
+
+        case EXPR:
+            if( NULL != node->var_type ){
+                str = append_to_string(strdup("("), node->var_type, NULL, 0);
+                str = append_to_string(str, ")", NULL, 0);
+            }
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0);
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case ADDR_OF:
+            return strdup("&");
+        case STAR:
+            return strdup("*");
+        case PLUS:
+            return strdup("+");
+        case MINUS:
+            return strdup("-");
+        case TILDA:
+            return strdup("~");
+        case BANG:
+            return strdup("!");
+
+        case ADD:
+        case SUB:
+        case MUL:
+        case DIV:
+        case MOD:
+        case B_AND:
+        case B_XOR:
+        case B_OR:
+        case L_AND:
+        case L_OR:
+        case LSHIFT:
+        case RSHIFT:
+        case LT:
+        case GT:
+        case LE:
+        case GE:
+        case COMMA_EXPR:
+            lhs = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            rhs = tree_to_str_with_substitutions(node->u.kids.kids[1], subs);
+
+            if( isSimpleVar(lhs) ){
+                str = lhs;
+            }else{
+                str = strdup("(");
+                str = append_to_string( str, lhs, NULL, 0 );
                 str = append_to_string( str, ")", NULL, 0 );
-                return str;
+            }
 
-            case EXPR:
-                if( NULL != node->var_type ){
-                    str = append_to_string(strdup("("), node->var_type, NULL, 0);
-                    str = append_to_string(str, ")", NULL, 0);
-                }
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0);
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
+            str = append_to_string( str, type_to_symbol(node->type), NULL, 0 );
 
-            case ADDR_OF:
-                return strdup("&");
-            case STAR:
-                return strdup("*");
-            case PLUS:
-                return strdup("+");
-            case MINUS:
-                return strdup("-");
-            case TILDA:
-                return strdup("~");
-            case BANG:
-                return strdup("!");
-
-            case ADD:
-            case SUB:
-            case MUL:
-            case DIV:
-            case MOD:
-            case B_AND:
-            case B_XOR:
-            case B_OR:
-            case L_AND:
-            case L_OR:
-            case LSHIFT:
-            case RSHIFT:
-            case LT:
-            case GT:
-            case LE:
-            case GE:
-            case COMMA_EXPR:
-                lhs = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                rhs = tree_to_str_with_substitutions(node->u.kids.kids[1], subs);
-
-                if( isSimpleVar(lhs) ){
-                    str = lhs;
-                }else{
-                    str = strdup("(");
-                    str = append_to_string( str, lhs, NULL, 0 );
-                    str = append_to_string( str, ")", NULL, 0 );
-                }
-
-                str = append_to_string( str, type_to_symbol(node->type), NULL, 0 );
-
-                if( isSimpleVar(rhs) ){
-                    str = append_to_string( str, rhs, NULL, 0 );
-                }else{
-                    str = append_to_string( str, "(", NULL, 0 );
-                    str = append_to_string( str, rhs, NULL, 0 );
-                    str = append_to_string( str, ")", NULL, 0 );
-                }
-
-                return str;
-
-
-            case ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " = ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case MUL_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " *= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case DIV_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " /= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case MOD_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " %= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case ADD_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " += ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case SUB_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " -= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case LEFT_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " <<= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case RIGHT_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " >>= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case AND_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " &= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case XOR_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " ^= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case OR_ASSIGN:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, " |= ", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case S_U_MEMBER:
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
-                str = append_to_string( str, ".", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case PTR_OP:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                str = append_to_string( str, "->", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                return str;
-
-            case COND:
-                str = strdup("(");
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
-                str = append_to_string( str, ") ? (", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                str = append_to_string( str, ") : (", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[2], subs), NULL, 0 );
+            if( isSimpleVar(rhs) ){
+                str = append_to_string( str, rhs, NULL, 0 );
+            }else{
+                str = append_to_string( str, "(", NULL, 0 );
+                str = append_to_string( str, rhs, NULL, 0 );
                 str = append_to_string( str, ")", NULL, 0 );
-                return str;
+            }
 
-            case EQ_OP:
-                str = strdup("(");
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
-                str = append_to_string( str, ")==(", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                str = append_to_string( str, ")", NULL, 0);
-                return str;
+            return str;
 
-            case NE_OP:
-                str = strdup("(");
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
-                str = append_to_string( str, ")!=(", NULL, 0 );
-                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
-                str = append_to_string( str, ")", NULL, 0);
-                return str;
 
-            case FOR:
-                str = strdup("for( ");
-                for(i=0; i<kid_count-1; ++i){
-                    if(i>0)
-                        str = append_to_string( str, "; ", NULL, 0);
-                    str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
-                }
-                str = append_to_string( str, ") {\n", NULL, 0);
-                _ind_depth += 4;
-                str = append_to_string( str, tree_to_str_with_substitutions(DA_for_body(node), subs), NULL, 0 );
-                _ind_depth -= 4;
+        case ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " = ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case MUL_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " *= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case DIV_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " /= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case MOD_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " %= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case ADD_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " += ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case SUB_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " -= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case LEFT_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " <<= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case RIGHT_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " >>= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case AND_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " &= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case XOR_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " ^= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case OR_ASSIGN:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, " |= ", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case S_U_MEMBER:
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
+            str = append_to_string( str, ".", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case PTR_OP:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            str = append_to_string( str, "->", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            return str;
+
+        case COND:
+            str = strdup("(");
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
+            str = append_to_string( str, ") ? (", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            str = append_to_string( str, ") : (", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[2], subs), NULL, 0 );
+            str = append_to_string( str, ")", NULL, 0 );
+            return str;
+
+        case EQ_OP:
+            str = strdup("(");
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
+            str = append_to_string( str, ")==(", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            str = append_to_string( str, ")", NULL, 0);
+            return str;
+
+        case NE_OP:
+            str = strdup("(");
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[0], subs), NULL, 0 );
+            str = append_to_string( str, ")!=(", NULL, 0 );
+            str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[1], subs), NULL, 0 );
+            str = append_to_string( str, ")", NULL, 0);
+            return str;
+
+        case FOR:
+            str = strdup("for( ");
+            for(i=0; i<kid_count-1; ++i){
+                if(i>0)
+                    str = append_to_string( str, "; ", NULL, 0);
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
+            }
+            str = append_to_string( str, ") {\n", NULL, 0);
+            _ind_depth += 4;
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_for_body(node), subs), NULL, 0 );
+            _ind_depth -= 4;
+            for(i=0; i<_ind_depth; i+=4){
+                str = append_to_string(str, "    ", NULL, 0);
+            }
+            str = append_to_string( str, "}\n", NULL, 0);
+            return str;
+
+        case WHILE:
+            str = strdup("while( ");
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_while_cond(node), subs), NULL, 0 );
+            str = append_to_string( str, " ) {\n", NULL, 0);
+            _ind_depth += 4;
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_while_body(node), subs), NULL, 0 );
+            _ind_depth -= 4;
+            for(i=0; i<_ind_depth; i+=4){
+                str = append_to_string(str, "    ", NULL, 0);
+            }
+            str = append_to_string( str, "}\n", NULL, 0);
+            return str;
+
+        case DO:
+            str = strdup("do{\n");
+            _ind_depth += 4;
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_do_body(node), subs), NULL, 0 );
+            _ind_depth -= 4;
+            for(i=0; i<_ind_depth; i+=4){
+                str = append_to_string(str, "    ", NULL, 0);
+            }
+            str = append_to_string( str, "}while( ", NULL, 0);
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_do_cond(node), subs), NULL, 0 );
+            str = append_to_string( str, " );\n", NULL, 0);
+            return str;
+
+        case IF:
+            str = strdup("if( ");
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_if_condition(node), subs), NULL, 0 );
+            str = append_to_string( str, " ){\n", NULL, 0);
+            _ind_depth += 4;
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_if_then_body(node), subs), NULL, 0 );
+            _ind_depth -= 4;
+            if( NULL != DA_if_else_body(node) ){
                 for(i=0; i<_ind_depth; i+=4){
                     str = append_to_string(str, "    ", NULL, 0);
                 }
-                str = append_to_string( str, "}\n", NULL, 0);
-                return str;
-
-            case WHILE:
-                str = strdup("while( ");
-                str = append_to_string( str, tree_to_str_with_substitutions(DA_while_cond(node), subs), NULL, 0 );
-                str = append_to_string( str, " ) {\n", NULL, 0);
+                str = append_to_string( str, "}else{\n", NULL, 0);
                 _ind_depth += 4;
-                str = append_to_string( str, tree_to_str_with_substitutions(DA_while_body(node), subs), NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(DA_if_else_body(node), subs), NULL, 0 );
                 _ind_depth -= 4;
-                for(i=0; i<_ind_depth; i+=4){
-                    str = append_to_string(str, "    ", NULL, 0);
-                }
-                str = append_to_string( str, "}\n", NULL, 0);
-                return str;
+            }
+            for(i=0; i<_ind_depth; i+=4){
+                str = append_to_string(str, "    ", NULL, 0);
+            }
+            str = append_to_string( str, "}\n", NULL, 0);
+            return str;
 
-            case DO:
-                str = strdup("do{\n");
-                _ind_depth += 4;
-                str = append_to_string( str, tree_to_str_with_substitutions(DA_do_body(node), subs), NULL, 0 );
-                _ind_depth -= 4;
-                for(i=0; i<_ind_depth; i+=4){
-                    str = append_to_string(str, "    ", NULL, 0);
-                }
-                str = append_to_string( str, "}while( ", NULL, 0);
-                str = append_to_string( str, tree_to_str_with_substitutions(DA_do_cond(node), subs), NULL, 0 );
-                str = append_to_string( str, " );\n", NULL, 0);
-                return str;
+        case FCALL:
+            for(j=1; j<=3; j++){
+                max_arg_len[j] = -1;
+                for(i=j; i<node->u.kids.kid_count; i+=3){
+                    int tmp2;
+                    int save_value = _in_fcall_args;
+                    _in_fcall_args = 1;
+                    char *arg = tree_to_str_with_substitutions(DA_kid(node,i), subs);
+                    _in_fcall_args = save_value;
 
-            case IF:
-                str = strdup("if( ");
-                str = append_to_string( str, tree_to_str_with_substitutions(DA_if_condition(node), subs), NULL, 0 );
-                str = append_to_string( str, " ){\n", NULL, 0);
-                _ind_depth += 4;
-                str = append_to_string( str, tree_to_str_with_substitutions(DA_if_then_body(node), subs), NULL, 0 );
-                _ind_depth -= 4;
-                if( NULL != DA_if_else_body(node) ){
-                    for(i=0; i<_ind_depth; i+=4){
-                        str = append_to_string(str, "    ", NULL, 0);
-                    }
-                    str = append_to_string( str, "}else{\n", NULL, 0);
-                    _ind_depth += 4;
-                    str = append_to_string( str, tree_to_str_with_substitutions(DA_if_else_body(node), subs), NULL, 0 );
-                    _ind_depth -= 4;
+                    tmp2 = strlen(arg);
+                    free(arg);
+                    if( tmp2 > max_arg_len[j] )
+                        max_arg_len[j] = tmp2;
                 }
-                for(i=0; i<_ind_depth; i+=4){
-                    str = append_to_string(str, "    ", NULL, 0);
+            }
+            str = tree_to_str_with_substitutions(DA_kid(node,0), subs);
+            str = append_to_string( str, "( ", NULL, 0);
+            base_name_len = strlen(str);
+            total_len = base_name_len;
+            for(i=1; i<DA_kid_count(node); ++i){
+                int len;
+                char fmt[32];
+                if( i > 1 )
+                    str = append_to_string( str, ", ", NULL, 0);
+                total_len += 2;
+                if( ( ((i>1) && ((i-1)%3 == 0)) || total_len > 120 ) && !_in_fcall_args ){
+                    char *ws = (char *)calloc(base_name_len+_ind_depth+2, sizeof(char));
+                    sprintf(ws, "\n%*s", base_name_len+_ind_depth, " ");
+                    str = append_to_string(str, ws, NULL, 0);
+                    total_len = base_name_len+_ind_depth;
+                    free(ws);
                 }
-                str = append_to_string( str, "}\n", NULL, 0);
-                return str;
 
-            case FCALL:
-                for(j=1; j<=3; j++){
-                    max_arg_len[j] = -1;
-                    for(i=j; i<node->u.kids.kid_count; i+=3){
-                        int tmp2;
-                        int save_value = _in_fcall_args;
-                        _in_fcall_args = 1;
-                        char *arg = tree_to_str_with_substitutions(DA_kid(node,i), subs);
-                        _in_fcall_args = save_value;
-                    
-                        tmp2 = strlen(arg);
-                        free(arg);
-                        if( tmp2 > max_arg_len[j] )
-                            max_arg_len[j] = tmp2;
-                    }
+                if( _in_fcall_args ){
+                    char *substr = tree_to_str_with_substitutions(DA_kid(node,i), subs);
+                    str = append_to_string( str, substr, NULL, 0);
+                    total_len += strlen(substr);
+                }else{
+                    len = max_arg_len[1+((i-1)%3)];
+                    memset(fmt,0,32*sizeof(char));
+                    sprintf(fmt,"%%-%ds",len);
+                    int save_value = _in_fcall_args;
+                    _in_fcall_args = 1;
+                    str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), fmt, len+1 );
+                    _in_fcall_args = save_value;
+                    total_len += len;
                 }
-                str = tree_to_str_with_substitutions(DA_kid(node,0), subs);
-                str = append_to_string( str, "( ", NULL, 0);
-                base_name_len = strlen(str);
-                total_len = base_name_len;
+            }
+            str = append_to_string( str, " )", NULL, 0);
+            return str;
+
+        case ARRAY:
+            str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
+            if( JDF_NOTATION ){
+                str = append_to_string( str, "(", NULL, 0);
                 for(i=1; i<DA_kid_count(node); ++i){
-                    int len;
-                    char fmt[32];
                     if( i > 1 )
-                        str = append_to_string( str, ", ", NULL, 0);
-                        total_len += 2;
-                    if( ( ((i>1) && ((i-1)%3 == 0)) || total_len > 120 ) && !_in_fcall_args ){
-                        char *ws = (char *)calloc(base_name_len+_ind_depth+2, sizeof(char));
-                        sprintf(ws, "\n%*s", base_name_len+_ind_depth, " ");
-                        str = append_to_string(str, ws, NULL, 0);
-                        total_len = base_name_len+_ind_depth;
-                        free(ws);
-                    }
-
-                    if( _in_fcall_args ){
-                        char *substr = tree_to_str_with_substitutions(DA_kid(node,i), subs);
-                        str = append_to_string( str, substr, NULL, 0);
-                        total_len += strlen(substr);
-                    }else{
-                        len = max_arg_len[1+((i-1)%3)];
-                        memset(fmt,0,32*sizeof(char));
-                        sprintf(fmt,"%%-%ds",len);
-                        int save_value = _in_fcall_args;
-                        _in_fcall_args = 1;
-                        str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), fmt, len+1 );
-                        _in_fcall_args = save_value;
-                        total_len += len;
-                    }
+                        str = append_to_string( str, ",", NULL, 0);
+                    str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), NULL, 0 );
                 }
-                str = append_to_string( str, " )", NULL, 0);
-                return str;
-
-            case ARRAY:
-                str = tree_to_str_with_substitutions(node->u.kids.kids[0], subs);
-                if( JDF_NOTATION ){
-                    str = append_to_string( str, "(", NULL, 0);
-                    for(i=1; i<DA_kid_count(node); ++i){
-                        if( i > 1 ) 
-                            str = append_to_string( str, ",", NULL, 0);
-                        str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), NULL, 0 );
-                    }
-                    str = append_to_string( str, ")", NULL, 0);
-                }else{
-                    for(i=1; i<node->u.kids.kid_count; ++i){
-                        str = append_to_string( str, "[", NULL, 0);
-                        str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), NULL, 0 );
-                        str = append_to_string( str, "]", NULL, 0);
-                    }
-
-                }
-                return str;
-
-            case FUNC:
-                {
-                  node_t *tmp_param;
-                  str = tree_to_str_with_substitutions(DA_kid(node,0), subs);
-                  str = append_to_string( str, "(", NULL, 0);
-                  for(tmp_param=DA_func_params(node); NULL != tmp_param; tmp_param = tmp_param->next){
-                      char *type_name = st_type_of_variable(DA_var_name(tmp_param), tmp_param->symtab);
-                      if( tmp_param != DA_func_params(node) ){
-                          str = append_to_string( str, ", ", NULL, 0);
-                      }
-                      if( NULL != type_name)
-                          str = append_to_string( str, type_name, "%s ", 1+strlen(type_name));
-                      else
-                          str = append_to_string( str, "TYPE ", NULL, 0);
-                      str = append_to_string( str, DA_var_name(tmp_param), NULL, 0);
-                  }
-                  str = append_to_string( str, "){\n", NULL, 0);
-                  _ind_depth += 4;
-                  str = append_to_string( str, tree_to_str_with_substitutions(DA_func_body(node), subs), NULL, 0);
-                  _ind_depth -= 4;
-                  str = append_to_string( str, "}\n", NULL, 0);
-                  return str;
+                str = append_to_string( str, ")", NULL, 0);
+            }else{
+                for(i=1; i<node->u.kids.kid_count; ++i){
+                    str = append_to_string( str, "[", NULL, 0);
+                    str = append_to_string( str, tree_to_str_with_substitutions(DA_kid(node,i), subs), NULL, 0 );
+                    str = append_to_string( str, "]", NULL, 0);
                 }
 
-            case COMMENT:
-                {
-                  char *cmnt_text = DA_comment_text(node);
-                  if( NULL != cmnt_text ){
-                      str = calloc(7+strlen(cmnt_text), sizeof(char));
-                      sprintf(str, "/* %s */", cmnt_text);
-                  }else{
-                      printf("--- WTF ---\n");
-                  }
-                  return str;
+            }
+            return str;
+
+        case FUNC:
+        {
+            node_t *tmp_param;
+            str = tree_to_str_with_substitutions(DA_kid(node,0), subs);
+            str = append_to_string( str, "(", NULL, 0);
+            for(tmp_param=DA_func_params(node); NULL != tmp_param; tmp_param = tmp_param->next){
+                char *type_name = st_type_of_variable(DA_var_name(tmp_param), tmp_param->symtab);
+                if( tmp_param != DA_func_params(node) ){
+                    str = append_to_string( str, ", ", NULL, 0);
                 }
+                if( NULL != type_name)
+                    str = append_to_string( str, type_name, "%s ", 1+strlen(type_name));
+                else
+                    str = append_to_string( str, "TYPE ", NULL, 0);
+                str = append_to_string( str, DA_var_name(tmp_param), NULL, 0);
+            }
+            str = append_to_string( str, "){\n", NULL, 0);
+            _ind_depth += 4;
+            str = append_to_string( str, tree_to_str_with_substitutions(DA_func_body(node), subs), NULL, 0);
+            _ind_depth -= 4;
+            str = append_to_string( str, "}\n", NULL, 0);
+            return str;
+        }
 
-            case COND_DATA:
-                {
-                  char *tmp;
-                  if( EMPTY == DA_kid(node, 0)->type ){
-                      return tree_to_str_with_substitutions(DA_kid(node, 1), subs);
-                  }
+        case COMMENT:
+        {
+            char *cmnt_text = DA_comment_text(node);
+            if( NULL != cmnt_text ){
+                str = calloc(7+strlen(cmnt_text), sizeof(char));
+                sprintf(str, "/* %s */", cmnt_text);
+            }else{
+                printf("--- WTF ---\n");
+            }
+            return str;
+        }
 
-                  tmp = tree_to_str_with_substitutions(DA_kid(node, 0), subs);
-                  str = append_to_string( NULL, tmp, "(%s) ", 3+strlen(tmp) );
-                  tmp = tree_to_str_with_substitutions(DA_kid(node, 1), subs);
-                  str = append_to_string( str, tmp, "? %s", 2+strlen(tmp) );
-                  if( DA_kid_count(node) == 3 ){
-                      tmp = tree_to_str_with_substitutions(DA_kid(node, 2), subs);
-                      str = append_to_string( str, tmp, ": %s", 2+strlen(tmp) );
-                  }
+        case COND_DATA:
+        {
+            char *tmp;
+            if( EMPTY == DA_kid(node, 0)->type ){
+                return tree_to_str_with_substitutions(DA_kid(node, 1), subs);
+            }
 
-                  return str;
-                }
-            case BLKBOX_TASK:
-                {
-                  char *tmp;
-                  tmp = tree_to_str_with_substitutions( DA_kid(node,0), subs );
-                  str = append_to_string( NULL, tmp, "BLKBOX_TASK: %s( ", 15+strlen(tmp) );
+            tmp = tree_to_str_with_substitutions(DA_kid(node, 0), subs);
+            str = append_to_string( NULL, tmp, "(%s) ", 3+strlen(tmp) );
+            tmp = tree_to_str_with_substitutions(DA_kid(node, 1), subs);
+            str = append_to_string( str, tmp, "? %s", 2+strlen(tmp) );
+            if( DA_kid_count(node) == 3 ){
+                tmp = tree_to_str_with_substitutions(DA_kid(node, 2), subs);
+                str = append_to_string( str, tmp, ": %s", 2+strlen(tmp) );
+            }
 
-                  // parameters:
-                  node_t *params = DA_kid(node, 1);
-                  tmp = tree_to_str_with_substitutions(params, subs);
-                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+            return str;
+        }
+        case BLKBOX_TASK:
+        {
+            char *tmp;
+            tmp = tree_to_str_with_substitutions( DA_kid(node,0), subs );
+            str = append_to_string( NULL, tmp, "BLKBOX_TASK: %s( ", 15+strlen(tmp) );
 
-                  str = append_to_string( str, ") {\n", NULL, 0 );
+            // parameters:
+            node_t *params = DA_kid(node, 1);
+            tmp = tree_to_str_with_substitutions(params, subs);
+            str = append_to_string( str, tmp, "%s", strlen(tmp) );
 
-                  // execution space:
-                  node_t *espace = DA_kid(node, 2);
-                  tmp = tree_to_str_with_substitutions(espace, subs);
-                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+            str = append_to_string( str, ") {\n", NULL, 0 );
 
-                  // affinity declaration:
-                  node_t *aff_decl = DA_kid(node, 3);
-                  tmp = tree_to_str_with_substitutions(aff_decl, subs);
-                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+            // execution space:
+            node_t *espace = DA_kid(node, 2);
+            tmp = tree_to_str_with_substitutions(espace, subs);
+            str = append_to_string( str, tmp, "%s", strlen(tmp) );
 
-                  // dependencies:
-                  node_t *deps = DA_kid(node, 4);
-                  tmp = tree_to_str_with_substitutions(deps, subs);
-                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
+            // affinity declaration:
+            node_t *aff_decl = DA_kid(node, 3);
+            tmp = tree_to_str_with_substitutions(aff_decl, subs);
+            str = append_to_string( str, tmp, "%s", strlen(tmp) );
 
-                  str = append_to_string( str, "}\n", NULL, 0 );
+            // dependencies:
+            node_t *deps = DA_kid(node, 4);
+            tmp = tree_to_str_with_substitutions(deps, subs);
+            str = append_to_string( str, tmp, "%s", strlen(tmp) );
 
-                  return str;
-                }
+            str = append_to_string( str, "}\n", NULL, 0 );
 
-            case BLKBOX_TASK_PARAMS:
-                {
-                  // parameters:
-                  for(int i=0; i<DA_kid_count(node); i++){
-                      if( i )
-                          str = append_to_string( str, ", ", NULL, 0 );
-                      tmp = tree_to_str_with_substitutions( DA_kid(node,i), subs );
-                      str = append_to_string( str, tmp, "%s", strlen(tmp) );
-                  }
-                  return str;
-                }
+            return str;
+        }
 
-            case BLKBOX_TASK_ESPACE:
-                {
-                  for(int i=0; i<DA_kid_count(node); i++){
-                      char *tmp;
-                      tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),0), subs);
-                      str = append_to_string( str, tmp, "%s = ", 3+strlen(tmp) );
-                      tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),1), subs);
-                      str = append_to_string( str, tmp, "%s .. ", 4+strlen(tmp) );
-                      tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),2), subs);
-                      str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
-                  }
-                  return append_to_string( str, "\n", NULL, 0 );
-                }
+        case BLKBOX_TASK_PARAMS:
+        {
+            // parameters:
+            for(int i=0; i<DA_kid_count(node); i++){
+                if( i )
+                    str = append_to_string( str, ", ", NULL, 0 );
+                tmp = tree_to_str_with_substitutions( DA_kid(node,i), subs );
+                str = append_to_string( str, tmp, "%s", strlen(tmp) );
+            }
+            return str;
+        }
 
-            case BLKBOX_TASK_DEPS:
-                {
-                  for(int i=0; i<DA_kid_count(node); i++){
-                      char *tmp;
-                      tmp = tree_to_str_with_substitutions(DA_kid(node,i), subs);
-                      str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
-                  }
-                  return str;
-                }
+        case BLKBOX_TASK_ESPACE:
+        {
+            for(int i=0; i<DA_kid_count(node); i++){
+                char *tmp;
+                tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),0), subs);
+                str = append_to_string( str, tmp, "%s = ", 3+strlen(tmp) );
+                tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),1), subs);
+                str = append_to_string( str, tmp, "%s .. ", 4+strlen(tmp) );
+                tmp = tree_to_str_with_substitutions(DA_kid(DA_kid(node,i),2), subs);
+                str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
+            }
+            return append_to_string( str, "\n", NULL, 0 );
+        }
 
-            case TASK_DEP:
-                {
-                  char *tmp;
-                  node_t *lcl, *rmt;
+        case BLKBOX_TASK_DEPS:
+        {
+            for(int i=0; i<DA_kid_count(node); i++){
+                char *tmp;
+                tmp = tree_to_str_with_substitutions(DA_kid(node,i), subs);
+                str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
+            }
+            return str;
+        }
 
-                  lcl = DA_kid(node,1);
-                  tmp = tree_to_str_with_substitutions(lcl, subs);
-                  if( is_dep_USE(node) ){
-                      str = append_to_string( str, tmp, "USE: %s <- ", 9+strlen(tmp) );
-                  }else if( is_dep_DEF(node) ){
-                      str = append_to_string( str, tmp, "DEF: %s -> ", 9+strlen(tmp) );
-                  }
-                  rmt = DA_kid(node,2);
-                  tmp = tree_to_str_with_substitutions(rmt, subs);
-                  str = append_to_string( str, tmp, "%s", strlen(tmp) );
-                  return str;
-                }
-/*
-            case BLKBOX_TASK_DEPS:
-                {
-                  for(int i=0; i<DA_kid_count(node); i++){
-                      char *tmp;
+        case TASK_DEP:
+        {
+            char *tmp;
+            node_t *lcl, *rmt;
 
-                      node_t *lcl, *rmt;
-                      node_t *tmp_dep = DA_kid(node, i);
-                      lcl = DA_kid(tmp_dep,1);
-                      tmp = tree_to_str_with_substitutions(lcl, subs);
-                      if( is_dep_USE(tmp_dep) ){
-                          str = append_to_string( str, tmp, "USE: %s <- ", 9+strlen(tmp) );
-                      }else if( is_dep_DEF(tmp_dep) ){
-                          str = append_to_string( str, tmp, "DEF: %s -> ", 9+strlen(tmp) );
-                      }
-                      rmt = DA_kid(tmp_dep,2);
-                      tmp = tree_to_str_with_substitutions(rmt, subs);
-                      str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
-                  }
-                  return str;
-                }
-*/
+            lcl = DA_kid(node,1);
+            tmp = tree_to_str_with_substitutions(lcl, subs);
+            if( is_dep_USE(node) ){
+                str = append_to_string( str, tmp, "USE: %s <- ", 9+strlen(tmp) );
+            }else if( is_dep_DEF(node) ){
+                str = append_to_string( str, tmp, "DEF: %s -> ", 9+strlen(tmp) );
+            }
+            rmt = DA_kid(node,2);
+            tmp = tree_to_str_with_substitutions(rmt, subs);
+            str = append_to_string( str, tmp, "%s", strlen(tmp) );
+            return str;
+        }
+        /*
+         case BLKBOX_TASK_DEPS:
+         {
+         for(int i=0; i<DA_kid_count(node); i++){
+         char *tmp;
 
-            default:
-                snprintf(prfx, 12, "|>%u<| ", node->type);
-                str = append_to_string(NULL, prfx, NULL, 0);
-                snprintf(prfx, 16, "kid_count: %d {{", kid_count);
-                str = append_to_string(str, prfx, NULL, 0);
-                _ind_depth += 4;
-                for(i=0; i<kid_count; ++i){
-                    if( i > 0 )
-                        str = append_to_string( str, " ## ", NULL, 0 );
-                    str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
-                }
-                _ind_depth -= 4;
-                str = append_to_string( str, "}}", NULL, 0 );
-                break;
+         node_t *lcl, *rmt;
+         node_t *tmp_dep = DA_kid(node, i);
+         lcl = DA_kid(tmp_dep,1);
+         tmp = tree_to_str_with_substitutions(lcl, subs);
+         if( is_dep_USE(tmp_dep) ){
+         str = append_to_string( str, tmp, "USE: %s <- ", 9+strlen(tmp) );
+         }else if( is_dep_DEF(tmp_dep) ){
+         str = append_to_string( str, tmp, "DEF: %s -> ", 9+strlen(tmp) );
+         }
+         rmt = DA_kid(tmp_dep,2);
+         tmp = tree_to_str_with_substitutions(rmt, subs);
+         str = append_to_string( str, tmp, "%s\n", 1+strlen(tmp) );
+         }
+         return str;
+         }
+         */
+
+        default:
+            snprintf(prfx, 12, "|>%u<| ", node->type);
+            str = append_to_string(NULL, prfx, NULL, 0);
+            snprintf(prfx, 16, "kid_count: %d {{", kid_count);
+            str = append_to_string(str, prfx, NULL, 0);
+            _ind_depth += 4;
+            for(i=0; i<kid_count; ++i){
+                if( i > 0 )
+                    str = append_to_string( str, " ## ", NULL, 0 );
+                str = append_to_string( str, tree_to_str_with_substitutions(node->u.kids.kids[i], subs), NULL, 0 );
+            }
+            _ind_depth -= 4;
+            str = append_to_string( str, "}}", NULL, 0 );
+            break;
         }
     }
 
@@ -4074,93 +4075,93 @@ char *tree_to_str_with_substitutions(node_t *node, str_pair_t *subs){
 const char *type_to_str(int type){
 
     switch(type){
-        case EMPTY: return "EMPTY";
-        case INTCONSTANT: return "INTCONSTANT";
-        case IDENTIFIER: return "IDENTIFIER";
-        case ADDR_OF: return "ADDR_OF";
-        case STAR: return "STAR";
-        case PLUS: return "PLUS";
-        case MINUS: return "MINUS";
-        case TILDA: return "TILDA";
-        case BANG: return "BANG";
-        case ASSIGN: return "ASSIGN";
-        case COND: return "COND";
-        case ARRAY: return "ARRAY";
-        case FCALL: return "FCALL";
-        case ENTRY: return "ENTRY";
-        case EXIT: return "EXIT";
-        case EXPR: return "EXPR";
-        case ADD: return "ADD";
-        case SUB: return "SUB";
-        case MUL: return "MUL";
-        case DIV: return "DIV";
-        case MOD: return "MOD";
-        case B_AND: return "B_AND";
-        case B_XOR: return "B_XOR";
-        case B_OR: return "B_OR";
-        case LSHIFT: return "LSHIFT";
-        case RSHIFT: return "RSHIFT";
-        case LT: return "LT";
-        case GT: return "GT";
-        case LE: return "LE";
-        case GE: return "GE";
-        case DEREF: return "DEREF";
-        case S_U_MEMBER: return "S_U_MEMBER";
-        case COMMA_EXPR: return "COMMA_EXPR";
-        case BLOCK: return "BLOCK";
-        case COMMENT: return "COMMENT";
-        default: return "???";
+    case EMPTY: return "EMPTY";
+    case INTCONSTANT: return "INTCONSTANT";
+    case IDENTIFIER: return "IDENTIFIER";
+    case ADDR_OF: return "ADDR_OF";
+    case STAR: return "STAR";
+    case PLUS: return "PLUS";
+    case MINUS: return "MINUS";
+    case TILDA: return "TILDA";
+    case BANG: return "BANG";
+    case ASSIGN: return "ASSIGN";
+    case COND: return "COND";
+    case ARRAY: return "ARRAY";
+    case FCALL: return "FCALL";
+    case ENTRY: return "ENTRY";
+    case EXIT: return "EXIT";
+    case EXPR: return "EXPR";
+    case ADD: return "ADD";
+    case SUB: return "SUB";
+    case MUL: return "MUL";
+    case DIV: return "DIV";
+    case MOD: return "MOD";
+    case B_AND: return "B_AND";
+    case B_XOR: return "B_XOR";
+    case B_OR: return "B_OR";
+    case LSHIFT: return "LSHIFT";
+    case RSHIFT: return "RSHIFT";
+    case LT: return "LT";
+    case GT: return "GT";
+    case LE: return "LE";
+    case GE: return "GE";
+    case DEREF: return "DEREF";
+    case S_U_MEMBER: return "S_U_MEMBER";
+    case COMMA_EXPR: return "COMMA_EXPR";
+    case BLOCK: return "BLOCK";
+    case COMMENT: return "COMMENT";
+    default: return "???";
     }
 }
 
 const char *type_to_symbol(int type){
     switch(type){
-        case ADD:
-            return "+";
-        case SUB:
-            return "-";
-        case MUL:
-            return "*";
-        case DIV:
-            return "/";
-        case MOD:
-            return "%";
-        case B_AND:
+    case ADD:
+        return "+";
+    case SUB:
+        return "-";
+    case MUL:
+        return "*";
+    case DIV:
+        return "/";
+    case MOD:
+        return "%";
+    case B_AND:
+        return "&";
+    case B_XOR:
+        return "^";
+    case B_OR:
+        return "|";
+    case L_AND:
+        if( JDF_NOTATION )
             return "&";
-        case B_XOR:
-            return "^";
-        case B_OR:
+        else
+            return "&&";
+    case L_OR:
+        if( JDF_NOTATION )
             return "|";
-        case L_AND:
-            if( JDF_NOTATION )
-                return "&";
-            else
-                return "&&";
-        case L_OR:
-            if( JDF_NOTATION )
-                return "|";
-            else
-                return "||";
-        case LSHIFT:
-            return "<<";
-        case RSHIFT:
-            return ">>";
-        case LT:
-            return "<";
-        case GT:
-            return ">";
-        case LE:
-            return "<=";
-        case GE:
-            return ">=";
-        case EQ_OP:
-            return "==";
-        case NE_OP:
-            return "!=";
-        case COMMA_EXPR:
-            return ",";
-        case S_U_MEMBER:
-            return "STRUCT_or_UNION";
+        else
+            return "||";
+    case LSHIFT:
+        return "<<";
+    case RSHIFT:
+        return ">>";
+    case LT:
+        return "<";
+    case GT:
+        return ">";
+    case LE:
+        return "<=";
+    case GE:
+        return ">=";
+    case EQ_OP:
+        return "==";
+    case NE_OP:
+        return "!=";
+    case COMMA_EXPR:
+        return ",";
+    case S_U_MEMBER:
+        return "STRUCT_or_UNION";
     }
     return "???";
 }
@@ -4170,4 +4171,3 @@ inline node_t *node_to_ptr(node_t node){
     *tmp = node;
     return tmp;
 }
-

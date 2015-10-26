@@ -1147,7 +1147,6 @@ void jdf_register_function(jdf_function_entry_t       *this_function,
 {
     jdf_register_locals( this_function, S_es );
 
-
     this_function->predicate = jdf_generate_call_for_data(reference_data_element, NULL);
 
     jdf_register_dependencies_and_pseudotasks(this_function,
