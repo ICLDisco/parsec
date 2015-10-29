@@ -645,10 +645,15 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_config_bottom.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/dague/private_mempool.h
   DESTINATION include/dague)
+
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype/datatype_mpi.h
+  DESTINATION include/dague/datatype )
 
 # Install header files for jdf generated code
 if( DAGUE_WITH_DEVEL_HEADERS )
@@ -661,7 +666,6 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_prof_grapher.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/data_internal.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/datarepo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/debug.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/hbbuffer.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_description_structures.h
@@ -685,10 +689,6 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_papi_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_tau_utils.h
     DESTINATION include/daguepp/dague/mca/pins )
-
-  install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype/datatype_mpi.h
-    DESTINATION include/daguepp/dague/datatype )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/argv.h
