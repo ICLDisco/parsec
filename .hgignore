@@ -55,6 +55,7 @@ dplasma/cores/core_chetrf2_nopiv\.c$
 dplasma/cores/core_chetrf_nopiv\.c$
 dplasma/cores/core_[sdc]amax\.c$
 dplasma/cores/cuda_[sdc]gemm\.[ch]$
+dplasma/cores/cuda_[sdc]tsmqr\.[ch]$
 dplasma/cores/dplasma_[sdc]cores\.h$
 dplasma/cores/sgemm-sm.*\.cubin$
 
