@@ -1076,10 +1076,8 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     }
 
     /* TODO: Enable this once the task typedef are used in the code generation. */
-#if 0
-    houtput(UTIL_DUMP_LIST(sa1, jdf->functions, next, jdf_generate_task_typedef, sa3,
-                           "", "", "\n", "\n"));
-#endif
+    houtput("%s", UTIL_DUMP_LIST(sa1, jdf->functions, next, jdf_generate_task_typedef, sa3,
+                                 "", "", "\n", "\n"));
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
@@ -4399,7 +4397,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     const jdf_function_entry_t *targetf;
     jdf_expr_t *el;
     jdf_name_list_t *nl;
-    expr_info_t info, linfo;
+    expr_info_t local_info, dest_info;
     string_arena_t *sa2, *sa1, *sa_close;
     int i, nbopen;
     int nbparam_given, nbparam_required;
@@ -4425,14 +4423,14 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     p = (char*)malloc(strlen(targetf->fname) + 2);
     sprintf(p, "%s_", targetf->fname);
 
-    linfo.prefix = p;
-    linfo.sa = sa1;
-    rc = asprintf(&linfo.assignments, "%s.locals", var);
+    dest_info.prefix = p;
+    dest_info.sa = sa1;
+    rc = asprintf(&dest_info.assignments, "%s.locals", var);
     assert(rc != -1);
 
-    info.sa = sa2;
-    info.prefix = "";
-    info.assignments = "nc.locals";
+    local_info.sa = sa2;
+    local_info.prefix = "";
+    local_info.assignments = "this_task->locals";
 
     sa_close = string_arena_new(64);
 
@@ -4479,7 +4477,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             assert(el == NULL);
             string_arena_add_string(sa_open,
                                     "%s%s  const int %s_%s = %s;\n",
-                                    prefix, indent(nbopen), targetf->fname, def->name, dump_expr((void**)def->expr, &linfo));
+                                    prefix, indent(nbopen), targetf->fname, def->name, dump_expr((void**)def->expr, &dest_info));
             string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n",
                                     prefix, indent(nbopen), var, i,
                                     targetf->fname, def->name);
@@ -4493,32 +4491,32 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
                 string_arena_add_string(sa_open,
                                         "%s%sfor( %s_%s = %s;",
-                                        prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el->jdf_ta1, &info));
+                                        prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el->jdf_ta1, &local_info));
                 string_arena_add_string(sa_open, "%s_%s <= %s; %s_%s+=",
-                                        targetf->fname, nl->name, dump_expr((void**)el->jdf_ta2, &info), targetf->fname, nl->name);
+                                        targetf->fname, nl->name, dump_expr((void**)el->jdf_ta2, &local_info), targetf->fname, nl->name);
                 string_arena_add_string(sa_open, "%s) {\n",
-                                        dump_expr((void**)el->jdf_ta3, &info));
+                                        dump_expr((void**)el->jdf_ta3, &local_info));
                 nbopen++;
             } else {
                 string_arena_add_string(sa_open,
                                         "%s%s  const int %s_%s = %s;\n",
-                                        prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el, &info));
+                                        prefix, indent(nbopen), targetf->fname, nl->name, dump_expr((void**)el, &local_info));
             }
 
             if( def->expr->op == JDF_RANGE ) {
                 string_arena_add_string(sa_open,
                                         "%s%s  if( (%s_%s >= (%s))",
                                         prefix, indent(nbopen), targetf->fname, nl->name,
-                                        dump_expr((void**)def->expr->jdf_ta1, &linfo));
+                                        dump_expr((void**)def->expr->jdf_ta1, &dest_info));
                 string_arena_add_string(sa_open, " && (%s_%s <= (%s)) ) {\n",
                                         targetf->fname, nl->name,
-                                        dump_expr((void**)def->expr->jdf_ta2, &linfo));
+                                        dump_expr((void**)def->expr->jdf_ta2, &dest_info));
                 nbopen++;
             } else {
                 string_arena_add_string(sa_open,
                                         "%s%s  if( (%s_%s == (%s)) ) {\n",
                                         prefix, indent(nbopen), targetf->fname, nl->name,
-                                        dump_expr((void**)def->expr, &linfo));
+                                        dump_expr((void**)def->expr, &dest_info));
                 nbopen++;
             }
 
@@ -4534,7 +4532,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             "%s%s  rank_dst = ((dague_ddesc_t*)__dague_handle->super.%s)->rank_of((dague_ddesc_t*)__dague_handle->super.%s, %s);\n",
                             prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
-                                           dump_expr, (void*)&linfo,
+                                           dump_expr, (void*)&dest_info,
                                            "", "", ", ", ""));
     string_arena_add_string(sa_open,
                             "%s%s  if( (NULL != eu) && (rank_dst == eu->virtual_process->dague_context->my_rank) )\n"
@@ -4543,13 +4541,13 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                             prefix, indent(nbopen),
                             prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,
-                                           dump_expr, (void*)&linfo,
+                                           dump_expr, (void*)&dest_info,
                                            "", "", ", ", ""));
 
     if( NULL != targetf->priority ) {
         string_arena_add_string(sa_open,
-                                "%s%s  %s.priority = __dague_handle->super.super.priority + priority_of_%s_%s_as_expr_fct(this_task->dague_handle, nc.locals);\n",
-                                prefix, indent(nbopen), var, jdf_basename, targetf->fname);
+                                "%s%s  %s.priority = __dague_handle->super.super.priority + priority_of_%s_%s_as_expr_fct(this_task->dague_handle, %s.locals);\n",
+                                prefix, indent(nbopen), var, jdf_basename, targetf->fname, var);
     } else {
         string_arena_add_string(sa_open, "%s%s  %s.priority = __dague_handle->super.super.priority;\n",
                                 prefix, indent(nbopen), var);
@@ -4558,10 +4556,11 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     string_arena_add_string(sa_open,
                             "%s%sRELEASE_DEP_OUTPUT(eu, \"%s\", this_task, \"%s\", &%s, rank_src, rank_dst, &data);\n",
                             prefix, indent(nbopen), flow->varname, call->var, var);
-    free(linfo.assignments);
-    linfo.assignments = NULL;
+    free(dest_info.assignments);
+    dest_info.assignments = NULL;
+    dest_info.prefix = NULL;
     free(p);
-    linfo.prefix = NULL;
+    /* Don't free the local_info everything is static inside */
 
     string_arena_add_string(sa_open,
                             "%s%s%s", prefix, indent(nbopen), calltext);
