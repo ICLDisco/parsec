@@ -493,6 +493,79 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
     return rc;
 }
 
+static int jdf_sanity_check_dataflow_type_consistency(void)
+{
+    int rc = 0, output_deps, input_deps, type_deps;
+    jdf_function_entry_t *f;
+    jdf_dataflow_t *flow;
+    jdf_dep_t *dep;
+    jdf_guarded_call_t *guard;
+
+    for(f = current_jdf.functions; f != NULL; f = f->next) {
+        for(flow = f->dataflow; flow != NULL; flow = flow->next) {
+
+            if( JDF_FLOW_TYPE_CTL & flow->flow_flags ) {
+                continue;  /* not much we can say about */
+            }
+            input_deps = output_deps = type_deps = 0;
+            for(dep = flow->deps; dep != NULL; dep = dep->next) {
+                guard = dep->guard;
+                /* Special case for the arena definition for WRITE-only flows */
+                if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) ) {
+                    type_deps++;
+                    continue;
+                }
+                if( JDF_DEP_FLOW_OUT & dep->dep_flags ) {
+                    output_deps++;
+                    continue;
+                }
+                if( JDF_DEP_FLOW_IN & dep->dep_flags ) {
+                    input_deps++;
+                    continue;
+                }
+            }
+
+            if( JDF_FLOW_TYPE_WRITE & flow->flow_flags ) {
+                /* We should have no IN dependencies, except for the arena assignment
+                 * and at least one OUT dep */
+                if( 0 == output_deps ) {
+                    jdf_warn(JDF_OBJECT_LINENO(flow),
+                             "Function %f: WRITE flow %s is missing an output deps.\n",
+                             f->fname, flow->varname);
+                    continue;
+                }
+                if( (JDF_FLOW_TYPE_READ & flow->flow_flags) && (0 == input_deps) ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(flow),
+                              "Function %s: READ-WRITE flow %s without one input deps.\n",
+                              f->fname, flow->varname);
+                    rc--;
+                }
+            }
+            if( JDF_FLOW_TYPE_READ & flow->flow_flags ) {
+                /* We should not have any OUT dependencies but we should have at least one IN */
+                if( 0 != type_deps ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(flow),
+                              "Function %s: READ flow %s cannot have a type definition.\n",
+                              f->fname, flow->varname);
+                    rc--;
+                }
+                if( (JDF_FLOW_TYPE_WRITE & flow->flow_flags) && (0 == output_deps) ) {
+                    jdf_warn(JDF_OBJECT_LINENO(flow),
+                             "Function %s: Mismatch between the WRITE flow %s and its output dependencies (%s != output %d)\n",
+                             f->fname, flow->varname, (JDF_FLOW_TYPE_WRITE & flow->flow_flags) ? "write":"read", output_deps);
+                }
+                if( 0 == input_deps ) {
+                    jdf_fatal(JDF_OBJECT_LINENO(flow),
+                              "Function %s: READ flow %s without one input deps.\n",
+                              f->fname, flow->varname);
+                    rc--;
+                }
+            }
+        }
+    }
+    return rc;
+}
+
 static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
                                                jdf_dataflow_t* flowout,
                                                jdf_call_t* callout)
@@ -823,6 +896,7 @@ int jdf_sanity_checks( jdf_warning_mask_t mask )
     DO_CHECK( jdf_sanity_check_dataflow_expressions_unbound() );
 
     DO_CHECK( jdf_sanity_check_dataflow_naming_collisions() );
+    DO_CHECK( jdf_sanity_check_dataflow_type_consistency() );
     DO_CHECK( jdf_sanity_check_dataflow_unexisting_data() );
 
     if( mask & JDF_WARN_REMOTE_MEM_REFERENCE ) {
