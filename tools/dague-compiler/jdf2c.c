@@ -354,7 +354,7 @@ char * dump_expr(void **elem, void *arg)
         break;
     case JDF_C_CODE:
         if(  NULL == e->jdf_c_code.fname ) {
-            string_arena_add_string(sa, "inline_c %%{ %s %%}",
+            string_arena_add_string(sa, "\n#error Expression %s has not been generated\n",
                                     e->jdf_c_code.code);
         } else {
             string_arena_add_string(sa, "%s((const dague_handle_t*)__dague_handle, %s)",
@@ -4964,7 +4964,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
 static void jdf_generate_inline_c_functions(const jdf_t *jdf)
 {
     jdf_expr_t *le;
-    for( le = jdf->inline_c_functions; NULL != le; le = le->next ) {
+    for( le = jdf->inline_c_functions; NULL != le; le = le->next_inline ) {
         jdf_generate_inline_c_function(le);
     }
 }

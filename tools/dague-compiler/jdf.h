@@ -323,6 +323,7 @@ typedef enum { JDF_EQUAL,
 typedef struct jdf_expr {
     struct jdf_object_t           super;
     struct jdf_expr              *next;
+    struct jdf_expr              *next_inline;
     jdf_expr_operand_t            op;
     union {
         struct {

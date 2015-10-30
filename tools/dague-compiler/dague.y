@@ -258,11 +258,11 @@ jdf:            jdf function
                     current_jdf.functions = $2;
                     if( NULL != inline_c_functions) {
                         /* Every inline functions declared here where within the context of $2 */
-                        for(el = inline_c_functions; NULL != el; el = el->next) {
+                        for(el = inline_c_functions; NULL != el; el = el->next_inline) {
                             pl = el;
                             el->jdf_c_code.function_context = $2;
                         }
-                        pl->next = current_jdf.inline_c_functions;
+                        pl->next_inline = current_jdf.inline_c_functions;
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
@@ -286,8 +286,8 @@ jdf:            jdf function
                     }
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
-                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
-                        el->next = current_jdf.inline_c_functions;
+                        for(el = inline_c_functions; NULL != el->next_inline; el = el->next_inline) /* nothing */ ;
+                        el->next_inline = current_jdf.inline_c_functions;
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
@@ -311,8 +311,8 @@ jdf:            jdf function
                     }
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
-                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
-                        el->next = current_jdf.inline_c_functions;
+                        for(el = inline_c_functions; NULL != el->next_inline; el = el->next_inline) /* nothing */ ;
+                        el->next_inline = current_jdf.inline_c_functions;
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
@@ -327,8 +327,8 @@ jdf:            jdf function
                     jdf_expr_t *el;
                     if( NULL != inline_c_functions ) {
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
-                        for(el = inline_c_functions; NULL != el->next; el = el->next) /* nothing */ ;
-                        el->next = current_jdf.inline_c_functions;
+                        for(el = inline_c_functions; NULL != el->next_inline; el = el->next_inline) /* nothing */ ;
+                        el->next_inline = current_jdf.inline_c_functions;
                         current_jdf.inline_c_functions = inline_c_functions;
                         inline_c_functions = NULL;
                     }
@@ -993,7 +993,7 @@ expr_simple:  expr_simple EQUAL expr_simple
                   $$->jdf_c_code.function_context = NULL;
                   $$->jdf_c_code.fname = NULL;
 
-                  $$->next = inline_c_functions;
+                  $$->next_inline = inline_c_functions;
                   inline_c_functions = $$;
                   JDF_OBJECT_LINENO($$) = current_lineno;
               }
