@@ -1,0 +1,109 @@
+extern "C" %{
+/*
+ * Copyright (c) 2015      The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ *
+ */
+
+#include "dague.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "strange.h"
+
+%}
+
+N         [type = int]
+VAL       [type = "int*"]
+first     [type = double]
+second    [type = float
+           hidden = on
+           default = "(float)5.2"]
+//           default = "inline_C %{ return (float)5.2; %}"]
+
+/**************************************************
+ *                       TASK                     *
+ **************************************************/
+TASK(k)
+ k = 0 .. (inline_c %{ return N; %} - 1) .. inline_c %{ return 1; %}
+ n = inline_c %{ return k + 1; %}
+ m = inline_c %{ return k + 1; %}
+
+// Parallel partitioning
+:A(k, 0)
+
+RW A <- (0 == k) ? A(k, 0) : A TASK(k-1)
+     -> (k%2 == 1) ? A TASK(n) : A TASK(inline_c%{ return k+1; %})
+
+BODY
+  /*printf("Task(%d)\n", k);*/
+  (*VAL) += 1;
+END
+
+extern "C" %{
+
+#define TYPE  matrix_RealFloat
+static two_dim_block_cyclic_t descA;
+
+int main(int argc, char* argv[] )
+{
+    dague_context_t *dague;
+    dague_strange_handle_t* handle;
+    int i = 0, n, val;
+
+    while( NULL != argv[i] ) {
+        if( 0 == strncmp(argv[i], "-n=", 3) ) {
+            n = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        i++;
+        continue;
+    move_and_continue:
+        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
+        argc -= 1;
+    }
+
+#ifdef HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+#endif
+
+    dague = dague_init(-1, &argc, &argv);
+    assert( NULL != dague );
+
+    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+                               1 /*nodes*/, 0 /*rank*/,
+                               1, 1, n, 1,
+                               0, 0, n, 1, 1, 1, 1);
+    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
+                                     descA.super.bsiz *
+                                     dague_datadist_getsizeoftype(TYPE) );
+
+    handle = dague_strange_new( (dague_ddesc_t*)&descA, n, &val, 2.5 );
+    assert( NULL != handle );
+
+    dague_arena_construct( handle->arenas[DAGUE_strange_DEFAULT_ARENA],
+                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+
+    dague_enqueue( dague, (dague_handle_t*)handle );
+    dague_context_wait(dague);
+
+    free(descA.mat);
+    dague_fini( &dague);
+
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
+
+    if( val != n ) {
+        printf("Failed execution (%d != %d)\n", val, n);
+        return -1;
+    }
+    return 0;
+}
+
+%}
+

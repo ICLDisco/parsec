@@ -52,6 +52,11 @@ if(CMAKE_Fortran_COMPILER_WORKS)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(CMAKE_Fortran_COMPILER_WORKS)
 
+jdf_rules(strange_generated "${CMAKE_CURRENT_SOURCE_DIR}/strange.jdf")
+string( REGEX REPLACE "strange.[hc]" "" include_dir "${strange_generated}" )
+include_directories(${include_dir})
+dague_addtest(C strange "${strange_generated}")
+
 #Most of the test need -lm. Add it and trim the list down.
 list(APPEND EXTRA_LIBS m)
 list(REMOVE_DUPLICATES EXTRA_LIBS)
