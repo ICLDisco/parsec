@@ -48,7 +48,7 @@ int main(int argc, char* argv[] )
 {
     dague_context_t *dague;
     dague_strange_handle_t* handle;
-    int i = 0, n, val;
+    int i = 0, n, val = 0;
 
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
