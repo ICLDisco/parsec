@@ -530,7 +530,7 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
                  * and at least one OUT dep */
                 if( 0 == output_deps ) {
                     jdf_warn(JDF_OBJECT_LINENO(flow),
-                             "Function %f: WRITE flow %s is missing an output deps.\n",
+                             "Function %s: WRITE flow %s is missing an output deps.\n",
                              f->fname, flow->varname);
                     continue;
                 }
