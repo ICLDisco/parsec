@@ -29,7 +29,6 @@
 #include "jdfregister.h"
 #include "jdfoutput.h"
 
-#define VERBOSE_TRANSITIVE_EDGES
 //#define DEBUG_ANTI
 
 #define PRAGMAS_DECLARE_GLOBALS
@@ -82,11 +81,6 @@ extern jdf_t _q2j_jdf;
 static map<string, string> q2j_colocated_map;
 static map<string, node_t *> _q2j_variable_names;
 static map<string, Free_Var_Decl *> global_vars;
-
-#if defined(VERBOSE_TRANSITIVE_EDGES)
-static ofstream antidep_log_file;
-#endif // VERBOSE_TRANSITIVE_EDGES
-
 
 #define Q2J_DUMP_UND
 #if defined(Q2J_DUMP_UND)
@@ -3283,9 +3277,6 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rcarrier, set<tg_node_
 
     // if Nc == Sink(Ea)
     if ( (cur_nd == snk_nd) && !just_started ){
-#if defined(VERBOSE_TRANSITIVE_EDGES)
-        antidep_log_file << tr_path << "\n";
-#endif // VERBOSE_TRANSITIVE_EDGES
         // If we reached the sink successfully, we need to return the last Relation that brought us here.
         return Rcarrier;
     }
@@ -3308,15 +3299,10 @@ Relation find_transitive_edge(tg_node_t *cur_nd, Relation Rcarrier, set<tg_node_
 
             if( !Ra.is_null() ){
                 if( Rt_new.is_null() ){
-#define INCLUDE_CYCLES
-#if defined(INCLUDE_CYCLES)
                     Relation Rcycle = *(cur_nd->cycle);
-                    // create a copy because the Composition and Union operations below will clobber the objects.
+                    // Create a copy because the Composition operation clobbers its parameters
                     Rt_new = copy(Ra);
                     Rt_new = Union( Composition(Rt_new, Rcycle), Ra );
-#else
-                    Rt_new = Ra;
-#endif
                 }else{
                     Rt_new = Union(Rt_new, Ra);
                 }
@@ -3645,16 +3631,11 @@ map<char *, set<dep_t *> > finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-#include <fstream>
 set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_deps, int level){
     map<char *, tg_node_t *> task_to_node;
     set<dep_t *> rslt_ctrl_deps;
     int anti_edge_killed = 0;
     ofstream clog;
-
-#if defined(VERBOSE_TRANSITIVE_EDGES)
-    antidep_log_file.open ("anti.txt");
-#endif //VERBOSE_TRANSITIVE_EDGES
 
     // ============
     // Create a graph I_G with the different tasks (task-classes, actually) as nodes
@@ -3768,21 +3749,12 @@ set<dep_t *> do_finalize_synch_edges(set<dep_t *> ctrl_deps, set<dep_t *> flow_d
 #endif /* DEBUG_ANTI */
         visited_nodes.clear();
          
-#if defined(VERBOSE_TRANSITIVE_EDGES)
-        antidep_log_file << "Working on anti: " << source_node->task_name << " -> " << sink_node->task_name << "\n";
-        antidep_log_file << Rsync.print_with_subs_to_string(false) << "\n";
-#endif // VERBOSE_TRANSITIVE_EDGES
         int max_edge_chain_length = -1;
         if( level < 2 ){
             max_edge_chain_length = 3;
         }
         Ra = find_transitive_edge(source_node, Relation::Null(), visited_nodes, source_node, sink_node, 1, max_edge_chain_length, source_node->task_name);
         Ra.simplify(2,2);
-#if defined(VERBOSE_TRANSITIVE_EDGES)
-        if( !Ra.is_null() ){
-            antidep_log_file << " Subtracting: " << Ra.print_with_subs_to_string(false) << "\n";
-        }
-#endif // VERBOSE_TRANSITIVE_EDGES
 
         erase_task_graph(temp_graph);
         temp_graph.clear();
