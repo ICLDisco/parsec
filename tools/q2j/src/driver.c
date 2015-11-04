@@ -21,24 +21,24 @@
 extern int yyparse (void);
 
 char *q2j_input_file_name  = NULL;
-int _q2j_annot_API         = Q2J_ANN_UNSET;
-int _q2j_dump_mapping      = 0;
-int _q2j_paranoid_cond     = 0;
-int _q2j_antidep_level     = 0;
-int _q2j_direct_output     = 0;
-int _q2j_add_phony_tasks   = 0;
-int _q2j_verbose_warnings  = 0;
-int _q2j_produce_shmem_jdf = 0;
-int _q2j_finalize_antideps = 0;
-int _q2j_generate_line_numbers   = 0;
-int _q2j_check_unknown_functions = 0;
+int  _q2j_annot_API         = Q2J_ANN_UNSET;
+int  _q2j_dump_mapping      = 0;
+int  _q2j_paranoid_cond     = 0;
+int  _q2j_antidep_level     = 0;
+int  _q2j_direct_output     = 0;
+int  _q2j_add_phony_tasks   = 1;
+int  _q2j_verbose_warnings  = 0;
+int  _q2j_produce_shmem_jdf = 1;
+int  _q2j_finalize_antideps = 0;
+int  _q2j_generate_line_numbers   = 0;
+int  _q2j_check_unknown_functions = 0;
 
 FILE *_q2j_output;
 jdf_t _q2j_jdf;
 
 static volatile int _keep_waiting = 1;
 
-/* 
+/*
  * Add the keyword _q2j_data_prefix infront of the matrix name to
  * differentiate the matrix from the data used in the kernels.
  */
@@ -49,10 +49,10 @@ extern FILE *yyin;
 node_t *_q2j_func_list_head = NULL;
 
 void usage(char *pname);
-static void read_conf_file(void);
+static void  read_conf_file(void);
 static char *read_line(FILE *ifp);
-static void parse_line(char *line);
-static void sig_handler(int signum);
+static void  parse_line(char *line);
+static void  sig_handler(int signum);
 
 void usage(char *pname){
     fprintf(stderr,"Usage: %s [-shmem] [-phony_tasks] [-line_numbers] [-anti] [-v] file_1.c [file_2.c ... file_N.c]\n",pname);
@@ -157,36 +157,35 @@ static void read_conf_file(){
     return;
 }
 
-
 static void sig_handler(int signum) {
     _keep_waiting = 0;
 }
 
 pid_t fork_and_continue_in_child(void){
-   pid_t child, parent = -1;
-   struct sigaction action;
+    pid_t child, parent = -1;
+    struct sigaction action;
 
-   sigemptyset(&action.sa_mask);
-   action.sa_flags = 0;
-   action.sa_handler = &sig_handler;
-   if (sigaction(SIGUSR1, &action, 0)){
-       perror("sigaction");
-       abort();
-   }
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    action.sa_handler = &sig_handler;
+    if (sigaction(SIGUSR1, &action, 0)){
+        perror("sigaction");
+        abort();
+    }
 
-   if ((child = fork()) != 0){
-       // Parent
-       // The parent will exit this loop when the child sends a SIGUSR1 signal
-       while( _keep_waiting ){
-           pause();
-       } 
-       exit(0);
-   }else{
-       // Child
-       parent = getppid();
-   }
+    if ((child = fork()) != 0){
+        // Parent
+        // The parent will exit this loop when the child sends a SIGUSR1 signal
+        while( _keep_waiting ){
+            pause();
+        }
+        exit(0);
+    }else{
+        // Child
+        parent = getppid();
+    }
 
-   return parent;
+    return parent;
 }
 
 int main(int argc, char **argv){
@@ -203,14 +202,18 @@ int main(int argc, char **argv){
         if( argv[arg][0] == '-' ){
             if( !strcmp(argv[arg],"-shmem") ){
                 _q2j_produce_shmem_jdf = 1;
+            }else if( !strcmp(argv[arg],"-no_shmem") ){
+                _q2j_produce_shmem_jdf = 0;
             }else if( !strcmp(argv[arg],"-phony_tasks") ){
                 _q2j_add_phony_tasks = 1;
+            }else if( !strcmp(argv[arg],"-no_phony_tasks") ){
+                _q2j_add_phony_tasks = 0;
             }else if( !strcmp(argv[arg],"-line_numbers") ){
                 _q2j_generate_line_numbers = 1;
             }else if( !strcmp(argv[arg],"-anti") ){
                 _q2j_finalize_antideps = 1;
             }else if( !strcmp(argv[arg],"-advanced_anti") ){
-                _q2j_antidep_level = 2;
+                _q2j_antidep_level = 3;
             }else if( !strcmp(argv[arg],"-mapping") ){
                 _q2j_dump_mapping = 1;
             }else if( !strcmp(argv[arg],"-check_unknown") ){
@@ -255,13 +258,12 @@ int main(int argc, char **argv){
             fprintf(stderr,"Cannot open file \"%s\"\n", q2j_input_file_name);
             return -1;
         }
-    
+
         if( yyparse() > 0 ) {
-            fprintf(stderr,"Parse error during processing of file: %s\n",q2j_input_file_name);
+            fprintf(stderr,"Parse error during processing of file: %s\n", q2j_input_file_name);
             exit(1);
         }
         fclose( yyin );
-
     }
 
     /* Find the subtree of the function we are supposed to analyze */
@@ -286,7 +288,7 @@ int main(int argc, char **argv){
     detect_annotation_mode(q2j_target_func);
 
     /* If necessary, inline function calls (i.e., to PLASMA functions) and adjust the bounds of the
-       submatrix appropriately, if necessary */
+     submatrix appropriately, if necessary */
     inline_function_calls(q2j_target_func, _q2j_func_list_head);
 
     /* Do the necessary conversions to bring the code in canonical form */
