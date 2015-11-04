@@ -18,6 +18,7 @@ OBJ_CLASS_INSTANCE(dague_generic_bucket_t, dague_list_item_t, NULL, NULL);
                 - Size of each bucket the table will hold (int)
  * Returns:     - void
 */
+
 void
 hash_table_init(hash_table *obj, int size_of_table,
                 hash_fn    *hash)
@@ -112,7 +113,7 @@ hash_table_find
  * Arguments:
  * Returns:
  */
-void
+void *
 hash_table_remove
 ( hash_table *hash_table,
   uint64_t key, uint32_t hash )
@@ -131,4 +132,6 @@ hash_table_remove
         }
         dague_list_unlock ( bucket_list );
     }
+
+    return current_bucket;
 }

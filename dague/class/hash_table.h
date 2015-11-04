@@ -9,7 +9,6 @@ typedef struct dague_generic_bucket_s dague_generic_bucket_t;
 /* Function pointer of hash function for hash_table */
 typedef uint32_t (hash_fn)(uintptr_t key, int size);
 
-
 /* One type of hash table for task, tiles and functions */
 struct generic_hash_table {
     dague_object_t    super;
