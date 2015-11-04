@@ -762,7 +762,9 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                                 temp_tile->super.super.super.obj_reference_count,
                                 temp_tile->super.super.refcount);
 #endif
+#if defined(DAGUE_DEBUG_ENABLE)
         assert(temp_tile->super.super.refcount == 0);
+#endif
         temp_tile->key                  = ddesc->data_key(ddesc, i, j);
         temp_tile->rank                 = ddesc->rank_of_key(ddesc, temp_tile->key);
         temp_tile->vp_id                = ddesc->vpid_of_key(ddesc, temp_tile->key);

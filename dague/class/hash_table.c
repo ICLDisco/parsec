@@ -126,9 +126,13 @@ hash_table_remove
         OBJ_RELEASE(current_bucket);
         OBJ_RELEASE(current_bucket);/* one to balance find */
         if( current_bucket->super.obj_reference_count == 1 ) {
+#if defined(DAGUE_DEBUG_ENABLE)
             assert(current_bucket->refcount == 1);
+#endif
             dague_list_nolock_remove ( bucket_list, current_bucket );
+#if defined(DAGUE_DEBUG_ENABLE)
             assert(current_bucket->refcount == 0);
+#endif
         }
         dague_list_unlock ( bucket_list );
     }
