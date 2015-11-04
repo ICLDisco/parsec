@@ -17,7 +17,7 @@
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
 int window_size                 =  2048;
-uint32_t threshold_size         =  204;
+uint32_t threshold_size         =  2048;
 static int task_hash_table_size = (10+1);
 static int tile_hash_table_size = (1000*100+1);
 int testing_ptg_to_dtd = 0;
@@ -116,6 +116,8 @@ dague_dtd_handle_constructor
                     dague_handle->function_hash_table_size,
                     &hash_key);
 
+    dague_handle->super.startup_hook        = dtd_startup;
+    dague_handle->super.destructor          = (dague_destruct_fn_t) dague_dtd_handle_destruct;
     dague_handle->super.functions_array     = (const dague_function_t **) malloc( DAGUE_dtd_NB_FUNCTIONS * sizeof(dague_function_t *));
 
     for(i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
@@ -260,7 +262,6 @@ dague_dtd_init()
     (void)dague_mca_param_reg_int_name("dtd", "threshold_size",
                                        "Registers the supplied size overriding the default size of threshold size",
                                        false, false, threshold_size, (int *)&threshold_size);
-
 }
 
 /* Function to return the handle to the mempool */
@@ -369,6 +370,8 @@ dague_execute_and_come_back(dague_context_t *context,
 void
 decrement_task_counter( dague_dtd_handle_t  *dague_handle )
 {
+    schedule_tasks (dague_handle);
+
     /* decrementing the extra task we initialized the handle with */
     __dague_complete_task( &(dague_handle->super), dague_handle->super.context);
 
@@ -639,14 +642,22 @@ dague_dtd_tile_find( dague_dtd_handle_t *dague_handle, uint32_t key,
 void
 dague_dtd_tile_release(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
 {
-    OBJ_RELEASE(tile);
-    if( tile->super.super.super.obj_reference_count == 1 ) {
+    assert(tile->super.super.super.obj_reference_count>1);
+    /*printf("Tile release: %p\t obj_ref_count=%d, ref_count=%d\n", tile,
+                            tile->super.super.super.obj_reference_count,
+                            tile->super.super.refcount);*/
+#if 0
+    printf("After release: %p\t obj_ref_count=%d, ref_count=%d\n", tile,
+                            tile->super.super.super.obj_reference_count,
+                            tile->super.super.refcount);
+#endif
+    //if( tile->super.super.super.obj_reference_count == 1 ) {
         dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
         if( tile->super.super.super.obj_reference_count == 1 ) {
             assert(tile->super.super.refcount == 0);
             dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
         }
-    }
+    //}
 }
 
 /* Function to release the master structures inserted into the hash table
@@ -658,7 +669,7 @@ dague_dtd_function_release( dague_dtd_handle_t  *dague_handle,
 {
     dague_generic_bucket_t *bucket = dague_dtd_function_find_internal ( dague_handle, key );
     assert (bucket != NULL);
-    bucket->super.super.obj_reference_count = 1;
+    bucket->super.super.obj_reference_count = 2;
     dague_dtd_function_remove ( dague_handle, key );
     dague_thread_mempool_free( dague_handle->hash_table_bucket_mempool->thread_mempools, bucket );
 }
@@ -682,6 +693,12 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
         /* Creating Tile object */
         dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
                                                           (dague_dtd_handle->tile_mempool->thread_mempools);
+#if defined(TILES)
+        printf("Tile created: %p\t obj_ref_count=%d, ref_count=%d\n", temp_tile,
+                                temp_tile->super.super.super.obj_reference_count,
+                                temp_tile->super.super.refcount);
+#endif
+        assert(temp_tile->super.super.refcount == 0);
         temp_tile->key                  = ddesc->data_key(ddesc, i, j);
         temp_tile->rank                 = ddesc->rank_of_key(ddesc, temp_tile->key);
         temp_tile->vp_id                = ddesc->vpid_of_key(ddesc, temp_tile->key);
@@ -694,8 +711,18 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
 
         dague_dtd_tile_insert ( dague_dtd_handle, temp_tile->key,
                                 temp_tile, ddesc );
+#if defined(TILES)
+        printf("After Insertion: %p\t obj_ref_count=%d, ref_count=%d\n", temp_tile,
+                                temp_tile->super.super.super.obj_reference_count,
+                                temp_tile->super.super.refcount);
+#endif
         return temp_tile;
     }else {
+#if  defined(TILES)
+        printf("Tile found: %p\t obj_ref_count=%d, ref_count=%d\n", tmp,
+                                tmp->super.super.super.obj_reference_count,
+                                tmp->super.super.refcount);
+#endif
         assert(tmp->super.super.super.obj_reference_count > 0);
         return tmp;
     }
@@ -791,6 +818,11 @@ dague_dtd_handle_new(dague_context_t* context,
     __dague_handle->super.on_complete_data    = NULL;
     __dague_handle->super.devices_mask        = DAGUE_DEVICES_ALL;
     __dague_handle->super.nb_functions        = DAGUE_dtd_NB_FUNCTIONS;
+    __dague_handle->super.nb_local_tasks      = 1; /* For the bounded window, starting with +1 task */
+
+    for(i = 0; i < vpmap_get_nb_vp(); i++) {
+        __dague_handle->startup_list[i] = NULL;
+    }
 
     /* Keeping track of total tasks to be executed per handle for the window */
     for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
@@ -798,15 +830,14 @@ dague_dtd_handle_new(dague_context_t* context,
         /* Added new */
         __dague_handle->super.functions_array[i] = NULL;
     }
+
+    __dague_handle->task_id               = 0;
     __dague_handle->tasks_created         = 0;
     __dague_handle->task_window_size      = 1;
     __dague_handle->tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
-    __dague_handle->super.nb_local_tasks  = 1; /* For the bounded window, starting with +1 task */
-    __dague_handle->super.startup_hook    = dtd_startup;
-    __dague_handle->super.destructor      = (dague_destruct_fn_t) dague_dtd_handle_destruct;
     __dague_handle->function_counter      = 0;
 
-    /* for testing interface*/
+    /* for testing interface */
     __dague_handle->total_tasks_to_be_exec = arena_count;
 
     if (!testing_ptg_to_dtd) {
@@ -827,7 +858,7 @@ dague_dtd_handle_destruct(dague_dtd_handle_t *dague_handle)
     }
     int i;
     for (i=0; i<DAGUE_dtd_NB_FUNCTIONS; i++) {
-        const dague_function_t     *func = dague_handle->super.functions_array[i];
+        const dague_function_t   *func = dague_handle->super.functions_array[i];
         dague_dtd_function_t *dtd_func = (dague_dtd_function_t *)func;
 
         if( func != NULL ) {
@@ -1379,7 +1410,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->nb_flows              = flow_count;
     /* set to one so that prof_grpaher prints the task id properly */
     function->nb_parameters         = 1;
-    function->nb_locals             = 0;
+    function->nb_locals             = 1;
     params[0]                       = &symb_dtd_taskid;
     locals[0]                       = &symb_dtd_taskid;
     function->data_affinity         = NULL;
@@ -1388,7 +1419,6 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->flags                 = 0x0 | DAGUE_HAS_IN_IN_DEPENDENCIES | DAGUE_USE_DEPS_MASK;
     function->dependencies_goal     = 0;
     function->key                   = (dague_functionkey_fn_t *)DTD_identity_hash;
-    function->fini                  = NULL;
     if (!testing_ptg_to_dtd) {
         *incarnations                   = (__dague_chore_t *)dtd_chore;
     } else {
@@ -1401,6 +1431,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->prepare_output        = NULL;
     function->complete_execution    = complete_hook_of_dtd;
     function->pushback              = push_tasks_back_in_mempool;
+    function->fini                  = NULL;
 
     /* Inserting Function structure in the hash table to keep track for each class of task */
     dague_dtd_function_insert( __dague_handle, fpointer, dtd_function );
@@ -1729,10 +1760,11 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
      printf("n is : %lx\n", n);*/
 
     for(i=0;i<MAX_DESC;i++) {
-        // temp_task->desc[i].op_type_parent = -1;
-        //temp_task->desc[i].op_type        = -1;
-        //temp_task->desc[i].flow_index     = -1;
+        temp_task->desc[i].op_type_parent = 0;
+        temp_task->desc[i].op_type        = 0;
+        temp_task->desc[i].flow_index     = -1;
         temp_task->desc[i].task           = NULL;
+        temp_task->desc[i].tile           = NULL;
         temp_task->dont_skip_releasing_data[i] = 0;
     }
     /*for(i=0;i<MAX_PARAM_COUNT;i++) {
@@ -1811,11 +1843,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     if(!__dague_handle->super.context->active_objects) {
         assert(0);
-        __dague_handle->task_id++;
-        /* executing the tasks as soon as we find it, if no engine is attached */
-        __dague_execute(__dague_handle->super.context->virtual_processes[0]->execution_units[0],
-                        (dague_execution_context_t *)temp_task);
-        return;
     }
 
     /* Building list of initial ready task */

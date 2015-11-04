@@ -54,6 +54,8 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
 
 #define OVERLAP                 1
 
+//#define TILES                 1
+
 #define TILE_OF(DAGUE, DDESC, I, J) \
     tile_manage(DAGUE, &(__ddesc##DDESC->super.super), I, J)
 

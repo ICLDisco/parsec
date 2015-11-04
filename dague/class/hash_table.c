@@ -63,8 +63,11 @@ hash_table_insert
     bucket->value   = value;
 
     dague_list_t *bucket_list  = hash_table->bucket_list[hash];
-    dague_list_push_back ( bucket_list, current_bucket );
+
+    dague_list_lock ( bucket_list );
     OBJ_RETAIN(current_bucket);
+    dague_list_nolock_push_back ( bucket_list, current_bucket );
+    dague_list_unlock ( bucket_list );
 }
 
 /* Function to find element in the hash table
@@ -113,8 +116,11 @@ hash_table_remove
     if( current_bucket != NULL ) {
         dague_list_lock ( bucket_list );
         OBJ_RELEASE(current_bucket);
+        OBJ_RELEASE(current_bucket);/* one to balance find */
         if( current_bucket->super.obj_reference_count == 1 ) {
+            assert(current_bucket->refcount == 1);
             dague_list_nolock_remove ( bucket_list, current_bucket );
+            assert(current_bucket->refcount == 0);
         }
         dague_list_unlock ( bucket_list );
     }
