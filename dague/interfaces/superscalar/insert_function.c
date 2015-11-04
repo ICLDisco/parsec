@@ -643,7 +643,9 @@ dague_dtd_tile_release(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
     if( tile->super.super.super.obj_reference_count == 1 ) {
         dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
         if( tile->super.super.super.obj_reference_count == 1 ) {
+#if defined(DAGUE_DEBUG_ENABLE)
             assert(tile->super.super.refcount == 0);
+#endif
             dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
         }
     }

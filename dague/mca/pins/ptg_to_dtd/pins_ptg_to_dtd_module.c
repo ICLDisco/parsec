@@ -8,6 +8,7 @@
 #include "dague/mca/pins/pins.h"
 #include "pins_ptg_to_dtd.h"
 #include "dague/profiling.h"
+#include "dague/scheduling.h"
 #include "dague/utils/mca_param.h"
 #include "dague/devices/device.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
