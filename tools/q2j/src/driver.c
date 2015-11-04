@@ -26,9 +26,9 @@ int  _q2j_dump_mapping      = 0;
 int  _q2j_paranoid_cond     = 0;
 int  _q2j_antidep_level     = 0;
 int  _q2j_direct_output     = 0;
-int  _q2j_add_phony_tasks   = 0;
+int  _q2j_add_phony_tasks   = 1;
 int  _q2j_verbose_warnings  = 0;
-int  _q2j_produce_shmem_jdf = 0;
+int  _q2j_produce_shmem_jdf = 1;
 int  _q2j_finalize_antideps = 0;
 int  _q2j_generate_line_numbers   = 0;
 int  _q2j_check_unknown_functions = 0;
@@ -202,14 +202,18 @@ int main(int argc, char **argv){
         if( argv[arg][0] == '-' ){
             if( !strcmp(argv[arg],"-shmem") ){
                 _q2j_produce_shmem_jdf = 1;
+            }else if( !strcmp(argv[arg],"-no_shmem") ){
+                _q2j_produce_shmem_jdf = 0;
             }else if( !strcmp(argv[arg],"-phony_tasks") ){
                 _q2j_add_phony_tasks = 1;
+            }else if( !strcmp(argv[arg],"-no_phony_tasks") ){
+                _q2j_add_phony_tasks = 0;
             }else if( !strcmp(argv[arg],"-line_numbers") ){
                 _q2j_generate_line_numbers = 1;
             }else if( !strcmp(argv[arg],"-anti") ){
                 _q2j_finalize_antideps = 1;
             }else if( !strcmp(argv[arg],"-advanced_anti") ){
-                _q2j_antidep_level = 2;
+                _q2j_antidep_level = 3;
             }else if( !strcmp(argv[arg],"-mapping") ){
                 _q2j_dump_mapping = 1;
             }else if( !strcmp(argv[arg],"-check_unknown") ){
