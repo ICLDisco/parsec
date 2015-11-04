@@ -7,7 +7,7 @@
 #ifndef _JDFOUTPUT_H_
 #define _JDFOUTPUT_H_
 
-void jdfoutput(const char *format, ...);    
+void jdfoutput(const char *format, ...);
 
 void print_header();
 void print_types_of_formal_parameters(node_t *root);

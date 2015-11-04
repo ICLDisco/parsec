@@ -12,7 +12,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 #include "dplasma/lib/butterfly_map.h"
 
 extern void RBMM_zTOP( int mb, int nb, int lda, int off, int lvl, int N, int trans,

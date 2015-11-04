@@ -48,6 +48,13 @@ hash_table_fini(hash_table *obj, int size_of_table)
     OBJ_RELEASE(obj);
 }
 
+/* Bucket element's reference accounting:
+ * Everytime we insert a bucket in the hashtable,
+ * we increment the object's ref. count. Everytime
+ * we find an element in the hash table, we
+ * increment the ref. count.
+ */
+
 /* Function to insert element in the hash table
  * Arguments:
  * Returns:

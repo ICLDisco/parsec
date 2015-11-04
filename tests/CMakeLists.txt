@@ -35,10 +35,10 @@ dague_addtest(C reduce reduce.c)
 jdf_rules(dtt_generated "${CMAKE_CURRENT_SOURCE_DIR}/dtt_bug_replicator.jdf")
 dague_addtest(C dtt_bug_replicator "dtt_bug_replicator_ex.c;${dtt_generated}")
 
-#jdf_rules(wc_generated "${CMAKE_CURRENT_SOURCE_DIR}/write_check.jdf")
-#string( REGEX REPLACE "write_check.[hc]" "" include_dir "${wc_generated}" )
-#include_directories(${include_dir})
-#dague_addtest(C write_check "vector.c;${wc_generated}")
+jdf_rules(wc_generated "${CMAKE_CURRENT_SOURCE_DIR}/write_check.jdf")
+string( REGEX REPLACE "write_check.[hc]" "" include_dir "${wc_generated}" )
+include_directories(${include_dir})
+dague_addtest(C write_check "vector.c;${wc_generated}")
 
 jdf_rules(touch_generated "${CMAKE_CURRENT_SOURCE_DIR}/touch.jdf")
 string( REGEX REPLACE "touch.[hc]" "" include_dir "${touch_generated}" )
@@ -53,6 +53,11 @@ if(CMAKE_Fortran_COMPILER_WORKS)
     SET_TARGET_PROPERTIES(touch_exf PROPERTIES LINKER_LANGUAGE Fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(CMAKE_Fortran_COMPILER_WORKS)
+
+jdf_rules(strange_generated "${CMAKE_CURRENT_SOURCE_DIR}/strange.jdf")
+string( REGEX REPLACE "strange.[hc]" "" include_dir "${strange_generated}" )
+include_directories(${include_dir})
+dague_addtest(C strange "${strange_generated}")
 
 #Most of the test need -lm. Add it and trim the list down.
 list(APPEND EXTRA_LIBS m)

@@ -68,7 +68,7 @@ hash_table_find( hash_table *hash_table,
  * Arguments:
  * Returns:
  */
-void
+void *
 hash_table_remove( hash_table *hash_table,
                 uintptr_t key, uint32_t hash );
 

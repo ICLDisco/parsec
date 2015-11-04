@@ -1,0 +1,142 @@
+extern "C" %{
+/*
+ * Copyright (c) 2014     The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+#include "dague_config.h"
+#include "dague/debug.h"
+#include "dague/dague_internal.h"
+#include "tests/vector.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+%}
+
+A          [type = "dague_ddesc_t*"]
+NT         [type = int]
+BLOCK      [type = int]
+
+STARTUP(k)
+
+  k = 0 .. NT
+: A(k,0)
+
+  WRITE A1 -> A2 TASK1(k)
+BODY
+  assert(NULL != A1);
+  /*printf("STARTUP(%d)\n", k);*/
+  /**
+   * Set each element to their index position.
+   */
+  for( int i = 0; i < BLOCK; i++ ) {
+    ((int*)A1)[i] = k * BLOCK + i;
+  }
+END
+
+TASK1(k)
+  k = 0 .. NT
+: A(k,0)
+
+  WRITE A3 -> A1 TASK2(k)    /* upon return will be set to A2: the index position */
+  RW    A1 <- A(k,0)         /* A1 will be set to 1 */
+           -> A2 TASK2(k)    /* upon return the content will be increased by 1 */
+  READ  A2 <- A1 STARTUP(k)  /* A2 is set to their index position */
+
+BODY
+  assert(NULL != A3);
+  /*printf("TASKS1(%d)\n", k);*/
+  for( int i = 0; i < BLOCK; i++ ) {
+    ((int*)A1)[i] += 1;
+    ((int*)A3)[i] = ((int*)A2)[i];
+  }
+END
+
+TASK2(k)
+  k = 0 .. NT
+: A(k,0)
+
+  READ A1 <- A3 TASK1(k)   /* each element is initialized to the index position */
+  RW   A2 <- A1 TASK1(k)   /* each element should be set to 2 */
+          -> A(k, 0)
+
+BODY
+  /*printf("TASKS2(%d)\n", k);*/
+  for( int i = 0; i < BLOCK; i++ ) {
+    ((int*)A2)[i] += ((int*)A1)[i];
+  }
+END
+
+extern "C" %{
+
+#define TYPE  matrix_Integer
+static two_dim_block_cyclic_t descA;
+
+int main(int argc, char* argv[])
+{
+    dague_write_check_handle_t* handle;
+    dague_context_t *dague;
+    int i = 0, block = 10, n = 1000;
+
+#ifdef HAVE_MPI
+    {
+        int provided;
+        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
+    }
+#endif
+
+    while( NULL != argv[i] ) {
+        if( 0 == strncmp(argv[i], "-n=", 3) ) {
+            n = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-b=", 3) ) {
+            block = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        i++;  /* skip this one */
+        continue;
+    move_and_continue:
+        memmove(&argv[i], &argv[i+1], (argc - 1) * sizeof(char*));
+        argc -= 1;
+    }
+
+    dague = dague_init(-1, &argc, &argv);
+    assert( NULL != dague );
+
+    two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
+                               1 /*nodes*/, 0 /*rank*/,
+                               block, 1, n, 1,
+                               0, 0, n, n, 1, 1, 1);
+    descA.mat = dague_data_allocate( n * dague_datadist_getsizeoftype(TYPE) );
+    for( int i = 0; i < n; ((int*)descA.mat)[i++] = 1);
+
+    /**
+     * The original data is consistently initialized to 1. Upon completion it should
+     * start with 2 and increase monotonically.
+     */
+    handle = dague_write_check_new( (dague_ddesc_t*)&descA, (n / block) - 1, block );
+    assert( NULL != handle );
+
+    dague_arena_construct( handle->arenas[DAGUE_write_check_DEFAULT_ARENA],
+                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
+                           DAGUE_ARENA_ALIGNMENT_SSE,
+                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+
+    dague_enqueue( dague, (dague_handle_t*)handle );
+    dague_context_wait(dague);
+
+    for( int i = 0; i < n; i++ ) {
+        if( (2+i) != ((int*)descA.mat)[i] )
+            printf("position %d extected %d found %d\n",
+                   i, (1+i), ((int*)descA.mat)[i]);
+    }
+
+    free(descA.mat);
+
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
+    return 0;
+}
+
+%}
+

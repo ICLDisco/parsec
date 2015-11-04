@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#include "memory_pool.h"
+#include "dague/private_mempool.h"
 #include "dague/class/lifo.h"
 
 int

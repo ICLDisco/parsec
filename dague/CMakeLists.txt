@@ -55,6 +55,7 @@ set(SOURCES
   debug.c
   bindthread.c
   mempool.c
+  private_mempool.c
   vpmap.c
   devices/device.c
   mca/mca_repository.c

@@ -146,9 +146,9 @@ void print_pseudo_variables(set<dep_t *>out_deps, set<dep_t *>in_deps){
     set<dep_t *>::iterator it;
     map<string, string> pseudo_vars;
 
-   // Create a mapping between pseudo_variables and actual variables
+    // Create a mapping between pseudo_variables and actual variables
 
-   // OUTGOING
+    // OUTGOING
     for (it=out_deps.begin(); it!=out_deps.end(); it++){
         dep_t *dep = *it;
         // WARNING: This is needed by Omega. If you remove it you get strange
