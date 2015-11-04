@@ -7,10 +7,15 @@
  */
 OBJ_CLASS_INSTANCE(hash_table, dague_object_t, NULL, NULL);
 
-/* To create object of class dague_generic_bucket_t that
+/* To create object of class dague_hashtabel_item_t that
  * inherits from dague_list_item_t class.
  */
-OBJ_CLASS_INSTANCE(dague_generic_bucket_t, dague_list_item_t, NULL, NULL);
+OBJ_CLASS_INSTANCE(dague_hashtable_item_t, dague_list_item_t, NULL, NULL);
+
+/* To create object of class dague_generic_bucket_t that
+ * inherits from dague_hashtable_item_t class.
+ */
+OBJ_CLASS_INSTANCE(dague_generic_bucket_t, dague_hashtable_item_t, NULL, NULL);
 
 /* Function to create generic hash table
  * Arguments:   - Size of the hash table, or the total number of bucket the
@@ -25,11 +30,11 @@ hash_table_init(hash_table *obj, int size_of_table,
 {
     obj->size     = size_of_table;
     obj->hash     = hash;
-    obj->bucket_list = calloc(size_of_table, sizeof(dague_list_t *));
+    obj->item_list = calloc(size_of_table, sizeof(dague_list_t *));
 
     int i;
     for( i=0; i<size_of_table; i++) {
-        obj->bucket_list[i] = OBJ_NEW(dague_list_t);
+        obj->item_list[i] = OBJ_NEW(dague_list_t);
     }
 }
 
@@ -42,15 +47,15 @@ hash_table_fini(hash_table *obj, int size_of_table)
 {
     int i;
     for( i=0; i<size_of_table; i++) {
-        free(obj->bucket_list[i]);
+        free(obj->item_list[i]);
     }
 
-    free(obj->bucket_list);
+    free(obj->item_list);
     OBJ_RELEASE(obj);
 }
 
-/* Bucket element's reference accounting:
- * Everytime we insert a bucket in the hashtable,
+/* item element's reference accounting:
+ * Everytime we insert a item in the hashtable,
  * we increment the object's ref. count. Everytime
  * we find an element in the hash table, we
  * increment the ref. count.
@@ -62,20 +67,18 @@ hash_table_fini(hash_table *obj, int size_of_table)
  */
 void
 hash_table_insert
-( hash_table *hash_table, dague_generic_bucket_t *bucket,
-  uint64_t key, void *value, uint32_t hash )
+( hash_table *hash_table,
+  dague_hashtable_item_t *item,
+  uint32_t hash )
 {
-    dague_list_item_t *current_bucket = (dague_list_item_t *)bucket;
+    dague_list_item_t *current_item = (dague_list_item_t *)item;
 
-    bucket->key     = key;
-    bucket->value   = value;
+    dague_list_t *item_list  = hash_table->item_list[hash];
 
-    dague_list_t *bucket_list  = hash_table->bucket_list[hash];
-
-    dague_list_lock ( bucket_list );
-    OBJ_RETAIN(current_bucket);
-    dague_list_nolock_push_back ( bucket_list, current_bucket );
-    dague_list_unlock ( bucket_list );
+    dague_list_lock ( item_list );
+    OBJ_RETAIN(current_item);
+    dague_list_nolock_push_back ( item_list, current_item );
+    dague_list_unlock ( item_list );
 }
 
 /* Function to find element in the hash table
@@ -87,25 +90,25 @@ hash_table_find
 ( hash_table *hash_table,
   uint64_t key, uint32_t hash )
 {
-    dague_generic_bucket_t *current_bucket;
-    dague_list_t *bucket_list = hash_table->bucket_list[hash];
+    dague_hashtable_item_t *current_item;
+    dague_list_t *item_list = hash_table->item_list[hash];
 
-    dague_list_lock ( bucket_list );
+    dague_list_lock ( item_list );
 
-    current_bucket = (dague_generic_bucket_t *) DAGUE_LIST_ITERATOR_FIRST(bucket_list);
+    current_item = (dague_hashtable_item_t *) DAGUE_LIST_ITERATOR_FIRST(item_list);
 
     /* Iterating the list to check if we have the element */
-    while( current_bucket != (dague_generic_bucket_t *) DAGUE_LIST_ITERATOR_END(bucket_list) ) {
-        if( current_bucket->key == key ) {
-            OBJ_RETAIN(current_bucket);
-            dague_list_unlock ( bucket_list );
-            return (void *)current_bucket;
+    while( current_item != (dague_hashtable_item_t *) DAGUE_LIST_ITERATOR_END(item_list) ) {
+        if( current_item->key == key ) {
+            OBJ_RETAIN(current_item);
+            dague_list_unlock ( item_list );
+            return (void *)current_item;
         }
-        dague_list_item_t *item = &(current_bucket->super);
-        current_bucket = (dague_generic_bucket_t *)DAGUE_LIST_ITERATOR_NEXT(item);
+        dague_list_item_t *item = &(current_item->list_item);
+        current_item = (dague_hashtable_item_t *)DAGUE_LIST_ITERATOR_NEXT(item);
     }
 
-    dague_list_unlock ( bucket_list );
+    dague_list_unlock ( item_list );
     return (void *)NULL;
 }
 
@@ -118,24 +121,24 @@ hash_table_remove
 ( hash_table *hash_table,
   uint64_t key, uint32_t hash )
 {
-    dague_list_t *bucket_list = hash_table->bucket_list[hash];
-    dague_list_item_t *current_bucket = hash_table_find ( hash_table, key, hash );
+    dague_list_t *item_list = hash_table->item_list[hash];
+    dague_list_item_t *current_item = hash_table_find ( hash_table, key, hash );
 
-    if( current_bucket != NULL ) {
-        dague_list_lock ( bucket_list );
-        OBJ_RELEASE(current_bucket);
-        OBJ_RELEASE(current_bucket);/* one to balance find */
-        if( current_bucket->super.obj_reference_count == 1 ) {
+    if( current_item != NULL ) {
+        dague_list_lock ( item_list );
+        OBJ_RELEASE(current_item);
+        OBJ_RELEASE(current_item);/* one to balance find */
+        if( current_item->super.obj_reference_count == 1 ) {
 #if defined(DAGUE_DEBUG_ENABLE)
-            assert(current_bucket->refcount == 1);
+            assert(current_item->refcount == 1);
 #endif
-            dague_list_nolock_remove ( bucket_list, current_bucket );
+            dague_list_nolock_remove ( item_list, current_item );
 #if defined(DAGUE_DEBUG_ENABLE)
-            assert(current_bucket->refcount == 0);
+            assert(current_item->refcount == 0);
 #endif
         }
-        dague_list_unlock ( bucket_list );
+        dague_list_unlock ( item_list );
     }
 
-    return current_bucket;
+    return current_item;
 }

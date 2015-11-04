@@ -94,7 +94,7 @@ static dague_device_t* dague_device_recursive = NULL;
 
 /**
  * Object based task definition (no specialized constructor and destructor) */
-OBJ_CLASS_INSTANCE(dague_execution_context_t, dague_list_item_t,
+OBJ_CLASS_INSTANCE(dague_execution_context_t, dague_hashtable_item_t,
                    NULL, NULL);
 
 static void dague_statistics(char* str)
@@ -206,7 +206,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         data_repo_entry_t fake_entry;
         dague_mempool_construct( &vp->context_mempool,
                                  OBJ_CLASS(dague_execution_context_t), sizeof(dague_execution_context_t),
-                                 ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
+                                 ((char*)&fake_context.super.mempool_owner) - ((char*)&fake_context),
                                  vp->nb_cores );
 
         for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
@@ -1284,7 +1284,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
             } else {
                 *pready_ring = (dague_execution_context_t*)
                     dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
-                                                      &new_context->list_item,
+                                                      &new_context->super.list_item,
                                                       dague_execution_context_priority_comparator );
             }
         }
@@ -2083,8 +2083,8 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
     dague_data_ref_t ref;
     int pi, li;
 
-    DAGUE_LIST_ITEM_SINGLETON( &context.list_item );
-    context.mempool_owner = NULL;
+    DAGUE_LIST_ITEM_SINGLETON( &context.super.list_item );
+    context.super.mempool_owner = NULL;
     context.dague_handle = handle;
     context.function = function;
     context.priority = -1;

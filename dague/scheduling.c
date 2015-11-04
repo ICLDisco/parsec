@@ -276,7 +276,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
             DEBUG2(( "thread %d of VP %d Schedules %s\n",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) ));
-            context = (dague_execution_context_t*)context->list_item.list_next;
+            context = (dague_execution_context_t*)context->super.list_item.list_next;
         } while ( context != new_context );
     }
 #endif  /* defined(DAGUE_DEBUG_ENABLE) */

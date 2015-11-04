@@ -11,6 +11,7 @@
 #include "dague.h"
 #include "dague/types.h"
 #include "dague/class/list_item.h"
+#include "dague/class/hash_table.h"
 #include "dague/dague_description_structures.h"
 #include "dague/profiling.h"
 
@@ -260,8 +261,7 @@ struct dague_data_pair_s {
  * amount of information when a new task is constructed.
  */
 #define DAGUE_MINIMAL_EXECUTION_CONTEXT              \
-    dague_list_item_t              list_item;        \
-    struct dague_thread_mempool_s *mempool_owner;    \
+    dague_hashtable_item_t         super;            \
     dague_handle_t                *dague_handle;     \
     const  dague_function_t       *function;         \
     int32_t                        priority;         \
@@ -303,14 +303,14 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_execution_context_t);
 #define DAGUE_COPY_EXECUTION_CONTEXT(dest, src) \
     do {                                                                \
         /* this should not be copied over from the old execution context */ \
-        dague_thread_mempool_t *_mpool = (dest)->mempool_owner;         \
+        dague_thread_mempool_t *_mpool = (dest)->super.mempool_owner;         \
         /* we copy everything but the dague_list_item_t at the beginning, to \
          * avoid copying uninitialized stuff from the stack             \
          */                                                             \
         memcpy( ((char*)(dest)) + sizeof(dague_list_item_t),            \
                 ((char*)(src)) + sizeof(dague_list_item_t),             \
                 sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) ); \
-        (dest)->mempool_owner = _mpool;                                 \
+        (dest)->super.mempool_owner = _mpool;                                 \
     } while (0)
 
 /**

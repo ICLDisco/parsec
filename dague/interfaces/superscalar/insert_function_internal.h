@@ -15,7 +15,6 @@ BEGIN_C_DECLS
 #include "dague/datarepo.h"
 #include "dague/data_distribution.h"
 #include "dague/interfaces/superscalar/insert_function.h"
-#include "dague/class/hash_table.h"
 
 int dump_traversal_info; /* For printing traversal info */
 int dump_function_info; /* For printing function_structure info */
@@ -63,7 +62,6 @@ struct dague_dtd_task_s {
     dague_execution_context_t   super;
     dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
-    uint32_t                    task_id;
     int                         flow_count;
     int                         flow_satisfied;
     int                         ready_mask;
@@ -88,7 +86,7 @@ struct user {
 };
 
 struct dague_dtd_tile_s {
-    dague_generic_bucket_t   super;
+    dague_hashtable_item_t   super;
     uint32_t            rank;
     int32_t             vp_id;
     dague_data_key_t    key;

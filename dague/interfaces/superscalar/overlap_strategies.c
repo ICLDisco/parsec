@@ -89,12 +89,12 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 #if defined (OVERLAP)
 #if defined(TILES)
             printf("for task: %p id: %d flow_index: %d \t Same Task: %p\t obj_ref_count=%d, ref_count=%d\n",
-                        current_task, current_task->task_id, i,
+                        current_task, current_task->super.super.key, i,
                         current_task->desc[i].tile,
-                        current_task->desc[i].tile->super.super.super.obj_reference_count,
-                        current_task->desc[i].tile->super.super.refcount);
+                        current_task->desc[i].tile->super.list_item.super.obj_reference_count,
+                        current_task->desc[i].tile->super.list_item.refcount);
 #endif
-            assert(current_task->desc[i].tile->super.super.super.obj_reference_count > 1);
+            assert(current_task->desc[i].tile->super.list_item.super.obj_reference_count > 1);
             dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
                                       current_task->desc[i].tile );
 #endif
@@ -111,12 +111,12 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                 if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
 #if defined(TILES)
                     printf("for task: %p id: %d flow_index: %d \t No desc Release: %p\t obj_ref_count=%d, ref_count=%d\n",
-                                current_task, current_task->task_id, i,
+                                current_task, current_task->super.super.key i,
                                 current_task->desc[i].tile,
-                                current_task->desc[i].tile->super.super.super.obj_reference_count,
-                                current_task->desc[i].tile->super.super.refcount);
+                                current_task->desc[i].tile->super.list_item.super.obj_reference_count,
+                                current_task->desc[i].tile->super.list_item.refcount);
 #endif
-                    assert(current_task->desc[i].tile->super.super.super.obj_reference_count > 1);
+                    assert(current_task->desc[i].tile->super.list_item.super.obj_reference_count > 1);
                     dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
                                               current_task->desc[i].tile );
 #endif
@@ -154,7 +154,7 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         while(NULL != current_desc_task) {
             if (dump_traversal_info) {
                 printf("Current successor: %s \t %d\nTotal flow: %d  flow_satisfied: %d\n",
-                       current_desc_task->super.function->name, current_desc_task->task_id,
+                       current_desc_task->super.function->name, current_desc_task->super.super.key,
                        current_desc_task->flow_count, current_desc_task->flow_satisfied);
             }
 
@@ -235,12 +235,12 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 #if defined (OVERLAP)
 #if defined(TILES)
         printf("for task: %p id: %d flow_index: %d \t Normal Release: %p\t obj_ref_count=%d, ref_count=%d\n",
-                    current_task, current_task->task_id, i,
+                    current_task, current_task->super.super.key, i,
                     current_task->desc[i].tile,
-                    current_task->desc[i].tile->super.super.super.obj_reference_count,
-                    current_task->desc[i].tile->super.super.refcount);
+                    current_task->desc[i].tile->super.list_item.super.obj_reference_count,
+                    current_task->desc[i].tile->super.list_item.refcount);
 #endif
-        assert(current_task->desc[i].tile->super.super.super.obj_reference_count > 1);
+        assert(current_task->desc[i].tile->super.list_item.super.obj_reference_count > 1);
         dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
 #endif
 
@@ -283,12 +283,12 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 #if defined (OVERLAP)
 #if defined(TILES)
                         printf("for task:%p id: %d flow:%d \tINPUT chain: %p\t obj_ref_count=%d, ref_count=%d\n",
-                                    current_succ->task, current_succ->task->task_id, current_succ->flow_index,
+                                    current_succ->task, current_succ->task->super.super.key, current_succ->flow_index,
                                     current_succ->task->desc[current_succ->flow_index].tile,
-                                    current_succ->task->desc[current_succ->flow_index].tile->super.super.super.obj_reference_count,
-                                    current_succ->task->desc[current_succ->flow_index].tile->super.super.refcount);
+                                    current_succ->task->desc[current_succ->flow_index].tile->super.list_item.super.obj_reference_count,
+                                    current_succ->task->desc[current_succ->flow_index].tile->super.list_item.refcount);
 #endif
-                        assert(current_succ->task->desc[current_succ->flow_index].tile->super.super.super.obj_reference_count > 1);
+                        assert(current_succ->task->desc[current_succ->flow_index].tile->super.list_item.super.obj_reference_count > 1);
                         dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
                                        current_succ->task->desc[current_succ->flow_index].tile );
 #endif

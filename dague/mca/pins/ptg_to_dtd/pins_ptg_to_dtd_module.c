@@ -227,10 +227,9 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     temp_task->super.function = __dague_handle->super.functions_array[(temp_task->belongs_to_function)];
     temp_task->flow_satisfied = 0;
     temp_task->ready_mask = 0;
-    temp_task->task_id = __dague_handle->task_id;
+    temp_task->super.super.key = __dague_handle->task_id;
     temp_task->flow_count = temp_task->super.function->nb_flows+1; /* +1 to make sure the task is completely ready before it gets executed */
     temp_task->fpointer = fpointer;
-    temp_task->super.locals[0].value = __dague_handle->task_id;
     temp_task->super.priority = 0;
     temp_task->super.hook_id = 0;
     temp_task->super.chore_id = 0;

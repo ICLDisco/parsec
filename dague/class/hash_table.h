@@ -4,6 +4,7 @@
 #include "dague/mempool.h"
 
 typedef struct generic_hash_table hash_table;
+typedef struct dague_hashtable_item_s dague_hashtable_item_t;
 typedef struct dague_generic_bucket_s dague_generic_bucket_t;
 
 /* Function pointer of hash function for hash_table */
@@ -14,17 +15,24 @@ struct generic_hash_table {
     dague_object_t    super;
     uint32_t          size;
     hash_fn          *hash;
-    void            **bucket_list;
+    void            **item_list;
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(hash_table);
+
+/* Generic Hashtable Item
+ */
+struct dague_hashtable_item_s {
+    dague_list_item_t       list_item;
+    dague_thread_mempool_t *mempool_owner;
+    uint64_t                key;
+};
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_hashtable_item_t);
 
 /* Generic Bucket for hash tables in PaRSEC.
  */
 struct dague_generic_bucket_s {
-    dague_list_item_t   super;
-    dague_thread_mempool_t *mempool_owner;
-    uint64_t            key;
-    void               *value;
+    dague_hashtable_item_t  super;
+    void                   *value;
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_generic_bucket_t);
 
@@ -51,8 +59,9 @@ hash_table_fini(hash_table *hash_table, int size_of_table);
  * Returns:
  */
 void
-hash_table_insert( hash_table *hash_table, dague_generic_bucket_t *bucket,
-                   uintptr_t key, void *value, uint32_t hash );
+hash_table_insert( hash_table *hash_table,
+                   dague_hashtable_item_t *item,
+                   uint32_t hash );
 
 
 /* Function to find element in the hash table
