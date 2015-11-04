@@ -12,7 +12,7 @@
 
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 #include "data_dist/matrix/diag_band_to_rect.h"
 #include "dplasma/lib/zhetrd_h2b_L.h"
 #include "dplasma/lib/zhetrd_b2s.h"

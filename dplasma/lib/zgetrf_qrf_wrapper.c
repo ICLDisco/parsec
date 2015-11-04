@@ -12,7 +12,7 @@
 #include "dplasma.h"
 #include <math.h>
 #include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf_qrf.h"

@@ -52,6 +52,19 @@ set(SOURCES
 precisions_rules_py(generated_files
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
+		 
+# gcc 4.9 and gcc 5.2 are known to segfault on O2 optimization for core_zhedrk.
+if( CMAKE_COMPILER_IS_GNUCC )
+  execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion
+                  OUTPUT_VARIABLE GCC_VERSION)
+  if ( GCC_VERSION VERSION_EQUAL 5.2 OR
+       (GCC_VERSION VERSION_LESS 5.2 AND GCC_VERSION VERSION_GREATER 4.9) OR
+       GCC_VERSION VERSION_EQUAL 4.9 )
+     set_source_files_properties(core_zhedrk.c core_chedrk.c core_dsydrk.c core_ssydrk.c PROPERTIES COMPILE_FLAGS "-O1")
+  endif (  GCC_VERSION VERSION_EQUAL 5.2 OR
+       (GCC_VERSION VERSION_LESS 5.2 AND GCC_VERSION VERSION_GREATER 4.9) OR
+       GCC_VERSION VERSION_EQUAL 4.9 )
+endif( CMAKE_COMPILER_IS_GNUCC )
 
 ### Generate the dplasma_cores lib
 link_directories(${COREBLAS_LIBRARY_DIRS})

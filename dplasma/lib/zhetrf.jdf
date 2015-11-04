@@ -11,7 +11,7 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 
 extern int CORE_zgemdm(int transA, int transB,
                 int M, int N, int K,

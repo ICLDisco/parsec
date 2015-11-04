@@ -18,7 +18,7 @@ extern "C" %{
 #include "data_distribution.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 #include "dplasma/lib/dplasmajdf.h"
 
 %}

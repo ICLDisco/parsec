@@ -11,7 +11,7 @@
 
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dplasma/lib/memory_pool.h"
+#include "dague/private_mempool.h"
 
 #include "zgetrf_incpiv.h"
 #include "zgetrf_incpiv_sd.h"
