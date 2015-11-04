@@ -55,7 +55,7 @@ struct _expr_t{
     } value;
 };
 
-#define Q2J_ASSERT(_X_) do{ if( !(_X_) ){ abort(); } }while(0)
+#define Q2J_ASSERT(_X_) do{ if( !(_X_) ){ fprintf(stderr,"ERROR: aborting\n"); abort(); } }while(0)
 
 #define q2jmalloc(type, nbelem)  (type*)calloc(nbelem, sizeof(type))
 

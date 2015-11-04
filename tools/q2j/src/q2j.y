@@ -253,23 +253,23 @@ primary_expression
 
 array_expression
 	: postfix_expression '[' expression ']'
-          {
+      {
 
-              if( ARRAY == $1.type ){
-                  int count;
-                  $$ = $1;
-                  count = ++($$.u.kids.kid_count);
-                  $$.u.kids.kids = (node_t **)realloc( $$.u.kids.kids, count*sizeof(node_t *) );
-                  $$.u.kids.kids[count-1] = node_to_ptr($3);
-              }else{
-                  $$.type = ARRAY;
-                  $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
-                  $$.u.kids.kid_count = 2;
-                  $$.u.kids.kids[0] = node_to_ptr($1);
-                  $$.u.kids.kids[1] = node_to_ptr($3);
-              }
-
+          if( ARRAY == $1.type ){
+              int count;
+              $$ = $1;
+              count = ++($$.u.kids.kid_count);
+              $$.u.kids.kids = (node_t **)realloc( $$.u.kids.kids, count*sizeof(node_t *) );
+              $$.u.kids.kids[count-1] = node_to_ptr($3);
+          }else{
+              $$.type = ARRAY;
+              $$.u.kids.kids = (node_t **)calloc(2, sizeof(node_t *));
+              $$.u.kids.kid_count = 2;
+              $$.u.kids.kids[0] = node_to_ptr($1);
+              $$.u.kids.kids[1] = node_to_ptr($3);
           }
+
+      }
 
 postfix_expression
 	: primary_expression
@@ -672,44 +672,27 @@ constant_expression
 
 declaration
 	: declaration_specifiers ';'
-          {
-//              fprintf(stderr,"DEBUG: Is this correct C?: \"%s;\"\n",(char *)$1);
-          }
+      {
+      }
 	| declaration_specifiers init_declarator_list ';'
-          {
+      {
 
-              node_t *tmp;
-              // rewind the pointer to the beginning of the list
-              for(tmp=$2.next; NULL != tmp->prev ; tmp=tmp->prev);
-              // traverse the list
-              for(; NULL != tmp ; tmp=tmp->next){
-                  node_t *variable = tmp;
-                  if( ASSIGN == tmp->type )
-                      variable = tmp->u.kids.kids[0];
+          node_t *tmp;
+          // rewind the pointer to the beginning of the list
+          for(tmp=$2.next; NULL != tmp->prev ; tmp=tmp->prev);
+          // traverse the list
+          for(; NULL != tmp ; tmp=tmp->next){
+              node_t *variable = tmp;
+              if( ASSIGN == tmp->type )
+                  variable = tmp->u.kids.kids[0];
 
-                  if( IDENTIFIER == variable->type ){
-                      st_insert_new_variable(variable->u.var_name, (char *)$1);
-#if 0 // debug
-                      printf("st_insert(%s, %s)\n",variable->u.var_name, (char *)$1);
-#endif
-                  }
-
+              if( IDENTIFIER == variable->type ){
+                  st_insert_new_variable(variable->u.var_name, (char *)$1);
               }
-#if 0 // debug
-              printf("%s ",(char *)$1);
-              // rewind the pointer to the beginning of the list
-              for(tmp=$2.next; NULL != tmp->prev; tmp=tmp->prev);
-              // traverse the list
-              for(; NULL != tmp; tmp=tmp->next){
-                  if(NULL != tmp->prev){
-                      printf(", ");
-                  }
-                  printf("%s",tree_to_str(tmp));
-              }
-              printf("\n");
-#endif // debug
-              $$ = $2;
+
           }
+          $$ = $2;
+      }
 	;
 
 typedef_specifier
@@ -718,20 +701,6 @@ typedef_specifier
               add_type(tree_to_str(&($3)), $2);
 	  }
 	;
-
-/*
-pragma_options
-	: IDENTIFIER { }
-	| IDENTIFIER ':' pragma_options { }
-	;
-*/
-
-/*
-task_arguments
-	: pragma_options { }
-	| pragma_options ',' task_arguments { }
-	;
-*/
 
 pragma_parameters
 	: IDENTIFIER
