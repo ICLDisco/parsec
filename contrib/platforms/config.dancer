@@ -1,15 +1,15 @@
 #!/bin/bash
 
 echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
-CC=${CC:="gcc"}
-CXX=${CXX:="c++"}
-FC=${FC:="gfortran"}
+CC=${CC:="icc"}
+CXX=${CXX:="icpc"}
+FC=${FC:="ifort"}
 MPI_DIR=${MPI_DIR:="/opt/ompi"}
 HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 GTG_DIR=${GTG_DIR:="/opt/gtg"}
 CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
-PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-2.7.1-gcc-5.1"}
+PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
 PAPI_DIR=${PAPI_DIR:="/opt/papi"}
 PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:="/opt/python-2.7/bin/python2.7"}
 TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode -np 1\""
@@ -33,6 +33,11 @@ elif [ "x$USER" = "xrhoque" ]; then
     CC=${CC:="gcc"}
     CXX=${CXX:="c++"}
     FC=${FC:="gfortran"}
+    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-2.7.1-gcc-5.1"}
+
+elif [ "x$USER" = "xYOURSELF" ]; then
+    PLASMA_DIR="SOMEWHERE"
+    USER_OPTIONS+="-DDAGUE_OPTION=ON"
 fi
 
 . $(dirname $0)/config.inc
