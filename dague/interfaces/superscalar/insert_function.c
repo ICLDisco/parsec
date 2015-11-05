@@ -15,6 +15,7 @@
 #include "dague/utils/mca_param.h"
 #include "dague/mca/sched/sched.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
+#include "dague/dague_prof_grapher.h"
 
 int window_size                 =  2048;
 uint32_t threshold_size         =  2048;
@@ -433,79 +434,14 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
     va_end(arguments);
 }
 
-/* For generating color code required for profiling and dot generation
- * Keeping this function as GET_UNIQUE_RGB_COLOR (PaRSECs default)
- * has worse API and according to me this is better[period]
- */
-static inline char*
-color_hash(char *name)
-{
-    int c, r1, r2, g1, g2, b1, b2;
-    uint32_t i;
-    char *color=(char *)calloc(7,sizeof(char));
-
-    r1 = 0xA3;
-    r2 = 7;
-    g1 = 0x2C;
-    g2 = 135;
-    b1 = 0x97;
-    b2 = 49;
-
-    for(i=0; i<strlen(name); i++) {
-        c = name[i];
-        c &= 0xFF; // Make sure we don't get a Unicode or something.
-
-        r1 ^= c;
-        r2 *= c;
-        r2 %= 1<<24;
-
-        g1 ^= c;
-        g2 *= c;
-        g2 %= 1<<24;
-
-        b1 ^= c;
-        b2 *= c;
-        b2 %= 1<<24;
-    }
-    r1 ^= (r2)&0xFF;
-    r1 ^= (r2>>8)&0xFF;
-    r1 ^= (r2>>16)&0xFF;
-
-    g1 ^= (g2)&0xFF;
-    g1 ^= (g2>>8)&0xFF;
-    g1 ^= (g2>>16)&0xFF;
-
-    b1 ^= (b2)&0xFF;
-    b1 ^= (b2>>8)&0xFF;
-    b1 ^= (b2>>16)&0xFF;
-
-    snprintf(color,7,"%02X%02X%02X",r1,g1,b1);
-    return(color);
-}
-
-#if defined(DAGUE_PROF_GRAPHER)
-static inline void
-print_color_graph(char* name)
-{
-    char *color = color_hash(name);
-    /*fprintf(grapher_file,"#%s",color); */
-    free(color);
-}
-char *
-print_color_graph_str(char* name)
-{
-    char *color = color_hash(name);
-    return color;
-}
-#endif
-
 #if defined(DAGUE_PROF_TRACE)
 static inline char*
-fill_color(char *name)
+fill_color(int index, int colorspace)
 {
     char *str, *color;
     str = (char *)calloc(12,sizeof(char));
-    color = color_hash(name);
+    //color = color_hash(name);
+    color = unique_color(index, colorspace);
     snprintf(str,12,"fill:%s",color);
     free(color);
     return str;
@@ -516,7 +452,7 @@ profiling_trace(dague_dtd_handle_t *__dague_handle,
                 dague_function_t *function, char* name,
                 int flow_count)
 {
-    char *str = fill_color(name);
+    char *str = fill_color(function->function_id, DAGUE_dtd_NB_FUNCTIONS);
     dague_profiling_add_dictionary_keyword(name, str,
                                            sizeof(dague_profile_ddesc_info_t) + flow_count * sizeof(assignment_t),
                                            DAGUE_PROFILE_DDESC_INFO_CONVERTOR,
