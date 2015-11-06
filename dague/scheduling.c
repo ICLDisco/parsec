@@ -327,12 +327,10 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
      * dependencies have been marked as completed.
      */
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
+
     /* Release the execution context */
-    if( exec_context->function->pushback == NULL ){
-        dague_thread_mempool_free( eu_context->context_mempool, exec_context );
-    } else {
-        exec_context->function->pushback( eu_context, exec_context );
-    }
+    exec_context->function->release_task( eu_context, exec_context );
+
     return rc;
 }
 

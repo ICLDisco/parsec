@@ -232,7 +232,7 @@ struct dague_function_s {
     dague_traverse_function_t   *iterate_predecessors;
     dague_release_deps_t        *release_deps;
     dague_hook_t                *complete_execution;
-    dague_hook_t                *pushback;
+    dague_hook_t                *release_task;
     dague_hook_t                *fini;
 };
 
@@ -358,6 +358,14 @@ typedef struct {
     struct dague_remote_deps_s *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
+
+
+/**
+ * Generic function to return a task in the corresponding mempool.
+ */
+dague_hook_return_t
+dague_release_task_to_mempool(dague_execution_unit_t *eu,
+                              dague_execution_context_t *this_task);
 
 dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
                                              const dague_execution_context_t *newcontext,

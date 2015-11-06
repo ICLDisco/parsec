@@ -2889,7 +2889,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_code_hooks(jdf, f, prefix);
     string_arena_add_string(sa, "  .complete_execution = complete_%s,\n", prefix);
 
-    string_arena_add_string(sa, "  .pushback = NULL,\n");
+    string_arena_add_string(sa, "  .release_task = dague_release_task_to_mempool,\n");
 
     if( NULL != f->simcost ) {
         sprintf(prefix, "simulation_cost_of_%s_%s", jdf_basename, f->fname);

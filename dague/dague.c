@@ -2224,3 +2224,15 @@ int dague_task_deps_with_final_output(const dague_execution_context_t *task,
 
     return nbout;
 }
+
+/* Function to push back tasks in their mempool once the execution are done */
+dague_hook_return_t
+dague_release_task_to_mempool(dague_execution_unit_t *eu,
+                              dague_execution_context_t *this_task)
+{
+    (void)eu;
+    dague_thread_mempool_free( this_task->super.mempool_owner, this_task );
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
+

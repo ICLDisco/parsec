@@ -275,18 +275,6 @@ dague_dtd_fini()
     free (handle_mempool);
 }
 
-/* Function to push back tasks in their mempool once the execution are done */
-static dague_hook_return_t
-push_tasks_back_in_mempool(dague_execution_unit_t *eu,
-                           dague_execution_context_t *this_task)
-{
-    dague_dtd_function_t *function = (dague_dtd_function_t *)this_task->function;
-    (void)eu;
-    //dague_dtd_task_release( (dague_dtd_handle_t *)this_task->dague_handle, this_task->super.key );
-    dague_thread_mempool_free( function->context_mempool->thread_mempools, this_task );
-    return DAGUE_HOOK_RETURN_DONE;
-}
-
 /*  Function that is supposed to take the main thread into executing tasks and coming back to
  building the DAG
  Check if the engine is started or not
@@ -1404,7 +1392,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->prepare_input         = data_lookup_of_dtd_task;
     function->prepare_output        = NULL;
     function->complete_execution    = complete_hook_of_dtd;
-    function->pushback              = push_tasks_back_in_mempool;
+    function->release_task          = dague_release_task_to_mempool;
     function->fini                  = NULL;
 
     /* Inserting Function structure in the hash table to keep track for each class of task */

@@ -70,7 +70,7 @@ hash_table_insert( hash_table *hash_table,
  */
 void *
 hash_table_find( hash_table *hash_table,
-                uintptr_t key, uint32_t hash );
+                 uint64_t key, uint32_t hash );
 
 /* Function to find element in the hash table
  * Arguments:
@@ -78,5 +78,5 @@ hash_table_find( hash_table *hash_table,
  */
 void *
 hash_table_remove( hash_table *hash_table,
-                uintptr_t key, uint32_t hash );
+                   uint64_t key, uint32_t hash );
 
