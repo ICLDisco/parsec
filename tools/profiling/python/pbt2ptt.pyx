@@ -516,9 +516,12 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
                 if None != builder.event_convertors[event_type]:
                     try:
                         event_info = parse_info(builder, event_type, <char*>cinfo)
+
                         if None != event_info:
                             #print(event_type, event_name, event_info)
-                            #event[builder.event_names[event_type] + '_start'] = event_info
+                            if 'PINS_PAPI' in builder.event_names[event_type]:
+                               # This assumes that there will be only one key-value pair in event_info at this point.
+                               event[event_info.keys()[0] + '_start'] = event_info.values()[0]
                             event.update(event_info)
                     except:
                         print('Failed to extract info from the start event (handle_id {0} event_id {1})'.format(handle_id, event_id))
