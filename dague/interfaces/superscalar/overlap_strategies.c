@@ -86,18 +86,6 @@ ordering_correctly_1(dague_execution_unit_t * eu,
          or the descendant is itself
          */
         if(current_task == current_task->desc[i].task) {
-#if defined (OVERLAP)
-#if defined(TILES)
-            printf("for task: %p id: %d flow_index: %d \t Same Task: %p\t obj_ref_count=%d, ref_count=%d\n",
-                        current_task, current_task->super.super.key, i,
-                        current_task->desc[i].tile,
-                        current_task->desc[i].tile->super.list_item.super.obj_reference_count,
-                        current_task->desc[i].tile->super.list_item.refcount);
-#endif
-            assert(current_task->desc[i].tile->super.list_item.super.obj_reference_count > 1);
-            dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
-                                      current_task->desc[i].tile );
-#endif
             continue;
         }
         if(NULL == current_task->desc[i].task) {
@@ -109,16 +97,6 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                 (current_task->dont_skip_releasing_data[i])) {
 #if defined (OVERLAP)
                 if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
-#if defined(TILES)
-                    printf("for task: %p id: %d flow_index: %d \t No desc Release: %p\t obj_ref_count=%d, ref_count=%d\n",
-                                current_task, current_task->super.super.key i,
-                                current_task->desc[i].tile,
-                                current_task->desc[i].tile->super.list_item.super.obj_reference_count,
-                                current_task->desc[i].tile->super.list_item.refcount);
-#endif
-                    assert(current_task->desc[i].tile->super.list_item.super.obj_reference_count > 1);
-                    dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
-                                              current_task->desc[i].tile );
 #endif
                     continue;
 #if defined (OVERLAP)
@@ -232,18 +210,6 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             current_desc_task = tmp_task->desc[dst_flow->flow_index].task;
         }
 
-#if defined (OVERLAP)
-#if defined(TILES)
-        printf("for task: %p id: %d flow_index: %d \t Normal Release: %p\t obj_ref_count=%d, ref_count=%d\n",
-                    current_task, current_task->super.super.key, i,
-                    current_task->desc[i].tile,
-                    current_task->desc[i].tile->super.list_item.super.obj_reference_count,
-                    current_task->desc[i].tile->super.list_item.refcount);
-#endif
-        assert(current_task->desc[i].tile->super.list_item.super.obj_reference_count > 1);
-        dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle, current_task->desc[i].tile );
-#endif
-
         /* Activating all successors for each flow and setting the last OUT task as the descendant */
         current_succ = head_succ;
         int task_is_ready; /* TODO: What the point of this variable ?*/
@@ -252,16 +218,6 @@ ordering_correctly_1(dague_execution_unit_t * eu,
              * the descendant for that flow for each of the other INPUT task(s) before it
              */
             if(NULL != out_task) {
-                #if 0
-                if(atomic_write_found) {
-                    /* the op type is usually or'd with region info, in this case it does not
-                     make a difference.
-                     */
-                    current_succ->task->desc[current_succ->flow_index].op_type_parent = ATOMIC_WRITE;
-                } else {
-                    current_succ->task->desc[current_succ->flow_index].op_type_parent = INPUT;
-                }
-                #endif
                 current_succ->task->desc[current_succ->flow_index].op_type = op_type_out_task;
                 current_succ->task->desc[current_succ->flow_index].flow_index = flow_index_out_task;
                 current_succ->task->desc[current_succ->flow_index].task = out_task;
@@ -280,18 +236,6 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                         current_succ->task->dont_skip_releasing_data[current_succ->flow_index] = 1;
                     } else {
                         current_succ->task->desc[current_succ->flow_index].task = NULL;
-#if defined (OVERLAP)
-#if defined(TILES)
-                        printf("for task:%p id: %d flow:%d \tINPUT chain: %p\t obj_ref_count=%d, ref_count=%d\n",
-                                    current_succ->task, current_succ->task->super.super.key, current_succ->flow_index,
-                                    current_succ->task->desc[current_succ->flow_index].tile,
-                                    current_succ->task->desc[current_succ->flow_index].tile->super.list_item.super.obj_reference_count,
-                                    current_succ->task->desc[current_succ->flow_index].tile->super.list_item.refcount);
-#endif
-                        assert(current_succ->task->desc[current_succ->flow_index].tile->super.list_item.super.obj_reference_count > 1);
-                        dague_dtd_tile_release ( (dague_dtd_handle_t *)this_task->dague_handle,
-                                       current_succ->task->desc[current_succ->flow_index].tile );
-#endif
                     }
                 }
             }

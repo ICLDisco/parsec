@@ -283,6 +283,7 @@ int main(int argc, char ** argv)
     }
 
     dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_context_wait_on_handle( dague, DAGUE_dtd_handle );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zpotrf_dtd);
 

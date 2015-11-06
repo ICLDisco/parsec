@@ -376,23 +376,14 @@ int main(int argc, char ** argv)
     }
 
     dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_context_wait_on_handle( dague, DAGUE_dtd_handle );
 
-    #if 0
-    /* Create DAGuE */
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf,
-                              ((tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescT));
-
-    /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf);
-    dplasma_zgeqrf_Destruct( DAGUE_zgeqrf );
-    #endif
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zgeqrf_dtd);
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zgeqrf_dtd);
 
     dague_dtd_fini();
 

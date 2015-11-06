@@ -100,7 +100,6 @@ hash_table_find
     /* Iterating the list to check if we have the element */
     while( current_item != (dague_hashtable_item_t *) DAGUE_LIST_ITERATOR_END(item_list) ) {
         if( current_item->key == key ) {
-            OBJ_RETAIN(current_item);
             dague_list_unlock ( item_list );
             return (void *)current_item;
         }
@@ -127,7 +126,6 @@ hash_table_remove
     if( current_item != NULL ) {
         dague_list_lock ( item_list );
         OBJ_RELEASE(current_item);
-        OBJ_RELEASE(current_item);/* one to balance find */
         if( current_item->super.obj_reference_count == 1 ) {
 #if defined(DAGUE_DEBUG_ENABLE)
             assert(current_item->refcount == 1);

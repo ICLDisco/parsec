@@ -398,30 +398,15 @@ int main(int argc, char ** argv)
         }
     }
 
-
-
-    #if 0
-    /* Create DAGuE */
-    if(loud > 2) printf("+++ Computing getrf_incpiv ... ");
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgetrf_incpiv,
-                              ((tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescL,
-                               (tiled_matrix_desc_t*)&ddescIPIV,
-                               &info));
-    /* lets rock! */
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgetrf_incpiv);
-    dplasma_zgetrf_incpiv_Destruct( DAGUE_zgetrf_incpiv );
-    if(loud > 2) printf("Done.\n");
-
-    #endif
-
     dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
+    dague_dtd_context_wait_on_handle( dague, DAGUE_dtd_handle );
+
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zgetrf_inc_dtd);
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zgetrf_inc_dtd);
 
     dague_dtd_fini();
 

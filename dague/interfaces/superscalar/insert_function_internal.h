@@ -16,12 +16,13 @@ BEGIN_C_DECLS
 #include "dague/data_distribution.h"
 #include "dague/interfaces/superscalar/insert_function.h"
 
-int dump_traversal_info; /* For printing traversal info */
-int dump_function_info; /* For printing function_structure info */
-
+extern int dump_traversal_info; /* For printing traversal info */
+extern int dump_function_info; /* For printing function_structure info */
 extern int testing_ptg_to_dtd; /* to detect ptg testing dtd */
 extern int window_size;
 extern int my_rank;
+
+#define LOCAL_DATA 200 /* function_id is uint8_t */
 
 /* for testing purpose of automatic insertion from Awesome PTG approach */
 dague_dtd_handle_t *__dtd_handle;
@@ -112,9 +113,6 @@ struct dague_dtd_handle_s {
     /* The array of datatypes, the region_info */
     dague_arena_t   **arenas;
     int             arenas_size;
-    int             tile_hash_table_size;
-    int             task_hash_table_size;
-    uint8_t         function_hash_table_size;
     int             task_id;
     int             task_window_size;
     int             tasks_created;

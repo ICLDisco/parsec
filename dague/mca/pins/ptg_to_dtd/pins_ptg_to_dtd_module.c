@@ -57,10 +57,6 @@ static void pins_handle_fini_ptg_to_dtd(dague_handle_t *handle)
     if(handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
         return;
     }
-
-    //__dague_complete_task( &(__dtd_handle->super), __dtd_handle->super.context);
-    //dague_dtd_handle_destruct(__dtd_handle);
-    //dague_dtd_fini();
 }
 
 /**
@@ -94,16 +90,6 @@ testing_hook_of_dtd_task(dague_execution_unit_t    *context,
         dague_atomic_add_32b(&(dtd_handle->tasks_scheduled), 1);
         /* Completing the orig task */
         __dague_complete_execution( context, orig_task );
-    }
-
-    if(dtd_handle->total_tasks_to_be_exec == dtd_handle->tasks_scheduled)
-    {
-        dague_handle_update_nbtask(orig_handle, -1);
-    }
-    else if ((orig_handle->nb_local_tasks == 1) &&
-             (dtd_handle->tasks_created == dtd_handle->tasks_scheduled))
-    {
-        dague_handle_update_nbtask(orig_handle, -1);
     }
 
     return rc;
@@ -205,23 +191,11 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     temp_task = (dague_dtd_task_t *) dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools);
 
     for(i=0;i<MAX_DESC;i++) {
-        //temp_task->desc[i].op_type_parent = -1;
-        //temp_task->desc[i].op_type        = -1;
-        //temp_task->desc[i].flow_index     = -1;
         temp_task->desc[i].task           = NULL;
         temp_task->dont_skip_releasing_data[i] = 0;
     }
-    /*for(i=0;i<MAX_PARAM_COUNT;i++) {
-        temp_task->super.data[i].data_repo = NULL;
-        temp_task->super.data[i].data_in   = NULL;
-        temp_task->super.data[i].data_out  = NULL;
-    }*/
 
-
-    //dague_execution_context_t *orig_task_copy =(dague_execution_context_t *) malloc(sizeof(dague_execution_context_t));
-    //memcpy(orig_task_copy, orig_task, sizeof(dague_execution_context_t));
     temp_task->orig_task = orig_task;
-
     temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     temp_task->belongs_to_function = function->function_id;
     temp_task->super.function = __dague_handle->super.functions_array[(temp_task->belongs_to_function)];
