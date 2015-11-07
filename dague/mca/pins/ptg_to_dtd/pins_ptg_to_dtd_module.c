@@ -46,7 +46,6 @@ static void pins_handle_init_ptg_to_dtd(dague_handle_t *handle)
     dague_dtd_init();
     dtd_global_deque = OBJ_NEW(dague_list_t);
     __dtd_handle = dague_dtd_handle_new(handle->context, handle->nb_local_tasks);
-    dague_handle_update_nbtask(handle, 1);
     copy_chores(handle, __dtd_handle);
 }
 
