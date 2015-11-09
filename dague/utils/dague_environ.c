@@ -101,7 +101,6 @@ int dague_setenv(const char *name, const char *value, bool overwrite,
     int i, rc;
     char *newvalue, *compare;
     size_t len;
-    (void)rc;
 
     /* Make the new value */
 
@@ -185,7 +184,6 @@ int dague_unsetenv(const char *name, char ***env)
     char *compare;
     size_t len;
     bool found;
-    (void)rc;
 
     /* Check for bozo case */
 

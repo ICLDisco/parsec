@@ -28,7 +28,7 @@ static const struct pins_papi_units_s {
     { .unit_name = {"millisecond", "milli", "ms", NULL}, TIME_MS, 1e3 },
     { .unit_name = {"second", "sec", "s", NULL},         TIME_S, 1.0 } };
 
-pins_papi_time_type_t system_units = 0;
+pins_papi_time_type_t system_units = TIME_CYCLES;
 
 /**
  * A utility function for finding the pins_papi_units_s structure in the
@@ -111,7 +111,7 @@ const char* find_short_unit_name_by_type(pins_papi_time_type_t type)
  * by 'destination' and stores the result in 'time'.  Returns -1 on failure
  * and 0 on success.
  */
-int convert_units(float *time, int source, int destination)
+int convert_units(float *time, pins_papi_time_type_t source, pins_papi_time_type_t destination)
 {
     const struct pins_papi_units_s *src, *dst;
 

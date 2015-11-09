@@ -209,7 +209,7 @@ int add_nodes_from_dotfile(const char *filename, int fileidx,
     unsigned int nid;
     int n = 0, s;
     unsigned long long oid;
-    int rc; (void)rc;
+    int rc;
 
     f = fopen(filename, "r");
     if( f == NULL ) {
@@ -430,11 +430,11 @@ static Agedge_t *edge(Agnode_t *t, Agnode_t *h)
 static char *nodename(unsigned int n)
 {
     char *name;
-    int rc; (void)rc;
+    int rc;
 
     assert( n < nb_nodes );
     rc = asprintf(&name, "%s(%s)", nodes[n]->info.task_name, nodes[n]->info.task_parameters);
-    assert(rc != -1);
+    assert(rc != -1); (void)rc;
     return name;
 }
 

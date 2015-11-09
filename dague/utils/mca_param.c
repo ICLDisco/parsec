@@ -1391,11 +1391,11 @@ static dague_mca_param_type_t param_type_from_index (size_t index)
     /* Lookup the index and see if it's valid */
 
     if (!initialized) {
-        return 0;
+        return DAGUE_MCA_PARAM_ERROR;
     }
     size = dague_value_array_get_size(&mca_params);
     if (index > size) {
-        return 0;
+        return DAGUE_MCA_PARAM_ERROR;
     }
     array = DAGUE_VALUE_ARRAY_GET_BASE(&mca_params, dague_mca_param_t);
 

@@ -377,7 +377,7 @@ static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
     static int nextid = 0;
     uidentry_t *n;
     va_list va;
-    int rc; (void)rc;
+    int rc;
     hash_key_t h;
     int idx;
     size_t length = strlen(first);
@@ -444,7 +444,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
 {
     uidentry_t *n, *p;
     int parent_id, son_id;
-    int rc; (void)rc;
+    int rc;
     char binding_info[1024]; /**< Risk of buffer overflow. A better approach should be used... */
 
     const char *identifier = dbp_thread_get_hr_id(th);

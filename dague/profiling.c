@@ -231,7 +231,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 {
     va_list ap;
     dague_thread_profiling_t *res;
-    int rc; (void)rc;
+    int rc;
 
     if( !__profile_initialized ) return NULL;
     if( -1 == file_backend_fd ) {
@@ -252,7 +252,7 @@ dague_thread_profiling_t *dague_profiling_thread_init( size_t length, const char
 
     OBJ_CONSTRUCT(res, dague_list_item_t);
     va_start(ap, format);
-    rc = vasprintf(&res->hr_id, format, ap); assert(rc!=-1);
+    rc = vasprintf(&res->hr_id, format, ap); assert(rc!=-1); (void)rc;
     va_end(ap);
 
     assert( event_buffer_size != 0 );

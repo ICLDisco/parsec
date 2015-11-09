@@ -89,7 +89,7 @@ void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
 /* Functions to manipulate timing units */
 extern const char* find_unit_name_by_type(pins_papi_time_type_t type);
 extern int find_unit_type_by_name(char* name, pins_papi_time_type_t* ptype);
-extern int convert_units(float *time, int source, int destination);
+extern int convert_units(float *time, pins_papi_time_type_t source, pins_papi_time_type_t destination);
 extern const char* find_short_unit_name_by_type(pins_papi_time_type_t type);
 
 #endif

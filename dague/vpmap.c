@@ -405,7 +405,7 @@ void vpmap_display_map(FILE *out)
     int v, t, c;
     char *cores = NULL, *ht = NULL, *tmp;
     int *dcores, *dht;
-    int rc; (void)rc;
+    int rc;
 #if defined(HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
@@ -429,7 +429,7 @@ void vpmap_display_map(FILE *out)
             dht = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
             vpmap_get_core_affinity(v, t, dcores, dht);
             rc = asprintf(&cores, "%d", dcores[0]);
-            assert(rc!=-1);
+            assert(rc!=-1); (void)rc;
 
             if(nbht > 1)
                 rc = asprintf(&ht, " (ht %d)", dht[0]);
@@ -439,7 +439,7 @@ void vpmap_display_map(FILE *out)
             for( c = 1; c < vpmap_get_nb_cores_affinity(v, t); c++) {
                 tmp=cores;
                 rc = asprintf(&cores, "%s, %d", tmp, dcores[c]);
-                assert(rc!=-1);
+                assert(rc!=-1); (void)rc;
                 free(tmp);
             }
             free(dcores);

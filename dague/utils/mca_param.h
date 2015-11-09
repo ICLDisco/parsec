@@ -64,6 +64,8 @@
  * The types of MCA parameters.
  */
 typedef enum {
+    /** Parameter not existent or other error related to the MCA params. */
+    DAGUE_MCA_PARAM_ERROR = -1,
     /** The parameter is of type signed integer. */
     DAGUE_MCA_PARAM_TYPE_INT,
     /** The parameter is of type size_t. */
