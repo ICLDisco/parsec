@@ -103,11 +103,12 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, i
     nb_real_cores = dague_hwloc_nb_real_cores();
     nbht = dague_hwloc_get_ht();
 #endif /* HAVE_HWLOC */
-    *cores = ((vp * nbthreadspervp + thread) / nbht) % nbcores % nb_real_cores;
-    if (nbht > 1 )
-        *ht = (vp * nbthreadspervp + thread) % nbht;
-    else
+    *cores = (vp * nbcores * nbht) + thread;
+    if (nbht > 1 ) {
+        *ht = (vp * nbcores * nbht + thread) % nbht;
+    } else {
         *ht = -1;
+    }
 }
 
 void vpmap_fini(void)
