@@ -86,6 +86,8 @@ def scatter_papi(filenames, units, unit_modify):
                     continue
                 column_names.append(column_name)
                 # We only care about the data in this column for which there is data.
+                # Note: column_data actually stores all of the rows for which the column
+                #       of interest is not NULL.
                 column_data.append(trace.events[:][trace.events[column_name].notnull()])
         print('Populating the lists took {} seconds.\n'.format(t.interval))
 
@@ -103,14 +105,21 @@ def scatter_papi(filenames, units, unit_modify):
         print('Plotting all PAPI counters together...')
         with Timer() as t:
             for i in range(0, len(column_data)):
+                # This is done in 4 lines instead of two due to an issue with multiplying unit_modify
                 temp = column_data[i]['begin'] * unit_modify
                 tempX = temp.values.tolist()
                 temp = column_data[i]['end'] * unit_modify
+                # We should now have all of the 'x' values (time)
                 tempX.extend(temp.values.tolist())
 
                 tempY = column_data[i][:][column_names[i] + '_start'].values.tolist()
+                # We should now have all of the 'y' values (count)
                 tempY.extend(column_data[i][:][column_names[i]].values.tolist())
 
+                # Note: The values in tempX and tempY are stored with the first half of the array being
+                #       the '_start' values and the second half being the 'end' values, so they match up
+                #       properly, however a line plot would look very odd because these values should
+                #       actually be interleaved.
                 plt.scatter(tempX, tempY, color = next(colors), label = column_names[i])
 
                 plt.title('All PAPI Counters')
@@ -149,7 +158,6 @@ def scatter_papi(filenames, units, unit_modify):
                             tempX.extend(temp.values.tolist())
 
                             tempY = column_data[i][:][column_data[i]['type'] == n][column_names[i] + '_start'].values.tolist()
-                            #tempY = temp.values.tolist()
                             tempY.extend(column_data[i][:][column_data[i]['type'] == n][column_names[i]].values.tolist())
 
                             plt.scatter(tempX, tempY, color = next(colors),\
