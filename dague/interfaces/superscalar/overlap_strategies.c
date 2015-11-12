@@ -18,29 +18,30 @@
  1 if the task got a descendant before releasing ownership (int)
  */
 int
-multithread_dag_build_1(const dague_execution_context_t *task, int flow_index)
+multithread_dag_build_1(const dague_dtd_task_t* current_task, int flow_index)
 {
-    dague_dtd_task_t *current_task = (dague_dtd_task_t *) task;
+    dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)current_task|flow_index);
+    dague_dtd_tile_t* tile = current_task->desc[flow_index].tile;
 
-    int i = dague_atomic_cas(&(current_task->desc[flow_index].tile->last_user.task), current_task, NULL);
-    /* if we can not successfully set the last user of the tile to NULL then we
-     * wait until we find a successor
-     */
-    if(i) {
-        return 0; /* we are successful, we do not need to wait and there is no successor yet*/
-    }else { /* we have a descendant but last time we checked we had none
-             * so waiting for the descendant to show up in our list of descendants
-             */
-        int unit_waited = 0;
-        while(current_task->desc[flow_index].task == NULL) {
-            unit_waited++;
-            if (unit_waited % 1000 == 0) {
-                unit_waited = 0;
-                usleep(1);
-            }
-        }
-        return 1;
+    dague_mfence(); /* Write */
+    //if( dague_atomic_cas(&(tile->last_user.task), current_task, NULL) ) {
+    if( dague_atomic_cas(&(tile->last_user.task), task_pointer, NULL) ) {
+        /* we are successful, we do not need to wait and there is no successor yet*/
+        return 0;
     }
+    /* if we can not atomically swap the last user of the tile to NULL then we
+     * wait until we find our successor.
+     */
+    int unit_waited = 0;
+    while(NULL == current_task->desc[flow_index].task) {
+        unit_waited++;
+        if (1000 == unit_waited) {
+            unit_waited = 0;
+            usleep(1);
+        }
+        dague_mfence();  /* force the local update of the cache */
+    }
+    return 1;
 }
 
 /* This function implements the iterate successors taking anti dependence into consideration.
@@ -81,13 +82,14 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         tmp_task = current_task;
         last_iterate_flag = 0;
 
-        /*
-         * Not iterating if there's no descendant for this flow
-         or the descendant is itself
+        /**
+         * In case the same data is used for multiple flows, only the last reference
+         * points to the potential successors. Every other use of the data will point
+         * to ourself.
          */
-        if(current_task == current_task->desc[i].task) {
+        if(current_task == current_task->desc[i].task)
             continue;
-        }
+
         if(NULL == current_task->desc[i].task) {
             /* if the operation type for this flow is not INPUT or ATOMIC_WRITE
              * we release the ownership as we found there's no successor for this flow
@@ -96,14 +98,14 @@ ordering_correctly_1(dague_execution_unit_t * eu,
                 OUTPUT == (current_task->desc[i].op_type_parent & GET_OP_TYPE) ||
                 (current_task->dont_skip_releasing_data[i])) {
 #if defined (OVERLAP)
-                if(!multithread_dag_build_1(this_task, i)) { /* trying to release ownership */
+                if(!multithread_dag_build_1(current_task, i)) { /* trying to release ownership */
 #endif
-                    continue;
+                    continue;  /* no descendent for this data */
 #if defined (OVERLAP)
-                } else {
                 }
+                /* Current task has a descendant hence we must activate her */
 #endif
-            } else  {
+            } else {
                 continue;
             }
         }
@@ -116,11 +118,9 @@ ordering_correctly_1(dague_execution_unit_t * eu,
         tmp_flow_index  = i;
         current_desc_task = current_task->desc[i].task;
 
-        /* checking if the first descendant is the ATOMIC_WRITE or not, otherwise ATOMIC_WRITE is treated as
-         normal INOUT and OUTPUT*/
-        if((current_task->desc[i].op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
-            atomic_write_found = 1;
-        }
+        /* ATOMIC_WRITE are considered as INPUT for this purpose. So unleashed them all */
+        atomic_write_found = ((current_task->desc[i].op_type & ATOMIC_WRITE) == ATOMIC_WRITE);
+
         if(!(current_desc_task->desc[current_task->desc[i].flow_index].task == NULL
              || current_desc_task == current_desc_task->desc[current_task->desc[i].flow_index].task)) {
             if(atomic_write_found &&
@@ -171,8 +171,8 @@ ordering_correctly_1(dague_execution_unit_t * eu,
 
             tmp_task = current_desc_task;
 
-            if(NULL != current_desc_task->desc[dst_flow->flow_index].task &&
-               current_desc_task->desc[dst_flow->flow_index].task != current_desc_task) {
+            if( NULL != current_desc_task->desc[dst_flow->flow_index].task &&
+                current_desc_task->desc[dst_flow->flow_index].task != current_desc_task ) {
                 /* Check to stop building chain of ATOMIC_WRITE tasks when we find any task with
                  other type of operation like INPUT, INOUT or OUTPUT */
                 if(atomic_write_found && ((current_desc_task->desc[dst_flow->flow_index].op_type & GET_OP_TYPE) != ATOMIC_WRITE)) {
@@ -253,5 +253,223 @@ ordering_correctly_1(dague_execution_unit_t * eu,
             free(tmp_succ);
             (void)task_is_ready;
         }
+    }
+}
+
+int
+put_fake_writer_as_last_user( dague_dtd_task_t *last_read,
+                              dague_dtd_task_t *fake_writer,
+                              int last_read_flow_index )
+{
+    assert(last_read_flow_index!=255);
+    dague_dtd_tile_t* tile = last_read->desc[last_read_flow_index].tile;
+    dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)last_read|last_read_flow_index);
+
+    dague_mfence(); /* Write */
+    if( dague_atomic_cas(&(tile->last_user.task), task_pointer, fake_writer) ) {
+        tile->last_user.op_type = OUTPUT;
+        /* we are successful, we do not need to wait and there is no successor yet*/
+        return 1;
+    }
+    /* if we can not atomically swap the last user of the tile to NULL then we
+     * wait until we find our successor.
+     */
+    int unit_waited = 0;
+    while(NULL == last_read->desc[last_read_flow_index].task) {
+        unit_waited++;
+        if (1000 == unit_waited) {
+            unit_waited = 0;
+            usleep(1);
+        }
+        dague_mfence();  /* force the local update of the cache, Read */
+    }
+    return 0;
+}
+
+
+void
+ordering_correctly_2(dague_execution_unit_t * eu,
+                     const dague_execution_context_t *this_task,
+                     uint32_t action_mask,
+                     dague_ontask_function_t * ontask,
+                     void *ontask_arg)
+{
+    dague_dtd_task_t *current_task = (dague_dtd_task_t *)this_task;
+    int current_dep, count, found_last_writer;
+    dague_dtd_task_t *last_read = NULL, *out_task = NULL;
+    dague_dtd_task_t *current_desc = NULL;
+    int op_type_on_current_flow, desc_op_type, desc_flow_index, out_task_flow_index;
+    dague_dtd_tile_t *tile;
+
+    dep_t deps;
+    dague_dep_data_description_t data;
+    int rank_src = 0, rank_dst = 0, vpid_dst=0;
+
+    for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
+        count = 0; found_last_writer = 0;
+        current_desc = current_task->desc[current_dep].task;
+        op_type_on_current_flow = (current_task->desc[current_dep].op_type_parent & GET_OP_TYPE);
+        tile = current_task->desc[current_dep].tile;
+
+        /**
+         * In case the same data is used for multiple flows, only the last reference
+         * points to the potential successors. Every other use of the data will point
+         * to ourself.
+         */
+        if(current_task == current_desc)
+            continue;
+
+        if( NULL == current_desc ) {
+             if( INOUT == op_type_on_current_flow ||
+                 OUTPUT == op_type_on_current_flow ||
+                (current_task->dont_skip_releasing_data[current_dep])) {
+#if defined (OVERLAP)
+                if(!multithread_dag_build_1(current_task, current_dep)) { /* trying to release ownership */
+#endif
+                    continue;  /* no descendent for this data */
+#if defined (OVERLAP)
+                } else {
+                    current_desc = current_task->desc[current_dep].task;
+                } /* Current task has a descendant hence we must activate her */
+#endif
+            } else {
+                continue;
+            }
+        }
+
+        assert(current_desc != NULL);
+        desc_op_type = (current_task->desc[current_dep].op_type & GET_OP_TYPE);
+        desc_flow_index = current_task->desc[current_dep].flow_index;
+
+
+        int tmp_desc_flow_index = 254;
+        int8_t keep_fake_writer = 0;
+
+        /* Create Fake output_task */
+        dague_dtd_task_t *fake_writer = create_fake_writer_task( (dague_dtd_handle_t *)current_task->super.dague_handle , tile);
+        out_task = fake_writer;
+        out_task_flow_index = 0;
+
+        dague_dtd_task_t *prev_task;
+        while( NULL != current_desc ) {
+            if( OUTPUT == desc_op_type || INOUT == desc_op_type ) {
+                out_task = current_desc;
+                out_task_flow_index = desc_flow_index;
+                found_last_writer = 1;
+                break; /* We have found our last_out_task, lets get out */
+            }
+            count++;
+
+            assert(tmp_desc_flow_index!=255);
+            assert(desc_flow_index!=255);
+            tmp_desc_flow_index =  desc_flow_index;
+            assert(tmp_desc_flow_index!=255);
+            prev_task           =  last_read;
+            last_read           =  current_desc;
+            current_desc        =  current_desc->desc[tmp_desc_flow_index].task;
+            desc_flow_index     =  last_read->desc[tmp_desc_flow_index].flow_index;
+            desc_op_type        = (last_read->desc[tmp_desc_flow_index].op_type & GET_OP_TYPE);
+
+            if( current_desc == NULL ) {
+                if( !(keep_fake_writer = put_fake_writer_as_last_user(last_read, fake_writer, tmp_desc_flow_index)) ) {
+                    current_desc    = last_read->desc[tmp_desc_flow_index].task;
+                    desc_flow_index = last_read->desc[tmp_desc_flow_index].flow_index;
+                    assert(desc_flow_index!=255);
+                    desc_op_type    = (last_read->desc[tmp_desc_flow_index].op_type & GET_OP_TYPE);
+                }
+            }
+        }
+
+        if( !keep_fake_writer ) {
+           fake_writer->super.function->release_task(eu, fake_writer);
+        } else {
+            dague_atomic_add_32b((int *)&(current_task->super.dague_handle->nb_local_tasks),1);
+#if defined(DEBUG_HEAVY)
+            dague_dtd_task_insert( (dague_dtd_handle_t *)current_task->super.dague_handle, fake_writer );
+#endif
+        }
+
+
+#if 0
+        int tmp_desc_flow_index;
+        while( NULL != current_desc ) {
+            if( OUTPUT == desc_op_type || INOUT == desc_op_type ) {
+                out_task = current_desc;
+                out_task_flow_index = desc_flow_index;
+                found_last_writer = 1;
+                break; /* We have found our last_out_task, lets get out */
+            }
+            count++;
+
+            tmp_desc_flow_index =  desc_flow_index;
+            desc_flow_index     =  current_desc->desc[desc_flow_index].flow_index;
+            desc_op_type        = (current_desc->desc[tmp_desc_flow_index].op_type & GET_OP_TYPE);
+            last_read           =  current_desc;
+            current_desc        =  current_desc->desc[tmp_desc_flow_index].task;
+        }
+        if( !found_last_writer ) {
+            int8_t keep_fake_writer = 0;
+            /* Create Fake output_task */
+            dague_dtd_task_t *fake_writer = create_fake_writer_task( (dague_dtd_handle_t *)current_task->super.dague_handle , tile);
+            out_task = fake_writer;
+            out_task_flow_index = 0;
+
+            desc_flow_index = tmp_desc_flow_index;
+            while( !(keep_fake_writer = put_fake_writer_as_last_user(last_read, fake_writer, desc_flow_index)) ) {
+                tmp_desc_flow_index =  desc_flow_index;
+                current_desc = last_read->desc[desc_flow_index].task;
+                desc_flow_index = last_read->desc[desc_flow_index].flow_index;
+                desc_op_type = (last_read->desc[tmp_desc_flow_index].op_type & GET_OP_TYPE);
+
+                if( INOUT == desc_op_type || OUTPUT == desc_op_type ) {
+                    out_task = current_desc;
+                    out_task_flow_index = desc_flow_index;
+                    break;
+                }
+
+                count++;
+                last_read = current_desc;
+            }
+
+            if( !keep_fake_writer ) {
+               fake_writer->super.function->release_task(eu, fake_writer);
+            } else {
+                dague_atomic_add_32b((int *)&(current_task->super.dague_handle->nb_local_tasks),1);
+#if defined(DEBUG_HEAVY)
+                dague_dtd_task_insert( (dague_dtd_handle_t *)current_task->super.dague_handle, fake_writer );
+#endif
+            }
+        }
+#endif
+
+        /* Looping through the chain and assigning the out_task as a descendant of all the
+         * INPUT tasks in the chain.
+         */
+        current_desc = current_task->desc[current_dep].task;
+        desc_op_type = (current_task->desc[current_dep].op_type & GET_OP_TYPE);
+        desc_flow_index = current_task->desc[current_dep].flow_index;
+
+        dague_dtd_task_t *tmp_desc;
+        dague_atomic_add_32b((int *) &(out_task->flow_count), count);
+        while( out_task != current_desc && NULL != current_desc ) {
+            tmp_desc = current_desc;
+            tmp_desc_flow_index =  desc_flow_index;
+
+            desc_flow_index     =  current_desc->desc[desc_flow_index].flow_index;
+            current_desc        =  current_desc->desc[tmp_desc_flow_index].task;
+
+            tmp_desc->desc[tmp_desc_flow_index].task = out_task;
+            tmp_desc->desc[tmp_desc_flow_index].flow_index = out_task_flow_index;
+            tmp_desc->desc[tmp_desc_flow_index].op_type = out_task->desc[out_task_flow_index].op_type_parent;
+
+            ontask( eu, (dague_execution_context_t *)tmp_desc, (dague_execution_context_t *)current_task,
+                    &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
+        }
+
+        ontask( eu, (dague_execution_context_t *)out_task, (dague_execution_context_t *)current_task,
+                    &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
+
+        vpid_dst = (vpid_dst+1)%current_task->super.dague_handle->context->nb_vp;
+
     }
 }

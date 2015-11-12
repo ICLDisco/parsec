@@ -22,7 +22,11 @@ extern int testing_ptg_to_dtd; /* to detect ptg testing dtd */
 extern int window_size;
 extern int my_rank;
 
+#define GET_TASK_PTR(TASK) (dague_dtd_task_t *)(((uintptr_t)TASK) & 0xFFFFFFFFFFFFFFF0)
+#define GET_FLOW_IND(TASK) (int)(((uintptr_t)TASK) & 0x0F)
+
 #define LOCAL_DATA 200 /* function_id is uint8_t */
+#define DEBUG_HEAVY 1
 
 /* for testing purpose of automatic insertion from Awesome PTG approach */
 dague_dtd_handle_t *__dtd_handle;
@@ -64,7 +68,12 @@ struct dague_dtd_task_s {
     dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
     int                         flow_count;
+    int                         track_flow;
     int                         flow_satisfied;
+    int                         flow_satisfied_1;
+    int                         flow_satisfied_2;
+    int                         flow_satisfied_3;
+    int                         flow_satisfied_4;
     int                         ready_mask;
     uint8_t                     belongs_to_function;
     /* Saves flow index for which we have to release data of a TASK
@@ -165,6 +174,16 @@ void ordering_correctly_1(dague_execution_unit_t * eu,
                      uint32_t action_mask,
                      dague_ontask_function_t * ontask,
                      void *ontask_arg);
+
+void ordering_correctly_2(dague_execution_unit_t * eu,
+                     const dague_execution_context_t * this_task,
+                     uint32_t action_mask,
+                     dague_ontask_function_t * ontask,
+                     void *ontask_arg);
+
+dague_dtd_task_t *
+create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *tile );
+
 void
 set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
          int tile_op_type, dague_dtd_task_param_t *current_param,

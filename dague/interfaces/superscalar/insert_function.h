@@ -54,8 +54,6 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
 
 #define OVERLAP                 1
 
-//#define TILES                 1
-
 #define TILE_OF(DAGUE, DDESC, I, J) \
     tile_manage(DAGUE, &(__ddesc##DDESC->super.super), I, J)
 
@@ -81,6 +79,10 @@ void dague_dtd_handle_destruct(dague_dtd_handle_t *);
 
 void dague_dtd_handle_wait( dague_context_t     *dague,
                             dague_dtd_handle_t  *dague_handle );
+
+void
+dague_dtd_context_wait_on_handle( dague_context_t     *dague,
+                                  dague_dtd_handle_t  *dague_handle );
 
 void dague_dtd_init ();
 void dague_dtd_fini ();
