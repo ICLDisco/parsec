@@ -138,7 +138,8 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 
     dague_zpotrf = (dague_zpotrf_L_handle_t*)o;
     dague_zpotrf->PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
-
+    if(0 == dague_zpotrf->PRI_CHANGE)
+      dague_zpotrf->PRI_CHANGE = A->nt;
     dplasma_add2arena_tile( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
