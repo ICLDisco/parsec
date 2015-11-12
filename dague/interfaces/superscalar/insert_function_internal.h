@@ -26,12 +26,10 @@ extern int my_rank;
 #define GET_FLOW_IND(TASK) (int)(((uintptr_t)TASK) & 0x0F)
 
 #define LOCAL_DATA 200 /* function_id is uint8_t */
-#define DEBUG_HEAVY 1
+/* #define DEBUG_HEAVY 1 */
 
 /* for testing purpose of automatic insertion from Awesome PTG approach */
 dague_dtd_handle_t *__dtd_handle;
-
-typedef struct dtd_successor_list_s dtd_successor_list_t;
 
 /* Structure used to pack arguments of insert_task() */
 struct dague_dtd_task_param_s {
@@ -41,9 +39,8 @@ struct dague_dtd_task_param_s {
     dague_dtd_task_param_t    *next;
 };
 
-/* Task structure derived from dague_execution_context_t.
- * All the fields store info about the descendant except
-   op_type_parent(operation type ex. INPUT, INOUT or OUTPUT).
+/* All the fields store info about the descendant except
+ * op_type_parent(operation type ex. INPUT, INOUT or OUTPUT).
  */
 typedef struct descendant_info_s {
     /* Info about the current_task and not about descendant */
@@ -54,26 +51,12 @@ typedef struct descendant_info_s {
     dague_dtd_tile_t   *tile;
 }descendant_info_t;
 
-/* Structure to hold list of Read-ONLY successors of a task */
-/* Structure to be used for correct ordering strategy 1 in multi-threaded env */
-struct dtd_successor_list_s {
-    dague_dtd_task_t        *task;
-    dep_t                   *deps;
-    int                      flow_index;
-    dtd_successor_list_t    *next;
-};
-
 struct dague_dtd_task_s {
     dague_execution_context_t   super;
     dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
     int                         flow_count;
-    int                         track_flow;
     int                         flow_satisfied;
-    int                         flow_satisfied_1;
-    int                         flow_satisfied_2;
-    int                         flow_satisfied_3;
-    int                         flow_satisfied_4;
     int                         ready_mask;
     uint8_t                     belongs_to_function;
     /* Saves flow index for which we have to release data of a TASK
@@ -207,7 +190,6 @@ dague_dtd_tile_find
 ( dague_dtd_handle_t *dague_handle, uint32_t key,
   dague_ddesc_t      *ddesc );
 
-
 void
 dague_dtd_tile_release
 (dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile);
@@ -233,9 +215,9 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
                 int count_of_params, long unsigned int size_of_param, int flow_count);
 
 void
-profiling_trace(dague_dtd_handle_t *__dague_handle,
-                dague_function_t *function, char* name,
-                int flow_count);
+add_profiling_info(dague_dtd_handle_t *__dague_handle,
+                   dague_function_t *function, char* name,
+                   int flow_count);
 
 void
 dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,

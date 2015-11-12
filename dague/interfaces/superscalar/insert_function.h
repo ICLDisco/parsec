@@ -33,7 +33,7 @@ BEGIN_C_DECLS
 typedef enum {  INPUT=0x100,
                 OUTPUT=0x200,
                 INOUT=0x300,
-                ATOMIC_WRITE=0x400,
+                ATOMIC_WRITE=0x400, /* DO NOT USE ,Iterate_successors do not support this at this point */
                 SCRATCH=0x500,
                 VALUE=0x600
              } dtd_op_type;
@@ -75,11 +75,10 @@ void insert_task_generic_fptr(dague_dtd_handle_t *,
 void dague_dtd_unpack_args(dague_execution_context_t *this_task, ...);
 
 dague_dtd_handle_t* dague_dtd_handle_new(dague_context_t *, int );
-void dague_dtd_handle_destruct(dague_dtd_handle_t *);
 
+void dague_dtd_handle_destruct(dague_dtd_handle_t *);
 void dague_dtd_handle_wait( dague_context_t     *dague,
                             dague_dtd_handle_t  *dague_handle );
-
 void
 dague_dtd_context_wait_on_handle( dague_context_t     *dague,
                                   dague_dtd_handle_t  *dague_handle );
