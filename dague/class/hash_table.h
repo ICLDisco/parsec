@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "dague_config.h"
 #include "dague/class/dague_object.h"
 #include "dague/class/list_item.h"
@@ -79,4 +85,3 @@ hash_table_find( hash_table *hash_table,
 void *
 hash_table_remove( hash_table *hash_table,
                    uint64_t key, uint32_t hash );
-
