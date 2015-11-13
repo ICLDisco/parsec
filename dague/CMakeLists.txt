@@ -8,6 +8,7 @@ set(BASE_SOURCES
   class/dague_lifo.c
   class/dague_fifo.c
   class/dague_dequeue.c
+  class/hash_table.c
   utils/installdirs.c
   utils/os_path.c
   utils/dague_environ.c
@@ -34,6 +35,9 @@ list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 #   This must be read using include and not add_subdirectory because
 #   we want the mca/CMakeLists.txt to export the MCA_EXTRA_SOURCES it builds.
 include(mca/CMakeLists.txt)
+
+# Import all the available interfce
+include(interfaces/superscalar/CMakeLists.txt)
 
 # find_package(TAU REQUIRED)
 # include_directories(${TAU_INCLUDE_DIRS})

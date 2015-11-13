@@ -11,6 +11,7 @@
 #include "dague.h"
 #include "dague/types.h"
 #include "dague/class/list_item.h"
+#include "dague/class/hash_table.h"
 #include "dague/dague_description_structures.h"
 #include "dague/profiling.h"
 
@@ -25,7 +26,6 @@ BEGIN_C_DECLS
 
 typedef struct dague_function_s        dague_function_t;
 typedef struct dague_remote_deps_s     dague_remote_deps_t;
-typedef struct dague_arena_s           dague_arena_t;
 typedef struct dague_arena_chunk_s     dague_arena_chunk_t;
 typedef struct dague_data_pair_s       dague_data_pair_t;
 typedef struct dague_dependencies_s    dague_dependencies_t;
@@ -33,7 +33,7 @@ typedef struct data_repo_s             data_repo_t;
 
 /**< The most basic execution flow. Each virtual process includes
  *   multiple execution units (posix threads + local data) */
-typedef struct dague_execution_unit_s  dague_execution_unit_t;
+//typedef struct dague_execution_unit_s  dague_execution_unit_t;
 /**< Each MPI process includes multiple virtual processes (and a
  *   single comm. thread) */
 typedef struct dague_vp_s              dague_vp_t;
@@ -46,6 +46,7 @@ typedef void (*dague_startup_fn_t)(dague_context_t *context,
 typedef void (*dague_destruct_fn_t)(dague_handle_t* dague_handle);
 
 struct dague_handle_s {
+    dague_list_item_t             super;
     /** All dague_handle_t structures hold these two arrays **/
     uint32_t                   handle_id;
     volatile uint32_t          nb_local_tasks;
@@ -71,6 +72,8 @@ struct dague_handle_s {
     dague_dependencies_t**     dependencies_array;
     data_repo_t**              repo_array;
 };
+
+DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
 
 #define DAGUE_DEVICES_ALL				   UINT32_MAX
 
@@ -229,6 +232,7 @@ struct dague_function_s {
     dague_traverse_function_t   *iterate_predecessors;
     dague_release_deps_t        *release_deps;
     dague_hook_t                *complete_execution;
+    dague_hook_t                *release_task;
     dague_hook_t                *fini;
 };
 
@@ -257,8 +261,7 @@ struct dague_data_pair_s {
  * amount of information when a new task is constructed.
  */
 #define DAGUE_MINIMAL_EXECUTION_CONTEXT              \
-    dague_list_item_t              list_item;        \
-    struct dague_thread_mempool_s *mempool_owner;    \
+    dague_hashtable_item_t         super;            \
     dague_handle_t                *dague_handle;     \
     const  dague_function_t       *function;         \
     int32_t                        priority;         \
@@ -300,14 +303,14 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_execution_context_t);
 #define DAGUE_COPY_EXECUTION_CONTEXT(dest, src) \
     do {                                                                \
         /* this should not be copied over from the old execution context */ \
-        dague_thread_mempool_t *_mpool = (dest)->mempool_owner;         \
+        dague_thread_mempool_t *_mpool = (dest)->super.mempool_owner;         \
         /* we copy everything but the dague_list_item_t at the beginning, to \
          * avoid copying uninitialized stuff from the stack             \
          */                                                             \
         memcpy( ((char*)(dest)) + sizeof(dague_list_item_t),            \
                 ((char*)(src)) + sizeof(dague_list_item_t),             \
                 sizeof(struct dague_minimal_execution_context_s) - sizeof(dague_list_item_t) ); \
-        (dest)->mempool_owner = _mpool;                                 \
+        (dest)->super.mempool_owner = _mpool;                                 \
     } while (0)
 
 /**
@@ -355,6 +358,14 @@ typedef struct {
     struct dague_remote_deps_s *remote_deps;
 #endif
 } dague_release_dep_fct_arg_t;
+
+
+/**
+ * Generic function to return a task in the corresponding mempool.
+ */
+dague_hook_return_t
+dague_release_task_to_mempool(dague_execution_unit_t *eu,
+                              dague_execution_context_t *this_task);
 
 dague_ontask_iterate_t dague_release_dep_fct(struct dague_execution_unit_s *eu,
                                              const dague_execution_context_t *newcontext,

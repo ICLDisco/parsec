@@ -68,8 +68,8 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
     assert(heap != NULL);
     assert(elem != NULL);
     heap->size++;
-    elem->list_item.list_next = NULL;
-    elem->list_item.list_prev = NULL;
+    elem->super.list_item.list_next = NULL;
+    elem->super.list_item.list_prev = NULL;
 
     if (heap->size == 1) {
         heap->top = elem;
@@ -91,14 +91,14 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
         parents[--level_counter] = heap->top;
         // now move through tree
         while (bitmask > 1) {
-            parent = (dague_execution_context_t*)((bitmask & size) ? parent->list_item.list_next : parent->list_item.list_prev);
+            parent = (dague_execution_context_t*)((bitmask & size) ? parent->super.list_item.list_next : parent->super.list_item.list_prev);
             parents[--level_counter] = parent; // save parent
             bitmask = bitmask >> 1;
         }
         if (bitmask & size)
-            parent->list_item.list_next = (dague_list_item_t*)elem;
+            parent->super.list_item.list_next = (dague_list_item_t*)elem;
         else
-            parent->list_item.list_prev = (dague_list_item_t*)elem;
+            parent->super.list_item.list_prev = (dague_list_item_t*)elem;
 
         // now bubble up to preserve max heap org.
         while( (level_counter < parents_size) &&
@@ -111,27 +111,27 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
             if (level_counter + 1 < parents_size && parents[level_counter + 1] != NULL) {
                 dague_execution_context_t * grandparent = parents[level_counter + 1];
                 // i.e. our parent has a parent
-                if (grandparent->list_item.list_prev /* left */ == (dague_list_item_t*)parent)
-                    grandparent->list_item.list_prev = (dague_list_item_t*)elem;
+                if (grandparent->super.list_item.list_prev /* left */ == (dague_list_item_t*)parent)
+                    grandparent->super.list_item.list_prev = (dague_list_item_t*)elem;
                 else /* our grandparent's right child is our parent*/
-                    grandparent->list_item.list_next = (dague_list_item_t*)elem;
+                    grandparent->super.list_item.list_next = (dague_list_item_t*)elem;
             }
 
             /* next, fix our parent */
-            dague_list_item_t * parent_left  = (dague_list_item_t*)parent->list_item.list_prev;
-            dague_list_item_t * parent_right = (dague_list_item_t*)parent->list_item.list_next;
-            parent->list_item.list_prev = elem->list_item.list_prev;
-            parent->list_item.list_next = elem->list_item.list_next;
+            dague_list_item_t * parent_left  = (dague_list_item_t*)parent->super.list_item.list_prev;
+            dague_list_item_t * parent_right = (dague_list_item_t*)parent->super.list_item.list_next;
+            parent->super.list_item.list_prev = elem->super.list_item.list_prev;
+            parent->super.list_item.list_next = elem->super.list_item.list_next;
 
             /* lastly, fix ourselves */
             if (parent_left == (dague_list_item_t*)elem) {
                 /* we're our parent's left child */
-                elem->list_item.list_prev = (dague_list_item_t*)parent;
-                elem->list_item.list_next = (dague_list_item_t*)parent_right;
+                elem->super.list_item.list_prev = (dague_list_item_t*)parent;
+                elem->super.list_item.list_next = (dague_list_item_t*)parent_right;
             } else {
                 /* we're out parent's right child */
-                elem->list_item.list_prev = (dague_list_item_t*)parent_left;
-                elem->list_item.list_next = (dague_list_item_t*)parent;
+                elem->super.list_item.list_prev = (dague_list_item_t*)parent_left;
+                elem->super.list_item.list_next = (dague_list_item_t*)parent;
             }
 
             if (parent == heap->top)
@@ -182,19 +182,19 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
     if (heap != NULL) {
         assert(heap->top != NULL); // this heap should have been destroyed
         to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
-        if (heap->top->list_item.list_prev == NULL) {
+        if (heap->top->super.list_item.list_prev == NULL) {
             /* no left child, so 'top' is the only node */
             DEBUG3(("MH:\tDestroying heap %p\n", heap->top, heap->top->list_item.list_next, heap));
             heap->top = NULL;
             heap_destroy(heap_ptr);
             assert(*heap_ptr == NULL);
         } else { /* does have left child */
-            if (heap->top->list_item.list_next /* right */ == NULL) {
+            if (heap->top->super.list_item.list_next /* right */ == NULL) {
                 assert(heap->size == 2);
                 /* but doesn't have right child, so still not splitting */
-                heap->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
-                assert(heap->top->list_item.list_next == NULL);
-                assert(heap->top->list_item.list_prev == NULL);
+                heap->top = (dague_execution_context_t*)heap->top->super.list_item.list_prev; // left
+                assert(heap->top->super.list_item.list_next == NULL);
+                assert(heap->top->super.list_item.list_prev == NULL);
                 heap->priority = heap->top->priority;
                 heap->size--; // should equal 1
                 /* set up doubly-linked singleton list in here, as DEFAULT scenario */
@@ -208,9 +208,9 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
                 unsigned int twoBit = highBit >> 1;
                 assert(heap->size >= 3);
                 (*new_heap_ptr) = heap_create();
-                (*new_heap_ptr)->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
+                (*new_heap_ptr)->top = (dague_execution_context_t*)heap->top->super.list_item.list_prev; // left
                 (*new_heap_ptr)->priority = (*new_heap_ptr)->top->priority;
-                heap->top = (dague_execution_context_t*)heap->top->list_item.list_next;
+                heap->top = (dague_execution_context_t*)heap->top->super.list_item.list_next;
                 heap->priority = heap->top->priority;
                 if (twoBit & size) { // last item is on right side
                     heap->size = ~highBit & size;
@@ -228,8 +228,8 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
                 DEBUG3(("MH:\tSplit heap %p into itself and heap %p\n", heap, *new_heap_ptr));
             }
         }
-        to_use->list_item.list_next = (dague_list_item_t*)to_use; // safety's
-        to_use->list_item.list_prev = (dague_list_item_t*)to_use; // sake
+        to_use->super.list_item.list_next = (dague_list_item_t*)to_use; // safety's
+        to_use->super.list_item.list_prev = (dague_list_item_t*)to_use; // sake
     }
 #if DAGUE_DEBUG_VERBOSE != 0
     if (to_use != NULL) {
@@ -248,19 +248,19 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
     if (heap != NULL) {
         assert(heap->top != NULL); // this heap should have been destroyed
         to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
-        if (heap->top->list_item.list_prev == NULL) {
+        if (heap->top->super.list_item.list_prev == NULL) {
             /* no left child, so 'top' is the only node */
-            DEBUG3(("MH:\tDestroying heap %p\n", heap->top, heap->top->list_item.list_next, heap));
+            DEBUG3(("MH:\tDestroying heap %p\n", heap->top, heap->top->super.list_item.list_next, heap));
             assert(heap->size == 1);
             heap->top = NULL;
             heap_destroy(heap_ptr);
             assert(*heap_ptr == NULL);
         }
         else { /* does have left child */
-            if (heap->top->list_item.list_next /* right */ == NULL) {
+            if (heap->top->super.list_item.list_next /* right */ == NULL) {
                 assert(heap->size == 2);
                 /* but doesn't have right child, so still not splitting */
-                heap->top = (dague_execution_context_t*)heap->top->list_item.list_prev; // left
+                heap->top = (dague_execution_context_t*)heap->top->super.list_item.list_prev; // left
                 /* set up doubly-linked singleton list in here, as DEFAULT scenario */
                 heap->list_item.list_prev = (dague_list_item_t*)*heap_ptr;
                 heap->list_item.list_next = (dague_list_item_t*)*heap_ptr;
@@ -292,36 +292,36 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
                      * 'last' element in the 'complete' heap.
                      */
                     parent = (dague_execution_context_t*)(
-                        (bitmask & size) ? parent->list_item.list_next : parent->list_item.list_prev);
+                        (bitmask & size) ? parent->super.list_item.list_next : parent->super.list_item.list_prev);
                     bitmask = bitmask >> 1;
                 }
 
                 if (bitmask & size) { // LAST NODE IS A 'NEXT' NODE
-                    heap->top = (dague_execution_context_t*)parent->list_item.list_next;
+                    heap->top = (dague_execution_context_t*)parent->super.list_item.list_next;
                     // should ALWAYS be a leaf node
                     assert(heap->top != NULL);
-                    assert(heap->top->list_item.list_next == NULL);
-                    assert(heap->top->list_item.list_prev == NULL);
+                    assert(heap->top->super.list_item.list_next == NULL);
+                    assert(heap->top->super.list_item.list_prev == NULL);
                     if (parent != to_use) { // if not a second-level-from-the-top node...
-                        heap->top->list_item.list_next = to_use->list_item.list_next;
-                        parent->list_item.list_next = NULL;
+                        heap->top->super.list_item.list_next = to_use->super.list_item.list_next;
+                        parent->super.list_item.list_next = NULL;
                     }
                     else
-                        heap->top->list_item.list_next = NULL;
-                    heap->top->list_item.list_prev = to_use->list_item.list_prev;
+                        heap->top->super.list_item.list_next = NULL;
+                    heap->top->super.list_item.list_prev = to_use->super.list_item.list_prev;
                 }
                 else { // LAST NODE IS A 'PREV' NODE
-                    heap->top = (dague_execution_context_t*)parent->list_item.list_prev;
+                    heap->top = (dague_execution_context_t*)parent->super.list_item.list_prev;
                     // should ALWAYS be a leaf node
                     assert(heap->top != NULL);
-                    assert(heap->top->list_item.list_next == NULL);
-                    assert(heap->top->list_item.list_prev == NULL);
+                    assert(heap->top->super.list_item.list_next == NULL);
+                    assert(heap->top->super.list_item.list_prev == NULL);
                     /* a prev node isn't on the second level from the top
                      * (because otherwise size == 2), so we safely assume it has a parent
                      */
-                    heap->top->list_item.list_next = to_use->list_item.list_next;
-                    heap->top->list_item.list_prev = to_use->list_item.list_prev;
-                    parent->list_item.list_prev = NULL;
+                    heap->top->super.list_item.list_next = to_use->super.list_item.list_next;
+                    heap->top->super.list_item.list_prev = to_use->super.list_item.list_prev;
+                    parent->super.list_item.list_prev = NULL;
                 }
 
                 // now bubble down
@@ -330,25 +330,25 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
                                    * the initial value doesn't matter since we're at the top and have no parent. */
                 parent = NULL;
                 while (1) {
-                    dague_execution_context_t * next = (dague_execution_context_t*)bubbler->list_item.list_next;
-                    dague_execution_context_t * prev = (dague_execution_context_t*)bubbler->list_item.list_prev;
+                    dague_execution_context_t * next = (dague_execution_context_t*)bubbler->super.list_item.list_next;
+                    dague_execution_context_t * prev = (dague_execution_context_t*)bubbler->super.list_item.list_prev;
                     // first, compare all three priorities to see which way to bubble, if any
                     if (prev != NULL && prev->priority > bubbler->priority &&
                         (next == NULL || prev->priority >= next->priority)) {
                         // bubble toward (swap with) prev
                         if (parent) {
                             if (is_next)
-                                parent->list_item.list_next = (dague_list_item_t *)prev;
+                                parent->super.list_item.list_next = (dague_list_item_t *)prev;
                             else
-                                parent->list_item.list_prev = (dague_list_item_t *)prev;
+                                parent->super.list_item.list_prev = (dague_list_item_t *)prev;
                         }
                         else
                             heap->top = prev;
 
-                        bubbler->list_item.list_prev = prev->list_item.list_prev;
-                        bubbler->list_item.list_next = prev->list_item.list_next;
-                        prev->list_item.list_prev = (dague_list_item_t *)bubbler;
-                        prev->list_item.list_next = (dague_list_item_t *)next;
+                        bubbler->super.list_item.list_prev = prev->super.list_item.list_prev;
+                        bubbler->super.list_item.list_next = prev->super.list_item.list_next;
+                        prev->super.list_item.list_prev = (dague_list_item_t *)bubbler;
+                        prev->super.list_item.list_next = (dague_list_item_t *)next;
 
                         is_next = 0; // b/c we will be our parent's PREV in the next round
                         parent = prev;
@@ -358,17 +358,17 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
                         // bubble toward next
                         if (parent) {
                             if (is_next)
-                                parent->list_item.list_next = (dague_list_item_t *)next;
+                                parent->super.list_item.list_next = (dague_list_item_t *)next;
                             else
-                                parent->list_item.list_prev = (dague_list_item_t *)next;
+                                parent->super.list_item.list_prev = (dague_list_item_t *)next;
                         }
                         else
                             heap->top = next;
 
-                        bubbler->list_item.list_prev = next->list_item.list_prev;
-                        bubbler->list_item.list_next = next->list_item.list_next;
-                        next->list_item.list_prev = (dague_list_item_t *)prev;
-                        next->list_item.list_next = (dague_list_item_t *)bubbler;
+                        bubbler->super.list_item.list_prev = next->super.list_item.list_prev;
+                        bubbler->super.list_item.list_next = next->super.list_item.list_next;
+                        next->super.list_item.list_prev = (dague_list_item_t *)prev;
+                        next->super.list_item.list_next = (dague_list_item_t *)bubbler;
 
                         is_next = 1; // b/c we will be our parent's NEXT in the next round
                         parent = next;
@@ -380,8 +380,8 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
             heap->size--;
             heap->priority = heap->top->priority;
         }
-        to_use->list_item.list_next = (dague_list_item_t*)to_use; // safety's
-        to_use->list_item.list_prev = (dague_list_item_t*)to_use; // sake
+        to_use->super.list_item.list_next = (dague_list_item_t*)to_use; // safety's
+        to_use->super.list_item.list_prev = (dague_list_item_t*)to_use; // sake
     }
 
 #if DAGUE_DEBUG_VERBOSE != 0
@@ -409,8 +409,8 @@ static inline int get_size(dague_execution_context_t * node) {
     if (node == NULL)
         return 0;
     else
-        return 1 + get_size((dague_execution_context_t *)node->list_item.list_next)
-            + get_size((dague_execution_context_t *)node->list_item.list_prev);
+        return 1 + get_size((dague_execution_context_t *)node->super.list_item.list_next)
+            + get_size((dague_execution_context_t *)node->super.list_item.list_prev);
 }
 
 #endif

@@ -212,7 +212,7 @@ static int sched_ltq_schedule( dague_execution_unit_t* eu_context,
 
     while (1) {
         // check next element before insertion, which destroys next and prev
-        next = (dague_execution_context_t*)cur->list_item.list_next;
+        next = (dague_execution_context_t*)cur->super.list_item.list_next;
         assert(next != NULL);
 
         heap_insert(heap, cur);

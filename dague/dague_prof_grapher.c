@@ -79,7 +79,7 @@ static inline double get_rand_in_range(int m, int M)
     return (double)m + (double)rand() / ((double)RAND_MAX / (M - m + 1) + 1);
 }
 
-static char *unique_color(int index, int colorspace)
+char *unique_color(int index, int colorspace)
 {
     char color[8];
     double r, g, b;

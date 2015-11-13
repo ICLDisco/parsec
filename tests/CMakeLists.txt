@@ -1,5 +1,6 @@
 
 macro(dague_addtest lang target input)
+list(APPEND EXTRA_LIBS m)
 
   if( MPI_C_FOUND )
     set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
@@ -26,6 +27,7 @@ Add_Subdirectory(all2all)
 Add_Subdirectory(generalized_reduction)
 Add_Subdirectory(merge_sort)
 Add_Subdirectory(profiling)
+Add_Subdirectory(interfaces/superscalar)
 
 Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)

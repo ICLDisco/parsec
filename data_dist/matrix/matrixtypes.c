@@ -5,6 +5,7 @@
  */
 #include <dague.h>
 #include <dague/constants.h>
+#include <dague/arena.h>
 #include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_MPI)

@@ -22,6 +22,8 @@ void  dague_prof_grapher_dep(const dague_execution_context_t* from, const dague_
 char *dague_prof_grapher_taskid(const dague_execution_context_t *context, char *tmp, int length);
 void  dague_prof_grapher_fini(void);
 
+char *unique_color(int index, int colorspace);
+
 END_C_DECLS
 
 #endif /* _dague_prof_grapher_h */

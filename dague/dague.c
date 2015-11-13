@@ -94,7 +94,7 @@ static dague_device_t* dague_device_recursive = NULL;
 
 /**
  * Object based task definition (no specialized constructor and destructor) */
-OBJ_CLASS_INSTANCE(dague_execution_context_t, dague_list_item_t,
+OBJ_CLASS_INSTANCE(dague_execution_context_t, dague_hashtable_item_t,
                    NULL, NULL);
 
 static void dague_statistics(char* str)
@@ -206,7 +206,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
         data_repo_entry_t fake_entry;
         dague_mempool_construct( &vp->context_mempool,
                                  OBJ_CLASS(dague_execution_context_t), sizeof(dague_execution_context_t),
-                                 ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
+                                 ((char*)&fake_context.super.mempool_owner) - ((char*)&fake_context),
                                  vp->nb_cores );
 
         for(pi = 0; pi <= MAX_PARAM_COUNT; pi++)
@@ -1284,7 +1284,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
             } else {
                 *pready_ring = (dague_execution_context_t*)
                     dague_list_item_ring_push_sorted( (dague_list_item_t*)(*pready_ring),
-                                                      &new_context->list_item,
+                                                      &new_context->super.list_item,
                                                       dague_execution_context_priority_comparator );
             }
         }
@@ -1350,7 +1350,13 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
-        if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) {
+        /* Old condition */    
+        /* if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) { */
+
+        /* Copying data in data-repo if there is data .
+         * We are doing this in order for dtd to be able to track control dependences.
+         */
+        if( oldcontext->data[src_flow->flow_index].data_out != NULL ) {
             arg->output_entry->data[src_flow->flow_index] = oldcontext->data[src_flow->flow_index].data_out;
             arg->output_usage++;
             /* BEWARE: This increment is required to be done here. As the target task
@@ -2077,8 +2083,8 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
     dague_data_ref_t ref;
     int pi, li;
 
-    DAGUE_LIST_ITEM_SINGLETON( &context.list_item );
-    context.mempool_owner = NULL;
+    DAGUE_LIST_ITEM_SINGLETON( &context.super.list_item );
+    context.super.mempool_owner = NULL;
     context.dague_handle = handle;
     context.function = function;
     context.priority = -1;
@@ -2218,3 +2224,15 @@ int dague_task_deps_with_final_output(const dague_execution_context_t *task,
 
     return nbout;
 }
+
+/* Function to push back tasks in their mempool once the execution are done */
+dague_hook_return_t
+dague_release_task_to_mempool(dague_execution_unit_t *eu,
+                              dague_execution_context_t *this_task)
+{
+    (void)eu;
+    dague_thread_mempool_free( this_task->super.mempool_owner, this_task );
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
+

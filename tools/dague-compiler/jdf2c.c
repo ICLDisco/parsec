@@ -782,23 +782,15 @@ static char *dump_data_repository_constructor(void **elem, void *arg)
 
     string_arena_init(sa);
 
-    if( 0 == function_has_data_output(f) ) {
-        string_arena_add_string(sa,
-                                "  %s_nblocal_tasks = %s_%s_internal_init(__dague_handle);\n"
-                                "  (void)%s_nblocal_tasks;\n",
-                                f->fname, jdf_basename, f->fname,
-                                f->fname);
-    } else {
-        int nbdata = 0;
-        JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
-        string_arena_add_string(sa,
-                                "  %s_nblocal_tasks = %s_%s_internal_init(__dague_handle);\n"
-                                "  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(  /* %s */\n"
-                                "          %s_nblocal_tasks, %d);\n",
-                                f->fname, jdf_basename, f->fname,
-                                f->function_id, f->fname,
-                                f->fname, nbdata);
-    }
+    int nbdata = 0;
+    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
+    string_arena_add_string(sa,
+                            "  %s_nblocal_tasks = %s_%s_internal_init(__dague_handle);\n"
+                            "  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(  /* %s */\n"
+                            "          %s_nblocal_tasks, %d);\n",
+                            f->fname, jdf_basename, f->fname,
+                            f->function_id, f->fname,
+                            f->fname, nbdata);
 
     return string_arena_get_string(sa);
 }
@@ -1172,9 +1164,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
         jdf_function_entry_t* f;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            if( 0 != function_has_data_output(f) )
-                coutput("#define %s_repo (__dague_handle->repositories[%d])\n",
-                        f->fname, f->function_id);
+            coutput("#define %s_repo (__dague_handle->repositories[%d])\n",
+                    f->fname, f->function_id);
         }
     }
 
@@ -2898,6 +2889,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_code_hooks(jdf, f, prefix);
     string_arena_add_string(sa, "  .complete_execution = complete_%s,\n", prefix);
 
+    string_arena_add_string(sa, "  .release_task = dague_release_task_to_mempool,\n");
+
     if( NULL != f->simcost ) {
         sprintf(prefix, "simulation_cost_of_%s_%s", jdf_basename, f->fname);
         jdf_generate_simulation_cost_fct(jdf, f, prefix);
@@ -3112,9 +3105,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
         jdf_function_entry_t* f;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            if( 0 != function_has_data_output(f) )
-                coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
-                        f->function_id, f->fname);
+            coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
+                    f->function_id, f->fname);
         }
     }
 
@@ -3287,10 +3279,8 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         jdf_function_entry_t* f;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            if( 0 != function_has_data_output(f) ) {
-                coutput("  __dague_handle->super.super.repo_array = __dague_handle->repositories;\n\n");
-                break;
-            }
+            coutput("  __dague_handle->super.super.repo_array = __dague_handle->repositories;\n\n");
+            break;
         }
         if( NULL == f )
             coutput("  __dague_handle->super.super.repo_array = NULL;\n");
@@ -4315,8 +4305,6 @@ static void jdf_generate_code_free_hash_table_entry(const jdf_t *jdf, const jdf_
 
 static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_entry_t *f, const char *name)
 {
-    int has_output_data = function_has_data_output(f);
-
     coutput("static int %s(dague_execution_unit_t *eu, dague_execution_context_t *context, uint32_t action_mask, dague_remote_deps_t *deps)\n"
             "{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (const __dague_%s_internal_handle_t *)context->dague_handle;\n"
@@ -4334,18 +4322,15 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "  (void)__dague_handle; (void)deps;\n",
             name, jdf_basename, jdf_basename);
 
-    if( 0 != has_output_data )
-        coutput("  if( action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_GET_REPO_ENTRY) ) {\n"
-                "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_handle, context->locals) );\n"
-                "    arg.output_entry->generator = (void*)context;  /* for AYU */\n"
-                "#if defined(DAGUE_SIM)\n"
-                "    assert(arg.output_entry->sim_exec_date == 0);\n"
-                "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
-                "#endif\n"
-                "  }\n",
-                f->fname, f->fname);
-    else
-        coutput("  arg.output_entry = NULL;\n");
+    coutput("  if( action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_GET_REPO_ENTRY) ) {\n"
+            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_handle, context->locals) );\n"
+            "    arg.output_entry->generator = (void*)context;  /* for AYU */\n"
+            "#if defined(DAGUE_SIM)\n"
+            "    assert(arg.output_entry->sim_exec_date == 0);\n"
+            "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
+            "#endif\n"
+            "  }\n",
+            f->fname, f->fname);
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         coutput("  iterate_successors_of_%s_%s(eu, context, action_mask, dague_release_dep_fct, &arg);\n"
@@ -4361,10 +4346,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     }
     coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
             "    struct dague_vp_s** vps = eu->virtual_process->dague_context->virtual_processes;\n");
-    if( 0 != has_output_data ) {
-        coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
-                f->fname);
-    }
+    coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
+            f->fname);
     coutput("    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
             "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
             "      if(__vp_id == eu->virtual_process->vp_id) {\n"
