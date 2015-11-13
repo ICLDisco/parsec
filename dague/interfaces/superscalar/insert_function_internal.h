@@ -25,6 +25,7 @@ extern int my_rank;
 #define GET_TASK_PTR(TASK) (dague_dtd_task_t *)(((uintptr_t)TASK) & 0xFFFFFFFFFFFFFFF0)
 #define GET_FLOW_IND(TASK) (int)(((uintptr_t)TASK) & 0x0F)
 
+#define OVERLAP    1 /* enables window */
 #define LOCAL_DATA 200 /* function_id is uint8_t */
 /* #define DEBUG_HEAVY 1 */
 

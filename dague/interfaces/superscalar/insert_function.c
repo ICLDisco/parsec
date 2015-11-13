@@ -18,22 +18,6 @@
 #include "dague/dague_prof_grapher.h"
 #include <sys/time.h>
 
-#if 0
-static inline double get_cur_time(void)
-{
-    struct timeval tv;
-    double t;
-
-    gettimeofday(&tv,NULL);
-    t = tv.tv_sec + tv.tv_usec / 1e6;
-    return t;
-}
-double time_elapsed;
-double total_time=0;
-#define TIME_START() do { time_elapsed = get_cur_time(); } while(0)
-#define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; total_time += time_elapsed;  } while(0)
-#endif
-
 int window_size                 =  2048;
 uint32_t threshold_size         =  2048;
 static int task_hash_table_size = (10+1);
