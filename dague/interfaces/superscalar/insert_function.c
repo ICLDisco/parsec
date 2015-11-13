@@ -16,6 +16,23 @@
 #include "dague/mca/sched/sched.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 #include "dague/dague_prof_grapher.h"
+#include <sys/time.h>
+
+#if 0
+static inline double get_cur_time(void)
+{
+    struct timeval tv;
+    double t;
+
+    gettimeofday(&tv,NULL);
+    t = tv.tv_sec + tv.tv_usec / 1e6;
+    return t;
+}
+double time_elapsed;
+double total_time=0;
+#define TIME_START() do { time_elapsed = get_cur_time(); } while(0)
+#define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; total_time += time_elapsed;  } while(0)
+#endif
 
 int window_size                 =  2048;
 uint32_t threshold_size         =  2048;
@@ -274,7 +291,9 @@ dague_dtd_init()
 void
 dague_dtd_fini()
 {
+#if defined(DAGUE_DEBUG_ENABLE)
     assert(handle_mempool != NULL);
+#endif
 
     dague_mempool_destruct(handle_mempool);
     free (handle_mempool);
@@ -612,7 +631,16 @@ dague_dtd_tile_find( dague_dtd_handle_t *dague_handle, uint32_t key,
     uint64_t    combined_key = (uint64_t)ddesc << 32 | (uint64_t)key;
     uint32_t    hash         =  hash_table->hash ( combined_key, hash_table->size );
 
-    return (dague_dtd_tile_t *) hash_table_find ( hash_table, combined_key, hash );
+    dague_list_t *list = hash_table->item_list[hash];
+
+    dague_list_lock( list );
+    dague_dtd_tile_t *tile = hash_table_find ( hash_table, combined_key, hash );
+    if( NULL != tile ) {
+        OBJ_RETAIN(tile);
+    }
+    dague_list_unlock( list );
+    //return (dague_dtd_tile_t *) hash_table_find ( hash_table, combined_key, hash );
+    return tile;
 }
 
 /* release tile from hash table and push back in the mempool
@@ -638,7 +666,9 @@ dague_dtd_function_release( dague_dtd_handle_t  *dague_handle,
                             dague_dtd_funcptr_t *key )
 {
     dague_generic_bucket_t *bucket = dague_dtd_function_find_internal ( dague_handle, key );
+#if defined(DAGUE_DEBUG_ENABLE)
     assert (bucket != NULL);
+#endif
     dague_dtd_function_remove ( dague_handle, key );
     dague_thread_mempool_free( dague_handle->hash_table_bucket_mempool->thread_mempools, bucket );
 }
@@ -689,7 +719,9 @@ tile_manage(dague_dtd_handle_t *dague_dtd_handle,
                                 temp_tile, ddesc );
         return temp_tile;
     }else {
+#if defined(DAGUE_DEBUG_ENABLE)
         assert(tmp->super.list_item.super.obj_reference_count > 0);
+#endif
         return tmp;
     }
 }
@@ -714,7 +746,9 @@ hook_of_dtd_task(dague_execution_unit_t    *context,
                           this_task);
 
     rc = dtd_task->fpointer(context, this_task);
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( rc == DAGUE_HOOK_RETURN_DONE );
+#endif
     dague_atomic_inc_32b(&((dague_dtd_handle_t*)this_task->dague_handle)->tasks_scheduled);
 
     return rc;
@@ -761,7 +795,7 @@ static inline uint64_t DTD_identity_hash(const dague_dtd_handle_t * __dague_hand
     return (uint64_t)assignments[0].value;
 }
 
-/* dague_dtd_new()
+/* dague_dtd_handle_new()
  * Intializes all the needed members and returns the DAGUE handle
  * Arguments:   - Dague context
  - Total number of arenas
@@ -780,7 +814,9 @@ dague_dtd_handle_new(dague_context_t* context,
     dague_dtd_handle_t *__dague_handle;
     int i;
 
+#if defined(DAGUE_DEBUG_ENABLE)
     assert( handle_mempool != NULL );
+#endif
     __dague_handle = (dague_dtd_handle_t *)dague_thread_mempool_allocate(handle_mempool->thread_mempools);
 
     __dague_handle->super.context             = context;
@@ -816,9 +852,9 @@ dague_dtd_handle_new(dague_context_t* context,
         (void) dague_handle_reserve_id((dague_handle_t *) __dague_handle);
     }
 
-
-    __function = create_function(__dague_handle, call_to_fake_writer, "Fake_writer", 1,
+    __function = (dague_dtd_function_t *)create_function(__dague_handle, call_to_fake_writer, "Fake_writer", 1,
                                sizeof(int), 1);
+
 
     return (dague_dtd_handle_t*) __dague_handle;
 }
@@ -871,21 +907,6 @@ dague_dtd_handle_destruct(dague_dtd_handle_t *dague_handle)
             dague_mempool_destruct(dtd_func->context_mempool);
             free(dtd_func->context_mempool);
             free((void*)func);
-        }
-    }
-
-    for( i=0; i<dague_handle->tile_h_table->size; i++ ) {
-        dague_hashtable_item_t *current_item;
-        dague_list_t *item_list = dague_handle->tile_h_table->item_list[i];
-
-        while( (current_item = (dague_hashtable_item_t *)dague_list_nolock_pop_front( item_list )) != NULL ) {
-            OBJ_RELEASE(current_item);
-#if defined(DAGUE_DEBUG_ENABLE)
-            assert(current_item->list_item.refcount == 0);
-            assert(current_item->list_item.super.obj_reference_count == 1);
-#endif
-            dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools,
-                                      (dague_dtd_tile_t *)current_item );
         }
     }
 
@@ -1045,7 +1066,6 @@ iterate_successors_of_dtd_task(dague_execution_unit_t *eu,
                                void *ontask_arg)
 {
     (void)eu; (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
-    //ordering_correctly_1(eu, this_task, action_mask, ontask, ontask_arg);
     ordering_correctly_2(eu, this_task, action_mask, ontask, ontask_arg);
 }
 
@@ -1680,7 +1700,7 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     dague_dtd_funcptr_t *fpointer = call_to_fake_writer;
     char *name = "Fake_writer";
 
-    dague_function_t *function = __function;
+    dague_function_t *function = (dague_function_t *)__function;
     dague_mempool_t *context_mempool_in_function = ((dague_dtd_function_t *)function)->context_mempool;
 
     /* Creating Task object */

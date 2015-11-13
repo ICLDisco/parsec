@@ -61,7 +61,7 @@ hash_table_fini(hash_table *obj, int size_of_table)
  * increment the ref. count.
  */
 
-/* Function to insert element in the hash table
+/* Function to insert element in the hash table (thread safe)
  * Arguments:
  * Returns:
  */
@@ -81,7 +81,7 @@ hash_table_insert
     dague_list_unlock ( item_list );
 }
 
-/* Function to find element in the hash table
+/* Function to find element in the hash table (not thread safe)
  * Arguments:
  * Returns:
  */
@@ -93,25 +93,21 @@ hash_table_find
     dague_hashtable_item_t *current_item;
     dague_list_t *item_list = hash_table->item_list[hash];
 
-    dague_list_lock ( item_list );
-
     current_item = (dague_hashtable_item_t *) DAGUE_LIST_ITERATOR_FIRST(item_list);
 
     /* Iterating the list to check if we have the element */
     while( current_item != (dague_hashtable_item_t *) DAGUE_LIST_ITERATOR_END(item_list) ) {
         if( current_item->key == key ) {
-            dague_list_unlock ( item_list );
             return (void *)current_item;
         }
         dague_list_item_t *item = &(current_item->list_item);
         current_item = (dague_hashtable_item_t *)DAGUE_LIST_ITERATOR_NEXT(item);
     }
 
-    dague_list_unlock ( item_list );
     return (void *)NULL;
 }
 
-/* Function to remove element from the hash table
+/* Function to remove element from the hash table (thread safe)
  * Arguments:
  * Returns:
  */

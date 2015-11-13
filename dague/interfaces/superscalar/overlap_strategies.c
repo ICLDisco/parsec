@@ -52,7 +52,6 @@ put_fake_writer_as_last_user( dague_dtd_task_t *last_read,
                               dague_dtd_task_t *fake_writer,
                               int last_read_flow_index )
 {
-    assert(last_read_flow_index!=255);
     dague_dtd_tile_t* tile = last_read->desc[last_read_flow_index].tile;
     dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)last_read|last_read_flow_index);
 
@@ -116,8 +115,10 @@ ordering_correctly_2(dague_execution_unit_t * eu,
          * points to the potential successors. Every other use of the data will point
          * to ourself.
          */
-        if(current_task == current_desc)
+        if(current_task == current_desc) {
+            dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
             continue;
+        }
 
         if( NULL == current_desc ) {
              if( INOUT == op_type_on_current_flow ||
@@ -126,6 +127,7 @@ ordering_correctly_2(dague_execution_unit_t * eu,
 #if defined (OVERLAP)
                 if(!multithread_dag_build_1(current_task, current_dep)) { /* trying to release ownership */
 #endif
+                    dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
                     continue;  /* no descendent for this data */
 #if defined (OVERLAP)
                 } else {
@@ -137,7 +139,9 @@ ordering_correctly_2(dague_execution_unit_t * eu,
             }
         }
 
+#if defined(DAGUE_DEBUG_ENABLE)
         assert(current_desc != NULL);
+#endif
         desc_op_type = (current_task->desc[current_dep].op_type & GET_OP_TYPE);
         desc_flow_index = current_task->desc[current_dep].flow_index;
 
@@ -171,7 +175,6 @@ ordering_correctly_2(dague_execution_unit_t * eu,
                 if( !(keep_fake_writer = put_fake_writer_as_last_user(last_read, fake_writer, tmp_desc_flow_index)) ) {
                     current_desc    = last_read->desc[tmp_desc_flow_index].task;
                     desc_flow_index = last_read->desc[tmp_desc_flow_index].flow_index;
-                    assert(desc_flow_index!=255);
                     desc_op_type    = (last_read->desc[tmp_desc_flow_index].op_type & GET_OP_TYPE);
                 }
             }
@@ -180,6 +183,7 @@ ordering_correctly_2(dague_execution_unit_t * eu,
         if( !keep_fake_writer ) {
            fake_writer->super.function->release_task(eu, fake_writer);
         } else {
+            OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
             dague_atomic_add_32b((int *)&(current_task->super.dague_handle->nb_local_tasks),1);
 #if defined(DEBUG_HEAVY)
             dague_dtd_task_insert( (dague_dtd_handle_t *)current_task->super.dague_handle, fake_writer );
@@ -211,6 +215,7 @@ ordering_correctly_2(dague_execution_unit_t * eu,
                     &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
         }
 
+        dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
         ontask( eu, (dague_execution_context_t *)out_task, (dague_execution_context_t *)current_task,
                     &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
 
