@@ -23,13 +23,6 @@ static inline segment_t *SEGMENT_AT_TID(zone_malloc_t *gdata, int tid)
     return &gdata->segments[tid];
 }
 
-static inline int TID_OF_SEGMENT(zone_malloc_t *gdata, segment_t *seg)
-{
-    off_t diff = ((char*)seg) - ((char*)gdata->segments);
-    assert( (diff % sizeof(segment_t)) == 0 );
-    return diff / sizeof(segment_t);
-}
-
 zone_malloc_t* zone_malloc_init(void* base_ptr, int _max_segment, size_t _unit_size)
 {
     zone_malloc_t *gdata;

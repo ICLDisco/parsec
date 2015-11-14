@@ -181,7 +181,7 @@ ordering_correctly_2(dague_execution_unit_t * eu,
         }
 
         if( !keep_fake_writer ) {
-           fake_writer->super.function->release_task(eu, fake_writer);
+           fake_writer->super.function->release_task(eu, (dague_execution_context_t*)fake_writer);
         } else {
             OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
             dague_atomic_add_32b((int *)&(current_task->super.dague_handle->nb_local_tasks),1);

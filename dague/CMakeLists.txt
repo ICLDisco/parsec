@@ -21,6 +21,7 @@ set(BASE_SOURCES
   utils/mca_param_cmd_line.c
   utils/mca_param.c
   utils/zone_malloc.c
+  utils/colors.c
 )
 
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)

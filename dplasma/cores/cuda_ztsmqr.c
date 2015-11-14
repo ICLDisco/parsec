@@ -187,7 +187,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_ztsmqr_args_t        *args = (dague_ztsmqr_args_t*)gpu_task;
     CUdeviceptr d_A1, d_A2, d_V, d_T, WORK, WORKC;
-    cudaError_t status;
+    cublasStatus_t status;
 #if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -229,7 +229,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
                               gpu_stream->prof_event_key_start),
                              this_task);
 
-    status = cudaSuccess;
+    status = CUBLAS_STATUS_SUCCESS;
 #if (CUDA_VERSION < 4000) || 1 /* todo: always use legacy cublas until we understand how to get the cublas_handle in API v5 */
     cublasSetKernelStream( gpu_stream->cuda_stream );
     cuda_fnztsmqr( args->side, args->trans,

@@ -13,7 +13,7 @@ BEGIN_C_DECLS
 
 #define DPLASMA_DEBUG
 #if defined(DPLASMA_DEBUG)
-#define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); *((int*)0) = 42; } while(0)
+#define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); *((volatile int*)0) = 42; } while(0)
 #else
 #define dplasma_error(__func, __msg) do { fprintf(stderr, "%s: %s\n", (__func), (__msg)); } while(0)
 #endif /* defined(DPLASMA_DEBUG) */

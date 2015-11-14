@@ -846,7 +846,7 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     if( gpu_device->memory ) {
         void* ptr = zone_malloc_fini(&gpu_device->memory);
-        status = (cudaError_t)cudaFree(ptr);
+        status = (CUresult)cudaFree(ptr);
         DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_release) cudaFree ", status,
                                 { WARNING(("Failed to free the GPU backend memory.\n")); } );
     }
@@ -1219,18 +1219,6 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
 
     if (lock_required) {
         dague_atomic_unlock(&(sort_list->atomic_lock));
-    }
-    return 0;
-}
-
-static inline int dague_lru_contains(dague_list_t *list, dague_gpu_data_copy_t *element)
-{
-    dague_list_item_t *p = (dague_list_item_t *)list->ghost_element.list_next;
-    while (p != &(list->ghost_element)) {
-        if ( ((dague_gpu_data_copy_t*)p)->device_private == element->device_private) {
-            return 1;
-        }
-        p = (dague_list_item_t *)p->list_next;
     }
     return 0;
 }

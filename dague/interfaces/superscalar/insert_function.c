@@ -65,11 +65,6 @@ static dague_hook_return_t
 complete_hook_of_dtd(dague_execution_unit_t *,
                      dague_execution_context_t *);
 
-static dague_hook_return_t
-push_tasks_back_in_mempool(dague_execution_unit_t *,
-                           dague_execution_context_t *);
-
-
 /* Copied from dague/scheduling.c, will need to be exposed */
 #define TIME_STEP 5410
 #define MIN(x, y) ( (x)<(y)?(x):(y) )
@@ -1682,7 +1677,6 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
 {
     int i;
     dague_dtd_funcptr_t *fpointer = call_to_fake_writer;
-    char *name = "Fake_writer";
 
     dague_function_t *function = (dague_function_t *)__function;
     dague_mempool_t *context_mempool_in_function = ((dague_dtd_function_t *)function)->context_mempool;

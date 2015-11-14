@@ -83,7 +83,6 @@ testing_hook_of_dtd_task(dague_execution_unit_t    *context,
      * Check to see which interface, if it is the PTG inserting task in DTD then
      * this condition will be true
      */
-    dague_handle_t *orig_handle = orig_task->dague_handle;
     rc = dtd_task->fpointer(context, orig_task);
     if(rc == DAGUE_HOOK_RETURN_DONE) {
         dague_atomic_add_32b(&(dtd_handle->tasks_scheduled), 1);
@@ -267,7 +266,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
 
 #if defined(DAGUE_PROF_TRACE)
     if(track_function_created_or_not) {
-        profiling_trace(__dague_handle, function, name, flow_index);
+        add_profiling_info(__dague_handle, function, name, flow_index);
         track_function_created_or_not = 0;
     }
 #endif /* defined(DAGUE_PROF_TRACE) */
