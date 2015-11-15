@@ -484,6 +484,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( nb_cores != nb_total_comp_threads ) {
         fprintf(stderr, "Warning: using %d threads instead of the requested %d (need to change features in VP MAP)\n",
                 nb_total_comp_threads, nb_cores);
+        nb_cores = nb_total_comp_threads;
     }
 
     startup = (__dague_temporary_thread_initialization_t*)
