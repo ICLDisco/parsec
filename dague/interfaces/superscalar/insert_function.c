@@ -401,7 +401,6 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
     int next_arg;
     int i = 0;
     void **tmp;
-    dague_data_copy_t *tmp_data;
     va_list arguments;
     va_start(arguments, this_task);
     next_arg = va_arg(arguments, int);
@@ -409,14 +408,12 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
     while (current_param != NULL) {
         tmp = va_arg(arguments, void**);
         if(UNPACK_VALUE == next_arg) {
-            memcpy(tmp, &(current_param->pointer_to_tile), sizeof(uintptr_t));
+            *tmp = current_param->pointer_to_tile;
         }else if (UNPACK_DATA == next_arg) {
-            //tmp_data = ((dague_dtd_tile_t*)(current_param->pointer_to_tile))->data_copy;
-            tmp_data = this_task->data[i].data_out;
-            memcpy(tmp, &tmp_data, sizeof(dague_data_copy_t *));
+            *tmp = this_task->data[i].data_out;
             i++;
         }else if (UNPACK_SCRATCH == next_arg) {
-            memcpy(tmp, &(current_param->pointer_to_tile), sizeof(uintptr_t));
+            *tmp = current_param->pointer_to_tile;
         }
         next_arg = va_arg(arguments, int);
         current_param = current_param->next;
@@ -1099,8 +1096,11 @@ complete_hook_of_dtd(dague_execution_unit_t* context,
     if (dump_traversal_info) {
         static int counter= 0;
         dague_atomic_add_32b(&counter,1);
-        printf("------------------------------------------------\nexecution done"
-               "of task: %s \t %d\ntask done %d \n", this_task->function->name, task->super.super.key,
+        printf("------------------------------------------------\n"
+               "execution done of task: %s \t %lu\n"
+               "task done %d \n",
+               this_task->function->name,
+               task->super.super.key,
                counter);
     }
 
