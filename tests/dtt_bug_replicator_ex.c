@@ -39,6 +39,9 @@ int main( int argc, char** argv )
     MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nodes);
     MPI_Comm_size(MPI_COMM_WORLD, &nodes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    nodes = 1;
+    rank = 0;
 #endif
 
     dague = dague_init(1, &argc, &argv);
@@ -46,8 +49,8 @@ int main( int argc, char** argv )
 
     PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
         two_dim_block_cyclic, (&ddescA, matrix_RealDouble, matrix_Tile,
-                                   nodes, rank, NB, NB, N, N, 0, 0,
-                                   N, N, 1, 1, 1));
+                               nodes, rank, NB, NB, N, N, 0, 0,
+                               N, N, 1, 1, 1));
 
     handle = (dague_handle_t*) (dtt_handle = dague_dtt_bug_replicator_new(&ddescA.super.super));
     assert( NULL != handle );

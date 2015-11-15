@@ -37,7 +37,7 @@ dague_handle_t *merge_sort_new(tiled_matrix_desc_t *A, int nb, int nt)
 #else
     dague_arena_construct(o->arenas[DAGUE_merge_sort_DEFAULT_ARENA],
                           nb*sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
-                          NULL);
+                          DAGUE_DATATYPE_NULL);
 #endif
 
     return (dague_handle_t*)o;

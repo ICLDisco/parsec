@@ -212,7 +212,7 @@ bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
     o = dague_bandwidth_new(A, loops, frags, ws);
 
     dague_arena_construct(((dague_bandwidth_handle_t*)o)->arenas[DAGUE_bandwidth_DEFAULT_ARENA],
-                          size*sizeof(uint8_t), DAGUE_ARENA_ALIGNMENT_SSE, NULL);
+                          size*sizeof(uint8_t), DAGUE_ARENA_ALIGNMENT_SSE, DAGUE_DATATYPE_NULL);
 
     return (dague_handle_t*)o;
 }
