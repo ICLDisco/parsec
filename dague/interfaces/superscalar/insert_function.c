@@ -658,9 +658,10 @@ dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,
     dague_dtd_task_remove ( dague_handle, key );
 }
 
-/* Function to manage tiles once insert_task() is called
- * This function checks if the tile structure(dague_dtd_tile_t) is created for the
- * data already or not
+/**
+ * Function to recover tiles inserted by insert_task().
+ * This function search for a tile if already inserted in the system, and if not
+ * returns the freshly created tile.
  * Arguments:   - dague handle (dague_dtd_handle_t *)
                 - data descriptor (dague_ddesc_t *)
                 - key of this data (dague_data_key_t)
@@ -668,8 +669,8 @@ dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,
                   tile, (dague_dtd_tile_t *)
  */
 dague_dtd_tile_t*
-tile_manage(dague_dtd_handle_t *dague_dtd_handle,
-            dague_ddesc_t *ddesc, int i, int j)
+dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
+                  dague_ddesc_t *ddesc, int i, int j)
 {
     dague_dtd_tile_t *tmp = dague_dtd_tile_find ( dague_dtd_handle, ddesc->data_key(ddesc, i, j),
                                                   ddesc );

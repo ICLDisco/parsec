@@ -67,7 +67,7 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
  * 4. n (coordinates of the data in the matrix)
  */
 #define TILE_OF(DAGUE, DDESC, I, J) \
-    tile_manage(DAGUE, &(__ddesc##DDESC->super.super), I, J)
+    dague_dtd_tile_of(DAGUE, &(__ddesc##DDESC->super.super), I, J)
 
 typedef struct dague_dtd_task_param_s dague_dtd_task_param_t;
 typedef struct dague_dtd_task_s       dague_dtd_task_t;
@@ -99,8 +99,9 @@ typedef int (dague_dtd_funcptr_t)(dague_execution_unit_t *, dague_execution_cont
                                      strictly followed while unpacking.
  */
 void dague_dtd_unpack_args(dague_execution_context_t *this_task, ...);
-dague_dtd_tile_t* tile_manage(dague_dtd_handle_t *dague_dtd_handle,
-                              dague_ddesc_t *ddesc, int i, int j);
+
+dague_dtd_tile_t* dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
+                                    dague_ddesc_t *ddesc, int i, int j);
 
 /* Using this function Users can insert task in PaRSEC
  * 1. The dague handle (dague_dtd_handle_t *)
@@ -156,16 +157,15 @@ void dague_dtd_handle_wait( dague_context_t     *dague,
  * User can not call this multiple times in between a dague_dtd_handle_new() and dague_dtd_handle_destruct().
  * This function can be called exactly once per handle.
  */
-void
-dague_dtd_context_wait_on_handle( dague_context_t     *dague,
-                                  dague_dtd_handle_t  *dague_handle );
+void dague_dtd_context_wait_on_handle( dague_context_t     *dague,
+                                       dague_dtd_handle_t  *dague_handle );
 
 /* Initiate and Finish dtd environment
  * dague_dtd_init () should be called right after dague_context_init()
  * dague_dtd_fini () right before dague_context_fini()
  */
-void dague_dtd_init ();
-void dague_dtd_fini ();
+void dague_dtd_init();
+void dague_dtd_fini();
 
 END_C_DECLS
 
