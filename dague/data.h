@@ -51,6 +51,11 @@ DAGUE_DECLSPEC void dague_data_copy_release(dague_data_copy_t* copy);
 DAGUE_DECLSPEC void* dague_data_copy_get_ptr(dague_data_copy_t* data);
 
 /**
+ * Return the device private pointer for a data on a specified device.
+ */
+DAGUE_DECLSPEC void* dague_data_get_ptr(dague_data_t* data, uint32_t device);
+
+/**
  * Allocate a new data structure set to INVALID and no attached copies.
  */
 DAGUE_DECLSPEC dague_data_t* dague_data_new(void);
@@ -82,12 +87,12 @@ DAGUE_DECLSPEC void dague_dump_data_copy(dague_data_copy_t* copy);
 DAGUE_DECLSPEC void dague_dump_data(dague_data_t* copy);
 
 DAGUE_DECLSPEC dague_data_t *
-dague_data_get( dague_data_t **holder,
-                dague_ddesc_t *desc,
-                dague_data_key_t key, void *ptr, size_t size );
+dague_data_create( dague_data_t **holder,
+                   dague_ddesc_t *desc,
+                   dague_data_key_t key, void *ptr, size_t size );
 
 /**
- * Destroy the dague_data_t generated through a call to dague_data_get
+ * Destroy the dague_data_t generated through a call to dague_data_create
  */
 DAGUE_DECLSPEC void
 dague_data_destroy( dague_data_t *holder );

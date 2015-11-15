@@ -396,10 +396,17 @@ void* dague_data_copy_get_ptr(dague_data_copy_t* data)
     return DAGUE_DATA_COPY_GET_PTR(data);
 }
 
+/* Return the pointer on the selected device */
+void* dague_data_get_ptr(dague_data_t* data, uint32_t device)
+{
+    dague_data_copy_t *copy = dague_data_get_copy( data, device );
+    return DAGUE_DATA_COPY_GET_PTR(copy);
+}
+
 dague_data_t *
-dague_data_get( dague_data_t **holder,
-                dague_ddesc_t *desc,
-                dague_data_key_t key, void *ptr, size_t size )
+dague_data_create( dague_data_t **holder,
+                   dague_ddesc_t *desc,
+                   dague_data_key_t key, void *ptr, size_t size )
 {
     dague_data_t *data = *holder;
 
