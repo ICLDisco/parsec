@@ -713,6 +713,7 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dague_value_array.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dequeue.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/fifo.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/hash_table.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/lifo.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list_item.h
