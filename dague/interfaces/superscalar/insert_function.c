@@ -997,6 +997,8 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
         free(origin_flow);
         free(dest_flow);
     }
+#else
+    (void)deps;
 #endif
 
     if(is_ready) {

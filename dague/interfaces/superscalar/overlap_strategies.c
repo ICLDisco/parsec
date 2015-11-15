@@ -99,7 +99,8 @@ ordering_correctly_2(dague_execution_unit_t * eu,
     dep_t deps;
     dague_dep_data_description_t data;
     int rank_src = 0, rank_dst = 0, vpid_dst=0;
-
+    (void)action_mask;
+    
     for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
 #if defined(DAGUE_PROF_GRAPHER)
         deps->dep_index = current_dep;
