@@ -9,7 +9,7 @@
 
 #include "dague_config.h"
 #include "dague/dague_internal.h"
-#include "dague/data_internal.h"
+#include "dague/data.h"
 #include "dague/data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
@@ -32,33 +32,21 @@ dague_matrix_create_data(tiled_matrix_desc_t* matrix,
                          dague_data_key_t key)
 {
     assert( pos <= matrix->nb_local_tiles );
-    return dague_data_get( matrix->data_map + pos,
-                           &(matrix->super), key, ptr,
-                           matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype) );
+    return dague_data_create( matrix->data_map + pos,
+                              &(matrix->super), key, ptr,
+                              matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype) );
 }
 
 void
 dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
 {
     if ( matrix->data_map != NULL ) {
+        dague_data_t **data = matrix->data_map;
         int i;
 
-        for(i=0; i<matrix->nb_local_tiles; i++)
+        for(i=0; i<matrix->nb_local_tiles; i++, data++)
         {
-            dague_data_t *data = matrix->data_map[i];
-
-            if (data != NULL)
-            {
-                /*
-                 * Need to call destruct before release due to circular
-                 * dependency between the dague_data_copy_t and the dague_data_t
-                 */
-                OBJ_DESTRUCT(data);
-#if defined(DAGUE_DEBUG_ENABLE)
-                ((dague_object_t *) (data))->obj_magic_id = DAGUE_OBJ_MAGIC_ID;
-#endif
-                OBJ_RELEASE(data);
-            }
+            dague_data_destroy( *data );
         }
 
         free( matrix->data_map );
@@ -279,7 +267,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
+                    buf = dague_data_get_ptr(data, 0);
                     fwrite(buf, eltsize, tdesc->bsiz, tmpf );
                 }
             }
@@ -288,7 +276,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
+                    buf = dague_data_get_ptr(data, 0);
                     for (k=0; k<tdesc->nb; k++) {
                         fwrite(buf, eltsize, tdesc->mb, tmpf );
                         buf += eltsize * tdesc->lm;
@@ -327,7 +315,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
+                    buf = dague_data_get_ptr(data, 0);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
                         fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
@@ -341,7 +329,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
+                    buf = dague_data_get_ptr(data, 0);
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {
