@@ -615,7 +615,6 @@ dague_dtd_tile_find( dague_dtd_handle_t *dague_handle, uint32_t key,
         OBJ_RETAIN(tile);
     }
     dague_list_unlock( list );
-    //return (dague_dtd_tile_t *) hash_table_find ( hash_table, combined_key, hash );
     return tile;
 }
 
@@ -1524,14 +1523,18 @@ set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
     assert( *flow_index < 16 );
 
     int tile_type_index;
-    if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
+    if( (tile_op_type & GET_OP_TYPE) == INPUT  ||
+        (tile_op_type & GET_OP_TYPE) == OUTPUT ||
+        (tile_op_type & GET_OP_TYPE) == INOUT  ||
+        (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE)
+    {
         struct user last_user;
         tile_type_index = tile_op_type & GET_REGION_INFO;
         current_param->tile_type_index = tile_type_index;
         current_param->pointer_to_tile = tmp;
 
-        temp_task->super.data[*flow_index].data_in = tile->data_copy;
-        temp_task->super.data[*flow_index].data_out = tile->data_copy;
+        temp_task->super.data[*flow_index].data_in   = tile->data_copy;
+        temp_task->super.data[*flow_index].data_out  = tile->data_copy;
         temp_task->super.data[*flow_index].data_repo = NULL;
 
         if(NULL != tile) {
@@ -1803,11 +1806,11 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         temp_task->desc[i].tile           = NULL;
         temp_task->dont_skip_releasing_data[i] = 0;
     }
-    /*for(i=0;i<MAX_PARAM_COUNT;i++) {
-     temp_task->super.data[i].data_repo = NULL;
-     temp_task->super.data[i].data_in   = NULL;
-     temp_task->super.data[i].data_out  = NULL;
-     }*/
+    /* for(i=0;i<MAX_PARAM_COUNT;i++) { */
+    /*     temp_task->super.data[i].data_repo = NULL; */
+    /*     temp_task->super.data[i].data_in   = NULL; */
+    /*     temp_task->super.data[i].data_out  = NULL; */
+    /* } */
 
     temp_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     temp_task->super.super.key = dague_atomic_add_32b((int *)&(__dague_handle->task_id),1);
