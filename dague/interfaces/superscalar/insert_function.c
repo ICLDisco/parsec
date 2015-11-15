@@ -410,7 +410,8 @@ dague_dtd_unpack_args(dague_execution_context_t *this_task, ...)
         if(UNPACK_VALUE == next_arg) {
             *tmp = current_param->pointer_to_tile;
         }else if (UNPACK_DATA == next_arg) {
-            *tmp = this_task->data[i].data_out;
+            /* Let's return directly the usable pointer to the user */
+            *tmp = DAGUE_DATA_COPY_GET_PTR(this_task->data[i].data_out);
             i++;
         }else if (UNPACK_SCRATCH == next_arg) {
             *tmp = current_param->pointer_to_tile;
