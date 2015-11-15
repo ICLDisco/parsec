@@ -97,7 +97,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
     int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
-    int tempkk = k == descA.mt-1 ? descA.m - k * descA.nb : descA.nb;
+    int tempkk = k == descA.mt-1 ? descA.m - k * descA.mb : descA.mb;
     int ldak = BLKLDD(descA, k);
     int ldbn = BLKLDD(descB, n);
     int ldcm = BLKLDD(descC, m);
@@ -117,7 +117,7 @@ BODY
     dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
     int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
-    int tempkk = k == descA.mt-1 ? descA.m - k * descA.nb : descA.nb;
+    int tempkk = k == descA.mt-1 ? descA.m - k * descA.mb : descA.mb;
     int ldak = BLKLDD(descA, k);
     int ldbn = BLKLDD(descB, n);
     int ldcm = BLKLDD(descC, m);
