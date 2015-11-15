@@ -86,4 +86,10 @@ dague_data_get( dague_data_t **holder,
                 dague_ddesc_t *desc,
                 dague_data_key_t key, void *ptr, size_t size );
 
+/**
+ * Destroy the dague_data_t generated through a call to dague_data_get
+ */
+DAGUE_DECLSPEC void
+dague_data_destroy( dague_data_t *holder );
+
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

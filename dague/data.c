@@ -431,3 +431,20 @@ dague_data_get( dague_data_t **holder,
     assert( data->key == key );
     return data;
 }
+
+void
+dague_data_destroy( dague_data_t *data )
+{
+    if (data != NULL)
+    {
+        /*
+         * Need to call destruct before release due to circular
+         * dependency between the dague_data_copy_t and the dague_data_t
+         */
+        OBJ_DESTRUCT(data);
+#if defined(DAGUE_DEBUG_ENABLE)
+        ((dague_object_t *)(data))->obj_magic_id = DAGUE_OBJ_MAGIC_ID;
+#endif
+        OBJ_RELEASE(data);
+    }
+}
