@@ -19,136 +19,126 @@
 struct dague_execution_unit_s;
 
 int
-call_to_kernel_PO(struct dague_execution_unit_s *context, dague_execution_context_t * this_task)
+call_to_kernel_PO(struct dague_execution_unit_s *context, dague_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *uplo;
-    int *tempkm, *ldak, *iinfo;
-    dague_data_copy_t *data;
+    int *m, *lda, *info;
+    dague_complex64_t *A;
 
     dague_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &uplo,
-                          UNPACK_VALUE, &tempkm,
-                          UNPACK_DATA,  &data,
-                          UNPACK_VALUE, &ldak,
-                          UNPACK_VALUE, &iinfo
+                          UNPACK_VALUE, &m,
+                          UNPACK_DATA,  &A,
+                          UNPACK_VALUE, &lda,
+                          UNPACK_VALUE, &info
                         );
 
-    void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)data);
-
-    CORE_zpotrf(*uplo, *tempkm, TT, *ldak, iinfo);
+    CORE_zpotrf(*uplo, *m, A, *lda, info);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
 
 int
-call_to_kernel_TR(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_TR(dague_execution_unit_t *context, dague_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *side, *uplo, *trans, *diag;
-    int  *tempmm, *nb, *ldak, *ldam, *alpha;
-    dague_data_copy_t *gC;
-    dague_data_copy_t *gT;
+    int  *m, *n, *lda, *ldc;
+    dague_complex64_t *alpha;
+    dague_complex64_t *A, *C;
 
     dague_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &side,
                           UNPACK_VALUE, &uplo,
                           UNPACK_VALUE, &trans,
                           UNPACK_VALUE, &diag,
-                          UNPACK_VALUE, &tempmm,
-                          UNPACK_VALUE, &nb,
+                          UNPACK_VALUE, &m,
+                          UNPACK_VALUE, &n,
                           UNPACK_VALUE, &alpha,
-                          UNPACK_DATA,  &gT,
-                          UNPACK_VALUE, &ldak,
-                          UNPACK_DATA,  &gC,
-                          UNPACK_VALUE, &ldam
+                          UNPACK_DATA,  &A,
+                          UNPACK_VALUE, &lda,
+                          UNPACK_DATA,  &C,
+                          UNPACK_VALUE, &ldc
                         );
 
-    void *T = DAGUE_DATA_COPY_GET_PTR(gT);
-    void *C = DAGUE_DATA_COPY_GET_PTR(gC);
-    (void) T;
-    (void) C;
-
     CORE_ztrsm(*side, *uplo, *trans, *diag,
-           *tempmm, *nb, (dague_complex64_t) 1.0, T, *ldak,
-           C, *ldam);
+               *m, *n, *alpha,
+               A, *lda,
+               C, *ldc);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
 
 int
-call_to_kernel_HE(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_HE(dague_execution_unit_t *context, dague_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *uplo, *trans;
-    int *mb, *ldam, *tempmm, *alpha, *beta;
-    dague_data_copy_t *gA;
-    dague_data_copy_t *gT;
+    int *m, *n, *lda, *ldc;
+    dague_complex64_t *alpha;
+    double *beta;
+    dague_complex64_t *A;
+    dague_complex64_t *C;
 
     dague_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &uplo,
                           UNPACK_VALUE, &trans,
-                          UNPACK_VALUE, &tempmm,
-                          UNPACK_VALUE, &mb,
+                          UNPACK_VALUE, &m,
+                          UNPACK_VALUE, &n,
                           UNPACK_VALUE, &alpha,
-                          UNPACK_DATA,  &gA,
-                          UNPACK_VALUE, &ldam,
+                          UNPACK_DATA,  &A,
+                          UNPACK_VALUE, &lda,
                           UNPACK_VALUE, &beta,
-                          UNPACK_DATA,  &gT,
-                          UNPACK_VALUE, &ldam
+                          UNPACK_DATA,  &C,
+                          UNPACK_VALUE, &ldc
                         );
 
-    void *A = DAGUE_DATA_COPY_GET_PTR(gA);
-    void *T = DAGUE_DATA_COPY_GET_PTR(gT);
-    (void)A;
-    (void)T;
-
-    CORE_zherk(*uplo, *trans, *tempmm, *mb, (double) -1.0, A, *ldam,
-           (double) 1.0, T, *ldam);
+    CORE_zherk( *uplo, *trans, *m, *n,
+                *alpha, A, *lda,
+                *beta,  C, *ldc );
 
     return DAGUE_HOOK_RETURN_DONE;
 }
 
 
 int
-call_to_kernel_GE(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_GE(dague_execution_unit_t *context, dague_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *transA, *transB;
-    int *tempmm, *mb, *ldam, *ldan;
-    double *alpha, *beta;
-    dague_data_copy_t *gA;
-    dague_data_copy_t *gB;
-    dague_data_copy_t *gC;
+    int *m, *n, *k, *lda, *ldb, *ldc;
+    dague_complex64_t *alpha, *beta;
+    dague_complex64_t *A;
+    dague_complex64_t *B;
+    dague_complex64_t *C;
 
     dague_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &transA,
                           UNPACK_VALUE, &transB,
-                          UNPACK_VALUE, &tempmm,
-                          UNPACK_VALUE, &mb,
+                          UNPACK_VALUE, &m,
+                          UNPACK_VALUE, &n,
+                          UNPACK_VALUE, &k,
                           UNPACK_VALUE, &alpha,
-                          UNPACK_DATA,  &gA,
-                          UNPACK_VALUE, &ldam,
-                          UNPACK_DATA,  &gB,
-                          UNPACK_VALUE, &ldan,
+                          UNPACK_DATA,  &A,
+                          UNPACK_VALUE, &lda,
+                          UNPACK_DATA,  &B,
+                          UNPACK_VALUE, &ldb,
                           UNPACK_VALUE, &beta,
-                          UNPACK_DATA,  &gC,
-                          UNPACK_VALUE, &ldam
+                          UNPACK_DATA,  &C,
+                          UNPACK_VALUE, &ldc
                         );
 
-    void *A = DAGUE_DATA_COPY_GET_PTR(gA);
-    void *B = DAGUE_DATA_COPY_GET_PTR(gB);
-    void *C = DAGUE_DATA_COPY_GET_PTR(gC);
-
     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
-           *tempmm, *mb, *mb, (dague_complex64_t) - 1.0, A, *ldam,
-           B, *ldan,
-           (dague_complex64_t) 1.0, C, *ldam);
+               *m, *n, *k,
+               *alpha, A, *lda,
+                       B, *ldb,
+               *beta,  C, *ldc);
 
     return DAGUE_HOOK_RETURN_DONE;
 }
 
-int main(int argc, char ** argv)
+int main(int argc, char **argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
@@ -159,7 +149,7 @@ int main(int argc, char ** argv)
 
     /* Parameters passed on to Insert_task() */
     int tempkm, tempmm, ldak, iinfo, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
-    double alpha_trsm, alpha_herk, beta;
+    dague_complex64_t alpha_trsm, alpha_herk, beta;
 
     side = PlasmaRight;
     transA_p = PlasmaConjTrans;
@@ -240,7 +230,7 @@ int main(int argc, char ** argv)
                                      sizeof(int),      &diag,               VALUE,
                                      sizeof(int),      &tempmm,             VALUE,
                                      sizeof(int),      &ddescA.super.nb,    VALUE,
-                                     sizeof(int),      &alpha_trsm,         VALUE,
+                                     sizeof(dague_complex64_t),      &alpha_trsm,         VALUE,
                                      PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, k, k), INPUT | REGION_FULL,
                                      sizeof(int),      &ldak,               VALUE,
                                      PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, m, k), INOUT | REGION_FULL,
@@ -255,10 +245,10 @@ int main(int argc, char ** argv)
                                     sizeof(int),       &trans,              VALUE,
                                     sizeof(int),       &tempmm,             VALUE,
                                     sizeof(int),       &ddescA.super.mb,    VALUE,
-                                    sizeof(int),       &alpha_herk,         VALUE,
+                                    sizeof(dague_complex64_t),       &alpha_herk,         VALUE,
                                     PASSED_BY_REF,     TILE_OF(DAGUE_dtd_handle, A, m, k), INPUT | REGION_FULL,
                                     sizeof(int),       &ldam,               VALUE,
-                                    sizeof(int),       &beta,               VALUE,
+                                    sizeof(double),       &beta,               VALUE,
                                     PASSED_BY_REF,     TILE_OF(DAGUE_dtd_handle, A, m, m), INOUT | REGION_FULL,
                                     sizeof(int),       &ldam,               VALUE,
                                     0);
@@ -269,12 +259,13 @@ int main(int argc, char ** argv)
                                            sizeof(int),        &transB,             VALUE,
                                            sizeof(int),        &tempmm,             VALUE,
                                            sizeof(int),        &ddescA.super.mb,    VALUE,
-                                           sizeof(double),        &alpha_herk,         VALUE,
+                                           sizeof(int),        &ddescA.super.mb,    VALUE,
+                                           sizeof(dague_complex64_t),        &alpha_herk,         VALUE,
                                            PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, k), INPUT | REGION_FULL,
                                            sizeof(int),        &ldam,               VALUE,
                                            PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, n, k), INPUT | REGION_FULL,
                                            sizeof(int),        &ldan,               VALUE,
-                                           sizeof(double),        &beta,               VALUE,
+                                           sizeof(dague_complex64_t),        &beta,               VALUE,
                                            PASSED_BY_REF,      TILE_OF(DAGUE_dtd_handle, A, m, n), INOUT | REGION_FULL,
                                            sizeof(int),        &ldam,               VALUE,
                                            0);
