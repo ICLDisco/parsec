@@ -9,7 +9,7 @@
 #if defined(DAGUE_PROF_TRACE)
 #include "dague/dague_binary_profile.h"
 #endif
-#include "dague/utils/color.h"
+#include "dague/utils/colors.h"
 
 #if defined(DAGUE_PROF_GRAPHER)
 
