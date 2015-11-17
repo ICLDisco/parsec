@@ -499,7 +499,6 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
     jdf_function_entry_t *f;
     jdf_dataflow_t *flow;
     jdf_dep_t *dep;
-    jdf_guarded_call_t *guard;
 
     for(f = current_jdf.functions; f != NULL; f = f->next) {
         for(flow = f->dataflow; flow != NULL; flow = flow->next) {
@@ -509,7 +508,6 @@ static int jdf_sanity_check_dataflow_type_consistency(void)
             }
             input_deps = output_deps = type_deps = 0;
             for(dep = flow->deps; dep != NULL; dep = dep->next) {
-                guard = dep->guard;
                 /* Special case for the arena definition for WRITE-only flows */
                 if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dep) ) {
                     type_deps++;
