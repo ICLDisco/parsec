@@ -10,17 +10,15 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
-
-
 int call_to_kernel_GE_QRT(dague_execution_unit_t *context, dague_execution_context_t *this_task)
 {
     (void)context;
     int *m;
     int *n;
     int *ib;
-    dague_data_copy_t *A;
+    dague_complex64_t *A;
     int *lda;
-    dague_data_copy_t *T;
+    dague_complex64_t *T;
     int *ldt;
     dague_complex64_t *TAU;
     dague_complex64_t *WORK;
@@ -37,12 +35,7 @@ int call_to_kernel_GE_QRT(dague_execution_unit_t *context, dague_execution_conte
                           UNPACK_SCRATCH, &WORK
                         );
 
-
-    void *AA = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)A);
-    void *TT = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)T);
-
-
-    CORE_zgeqrt(*m, *n, *ib, AA, *lda, TT, *ldt, TAU, WORK);
+    CORE_zgeqrt(*m, *n, *ib, A, *lda, T, *ldt, TAU, WORK);
 
     return 0;
 }
@@ -57,11 +50,11 @@ call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t
     int *n;
     int *k;
     int *ib;
-    dague_data_copy_t *gA;
+    dague_complex64_t *A;
     int *lda;
-    dague_data_copy_t *gT;
+    dague_complex64_t *T;
     int *ldt;
-    dague_data_copy_t *gC;
+    dague_complex64_t *C;
     int *ldc;
     dague_complex64_t *WORK;
     int *ldwork;
@@ -73,20 +66,15 @@ call_to_kernel_UN_MQR(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &k,
                           UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &gA,
+                          UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &gT,
+                          UNPACK_DATA,  &T,
                           UNPACK_VALUE, &ldt,
-                          UNPACK_DATA,  &gC,
+                          UNPACK_DATA,  &C,
                           UNPACK_VALUE, &ldc,
                           UNPACK_SCRATCH, &WORK,
                           UNPACK_VALUE, &ldwork
                         );
-
-
-    void *A = DAGUE_DATA_COPY_GET_PTR(gA);
-    void *T = DAGUE_DATA_COPY_GET_PTR(gT);
-    void *C = DAGUE_DATA_COPY_GET_PTR(gC);
 
     CORE_zunmqr(*side, *trans, *m, *n, *k, *ib,
                 A, *lda, T, *ldt, C, *ldc, WORK, *ldwork);
@@ -102,11 +90,11 @@ call_to_kernel_TS_QRT(dague_execution_unit_t *context, dague_execution_context_t
     int *m;
     int *n;
     int *ib;
-    dague_data_copy_t *gA1;
+    dague_complex64_t *A1;
     int *lda1;
-    dague_data_copy_t *gA2;
+    dague_complex64_t *A2;
     int *lda2;
-    dague_data_copy_t *gT;
+    dague_complex64_t *T;
     int *ldt;
     dague_complex64_t *TAU;
     dague_complex64_t *WORK;
@@ -115,20 +103,15 @@ call_to_kernel_TS_QRT(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &m,
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &gA1,
+                          UNPACK_DATA,  &A1,
                           UNPACK_VALUE, &lda1,
-                          UNPACK_DATA,  &gA2,
+                          UNPACK_DATA,  &A2,
                           UNPACK_VALUE, &lda2,
-                          UNPACK_DATA,  &gT,
+                          UNPACK_DATA,  &T,
                           UNPACK_VALUE, &ldt,
                           UNPACK_SCRATCH, &TAU,
                           UNPACK_SCRATCH, &WORK
                         );
-
-
-    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1);
-    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2);
-    void *T = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gT);
 
     CORE_ztsqrt(*m, *n, *ib, A1, *lda1, A2, *lda2, T, *ldt, TAU, WORK);
 
@@ -147,13 +130,13 @@ call_to_kernel_TS_MQR(dague_execution_unit_t *context, dague_execution_context_t
     int *n2;
     int *k;
     int *ib;
-    dague_data_copy_t *gA1;
+    dague_complex64_t *A1;
     int *lda1;
-    dague_data_copy_t *gA2;
+    dague_complex64_t *A2;
     int *lda2;
-    dague_data_copy_t *gV;
+    dague_complex64_t *V;
     int *ldv;
-    dague_data_copy_t *gT;
+    dague_complex64_t *T;
     int *ldt;
     dague_complex64_t *WORK;
     int *ldwork;
@@ -168,22 +151,17 @@ call_to_kernel_TS_MQR(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &n2,
                           UNPACK_VALUE, &k,
                           UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &gA1,
+                          UNPACK_DATA,  &A1,
                           UNPACK_VALUE, &lda1,
-                          UNPACK_DATA,  &gA2,
+                          UNPACK_DATA,  &A2,
                           UNPACK_VALUE, &lda2,
-                          UNPACK_DATA,  &gV,
+                          UNPACK_DATA,  &V,
                           UNPACK_VALUE, &ldv,
-                          UNPACK_DATA,  &gT,
+                          UNPACK_DATA,  &T,
                           UNPACK_VALUE, &ldt,
                           UNPACK_SCRATCH, &WORK,
                           UNPACK_VALUE, &ldwork
                         );
-
-    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1);
-    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2);
-    void *V = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gV);
-    void *T = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gT);
 
     CORE_ztsmqr(*side, *trans, *m1, *n1, *m2, *n2, *k, *ib,
                 A1, *lda1, A2, *lda2, V, *ldv, T, *ldt, WORK, *ldwork);
@@ -278,7 +256,7 @@ int main(int argc, char ** argv)
     int trans = PlasmaConjTrans;
 
     SYNC_TIME_START();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count */
     dague_handle_t* DAGUE_zgeqrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 #if defined (OVERLAP)
@@ -290,8 +268,6 @@ int main(int argc, char ** argv)
         tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-(k*ddescA.super.mb) : ddescA.super.mb;
         tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-(k*ddescA.super.nb) : ddescA.super.nb;
         ldak = BLKLDD(ddescA.super, k);
-
-        //printf("K: %d\n",k);
 
         insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_GE_QRT,            "geqrt",
                              sizeof(int),           &tempkm,                           VALUE,
@@ -307,7 +283,6 @@ int main(int argc, char ** argv)
 
         for (n = k+1; n < ddescA.super.nt; n++) {
             tempnn = n == ddescA.super.nt-1 ? ddescA.super.n-(n*ddescA.super.nb) : ddescA.super.nb;
-            //printf("N: %d\n",n);
 
             insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_UN_MQR,               "unmqr",
                                  sizeof(PLASMA_enum),   &side,                              VALUE,
@@ -329,7 +304,6 @@ int main(int argc, char ** argv)
         for (m = k+1; m < ddescA.super.mt; m++) {
             tempmm = m == ddescA.super.mt-1 ? ddescA.super.m-(m*ddescA.super.mb) : ddescA.super.mb;
             ldam = BLKLDD(ddescA.super, m);
-                //printf("M: %d\n",m);
 
             insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_TS_QRT,             "tsqrt",
                                  sizeof(PLASMA_enum),   &tempmm,                            VALUE,
@@ -348,7 +322,6 @@ int main(int argc, char ** argv)
             for (n = k+1; n < ddescA.super.nt; n++) {
                 tempnn = n == ddescA.super.nt-1 ? ddescA.super.n-(n*ddescA.super.nb) : ddescA.super.nb;
                 int ldwork = PlasmaLeft == PlasmaLeft ? ib : ddescT.super.nb;
-                //printf("N: %d\n",n);
 
                 insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_TS_MQR,               "tsmqr",
                                      sizeof(PLASMA_enum),   &side,                             VALUE,
@@ -383,7 +356,6 @@ int main(int argc, char ** argv)
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
-
 
     dague_dtd_fini();
 

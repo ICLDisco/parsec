@@ -18,9 +18,9 @@ call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_conte
     int *m;
     int *n;
     int *ib;
-    dague_data_copy_t *gA;
+    dague_complex64_t *A;
     int *lda;
-    dague_data_copy_t *gIPIV;
+    int *IPIV;
     PLASMA_bool *check_info;
     int *iinfo;
 
@@ -30,16 +30,12 @@ call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_conte
                           UNPACK_VALUE, &m,
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &gA,
+                          UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &gIPIV,
+                          UNPACK_DATA,  &IPIV,
                           UNPACK_VALUE, &check_info,
                           UNPACK_VALUE, &iinfo
                           );
-
-
-    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA);
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_zgetrf_incpiv(*m, *n, *ib, A, *lda, IPIV, &info);
     if (info != 0 && check_info)
@@ -56,12 +52,12 @@ call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t
     int *n;
     int *k;
     int *ib;
-    dague_data_copy_t *gIPIV;
-    dague_data_copy_t *gL;
+    int *IPIV;
+    dague_complex64_t *L;
     int *ldl;
-    dague_data_copy_t *gD;
+    dague_complex64_t *D;
     int *ldd;
-    dague_data_copy_t *gA;
+    dague_complex64_t *A;
     int *lda;
 
     dague_dtd_unpack_args(this_task,
@@ -69,18 +65,14 @@ call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &k,
                           UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &gIPIV,
-                          UNPACK_DATA,  &gL,
+                          UNPACK_DATA,  &IPIV,
+                          UNPACK_DATA,  &L,
                           UNPACK_VALUE, &ldl,
-                          UNPACK_DATA,  &gD,
+                          UNPACK_DATA,  &D,
                           UNPACK_VALUE, &ldd,
-                          UNPACK_DATA,  &gA,
+                          UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda
                           );
-
-    void *D = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gD);
-    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA);
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_zgessm(*m, *n, *k, *ib, IPIV, D, *ldd, A, *lda);
 
@@ -95,13 +87,13 @@ call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t
     int *n;
     int *ib;
     int *nb;
-    dague_data_copy_t *gU;
+    dague_complex64_t *U;
     int *ldu;
-    dague_data_copy_t *gA;
+    dague_complex64_t *A;
     int *lda;
-    dague_data_copy_t *gL;
+    dague_complex64_t *L;
     int *ldl;
-    dague_data_copy_t *gIPIV;
+    int *IPIV;
     dague_complex64_t *WORK;
     int *ldwork;
     PLASMA_bool *check_info;
@@ -114,23 +106,18 @@ call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &ib,
                           UNPACK_VALUE, &nb,
-                          UNPACK_DATA,  &gU,
+                          UNPACK_DATA,  &U,
                           UNPACK_VALUE, &ldu,
-                          UNPACK_DATA,  &gA,
+                          UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda,
-                          UNPACK_DATA,  &gL,
+                          UNPACK_DATA,  &L,
                           UNPACK_VALUE, &ldl,
-                          UNPACK_DATA,  &gIPIV,
+                          UNPACK_DATA,  &IPIV,
                           UNPACK_SCRATCH, &WORK,
                           UNPACK_VALUE, &ldwork,
                           UNPACK_VALUE, &check_info,
                           UNPACK_VALUE, &iinfo
                         );
-
-    void *U = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gU);
-    void *A = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA);
-    void *L = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL);
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_ztstrf(*m, *n, *ib, *nb, U, *ldu, A, *lda, L, *ldl, IPIV, WORK, *ldwork, &info);
 
@@ -150,17 +137,15 @@ call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t
     int *n2;
     int *k;
     int *ib;
-    dague_data_copy_t *gA1;
+    dague_complex64_t *A1;
     int *lda1;
-    dague_data_copy_t *gA2;
+    dague_complex64_t *A2;
     int *lda2;
-    dague_data_copy_t *gL1;
+    dague_complex64_t *L1;
     int *ldl1;
-    dague_data_copy_t *gL2;
+    dague_complex64_t *L2;
     int *ldl2;
-    dague_data_copy_t *gIPIV;
-
-
+    int *IPIV;
 
     dague_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &m1,
@@ -169,22 +154,16 @@ call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_VALUE, &n2,
                           UNPACK_VALUE, &k,
                           UNPACK_VALUE, &ib,
-                          UNPACK_DATA,  &gA1,
+                          UNPACK_DATA,  &A1,
                           UNPACK_VALUE, &lda1,
-                          UNPACK_DATA,  &gA2,
+                          UNPACK_DATA,  &A2,
                           UNPACK_VALUE, &lda2,
-                          UNPACK_DATA,  &gL1,
+                          UNPACK_DATA,  &L1,
                           UNPACK_VALUE, &ldl1,
-                          UNPACK_DATA,  &gL2,
+                          UNPACK_DATA,  &L2,
                           UNPACK_VALUE, &ldl2,
-                          UNPACK_DATA, &gIPIV
+                          UNPACK_DATA,  &IPIV
                           );
-
-    void *A1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA1);
-    void *A2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gA2);
-    void *L1 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL1);
-    void *L2 = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gL2);
-    void *IPIV = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *)gIPIV);
 
     CORE_zssssm(*m1, *n1, *m2, *n2, *k, *ib, A1, *lda1, A2, *lda2, L1, *ldl1, L2, *ldl2, IPIV);
 
@@ -265,9 +244,6 @@ int main(int argc, char ** argv)
 
     dague_dtd_init();
 
-
-
-
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zpltmg( dague, matrix_init, (tiled_matrix_desc_t *)&ddescA, random_seed );
@@ -290,7 +266,6 @@ int main(int argc, char ** argv)
     two_dim_block_cyclic_t *__ddescL    = &ddescL;
     two_dim_block_cyclic_t *__ddescIPIV = &ddescIPIV;
 
-
     int k, m, n;
     int ldak, ldam;
     int tempkm, tempkn, tempmm, tempnn;
@@ -302,7 +277,7 @@ int main(int argc, char ** argv)
 
     SYNC_TIME_START();
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count */
     dague_handle_t* DAGUE_zgetrf_inc_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
@@ -325,7 +300,7 @@ int main(int argc, char ** argv)
                              PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, k),     INOUT | REGION_FULL,
                              sizeof(int),           &ldak,                             VALUE,
                              PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, IPIV, k, k),  OUTPUT | REGION_FULL,
-                             sizeof(PLASMA_bool),           &check_info,                       VALUE,
+                             sizeof(PLASMA_bool),           &check_info,               VALUE,
                              sizeof(int),           &iinfo,                            VALUE,
                              0);
 
@@ -342,9 +317,9 @@ int main(int argc, char ** argv)
                                  PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, L, k, k),       INPUT | REGION_FULL,
                                  sizeof(int),           &ldl,                              VALUE,
                                  PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, k),       INPUT | REGION_FULL,
-                                 sizeof(int),           &ldak,                              VALUE,
+                                 sizeof(int),           &ldak,                             VALUE,
                                  PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, n),       INOUT | REGION_FULL,
-                                 sizeof(int),           &ldak,                              VALUE,
+                                 sizeof(int),           &ldak,                             VALUE,
                                  0);
         }
         for (m = k+1; m < ddescA.super.mt; m++) {
@@ -369,7 +344,7 @@ int main(int argc, char ** argv)
                                  PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, IPIV, m, k),  OUTPUT | REGION_FULL,
                                  sizeof(dague_complex64_t)*ib*nb,    NULL,                      SCRATCH,
                                  sizeof(int),           &nb,                               VALUE,
-                                 sizeof(PLASMA_bool),           &check_info,                       VALUE,
+                                 sizeof(PLASMA_bool),           &check_info,               VALUE,
                                  sizeof(int),           &iinfo,                            VALUE,
                                  0);
             for (n = k+1; n < ddescA.super.nt; n++) {
@@ -406,7 +381,6 @@ int main(int argc, char ** argv)
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
-
 
     dague_dtd_fini();
 
