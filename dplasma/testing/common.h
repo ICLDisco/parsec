@@ -60,6 +60,7 @@ enum iparam_t {
   IPARAM_HNB,          /* Small NB for recursive hdags */
   IPARAM_CHECK,        /* Checking activated or not         */
   IPARAM_CHECKINV,     /* Inverse Checking activated or not */
+  IPARAM_ASYNC,        /* Bench the asynchronous version    */
   IPARAM_VERBOSE,      /* How much noise do we want?        */
   IPARAM_LOWLVL_TREE,  /* Tree used for reduction inside nodes  (specific to xgeqrf_param) */
   IPARAM_HIGHLVL_TREE, /* Tree used for reduction between nodes (specific to xgeqrf_param) */
@@ -121,9 +122,10 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
     int matrix_init = iparam[IPARAM_MATRIX_INIT];                       \
     int nb_local_tasks = 0;                                             \
     int butterfly_level = iparam[IPARAM_BUT_LEVEL];                     \
+    int async = iparam[IPARAM_ASYNC];                                   \
     (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
     (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT; \
-    (void)SMB;(void)SNB;(void)HMB;(void)HNB;(void)check;(void)loud;     \
+    (void)SMB;(void)SNB;(void)HMB;(void)HNB;(void)check;(void)loud;(void)async; \
     (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;(void)random_seed;(void)matrix_init;
 
 /* Define a double type which not pass through the precision generation process */

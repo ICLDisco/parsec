@@ -19,10 +19,9 @@ int main(int argc, char ** argv)
 {
     dague_context_t* dague;
     int iparam[IPARAM_SIZEOF];
-    PLASMA_enum uplo = PlasmaUpper;
+    PLASMA_enum uplo = PlasmaLower;
     int info = 0;
     int ret = 0;
-    int async = 1;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -39,7 +38,6 @@ int main(int argc, char ** argv)
 
     /* initializing matrix structure */
     LDA = dplasma_imax( LDA, N );
-    LDB = dplasma_imax( LDB, N );
     SMB = 1;
     SNB = 1;
 
@@ -81,8 +79,8 @@ int main(int argc, char ** argv)
                         (tiled_matrix_desc_t *)&ddescA0, random_seed);
 
         ret |= check_zpoinv( dague, (rank == 0) ? loud : 0, uplo,
-                            (tiled_matrix_desc_t *)&ddescA0,
-                            (tiled_matrix_desc_t *)&ddescA );
+                             (tiled_matrix_desc_t *)&ddescA0,
+                             (tiled_matrix_desc_t *)&ddescA );
 
         if (ret) {
             printf("-- Innversion is suspicious ! \n");

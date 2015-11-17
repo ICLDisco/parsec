@@ -160,7 +160,7 @@ void print_usage(void)
             dague_usage();
 }
 
-#define GETOPT_STRING "c:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:"
+#define GETOPT_STRING "bc:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
 
 #if defined(HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -210,6 +210,9 @@ static struct option long_options[] =
     {"check_inv",   no_argument,        0, 'X'},
     {"X",           no_argument,        0, 'X'},
 
+    {"async",       no_argument,        0, 'b'},
+    {"b",           no_argument,        0, 'b'},
+
     /* HQR options */
     {"qr_a",        required_argument,  0, '0'},
     {"qr_p",        required_argument,  0, '1'},
@@ -224,7 +227,7 @@ static struct option long_options[] =
     {"criteria",    required_argument,  0, '1'},
     {"alpha",       required_argument,  0, 'a'},
     {"seed",        required_argument,  0, 'R'},
-    {"mtx",         required_argument,  0, 'b'},
+    {"mtx",         required_argument,  0, 'm'},
 
     /* Recursive options */
     {"z",           required_argument,  0, 'z'},
@@ -322,12 +325,14 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'X': iparam[IPARAM_CHECKINV] = 1;
             case 'x': iparam[IPARAM_CHECK] = 1; iparam[IPARAM_VERBOSE] = max(2, iparam[IPARAM_VERBOSE]); break;
 
+            case 'b': iparam[IPARAM_ASYNC] = 0; break;
+
                 /* HQR parameters */
             case '0': iparam[IPARAM_QR_TS_SZE]    = atoi(optarg); break;
             case '1': iparam[IPARAM_QR_HLVL_SZE]  = atoi(optarg); break;
 
             case 'R': iparam[IPARAM_RANDOM_SEED]  = atoi(optarg); break;
-            case 'b': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
+            case 'm': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
 
             case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
             case 'r': iparam[IPARAM_QR_TSRR]      = atoi(optarg) ? 1 : 0; break;
@@ -533,7 +538,8 @@ static void iparam_default(int* iparam)
     /* Just in case someone forget to add the initialization :) */
     memset(iparam, 0, IPARAM_SIZEOF * sizeof(int));
     iparam[IPARAM_NNODES] = 1;
-    iparam[IPARAM_NGPUS] = -1;
+    iparam[IPARAM_NGPUS]  = -1;
+    iparam[IPARAM_ASYNC]  = 1;
     iparam[IPARAM_QR_DOMINO]    = -1;
     iparam[IPARAM_QR_TSRR]      = 0;
     iparam[IPARAM_LOWLVL_TREE]  = DPLASMA_GREEDY_TREE;
