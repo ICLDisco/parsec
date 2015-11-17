@@ -92,20 +92,20 @@ static int vpmap_get_nb_cores_affinity_parameters(int vp, int thread)
 
 static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, int *ht)
 {
+    //int nb_real_cores = DEFAULT_NB_CORE;
     if( (vp < 0) ||
         (vp >= nbvp) ||
         (thread < 0) ||
         (thread >= nbthreadspervp )||
         (nbcores == -1) )
         return;
-    int nb_real_cores = DEFAULT_NB_CORE;
 #if defined(HAVE_HWLOC)
-    nb_real_cores = dague_hwloc_nb_real_cores();
+    //nb_real_cores = dague_hwloc_nb_real_cores();
     nbht = dague_hwloc_get_ht();
 #endif /* HAVE_HWLOC */
     *cores = (vp * nbcores * nbht) + thread;
     if (nbht > 1 ) {
-        *ht = (vp * nbcores * nbht + thread) % nbht;
+        *ht = (*cores) % nbht;
     } else {
         *ht = -1;
     }

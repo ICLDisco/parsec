@@ -809,7 +809,7 @@ static int read_threads(dbp_file_t *dbp, const dague_profiling_binary_file_heade
             assert( b->next_buffer_file_offset != -1 );
             next = refer_events_buffer(dbp->fd, b->next_buffer_file_offset);
             if( NULL == next ) {
-                fprintf(stderr, "Unable to read thread entry %d/%d at offset %llx: Profile file broken\n",
+                fprintf(stderr, "Unable to read thread entry %d/%d at offset %lx: Profile file broken\n",
                         head->nb_threads-nb, head->nb_threads, b->next_buffer_file_offset);
                 release_events_buffer( b );
                 return -1;
