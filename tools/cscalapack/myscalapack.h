@@ -13,8 +13,8 @@
 #define pdpotri_  pdpotri
 #define pdpotrs_  pdpotrs
 #define pdsymm_   pdsymm
-#define pdgetrf_  pdgetrf 
-#define pdlansy_  pdlansy 
+#define pdgetrf_  pdgetrf
+#define pdlansy_  pdlansy
 #define pdmatgen_ pdmatgen
 #define pdtrsm_   pdtrsm
 #define psgesv_   psgesv
@@ -97,15 +97,15 @@ extern void pdgemm_( char *transa, char *transb, int *M, int *N, int *K,
                                           double    *beta,
                                           double    *C, int *ic, int *jc, int *descC );
 
-extern void pssyev_( char *jobv, char *uplo, int *m, 
-                                  float     *A, int *ia, int *ja, int *descA, 
-                                  float     *W, 
-                                  float     *Z, int *iz, int *jz, int *descZ, 
+extern void pssyev_( char *jobv, char *uplo, int *m,
+                                  float     *A, int *ia, int *ja, int *descA,
+                                  float     *W,
+                                  float     *Z, int *iz, int *jz, int *descZ,
                                   float     *work, int *lwork, int *info);
-extern void pdsyev_( char *jobv, char *uplo, int *m, 
-                                  double    *A, int *ia, int *ja, int *descA, 
-                                  double    *W, 
-                                  double    *Z, int *iz, int *jz, int *descZ, 
+extern void pdsyev_( char *jobv, char *uplo, int *m,
+                                  double    *A, int *ia, int *ja, int *descA,
+                                  double    *W,
+                                  double    *Z, int *iz, int *jz, int *descZ,
                                   double    *work, int *lwork, int *info);
 
 extern void psgesvd_( char *jobu, char *jobvt, int *m, int *n,
