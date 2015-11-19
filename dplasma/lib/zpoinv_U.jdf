@@ -159,9 +159,9 @@ BODY [type=CUDA dyld=cublasZgemm]
                      ( n == k+1 ), (n-k),
                      PlasmaConjTrans, PlasmaNoTrans,
                      descA.mb, tempmm, descA.mb,
-                     (dague_complex64_t)-1., k, n, &descA, ldak,
-                                             k, m, &descA, ldak,
-                     (dague_complex64_t) 1., n, m, &descA, ldan);
+                     (dague_complex64_t)-1., ldak,
+                                             ldak,
+                     (dague_complex64_t) 1., ldan);
 }
 END
 
@@ -261,9 +261,9 @@ BODY [type=CUDA dyld=cublasZgemm]
                      ( n == k+1 ), (n-k),
                      PlasmaNoTrans, PlasmaNoTrans,
                      descA.mb, tempnn, tempkm,
-                     (dague_complex64_t)1., m, k, &descA, ldam,
-                                            k, n, &descA, ldak,
-                     (dague_complex64_t)1., m, n, &descA, ldam);
+                     (dague_complex64_t)1., ldam,
+                                            ldak,
+                     (dague_complex64_t)1., ldam);
 }
 END
 
@@ -431,9 +431,9 @@ BODY [type=CUDA dyld=cublasZgemm]
                      descA.nt == (k+1), descA.nt-k,
                      PlasmaNoTrans, PlasmaConjTrans,
                      descA.mb, descA.nb, tempkn,
-                     (dague_complex64_t)1., m, k, &descA, ldam,
-                                            n, k, &descA, ldan,
-                     (dague_complex64_t)1., m, n, &descA, ldam);
+                     (dague_complex64_t)1., ldam,
+                                            ldan,
+                     (dague_complex64_t)1., ldam);
 }
 END
 
