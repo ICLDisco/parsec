@@ -9,299 +9,326 @@ extern "C" %{
  *
  * @precisions normal z -> s d c
  *
- * This jdf performs the following operations : potrf + trtri + lauum
- * and NOT ONLY trtri + lauum as its name would indicate.
- *
  */
-#include "dplasmajdf.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
+
+#if defined(HAVE_CUDA)
+#include "dague/devices/cuda/dev_cuda.h"
+#include "dplasma/cores/cuda_zgemm.h"
+#endif  /* defined(HAVE_CUDA) */
 
 %}
 
-uplo      [type = "PLASMA_enum"]
 dataA     [type = "dague_ddesc_t *"]
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 
 
-DAGUE_IN_A(m, n)
-  /* Execution Space */
-  m = 0..(descA.nt-1)
-  n = 0..m
-
-  /* Locality */
-  : dataA(m,n)
-
-  RW    A    <- dataA(m,n)
-             -> ((0==m) & (0==n)) ? A potrf_zpotrf(0)
-             -> ((0==n) & (m>=1)) ? B potrf_ztrsm(0, m)
-             -> ((m==n) & (m>=1)) ? B potrf_zherk(0, n)
-             -> ((n>=1) & (m>=(n+1))) ? C potrf_zgemm(0, m, n)
-
-BODY
-{
-    /* nothing */
-}
-END
-
 potrf_zpotrf(k)
   /* Execution Space */
-  k = 0..(descA.nt-1)
+  k = 0..(descA.mt-1)
 
   /* Locality */
   : dataA(k,k)
 
-  RW    A    <- ((k>=1)) ? B potrf_zherk(k-1, k)
-             <- ((0==k)) ? A DAGUE_IN_A(0, 0)
+  RW    A    <- (k == 0) ? dataA(k, k) : C potrf_zherk(k-1, k)
+             -> A potrf_ztrsm( k, (k+1)..(descA.mt-1))
+             -> A trtri_ztrsmL(k,  0   ..(k-1))
+             -> A trtri_ztrsmR(k, (k+1)..(descA.mt-1))
              -> A trtri_ztrtri(k)
-             -> ((descA.mt>=(k+2))) ? A trtri_ztrsmR(k, (k+1)..(descA.mt-1))
-             -> ((k>=1)) ? A trtri_ztrsmL(k, 0..(k-1))
-             -> ((descA.mt>=(k+2))) ? A potrf_ztrsm(k, (k+1)..(descA.mt-1))
+
+; 44
 
 BODY
 {
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
-  int ldak = BLKLDD( descA, k );
-  int info = 0;
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int info = 0;
 
-  printlog("CORE_potrf_zpotrf(%d)\n"
-           "\t(PlasmaLower, tempkm, A(%d,%d)[%p], ldak, descA.nb*k)\n",
-  k, k, k, A);
+    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_potrf_zpotrf(%d)\n"
+             "\t(PlasmaLower, tempkm, A(%d,%d)[%p], ldak, descA.nb*k)\n",
+             k, k, k, A);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_zpotrf(PlasmaLower, tempkm, A /* dataA(k,k) */,
-        ldak, &info );
+    CORE_zpotrf(PlasmaLower, tempkm,
+                A /* dataA(k,k) */, ldak, &info );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 potrf_ztrsm(k, m)
   /* Execution Space */
-  k = 0..(descA.mt-2)
+  k = 0    ..(descA.mt-2)
   m = (k+1)..(descA.mt-1)
 
   /* Locality */
   : dataA(m,k)
 
   READ  A    <- A potrf_zpotrf(k)
-  RW    B    <- ((0==k)) ? A DAGUE_IN_A(m, 0)
-             <- ((k>=1)) ? C potrf_zgemm(k-1, m, k)
-             -> ((m>=(2+k))) ? A potrf_zgemm(k, m, (k+1)..(m-1))
+  RW    B    <- (k == 0) ? dataA(m, k) : C potrf_zgemm(k-1, m, k)
              -> A potrf_zherk(k, m)
-             -> ((descA.mt>=(m+2))) ? B potrf_zgemm(k, (m+1)..(descA.mt-1), m)
+             -> A potrf_zgemm(k, m, (k+1)..(m-1))
+             -> B potrf_zgemm(k, (m+1)..(descA.mt-1), m)
              -> B trtri_ztrsmR(k, m)
+
+; 40
 
 BODY
 {
-  int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
-  int ldak = BLKLDD( descA, k );
-  int ldam = BLKLDD( descA, m );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
-  printlog("CORE_potrf_ztrsm(%d, %d)\n"
-           "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, descA.mb, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
-  k, m, k, k, A, m, k, B);
+    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_potrf_ztrsm(%d, %d)\n"
+             "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, descA.mb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
+             k, m, k, k, A, m, k, B);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans,
-        PlasmaNonUnit, tempmm, descA.mb,
-        1.000000, A /* dataA(k,k) */, ldak,
-        B /* dataA(m,k) */, ldam );
+    CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
+               tempmm, descA.mb,
+               1., A /* dataA(k,k) */, ldak,
+                   B /* dataA(m,k) */, ldam );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 potrf_zherk(k, m)
   /* Execution Space */
-  k = 0..(descA.mt-2)
+  k = 0    ..(descA.mt-2)
   m = (k+1)..(descA.mt-1)
 
   /* Locality */
   : dataA(m,m)
 
-  CTL   ctl0 -> ctl0 trtri_ztrsmR(k, m)
   READ  A    <- B potrf_ztrsm(k, m)
-  RW    B    <- ((k>=1)) ? B potrf_zherk(k-1, m)
-             <- ((0==k)) ? A DAGUE_IN_A(m, m)
-             -> (((k+1)==m)) ? A potrf_zpotrf(m)
-             -> ((m>=(k+2))) ? B potrf_zherk(k+1, m)
+  RW    C    <- (k == 0) ? dataA(m, m) : C potrf_zherk(k-1, m)
+             -> (m == (k+1)) ? A potrf_zpotrf(m) : C potrf_zherk(k+1, m)
+
+  CTL   ctl0 -> ctl0 trtri_ztrsmR(k, m)
+
+; 40
 
 BODY
 {
-  int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
-  int ldam = BLKLDD( descA, m );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int ldam = BLKLDD( descA, m );
 
-  printlog("CORE_potrf_zherk(%d, %d)\n"
-           "\t(PlasmaLower, PlasmaNoTrans, tempmm, descA.mb, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam)\n",
-  k, m, m, k, A, m, m, B);
+    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_potrf_zherk(%d, %d)\n"
+             "\t(PlasmaLower, PlasmaNoTrans, tempmm, descA.mb, -1., A(%d,%d)[%p], ldam, 1., A(%d,%d)[%p], ldam)\n",
+             k, m, m, k, A, m, m, C);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_zherk(PlasmaLower, PlasmaNoTrans, tempmm,
-        descA.mb, -1.000000, A /* dataA(m,k) */,
-        ldam, 1.000000, B /* dataA(m,m) */,
-        ldam );
+    CORE_zherk(PlasmaLower, PlasmaNoTrans,
+               tempmm, descA.mb,
+               -1., A /* dataA(m,k) */, ldam,
+                1., C /* dataA(m,m) */, ldam );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 potrf_zgemm(k, m, n)
   /* Execution Space */
-  k = 0..(descA.mt-2)
+  k = 0    ..(descA.mt-2)
   m = (k+2)..(descA.mt-1)
   n = (k+1)..(m-1)
 
   /* Locality */
   : dataA(m,n)
 
-  CTL   ctl2 -> ctl2 trtri_ztrsmR(k, m)
-  CTL   ctl1 -> ctl1 trtri_ztrsmR(k, n)
   READ  A    <- B potrf_ztrsm(k, m)
   READ  B    <- B potrf_ztrsm(k, n)
-  RW    C    <- ((0==k)) ? A DAGUE_IN_A(m, n)
-             <- ((k>=1)) ? C potrf_zgemm(k-1, m, n)
-             -> (((k+1)==n)) ? B potrf_ztrsm(n, m)
-             -> ((n>=(k+2))) ? C potrf_zgemm(k+1, m, n)
+  RW    C    <- (k == 0) ? dataA(m, n) : C potrf_zgemm(k-1, m, n)
+             -> (n == (k+1)) ? B potrf_ztrsm(n, m) : C potrf_zgemm(k+1, m, n)
+
+  CTL   ctl1 -> ctl1 trtri_ztrsmR(k, m)
+  CTL   ctl2 -> ctl2 trtri_ztrsmR(k, n)
+
+; 40
+
+BODY [type=CUDA dyld=cublasZgemm]
+{
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
+
+    return gpu_zgemm(context, this_task,
+                     ( n == k+1 ), (n-k),
+                     PlasmaNoTrans, PlasmaConjTrans,
+                     tempmm, descA.mb, descA.mb,
+                     (dague_complex64_t)-1., m, k, &descA, ldam,
+                                             n, k, &descA, ldan,
+                     (dague_complex64_t) 1., m, n, &descA, ldam);
+}
+END
 
 BODY
 {
-  int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
-  int ldam = BLKLDD( descA, m );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
 
-  printlog("CORE_potrf_zgemm(%d, %d, %d)\n"
-           "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, descA.mb, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], descA.mb, 1.000000, A(%d,%d)[%p], ldam)\n",
-  k, m, n, m, k, A, n, k, B, m, n, C);
+    printlog("CORE_potrf_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, descA.mb, descA.mb, -1., A(%d,%d)[%p], ldam, A(%d,%d)[%p], descA.mb, 1., A(%d,%d)[%p], ldam)\n",
+             k, m, n, m, k, A, n, k, B, m, n, C);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans, tempmm,
-        descA.mb, descA.mb, -1,
-        A /* dataA(m,k) */, ldam, B /* dataA(n,k) */,
-        descA.mb, 1.000000, C /* dataA(m,n) */,
-        ldam );
+    CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
+               tempmm, descA.mb, descA.mb,
+               -1., A /* dataA(m,k) */, ldam,
+                    B /* dataA(n,k) */, ldan,
+                1., C /* dataA(m,n) */, ldam );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 trtri_ztrsmR(k, m)
   /* Execution Space */
-  k = 0..(descA.mt-2)
+  k = 0    ..(descA.mt-2)
   m = (k+1)..(descA.mt-1)
 
   /* Locality */
   : dataA(m,k)
 
-  CTL   ctl3 -> ((0==k)) ? ctl3 trtri_ztrtri(0)
   READ  A    <- A potrf_zpotrf(k)
   RW    B    <- B potrf_ztrsm(k, m)
-             -> (((k+1)==m) & (descA.mt>=(k+3))) ? B trtri_zgemm(m, (m+1)..(descA.mt-1), m-1)
-             -> ((m>=(k+2))) ? C trtri_zgemm(k+1, m, k)
-             -> (((k+1)==m)) ? B trtri_ztrsmL(m, m-1)
-             -> ((k>=1)) ? A trtri_zgemm(k, m, 0..(k-1))
-  CTL   ctl2 <- ((m>=(k+2))) ? ctl2 potrf_zgemm(k, m, (k+1)..(m-1))
-  CTL   ctl1 <- ((descA.mt>=(m+2))) ? ctl1 potrf_zgemm(k, (m+1)..(descA.mt-1), m)
+             -> (m == (k+1)) ? B trtri_zgemm(m, (m+1)..(descA.mt-1), m-1)
+             -> (m == (k+1)) ? B trtri_ztrsmL(m, m-1)
+             -> (m >  (k+1)) ? C trtri_zgemm(k+1, m, k)
+             -> A trtri_zgemm(k, m, 0..(k-1))
+
   CTL   ctl0 <- ctl0 potrf_zherk(k, m)
+  CTL   ctl1 <- ctl1 potrf_zgemm(k, m, (k+1)..(m-1))
+  CTL   ctl2 <- ctl2 potrf_zgemm(k, (m+1)..(descA.mt-1), m)
+  CTL   ctl3 -> (k == 0) ? ctl3 trtri_ztrtri(k)
+
+; 30
 
 BODY
 {
-  int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-  int ldak = BLKLDD( descA, k );
-  int ldam = BLKLDD( descA, m );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
-  printlog("CORE_trtri_ztrsmR(%d, %d)\n"
-           "\t(PlasmaRight, uplo, PlasmaNoTrans, PlasmaNonUnit, tempmm, tempkn, -1, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
-  k, m, k, k, A, m, k, B);
+    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_trtri_ztrsmR(%d, %d)\n"
+             "\t(PlasmaRight, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, tempmm, tempkn, -1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
+             k, m, k, k, A, m, k, B);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_ztrsm(PlasmaRight, uplo, PlasmaNoTrans,
-        PlasmaNonUnit, tempmm, tempkn,
-        -1, A /* dataA(k,k) */, ldak,
-        B /* dataA(m,k) */, ldam );
+    CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit,
+               tempmm, tempkn,
+               -1., A /* dataA(k,k) */, ldak,
+                    B /* dataA(m,k) */, ldam );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 trtri_zgemm(k, m, n)
   /* Execution Space */
-  k = (1)..(descA.mt-2)
-  m = (k+1)..(descA.mt-1)
-  n = 0..(k-1)
+  k = 1    ..(descA.nt-2)
+  m = (k+1)..(descA.nt-1)
+  n = 0    ..(k-1)
 
   /* Locality */
   : dataA(m,n)
 
-  CTL   ctl6 -> ((m>=(k+2))) ? ctl6 trtri_zgemm((k+1)..(m-1), m, k)
-             <- ((n>=1)) ? ctl6 trtri_zgemm(n, m, 0..(n-1))
-  CTL   ctl5 -> ctl5 trtri_ztrsmL(k, n)
-  CTL   ctl4 -> ((m==(1+k))) ? ctl4 trtri_ztrsmL(k+1, k)
   READ  A    <- B trtri_ztrsmR(k, m)
-  READ  B    <- ((k>=(n+2))) ? C trtri_zgemm(k-1, k-1+1, n)
-             <- ((k==(n+1))) ? B trtri_ztrsmR(k-1, k)
-  RW    C    <- ((k>=(n+2))) ? C trtri_zgemm(k-1, m, n)
-             <- (((1+n)==k)) ? B trtri_ztrsmR(k-1, m)
-             -> ((m>=(2+k))) ? C trtri_zgemm(k+1, m, n)
-             -> ((m==(k+1))) ? B trtri_ztrsmL(k+1, n)
-             -> ((m==(k+1)) & (descA.mt>=(m+2))) ? B trtri_zgemm(k+1, (k+2)..(descA.mt-1), n)
+  READ  B    <- (k == (n+1)) ? B trtri_ztrsmR(k-1, k) : C trtri_zgemm(k-1, k, n)
+  RW    C    <- (k == (n+1)) ? B trtri_ztrsmR(k-1, m) : C trtri_zgemm(k-1, m, n)
+             -> (m == (k+1)) ? B trtri_ztrsmL(k+1, n) : C trtri_zgemm(k+1, m, n)
+             -> (m == (k+1)) ? B trtri_zgemm(k+1, (k+2)..(descA.mt-1), n)
+
+  CTL   ctl4 -> (m == (k+1)) ? ctl4 trtri_ztrsmL(k+1, k)
+  CTL   ctl5 <- ctl5 trtri_zgemm(n, m, 0..(n-1))
+             -> ctl5 trtri_zgemm((k+1)..(m-1), m, k)
+  CTL   ctl6 -> ctl6 trtri_ztrsmL(k, n)
+
+; 30
+
+BODY [type=CUDA dyld=cublasZgemm]
+{
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
+
+    return gpu_zgemm(context, this_task,
+                     ( m == k+1 ), (m-k),
+                     PlasmaNoTrans, PlasmaNoTrans,
+                     tempmm, descA.mb, tempkn,
+                     (dague_complex64_t)1., m, k, &descA, ldam,
+                                            k, n, &descA, ldak,
+                     (dague_complex64_t)1., m, n, &descA, ldam);
+}
+END
 
 BODY
 {
-  int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-  int ldam = BLKLDD( descA, m );
-  int ldak = BLKLDD( descA, k );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
 
-  printlog("CORE_trtri_zgemm(%d, %d, %d)\n"
-           "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, descA.nb, tempkn, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
-  k, m, n, m, k, A, k, n, B, m, n, C);
+    printlog("CORE_trtri_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, descA.nb, tempkn, 1., A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1., A(%d,%d)[%p], ldam)\n",
+             k, m, n, m, k, A, k, n, B, m, n, C);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans, tempmm,
-        descA.nb, tempkn, 1.000000,
-        A /* dataA(m,k) */, ldam, B /* dataA(k,n) */,
-        ldak, 1.000000, C /* dataA(m,n) */,
-        ldam );
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+               tempmm, descA.nb, tempkn,
+               1., A /* dataA(m,k) */, ldam,
+                   B /* dataA(k,n) */, ldak,
+               1., C /* dataA(m,n) */, ldam );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 trtri_ztrsmL(k, n)
   /* Execution Space */
-  k = (1)..(descA.nt-1)
+  k = 1..(descA.nt-1)
   n = 0..(k-1)
 
   /* Locality */
   : dataA(k,n)
 
-  CTL   ctl7 -> ctl7 trtri_ztrtri(k)
   READ  A    <- A potrf_zpotrf(k)
-  RW    B    <- ((k==(n+1))) ? B trtri_ztrsmR(k-1, k)
-             <- ((k>=(n+2))) ? C trtri_zgemm(k-1, k-1+1, n)
-             -> ((k>=(n+2))) ? B lauum_zgemm(k, n, (n+1)..(k-1))
-             -> B lauum_ztrmm(k, n)
-             -> ((n>=1)) ? A lauum_zgemm(k, 0..(n-1), n)
+  RW    B    <- (k == (n+1)) ? B trtri_ztrsmR(k-1, k) : C trtri_zgemm(k-1, k, n)
              -> A lauum_zherk(k, n)
-  CTL   ctl5 <- ((descA.mt>=(k+2))) ? ctl5 trtri_zgemm(k, (k+1)..(descA.mt-1), n)
-  CTL   ctl4 <- (((n+1)==k) & (n>=1)) ? ctl4 trtri_zgemm(n, k-1+1, 0..(k-1-1))
+             -> B lauum_ztrmm(k, n)
+             -> B lauum_zgemm(k, n, (n+1)..(k-1))
+             -> A lauum_zgemm(k, 0..(n-1), n)
+
+  CTL   ctl4 <- (k == (n+1)) ? ctl4 trtri_zgemm(k-1, k, 0..(k-2))
+  CTL   ctl6 <- ctl6 trtri_zgemm(k, (k+1)..(descA.mt-1), n)
+  CTL   ctl7 -> ctl7 trtri_ztrtri(k)
+
+; 30
 
 BODY
 {
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-  int ldak = BLKLDD( descA, k );
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
 
-  printlog("CORE_trtri_ztrsmL(%d, %d)\n"
-           "\t(PlasmaLeft, uplo, PlasmaNoTrans, PlasmaNonUnit, tempkn, descA.nb, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
-  k, n, k, k, A, k, n, B);
+    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_trtri_ztrsmL(%d, %d)\n"
+             "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, tempkn, descA.nb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+             k, n, k, k, A, k, n, B);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_ztrsm(PlasmaLeft, uplo, PlasmaNoTrans,
-        PlasmaNonUnit, tempkn, descA.nb,
-        1.000000, A /* dataA(k,k) */, ldak,
-        B /* dataA(k,n) */, ldak );
+    CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit,
+               tempkn, descA.nb,
+               1., A /* dataA(k,k) */, ldak,
+                   B /* dataA(k,n) */, ldak );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
@@ -314,135 +341,163 @@ trtri_ztrtri(k)
 
   RW    A    <- A potrf_zpotrf(k)
              -> A lauum_zlauum(k)
-             -> ((k>=1)) ? A lauum_ztrmm(k, 0..(k-1))
-  CTL   ctl7 <- ((k>=1)) ? ctl7 trtri_ztrsmL(k, 0..(k-1))
-  CTL   ctl3 <- ((0==k) & (descA.mt>=2)) ? ctl3 trtri_ztrsmR(0, (1)..(descA.mt-1))
+             -> A lauum_ztrmm(k, 0..(k-1))
+
+  CTL   ctl3 <- (k == 0) ? ctl3 trtri_ztrsmR(0, 1..(descA.mt-1))
+  CTL   ctl7 <- (k >  0) ? ctl7 trtri_ztrsmL(k, 0..(k-1))
+
+; 30
 
 BODY
 {
-  int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-  int ldak = BLKLDD( descA, k );
-  int info = 0;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldak = BLKLDD( descA, k );
+    int info = 0;
 
-  printlog("CORE_trtri_ztrtri(%d)\n"
-           "\t(uplo, PlasmaNonUnit, tempkn, A(%d,%d)[%p], ldak, descA.nb*k)\n",
-  k, k, k, A);
+    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_trtri_ztrtri(%d)\n"
+             "\t(PlasmaLower, PlasmaNonUnit, tempkn, A(%d,%d)[%p], ldak, descA.nb*k)\n",
+             k, k, k, A);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_ztrtri(uplo, PlasmaNonUnit, tempkn,
-        A /* dataA(k,k) */, ldak, &info );
+    CORE_ztrtri(PlasmaLower, PlasmaNonUnit, tempkn,
+                A /* dataA(k,k) */, ldak, &info );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 lauum_zherk(k, n)
   /* Execution Space */
-  k = (1)..(descA.mt-1)
+  k = 1..(descA.mt-1)
   n = 0..(k-1)
 
   /* Locality */
   : dataA(n,n)
 
-  CTL   ctl8 -> ctl8 lauum_ztrmm(k, n)
   READ  A    <- B trtri_ztrsmL(k, n)
-  RW    B    <- ((k>=(n+2))) ? B lauum_zherk(k-1, n)
-             <- ((k==(1+n))) ? A lauum_zlauum(n)
-             -> ((descA.mt>=(k+2))) ? B lauum_zherk(k+1, n)
-             -> ((descA.mt==(1+k)) & (descA.mt==descA.nt)) ? A DAGUE_OUT_A(n, n)
+  RW    C    <- (k == (n+1)) ? A lauum_zlauum(k-1) : C lauum_zherk(k-1, n)
+             -> (k <  (descA.nt-1)) ? C lauum_zherk(k+1, n)
+             -> (k == (descA.nt-1)) ? dataA(n, n)
+
+  CTL   ctl8 -> ctl8 lauum_ztrmm(k, n)
+
+; 20
 
 BODY
 {
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
-  int ldak = BLKLDD( descA, k );
-  int ldan = BLKLDD( descA, n );
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int ldan = BLKLDD( descA, n );
 
-  printlog("CORE_lauum_zherk(%d, %d)\n"
-           "\t(uplo, PlasmaConjTrans, descA.mb, tempkm, 1.000000, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldan)\n",
-  k, n, k, n, A, n, n, B);
+    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_zherk(%d, %d)\n"
+             "\t(PlasmaLower, PlasmaConjTrans, descA.mb, tempkm, 1., A(%d,%d)[%p], ldak, 1., A(%d,%d)[%p], ldan)\n",
+             k, n, k, n, A, n, n, C);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_zherk(uplo, PlasmaConjTrans, descA.mb,
-        tempkm, 1.000000, A /* dataA(k,n) */,
-        ldak, 1.000000, B /* dataA(n,n) */,
-        ldan );
+    CORE_zherk(PlasmaLower, PlasmaConjTrans,
+               descA.mb, tempkm,
+               1., A /* dataA(k,n) */, ldak,
+               1., C /* dataA(n,n) */, ldan );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
 lauum_zgemm(k, n, m)
   /* Execution Space */
-  k = (1)..(descA.mt-1)
-  n = 0..(k-2)
+  k = 2    ..(descA.mt-1)
+  n = 0    ..(k-2)
   m = (n+1)..(k-1)
 
   /* Locality */
   : dataA(m,n)
 
-  CTL   ctl10 -> ctl10 lauum_ztrmm(k, n)
-  CTL   ctl9 -> ctl9 lauum_ztrmm(k, m)
   READ  A    <- B trtri_ztrsmL(k, m)
   READ  B    <- B trtri_ztrsmL(k, n)
-  RW    C    <- ((k>=(m+2))) ? C lauum_zgemm(k-1, n, m)
-             <- (((m+1)==k)) ? B lauum_ztrmm(k-1, n)
-             -> ((descA.nt==(k+1)) & (descA.nt==descA.mt)) ? A DAGUE_OUT_A(m, n)
-             -> ((descA.mt>=(k+2))) ? C lauum_zgemm(k+1, n, m)
+  RW    C    <- (k == (m+1)) ? B lauum_ztrmm(k-1, n) : C lauum_zgemm(k-1, n, m)
+             -> (k == (descA.nt-1)) ? dataA(m, n)
+             -> (k <  (descA.nt-1)) ? C lauum_zgemm(k+1, n, m)
 
-BODY
+  CTL   ctl9  -> ctl9  lauum_ztrmm(k, n)
+  CTL   ctl10 -> ctl10 lauum_ztrmm(k, m)
+
+; 20
+
+BODY [type=CUDA dyld=cublasZgemm]
 {
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
-  int ldak = BLKLDD( descA, k );
-  int ldam = BLKLDD( descA, m );
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
-  printlog("CORE_lauum_zgemm(%d, %d, %d)\n"
-           "\t(PlasmaConjTrans, PlasmaNoTrans, descA.mb, descA.nb, tempkm, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
-  k, n, m, k, m, A, k, n, B, m, n, C);
-#if !defined(DAGUE_DRY_RUN)
-
-  CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans, descA.mb,
-        descA.nb, tempkm, 1.000000,
-        A /* dataA(k,m) */, ldak, B /* dataA(k,n) */,
-        ldak, 1.000000, C /* dataA(m,n) */,
-        ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
-
+    return gpu_zgemm(context, this_task,
+                     descA.nt == (k+1), descA.nt-k,
+                     PlasmaNoTrans, PlasmaConjTrans,
+                     descA.mb, descA.nb, tempkm,
+                     (dague_complex64_t)1., k, m, &descA, ldak,
+                                            k, n, &descA, ldak,
+                     (dague_complex64_t)1., m, n, &descA, ldam);
 }
 END
 
-lauum_ztrmm(k, n4)
+BODY
+{
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
+
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaConjTrans, PlasmaNoTrans, descA.mb, descA.nb, tempkm, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, 1., A(%d,%d)[%p], ldam)\n",
+             k, n, m, k, m, A, k, n, B, m, n, C);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans,
+               descA.mb, descA.nb, tempkm,
+               1., A /* dataA(k,m) */, ldak,
+                   B /* dataA(k,n) */, ldak,
+               1., C /* dataA(m,n) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
+lauum_ztrmm(k, n)
   /* Execution Space */
-  k = (1)..(descA.mt-1)
-  n4 = 0..(k-1)
+  k = 1..(descA.mt-1)
+  n = 0..(k-1)
 
   /* Locality */
-  : dataA(k,n4)
+  : dataA(k,n)
 
-  CTL   ctl11 -> ctl11 lauum_zlauum(k)
   READ  A    <- A trtri_ztrtri(k)
-  RW    B    <- B trtri_ztrsmL(k, n4)
-             -> ((descA.mt==(k+1)) & (descA.mt==descA.nt)) ? A DAGUE_OUT_A(k, n4)
-             -> ((descA.mt>=(2+k))) ? C lauum_zgemm(k+1, n4, k)
-  CTL   ctl10 <- ((k>=(n4+2))) ? ctl10 lauum_zgemm(k, n4, (n4+1)..(k-1))
-  CTL   ctl9 <- ((n4>=1)) ? ctl9 lauum_zgemm(k, 0..(n4-1), n4)
-  CTL   ctl8 <- ctl8 lauum_zherk(k, n4)
+  RW    B    <- B trtri_ztrsmL(k, n)
+             -> (k == (descA.nt-1)) ? dataA(k, n)
+             -> (k <  (descA.nt-1)) ? C lauum_zgemm(k+1, n, k)
+
+  CTL   ctl8  <- ctl8  lauum_zherk(k, n)
+  CTL   ctl9  <- ctl9  lauum_zgemm(k, n, (n+1)..(k-1))
+  CTL   ctl10 <- ctl10 lauum_zgemm(k, 0..(n-1), n)
+  CTL   ctl11 -> ctl11 lauum_zlauum(k)
+
+; 20
 
 BODY
 {
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
-  int ldak = BLKLDD( descA, k );
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
 
-  printlog("CORE_lauum_ztrmm(%d, %d)\n"
-           "\t(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, tempkm, descA.nb, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
-  k, n4, k, k, A, k, n4, B);
+    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_ztrmm(%d, %d)\n"
+             "\t(PlasmaLeft, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempkm, descA.nb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
+             k, n, k, k, A, k, n, B);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_ztrmm(PlasmaLeft, uplo, PlasmaConjTrans,
-        PlasmaNonUnit, tempkm, descA.nb,
-        1.000000, A /* dataA(k,k) */, ldak,
-        B /* dataA(k,n4) */, ldak );
+    CORE_ztrmm(PlasmaLeft, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit,
+               tempkm, descA.nb,
+               1., A /* dataA(k,k) */, ldak,
+                   B /* dataA(k,n) */, ldak );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
@@ -454,43 +509,27 @@ lauum_zlauum(k)
   : dataA(k,k)
 
   RW    A    <- A trtri_ztrtri(k)
-             -> ((descA.mt>=(k+2))) ? B lauum_zherk(k+1, k)
-             -> ((descA.nt==(k+1)) & (descA.nt==descA.mt)) ? A DAGUE_OUT_A(k, k)
-  CTL   ctl11 <- ((k>=1)) ? ctl11 lauum_ztrmm(k, 0..(k-1))
+             -> (k == (descA.nt-1)) ? dataA(k, k)
+             -> (k <  (descA.nt-1)) ? C lauum_zherk(k+1, k)
+  CTL  ctl11 <- ctl11 lauum_ztrmm(k, 0..(k-1))
+
+; 20
 
 BODY
 {
-  int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
-  int ldak = BLKLDD( descA, k );
+    int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int ldak = BLKLDD( descA, k );
 
-  printlog("CORE_lauum_zlauum(%d)\n"
-           "\t(uplo, tempkm, A(%d,%d)[%p], ldak)\n",
-  k, k, k, A);
+    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
+
+    printlog("CORE_zlauum(%d)\n"
+             "\t(PlasmaLower, tempkm, A(%d,%d)[%p], ldak)\n",
+             k, k, k, A);
+
 #if !defined(DAGUE_DRY_RUN)
-
-  CORE_zlauum(uplo, tempkm, A /* dataA(k,k) */,
-        ldak );
+    CORE_zlauum(PlasmaLower, tempkm,
+                A /* dataA(k,k) */, ldak );
 #endif  /* !defined(DAGUE_DRY_RUN) */
-
 }
 END
 
-DAGUE_OUT_A(m, n)
-  /* Execution Space */
-  m = 0..(descA.nt-1)
-  n = 0..m
-
-  /* Locality */
-  : dataA(m,n)
-
-  RW    A    <- ((m>=(1+n)) & (descA.nt>=(2+m))) ? C lauum_zgemm(descA.mt-1, n, m)
-             <- ((m==n) & (descA.nt>=(m+2))) ? B lauum_zherk(descA.mt-1, n)
-             <- (((m+1)==descA.mt) & (m>=(n+1))) ? B lauum_ztrmm(m, n)
-             <- ((descA.mt==(1+n)) & (descA.mt==(m+1))) ? A lauum_zlauum(m)
-             -> dataA(m,n)
-
-BODY
-{
-    /* nothing */
-}
-END
