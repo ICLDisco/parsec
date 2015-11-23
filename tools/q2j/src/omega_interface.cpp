@@ -3830,7 +3830,7 @@ Relation build_execution_space_relation(node_t *node, int *status){
         /* keep walking up the tree */;
     }
 
-    // Use the enclosing function the retrieve the execustion space of the destination task
+    // Use the enclosing function to retrieve the execustion space of the destination task
     return process_execution_space(node, func, status);
 }
 
@@ -3938,6 +3938,12 @@ Relation process_execution_space( node_t *node, node_t *func, int *status )
             }
         }
      }
+
+    // Take into account all the conditions of all enclosing if() statements.
+    for(tmp=node->enclosing_if; NULL != tmp; tmp=tmp->enclosing_if ){
+        bool in_else = is_enclosed_by_else(node, tmp);
+        convert_if_condition_to_Omega_relation(tmp, in_else, S_root, vars, S);
+    }
 
     // Add any conditions that have been provided by the developer as invariants
     add_invariants_to_Omega_relation(S_root, S, func);
