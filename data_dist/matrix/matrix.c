@@ -87,17 +87,13 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     o->key           = NULL;
 #endif
     o->memory_registration_status    = MEMORY_STATUS_UNREGISTERED;
+    o->key_base = NULL;
 
     /* Matrix address */
     /* tdesc->mat = NULL; */
     /* tdesc->A21 = (lm - lm%mb)*(ln - ln%nb); */
     /* tdesc->A12 = (     lm%mb)*(ln - ln%nb) + tdesc->A21; */
     /* tdesc->A22 = (lm - lm%mb)*(     ln%nb) + tdesc->A12; */
-
-    /* Super setup */
-    tdesc->super.nodes = nodes;
-    tdesc->super.myrank = myrank;
-    tdesc->super.key_base = NULL;
 
     /* Matrix properties */
     tdesc->data_map = NULL;
