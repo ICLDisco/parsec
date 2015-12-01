@@ -1,9 +1,9 @@
 #!/bin/bash
 
 echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
-CC=${CC:="gcc"}
-CXX=${CXX:="g++"}
-FC=${FC:="gfortran"}
+CC=${CC:="icc"}
+CXX=${CXX:="icpc"}
+FC=${FC:="ifort"}
 MPI_DIR=${MPI_DIR:="/opt/ompi"}
 HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 GTG_DIR=${GTG_DIR:="/opt/gtg"}
