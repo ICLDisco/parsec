@@ -678,17 +678,17 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/scheduling.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/output.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/vpmap.h
-    DESTINATION include/daguepp/dague )
+    DESTINATION include/dague )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/mca.h
-    DESTINATION include/daguepp/dague/mca )
+    DESTINATION include/dague/mca )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_papi_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_tau_utils.h
-    DESTINATION include/daguepp/dague/mca/pins )
+    DESTINATION include/dague/mca/pins )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/argv.h
@@ -705,7 +705,7 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/show_help.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/show_help_lex.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/zone_malloc.h
-    DESTINATION include/daguepp/dague/utils )
+    DESTINATION include/dague/utils )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/barrier.h
@@ -717,7 +717,7 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/lifo.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list_item.h
-    DESTINATION include/daguepp/dague/class )
+    DESTINATION include/dague/class )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-gcc.h
@@ -728,16 +728,16 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_64.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-xlc.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic.h
-    DESTINATION include/daguepp/dague/sys )
+    DESTINATION include/dague/sys )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/device.h
-    DESTINATION include/daguepp/dague/devices )
+    DESTINATION include/dague/devices )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/cuda_scheduling.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/dev_cuda.h
-    DESTINATION include/daguepp/dague/devices/cuda )
+    DESTINATION include/dague/devices/cuda )
 
 endif(DAGUE_WITH_DEVEL_HEADERS)
 
