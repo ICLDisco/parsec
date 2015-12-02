@@ -33,17 +33,19 @@ package.
 
 Configuring DPLASMA for a new platform
 
-CMake is comparable to configure, but it's subtly different. For one thing,
-CMake display the commands with colors, which is its most prominent feature.
+CMake has a comparable goal to configure, but it's subtly different. For one
+thing, CMake display the commands with colors, but this is not necessarily its
+most prominent feature.
 
 CMake keeps everything it found hitherto in a cache file name
 CMakeCache.txt. Until you have successfully configured dplasma, remove the
 CMakeCache.txt file each time you run cmake.
 
-First, there are example invocations of cmake in the DPLASMA trunk
+First, there are example invocations of cmake in the contrib/platforms
 (config.dancer is a typical linux system, config.jaguar is for, you got it, XT5,
 ...). We advise you to start from this file and tweak it for your system
-accordingly to the following guidelines.
+accordingly to the following guidelines. These files are shell scripts that can
+be executed directly from desired build directory (VPATH or not).
 
 In order to enable the Linear Algebra package the PLASMA library is required. If
 you have a fairly recent version, correctly configured, this should be a breeze
