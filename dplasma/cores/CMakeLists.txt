@@ -115,11 +115,19 @@ if( CUDA_FOUND )
     set(CUDA_SM_TARGETS 11 13 20 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
   endif()
 
+# For Tesla
   set(CUDA_NVCC_FLAGS_11 -maxrregcount 32 -arch sm_11 -DCUDA_SM_VERSION=11)
   set(CUDA_NVCC_FLAGS_13 -maxrregcount 32 -arch sm_13 -DCUDA_SM_VERSION=13)
+# For Fermi
   set(CUDA_NVCC_FLAGS_20                  -arch sm_20 -DCUDA_SM_VERSION=20)
+# For Kepler
   set(CUDA_NVCC_FLAGS_30                  -arch sm_30 -DCUDA_SM_VERSION=30)
   set(CUDA_NVCC_FLAGS_35                  -arch sm_35 -DCUDA_SM_VERSION=35)
+  set(CUDA_NVCC_FLAGS_37                  -arch sm_37 -DCUDA_SM_VERSION=37)
+# For Maxwell
+  set(CUDA_NVCC_FLAGS_50                  -arch sm_50 -DCUDA_SM_VERSION=50)
+  set(CUDA_NVCC_FLAGS_52                  -arch sm_52 -DCUDA_SM_VERSION=52)
+  set(CUDA_NVCC_FLAGS_53                  -arch sm_53 -DCUDA_SM_VERSION=53)
 
   ### CUDA .cu sources
   set( CUDA11_SOURCES
@@ -131,6 +139,7 @@ if( CUDA_FOUND )
   )
   set( CUDA30_SOURCES ${CUDA20_SOURCES} )
   set( CUDA35_SOURCES ${CUDA20_SOURCES} )
+  set( CUDA37_SOURCES ${CUDA20_SOURCES} )
 
   foreach( _smtarget ${CUDA_SM_TARGETS} )
     if( NOT "${CUDA${_smtarget}_SOURCES}" STREQUAL "" )
