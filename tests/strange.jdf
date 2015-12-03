@@ -10,6 +10,11 @@ extern "C" %{
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "strange.h"
 
+/**
+ * This test build a chain using different different local variables
+ * and inlined functions. The local variable m is not necessary for the
+ * functionning of the test,it is there for validation purposes.
+ */
 %}
 
 N         [type = int]
