@@ -17,9 +17,8 @@ help application developers tackle the difficult task of porting their
 applications to highly heterogeneous and diverse environment.
 
 Please read the INSTALL file for the software dependencies and the installation
-instructions. The README and INSTALL files included here might be slightly
-out-of-date, the most current version can always be found in our wiki
-(https://bitbucket.org/bosilca/dague.public/wiki/Home).
+instructions. Also, our wiki might contain additional information, check it out
+https://bitbucket.org/icldistcomp/parsec/wiki/Home.
 
 If you are interested in this project and want to join the users community, our
 mailman will be happy to accept you on the project user (moderated) mailing list
