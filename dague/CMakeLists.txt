@@ -68,9 +68,7 @@ set(SOURCES
 if( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype.c)
 endif( NOT MPI_C_FOUND )
-if( HWLOC_FOUND )
-  list(APPEND SOURCES dague_hwloc.c)
-endif( HWLOC_FOUND )
+list(APPEND SOURCES dague_hwloc.c)
 
 if (CUDA_FOUND)
   list(APPEND SOURCES devices/cuda/dev_cuda.c)

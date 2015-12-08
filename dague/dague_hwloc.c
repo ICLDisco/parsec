@@ -36,6 +36,7 @@ static int hyperth_per_core = 1;
  */
 static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
 {
+#if defined(HAVE_HWLOC)
     char *str = NULL;
     /*#if (DAGUE_DEBUG_VERBOSE != 0) && defined(HAVE_HWLOC_BITMAP)*/
 #if defined(HAVE_HWLOC_BITMAP)
@@ -45,6 +46,9 @@ static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
 #endif /* DAGUE_DEBUG_VERBOSE */
     dague_output(0, "%s %s\n", msg, str);
     free(str);
+#else
+    dague_output(0, "%s compiled without HWLOC support\n", msg);
+#endif  /* defined(HAVE_HWLOC) */
 }
 
 int dague_hwloc_init(void)
