@@ -39,6 +39,10 @@ if [ ! -x "$FC" ]; then
     CC=$GCCDIR/gcc
     CXX=$GCCDIR/g++
     FC=$GCCDIR/gfortran
+  elif [ -x "$GCCDIR/gcc-5" ]; then
+    CC=$GCCDIR/gcc-5
+    CXX=$GCCDIR/g++-5
+    FC=$GCCDIR/gfortran
   elif [ -x "$GCCDIR/gcc-4" ]; then
     CC=$GCCDIR/gcc-4
     CXX=$GCCDIR/g++-4
