@@ -3,6 +3,15 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+/* **************************************************************************** */
+/**
+ * @file overlap_strategies.c
+ *
+ * @version 2.0.0
+ * @author Reazul Hoque
+ *
+ */
+
 #include "dague_config.h"
 #include "dague/dague_internal.h"
 
@@ -11,14 +20,20 @@
 #include "dague/remote_dep.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
-/* This function releases the ownership of data once the task is done with it
- * Arguments:   - the task who wants to release the data (dague_dtd_task_t *)
- - the index of the flow for which this data was being used (int)
- * Returns:     - 0 if the task successfully released data /
- 1 if the task got a descendant before releasing ownership (int)
- */
+/***************************************************************************//**
+ *
+ * This function releases the ownership of a data for a task
+ *
+ * @param[in]   current_task
+ *                  Task which is trying to release ownership
+ * @param[in]   flow_index
+ *                  Flow index of the task for which the task is releasing
+ * @return
+ *              Returns 1 if successfully released ownership, 0 otherwise
+ *
+ ******************************************************************************/
 int
-multithread_dag_build_1(const dague_dtd_task_t* current_task, int flow_index)
+release_ownership_of_data(const dague_dtd_task_t *current_task, int flow_index)
 {
     dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)current_task|flow_index);
     dague_dtd_tile_t* tile = current_task->desc[flow_index].tile;
@@ -26,7 +41,7 @@ multithread_dag_build_1(const dague_dtd_task_t* current_task, int flow_index)
     dague_mfence(); /* Write */
     if( dague_atomic_cas(&(tile->last_user.task), task_pointer, NULL) ) {
         /* we are successful, we do not need to wait and there is no successor yet*/
-        return 0;
+        return 1;
     }
     /* if we can not atomically swap the last user of the tile to NULL then we
      * wait until we find our successor.
@@ -40,13 +55,27 @@ multithread_dag_build_1(const dague_dtd_task_t* current_task, int flow_index)
         }
         dague_mfence();  /* force the local update of the cache */
     }
-    return 1;
+    return 0;
 }
 
-/* This function tries to make a Fake task with operation type of OUTPUT on the
- * data as the last user of the tile.
- * If this try fails we make sure we get the last_user of the tile updated for us to read.
- */
+/***************************************************************************//**
+ *
+ * This function tries to make a Fake task with operation type of OUTPUT
+ * on the data as the last user of the tile. If this try fails we make
+ * sure we get the last_user of the tile updated for us to read.
+ *
+ * @param[in]   last_read
+ *                  The last reader of the tile
+ * @param[in]   fake_writer
+ *                  Fake task we are trying to set as last user
+ *                  of the data(tile)
+ * @param[in]   last_read_flow_index
+ *                  Flow index of the last reader of the tile
+ * @return
+ *              1 if successfully set the fake writer as the last user,
+ *              0 otherwise
+ *
+ ******************************************************************************/
 int
 put_fake_writer_as_last_user( dague_dtd_task_t *last_read,
                               dague_dtd_task_t *fake_writer,
@@ -76,17 +105,29 @@ put_fake_writer_as_last_user( dague_dtd_task_t *last_read,
     return 0;
 }
 
-/* This function implements the iterate successors taking anti dependence into consideration.
- * At first we go through all the descendant of a task for each flow and put them in a list.
- * This is helpful in terms of creating chains of INPUT and ATOMIC_WRITE tasks.
- * INPUT and atomic writes are all activated if they are found in successions, and they are treated the
- * same way.
- */
+/***************************************************************************//**
+ *
+ * This function implements the iterate successors taking
+ * anti dependence into consideration. At first we go through all
+ * the descendant of a task for each flow and put them in a list.
+ * This is helpful in terms of creating chains of INPUT tasks.
+ * INPUT tasks are activated if they are found in successions,
+ * and they are treated the same way.
+ *
+ * @param[in]   eu
+ *                  Execution unit
+ * @param[in]   this_task
+ *                  We will iterate thorugh the successors of this task
+ * @param[in]   action_mask,ontask_arg
+ * @param[in]   ontask
+ *                  Function pointer to function that activates successsor
+ *
+ ******************************************************************************/
 void
-ordering_correctly_2(dague_execution_unit_t * eu,
+ordering_correctly_2(dague_execution_unit_t *eu,
                      const dague_execution_context_t *this_task,
                      uint32_t action_mask,
-                     dague_ontask_function_t * ontask,
+                     dague_ontask_function_t *ontask,
                      void *ontask_arg)
 {
     dague_dtd_task_t *current_task = (dague_dtd_task_t *)this_task;
@@ -126,7 +167,7 @@ ordering_correctly_2(dague_execution_unit_t * eu,
                  OUTPUT == op_type_on_current_flow ||
                 (current_task->dont_skip_releasing_data[current_dep])) {
 #if defined (OVERLAP)
-                if(!multithread_dag_build_1(current_task, current_dep)) { /* trying to release ownership */
+                if(release_ownership_of_data(current_task, current_dep)) { /* trying to release ownership */
 #endif
                     dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
                     continue;  /* no descendent for this data */

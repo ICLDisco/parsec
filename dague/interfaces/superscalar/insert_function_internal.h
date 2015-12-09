@@ -3,6 +3,14 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+/**
+ *
+ * @file insert_function_internal.h
+ *
+ * @version 2.0.0
+ * @author Reazul Hoque
+ *
+ **/
 
 #ifndef INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
 #define INSERT_FUNCTION_INTERNAL_H_HAS_BEEN_INCLUDED
