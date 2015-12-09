@@ -1,8 +1,16 @@
-/*
+/**
  * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
- */
+ **/
+/**
+ *
+ * @file insert_function.h
+ *
+ * @version 2.0.0
+ * @author Reazul Hoque
+ *
+ **/
 
 #ifndef INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 #define INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
@@ -16,7 +24,7 @@ BEGIN_C_DECLS
 /**
  * To see examples please look at testing_zpotrf_dtd.c, testing_zgeqrf_dtd.c,
  * testing_zgetrf_incpiv_dtd.c files in the directory "root_of_PaRSEC/dplasma/testing/"
- */
+ **/
 
 /*
     **  Details of Flags **
