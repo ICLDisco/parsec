@@ -177,6 +177,7 @@ typedef struct jdf_function_entry {
     struct jdf_expr           *simcost;
     struct jdf_def_list       *properties;
     struct jdf_body           *bodies;
+    struct jdf_expr           *inline_c_functions;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {
