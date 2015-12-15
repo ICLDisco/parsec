@@ -250,7 +250,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     int ret;
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_ENABLE) && DAGUE_DEBUG_VERBOSE >= 2
     {
         dague_execution_context_t* context = new_context;
         const struct dague_flow_s* flow;
