@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2015 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -949,8 +949,8 @@ static int __VAL_NEXT_TAG = MIN_MPI_TAG;
 static inline int next_tag(int k) {
     int __tag = __VAL_NEXT_TAG;
     if( __tag > (MAX_MPI_TAG-k) ) {
-        printf("rank %d rollover: min %d < %d (+%d) < max %d\n", dague_debug_rank,
-               MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
+        DEBUG(("rank %d rollover: min %d < %d (+%d) < max %d\n", dague_debug_rank,
+               MIN_MPI_TAG, __tag, k, MAX_MPI_TAG));
         __VAL_NEXT_TAG = __tag = MIN_MPI_TAG;
     } else
         __VAL_NEXT_TAG += k;
