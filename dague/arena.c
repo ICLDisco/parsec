@@ -40,6 +40,10 @@ int dague_arena_construct_ex(dague_arena_t* arena,
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
         return -1;
 
+    /* avoid dividing by zero */
+    if( elem_size == 0 )
+        return -1;
+
     assert(0 == (((uintptr_t)arena) % sizeof(uintptr_t))); /* is it aligned */
 
     OBJ_CONSTRUCT(&arena->area_lifo, dague_lifo_t);
