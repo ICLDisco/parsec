@@ -456,11 +456,13 @@ typedef struct assignment_info {
 
 /**
  * dump_local_assignments:
- * Takes the pointer to the name of a parameter, a pointer to a dump_info, and prints
- * int k = <assignment_info.holder>[<assignment_info.idx>] into assignment_info.sa
- * for each variable that belong to the expression that is going to be used. This
- * expression is passed into assignment_info->expr. If assignment_info->expr is
- * NULL, all variables are assigned.
+ * Takes the pointer to the name of a parameter, a pointer to a assignment_info, and prints
+ * "const int %var% = <assignment_info.holder>%var%.value into assignment_info.sa.
+ * If a local variable is not used by the expression then it is not generated. A special
+ * corner case for inline_c code is handled by forcing the generation of all locals.
+ * This function is usually used in order to generate the locals for the expression
+ * associated with a particular task.
+ * If assignment_info->expr is NULL, all variables are assigned.
  */
 static char* dump_local_assignments( void** elem, void* arg )
 {
@@ -4162,7 +4164,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
     coutput("{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
-            "  assignment_t tass[MAX_PARAM_COUNT];\n"
+            "  assignment_t tass[MAX_PARAM_COUNT];  /* generic locals */\n"
             "  (void)context; (void)__dague_handle; (void)tass;\n"
             "%s",
             jdf_basename, jdf_basename,
@@ -4191,10 +4193,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
         if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
 
-        coutput("    data_repo_entry_t *e%s = this_task->data[%d].data_repo;\n"
+        coutput("    data_repo_entry_t *e%s = this_task->data.%s.data_repo;\n"
                 "    if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
                 "      this_task->sim_exec_date = e%s->sim_exec_date;\n",
-                fl->varname, fl->flow_index,
+                fl->varname, fl->varname,
                 fl->varname, fl->varname,
                 fl->varname);
     }
@@ -4570,9 +4572,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
             string_arena_add_string(sa_open,
                                     "%s%s  const int %s_%s = %s;\n",
                                     prefix, indent(nbopen), targetf->fname, def->name, dump_expr((void**)def->expr, &dest_info));
-            string_arena_add_string(sa_open, "%s%s  %s.locals[%d].value = %s_%s;\n",
-                                    prefix, indent(nbopen), var, i,
-                                    targetf->fname, def->name);
+            string_arena_add_string(sa_open, "%s%s  assert(&%s.locals[%d].value == &ncc->locals.%s.value);\n",
+                                    prefix, indent(nbopen), var, i, def->name);
             string_arena_add_string(sa_open, "%s%s  ncc->locals.%s.value = %s_%s;\n",
                                     prefix, indent(nbopen), def->name,
                                     targetf->fname, def->name);
@@ -4615,10 +4616,8 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
                 nbopen++;
             }
 
-            string_arena_add_string(sa_open,
-                                    "%s%s  %s.locals[%d].value = %s_%s;\n",
-                                    prefix, indent(nbopen), var, i,
-                                    targetf->fname, nl->name);
+            string_arena_add_string(sa_open, "%s%s  assert(&%s.locals[%d].value == &ncc->locals.%s.value);\n",
+                                    prefix, indent(nbopen), var, i, nl->name);
             string_arena_add_string(sa_open,
                                     "%s%s  ncc->locals.%s.value = %s_%s;\n",
                                     prefix, indent(nbopen), nl->name,
@@ -4765,7 +4764,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
             "               uint32_t action_mask, dague_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
             "  const __dague_%s_internal_handle_t *__dague_handle = (const __dague_%s_internal_handle_t*)this_task->dague_handle;\n"
-            "  dague_execution_context_t nc;\n"
+            "  dague_execution_context_t nc;  /* generic placeholder for locals */\n"
             "  dague_dep_data_description_t data;\n"
             "  int vpid_dst = -1, rank_src = 0, rank_dst = 0;\n"
             "%s"
