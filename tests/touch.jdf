@@ -59,7 +59,7 @@ dague_handle_t* touch_initialize(int block, int n)
                                      descA.super.bsiz *
                                      dague_datadist_getsizeoftype(TYPE) );
 
-    handle = dague_touch_new( &descA, (n / block) -1 );
+    handle = dague_touch_new( &descA, ((n + block - 1) / block) - 1 );
     assert( NULL != handle );
 
     dague_arena_construct( handle->arenas[DAGUE_touch_DEFAULT_ARENA],
