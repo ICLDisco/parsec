@@ -306,7 +306,7 @@ BODY [type=CUDA dyld=cublasZgemm]
      */
     if ( !(ldam > descA.mb) )
     {
-        ret = gpu_zgemm(context, this_task,
+        ret = gpu_zgemm(context, (dague_execution_context_t*)this_task,
                         ( n == k+1 ), n-k,
                         PlasmaNoTrans, PlasmaConjTrans,
                         tempmm, descA.mb, descA.mb,
