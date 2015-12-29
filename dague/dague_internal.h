@@ -291,7 +291,6 @@ struct dague_execution_context_s {
 #if defined(PINS_ENABLE)
     int                        creator_core;
     int                        victim_core;
-    int                        execution_core;
 #endif /* defined(PINS_ENABLE) */
 #if defined(DAGUE_SIM)
     int                        sim_exec_date;
