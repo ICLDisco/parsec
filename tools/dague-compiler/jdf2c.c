@@ -4455,21 +4455,21 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "  }\n"
                 "#endif\n"
                 "\n");
+        coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
+                "    struct dague_vp_s** vps = eu->virtual_process->dague_context->virtual_processes;\n");
+        coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
+                f->fname);
+        coutput("    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
+                "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
+                "      if(__vp_id == eu->virtual_process->vp_id) {\n"
+                "        __dague_schedule(eu, arg.ready_lists[__vp_id]);\n"
+                "      } else {\n"
+                "        __dague_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
+                "      }\n"
+                "      arg.ready_lists[__vp_id] = NULL;\n"
+                "    }\n"
+                "  }\n");
     }
-    coutput("  if(action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) {\n"
-            "    struct dague_vp_s** vps = eu->virtual_process->dague_context->virtual_processes;\n");
-    coutput("    data_repo_entry_addto_usage_limit(%s_repo, arg.output_entry->key, arg.output_usage);\n",
-            f->fname);
-    coutput("    for(__vp_id = 0; __vp_id < eu->virtual_process->dague_context->nb_vp; __vp_id++) {\n"
-            "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
-            "      if(__vp_id == eu->virtual_process->vp_id) {\n"
-            "        __dague_schedule(eu, arg.ready_lists[__vp_id]);\n"
-            "      } else {\n"
-            "        __dague_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
-            "      }\n"
-            "      arg.ready_lists[__vp_id] = NULL;\n"
-            "    }\n"
-            "  }\n");
 
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
