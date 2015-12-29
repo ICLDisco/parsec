@@ -1304,15 +1304,15 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
             "    DEBUG((\"thread %%d VP %%d explore deps from %%s:%%s to %%s:%%s (from rank %%d to %%d) base ptr %%p\\n\",\\\n"
             "           (NULL != (EU) ? (EU)->th_id : -1), (NULL != (EU) ? (EU)->virtual_process->vp_id : -1),\\\n"
-            "           DEPO, dague_snprintf_execution_context(tmp1, 128, (TASKO)),\\\n"
-            "           DEPI, dague_snprintf_execution_context(tmp2, 128, (TASKI)), (RSRC), (RDST), (DATA)));\\\n"
+            "           DEPO, dague_snprintf_execution_context(tmp1, 128, (dague_execution_context_t*)(TASKO)),\\\n"
+            "           DEPI, dague_snprintf_execution_context(tmp2, 128, (dague_execution_context_t*)(TASKI)), (RSRC), (RDST), (DATA)));\\\n"
             "  } while(0)\n"
             "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS, PTR)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
             "    DEBUG((\"task %%s acquires flow %%s from %%s %%s data ptr %%p\\n\",\\\n"
-            "           dague_snprintf_execution_context(tmp1, 128, (TASKI)), (DEPI),\\\n"
-            "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (LOCALS)), (PTR)));\\\n"
+            "           dague_snprintf_execution_context(tmp1, 128, (dague_execution_context_t*)(TASKI)), (DEPI),\\\n"
+            "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (assignment_t*)(LOCALS)), (PTR)));\\\n"
             "  } while(0)\n"
             "#else\n"
             "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\n"
@@ -4469,8 +4469,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
                 "      arg.ready_lists[__vp_id] = NULL;\n"
                 "    }\n"
                 "  }\n");
+    } else {
+        coutput("  /* No successors, don't call iterate_successors and don't release any local deps */\n");
     }
-
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput(
