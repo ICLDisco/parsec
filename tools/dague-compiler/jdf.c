@@ -30,6 +30,8 @@ extern const char *yyfilename;
 #define DO_DEBUG_VERBOSE( VAL, ARG )
 #endif
 
+void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded);
+
 void jdf_warn(int lineno, const char *format, ...)
 {
     char msg[512];
@@ -1158,7 +1160,15 @@ static void jdf_reorder_dep_list_by_type(jdf_dataflow_t* flow,
     free(dep_array);
 }
 
- static void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded)
+/**
+ * Helper function to dump all the flows (input, output and control) of a function,
+ * as seen by the compiler. If expanded is not 0 then each flow will be detailed,
+ * otherwise only the point to the expr will be shown.
+ *
+ * This function is not used when DEBUG is not enabled, so it might generate a
+ * compilation warning.
+ */
+void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded)
 {
     jdf_dataflow_t* flow;
 
@@ -1287,10 +1297,15 @@ int jdf_flatten_function(jdf_function_entry_t* function)
     DO_DEBUG_VERBOSE(3, jdf_dump_function_flows(function, 1));
 
     for( flow = function->dataflow; NULL != flow; flow = flow->next ) {
+        jdf_dataflow_t* sflow;
         jdf_dep_t *dep, *dep2;
         for( dep = flow->deps; NULL != dep; dep = dep->next ) {
-            for(dep2 = dep->next; NULL != dep2; dep2 = dep2->next) {
-                jdf_datatype_remove_redundancy(&dep->datatype, &dep2->datatype);
+            for( sflow = flow; NULL != sflow; sflow = sflow->next ) {
+                if( sflow == flow ) dep2 = dep->next;
+                else dep2 = sflow->deps;
+                for( ; NULL != dep2; dep2 = dep2->next) {
+                    jdf_datatype_remove_redundancy(&dep->datatype, &dep2->datatype);
+                }
             }
         }
     }

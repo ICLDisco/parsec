@@ -2001,7 +2001,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
         string_arena_add_string(tmp_fct_name, "%s_cnt_fct", JDF_OBJECT_ONAME(datatype));
         if( generate_stubs )
             jdf_generate_function_without_expression(jdf, f, datatype->count,
-                                                     string_arena_get_string(tmp_fct_name), "int64_t");
+                                                     string_arena_get_string(tmp_fct_name), "", "int64_t");
         string_arena_add_string(sa,
                                 "                .count  = { .fct = (expr_op_int64_inline_func_t)%s },\n",
                                 string_arena_get_string(tmp_fct_name));
@@ -2018,7 +2018,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
         string_arena_add_string(tmp_fct_name, "%s_displ_fct", JDF_OBJECT_ONAME(datatype));
         if( generate_stubs )
             jdf_generate_function_without_expression(jdf, f, datatype->displ,
-                                                     string_arena_get_string(tmp_fct_name), "int64_t");
+                                                     string_arena_get_string(tmp_fct_name), "", "int64_t");
         string_arena_add_string(sa,
                                 "                .displ  = { .fct = (expr_op_int64_inline_func_t)%s }\n",
                                 string_arena_get_string(tmp_fct_name));
