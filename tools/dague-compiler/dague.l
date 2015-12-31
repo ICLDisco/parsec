@@ -174,7 +174,7 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                           YYLVAL(string) = extern_code(yytext, strlen(yytext) - 3, 1);
                           ECHO; return BODY_END;                           }
 <body>[^\n]*          { yymore();}
-<body>{WHITE}*\n      { current_lineno++; yymore();}
+<body>{WHITE}*\n      { yymore();}
 <body>"//".*\n        { yymore(); }
 ^%(?i:option)         { ECHO; return OPTION;                               }
 <*>"("                { ECHO; return OPEN_PAR;                             }
