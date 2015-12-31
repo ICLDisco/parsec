@@ -1969,9 +1969,11 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     /* And the layout */
     if( datatype->type == datatype->layout ) {
         string_arena_add_string(sa,
-                                "                .layout = { .fct = NULL },\n"
-                                "                .count  = { .cst = 1 },\n"
-                                "                .displ  = { .cst = 0 }\n");
+                                "                .layout = { .fct = NULL },  /* type == layout */\n");
+        /* If the type and layout are identical, then the count and displacement
+         * must be equal to 1 and 0. But, let's assume the developer knows what
+         * she is doing and generate the code accordingly with her instructions.
+         */
     } else {
         if( (JDF_VAR == datatype->layout->op) || (JDF_STRING == datatype->layout->op) ) {
             string_arena_add_string(sa,
@@ -1988,41 +1990,41 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                                     string_arena_get_string(tmp_fct_name));
             string_arena_free(tmp_fct_name);
         }
-
-        /* Now the count */
-        if( JDF_CST == datatype->count->op ) {
-            string_arena_add_string(sa,
-                                    "                .count  = { .cst = %d },\n",
-                                    datatype->count->jdf_cst);
-        } else {
-            tmp_fct_name = string_arena_new(64);
-            string_arena_add_string(tmp_fct_name, "%s_cnt_fct", JDF_OBJECT_ONAME(datatype));
-            if( generate_stubs )
-                jdf_generate_function_without_expression(jdf, f, datatype->count,
-                                                         string_arena_get_string(tmp_fct_name), "", "int64_t");
-            string_arena_add_string(sa,
-                                    "                .count  = { .fct = (expr_op_int64_inline_func_t)%s },\n",
-                                    string_arena_get_string(tmp_fct_name));
-            string_arena_free(tmp_fct_name);
-        }
-
-        /* And finally the displacement */
-        if( JDF_CST == datatype->displ->op ) {
-            string_arena_add_string(sa,
-                                    "                .displ  = { .cst = %d }\n",
-                                    datatype->displ->jdf_cst);
-        } else {
-            tmp_fct_name = string_arena_new(64);
-            string_arena_add_string(tmp_fct_name, "%s_displ_fct", JDF_OBJECT_ONAME(datatype));
-            if( generate_stubs )
-                jdf_generate_function_without_expression(jdf, f, datatype->displ,
-                                                         string_arena_get_string(tmp_fct_name), "", "int64_t");
-            string_arena_add_string(sa,
-                                    "                .displ  = { .fct = %s }\n",
-                                    string_arena_get_string(tmp_fct_name));
-            string_arena_free(tmp_fct_name);
-        }
     }
+    /* Now the count */
+    if( JDF_CST == datatype->count->op ) {
+        string_arena_add_string(sa,
+                                "                .count  = { .cst = %d },\n",
+                                datatype->count->jdf_cst);
+    } else {
+        tmp_fct_name = string_arena_new(64);
+        string_arena_add_string(tmp_fct_name, "%s_cnt_fct", JDF_OBJECT_ONAME(datatype));
+        if( generate_stubs )
+            jdf_generate_function_without_expression(jdf, f, datatype->count,
+                                                     string_arena_get_string(tmp_fct_name), "int64_t");
+        string_arena_add_string(sa,
+                                "                .count  = { .fct = (expr_op_int64_inline_func_t)%s },\n",
+                                string_arena_get_string(tmp_fct_name));
+        string_arena_free(tmp_fct_name);
+    }
+
+    /* And finally the displacement */
+    if( JDF_CST == datatype->displ->op ) {
+        string_arena_add_string(sa,
+                                "                .displ  = { .cst = %d }\n",
+                                datatype->displ->jdf_cst);
+    } else {
+        tmp_fct_name = string_arena_new(64);
+        string_arena_add_string(tmp_fct_name, "%s_displ_fct", JDF_OBJECT_ONAME(datatype));
+        if( generate_stubs )
+            jdf_generate_function_without_expression(jdf, f, datatype->displ,
+                                                     string_arena_get_string(tmp_fct_name), "int64_t");
+        string_arena_add_string(sa,
+                                "                .displ  = { .fct = (expr_op_int64_inline_func_t)%s }\n",
+                                string_arena_get_string(tmp_fct_name));
+        string_arena_free(tmp_fct_name);
+    }
+
     string_arena_add_string(sa,
                             "},\n"
                             "  .belongs_to = &%s,\n",
@@ -5019,11 +5021,16 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
 static void jdf_generate_inline_c_function(jdf_expr_t *expr)
 {
     static int inline_c_functions = 0;
-    string_arena_t *sa1 = string_arena_new(64);
-    string_arena_t *sa2 = string_arena_new(64);
+    string_arena_t *sa1, *sa2;
     assignment_info_t ai;
     int rc;
 
+    /* Make sure we generate an inline only once (this allows for shortcuts while identifying identical expr_t */
+    if( NULL != expr->jdf_c_code.fname )
+        return;
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
     assert(JDF_OP_IS_C_CODE(expr->op));
     if( NULL != expr->jdf_c_code.function_context ) {
         rc = asprintf(&expr->jdf_c_code.fname, "%s_%s_inline_c_expr%d_line_%d",
