@@ -184,7 +184,7 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
         to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
         if (heap->top->super.list_item.list_prev == NULL) {
             /* no left child, so 'top' is the only node */
-            DEBUG3(("MH:\tDestroying heap %p\n", heap->top, heap->top->list_item.list_next, heap));
+            DEBUG3(("MH:\tDestroying heap %p\n", heap->top, heap->top->super.list_item.list_next, heap));
             heap->top = NULL;
             heap_destroy(heap_ptr);
             assert(*heap_ptr == NULL);

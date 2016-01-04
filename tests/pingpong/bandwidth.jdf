@@ -273,7 +273,7 @@ RW   T <- T PING(t, f)
 CTL  C -> C SYNC(t+1)
 
 BODY [type = CUDA]
-    return bandwidth_cuda(context, this_task);
+    return bandwidth_cuda(context, (dague_execution_context_t*)this_task);
 END
 
 BODY

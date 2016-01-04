@@ -247,7 +247,7 @@ epilogue:       EXTERN_DECL
         ;
 jdf:            jdf function
                 {
-                    jdf_expr_t *el, *pl;
+                    jdf_expr_t *el;
 
                     if( NULL == current_jdf.functions ) {
                         $2->function_id = 0;
@@ -259,13 +259,11 @@ jdf:            jdf function
                     if( NULL != inline_c_functions) {
                         /* Every inline functions declared here where within the context of $2 */
                         for(el = inline_c_functions; NULL != el; el = el->next_inline) {
-                            pl = el;
                             el->jdf_c_code.function_context = $2;
                         }
-                        pl->next_inline = current_jdf.inline_c_functions;
-                        current_jdf.inline_c_functions = inline_c_functions;
-                        inline_c_functions = NULL;
                     }
+                    $2->inline_c_functions = inline_c_functions;
+                    inline_c_functions = NULL;
                 }
         |       jdf VAR ASSIGNMENT expr_simple properties
                 {
@@ -324,8 +322,8 @@ jdf:            jdf function
                 }
         |
                 {
-                    jdf_expr_t *el;
                     if( NULL != inline_c_functions ) {
+                        jdf_expr_t *el;
                         /* Every inline functions declared here where within the context of globals only (no assignment) */
                         for(el = inline_c_functions; NULL != el->next_inline; el = el->next_inline) /* nothing */ ;
                         el->next_inline = current_jdf.inline_c_functions;

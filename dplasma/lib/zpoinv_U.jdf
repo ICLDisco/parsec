@@ -155,7 +155,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldak = BLKLDD( descA, k );
     int ldan = BLKLDD( descA, n );
 
-    return gpu_zgemm(context, this_task,
+    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
                      ( n == k+1 ), (n-k),
                      PlasmaConjTrans, PlasmaNoTrans,
                      descA.mb, tempmm, descA.mb,
@@ -257,7 +257,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldam = BLKLDD( descA, m );
     int ldak = BLKLDD( descA, k );
 
-    return gpu_zgemm(context, this_task,
+    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
                      ( n == k+1 ), (n-k),
                      PlasmaNoTrans, PlasmaNoTrans,
                      descA.mb, tempnn, tempkm,
@@ -427,7 +427,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldam = BLKLDD( descA, m );
     int ldan = BLKLDD( descA, n );
 
-    return gpu_zgemm(context, this_task,
+    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
                      descA.nt == (k+1), descA.nt-k,
                      PlasmaNoTrans, PlasmaConjTrans,
                      descA.mb, descA.nb, tempkn,

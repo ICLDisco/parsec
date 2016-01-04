@@ -59,14 +59,8 @@ dague_handle_t* touch_initialize(int block, int n)
                                      descA.super.bsiz *
                                      dague_datadist_getsizeoftype(TYPE) );
 
-    handle = dague_touch_new( &descA, (n / block) -1 );
+    handle = dague_touch_new( &descA, ((n + block - 1) / block) - 1 );
     assert( NULL != handle );
-#ifdef HAVE_MPI
-    {
-        int provided;
-        MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
-    }
-#endif
 
     dague_arena_construct( handle->arenas[DAGUE_touch_DEFAULT_ARENA],
                            descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
@@ -80,9 +74,6 @@ int touch_finalize(void)
 {
     free(descA.mat);
 
-#ifdef HAVE_MPI
-    MPI_Finalize();
-#endif
     return 0;
 }
 

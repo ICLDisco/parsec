@@ -120,6 +120,7 @@ typedef struct expr_info {
     struct string_arena* sa;
     const char* prefix;
     char *assignments;
+    const char* suffix;
 } expr_info_t;
 /* The elem should be a jdf_expr_t while the arg should be an expr_info_t */
 char * dump_expr(void **elem, void *arg);

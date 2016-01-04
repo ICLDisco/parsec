@@ -20,7 +20,9 @@ int main( int argc, char** argv )
     dague_context_t* dague;
     dague_handle_t* handle;
 
-    (void)argc; (void)argv;
+#ifdef HAVE_MPI
+    MPI_Init(NULL, NULL);
+#endif
     dague = dague_init(1, &argc, &argv);
     assert( NULL != dague );
 
@@ -33,5 +35,8 @@ int main( int argc, char** argv )
     dague_fini( &dague);
 
     touch_finalize();
+#ifdef HAVE_MPI
+    MPI_Finalize();
+#endif
     return 0;
 }
