@@ -35,11 +35,12 @@ typedef struct jdf_object_t {
 /**
  * Macros to handle the basic information for the jdf_object_t.
  */
-#define JDF_OBJECT_RETAIN(OBJ) (((struct jdf_object_t*)(OBJ))++)
-#define JDF_OBJECT_RELEASE(OBJ)                  \
-    do {                                         \
-    if( --((struct jdf_object_t*)(OBJ)) == 0 ) { \
-        free((OBJ));                             \
+#define JDF_OBJECT_RETAIN(OBJ) ((((struct jdf_object_t*)(OBJ))->refcount)++)
+#define JDF_OBJECT_RELEASE(OBJ)                                         \
+    do {                                                                \
+        if( --(((struct jdf_object_t*)(OBJ))->refcount) == 0 ) {        \
+            free((OBJ));                                                \
+        }                                                               \
     } while(0)
 #define JDF_OBJECT_SET( OBJ, FILENAME, LINENO, COMMENT )                \
     do {                                                                \
@@ -193,8 +194,9 @@ typedef struct jdf_data_entry {
 /*******************************************************************/
 
 typedef struct jdf_name_list {
+    struct jdf_object_t   super;
     struct jdf_name_list *next;
-    char *name;
+    char                 *name;
 } jdf_name_list_t;
 
 typedef struct jdf_def_list {
@@ -235,7 +237,6 @@ typedef uint16_t jdf_dep_flags_t;
 
 typedef struct jdf_datatransfer_type {
     struct jdf_object_t           super;
-    struct jdf_datatransfer_type *next;
     struct jdf_expr              *type;    /**< the internal type of the data associated with the dependency */
     struct jdf_expr              *layout;  /**< the basic memory layout in case it is different from the type.
                                             *< InMPI case this must be an MPI datatype, working together with the

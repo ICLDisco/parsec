@@ -397,10 +397,9 @@ function:       VAR OPEN_PAR varlist CLOSE_PAR properties execution_space simula
                     e->priority          = $10;
                     e->bodies            = $11;
 
-                    JDF_OBJECT_LINENO(e) = current_lineno;
-
                     jdf_flatten_function(e);
                     $$ = e;
+                    JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($3);
                 }
         ;
 
@@ -409,6 +408,7 @@ varlist:        VAR COMMA varlist
                     jdf_name_list_t *l = new(jdf_name_list_t);
                     l->next = $3;
                     l->name = $1;
+                    JDF_OBJECT_LINENO(l) = current_lineno;
 
                     $$ = l;
                 }
@@ -417,6 +417,7 @@ varlist:        VAR COMMA varlist
                     jdf_name_list_t *l = new(jdf_name_list_t);
                     l->next = NULL;
                     l->name = $1;
+                    JDF_OBJECT_LINENO(l) = current_lineno;
 
                     $$ = l;
                 }
