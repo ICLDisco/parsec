@@ -332,7 +332,7 @@ extern int device_delegate_begin, device_delegate_end;
 #define DAGUE_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
     DAGUE_PROFILING_TRACE((PROFILE),                                    \
                           (KEY),                                        \
-                          (TASK)->function->key((TASK)->dague_handle, (TASK)->locals), \
+                          (TASK)->function->key((TASK)->dague_handle, (assignment_t *)&(TASK)->locals), \
                           (TASK)->dague_handle->handle_id, (void*)&(TASK)->prof_info)
 
 #define DAGUE_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
