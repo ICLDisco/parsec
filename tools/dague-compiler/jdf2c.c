@@ -2185,6 +2185,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     expr_info_t info1;
 
     assert( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP );
+    if( f->flags & JDF_FUNCTION_FLAG_HAS_UD_START_FUN )
+        return;
     (void)jdf;
 
     sa1 = string_arena_new(64);
@@ -2856,13 +2858,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     sprintf(prefix, "%s_%s_internal_init", jdf_basename, f->fname);
     jdf_generate_internal_init(jdf, f, prefix);
+    free(prefix);
 
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-        sprintf(prefix, "%s_%s_startup_tasks", jdf_basename, f->fname);
-        jdf_generate_startup_tasks(jdf, f, prefix);
+        jdf_generate_startup_tasks(jdf, f, f->startup_fn_name);
     }
-
-    free(prefix);
 
     string_arena_add_string(sa, "};\n");
 
@@ -5193,6 +5193,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
 {
     jdf_function_entry_t *f;
     char *hash_fn;
+    char *startup_fn;
 
     for(f = jdf->functions; NULL != f; f = f->next) {
         hash_fn = jdf_property_get_string(f->properties, "hash_fn", NULL);
@@ -5201,6 +5202,18 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             f->flags |= JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN;
         } else {
             asprintf(&f->hash_fn_name, JDF2C_NAMESPACE"hash_%s", f->fname);
+        }
+
+        startup_fn = jdf_property_get_string(f->properties, "startup_fn", NULL);
+        if( NULL != startup_fn ) {
+            f->startup_fn_name = startup_fn;
+            f->flags |= JDF_FUNCTION_FLAG_HAS_UD_START_FUN | JDF_FUNCTION_FLAG_CAN_BE_STARTUP;
+        } else {
+            if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
+                asprintf(&f->startup_fn_name, JDF2C_NAMESPACE"startup_%s", f->fname);
+            } else {
+                f->startup_fn_name = NULL;
+            }
         }
     }
 }
