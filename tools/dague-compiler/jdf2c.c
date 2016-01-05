@@ -3444,9 +3444,9 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 
         if( definition_is_parameter(f, dl) != NULL ) {
             if( dl->expr->op == JDF_RANGE ) {
-                coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
             } else {
-                coutput("  int %s_min = %s;\n", dl->name, dump_expr((void**)dl->expr, &info));
+                coutput("  int %s%s_min = %s;\n", JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr, &info));
             }
         } else {
             /* Hash functions should depend only on the parameters of the
@@ -3462,7 +3462,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
     string_arena_init(sa);
     for(dl = f->locals; dl != NULL; dl = dl->next) {
         if( definition_is_parameter(f, dl) != NULL ) {
-            coutput("  __h += (%s - %s_min)%s;\n", dl->name, dl->name, string_arena_get_string(sa));
+            coutput("  __h += (%s - %s%s_min)%s;\n", dl->name, JDF2C_NAMESPACE, dl->name, string_arena_get_string(sa));
             string_arena_add_string(sa, " * __dague_handle->%s_%s_range", f->fname, dl->name);
         }
     }
