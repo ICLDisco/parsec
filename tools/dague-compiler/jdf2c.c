@@ -888,17 +888,17 @@ static int jdf_property_get_int( const jdf_def_list_t* properties,
     return ret_if_not_found;  /* ON by default */
 }
 
-static const char*
+static char*
 jdf_property_get_string( const jdf_def_list_t* properties,
                          const char* prop_name,
-                         const char* ret_if_not_found )
+                         char* ret_if_not_found )
 {
     jdf_def_list_t* property;
     jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
 
     if( NULL != expr ) {
         if( JDF_OP_IS_VAR(expr->op) )
-            return expr->jdf_var;
+            return strdup(expr->jdf_var);
         printf("Warning: property %s defined at line %d only support ON/OFF\n",
                prop_name, JDF_OBJECT_LINENO(property));
     }
@@ -1187,6 +1187,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("  /* The ranges to compute the hash key */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
+        if( f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN )
+            continue;
         for(pl = f->parameters; pl != NULL; pl = pl->next) {
             coutput("  int %s_%s_range;\n", f->fname, pl->name);
         }
@@ -2423,11 +2425,12 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("%s}\n", indent(nesting));
     }
 
-    coutput("\n"
-            "  /* Set the range variables for the collision-free hash-computation */\n");
-    for(pl = f->parameters; pl != NULL; pl = pl->next) {
-        coutput("  __dague_handle->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
-                f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
+    if( ! (f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN) ) {
+        coutput("  /* Set the range variables for the collision-free hash-computation */\n");
+        for(pl = f->parameters; pl != NULL; pl = pl->next) {
+            coutput("  __dague_handle->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
+                    f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
+        }
     }
 
     coutput("\n"
@@ -2796,7 +2799,8 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                                 nb_input);
     }
 
-    string_arena_add_string(sa, "  .key = (dague_functionkey_fn_t*)%s_hash,\n", f->fname);
+    string_arena_add_string(sa, "  .key = (dague_functionkey_fn_t*)%s,\n",
+                            f->hash_fn_name);
     string_arena_add_string(sa, "  .fini = (dague_hook_t*)%s,\n", "NULL");
 
     sprintf(prefix, "%s_%s", jdf_basename, f->fname);
@@ -3287,11 +3291,11 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 
     (void)jdf;
 
-    coutput("static inline uint64_t %s_hash(const __dague_%s_internal_handle_t *__dague_handle,\n"
-            "                               const %s *assignments)\n"
+    coutput("static inline uint64_t %s(const __dague_%s_internal_handle_t *__dague_handle,\n"
+            "                          const %s *assignments)\n"
             "{\n"
             "  uint64_t __h = 0;\n",
-            f->fname, jdf_basename,
+            f->hash_fn_name, jdf_basename,
             dague_get_name(jdf, f, "assignment_t"));
 
     info.prefix = "";
@@ -3341,7 +3345,9 @@ static void jdf_generate_hashfunctions(const jdf_t *jdf)
     jdf_function_entry_t *f;
 
     for(f = jdf->functions; f != NULL; f = f->next) {
-        jdf_generate_hashfunction_for(jdf, f);
+        if( ! (f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN) ) {
+            jdf_generate_hashfunction_for(jdf, f);
+        }
     }
 }
 
@@ -3460,6 +3466,15 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   return string_arena_get_string(sa);
 }
 
+static jdf_function_entry_t *find_target_function(const jdf_t *jdf, const char *name)
+{
+    jdf_function_entry_t *targetf;
+    for(targetf = jdf->functions; targetf != NULL; targetf = targetf->next)
+        if( !strcmp(targetf->fname, name) )
+            break;
+    return targetf;
+}
+
 static void
 jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                                       const char *fname, const jdf_dataflow_t *f,
@@ -3479,10 +3494,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
     info.assignments = "assignments";
 
     if( call->var != NULL ) {
-        /* Find the target function */
-        for(targetf = jdf->functions; NULL != targetf; targetf = targetf->next)
-            if( !strcmp(targetf->fname, call->func_or_mem) )
-                break;
+        targetf = find_target_function(jdf, call->func_or_mem);
         if( NULL == targetf ) {
             jdf_fatal(JDF_OBJECT_LINENO(f),
                       "During code generation: unable to find the source function %s\n"
@@ -3505,11 +3517,12 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                 dague_get_name(jdf, targetf, "assignment_t"), dague_get_name(jdf, targetf, "assignment_t"));
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "target_locals", call));
 
-        coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s_hash( __dague_handle, target_locals ));\n"
-                "%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n",
-                spaces, call->func_or_mem, call->func_or_mem,
-                spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem);
-        coutput("%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", target_locals, chunk);\n",
+        coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s( __dague_handle, target_locals ));\n",
+                spaces, call->func_or_mem, targetf->hash_fn_name);
+
+        coutput("%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n"
+                "%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", target_locals, chunk);\n",
+                spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem,
                 spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
     } else {
         coutput("%s    chunk = dague_data_get_copy(%s(%s), target_device);\n"
@@ -3869,9 +3882,9 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
     (void)jdf;
 
     coutput("#if defined(DAGUE_PROF_GRAPHER)\n"
-            "  dague_prof_grapher_task((dague_execution_context_t*)%s, context->th_id, context->virtual_process->vp_id, %s_hash(__dague_handle, &%s->locals));\n"
+            "  dague_prof_grapher_task((dague_execution_context_t*)%s, context->th_id, context->virtual_process->vp_id, %s(__dague_handle, &%s->locals));\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n",
-            context_name, f->fname, context_name);
+            context_name, f->hash_fn_name, context_name);
 }
 
 static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -4523,14 +4536,14 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             jdf_basename, jdf_basename);
 
     coutput("  if( action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_GET_REPO_ENTRY) ) {\n"
-            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__dague_handle, (%s*)(&this_task->locals)) );\n"
+            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s(__dague_handle, (%s*)(&this_task->locals)) );\n"
             "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
             "#if defined(DAGUE_SIM)\n"
             "    assert(arg.output_entry->sim_exec_date == 0);\n"
             "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
             "#endif\n"
             "  }\n",
-            f->fname, f->fname, dague_get_name(jdf, f, "assignment_t"));
+            f->fname, f->hash_fn_name, dague_get_name(jdf, f, "assignment_t"));
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         coutput("  iterate_successors_of_%s_%s(eu, this_task, action_mask, dague_release_dep_fct, &arg);\n"
@@ -4589,9 +4602,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     string_arena_init(sa_open);
 
     /* Find the target function */
-    for(targetf = jdf->functions; targetf != NULL; targetf = targetf->next)
-        if( !strcmp(targetf->fname, call->func_or_mem) )
-            break;
+    targetf = find_target_function(jdf, call->func_or_mem);
 
     if( NULL == targetf ) {
         jdf_fatal(lineno,
@@ -5178,6 +5189,21 @@ static void jdf_generate_inline_c_functions(jdf_t* jdf)
     }
 }
 
+static void jdf_check_user_defined_internals(jdf_t *jdf)
+{
+    jdf_function_entry_t *f;
+    char *hash_fn;
+
+    for(f = jdf->functions; NULL != f; f = f->next) {
+        hash_fn = jdf_property_get_string(f->properties, "hash_fn", NULL);
+        if( NULL != hash_fn ) {
+            f->hash_fn_name = hash_fn;
+            f->flags |= JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN;
+        } else {
+            asprintf(&f->hash_fn_name, JDF2C_NAMESPACE"hash_%s", f->fname);
+        }
+    }
+}
 
 /**
  * Analyze the code to optimize the output
@@ -5259,7 +5285,12 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     jdf_generate_header_file(jdf);
 
     /**
-     * Dump all the prologue sections
+     * Look for user-defined internal functions
+     */
+    jdf_check_user_defined_internals(jdf);
+
+    /**
+     * Dump the prologue section
      */
     if( NULL != jdf->prologue ) {
         coutput("%s\n", jdf->prologue->external_code);

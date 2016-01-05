@@ -163,6 +163,7 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_HAS_DATA_INPUT    ((jdf_flags_t)(1 << 4))
 #define JDF_FUNCTION_FLAG_HAS_DATA_OUTPUT   ((jdf_flags_t)(1 << 5))
 #define JDF_FUNCTION_FLAG_NO_PREDECESSORS   ((jdf_flags_t)(1 << 6))
+#define JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN   ((jdf_flags_t)(1 << 7))
 
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;
@@ -179,6 +180,7 @@ typedef struct jdf_function_entry {
     struct jdf_def_list       *properties;
     struct jdf_body           *bodies;
     struct jdf_expr           *inline_c_functions;
+    char                      *hash_fn_name;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {

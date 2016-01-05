@@ -34,6 +34,18 @@ extern "C" %{
  * WARNING: If mt is greater than 1200, we might get integer overflow.
  */
 
+/**
+ * Example of user-defined hash function.
+ * NB: the function is used in the generated code, so the user needs to provide the prototype;
+ *     however necessary datatypes (internal handle and function-specific assignment type)
+ *     will only be generated after the prologue is dumped, so the user needs to provide
+ *     the prototype in the prologue, and the implementation in the epilogue.
+ */
+struct __dague_dpotrf_L_internal_handle;
+struct __dague_dpotrf_L_potrf_dpotrf_assignment_s;
+static uint64_t my_potrf_hash(const struct __dague_dpotrf_L_internal_handle * __dague_handle,
+                              struct __dague_dpotrf_L_potrf_dpotrf_assignment_s * assignments);
+
 %}
 
 /* Globals
@@ -50,7 +62,7 @@ smallnb    [type = "int" hidden = on default = "descA.mb" ]
 /**************************************************
  *               potrf_zpotrf                     *
  **************************************************/
-potrf_zpotrf(k) [high_priority = on]
+potrf_zpotrf(k) [high_priority = on hash_fn = my_potrf_hash]
 
 // Execution space
 k = 0 .. descA.mt-1
@@ -395,3 +407,12 @@ BODY
               1.0, m, n, C, ldam);
 }
 END
+
+extern "C" %{
+static uint64_t my_potrf_hash(const struct __dague_dpotrf_L_internal_handle * __dague_handle,
+                              struct __dague_dpotrf_L_potrf_dpotrf_assignment_s * assignments)
+{
+   (void)__dague_handle;
+   return (uint64_t)(assignments->k.value);
+}
+%}

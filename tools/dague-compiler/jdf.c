@@ -1053,12 +1053,6 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
 {
     int are_types_equal = 0, are_layout_equal = 0, are_count_equal = 0, are_displ_equal = 0;
     string_arena_t* sa = string_arena_new(64);
-    string_arena_t* sa1 = string_arena_new(64);
-    expr_info_t linfo;
-
-    linfo.sa = sa1;
-    linfo.prefix = ":";
-    linfo.assignments = "";
 
     COMPARE_EXPR(type, sa, are_types_equal);
     COMPARE_EXPR(layout, sa, are_layout_equal);
