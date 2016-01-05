@@ -2507,9 +2507,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("%s"
             "%s",
             UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
-                                 "  int32_t ", " ", "_min = 0x7fffffff,", "_min = 0x7fffffff;\n"),
+                                 "  int32_t ", JDF2C_NAMESPACE, "_min = 0x7fffffff,", "_min = 0x7fffffff;\n"),
             UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
-                                 "  int32_t ", " ", "_max = 0,", "_max = 0;\n"));
+                                 "  int32_t ", JDF2C_NAMESPACE, "_max = 0,", "_max = 0;\n"));
 
     coutput("  (void)__dague_handle;\n");
     if( NULL != f->parameters->next ) {
@@ -2521,7 +2521,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             /* This should be already checked by a sanity check */
             assert(NULL != dl);
             if(dl->expr->op == JDF_RANGE) {
-                coutput("  int32_t %s_start, %s_end, %s_inc;\n", pl->name, pl->name, pl->name );
+                coutput("  int32_t %s%s_start, %s%s_end, %s%s_inc;\n", JDF2C_NAMESPACE, pl->name,
+                        JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name );
             }
         }
     }
@@ -2568,10 +2569,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
 
     for(pl = f->parameters; pl != NULL; pl = pl->next ) {
-        coutput("%s  %s_max = dague_imax(%s_max, %s);\n"
-                "%s  %s_min = dague_imin(%s_min, %s);\n",
-                indent(nesting), pl->name, pl->name, pl->name,
-                indent(nesting), pl->name, pl->name, pl->name);
+        coutput("%s  %s%s_max = dague_imax(%s%s_max, %s);\n"
+                "%s  %s%s_min = dague_imin(%s%s_min, %s);\n",
+                indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name,
+                indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name);
     }
 
     string_arena_init(sa1);
@@ -2591,8 +2592,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "   * Set the range variables for the collision-free hash-computation\n"
             "   */\n");
     for(pl = f->parameters; pl != NULL; pl = pl->next) {
-        coutput("  __dague_handle->%s_%s_range = (%s_max - %s_min) + 1;\n",
-                f->fname, pl->name, pl->name, pl->name);
+        coutput("  __dague_handle->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
+                f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
     }
 
     coutput("\n"
@@ -2604,11 +2605,13 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "  DEBUG3((\"Allocating dependencies array for %s\\n\"));\n", fname);
 
     if( f->parameters->next == NULL ) {
-        coutput("  if( 0 != nb_tasks ) {\n"
-                "    ALLOCATE_DEP_TRACKING(dep, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n"
-                "  }\n",
-                f->parameters->name, f->parameters->name, f->parameters->name,
-                jdf_basename, f->fname, f->parameters->name);
+        coutput("%s  if( 0 != nb_tasks ) {\n"
+                "%s    ALLOCATE_DEP_TRACKING(dep, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n"
+                "%s  }\n",
+                indent(nesting),
+                indent(nesting), JDF2C_NAMESPACE, f->parameters->name, JDF2C_NAMESPACE, f->parameters->name, f->parameters->name,
+                jdf_basename, f->fname, f->parameters->name,
+                indent(nesting));
     } else {
         coutput("  dep = NULL;\n");
 
@@ -2622,14 +2625,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
 
             if(dl->expr->op == JDF_RANGE) {
-                coutput("%s  %s_start = %s;\n",
-                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1));
-                coutput("%s  %s_end = %s;\n",
-                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info2));
-                coutput("%s  %s_inc = %s;\n",
-                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info3));
-                coutput("%s  for(%s = dague_imax(%s_start, %s_min); %s <= dague_imin(%s_end, %s_max); %s+=%s_inc) {\n",
-                        indent(nesting), dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name, dl->name);
+                coutput("%s  %s%s_start = %s;\n",
+                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1));
+                coutput("%s  %s%s_end = %s;\n",
+                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info2));
+                coutput("%s  %s%s_inc = %s;\n",
+                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info3));
+                coutput("%s  for(%s = dague_imax(%s%s_start, %s%s_min); %s <= dague_imin(%s%s_end, %s%s_max); %s+=%s%s_inc) {\n",
+                        indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, /* first ; */
+                        dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name);
                 nesting++;
             } else {
                 coutput("%s  %s = %s;\n",
@@ -2658,17 +2662,17 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
             assert(NULL != dl);
             coutput("%s  if( %s == NULL ) {\n"
-                    "%s    ALLOCATE_DEP_TRACKING(%s, %s_min, %s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
+                    "%s    ALLOCATE_DEP_TRACKING(%s, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
                     "%s  }\n",
                     indent(nesting), string_arena_get_string(sa1),
-                    indent(nesting), string_arena_get_string(sa1), dl->name, dl->name, dl->name,
-                                     jdf_basename, f->fname, dl->name,
-                                     pl == f->parameters ? "NULL" : string_arena_get_string(sa2),
-                                     pl->next == NULL ? "DAGUE_DEPENDENCIES_FLAG_FINAL" : "DAGUE_DEPENDENCIES_FLAG_NEXT",
+                    indent(nesting), string_arena_get_string(sa1), JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name,
+                    /* at \"%s\" */ dl->name, jdf_basename, f->fname, dl->name,
+                    pl == f->parameters ? "NULL" : string_arena_get_string(sa2),
+                    pl->next == NULL ? "DAGUE_DEPENDENCIES_FLAG_FINAL" : "DAGUE_DEPENDENCIES_FLAG_NEXT",
                     indent(nesting));
             string_arena_init(sa2);
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
-            string_arena_add_string(sa1, "->u.next[%s-%s_min]", dl->name, dl->name);
+            string_arena_add_string(sa1, "->u.next[%s-%s%s_min]", dl->name, JDF2C_NAMESPACE, dl->name);
         }
         coutput("%s  }\n", indent(nesting));
         nesting--;
@@ -2687,7 +2691,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
             assert(NULL != dl);
             if(dl->expr->op == JDF_RANGE) {
-                coutput("  (void)%s_start; (void)%s_end; (void)%s_inc;", dl->name, dl->name, dl->name);
+                coutput("  (void)%s%s_start; (void)%s%s_end; (void)%s%s_inc;", JDF2C_NAMESPACE, dl->name,
+                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
             }
         }
     }
@@ -4165,7 +4170,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                 name, type_property->expr->jdf_var, dague_get_name(jdf, f, "task_t"));
 
     coutput("{\n"
-            "  const __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
+            "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
             "  assignment_t tass[MAX_PARAM_COUNT];  /* generic locals */\n"
             "  (void)context; (void)__dague_handle; (void)tass;\n"
             "%s",
