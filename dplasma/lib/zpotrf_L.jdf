@@ -41,12 +41,12 @@ extern "C" %{
  *     will only be generated after the prologue is dumped, so the user needs to provide
  *     the prototype in the prologue, and the implementation in the epilogue.
  */
-struct __dague_dpotrf_L_internal_handle;
-struct __dague_dpotrf_L_potrf_dpotrf_assignment_s;
-static uint64_t my_potrf_hash(const struct __dague_dpotrf_L_internal_handle * __dague_handle,
-                              struct __dague_dpotrf_L_potrf_dpotrf_assignment_s * assignments);
+struct __dague_zpotrf_L_internal_handle;
+struct __dague_zpotrf_L_potrf_zpotrf_assignment_s;
+static uint64_t my_potrf_hash(const struct __dague_zpotrf_L_internal_handle * __dague_handle,
+                              struct __dague_zpotrf_L_potrf_zpotrf_assignment_s * assignments);
 static int my_potrf_startup(dague_context_t * context,
-                            struct __dague_dpotrf_L_internal_handle *__dague_handle,
+                            struct __dague_zpotrf_L_internal_handle *__dague_handle,
                             dague_execution_context_t ** pready_list);
 %}
 
@@ -411,30 +411,30 @@ BODY
 END
 
 extern "C" %{
-static uint64_t my_potrf_hash(const struct __dague_dpotrf_L_internal_handle * __dague_handle,
-                              struct __dague_dpotrf_L_potrf_dpotrf_assignment_s * assignments)
+static uint64_t my_potrf_hash(const struct __dague_zpotrf_L_internal_handle * __dague_handle,
+                              struct __dague_zpotrf_L_potrf_zpotrf_assignment_s * assignments)
 {
    (void)__dague_handle;
    return (uint64_t)(assignments->k.value);
 }
 
 static int my_potrf_startup(dague_context_t * context,
-                            __dague_dpotrf_L_internal_handle_t *__dague_handle,
+                            __dague_zpotrf_L_internal_handle_t *__dague_handle,
                             dague_execution_context_t ** pready_list)
 {
-  __dague_dpotrf_L_potrf_dpotrf_task_t *new_context;
+  __dague_zpotrf_L_potrf_zpotrf_task_t *new_context;
   int vpid;
 
-  if (!potrf_dpotrf_pred(0))
+  if (!potrf_zpotrf_pred(0))
 	    return 0;
 
-  new_context = (__dague_dpotrf_L_potrf_dpotrf_task_t *) dague_lifo_pop(
+  new_context = (__dague_zpotrf_L_potrf_zpotrf_task_t *) dague_lifo_pop(
       &context->virtual_processes[0]->execution_units[0]->context_mempool->mempool);
   if (NULL == new_context)
-      new_context = (__dague_dpotrf_L_potrf_dpotrf_task_t *) dague_thread_mempool_allocate(
+      new_context = (__dague_zpotrf_L_potrf_zpotrf_task_t *) dague_thread_mempool_allocate(
             context->virtual_processes[0]->execution_units[0]->context_mempool);
   new_context->dague_handle = (dague_handle_t *) __dague_handle;
-  new_context->function = __dague_handle->super.super.functions_array[dpotrf_L_potrf_dpotrf.function_id];
+  new_context->function = __dague_handle->super.super.functions_array[zpotrf_L_potrf_zpotrf.function_id];
   new_context->chore_id = 0;
   new_context->locals.k.value = 0;
   DAGUE_LIST_ITEM_SINGLETON(new_context);
