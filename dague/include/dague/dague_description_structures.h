@@ -124,7 +124,6 @@ struct dep_s {
     uint8_t                    dep_datatype_index;  /**< Index of the output datatype. */
     dague_flow_t const        *flow;           /**< Pointer to the flow pointed to/from this dependency */
     dague_flow_t const        *belongs_to;     /**< The flow this dependency belongs tp */
-    struct dague_comm_desc_s   datatype;       /**< Datatype associated with this dependency */
     direct_data_lookup_func_t  direct_data;    /**< Lookup the data associated with this dep, if (and only if)
                                                 *   this dep is a direct memory access */
 };

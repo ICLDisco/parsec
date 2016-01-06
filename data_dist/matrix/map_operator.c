@@ -162,7 +162,6 @@ static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
     .function_id = 0,  /* dague_map_operator.function_id */
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } }
 };
 
 static const dep_t flow_of_map_operator_dep_out = {
@@ -170,7 +169,6 @@ static const dep_t flow_of_map_operator_dep_out = {
     .function_id = 0,  /* dague_map_operator.function_id */
     .dep_index = 1,
     .flow = &flow_of_map_operator,
-    .datatype = { .type = { .cst = 0 }, .layout = { .fct = NULL}, .count = { .cst = 1 }, .displ = { .cst = 0 } },
 };
 
 static const dague_flow_t flow_of_map_operator = {

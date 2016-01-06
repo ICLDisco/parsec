@@ -1858,9 +1858,8 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
 {
     string_arena_t *sa = string_arena_new(64), *sa2 = string_arena_new(64), *sa3 = string_arena_new(64);
     jdf_expr_t *le;
-    int ret = 1, generate_stubs = 0;
+    int ret = 1;
     string_arena_t *tmp_fct_name;
-    jdf_datatransfer_type_t* datatype = &dep->datatype;
 
     JDF_OBJECT_ONAME(call) = strdup(depname);
 
@@ -1934,112 +1933,12 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
     }
     string_arena_add_string(sa,
                             "  .dep_index = %d,\n"
-                            "  .dep_datatype_index = %d,\n",
+                            "  .dep_datatype_index = %d,\n"
+                            "  .belongs_to = &%s,\n"
+                            "};\n",
                             dep->dep_index,
-                            dep->dep_datatype_index);
-    /**
-     * Beware: There is a single datatype per dep_t, and several deps can reuse the same datatype
-     *         as indicated by the dep_datatype_index field. Make sure we only create the datatype
-     *         once.
-     */
-    if( NULL == JDF_OBJECT_ONAME(datatype) ) {
-        string_arena_init(sa2);
-        string_arena_add_string(sa2, "%s_datatype_%s%d", JDF_OBJECT_ONAME(flow),
-                                (JDF_DEP_FLOW_IN & dep->dep_flags ? "in" : "out"),
-                                dep->dep_datatype_index);
-        JDF_OBJECT_ONAME(datatype) = strdup(string_arena_get_string(sa2));
-        generate_stubs = (dep->dep_index == dep->dep_datatype_index);
-    }
-
-    /* Start with generating the type */
-    if( (JDF_CST == datatype->type->op) || (JDF_VAR == datatype->type->op) || (JDF_STRING == datatype->type->op) ) {
-        if( JDF_CST == datatype->type->op ) {
-            string_arena_add_string(sa,
-                                    "  .datatype = { .type   = { .cst = %d },\n",
-                                    datatype->type->jdf_cst);
-        } else {
-            string_arena_add_string(sa,
-                                    "  .datatype = { .type   = { .cst = DAGUE_%s_%s_ARENA },\n",
-                                    jdf_basename, datatype->type->jdf_var);
-        }
-    } else {
-        tmp_fct_name = string_arena_new(64);
-        string_arena_add_string(tmp_fct_name, "%s_type_fct", JDF_OBJECT_ONAME(datatype));
-        if( generate_stubs )
-            jdf_generate_function_without_expression(jdf, f, datatype->type,
-                                                     string_arena_get_string(tmp_fct_name), "", "int32_t");
-        string_arena_add_string(sa,
-                                "  .datatype = { .type   = { .fct = (expr_op_int32_inline_func_t)%s },\n",
-                                string_arena_get_string(tmp_fct_name));
-        string_arena_free(tmp_fct_name);
-    }
-    /* And the layout */
-    if( datatype->type == datatype->layout ) {
-        string_arena_add_string(sa,
-                                "                .layout = { .fct = NULL },  /* type == layout */\n");
-        /* If the type and layout are identical, then the count and displacement
-         * must be equal to 1 and 0. But, let's assume the developer knows what
-         * she is doing and generate the code accordingly with her instructions.
-         */
-    } else {
-        if( (JDF_VAR == datatype->layout->op) || (JDF_STRING == datatype->layout->op) ) {
-            string_arena_add_string(sa,
-                                    "                .layout = { .cst = %s },\n",
-                                    datatype->layout->jdf_var);
-        } else {
-            tmp_fct_name = string_arena_new(64);
-            string_arena_add_string(tmp_fct_name, "%s_layout_fct", JDF_OBJECT_ONAME(datatype));
-            if( generate_stubs )
-                jdf_generate_function_without_expression(jdf, f, datatype->layout,
-                                                         string_arena_get_string(tmp_fct_name), "", "dague_datatype_t");
-            string_arena_add_string(sa,
-                                    "                .layout = { .fct = %s },\n",
-                                    string_arena_get_string(tmp_fct_name));
-            string_arena_free(tmp_fct_name);
-        }
-    }
-    /* Now the count */
-    if( JDF_CST == datatype->count->op ) {
-        string_arena_add_string(sa,
-                                "                .count  = { .cst = %d },\n",
-                                datatype->count->jdf_cst);
-    } else {
-        tmp_fct_name = string_arena_new(64);
-        string_arena_add_string(tmp_fct_name, "%s_cnt_fct", JDF_OBJECT_ONAME(datatype));
-        if( generate_stubs )
-            jdf_generate_function_without_expression(jdf, f, datatype->count,
-                                                     string_arena_get_string(tmp_fct_name), "", "int64_t");
-        string_arena_add_string(sa,
-                                "                .count  = { .fct = (expr_op_int64_inline_func_t)%s },\n",
-                                string_arena_get_string(tmp_fct_name));
-        string_arena_free(tmp_fct_name);
-    }
-
-    /* And finally the displacement */
-    if( JDF_CST == datatype->displ->op ) {
-        string_arena_add_string(sa,
-                                "                .displ  = { .cst = %d }\n",
-                                datatype->displ->jdf_cst);
-    } else {
-        tmp_fct_name = string_arena_new(64);
-        string_arena_add_string(tmp_fct_name, "%s_displ_fct", JDF_OBJECT_ONAME(datatype));
-        if( generate_stubs )
-            jdf_generate_function_without_expression(jdf, f, datatype->displ,
-                                                     string_arena_get_string(tmp_fct_name), "", "int64_t");
-        string_arena_add_string(sa,
-                                "                .displ  = { .fct = (expr_op_int64_inline_func_t)%s }\n",
-                                string_arena_get_string(tmp_fct_name));
-        string_arena_free(tmp_fct_name);
-    }
-
-    string_arena_add_string(sa,
-                            "},\n"
-                            "  .belongs_to = &%s,\n",
+                            dep->dep_datatype_index,
                             JDF_OBJECT_ONAME(flow));
-
-
-    string_arena_add_string(sa,
-                            "};\n");
 
     coutput("%s", string_arena_get_string(sa));
 
