@@ -2403,7 +2403,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("static int %s(__dague_%s_internal_handle_t *__dague_handle)\n"
             "{\n"
             "  dague_dependencies_t *dep = NULL;\n"
-            "  %s assignments;(void) assignments;\n"
+            "  %s assignments;\n"
             "  int nb_tasks = 0;\n"
             "%s",
             fname, jdf_basename,
@@ -2417,7 +2417,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
                                  "  int32_t ", JDF2C_NAMESPACE, "_max = 0,", "_max = 0;\n"));
 
-    coutput("  (void)__dague_handle;\n");
     if( NULL != f->parameters->next ) {
         for(pl = f->parameters; pl != NULL; pl = pl->next ) {
             for(dl = f->locals; dl != NULL; dl = dl->next) {
@@ -2606,6 +2605,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa1);
     string_arena_free(sa2);
     string_arena_free(sa3);
+    coutput("  (void)__dague_handle; (void) assignments;\n");
     coutput("\n  AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
     coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
             "  __dague_handle->super.super.nb_local_tasks += nb_tasks;\n"
