@@ -100,7 +100,7 @@ extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
  * Toplevel structure: four linked lists: prologues, epilogues, globals and functions
  */
 typedef struct jdf {
-    struct jdf_object_t       super;
+    struct jdf_object_t        super;
     struct jdf_external_entry *prologue;
     struct jdf_external_entry *epilogue;
     struct jdf_global_entry   *globals;
@@ -109,6 +109,7 @@ typedef struct jdf {
     struct jdf_data_entry     *data;
     struct jdf_name_list      *datatypes;
     struct jdf_expr           *inline_c_functions;
+    char                      *nb_local_tasks_fn_name;
 } jdf_t;
 
 /**
@@ -183,6 +184,7 @@ typedef struct jdf_function_entry {
     struct jdf_expr           *inline_c_functions;
     char                      *hash_fn_name;
     char                      *startup_fn_name;
+    char                      *nb_local_tasks_fn_name;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {

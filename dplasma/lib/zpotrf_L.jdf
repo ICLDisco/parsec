@@ -48,7 +48,14 @@ static uint64_t my_potrf_hash(const struct __dague_zpotrf_L_internal_handle * __
 static int my_potrf_startup(dague_context_t * context,
                             struct __dague_zpotrf_L_internal_handle *__dague_handle,
                             dague_execution_context_t ** pready_list);
+static uint32_t my_nb_local_tasks(struct __dague_zpotrf_L_internal_handle *__dague_handle);
+static uint32_t my_nb_local_tasks_gemm(struct __dague_zpotrf_L_internal_handle *__dague_handle);
+static uint32_t my_nb_local_tasks_trsm(struct __dague_zpotrf_L_internal_handle *__dague_handle);
+static uint32_t my_nb_local_tasks_potrf(struct __dague_zpotrf_L_internal_handle *__dague_handle);
+static uint32_t my_nb_local_tasks_herk(struct __dague_zpotrf_L_internal_handle *__dague_handle);
 %}
+
+%option nb_local_tasks_fn = my_nb_local_tasks
 
 /* Globals
  */
@@ -64,7 +71,7 @@ smallnb    [type = "int" hidden = on default = "descA.mb" ]
 /**************************************************
  *               potrf_zpotrf                     *
  **************************************************/
-potrf_zpotrf(k) [high_priority = on hash_fn = my_potrf_hash startup_fn = my_potrf_startup]
+potrf_zpotrf(k) [high_priority = on hash_fn = my_potrf_hash startup_fn = my_potrf_startup nb_local_tasks_fn = my_nb_local_tasks_potrf]
 
 // Execution space
 k = 0 .. descA.mt-1
@@ -129,7 +136,7 @@ END
 /**************************************************
  *               potrf_ztrsm                      *
  **************************************************/
-potrf_ztrsm(m, k) [high_priority = on]
+potrf_ztrsm(m, k) [high_priority = on nb_local_tasks_fn = my_nb_local_tasks_trsm]
 
 // Execution space
 m = 1 .. descA.mt-1
@@ -215,7 +222,7 @@ END
 /**************************************************
  *               potrf_zherk                      *
  **************************************************/
-potrf_zherk(k, m) [high_priority = on]
+potrf_zherk(k, m) [high_priority = on nb_local_tasks_fn = my_nb_local_tasks_herk]
 
 // Execution space
 k = 0   .. descA.mt-2
@@ -289,7 +296,7 @@ END
  *               potrf_zgemm                      *
  **************************************************/
 // Name
-potrf_zgemm(m, n, k)
+potrf_zgemm(m, n, k) [ nb_local_tasks_fn = my_nb_local_tasks_gemm ]
 
 // Execution space
 k = 0   .. descA.mt-3
@@ -452,4 +459,104 @@ static int my_potrf_startup(dague_context_t * context,
   pready_list[vpid] = (dague_execution_context_t *) new_context;
   return 0;
 }
-%}
+
+static uint32_t nb_local_tasks_loop(struct __dague_zpotrf_L_internal_handle *__dague_handle, tiled_matrix_desc_t *dA, int task_mask)
+{
+    uint32_t nb = 0;
+    int m, n, k;
+    if( task_mask & 1 ) {
+        /** GEMM */
+        for (k = 0; k <= (dA->mt - 3); k += 1) {
+            for (m = (k + 2); m <= (dA->mt - 1); m += 1) {
+                for (n = (k + 1); n <= (m - 1); n += 1) {
+                    if (potrf_zgemm_pred(k, m, n))
+                        nb++; 
+                }
+            }
+        }
+    }
+    if( task_mask & 2 ) {
+        /** TRSM */
+        for (m = 1; m <= (dA->mt - 1); m += 1) {
+            for (k = 0; k <= (m - 1); k += 1) {
+                if (potrf_ztrsm_pred(m, k))
+                    nb++; 
+            }
+        }
+    }
+    if( task_mask & 4 ) {
+        /** POTRF */
+        for (k = 0; k <= (dA->mt-1); k += 1) {
+            if (potrf_zpotrf_pred(k))
+                nb++;
+        }
+    }
+    if( task_mask & 8 ) {
+        /** HERK */
+        for (k = 0; k <= (dA->mt - 2); k += 1) {
+            for (m = k+1; m <= (dA->mt - 1); m += 1) {
+                if (potrf_zherk_pred(k, m))
+                    nb++; 
+            }
+        }
+    }
+    return nb;
+}
+ 
+static uint32_t my_nb_local_tasks_gemm(struct __dague_zpotrf_L_internal_handle *__dague_handle)
+{
+    uint32_t nb;
+    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
+    if( dA->super.nodes == 1 ) {
+        nb = (dA->nt-2) * (dA->nt-1) * (dA->nt) / 6;
+    } else {
+        nb = nb_local_tasks_loop(__dague_handle, dA, 1);
+    }
+    return nb;
+}
+ 
+static uint32_t my_nb_local_tasks_trsm(struct __dague_zpotrf_L_internal_handle *__dague_handle)
+{
+    uint32_t nb;
+    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
+    if( dA->super.nodes == 1 ) {
+        nb = (dA->nt-1) * (dA->nt) / 2;
+    } else {
+        nb = nb_local_tasks_loop(__dague_handle, dA, 2);
+    }
+    return nb;
+}
+ 
+static uint32_t my_nb_local_tasks_potrf(struct __dague_zpotrf_L_internal_handle *__dague_handle)
+{
+    uint32_t nb;
+    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
+    if( dA->super.nodes == 1 ) {
+        nb = dA->nt;
+    } else {
+        nb = nb_local_tasks_loop(__dague_handle, dA, 4);
+    }
+    return nb;
+}
+ 
+static uint32_t my_nb_local_tasks_herk(struct __dague_zpotrf_L_internal_handle *__dague_handle)
+{
+    uint32_t nb;
+    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
+    if( dA->super.nodes == 1 ) {
+        nb = (dA->nt-1)*(dA->nt)/2;
+    } else {
+        nb = nb_local_tasks_loop(__dague_handle, dA, 8);
+    }
+    return nb;
+}
+ 
+static uint32_t my_nb_local_tasks(__dague_zpotrf_L_internal_handle_t *__dague_handle)
+{
+    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
+    return my_nb_local_tasks_potrf(__dague_handle) +
+        my_nb_local_tasks_herk(__dague_handle) +
+        my_nb_local_tasks_trsm(__dague_handle) +
+        my_nb_local_tasks_gemm(__dague_handle);
+}
+ %}

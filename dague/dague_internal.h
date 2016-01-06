@@ -84,6 +84,12 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
 /* This loops array is allocated */
 #define DAGUE_DEPENDENCIES_FLAG_ALLOCATED  0x04
 
+/* When providing user-defined functions to count the number of tasks,
+ * the user can return DAGUE_UNDETERMINED_NB_TASKS to say explicitely
+ * that they will call the object termination function themselves.
+ */
+#define DAGUE_UNDETERMINED_NB_TASKS (~((uint32_t)0))
+
 /* The first time the IN dependencies are
  *       checked leave a trace in order to avoid doing it again.
  */

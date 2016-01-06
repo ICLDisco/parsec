@@ -2345,13 +2345,26 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t*)this_task->dague_handle;\n"
             "  dague_dependencies_t *dep = NULL;\n"
             "  %s assignments;\n"
-            "  int nb_tasks = 0;\n"
             "%s",
             fname, dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
             dague_get_name(jdf, f, "assignment_t"),
             UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
                                  "  int32_t ", " ", ",", ";\n"));
+    if( NULL == jdf->nb_local_tasks_fn_name ) {
+        if( NULL == f->nb_local_tasks_fn_name ) {
+            coutput("  uint32_t nb_tasks = 0;\n");
+        } else {
+            coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", f->nb_local_tasks_fn_name);
+        }
+    } else {
+        if( NULL == f->nb_local_tasks_fn_name ) {
+            coutput("  uint32_t nb_tasks = 0;\n");
+        } else {
+            coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", f->nb_local_tasks_fn_name);
+        }
+    }
+
     coutput("%s"
             "%s",
             UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
@@ -2417,12 +2430,14 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
 
     string_arena_init(sa1);
-    coutput("%s  if( !%s_pred(%s) ) continue;\n"
-            "%s  nb_tasks++;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
-                                                            dump_string, NULL,
-                                                            "", "assignments.", ".value, ", ".value"),
-            indent(nesting));
+    if( NULL == f->nb_local_tasks_fn_name ) {
+        coutput("%s  if( !%s_pred(%s) ) continue;\n"
+                "%s  nb_tasks++;\n",
+                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
+                                                                dump_string, NULL,
+                                                                "", "assignments.", ".value, ", ".value"),
+                indent(nesting));
+    }
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
     }
@@ -2525,6 +2540,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa1);
     string_arena_free(sa2);
     coutput("\n  AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
+<<<<<<< HEAD
     idx = 0;
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, idx);
     coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
@@ -5195,6 +5211,8 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
     char *hash_fn;
     char *startup_fn;
 
+    jdf->nb_local_tasks_fn_name = jdf_property_get_string(jdf->global_properties, "nb_local_tasks_fn", NULL);
+
     for(f = jdf->functions; NULL != f; f = f->next) {
         hash_fn = jdf_property_get_string(f->properties, "hash_fn", NULL);
         if( NULL != hash_fn ) {
@@ -5215,6 +5233,8 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
                 f->startup_fn_name = NULL;
             }
         }
+
+        f->nb_local_tasks_fn_name = jdf_property_get_string(f->properties, "nb_local_tasks_fn", NULL);
     }
 }
 
