@@ -155,6 +155,28 @@ typedef uint64_t (dague_functionkey_fn_t)(const dague_handle_t *dague_handle,
 typedef float (dague_evaluate_function_t)(const dague_execution_context_t* task);
 
 /**
+ * Retrieve the datatype for each flow (for input) or dependency (for output)
+ * for a particular task. This function behave as an iterator: flow_mask
+ * contains the mask of dependencies or flows that should be monitored, the left
+ * most bit set to 1 to indicate input flows, and to 0 for output flows. If we
+ * want to extract the input flows then the mask contains a bit set to 1 for
+ * each index of a flow we are interested on. For the output flows, the mask
+ * contains the bits for the dependencies we need to extract the datatype. Once
+ * the data structure has been updated, the flow_mask is updated to contain only
+ * the remaining flows for this task. Thus, iterating until flow_mask is 0 is
+ * the way to extract all the datatypes for a particular task.
+ *
+ * @return DAGUE_HOOK_RETURN_NEXT if the data structure has been updated (in
+ * which case the function is safe to be called again), and
+ * DAGUE_HOOK_RETURN_DONE otherwise (the data structure has not been updated and
+ * there is no reason to call this function again for the same task.
+ */
+typedef int (dague_datatype_lookup_t)(struct dague_execution_unit_s* eu,
+                                      const dague_execution_context_t * this_task,
+                                      uint32_t * flow_mask,
+                                      dague_dep_data_description_t * data);
+
+/**
  *
  */
 typedef enum dague_hook_return_e {
@@ -224,6 +246,7 @@ struct dague_function_s {
 #if defined(DAGUE_SIM)
     dague_sim_cost_fct_t        *sim_cost_fct;
 #endif
+    dague_datatype_lookup_t     *get_datatype;
     dague_hook_t                *prepare_input;
     const __dague_chore_t       *incarnations;
     dague_hook_t                *prepare_output;
