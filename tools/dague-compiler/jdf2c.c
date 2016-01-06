@@ -2333,6 +2333,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     jdf_name_list_t *pl;
     int nesting, idx;
     expr_info_t info;
+    int need_to_iterate;
 
     (void)jdf;
 
@@ -2344,13 +2345,19 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "{\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t*)this_task->dague_handle;\n"
             "  dague_dependencies_t *dep = NULL;\n"
-            "  %s assignments;\n"
-            "%s",
             fname, dague_get_name(jdf, f, "task_t"),
-            jdf_basename, jdf_basename,
-            dague_get_name(jdf, f, "assignment_t"),
-            UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
-                                 "  int32_t ", " ", ",", ";\n"));
+            jdf_basename, jdf_basename);
+
+    need_to_iterate =  (NULL == f->find_deps_fn_name || NULL == f->nb_local_tasks_fn_name || (!(f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN)));
+
+    if( need_to_iterate ) {
+        coutput("  %s assignments;\n"
+                "%s",
+                dague_get_name(jdf, f, "assignment_t"),
+                UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
+                                     "  int32_t ", " ", ",", ";\n"));
+    }
+
     if( NULL == jdf->nb_local_tasks_fn_name ) {
         if( NULL == f->nb_local_tasks_fn_name ) {
             coutput("  uint32_t nb_tasks = 0;\n");
@@ -2365,12 +2372,14 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         }
     }
 
-    coutput("%s"
-            "%s",
-            UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
-                                 "  int32_t ", JDF2C_NAMESPACE, "_min = 0x7fffffff,", "_min = 0x7fffffff;\n"),
-            UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
-                                 "  int32_t ", JDF2C_NAMESPACE, "_max = 0,", "_max = 0;\n"));
+    if( need_to_iterate ) {
+        coutput("%s"
+                "%s",
+                UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
+                                     "  int32_t ", JDF2C_NAMESPACE, "_min = 0x7fffffff,", "_min = 0x7fffffff;\n"),
+                UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
+                                     "  int32_t ", JDF2C_NAMESPACE, "_max = 0,", "_max = 0;\n"));
+    }
 
     if( NULL != f->parameters->next ) {
         for(pl = f->parameters; pl != NULL; pl = pl->next ) {
@@ -2398,134 +2407,140 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     info.suffix = "";
     info.assignments = "&assignments";
 
-    coutput("  /* First, find the min and max value for each of the dimensions */\n");
-
-    nesting = 0;
-    /**
-     * Make sure we update the assignment first otherwise the inline_c in the dump_expr
-     * might work on the previous value.
-     */
-    for(dl = f->locals; dl != NULL; dl = dl->next ) {
-        if(dl->expr->op == JDF_RANGE) {
-            coutput("%s  for( assignments.%s.value = %s = %s;\n",
-                    indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
-            coutput("%s      assignments.%s.value <= %s;\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info));
-            coutput("%s      assignments.%s.value += %s, %s = assignments.%s.value) {\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info), dl->name, dl->name);
-            nesting++;
-        } else {
-            coutput("%s  assignments.%s.value = %s = %s;\n",
-                    indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr, &info));
-        }
-        for(pl = f->parameters; pl != NULL; pl = pl->next ) {
-            if(0 == strcmp(dl->name, pl->name)) {
-                coutput("%s  %s%s_max = dague_imax(%s%s_max, assignments.%s.value);\n"
-                        "%s  %s%s_min = dague_imin(%s%s_min, assignments.%s.value);\n",
-                        indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name,
-                        indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name);
-                break;
-            }
-        }
-    }
-
-    string_arena_init(sa1);
-    if( NULL == f->nb_local_tasks_fn_name ) {
-        coutput("%s  if( !%s_pred(%s) ) continue;\n"
-                "%s  nb_tasks++;\n",
-                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
-                                                                dump_string, NULL,
-                                                                "", "assignments.", ".value, ", ".value"),
-                indent(nesting));
-    }
-    for(; nesting > 0; nesting--) {
-        coutput("%s}\n", indent(nesting));
-    }
-
-    if( ! (f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN) ) {
-        coutput("  /* Set the range variables for the collision-free hash-computation */\n");
-        for(pl = f->parameters; pl != NULL; pl = pl->next) {
-            coutput("  __dague_handle->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
-                    f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
-        }
-    }
-
-    coutput("\n"
-            "  /**\n"
-            "   * Now, for each of the dimensions, re-iterate on the space,\n"
-            "   * and if at least one value is defined, allocate arrays to point\n"
-            "   * to it. Array dimensions are defined by the (rough) observation above\n"
-            "   **/\n"
-            "  DEBUG3((\"Allocating dependencies array for %s (nb_tasks = %%d)\\n\", nb_tasks));\n", fname);
-
-    coutput("%s  if( 0 != nb_tasks ) {\n", indent(nesting));
-    if( f->parameters->next == NULL ) {
-        coutput("%s    ALLOCATE_DEP_TRACKING(dep, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n",
-                indent(nesting), JDF2C_NAMESPACE, f->parameters->name, JDF2C_NAMESPACE, f->parameters->name, f->parameters->name,
-                jdf_basename, f->fname, f->parameters->name);
-    } else {
-        coutput("%s    dep = NULL;\n", indent(nesting));
+    if( need_to_iterate ) {
+        coutput("  /* First, find the min and max value for each of the dimensions */\n");
 
         nesting = 0;
-        for(dl = f->locals; dl != NULL; dl = dl->next) {
-
-            for(pl = f->parameters; pl != NULL; pl = pl->next) {
-                if(!strcmp(pl->name, dl->name))
-                    break;
-            }
-
+        /**
+         * Make sure we update the assignment first otherwise the inline_c in the dump_expr
+         * might work on the previous value.
+         */
+        for(dl = f->locals; dl != NULL; dl = dl->next ) {
             if(dl->expr->op == JDF_RANGE) {
-                coutput("%s    %s%s_start = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
-                coutput("%s    %s%s_end = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info));
-                coutput("%s    %s%s_inc = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
-                coutput("%s    for(%s = dague_imax(%s%s_start, %s%s_min); %s <= dague_imin(%s%s_end, %s%s_max); %s+=%s%s_inc) {\n",
-                        indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, /* first ; */
-                        dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name);
+                coutput("%s  for( assignments.%s.value = %s = %s;\n",
+                        indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                coutput("%s      assignments.%s.value <= %s;\n",
+                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info));
+                coutput("%s      assignments.%s.value += %s, %s = assignments.%s.value) {\n",
+                        indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info), dl->name, dl->name);
                 nesting++;
             } else {
-                coutput("%s    %s = %s;\n",
-                        indent(nesting), dl->name, dump_expr((void**)dl->expr, &info));
+                coutput("%s  assignments.%s.value = %s = %s;\n",
+                        indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr, &info));
             }
-
-            coutput("%s    assignments.%s.value = %s;\n",
-                    indent(nesting), dl->name, dl->name);
+            if( NULL == f->find_deps_fn_name ) {
+                for(pl = f->parameters; pl != NULL; pl = pl->next ) {
+                    if(0 == strcmp(dl->name, pl->name)) {
+                        coutput("%s  %s%s_max = dague_imax(%s%s_max, assignments.%s.value);\n"
+                                "%s  %s%s_min = dague_imin(%s%s_min, assignments.%s.value);\n",
+                                indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name,
+                                indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name);
+                        break;
+                    }
+                }
+            }
         }
-
-        coutput("%s    if( !%s_pred(%s) ) continue;\n"
-                "%s    /* We did find one! Allocate the dependencies array. */\n",
-                indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
-                                                                dump_string, NULL,
-                                                                "", "", ", ", ""),
-                indent(nesting));
 
         string_arena_init(sa1);
-        string_arena_add_string(sa1, "dep");
-        for(pl = f->parameters; pl != NULL; pl = pl->next) {
-            for(dl = f->locals; dl != NULL; dl = dl->next) {
-                if(!strcmp(pl->name, dl->name))
-                    break;
-            }
-            assert(NULL != dl);
-            coutput("%s    if( %s == NULL ) {\n"
-                    "%s      ALLOCATE_DEP_TRACKING(%s, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
-                    "%s    }\n",
-                    indent(nesting), string_arena_get_string(sa1),
-                    indent(nesting), string_arena_get_string(sa1), JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name,
-                    /* at \"%s\" */ dl->name, jdf_basename, f->fname, dl->name,
-                    pl == f->parameters ? "NULL" : string_arena_get_string(sa2),
-                    pl->next == NULL ? "DAGUE_DEPENDENCIES_FLAG_FINAL" : "DAGUE_DEPENDENCIES_FLAG_NEXT",
+        if( NULL == f->nb_local_tasks_fn_name ) {
+            coutput("%s  if( !%s_pred(%s) ) continue;\n"
+                    "%s  nb_tasks++;\n",
+                    indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
+                                                                    dump_string, NULL,
+                                                                    "", "assignments.", ".value, ", ".value"),
                     indent(nesting));
-            string_arena_init(sa2);
-            string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
-            string_arena_add_string(sa1, "->u.next[%s-%s%s_min]", dl->name, JDF2C_NAMESPACE, dl->name);
         }
-
         for(; nesting > 0; nesting--) {
             coutput("%s}\n", indent(nesting));
         }
+
+        if( ! (f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN) ) {
+            coutput("  /* Set the range variables for the collision-free hash-computation */\n");
+            for(pl = f->parameters; pl != NULL; pl = pl->next) {
+                coutput("  __dague_handle->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
+                        f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
+            }
+        }
+
+        coutput("\n"
+                "  /**\n"
+                "   * Now, for each of the dimensions, re-iterate on the space,\n"
+                "   * and if at least one value is defined, allocate arrays to point\n"
+                "   * to it. Array dimensions are defined by the (rough) observation above\n"
+                "   **/\n"
+                "  DEBUG3((\"Allocating dependencies array for %s (nb_tasks = %%d)\\n\", nb_tasks));\n", fname);
+
+        coutput("%s  if( 0 != nb_tasks ) {\n", indent(nesting));
+        if( f->alloc_deps_fn_name == NULL ) {
+            if( f->parameters->next == NULL ) {
+                coutput("%s    ALLOCATE_DEP_TRACKING(dep, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n",
+                        indent(nesting), JDF2C_NAMESPACE, f->parameters->name, JDF2C_NAMESPACE, f->parameters->name, f->parameters->name,
+                        jdf_basename, f->fname, f->parameters->name);
+            } else {
+                coutput("%s    dep = NULL;\n", indent(nesting));
+
+                nesting = 0;
+                for(dl = f->locals; dl != NULL; dl = dl->next) {
+
+                    for(pl = f->parameters; pl != NULL; pl = pl->next) {
+                        if(!strcmp(pl->name, dl->name))
+                            break;
+                    }
+
+                    if(dl->expr->op == JDF_RANGE) {
+                        coutput("%s    %s%s_start = %s;\n",
+                                indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+                        coutput("%s    %s%s_end = %s;\n",
+                                indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info));
+                        coutput("%s    %s%s_inc = %s;\n",
+                                indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
+                        coutput("%s    for(%s = dague_imax(%s%s_start, %s%s_min); %s <= dague_imin(%s%s_end, %s%s_max); %s+=%s%s_inc) {\n",
+                                indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, /* first ; */
+                                dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name);
+                        nesting++;
+                    } else {
+                        coutput("%s    %s = %s;\n",
+                                indent(nesting), dl->name, dump_expr((void**)dl->expr, &info));
+                    }
+                    coutput("%s    assignments.%s.value = %s;\n",
+                            indent(nesting), dl->name, dl->name);
+                }
+
+                coutput("%s    if( !%s_pred(%s) ) continue;\n"
+                        "%s    /* We did find one! Allocate the dependencies array. */\n",
+                        indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
+                                                                        dump_string, NULL,
+                                                                        "", "", ", ", ""),
+                        indent(nesting));
+
+                string_arena_init(sa1);
+                string_arena_add_string(sa1, "dep");
+                for(pl = f->parameters; pl != NULL; pl = pl->next) {
+                    for(dl = f->locals; dl != NULL; dl = dl->next) {
+                        if(!strcmp(pl->name, dl->name))
+                            break;
+                    }
+                    assert(NULL != dl);
+                    coutput("%s    if( %s == NULL ) {\n"
+                            "%s      ALLOCATE_DEP_TRACKING(%s, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, %s, %s);\n"
+                            "%s    }\n",
+                            indent(nesting), string_arena_get_string(sa1),
+                            indent(nesting), string_arena_get_string(sa1), JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name,
+                            /* at \"%s\" */ dl->name, jdf_basename, f->fname, dl->name,
+                            pl == f->parameters ? "NULL" : string_arena_get_string(sa2),
+                            pl->next == NULL ? "DAGUE_DEPENDENCIES_FLAG_FINAL" : "DAGUE_DEPENDENCIES_FLAG_NEXT",
+                            indent(nesting));
+                }
+
+                for(; nesting > 0; nesting--) {
+                    coutput("%s}\n", indent(nesting));
+                }
+            }
+        } else {
+            coutput("  dep = %s(__dague_handle);\n", f->alloc_deps_fn_name);
+        }
+    } else {
+        coutput("  dep = %s(__dague_handle);\n", f->alloc_deps_fn_name);
     }
     coutput("%s    nb_tasks = dague_atomic_add_32b((int32_t*)&__dague_handle->super.super.nb_local_tasks, nb_tasks);\n",
             indent(nesting));
@@ -2540,7 +2555,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa1);
     string_arena_free(sa2);
     coutput("\n  AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
-<<<<<<< HEAD
     idx = 0;
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, idx);
     coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
@@ -2824,6 +2838,12 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     sprintf(prefix, "%s_%s", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .incarnations = __%s_chores,\n", prefix);
 
+    if( NULL == f->find_deps_fn_name ) {
+        string_arena_add_string(sa, "  .find_deps = dague_default_find_deps,\n");
+    } else {
+        string_arena_add_string(sa, "  .find_deps = %s,\n", f->find_deps_fn_name);
+    }
+
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
         jdf_generate_code_iterate_successors_or_predecessors(jdf, f, prefix, JDF_DEP_FLOW_OUT);
@@ -3049,6 +3069,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 {
     string_arena_t *sa = string_arena_new(64);
     string_arena_t *sa1 = string_arena_new(64);
+    jdf_function_entry_t* f;
 
     coutput("static void %s_destructor( __dague_%s_internal_handle_t *handle )\n"
             "{\n"
@@ -3079,14 +3100,25 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  handle->super.arenas_size = 0;\n");
 
     coutput("  /* Destroy the data repositories for this object */\n");
-    {
-        jdf_function_entry_t* f;
-
-        for( f = jdf->functions; NULL != f; f = f->next ) {
-            coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
-                    f->function_id, f->fname);
-        }
+    for( f = jdf->functions; NULL != f; f = f->next ) {
+        coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
+                f->function_id, f->fname);
     }
+
+    coutput("  /* Release the dependencies arrays for this object */\n");
+    for(f = jdf->functions; NULL != f; f = f->next) {
+        if( NULL == f->free_deps_fn_name ) {
+            coutput("  dague_destruct_dependencies( handle->super.super.dependencies_array[%d] );\n",
+                    f->function_id);
+        } else {
+            coutput("  %s(handle, handle->super.super.dependencies_array[%d]);\n",
+                    f->free_deps_fn_name, f->function_id);
+        }
+        coutput("  handle->super.super.dependencies_array[%d] = NULL;\n",
+                f->function_id);
+    }
+    coutput("  free( handle->super.super.dependencies_array );\n"
+            "  handle->super.super.dependencies_array = NULL;\n");
 
     coutput("  /* Unregister all the data */\n"
             "  uint32_t _i;\n"
@@ -5210,6 +5242,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
     jdf_function_entry_t *f;
     char *hash_fn;
     char *startup_fn;
+    char *find_deps, *alloc_deps, *free_deps;
 
     jdf->nb_local_tasks_fn_name = jdf_property_get_string(jdf->global_properties, "nb_local_tasks_fn", NULL);
 
@@ -5235,6 +5268,31 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
         }
 
         f->nb_local_tasks_fn_name = jdf_property_get_string(f->properties, "nb_local_tasks_fn", NULL);
+
+        find_deps = jdf_property_get_string(f->properties, "find_deps_fn", NULL);
+        if( NULL != find_deps ) {
+            alloc_deps = jdf_property_get_string(f->properties, "alloc_deps_fn", NULL);
+            if( NULL == alloc_deps ) {
+                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                          "Users who want to define a user-specific find_deps function ('%s') must also define a alloc_deps function\n",
+                          find_deps);
+                exit(1);
+            }
+            free_deps = jdf_property_get_string(f->properties, "free_deps_fn", NULL);
+            if( NULL == free_deps ) {
+                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                          "Users who want to define a user-specific find_deps function ('%s') must also define a free_deps function\n",
+                          find_deps);
+                exit(1);
+            }
+            f->find_deps_fn_name = find_deps;
+            f->free_deps_fn_name = free_deps;
+            f->alloc_deps_fn_name = alloc_deps;
+        } else {
+            f->find_deps_fn_name = NULL;
+            f->free_deps_fn_name = NULL;
+            f->alloc_deps_fn_name = NULL;
+        }
     }
 }
 

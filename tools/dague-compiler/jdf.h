@@ -185,6 +185,9 @@ typedef struct jdf_function_entry {
     char                      *hash_fn_name;
     char                      *startup_fn_name;
     char                      *nb_local_tasks_fn_name;
+    char                      *find_deps_fn_name;
+    char                      *alloc_deps_fn_name;
+    char                      *free_deps_fn_name;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {
