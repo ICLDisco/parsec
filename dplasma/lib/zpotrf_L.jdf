@@ -76,7 +76,13 @@ smallnb    [type = "int" hidden = on default = "descA.mb" ]
 /**************************************************
  *               potrf_zpotrf                     *
  **************************************************/
-potrf_zpotrf(k) [high_priority = on hash_fn = my_potrf_hash startup_fn = my_potrf_startup nb_local_tasks_fn = my_nb_local_tasks_potrf find_deps_fn = my_potrf_deps_find alloc_deps_fn = my_potrf_deps_allocate free_deps_fn = my_potrf_deps_free ]
+potrf_zpotrf(k) [high_priority = on
+                 hash_fn = my_potrf_hash
+                 startup_fn = my_potrf_startup
+                 nb_local_tasks_fn = my_nb_local_tasks_potrf
+                 find_deps_fn  = my_potrf_deps_find
+                 alloc_deps_fn = my_potrf_deps_allocate
+                 free_deps_fn  = my_potrf_deps_free ]
 
 // Execution space
 k = 0 .. descA.mt-1
