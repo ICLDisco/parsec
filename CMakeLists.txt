@@ -260,9 +260,6 @@ CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA )
 IF( HAVE_WEXTRA )
     set( C_WFLAGS "${C_WFLAGS} -Wextra" )
 ENDIF( HAVE_WEXTRA )
-IF( HAVE_WEXTRA )
-    set( C_WFLAGS "${C_WFLAGS} -Wno-parentheses-equality" )
-ENDIF( HAVE_WEXTRA )
 
 #
 # flags for Intel icc
@@ -281,7 +278,10 @@ if(_match_icc)
     set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572 -wd10237" )
   ENDIF( HAVE_WD )
 else(_match_icc)
-  CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" HAVE_WEXTRA )
+  CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" HAVE_PAR_EQUALITY )
+  IF( HAVE_PAR_EQUALITY )
+        set( C_WFLAGS "${C_WFLAGS} -Wno-parentheses-equality" )
+  ENDIF( HAVE_PAR_EQUALITY )
 endif(_match_icc)
 
 # add gdb symbols in debug and relwithdebinfo
