@@ -2361,18 +2361,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                      "  int32_t ", " ", ",", ";\n"));
     }
 
-    if( NULL == jdf->nb_local_tasks_fn_name ) {
-        if( NULL == f->nb_local_tasks_fn_name ) {
-            coutput("  uint32_t nb_tasks = 0;\n");
-        } else {
-            coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", f->nb_local_tasks_fn_name);
-        }
+    if( NULL == f->nb_local_tasks_fn_name ) {
+        coutput("  uint32_t nb_tasks = 0;\n");
     } else {
-        if( NULL == f->nb_local_tasks_fn_name ) {
-            coutput("  uint32_t nb_tasks = 0;\n");
-        } else {
-            coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", f->nb_local_tasks_fn_name);
-        }
+        coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", f->nb_local_tasks_fn_name);
     }
 
     if( need_to_iterate ) {
@@ -5235,8 +5227,6 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
     const char *startup_fn;
     const char *find_deps, *alloc_deps, *free_deps;
     char *tmp;
-
-    jdf->nb_local_tasks_fn_name = jdf_property_get_string(jdf->global_properties, "nb_local_tasks_fn", NULL);
 
     for(f = jdf->functions; NULL != f; f = f->next) {
         hash_fn = jdf_property_get_string(f->properties, "hash_fn", NULL);
