@@ -1309,3 +1309,52 @@ int jdf_flatten_function(jdf_function_entry_t* function)
 
     return 0;
 }
+
+/**
+ * Accessors to get typed properties (int and string).
+ */
+int jdf_property_get_int( const jdf_def_list_t* properties,
+                          const char* prop_name,
+                          int ret_if_not_found )
+{
+    jdf_def_list_t* property;
+    jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
+
+    if( NULL != expr ) {
+        if( JDF_CST == expr->op )
+            return expr->jdf_cst;
+        printf("Warning: property %s defined at line %d only support ON/OFF\n",
+               prop_name, JDF_OBJECT_LINENO(property));
+    }
+    return ret_if_not_found;  /* ON by default */
+}
+
+const char*jdf_property_get_string( const jdf_def_list_t* properties,
+                                    const char* prop_name,
+                                    const char* ret_if_not_found )
+{
+    jdf_def_list_t* property;
+    jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
+
+    if( NULL != expr ) {
+        if( JDF_OP_IS_VAR(expr->op) )
+            return strdup(expr->jdf_var);
+        printf("Warning: property %s defined at line %d only support ON/OFF\n",
+               prop_name, JDF_OBJECT_LINENO(property));
+    }
+    return ret_if_not_found;  /* the expected default */
+}
+
+jdf_def_list_t *jdf_add_string_property(jdf_def_list_t **properties, const char *prop_name, const char *prop_value)
+{
+    jdf_def_list_t* assign = malloc(sizeof(jdf_def_list_t));
+    assign->next              = NULL;
+    assign->name              = strdup(prop_name);
+    assign->expr              = malloc(sizeof(jdf_expr_t));
+    assign->expr->op = JDF_VAR;
+    assign->expr->jdf_var = strdup(prop_value);
+    JDF_OBJECT_LINENO(assign) = -1;
+    assign->next = *properties;
+    *properties = assign;
+    return assign;
+}

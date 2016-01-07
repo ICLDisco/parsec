@@ -164,8 +164,20 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_FLAG_HAS_DATA_INPUT    ((jdf_flags_t)(1 << 4))
 #define JDF_FUNCTION_FLAG_HAS_DATA_OUTPUT   ((jdf_flags_t)(1 << 5))
 #define JDF_FUNCTION_FLAG_NO_PREDECESSORS   ((jdf_flags_t)(1 << 6))
-#define JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN   ((jdf_flags_t)(1 << 7))
-#define JDF_FUNCTION_FLAG_HAS_UD_START_FUN  ((jdf_flags_t)(1 << 8))
+
+#define JDF_FUNCTION_HAS_UD_HASH_FUN           ((jdf_flags_t)(1 << 0))
+#define JDF_PROP_UD_HASH_FN_NAME               "hash_fn"
+
+#define JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN ((jdf_flags_t)(1 << 1))
+#define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
+
+#define JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN  ((jdf_flags_t)(1 << 2))
+#define JDF_PROP_UD_STARTUP_TASKS_FN_NAME      "startup_fn"
+
+#define JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS  ((jdf_flags_t)(1 << 3))
+#define JDF_PROP_UD_FIND_DEPS_FN_NAME          "find_deps_fn"
+#define JDF_PROP_UD_ALLOC_DEPS_FN_NAME         "alloc_deps_fn"
+#define JDF_PROP_UD_FREE_DEPS_FN_NAME          "free_deps_fn"
 
 typedef struct jdf_function_entry {
     struct jdf_object_t        super;
@@ -173,6 +185,7 @@ typedef struct jdf_function_entry {
     char                      *fname;
     struct jdf_name_list      *parameters;
     jdf_flags_t                flags;
+    jdf_flags_t                user_defines;
     int32_t                    function_id;
     struct jdf_def_list       *locals;
     struct jdf_call           *predicate;
@@ -182,12 +195,6 @@ typedef struct jdf_function_entry {
     struct jdf_def_list       *properties;
     struct jdf_body           *bodies;
     struct jdf_expr           *inline_c_functions;
-    const char                *hash_fn_name;
-    const char                *startup_fn_name;
-    const char                *nb_local_tasks_fn_name;
-    const char                *find_deps_fn_name;
-    const char                *alloc_deps_fn_name;
-    const char                *free_deps_fn_name;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {
@@ -396,6 +403,17 @@ char *malloc_and_dump_jdf_expr_list( const jdf_expr_t *e );
  * @return the expr on the left side of the = otherwise.
  */
 jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* property_name, jdf_def_list_t** property );
+
+/**
+ * Accessors for the properties
+ */
+int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found );
+const char *jdf_property_get_string( const jdf_def_list_t* properties, const char* prop_name, const char *ret_if_not_found );
+
+/**
+ * Add a new string property
+ */
+jdf_def_list_t *jdf_add_string_property(jdf_def_list_t **properties, const char *prop_name, const char *prop_value);
 
 /**
  * Function cleanup and management. Available in jdf.c

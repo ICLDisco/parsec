@@ -38,8 +38,6 @@ static void jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jd
                                                                  const char *prefix, jdf_dep_flags_t flow_type);
 static void jdf_generate_code_datatype_lookup(const jdf_t *jdf,  const jdf_function_entry_t *f, const char *name);
 
-static int jdf_property_get_int( const jdf_def_list_t* properties, const char* prop_name, int ret_if_not_found );
-
 /** A coutput and houtput functions to write in the .h and .c files, counting the number of lines */
 
 static inline int nblines(const char *p)
@@ -869,42 +867,6 @@ jdf_expr_t* jdf_find_property( const jdf_def_list_t* properties, const char* pro
     return NULL;
 }
 
-/**
- * Accessors to get typed properties (int and string).
- */
-static int jdf_property_get_int( const jdf_def_list_t* properties,
-                                 const char* prop_name,
-                                 int ret_if_not_found )
-{
-    jdf_def_list_t* property;
-    jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
-
-    if( NULL != expr ) {
-        if( JDF_CST == expr->op )
-            return expr->jdf_cst;
-        printf("Warning: property %s defined at line %d only support ON/OFF\n",
-               prop_name, JDF_OBJECT_LINENO(property));
-    }
-    return ret_if_not_found;  /* ON by default */
-}
-
-static const char*
-jdf_property_get_string( const jdf_def_list_t* properties,
-                         const char* prop_name,
-                         const char* ret_if_not_found )
-{
-    jdf_def_list_t* property;
-    jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
-
-    if( NULL != expr ) {
-        if( JDF_OP_IS_VAR(expr->op) )
-            return strdup(expr->jdf_var);
-        printf("Warning: property %s defined at line %d only support ON/OFF\n",
-               prop_name, JDF_OBJECT_LINENO(property));
-    }
-    return ret_if_not_found;  /* the expected default */
-}
-
 static int jdf_dataflow_type(const jdf_dataflow_t *flow)
 {
     jdf_dep_t *dl;
@@ -1195,7 +1157,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
     coutput("  /* The ranges to compute the hash key */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN )
+        if( f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN )
             continue;
         for(pl = f->parameters; pl != NULL; pl = pl->next) {
             coutput("  int %s_%s_range;\n", f->fname, pl->name);
@@ -2188,7 +2150,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     expr_info_t info1;
 
     assert( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP );
-    if( f->flags & JDF_FUNCTION_FLAG_HAS_UD_START_FUN )
+    if( f->user_defines & JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN )
         return;
     (void)jdf;
 
@@ -2344,6 +2306,12 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     sa2 = string_arena_new(64);
     sa_end = string_arena_new(64);
 
+    need_to_iterate = ( (f->user_defines & (JDF_FUNCTION_HAS_UD_HASH_FUN|
+                                            JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN|
+                                            JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) != (JDF_FUNCTION_HAS_UD_HASH_FUN|
+                                                                                         JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN|
+                                                                                         JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) );
+
     coutput("static int %s(dague_execution_unit_t * eu, %s * this_task)\n"
             "{\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t*)this_task->dague_handle;\n"
@@ -2361,10 +2329,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                      "  int32_t ", " ", ",", ";\n"));
     }
 
-    if( NULL == f->nb_local_tasks_fn_name ) {
+    if( (f->user_defines & JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN) == 0 ) {
         coutput("  uint32_t nb_tasks = 0;\n");
     } else {
-        coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", f->nb_local_tasks_fn_name);
+        coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", jdf_property_get_string(f->properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
     }
 
     if( need_to_iterate ) {
@@ -2423,7 +2391,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 coutput("%s  assignments.%s.value = %s = %s;\n",
                         indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr, &info));
             }
-            if( NULL == f->find_deps_fn_name ) {
+            if( 0 == (f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) ) {
                 for(pl = f->parameters; pl != NULL; pl = pl->next ) {
                     if(0 == strcmp(dl->name, pl->name)) {
                         coutput("%s  %s%s_max = dague_imax(%s%s_max, assignments.%s.value);\n"
@@ -2437,7 +2405,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         }
 
         string_arena_init(sa1);
-        if( NULL == f->nb_local_tasks_fn_name ) {
+        if( (f->user_defines & JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN) == 0 ) {
             coutput("%s  if( !%s_pred(%s) ) continue;\n"
                     "%s  nb_tasks++;\n",
                     indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
@@ -2449,7 +2417,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             coutput("%s}\n", indent(nesting));
         }
 
-        if( ! (f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN) ) {
+        if( ! (f->user_defines & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN) ) {
             coutput("  /* Set the range variables for the collision-free hash-computation */\n");
             for(pl = f->parameters; pl != NULL; pl = pl->next) {
                 coutput("  __dague_handle->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
@@ -2466,7 +2434,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "  DEBUG3((\"Allocating dependencies array for %s (nb_tasks = %%d)\\n\", nb_tasks));\n", fname);
 
         coutput("%s  if( 0 != nb_tasks ) {\n", indent(nesting));
-        if( f->alloc_deps_fn_name == NULL ) {
+        if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
             if( f->parameters->next == NULL ) {
                 coutput("%s    ALLOCATE_DEP_TRACKING(dep, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n",
                         indent(nesting), JDF2C_NAMESPACE, f->parameters->name, JDF2C_NAMESPACE, f->parameters->name, f->parameters->name,
@@ -2532,10 +2500,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 }
             }
         } else {
-            coutput("  dep = %s(__dague_handle);\n", f->alloc_deps_fn_name);
+            coutput("  dep = %s(__dague_handle);\n", jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL));
         }
     } else {
-        coutput("  dep = %s(__dague_handle);\n", f->alloc_deps_fn_name);
+        coutput("  dep = %s(__dague_handle);\n", jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL));
     }
     coutput("%s    nb_tasks = dague_atomic_add_32b((int32_t*)&__dague_handle->super.super.nb_local_tasks, nb_tasks);\n",
             indent(nesting));
@@ -2827,17 +2795,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     }
 
     string_arena_add_string(sa, "  .key = (dague_functionkey_fn_t*)%s,\n",
-                            f->hash_fn_name);
+                            jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL));
     string_arena_add_string(sa, "  .fini = (dague_hook_t*)%s,\n", "NULL");
 
     sprintf(prefix, "%s_%s", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .incarnations = __%s_chores,\n", prefix);
 
-    if( NULL == f->find_deps_fn_name ) {
-        string_arena_add_string(sa, "  .find_deps = dague_default_find_deps,\n");
-    } else {
-        string_arena_add_string(sa, "  .find_deps = %s,\n", f->find_deps_fn_name);
-    }
+    string_arena_add_string(sa, "  .find_deps = %s,\n", jdf_property_get_string(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         sprintf(prefix, "iterate_successors_of_%s_%s", jdf_basename, f->fname);
@@ -2892,7 +2856,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     free(prefix);
 
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-        jdf_generate_startup_tasks(jdf, f, f->startup_fn_name);
+        jdf_generate_startup_tasks(jdf, f, jdf_property_get_string(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL));
     }
 
     string_arena_add_string(sa, "};\n");
@@ -3102,12 +3066,13 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
     coutput("  /* Release the dependencies arrays for this object */\n");
     for(f = jdf->functions; NULL != f; f = f->next) {
-        if( NULL == f->free_deps_fn_name ) {
+        if( !( f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) ) {
             coutput("  dague_destruct_dependencies( handle->super.super.dependencies_array[%d] );\n",
                     f->function_id);
         } else {
             coutput("  %s(handle, handle->super.super.dependencies_array[%d]);\n",
-                    f->free_deps_fn_name, f->function_id);
+                    jdf_property_get_string(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL),
+                    f->function_id);
         }
         coutput("  handle->super.super.dependencies_array[%d] = NULL;\n",
                 f->function_id);
@@ -3338,7 +3303,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
             "                          const %s *assignments)\n"
             "{\n"
             "  uint64_t __h = 0;\n",
-            f->hash_fn_name, jdf_basename,
+            jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), jdf_basename,
             dague_get_name(jdf, f, "assignment_t"));
 
     info.prefix = "";
@@ -3388,7 +3353,7 @@ static void jdf_generate_hashfunctions(const jdf_t *jdf)
     jdf_function_entry_t *f;
 
     for(f = jdf->functions; f != NULL; f = f->next) {
-        if( ! (f->flags & JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN) ) {
+        if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN) ) {
             jdf_generate_hashfunction_for(jdf, f);
         }
     }
@@ -3549,7 +3514,7 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces)+1, jdf, "target_locals", call));
 
         coutput("%s    entry = data_repo_lookup_entry( %s_repo, %s( __dague_handle, target_locals ));\n",
-                spaces, call->func_or_mem, targetf->hash_fn_name);
+                spaces, call->func_or_mem, jdf_property_get_string(targetf->properties, JDF_PROP_UD_HASH_FN_NAME, NULL));
 
         coutput("%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n"
                 "%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", target_locals, chunk);\n",
@@ -3915,7 +3880,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
     coutput("#if defined(DAGUE_PROF_GRAPHER)\n"
             "  dague_prof_grapher_task((dague_execution_context_t*)%s, context->th_id, context->virtual_process->vp_id, %s(__dague_handle, &%s->locals));\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n",
-            context_name, f->hash_fn_name, context_name);
+            context_name, jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), context_name);
 }
 
 static void jdf_generate_code_cache_awareness_update(const jdf_t *jdf, const jdf_function_entry_t *f)
@@ -4574,7 +4539,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
             "#endif\n"
             "  }\n",
-            f->fname, f->hash_fn_name, dague_get_name(jdf, f, "assignment_t"));
+            f->fname, jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), dague_get_name(jdf, f, "assignment_t"));
 
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
         coutput("  iterate_successors_of_%s_%s(eu, this_task, action_mask, dague_release_dep_fct, &arg);\n"
@@ -5223,61 +5188,53 @@ static void jdf_generate_inline_c_functions(jdf_t* jdf)
 static void jdf_check_user_defined_internals(jdf_t *jdf)
 {
     jdf_function_entry_t *f;
-    const char *hash_fn;
-    const char *startup_fn;
-    const char *find_deps, *alloc_deps, *free_deps;
     char *tmp;
 
     for(f = jdf->functions; NULL != f; f = f->next) {
-        hash_fn = jdf_property_get_string(f->properties, "hash_fn", NULL);
-        if( NULL != hash_fn ) {
-            f->hash_fn_name = hash_fn;
-            f->flags |= JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN;
-        } else {
+        if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL) ) {
             asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
-            f->hash_fn_name = strdup(tmp);
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_FN_NAME, strdup(tmp));
             free(tmp);
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_FUN;
+        } else {
+            f->user_defines |= JDF_FUNCTION_HAS_UD_HASH_FUN;
         }
 
-        startup_fn = jdf_property_get_string(f->properties, "startup_fn", NULL);
-        if( NULL != startup_fn ) {
-            f->startup_fn_name = startup_fn;
-            f->flags |= JDF_FUNCTION_FLAG_HAS_UD_START_FUN | JDF_FUNCTION_FLAG_CAN_BE_STARTUP;
+        if( NULL != jdf_property_get_string(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL) ) {
+            f->flags |= JDF_FUNCTION_FLAG_CAN_BE_STARTUP;
+            f->user_defines |= JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
         } else {
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
             if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
                 asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
-                f->startup_fn_name = strdup(tmp);
+                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, strdup(tmp));
                 free(tmp);
-            } else {
-                f->startup_fn_name = NULL;
             }
         }
 
-        f->nb_local_tasks_fn_name = jdf_property_get_string(f->properties, "nb_local_tasks_fn", NULL);
+        if( jdf_property_get_string(f->properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL) == NULL ) {
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN;
+        } else {
+            f->user_defines |= JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN;
+        }
 
-        find_deps = jdf_property_get_string(f->properties, "find_deps_fn", NULL);
-        if( NULL != find_deps ) {
-            alloc_deps = jdf_property_get_string(f->properties, "alloc_deps_fn", NULL);
-            if( NULL == alloc_deps ) {
+        if( NULL != jdf_property_get_string(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL) ) {
+            if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL) ) {
                 jdf_fatal(JDF_OBJECT_LINENO(f->properties),
                           "Users who want to define a user-specific find_deps function ('%s') must also define a alloc_deps function\n",
-                          find_deps);
+                          jdf_property_get_string(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
                 exit(1);
             }
-            free_deps = jdf_property_get_string(f->properties, "free_deps_fn", NULL);
-            if( NULL == free_deps ) {
+            if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL) ) {
                 jdf_fatal(JDF_OBJECT_LINENO(f->properties),
                           "Users who want to define a user-specific find_deps function ('%s') must also define a free_deps function\n",
-                          find_deps);
+                          jdf_property_get_string(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
                 exit(1);
             }
-            f->find_deps_fn_name = find_deps;
-            f->free_deps_fn_name = free_deps;
-            f->alloc_deps_fn_name = alloc_deps;
+            f->user_defines |= JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
         } else {
-            f->find_deps_fn_name = NULL;
-            f->free_deps_fn_name = NULL;
-            f->alloc_deps_fn_name = NULL;
+            f->user_defines &= ~JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("dague_default_find_deps"));
         }
     }
 }
