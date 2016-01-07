@@ -918,6 +918,15 @@ static int jdf_dataflow_type(const jdf_dataflow_t *flow)
     return type;
 }
 
+static jdf_function_entry_t *find_target_function(const jdf_t *jdf, const char *name)
+{
+    jdf_function_entry_t *targetf;
+    for(targetf = jdf->functions; targetf != NULL; targetf = targetf->next)
+        if( !strcmp(targetf->fname, name) )
+            break;
+    return targetf;
+}
+
 /**
  * Find the output flow corresponding to a particular input flow. This function
  * returns the flow and not a particular dependency.
@@ -928,13 +937,13 @@ jdf_data_output_flow(const jdf_t *jdf, const char *fname, const char *varname)
     jdf_function_entry_t *f;
     jdf_dataflow_t *fl;
 
-    for(f = jdf->functions; f != NULL; f = f->next) {
-        if( strcmp(f->fname, fname) ) continue;
-        for( fl = f->dataflow; fl != NULL; fl = fl->next) {
-            if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_OUT ) {
-                if( !strcmp(fl->varname, varname) ) {
-                    return fl;
-                }
+    f = find_target_function(jdf, fname);
+    if( NULL == f )
+        return NULL;
+    for( fl = f->dataflow; fl != NULL; fl = fl->next) {
+        if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_OUT ) {
+            if( !strcmp(fl->varname, varname) ) {
+                return fl;
             }
         }
     }
@@ -952,19 +961,18 @@ jdf_data_input_index(const jdf_t *jdf, const char *fname, const char *varname)
     jdf_dataflow_t *fl;
 
     i = 0;
-    for(f = jdf->functions; f != NULL; f = f->next) {
-        if( strcmp(f->fname, fname) ) continue;
-        for( fl = f->dataflow; fl != NULL; fl = fl->next) {
-            if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_IN ) {
-                if( !strcmp(fl->varname, varname) ) {
-                    return i;
-                }
-                i++;
+    f = find_target_function(jdf, fname);
+    if( NULL == f )
+        return -2;
+    for( fl = f->dataflow; fl != NULL; fl = fl->next) {
+        if( jdf_dataflow_type(fl) & JDF_DEP_FLOW_IN ) {
+            if( !strcmp(fl->varname, varname) ) {
+                return i;
             }
+            i++;
         }
-        return -1;
     }
-    return -2;
+    return -1;
 }
 
 static void jdf_coutput_prettycomment(char marker, const char *format, ...)
@@ -1683,10 +1691,7 @@ static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function
     int i;
     assignment_info_t ai;
 
-    for(targetf = jdf->functions; targetf != NULL; targetf = targetf->next) {
-        if(!strcmp(tname, targetf->fname))
-            break;
-    }
+    targetf = find_target_function(jdf, tname);
     assert(targetf != NULL);
 
     coutput("static inline int %s_fct(const __dague_%s_internal_handle_t *__dague_handle, const %s *assignments)\n"
@@ -1866,9 +1871,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
 
     if( NULL != call->var ) {
         jdf_function_entry_t* pf;
-        for(pf = jdf->functions;
-            strcmp(pf->fname, call->func_or_mem);
-            pf = pf->next) /* nothing */;
+        pf = find_target_function(jdf, call->func_or_mem);
         if( NULL == pf ) {
             fprintf(stderr, "Error: Can't identify the target function for the call at %s.jdf:%d: %s %s\n",
                    jdf_basename, call->super.lineno, call->var, call->func_or_mem);
@@ -3434,10 +3437,7 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   jdf_name_list_t *pl;
   const jdf_function_entry_t *f;
 
-  for(f = jdf->functions; f != NULL; f = f->next) {
-      if(!strcmp(call->func_or_mem, f->fname))
-          break;
-  }
+  f = find_target_function(jdf, call->func_or_mem);
 
   assert(f != NULL);
 
@@ -3512,15 +3512,6 @@ static char *jdf_create_code_assignments_calls(string_arena_t *sa, int spaces,
   string_arena_free(sa2);
 
   return string_arena_get_string(sa);
-}
-
-static jdf_function_entry_t *find_target_function(const jdf_t *jdf, const char *name)
-{
-    jdf_function_entry_t *targetf;
-    for(targetf = jdf->functions; targetf != NULL; targetf = targetf->next)
-        if( !strcmp(targetf->fname, name) )
-            break;
-    return targetf;
 }
 
 static void
