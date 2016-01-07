@@ -888,10 +888,10 @@ static int jdf_property_get_int( const jdf_def_list_t* properties,
     return ret_if_not_found;  /* ON by default */
 }
 
-static char*
+static const char*
 jdf_property_get_string( const jdf_def_list_t* properties,
                          const char* prop_name,
-                         char* ret_if_not_found )
+                         const char* ret_if_not_found )
 {
     jdf_def_list_t* property;
     jdf_expr_t* expr = jdf_find_property(properties, prop_name, &property);
@@ -5231,9 +5231,10 @@ static void jdf_generate_inline_c_functions(jdf_t* jdf)
 static void jdf_check_user_defined_internals(jdf_t *jdf)
 {
     jdf_function_entry_t *f;
-    char *hash_fn;
-    char *startup_fn;
-    char *find_deps, *alloc_deps, *free_deps;
+    const char *hash_fn;
+    const char *startup_fn;
+    const char *find_deps, *alloc_deps, *free_deps;
+    char *tmp;
 
     jdf->nb_local_tasks_fn_name = jdf_property_get_string(jdf->global_properties, "nb_local_tasks_fn", NULL);
 
@@ -5243,7 +5244,9 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             f->hash_fn_name = hash_fn;
             f->flags |= JDF_FUNCTION_FLAG_HAS_UD_HASH_FUN;
         } else {
-            asprintf(&f->hash_fn_name, JDF2C_NAMESPACE"hash_%s", f->fname);
+            asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
+            f->hash_fn_name = strdup(tmp);
+            free(tmp);
         }
 
         startup_fn = jdf_property_get_string(f->properties, "startup_fn", NULL);
@@ -5252,7 +5255,9 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             f->flags |= JDF_FUNCTION_FLAG_HAS_UD_START_FUN | JDF_FUNCTION_FLAG_CAN_BE_STARTUP;
         } else {
             if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-                asprintf(&f->startup_fn_name, JDF2C_NAMESPACE"startup_%s", f->fname);
+                asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
+                f->startup_fn_name = strdup(tmp);
+                free(tmp);
             } else {
                 f->startup_fn_name = NULL;
             }

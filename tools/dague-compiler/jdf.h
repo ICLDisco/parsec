@@ -109,7 +109,7 @@ typedef struct jdf {
     struct jdf_data_entry     *data;
     struct jdf_name_list      *datatypes;
     struct jdf_expr           *inline_c_functions;
-    char                      *nb_local_tasks_fn_name;
+    const char                *nb_local_tasks_fn_name;
 } jdf_t;
 
 /**
@@ -182,12 +182,12 @@ typedef struct jdf_function_entry {
     struct jdf_def_list       *properties;
     struct jdf_body           *bodies;
     struct jdf_expr           *inline_c_functions;
-    char                      *hash_fn_name;
-    char                      *startup_fn_name;
-    char                      *nb_local_tasks_fn_name;
-    char                      *find_deps_fn_name;
-    char                      *alloc_deps_fn_name;
-    char                      *free_deps_fn_name;
+    const char                *hash_fn_name;
+    const char                *startup_fn_name;
+    const char                *nb_local_tasks_fn_name;
+    const char                *find_deps_fn_name;
+    const char                *alloc_deps_fn_name;
+    const char                *free_deps_fn_name;
 } jdf_function_entry_t;
 
 typedef struct jdf_data_entry {
