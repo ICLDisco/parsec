@@ -36,7 +36,7 @@
 #define min(a, b) ((a) < (b) ? (a) : (b))
 
 int CORE_zhedr2(PLASMA_enum uplo, PLASMA_enum trans,
-                int N, int K, 
+                int N, int K,
                 double alpha, PLASMA_Complex64_t *A, int LDA,
                 double beta,  PLASMA_Complex64_t *C, int LDC,
                 PLASMA_Complex64_t *D, int incD);
@@ -162,7 +162,7 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
 #define CORE_zhedr2 PCORE_zhedr2
 #endif
 int CORE_zhedr2(PLASMA_enum uplo, PLASMA_enum trans,
-                int N, int K, 
+                int N, int K,
                 double alpha, PLASMA_Complex64_t *A, int LDA,
                 double beta,  PLASMA_Complex64_t *C, int LDC,
                 PLASMA_Complex64_t *D, int incD)
@@ -204,7 +204,7 @@ int CORE_zhedr2(PLASMA_enum uplo, PLASMA_enum trans,
     }
 
     /* Quick return */
-    if (N == 0 || K == 0 || 
+    if (N == 0 || K == 0 ||
         ((alpha == 0.0 || K == 0) && beta == 1.0) ) {
         return PLASMA_SUCCESS;
     }
@@ -217,7 +217,7 @@ int CORE_zhedr2(PLASMA_enum uplo, PLASMA_enum trans,
         if ( trans == PlasmaNoTrans )
         {
             Cij = C;
-            
+
             for(j=0; j<N; j++)
             {
                 for(i=j; i<N; i++, Cij++)
@@ -313,7 +313,7 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
     PLASMA_Complex64_t zzero  = (PLASMA_Complex64_t)0.;
     PLASMA_Complex64_t zalpha = alpha;
     PLASMA_Complex64_t zbeta  = beta;
-    
+
     Am = (trans == PlasmaNoTrans ) ? N : K;
 
     /* Check input arguments */
@@ -354,9 +354,9 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
         coreblas_error(15, "Illegal value of LWORK");
         return -15;
     }
-    
+
     /* Quick return */
-    if (N == 0 || K == 0 || 
+    if (N == 0 || K == 0 ||
         ((alpha == 0.0 || K == 0) && beta == 1.0) ) {
         return PLASMA_SUCCESS;
     }
@@ -370,86 +370,93 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
     AD  = WORK + K;
     wDC = AD + N*K;
 
+    /* Compute (A * D) */
+    if ( trans == PlasmaNoTrans )
+    {
+        /* AD = A * D */
+        for (j=0; j<K; j++, wD++) {
+            cblas_zcopy(N, A + LDA*j, 1,       AD + N*j, 1);
+            cblas_zscal(N, CBLAS_SADDR((*wD)), AD + N*j, 1);
+        }
+    }
+    else {
+        /* AD = (D * A)' */
+        for (j=0; j<K; j++, wD++) {
+            cblas_zcopy(N, A + j,      LDA,    AD + N*j, 1);
+            cblas_zscal(N, CBLAS_SADDR((*wD)), AD + N*j, 1);
+        }
+    }
+
     if ( uplo == PlasmaLower )
     {
         if ( trans == PlasmaNoTrans )
         {
-            /* AD = A * D */
-            for (j=0; j<K; j++, wD++) {
-                cblas_zcopy(N, &A[LDA*j], 1,       &AD[N*j], 1);
-                cblas_zscal(N, CBLAS_SADDR((*wD)), &AD[N*j], 1);
-            }
-
             for( ii=0; ii<N; ii+=ib )
             {
                 sb = min(N-ii, ib);
 
-                /* Ckk = alpha * WORK * op(B) + beta * Ckk */
+                /* W = alpha * (A * D) * A' */
                 cblas_zgemm(CblasColMajor, CblasNoTrans, CblasConjTrans,
-                            sb, sb, K, 
-                            CBLAS_SADDR(zalpha), AD+ii, N, 
-                                                 A +ii, LDA, 
+                            sb, sb, K,
+                            CBLAS_SADDR(zalpha), AD+ii, N,
+                                                 A +ii, LDA,
                             CBLAS_SADDR(zzero),  wDC,   sb);
 
-                /* Add result in place */
+                /* Ckk = beta * Ckk + W = beta * Ckk +  alpha * (A * D) * A' */
                 {
                     X = wDC;
-                    Y = &C[LDC*ii+ii];
-                    for (j = 0; j < sb; j++) {
-                        for (i = j; i < sb; i++, X++, Y++) 
-                            *Y = beta * (*Y) + *X;
-                        X += j + 1;
-                        Y += LDC - sb + j + 1;
+                    Y = C + ii * LDC + ii;
+                    for (j=0; j<sb; j++) {
+                        for(i=j; i<sb; i++, Y++, X++) {
+                            *Y = beta * (*Y) + (*X);
+                        }
+                        Y += LDC-sb+j+1;
+                        X += j+1;
                     }
                 }
 
-                /* C = alpha * WORK * op(B) + beta * C */
+                /* C = alpha * (A*D) * A' + beta * C */
                 cblas_zgemm(CblasColMajor, CblasNoTrans, CblasConjTrans,
-                            N-ii-sb, sb, K, 
-                            CBLAS_SADDR(zalpha), AD+ii+sb,        N, 
-                                                 A +ii,           LDA, 
-                            CBLAS_SADDR(zbeta),  &C[LDC*ii+ii+sb], LDC);
+                            N-ii-sb, sb, K,
+                            CBLAS_SADDR(zalpha), AD+          ii+sb, N,
+                                                 A + ii,             LDA,
+                            CBLAS_SADDR(zbeta),  C + LDC*ii + ii+sb, LDC);
             }
         }
         /*
          * PlasmaLower / PlasmaConjTrans
          */
         else {
-            /* AD = (D * A)' */
-            for (j=0; j<K; j++, wD++) {
-                cblas_zcopy(N, &A[j],  LDA,        &AD[N*j], 1);
-                cblas_zscal(N, CBLAS_SADDR((*wD)), &AD[N*j], 1);
-            }
-
             for( ii=0; ii<N; ii+=ib )
             {
                 sb = min(N-ii, ib);
 
-                /* Ckk = alpha * conj(A) * D * A + beta * Ckk */
+                /* W = alpha * A' * (D * A) */
                 cblas_zgemm(CblasColMajor, CblasConjTrans, CblasTrans,
-                            sb, sb, K, 
-                            CBLAS_SADDR(zalpha), A +LDA*ii, LDA, 
-                                                 AD+ii,     N, 
+                            sb, sb, K,
+                            CBLAS_SADDR(zalpha), A +LDA*ii, LDA,
+                                                 AD+ii,     N,
                             CBLAS_SADDR(zzero),  wDC,       sb);
 
-                /* Add result in place */
+                /* Ckk = beta * Ckk + W = beta * Ckk +  alpha * A' * (D * A) */
                 {
                     X = wDC;
-                    Y = &C[LDC*ii+ii];
-                    for (j = 0; j < sb; j++) {
-                        for (i = j; i < sb; i++, X++, Y++) 
-                            *Y = beta * (*Y) + *X;
-                        X += j + 1;
-                        Y += LDC - sb + j + 1;
+                    Y = C + ii * LDC + ii;
+                    for (j=0; j<sb; j++) {
+                        for(i=j; i<sb; i++, Y++, X++) {
+                            *Y = beta * (*Y) + (*X);
+                        }
+                        Y += LDC-sb+j+1;
+                        X += j+1;
                     }
                 }
 
-                /* C = alpha * WORK * op(B) + beta * C */
+                /* C = alpha * A' * (D * A) + beta * C */
                 cblas_zgemm(CblasColMajor, CblasConjTrans, CblasTrans,
-                            N-ii-sb, sb, K, 
-                            CBLAS_SADDR(zalpha), A +LDA*ii,        LDA, 
-                                                 AD+ii+sb,         N, 
-                            CBLAS_SADDR(zbeta),  &C[LDC*ii+ii+sb], LDC);
+                            N-ii-sb, sb, K,
+                            CBLAS_SADDR(zalpha), A + LDA*ii,       LDA,
+                                                 AD+        ii+sb, N,
+                            CBLAS_SADDR(zbeta),  C + LDC*ii+ii+sb, LDC);
             }
         }
     }
@@ -460,82 +467,74 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
          */
         if ( trans == PlasmaNoTrans )
         {
-            /* AD = A * D */
-            for (j=0; j<K; j++, wD++) {
-                cblas_zcopy(N, &A[LDA*j], 1,       &AD[N*j], 1);
-                cblas_zscal(N, CBLAS_SADDR((*wD)), &AD[N*j], 1);
-            }
-
             for( ii=0; ii<N; ii+=ib )
             {
                 sb = min(N-ii, ib);
 
-                /* Ckk = alpha * WORK * op(B) + beta * Ckk */
+                /* W = alpha * (A * D) * A' */
                 cblas_zgemm(CblasColMajor, CblasNoTrans, CblasConjTrans,
-                            sb, sb, K, 
-                            CBLAS_SADDR(zalpha), AD+ii, N, 
-                                                 A +ii, LDA, 
+                            sb, sb, K,
+                            CBLAS_SADDR(zalpha), AD+ii, N,
+                                                 A +ii, LDA,
                             CBLAS_SADDR(zzero),  wDC,   sb);
 
-                /* Add result in place */
+                /* Ckk = beta * Ckk + W = beta * Ckk +  alpha * (A * D) * A' */
                 {
                     X = wDC;
-                    Y = &C[LDC*ii+ii];
-                    for (j = 0; j < sb; j++) {
-                        for (i=0; i <=j; i++, X++, Y++) 
-                            *Y = beta * (*Y) + *X;
-                        X += sb - j - 1;
-                        Y += LDC - j - 1;
+                    Y = C + LDC*ii + ii;
+                    for (j=0; j<sb; j++) {
+                        int mm = min( j+1, sb );
+                        for(i=0; i<mm; i++, Y++, X++) {
+                            *Y = zbeta * (*Y) + (*X);
+                        }
+                        Y += LDC-mm;
+                        X += sb -mm;
                     }
                 }
 
-                /* C = alpha * WORK * op(B) + beta * C */
+                /* C = alpha * (A*D) * A' + beta * C */
                 cblas_zgemm(CblasColMajor, CblasNoTrans, CblasConjTrans,
-                            sb, N-ii-sb, K, 
-                            CBLAS_SADDR(zalpha), AD+ii,              N, 
-                                                 A +ii+sb,           LDA, 
-                            CBLAS_SADDR(zbeta),  &C[LDC*(ii+sb)+ii], LDC);
+                            sb, N-ii-sb, K,
+                            CBLAS_SADDR(zalpha), AD+             ii, N,
+                                                 A +      ii+sb,     LDA,
+                            CBLAS_SADDR(zbeta),  C + LDC*(ii+sb)+ii, LDC);
             }
         }
         /*
          * PlasmaUpper / PlasmaConjTrans
          */
         else {
-            /* AD = (D * A)' */
-            for (j=0; j<K; j++, wD++) {
-                cblas_zcopy(N, &A[j],      LDA,    &AD[N*j], 1);
-                cblas_zscal(N, CBLAS_SADDR((*wD)), &AD[N*j], 1);
-            }
-
             for( ii=0; ii<N; ii+=ib )
             {
                 sb = min(N-ii, ib);
 
-                /* Ckk = alpha * WORK * op(B) + beta * Ckk */
+                /* W = alpha * A' * (D * A) */
                 cblas_zgemm(CblasColMajor, CblasConjTrans, CblasTrans,
-                            sb, sb, K, 
-                            CBLAS_SADDR(zalpha), A +LDA*ii, LDA, 
-                                                 AD+ii,     N, 
+                            sb, sb, K,
+                            CBLAS_SADDR(zalpha), A +LDA*ii, LDA,
+                                                 AD+ii,     N,
                             CBLAS_SADDR(zzero),  wDC,       sb);
 
-                /* Add result in place */
+                /* Ckk = beta * Ckk + W = beta * Ckk +  alpha * A' * (D * A) */
                 {
                     X = wDC;
-                    Y = &C[LDC*ii+ii];
-                    for (j = 0; j < sb; j++) {
-                        for (i=0; i <=j; i++, X++, Y++) 
-                            *Y = beta * (*Y) + *X;
-                        X += sb - j - 1;
-                        Y += LDC - j - 1;
+                    Y = C + LDC*ii + ii;
+                    for (j=0; j<sb; j++) {
+                        int mm = min( j+1, sb );
+                        for(i=0; i<mm; i++, Y++, X++) {
+                            *Y = zbeta * (*Y) + (*X);
+                        }
+                        Y += LDC-mm;
+                        X += sb -mm;
                     }
                 }
 
-                /* C = alpha * WORK * op(B) + beta * C */
+                /* C = alpha * A' * (D * A) + beta * C */
                 cblas_zgemm(CblasColMajor, CblasConjTrans, CblasNoTrans,
-                            sb, N-ii-sb, K, 
-                            CBLAS_SADDR(zalpha), A +LDA*(ii+sb),     LDA, 
-                                                 AD+ii,              N, 
-                            CBLAS_SADDR(zbeta),  &C[LDC*(ii+sb)+ii], LDC);
+                            sb, N-ii-sb, K,
+                            CBLAS_SADDR(zalpha), A +LDA*(ii+sb),    LDA,
+                                                 AD+            ii, N,
+                            CBLAS_SADDR(zbeta),  C +LDC*(ii+sb)+ii, LDC);
             }
         }
     }
