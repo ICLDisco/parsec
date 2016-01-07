@@ -10,6 +10,8 @@
  */
 
 #include "dplasma.h"
+#include "dague/vpmap.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/dplasmatypes.h"
 
 #include "zgetrf.h"
@@ -79,21 +81,36 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
                     int *INFO )
 {
     dague_zgetrf_handle_t *dague_getrf;
+    int nbthreads = dplasma_imax( 1, vpmap_get_nb_threads_in_vp(0) - 1 );
 
     if ( (IPIV->mt != 1) || (dplasma_imin(A->nt, A->mt) > IPIV->nt)) {
         dplasma_error("dplasma_zgetrf_New", "IPIV doesn't have the correct number of tiles (1-by-min(A->mt,A->nt)");
         return NULL;
     }
 
+    dague_getrf = dague_zgetrf_new( (dague_ddesc_t*)A,
+                                    (dague_ddesc_t*)IPIV,
+                                    INFO );
+
+#if defined(CORE_GETRF_270)
+
     if ( A->storage == matrix_Tile ) {
         CORE_zgetrf_rectil_init();
     } else {
         CORE_zgetrf_reclap_init();
     }
+    dague_getrf->nbmaxthrd = dplasma_imin( nbthreads, 48 );
 
-    dague_getrf = dague_zgetrf_new( (dague_ddesc_t*)A,
-                                    (dague_ddesc_t*)IPIV,
-                                    INFO );
+#else
+
+    if ( A->storage == matrix_Tile ) {
+        dague_getrf->getrfdata = CORE_zgetrf_rectil_init(nbthreads);
+    } else {
+        dague_getrf->getrfdata = CORE_zgetrf_reclap_init(nbthreads);
+    }
+    dague_getrf->nbmaxthrd = nbthreads;
+
+#endif
 
     /* A */
     dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],
@@ -137,6 +154,9 @@ dplasma_zgetrf_Destruct( dague_handle_t *o )
 
     dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA  ] );
+
+    if ( dague_zgetrf->getrfdata != NULL )
+        free( dague_zgetrf->getrfdata );
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf);
 }
