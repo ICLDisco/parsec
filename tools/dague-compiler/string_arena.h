@@ -44,33 +44,22 @@ static inline void string_arena_add_string(string_arena_t *sa, const char *forma
 #endif
 static inline void string_arena_add_string(string_arena_t *sa, const char *format, ...)
 {
-    va_list ap, ap2;
+    va_list ap;
     int length;
 
+  redo:
     va_start(ap, format);
-    /* va_list might have pointer to internal state and using
-       it twice is a bad idea.  So make a copy for the second
-       use.  Copy order taken from Autoconf docs. */
-#if defined(HAVE_VA_COPY)
-    va_copy(ap2, ap);
-#elif defined(HAVE_UNDERSCORE_VA_COPY)
-    __va_copy(ap2, ap);
-#else
-    memcpy (&ap2, &ap, sizeof(va_list));
-#endif
-
+    /* we can safely reuse the ap va_list by calling va_end followed by va_start */
     length = vsnprintf(sa->ptr + sa->pos, sa->size - sa->pos, format, ap);
     if( length >= (sa->size - sa->pos) ) {
+        va_end(ap);
         /* realloc */
-        sa->size = sa->pos + length + 1;
+        sa->size = sa->pos + 4 * length + 1;
         sa->ptr = (char*)realloc( sa->ptr, sa->size );
-        length = vsnprintf(sa->ptr + sa->pos, sa->size - sa->pos, format, ap2);
+        goto redo;
     }
     sa->pos += length;
 
-#if defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY)
-    va_end(ap2);
-#endif  /* defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY) */
     va_end(ap);
 }
 
