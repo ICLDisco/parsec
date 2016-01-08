@@ -2335,7 +2335,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa2);
 
     coutput("  (void)eu;\n"
-            "  __dague_schedule(eu, (dague_execution_context_t*)pready_ring);\n"
+            "  if( NULL != pready_ring ) __dague_schedule(eu, (dague_execution_context_t*)pready_ring);\n"
             "  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n\n");
 }
@@ -2424,14 +2424,16 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         }
         coutput("%s  assignments.%s.value = %s;\n",
                 indent(nesting), dl->name, dl->name);
+        for(pl = f->parameters; pl != NULL; pl = pl->next ) {
+            if(0 == strcmp(dl->name, pl->name)) {
+                coutput("%s  %s%s_max = dague_imax(%s%s_max, %s);\n"
+                        "%s  %s%s_min = dague_imin(%s%s_min, %s);\n",
+                        indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name,
+                        indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name);
+                break;
+            }
+        }
         idx++;
-    }
-
-    for(pl = f->parameters; pl != NULL; pl = pl->next ) {
-        coutput("%s  %s%s_max = dague_imax(%s%s_max, %s);\n"
-                "%s  %s%s_min = dague_imin(%s%s_min, %s);\n",
-                indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name,
-                indent(nesting), JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, pl->name);
     }
 
     string_arena_init(sa1);
