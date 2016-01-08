@@ -644,6 +644,12 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES],
                                       &dague_argc, &dague_argv);
     free(dague_argv);
+    if( NULL == ctx ) {
+        /* Failed to correctly initialize. In a correct scenario report
+         * upstream, but in this particular case bail out.
+         */
+        exit(-1);
+    }
 
     /* If the number of cores has not been defined as a parameter earlier
      update it with the default parameter computed in dague_init. */
