@@ -2241,6 +2241,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  %s = %s;\n",
                     indent(nesting), dl->name, dump_expr((void**)dl->expr, &info1));
         }
+        coutput("%s  this_task->locals.%s.value = %s;\n", indent(nesting), dl->name, dl->name);
     }
     coutput("%s  if( !%s_pred(%s) ) continue;\n",
             indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
@@ -2287,8 +2288,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             indent(nesting), jdf_basename, f->fname,
             indent(nesting));
     for(dl = f->locals; dl != NULL; dl = dl->next, idx++)
-        coutput("%s  new_dynamic_task->locals.%s.value = this_task->locals.%s.value = %s;\n",
-                indent(nesting), dl->name, dl->name, dl->name);
+        coutput("%s  new_dynamic_task->locals.%s.value = this_task->locals.%s.value;\n", indent(nesting), dl->name, dl->name);
 
     coutput("%s  DAGUE_LIST_ITEM_SINGLETON(new_dynamic_task);\n",
             indent(nesting));
