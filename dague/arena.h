@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -38,12 +38,12 @@ struct dague_arena_s {
                                           the minimum alignment */
     size_t                elem_size;     /* size of one element (unpacked in memory, aka extent) */
     dague_datatype_t      opaque_dtt;    /* the appropriate type for the network engine to send an element */
-    volatile int32_t      used;           /* elements currently out of the arena */
+    volatile int32_t      used;           /* elements currently allocated from the arena */
     int32_t               max_used;       /* maximum size of the arena in elements */
-    volatile int32_t      released;       /* elements currently not used but allocated */
-    int32_t               max_released;   /* when more that max elements are released, they are really freed instead of joining the lifo
-                                           * some host hardware requires special allocation functions (Cuda, pinning,
-                                           * Open CL, ...). Defaults are to use C malloc/free */
+    volatile int32_t      released;       /* elements currently released but still cached in the freelist */
+    int32_t               max_released;   /* when more that max elements are released, they are really freed instead of joining the lifo */
+    /* some host hardware requires special allocation functions (Cuda, pinning,
+     * Open CL, ...). Defaults are to use C malloc/free */
     dague_data_allocate_t data_malloc;
     dague_data_free_t     data_free;
 };
