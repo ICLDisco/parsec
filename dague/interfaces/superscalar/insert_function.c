@@ -2277,9 +2277,7 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     this_task->flow_count = this_task->super.function->nb_flows;
     this_task->fpointer = fpointer;
     this_task->super.priority = 0;
-    this_task->super.hook_id = 0;
     this_task->super.chore_id = 0;
-    this_task->super.unused = 0;
 
     dague_atomic_add_32b((int *)&(__dague_handle->tasks_created),1);
 
@@ -2410,9 +2408,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 #endif
     this_task->fpointer = fpointer;
     this_task->super.priority = 0;
-    this_task->super.hook_id = 0;
     this_task->super.chore_id = 0;
-    this_task->super.unused = 0;
 
     /* Getting the pointer to allocated memory by mempool */
     head_of_param_list = (dague_dtd_task_param_t *) (((char *)this_task) + sizeof(dague_dtd_task_t));

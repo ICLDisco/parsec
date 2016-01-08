@@ -208,7 +208,6 @@ typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
 
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DAGUE_HAS_OUT_OUT_DEPENDENCIES   0x0002
-#define DAGUE_HAS_IN_STRONG_DEPENDENCIES 0x0004
 #define DAGUE_HIGH_PRIORITY_TASK         0x0008
 #define DAGUE_IMMEDIATE_TASK             0x0010
 #define DAGUE_USE_DEPS_MASK              0x0020
@@ -266,6 +265,11 @@ struct dague_data_pair_s {
 };
 
 /**
+ * Generic startup function. For more info read comment in dague.c.
+ */
+DAGUE_DECLSPEC extern const dague_function_t __dague_generic_startup;
+
+/**
  * Description of the state of the task. It indicates what will be the next
  * next stage in the life-time of a task to be executed.
  */
@@ -289,9 +293,8 @@ struct dague_data_pair_s {
     const  dague_function_t       *function;         \
     int32_t                        priority;         \
     uint8_t                        status;           \
-    uint8_t                        hook_id;          \
     uint8_t                        chore_id;         \
-    uint8_t                        unused;
+    uint8_t                        unused[2];
 
 struct dague_minimal_execution_context_s {
     DAGUE_MINIMAL_EXECUTION_CONTEXT

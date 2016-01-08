@@ -203,9 +203,8 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     temp_task->flow_count = temp_task->super.function->nb_flows+1; /* +1 to make sure the task is completely ready before it gets executed */
     temp_task->fpointer = fpointer;
     temp_task->super.priority = 0;
-    temp_task->super.hook_id = 0;
     temp_task->super.chore_id = 0;
-    temp_task->super.unused = 0;
+    temp_task->super.unused[0] = 0;
 
     head_of_param_list = (dague_dtd_task_param_t *) (((char *)temp_task) + sizeof(dague_dtd_task_t)); /* Getting the pointer allocated from mempool */
     current_param = head_of_param_list;
@@ -295,11 +294,11 @@ static dague_ontask_iterate_t copy_content(dague_execution_unit_t *eu,
     (void)eu; (void)newcontext; (void)oldcontext; (void)dep; (void)data; (void)src_rank;
     (void)dst_rank; (void)dst_vpid; (void)param;
     /* assinging 1 to "unused" field in dague_context_t of the successor to indicate we found a predecesor */
-    uint8_t *val = (uint8_t *) &(oldcontext->unused);
+    uint8_t *val = (uint8_t *) &(oldcontext->unused[0]);
     *val += 1;
 
     /* Saving the flow index of the parent in the "unused" field of the predecessor */
-    uint8_t *val1 = (uint8_t *) &(newcontext->unused);
+    uint8_t *val1 = (uint8_t *) &(newcontext->unused[0]);
     dague_flow_t* parent_outflow = (dague_flow_t*)(dep->flow);
     *val1 = parent_outflow->flow_index;
 
@@ -358,11 +357,11 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                 } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
                     op_type = INOUT | REGION_FULL;
 
-                    this_task->unused = 0;
+                    this_task->unused[0] = 0;
                     T1 = malloc (sizeof(dague_execution_context_t));
                     mask = 1 << i;
                     this_task->function->iterate_predecessors(context, this_task,  mask, copy_content, (void*)T1);
-                    if (this_task->unused != 0) {
+                    if (this_task->unused[0] != 0) {
                         pred_found = 1;
                     } else {
                         pred_found = 2;
@@ -372,7 +371,7 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                     if (pred_found == 1) {
                         uint64_t id = T1->function->key(T1->dague_handle, T1->locals);
                         entry = data_repo_lookup_entry(T1->dague_handle->repo_array[T1->function->function_id], id);
-                        copy = entry->data[T1->unused];
+                        copy = entry->data[T1->unused[0]];
                     } else {
                     }
                 }else {
