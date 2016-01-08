@@ -538,11 +538,11 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      * the default constructor (not the extended one).
      */
     dague_mca_param_reg_sizet_name("arena", "max_used", "The maxmimum amount of memory each arena can"
-                                   " allocate (0 for unlimited)",
-                                   false, false, dague_arena_max_allocated_memory, &dague_arena_max_allocated_memory);
+                                   " allocate (MAX_SIZE_T for unlimited)",
+                                   false, false, MAX_SIZE_T, &dague_arena_max_allocated_memory);
     dague_mca_param_reg_sizet_name("arena", "max_cached", "The maxmimum amount of memory each arena can"
-                                   " cache in a freelist (0 for unlimited)",
-                                   false, false, dague_arena_max_cached_memory, &dague_arena_max_cached_memory);
+                                   " cache in a freelist (MAX_SIZE_T for unlimited)",
+                                   false, false, MAX_SIZE_T, &dague_arena_max_cached_memory);
 
     dague_mca_param_reg_string_name("profile", "filename",
 #if defined(DAGUE_PROF_TRACE)
