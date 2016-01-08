@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -538,10 +538,10 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      * the default constructor (not the extended one).
      */
     dague_mca_param_reg_sizet_name("arena", "max_used", "The maxmimum amount of memory each arena can"
-                                   " hold (0 for unlimited)",
+                                   " allocate (default unlimited)",
                                    false, false, dague_arena_max_allocated_memory, &dague_arena_max_allocated_memory);
-    dague_mca_param_reg_sizet_name("arena", "max_used", "The maxmimum amount of memory each arena can"
-                                   " cache (0 for unlimited)",
+    dague_mca_param_reg_sizet_name("arena", "max_cached", "The maxmimum amount of memory each arena can"
+                                   " cache in a freelist (0=no caching)",
                                    false, false, dague_arena_max_cached_memory, &dague_arena_max_cached_memory);
 
     dague_mca_param_reg_string_name("profile", "filename",
