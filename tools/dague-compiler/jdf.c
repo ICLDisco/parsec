@@ -19,7 +19,7 @@
 
 jdf_t current_jdf;
 int current_lineno;
-int verbose_level = DAGUE_DEBUG_VERBOSE;
+int verbose_level = 0;
 
 extern const char *yyfilename;
 
@@ -1181,6 +1181,7 @@ void jdf_dump_function_flows(jdf_function_entry_t* function, int expanded)
         linfo.sa = sa1;
         linfo.prefix = ":";
         linfo.assignments = "";
+        linfo.suffix = "";
         for(dep = flow->deps; NULL != dep; dep = dep->next) {
             string_arena_init(sa2);
 
