@@ -796,26 +796,6 @@ static char *dump_hidden_globals_init(void **elem, void *arg)
     return NULL;
 }
 
-static char *dump_data_repository_constructor(void **elem, void *arg)
-{
-    string_arena_t *sa = (string_arena_t*)arg;
-    jdf_function_entry_t *f = (jdf_function_entry_t *)elem;
-
-    string_arena_init(sa);
-
-    int nbdata = 0;
-    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, nbdata);
-    string_arena_add_string(sa,
-                            "  %s_nblocal_tasks = %s_%s_internal_init(__dague_handle);\n"
-                            "  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(  /* %s */\n"
-                            "          %s_nblocal_tasks, %d);\n",
-                            f->fname, jdf_basename, f->fname,
-                            f->function_id, f->fname,
-                            f->fname, nbdata);
-
-    return string_arena_get_string(sa);
-}
-
 /** Utils: observers for the jdf **/
 
 static int jdf_symbol_is_global(const jdf_global_entry_t *globals, const char *name)
@@ -1199,9 +1179,11 @@ static void jdf_generate_structure(const jdf_t *jdf)
             jdf_basename,
             jdf_basename, nbfunctions,
             jdf_basename, nbdata);
-    coutput("typedef struct __dague_%s_internal_handle {\n", jdf_basename);
-    coutput(" dague_%s_handle_t super;\n",
-            jdf_basename);
+    coutput("typedef struct __dague_%s_internal_handle {\n"
+            " dague_%s_handle_t super;\n"
+            " volatile uint32_t sync_point;\n"
+            " dague_context_t* startup_queue;\n",
+            jdf_basename, jdf_basename);
 
     coutput("  /* The ranges to compute the hash key */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
@@ -2219,7 +2201,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     for(dl = f->locals; dl != NULL; dl = dl->next)
         coutput("  int %s = this_task->locals.%s.value;\n", dl->name, dl->name);
-    coutput("  if( 0 != this_task->locals.unused[0].value ) goto after_insert_task;\n\n");
+    coutput("  if( 0 != __dague_handle->sync_point ) return DAGUE_HOOK_RETURN_AGAIN;\n"
+            "  if( 0 != this_task->locals.unused[0].value ) goto after_insert_task;\n\n");
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -2342,25 +2325,27 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
 static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entry_t *f, const char *fname)
 {
-    string_arena_t *sa1, *sa2, *sa3;
+    string_arena_t *sa1, *sa2, *sa_end;
     jdf_def_list_t *dl;
     jdf_name_list_t *pl;
     int nesting, idx;
-    expr_info_t info1, info2, info3;
+    expr_info_t info;
 
     (void)jdf;
 
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
-    sa3 = string_arena_new(64);
+    sa_end = string_arena_new(64);
 
-    coutput("static int %s(__dague_%s_internal_handle_t *__dague_handle)\n"
+    coutput("static int %s(dague_execution_unit_t * eu, %s * this_task)\n"
             "{\n"
+            "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t*)this_task->dague_handle;\n"
             "  dague_dependencies_t *dep = NULL;\n"
             "  %s assignments;\n"
             "  int nb_tasks = 0;\n"
             "%s",
-            fname, jdf_basename,
+            fname, dague_get_name(jdf, f, "task_t"),
+            jdf_basename, jdf_basename,
             dague_get_name(jdf, f, "assignment_t"),
             UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
                                  "  int32_t ", " ", ",", ";\n"));
@@ -2382,45 +2367,36 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             if(dl->expr->op == JDF_RANGE) {
                 coutput("  int32_t %s%s_start, %s%s_end, %s%s_inc;\n", JDF2C_NAMESPACE, pl->name,
                         JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name );
+                /* Quiet the compiler by using the variables */
+                string_arena_add_string(sa_end, "  (void)%s%s_start; (void)%s%s_end; (void)%s%s_inc;",
+                                        JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
             }
         }
     }
 
     string_arena_init(sa1);
     string_arena_init(sa2);
-    string_arena_init(sa3);
 
-    info1.sa = sa1;
-    info1.prefix = "";
-    info1.suffix = "";
-    info1.assignments = "&assignments";
-
-    info2.sa = sa2;
-    info2.prefix = "";
-    info2.suffix = "";
-    info2.assignments = "&assignments";
-
-    info3.sa = sa3;
-    info3.prefix = "";
-    info3.suffix = "";
-    info3.assignments = "&assignments";
+    info.sa = sa1;
+    info.prefix = "";
+    info.suffix = "";
+    info.assignments = "&assignments";
 
     coutput("  /* First, find the min and max value for each of the dimensions */\n");
 
-    idx = 0;
     nesting = 0;
     for(dl = f->locals; dl != NULL; dl = dl->next ) {
         if(dl->expr->op == JDF_RANGE) {
-            coutput("%s  for(%s = %s;\n"
-                    "%s      %s <= %s;\n"
-                    "%s      %s += %s) {\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1),
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info2),
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info3));
+            coutput("%s  for(%s = %s;\n",
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
+            coutput("%s      %s <= %s;\n",
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info));
+            coutput("%s      %s += %s) {\n",
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
             nesting++;
         } else {
             coutput("%s  %s = %s;\n",
-                    indent(nesting), dl->name, dump_expr((void**)dl->expr, &info1));
+                    indent(nesting), dl->name, dump_expr((void**)dl->expr, &info));
         }
         coutput("%s  assignments.%s.value = %s;\n",
                 indent(nesting), dl->name, dl->name);
@@ -2433,25 +2409,21 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 break;
             }
         }
-        idx++;
     }
 
     string_arena_init(sa1);
     coutput("%s  if( !%s_pred(%s) ) continue;\n"
             "%s  nb_tasks++;\n",
-            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name,
+            indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
                                                             dump_string, NULL,
                                                             "", "", ", ", ""),
             indent(nesting));
-
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
     }
 
     coutput("\n"
-            "  /**\n"
-            "   * Set the range variables for the collision-free hash-computation\n"
-            "   */\n");
+            "  /* Set the range variables for the collision-free hash-computation */\n");
     for(pl = f->parameters; pl != NULL; pl = pl->next) {
         coutput("  __dague_handle->%s_%s_range = (%s%s_max - %s%s_min) + 1;\n",
                 f->fname, pl->name, JDF2C_NAMESPACE, pl->name, JDF2C_NAMESPACE, pl->name);
@@ -2477,7 +2449,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  dep = NULL;\n");
 
         nesting = 0;
-        idx = 0;
         for(dl = f->locals; dl != NULL; dl = dl->next) {
 
             for(pl = f->parameters; pl != NULL; pl = pl->next) {
@@ -2487,32 +2458,30 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
             if(dl->expr->op == JDF_RANGE) {
                 coutput("%s  %s%s_start = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info1));
+                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta1, &info));
                 coutput("%s  %s%s_end = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info2));
+                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta2, &info));
                 coutput("%s  %s%s_inc = %s;\n",
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info3));
+                        indent(nesting), JDF2C_NAMESPACE, dl->name, dump_expr((void**)dl->expr->jdf_ta3, &info));
                 coutput("%s  for(%s = dague_imax(%s%s_start, %s%s_min); %s <= dague_imin(%s%s_end, %s%s_max); %s+=%s%s_inc) {\n",
                         indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, /* first ; */
                         dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name);
                 nesting++;
             } else {
                 coutput("%s  %s = %s;\n",
-                        indent(nesting), dl->name, dump_expr((void**)dl->expr, &info1));
+                        indent(nesting), dl->name, dump_expr((void**)dl->expr, &info));
             }
 
             coutput("%s  assignments.%s.value = %s;\n",
                     indent(nesting), dl->name, dl->name);
-            idx++;
         }
 
-        coutput("%s  if( %s_pred(%s) ) {\n"
-                "%s    /* We did find one! Allocate the dependencies array. */\n",
+        coutput("%s  if( !%s_pred(%s) ) continue;\n"
+                "%s  /* We did find one! Allocate the dependencies array. */\n",
                 indent(nesting), f->fname, UTIL_DUMP_LIST_FIELD(sa2, f->locals, next, name,
                                                                 dump_string, NULL,
                                                                 "", "", ", ", ""),
                 indent(nesting));
-        nesting++;
 
         string_arena_init(sa1);
         string_arena_add_string(sa1, "dep");
@@ -2535,40 +2504,31 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
             string_arena_add_string(sa1, "->u.next[%s-%s%s_min]", dl->name, JDF2C_NAMESPACE, dl->name);
         }
-        coutput("%s  }\n", indent(nesting));
-        nesting--;
 
         for(; nesting > 0; nesting--) {
             coutput("%s}\n", indent(nesting));
         }
     }
 
-    /* Quiet the compiler by using the variables */
-    if( NULL != f->parameters->next ) {
-        for(pl = f->parameters; pl != NULL; pl = pl->next) {
-            for(dl = f->locals; dl != NULL; dl = dl->next) {
-                if(!strcmp(pl->name, dl->name))
-                    break;
-            }
-            assert(NULL != dl);
-            if(dl->expr->op == JDF_RANGE) {
-                coutput("  (void)%s%s_start; (void)%s%s_end; (void)%s%s_inc;", JDF2C_NAMESPACE, dl->name,
-                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
-            }
-        }
-    }
-
     string_arena_free(sa1);
     string_arena_free(sa2);
-    string_arena_free(sa3);
-    coutput("  (void)__dague_handle; (void) assignments;\n");
     coutput("\n  AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
-    coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
-            "  __dague_handle->super.super.nb_local_tasks += nb_tasks;\n"
-            "  return nb_tasks;\n"
+    idx = 0;
+    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, idx);
+    coutput("  dague_atomic_add_32b((int32_t*)&__dague_handle->super.super.nb_local_tasks, nb_tasks);\n"
+            "  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
+            "  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(nb_tasks, %d);\n"
+            "%s"
+            "  dague_atomic_dec_32b(&__dague_handle->sync_point);\n"
+            "  (void) assignments; (void)__dague_handle; (void)eu;\n"
+            "  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n"
             "\n",
-            f->function_id);
+            f->function_id,
+            f->function_id,
+            idx,
+            string_arena_get_string(sa_end));
+    string_arena_free(sa_end);
 }
 
 static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_function_entry_t *f, const char *prefix)
@@ -2969,7 +2929,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
 {
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
-    int idx = 0;
 
     coutput("static void %s_startup(dague_context_t *context, __dague_%s_internal_handle_t *__dague_handle, dague_list_item_t ** ready_tasks)\n"
             "{\n"
@@ -3029,6 +2988,17 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    chores[index].type     = DAGUE_DEV_NONE;\n"
             "    chores[index].evaluate = NULL;\n"
             "    chores[index].hook     = NULL;\n"
+            "    dague_execution_context_t* task = (dague_execution_context_t*)dague_lifo_pop(&context->virtual_processes[0]->execution_units[0]->context_mempool->mempool);\n"
+            "    if (NULL == task)\n"
+            "      task = (dague_execution_context_t*)dague_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);\n"
+            "    task->dague_handle = (dague_handle_t *)__dague_handle;\n"
+            "    task->chore_id = 0;\n"
+            "    memset(&task->locals, 0, sizeof(assignment_t) * MAX_LOCAL_COUNT);\n"
+            "    DAGUE_LIST_ITEM_SINGLETON(task);\n"
+            "    task->priority = -1;\n"
+            "    task->function = task->dague_handle->functions_array[task->dague_handle->nb_functions + i];\n"
+            "    if( 0 == i ) ready_tasks[0] = &task->super.list_item;\n"
+            "    else ready_tasks[0] = dague_list_item_ring_push(ready_tasks[0], &task->super.list_item);\n"
             "  }\n"
             );
 
@@ -3037,28 +3007,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
      *  creates a single task to iterate over the entire execution space and generate
      *  the startup tasks.
      */
-    for(jdf_function_entry_t* f = jdf->functions; NULL != f; f = f->next ) {
-        if( !(f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP) ) continue;
-        coutput("  {  /* Prepare task to generate the startup tasks for %s */\n"
-                "    %s* task = (%s*)dague_lifo_pop(&context->virtual_processes[0]->execution_units[0]->context_mempool->mempool);\n"
-                "    if (NULL == task)\n"
-                "      task = (%s*)dague_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);\n"
-                "    task->dague_handle = (dague_handle_t *)__dague_handle;\n"
-                "    task->chore_id = 0;\n"
-                "    task->locals.unused[0].value = 0;\n"
-                "    DAGUE_LIST_ITEM_SINGLETON(task);\n"
-                "    task->priority = -1;\n"
-                "    %s\n"
-                "    task->function = task->dague_handle->functions_array[task->dague_handle->nb_functions + %d];\n"
-                "  }\n",
-                f->fname,
-                dague_get_name(jdf, f, "task_t"), dague_get_name(jdf, f, "task_t"),
-                dague_get_name(jdf, f, "task_t"),
-                (0 == idx ? "ready_tasks[0] = &task->super.list_item;" :
-                 "ready_tasks[0] = dague_list_item_ring_push(ready_tasks[0], &task->super.list_item);"),
-                idx);
-        idx++;
-    }
     coutput("}\n");
 
     string_arena_free(sa1);
@@ -3164,66 +3112,63 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     }
 
     coutput("  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)calloc(1, sizeof(__dague_%s_internal_handle_t));\n"
-            "    dague_function_t* func;\n",
+            "  dague_function_t* func;\n"
+            "  int i, j;\n",
             jdf_basename, jdf_basename, jdf_basename);
 
     string_arena_init(sa1);
-    string_arena_init(sa2);
-    {
-        coutput("  /* Dump the hidden parameters */\n"
-                "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
-                                     dump_hidden_globals_init, sa2, "", "  ", "\n", "\n"));
-    }
+    coutput("  /* Dump the hidden parameters */\n"
+            "%s", UTIL_DUMP_LIST(sa1, jdf->globals, next,
+                                 dump_hidden_globals_init, sa2, "", "  ", "\n", "\n"));
 
     string_arena_init(sa1);
-    coutput("  int i, j;\n"
-            "%s\n",
-            UTIL_DUMP_LIST_FIELD( sa1, jdf->functions, next, fname,
-                                  dump_string, NULL, "", "  int ", "_nblocal_tasks;\n", "_nblocal_tasks;\n") );
+    string_arena_init(sa2);
 
+    coutput("  __dague_handle->super.super.nb_functions = DAGUE_%s_NB_FUNCTIONS;\n"
+            "  __dague_handle->super.super.devices_mask = DAGUE_DEVICES_ALL;\n"
+            "  __dague_handle->super.super.dependencies_array = (dague_dependencies_t **)\n"
+            "              calloc(__dague_handle->super.super.nb_functions , sizeof(dague_dependencies_t*));\n"
+            "  __dague_handle->super.super.functions_array = (const dague_function_t**)\n"
+            "              malloc(2 * __dague_handle->super.super.nb_functions * sizeof(dague_function_t*));\n"
+            "  __dague_handle->super.super.nb_local_tasks = __dague_handle->super.super.nb_functions;\n"
+            "  __dague_handle->sync_point = __dague_handle->super.super.nb_functions;\n"
+            "  __dague_handle->startup_queue = NULL;\n"
+            "%s",
+            jdf_basename, string_arena_get_string(sa1));
+    /* Prepare the functions */
+    coutput("  for( i = 0; i < (int)__dague_handle->super.super.nb_functions; i++ ) {\n"
+            "    __dague_handle->super.super.functions_array[i] = func = malloc(sizeof(dague_function_t));\n"
+            "    memcpy((dague_function_t*)__dague_handle->super.super.functions_array[i], %s_functions[i], sizeof(dague_function_t));\n"
+            "    for( j = 0; NULL != func->incarnations[j].hook; j++);\n"
+            "    func->incarnations = (__dague_chore_t*)malloc((j+1) * sizeof(__dague_chore_t));\n"
+            "    memcpy((__dague_chore_t*)func->incarnations, %s_functions[i]->incarnations, (j+1) * sizeof(__dague_chore_t));\n\n"
+            "    /* Add a placeholder for initialization and startup task */\n"
+            "    __dague_handle->super.super.functions_array[__dague_handle->super.super.nb_functions+i] = func = (dague_function_t*)malloc(sizeof(dague_function_t));\n"
+            "    memcpy(func, (void*)&__dague_generic_startup, sizeof(dague_function_t));\n"
+            "    func->function_id = __dague_handle->super.super.nb_functions + i;\n"
+            "    func->incarnations = (__dague_chore_t*)malloc(2 * sizeof(__dague_chore_t));\n"
+            "    memcpy((__dague_chore_t*)func->incarnations, (void*)__dague_generic_startup.incarnations, 2 * sizeof(__dague_chore_t));\n"
+            "  }\n",
+            jdf_basename,
+            jdf_basename);
     /**
      * Prepare the function_t structure for the startup tasks. Count the total
      * number of types of startup tasks to be used to correctly allocate the
      * array of function_t.
      */
     string_arena_init(sa1);
+    idx = 0;
     for(jdf_function_entry_t *f = jdf->functions; f != NULL; f = f->next) {
-        if( !(f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP) ) continue;
-        string_arena_add_string(sa1,
-                                "\n  /* Add startup task for function %s at the end of the function list */\n"
-                                "  __dague_handle->super.super.functions_array[__dague_handle->super.super.nb_functions+%d] = func = (dague_function_t*)malloc(sizeof(dague_function_t));\n"
-                                "  memcpy(func, (void*)&__dague_generic_startup, sizeof(dague_function_t));\n"
-                                "  func->function_id = __dague_handle->super.super.nb_functions + %d;\n"
-                                "  func->incarnations = (__dague_chore_t*)malloc(2 * sizeof(__dague_chore_t));\n"
-                                "  memcpy((__dague_chore_t*)func->incarnations, (void*)&__dague_generic_startup.incarnations, 2 * sizeof(__dague_chore_t));\n"
-                                "  ((__dague_chore_t*)&func->incarnations[0])->hook = (dague_hook_t *)%s_%s_startup_tasks;\n",
-                                f->fname,
-                                idx,
-                                idx,
-                                jdf_basename, f->fname);
+        coutput("  func = (dague_function_t *)__dague_handle->super.super.functions_array[__dague_handle->super.super.nb_functions+%d];\n",
+                idx);
         idx++;
+        coutput("  func->prepare_input = (dague_hook_t*)%s_%s_internal_init;\n",
+                jdf_basename, f->fname);
+        if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
+            coutput("  ((__dague_chore_t*)&func->incarnations[0])->hook = (dague_hook_t *)%s_%s_startup_tasks;\n",
+                    jdf_basename, f->fname);
+        }
     }
-
-    coutput("  __dague_handle->super.super.nb_functions    = DAGUE_%s_NB_FUNCTIONS;\n"
-            "  __dague_handle->super.super.devices_mask = DAGUE_DEVICES_ALL;\n"
-            "  __dague_handle->super.super.dependencies_array = (dague_dependencies_t **)\n"
-            "              calloc(__dague_handle->super.super.nb_functions , sizeof(dague_dependencies_t*));\n"
-            "  __dague_handle->super.super.functions_array = (const dague_function_t**)\n"
-            "              malloc((__dague_handle->super.super.nb_functions + %d) * sizeof(dague_function_t*));\n"
-            "  __dague_handle->super.super.nb_local_tasks = %d;\n"
-            "%s",
-            jdf_basename, idx, idx, string_arena_get_string(sa1));
-    /* Prepare the functions */
-    coutput("  for( i = 0; i < (int)__dague_handle->super.super.nb_functions; i++ ) {\n"
-            "    __dague_handle->super.super.functions_array[i] = malloc(sizeof(dague_function_t));\n"
-            "    memcpy((dague_function_t*)__dague_handle->super.super.functions_array[i], %s_functions[i], sizeof(dague_function_t));\n"
-            "    func = (dague_function_t*)__dague_handle->super.super.functions_array[i];\n"
-            "    for( j = 0; NULL != func->incarnations[j].hook; j++);\n"
-            "    func->incarnations = (__dague_chore_t*)malloc((j+1) * sizeof(__dague_chore_t));\n"
-            "    memcpy((__dague_chore_t*)func->incarnations, %s_functions[i]->incarnations, (j+1) * sizeof(__dague_chore_t));\n"
-            "  }\n",
-            jdf_basename,
-            jdf_basename);
 
     {
         struct jdf_name_list* g;
@@ -3290,20 +3235,13 @@ static void jdf_generate_constructor( const jdf_t* jdf )
         coutput("#  endif /* defined(DAGUE_PROF_TRACE) */\n");
     }
 
-    coutput("  /* Populate the data repositories for this handle */\n"
-            "%s",
-            UTIL_DUMP_LIST( sa1, jdf->functions, next, dump_data_repository_constructor, sa2,
-                            "", "", "\n", ""));
-    {
-        jdf_function_entry_t* f;
-
-        for( f = jdf->functions; NULL != f; f = f->next ) {
-            coutput("  __dague_handle->super.super.repo_array = __dague_handle->repositories;\n\n");
-            break;
-        }
-        if( NULL == f )
-            coutput("  __dague_handle->super.super.repo_array = NULL;\n");
+    for(jdf_function_entry_t *f = jdf->functions; f != NULL; f = f->next) {
+        coutput("  AYU_REGISTER_TASK(&%s_%s);\n",
+                jdf_basename, f->fname);
     }
+
+    coutput("  __dague_handle->super.super.repo_array = %s;\n",
+            (NULL != jdf->functions) ? "__dague_handle->repositories" : "NULL");
 
     coutput("  __dague_handle->super.super.startup_hook = (dague_startup_fn_t)%s_startup;\n"
             "  __dague_handle->super.super.destructor   = (dague_destruct_fn_t)%s_destructor;\n"
