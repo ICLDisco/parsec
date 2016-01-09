@@ -2270,15 +2270,6 @@ static const expr_t priority_of_generic_startup_as_expr = {
     .u_expr = {.inline_func_int32 = (expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}
 };
 
-static const __dague_chore_t __dague_generic_startup_chores[] = {
-    {.type = DAGUE_DEV_CPU,
-     .evaluate = NULL,
-     .hook = (dague_hook_t *) NULL},  /* To be replaced at runtime with the correct point to the startup tasks */
-    {.type = DAGUE_DEV_NONE,
-     .evaluate = NULL,
-     .hook = (dague_hook_t *) NULL},	/* End marker */
-};
-
 static inline uint64_t
 __dague_generic_startup_hash(const dague_handle_t * __dague_handle,
                              const assignment_t * assignments)
@@ -2296,6 +2287,15 @@ static int dague_empty_function_without_arguments(void)
 {
     return DAGUE_HOOK_RETURN_DONE;
 }
+
+static const __dague_chore_t __dague_generic_startup_chores[] = {
+    {.type = DAGUE_DEV_CPU,
+     .evaluate = NULL,
+     .hook = (dague_hook_t *) dague_empty_function_without_arguments},  /* To be replaced at runtime with the correct point to the startup tasks */
+    {.type = DAGUE_DEV_NONE,
+     .evaluate = NULL,
+     .hook = (dague_hook_t *) NULL},	/* End marker */
+};
 
 const dague_function_t __dague_generic_startup = {
     .name = "Generic Startup",
