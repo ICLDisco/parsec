@@ -24,17 +24,17 @@ int main( int argc, char** argv )
     MPI_Init(NULL, NULL);
 #endif
     dague = dague_init(1, &argc, &argv);
-    assert( NULL != dague );
+    if( NULL != dague ) {
+        handle = touch_initialize(BLOCK, N);
 
-    handle = touch_initialize(BLOCK, N);
+        dague_enqueue( dague, handle );
 
-    dague_enqueue( dague, handle );
+        dague_context_wait(dague);
 
-    dague_context_wait(dague);
+        dague_fini( &dague);
 
-    dague_fini( &dague);
-
-    touch_finalize();
+        touch_finalize();
+    }
 #ifdef HAVE_MPI
     MPI_Finalize();
 #endif
