@@ -159,7 +159,7 @@ dplasma_zungqr_Destruct( dague_handle_t *object )
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zungqr - Generates of an M-by-N matrix Q with orthonormal columns,
+ *  dplasma_zungqr - Generates an M-by-N matrix Q with orthonormal columns,
  *  which is defined as the first N columns of a product of K elementary
  *  reflectors of order M
  *
