@@ -30,7 +30,7 @@ call_to_kernel(dague_execution_unit_t *context, dague_execution_context_t * this
                           UNPACK_DATA,  &gDATA
                           );
 
-    int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
+    uint32_t *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
     dague_atomic_inc_32b(data);
 

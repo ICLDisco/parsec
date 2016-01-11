@@ -27,7 +27,7 @@ call_to_kernel_type_1(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_DATA,  &gDATA
                           );
 
-    printf("Executing Task: %ld\n",((dague_dtd_task_t *)this_task)->super.super.key);
+    printf("Executing Task: %lld\n",((dague_dtd_task_t *)this_task)->super.super.key);
 
     return 0;
 }
@@ -44,7 +44,7 @@ call_to_kernel_type_2(dague_execution_unit_t *context, dague_execution_context_t
 
     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
-    printf("Executing Task: %ld\n",((dague_dtd_task_t *)this_task)->super.super.key);
+    printf("Executing Task: %lld\n",((dague_dtd_task_t *)this_task)->super.super.key);
     //printf("The data is: %d\n", *data);
 
     dague_atomic_add_32b(data, 1);
