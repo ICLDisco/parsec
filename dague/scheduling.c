@@ -439,8 +439,10 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
                     break;
                 case DAGUE_HOOK_RETURN_AGAIN:   /* Reschedule later */
                     exec_context->status = DAGUE_TASK_STATUS_HOOK;
-                    if(0 == exec_context->priority) exec_context->priority = INT_MIN;
-                    else exec_context->priority /= 10;  /* demote the task */
+                    if(0 == exec_context->priority) {
+                        SET_LOWEST_PRIORITY(exec_context, dague_execution_context_priority_comparator);
+                    } else
+                        exec_context->priority /= 10;  /* demote the task */
                     __dague_schedule(eu_context, exec_context);
                     exec_context = NULL;
                     break;
@@ -456,6 +458,9 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
                 nbiterations++;
                 break;
             }
+            case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach, the completion will
+                                             * be triggered asynchronously. */
+                break;
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
