@@ -51,6 +51,8 @@ set(JDF
   # LQ/QR
   zgelqf.jdf
   zgeqrf.jdf
+  zungqr.jdf
+  zunglq.jdf
   zunmqr_LC.jdf zunmqr_LN.jdf zunmqr_RN.jdf zunmqr_RC.jdf
   zunmlq_LC.jdf zunmlq_LN.jdf zunmlq_RN.jdf zunmlq_RC.jdf
   zgeqrf_param.jdf

@@ -25,20 +25,54 @@ descT     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_d
 descQ     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataQ)"]
 ib        [type = "int" hidden = on default = "descT.mb" ]
 
+zlaset(m, n) [profile = off]
+  /* Execution Space */
+  m = 0 .. descQ.mt-1
+  n = 0 .. descQ.nt-1
+
+  /* Locality */
+  : dataQ(m,n)
+
+  READ  A    <- dataQ(m,n)
+             -> ((n == (descA.mt-1)) & (n == (descQ.nt-1)) & (n == m)) ? C zunmlq(n, m)
+             -> ((n <= (descA.mt-1)) & (n <  (descQ.nt-1)) & (n <= m)) ? A1 ztsmlq(n, descQ.nt-1, m)
+             -> ((n >  (descA.mt-1)) & (n <= m)) ? A2 ztsmlq(descA.mt-1, n, m)
+             -> ((m <= (descA.mt-1)) & (n >  m)) ? A2 ztsmlq(m,          n, m)
+             -> ((m >  (descA.mt-1)) & (n >  m)) ? A2 ztsmlq(descA.mt-1, n, m)
+
+BODY
+{
+    int tempmm = (m == (descQ.mt-1)) ? (descQ.m - m * descQ.mb) : descQ.mb;
+    int tempnn = (n == (descQ.nt-1)) ? (descQ.n - n * descQ.nb) : descQ.nb;
+    int ldqm = BLKLDD( descQ, m );
+
+    printlog("CORE_zlaset(%d, %d)\n"
+             "\t(PlasmaUpperLower, tempmm, tempnn, alpha, (m ==n ) ? (beta) : (alpha), Q(%d,%d)[%p], ldqm)\n",
+             m, n, m, n, A);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zlaset(PlasmaUpperLower, tempmm, tempnn,
+                0., (m == n) ? 1.: 0.,
+                A /* dataQ(m,n) */, ldqm );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
 zunmlq(k, m)
   /* Execution Space */
   k = 0 .. descA.mt-1
-  m = 0 .. descQ.mt-1
+  m = k .. descQ.mt-1
 
   /* Locality */
   : dataQ(m, k)
 
   READ  A    <- A zunmlq_in_data_A0(k)   [type = UPPER_TILE]
   READ  T    <- T zunmlq_in_data_T1(k)   [type = LITTLE_T]
-  RW    C    -> ( k == 0 ) ? dataQ(m, k)
-             -> ( k >  0 ) ? A2 ztsmlq(k-1, k, m)
+
+  RW    C    <- ( k == (descQ.nt-1)) ? A zlaset(m, k)
              <- ( k <  (descQ.nt-1)) ? A1 ztsmlq(k, k+1, m)
-             <- ( k == (descQ.nt-1)) ? dataQ(m, k)
+             -> ( k == 0 ) ? dataQ(m, k)
+             -> ( k >  0 ) ? A2 ztsmlq(k-1, k, m)
 
 BODY
 {
@@ -73,7 +107,7 @@ zunmlq_in_data_T1(k) [profile = off]
   : dataT(k,k)
 
   READ  T    <- dataT(k,k)                      [type = LITTLE_T]
-             -> T zunmlq(k, 0 .. descQ.mt-1)    [type = LITTLE_T]
+             -> T zunmlq(k, k .. descQ.mt-1)    [type = LITTLE_T]
 
 BODY
 {
@@ -89,7 +123,7 @@ zunmlq_in_data_A0(k) [profile = off]
   : dataA(k,k)
 
   READ  A    <- dataA(k,k)                      [type = UPPER_TILE]
-             -> A zunmlq(k, 0 .. (descQ.mt-1))  [type = UPPER_TILE]
+             -> A zunmlq(k, k .. descQ.mt-1)    [type = UPPER_TILE]
 
 BODY
 {
@@ -101,30 +135,32 @@ ztsmlq(k, n, m)
   /* Execution Space */
   k = 0     .. inline_c %{ return dplasma_imin((descQ.nt-1),(descA.mt-1)); %}
   n = (k+1) .. (descQ.nt-1)
-  m = 0     .. (descQ.mt-1)
+  m = k     .. (descQ.mt-1)
 
   /* Locality */
   : dataQ(m,n)
 
-  RW    A1   -> ( n == (k+1) ) ? C  zunmlq(k, m)
-             -> ( n >  (k+1) ) ? A1 ztsmlq(k, n-1, m)
+  RW    A1   <- ( n == (descQ.nt-1) ) ? A  zlaset(k, m)
              <- ( n <  (descQ.nt-1) ) ? A1 ztsmlq(k, n+1, m)
-             <- ( n == (descQ.nt-1) ) ? A1 ztsmlq_out_data_Q0(k, m)
+             -> ( n == (k+1) ) ? C  zunmlq(k, m)
+             -> ( n >  (k+1) ) ? A1 ztsmlq(k, n-1, m)
 
-  RW    A2   -> ( k == 0 ) ? dataQ(m, n)
+  RW    A2   <- ((k == (descA.mt-1)) | (m == k)) ? A zlaset(m, n)
+             <- ((k <  (descA.mt-1)) & (m >  k) & (n == (k+1))) ? C  zunmlq(k+1, m)
+             <- ((k <  (descA.mt-1)) & (m >  k) & (n >  (k+1))) ? A2 ztsmlq(k+1, n, m)
+             -> ( k == 0 ) ? dataQ(m, n)
              -> ( k >  0 ) ? A2 ztsmlq(k-1, n, m)
-             <-  (k == (descA.mt-1)) ? dataQ(m, n)
-             <- ((k <  (descA.mt-1)) & (n == (k+1))) ? C  zunmlq(k+1, m)
-             <- ((k <  (descA.mt-1)) & (n >  (k+1))) ? A2 ztsmlq(k+1, n, m)
 
   READ  V    <- V ztsmlq_in_data_A1(k, n)
   READ  T    <- T ztsmlq_in_data_T2(k, n)  [type = LITTLE_T]
 
 BODY
 {
-    int tempAkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
-    int tempmm  = (m == (descQ.mt-1)) ? (descQ.m - m * descQ.mb) : descQ.mb;
-    int tempnn  = (n == (descQ.nt-1)) ? (descQ.n - n * descQ.nb) : descQ.nb;
+    int tempAkm  = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int tempAkn  = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int tempkmin = dplasma_imin( tempAkm, tempAkn );
+    int tempmm   = (m == (descQ.mt-1)) ? (descQ.m - m * descQ.mb) : descQ.mb;
+    int tempnn   = (n == (descQ.nt-1)) ? (descQ.n - n * descQ.nb) : descQ.nb;
     int ldak = BLKLDD( descA, k );
     int ldqm = BLKLDD( descQ, m );
 
@@ -136,7 +172,7 @@ BODY
     void *p_elem_A = dague_private_memory_pop( p_work );
 
     CORE_ztsmlq( PlasmaRight, PlasmaNoTrans,
-                 tempmm, descQ.nb, tempmm, tempnn, tempAkm, ib,
+                 tempmm, descQ.nb, tempmm, tempnn, tempkmin, ib,
                  A1 /* dataQ(m, k) */, ldqm,
                  A2 /* dataQ(m, n) */, ldqm,
                  V  /* dataA(k, n) */, ldak,
@@ -157,7 +193,7 @@ ztsmlq_in_data_T2(k, n) [profile = off]
   : dataT(k, n)
 
   READ  T    <- dataT(k, n)                         [type = LITTLE_T]
-             -> T ztsmlq(k, n, 0 .. (descQ.mt-1))   [type = LITTLE_T]
+             -> T ztsmlq(k, n, k .. (descQ.mt-1))   [type = LITTLE_T]
 
 BODY
 {
@@ -174,24 +210,7 @@ ztsmlq_in_data_A1(k, n) [profile = off]
   : dataA(k, n)
 
   READ  V    <- dataA(k, n)
-             -> V ztsmlq(k, n, 0 .. (descQ.mt-1))
-
-BODY
-{
-    /* nothing */
-}
-END
-
-ztsmlq_out_data_Q0(k, m) [profile = off]
-  /* Execution Space */
-  k = 0 .. inline_c %{ return dplasma_imin((descQ.nt-2),(descA.mt-1)); %}
-  m = 0 .. (descQ.mt-1)
-
-  /* Locality */
-  : dataQ(m, k)
-
-  READ  A1   -> A1 ztsmlq(k, descQ.nt-1, m)
-             <- dataQ(m, k)
+             -> V ztsmlq(k, n, k .. (descQ.mt-1))
 
 BODY
 {
