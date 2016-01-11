@@ -1176,6 +1176,7 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_e
         }
         if( NULL == ec ) {  /* allocate on-demand */
             ec = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
+            ec->status = DAGUE_TASK_STATUS_NONE;
             if( NULL == ec )  /* we're running out of memory. Bail out. */
                 break;
         }

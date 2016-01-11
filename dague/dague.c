@@ -1253,9 +1253,9 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
          * Queue it into the ready_list passed as an argument.
          */
         {
-            dague_execution_context_t* new_context;
-            new_context = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
+            dague_execution_context_t *new_context = (dague_execution_context_t *) dague_thread_mempool_allocate(eu_context->context_mempool);
             DAGUE_COPY_EXECUTION_CONTEXT(new_context, exec_context);
+            new_context->status = DAGUE_TASK_STATUS_NONE;
             AYU_ADD_TASK(new_context);
 
             DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",

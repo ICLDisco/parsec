@@ -204,6 +204,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     temp_task->fpointer = fpointer;
     temp_task->super.priority = 0;
     temp_task->super.chore_id = 0;
+    temp_task->super.status = DAGUE_TASK_STATUS_NONE;
     temp_task->super.unused[0] = 0;
 
     head_of_param_list = (dague_dtd_task_param_t *) (((char *)temp_task) + sizeof(dague_dtd_task_t)); /* Getting the pointer allocated from mempool */

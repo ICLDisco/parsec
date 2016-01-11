@@ -149,7 +149,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     PINS(eu_context, EXEC_BEGIN, exec_context);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
     /**
-     * Try all the incarnation until one agree to execute.
+     * Try all the incarnations until one agree to execute.
      */
     do {
 #if DAGUE_DEBUG_VERBOSE != 0
@@ -340,7 +340,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     dague_context_t* dague_context = eu_context->virtual_process->dague_context;
     int32_t my_barrier_counter = dague_context->__dague_internal_finalization_counter;
     dague_execution_context_t* exec_context;
-    int nbiterations = 0;
+    int rc, nbiterations = 0;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -421,16 +421,37 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
             }
 #endif
 
-            PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
-            switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
-            case DAGUE_HOOK_RETURN_DONE:
-            {
+            rc = DAGUE_HOOK_RETURN_DONE;
+            if(exec_context->status <= DAGUE_TASK_STATUS_PREPARE_INPUT) {
+                PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
+                rc = exec_context->function->prepare_input(eu_context, exec_context);
                 PINS(eu_context, PREPARE_INPUT_END, exec_context);
-                int rv = 0;
+            }
+            switch(rc) {
+            case DAGUE_HOOK_RETURN_DONE: {
+                if(exec_context->status <= DAGUE_TASK_STATUS_HOOK)
+                    rc = __dague_execute( eu_context, exec_context );
                 /* We're good to go ... */
-                rv = __dague_execute( eu_context, exec_context );
-                if( 0 == rv ) {
+                switch(rc) {
+                case DAGUE_HOOK_RETURN_DONE:    /* This execution succeeded */
+                    exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
                     __dague_complete_execution( eu_context, exec_context );
+                    break;
+                case DAGUE_HOOK_RETURN_AGAIN:   /* Reschedule later */
+                    exec_context->status = DAGUE_TASK_STATUS_HOOK;
+                    if(0 == exec_context->priority) exec_context->priority = INT_MIN;
+                    else exec_context->priority /= 10;  /* demote the task */
+                    __dague_schedule(eu_context, exec_context);
+                    exec_context = NULL;
+                    break;
+                case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach, the completion will
+                                                 * be triggered asynchronously. */
+                    exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
+                    break;
+                case DAGUE_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
+                case DAGUE_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
+                case DAGUE_HOOK_RETURN_ERROR:   /* Some other major error happened */
+                    assert( 0 ); /* Internal error: invalid return value for data_lookup function */
                 }
                 nbiterations++;
                 break;

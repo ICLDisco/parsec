@@ -1113,7 +1113,7 @@ hook_of_dtd_task( dague_execution_unit_t    *context,
 #if defined(DAGUE_DEBUG_ENABLE)
     assert( rc == DAGUE_HOOK_RETURN_DONE );
 #endif
-    dague_atomic_inc_32b(&((dague_dtd_handle_t*)this_task->dague_handle)->tasks_scheduled);
+    dague_atomic_inc_32b((uint32_t *)&((dague_dtd_handle_t*)this_task->dague_handle)->tasks_scheduled);
 
     return rc;
 }
@@ -1376,7 +1376,7 @@ static int
 dtd_is_ready(const dague_dtd_task_t *dest)
 {
     dague_dtd_task_t *dest_task = (dague_dtd_task_t*)dest;
-    if ( dest_task->flow_count == dague_atomic_inc_32b(&(dest_task->flow_satisfied))) {
+    if ( dest_task->flow_count == dague_atomic_inc_32b((uint32_t *)&(dest_task->flow_satisfied))) {
         return 1;
     }
     return 0;
@@ -1444,7 +1444,7 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
 
     if(is_ready) {
         if(dump_traversal_info) {
-            printf("------\ntask Ready: %s \t %ld\nTotal flow: %d  flow_count:"
+            printf("------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
                    "%d\n-----\n", current_task->super.function->name, current_task->super.super.key,
                    current_task->super.function->nb_flows, current_task->flow_count);
         }
@@ -1574,7 +1574,7 @@ complete_hook_of_dtd( dague_execution_unit_t    *context,
         static int counter= 0;
         dague_atomic_add_32b(&counter,1);
         printf("------------------------------------------------\n"
-               "execution done of task: %s \t %lu\n"
+               "execution done of task: %s \t %llu\n"
                "task done %d \n",
                this_task->function->name,
                task->super.super.key,
@@ -2278,6 +2278,7 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     this_task->fpointer = fpointer;
     this_task->super.priority = 0;
     this_task->super.chore_id = 0;
+    this_task->super.status = DAGUE_TASK_STATUS_NONE;
 
     dague_atomic_add_32b((int *)&(__dague_handle->tasks_created),1);
 
@@ -2409,6 +2410,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     this_task->fpointer = fpointer;
     this_task->super.priority = 0;
     this_task->super.chore_id = 0;
+    this_task->super.status = DAGUE_TASK_STATUS_NONE;
 
     /* Getting the pointer to allocated memory by mempool */
     head_of_param_list = (dague_dtd_task_param_t *) (((char *)this_task) + sizeof(dague_dtd_task_t));
