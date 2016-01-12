@@ -19,16 +19,18 @@
 dague_list_t *dtd_global_deque;
 
 /* Prototype of some of the static functions */
-static void pins_handle_init_ptg_to_dtd(struct dague_handle_s * handle);
-static void pins_handle_fini_ptg_to_dtd(struct dague_handle_s * handle);
+static void pins_init_ptg_to_dtd(dague_context_t *master_context);
+static void pins_fini_ptg_to_dtd(dague_context_t *master_context);
+static void pins_handle_init_ptg_to_dtd(struct dague_handle_s *handle);
+static void pins_handle_fini_ptg_to_dtd(struct dague_handle_s *handle);
 static int fake_hook_for_testing(dague_execution_unit_t    *context,
                                  dague_execution_context_t *__this_task);
 
 const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
     &dague_pins_ptg_to_dtd_component,
     {
-        NULL,
-        NULL,
+        pins_init_ptg_to_dtd,
+        pins_fini_ptg_to_dtd,
         pins_handle_init_ptg_to_dtd,
         pins_handle_fini_ptg_to_dtd,
         NULL,
@@ -60,15 +62,24 @@ copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle)
     }
 }
 
+static void pins_init_ptg_to_dtd(dague_context_t *master_context)
+{
+    dague_dtd_init();
+    dtd_global_deque    = OBJ_NEW(dague_list_t);
+}
+
+static void pins_fini_ptg_to_dtd(dague_context_t *master_context)
+{
+    dague_dtd_fini();
+}
+
 static void pins_handle_init_ptg_to_dtd(dague_handle_t *handle)
 {
     if(handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
         return;
     }
 
-    dague_dtd_init();
-    dtd_global_deque = OBJ_NEW(dague_list_t);
-    __dtd_handle = dague_dtd_handle_new(handle->context);
+    __dtd_handle        = dague_dtd_handle_new(handle->context);
     copy_chores(handle, __dtd_handle);
 }
 
@@ -174,7 +185,7 @@ tile_manage_for_testing(dague_dtd_handle_t *dague_dtd_handle,
  */
 void
 insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
-                                     dague_dtd_funcptr_t* fpointer, dague_execution_context_t *orig_task,
+                                     dague_dtd_funcptr_t *fpointer, dague_execution_context_t *orig_task,
                                      char* name, dague_dtd_task_param_t *head_paramm)
 {
     dague_dtd_task_param_t *current_paramm;
