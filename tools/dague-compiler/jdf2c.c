@@ -2263,7 +2263,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
     coutput("%s  /* Copy only the valid elements from this_task to new_task one */\n"
             "%s  new_task->dague_handle = this_task->dague_handle;\n"
-            "%s  new_task->function     = &%s_%s;\n"
+            "%s  new_task->function     = __dague_handle->super.super.functions_array[%s_%s.function_id];\n"
             "%s  new_task->chore_id     = 0;\n",
             indent(nesting),
             indent(nesting),
