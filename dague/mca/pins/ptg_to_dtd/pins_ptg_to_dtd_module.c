@@ -26,6 +26,9 @@ static void pins_handle_fini_ptg_to_dtd(struct dague_handle_s *handle);
 static int fake_hook_for_testing(dague_execution_unit_t    *context,
                                  dague_execution_context_t *__this_task);
 
+/* for testing purpose of automatic insertion from Awesome PTG approach */
+dague_dtd_handle_t *__dtd_handle;
+
 const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
     &dague_pins_ptg_to_dtd_component,
     {
@@ -65,22 +68,42 @@ copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle)
 static void pins_init_ptg_to_dtd(dague_context_t *master_context)
 {
     dague_dtd_init();
-    dtd_global_deque    = OBJ_NEW(dague_list_t);
+    dtd_global_deque = OBJ_NEW(dague_list_t);
+    (void)master_context;
 }
 
 static void pins_fini_ptg_to_dtd(dague_context_t *master_context)
 {
     dague_dtd_fini();
+    (void)master_context;
 }
 
-static void pins_handle_init_ptg_to_dtd(dague_handle_t *handle)
+extern int dtd_threshold_size;
+static int pins_handle_complete_callback(dague_handle_t* ptg_handle, void* void_dtd_handle)
 {
-    if(handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
+    dague_handle_t* dtd_handle = (dague_handle_t*)void_dtd_handle;
+    dtd_threshold_size = 2;
+    dague_execute_and_come_back(ptg_handle->context, dtd_handle);
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
+static void pins_handle_init_ptg_to_dtd(dague_handle_t *ptg_handle)
+{
+    if(ptg_handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
         return;
     }
 
-    __dtd_handle        = dague_dtd_handle_new(handle->context);
-    copy_chores(handle, __dtd_handle);
+    __dtd_handle = dague_dtd_handle_new(ptg_handle->context);
+    copy_chores(ptg_handle, __dtd_handle);
+    {
+        dague_event_cb_t lfct;
+        void* ldata;
+        dague_get_complete_callback(ptg_handle, &lfct, &ldata);
+        if( NULL != lfct ) {
+            dague_set_complete_callback((dague_handle_t*)__dtd_handle, lfct, ldata);
+        }
+        dague_set_complete_callback((dague_handle_t*)ptg_handle, pins_handle_complete_callback, __dtd_handle);
+    }
 }
 
 static void pins_handle_fini_ptg_to_dtd(dague_handle_t *handle)

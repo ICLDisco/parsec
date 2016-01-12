@@ -37,9 +37,6 @@ extern int my_rank;
 #define LOCAL_DATA 200 /* function_id is uint8_t */
 /* #define DEBUG_HEAVY 1 */
 
-/* for testing purpose of automatic insertion from Awesome PTG approach */
-dague_dtd_handle_t *__dtd_handle;
-
 /* Structure used to pack arguments of insert_task() */
 struct dague_dtd_task_param_s {
     void            *pointer_to_tile;
@@ -223,6 +220,10 @@ add_profiling_info(dague_dtd_handle_t *__dague_handle,
 void
 dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,
                         uint32_t             key );
+
+void
+dague_execute_and_come_back(dague_context_t *context,
+                            dague_handle_t *dague_handle);
 
 END_C_DECLS
 
