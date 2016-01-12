@@ -38,7 +38,9 @@ const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
 
 /**
  * Make a copy of the original chores of the dague_handle_t and replace them with a
- * set of temporary hooks allowing to transition all tasks as DTD tasks.
+ * set of temporary hooks allowing to transition all tasks as DTD tasks. Only make
+ * a copy of the officially exposed nb_function hooks, protecting all those that are
+ * hidden (such as the initialization functions).
  */
 static void
 copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle)
@@ -345,13 +347,13 @@ static dague_ontask_iterate_t copy_content(dague_execution_unit_t *eu,
 
 static int
 fake_hook_for_testing(dague_execution_unit_t    *context,
-                      dague_execution_context_t *__this_task)
+                      dague_execution_context_t *this_task)
 {
     /* We will try to push our tasks in the same Global Deque.
      * Then we will try to take ownership of the Global Deque and try to pull the tasks from there and build a list.
      */
     /* push task in the global dequeue */
-    dague_list_push_back( dtd_global_deque, (dague_list_item_t*)__this_task );
+    dague_list_push_back( dtd_global_deque, (dague_list_item_t*)this_task );
 
     /* try to get ownership of global deque*/
     if( !dague_atomic_trylock(&dtd_global_deque->atomic_lock) )
@@ -363,14 +365,13 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
     /* Successful in ataining the lock, now we will pop all the tasks out of the list and put it
      * in our local list.
      */
-    dague_execution_context_t T1, *this_task;
+    dague_execution_context_t T1;
     for( this_task = (dague_execution_context_t*)local_list;
          NULL != this_task;
          this_task = (dague_execution_context_t*)local_list ) {
 
-        int i, count = 0, tmp_op_type;
+        int i, tmp_op_type;
         dague_dtd_handle_t *dtd_handle = __dtd_handle;
-        const char *name = this_task->function->name;
         dague_dtd_task_param_t *head_param = NULL, *current_param = NULL, *tmp_param = NULL;
         dague_ddesc_t *ddesc;
         dague_data_key_t key;
@@ -379,12 +380,10 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
         local_list = dague_list_item_ring_chop(local_list);
 
         for (i=0; this_task->function->in[i] != NULL ; i++) {
-            tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
 
             dague_data_copy_t* copy;
             tmp_op_type = this_task->function->in[i]->flow_flags;
-            int op_type;
-            int mask, pred_found = 0;
+            int op_type, pred_found = 0;
 
             if ((tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_RW) {
                 op_type = INOUT | REGION_FULL;
@@ -396,34 +395,30 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                 op_type = INOUT | REGION_FULL;
 
                 this_task->unused[0] = 0;
-                mask = 1 << i;
-                this_task->function->iterate_predecessors(context, this_task,  mask, copy_content, (void*)&T1);
+                this_task->function->iterate_predecessors(context, this_task,  1 << i, copy_content, (void*)&T1);
                 if (this_task->unused[0] != 0) {
                     pred_found = 1;
-                } else {
-                    pred_found = 2;
-                    continue;
-                }
-
-                if (pred_found == 1) {
                     uint64_t id = T1.function->key(T1.dague_handle, T1.locals);
                     entry = data_repo_lookup_entry(T1.dague_handle->repo_array[T1.function->function_id], id);
                     copy = entry->data[T1.unused[0]];
+                    ddesc = (dague_ddesc_t *)copy->original;
+                    key   =  copy->original->key;
+                } else {
+                    continue;  /* next IN flow */
                 }
+
             } else {
-                continue;
+                continue;  /* next IN flow */
             }
 
             if (pred_found == 0) {
                 ddesc = (dague_ddesc_t *)this_task->data[i].data_in->original;
                 key = this_task->data[i].data_in->original->key;
                 OBJ_RETAIN(this_task->data[i].data_in);
-            } else if (pred_found == 1) {
-                ddesc = (dague_ddesc_t *)copy->original;
-                key   =  copy->original->key;
             }
             dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
 
+            tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
             tmp_param->pointer_to_tile = (void *)tile;
             tmp_param->operation_type = op_type;
             tmp_param->tile_type_index = REGION_FULL;
@@ -434,28 +429,25 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
             } else {
                 current_param->next = tmp_param;
             }
-            count ++;
             current_param = tmp_param;
         }
 
-        for (i=0; this_task->function->out[i] != NULL; i++) {
+        for( i = 0; NULL != this_task->function->out[i]; i++) {
             int op_type;
             tmp_op_type = this_task->function->out[i]->flow_flags;
-            dague_data_copy_t* copy;
-            tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
-            int pred_found = 0;
             if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
                 op_type = OUTPUT | REGION_FULL;
+                ddesc = (dague_ddesc_t *)this_task->data[i].data_out->original;
+                key = this_task->data[i].data_out->original->key;
+                OBJ_RETAIN(this_task->data[i].data_out);
             } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
-                pred_found = 1;
                 op_type = INOUT | REGION_FULL;
 
                 dague_data_t *fake_data = OBJ_NEW(dague_data_t);
                 fake_data->key = rand();
-                dague_data_copy_t *fake_data_copy = OBJ_NEW(dague_data_copy_t);
-                copy = fake_data_copy;
-                fake_data_copy->original = fake_data;
-                this_task->data[this_task->function->out[i]->flow_index].data_out = fake_data_copy;
+                dague_data_copy_t *copy = OBJ_NEW(dague_data_copy_t);
+                copy->original = fake_data;
+                this_task->data[this_task->function->out[i]->flow_index].data_out = copy;
 
                 ddesc = (dague_ddesc_t *)fake_data;
                 key   =  fake_data->key;
@@ -463,16 +455,9 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                 continue;
             }
 
-            if (pred_found == 0) {
-                ddesc = (dague_ddesc_t *)this_task->data[i].data_out->original;
-                key = this_task->data[i].data_out->original->key;
-                OBJ_RETAIN(this_task->data[i].data_out);
-            } else if (pred_found == 1) {
-                ddesc = (dague_ddesc_t *)copy->original;
-                key   = copy->original->key;
-            }
             dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
 
+            tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
             tmp_param->pointer_to_tile = (void *)tile;
             tmp_param->operation_type = op_type;
             tmp_param->tile_type_index = REGION_FULL;
@@ -483,15 +468,11 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
             } else {
                 current_param->next = tmp_param;
             }
-            count ++;
             current_param = tmp_param;
-
         }
 
-        /* testing Insert Task */
         insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
-                                             this_task, (char *)name, head_param);
-
+                                             this_task, (char *)this_task->function->name, head_param);
     }
 
     return DAGUE_HOOK_RETURN_ASYNC;

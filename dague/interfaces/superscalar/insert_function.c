@@ -1208,7 +1208,6 @@ dague_dtd_handle_new( dague_context_t *context)
     __dague_dtd_master_fake_function = (dague_dtd_function_t *)create_function(__dague_handle, call_to_fake_writer, "Fake_writer", 1,
                                                                                sizeof(int), 1);
 
-
     return (dague_dtd_handle_t*) __dague_handle;
 }
 
@@ -2222,7 +2221,6 @@ call_to_fake_writer( dague_execution_unit_t *context, dague_execution_context_t 
 dague_dtd_task_t *
 create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *tile )
 {
-    int i;
     dague_dtd_funcptr_t *fpointer = call_to_fake_writer;
 
     dague_function_t *function = (dague_function_t *)__dague_dtd_master_fake_function;
@@ -2232,7 +2230,7 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     dague_dtd_task_t *this_task = (dague_dtd_task_t *)
                                    dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools);
 
-    for(i=0;i<MAX_DESC;i++) {
+    for(int i = 0;i < MAX_DESC; i++ ) {
         this_task->desc[i].op_type_parent = OUTPUT;
         this_task->desc[i].op_type        = 0;
         this_task->desc[i].flow_index     = -1;
@@ -2352,7 +2350,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
      n = ((uintptr_t)ptrr) & 0xF;
      printf("n is : %lx\n", n);*/
 
-    for(i=0;i<MAX_DESC;i++) {
+    for( i = 0; i < MAX_DESC; i++ ) {
         this_task->desc[i].op_type_parent = 0;
         this_task->desc[i].op_type        = 0;
         this_task->desc[i].flow_index     = -1;
@@ -2443,10 +2441,9 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     /* Building list of initial ready task */
     if(this_task->flow_count == this_task->flow_satisfied) {
 #if defined (OVERLAP)
-        int ii = dague_atomic_cas(&(this_task->ready_mask), 0, 1);
-        if(ii) {
+        if( dague_atomic_cas(&(this_task->ready_mask), 0, 1) )
 #endif
-
+        {
 #if defined(DEBUG_HEAVY)
             dague_dtd_task_release( __dague_handle, this_task->super.super.key );
 #endif
@@ -2457,9 +2454,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
             }
             __dague_handle->startup_list[vpid] = (dague_execution_context_t*)this_task;
             vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
-#if defined (OVERLAP)
         }
-#endif
     }
 
 #if defined(DAGUE_PROF_TRACE)
