@@ -34,28 +34,6 @@ extern "C" %{
  * WARNING: If mt is greater than 1200, we might get integer overflow.
  */
 
-/**
- * Example of user-defined hash function.
- * NB: the function is used in the generated code, so the user needs to provide the prototype;
- *     however necessary datatypes (internal handle and function-specific assignment type)
- *     will only be generated after the prologue is dumped, so the user needs to provide
- *     the prototype in the prologue, and the implementation in the epilogue.
- */
-struct __dague_zpotrf_L_internal_handle;
-struct __dague_zpotrf_L_potrf_zpotrf_assignment_s;
-struct __dague_zpotrf_L_potrf_zpotrf_task_s;
-static uint64_t my_potrf_hash(const struct __dague_zpotrf_L_internal_handle * __dague_handle,
-                              struct __dague_zpotrf_L_potrf_zpotrf_assignment_s * assignments);
-static int my_potrf_startup(dague_execution_unit_t * eu, struct __dague_zpotrf_L_potrf_zpotrf_task_s * this_task);
-static uint32_t my_nb_local_tasks_gemm(struct __dague_zpotrf_L_internal_handle *__dague_handle);
-static uint32_t my_nb_local_tasks_trsm(struct __dague_zpotrf_L_internal_handle *__dague_handle);
-static uint32_t my_nb_local_tasks_potrf(struct __dague_zpotrf_L_internal_handle *__dague_handle);
-static uint32_t my_nb_local_tasks_herk(struct __dague_zpotrf_L_internal_handle *__dague_handle);
-
-static void               *my_potrf_deps_allocate(struct __dague_zpotrf_L_internal_handle *__dague_handle);
-static void                my_potrf_deps_free(struct __dague_zpotrf_L_internal_handle *__dague_handle, void *deps);
-static dague_dependency_t *my_potrf_deps_find(const dague_handle_t *dague_handle,
-                                              const dague_execution_context_t* restrict exec_context);
 %}
 
 /* Globals
@@ -72,13 +50,7 @@ smallnb    [type = "int" hidden = on default = "descA.mb" ]
 /**************************************************
  *               potrf_zpotrf                     *
  **************************************************/
-potrf_zpotrf(k) [high_priority = on
-                 hash_fn = my_potrf_hash
-                 startup_fn = my_potrf_startup
-                 nb_local_tasks_fn = my_nb_local_tasks_potrf
-                 find_deps_fn  = my_potrf_deps_find
-                 alloc_deps_fn = my_potrf_deps_allocate
-                 free_deps_fn  = my_potrf_deps_free ]
+potrf_zpotrf(k) [high_priority = on]
 
 // Execution space
 k = 0 .. descA.mt-1
@@ -143,7 +115,7 @@ END
 /**************************************************
  *               potrf_ztrsm                      *
  **************************************************/
-potrf_ztrsm(m, k) [high_priority = on nb_local_tasks_fn = my_nb_local_tasks_trsm]
+potrf_ztrsm(m, k) [high_priority = on]
 
 // Execution space
 m = 1 .. descA.mt-1
@@ -229,7 +201,7 @@ END
 /**************************************************
  *               potrf_zherk                      *
  **************************************************/
-potrf_zherk(k, m) [high_priority = on nb_local_tasks_fn = my_nb_local_tasks_herk]
+potrf_zherk(k, m) [high_priority = on]
 
 // Execution space
 k = 0   .. descA.mt-2
@@ -303,7 +275,7 @@ END
  *               potrf_zgemm                      *
  **************************************************/
 // Name
-potrf_zgemm(m, n, k) [ nb_local_tasks_fn = my_nb_local_tasks_gemm ]
+potrf_zgemm(m, n, k)
 
 // Execution space
 k = 0   .. descA.mt-3
@@ -423,165 +395,3 @@ BODY
               1.0, m, n, C, ldam);
 }
 END
-
-extern "C" %{
-static uint64_t my_potrf_hash(const struct __dague_zpotrf_L_internal_handle * __dague_handle,
-                              struct __dague_zpotrf_L_potrf_zpotrf_assignment_s * assignments)
-{
-   (void)__dague_handle;
-   return (uint64_t)(assignments->k.value);
-}
-
-static int my_potrf_startup(dague_execution_unit_t * eu, __dague_zpotrf_L_potrf_zpotrf_task_t * this_task)
-{
-  __dague_zpotrf_L_potrf_zpotrf_task_t *new_task;
-  __dague_zpotrf_L_internal_handle_t *__dague_handle = (__dague_zpotrf_L_internal_handle_t *) this_task->dague_handle;
-  int vpid = 0;
-  dague_context_t *context = __dague_handle->super.super.context;
-  dague_list_item_t *pready_ring = NULL;
-
-  /** I am unsure if this is needed at all? */
-  if (0 != this_task->locals.unused[0].value)
-	goto after_insert_task;
-
-  if (!potrf_zpotrf_pred(0))
-      return DAGUE_HOOK_RETURN_DONE;
-  if (NULL != ((dague_ddesc_t *) __dague_handle->super.dataA)->vpid_of) {
-      vpid = ((dague_ddesc_t *) __dague_handle->super.dataA)->vpid_of((dague_ddesc_t *) __dague_handle->super.dataA, 0, 0);
-      assert(context->nb_vp >= vpid);
-  }
-  new_task = (__dague_zpotrf_L_potrf_zpotrf_task_t *) dague_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
-  new_task->status = DAGUE_TASK_STATUS_NONE;
-  new_task->dague_handle = this_task->dague_handle;
-  new_task->function = __dague_handle->super.super.functions_array[zpotrf_L_potrf_zpotrf.function_id];
-  new_task->chore_id = 0;
-  new_task->locals.k.value = 0;
-  DAGUE_LIST_ITEM_SINGLETON(new_task);
-  new_task->priority = 1;
-  new_task->data.T.data_repo = NULL;
-  new_task->data.T.data_in = NULL;
-  new_task->data.T.data_out = NULL;
-  dague_dependencies_mark_task_as_startup((dague_execution_context_t *) new_task);
-  pready_ring = dague_list_item_ring_push_sorted(pready_ring,
-                                                 &new_task->super.list_item,
-                                                 dague_execution_context_priority_comparator);
-after_insert_task:
-  this_task->locals.unused[0].value = 1;
-  if (NULL != pready_ring)
-      __dague_schedule(eu, (dague_execution_context_t *) pready_ring);
-  return DAGUE_HOOK_RETURN_DONE;
-}
-
-static uint32_t nb_local_tasks_loop(struct __dague_zpotrf_L_internal_handle *__dague_handle, tiled_matrix_desc_t *dA, int task_mask)
-{
-    uint32_t nb = 0;
-    int m, n, k;
-    if( task_mask & 1 ) {
-        /** GEMM */
-        for (k = 0; k <= (dA->mt - 3); k += 1) {
-            for (m = (k + 2); m <= (dA->mt - 1); m += 1) {
-                for (n = (k + 1); n <= (m - 1); n += 1) {
-                    if (potrf_zgemm_pred(k, m, n))
-                        nb++; 
-                }
-            }
-        }
-    }
-    if( task_mask & 2 ) {
-        /** TRSM */
-        for (m = 1; m <= (dA->mt - 1); m += 1) {
-            for (k = 0; k <= (m - 1); k += 1) {
-                if (potrf_ztrsm_pred(m, k))
-                    nb++; 
-            }
-        }
-    }
-    if( task_mask & 4 ) {
-        /** POTRF */
-        for (k = 0; k <= (dA->mt-1); k += 1) {
-            if (potrf_zpotrf_pred(k))
-                nb++;
-        }
-    }
-    if( task_mask & 8 ) {
-        /** HERK */
-        for (k = 0; k <= (dA->mt - 2); k += 1) {
-            for (m = k+1; m <= (dA->mt - 1); m += 1) {
-                if (potrf_zherk_pred(k, m))
-                    nb++; 
-            }
-        }
-    }
-    return nb;
-}
- 
-static uint32_t my_nb_local_tasks_gemm(struct __dague_zpotrf_L_internal_handle *__dague_handle)
-{
-    uint32_t nb;
-    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
-    if( dA->super.nodes == 1 ) {
-        nb = (dA->nt-2) * (dA->nt-1) * (dA->nt) / 6;
-    } else {
-        nb = nb_local_tasks_loop(__dague_handle, dA, 1);
-    }
-    return nb;
-}
- 
-static uint32_t my_nb_local_tasks_trsm(struct __dague_zpotrf_L_internal_handle *__dague_handle)
-{
-    uint32_t nb;
-    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
-    if( dA->super.nodes == 1 ) {
-        nb = (dA->nt-1) * (dA->nt) / 2;
-    } else {
-        nb = nb_local_tasks_loop(__dague_handle, dA, 2);
-    }
-    return nb;
-}
- 
-static uint32_t my_nb_local_tasks_potrf(struct __dague_zpotrf_L_internal_handle *__dague_handle)
-{
-    uint32_t nb;
-    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
-    if( dA->super.nodes == 1 ) {
-        nb = dA->nt;
-    } else {
-        nb = nb_local_tasks_loop(__dague_handle, dA, 4);
-    }
-    return nb;
-}
- 
-static uint32_t my_nb_local_tasks_herk(struct __dague_zpotrf_L_internal_handle *__dague_handle)
-{
-    uint32_t nb;
-    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
-    if( dA->super.nodes == 1 ) {
-        nb = (dA->nt-1)*(dA->nt)/2;
-    } else {
-        nb = nb_local_tasks_loop(__dague_handle, dA, 8);
-    }
-    return nb;
-}
- 
-static void *my_potrf_deps_allocate(struct __dague_zpotrf_L_internal_handle *__dague_handle)
-{
-    tiled_matrix_desc_t *dA = &__dague_handle->super.descA;
-    return calloc(dA->nt, sizeof(dague_dependency_t));
-}
- 
-static void  my_potrf_deps_free(struct __dague_zpotrf_L_internal_handle *__dague_handle, void *deps)
-{
-    (void)__dague_handle;
-    free(deps);
-}
- 
-static dague_dependency_t *my_potrf_deps_find(const dague_handle_t *dague_handle,
-                                              const dague_execution_context_t* restrict exec_context)
-{
-    const __dague_dpotrf_L_potrf_dpotrf_task_t * restrict potrf_ctx = (const __dague_dpotrf_L_potrf_dpotrf_task_t *restrict)exec_context;
-    dague_dependency_t *deparray;
-    deparray = (dague_dependency_t *)dague_handle->dependencies_array[ exec_context->function->function_id ];
-    return &deparray[potrf_ctx->locals.k.value];
-}
-
- %}
