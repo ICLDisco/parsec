@@ -49,13 +49,12 @@ uint32_t dtd_threshold_size     =  2048; /**< Default threshold size of tasks fo
 static int task_hash_table_size = (10+1); /**< Default task hash table size */
 static int tile_hash_table_size =  104729; /**< Default tile hash table size */
 
-int testing_ptg_to_dtd = 0;
 int my_rank = -1;
 int dump_traversal_info; /**< For printing traversal info */
 int dump_function_info; /**< For printing function_structure info */
 
 /* Master structures for Fake_writer tasks */
-static dague_dtd_function_t *__function;
+static dague_dtd_function_t *__dague_dtd_master_fake_function;
 
 extern dague_sched_module_t *current_scheduler;
 
@@ -1113,22 +1112,9 @@ hook_of_dtd_task( dague_execution_unit_t    *context,
 #if defined(DAGUE_DEBUG_ENABLE)
     assert( rc == DAGUE_HOOK_RETURN_DONE );
 #endif
-    dague_atomic_inc_32b((uint32_t *)&((dague_dtd_handle_t*)this_task->dague_handle)->tasks_scheduled);
 
     return rc;
 }
-
-/* chores and dague_function_t structure initialization
- * This is for the ptg inserting task in dtd mode
- */
-static const __dague_chore_t dtd_chore_for_testing[] = {
-    {.type      = DAGUE_DEV_CPU,
-     .evaluate  = NULL,
-     .hook      = testing_hook_of_dtd_task },
-    {.type      = DAGUE_DEV_NONE,
-     .evaluate  = NULL,
-     .hook      = NULL},             /* End marker */
-};
 
 /* chores and dague_function_t structure initialization */
 static const __dague_chore_t dtd_chore[] = {
@@ -1178,8 +1164,7 @@ static inline uint64_t DTD_identity_hash(const dague_dtd_handle_t * __dague_hand
  * @ingroup     DTD_INTERFACE
  */
 dague_dtd_handle_t *
-dague_dtd_handle_new( dague_context_t *context,
-                      int              arena_count )
+dague_dtd_handle_new( dague_context_t *context)
 {
     if (dump_traversal_info) {
         printf("------ New Handle -----\n\n\n");
@@ -1215,20 +1200,13 @@ dague_dtd_handle_new( dague_context_t *context,
     }
 
     __dague_handle->task_id               = 0;
-    __dague_handle->tasks_created         = 0;
     __dague_handle->task_window_size      = 1;
-    __dague_handle->tasks_scheduled       = 0; /* For the testing of PTG inserting in DTD */
     __dague_handle->function_counter      = 0;
 
-    /* for testing interface */
-    __dague_handle->total_tasks_to_be_exec = arena_count;
+    (void)dague_handle_reserve_id((dague_handle_t *) __dague_handle);
 
-    if (!testing_ptg_to_dtd) {
-        (void) dague_handle_reserve_id((dague_handle_t *) __dague_handle);
-    }
-
-    __function = (dague_dtd_function_t *)create_function(__dague_handle, call_to_fake_writer, "Fake_writer", 1,
-                               sizeof(int), 1);
+    __dague_dtd_master_fake_function = (dague_dtd_function_t *)create_function(__dague_handle, call_to_fake_writer, "Fake_writer", 1,
+                                                                               sizeof(int), 1);
 
 
     return (dague_dtd_handle_t*) __dague_handle;
@@ -1898,11 +1876,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->flags                 = 0x0 | DAGUE_HAS_IN_IN_DEPENDENCIES | DAGUE_USE_DEPS_MASK;
     function->dependencies_goal     = 0;
     function->key                   = (dague_functionkey_fn_t *)DTD_identity_hash;
-    if (!testing_ptg_to_dtd) {
-        *incarnations                   = (__dague_chore_t *)dtd_chore;
-    } else {
-        *incarnations                   = (__dague_chore_t *)dtd_chore_for_testing;
-    }
+    *incarnations                   = (__dague_chore_t *)dtd_chore;
     function->iterate_successors    = iterate_successors_of_dtd_task;
     function->iterate_predecessors  = NULL;
     function->release_deps          = release_deps_of_dtd;
@@ -2251,7 +2225,7 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     int i;
     dague_dtd_funcptr_t *fpointer = call_to_fake_writer;
 
-    dague_function_t *function = (dague_function_t *)__function;
+    dague_function_t *function = (dague_function_t *)__dague_dtd_master_fake_function;
     dague_mempool_t *context_mempool_in_function = ((dague_dtd_function_t *)function)->context_mempool;
 
     /* Creating Task object */
@@ -2279,8 +2253,6 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     this_task->super.priority = 0;
     this_task->super.chore_id = 0;
     this_task->super.status = DAGUE_TASK_STATUS_NONE;
-
-    dague_atomic_add_32b((int *)&(__dague_handle->tasks_created),1);
 
     return this_task;
 }
@@ -2497,10 +2469,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     }
 #endif /* defined(DAGUE_PROF_TRACE) */
 
-    /* for distributeed */
-    dague_atomic_add_32b((int *)&(__dague_handle->tasks_created),1);
-
-    if((__dague_handle->tasks_created % __dague_handle->task_window_size) == 0 ) {
+    if((this_task->super.super.key % __dague_handle->task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
         if ( __dague_handle->task_window_size <= dtd_window_size ) {
             __dague_handle->task_window_size *= 2;

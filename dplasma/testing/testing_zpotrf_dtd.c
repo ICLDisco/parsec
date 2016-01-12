@@ -196,7 +196,7 @@ int main(int argc, char **argv)
 
     dague_dtd_init();
     SYNC_TIME_START();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 4); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague);
     dague_handle_t* DAGUE_zpotrf_dtd = (dague_handle_t *) DAGUE_dtd_handle;
 
     sym_two_dim_block_cyclic_t *__ddescA = &ddescA;

@@ -116,8 +116,6 @@ struct dague_dtd_handle_s {
     int             arenas_size;
     int             task_id;
     int             task_window_size;
-    int             tasks_created;
-    int             tasks_scheduled;
     uint8_t         function_counter;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;
@@ -158,8 +156,6 @@ void dtd_startup(dague_context_t *context,
 
 int data_lookup_of_dtd_task(dague_execution_unit_t *,
                             dague_execution_context_t *);
-
-void copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle);
 
 void ordering_correctly_1(dague_execution_unit_t * eu,
                      const dague_execution_context_t * this_task,
@@ -205,10 +201,6 @@ dague_dtd_tile_release
 
 uint32_t
 hash_key (uintptr_t key, int size);
-
-int
-testing_hook_of_dtd_task(dague_execution_unit_t    *context,
-                         dague_execution_context_t *this_task);
 
 void
 dague_dtd_tile_insert( dague_dtd_handle_t *dague_handle, uint32_t key,

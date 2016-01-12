@@ -142,11 +142,10 @@ dague_dtd_tile_t* dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
 void insert_task_generic_fptr(dague_dtd_handle_t *,
                               dague_dtd_funcptr_t *, char *, ...);
 
-/* This funciotn will create a handle and return it.
- * Pass the dague context and the number of different tasks this handle will deal with.
-   (pass 1 as the second parameter if User has confusion).
+/* This funciotn will create a handle and return it. Provide the corresponding
+ * dague context, so that the new handle is associated with.
  */
-dague_dtd_handle_t* dague_dtd_handle_new(dague_context_t *, int );
+dague_dtd_handle_t* dague_dtd_handle_new(dague_context_t *);
 
 /* Destroys the DAGUE  handle
  * Should be called after all tasks are done.

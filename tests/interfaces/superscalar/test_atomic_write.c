@@ -63,7 +63,7 @@ int main(int argc, char ** argv)
 
 
     dague_dtd_init();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague);
 
     two_dim_block_cyclic_t *__ddescDATA = &ddescDATA;
 
