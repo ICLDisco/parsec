@@ -471,16 +471,25 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
                                  const dague_execution_context_t *newcontext,
                                  const dague_execution_context_t *oldcontext,
                                  const dep_t* dep,
-                                 dague_dep_data_description_t* data,
+                                 dague_dep_data_description_t* out_data,
                                  int src_rank, int dst_rank, int dst_vpid,
                                  void *param)
 {
-    (void)eu; (void)oldcontext; (void)dst_vpid; (void)newcontext;
+    (void)eu; (void)oldcontext; (void)dst_vpid; (void)newcontext; (void)out_data;
     if( dst_rank != eu->virtual_process->dague_context->my_rank )
         return DAGUE_ITERATE_CONTINUE;
 
     dague_remote_deps_t *deps                = (dague_remote_deps_t*)param;
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
+    const dague_function_t* fct              = newcontext->function;
+    uint32_t flow_mask                       = (1U << dep->flow->flow_index) | 0x80000000;  /* in flow */
+    /* Extract the datatype, count and displacement from the target task */
+    if( DAGUE_HOOK_RETURN_DONE == fct->get_datatype(eu, newcontext, &flow_mask, &output->data) ) {
+        /* something is wrong, we are unable to extract the expected datatype
+         from the receiver task. At this point it is difficult to stop the
+         algorithm, so let's assume the send datatype is to be used instead.*/
+        output->data = *out_data;
+    }
 
     dague_data_t* data_arena = is_read_only(oldcontext, dep);
     if(NULL == data_arena) {
@@ -489,11 +498,7 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
         output->deps_mask |= (1U << dep->dep_index); /* mark all data that are not RO */
         data_arena = is_inplace(oldcontext, dep);  /* Can we do it inplace */
     }
-    output->data      = *data;
     output->data.data = NULL;
-
-    /* THIS SHOULD BE THE RECEIVER DISPLACEMENT: TODO */
-    output->data.displ = 0;
 
     deps->priority       = oldcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
@@ -869,23 +874,20 @@ static void remote_dep_mpi_profiling_fini(void)
     MPIctl_prof = NULL;
 }
 
-#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw) do {           \
+#define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw)                \
+    if( dague_profile_enabled ) {                                       \
         dague_profile_remote_dep_mpi_info_t __info;                     \
-        const dague_function_t *__function;                             \
-        dague_handle_t *__object;                                       \
-        __object = dague_handle_lookup( (rdw).handle_id );              \
-        __function = __object->functions_array[(rdw).function_id ];     \
+        dague_handle_t *__object = dague_handle_lookup( (rdw).handle_id ); \
+        const dague_function_t *__function = __object->functions_array[(rdw).function_id ]; \
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
         __info.hid = __object->handle_id;                               \
         /** Recompute the base profiling key of that function */        \
-        __info.fid =                                                    \
-            DAGUE_PROF_FUNC_KEY_START(__object,                         \
-                                      __function->function_id) / 2;     \
+        __info.fid = __function->function_id;                           \
         __info.tid = __function->key(__object, (rdw).locals);           \
         DAGUE_PROFILING_TRACE((PROF), (KEY), (I),                       \
                               PROFILE_OBJECT_ID_NULL, &__info);         \
-    } while(0)
+    }
 
 #define TAKE_TIME(PROF, KEY, I) DAGUE_PROFILING_TRACE((PROF), (KEY), (I), PROFILE_OBJECT_ID_NULL, NULL);
 #else

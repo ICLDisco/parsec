@@ -1,46 +1,69 @@
 extern "C" %{
 /*
- * Copyright (c) 2015      The University of Tennessee and The University
+ * Copyright (c) 2015-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 #include "data_dist/matrix/matrix.h"
+#include <unistd.h>
+
+void dump_double_array(char* msg, double* mat, int i, int j, int nb, int mb, int lda)
+{
+    int n, m;
+
+    mat += j * lda + i;
+    for(n = 0; n < nb; n++) {
+        printf("%s", msg);
+        for(m = 0; m < mb; m++) {
+            printf("%g ", mat[m]);
+        }
+        printf("\n");
+        mat += lda;
+    }
+}
 
 %}
 
-/* Globals
+/**
+ * Globals
  */
 dataA      [type = "dague_ddesc_t *"]
 descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+procpid    [type = "int" hidden = on default = 0]
 
 PING(k)
-
-// Execution space
-k = 0 .. descA.nt-1
+  k = 0 .. descA.nt-1
 
 // Parallel partitioning
 :dataA(0, 0)
 
 // Parameters
-RW A <- k==0 ? dataA(0, 0) : A PONG(k-1)
-     -> k<descA.nt-1 ? A PONG(k)
-RW B <- k==0 ? dataA(0, 0) : B PONG(k-1)
-     -> k<descA.nt-1 ? B PONG(k)
+RW A <- k==0 ? dataA(0, 0) : A PONG(k-1)       [type = DTT1]
+     -> k < descA.nt-1 ? A PONG(k)             [type = DTT1]
+RW B <- k==0 ? dataA(0, 0) : B PONG(k-1)       [type = DTT2]
+     -> k < descA.nt-1 ? B PONG(k)             [type = DTT2]
 BODY
-printf("_-^^-__-^^-__ PING %d\n", k);
+  if( 0 == procpid ) procpid = getpid();
+  printf("%d: _-^^-__-^^-__ PING %d (A = %p, B = %p)\n", (int)procpid, k, (void*)A, (void*)B);
+  dump_double_array("A[DTT1] ", A, 0, 0, descA.nb, descA.mb, descA.nb);
 END
 
+
+
 PONG(k)
-k = 0 .. descA.nt-2
+  k = 0 .. descA.nt-2
 
 :dataA(0,1)
 
-READ A <- A PING(k)
-       -> A PING(k+1)
-READ B <- B PING(k)
-       -> B PING(k+1)
+READ A <- (k == 0) ? A PING(k)                 [type = DTT2]
+       <- A PING(k)                            [type = DTT1]
+       -> A PING(k+1)                          [type = DTT2]
+READ B <- B PING(k)                            [type = DTT1]
+       -> B PING(k+1)                          [type = DTT1]
 
 BODY
-printf("_-^^-__-^^-__ PONG %d\n", k);
+  if( 0 == procpid ) procpid = getpid();
+  printf("%d: _-^^-__-^^-__ PONG %d (A = %p, B = %p)\n", (int)procpid, k, (void*)A, (void*)B);
+  dump_double_array("A[DTT2] ", A, 0, 0, descA.nb, descA.mb, descA.nb);
 END
 
