@@ -18,6 +18,7 @@ list(APPEND EXTRA_LIBS m)
 
 endmacro(dague_addtest)
 
+Add_Subdirectory(haar-tree-project)
 Add_Subdirectory(pingpong)
 Add_Subdirectory(branching)
 Add_Subdirectory(choice)
