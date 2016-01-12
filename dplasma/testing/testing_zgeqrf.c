@@ -111,7 +111,6 @@ int main(int argc, char ** argv)
     if( check ) {
         if (M >= N) {
             if(loud > 2) printf("+++ Generate the Q ...");
-            dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
             dplasma_zungqr( dague,
                             (tiled_matrix_desc_t *)&ddescA,
                             (tiled_matrix_desc_t *)&ddescT,
