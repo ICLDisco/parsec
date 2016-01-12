@@ -10,6 +10,11 @@
  */
 
 #include "dplasma.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
+#include "dague/private_mempool.h"
+
+#include "zunglq_param.h"
 
 /**
  *******************************************************************************
@@ -84,6 +89,9 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
                           tiled_matrix_desc_t *TT,
                           tiled_matrix_desc_t *Q )
 {
+    dague_zunglq_param_handle_t* object;
+    int ib = TS->mb;
+
     if ( Q->m > Q->n ) {
         dplasma_error("dplasma_zunglq_param_New", "illegal size of Q (M should be smaller or equal to N)");
         return NULL;
@@ -101,7 +109,41 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
         return NULL;
     }
 
-    return dplasma_zunmlq_param_New( PlasmaRight, PlasmaNoTrans, qrtree, A, TS, TT, Q );
+    object = dague_zunglq_param_new( (dague_ddesc_t*)A,
+                                     (dague_ddesc_t*)TS,
+                                     (dague_ddesc_t*)TT,
+                                     (dague_ddesc_t*)Q,
+                                     *qrtree,
+                                     NULL );
+
+    object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+
+    /* Default type */
+    dplasma_add2arena_tile( object->arenas[DAGUE_zunglq_param_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(dague_complex64_t),
+                            DAGUE_ARENA_ALIGNMENT_SSE,
+                            dague_datatype_double_complex_t, A->mb );
+
+    /* Upper triangular part of tile with diagonal */
+    dplasma_add2arena_upper( object->arenas[DAGUE_zunglq_param_UPPER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(dague_complex64_t),
+                             DAGUE_ARENA_ALIGNMENT_SSE,
+                             dague_datatype_double_complex_t, A->mb, 0 );
+
+    /* Lower triangular part of tile without diagonal */
+    dplasma_add2arena_lower( object->arenas[DAGUE_zunglq_param_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(dague_complex64_t),
+                             DAGUE_ARENA_ALIGNMENT_SSE,
+                             dague_datatype_double_complex_t, A->mb, 1 );
+
+    /* Little T */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zunglq_param_LITTLE_T_ARENA],
+                                 TS->mb*TS->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 dague_datatype_double_complex_t, TS->mb, TS->nb, -1);
+
+    return (dague_handle_t*)object;
 }
 
 /**
@@ -114,7 +156,7 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
  *
  *******************************************************************************
  *
- * @param[in,out] object
+ * @param[in,out] o
  *          On entry, the object to destroy.
  *          On exit, the object cannot be used anymore.
  *
@@ -125,9 +167,19 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zunglq_param_Destruct( dague_handle_t *object )
+dplasma_zunglq_param_Destruct( dague_handle_t *o )
 {
-    dplasma_zunmlq_Destruct( object );
+    dague_zunglq_param_handle_t *dague_zunglq = (dague_zunglq_param_handle_t *)o;
+
+    dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_param_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_param_UPPER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_param_LOWER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_param_LITTLE_T_ARENA  ] );
+
+    dague_private_memory_fini( dague_zunglq->p_work );
+    free( dague_zunglq->p_work );
+
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zunglq);
 }
 
 /**
@@ -205,6 +257,8 @@ dplasma_zunglq_param( dague_context_t *dague,
                       tiled_matrix_desc_t *TT,
                       tiled_matrix_desc_t *Q )
 {
+    dague_handle_t *dague_zunglq;
+
     if (dague == NULL) {
         dplasma_error("dplasma_zunglq_param", "dplasma not initialized");
         return -1;
@@ -225,6 +279,14 @@ dplasma_zunglq_param( dague_context_t *dague,
     if (dplasma_imin(Q->m, dplasma_imin(Q->n, A->m)) == 0)
         return 0;
 
-    return dplasma_zunmlq_param(dague, PlasmaRight, PlasmaNoTrans,
-                                qrtree, A, TS, TT, Q);
+    dplasma_qrtree_check( A, qrtree );
+
+    dague_zunglq = dplasma_zunglq_param_New(qrtree, A, TS, TT, Q);
+
+    if ( dague_zunglq != NULL ){
+        dague_enqueue(dague, dague_zunglq);
+        dplasma_progress(dague);
+        dplasma_zunglq_param_Destruct( dague_zunglq );
+    }
+    return 0;
 }

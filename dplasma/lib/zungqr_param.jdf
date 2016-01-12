@@ -21,13 +21,47 @@ dataTT [type = "dague_ddesc_t *"]
 dataQ  [type = "dague_ddesc_t *"]
 qrtree [type = "dplasma_qrtree_t"]
 
-descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)" ]
 descTS [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataTS)"]
 descTT [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataTT)"]
-descQ  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataQ)"]
+descQ  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataQ)" ]
 ib     [type = "int" hidden=on default="descTS.mb" ]
+KT     [type = "int" hidden = on default = "descA.nt-1" ]
+KT2    [type = "int" hidden = on default = "dplasma_imin( KT, descQ.mt-2 )" ]
 
 p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descTS.nb)"]
+
+zlaset(m, n) [profile = off]
+  /* Execution Space */
+  m = 0 .. descQ.mt-1
+  n = 0 .. descQ.nt-1
+  k     = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
+  prevm = inline_c %{ return qrtree.prevpiv(&qrtree, k, m, m); %}
+
+  : dataQ(m,n)
+
+  READ  A    <- dataQ(m,n)
+             ->  ((descQ.mt == descA.nt) & (m == (descQ.mt-1)) & (n == (descQ.mt-1))) ? C zunmqr(k, 0, n)
+             -> (((descQ.mt != descA.nt) | (m != (descQ.mt-1)) | (n != (descQ.mt-1))) & (n >= m)) ? A1 zttmqr(k, prevm, n)
+             -> (((descQ.mt != descA.nt) | (m != (descQ.mt-1)) | (n != (descQ.mt-1))) & (n <  m)) ? A2 zttmqr(k, m,     n)
+
+BODY
+{
+    int tempmm = (m == (descQ.mt-1)) ? (descQ.m - m * descQ.mb) : descQ.mb;
+    int tempnn = (n == (descQ.nt-1)) ? (descQ.n - n * descQ.nb) : descQ.nb;
+    int ldqm = BLKLDD( descQ, m );
+
+    printlog("CORE_zlaset(%d, %d)\n"
+             "\t(PlasmaUpperLower, tempmm, tempnn, alpha, (m == n) ? (beta) : (alpha), Q(%d,%d)[%p], ldqm)\n",
+             m, n, m, n, A);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zlaset(PlasmaUpperLower, tempmm, tempnn,
+                0., (m == n) ? 1.: 0.,
+                A /* dataQ(m,n) */, ldqm );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
 
 /**
  * zunmqr()
@@ -39,22 +73,23 @@ p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)
  */
 zunmqr(k, i, n)
   /* Execution space */
-  k = 0 .. descA.nt-1
+  k = 0 .. KT
   i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  n = 0 .. descQ.nt-1
+  n = k .. descQ.nt-1
   m     = inline_c %{ return qrtree.getm( &qrtree, k, i ); %}
-  nextm = inline_c %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt ); %}
+  nextm = inline_c %{ return qrtree.nextpiv( &qrtree, k, m, descQ.mt ); %}
 
+  /* Locality */
   : dataQ(m, n)
 
   READ  A <- A zunmqr_in_A(k, i)        [type = LOWER_TILE]
   READ  T <- T zunmqr_in_T(k, i)        [type = LITTLE_T]
 
-  RW    C -> ( 0 == k ) ? dataQ(m, n)
+  RW    C -> ( k == 0 ) ? dataQ(m, n)
           -> ( k >  0 ) ? A2 zttmqr(k-1, m, n)
-          <- ( k == descQ.mt-1 ) ? dataQ(m, n)
-          <- ( (k < descQ.mt-1) & (nextm != descQ.mt) ) ? A1 zttmqr(k, nextm, n)
-          <- ( (k < descQ.mt-1) & (nextm == descQ.mt) ) ? A2 zttmqr(k, m,     n)
+          <- ( k == (descQ.mt-1)) ? A zlaset(m, n)
+          <- ((k <  (descQ.mt-1)) & (nextm != descQ.mt)) ? A1 zttmqr(k, nextm, n)
+          <- ((k <  (descQ.mt-1)) & (nextm == descQ.mt)) ? A2 zttmqr(k, m,     n)
 
 BODY
 {
@@ -80,6 +115,7 @@ BODY
                 C /* dataQ(m, n) */, ldqm,
                 p_elem_A, descTS.nb );
 #endif /* !defined(DAGUE_DRY_RUN) */
+
     dague_private_memory_push( p_work, p_elem_A );
 }
 END
@@ -88,14 +124,15 @@ END
  * Pseudo-task
  */
 zunmqr_in_A(k, i) [profile = off]
-  k = 0 .. descA.nt-1
+  k = 0 .. KT
   i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   m = inline_c %{ return qrtree.getm( &qrtree, k, i); %}
 
   : dataA( m, k )
 
   RW A <- dataA( m, k )                     [type = LOWER_TILE]
-       -> A zunmqr(k, i, 0 .. descQ.nt-1)   [type = LOWER_TILE]
+       -> A zunmqr(k, i, k .. descQ.nt-1)   [type = LOWER_TILE]
+
 BODY
 {
     /* nothing */
@@ -107,20 +144,20 @@ END
  * Pseudo-task
  */
 zunmqr_in_T(k, i) [profile = off]
-  k = 0 .. descA.nt-1
+  k = 0 .. KT
   i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   m = inline_c %{ return qrtree.getm( &qrtree, k, i ); %}
 
   : dataTS( m, k )
 
   RW T <- dataTS( m, k )                    [type = LITTLE_T]
-       -> T zunmqr(k, i, 0 .. descQ.nt-1)   [type = LITTLE_T]
+       -> T zunmqr(k, i, k .. descQ.nt-1)   [type = LITTLE_T]
+
 BODY
 {
     /* nothing */
 }
 END
-
 
 /**
  * zttmqr()
@@ -131,29 +168,32 @@ END
  */
 zttmqr(k, m, n)
   /* Execution space */
-  k     = 0   .. descA.nt-1
+  k     = 0   .. KT
   m     = k+1 .. descQ.mt-1
-  n     = 0   .. descQ.nt-1
-  p     = inline_c %{ return qrtree.currpiv( &qrtree, k,   m);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
-  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k,   m );   %}
-  type1 = inline_c %{ return qrtree.gettype( &qrtree, k+1, m );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k,   p );   %}
-  im    = inline_c %{ return qrtree.geti(    &qrtree, k,   m );   %}
-  im1   = inline_c %{ return qrtree.geti(    &qrtree, k+1, m );   %}
+  n     = k   .. descQ.nt-1
+  p     = inline_c %{ return qrtree.currpiv( &qrtree, k, m);    %}
+  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
+  nextm = inline_c %{ return qrtree.nextpiv( &qrtree, k, m, descQ.mt); %}
+  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, p, m); %}
+  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k, m, m); %}
+  type  = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
+  ip    = inline_c %{ return qrtree.geti(    &qrtree, k, p );   %}
+  im    = inline_c %{ return qrtree.geti(    &qrtree, k, m );   %}
 
+  type1 = inline_c %{ return (k == KT) ? -1 : qrtree.gettype( &qrtree, k+1, m ); %}
+  im1   = inline_c %{ return (k == KT) ? -1 : qrtree.geti(    &qrtree, k+1, m ); %}
+
+  /* Locality */
   : dataQ(m, n)
 
-  RW   A1 <- (   nextp != descQ.mt ) ? A1 zttmqr( k, nextp, n)
-          <- ( ( nextp == descQ.mt ) & ( p == k ) ) ? A  zttmqr_in_A1(p, n)
-          <- ( ( nextp == descQ.mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
-          -> (   prevp == descQ.mt ) ? C zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
+  RW   A1 <-  (nextp != descQ.mt) ? A1 zttmqr(k, nextp, n)
+          <- ((nextp == descQ.mt) & ( p == k )) ? A  zlaset(p, n)
+          <- ((nextp == descQ.mt) & ( p != k )) ? A2 zttmqr(k, p, n)
+          ->  (prevp == descQ.mt) ? C zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n)
 
-  RW   A2 <- (  k == descA.nt-1 ) ? dataQ(m, n)
-          <- ( (type1 == 0) && (k != descA.nt-1) ) ? A2 zttmqr( k+1, m, n )
-          <- ( (type1 != 0) && (k != descA.nt-1) ) ? C zunmqr( k+1, im1, n )
+  RW   A2 <- ((k == KT) | (n == k)) ? A zlaset(m, n)
+          <- ((k != KT) & (n != k) & (type1 != 0)) ? C  zunmqr( k+1, im1, n )
+          <- ((k != KT) & (n != k) & (type1 == 0)) ? A2 zttmqr( k+1, m,   n )
 
           -> ( (type  == 0) && (k     == 0        ) ) ? dataQ(m, n)
           -> ( (type  == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
@@ -214,34 +254,17 @@ END
 /*
  * Pseudo-task
  */
-zttmqr_in_A1(k, n) [profile = off]
-  k = 0 .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
-  n = 0 .. descQ.nt-1
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
-
-  : dataQ(k, n)
-
-  RW A <- dataQ(k, n)
-       -> A1 zttmqr( k, prevp, n )
-BODY
-{
-    /* nothing */
-}
-END
-
-/*
- * Pseudo-task
- */
 zttmqr_in_V(k, m) [profile = off]
-  k = 0   .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
+  k = 0   .. KT2
   m = k+1 .. descQ.mt-1
   type = inline_c %{ return qrtree.gettype( &qrtree, k, m ); %}
 
   : dataA(m, k)
 
   RW V <- dataA(m, k)
-       -> (type == 0) ? V zttmqr(k, m, 0 .. descQ.nt-1)
-       -> (type != 0) ? V zttmqr(k, m, 0 .. descQ.nt-1) [type = UPPER_TILE]
+       -> (type == 0) ? V zttmqr(k, m, k .. descQ.nt-1)
+       -> (type != 0) ? V zttmqr(k, m, k .. descQ.nt-1) [type = UPPER_TILE]
+
 BODY
 {
     /* nothing */
@@ -253,13 +276,13 @@ END
  * Pseudo-task
  */
 zttmqr_in_T(k, m) [profile = off]
-  k = 0   .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
+  k = 0   .. KT2
   m = k+1 .. descQ.mt-1
 
   : dataTT(m, k)
 
-  RW T <- dataTT(m, k)                   [type = LITTLE_T]
-       -> T zttmqr(k, m, 0 .. descQ.nt-1)  [type = LITTLE_T]
+  RW T <- dataTT(m, k)                     [type = LITTLE_T]
+       -> T zttmqr(k, m, k .. descQ.nt-1)  [type = LITTLE_T]
 BODY
 {
     /* nothing */
