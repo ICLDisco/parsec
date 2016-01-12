@@ -118,7 +118,6 @@ int main(int argc, char ** argv)
     dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTS);
     dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescQ);
     if(loud > 3) printf("Done\n");
 
     dplasma_hqr_init( &qrtree,

@@ -26,6 +26,8 @@ descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_d
 nbmaxthrd [type = "int" hidden=on default="( dplasma_imax( 1, dplasma_imin( vpmap_get_nb_threads_in_vp(0) - 1, 48 ) ) )" ] /* 48 is the actual limit of the kernel */
 KT        [type = "int" hidden=on default="( dplasma_imin( descA.mt, descA.nt )-1 )" ]
 
+getrfdata [type = "CORE_zgetrf_data_t *" hidden = on default = "NULL"]
+
 /************************************************************************************
  *                      Tiles 2 panel (Forward)                                     *
  *    step k on tile(m, n) is done when tile2panel(k-1, n) has received all ctl     *
@@ -143,10 +145,17 @@ BODY
                                                (descA.mt-k)*descA.mb, descA.nb, 0, 0,
                                                tempm, tempkn);
         pdescA.mat = A;
-        CORE_zgetrf_rectil( pdescA, IPIV, info );
+        CORE_zgetrf_rectil(
+#if !defined(CORE_GETRF_270)
+            getrfdata,
+#endif
+            pdescA, IPIV, info );
 
     } else {
         CORE_zgetrf_reclap(
+#if !defined(CORE_GETRF_270)
+            getrfdata,
+#endif
             tempm, tempkn,
             A/*(k, k)*/, ldak, IPIV, info );
     }

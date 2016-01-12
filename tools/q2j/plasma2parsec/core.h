@@ -1537,5 +1537,5 @@
         sizeof(PLASMA_Complex64_t)*ib*nb,   (NULL),   SCRATCH,\
         sizeof(int),                        &(nb),    VALUE,\
         0);}
-#pragma zunmqr T C
+#pragma zunmqr A T C
 

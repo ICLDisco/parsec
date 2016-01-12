@@ -11,7 +11,9 @@
 
 #include "dplasma.h"
 #include <math.h>
+#include "dague/vpmap.h"
 #include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmajdf.h"
 #include "dague/private_mempool.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
@@ -165,6 +167,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     int ib = TS->mb;
     size_t sizeW = 1;
     size_t sizeReduceVec = 1;
+    int nbthreads = dplasma_imax( 1, vpmap_get_nb_threads_in_vp(0) - 1 );
 
     /*
      * Compute W size according to criteria used.
@@ -190,12 +193,6 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
         dplasma_genrandom_lutab(lu_tab, 0, minMNT-1, nb_lu, 0);
     }
 
-    if ( A->storage == matrix_Tile ) {
-        CORE_zgetrf_rectil_init();
-    } else {
-        CORE_zgetrf_reclap_init();
-    }
-
     object = dague_zgetrf_qrf_new( (dague_ddesc_t*)A,
                                    (dague_ddesc_t*)IPIV,
                                    (dague_ddesc_t*)TS,
@@ -204,6 +201,26 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                                    ib, criteria, alpha,
                                    NULL, NULL, NULL,
                                    INFO);
+
+#if defined(CORE_GETRF_270)
+
+    if ( A->storage == matrix_Tile ) {
+        CORE_zgetrf_rectil_init();
+    } else {
+        CORE_zgetrf_reclap_init();
+    }
+    object->nbmaxthrd = dplasma_imin( nbthreads, 48 );
+
+#else
+
+    if ( A->storage == matrix_Tile ) {
+        object->getrfdata = CORE_zgetrf_rectil_init(nbthreads);
+    } else {
+        object->getrfdata = CORE_zgetrf_reclap_init(nbthreads);
+    }
+    object->nbmaxthrd = nbthreads;
+
+#endif
 
     object->W = (double*)malloc(sizeW * sizeof(double));
 
@@ -292,6 +309,8 @@ dplasma_zgetrf_qrf_Destruct( dague_handle_t *o )
     dague_private_memory_fini( dague_zgetrf_qrf->p_work );
     dague_private_memory_fini( dague_zgetrf_qrf->p_tau  );
 
+    if ( dague_zgetrf_qrf->getrfdata != NULL )
+        free( dague_zgetrf_qrf->getrfdata );
     free( dague_zgetrf_qrf->W );
     free( dague_zgetrf_qrf->p_work );
     free( dague_zgetrf_qrf->p_tau  );

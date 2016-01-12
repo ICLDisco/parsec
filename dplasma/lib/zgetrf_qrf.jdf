@@ -59,6 +59,8 @@ param_q   [type = int default="((two_dim_block_cyclic_t*)A)->grid.cols" hidden=o
 minMNT    [type = int default="dplasma_imin( descA.mt-1, descA.nt-1 )"    hidden=on ]
 nbmaxthrd [type = "int" default="( dplasma_imax( 1, dplasma_imin( vpmap_get_nb_threads_in_vp(0) - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 
+getrfdata [type = "CORE_zgetrf_data_t *" hidden = on default = "NULL"]
+
 /*===========================================================================================
 
                                        LU PART
@@ -802,12 +804,19 @@ BODY
                                                  s*descA.mb, descA.nb, 0, 0,
                                                  tempm, tempkn);
           pdescA.mat = A;
-          CORE_zgetrf_rectil( pdescA, IP, info );
+          CORE_zgetrf_rectil(
+#if !defined(CORE_GETRF_270)
+              getrfdata,
+#endif
+              pdescA, IP, info );
 
       } else {
           /* Not implemented */
           assert( 0 );
           CORE_zgetrf_reclap(
+ #if !defined(CORE_GETRF_270)
+              getrfdata,
+#endif
               tempm, tempkn,
               A/*(k, k)*/, ldak, IP, info );
       }

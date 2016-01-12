@@ -6,6 +6,16 @@
 #include "dplasma.h"
 #include "dague/private_mempool.h"
 
+/* Check for LU recursive kernel version */
+#if (PLASMA_VERSION_MAJOR < 2) || ((PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR < 8))
+#warning "Please update your PLASMA library to 2.8.0 or higher"
+#define CORE_GETRF_270
+typedef void * CORE_zgetrf_data_t;
+typedef void * CORE_cgetrf_data_t;
+typedef void * CORE_dgetrf_data_t;
+typedef void * CORE_sgetrf_data_t;
+#endif
+
 #define QUOTEME_(x) #x
 #define QUOTEME(x) QUOTEME_(x)
 

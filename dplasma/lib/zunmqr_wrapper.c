@@ -347,7 +347,7 @@ dplasma_zunmqr( dague_context_t *dague,
     dague_zunmqr = dplasma_zunmqr_New(side, trans, A, T, C);
 
     if ( dague_zunmqr != NULL ){
-        dague_enqueue(dague, (dague_handle_t*)dague_zunmqr);
+        dague_enqueue(dague, dague_zunmqr);
         dplasma_progress(dague);
         dplasma_zunmqr_Destruct( dague_zunmqr );
     }
