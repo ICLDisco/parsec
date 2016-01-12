@@ -11,6 +11,9 @@
 #warning "Please update your PLASMA library to 2.8.0 or higher"
 #define CORE_GETRF_270
 typedef void * CORE_zgetrf_data_t;
+typedef void * CORE_cgetrf_data_t;
+typedef void * CORE_dgetrf_data_t;
+typedef void * CORE_sgetrf_data_t;
 #endif
 
 #define QUOTEME_(x) #x
