@@ -587,10 +587,10 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
         task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].data_repo = NULL, i++);
 
     for(i = 0; complete_mask>>i; i++) {
-        pidx = 0;
-        target = task.function->out[pidx];
         assert(i < MAX_PARAM_COUNT);
         if( !((1U<<i) & complete_mask) ) continue;
+        pidx = 0;
+        target = task.function->out[pidx];
         while( !((1U<<i) & target->flow_datatype_mask) ) {
             target = task.function->out[++pidx];
             assert(NULL != target);

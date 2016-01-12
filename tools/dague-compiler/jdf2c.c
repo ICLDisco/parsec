@@ -2507,7 +2507,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             coutput("%s}\n", indent(nesting));
         }
     }
-    coutput("%s    dague_atomic_add_32b((int32_t*)&__dague_handle->super.super.nb_local_tasks, nb_tasks);\n",
+    coutput("%s    nb_tasks = dague_atomic_add_32b((int32_t*)&__dague_handle->super.super.nb_local_tasks, nb_tasks);\n",
             indent(nesting));
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         coutput("%s    do {\n"
@@ -2529,20 +2529,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             f->function_id,
             f->function_id, idx,
             string_arena_get_string(sa_end));
-    coutput("   if(0 == dague_atomic_dec_32b(&__dague_handle->sync_point)) {\n"
-            "     dague_list_item_t *ring = NULL;\n"
-            "     dague_execution_context_t* ttask = (dague_execution_context_t*)__dague_handle->startup_queue;\n"
-            "     while( NULL != (ttask = (dague_execution_context_t*)__dague_handle->startup_queue) ) {\n"
-            "       /* Transform the single linked list into a ring */\n"
-            "       __dague_handle->startup_queue = (dague_execution_context_t*)ttask->super.list_item.list_next;\n"
-            "       if(ttask != (dague_execution_context_t*)this_task) {\n"
-            "         ttask->status = DAGUE_TASK_STATUS_HOOK;\n"
-            "         DAGUE_LIST_ITEM_SINGLETON(ttask);\n"
-            "         if(NULL == ring) ring = (dague_list_item_t *)ttask;\n"
-            "         else dague_list_item_ring_push(ring, &ttask->super.list_item);\n"
-            "       }\n"
-            "    }\n"
-            "    if( NULL != ring ) __dague_schedule(eu, (dague_execution_context_t *)ring);\n"
+    coutput("  if(0 == dague_atomic_dec_32b(&__dague_handle->sync_point)) {\n"
+            "    dague_handle_enable((dague_handle_t*)__dague_handle, &__dague_handle->startup_queue,\n"
+            "                        (dague_execution_context_t*)this_task, eu, nb_tasks);\n"
             "    return DAGUE_HOOK_RETURN_DONE;\n"
             "  }\n");
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {

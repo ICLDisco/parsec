@@ -638,46 +638,37 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle )
     /* Update the number of pending objects */
     dague_atomic_inc_32b( &(context->active_objects) );
 
-    /* Enable the handle to interact with the communication engine */
-    (void)dague_handle_register(handle);
-
     /* If necessary trigger the on_enqueue callback */
     if( NULL != handle->on_enqueue ) {
         handle->on_enqueue(handle, handle->on_enqueue_data);
     }
 
-    if( handle->nb_local_tasks > 0 ) {
-
-         /* Retrieve all the early messages for this handle */
-        (void)dague_remote_dep_new_object(handle);
-        if( NULL != handle->startup_hook ) {
-            dague_execution_context_t **startup_list;
-            int p;
-            /* These pointers need to be initialized to NULL; doing it with calloc */
-            startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
-            if( NULL == startup_list ) {  /* bad bad */
-                return DAGUE_ERR_OUT_OF_RESOURCE;
-            }
-            handle->startup_hook(context, handle, startup_list);
-            for(p = 0; p < vpmap_get_nb_vp(); p++) {
-                if( NULL != startup_list[p] ) {
-                    dague_list_t temp;
-
-                    OBJ_CONSTRUCT( &temp, dague_list_t );
-                    /* Order the tasks by priority */
-                    dague_list_chain_sorted(&temp, (dague_list_item_t*)startup_list[p],
-                                            dague_execution_context_priority_comparator);
-                    startup_list[p] = (dague_execution_context_t*)dague_list_nolock_unchain(&temp);
-                    OBJ_DESTRUCT(&temp);
-                    /* We should add these tasks on the system queue when there is one */
-                    __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
-                }
-            }
-            free(startup_list);
+    if( NULL != handle->startup_hook ) {
+        dague_execution_context_t **startup_list;
+        int p;
+        /* These pointers need to be initialized to NULL; doing it with calloc */
+        startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
+        if( NULL == startup_list ) {  /* bad bad */
+            return DAGUE_ERR_OUT_OF_RESOURCE;
         }
-    } else {
+        handle->startup_hook(context, handle, startup_list);
+        for(p = 0; p < vpmap_get_nb_vp(); p++) {
+            if( NULL != startup_list[p] ) {
+                dague_list_t temp;
+
+                OBJ_CONSTRUCT( &temp, dague_list_t );
+                /* Order the tasks by priority */
+                dague_list_chain_sorted(&temp, (dague_list_item_t*)startup_list[p],
+                                        dague_execution_context_priority_comparator);
+                startup_list[p] = (dague_execution_context_t*)dague_list_nolock_unchain(&temp);
+                OBJ_DESTRUCT(&temp);
+                /* We should add these tasks on the system queue when there is one */
+                __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
+            }
+        }
+        free(startup_list);
+    } else
         dague_check_complete_cb(handle, context, handle->nb_local_tasks);
-    }
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;

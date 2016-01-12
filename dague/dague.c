@@ -1542,8 +1542,8 @@ dague_handle_t* dague_handle_lookup( uint32_t handle_id )
     return (NOOBJECT == r ? NULL : r);
 }
 
-/**< Reverse an unique ID for the handle. Beware that on a distributed environment the
- * connected objects must have the same ID.
+/**< Reverse an unique ID for the handle but without adding the object to the management array.
+ *   Beware that on a distributed environment the connected objects must have the same ID.
  */
 int dague_handle_reserve_id( dague_handle_t* object )
 {
@@ -1552,7 +1552,7 @@ int dague_handle_reserve_id( dague_handle_t* object )
     dague_atomic_lock( &object_array_lock );
     idx = (uint32_t)++object_array_pos;
 
-    if( idx >= object_array_size ) {
+    if( (NULL == object_array) || (idx >= object_array_size) ) {
         object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
         /* NULLify all the new elements */
@@ -1573,7 +1573,7 @@ int dague_handle_register( dague_handle_t* object)
     uint32_t idx = object->handle_id;
 
     dague_atomic_lock( &object_array_lock );
-    if( idx >= object_array_size ) {
+    if( (NULL == object_array) || (idx >= object_array_size) ) {
         object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
         /* NULLify all the new elements */
@@ -1630,6 +1630,46 @@ void dague_handle_free(dague_handle_t *handle)
     }
     /* the destructor calls the appropriate free on the handle */
     handle->destructor( handle );
+}
+
+/**
+ * The final step of a handle activation. At this point we assume that all the local
+ * initializations have been succesfully completed for all components, and that the
+ * handle is ready to be registered with the system, and any potential pending tasks
+ * ready to go.
+ *
+ * The local_task allows for concurrent management of the startup_queue, and provide a way
+ * to prevent a task from being added to the scheduler. The nb_tasks is used to detect
+ * if the handle should be registered with the communication engine or not.
+ */
+int dague_handle_enable(dague_handle_t* handle,
+                        dague_execution_context_t** startup_queue,
+                        dague_execution_context_t* local_task,
+                        dague_execution_unit_t * eu,
+                        int nb_tasks)
+{
+    if( NULL != startup_queue ) {
+        dague_list_item_t *ring = NULL;
+        dague_execution_context_t* ttask = (dague_execution_context_t*)*startup_queue;
+
+        while( NULL != (ttask = (dague_execution_context_t*)*startup_queue) ) {
+            /* Transform the single linked list into a ring */
+            *startup_queue = (dague_execution_context_t*)ttask->super.list_item.list_next;
+            if(ttask != local_task) {
+                ttask->status = DAGUE_TASK_STATUS_HOOK;
+                DAGUE_LIST_ITEM_SINGLETON(ttask);
+                if(NULL == ring) ring = (dague_list_item_t *)ttask;
+                else dague_list_item_ring_push(ring, &ttask->super.list_item);
+            }
+        }
+        if( NULL != ring ) __dague_schedule(eu, (dague_execution_context_t *)ring);
+    }
+    /* Always register the handle. This allows the handle_t destructor to unregister it in all cases. */
+    dague_handle_register(handle);
+    if( 0 != nb_tasks ) {
+        (void)dague_remote_dep_new_object(handle);
+    }
+    return DAGUE_HOOK_RETURN_DONE;
 }
 
 /**< Decrease task number of the object by nb_tasks. */
