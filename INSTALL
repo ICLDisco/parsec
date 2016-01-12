@@ -17,7 +17,7 @@ package.
 4. Any MPI library Open MPI, MPICH2, MVAPICH or any vendor blessed
    implementation.
 
-5. PLASMA version 2.5 to 2.7.1 (http://icl.cs.utk.edu/plasma/)
+5. PLASMA version 2.5 or above (http://icl.cs.utk.edu/plasma/)
 
 6. For using PINS (instrumentation based on PAPI) PAPI is required
    (http://icl.cs.utk.edu/papi/)
