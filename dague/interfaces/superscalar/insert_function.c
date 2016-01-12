@@ -1204,9 +1204,9 @@ dague_dtd_handle_new( dague_context_t *context)
     __dague_handle->function_counter      = 0;
 
     (void)dague_handle_reserve_id((dague_handle_t *) __dague_handle);
-
     __dague_dtd_master_fake_function = (dague_dtd_function_t *)create_function(__dague_handle, call_to_fake_writer, "Fake_writer", 1,
                                                                                sizeof(int), 1);
+    (void)dague_handle_enable((dague_handle_t *)__dague_handle, NULL, NULL, NULL, __dague_handle->super.nb_local_tasks);
 
     return (dague_dtd_handle_t*) __dague_handle;
 }
