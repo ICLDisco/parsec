@@ -1,9 +1,9 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
- * Copyright (c) 2013      Inria. All rights reserved.
+ * Copyright (c) 2013-2016 Inria. All rights reserved.
  * $COPYRIGHT
  *
  *
@@ -24,21 +24,22 @@ descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_d
 descT     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
 descQ     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataQ)"]
 ib        [type = "int" hidden = on default = "descT.mb" ]
+KT        [type = "int" hidden = on default = "descA.nt-1" ]
+KT2       [type = "int" hidden = on default = "dplasma_imin( KT, descQ.mt-2 )" ]
 
 zlaset(m, n) [profile = off]
   /* Execution Space */
   m = 0 .. descQ.mt-1
   n = 0 .. descQ.nt-1
+  k = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
 
   /* Locality */
   : dataQ(m,n)
 
   READ  A    <- dataQ(m,n)
-             -> ((m == (descA.nt-1)) & (m == (descQ.mt-1)) & (m == n)) ? C zunmqr(m, n)
-             -> ((m <= (descA.nt-1)) & (m <  (descQ.mt-1)) & (m <= n)) ? A1 ztsmqr(m, descQ.mt-1, n)
-             -> ((m >  (descA.nt-1)) & (m <= n)) ? A2 ztsmqr(descA.nt-1, m, n)
-             -> ((n <= (descA.nt-1)) & (m >  n)) ? A2 ztsmqr(n,          m, n)
-             -> ((n >  (descA.nt-1)) & (m >  n)) ? A2 ztsmqr(descA.nt-1, m, n)
+             ->  ((descQ.mt == descA.nt) & (m == (descQ.mt-1)) & (n == (descQ.mt-1))) ? C zunmqr(k, n)
+             -> (((descQ.mt != descA.nt) | (m != (descQ.mt-1)) | (n != (descQ.mt-1))) & (n >= m)) ? A1 ztsmqr(k, descQ.mt-1, n)
+             -> (((descQ.mt != descA.nt) | (m != (descQ.mt-1)) | (n != (descQ.mt-1))) & (n <  m)) ? A2 ztsmqr(k, m,          n)
 
 BODY
 {
@@ -47,7 +48,7 @@ BODY
     int ldqm = BLKLDD( descQ, m );
 
     printlog("CORE_zlaset(%d, %d)\n"
-             "\t(PlasmaUpperLower, tempmm, tempnn, alpha, (m ==n ) ? (beta) : (alpha), Q(%d,%d)[%p], ldqm)\n",
+             "\t(PlasmaUpperLower, tempmm, tempnn, alpha, (m == n) ? (beta) : (alpha), Q(%d,%d)[%p], ldqm)\n",
              m, n, m, n, A);
 
 #if !defined(DAGUE_DRY_RUN)
@@ -60,7 +61,7 @@ END
 
 zunmqr(k, n)
   /* Execution Space */
-  k = 0 .. descA.nt-1
+  k = 0 .. KT
   n = k .. descQ.nt-1
 
   /* Locality */
@@ -101,7 +102,7 @@ END
 
 zunmqr_in_data_T1(k) [profile = off]
   /* Execution Space */
-  k = 0 .. descA.nt-1
+  k = 0 .. KT
 
   /* Locality */
   : dataT(k,k)
@@ -117,7 +118,7 @@ END
 
 zunmqr_in_data_A0(k) [profile = off]
   /* Execution Space */
-  k = 0 .. descA.nt-1
+  k = 0 .. KT
 
   /* Locality */
   : dataA(k,k)
@@ -133,7 +134,7 @@ END
 
 ztsmqr(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descQ.mt-1),(descA.nt-1)); %}
+  k = 0     .. KT
   m = (k+1) .. (descQ.mt-1)
   n = k     .. (descQ.nt-1)
 
@@ -145,9 +146,9 @@ ztsmqr(k, m, n)
              -> ( m == (k+1) ) ? C  zunmqr(k, n)
              -> ( m >  (k+1) ) ? A1 ztsmqr(k, m-1, n)
 
-  RW    A2   <- ((k == (descA.nt-1)) | (n == k)) ? A zlaset(m, n)
-             <- ((k <  (descA.nt-1)) & (n >  k) & (m == (k+1))) ? C  zunmqr(k+1, n)
-             <- ((k <  (descA.nt-1)) & (n >  k) & (m >  (k+1))) ? A2 ztsmqr(k+1, m, n)
+  RW    A2   <- ((k == KT) | (n == k)) ? A zlaset(m, n)
+             <- ((k <  KT) & (n >  k) & (m == (k+1))) ? C  zunmqr(k+1, n)
+             <- ((k <  KT) & (n >  k) & (m >  (k+1))) ? A2 ztsmqr(k+1, m, n)
              -> ( k == 0 ) ? dataQ(m, n)
              -> ( k >  0 ) ? A2 ztsmqr(k-1, m, n)
 
@@ -187,7 +188,7 @@ END
 
 ztsmqr_in_data_T2(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
+  k = 0     .. KT2
   m = (k+1) .. (descQ.mt-1)
 
   /* Locality */
@@ -204,7 +205,7 @@ END
 
 ztsmqr_in_data_A1(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descQ.mt-2),(descA.nt-1)); %}
+  k = 0     .. KT2
   m = (k+1) .. (descQ.mt-1)
 
   /* Locality */

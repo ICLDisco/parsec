@@ -10,6 +10,11 @@
  */
 
 #include "dplasma.h"
+#include "dplasma/lib/dplasmatypes.h"
+#include "dplasma/lib/dplasmaaux.h"
+#include "dague/private_mempool.h"
+
+#include "zunglq.h"
 
 /**
  *******************************************************************************
@@ -69,6 +74,9 @@ dplasma_zunglq_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *Q )
 {
+    dague_zunglq_handle_t* object;
+    int ib = T->mb;
+
     if ( Q->m > Q->n ) {
         dplasma_error("dplasma_zunglq_New", "illegal size of Q (M should be smaller or equal to N)");
         return NULL;
@@ -82,7 +90,33 @@ dplasma_zunglq_New( tiled_matrix_desc_t *A,
         return NULL;
     }
 
-    return dplasma_zunmlq_New( PlasmaRight, PlasmaNoTrans, A, T, Q );
+    object = dague_zunglq_new( (dague_ddesc_t*)A,
+                               (dague_ddesc_t*)T,
+                               (dague_ddesc_t*)Q,
+                               NULL );
+
+    object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( object->p_work, ib * T->nb * sizeof(dague_complex64_t) );
+
+    /* Default type */
+    dplasma_add2arena_tile( object->arenas[DAGUE_zunglq_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(dague_complex64_t),
+                            DAGUE_ARENA_ALIGNMENT_SSE,
+                            dague_datatype_double_complex_t, A->mb );
+
+    /* Upper triangular part of tile without diagonal */
+    dplasma_add2arena_upper( object->arenas[DAGUE_zunglq_UPPER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(dague_complex64_t),
+                             DAGUE_ARENA_ALIGNMENT_SSE,
+                             dague_datatype_double_complex_t, A->mb, 0 );
+
+    /* Little T */
+    dplasma_add2arena_rectangle( object->arenas[DAGUE_zunglq_LITTLE_T_ARENA],
+                                 T->mb*T->nb*sizeof(dague_complex64_t),
+                                 DAGUE_ARENA_ALIGNMENT_SSE,
+                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
+
+    return (dague_handle_t*)object;
 }
 
 /**
@@ -108,7 +142,16 @@ dplasma_zunglq_New( tiled_matrix_desc_t *A,
 void
 dplasma_zunglq_Destruct( dague_handle_t *object )
 {
-    dplasma_zunmlq_Destruct( object );
+    dague_zunglq_handle_t *dague_zunglq = (dague_zunglq_handle_t *)object;
+
+    dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_DEFAULT_ARENA   ] );
+    dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_UPPER_TILE_ARENA] );
+    dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_LITTLE_T_ARENA  ] );
+
+    dague_private_memory_fini( dague_zunglq->p_work );
+    free( dague_zunglq->p_work );
+
+    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zunglq);
 }
 
 /**
@@ -171,6 +214,8 @@ dplasma_zunglq( dague_context_t *dague,
                 tiled_matrix_desc_t *T,
                 tiled_matrix_desc_t *Q )
 {
+    dague_handle_t *dague_zunglq;
+
     if (dague == NULL) {
         dplasma_error("dplasma_zunglq", "dplasma not initialized");
         return -1;
@@ -191,5 +236,12 @@ dplasma_zunglq( dague_context_t *dague,
     if (dplasma_imin(Q->m, dplasma_imin(Q->n, A->n)) == 0)
         return 0;
 
-    return dplasma_zunmlq(dague, PlasmaRight, PlasmaNoTrans, A, T, Q);
+    dague_zunglq = dplasma_zunglq_New(A, T, Q);
+
+    if ( dague_zunglq != NULL ){
+        dague_enqueue(dague, dague_zunglq);
+        dplasma_progress(dague);
+        dplasma_zunglq_Destruct( dague_zunglq );
+    }
+    return 0;
 }
