@@ -741,9 +741,9 @@ dague_list_unchain( dague_list_t* list )
 {
     dague_list_item_t* head;
     dague_list_item_t* tail;
-    dague_atomic_lock(&list->atomic_lock);
     if( dague_list_nolock_is_empty(list) )
         return NULL;
+    dague_atomic_lock(&list->atomic_lock);
     head = (dague_list_item_t*)_HEAD(list);
     tail = (dague_list_item_t*)_TAIL(list);
     _HEAD(list) = _GHOST(list);
