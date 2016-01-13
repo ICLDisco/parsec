@@ -4,6 +4,16 @@
  *                         reserved.
  */
 
+/**
+ * This is a playground to transform Parameterized Task Graphs into insert_task type of
+ * programming model. As the PTG engine of PaRSEC generate ready tasks we insert them into
+ * a new DTD handle, and allow the new tasks to go through the system and eventually get
+ * executed. Upon completion each of these tasks will trigger the completion of the
+ * corresponding PTG task.
+ *
+ * The main complextity here is to synchronize the 2 dague_handle_t, the one that the upper
+ * level is manipulation (possible waiting on), and the one we create for internal purposes.
+ */
 #include "dague_config.h"
 #include "dague/mca/pins/pins.h"
 #include "pins_ptg_to_dtd.h"
@@ -15,8 +25,10 @@
 
 #include <stdio.h>
 
-/* Global list to push tasks in */
-dague_list_t *dtd_global_deque;
+/* list to push tasks in */
+static dague_list_t *dtd_global_deque = NULL;
+/* for testing purpose of automatic insertion from Awesome PTG approach */
+static dague_dtd_handle_t *__dtd_handle = NULL;
 
 /* Prototype of some of the static functions */
 static void pins_init_ptg_to_dtd(dague_context_t *master_context);
@@ -25,9 +37,6 @@ static void pins_handle_init_ptg_to_dtd(struct dague_handle_s *handle);
 static void pins_handle_fini_ptg_to_dtd(struct dague_handle_s *handle);
 static int fake_hook_for_testing(dague_execution_unit_t    *context,
                                  dague_execution_context_t *__this_task);
-
-/* for testing purpose of automatic insertion from Awesome PTG approach */
-dague_dtd_handle_t *__dtd_handle;
 
 const dague_pins_module_t dague_pins_ptg_to_dtd_module = {
     &dague_pins_ptg_to_dtd_component,
@@ -75,6 +84,7 @@ static void pins_init_ptg_to_dtd(dague_context_t *master_context)
 static void pins_fini_ptg_to_dtd(dague_context_t *master_context)
 {
     dague_dtd_fini();
+    OBJ_RELEASE(dtd_global_deque);
     (void)master_context;
 }
 
@@ -84,26 +94,35 @@ static int pins_handle_complete_callback(dague_handle_t* ptg_handle, void* void_
     dague_handle_t* dtd_handle = (dague_handle_t*)void_dtd_handle;
     dtd_threshold_size = 2;
     dague_execute_and_come_back(ptg_handle->context, dtd_handle);
+    dague_atomic_dec_32b(&dtd_handle->nb_local_tasks);
     return DAGUE_HOOK_RETURN_DONE;
 }
 
+/**
+ * This PINS callback is triggered everytime the PaRSEC runtime is notified
+ * about the eixtence of a new dague_handle_t. For each handle not corresponding
+ * to a DTD version, we create a DTD handle, a placeholder where all intermediary
+ * tasks will belong to. As we need to be informed about the completion of the PTG
+ * handle, we highjack the completion_callback and register our own function.
+ */
 static void pins_handle_init_ptg_to_dtd(dague_handle_t *ptg_handle)
 {
     if(ptg_handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
         return;
     }
-
+    assert(NULL == __dtd_handle);
     __dtd_handle = dague_dtd_handle_new(ptg_handle->context);
     copy_chores(ptg_handle, __dtd_handle);
     {
-        dague_event_cb_t lfct;
-        void* ldata;
+        dague_event_cb_t lfct = NULL;
+        void* ldata = NULL;
         dague_get_complete_callback(ptg_handle, &lfct, &ldata);
         if( NULL != lfct ) {
             dague_set_complete_callback((dague_handle_t*)__dtd_handle, lfct, ldata);
         }
         dague_set_complete_callback((dague_handle_t*)ptg_handle, pins_handle_complete_callback, __dtd_handle);
     }
+    dague_enqueue(ptg_handle->context, (dague_handle_t*)__dtd_handle);
 }
 
 static void pins_handle_fini_ptg_to_dtd(dague_handle_t *handle)
@@ -113,6 +132,7 @@ static void pins_handle_fini_ptg_to_dtd(dague_handle_t *handle)
     if(handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
         return;
     }
+    __dtd_handle = NULL;
 }
 
 /**
@@ -343,14 +363,10 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     }
 #endif /* defined(DAGUE_PROF_TRACE) */
 
-    /* task_insert_h_t(__dague_handle->task_h_table, task_id, temp_task, __dague_handle->task_h_size); */
     dague_atomic_add_32b((int *)&(__dague_handle->task_id),1);
 
     if((__dague_handle->task_id % __dague_handle->task_window_size) == 0 ) {
         schedule_tasks (__dague_handle);
-        /*if ( __dague_handle->task_window_size <= window_size ) {
-            __dague_handle->task_window_size *= 2;
-        }*/
     }
 }
 
@@ -382,6 +398,9 @@ static int
 fake_hook_for_testing(dague_execution_unit_t    *context,
                       dague_execution_context_t *this_task)
 {
+    static volatile uint32_t pins_ptg_to_dtd_atomic_lock = 0;
+    dague_list_item_t* local_list;
+
     /* We will try to push our tasks in the same Global Deque.
      * Then we will try to take ownership of the Global Deque and try to pull the tasks from there and build a list.
      */
@@ -389,11 +408,16 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
     dague_list_push_back( dtd_global_deque, (dague_list_item_t*)this_task );
 
     /* try to get ownership of global deque*/
-    if( !dague_atomic_trylock(&dtd_global_deque->atomic_lock) )
+    if( !dague_atomic_trylock(&pins_ptg_to_dtd_atomic_lock) )
         return DAGUE_HOOK_RETURN_ASYNC;
+  redo:
     /* Extract all the elements in the queue and then release the queue as fast as possible */
-    dague_list_item_t* local_list = dague_list_nolock_unchain(dtd_global_deque);
-    dague_atomic_unlock(&dtd_global_deque->atomic_lock);
+    local_list = dague_list_unchain(dtd_global_deque);
+
+    if( NULL == local_list ) {
+        dague_atomic_unlock(&pins_ptg_to_dtd_atomic_lock);
+        return DAGUE_HOOK_RETURN_ASYNC;
+    }
 
     /* Successful in ataining the lock, now we will pop all the tasks out of the list and put it
      * in our local list.
@@ -507,6 +531,5 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
         insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
                                              this_task, (char *)this_task->function->name, head_param);
     }
-
-    return DAGUE_HOOK_RETURN_ASYNC;
+    goto redo;
 }

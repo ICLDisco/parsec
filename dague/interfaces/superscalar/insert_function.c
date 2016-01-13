@@ -1273,25 +1273,6 @@ dague_dtd_handle_destruct(dague_dtd_handle_t *dague_handle)
 
 /* **************************************************************************** */
 /**
- * This function is called when the handle is enqueued in the context
- *
- * @param   context,__dague_handle,pready_list
- * @return
- *          0
- *
- * @ingroup DTD_INTERFACE_INTERNAL
- */
-static int
-dtd_startup_tasks( dague_context_t            *context,
-                   dague_dtd_handle_t         *dague_handle,
-                   dague_execution_context_t **pready_list )
-{
-    (void)context; (void)dague_handle; (void)pready_list;
-    return 0;
-}
-
-/* **************************************************************************** */
-/**
  * This is the hook that connects the function to start initial ready
  * tasks with the context. Called internally by PaRSEC.
  *
@@ -1334,8 +1315,7 @@ dtd_startup( dague_context_t            *context,
         supported_dev |= (1 << device->type);
         dague_handle->devices_mask |= (1 << _i);
     }
-
-    dtd_startup_tasks(context, (dague_dtd_handle_t *) dague_handle, pready_list);
+    (void)pready_list;
 }
 
 /* **************************************************************************** */
