@@ -4007,7 +4007,6 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     string_arena_t *sa_tmp_displ  = string_arena_new(256);
     string_arena_t *sa_layout     = string_arena_new(256);
     string_arena_t *sa_tmp_layout = string_arena_new(256);
-    string_arena_t *sa_temp       = string_arena_new(1024);
     string_arena_t *sa_cond       = string_arena_new(256);
     int last_datatype_idx, continue_dependencies, type;
     uint32_t mask_in = 0, mask_out = 0, current_mask = 0;
@@ -4076,6 +4075,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
             if( last_datatype_idx != dl->dep_datatype_index ) {
                 JDF_CODE_DATATYPE_DUMP(sa_coutput, current_mask, sa_cond, sa_datatype);
 
+                int updated = 0;
                 string_arena_init(sa_tmp_type);
                 create_arena_from_datatype(sa_tmp_type, dl->datatype);
                 string_arena_init(sa_tmp_layout);
@@ -4093,34 +4093,39 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                     string_arena_init(sa_type);
                     /* The type might change (possibly from undefined), so let's output */
                     string_arena_add_string(sa_type, "%s", string_arena_get_string(sa_tmp_type));
-                    string_arena_add_string(sa_temp, "    data->arena  = %s;\n", string_arena_get_string(sa_type));
                     /* As we change the arena force the reset of the layout */
                     string_arena_init(sa_layout);
+                    updated = 1;
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
                     /* Same thing: the memory layout may change at anytime */
                     string_arena_init(sa_layout);
                     string_arena_add_string(sa_layout, "%s", string_arena_get_string(sa_tmp_layout));
-                    string_arena_add_string(sa_temp, "    data->layout = %s;\n", string_arena_get_string(sa_tmp_layout));
+                    updated = 1;
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_nbelt), string_arena_get_string(sa_nbelt)) ) {
                     /* Same thing: the number of transmitted elements may change at anytime */
                     string_arena_init(sa_nbelt);
                     string_arena_add_string(sa_nbelt, "%s", string_arena_get_string(sa_tmp_nbelt));
-                    string_arena_add_string(sa_temp, "    data->count  = %s;\n", string_arena_get_string(sa_tmp_nbelt));
+                    updated = 1;
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_displ), string_arena_get_string(sa_displ)) ) {
                     /* Same thing: the displacement may change at anytime */
                     string_arena_init(sa_displ);
                     string_arena_add_string(sa_displ, "%s", string_arena_get_string(sa_tmp_displ));
-                    string_arena_add_string(sa_temp, "    data->displ  = %s;\n", string_arena_get_string(sa_tmp_displ));
+                    updated = 1;
                 }
-
-                string_arena_init(sa_datatype);
-                if( strlen(string_arena_get_string(sa_temp)) ) {
+                if( updated ) {
+                    string_arena_init(sa_datatype);
                     string_arena_add_string(sa_datatype,
-                                            "%s", string_arena_get_string(sa_temp));
-                    string_arena_init(sa_temp);
+                                            "    data->arena  = %s;\n"
+                                            "    data->layout = %s;\n"
+                                            "    data->count  = %s;\n"
+                                            "    data->displ  = %s;\n",
+                                            string_arena_get_string(sa_type),
+                                            string_arena_get_string(sa_layout),
+                                            string_arena_get_string(sa_nbelt),
+                                            string_arena_get_string(sa_displ));
                 }
                 last_datatype_idx = dl->dep_datatype_index;
             }
@@ -4148,7 +4153,15 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
         coutput("%s", string_arena_get_string(sa_coutput));
     }
 
-    coutput("  data->arena  = NULL;\n"
+    if( type == JDF_DEP_FLOW_IN ) {
+        coutput("    goto no_mask_match;\n"
+                "  }  /* input flows */\n");
+        type = JDF_DEP_FLOW_OUT;
+        goto redo;
+    }
+
+    coutput(" no_mask_match:\n"
+            "  data->arena  = NULL;\n"
             "  data->data   = NULL;\n"
             "  data->layout = NULL;\n"
             "  data->count  = 0;\n"
@@ -4156,15 +4169,9 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
             "  (*flow_mask) = 0;  /* nothing left */\n"
             "%s"
             "  return DAGUE_HOOK_RETURN_DONE;\n"
-            "}%s\n",
-            type == JDF_DEP_FLOW_OUT ? UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                                            dump_string, NULL, "", "  (void)", ";", ";\n") : "",
-            type == JDF_DEP_FLOW_IN ? "  /* input flows */\n" : "");
-    if( type == JDF_DEP_FLOW_IN ) {
-        type = JDF_DEP_FLOW_OUT;
-        goto redo;
-    }
-
+            "}\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
     string_arena_free(sa);
     string_arena_free(sa2);
 }
