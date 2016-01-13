@@ -2436,7 +2436,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "   * and if at least one value is defined, allocate arrays to point\n"
             "   * to it. Array dimensions are defined by the (rough) observation above\n"
             "   **/\n"
-            "  DEBUG3((\"Allocating dependencies array for %s\\n\"));\n", fname);
+            "  DEBUG3((\"Allocating dependencies array for %s (nb_tasks = %%d)\\n\", nb_tasks));\n", fname);
 
     coutput("%s  if( 0 != nb_tasks ) {\n", indent(nesting));
     if( f->parameters->next == NULL ) {
