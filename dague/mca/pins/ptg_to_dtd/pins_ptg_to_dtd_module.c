@@ -370,27 +370,25 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     }
 }
 
-/* To copy the dague_context_t of the predecessor needed for tracking control flow
- *
+/**
+ * To copy the dague_context_t of the predecessor needed for tracking control flow
  */
-static dague_ontask_iterate_t copy_content(dague_execution_unit_t *eu,
-                const dague_execution_context_t *newcontext,
-                const dague_execution_context_t *oldcontext,
-                const dep_t *dep, dague_dep_data_description_t *data,
-                int src_rank, int dst_rank, int dst_vpid, void *param)
+static dague_ontask_iterate_t
+copy_content(dague_execution_unit_t *eu,
+             const dague_execution_context_t *newcontext,
+             const dague_execution_context_t *oldcontext,
+             const dep_t *dep, dague_dep_data_description_t *data,
+             int src_rank, int dst_rank, int dst_vpid, void *param)
 {
-    (void)eu; (void)newcontext; (void)oldcontext; (void)dep; (void)data; (void)src_rank;
-    (void)dst_rank; (void)dst_vpid; (void)param;
+    dague_execution_context_t* my_task = (dague_execution_context_t*)param;
     /* assinging 1 to "unused" field in dague_context_t of the successor to indicate we found a predecesor */
     uint8_t *val = (uint8_t *) &(oldcontext->unused[0]);
     *val += 1;
 
     /* Saving the flow index of the parent in the "unused" field of the predecessor */
-    uint8_t *val1 = (uint8_t *) &(newcontext->unused[0]);
-    dague_flow_t* parent_outflow = (dague_flow_t*)(dep->flow);
-    *val1 = parent_outflow->flow_index;
-
-    memcpy(param, newcontext, sizeof(dague_execution_context_t));
+    memcpy(my_task, newcontext, sizeof(dague_execution_context_t));
+    my_task->unused[0] = dep->flow->flow_index;
+    (void)eu; (void)data; (void)src_rank; (void)dst_rank; (void)dst_vpid;
     return DAGUE_ITERATE_STOP;
 }
 
@@ -438,7 +436,6 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
 
         for (i=0; this_task->function->in[i] != NULL ; i++) {
 
-            dague_data_copy_t* copy;
             tmp_op_type = this_task->function->in[i]->flow_flags;
             int op_type, pred_found = 0;
 
@@ -452,12 +449,13 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                 op_type = INOUT | REGION_FULL;
 
                 this_task->unused[0] = 0;
-                this_task->function->iterate_predecessors(context, this_task,  1 << i, copy_content, (void*)&T1);
+                this_task->function->iterate_predecessors(context, this_task, (1 << i),
+                                                          copy_content, (void*)&T1);
                 if (this_task->unused[0] != 0) {
                     pred_found = 1;
-                    uint64_t id = T1.function->key(T1.dague_handle, T1.locals);
-                    entry = data_repo_lookup_entry(T1.dague_handle->repo_array[T1.function->function_id], id);
-                    copy = entry->data[T1.unused[0]];
+                    entry = data_repo_lookup_entry(T1.dague_handle->repo_array[T1.function->function_id],
+                                                   T1.function->key(T1.dague_handle, T1.locals));
+                    dague_data_copy_t* copy = entry->data[T1.unused[0]];
                     ddesc = (dague_ddesc_t *)copy->original;
                     key   =  copy->original->key;
                 } else {
