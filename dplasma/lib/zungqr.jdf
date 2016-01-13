@@ -29,17 +29,18 @@ KT2       [type = "int" hidden = on default = "dplasma_imin( KT, descQ.mt-2 )" ]
 
 zlaset(m, n) [profile = off]
   /* Execution Space */
-  m = 0 .. descQ.mt-1
-  n = 0 .. descQ.nt-1
-  k = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
+  m  = 0 .. descQ.mt-1
+  n  = 0 .. descQ.nt-1
+  k  = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
+  cq = inline_c %{ return ((descQ.mt == descA.nt) & (m == (descQ.mt-1)) & (n == (descQ.mt-1))); %}
 
   /* Locality */
   : dataQ(m,n)
 
   READ  A    <- dataQ(m,n)
-             ->  ((descQ.mt == descA.nt) & (m == (descQ.mt-1)) & (n == (descQ.mt-1))) ? C zunmqr(k, n)
-             -> (((descQ.mt != descA.nt) | (m != (descQ.mt-1)) | (n != (descQ.mt-1))) & (n >= m)) ? A1 ztsmqr(k, descQ.mt-1, n)
-             -> (((descQ.mt != descA.nt) | (m != (descQ.mt-1)) | (n != (descQ.mt-1))) & (n <  m)) ? A2 ztsmqr(k, m,          n)
+             ->  cq ? C zunmqr(k, n)
+             -> (!cq & ((m <= KT) & (n >= m))) ? A1 ztsmqr(k, descQ.mt-1, n)
+             -> (!cq & ((m >  KT) | (n <  m))) ? A2 ztsmqr(k, m,          n)
 
 BODY
 {

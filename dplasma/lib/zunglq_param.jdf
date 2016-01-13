@@ -37,13 +37,14 @@ zlaset(m, n) [profile = off]
   n = 0 .. descQ.nt-1
   k     = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
   prevn = inline_c %{ return qrtree.prevpiv(&qrtree, k, n, n); %}
+  cc    = inline_c %{ return ((descQ.nt == descA.mt) & (m == (descQ.nt-1)) & (n == (descQ.nt-1))); %}
 
   : dataQ(m,n)
 
   READ  A    <- dataQ(m,n)
-             ->  ((descQ.nt == descA.mt) & (m == (descQ.nt-1)) & (n == (descQ.nt-1))) ? C zunmlq(k, 0, m)
-             -> (((descQ.nt != descA.mt) | (m != (descQ.nt-1)) | (n != (descQ.nt-1))) & (m >= n)) ? A1 zttmlq(k, m, prevn)
-             -> (((descQ.nt != descA.mt) | (m != (descQ.nt-1)) | (n != (descQ.nt-1))) & (m <  n)) ? A2 zttmlq(k, m, n    )
+             ->   cc ? C zunmlq(k, 0, m)
+             -> (!cc & ((n <= KT) & (m >= n))) ? A1 zttmlq(k, m, prevn)
+             -> (!cc & ((n >  KT) | (m <  n))) ? A2 zttmlq(k, m, n    )
 
 BODY
 {
