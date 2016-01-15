@@ -40,7 +40,11 @@ for fn in sys.argv:
                             history[entry_key] += "  " + mline.group()
                         else:
                             print("Reference on Allocation\n  " + mline.group())
-                            print("has no initial allocation line (doing something on an entry that was already freed, or that was never allocated)\n")
+                            if entry_key in history:
+                                print("has no initial allocation line: doing something on an entry that was already freed with following history:\n"+
+                                      history[entry_key])
+                            else:
+                                print("has no initial allocation line: doing something on an entry that was never allocated\n")
                             sys.exit(1)
                     else:
                         mline = free_re.match(line)
@@ -73,7 +77,7 @@ for fn in sys.argv:
                     if key in history:
                         print(history[key])
                     else:
-                        print("  Has no history")
+                        print("  Has no history (this should never happen)")
                     print("\n")
             else:
                 print("No issue found with trace " + fn )
