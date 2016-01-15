@@ -755,7 +755,7 @@ static void dague_cuda_memory_release_list(gpu_device_t* gpu_device,
                      gpu_device->cuda_index, original->key));
         }
 #if defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-        cuMemFree( (CUdeviceptr)gpu_copy->device_private );
+        cudaFree( gpu_copy->device_private );
 #else
         zone_free( gpu_device->memory, (void*)gpu_copy->device_private );
 #endif
