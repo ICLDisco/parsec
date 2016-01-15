@@ -106,7 +106,7 @@ static int dague_cuda_device_fini(dague_device_t* device)
         for( k = 0; k < exec_stream->max_events; k++ ) {
             assert( NULL == exec_stream->tasks[k] );
             status = cudaEventDestroy(exec_stream->events[k]);
-            DAGUE_CUDA_CHECK_ERROR( "(FINI) cudaEventDestroy ", status,
+            DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_device_fini) cudaEventDestroy ", status,
                                     {continue;} );
         }
         free(exec_stream->events); exec_stream->events = NULL;
@@ -780,7 +780,7 @@ static void dague_cuda_memory_release_list(gpu_device_t* gpu_device,
 static int
 dague_cuda_memory_release( gpu_device_t* gpu_device )
 {
-    CUresult status;
+    cudaError_t status;
 
 #if 0
     dump_GPU_state(gpu_device); // debug only
@@ -796,7 +796,7 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
     if( gpu_device->memory ) {
         void* ptr = zone_malloc_fini(&gpu_device->memory);
-        status = (CUresult)cudaFree(ptr);
+        status = cudaFree(ptr);
         DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_release) cudaFree ", status,
                                 { WARNING(("Failed to free the GPU backend memory.\n")); } );
     }
@@ -1389,8 +1389,8 @@ int progress_stream( gpu_device_t* gpu_device,
             task = NULL;  /* Try to schedule another task */
             goto grab_a_task;
         }
-        if( CUDA_ERROR_NOT_READY != rc ) {
-            DAGUE_CUDA_CHECK_ERROR( "cuEventQuery ", rc,
+        if( cudaErrorNotReady != rc ) {
+            DAGUE_CUDA_CHECK_ERROR( "(progress_stream) cudaEventQuery ", rc,
                                     {return -1;} );
         }
     }
