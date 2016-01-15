@@ -4163,7 +4163,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     coutput(" no_mask_match:\n"
             "  data->arena  = NULL;\n"
             "  data->data   = NULL;\n"
-            "  data->layout = NULL;\n"
+            "  data->layout = DAGUE_DATATYPE_NULL;\n"
             "  data->count  = 0;\n"
             "  data->displ  = 0;\n"
             "  (*flow_mask) = 0;  /* nothing left */\n"
