@@ -38,7 +38,7 @@ typedef void (*cublas_ztsmqr_t) ( PLASMA_enum side, PLASMA_enum trans,
                                   dague_complex64_t *T, int LDT,
                                   dague_complex64_t *WORK,  int LDWORK,
                                   dague_complex64_t *WORKC, int LDWORKC,
-                                  CUstream stream );
+                                  cudaStream_t stream );
 #else
 typedef cublas_status_t (*cublas_ztsmqr_t) ( PLASMA_enum side, PLASMA_enum trans,
                                              int M1, int N1, int M2, int N2, int K, int IB,
@@ -186,7 +186,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_ztsmqr_args_t        *args = (dague_ztsmqr_args_t*)gpu_task;
-    CUdeviceptr d_A1, d_A2, d_V, d_T, WORK, WORKC;
+    void *d_A1, *d_A2, *d_V, *d_T, *WORK, *WORKC;
     cublasStatus_t status;
 #if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
@@ -197,13 +197,13 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
     assert( NULL != cuda_fnztsmqr );
 
     assert(this_task->data[flow_A1].data_out->device_index == gpu_device->super.device_index);
-    d_A1 = (CUdeviceptr)this_task->data[flow_A1].data_out->device_private;
+    d_A1 = this_task->data[flow_A1].data_out->device_private;
     assert(this_task->data[flow_A2].data_out->device_index == gpu_device->super.device_index);
-    d_A2 = (CUdeviceptr)this_task->data[flow_A2].data_out->device_private;
+    d_A2 = this_task->data[flow_A2].data_out->device_private;
     assert(this_task->data[flow_V].data_out->device_index == gpu_device->super.device_index);
-    d_V  = (CUdeviceptr)this_task->data[flow_V].data_out->device_private;
+    d_V  = this_task->data[flow_V].data_out->device_private;
     assert(this_task->data[flow_T].data_out->device_index == gpu_device->super.device_index);
-    d_T  = (CUdeviceptr)this_task->data[flow_T].data_out->device_private;
+    d_T  = this_task->data[flow_T].data_out->device_private;
 
     if ( args->side == PlasmaLeft ) {
         Wn = args->N1;
@@ -214,8 +214,8 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
         Wld = args->M1;
     }
 
-    WORK  = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, Wn * Wld * sizeof(dague_complex64_t));
-    WORKC = (CUdeviceptr)dague_gpu_pop_workspace(gpu_device, gpu_stream, args->M2 * args->IB * sizeof(dague_complex64_t));
+    WORK  = dague_gpu_pop_workspace(gpu_device, gpu_stream, Wn * Wld * sizeof(dague_complex64_t));
+    WORKC = dague_gpu_pop_workspace(gpu_device, gpu_stream, args->M2 * args->IB * sizeof(dague_complex64_t));
 
     DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),

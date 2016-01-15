@@ -49,7 +49,7 @@ int dplasma_cuda_zparfb(PLASMA_enum side, PLASMA_enum trans,
                         const dague_complex64_t *T, int LDT,
                         dague_complex64_t *WORK, int LDWORK,
                         dague_complex64_t *WORKC, int LDWORKC,
-                        CUstream stream);
+                        cudaStream_t stream);
 
 int dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
                          int M1, int N1,
@@ -61,7 +61,7 @@ int dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
                          const dague_complex64_t *T, int LDT,
                          dague_complex64_t *WORK, int LDWORK,
                          dague_complex64_t *WORKC, int LDWORKC,
-                         CUstream stream);
+                         cudaStream_t stream);
 #endif /* defined(HAVE_CUDA) */
 
 #endif /* _DPLASMA_Z_CORES_ */
