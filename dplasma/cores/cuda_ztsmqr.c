@@ -294,10 +294,12 @@ gpu_kernel_pop_ztsmqr( gpu_device_t        *gpu_device,
         for( i = 0; i < 1; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             original = gpu_copy->original;
-            status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
-                                                     (CUdeviceptr)gpu_copy->device_private,
-                                                     original->nb_elts, gpu_stream->cuda_stream );
-            DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
+            status = cudaMemcpyAsync( original->device_copies[0]->device_private,
+                                      gpu_copy->device_private,
+                                      original->nb_elts,
+                                      cudaMemcpyDeviceToHost,
+                                      gpu_stream->cuda_stream );
+            DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
                                     { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                gpu_copy->device_private, original->device_copies[0]->device_private));
                                         return_code = -2;
@@ -350,10 +352,12 @@ gpu_kernel_pop_ztsmqr( gpu_device_t        *gpu_device,
                                           gpu_stream->prof_event_key_start),
                                          this_task);
                 /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
-                                                         (CUdeviceptr)gpu_copy->device_private,
-                                                         original->nb_elts, gpu_stream->cuda_stream );
-                DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
+                status = cudaMemcpyAsync( original->device_copies[0]->device_private,
+                                          gpu_copy->device_private,
+                                          original->nb_elts,
+                                          cudaMemcpyDeviceToHost,
+                                          gpu_stream->cuda_stream );
+                DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
                                         { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                    gpu_copy->device_private, original->device_copies[0]->device_private));
                                             return_code = -2;

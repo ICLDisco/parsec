@@ -142,10 +142,12 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
                 first = 0;
             }
             /* TODO: Move the data back into main memory, but not always on the first device (!) */
-            status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
-                                                     (CUdeviceptr)gpu_copy->device_private,
-                                                     original->nb_elts, gpu_stream->cuda_stream );
-            DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
+            status = cudaMemcpyAsync( original->device_copies[0]->device_private,
+                                      gpu_copy->device_private,
+                                      original->nb_elts,
+                                      cudaMemcpyDeviceToHost,
+                                      gpu_stream->cuda_stream );
+            DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
                                     { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                gpu_copy->device_private, original->device_copies[0]->device_private));
                                         return_code = -2;
