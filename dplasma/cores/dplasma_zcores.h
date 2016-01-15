@@ -38,6 +38,8 @@ int dplasma_core_zgeadd(PLASMA_enum trans, int M, int N,
 
 #if defined(HAVE_CUDA)
 #include <cuda.h>
+#include <cuda_runtime_api.h>
+
 int dplasma_cuda_zparfb(PLASMA_enum side, PLASMA_enum trans,
                         PLASMA_enum direct, PLASMA_enum storev,
                         int M1, int N1,

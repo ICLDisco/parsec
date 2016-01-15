@@ -552,7 +552,7 @@ int dague_gpu_init(dague_context_t *dague_context)
         dague_devices_add(dague_context, &(gpu_device->super));
     }
 
-#if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS) & 0
+#if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     for( i = 0; i < ndevices; i++ ) {
         gpu_device_t *source_gpu, *target_gpu;
         CUdevice source, target;
@@ -563,34 +563,23 @@ int dague_gpu_init(dague_context_t *dague_context)
         if( DAGUE_DEV_CUDA != source_gpu->super.type ) continue;
 
         source_gpu->peer_access_mask = 0;
-        custatus = cuDeviceGet( &source, source_gpu->cuda_index );
-        DAGUE_CUDA_CHECK_ERROR( "No peer memory access: cuDeviceGet ", custatus, {continue;} );
-        custatus = cuCtxPushCurrent( source_gpu->ctx );
-        DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_init) cuCtxPushCurrent ", custatus,
-                                {continue;} );
 
         for( j = 0; j < ndevices; j++ ) {
             if( (NULL == (target_gpu = (gpu_device_t*)dague_devices_get(j))) || (i == j) ) continue;
             /* Skip all non CUDA devices */
             if( DAGUE_DEV_CUDA != target_gpu->super.type ) continue;
 
-            custatus = cuDeviceGet( &target, target_gpu->cuda_index );
-            DAGUE_CUDA_CHECK_ERROR( "No peer memory access: cuDeviceGet ", custatus, {continue;} );
-
             /* Communication mask */
-            custatus = cuDeviceCanAccessPeer( &canAccessPeer, source, target );
-            DAGUE_CUDA_CHECK_ERROR( "cuDeviceCanAccessPeer ", custatus,
+            cudastatus = cudaDeviceCanAccessPeer( &canAccessPeer, source_gpu->cuda_index, target_gpu->cuda_index );
+            DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_init) cudaDeviceCanAccessPeer ", cudastatus,
                                     {continue;} );
             if( 1 == canAccessPeer ) {
-                custatus = cuCtxEnablePeerAccess( target_gpu->ctx, 0 );
-                DAGUE_CUDA_CHECK_ERROR( "cuCtxEnablePeerAccess ", custatus,
+                cudastatus = cudaDeviceEnablePeerAccess( target_gpu->cuda_index, 0 );
+                DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_init) cuCtxEnablePeerAccess ", cudastatus,
                                         {continue;} );
                 source_gpu->peer_access_mask = (int16_t)(source_gpu->peer_access_mask | (int16_t)(1 << target_gpu->cuda_index));
             }
         }
-        custatus = cuCtxPopCurrent(NULL);
-        DAGUE_CUDA_CHECK_ERROR( "(dague_gpu_init) cuCtxPopCurrent ", custatus,
-                                {continue;} );
     }
 #endif
 
