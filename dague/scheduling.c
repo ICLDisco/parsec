@@ -148,9 +148,9 @@ int __dague_execute( dague_execution_unit_t* eu_context,
 
     PINS(eu_context, EXEC_BEGIN, exec_context);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
-    /**
-     * Try all the incarnations until one agree to execute.
-     */
+    /* Let's assume everything goes just fine */
+    exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
+    /* Try all the incarnations until one agree to execute. */
     do {
 #if DAGUE_DEBUG_VERBOSE != 0
         DEBUG(("thread %d of VP %d Execute %s[%d]\n",
@@ -164,6 +164,8 @@ int __dague_execute( dague_execution_unit_t* eu_context,
         }
         exec_context->chore_id++;
     } while(NULL != function->incarnations[exec_context->chore_id].hook);
+    /* We failed to execute. Give it another chance ... */
+    exec_context->status = DAGUE_TASK_STATUS_HOOK;
     /* We're out of luck, no more chores */
     PINS(eu_context, EXEC_END, exec_context);
     return DAGUE_HOOK_RETURN_ERROR;
@@ -446,9 +448,9 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
                     __dague_schedule(eu_context, exec_context);
                     exec_context = NULL;
                     break;
-                case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach, the completion will
-                                                 * be triggered asynchronously. */
-                    exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
+                case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                                 * even try to change it's state, the completion
+                                                 * will be triggered asynchronously. */
                     break;
                 case DAGUE_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
                 case DAGUE_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
@@ -458,8 +460,9 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
                 nbiterations++;
                 break;
             }
-            case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach, the completion will
-                                             * be triggered asynchronously. */
+            case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                             * even try to change it's state, the completion
+                                             * will be triggered asynchronously. */
                 break;
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
