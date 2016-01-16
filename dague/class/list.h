@@ -750,8 +750,8 @@ dague_list_unchain( dague_list_t* list )
     tail = (dague_list_item_t*)_TAIL(list);
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
-    dague_atomic_unlock(&list->atomic_lock);
     dague_list_item_ring(head, tail);
+    dague_atomic_unlock(&list->atomic_lock);
     return head;
 }
 
