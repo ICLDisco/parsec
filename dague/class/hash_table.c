@@ -86,7 +86,7 @@ hash_table_insert
  * Returns:
  */
 void *
-hash_table_find
+hash_table_find_no_lock
 ( hash_table *hash_table,
   uint64_t key, uint32_t hash )
 {
@@ -117,10 +117,10 @@ hash_table_remove
   uint64_t key, uint32_t hash )
 {
     dague_list_t *item_list = hash_table->item_list[hash];
-    dague_list_item_t *current_item = hash_table_find ( hash_table, key, hash );
+    dague_list_lock ( item_list );
+    dague_list_item_t *current_item = hash_table_find_no_lock ( hash_table, key, hash );
 
     if( current_item != NULL ) {
-        dague_list_lock ( item_list );
         OBJ_RELEASE(current_item);
         if( current_item->super.obj_reference_count == 1 ) {
 #if defined(DAGUE_DEBUG_ENABLE)
@@ -131,8 +131,8 @@ hash_table_remove
             assert(current_item->refcount == 0);
 #endif
         }
-        dague_list_unlock ( item_list );
     }
+    dague_list_unlock ( item_list );
 
     return current_item;
 }
