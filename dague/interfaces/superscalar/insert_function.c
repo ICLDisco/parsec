@@ -378,6 +378,7 @@ void
 dague_execute_and_come_back(dague_context_t *context,
                             dague_handle_t *dague_handle)
 {
+    dague_dtd_handle_t *dtd_handle = (dague_dtd_handle_t *)dague_handle;
     uint64_t misses_in_a_row;
     dague_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
     dague_execution_context_t* exec_context;
@@ -401,7 +402,7 @@ dague_execute_and_come_back(dague_context_t *context,
         dague_barrier_wait( &(context->barrier) );
     }
 
-    while(dague_handle->nb_local_tasks > dtd_threshold_size ) {
+    while(dague_handle->nb_local_tasks > dtd_handle->task_threshold_size ) {
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             nanosleep(&rqtp, NULL);
@@ -512,10 +513,10 @@ dague_dtd_handle_wait( dague_context_t     *dague,
     /* Scheduling all the remaining tasks */
     schedule_tasks (dague_handle);
 
-    uint32_t tmp_threshold = dtd_threshold_size;
-    dtd_threshold_size = 1;
+    uint32_t tmp_threshold = dague_handle->task_threshold_size;
+    dague_handle->task_threshold_size = 1;
     dague_execute_and_come_back (dague_handle->super.context, &dague_handle->super);
-    dtd_threshold_size = tmp_threshold;
+    dague_handle->task_threshold_size = tmp_threshold;
 }
 
 /* **************************************************************************** */
@@ -722,7 +723,7 @@ dague_dtd_task_find_internal( dague_dtd_handle_t  *dague_handle,
     hash_table *hash_table      =  dague_handle->task_h_table;
     uint32_t    hash            =  hash_table->hash( key, hash_table->size );
 
-    return hash_table_find ( hash_table, key, hash );
+    return hash_table_find_no_lock ( hash_table, key, hash );
 }
 
 /* **************************************************************************** */
@@ -825,7 +826,7 @@ dague_dtd_function_find_internal( dague_dtd_handle_t  *dague_handle,
     hash_table *hash_table      =  dague_handle->function_h_table;
     uint32_t    hash            =  hash_table->hash( (uint64_t)key, hash_table->size );
 
-    return (dague_generic_bucket_t *)hash_table_find ( hash_table, (uint64_t)key, hash );
+    return (dague_generic_bucket_t *)hash_table_find_no_lock ( hash_table, (uint64_t)key, hash );
 }
 
 /* **************************************************************************** */
@@ -944,7 +945,7 @@ dague_dtd_tile_find( dague_dtd_handle_t *dague_handle, uint32_t key,
     dague_list_t *list = hash_table->item_list[hash];
 
     dague_list_lock( list );
-    dague_dtd_tile_t *tile = hash_table_find ( hash_table, combined_key, hash );
+    dague_dtd_tile_t *tile = hash_table_find_no_lock ( hash_table, combined_key, hash );
     if( NULL != tile ) {
         OBJ_RETAIN(tile);
     }
@@ -1167,7 +1168,7 @@ dague_dtd_handle_t *
 dague_dtd_handle_new( dague_context_t *context)
 {
     if (dump_traversal_info) {
-        printf("------ New Handle -----\n\n\n");
+        printf("\n\n------ New Handle -----\n\n\n");
     }
 
     my_rank = context->my_rank;
@@ -1201,6 +1202,7 @@ dague_dtd_handle_new( dague_context_t *context)
 
     __dague_handle->task_id               = 0;
     __dague_handle->task_window_size      = 1;
+    __dague_handle->task_threshold_size   = dtd_threshold_size;
     __dague_handle->function_counter      = 0;
 
     (void)dague_handle_reserve_id((dague_handle_t *) __dague_handle);
@@ -1333,7 +1335,7 @@ static int
 dtd_is_ready(const dague_dtd_task_t *dest)
 {
     dague_dtd_task_t *dest_task = (dague_dtd_task_t*)dest;
-    if ( dest_task->flow_count == dague_atomic_inc_32b((uint32_t *)&(dest_task->flow_satisfied))) {
+    if ( 0 == dague_atomic_add_32b((int *)&(dest_task->flow_count), -1) ) {
         return 1;
     }
     return 0;
@@ -1406,10 +1408,6 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
                    current_task->super.function->nb_flows, current_task->flow_count);
         }
 
-#if defined (OVERLAP)
-        if( dague_atomic_cas(&(current_task->ready_mask), 0, 1) ) {
-#endif
-
 #if defined(DEBUG_HEAVY)
             dague_dtd_task_release( (dague_dtd_handle_t *)current_task->super.dague_handle,
                                     current_task->super.super.key );
@@ -1420,11 +1418,6 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
                                                   &current_task->super.super.list_item,
                                                   dague_execution_context_priority_comparator );
             return DAGUE_ITERATE_CONTINUE; /* Returns the status of the task being activated */
-#if defined (OVERLAP)
-        }else {
-            return DAGUE_ITERATE_STOP;
-        }
-#endif
     } else {
         return DAGUE_ITERATE_STOP;
     }
@@ -2003,7 +1996,7 @@ set_descendant(dague_dtd_task_t *parent_task, uint8_t parent_flow_index,
  * @ingroup         DTD_INTERFACE_INTERNAL
  */
 void
-set_task(dague_dtd_task_t *this_task, void *tmp, dague_dtd_tile_t *tile,
+set_task(dague_dtd_task_t *this_task, void *tmp, dague_dtd_tile_t *tile, int *satisfied_flow,
          int tile_op_type, dague_dtd_task_param_t *current_param,
          uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val,
          dague_dtd_handle_t *__dague_handle, int *flow_index, int *next_arg)
@@ -2057,11 +2050,7 @@ set_task(dague_dtd_task_t *this_task, void *tmp, dague_dtd_tile_t *tile,
                                tile_op_type);
                 /* Are we using the same data multiple times for the same task? */
                 if(last_user.task == this_task) {
-#if defined (OVERLAP)
-                    dague_atomic_add_32b((int *)&(this_task->flow_satisfied),1);
-#else
-                    this_task->flow_satisfied++;
-#endif
+                    *satisfied_flow += 1;
                 }
 #if defined (WILL_USE_IN_DISTRIBUTED)
                 if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
@@ -2081,11 +2070,7 @@ set_task(dague_dtd_task_t *this_task, void *tmp, dague_dtd_tile_t *tile,
                 }
 #endif
             } else {  /* parentless */
-#if defined (OVERLAP)
-                dague_atomic_add_32b((int *)&(this_task->flow_satisfied),1);
-#else
-                this_task->flow_satisfied++;
-#endif
+                *satisfied_flow += 1;
 
                 if(INPUT == (tile_op_type & GET_OP_TYPE) || ATOMIC_WRITE == (tile_op_type & GET_OP_TYPE)) {
                     /* Saving the Flow for which a Task is the first one to
@@ -2223,9 +2208,7 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     this_task->super.super.key = dague_atomic_add_32b((int *)&(__dague_handle->task_id),1);
     this_task->belongs_to_function = function->function_id;
     this_task->super.function = __dague_handle->super.functions_array[(this_task->belongs_to_function)];
-    this_task->flow_satisfied = 0;
     this_task->orig_task = NULL;
-    this_task->ready_mask = 0;
     this_task->flow_count = this_task->super.function->nb_flows;
     this_task->fpointer = fpointer;
     this_task->super.priority = 0;
@@ -2348,9 +2331,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     this_task->super.super.key = dague_atomic_add_32b((int *)&(__dague_handle->task_id),1);
     this_task->belongs_to_function = function->function_id;
     this_task->super.function = __dague_handle->super.functions_array[(this_task->belongs_to_function)];
-    this_task->flow_satisfied = 0;
     this_task->orig_task = NULL;
-    this_task->ready_mask = 0;
 #if defined(OVERLAP)
     /* +1 to make sure the task is completely ready before it gets executed */
     this_task->flow_count = this_task->super.function->nb_flows+1;
@@ -2370,13 +2351,14 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     next_arg = va_arg(args, int);
 
+    int satisfied_flow = 0;
     while(next_arg != 0) {
         tmp = va_arg(args, void *);
         tile = (dague_dtd_tile_t *) tmp;
         tile_op_type = va_arg(args, int);
         current_param->tile_type_index = REGION_FULL;
 
-        set_task(this_task, tmp, tile,
+        set_task(this_task, tmp, tile, &satisfied_flow,
                  tile_op_type, current_param,
                  __dague_handle->flow_set_flag, &current_val,
                  __dague_handle, &flow_index, &next_arg);
@@ -2411,7 +2393,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
 #if defined (OVERLAP)
     /* in attempt to make the task not ready till the whole body is constructed */
-    dague_atomic_add_32b((int *)&(this_task->flow_satisfied),1);
+    satisfied_flow++;
 #endif
 
     if(!__dague_handle->super.context->active_objects) {
@@ -2419,11 +2401,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     }
 
     /* Building list of initial ready task */
-    if(this_task->flow_count == this_task->flow_satisfied) {
-#if defined (OVERLAP)
-        if( dague_atomic_cas(&(this_task->ready_mask), 0, 1) )
-#endif
-        {
+    if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), (-1*satisfied_flow)) ) {
 #if defined(DEBUG_HEAVY)
             dague_dtd_task_release( __dague_handle, this_task->super.super.key );
 #endif
@@ -2434,7 +2412,6 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
             }
             __dague_handle->startup_list[vpid] = (dague_execution_context_t*)this_task;
             vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
-        }
     }
 
 #if defined(DAGUE_PROF_TRACE)
