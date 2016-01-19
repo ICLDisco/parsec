@@ -27,7 +27,7 @@ BEGIN_C_DECLS
 extern int dump_traversal_info; /* For printing traversal info */
 extern int dump_function_info; /* For printing function_structure info */
 extern int testing_ptg_to_dtd; /* to detect ptg testing dtd */
-extern int window_size;
+extern int dtd_window_size;
 extern int my_rank;
 
 #define GET_TASK_PTR(TASK) (dague_dtd_task_t *)(((uintptr_t)TASK) & 0xFFFFFFFFFFFFFFF0)
@@ -62,8 +62,6 @@ struct dague_dtd_task_s {
     dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
     int                         flow_count;
-    int                         flow_satisfied;
-    int                         ready_mask;
     uint8_t                     belongs_to_function;
     /* Saves flow index for which we have to release data of a TASK
        with INPUT and ATOMIC_WRITE operation
@@ -113,6 +111,7 @@ struct dague_dtd_handle_s {
     int             arenas_size;
     int             task_id;
     int             task_window_size;
+    uint32_t        task_threshold_size;
     uint8_t         function_counter;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;
@@ -170,7 +169,7 @@ dague_dtd_task_t *
 create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *tile );
 
 void
-set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
+set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile, int *satisfied_flow,
          int tile_op_type, dague_dtd_task_param_t *current_param,
          uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val,
          dague_dtd_handle_t *__dague_handle, int *flow_index, int *next_arg);
