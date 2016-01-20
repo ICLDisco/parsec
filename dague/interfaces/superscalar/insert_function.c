@@ -2270,7 +2270,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
         va_copy(args_for_size, args);
         next_arg = va_arg(args_for_size, int);
         while(next_arg != 0) {
-            count_of_params ++;
+            count_of_params++;
             tmp = va_arg(args_for_size, void *);
             tile_op_type = va_arg(args_for_size, int);
 
@@ -2304,16 +2304,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     /* Creating Task object */
     this_task = (dague_dtd_task_t *)dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools);
 
-    /*printf("Orignal Address : %p\t", this_task);
-     int n = ((uintptr_t)this_task) & 0xF;
-     printf("n is : %lx\n", n);
-
-     uintptr_t ptrr =  ((((uintptr_t)this_task)+16)/16)*16;
-     printf("New Address :%lx \t", ptrr);
-     n = ((uintptr_t)ptrr) & 0xF;
-     printf("n is : %lx\n", n);*/
-
-    for( i = 0; i < MAX_DESC; i++ ) {
+    for( i = 0; i < function->nb_flows; i++ ) {
         this_task->desc[i].op_type_parent = 0;
         this_task->desc[i].op_type        = 0;
         this_task->desc[i].flow_index     = -1;
@@ -2332,12 +2323,14 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     this_task->belongs_to_function = function->function_id;
     this_task->super.function = __dague_handle->super.functions_array[(this_task->belongs_to_function)];
     this_task->orig_task = NULL;
-#if defined(OVERLAP)
-    /* +1 to make sure the task is completely ready before it gets executed */
+    /**
+     * +1 to make sure the task cannot be completed by the potential predecessors,
+     * before we are completely done with it here. As we have an atomic operation
+     * in all cases, increasing the expected flows by one will have no impact on
+     * the performance.
+     * */
     this_task->flow_count = this_task->super.function->nb_flows+1;
-#else
-    this_task->flow_count = this_task->super.function->nb_flows;
-#endif
+
     this_task->fpointer = fpointer;
     this_task->super.priority = 0;
     this_task->super.chore_id = 0;
@@ -2391,17 +2384,16 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     dague_dtd_task_insert( __dague_handle, this_task );
 #endif
 
-#if defined (OVERLAP)
-    /* in attempt to make the task not ready till the whole body is constructed */
+    /* Increase the count of satisfied flows to counter-balance the increase in the
+     * number of expected flows done during the task creation.  */
     satisfied_flow++;
-#endif
 
     if(!__dague_handle->super.context->active_objects) {
         assert(0);
     }
 
     /* Building list of initial ready task */
-    if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), (-1*satisfied_flow)) ) {
+    if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
 #if defined(DEBUG_HEAVY)
             dague_dtd_task_release( __dague_handle, this_task->super.super.key );
 #endif
