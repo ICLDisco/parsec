@@ -106,7 +106,10 @@ static void pins_handle_init_ptg_to_dtd(dague_handle_t *ptg_handle)
     if(ptg_handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
         return;
     }
-    assert(NULL == __dtd_handle);
+    if( __dtd_handle != NULL ) {
+        dague_dtd_handle_destruct(__dtd_handle);
+    }
+
     __dtd_handle = dague_dtd_handle_new(ptg_handle->context);
     dtd_global_deque = OBJ_NEW(dague_list_t);
     copy_chores(ptg_handle, __dtd_handle);
@@ -129,7 +132,6 @@ static void pins_handle_fini_ptg_to_dtd(dague_handle_t *handle)
     if(handle->destructor == (dague_destruct_fn_t)dague_dtd_handle_destruct) {
         return;
     }
-    __dtd_handle = NULL;
     OBJ_RELEASE(dtd_global_deque);
     dtd_global_deque = NULL;
 }
@@ -475,7 +477,6 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
             }
             dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
 
-            /* TODO: CLEAN the malloc */
             tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
             tmp_param->pointer_to_tile = (void *)tile;
             tmp_param->operation_type = op_type;
@@ -514,7 +515,6 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
 
             dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, ddesc, key);
 
-            /* TODO: CLEAN the malloc */
             tmp_param = (dague_dtd_task_param_t *) malloc(sizeof(dague_dtd_task_param_t));
             tmp_param->pointer_to_tile = (void *)tile;
             tmp_param->operation_type = op_type;
@@ -531,6 +531,14 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
 
         insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
                                              this_task, (char *)this_task->function->name, head_param);
+
+        /* Cleaning the params */
+        current_param = head_param;
+        while( current_param != NULL ) {
+            tmp_param = current_param;
+            current_param = current_param->next;
+            free(tmp_param);
+        }
     }
     goto redo;
 }
