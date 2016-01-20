@@ -59,9 +59,9 @@ dplasma_zherbt_New( PLASMA_enum uplo, int IB,
     return (dague_handle_t*)dague_zherbt;
 }
 
-void dplasma_zherbt_Destruct( dague_handle_t *o )
+void dplasma_zherbt_Destruct( dague_handle_t *handle )
 {
-    dague_zherbt_L_handle_t *dague_zherbt = (dague_zherbt_L_handle_t *)o;
+    dague_zherbt_L_handle_t *dague_zherbt = (dague_zherbt_L_handle_t *)handle;
 
     if( PlasmaLower == dague_zherbt->uplo ) {
 
@@ -77,6 +77,6 @@ void dplasma_zherbt_Destruct( dague_handle_t *o )
         dague_private_memory_fini( dague_zherbt->pool_3 );
         free( dague_zherbt->pool_3 );
 
-        DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zherbt);
+        handle->destructor(handle);
     }
 }

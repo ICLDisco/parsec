@@ -27,7 +27,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrmm_New - Generates dague object to compute:
+ *  dplasma_ztrmm_New - Generates dague handle to compute:
  *
  *  B = alpha*op( A )*B or B = alpha*B*op( A ).
  *
@@ -77,7 +77,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrmm_Destruct();
  *
@@ -176,14 +176,14 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrmm_Destruct - Free the data structure associated to an object
+ *  dplasma_ztrmm_Destruct - Free the data structure associated to an handle
  *  created with dplasma_ztrmm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -192,12 +192,12 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_ztrmm_Destruct( dague_handle_t *o )
+dplasma_ztrmm_Destruct( dague_handle_t *handle )
 {
-    dague_ztrmm_LLN_handle_t *otrmm = (dague_ztrmm_LLN_handle_t *)o;
+    dague_ztrmm_LLN_handle_t *otrmm = (dague_ztrmm_LLN_handle_t *)handle;
 
     dague_matrix_del2arena( otrmm->arenas[DAGUE_ztrmm_LLN_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

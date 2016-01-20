@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlauum_New - Generates dague object to compute the product U * U' or
+ *  dplasma_zlauum_New - Generates dague handle to compute the product U * U' or
  *  L' * L, where the triangular factor U or L is stored in the upper or lower
  *  triangular part of the array A.
  *
@@ -52,7 +52,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlauum_Destruct();
  *
@@ -104,14 +104,14 @@ dplasma_zlauum_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlauum_Destruct - Free the data structure associated to an object
+ *  dplasma_zlauum_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zlauum_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -120,13 +120,13 @@ dplasma_zlauum_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlauum_Destruct( dague_handle_t *o )
+dplasma_zlauum_Destruct( dague_handle_t *handle )
 {
-    dague_zlauum_L_handle_t *olauum = (dague_zlauum_L_handle_t *)o;
+    dague_zlauum_L_handle_t *olauum = (dague_zlauum_L_handle_t *)handle;
 
     dague_matrix_del2arena( olauum->arenas[DAGUE_zlauum_L_DEFAULT_ARENA   ] );
     dague_matrix_del2arena( olauum->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

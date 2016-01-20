@@ -119,14 +119,14 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zheev_Destruct - Free the data structure associated to an object
+ *  dplasma_zheev_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zheev_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -135,16 +135,16 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zheev_Destruct( dague_handle_t *o )
+dplasma_zheev_Destruct( dague_handle_t *handle )
 {
 #if 0
     two_dim_block_cyclic_t* T = ???
     dague_data_free(T->mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)T); free(T);
 
-    dague_matrix_del2arena( ((dague_diag_band_to_rect_handle_t *)o)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA] );
+    dague_matrix_del2arena( ((dague_diag_band_to_rect_handle_t *)handle)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA] );
 #endif
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

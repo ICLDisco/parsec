@@ -172,29 +172,29 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
                         unsigned long long int seed )
 {
     size_t vectorsize = 0;
-    dague_handle_t* object;
+    dague_handle_t* handle;
 
     switch( mtxtype ) {
     case PlasmaMatrixChebvand:
-        object = (dague_handle_t*)dague_zpltmg_chebvand_new( seed,
+        handle = (dague_handle_t*)dague_zpltmg_chebvand_new( seed,
                                                              (dague_ddesc_t*)A );
         vectorsize = 2 * A->nb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixFiedler:
-        object = (dague_handle_t*)dague_zpltmg_fiedler_new( seed,
+        handle = (dague_handle_t*)dague_zpltmg_fiedler_new( seed,
                                                             (dague_ddesc_t*)A );
         vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixHankel:
-        object = (dague_handle_t*)dague_zpltmg_hankel_new( seed,
+        handle = (dague_handle_t*)dague_zpltmg_hankel_new( seed,
                                                            (dague_ddesc_t*)A );
         vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixToeppd:
-        object = (dague_handle_t*)dague_zpltmg_toeppd_new( seed,
+        handle = (dague_handle_t*)dague_zpltmg_toeppd_new( seed,
                                                            (dague_ddesc_t*)A );
         vectorsize = 2 * A->mb * sizeof(dague_complex64_t);
         break;
@@ -203,27 +203,27 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
         return -2;
     }
 
-    if (object != NULL) {
-        dague_zpltmg_hankel_handle_t *o = (dague_zpltmg_hankel_handle_t*)object;
+    if (handle != NULL) {
+        dague_zpltmg_hankel_handle_t *handle_zpltmg = (dague_zpltmg_hankel_handle_t*)handle;
 
         /* Default type */
-        dplasma_add2arena_tile( o->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA],
+        dplasma_add2arena_tile( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(dague_complex64_t),
                                 DAGUE_ARENA_ALIGNMENT_SSE,
                                 dague_datatype_double_complex_t, A->mb );
 
         /* Vector type */
-        dplasma_add2arena_tile( o->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA],
+        dplasma_add2arena_tile( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA],
                                 vectorsize,
                                 DAGUE_ARENA_ALIGNMENT_SSE,
                                 dague_datatype_double_complex_t, A->mb );
 
-        dague_enqueue(dague, object);
+        dague_enqueue(dague, handle);
         dplasma_progress(dague);
 
-        dague_matrix_del2arena( o->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA] );
-        dague_matrix_del2arena( o->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ] );
-        DAGUE_INTERNAL_HANDLE_DESTRUCT(object);
+        dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA] );
+        dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ] );
+        handle->destructor(handle);
         return 0;
     } else {
         return -101;

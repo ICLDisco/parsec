@@ -18,7 +18,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlaswp_New - Generates the object that performs a series of row
+ *  dplasma_zlaswp_New - Generates the handle that performs a series of row
  *  interchanges on the matrix A.  One row interchange is initiated for each
  *  rows in IPIV descriptor.
  *
@@ -42,7 +42,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlaswp_Destruct();
  *
@@ -86,14 +86,14 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlaswp_Destruct - Free the data structure associated to an object
+ *  dplasma_zlaswp_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zlaswp_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -102,14 +102,14 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zlaswp_Destruct( dague_handle_t *o )
+dplasma_zlaswp_Destruct( dague_handle_t *handle )
 {
-    dague_zlaswp_handle_t *dague_zlaswp = (dague_zlaswp_handle_t *)o;
+    dague_zlaswp_handle_t *dague_zlaswp = (dague_zlaswp_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zlaswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zlaswp->arenas[DAGUE_zlaswp_PIVOT_ARENA  ] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zlaswp);
+    handle->destructor(handle);
 }
 
 /**

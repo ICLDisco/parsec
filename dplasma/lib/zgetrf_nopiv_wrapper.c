@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_nopiv_New - Generates the object that computes the LU
+ * dplasma_zgetrf_nopiv_New - Generates the handle that computes the LU
  * factorization of a M-by-N matrix A: A = L * U by with no pivoting
  * strategy. The matrix has to be diaagonal dominant to use this
  * routine. Otherwise, the numerical stability of the result is not guaranted.
@@ -51,7 +51,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_nopiv_Destruct();
  *
@@ -86,14 +86,14 @@ dplasma_zgetrf_nopiv_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgetrf_nopiv_Destruct - Free the data structure associated to an object
+ *  dplasma_zgetrf_nopiv_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zgetrf_nopiv_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -102,13 +102,13 @@ dplasma_zgetrf_nopiv_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_nopiv_Destruct( dague_handle_t *o )
+dplasma_zgetrf_nopiv_Destruct( dague_handle_t *handle )
 {
-    dague_zgetrf_nopiv_handle_t *dague_zgetrf_nopiv = (dague_zgetrf_nopiv_handle_t *)o;
+    dague_zgetrf_nopiv_handle_t *dague_zgetrf_nopiv = (dague_zgetrf_nopiv_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zgetrf_nopiv->arenas[DAGUE_zgetrf_nopiv_DEFAULT_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf_nopiv);
+    handle->destructor(handle);
 }
 
 /**

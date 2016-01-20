@@ -21,7 +21,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_ztrsmpl_New - Generates the object that solves U*x = b, when U has
+ * dplasma_ztrsmpl_New - Generates the handle that solves U*x = b, when U has
  * been generated through LU factorization with incremental pivoting strategy
  * See dplasma_zgetrf_incpiv_New().
  *
@@ -66,7 +66,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrsmpl_Destruct();
  *
@@ -136,14 +136,14 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrsmpl_Destruct - Free the data structure associated to an object
+ *  dplasma_ztrsmpl_Destruct - Free the data structure associated to an handle
  *  created with dplasma_ztrsmpl_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -152,15 +152,15 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_ztrsmpl_Destruct( dague_handle_t *o )
+dplasma_ztrsmpl_Destruct( dague_handle_t *handle )
 {
-    dague_ztrsmpl_handle_t *dague_trsmpl = (dague_ztrsmpl_handle_t *)o;
+    dague_ztrsmpl_handle_t *dague_trsmpl = (dague_ztrsmpl_handle_t *)handle;
 
     dague_matrix_del2arena( dague_trsmpl->arenas[DAGUE_ztrsmpl_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_trsmpl->arenas[DAGUE_ztrsmpl_PIVOT_ARENA  ] );
     dague_matrix_del2arena( dague_trsmpl->arenas[DAGUE_ztrsmpl_SMALL_L_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

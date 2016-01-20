@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgeqrf_param_New - Generates the object that computes the
+ * dplasma_zgeqrf_param_New - Generates the handle that computes the
  * hierarchical QR factorization of a M-by-N matrix A: A = Q * R.
  *
  * The method used in this algorithm is a hierachical tile QR algorithm with
@@ -69,7 +69,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgeqrf_param_Destruct();
  *
@@ -88,7 +88,7 @@ dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT )
 {
-    dague_zgeqrf_param_handle_t* object;
+    dague_zgeqrf_param_handle_t* handle;
     int ib = TS->mb;
 
     if ( (A->mt != TS->mt) || (A->nt != TS->nt) ) {
@@ -100,42 +100,42 @@ dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
         return NULL;
     }
 
-    object = dague_zgeqrf_param_new( (dague_ddesc_t*)A,
+    handle = dague_zgeqrf_param_new( (dague_ddesc_t*)A,
                                      (dague_ddesc_t*)TS,
                                      (dague_ddesc_t*)TT,
                                      *qrtree, ib, NULL, NULL);
 
-    object->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+    handle->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
-    object->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( object->p_tau, TS->nb * sizeof(dague_complex64_t) );
+    handle->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->p_tau, TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( object->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA],
+    dplasma_add2arena_tile( handle->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             dague_datatype_double_complex_t, A->mb );
 
     /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( object->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( handle->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              dague_datatype_double_complex_t, A->mb, 1 );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( object->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA],
+    dplasma_add2arena_lower( handle->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(dague_complex64_t),
                              DAGUE_ARENA_ALIGNMENT_SSE,
                              dague_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrf_param_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgeqrf_param_LITTLE_T_ARENA],
                                  TS->mb*TS->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  dague_datatype_double_complex_t, TS->mb, TS->nb, -1);
 
-    return (dague_handle_t*)object;
+    return (dague_handle_t*)handle;
 }
 
 /**
@@ -144,13 +144,13 @@ dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
  * @ingroup dplasma_complex64
  *
  *  dplasma_zgeqrf_param_Destruct - Free the data structure associated to an
- *  object created with dplasma_zgeqrf_param_New().
+ *  handle created with dplasma_zgeqrf_param_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -159,9 +159,9 @@ dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zgeqrf_param_Destruct( dague_handle_t *o )
+dplasma_zgeqrf_param_Destruct( dague_handle_t *handle )
 {
-    dague_zgeqrf_param_handle_t *dague_zgeqrf_param = (dague_zgeqrf_param_handle_t *)o;
+    dague_zgeqrf_param_handle_t *dague_zgeqrf_param = (dague_zgeqrf_param_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA   ] );
     dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LOWER_TILE_ARENA] );
@@ -173,7 +173,7 @@ dplasma_zgeqrf_param_Destruct( dague_handle_t *o )
     free( dague_zgeqrf_param->p_work );
     free( dague_zgeqrf_param->p_tau  );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgeqrf_param);
+    handle->destructor(handle);
 }
 
 /**

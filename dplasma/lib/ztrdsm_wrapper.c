@@ -18,7 +18,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrdsm_New - Generates dague object to compute triangular solve
+ *  dplasma_ztrdsm_New - Generates dague handle to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
  *  WARNING: The computations are not done by this call.
  *
@@ -32,7 +32,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrdsm_Destruct();
  *
@@ -66,14 +66,14 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrdsm_Destruct - Free the data structure associated to an object
+ *  dplasma_ztrdsm_Destruct - Free the data structure associated to an handle
  *  created with dplasma_ztrdsm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -82,11 +82,11 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
  *
  ******************************************************************************/
 void
-dplasma_ztrdsm_Destruct( dague_handle_t *o )
+dplasma_ztrdsm_Destruct( dague_handle_t *handle )
 {
-    dague_ztrdsm_handle_t *otrdsm = (dague_ztrdsm_handle_t *)o;
+    dague_ztrdsm_handle_t *otrdsm = (dague_ztrdsm_handle_t *)handle;
     dague_matrix_del2arena( otrdsm->arenas[DAGUE_ztrdsm_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

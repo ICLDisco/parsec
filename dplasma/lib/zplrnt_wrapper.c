@@ -67,7 +67,7 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zplrnt_New - Generates the object that generates a random general
+ * dplasma_zplrnt_New - Generates the handle that generates a random general
  * matrix by tiles.
  *
  * See dplasma_map_New() for further information.
@@ -92,7 +92,7 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zplrnt_Destruct();
  *
@@ -123,14 +123,14 @@ dplasma_zplrnt_New( int diagdom,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zplrnt_Destruct - Free the data structure associated to an object
+ *  dplasma_zplrnt_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zplrnt_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -139,9 +139,9 @@ dplasma_zplrnt_New( int diagdom,
  *
  ******************************************************************************/
 void
-dplasma_zplrnt_Destruct( dague_handle_t *o )
+dplasma_zplrnt_Destruct( dague_handle_t *handle )
 {
-    dplasma_map_Destruct( o );
+    dplasma_map_Destruct(handle);
 }
 
 /**

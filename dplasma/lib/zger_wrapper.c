@@ -17,9 +17,9 @@
  *
  * @ingroup dplasma_internal
  *
- *  dplasma_zger_internal_New - Generates the object that performs the gerc or
+ *  dplasma_zger_internal_New - Generates the handle that performs the gerc or
  *      geru operation
- *  dplasma_zger_internal_Destruct - Destroy the object generated through
+ *  dplasma_zger_internal_Destruct - Destroy the handle generated through
  *      dplasma_zger_internal_New()
  *  dplasma_zger_internal - Performs the gerc or geru operation
  *
@@ -49,38 +49,38 @@ dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
                            const tiled_matrix_desc_t *Y,
                            tiled_matrix_desc_t *A)
 {
-    dague_zger_handle_t* zger_object;
+    dague_zger_handle_t* zger_handle;
 
     /* Check input arguments */
     if ((trans != PlasmaTrans) && (trans != PlasmaConjTrans)) {
         dplasma_error("dplasma_zger", "illegal value of trans");
         return NULL /*-1*/;
     }
-    zger_object = dague_zger_new(trans, alpha,
+    zger_handle = dague_zger_new(trans, alpha,
                                  (dague_ddesc_t*)X,
                                  (dague_ddesc_t*)Y,
                                  (dague_ddesc_t*)A);
 
-    dplasma_add2arena_tile( zger_object->arenas[DAGUE_zger_DEFAULT_ARENA],
+    dplasma_add2arena_tile( zger_handle->arenas[DAGUE_zger_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             dague_datatype_double_complex_t, A->mb);
 
-    dplasma_add2arena_rectangle( zger_object->arenas[DAGUE_zger_VECTOR_ARENA],
+    dplasma_add2arena_rectangle( zger_handle->arenas[DAGUE_zger_VECTOR_ARENA],
                                  X->mb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  dague_datatype_double_complex_t, X->mb, 1, -1);
 
-    return (dague_handle_t*)zger_object;
+    return (dague_handle_t*)zger_handle;
 }
 
 static inline void
-dplasma_zger_internal_Destruct( dague_handle_t *o )
+dplasma_zger_internal_Destruct( dague_handle_t *handle )
 {
-    dague_matrix_del2arena( ((dague_zger_handle_t *)o)->arenas[DAGUE_zger_DEFAULT_ARENA] );
-    dague_matrix_del2arena( ((dague_zger_handle_t *)o)->arenas[DAGUE_zger_VECTOR_ARENA] );
+    dague_matrix_del2arena( ((dague_zger_handle_t *)handle)->arenas[DAGUE_zger_DEFAULT_ARENA] );
+    dague_matrix_del2arena( ((dague_zger_handle_t *)handle)->arenas[DAGUE_zger_VECTOR_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 static inline int
@@ -118,7 +118,7 @@ dplasma_zger_internal( dague_context_t *dague,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgeru_New - Generates the object that performs one of the following
+ *  dplasma_zgeru_New - Generates the handle that performs one of the following
  *  vector-matrix operations
  *
  *    \f[ A = \alpha [ X \times Y' ] + A \f],
@@ -147,7 +147,7 @@ dplasma_zger_internal( dague_context_t *dague,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgeru_Destruct();
  *
@@ -174,14 +174,14 @@ dplasma_zgeru_New( const dague_complex64_t alpha,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgeru_Destruct - Free the data structure associated to an object
+ *  dplasma_zgeru_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zgeru_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -190,9 +190,9 @@ dplasma_zgeru_New( const dague_complex64_t alpha,
  *
  ******************************************************************************/
 void
-dplasma_zgeru_Destruct( dague_handle_t *o )
+dplasma_zgeru_Destruct( dague_handle_t *handle )
 {
-    dplasma_zger_internal_Destruct( o );
+    dplasma_zger_internal_Destruct(handle);
 }
 
 /**
@@ -257,7 +257,7 @@ dplasma_zgeru( dague_context_t *dague,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgerc_New - Generates the object that performs one of the following
+ *  dplasma_zgerc_New - Generates the handle that performs one of the following
  *  vector-matrix operations
  *
  *    \f[ A = \alpha [ X \times conj( Y' ) ] + A \f],
@@ -286,7 +286,7 @@ dplasma_zgeru( dague_context_t *dague,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgerc_Destruct();
  *
@@ -313,14 +313,14 @@ dplasma_zgerc_New( dague_complex64_t alpha,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgerc_Destruct - Free the data structure associated to an object
+ *  dplasma_zgerc_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zgerc_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -329,9 +329,9 @@ dplasma_zgerc_New( dague_complex64_t alpha,
  *
  ******************************************************************************/
 void
-dplasma_zgerc_Destruct( dague_handle_t *o )
+dplasma_zgerc_Destruct( dague_handle_t *handle )
 {
-    dplasma_zger_internal_Destruct( o );
+    dplasma_zger_internal_Destruct(handle);
 }
 
 /**
