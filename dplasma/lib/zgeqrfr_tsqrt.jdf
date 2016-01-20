@@ -241,7 +241,7 @@ dplasma_zgeqrfr_tsqrt_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zgeqrfr_tsqrt->arenas[DAGUE_zgeqrfr_tsqrt_DEFAULT_ARENA ] );
     dague_matrix_del2arena( dague_zgeqrfr_tsqrt->arenas[DAGUE_zgeqrfr_tsqrt_LITTLE_T_ARENA] );
 
-    handle->desctructor(handle);
+    handle->destructor(handle);
 }
 
 %}
