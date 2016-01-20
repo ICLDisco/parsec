@@ -21,7 +21,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_incpiv_New - Generates the object that computes the LU
+ * dplasma_zgetrf_incpiv_New - Generates the handle that computes the LU
  * factorization of a M-by-N matrix A using tile algorithm.
  *
  * This algorithm exploits the multi-threaded recursive kernels of the PLASMA
@@ -80,7 +80,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_incpiv_Destruct();
  *
@@ -166,14 +166,14 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgetrf_incpiv_Destruct - Free the data structure associated to an object
+ *  dplasma_zgetrf_incpiv_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zgetrf_incpiv_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -182,9 +182,9 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_incpiv_Destruct( dague_handle_t *o )
+dplasma_zgetrf_incpiv_Destruct( dague_handle_t *handle )
 {
-    dague_zgetrf_incpiv_handle_t *dague_zgetrf_incpiv = (dague_zgetrf_incpiv_handle_t *)o;
+    dague_zgetrf_incpiv_handle_t *dague_zgetrf_incpiv = (dague_zgetrf_incpiv_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_DEFAULT_ARENA   ] );
     dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_UPPER_TILE_ARENA] );
@@ -195,7 +195,7 @@ dplasma_zgetrf_incpiv_Destruct( dague_handle_t *o )
     dague_private_memory_fini( dague_zgetrf_incpiv->work_pool );
     free( dague_zgetrf_incpiv->work_pool );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf_incpiv);
+    handle->destructor(handle);
 }
 
 /**

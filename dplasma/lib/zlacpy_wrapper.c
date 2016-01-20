@@ -44,7 +44,7 @@ dplasma_zlacpy_operator( dague_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlacpy_New - Generates an object that performs a copy of the matrix A
+ * dplasma_zlacpy_New - Generates an handle that performs a copy of the matrix A
  * into the matrix B.
  *
  * See dplasma_map2_New() for further information.
@@ -72,7 +72,7 @@ dplasma_zlacpy_operator( dague_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlacpy_Destruct();
  *
@@ -90,12 +90,12 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *B)
 {
-    dague_handle_t* object;
+    dague_handle_t* handle;
 
-    object = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
+    handle = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
                               dplasma_zlacpy_operator, NULL );
 
-    return object;
+    return handle;
 }
 
 /**
@@ -103,14 +103,14 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlacpy_Destruct - Free the data structure associated to an object
+ *  dplasma_zlacpy_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zlacpy_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -119,9 +119,9 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlacpy_Destruct( dague_handle_t *o )
+dplasma_zlacpy_Destruct( dague_handle_t *handle )
 {
-    dplasma_map2_Destruct( o );
+    dplasma_map2_Destruct(handle);
 }
 
 
@@ -130,7 +130,7 @@ dplasma_zlacpy_Destruct( dague_handle_t *o )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlacpy - Generates an object that performs a copy of the matrix A
+ * dplasma_zlacpy - Generates an handle that performs a copy of the matrix A
  * into the matrix B.
  *
  * See dplasma_map2() for further information.

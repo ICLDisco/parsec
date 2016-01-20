@@ -17,7 +17,7 @@
  *
  * @ingroup dplasma
  *
- * dplasma_map_New - Generates an object that performs a map operation with
+ * dplasma_map_New - Generates an handle that performs a map operation with
  * two similar matrices, applying the operator on each tile of A:
  *
  *    operator( A )
@@ -55,7 +55,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_map_Destruct();
  *
@@ -125,14 +125,14 @@ dplasma_map_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma
  *
- *  dplasma_map_Destruct - Free the data structure associated to an object
+ *  dplasma_map_Destruct - Free the data structure associated to an handle
  *  created with dplasma_map_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -141,9 +141,9 @@ dplasma_map_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_map_Destruct( dague_handle_t *o )
+dplasma_map_Destruct( dague_handle_t *handle )
 {
-    dague_map_handle_t *omap = (dague_map_handle_t *)o;
+    dague_map_handle_t *omap = (dague_map_handle_t *)handle;
 
     if ( omap->op_args ) {
         free( omap->op_args );
@@ -151,7 +151,7 @@ dplasma_map_Destruct( dague_handle_t *o )
 
     dague_matrix_del2arena( omap->arenas[DAGUE_map_DEFAULT_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(omap);
+    handle->destructor(handle);
 }
 
 /**

@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrtri_New - Generates dague object to compute the inverse of an
+ *  dplasma_ztrtri_New - Generates dague handle to compute the inverse of an
  *  upper or lower triangular matrix A.
  *
  *  WARNING: The computations are not done by this call.
@@ -58,7 +58,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrtri_Destruct();
  *
@@ -112,14 +112,14 @@ dplasma_ztrtri_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrtri_Destruct - Free the data structure associated to an object
+ *  dplasma_ztrtri_Destruct - Free the data structure associated to an handle
  *  created with dplasma_ztrtri_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -128,13 +128,13 @@ dplasma_ztrtri_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_ztrtri_Destruct( dague_handle_t *o )
+dplasma_ztrtri_Destruct( dague_handle_t *handle )
 {
-    dague_ztrtri_L_handle_t *otrtri = (dague_ztrtri_L_handle_t *)o;
+    dague_ztrtri_L_handle_t *otrtri = (dague_ztrtri_L_handle_t *)handle;
 
     dague_matrix_del2arena( otrtri->arenas[DAGUE_ztrtri_L_DEFAULT_ARENA   ] );
     dague_matrix_del2arena( otrtri->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

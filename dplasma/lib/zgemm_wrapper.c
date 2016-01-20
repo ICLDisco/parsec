@@ -23,7 +23,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgemm_New - Generates the object that performs one of the following
+ *  dplasma_zgemm_New - Generates the handle that performs one of the following
  *  matrix-matrix operations. WARNING: The computations are not done by this call.
  *
  *    \f[ C = \alpha [op( A )\times op( B )] + \beta C \f],
@@ -70,7 +70,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgemm_Destruct();
  *
@@ -88,7 +88,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
                    dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
                    dague_complex64_t beta,  tiled_matrix_desc_t* C)
 {
-    dague_handle_t* zgemm_object;
+    dague_handle_t* zgemm_handle;
     dague_arena_t* arena;
 
     /* Check input arguments */
@@ -103,39 +103,39 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_NN_handle_t* object;
-            object = dague_zgemm_NN_new(transA, transB, alpha, beta,
+            dague_zgemm_NN_handle_t* handle;
+            handle = dague_zgemm_NN_new(transA, transB, alpha, beta,
                                         (dague_ddesc_t*)A,
                                         (dague_ddesc_t*)B,
                                         (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
-            zgemm_object = (dague_handle_t*)object;
+            arena = handle->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
+            zgemm_handle = (dague_handle_t*)handle;
         } else {
-            dague_zgemm_NT_handle_t* object;
-            object = dague_zgemm_NT_new(transA, transB, alpha, beta,
+            dague_zgemm_NT_handle_t* handle;
+            handle = dague_zgemm_NT_new(transA, transB, alpha, beta,
                                         (dague_ddesc_t*)A,
                                         (dague_ddesc_t*)B,
                                         (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_NT_DEFAULT_ARENA];
-            zgemm_object = (dague_handle_t*)object;
+            arena = handle->arenas[DAGUE_zgemm_NT_DEFAULT_ARENA];
+            zgemm_handle = (dague_handle_t*)handle;
         }
     } else {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_TN_handle_t* object;
-            object = dague_zgemm_TN_new(transA, transB, alpha, beta,
+            dague_zgemm_TN_handle_t* handle;
+            handle = dague_zgemm_TN_new(transA, transB, alpha, beta,
                                         (dague_ddesc_t*)A,
                                         (dague_ddesc_t*)B,
                                         (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_TN_DEFAULT_ARENA];
-            zgemm_object = (dague_handle_t*)object;
+            arena = handle->arenas[DAGUE_zgemm_TN_DEFAULT_ARENA];
+            zgemm_handle = (dague_handle_t*)handle;
         } else {
-            dague_zgemm_TT_handle_t* object;
-            object = dague_zgemm_TT_new(transA, transB, alpha, beta,
+            dague_zgemm_TT_handle_t* handle;
+            handle = dague_zgemm_TT_new(transA, transB, alpha, beta,
                                         (dague_ddesc_t*)A,
                                         (dague_ddesc_t*)B,
                                         (dague_ddesc_t*)C);
-            arena = object->arenas[DAGUE_zgemm_TT_DEFAULT_ARENA];
-            zgemm_object = (dague_handle_t*)object;
+            arena = handle->arenas[DAGUE_zgemm_TT_DEFAULT_ARENA];
+            zgemm_handle = (dague_handle_t*)handle;
         }
     }
 
@@ -144,7 +144,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            dague_datatype_double_complex_t, A->mb);
 
-    return zgemm_object;
+    return zgemm_handle;
 }
 
 /**
@@ -152,14 +152,14 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgemm_Destruct - Free the data structure associated to an object
+ *  dplasma_zgemm_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zgemm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -168,10 +168,10 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
  *
  ******************************************************************************/
 void
-dplasma_zgemm_Destruct( dague_handle_t *o )
+dplasma_zgemm_Destruct( dague_handle_t *handle )
 {
-    dague_matrix_del2arena( ((dague_zgemm_NN_handle_t *)o)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    dague_matrix_del2arena( ((dague_zgemm_NN_handle_t *)handle)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA] );
+    handle->destructor(handle);
 }
 
 /**

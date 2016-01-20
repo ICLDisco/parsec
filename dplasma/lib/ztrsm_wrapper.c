@@ -26,7 +26,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrsm_New - Generates dague object to compute triangular solve
+ *  dplasma_ztrsm_New - Generates dague handle to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
  *  WARNING: The computations are not done by this call.
  *
@@ -77,7 +77,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrsm_Destruct();
  *
@@ -166,14 +166,14 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrsm_Destruct - Free the data structure associated to an object
+ *  dplasma_ztrsm_Destruct - Free the data structure associated to an handle
  *  created with dplasma_ztrsm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -182,12 +182,12 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_ztrsm_Destruct( dague_handle_t *o )
+dplasma_ztrsm_Destruct( dague_handle_t *handle )
 {
-    dague_ztrsm_LLN_handle_t *otrsm = (dague_ztrsm_LLN_handle_t *)o;
+    dague_ztrsm_LLN_handle_t *otrsm = (dague_ztrsm_LLN_handle_t *)handle;
 
     dague_matrix_del2arena( otrsm->arenas[DAGUE_ztrsm_LLN_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

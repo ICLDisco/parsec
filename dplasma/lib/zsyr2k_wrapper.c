@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsyr2k_New - Generates the dague object to performs one of the
+ *  dplasma_zsyr2k_New - Generates the dague handle to performs one of the
  *  syrmitian rank 2k operations
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
@@ -71,7 +71,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zsyr2k_Destruct();
  *
@@ -91,7 +91,7 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
                     dague_complex64_t beta,
                     tiled_matrix_desc_t* C)
 {
-    dague_handle_t* object;
+    dague_handle_t* handle;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
@@ -119,14 +119,14 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zsyr2k_LN_new(uplo, trans,
                                     alpha, (dague_ddesc_t*)A,
                                            (dague_ddesc_t*)B,
                                     beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zsyr2k_LT_new(uplo, trans,
                                     alpha, (dague_ddesc_t*)A,
                                            (dague_ddesc_t*)B,
@@ -135,14 +135,14 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zsyr2k_UN_new(uplo, trans,
                                     alpha, (dague_ddesc_t*)A,
                                            (dague_ddesc_t*)B,
                                     beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zsyr2k_UT_new(uplo, trans,
                                     alpha, (dague_ddesc_t*)A,
                                            (dague_ddesc_t*)B,
@@ -150,25 +150,25 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
         }
     }
 
-    dplasma_add2arena_tile(((dague_zsyr2k_LN_handle_t*)object)->arenas[DAGUE_zsyr2k_LN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zsyr2k_LN_handle_t*)handle)->arenas[DAGUE_zsyr2k_LN_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            dague_datatype_double_complex_t, C->mb);
 
-    return object;
+    return handle;
 }
 
 /***************************************************************************//**
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsyr2k_Destruct - Free the data structure associated to an object
+ *  dplasma_zsyr2k_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zsyr2k_New().
  *
  *******************************************************************************
  *
  * @param[in] o
- *          Object to destroy.
+ *          handle to destroy.
  *
  *******************************************************************************
  *
@@ -177,11 +177,11 @@ dplasma_zsyr2k_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zsyr2k_Destruct( dague_handle_t *o )
+dplasma_zsyr2k_Destruct( dague_handle_t *handle )
 {
-    dague_zsyr2k_LN_handle_t *zsyr2k_object = (dague_zsyr2k_LN_handle_t*)o;
-    dague_matrix_del2arena( zsyr2k_object->arenas[DAGUE_zsyr2k_LN_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(zsyr2k_object);
+    dague_zsyr2k_LN_handle_t *zsyr2k_handle = (dague_zsyr2k_LN_handle_t*)handle;
+    dague_matrix_del2arena( zsyr2k_handle->arenas[DAGUE_zsyr2k_LN_DEFAULT_ARENA] );
+    handle->destructor(handle);
 }
 
 /**

@@ -21,7 +21,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_New - Generates the object that computes the LU factorization
+ * dplasma_zgetrf_New - Generates the handle that computes the LU factorization
  * of a M-by-N matrix A: A = P * L * U by partial pivoting algorithm.
  *
  * This algorithm exploits the multi-threaded recursive kernels of the PLASMA
@@ -62,7 +62,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_Destruct();
  *
@@ -132,14 +132,14 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgetrf_Destruct - Free the data structure associated to an object
+ *  dplasma_zgetrf_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zgetrf_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -148,9 +148,9 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_Destruct( dague_handle_t *o )
+dplasma_zgetrf_Destruct( dague_handle_t *handle )
 {
-    dague_zgetrf_handle_t *dague_zgetrf = (dague_zgetrf_handle_t *)o;
+    dague_zgetrf_handle_t *dague_zgetrf = (dague_zgetrf_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA  ] );
@@ -158,7 +158,7 @@ dplasma_zgetrf_Destruct( dague_handle_t *o )
     if ( dague_zgetrf->getrfdata != NULL )
         free( dague_zgetrf->getrfdata );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgetrf);
+    handle->destructor(handle);
 }
 
 /**

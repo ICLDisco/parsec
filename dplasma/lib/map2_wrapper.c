@@ -17,7 +17,7 @@
  *
  * @ingroup dplasma
  *
- * dplasma_map2_New - Generates an object that performs a map operation with
+ * dplasma_map2_New - Generates an handle that performs a map operation with
  * two similar matrices, applying the operator on each couple of tiles:
  *
  *    operator( A, B )
@@ -76,7 +76,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_map2_Destruct();
  *
@@ -166,14 +166,14 @@ dplasma_map2_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma
  *
- *  dplasma_map2_Destruct - Free the data structure associated to an object
+ *  dplasma_map2_Destruct - Free the data structure associated to an handle
  *  created with dplasma_map2_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -182,9 +182,9 @@ dplasma_map2_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_map2_Destruct( dague_handle_t *o )
+dplasma_map2_Destruct( dague_handle_t *handle )
 {
-    dague_map2_handle_t *omap2 = (dague_map2_handle_t *)o;
+    dague_map2_handle_t *omap2 = (dague_map2_handle_t *)handle;
 
     if ( omap2->op_args ) {
         free( omap2->op_args );
@@ -192,7 +192,7 @@ dplasma_map2_Destruct( dague_handle_t *o )
 
     dague_matrix_del2arena( omap2->arenas[DAGUE_map2_DEFAULT_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(omap2);
+    handle->destructor(handle);
 }
 
 /**

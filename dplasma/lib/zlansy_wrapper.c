@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlansy_New - Generates the object that computes the value
+ *  dplasma_zlansy_New - Generates the handle that computes the value
  *
  *     zlansy = ( max(abs(A(i,j))), NORM = PlasmaMaxNorm
  *              (
@@ -62,7 +62,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlansy_Destruct();
  *
@@ -166,14 +166,14 @@ dplasma_zlansy_New( PLASMA_enum norm,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlansy_Destruct - Free the data structure associated to an object
+ *  dplasma_zlansy_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zlansy_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -182,9 +182,9 @@ dplasma_zlansy_New( PLASMA_enum norm,
  *
  ******************************************************************************/
 void
-dplasma_zlansy_Destruct( dague_handle_t *o )
+dplasma_zlansy_Destruct( dague_handle_t *handle )
 {
-    dague_zlansy_handle_t *dague_zlansy = (dague_zlansy_handle_t *)o;
+    dague_zlansy_handle_t *dague_zlansy = (dague_zlansy_handle_t *)handle;
 
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlansy->Tdist) );
     free( dague_zlansy->Tdist );
@@ -193,7 +193,7 @@ dplasma_zlansy_Destruct( dague_handle_t *o )
     dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA] );
     dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

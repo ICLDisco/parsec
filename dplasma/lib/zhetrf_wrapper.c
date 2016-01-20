@@ -53,13 +53,13 @@ dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *INFO)
 }
 
 void
-dplasma_zhetrf_Destruct( dague_handle_t *o )
+dplasma_zhetrf_Destruct( dague_handle_t *handle )
 {
-    dague_zhetrf_handle_t *obut = (dague_zhetrf_handle_t *)o;
+    dague_zhetrf_handle_t *obut = (dague_zhetrf_handle_t *)handle;
 
     dague_matrix_del2arena( obut->arenas[DAGUE_zhetrf_DEFAULT_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);
+    handle->destructor(handle);
 }
 
 
@@ -83,14 +83,14 @@ dplasma_ztrmdm_New( tiled_matrix_desc_t *A)
 }
 
 void
-dplasma_ztrmdm_Destruct( dague_handle_t *o )
+dplasma_ztrmdm_Destruct( dague_handle_t *handle )
 {
-    dague_ztrmdm_handle_t *obut = (dague_ztrmdm_handle_t *)o;
+    dague_ztrmdm_handle_t *obut = (dague_ztrmdm_handle_t *)handle;
 
     dague_matrix_del2arena( obut->arenas[DAGUE_ztrmdm_DEFAULT_ARENA] );
 
     //dague_ztrmdm_destroy(obut);
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);
+    handle->destructor(handle);
 }
 
 /*

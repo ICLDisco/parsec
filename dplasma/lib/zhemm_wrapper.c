@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zhemm_New - Generates the dague object to compute the following
+ *  dplasma_zhemm_New - Generates the dague handle to compute the following
  *  operation.  WARNING: The computations are not done by this call.
  *
  *     \f[ C = \alpha \times A \times B + \beta \times C \f]
@@ -70,7 +70,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zhemm_Destruct();
  *
@@ -90,19 +90,19 @@ dplasma_zhemm_New( PLASMA_enum side,
                    dague_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
-    dague_zhemm_handle_t* object;
+    dague_zhemm_handle_t* handle;
 
-    object = dague_zhemm_new(side, uplo, alpha, beta,
+    handle = dague_zhemm_new(side, uplo, alpha, beta,
                              (dague_ddesc_t*)A,
                              (dague_ddesc_t*)B,
                              (dague_ddesc_t*)C);
 
-    dplasma_add2arena_tile(object->arenas[DAGUE_zhemm_DEFAULT_ARENA],
+    dplasma_add2arena_tile(handle->arenas[DAGUE_zhemm_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            dague_datatype_double_complex_t, C->mb);
 
-    return (dague_handle_t*)object;
+    return (dague_handle_t*)handle;
 }
 
 /**
@@ -110,14 +110,14 @@ dplasma_zhemm_New( PLASMA_enum side,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zhemm_Destruct - Free the data structure associated to an object
+ *  dplasma_zhemm_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zhemm_New().
  *
  *******************************************************************************
  *
  * @param[in] o
- *          On entry, the object to destroy
- *          On exit, the object cannot be used anymore.
+ *          On entry, the handle to destroy
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -126,11 +126,11 @@ dplasma_zhemm_New( PLASMA_enum side,
  *
  ******************************************************************************/
 void
-dplasma_zhemm_Destruct( dague_handle_t *o )
+dplasma_zhemm_Destruct( dague_handle_t *handle )
 {
-    dague_zhemm_handle_t *zhemm_object = (dague_zhemm_handle_t*)o;
-    dague_matrix_del2arena( zhemm_object->arenas[DAGUE_zhemm_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(zhemm_object);
+    dague_zhemm_handle_t *zhemm_handle = (dague_zhemm_handle_t*)handle;
+    dague_matrix_del2arena( zhemm_handle->arenas[DAGUE_zhemm_DEFAULT_ARENA] );
+    handle->destructor(handle);
 }
 
 /**

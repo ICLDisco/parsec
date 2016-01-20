@@ -114,7 +114,7 @@ extern "C" %{
  *
  * @ingroup dplasma_complex64_t
  *
- * dplasma_zgeqrfr_geqrt_New - Generates the object that computes the QR factorization
+ * dplasma_zgeqrfr_geqrt_New - Generates the handle that computes the QR factorization
  * a complex M-by-N matrix A: A = Q * R.
  *
  * The method used in this algorithm is a tile QR algorithm with a flat
@@ -159,7 +159,7 @@ extern "C" %{
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgeqrfr_geqrt_Destruct();
  *
@@ -177,25 +177,25 @@ dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
                            tiled_matrix_desc_t *T,
                            void *work )
 {
-    dague_zgeqrfr_geqrt_handle_t* object;
+    dague_zgeqrfr_geqrt_handle_t *geqrt;
 
-    object = dague_zgeqrfr_geqrt_new( (dague_ddesc_t*)A,
+    geqrt = dague_zgeqrfr_geqrt_new( (dague_ddesc_t*)A,
                                       (dague_ddesc_t*)T,
                                       (dague_memory_pool_t*)work );
 
     /* Default type */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrfr_geqrt_DEFAULT_ARENA],
+    dplasma_add2arena_rectangle( geqrt->arenas[DAGUE_zgeqrfr_geqrt_DEFAULT_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  dague_datatype_double_complex_t, A->mb, A->nb, -1 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( object->arenas[DAGUE_zgeqrfr_geqrt_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( geqrt->arenas[DAGUE_zgeqrfr_geqrt_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,
                                  dague_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return (dague_handle_t*)object;
+    return (dague_handle_t*)geqrt;
 }
 
 /**
@@ -203,14 +203,14 @@ dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64_t
  *
- *  dplasma_zgeqrfr_geqrt_Destruct - Free the data structure associated to an object
+ *  dplasma_zgeqrfr_geqrt_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zgeqrfr_geqrt_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -219,14 +219,14 @@ dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgeqrfr_geqrt_Destruct( dague_handle_t *o )
+dplasma_zgeqrfr_geqrt_Destruct( dague_handle_t *handle )
 {
-    dague_zgeqrfr_geqrt_handle_t *dague_zgeqrt = (dague_zgeqrfr_geqrt_handle_t *)o;
+    dague_zgeqrfr_geqrt_handle_t *dague_zgeqrt = (dague_zgeqrfr_geqrt_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zgeqrt->arenas[DAGUE_zgeqrfr_geqrt_DEFAULT_ARENA ] );
     dague_matrix_del2arena( dague_zgeqrt->arenas[DAGUE_zgeqrfr_geqrt_LITTLE_T_ARENA] );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(dague_zgeqrt);
+    handle->desctructor(handle);
 }
 
 %}

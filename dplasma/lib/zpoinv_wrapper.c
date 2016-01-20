@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zpoinv_New - Generates the object that computes the inverse of an
+ * dplasma_zpoinv_New - Generates the handle that computes the inverse of an
  * hermitian matrix through Cholesky factorization and inversion.
  *
  * WARNING: The computations are not done by this call.
@@ -53,7 +53,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zpoinv_Destruct();
  *
@@ -72,7 +72,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
                     int *info )
 {
     dague_zpoinv_L_handle_t *dague_zpoinv = NULL;
-    dague_handle_t *o = NULL;
+    dague_handle_t *handle = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaUpper) && (uplo != PlasmaLower)) {
@@ -82,7 +82,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        o = (dague_handle_t*)dague_zpoinv_U_new( (dague_ddesc_t*)A /*, info */);
+        handle = (dague_handle_t*)dague_zpoinv_U_new( (dague_ddesc_t*)A /*, info */);
 
         /* Upper part of A with diagonal part */
         /* dplasma_add2arena_upper( ((dague_zpoinv_U_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_U_UPPER_TILE_ARENA], */
@@ -90,7 +90,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
         /*                          DAGUE_ARENA_ALIGNMENT_SSE, */
         /*                          dague_datatype_double_complex_t, A->mb, 1 ); */
     } else {
-        o = (dague_handle_t*)dague_zpoinv_L_new( (dague_ddesc_t*)A /*, info */);
+        handle = (dague_handle_t*)dague_zpoinv_L_new( (dague_ddesc_t*)A /*, info */);
 
         /* Lower part of A with diagonal part */
         /* dplasma_add2arena_lower( ((dague_zpoinv_L_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA], */
@@ -99,14 +99,14 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
         /*                          dague_datatype_double_complex_t, A->mb, 1 ); */
     }
 
-    dague_zpoinv = (dague_zpoinv_L_handle_t*)o;
+    dague_zpoinv = (dague_zpoinv_L_handle_t*)handle;
 
     dplasma_add2arena_tile( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             dague_datatype_double_complex_t, A->mb );
 
-    return o;
+    return handle;
 }
 
 /**
@@ -114,14 +114,14 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zpoinv_Destruct - Free the data structure associated to an object
+ *  dplasma_zpoinv_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zpoinv_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -130,13 +130,13 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zpoinv_Destruct( dague_handle_t *o )
+dplasma_zpoinv_Destruct( dague_handle_t *handle )
 {
-    dague_zpoinv_L_handle_t *dague_zpoinv = (dague_zpoinv_L_handle_t *)o;
+    dague_zpoinv_L_handle_t *dague_zpoinv = (dague_zpoinv_L_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ] );
     /* dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA] ); */
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

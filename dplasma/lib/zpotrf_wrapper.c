@@ -25,9 +25,9 @@
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to modify.
- *          On exit, the modified object.
+ * @param[in,out] handle
+ *          On entry, the handle to modify.
+ *          On exit, the modified handle.
  *
  * @param[in] hmb
  *          The tile size to use for the smaller recursive call.
@@ -40,9 +40,9 @@
  *
  ******************************************************************************/
 void
-dplasma_zpotrf_setrecursive( dague_handle_t *o, int hmb )
+dplasma_zpotrf_setrecursive( dague_handle_t *handle, int hmb )
 {
-    dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)o;
+    dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)handle;
 
     if (hmb > 0) {
         dague_zpotrf->smallnb = hmb;
@@ -54,7 +54,7 @@ dplasma_zpotrf_setrecursive( dague_handle_t *o, int hmb )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zpotrf_New - Generates the object that Computes the Cholesky
+ * dplasma_zpotrf_New - Generates the handle that Computes the Cholesky
  * factorization of a symmetric positive definite (or Hermitian positive
  * definite in the complex case) matrix A, with or without recursive calls.
  * The factorization has the form
@@ -102,7 +102,7 @@ dplasma_zpotrf_setrecursive( dague_handle_t *o, int hmb )
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zpotrf_Destruct();
  *
@@ -121,7 +121,7 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
                     int *info )
 {
     dague_zpotrf_L_handle_t *dague_zpotrf = NULL;
-    dague_handle_t *o = NULL;
+    dague_handle_t *handle = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaUpper) && (uplo != PlasmaLower)) {
@@ -131,12 +131,12 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        o = (dague_handle_t*)dague_zpotrf_U_new( uplo, (dague_ddesc_t*)A, info);
+        handle = (dague_handle_t*)dague_zpotrf_U_new( uplo, (dague_ddesc_t*)A, info);
     } else {
-        o = (dague_handle_t*)dague_zpotrf_L_new( uplo, (dague_ddesc_t*)A, info);
+        handle = (dague_handle_t*)dague_zpotrf_L_new( uplo, (dague_ddesc_t*)A, info);
     }
 
-    dague_zpotrf = (dague_zpotrf_L_handle_t*)o;
+    dague_zpotrf = (dague_zpotrf_L_handle_t*)handle;
     dague_zpotrf->PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
     if(0 == dague_zpotrf->PRI_CHANGE)
       dague_zpotrf->PRI_CHANGE = A->nt;
@@ -145,7 +145,7 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
                             DAGUE_ARENA_ALIGNMENT_SSE,
                             dague_datatype_double_complex_t, A->mb );
 
-    return o;
+    return handle;
 }
 
 /**
@@ -153,14 +153,14 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zpotrf_Destruct - Free the data structure associated to an object
+ *  dplasma_zpotrf_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zpotrf_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -169,12 +169,12 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zpotrf_Destruct( dague_handle_t *o )
+dplasma_zpotrf_Destruct( dague_handle_t *handle )
 {
-    dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)o;
+    dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    handle->destructor(handle);
 }
 
 /**

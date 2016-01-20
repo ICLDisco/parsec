@@ -159,16 +159,16 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 }
 
 void
-dplasma_zhebut_Destruct( dague_handle_t *o )
+dplasma_zhebut_Destruct( dague_handle_t *handle )
 {
     int i;
-    dague_zhebut_handle_t *obut = (dague_zhebut_handle_t *)o;
+    dague_zhebut_handle_t *obut = (dague_zhebut_handle_t *)handle;
 
     for(i=0; i<36; i++){
         dague_matrix_del2arena( obut->arenas[i] );
     }
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);
+    handle->destructor(handle);
 }
 
 /* GE for General */
@@ -230,16 +230,16 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 }
 
 void
-dplasma_zgebut_Destruct( dague_handle_t *o )
+dplasma_zgebut_Destruct( dague_handle_t *handle )
 {
     int i;
-    dague_zgebut_handle_t *obut = (dague_zgebut_handle_t *)o;
+    dague_zgebut_handle_t *obut = (dague_zgebut_handle_t *)handle;
 
     for(i=0; i<36; i++){
         dague_matrix_del2arena( obut->arenas[i] );
     }
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(obut);
+    handle->destructor(handle);
 }
 
 /*
@@ -301,16 +301,16 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
 }
 
 void
-dplasma_zgebmm_Destruct( dague_handle_t *o )
+dplasma_zgebmm_Destruct( dague_handle_t *handle )
 {
     int i;
-    dague_zgebmm_handle_t *obmm = (dague_zgebmm_handle_t *)o;
+    dague_zgebmm_handle_t *obmm = (dague_zgebmm_handle_t *)handle;
 
     for(i=0; i<36; i++){
         dague_matrix_del2arena( obmm->arenas[i] );
     }
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(obmm);
+    handle->destructor(handle);
 }
 
 

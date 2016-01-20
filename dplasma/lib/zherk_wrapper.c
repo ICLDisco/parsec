@@ -21,7 +21,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasm_zherk_New - Generates the object that performs the following operation
+ *  dplasm_zherk_New - Generates the handle that performs the following operation
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( A )' )] + \beta C \f],
  *
@@ -65,7 +65,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague object describing the operation that can be
+ *          \retval The dague handle describing the operation that can be
  *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
  *          destroy with dplasma_zherk_Destruct();
  *
@@ -84,17 +84,17 @@ dplasma_zherk_New( PLASMA_enum uplo,
                    double beta,
                    tiled_matrix_desc_t* C)
 {
-    dague_handle_t* object;
+    dague_handle_t* handle;
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zherk_LN_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zherk_LC_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
@@ -102,25 +102,25 @@ dplasma_zherk_New( PLASMA_enum uplo,
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zherk_UN_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
         else {
-            object = (dague_handle_t*)
+            handle = (dague_handle_t*)
                 dague_zherk_UC_new(uplo, trans,
                                    alpha, (dague_ddesc_t*)A,
                                    beta,  (dague_ddesc_t*)C);
         }
     }
 
-    dplasma_add2arena_tile(((dague_zherk_LN_handle_t*)object)->arenas[DAGUE_zherk_LN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((dague_zherk_LN_handle_t*)handle)->arenas[DAGUE_zherk_LN_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            dague_datatype_double_complex_t, C->mb);
 
-    return object;
+    return handle;
 }
 
 /**
@@ -128,14 +128,14 @@ dplasma_zherk_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zherk_Destruct - Free the data structure associated to an object
+ *  dplasma_zherk_Destruct - Free the data structure associated to an handle
  *  created with dplasma_zherk_New().
  *
  *******************************************************************************
  *
- * @param[in,out] o
- *          On entry, the object to destroy.
- *          On exit, the object cannot be used anymore.
+ * @param[in,out] handle
+ *          On entry, the handle to destroy.
+ *          On exit, the handle cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -144,11 +144,11 @@ dplasma_zherk_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zherk_Destruct( dague_handle_t *o )
+dplasma_zherk_Destruct( dague_handle_t *handle )
 {
-    dague_zherk_LN_handle_t *zherk_object = (dague_zherk_LN_handle_t*)o;
-    dague_matrix_del2arena( zherk_object->arenas[DAGUE_zherk_LN_DEFAULT_ARENA] );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(zherk_object);
+    dague_zherk_LN_handle_t *zherk_handle = (dague_zherk_LN_handle_t*)handle;
+    dague_matrix_del2arena( zherk_handle->arenas[DAGUE_zherk_LN_DEFAULT_ARENA] );
+    handle->destructor(handle);
 }
 
 /**
