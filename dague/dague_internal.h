@@ -178,7 +178,7 @@ typedef int (dague_datatype_lookup_t)(struct dague_execution_unit_s* eu,
 
 /**
  * Allocate a new task that matches the function_t type. This can also be a task
- * of a generci type (such as dague_execution_context_t).
+ * of a generic type (such as dague_execution_context_t).
  */
 typedef int (dague_new_task_function_t)(const dague_execution_context_t** task);
 

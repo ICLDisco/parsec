@@ -455,7 +455,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
                 case DAGUE_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
                 case DAGUE_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
                 case DAGUE_HOOK_RETURN_ERROR:   /* Some other major error happened */
-                    assert( 0 ); /* Internal error: invalid return value for data_lookup function */
+                    assert( 0 ); /* Internal error: invalid return value */
                 }
                 nbiterations++;
                 break;

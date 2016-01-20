@@ -2293,7 +2293,7 @@ dague_release_task_to_mempool(dague_execution_unit_t *eu,
  * will generate all the startup tasks, in a manner similar to what we did
  * before. However, we now have the opportunity to build a stateful reentrant
  * function, that can generate only a certain number of tasks and then
- * re-enqueue itself for later cexecution.
+ * re-enqueue itself for later execution.
  */
 
 static inline int
