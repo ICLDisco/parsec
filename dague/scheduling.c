@@ -431,8 +431,9 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
             }
             switch(rc) {
             case DAGUE_HOOK_RETURN_DONE: {
-                if(exec_context->status <= DAGUE_TASK_STATUS_HOOK)
+                if(exec_context->status <= DAGUE_TASK_STATUS_HOOK) {
                     rc = __dague_execute( eu_context, exec_context );
+                }
                 /* We're good to go ... */
                 switch(rc) {
                 case DAGUE_HOOK_RETURN_DONE:    /* This execution succeeded */
@@ -670,9 +671,9 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle )
             }
         }
         free(startup_list);
-    } else
+    } else {
         dague_check_complete_cb(handle, context, handle->nb_local_tasks);
-
+    }
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;
 #endif
