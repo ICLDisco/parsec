@@ -139,10 +139,12 @@ static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* des
         return rc;
     }
 
-    status = cudaSetDevice( gpu_device->cuda_index );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cudaSetDevice ", status,
-                            {goto restore_and_return;} );
-
+    /*
+     * We rely on the thread-safety of the CUDA interface to register the memory
+     * as another thread might be submiting tasks at the same time
+     * (cuda_scheduling.h), and we do not set a device since we register it for
+     * all devices.
+     */
     status = cudaHostRegister(ptr, length, cudaHostRegisterPortable );
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cudaHostRegister ", status,
                             { goto restore_and_return; } );
@@ -165,10 +167,10 @@ static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* d
         return rc;
     }
 
-    status = cudaSetDevice( gpu_device->cuda_index );
-    DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cudaSetDevice ", status,
-                            {goto restore_and_return;} );
-
+    /*
+     * We rely on the thread-safety of the CUDA interface to unregister the memory
+     * as another thread might be submiting tasks at the same time (cuda_scheduling.h)
+     */
     status = cudaHostUnregister(ptr);
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_ununregister) cudaHostUnregister ", status,
                             {continue;} );
