@@ -80,8 +80,6 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
         return DAGUE_HOOK_RETURN_ASYNC;
     }
 
-    dague_atomic_lock( &(gpu_device->lock) );
-
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
         DAGUE_PROFILING_TRACE( eu_context->eu_profile, dague_cuda_own_GPU_key_start,
@@ -196,11 +194,6 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
                                    (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-        /* Restore the context so the others can steal it */
-        dague_atomic_unlock( &(gpu_device->lock) );
-
-        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                {return DAGUE_HOOK_RETURN_ASYNC;} );
         return DAGUE_HOOK_RETURN_ASYNC;
     }
     this_task = progress_task;

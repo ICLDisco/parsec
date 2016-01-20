@@ -139,9 +139,6 @@ static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* des
         return rc;
     }
 
-    /* Atomically get the GPU context */
-    dague_atomic_lock( &(gpu_device->lock) );
-
     status = cudaSetDevice( gpu_device->cuda_index );
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_register) cudaSetDevice ", status,
                             {goto restore_and_return;} );
@@ -154,9 +151,6 @@ static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* des
     desc->memory_registration_status = MEMORY_STATUS_REGISTERED;
 
   restore_and_return:
-    /* Restore the context so the others can steal it */
-    dague_atomic_unlock( &(gpu_device->lock) );
-
     return rc;
 }
 
@@ -171,9 +165,6 @@ static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* d
         return rc;
     }
 
-    /* Atomically get the GPU context */
-    dague_atomic_lock( &(gpu_device->lock) );
-
     status = cudaSetDevice( gpu_device->cuda_index );
     DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_unregister) cudaSetDevice ", status,
                             {goto restore_and_return;} );
@@ -186,9 +177,6 @@ static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* d
     desc->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
 
   restore_and_return:
-    /* Restore the context so the others can use it */
-    dague_atomic_unlock( &(gpu_device->lock) );
-
     return rc;
 }
 
@@ -458,7 +446,6 @@ int dague_gpu_init(dague_context_t *dague_context)
 
         gpu_device = (gpu_device_t*)calloc(1, sizeof(gpu_device_t));
         OBJ_CONSTRUCT(gpu_device, dague_list_item_t);
-        gpu_device->lock       = DAGUE_ATOMIC_UNLOCKED;
         gpu_device->cuda_index = (uint8_t)i;
         gpu_device->major      = (uint8_t)major;
         gpu_device->minor      = (uint8_t)minor;

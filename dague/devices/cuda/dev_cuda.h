@@ -81,7 +81,6 @@ typedef struct __dague_gpu_exec_stream {
 
 typedef struct _gpu_device {
     dague_device_t super;
-    dague_atomic_lock_t lock;
     uint8_t cuda_index;
     uint8_t major;
     uint8_t minor;
