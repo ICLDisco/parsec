@@ -2162,16 +2162,20 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "  %s* new_task;\n"
             "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)this_task->dague_handle;\n"
             "  dague_context_t           *context = __dague_handle->super.super.context;\n"
-            "  int vpid = 0;\n"
+            "  int vpid = 0, nb_tasks = 0, total_nb_tasks = 0;\n"
             "  dague_list_item_t* pready_ring = NULL;\n",
             fname, dague_get_name(jdf, f, "task_t"),
             dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename);
 
     for(dl = f->locals; dl != NULL; dl = dl->next)
-        coutput("  int %s = this_task->locals.%s.value;\n", dl->name, dl->name);
+        coutput("  int %s = this_task->locals.%s.value;  /* retrieve value saved during the last iteration */\n", dl->name, dl->name);
 
-    coutput("  if( 0 != this_task->locals.unused[0].value ) goto after_insert_task;\n\n");
+    coutput("  if( 0 != this_task->locals.unused[0].value ) {\n"
+            "    this_task->locals.unused[0].value = 1; /* reset the submission process */\n"
+            "    goto after_insert_task;\n"
+            "  }\n"
+            "  this_task->locals.unused[0].value = 1; /* a sane default value */\n");
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -2274,9 +2278,21 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  pready_ring = dague_list_item_ring_push_sorted(pready_ring,\n"
             "%s                                                 &new_task->super.list_item,\n"
             "%s                                                 dague_execution_context_priority_comparator);\n"
-            "%s after_insert_task:\n"
-            "%s  this_task->locals.unused[0].value = 1;\n",
-            indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
+            "%s  nb_tasks++;\n"
+            "%s after_insert_task:  /* we jump here just so that we have code after the label */\n"
+            "%s  if( nb_tasks > this_task->locals.unused[0].value ) {\n"
+            "%s    if( this_task->locals.unused[0].value < 64 ) this_task->locals.unused[0].value <<= 1;\n"
+            "%s    __dague_schedule(eu, (dague_execution_context_t*)pready_ring);\n"
+            "%s    pready_ring = NULL;\n"
+            "%s    total_nb_tasks += nb_tasks;\n"
+            "%s    nb_tasks = 0;\n"
+            "%s    if( total_nb_tasks > 1024 ) {  /* stop here and request to be rescheduled */\n"
+            "%s      return DAGUE_HOOK_RETURN_AGAIN;\n"
+            "%s    }\n"
+            "%s  }\n",
+            indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting),
+            indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting),
+            indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
     for(; nesting > 0; nesting--) {
         coutput("%s}\n", indent(nesting));
@@ -3169,6 +3185,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "  __dague_handle->super.super.devices_mask = DAGUE_DEVICES_ALL;\n"
             "  __dague_handle->super.super.dependencies_array = (void **)\n"
             "              calloc(__dague_handle->super.super.nb_functions , sizeof(void*));\n"
+            "  /* Twice the size to hold the startup tasks function_t */\n"
             "  __dague_handle->super.super.functions_array = (const dague_function_t**)\n"
             "              malloc(2 * __dague_handle->super.super.nb_functions * sizeof(dague_function_t*));\n"
             "  __dague_handle->super.super.nb_local_tasks = __dague_handle->super.super.nb_functions;\n"
