@@ -130,7 +130,6 @@ static int dague_cuda_device_fini(dague_device_t* device)
 
 static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* desc, void* ptr, size_t length)
 {
-    gpu_device_t* gpu_device = (gpu_device_t*)device;
     cudaError_t status;
     int rc = DAGUE_ERROR;
 
@@ -153,12 +152,12 @@ static int dague_cuda_memory_register(dague_device_t* device, dague_ddesc_t* des
     desc->memory_registration_status = MEMORY_STATUS_REGISTERED;
 
   restore_and_return:
+    (void)device;
     return rc;
 }
 
 static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* desc, void* ptr)
 {
-    gpu_device_t* gpu_device = (gpu_device_t*)device;
     cudaError_t status;
     int rc = DAGUE_ERROR;
 
@@ -178,7 +177,7 @@ static int dague_cuda_memory_unregister(dague_device_t* device, dague_ddesc_t* d
     rc = DAGUE_SUCCESS;
     desc->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
 
-  restore_and_return:
+    (void)device;
     return rc;
 }
 

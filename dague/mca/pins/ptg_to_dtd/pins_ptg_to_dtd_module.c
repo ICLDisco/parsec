@@ -152,8 +152,8 @@ testing_hook_of_dtd_task(dague_execution_unit_t *context,
     int rc = 0;
 
     DAGUE_TASK_PROF_TRACE(context->eu_profile,
-                          this_task->dague_handle->profiling_array[2 * this_task->function->function_id],
-                          this_task);
+                          dtd_task->super.dague_handle->profiling_array[2 * dtd_task->super.function->function_id],
+                          &(dtd_task->super));
 
     /**
      * Check to see which interface, if it is the PTG inserting task in DTD then
