@@ -196,6 +196,7 @@ add_task_to_list(dague_execution_unit_t *eu_context,
 
     memcpy( new_context, newcontext, sizeof(dague_execution_context_t) );
     new_context->super.mempool_owner = mpool;
+    new_context->status = DAGUE_TASK_STATUS_NONE;
     pready_list[vpid_dst] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid_dst]),
                                                                                           (dague_list_item_t*)new_context,
                                                                                           dague_execution_context_priority_comparator );

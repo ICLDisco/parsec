@@ -75,8 +75,8 @@ hash_table_insert( hash_table *hash_table,
  * Returns:
  */
 void *
-hash_table_find( hash_table *hash_table,
-                 uint64_t key, uint32_t hash );
+hash_table_find_no_lock( hash_table *hash_table,
+                         uint64_t key, uint32_t hash );
 
 /* Function to find element in the hash table
  * Arguments:

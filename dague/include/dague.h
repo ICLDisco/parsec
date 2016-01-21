@@ -162,6 +162,23 @@ dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 /**< Free the resource allocated in the dague handle. The handle should be unregistered first. */
 void dague_handle_free(dague_handle_t *handle);
 
+/**<
+ * The final step of a handle activation. At this point we assume that all the local
+ * initializations have been succesfully completed for all components, and that the
+ * handle is ready to be registered in the system, and any potential pending tasks
+ * ready to go.
+ *
+ * The local_task allows for concurrent management of the startup_queue, and provide a way
+ * to prevent a task from being added to the scheduler. The execution unit eu, is only
+ * meaningful if there are any tasks to be scheduled. The nb_tasks is used to detect
+ * if the handle should be registered with the communication engine or not.
+ */
+int dague_handle_enable(dague_handle_t* handle,
+                        dague_execution_context_t** startup_queue,
+                        dague_execution_context_t* local_task,
+                        dague_execution_unit_t * eu,
+                        int nb_tasks);
+
 /**< Update the number of tasks by adding the increment (if the increment is negative
  * the number of tasks is decreased).
  */

@@ -50,7 +50,7 @@ int main(int argc, char ** argv)
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
 
     dague_dtd_init();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague);
 
     dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
 

@@ -177,6 +177,12 @@ typedef int (dague_datatype_lookup_t)(struct dague_execution_unit_s* eu,
                                       dague_dep_data_description_t * data);
 
 /**
+ * Allocate a new task that matches the function_t type. This can also be a task
+ * of a generic type (such as dague_execution_context_t).
+ */
+typedef int (dague_new_task_function_t)(const dague_execution_context_t** task);
+
+/**
  *
  */
 typedef enum dague_hook_return_e {
@@ -201,14 +207,8 @@ typedef struct dague_data_ref_s {
 typedef int (dague_data_ref_fn_t)(dague_execution_context_t *exec_context,
                                   dague_data_ref_t *ref);
 
-/**
- *
- */
-typedef int (dague_task_fct_t)(dague_execution_context_t *exec_context);
-
 #define DAGUE_HAS_IN_IN_DEPENDENCIES     0x0001
 #define DAGUE_HAS_OUT_OUT_DEPENDENCIES   0x0002
-#define DAGUE_HAS_IN_STRONG_DEPENDENCIES 0x0004
 #define DAGUE_HIGH_PRIORITY_TASK         0x0008
 #define DAGUE_IMMEDIATE_TASK             0x0010
 #define DAGUE_USE_DEPS_MASK              0x0020
@@ -255,6 +255,7 @@ struct dague_function_s {
     dague_traverse_function_t   *iterate_predecessors;
     dague_release_deps_t        *release_deps;
     dague_hook_t                *complete_execution;
+    dague_new_task_function_t   *new_task;
     dague_hook_t                *release_task;
     dague_hook_t                *fini;
 };
@@ -266,15 +267,20 @@ struct dague_data_pair_s {
 };
 
 /**
+ * Generic startup function. For more info read comment in dague.c.
+ */
+DAGUE_DECLSPEC extern const dague_function_t __dague_generic_startup;
+
+/**
  * Description of the state of the task. It indicates what will be the next
  * next stage in the life-time of a task to be executed.
  */
-#define DAGUE_TASK_STATUS_NONE           0x00
-#define DAGUE_TASK_STATUS_PREPARE_INPUT  0x01
-#define DAGUE_TASK_STATUS_EVAL           0x02
-#define DAGUE_TASK_STATUS_HOOK           0x03
-#define DAGUE_TASK_STATUS_PREPARE_OUTPUT 0x04
-#define DAGUE_TASK_STATUS_COMPLETE       0x05
+#define DAGUE_TASK_STATUS_NONE           (uint8_t)0x00
+#define DAGUE_TASK_STATUS_PREPARE_INPUT  (uint8_t)0x01
+#define DAGUE_TASK_STATUS_EVAL           (uint8_t)0x02
+#define DAGUE_TASK_STATUS_HOOK           (uint8_t)0x03
+#define DAGUE_TASK_STATUS_PREPARE_OUTPUT (uint8_t)0x04
+#define DAGUE_TASK_STATUS_COMPLETE       (uint8_t)0x05
 
 /**
  * The minimal execution context contains only the smallest amount of information
@@ -289,9 +295,8 @@ struct dague_data_pair_s {
     const  dague_function_t       *function;         \
     int32_t                        priority;         \
     uint8_t                        status;           \
-    uint8_t                        hook_id;          \
     uint8_t                        chore_id;         \
-    uint8_t                        unused;
+    uint8_t                        unused[2];
 
 struct dague_minimal_execution_context_s {
     DAGUE_MINIMAL_EXECUTION_CONTEXT

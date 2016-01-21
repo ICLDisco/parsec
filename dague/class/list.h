@@ -742,14 +742,16 @@ dague_list_unchain( dague_list_t* list )
     dague_list_item_t* head;
     dague_list_item_t* tail;
     dague_atomic_lock(&list->atomic_lock);
-    if( dague_list_nolock_is_empty(list) )
+    if( dague_list_nolock_is_empty(list) ) {
+        dague_atomic_unlock(&list->atomic_lock);
         return NULL;
+    }
     head = (dague_list_item_t*)_HEAD(list);
     tail = (dague_list_item_t*)_TAIL(list);
     _HEAD(list) = _GHOST(list);
     _TAIL(list) = _GHOST(list);
-    dague_atomic_unlock(&list->atomic_lock);
     dague_list_item_ring(head, tail);
+    dague_atomic_unlock(&list->atomic_lock);
     return head;
 }
 

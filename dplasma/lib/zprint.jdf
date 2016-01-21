@@ -74,7 +74,7 @@ PRINT_F(k) [profile = off]
 
   // Parameters
 READ A   <- dataA(m, n)
-CTL  ctl <- (k > 0 )      ? ctl PRINT_F(k-1)
+CTL  ctl <- (k > 0)       ? ctl PRINT_F(k-1)
          -> (k < sizef-1) ? ctl PRINT_F(k+1)
 BODY
 {
@@ -99,7 +99,7 @@ PRINT_L(k) [profile = off]
 
   // Parameters
 READ  A   <- dataA(m, n)
-CTL   ctl <- (k > 0 )      ? ctl PRINT_L(k-1)
+CTL   ctl <- (k > 0)       ? ctl PRINT_L(k-1)
           -> (k < sizel-1) ? ctl PRINT_L(k+1)
 BODY
 {
@@ -123,7 +123,7 @@ PRINT_U(k) [profile = off]
 
   // Parameters
 READ  A   <- dataA(m, n)
-CTL   ctl <- (k > 0 )      ? ctl PRINT_U(k-1)
+CTL   ctl <- (k > 0)       ? ctl PRINT_U(k-1)
           -> (k < sizeu-1) ? ctl PRINT_U(k+1)
 BODY
 {

@@ -27,7 +27,7 @@ BEGIN_C_DECLS
 extern int dump_traversal_info; /* For printing traversal info */
 extern int dump_function_info; /* For printing function_structure info */
 extern int testing_ptg_to_dtd; /* to detect ptg testing dtd */
-extern int window_size;
+extern int dtd_window_size;
 extern int my_rank;
 
 #define GET_TASK_PTR(TASK) (dague_dtd_task_t *)(((uintptr_t)TASK) & 0xFFFFFFFFFFFFFFF0)
@@ -36,9 +36,6 @@ extern int my_rank;
 #define OVERLAP    1 /* enables window */
 #define LOCAL_DATA 200 /* function_id is uint8_t */
 /* #define DEBUG_HEAVY 1 */
-
-/* for testing purpose of automatic insertion from Awesome PTG approach */
-dague_dtd_handle_t *__dtd_handle;
 
 /* Structure used to pack arguments of insert_task() */
 struct dague_dtd_task_param_s {
@@ -65,8 +62,6 @@ struct dague_dtd_task_s {
     dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
     int                         flow_count;
-    int                         flow_satisfied;
-    int                         ready_mask;
     uint8_t                     belongs_to_function;
     /* Saves flow index for which we have to release data of a TASK
        with INPUT and ATOMIC_WRITE operation
@@ -116,8 +111,7 @@ struct dague_dtd_handle_s {
     int             arenas_size;
     int             task_id;
     int             task_window_size;
-    int             tasks_created;
-    int             tasks_scheduled;
+    uint32_t        task_threshold_size;
     uint8_t         function_counter;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;
@@ -159,8 +153,6 @@ void dtd_startup(dague_context_t *context,
 int data_lookup_of_dtd_task(dague_execution_unit_t *,
                             dague_execution_context_t *);
 
-void copy_chores(dague_handle_t *handle, dague_dtd_handle_t *dtd_handle);
-
 void ordering_correctly_1(dague_execution_unit_t * eu,
                      const dague_execution_context_t * this_task,
                      uint32_t action_mask,
@@ -177,7 +169,7 @@ dague_dtd_task_t *
 create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *tile );
 
 void
-set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile,
+set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile, int *satisfied_flow,
          int tile_op_type, dague_dtd_task_param_t *current_param,
          uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val,
          dague_dtd_handle_t *__dague_handle, int *flow_index, int *next_arg);
@@ -206,10 +198,6 @@ dague_dtd_tile_release
 uint32_t
 hash_key (uintptr_t key, int size);
 
-int
-testing_hook_of_dtd_task(dague_execution_unit_t    *context,
-                         dague_execution_context_t *this_task);
-
 void
 dague_dtd_tile_insert( dague_dtd_handle_t *dague_handle, uint32_t key,
                        dague_dtd_tile_t   *tile,
@@ -231,6 +219,10 @@ add_profiling_info(dague_dtd_handle_t *__dague_handle,
 void
 dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,
                         uint32_t             key );
+
+void
+dague_execute_and_come_back(dague_context_t *context,
+                            dague_handle_t *dague_handle);
 
 END_C_DECLS
 

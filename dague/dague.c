@@ -461,6 +461,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         }
     }
 
+    /* the extra allocation will pertain to the virtual_processes array */
     context = (dague_context_t*)malloc(sizeof(dague_context_t) + (nb_vp-1) * sizeof(dague_vp_t*));
 
     context->__dague_internal_finalization_in_progress = 0;
@@ -752,6 +753,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         dague_mca_param_dump_release(l);
 
         dague_fini(&context);
+        return NULL;
     }
 
     if( NULL != cmd_line )
@@ -1192,11 +1194,16 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
 }
 
+/**
+ * Mark the task as having all it's dependencies satisfied. This is not
+ * necessarily required for the startup process, but it leaves traces such that
+ * all executed tasks will show consistently (no difference between the startup
+ * tasks and later tasks).
+ */
 void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict exec_context)
 {
     const dague_function_t* function = exec_context->function;
-    dague_handle_t *dague_handle = exec_context->dague_handle;
-    dague_dependency_t *deps = find_deps(dague_handle, exec_context);
+    dague_dependency_t *deps = find_deps(exec_context->dague_handle, exec_context);
 
     if( function->flags & DAGUE_USE_DEPS_MASK ) {
         *deps = DAGUE_DEPENDENCIES_STARTUP_TASK | function->dependencies_goal;
@@ -1246,9 +1253,9 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
          * Queue it into the ready_list passed as an argument.
          */
         {
-            dague_execution_context_t* new_context;
-            new_context = (dague_execution_context_t*)dague_thread_mempool_allocate(eu_context->context_mempool);
+            dague_execution_context_t *new_context = (dague_execution_context_t *) dague_thread_mempool_allocate(eu_context->context_mempool);
             DAGUE_COPY_EXECUTION_CONTEXT(new_context, exec_context);
+            new_context->status = DAGUE_TASK_STATUS_NONE;
             AYU_ADD_TASK(new_context);
 
             DEBUG(("%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",
@@ -1351,7 +1358,7 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
 
     if( (arg->action_mask & DAGUE_ACTION_RELEASE_LOCAL_DEPS) &&
         (eu->virtual_process->dague_context->my_rank == dst_rank) ) {
-        /* Old condition */    
+        /* Old condition */
         /* if( FLOW_ACCESS_NONE != (src_flow->flow_flags & FLOW_ACCESS_MASK) ) { */
 
         /* Copying data in data-repo if there is data .
@@ -1535,8 +1542,8 @@ dague_handle_t* dague_handle_lookup( uint32_t handle_id )
     return (NOOBJECT == r ? NULL : r);
 }
 
-/**< Reverse an unique ID for the handle. Beware that on a distributed environment the
- * connected objects must have the same ID.
+/**< Reverse an unique ID for the handle but without adding the object to the management array.
+ *   Beware that on a distributed environment the connected objects must have the same ID.
  */
 int dague_handle_reserve_id( dague_handle_t* object )
 {
@@ -1545,7 +1552,7 @@ int dague_handle_reserve_id( dague_handle_t* object )
     dague_atomic_lock( &object_array_lock );
     idx = (uint32_t)++object_array_pos;
 
-    if( idx >= object_array_size ) {
+    if( (NULL == object_array) || (idx >= object_array_size) ) {
         object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
         /* NULLify all the new elements */
@@ -1566,7 +1573,7 @@ int dague_handle_register( dague_handle_t* object)
     uint32_t idx = object->handle_id;
 
     dague_atomic_lock( &object_array_lock );
-    if( idx >= object_array_size ) {
+    if( (NULL == object_array) || (idx >= object_array_size) ) {
         object_array_size <<= 1;
         object_array = (dague_handle_t**)realloc(object_array, object_array_size * sizeof(dague_handle_t*) );
         /* NULLify all the new elements */
@@ -1623,6 +1630,46 @@ void dague_handle_free(dague_handle_t *handle)
     }
     /* the destructor calls the appropriate free on the handle */
     handle->destructor( handle );
+}
+
+/**
+ * The final step of a handle activation. At this point we assume that all the local
+ * initializations have been succesfully completed for all components, and that the
+ * handle is ready to be registered with the system, and any potential pending tasks
+ * ready to go.
+ *
+ * The local_task allows for concurrent management of the startup_queue, and provide a way
+ * to prevent a task from being added to the scheduler. The nb_tasks is used to detect
+ * if the handle should be registered with the communication engine or not.
+ */
+int dague_handle_enable(dague_handle_t* handle,
+                        dague_execution_context_t** startup_queue,
+                        dague_execution_context_t* local_task,
+                        dague_execution_unit_t * eu,
+                        int nb_tasks)
+{
+    if( NULL != startup_queue ) {
+        dague_list_item_t *ring = NULL;
+        dague_execution_context_t* ttask = (dague_execution_context_t*)*startup_queue;
+
+        while( NULL != (ttask = (dague_execution_context_t*)*startup_queue) ) {
+            /* Transform the single linked list into a ring */
+            *startup_queue = (dague_execution_context_t*)ttask->super.list_item.list_next;
+            if(ttask != local_task) {
+                ttask->status = DAGUE_TASK_STATUS_HOOK;
+                DAGUE_LIST_ITEM_SINGLETON(ttask);
+                if(NULL == ring) ring = (dague_list_item_t *)ttask;
+                else dague_list_item_ring_push(ring, &ttask->super.list_item);
+            }
+        }
+        if( NULL != ring ) __dague_schedule(eu, (dague_execution_context_t *)ring);
+    }
+    /* Always register the handle. This allows the handle_t destructor to unregister it in all cases. */
+    dague_handle_register(handle);
+    if( 0 != nb_tasks ) {
+        (void)dague_remote_dep_new_object(handle);
+    }
+    return DAGUE_HOOK_RETURN_DONE;
 }
 
 /**< Decrease task number of the object by nb_tasks. */
@@ -2090,7 +2137,6 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
     context.function = function;
     context.priority = -1;
     context.status = DAGUE_TASK_STATUS_NONE;
-    context.hook_id = 0;
     memset( context.data, 0, MAX_PARAM_COUNT * sizeof(dague_data_pair_t) );
 
     *nlocal = 0;
@@ -2237,3 +2283,87 @@ dague_release_task_to_mempool(dague_execution_unit_t *eu,
 }
 
 
+/**
+ * Special function for generating the dynamic startup functions. The startup
+ * code will be of the type of this function, allowing the PaRSEC infrastructure
+ * to work. Instead of generating a list of ready tasks during the enqueue and
+ * then struggle to spread these tasks over the available resources, we can
+ * simply generate a single task (of this type), and allow the runtime to
+ * schedule it at its convenience. During the execution of this special task we
+ * will generate all the startup tasks, in a manner similar to what we did
+ * before. However, we now have the opportunity to build a stateful reentrant
+ * function, that can generate only a certain number of tasks and then
+ * re-enqueue itself for later execution.
+ */
+
+static inline int
+priority_of_generic_startup_as_expr_fct(const dague_handle_t * __dague_handle,
+                                        const assignment_t * locals)
+{
+    (void)__dague_handle;
+    (void)locals;
+    return INT_MIN;
+}
+
+static const expr_t priority_of_generic_startup_as_expr = {
+    .op = EXPR_OP_INLINE,
+    .u_expr = {.inline_func_int32 = (expr_op_int32_inline_func_t)priority_of_generic_startup_as_expr_fct}
+};
+
+static inline uint64_t
+__dague_generic_startup_hash(const dague_handle_t * __dague_handle,
+                             const assignment_t * assignments)
+{
+    (void)__dague_handle;
+    (void)assignments;
+    return 0ULL;
+}
+
+/**
+ * This function is to be used instead of NULL in the generic startup
+ * function_t.
+ */
+static int dague_empty_function_without_arguments(void)
+{
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
+static const __dague_chore_t __dague_generic_startup_chores[] = {
+    {.type = DAGUE_DEV_CPU,
+     .evaluate = NULL,
+     .hook = (dague_hook_t *) dague_empty_function_without_arguments},  /* To be replaced at runtime with the correct point to the startup tasks */
+    {.type = DAGUE_DEV_NONE,
+     .evaluate = NULL,
+     .hook = (dague_hook_t *) NULL},	/* End marker */
+};
+
+const dague_function_t __dague_generic_startup = {
+    .name = "Generic Startup",
+    .function_id = -1,  /* To be replaced in all copies */
+    .nb_flows = 0,
+    .nb_parameters = 0,
+    .nb_locals = 0,
+    .params = {NULL},
+    .locals = {NULL},
+    .data_affinity = (dague_data_ref_fn_t *) NULL,
+    .initial_data = (dague_data_ref_fn_t *) NULL,
+    .final_data = (dague_data_ref_fn_t *) NULL,
+    .priority = &priority_of_generic_startup_as_expr,
+    .in = {NULL},
+    .out = {NULL},
+    .flags = DAGUE_USE_DEPS_MASK,
+    .dependencies_goal = 0x0,
+    .key = (dague_functionkey_fn_t *) __dague_generic_startup_hash,
+    .fini = (dague_hook_t *) NULL,
+    .incarnations = __dague_generic_startup_chores,
+    .iterate_successors = (dague_traverse_function_t *) NULL,
+    .iterate_predecessors = (dague_traverse_function_t *) NULL,
+    .release_deps = (dague_release_deps_t *) NULL,
+    .prepare_input = (dague_hook_t *) dague_empty_function_without_arguments,
+    .prepare_output = (dague_hook_t *) NULL,
+    .complete_execution = (dague_hook_t *)NULL,
+    .release_task = (dague_hook_t *) dague_release_task_to_mempool,
+#if defined(DAGUE_SIM)
+    .sim_cost_fct = (dague_sim_cost_fct_t *) NULL,
+#endif
+};

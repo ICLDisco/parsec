@@ -148,9 +148,9 @@ int __dague_execute( dague_execution_unit_t* eu_context,
 
     PINS(eu_context, EXEC_BEGIN, exec_context);
     AYU_TASK_RUN(eu_context->th_id, exec_context);
-    /**
-     * Try all the incarnation until one agree to execute.
-     */
+    /* Let's assume everything goes just fine */
+    exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
+    /* Try all the incarnations until one agree to execute. */
     do {
 #if DAGUE_DEBUG_VERBOSE != 0
         DEBUG(("thread %d of VP %d Execute %s[%d]\n",
@@ -164,6 +164,8 @@ int __dague_execute( dague_execution_unit_t* eu_context,
         }
         exec_context->chore_id++;
     } while(NULL != function->incarnations[exec_context->chore_id].hook);
+    /* We failed to execute. Give it another chance ... */
+    exec_context->status = DAGUE_TASK_STATUS_HOOK;
     /* We're out of luck, no more chores */
     PINS(eu_context, EXEC_END, exec_context);
     return DAGUE_HOOK_RETURN_ERROR;
@@ -340,7 +342,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     dague_context_t* dague_context = eu_context->virtual_process->dague_context;
     int32_t my_barrier_counter = dague_context->__dague_internal_finalization_counter;
     dague_execution_context_t* exec_context;
-    int nbiterations = 0;
+    int rc, nbiterations = 0;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -421,20 +423,48 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
             }
 #endif
 
-            PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
-            switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
-            case DAGUE_HOOK_RETURN_DONE:
-            {
+            rc = DAGUE_HOOK_RETURN_DONE;
+            if(exec_context->status <= DAGUE_TASK_STATUS_PREPARE_INPUT) {
+                PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
+                rc = exec_context->function->prepare_input(eu_context, exec_context);
                 PINS(eu_context, PREPARE_INPUT_END, exec_context);
-                int rv = 0;
+            }
+            switch(rc) {
+            case DAGUE_HOOK_RETURN_DONE: {
+                if(exec_context->status <= DAGUE_TASK_STATUS_HOOK) {
+                    rc = __dague_execute( eu_context, exec_context );
+                }
                 /* We're good to go ... */
-                rv = __dague_execute( eu_context, exec_context );
-                if( 0 == rv ) {
+                switch(rc) {
+                case DAGUE_HOOK_RETURN_DONE:    /* This execution succeeded */
+                    exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
                     __dague_complete_execution( eu_context, exec_context );
+                    break;
+                case DAGUE_HOOK_RETURN_AGAIN:   /* Reschedule later */
+                    exec_context->status = DAGUE_TASK_STATUS_HOOK;
+                    if(0 == exec_context->priority) {
+                        SET_LOWEST_PRIORITY(exec_context, dague_execution_context_priority_comparator);
+                    } else
+                        exec_context->priority /= 10;  /* demote the task */
+                    __dague_schedule(eu_context, exec_context);
+                    exec_context = NULL;
+                    break;
+                case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                                 * even try to change it's state, the completion
+                                                 * will be triggered asynchronously. */
+                    break;
+                case DAGUE_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
+                case DAGUE_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
+                case DAGUE_HOOK_RETURN_ERROR:   /* Some other major error happened */
+                    assert( 0 ); /* Internal error: invalid return value */
                 }
                 nbiterations++;
                 break;
             }
+            case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                             * even try to change it's state, the completion
+                                             * will be triggered asynchronously. */
+                break;
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
@@ -612,47 +642,38 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle )
     /* Update the number of pending objects */
     dague_atomic_inc_32b( &(context->active_objects) );
 
-    /* Enable the handle to interact with the communication engine */
-    (void)dague_handle_register(handle);
-
     /* If necessary trigger the on_enqueue callback */
     if( NULL != handle->on_enqueue ) {
         handle->on_enqueue(handle, handle->on_enqueue_data);
     }
 
-    if( handle->nb_local_tasks > 0 ) {
-
-         /* Retrieve all the early messages for this handle */
-        (void)dague_remote_dep_new_object(handle);
-        if( NULL != handle->startup_hook ) {
-            dague_execution_context_t **startup_list;
-            int p;
-            /* These pointers need to be initialized to NULL; doing it with calloc */
-            startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
-            if( NULL == startup_list ) {  /* bad bad */
-                return DAGUE_ERR_OUT_OF_RESOURCE;
-            }
-            handle->startup_hook(context, handle, startup_list);
-            for(p = 0; p < vpmap_get_nb_vp(); p++) {
-                if( NULL != startup_list[p] ) {
-                    dague_list_t temp;
-
-                    OBJ_CONSTRUCT( &temp, dague_list_t );
-                    /* Order the tasks by priority */
-                    dague_list_chain_sorted(&temp, (dague_list_item_t*)startup_list[p],
-                                            dague_execution_context_priority_comparator);
-                    startup_list[p] = (dague_execution_context_t*)dague_list_nolock_unchain(&temp);
-                    OBJ_DESTRUCT(&temp);
-                    /* We should add these tasks on the system queue when there is one */
-                    __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
-                }
-            }
-            free(startup_list);
+    if( NULL != handle->startup_hook ) {
+        dague_execution_context_t **startup_list;
+        int p;
+        /* These pointers need to be initialized to NULL; doing it with calloc */
+        startup_list = (dague_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(dague_execution_context_t*) );
+        if( NULL == startup_list ) {  /* bad bad */
+            return DAGUE_ERR_OUT_OF_RESOURCE;
         }
+        handle->startup_hook(context, handle, startup_list);
+        for(p = 0; p < vpmap_get_nb_vp(); p++) {
+            if( NULL != startup_list[p] ) {
+                dague_list_t temp;
+
+                OBJ_CONSTRUCT( &temp, dague_list_t );
+                /* Order the tasks by priority */
+                dague_list_chain_sorted(&temp, (dague_list_item_t*)startup_list[p],
+                                        dague_execution_context_priority_comparator);
+                startup_list[p] = (dague_execution_context_t*)dague_list_nolock_unchain(&temp);
+                OBJ_DESTRUCT(&temp);
+                /* We should add these tasks on the system queue when there is one */
+                __dague_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
+            }
+        }
+        free(startup_list);
     } else {
         dague_check_complete_cb(handle, context, handle->nb_local_tasks);
     }
-
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;
 #endif

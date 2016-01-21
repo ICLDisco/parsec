@@ -27,7 +27,7 @@ call_to_kernel_type_1(dague_execution_unit_t *context, dague_execution_context_t
                           UNPACK_DATA,  &gDATA
                           );
 
-    printf("Executing Task: %ld\n",((dague_dtd_task_t *)this_task)->super.super.key);
+    printf("Executing Task: %lld\n",((dague_dtd_task_t *)this_task)->super.super.key);
 
     return 0;
 }
@@ -44,7 +44,7 @@ call_to_kernel_type_2(dague_execution_unit_t *context, dague_execution_context_t
 
     int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gDATA);
 
-    printf("Executing Task: %ld\n",((dague_dtd_task_t *)this_task)->super.super.key);
+    printf("Executing Task: %lld\n",((dague_dtd_task_t *)this_task)->super.super.key);
     //printf("The data is: %d\n", *data);
 
     dague_atomic_add_32b(data, 1);
@@ -78,7 +78,7 @@ int main(int argc, char ** argv)
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
 
     dague_dtd_init();
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague, 1); /* 4 = task_class_count, 1 = arena_count */
+    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague);
 
     two_dim_block_cyclic_t *__ddescDATA = &ddescDATA;
     dague_ddesc_t *ddesc = &(ddescDATA.super.super);
