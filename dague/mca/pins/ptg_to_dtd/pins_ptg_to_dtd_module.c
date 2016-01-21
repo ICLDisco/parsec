@@ -279,8 +279,8 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     /* Creating Task object */
     this_task = (dague_dtd_task_t *) dague_thread_mempool_allocate(context_mempool_in_function->thread_mempools);
 
-    for(i=0;i<MAX_DESC;i++) {
-        this_task->desc[i].task           = NULL;
+    for( i = 0; i < function->nb_flows; i++ ) {
+        this_task->desc[i].task                = NULL;
         this_task->dont_skip_releasing_data[i] = 0;
     }
 
@@ -289,12 +289,14 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     this_task->belongs_to_function = function->function_id;
     this_task->super.function = __dague_handle->super.functions_array[(this_task->belongs_to_function)];
     this_task->super.super.key = dague_atomic_add_32b((int *)&(__dague_handle->task_id),1);
-#if defined(OVERLAP)
-    /* +1 to make sure the task is completely ready before it gets executed */
-    this_task->flow_count = this_task->super.function->nb_flows+1;
-#else
-    this_task->flow_count = this_task->super.function->nb_flows;
-#endif
+    /**
+     * +1 to make sure the task cannot be completed by the potential predecessors,
+     * before we are completely done with it here. As we have an atomic operation
+     * in all cases, increasing the expected flows by one will have no impact on
+     * the performance.
+     * */
+    this_task->flow_count = this_task->super.function->nb_flows + 1;
+
     this_task->fpointer = fpointer;
     this_task->super.priority = 0;
     this_task->super.chore_id = 0;
@@ -338,12 +340,11 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     this_task->param_list = head_of_param_list;
 
     /* Atomically increasing the nb_local_tasks_counter */
-    dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks),1);
+    dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks), 1);
 
-#if defined (OVERLAP)    /* in attempt to make the task not ready till the whole body is constructed */
-    /* in attempt to make the task not ready till the whole body is constructed */
+    /* Increase the count of satisfied flows to counter-balance the increase in the
+     * number of expected flows done during the task creation.  */
     satisfied_flow++;
-#endif
 
     if(!__dague_handle->super.context->active_objects) {
         assert(0);
@@ -355,7 +356,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     }
 
     /* Building list of initial ready task */
-    if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), (-1*satisfied_flow)) ) {
+    if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
             DAGUE_LIST_ITEM_SINGLETON(this_task);
             if (NULL != __dague_handle->startup_list[vpid]) {
                 dague_list_item_ring_merge((dague_list_item_t *)this_task,
