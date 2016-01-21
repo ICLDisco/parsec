@@ -786,6 +786,20 @@ DAGUE_DECLSPEC void
 dague_mca_show_mca_params(dague_list_t *info,
                           const char *type, const char *component,
                           bool pretty_print);
+
+/**
+ * Set a MCA environment variable to allow the user program to define options
+ * forwarded to the runtime.
+ *
+ * @param param Name of the type containing the variable.
+ * @param value Value of the mca parameter to set.
+ *
+ */
+DAGUE_DECLSPEC void
+dague_register_mca_param( char *param,
+                          char *value,
+                          char ***env );
+
 END_C_DECLS
 
 #endif /* DAGUE_MCA_PARAM_H */
