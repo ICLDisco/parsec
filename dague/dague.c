@@ -57,6 +57,12 @@
 #include <cuda_runtime_api.h>
 #endif
 
+/**
+ * Global variables.
+ */
+size_t dague_task_startup_iter = 64;
+size_t dague_task_startup_chunk = 256;
+
 dague_data_allocate_t dague_data_allocate = malloc;
 dague_data_free_t     dague_data_free = free;
 
@@ -544,6 +550,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_mca_param_reg_sizet_name("arena", "max_cached", "The maxmimum amount of memory each arena can"
                                    " cache in a freelist (0=no caching)",
                                    false, false, dague_arena_max_cached_memory, &dague_arena_max_cached_memory);
+
+    dague_mca_param_reg_sizet_name("task", "startup_iter", "The maximum number of tasks to be generated locally"
+                                   " before being pushed into the scheduler.",
+                                   false, false, dague_task_startup_iter, &dague_task_startup_iter);
+    dague_mca_param_reg_sizet_name("task", "startup_chunk", "The total number of tasks to be generated locally"
+                                   " and pushed into the scheduling before requesting a re-execution to generate the remaining ones.",
+                                   false, false, dague_task_startup_chunk, &dague_task_startup_chunk);
 
     dague_mca_param_reg_string_name("profile", "filename",
 #if defined(DAGUE_PROF_TRACE)

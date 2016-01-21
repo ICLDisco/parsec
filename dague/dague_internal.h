@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The University of Tennessee and The University
+ * Copyright (c) 2012-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -286,6 +286,13 @@ struct dague_data_pair_s {
  * Generic startup function. For more info read comment in dague.c.
  */
 DAGUE_DECLSPEC extern const dague_function_t __dague_generic_startup;
+
+/**
+ * Global configuration variables controling the startup mechanism
+ * and directly the startup speed.
+ */
+DAGUE_DECLSPEC extern size_t dague_task_startup_iter;
+DAGUE_DECLSPEC extern size_t dague_task_startup_chunk;
 
 /**
  * Description of the state of the task. It indicates what will be the next
