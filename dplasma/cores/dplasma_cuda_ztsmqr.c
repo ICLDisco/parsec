@@ -33,7 +33,7 @@ dplasma_cuda_zparfb(PLASMA_enum side, PLASMA_enum trans,
                     const dague_complex64_t *T, int LDT,
                     dague_complex64_t *WORK, int LDWORK,
                     dague_complex64_t *WORKC, int LDWORKC,
-                    CUstream stream)
+                    cudaStream_t stream)
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex zzero = make_cuDoubleComplex(0.0, 0.0);
@@ -194,7 +194,7 @@ dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
                      const dague_complex64_t *T, int LDT,
                      dague_complex64_t *WORK, int LDWORK,
                      dague_complex64_t *WORKC, int LDWORKC,
-                     CUstream stream)
+                     cudaStream_t stream)
 {
     int i, i1, i3;
     int NQ, NW;

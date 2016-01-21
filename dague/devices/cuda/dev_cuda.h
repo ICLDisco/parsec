@@ -63,8 +63,8 @@ typedef struct __dague_gpu_context {
 
 typedef struct __dague_gpu_exec_stream {
     struct __dague_gpu_context **tasks;
-    CUevent *events;
-    CUstream cuda_stream;
+    cudaEvent_t *events;
+    cudaStream_t cuda_stream;
     int32_t max_events;  /* number of potential events, and tasks */
     int32_t executed;    /* number of executed tasks */
     int32_t start, end;  /* circular buffer management start and end positions */
@@ -81,17 +81,14 @@ typedef struct __dague_gpu_exec_stream {
 
 typedef struct _gpu_device {
     dague_device_t super;
+    uint8_t cuda_index;
     uint8_t major;
     uint8_t minor;
-    uint8_t cuda_index;
     uint8_t max_exec_streams;
     int16_t peer_access_mask;  /**< A bit set to 1 represent the capability of
                                 *   the device to access directly the memory of
                                 *   the index of the set bit device.
                                 */
-    CUcontext  ctx;
-    CUmodule   hcuModule;
-    CUfunction hcuFunction;
     dague_gpu_exec_stream_t* exec_stream;
     volatile uint32_t mutex;
     dague_list_t gpu_mem_lru;

@@ -55,7 +55,6 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
                       int which_gpu )
 {
     gpu_device_t* gpu_device;
-    CUcontext saved_ctx;
     cudaError_t status;
     int rc, exec_stream = 0;
     dague_gpu_context_t *progress_task, *out_task_push, *out_task_submit, *out_task_pop;
@@ -81,19 +80,14 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
         return DAGUE_HOOK_RETURN_ASYNC;
     }
 
-    do {
-        saved_ctx = gpu_device->ctx;
-        dague_atomic_cas( &(gpu_device->ctx), saved_ctx, NULL );
-    } while( NULL == saved_ctx );
-
 #if defined(DAGUE_PROF_TRACE)
     if( dague_cuda_trackable_events & DAGUE_PROFILE_CUDA_TRACK_OWN )
         DAGUE_PROFILING_TRACE( eu_context->eu_profile, dague_cuda_own_GPU_key_start,
                                (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
 
-    status = (cudaError_t)cuCtxPushCurrent(saved_ctx);
-    DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
+    status = cudaSetDevice( gpu_device->cuda_index );
+    DAGUE_CUDA_CHECK_ERROR( "(gpu_kernel_scheduler) cudaSetDevice ", status,
                             {return DAGUE_HOOK_RETURN_DISABLE;} );
 
  check_in_deps:
@@ -199,12 +193,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
             DAGUE_PROFILING_TRACE( eu_context->eu_profile, dague_cuda_own_GPU_key_end,
                                    (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(DAGUE_PROF_TRACE) */
-        status = (cudaError_t)cuCtxPopCurrent(NULL);
-        /* Restore the context so the others can steal it */
-        dague_atomic_cas( &(gpu_device->ctx), NULL, saved_ctx );
 
-        DAGUE_CUDA_CHECK_ERROR( "cuCtxPushCurrent ", status,
-                                {return DAGUE_HOOK_RETURN_ASYNC;} );
         return DAGUE_HOOK_RETURN_ASYNC;
     }
     this_task = progress_task;

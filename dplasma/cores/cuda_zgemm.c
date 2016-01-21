@@ -178,7 +178,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
-    CUdeviceptr d_A, d_B, d_C;
+    void *d_A, *d_B, *d_C;
     cublasStatus_t status;
 #if DAGUE_DEBUG_VERBOSE != 0
     char tmp[MAX_TASK_STRLEN];
@@ -188,12 +188,12 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     assert( NULL != cublas_fnzgemm );
 
     assert(this_task->data[flow_A].data_out->device_index == gpu_device->super.device_index);
-    d_A = (CUdeviceptr)this_task->data[flow_A].data_out->device_private;
+    d_A = this_task->data[flow_A].data_out->device_private;
     assert(this_task->data[flow_B].data_out->device_index == gpu_device->super.device_index);
-    d_B = (CUdeviceptr)this_task->data[flow_B].data_out->device_private;
+    d_B = this_task->data[flow_B].data_out->device_private;
     assert(this_task->data[flow_C].data_out->device_index == gpu_device->super.device_index);
     /*assert( DATA_COHERENCY_OWNED == this_task->data[flow_C].data_out->coherency_state );*/
-    d_C = (CUdeviceptr)this_task->data[flow_C].data_out->device_private;
+    d_C = this_task->data[flow_C].data_out->device_private;
 
     DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
@@ -261,10 +261,12 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
         for( i = 0; i < 1; i++ ) {
             gpu_copy = this_task->data[i].data_out;
             original = gpu_copy->original;
-            status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
-                                                     (CUdeviceptr)gpu_copy->device_private,
-                                                     original->nb_elts, gpu_stream->cuda_stream );
-            DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
+            status = cudaMemcpyAsync( original->device_copies[0]->device_private,
+                                      gpu_copy->device_private,
+                                      original->nb_elts,
+                                      cudaMemcpyDeviceToHost,
+                                      gpu_stream->cuda_stream );
+            DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
                                     { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                gpu_copy->device_private, original->device_copies[0]->device_private));
                                         return_code = -2;
@@ -317,10 +319,12 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                           gpu_stream->prof_event_key_start),
                                          this_task);
                 /* Move the data back into main memory */
-                status = (cudaError_t)cuMemcpyDtoHAsync( original->device_copies[0]->device_private,
-                                                         (CUdeviceptr)gpu_copy->device_private,
-                                                         original->nb_elts, gpu_stream->cuda_stream );
-                DAGUE_CUDA_CHECK_ERROR( "cuMemcpyDtoHAsync from device ", status,
+                status = cudaMemcpyAsync( original->device_copies[0]->device_private,
+                                          gpu_copy->device_private,
+                                          original->nb_elts,
+                                          cudaMemcpyDeviceToHost,
+                                          gpu_stream->cuda_stream );
+                DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
                                         { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                    gpu_copy->device_private, original->device_copies[0]->device_private));
                                             return_code = -2;
