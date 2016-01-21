@@ -551,11 +551,12 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                                    " cache in a freelist (0=no caching)",
                                    false, false, dague_arena_max_cached_memory, &dague_arena_max_cached_memory);
 
-    dague_mca_param_reg_sizet_name("task", "startup_iter", "The maximum number of tasks to be generated locally"
-                                   " before being pushed into the scheduler.",
+    dague_mca_param_reg_sizet_name("task", "startup_iter", "The number of ready tasks to be generated during the startup "
+                                   "before allowing the scheduler to distribute them across the entire execution context.",
                                    false, false, dague_task_startup_iter, &dague_task_startup_iter);
-    dague_mca_param_reg_sizet_name("task", "startup_chunk", "The total number of tasks to be generated locally"
-                                   " and pushed into the scheduling before requesting a re-execution to generate the remaining ones.",
+    dague_mca_param_reg_sizet_name("task", "startup_chunk", "The total number of tasks to be generated during the startup "
+                                   "before delaying the remaining of the startup. The startup process will be "
+                                   "continued at a later moment once the number of ready tasks decreases.",
                                    false, false, dague_task_startup_chunk, &dague_task_startup_chunk);
 
     dague_mca_param_reg_string_name("profile", "filename",
