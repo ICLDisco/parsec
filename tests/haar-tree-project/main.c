@@ -42,11 +42,7 @@ int main(int argc, char *argv[])
     dague_arena_construct( &arena,
                            2 * dague_datadist_getsizeoftype(matrix_RealFloat),
                            DAGUE_ARENA_ALIGNMENT_SSE,
-#ifdef DISTRIBUTED
-                           MPI_FLOAT
-#else
-                           NULL
-#endif  /* DISTRIBUTED */
+                           dague_datatype_float_t
                          );
 
     project = dague_project_new(treeA, &treeA->super, 1e-3);
