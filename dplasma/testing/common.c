@@ -122,11 +122,13 @@ void print_usage(void)
             " -o --scheduler    : select the scheduler (default: LFQ)\n"
             "                     Accepted values:\n"
             "                       LFQ -- Local Flat Queues\n"
-            "                       GD  -- Global Dequeue\n"
-            "                       LHQ -- Local Hierarchical Queues\n"
-            "                       AP  -- Absolute Priorities\n"
-            "                       PBQ -- Priority Based Local Flat Queues\n"
             "                       LTQ -- Local Tree Queues\n"
+            "                       AP  -- Absolute Priorities\n"
+            "                       LHQ -- Local Hierarchical Queues\n"
+            "                       GD  -- Global Dequeue\n"
+            "                       PBQ -- Priority Based Local Flat Queues\n"
+            "                       IP  -- Inverse Priorities\n"
+            "                       RND -- Random\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
             "\n"
@@ -248,12 +250,12 @@ static struct option long_options[] =
 
 static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
+    extern char **environ;
     int opt = 0;
     int c;
     int argc = *_argc;
     char **argv = *_argv;
     char *add_dot = NULL;
-    char **environ = NULL;
     char *value;
 
     /* Default seed */
@@ -356,21 +358,19 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'v':
                 if(optarg)  iparam[IPARAM_VERBOSE] = atoi(optarg);
                 else        iparam[IPARAM_VERBOSE] = 2;
-                if (iparam[IPARAM_VERBOSE] > 2) {
-                    dague_register_mca_param( "device_show_capabilities", "1", &environ );
-                }
                 break;
 
             case 'H':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead\n", long_options[opt].name);
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead in the exact same format after --\n", long_options[opt].name);
                 exit(-10);  /* No kidding! */
 
             case 'V':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead\n", long_options[opt].name);
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead in the exact same format after --\n", long_options[opt].name);
                 exit(-10);  /* No kidding! */
 
             case '.':
                 add_dot = optarg;
+
                 break;
 
             case 'h': print_usage(); exit(0);
@@ -418,6 +418,14 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
+    if(iparam[IPARAM_NGPUS] > 0) {
+        if (iparam[IPARAM_VERBOSE] > 3) {
+            dague_register_mca_param( "device_show_capabilities", "1", &environ );
+        }
+        if (iparam[IPARAM_VERBOSE] > 2) {
+            dague_register_mca_param( "device_show_statistics", "1", &environ );
+        }
+    }
 
     /* Check the process grid */
     if(0 == iparam[IPARAM_P])
