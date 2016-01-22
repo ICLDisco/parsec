@@ -24,7 +24,7 @@ static void debug_check_tree(tree_dist_t *tree)
               l, l == -1 ? -1 : tree->nodes[l]->l, l == -1 ? -1 : tree->nodes[l]->n,
               r, r == -1 ? -1 : tree->nodes[r]->l, r == -1 ? -1 : tree->nodes[r]->n);
 #endif
-    }   
+    }
 }
 #else
 #define debug(toto...)         do {} while(0)
@@ -44,7 +44,7 @@ static int tree_lookup_nid(tree_dist_t *tree, int l, int n)
     int hash_key = tree_dist_hash_key(tree, l, n);
     tree_dist_node_t *node;
     int nid;
-    
+
     pthread_rwlock_rdlock(&tree->hash_buckets[hash_key].rw_lock);
     node = tree->hash_buckets[hash_key].first;
     while( NULL != node ) {
@@ -74,19 +74,19 @@ static int tree_lookup_or_allocate_nid(tree_dist_t *tree, int l, int n)
     nid =  tree_lookup_nid(tree, l, n);
     if(-1 != nid )
         return nid;
-    
+
     cd = tree->depth;
     while( l > cd ) {
         if(__sync_bool_compare_and_swap(&tree->depth, cd, l))
             break;
         cd = l;
     }
-    
+
     nid = __sync_fetch_and_add(&tree->nb_nodes, 1);
     while( tree->nb_nodes >= tree->allocated_nodes ) {
         pthread_mutex_lock(&tree->resize_lock);
         if( tree->nb_nodes >= tree->allocated_nodes ) {
-            new_size = nid + 64 > 2*tree->allocated_nodes ? nid + 64 : 2*tree->allocated_nodes;
+            new_size = (size_t)(nid + 64) > 2*tree->allocated_nodes ? (size_t)(nid + 64) : 2*tree->allocated_nodes;
             tree->nodes = realloc(tree->nodes, new_size * sizeof(tree_dist_node_t*));
             tree->allocated_nodes = new_size;
         }
@@ -126,7 +126,7 @@ static int tree_lookup_or_allocate_nid(tree_dist_t *tree, int l, int n)
 
     debug("**Created [%d](%d, %d) in tree %p\n", nid, l, n, tree);
     debug_check_tree(tree);
-    
+
     pthread_rwlock_wrlock(&tree->hash_buckets[hash_key].rw_lock);
     node->next_in_hash = tree->hash_buckets[hash_key].first;
     tree->hash_buckets[hash_key].first = node;
@@ -144,8 +144,8 @@ static void tree_compute_values(tree_dist_t *tree)
     do {
         dirty = tree->dirty;
         nb_leaves = 0;
-        for(nid = 0; nid < tree->nb_nodes; nid++) {
-            if( nid >= tree->allocated_nodes )
+        for(nid = 0; nid < (int)tree->nb_nodes; nid++) {
+            if( nid >= (int)tree->allocated_nodes )
                 break;
             if( tree->nodes[nid] == NULL )
                 continue;
@@ -321,7 +321,7 @@ int tree_dist_number_of_nodes(tree_dist_t *tree)
 int tree_dist_instanciate_node(tree_dist_t *tree, int pnid)
 {
     int parent;
-    assert( pnid < tree->nb_nodes );
+    assert( pnid < (int)tree->nb_nodes );
     assert( tree->nodes[pnid] != NULL );
     debug("**Looking for potential node id [%d](%d, %d)\n", pnid, tree->nodes[pnid]->l, tree->nodes[pnid]->n);
     if( tree->nodes[pnid]->l == 0 ) {
@@ -347,49 +347,49 @@ int tree_dist_instanciate_node(tree_dist_t *tree, int pnid)
 
 int tree_dist_level_of_node(tree_dist_t *tree, int nid)
 {
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(NULL != tree->nodes[nid]);
     return tree->nodes[nid]->l;
 }
 
 int tree_dist_position_of_node(tree_dist_t *tree, int nid)
 {
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(NULL != tree->nodes[nid]);
     return tree->nodes[nid]->n;
 }
 
 int tree_dist_parent_of_node(tree_dist_t *tree, int nid)
 {
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(NULL != tree->nodes[nid]);
     return tree->nodes[nid]->nid_parent;
 }
 
 int tree_dist_has_left_child(tree_dist_t *tree, int nid)
 {
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(NULL != tree->nodes[nid]);
     return (-1 != tree->nodes[nid]->nid_left);
 }
 
 int tree_dist_has_right_child(tree_dist_t *tree, int nid)
 {
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(NULL != tree->nodes[nid]);
     return (-1 != tree->nodes[nid]->nid_right);
 }
 
 int tree_dist_left_child_of_node(tree_dist_t *tree, int nid)
 {
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(NULL != tree->nodes[nid]);
     return tree->nodes[nid]->nid_left;
 }
 
 int tree_dist_right_child_of_node(tree_dist_t *tree, int nid)
 {
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(NULL != tree->nodes[nid]);
     return tree->nodes[nid]->nid_right;
 }
@@ -398,7 +398,7 @@ void tree_copy_node(tree_dist_t *tree, int nid, node_t *src)
 {
     dague_data_copy_t *data_copy;
     node_t *dst;
-    assert(nid < tree->nb_nodes);
+    assert(nid < (int)tree->nb_nodes);
     assert(tree->nodes[nid] != NULL);
     if( tree->nodes[nid]->data == NULL ) {
         (void)tree_dist_data_of_key(&tree->super, nid);
@@ -426,7 +426,7 @@ static void walk_tree(FILE *f, tree_dist_t *tree, int l, int n)
     double s, d;
     dague_data_copy_t *data_copy;
     node_t *node;
-    
+
     if( nid != -1 ) {
         data_copy = dague_data_get_copy(tree->nodes[nid]->data, 0);
         if( NULL != data_copy ) {
@@ -503,7 +503,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     /** Then, the tree-specific info */
     pthread_mutex_init(&res->buffer_lock, NULL);
     res->buffers = NULL;
-    
+
     pthread_mutex_init(&res->resize_lock, NULL);
     res->allocated_nodes = 0;
     res->nb_nodes = 0;
@@ -511,7 +511,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
 
     res->hash_size = 1023;
     res->hash_buckets = (tree_hash_bucket_entry_t*)calloc(res->hash_size, sizeof(tree_hash_bucket_entry_t));
-    for(i = 0; i < res->hash_size; i++) {
+    for(i = 0; i < (int)res->hash_size; i++) {
         res->hash_buckets[i].first = NULL;
         pthread_rwlock_init(&res->hash_buckets[i].rw_lock, NULL);
     }
