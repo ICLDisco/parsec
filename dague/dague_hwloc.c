@@ -225,7 +225,8 @@ int dague_hwloc_nb_real_cores(void)
 int dague_hwloc_core_first_hrwd_ancestor_depth(void)
 {
 #if defined(HAVE_HWLOC)
-    int level = MAX(hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET));
+    int level = MAX( hwloc_get_type_depth(topology, HWLOC_OBJ_NODE),
+                     hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET) );
     assert(level < hwloc_get_type_depth(topology, HWLOC_OBJ_CORE));
     return level;
 #endif  /* defined(HAVE_HWLOC) */
@@ -247,12 +248,10 @@ int dague_hwloc_socket_id(int core_id )
 #if defined(HAVE_HWLOC)
     hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
     hwloc_obj_t socket = NULL;
-    if ((socket = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_SOCKET, core)) != NULL)
-    {
+    if( NULL == core ) return -1;  /* protect against NULL objects */
+    if( NULL != (socket = hwloc_get_ancestor_obj_by_type(topology,
+                                                         HWLOC_OBJ_SOCKET, core)) ) {
         return socket->logical_index;
-
-    }else{
-        return -1;
     }
 #endif  /* defined(HAVE_HWLOC) */
     (void)core_id;
@@ -264,12 +263,9 @@ int dague_hwloc_numa_id(int core_id )
 #if defined(HAVE_HWLOC)
     hwloc_obj_t core =  hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, core_id);
     hwloc_obj_t node = NULL;
-    if ((node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) != NULL)
-    {
+    if( NULL == core ) return -1;  /* protect against NULL objects */
+    if( NULL != (node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) ) {
         return node->logical_index;
-
-    }else{
-        return -1;
     }
 #endif  /* defined(HAVE_HWLOC) */
     (void)core_id;
