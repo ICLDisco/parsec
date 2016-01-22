@@ -2162,7 +2162,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "  %s* new_task;\n"
             "  __dague_%s_internal_handle_t* __dague_handle = (__dague_%s_internal_handle_t*)this_task->dague_handle;\n"
             "  dague_context_t           *context = __dague_handle->super.super.context;\n"
-            "  int vpid = 0, nb_tasks = 0, total_nb_tasks = 0;\n"
+            "  int vpid = 0, nb_tasks = 0;\n"
+            "  size_t total_nb_tasks = 0;\n"
             "  dague_list_item_t* pready_ring = NULL;\n",
             fname, dague_get_name(jdf, f, "task_t"),
             dague_get_name(jdf, f, "task_t"),
@@ -2281,7 +2282,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  nb_tasks++;\n"
             "%s after_insert_task:  /* we jump here just so that we have code after the label */\n"
             "%s  if( nb_tasks > this_task->locals.unused[0].value ) {\n"
-            "%s    if( this_task->locals.unused[0].value < dague_task_startup_iter ) this_task->locals.unused[0].value <<= 1;\n"
+            "%s    if( (size_t)this_task->locals.unused[0].value < dague_task_startup_iter ) this_task->locals.unused[0].value <<= 1;\n"
             "%s    __dague_schedule(eu, (dague_execution_context_t*)pready_ring);\n"
             "%s    pready_ring = NULL;\n"
             "%s    total_nb_tasks += nb_tasks;\n"
