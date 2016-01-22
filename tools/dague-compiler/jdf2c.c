@@ -2510,8 +2510,19 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     } else {
         coutput("  dep = %s(__dague_handle);\n", jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL));
     }
-    coutput("%s    nb_tasks = dague_atomic_add_32b((int32_t*)&__dague_handle->super.super.nb_local_tasks, nb_tasks);\n",
-            indent(nesting));
+    coutput("  if( nb_tasks != DAGUE_UNDETERMINED_NB_TASKS ) {\n"
+            "    uint32_t ov, nv;\n"
+            "    do {\n"
+            "      ov = __dague_handle->super.super.nb_local_tasks;\n"
+            "      nv = (ov == DAGUE_UNDETERMINED_NB_TASKS ? DAGUE_UNDETERMINED_NB_TASKS : ov+nb_tasks);\n"
+            "    } while( !dague_atomic_cas(&__dague_handle->super.super.nb_local_tasks, ov, nv) );\n"
+            "    nb_tasks = nv;\n"
+            "  } else {\n"
+            "    uint32_t ov;\n"
+            "    do {\n"
+            "      ov = __dague_handle->super.super.nb_local_tasks;\n"
+            "    } while( !dague_atomic_cas(&__dague_handle->super.super.nb_local_tasks, ov, DAGUE_UNDETERMINED_NB_TASKS));\n"
+            "  }\n");
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         coutput("%s    do {\n"
                 "%s      this_task->super.list_item.list_next = (dague_list_item_t*)__dague_handle->startup_queue;\n"
