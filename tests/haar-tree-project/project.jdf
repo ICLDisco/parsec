@@ -17,6 +17,7 @@ static double func(double x) {
 struct __dague_project_internal_handle;
 struct __dague_project_END_PROPAGATE_assignment_s;
 struct __dague_project_PROJECT_assignment_s;
+struct __dague_project_PROJECT_task_s;
 
 static uint64_t end_propagate_hash(const struct __dague_project_internal_handle * __dague_handle,
                                    struct __dague_project_END_PROPAGATE_assignment_s * assignments);
@@ -29,10 +30,8 @@ static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
 
 static uint64_t project_hash(const struct __dague_project_internal_handle * __dague_handle,
                                    struct __dague_project_PROJECT_assignment_s * assignments);
- 
-static int my_project_startup(dague_context_t * context,
-                            struct __dague_project_internal_handle *__dague_handle,
-                            dague_execution_context_t ** pready_list);
+static int my_project_startup(dague_execution_unit_t * eu,
+                              struct __dague_project_PROJECT_task_s * this_task);
 %}
 
 // These are global variables that are instanciated in the main.c
@@ -241,51 +240,57 @@ static uint64_t project_hash(const struct __dague_project_internal_handle * __da
     return assignments->nid.value;
 }
  
-static int my_project_startup(dague_context_t * context,
-                            struct __dague_project_internal_handle *__dague_handle,
-                            dague_execution_context_t ** pready_list)
+static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJECT_task_t * this_task)
 {
-  __dague_project_PROJECT_task_t *new_context;
-  int vpid;
+  __dague_project_PROJECT_task_t *new_task;
+  __dague_project_internal_handle_t *__dague_handle = (__dague_project_internal_handle_t *) this_task->dague_handle;
+  int vpid = 0;
+  dague_context_t *context = __dague_handle->super.super.context;
+  dague_list_item_t *pready_ring = NULL;
+
+  /** I am unsure if this is needed at all? */
+  if (0 != this_task->locals.unused[0].value)
+	goto after_insert_task;
 
   if (__dague_handle->super.treeAdesc->myrank != 0)
-	    return 0;
-
-  new_context = (__dague_project_PROJECT_task_t *) dague_lifo_pop(
-      &context->virtual_processes[0]->execution_units[0]->context_mempool->mempool);
-  if (NULL == new_context)
-      new_context = (__dague_project_PROJECT_task_t *) dague_thread_mempool_allocate(
-            context->virtual_processes[0]->execution_units[0]->context_mempool);
-  new_context->dague_handle = (dague_handle_t *) __dague_handle;
-  new_context->function = __dague_handle->super.super.functions_array[project_PROJECT.function_id];
-  new_context->chore_id = 0;
-  
-  new_context->locals.nid.value = 0;
-  new_context->locals.l.value = 0;
-  new_context->locals.n.value = 0;
-  new_context->locals.pid.value = -1;
-  new_context->locals.larger_than_thresh.value = 1;
-  
-  DAGUE_LIST_ITEM_SINGLETON(new_context);
-  new_context->priority = 0;
-  new_context->data.NODEB.data_repo = NULL;
-  new_context->data.NODEB.data_in = NULL;
-  new_context->data.NODEB.data_out = NULL;
-  new_context->data.NODEL.data_repo = NULL;
-  new_context->data.NODEL.data_in = NULL;
-  new_context->data.NODEL.data_out = NULL;
-  new_context->data.NODER.data_repo = NULL;
-  new_context->data.NODER.data_in = NULL;
-  new_context->data.NODER.data_out = NULL;
-  dague_dependencies_mark_task_as_startup((dague_execution_context_t *) new_context);
-  vpid = ((dague_ddesc_t *) __dague_handle->super.treeA)->vpid_of(
-                      (dague_ddesc_t *) __dague_handle->super.treeA, 0);
-  if (NULL != pready_list[vpid]) {
-      dague_list_item_ring_merge((dague_list_item_t *) new_context,
-                                 (dague_list_item_t *) (pready_list[vpid]));
+      return DAGUE_HOOK_RETURN_DONE;
+  if (NULL != ((dague_ddesc_t *) __dague_handle->super.treeA)->vpid_of) {
+      vpid = ((dague_ddesc_t *) __dague_handle->super.treeA)->vpid_of((dague_ddesc_t *) __dague_handle->super.treeA, 0, 0);
+      assert(context->nb_vp >= vpid);
   }
-  pready_list[vpid] = (dague_execution_context_t *) new_context;
-  return 0;
+  new_task = (__dague_project_PROJECT_task_t *) dague_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
+  new_task->status = DAGUE_TASK_STATUS_NONE;
+  new_task->dague_handle = this_task->dague_handle;
+  new_task->function = __dague_handle->super.super.functions_array[project_PROJECT.function_id];
+  new_task->chore_id = 0;
+
+  new_task->locals.nid.value = 0;
+  new_task->locals.l.value = 0;
+  new_task->locals.n.value = 0;
+  new_task->locals.pid.value = -1;
+  new_task->locals.larger_than_thresh.value = 1;
+  new_task->data.NODEB.data_repo = NULL;
+  new_task->data.NODEB.data_in = NULL;
+  new_task->data.NODEB.data_out = NULL;
+  new_task->data.NODEL.data_repo = NULL;
+  new_task->data.NODEL.data_in = NULL;
+  new_task->data.NODEL.data_out = NULL;
+  new_task->data.NODER.data_repo = NULL;
+  new_task->data.NODER.data_in = NULL;
+  new_task->data.NODER.data_out = NULL;
+
+  new_task->priority = 1;
+
+  DAGUE_LIST_ITEM_SINGLETON(new_task);
+  dague_dependencies_mark_task_as_startup((dague_execution_context_t *) new_task);
+  pready_ring = dague_list_item_ring_push_sorted(pready_ring,
+                                                 &new_task->super.list_item,
+                                                 dague_execution_context_priority_comparator);
+after_insert_task:
+  this_task->locals.unused[0].value = 1;
+  if (NULL != pready_ring)
+      __dague_schedule(eu, (dague_execution_context_t *) pready_ring);
+  return DAGUE_HOOK_RETURN_DONE;
 }
  
 %}
