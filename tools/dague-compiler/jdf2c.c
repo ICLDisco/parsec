@@ -2298,7 +2298,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     jdf_name_list_t *pl;
     int nesting, idx;
     expr_info_t info;
-    int need_to_iterate;
+    int need_to_iterate, need_min_max;
 
     (void)jdf;
 
@@ -2311,6 +2311,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                                             JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) != (JDF_FUNCTION_HAS_UD_HASH_FUN|
                                                                                          JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN|
                                                                                          JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) );
+    need_min_max = (0 == (f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) ||
+                    0 == (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN ));
 
     coutput("static int %s(dague_execution_unit_t * eu, %s * this_task)\n"
             "{\n"
@@ -2333,7 +2335,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  uint32_t nb_tasks = %s(__dague_handle);\n", jdf_property_get_string(f->properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
     }
 
-    if( need_to_iterate ) {
+    if( need_min_max ) {
         coutput("%s"
                 "%s",
                 UTIL_DUMP_LIST_FIELD(sa1, f->parameters, next, name, dump_string, NULL,
@@ -2389,7 +2391,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 coutput("%s  assignments.%s.value = %s = %s;\n",
                         indent(nesting), dl->name, dl->name, dump_expr((void**)dl->expr, &info));
             }
-            if( 0 == (f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) ) {
+            if( need_min_max ) {
+                /** If we have U.D. deps and hash functions, then min and max are
+                 *  unused; We still need to generate the loops to count the tasks.
+                 *  If we have U.D. deps, hash and nb_tasks functions, we are not
+                 *  here, because need_to_iterate == 0 */
                 for(pl = f->parameters; pl != NULL; pl = pl->next ) {
                     if(0 == strcmp(dl->name, pl->name)) {
                         coutput("%s  %s%s_max = dague_imax(%s%s_max, assignments.%s.value);\n"
