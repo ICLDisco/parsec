@@ -135,17 +135,17 @@ READ NODEB <- ((nid != 0) & ((n%2) == 0)) ? NODEL PROJECT(pid) [type = DEFAULT]
            <- (nid == 0) ? treeAdesc(l, n)
 
 // The parent task creates a left child. Then it passes it to its
-// child node if it exists (larger_than_thresh == 1) 
+// child node if it exists (larger_than_thresh == 1)
 WRITE NODEL <- [ type=DEFAULT ]
-            -> (larger_than_thresh == 1) ? NODEB PROJECT(inline_c %{ return tree_dist_left_child_of_node(treeA, nid); %}) 
+            -> (larger_than_thresh == 1) ? NODEB PROJECT(inline_c %{ return tree_dist_left_child_of_node(treeA, nid); %})
 WRITE NODER <- [ type=DEFAULT ]
             -> (larger_than_thresh == 1) ? NODEB PROJECT(inline_c %{ return tree_dist_right_child_of_node(treeA, nid); %})
 
 
 // If the err <= thresh, then the control is send to the parent
-// node either on its left or its right to stop the node creation           
+// node either on its left or its right to stop the node creation
 CTL RL      -> ((larger_than_thresh == 0) & (l >= 3) & ((n%2) == 0)) ? LEFT  END_PROPAGATE(pid)
-            -> ((larger_than_thresh == 0) & (l >= 3) & ((n%2) == 1)) ? RIGHT  END_PROPAGATE(pid) 
+            -> ((larger_than_thresh == 0) & (l >= 3) & ((n%2) == 1)) ? RIGHT  END_PROPAGATE(pid)
 
 
 BODY
@@ -160,8 +160,7 @@ BODY
 
     int l_c, n_r, n_l;
 
-    printf("Running Task PROJECT on node (%d, %d)\n", l, n);
-    
+
     sl = func(key_to_x(l+1, 2*n));
     sr = func(key_to_x(l+1, 2*n+1));
 
@@ -169,12 +168,11 @@ BODY
     d = 0.5 * (sl - sr);
 
     err = fabs(d) * pow(2.0, -0.5 * l);
-    
+
     if ((l >= 3) && (err <= thresh))
       {
         this_task->locals.larger_than_thresh.value = 0;
         nodeb -> s = s; /* The node is already in the tree, just need to update its s*/
-        printf("Updated node (%d, %d) as leaf %g\n", l, n, s);
       }
     else
       {
@@ -187,8 +185,6 @@ BODY
         nodel -> s = 0;
         noder -> d = 0;
         nodel -> d = 0;
-
-        printf("Node (%d, %d) creates two sons (%d, %d) and (%d, %d)\n", l, n, l_c, n_l, l_c, n_r);
 
         // To tell parsec to keep the reference of these two data, so it shouldn't delete them
         OBJ_RETAIN(gNODEL);
@@ -218,13 +214,13 @@ static void               *my_alloc_deps(struct __dague_project_internal_handle 
     (void)__dague_handle;
     return calloc(6000, sizeof(dague_dependency_t));
 }
- 
+
 static void                my_free_deps(struct __dague_project_internal_handle *__dague_handle, void *deps)
 {
     (void)__dague_handle;
     free(deps);
 }
- 
+
 static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
                                         const dague_execution_context_t* restrict exec_context)
 {
@@ -239,7 +235,7 @@ static uint64_t project_hash(const struct __dague_project_internal_handle * __da
     (void)__dague_handle;
     return assignments->nid.value;
 }
- 
+
 static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJECT_task_t * this_task)
 {
   __dague_project_PROJECT_task_t *new_task;
@@ -292,5 +288,5 @@ after_insert_task:
       __dague_schedule(eu, (dague_execution_context_t *) pready_ring);
   return DAGUE_HOOK_RETURN_DONE;
 }
- 
+
 %}
