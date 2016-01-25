@@ -8,7 +8,6 @@
 #include "dague.h"
 #include "dague/execution_unit.h"
 #include "dague/utils/mca_param.h"
-#include "dague/mca/mca_repository.h"
 
 #include "common.h"
 #include "common_timing.h"
@@ -123,11 +122,13 @@ void print_usage(void)
             " -o --scheduler    : select the scheduler (default: LFQ)\n"
             "                     Accepted values:\n"
             "                       LFQ -- Local Flat Queues\n"
-            "                       GD  -- Global Dequeue\n"
-            "                       LHQ -- Local Hierarchical Queues\n"
-            "                       AP  -- Absolute Priorities\n"
-            "                       PBQ -- Priority Based Local Flat Queues\n"
             "                       LTQ -- Local Tree Queues\n"
+            "                       AP  -- Absolute Priorities\n"
+            "                       LHQ -- Local Hierarchical Queues\n"
+            "                       GD  -- Global Dequeue\n"
+            "                       PBQ -- Priority Based Local Flat Queues\n"
+            "                       IP  -- Inverse Priorities\n"
+            "                       RND -- Random\n"
             "\n"
             "    --dot          : create a dot output file (default: don't)\n"
             "\n"
@@ -249,11 +250,13 @@ static struct option long_options[] =
 
 static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
+    extern char **environ;
     int opt = 0;
-    int c;
+    int rc, c;
     int argc = *_argc;
     char **argv = *_argv;
     char *add_dot = NULL;
+    char *value;
 
     /* Default seed */
     iparam[IPARAM_RANDOM_SEED] = 3872;
@@ -273,7 +276,6 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
         {
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if( !strcmp(optarg, "LFQ") )
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 else if( !strcmp(optarg, "LTQ") )
@@ -295,16 +297,20 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                             optarg);
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 }
+                dague_setenv_mca_param( "mca_sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]], &environ );
                 break;
 
             case 'g':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to parsec instead\n", long_options[opt].name);
                 if(iparam[IPARAM_NGPUS] == -1) {
                     fprintf(stderr, "#!!!!! This test does not have GPU support. GPU disabled.\n");
                     break;
                 }
                 if(optarg)  iparam[IPARAM_NGPUS] = atoi(optarg);
                 else        iparam[IPARAM_NGPUS] = INT_MAX;
+
+                rc = asprintf(&value, "%d", iparam[IPARAM_NGPUS]);
+                dague_setenv_mca_param( "device_cuda_enabled", value, &environ );
+                free(value);
                 break;
 
             case 'p': case 'P': iparam[IPARAM_P] = atoi(optarg); break;
@@ -355,15 +361,16 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'H':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead\n", long_options[opt].name);
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead in the exact same format after --\n", long_options[opt].name);
                 exit(-10);  /* No kidding! */
 
             case 'V':
-                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead\n", long_options[opt].name);
+                if( 0 == iparam[IPARAM_RANK] ) fprintf(stderr, "#!!!!! option '%s' deprecated in testing programs, it should be passed to PaRSEC instead in the exact same format after --\n", long_options[opt].name);
                 exit(-10);  /* No kidding! */
 
             case '.':
                 add_dot = optarg;
+
                 break;
 
             case 'h': print_usage(); exit(0);
@@ -400,7 +407,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             for(i = 0; i < (*_argc);i++)
                 tmp[i] = (*_argv)[i];
 
-            asprintf( &tmp[ tmpc - 1 ], "--dague_dot=%s", add_dot );
+            rc = asprintf( &tmp[ tmpc - 1 ], "--dague_dot=%s", add_dot );
             tmp[ tmpc     ] = NULL;
 
             *_argc = tmpc;
@@ -411,6 +418,14 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     int verbose = iparam[IPARAM_RANK] ? 0 : iparam[IPARAM_VERBOSE];
 
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
+    if(iparam[IPARAM_NGPUS] > 0) {
+        if (iparam[IPARAM_VERBOSE] > 3) {
+            dague_setenv_mca_param( "device_show_capabilities", "1", &environ );
+        }
+        if (iparam[IPARAM_VERBOSE] > 2) {
+            dague_setenv_mca_param( "device_show_statistics", "1", &environ );
+        }
+    }
 
     /* Check the process grid */
     if(0 == iparam[IPARAM_P])
@@ -480,6 +495,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     /* HQR */
     if(-1 == iparam[IPARAM_QR_HLVL_SZE])
         iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_NNODES];
+
+    (void)rc;
 }
 
 static void print_arguments(int* iparam)
@@ -593,9 +610,6 @@ int unix_timestamp;
 
 dague_context_t* setup_dague(int argc, char **argv, int *iparam)
 {
-    dague_mca_param_init();
-    mca_components_repository_init();
-
 #ifdef DAGUE_PROF_TRACE
     argvzero = argv[0];
     unix_timestamp = time(NULL);
@@ -617,19 +631,6 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     if(iparam[IPARAM_RANK] > 0 && verbose < 4) verbose = 0;
 
     TIME_START();
-
-    if( iparam[IPARAM_SCHEDULER] != DAGUE_SCHEDULER_DEFAULT ) {
-        char *ignored;
-        (void)dague_mca_param_reg_string_name("mca", "sched", NULL,
-                                              false, false,
-                                              DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]],
-                                              &ignored);
-        /* if( 0 == dague_set_scheduler( ctx ) ) { */
-        /*     fprintf(stderr, "*** Warning: unable to select the scheduler %s. Default scheduler is maintained.\n", */
-        /*             DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]]); */
-        /*     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ; /\* set param for profile *\/ */
-        /* } */
-    }
 
     /* Once we got out arguments, we should pass whatever is left down */
     int dague_argc, idx;

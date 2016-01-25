@@ -152,7 +152,7 @@ static int process_arg(const char *param, const char *value,
         }
     }
 
-    /* If we didn't already have an value for the same param, save
+    /* If we didn't already have a value for the same param, save
        this one away */
 
     dague_argv_append_nosize(params, param);
@@ -171,8 +171,6 @@ static void add_to_env(char **params, char **values, char ***env)
        vars of the form OMPI_MCA_*=value. */
 
     for (i = 0; NULL != params && NULL != params[i]; ++i) {
-        (void) dague_mca_var_env_name (params[i], &name);
-        dague_setenv(name, values[i], true, env);
-        free(name);
+        dague_setenv_mca_param( params[i], values[i], env );
     }
 }

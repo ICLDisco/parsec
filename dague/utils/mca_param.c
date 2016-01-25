@@ -2508,3 +2508,17 @@ void dague_mca_show_mca_params(dague_list_t *info,
         }
     }
 }
+
+/*
+ * Set an MCA parameter in the environment provided.
+ * If environment is environ, the MCA parameter is into the global environment
+ * and can be accessed when the parameter is actually registered.
+ */
+void dague_setenv_mca_param( char *param, char *value, char ***env )
+{
+    char *name;
+    (void) dague_mca_var_env_name (param, &name);
+    dague_setenv(name, value, true, env);
+    free(name);
+}
+
