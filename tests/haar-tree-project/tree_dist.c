@@ -297,7 +297,6 @@ void tree_dist_insert_data(tree_dist_t *tree, dague_data_t *data, int l, int n)
 {
     int nid;
     nid = tree_lookup_or_allocate_nid(tree, l, n);
-    printf("Node at %d, %d is %d\n", l, n, nid);
     assert(tree->nodes[nid] != NULL);
     assert(tree->nodes[nid]->data == NULL);
     tree->nodes[nid]->data = data;
@@ -420,13 +419,33 @@ static int node_has_descendents(tree_dist_t *tree, int l, int n)
     return 0;
 }
 
-static void walk_tree(FILE *f, tree_dist_t *tree, int l, int n)
+static void walker_print_node(tree_dist_t *tree, int nid, int l, int n, double s, double d, void *param)
+{
+    FILE *f = (FILE*)param;
+    if( nid != -1 ) {
+        fprintf(f,  "n%d_%d [label=\"[%d:%d,%d](%g, %g)\"];\n", l, n, nid, l, n, s, d);
+    } else {
+        fprintf(f,  "n%d_%d [label=\"[#:%d,%d](-)\"];\n", l, n, l, n);
+    }
+    (void)tree;
+}
+
+static void walker_print_child(tree_dist_t *tree, int nid, int pl, int pn, int cl, int cn, void *param)
+{
+    FILE *f = (FILE*)param;
+    fprintf(f, "n%d_%d -> n%d_%d;\n", pl, pn, cl, cn);
+    (void)tree;
+    (void)nid;
+}
+
+static void walk_tree_rec(tree_walker_node_fn_t *node_fn,
+                          tree_walker_child_fn_t *child_fn,
+                          void *fn_param, tree_dist_t *tree, int l, int n)
 {
     int nid = tree_lookup_nid(tree, l, n);
     double s, d;
-    dague_data_copy_t *data_copy;
     node_t *node;
-
+    dague_data_copy_t *data_copy;
     if( nid != -1 ) {
         data_copy = dague_data_get_copy(tree->nodes[nid]->data, 0);
         if( NULL != data_copy ) {
@@ -437,18 +456,23 @@ static void walk_tree(FILE *f, tree_dist_t *tree, int l, int n)
             s = 0.0;
             d = 0.0;
         }
-        fprintf(f,  "n%d_%d [label=\"[%d:%d,%d](%g, %g)\"];\n", l, n, nid, l, n, s, d);
-    } else {
-        fprintf(f,  "n%d_%d [label=\"[#:%d,%d](-)\"];\n", l, n, l, n);
     }
+    node_fn(tree, nid, l, n, s, d, fn_param);
     if( node_has_descendents(tree, l+1, n*2) ) {
-        fprintf(f, "n%d_%d -> n%d_%d;\n", l, n, l+1, n*2);
-        walk_tree(f, tree, l+1, n*2);
+        child_fn(tree, nid, l, n, l+1, n*2, fn_param);
+        walk_tree_rec(node_fn, child_fn, fn_param, tree, l+1, n*2);
     }
     if( node_has_descendents(tree, l+1, n*2+1) ) {
-        fprintf(f, "n%d_%d -> n%d_%d;\n", l, n, l+1, n*2+1);
-        walk_tree(f, tree, l+1, n*2+1);
+        child_fn(tree, nid, l, n, l+1, n*2+1, fn_param);
+        walk_tree_rec(node_fn, child_fn, fn_param, tree, l+1, n*2+1);
     }
+}
+
+void walk_tree(tree_walker_node_fn_t *node_fn,
+               tree_walker_child_fn_t *child_fn,
+               void *fn_param, tree_dist_t *tree)
+{
+    walk_tree_rec(node_fn, child_fn, fn_param, tree, 0, 0);
 }
 
 int tree_dist_to_dotfile(tree_dist_t *tree, char *filename)
@@ -459,7 +483,7 @@ int tree_dist_to_dotfile(tree_dist_t *tree, char *filename)
         return -1;
 
     fprintf(f, "digraph G {\n");
-    walk_tree(f, tree, 0, 0);
+    walk_tree(walker_print_node, walker_print_child, f, tree);
     fprintf(f, "}\n");
     fclose(f);
     return 0;

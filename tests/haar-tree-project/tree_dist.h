@@ -45,6 +45,13 @@ int tree_dist_depth(tree_dist_t *tree);
 
 int tree_dist_to_dotfile(tree_dist_t *tree, char *filename);
 
+typedef void (tree_walker_node_fn_t)(tree_dist_t *tree, int nid, int l, int n, double s, double d, void *param);
+typedef void (tree_walker_child_fn_t)(tree_dist_t *tree, int nid, int pl, int pn, int cl, int cn, void *param);
+
+void walk_tree(tree_walker_node_fn_t *node_fn,
+               tree_walker_child_fn_t *child_fn,
+               void *fn_param, tree_dist_t *tree);
+
 struct tree_dist_node_s {
     /** nodes are linked by nid in the nodes array
      *  and by (l, n) in the hash table. next_in_hash is used to
