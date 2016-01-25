@@ -2509,7 +2509,7 @@ void dague_mca_show_mca_params(dague_list_t *info,
     }
 }
 
-void dague_register_mca_param( char *param, char *value, char ***env )
+void dague_setenv_mca_param( char *param, char *value, char ***env )
 {
     char *name;
     (void) dague_mca_var_env_name (param, &name);
