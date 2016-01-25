@@ -2531,7 +2531,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             string_arena_get_string(sa_end));
     coutput("  if(0 == dague_atomic_dec_32b(&__dague_handle->sync_point)) {\n"
             "    dague_handle_enable((dague_handle_t*)__dague_handle, &__dague_handle->startup_queue,\n"
-            "                        (dague_execution_context_t*)this_task, eu, nb_tasks);\n"
+            "                        (dague_execution_context_t*)this_task, eu, __dague_handle->super.super.nb_local_tasks);\n"
             "    return DAGUE_HOOK_RETURN_DONE;\n"
             "  }\n");
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
