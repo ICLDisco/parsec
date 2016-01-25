@@ -5,3 +5,4 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 dague_addtest(C project "main.c;${project_generated};tree_dist.c")
 
+add_test(haar_tree_shm "./project" "-x")
