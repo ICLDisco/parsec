@@ -796,9 +796,9 @@ dague_mca_show_mca_params(dague_list_t *info,
  *
  */
 DAGUE_DECLSPEC void
-dague_register_mca_param( char *param,
-                          char *value,
-                          char ***env );
+dague_setenv_mca_param( char *param,
+                        char *value,
+                        char ***env );
 
 END_C_DECLS
 

@@ -171,6 +171,6 @@ static void add_to_env(char **params, char **values, char ***env)
        vars of the form OMPI_MCA_*=value. */
 
     for (i = 0; NULL != params && NULL != params[i]; ++i) {
-        dague_register_mca_param( params[i], values[i], env );
+        dague_setenv_mca_param( params[i], values[i], env );
     }
 }

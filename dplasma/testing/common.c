@@ -252,7 +252,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
     extern char **environ;
     int opt = 0;
-    int c;
+    int rc, c;
     int argc = *_argc;
     char **argv = *_argv;
     char *add_dot = NULL;
@@ -297,7 +297,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                             optarg);
                     iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
                 }
-                dague_register_mca_param( "mca_sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]], &environ );
+                dague_setenv_mca_param( "mca_sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]], &environ );
                 break;
 
             case 'g':
@@ -308,8 +308,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 if(optarg)  iparam[IPARAM_NGPUS] = atoi(optarg);
                 else        iparam[IPARAM_NGPUS] = INT_MAX;
 
-                (void)asprintf(&value, "%d", iparam[IPARAM_NGPUS]);
-                dague_register_mca_param( "device_cuda_enabled", value, &environ );
+                rc = asprintf(&value, "%d", iparam[IPARAM_NGPUS]);
+                dague_setenv_mca_param( "device_cuda_enabled", value, &environ );
                 free(value);
                 break;
 
@@ -407,7 +407,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             for(i = 0; i < (*_argc);i++)
                 tmp[i] = (*_argv)[i];
 
-            asprintf( &tmp[ tmpc - 1 ], "--dague_dot=%s", add_dot );
+            rc = asprintf( &tmp[ tmpc - 1 ], "--dague_dot=%s", add_dot );
             tmp[ tmpc     ] = NULL;
 
             *_argc = tmpc;
@@ -420,10 +420,10 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
     if(iparam[IPARAM_NGPUS] > 0) {
         if (iparam[IPARAM_VERBOSE] > 3) {
-            dague_register_mca_param( "device_show_capabilities", "1", &environ );
+            dague_setenv_mca_param( "device_show_capabilities", "1", &environ );
         }
         if (iparam[IPARAM_VERBOSE] > 2) {
-            dague_register_mca_param( "device_show_statistics", "1", &environ );
+            dague_setenv_mca_param( "device_show_statistics", "1", &environ );
         }
     }
 
@@ -495,6 +495,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     /* HQR */
     if(-1 == iparam[IPARAM_QR_HLVL_SZE])
         iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_NNODES];
+
+    (void)rc;
 }
 
 static void print_arguments(int* iparam)
