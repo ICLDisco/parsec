@@ -454,6 +454,13 @@ IF( BUILD_DAGUE )
           check_function_exists(cuDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
       endif()
       CMAKE_POP_CHECK_STATE()
+
+      # Look for dl library to dynamically load the kernels
+      find_library(DL_LIBRARY dl)
+      if(DL_LIBRARY)
+        list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
+      endif()
+
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
 
