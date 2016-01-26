@@ -165,7 +165,6 @@ static int process_arg(const char *param, const char *value,
 static void add_to_env(char **params, char **values, char ***env)
 {
     int i;
-    char *name;
 
     /* Loop through all the args that we've gotten and make env
        vars of the form OMPI_MCA_*=value. */
