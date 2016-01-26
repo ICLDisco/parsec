@@ -75,7 +75,7 @@ struct dague_handle_s {
 
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
 
-#define DAGUE_DEVICES_ALL				   UINT32_MAX
+#define DAGUE_DEVICES_ALL                                  UINT32_MAX
 
 /* There is another loop after this one. */
 #define DAGUE_DEPENDENCIES_FLAG_NEXT       0x01
