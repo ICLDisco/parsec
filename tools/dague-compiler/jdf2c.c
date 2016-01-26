@@ -1015,7 +1015,7 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
     /* Prepare the structure for the named assignments */
     string_arena_add_string(sa, "typedef struct %s {\n"
                             "%s"
-                            "  assignment_t unused[MAX_LOCAL_COUNT-%d];\n"
+                            "  assignment_t reserved[MAX_LOCAL_COUNT-%d];\n"
                             "} %s;\n\n",
                             dague_get_name(NULL, f, "assignment_s"),
                             string_arena_get_string(sa_locals),
@@ -2172,11 +2172,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     for(dl = f->locals; dl != NULL; dl = dl->next)
         coutput("  int %s = this_task->locals.%s.value;  /* retrieve value saved during the last iteration */\n", dl->name, dl->name);
 
-    coutput("  if( 0 != this_task->locals.unused[0].value ) {\n"
-            "    this_task->locals.unused[0].value = 1; /* reset the submission process */\n"
+    coutput("  if( 0 != this_task->locals.reserved[0].value ) {\n"
+            "    this_task->locals.reserved[0].value = 1; /* reset the submission process */\n"
             "    goto after_insert_task;\n"
             "  }\n"
-            "  this_task->locals.unused[0].value = 1; /* a sane default value */\n");
+            "  this_task->locals.reserved[0].value = 1; /* a sane default value */\n");
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -2281,8 +2281,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s                                                 dague_execution_context_priority_comparator);\n"
             "%s  nb_tasks++;\n"
             "%s after_insert_task:  /* we jump here just so that we have code after the label */\n"
-            "%s  if( nb_tasks > this_task->locals.unused[0].value ) {\n"
-            "%s    if( (size_t)this_task->locals.unused[0].value < dague_task_startup_iter ) this_task->locals.unused[0].value <<= 1;\n"
+            "%s  if( nb_tasks > this_task->locals.reserved[0].value ) {\n"
+            "%s    if( (size_t)this_task->locals.reserved[0].value < dague_task_startup_iter ) this_task->locals.reserved[0].value <<= 1;\n"
             "%s    __dague_schedule(eu, (dague_execution_context_t*)pready_ring);\n"
             "%s    pready_ring = NULL;\n"
             "%s    total_nb_tasks += nb_tasks;\n"
