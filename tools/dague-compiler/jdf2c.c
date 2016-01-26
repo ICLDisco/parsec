@@ -1637,6 +1637,7 @@ static void jdf_generate_symbols( const jdf_t *jdf, const jdf_function_entry_t *
     }
 
     string_arena_free(sa);
+    (void)rc;
 }
 
 static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function_entry_t* of,
@@ -2905,6 +2906,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     string_arena_free(sa2);
     string_arena_free(sa);
+    (void)rc;
 }
 
 static void jdf_generate_functions_statics( const jdf_t *jdf )
@@ -2975,6 +2977,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
                     JDF_OBJECT_ONAME( fl ));
         }
     }
+    (void)rc;
 }
 
 static void jdf_generate_startup_hook( const jdf_t *jdf )
@@ -5204,6 +5207,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     coutput("}\n"
             "\n");
+    (void)rc;
 }
 
 static void jdf_generate_inline_c_functions(jdf_t* jdf)
@@ -5224,10 +5228,11 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
 {
     jdf_function_entry_t *f;
     char *tmp;
+    int rc;
 
     for(f = jdf->functions; NULL != f; f = f->next) {
         if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL) ) {
-            asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
+            rc = asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_FN_NAME, strdup(tmp));
             free(tmp);
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_FUN;
@@ -5241,7 +5246,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
         } else {
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
             if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-                asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
+                rc = asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
                 (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, strdup(tmp));
                 free(tmp);
             }
@@ -5272,6 +5277,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("dague_default_find_deps"));
         }
     }
+    (void)rc;
 }
 
 /**
