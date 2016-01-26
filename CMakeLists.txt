@@ -458,7 +458,7 @@ IF( BUILD_DAGUE )
       # Look for dl library to dynamically load the kernels
       find_library(DL_LIBRARY dl)
       if(DL_LIBRARY)
-        list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
+        link_libraries(${DL_LIBRARY})
       endif()
 
     endif (CUDA_FOUND)
