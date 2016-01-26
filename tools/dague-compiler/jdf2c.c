@@ -2302,7 +2302,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa1);
     string_arena_free(sa2);
 
-    coutput("  (void)eu;\n"
+    coutput("  (void)eu; (void)vpid;\n"
             "  if( NULL != pready_ring ) __dague_schedule(eu, (dague_execution_context_t*)pready_ring);\n"
             "  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n\n");
