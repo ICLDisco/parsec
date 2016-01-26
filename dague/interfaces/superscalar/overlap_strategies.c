@@ -264,3 +264,114 @@ ordering_correctly_2(dague_execution_unit_t *eu,
         vpid_dst = (vpid_dst+1)%current_task->super.dague_handle->context->nb_vp;
     }
 }
+
+
+
+/***************************************************************************//**
+ *
+ * This function implements the iterate successors taking
+ * anti dependence into consideration. At first we go through all
+ * the descendant of a task for each flow and put them in a list.
+ * This is helpful in terms of creating chains of INPUT tasks.
+ * INPUT tasks are activated if they are found in successions,
+ * and they are treated the same way.
+ *
+ * @param[in]   eu
+ *                  Execution unit
+ * @param[in]   this_task
+ *                  We will iterate thorugh the successors of this task
+ * @param[in]   action_mask,ontask_arg
+ * @param[in]   ontask
+ *                  Function pointer to function that activates successsor
+ *
+ ******************************************************************************/
+void
+ordering_correctly_1(dague_execution_unit_t *eu,
+                     const dague_execution_context_t *this_task,
+                     uint32_t action_mask,
+                     dague_ontask_function_t *ontask,
+                     void *ontask_arg)
+{
+    dague_dtd_task_t *current_task = (dague_dtd_task_t *)this_task;
+    int current_dep;
+    dague_dtd_task_t *current_desc = NULL;
+    int op_type_on_current_flow, desc_op_type, desc_flow_index;
+    dague_dtd_tile_t *tile;
+
+    dep_t deps;
+    dague_dep_data_description_t data;
+    int rank_src = 0, rank_dst = 0, vpid_dst=0;
+    (void)action_mask;
+
+    for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
+#if defined(DAGUE_PROF_GRAPHER)
+        deps.dep_index = current_dep;
+#endif
+        current_desc = current_task->desc[current_dep].task;
+        op_type_on_current_flow = (current_task->desc[current_dep].op_type_parent & GET_OP_TYPE);
+        tile = current_task->desc[current_dep].tile;
+
+        /**
+         * In case the same data is used for multiple flows, only the last reference
+         * points to the potential successors. Every other use of the data will point
+         * to ourself.
+         */
+        if(current_task == current_desc) {
+            dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
+            continue;
+        }
+
+        if( NULL == current_desc ) {
+             if( INOUT == op_type_on_current_flow ||
+                 OUTPUT == op_type_on_current_flow ||
+                (current_task->dont_skip_releasing_data[current_dep])) {
+#if defined (OVERLAP)
+                if(release_ownership_of_data(current_task, current_dep)) { /* trying to release ownership */
+#endif
+                    dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
+                    continue;  /* no descendent for this data */
+#if defined (OVERLAP)
+                } else {
+                    current_desc = current_task->desc[current_dep].task;
+                } /* Current task has a descendant hence we must activate her */
+#endif
+            } else {
+                dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
+                continue;
+            }
+        }
+
+#if defined(DAGUE_DEBUG_ENABLE)
+        assert(current_desc != NULL);
+#endif
+
+        desc_op_type = (current_task->desc[current_dep].op_type & GET_OP_TYPE);
+        desc_flow_index = current_task->desc[current_dep].flow_index;
+
+        int tmp_desc_flow_index = 254;
+        int tmp_desc_op_type = -1;
+        dague_dtd_task_t *tmp_desc;
+
+        while( NULL != current_desc ) {
+            tmp_desc = current_desc;
+            tmp_desc_flow_index = desc_flow_index;
+            tmp_desc_op_type = desc_op_type;
+
+            desc_op_type        = (current_desc->desc[desc_flow_index].op_type & GET_OP_TYPE);
+            desc_flow_index     =  current_desc->desc[desc_flow_index].flow_index;
+            current_desc        =  current_desc->desc[tmp_desc_flow_index].task;
+
+            ontask( eu, (dague_execution_context_t *)tmp_desc, (dague_execution_context_t *)current_task,
+                    &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
+            vpid_dst = (vpid_dst+1)%current_task->super.dague_handle->context->nb_vp;
+
+            if( OUTPUT == tmp_desc_op_type || INOUT == tmp_desc_op_type ) {
+                break;
+            } else {
+                tmp_desc->desc[tmp_desc_flow_index].task = NULL;
+            }
+        }
+
+        dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
+    }
+}
