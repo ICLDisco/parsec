@@ -242,11 +242,6 @@ static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJE
   __dague_project_internal_handle_t *__dague_handle = (__dague_project_internal_handle_t *) this_task->dague_handle;
   int vpid = 0;
   dague_context_t *context = __dague_handle->super.super.context;
-  dague_list_item_t *pready_ring = NULL;
-
-  /** I am unsure if this is needed at all? */
-  if (0 != this_task->locals.unused[0].value)
-	goto after_insert_task;
 
   if (__dague_handle->super.treeAdesc->myrank != 0)
       return DAGUE_HOOK_RETURN_DONE;
@@ -278,14 +273,7 @@ static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJE
   new_task->priority = 1;
 
   DAGUE_LIST_ITEM_SINGLETON(new_task);
-  dague_dependencies_mark_task_as_startup((dague_execution_context_t *) new_task);
-  pready_ring = dague_list_item_ring_push_sorted(pready_ring,
-                                                 &new_task->super.list_item,
-                                                 dague_execution_context_priority_comparator);
-after_insert_task:
-  this_task->locals.unused[0].value = 1;
-  if (NULL != pready_ring)
-      __dague_schedule(eu, (dague_execution_context_t *) pready_ring);
+  __dague_schedule(eu, (dague_execution_context_t *)new_task);
   return DAGUE_HOOK_RETURN_DONE;
 }
 

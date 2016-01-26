@@ -446,6 +446,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
                         SET_LOWEST_PRIORITY(exec_context, dague_execution_context_priority_comparator);
                     } else
                         exec_context->priority /= 10;  /* demote the task */
+                    DAGUE_LIST_ITEM_SINGLETON(exec_context);
                     __dague_schedule(eu_context, exec_context);
                     exec_context = NULL;
                     break;
