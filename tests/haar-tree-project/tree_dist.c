@@ -214,7 +214,7 @@ static dague_data_t* tree_dist_data_of_key(dague_ddesc_t *desc, dague_data_key_t
                 buffer->buffer = (void*)calloc(buffer->buffer_size, 1);
                 tree->buffers = buffer;
             }
-            pos = tree->buffers->buffer + tree->buffers->buffer_use;
+            pos = (char*)(tree->buffers->buffer) + tree->buffers->buffer_use;
             tree->buffers->buffer_use += sizeof(node_t);
             pthread_mutex_unlock(&tree->buffer_lock);
         }
