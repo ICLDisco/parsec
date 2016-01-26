@@ -43,14 +43,38 @@ export CC CXX FC
 ## Cmake does not have a clean interface for FindXXX modules, everyone has a different flavor. Reconciliation.
 
 if [ -n "$INSTALL_PREFIX" ]; then
-  USER_OPTIONS+=" -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
+    USER_OPTIONS+=" -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
 fi
 
 if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
-  MPI="-DMPI_C_COMPILER=${MPI_DIR}/bin/mpicc -DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpicxx -DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90"
-# Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
+    MPI=""
+  # Detect MPI C compiler
+    if [ -x $MPI_DIR/bin/mpicc ]; then
+        MPI+="-DMPI_C_COMPILER=${MPI_DIR}/bin/mpicc "
+    elif [ -x $MPI_DIR/bin64/mpicc ]; then
+        MPI+="-DMPI_C_COMPILER=${MPI_DIR}/bin64/mpicc "
+    elif [ -x $(which mpicc)]; then
+        MPI+="-DMPI_C_COMPILER=`which mpicc` "
+    fi
+  # Detect MPI C++ compiler
+    if [ -x $MPI_DIR/bin/mpicxx ]; then
+        MPI+="-DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpicxx "
+    elif [ -x $MPI_DIR/bin64/mpicxx ]; then
+        MPI+="-DMPI_CXX_COMPILER=${MPI_DIR}/bin64/mpicxx "
+    elif [ -x $(which mpicxx)]; then
+        MPI+="-DMPI_CXX_COMPILER=`which mpicxx` "
+    fi
+  # Detect MPI Fortran 90 compiler
+    if [ -x $MPI_DIR/bin/mpif90 ]; then
+        MPI+="-DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90 "
+    elif [ -x $MPI_DIR/bin64/mpif90 ]; then
+        MPI+="-DMPI_Fortran_COMPILER=${MPI_DIR}/bin64/mpif90 "
+    elif [ -x $(which mpif90)]; then
+        MPI+="-DMPI_Fortran_COMPILER=`which mpif90` "
+    fi
 fi
 
+# Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
 if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_WITH_HWLOC=OFF.*") -eq 0 ]; then
     HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
 fi
@@ -68,7 +92,7 @@ if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 
 fi
 
 if [ -n "${PLASMA_DIR}" ]; then
-  PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
+    PLASMA="-DPLASMA_DIR=${PLASMA_DIR}"
 fi
 
 if [ -n "${PAPI_DIR}" -a -f "$PAPI_DIR/lib/libpapi.so" ]; then

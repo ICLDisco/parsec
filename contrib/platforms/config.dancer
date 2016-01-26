@@ -1,23 +1,10 @@
 #!/bin/bash
 
-echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
-CC=${CC:="icc"}
-CXX=${CXX:="icpc"}
-FC=${FC:="ifort"}
-MPI_DIR=${MPI_DIR:="/opt/ompi"}
-HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
-GTG_DIR=${GTG_DIR:="/opt/gtg"}
-CUDA_DIR=${CUDA_DIR:="/opt/cuda"}
-OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
-PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
-PAPI_DIR=${PAPI_DIR:="/opt/papi"}
-PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:="/opt/python-2.7/bin/python2.7"}
-TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode -np 1\""
-
 if [ "x$USER" = "xbosilca" ]; then
 #  CUDA_DIR="/opt/cuda-5.0.7/cuda"
 #  HWLOC_DIR="/home/bosilca/opt/"
-  MPI_DIR="/home/bosilca/opt/mpi"
+#  MPI_DIR="/home/bosilca/opt/mpi"
+  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 
 elif [ "x${USER}" = "xmfaverge" ]; then
   # if [ "x${CC}" = "xgcc" ]; then
@@ -39,6 +26,17 @@ elif [ "x$USER" = "xYOURSELF" ]; then
     PLASMA_DIR="SOMEWHERE"
     USER_OPTIONS+="-DDAGUE_OPTION=ON"
 fi
+
+echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
+# Do not set the compiler flags (CC, CXX, FC) and the MPI flags (MPI_DIR)
+# CUDA (detected via nvcc), PAPI (detected via papi_avail), HWLOC (detected
+# via hwloc-ls) nor the PYTHON_EXECUTABLE
+# if you want the default detection to work.
+HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
+GTG_DIR=${GTG_DIR:="/opt/gtg"}
+OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
+PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-2.8.0-intel"}
+TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode -np 1\""
 
 . $(dirname $0)/config.inc
 guess_defaults
