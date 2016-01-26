@@ -1382,12 +1382,11 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
     dague_dtd_task_t *parent_task  = (dague_dtd_task_t*)old_context;
     /* Check to not print stuff redundantly */
     if(!parent_task->dont_skip_releasing_data[deps->dep_index]) {
-        dague_flow_t * origin_flow = (dague_flow_t*) calloc(1, sizeof(dague_flow_t));
-        dague_flow_t * dest_flow = (dague_flow_t*) calloc(1, sizeof(dague_flow_t));
+        dague_flow_t *origin_flow = (dague_flow_t*) calloc(1, sizeof(dague_flow_t));
+        dague_flow_t *dest_flow = (dague_flow_t*) calloc(1, sizeof(dague_flow_t));
 
-        char aa ='A';
-        origin_flow->name = &aa;
-        dest_flow->name = &aa;
+        origin_flow->name = "A";
+        dest_flow->name = "A";
         dest_flow->flow_flags = FLOW_ACCESS_RW;
 
         dague_prof_grapher_dep(old_context, new_context, is_ready, origin_flow, dest_flow);
@@ -1443,7 +1442,7 @@ iterate_successors_of_dtd_task(dague_execution_unit_t *eu,
                                void *ontask_arg)
 {
     (void)eu; (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
-    ordering_correctly_2(eu, this_task, action_mask, ontask, ontask_arg);
+    ordering_correctly_1(eu, this_task, action_mask, ontask, ontask_arg);
 }
 
 /* **************************************************************************** */
@@ -2318,6 +2317,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
 
     this_task->super.dague_handle = (dague_handle_t*)__dague_handle;
     this_task->super.super.key = dague_atomic_add_32b((int *)&(__dague_handle->task_id),1);
+    this_task->super.locals[0].value = (int)this_task->super.super.key;
     this_task->belongs_to_function = function->function_id;
     this_task->super.function = __dague_handle->super.functions_array[(this_task->belongs_to_function)];
     this_task->orig_task = NULL;
