@@ -69,7 +69,7 @@ struct dague_handle_s {
     dague_event_cb_t           on_complete;
     void*                      on_complete_data;
     dague_destruct_fn_t        destructor;
-    dague_dependencies_t**     dependencies_array;
+    void**                     dependencies_array;
     data_repo_t**              repo_array;
 };
 
@@ -83,6 +83,12 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
 #define DAGUE_DEPENDENCIES_FLAG_FINAL      0x02
 /* This loops array is allocated */
 #define DAGUE_DEPENDENCIES_FLAG_ALLOCATED  0x04
+
+/* When providing user-defined functions to count the number of tasks,
+ * the user can return DAGUE_UNDETERMINED_NB_TASKS to say explicitely
+ * that they will call the object termination function themselves.
+ */
+#define DAGUE_UNDETERMINED_NB_TASKS (~((uint32_t)0))
 
 /* The first time the IN dependencies are
  *       checked leave a trace in order to avoid doing it again.
@@ -214,6 +220,14 @@ typedef int (dague_data_ref_fn_t)(dague_execution_context_t *exec_context,
 #define DAGUE_USE_DEPS_MASK              0x0020
 #define DAGUE_HAS_CTL_GATHER             0X0040
 
+/**
+ * Find the dependency corresponding to a given execution context.
+ */
+typedef dague_dependency_t *(dague_find_dependency_fn_t)(const dague_handle_t *dague_handle,
+                                                         const dague_execution_context_t* restrict exec_context);
+dague_dependency_t *dague_default_find_deps(const dague_handle_t *dague_handle,
+                                            const dague_execution_context_t* restrict exec_context);
+
 typedef struct __dague_internal_incarnation_s {
     int32_t                    type;
     dague_evaluate_function_t *evaluate;
@@ -250,6 +264,8 @@ struct dague_function_s {
     dague_hook_t                *prepare_input;
     const __dague_chore_t       *incarnations;
     dague_hook_t                *prepare_output;
+
+    dague_find_dependency_fn_t  *find_deps;
 
     dague_traverse_function_t   *iterate_successors;
     dague_traverse_function_t   *iterate_predecessors;

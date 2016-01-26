@@ -1072,8 +1072,8 @@ dague_check_IN_dependencies_with_counter( const dague_handle_t *dague_handle,
     return ret;
 }
 
-static dague_dependency_t *find_deps(const dague_handle_t *dague_handle,
-                                     const dague_execution_context_t* restrict exec_context)
+dague_dependency_t *dague_default_find_deps(const dague_handle_t *dague_handle,
+                                            const dague_execution_context_t* restrict exec_context)
 {
     dague_dependencies_t *deps;
     int p;
@@ -1203,7 +1203,8 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
 void dague_dependencies_mark_task_as_startup(dague_execution_context_t* restrict exec_context)
 {
     const dague_function_t* function = exec_context->function;
-    dague_dependency_t *deps = find_deps(exec_context->dague_handle, exec_context);
+    dague_handle_t *dague_handle = exec_context->dague_handle;
+    dague_dependency_t *deps = function->find_deps(dague_handle, exec_context);
 
     if( function->flags & DAGUE_USE_DEPS_MASK ) {
         *deps = DAGUE_DEPENDENCIES_STARTUP_TASK | function->dependencies_goal;
@@ -1235,7 +1236,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 #endif
 
     DEBUG2(("Activate dependencies for %s flags = 0x%04x\n", tmp1, function->flags));
-    deps = find_deps(origin->dague_handle, exec_context);
+    deps = function->find_deps(origin->dague_handle, exec_context);
 
     if( function->flags & DAGUE_USE_DEPS_MASK ) {
         completed = dague_update_deps_with_mask(origin->dague_handle, exec_context, deps, origin, origin_flow, dest_flow);
@@ -2160,7 +2161,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
         function->data_affinity(&context, &ref);
         if( ref.ddesc->rank_of_key(ref.ddesc, ref.key) == ref.ddesc->myrank ) {
             (*nlocal)++;
-            dep = find_deps(handle, &context);
+            dep = function->find_deps(handle, &context);
             if( function->flags & DAGUE_USE_DEPS_MASK ) {
                 if( *dep & DAGUE_DEPENDENCIES_STARTUP_TASK ) {
                     (*nreleased)++;

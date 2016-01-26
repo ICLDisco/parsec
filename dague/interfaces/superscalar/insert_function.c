@@ -161,7 +161,7 @@ dague_dtd_handle_constructor
         dague_handle->super.functions_array[i] = NULL;
     }
 
-    dague_handle->super.dependencies_array  = (dague_dependencies_t **) calloc(DAGUE_dtd_NB_FUNCTIONS, sizeof(dague_dependencies_t *));
+    dague_handle->super.dependencies_array  = calloc(DAGUE_dtd_NB_FUNCTIONS, sizeof(dague_dependencies_t *));
     dague_handle->arenas_size               = 1;
     dague_handle->arenas = (dague_arena_t **) malloc(dague_handle->arenas_size * sizeof(dague_arena_t *));
 
