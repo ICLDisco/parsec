@@ -135,7 +135,7 @@ static int open_file(const char *base, const char *topic)
     char *filename;
     char *err_msg = NULL;
     size_t base_len;
-    int i;
+    int i, rc;
 
     /* If no filename was supplied, use the default */
 
@@ -154,11 +154,11 @@ static int open_file(const char *base, const char *topic)
             filename = dague_os_path( false, search_dirs[i], base, NULL );
             dague_show_help_yyin = fopen(filename, "r");
             if (NULL == dague_show_help_yyin) {
-                asprintf(&err_msg, "%s: %s", filename, strerror(errno));
+                rc = asprintf(&err_msg, "%s: %s", filename, strerror(errno));
                 base_len = strlen(base);
                 if (4 > base_len || 0 != strcmp(base + base_len - 4, ".txt")) {
                     free(filename);
-                    asprintf(&filename, "%s%s%s.txt", search_dirs[i], DAGUE_PATH_SEP, base);
+                    rc = asprintf(&filename, "%s%s%s.txt", search_dirs[i], DAGUE_PATH_SEP, base);
                     dague_show_help_yyin = fopen(filename, "r");
                 }
             }
@@ -186,6 +186,7 @@ static int open_file(const char *base, const char *topic)
 
     /* Happiness */
 
+    (void)rc;
     return DAGUE_SUCCESS;
 }
 
@@ -302,9 +303,12 @@ char *dague_show_help_vstring(const char *filename, const char *topic,
     rc = array2string(&single_string, want_error_header, array);
 
     if (DAGUE_SUCCESS == rc) {
+        int dummy;
         /* Apply the formatting to make the final output string */
-        vasprintf(&output, single_string, arglist);
+        dummy = vasprintf(&output, single_string, arglist);
         free(single_string);
+
+        (void)dummy;
     }
 
     dague_argv_free(array);
