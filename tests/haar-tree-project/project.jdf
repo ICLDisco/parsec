@@ -1,6 +1,7 @@
 extern "C" %{
 #include "tree_dist.h"
 #include <math.h>
+#include "dague/sys/atomic.h"
 
 #define L 10.0
 
@@ -41,18 +42,20 @@ treeAdesc           [type = "dague_ddesc_t *" default = "(dague_ddesc_t*)treeA"]
 NP                  [type = "int"]
 fakeDesc            [type = "dague_ddesc_t *"]
 thresh              [type = "double"]
+tasks_done_locally  [type = "uint32_t"]
 
 BCAST_END_PROPAGATE(rank)
   rank = 0 .. (NP-1)
 
 :fakeDesc(rank, rank)
-    
+
 CTL RL <- RL END_PROPAGATE(0, 0)
 
 BODY
 {
-    printf("Rank %d in BCAST_END_PROPAGATE: will remove %d tasks\n", rank, (this_task->dague_handle)->nb_local_tasks-1);
-    dague_handle_update_nbtask( this_task->dague_handle, 1 - (this_task->dague_handle)->nb_local_tasks);
+    dague_handle_update_nbtask(&__dague_handle->super.super, - DAGUE_UNDETERMINED_NB_TASKS + tasks_done_locally + 3 + 1);
+    printf("Rank %d in BCAST_END_PROPAGATE, counted %d tasks executed; nb_local_tasks = %d\n", rank,
+           tasks_done_locally, __dague_handle->super.super.nb_local_tasks);
 }
 END
 
@@ -102,7 +105,10 @@ CTL RL    -> (((l%2) == 0) & (n>0)) ? LEFT END_PROPAGATE(n-1, l/2)
 BODY
 {
   /* The root node has to delete all remaining tasks*/
-    printf("CALLING END_PROPAGATE(%d, %d)\n", n, l);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    printf("CALLING END_PROPAGATE(%d, %d) on rank %d\n", n, l, rank);
+    dague_atomic_inc_32b(&tasks_done_locally);
 }
 END
 
@@ -168,7 +174,9 @@ BODY
 
     int n_c, l_r, l_l;
 
-    printf("CALLING PROJECT(%d, %d)\n", n, l);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    printf("CALLING PROJECT(%d, %d) on rank %d\n", n, l, rank);
 
     sl = func(key_to_x(n+1, 2*l));
     sr = func(key_to_x(n+1, 2*l+1));
@@ -201,6 +209,8 @@ BODY
         tree_dist_insert_data(treeA, gNODEL->original, n_c, l_l);
         tree_dist_insert_data(treeA, gNODER->original, n_c, l_r);
       }
+
+    dague_atomic_inc_32b(&tasks_done_locally);
 }
 END
 

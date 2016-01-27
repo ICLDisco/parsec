@@ -127,18 +127,22 @@ int main(int argc, char *argv[])
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            dague_datatype_float_t
                          );
-    project = dague_project_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc, 1e-3);
+    project = dague_project_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc, 1e-3, 0);
     project->arenas[DAGUE_project_DEFAULT_ARENA] = &arena;
     dague_enqueue(dague, &project->super);
     dague_context_wait(dague);
 
-    if( do_checks ) {
-        double sum = 0.0;
-        walk_tree(&walker_checksum_node, &walker_checksum_child, &sum, treeA);
-        ret = (23589.2 == sum);
+    if( world > 1 ) {
+        printf("Distributed walking on tree not enabled yet.\n");
     } else {
-        tree_dist_to_dotfile(treeA, "A.dot");
-        ret = 0;
+        if( do_checks ) {
+            double sum = 0.0;
+            walk_tree(&walker_checksum_node, &walker_checksum_child, &sum, treeA);
+            ret = (23589.2 == sum);
+        } else {
+            tree_dist_to_dotfile(treeA, "A.dot");
+            ret = 0;
+        }
     }
 
     project->arenas[DAGUE_project_DEFAULT_ARENA] = NULL;
