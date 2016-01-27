@@ -96,12 +96,14 @@ static pthread_key_t thread_specific_profiling_key;
 static void set_last_error(const char *format, ...)
 {
     va_list ap;
+    int rc;
     if( dague_profiling_last_error )
         free(dague_profiling_last_error);
     va_start(ap, format);
-    vasprintf(&dague_profiling_last_error, format, ap);
+    rc = vasprintf(&dague_profiling_last_error, format, ap);
     va_end(ap);
     dague_profiling_raise_error = 1;
+    (void)rc;
 }
 static int switch_event_buffer(dague_thread_profiling_t *context);
 
@@ -903,7 +905,7 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
     int64_t zero;
     char *xmlbuffer;
     int rank = 0, worldsize = 1, buflen;
-    int  min_fd;
+    int  min_fd, rc;
 #if defined(HAVE_MPI)
     char *unique_str;
 
@@ -917,8 +919,11 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
 
     if( !__profile_initialized ) return -1;
 
-    asprintf(&bpf_filename, "%s-%d.prof-XXXXXX", basefile, rank);
-
+    rc = asprintf(&bpf_filename, "%s-%d.prof-XXXXXX", basefile, rank);
+    if (rc == -1) {
+        set_last_error("Profiling system: error: one (or more) process could not create the backend file name (out of ressource).\n");
+        return -1;
+    }
     if( rank == 0 ) {
         /**
          * The first process create the unique locally unique filename, and then
