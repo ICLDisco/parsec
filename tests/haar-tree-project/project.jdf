@@ -52,7 +52,6 @@ CTL RL <- RL END_PROPAGATE(0, 0)
 BODY
 {
     printf("Rank %d in BCAST_END_PROPAGATE: will remove %d tasks\n", rank, (this_task->dague_handle)->nb_local_tasks-1);
-    if( rank == 0 ) sleep(5); /**< Ugliest workaround for issue #86? */
     dague_handle_update_nbtask( this_task->dague_handle, 1 - (this_task->dague_handle)->nb_local_tasks);
 }
 END
@@ -221,7 +220,7 @@ static uint64_t end_propagate_hash(const struct __dague_project_internal_handle 
 static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle *__dague_handle)
 {
     (void)__dague_handle;
-    return 32768;
+    return DAGUE_UNDETERMINED_NB_TASKS;
 }
 
 typedef struct {
