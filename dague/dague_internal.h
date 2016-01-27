@@ -97,7 +97,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
  * the user can return DAGUE_UNDETERMINED_NB_TASKS to say explicitely
  * that they will call the object termination function themselves.
  */
-#define DAGUE_UNDETERMINED_NB_TASKS (~((uint32_t)0))
+#define DAGUE_UNDETERMINED_NB_TASKS (0x0fffffff)
 
 /* The first time the IN dependencies are
  *       checked leave a trace in order to avoid doing it again.
