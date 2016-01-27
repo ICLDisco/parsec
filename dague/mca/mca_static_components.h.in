@@ -27,12 +27,15 @@ static int add_static_component(mca_base_component_t *c, int p)
 static void register_base_component(const char *cname)
 {
     char *help, *ignored;
-    asprintf(&help, "Limit the list of allowed modules for component %s", cname);
+    int rc;
+
+    rc = asprintf(&help, "Limit the list of allowed modules for component %s", cname);
     dague_mca_param_reg_string_name("mca", cname,
                                     help,
                                     false, false, NULL,
                                     &ignored);
     (void)ignored;
+    (void)rc;
     free(help);
 }
 
@@ -44,7 +47,7 @@ static void mca_static_components_init(void)
         return;
     }
     mca_static_components_inited = 1;
-   
+
     ${MCA_STATIC_COMPONENTS_ACCESSORS}
 }
 

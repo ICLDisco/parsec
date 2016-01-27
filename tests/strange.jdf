@@ -40,8 +40,10 @@ RW A <- (0 == k) ? A(k, 0) : A TASK(k-1)
      -> (k%2 == 1) ? A TASK(n) : A TASK(inline_c%{ return k+1; %})
 
 BODY
+{
   /*printf("Task(%d)\n", k);*/
   (*VAL) += 1;
+}
 END
 
 extern "C" %{
@@ -53,7 +55,7 @@ int main(int argc, char* argv[] )
 {
     dague_context_t *dague;
     dague_strange_handle_t* handle;
-    int i = 0, n, val = 0;
+    int i = 0, n = 1, val = 0;
 
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-n=", 3) ) {

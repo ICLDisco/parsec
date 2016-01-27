@@ -70,10 +70,7 @@ call_to_fake_writer( dague_execution_unit_t *context, dague_execution_context_t 
 static int
 hook_of_dtd_task(dague_execution_unit_t *context,
                       dague_execution_context_t *this_task);
-static int
-dtd_startup_tasks(dague_context_t *context,
-                  dague_dtd_handle_t * __dague_handle,
-                  dague_execution_context_t **pready_list);
+
 static int
 dtd_is_ready(const dague_dtd_task_t *dest);
 
@@ -1403,7 +1400,7 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
 
     if(is_ready) {
         if(dump_traversal_info) {
-            printf("------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
+            printf("------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
                    "%d\n-----\n", current_task->super.function->name, current_task->super.super.key,
                    current_task->super.function->nb_flows, current_task->flow_count);
         }
@@ -1524,7 +1521,7 @@ complete_hook_of_dtd( dague_execution_unit_t    *context,
         static int counter= 0;
         dague_atomic_add_32b(&counter,1);
         printf("------------------------------------------------\n"
-               "execution done of task: %s \t %llu\n"
+               "execution done of task: %s \t %" PRIu64 "\n"
                "task done %d \n",
                this_task->function->name,
                task->super.super.key,

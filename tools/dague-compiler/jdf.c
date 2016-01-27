@@ -1022,8 +1022,10 @@ jdf_compare_datatype(const jdf_datatransfer_type_t* src,
                     }));                                                \
                                                                         \
             if( 0 == jdf_compare_expr(src->TYPE, dst->TYPE) ) {         \
-                if( JDF_OP_IS_C_CODE(dst->TYPE->op) && (NULL == dst->TYPE->jdf_c_code.fname) ) \
-                    asprintf(&dst->TYPE->jdf_c_code.fname, "same_type_as_line_%d", JDF_OBJECT_LINENO(dst->TYPE)); \
+                if( JDF_OP_IS_C_CODE(dst->TYPE->op) && (NULL == dst->TYPE->jdf_c_code.fname) ) { \
+                    int rc = asprintf(&dst->TYPE->jdf_c_code.fname, "same_type_as_line_%d", JDF_OBJECT_LINENO(dst->TYPE)); \
+                    (void)rc;                                           \
+                }                                                       \
                 JDF_OBJECT_RELEASE(dst->TYPE);                          \
                 dst->TYPE = src->TYPE;                                  \
                 JDF_OBJECT_RETAIN(src->TYPE);                           \
@@ -1065,6 +1067,9 @@ jdf_datatype_remove_redundancy(const jdf_datatransfer_type_t* src,
     COMPARE_EXPR(displ, sa, are_displ_equal);
 
     string_arena_free(sa);
+
+    (void)linfo; /* Used with verbose=3 */
+
     /* the return is similar to strcmp: 0 stands for equality */
     return (are_types_equal | are_layout_equal | are_count_equal | are_displ_equal);
 }

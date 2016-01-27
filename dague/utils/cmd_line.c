@@ -1137,7 +1137,7 @@ static cmd_line_option_t *find_option(dague_cmd_line_t *cmd,
 
 static int set_dest(cmd_line_option_t *option, char *sval)
 {
-    int ival = atol(sval);
+    int  rc = 0, ival = atol(sval);
     long lval = strtoul(sval, NULL, 10);
     char *str = NULL;
     size_t i;
@@ -1157,10 +1157,10 @@ static int set_dest(cmd_line_option_t *option, char *sval)
         case DAGUE_CMD_LINE_TYPE_STRING:
         case DAGUE_CMD_LINE_TYPE_INT:
         case DAGUE_CMD_LINE_TYPE_SIZE_T:
-            asprintf(&str, "%s=%s", option->clo_mca_param_env_var, sval);
+            rc = asprintf(&str, "%s=%s", option->clo_mca_param_env_var, sval);
             break;
         case DAGUE_CMD_LINE_TYPE_BOOL:
-            asprintf(&str, "%s=1", option->clo_mca_param_env_var);
+            rc = asprintf(&str, "%s=1", option->clo_mca_param_env_var);
             break;
         default:
             break;
@@ -1168,6 +1168,9 @@ static int set_dest(cmd_line_option_t *option, char *sval)
         if (NULL != str) {
             putenv(str);
         }
+    }
+    if (-1 == rc) {
+        return DAGUE_ERR_OUT_OF_RESOURCE;
     }
 
     /* Set variable */
