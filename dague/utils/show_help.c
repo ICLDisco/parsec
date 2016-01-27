@@ -306,9 +306,10 @@ char *dague_show_help_vstring(const char *filename, const char *topic,
         int dummy;
         /* Apply the formatting to make the final output string */
         dummy = vasprintf(&output, single_string, arglist);
+        if (dummy == -1) {
+            rc = DAGUE_ERR_OUT_OF_RESOURCE;
+        }
         free(single_string);
-
-        (void)dummy;
     }
 
     dague_argv_free(array);

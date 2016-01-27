@@ -278,7 +278,6 @@ int add_edges_from_dotfile(const char *filename)
     char line[4096];
     char id1[4096], id2[4096], *l;
     unsigned int n1, n2, e = 0, s;
-    int rc;
 
     f = fopen(filename, "r");
     if( f == NULL ) {
@@ -308,7 +307,6 @@ int add_edges_from_dotfile(const char *filename)
     }
 
     fclose(f);
-    (void)rc;
     return e;
 }
 

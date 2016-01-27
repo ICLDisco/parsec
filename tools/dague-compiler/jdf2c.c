@@ -5233,6 +5233,11 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
     for(f = jdf->functions; NULL != f; f = f->next) {
         if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL) ) {
             rc = asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
+            if (rc == -1) {
+                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                          "Out of ressoruces to generate the hash function name hash_%s\n", f->fname);
+                exit(1);
+            }
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_FN_NAME, strdup(tmp));
             free(tmp);
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_FUN;
@@ -5247,6 +5252,11 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
             if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
                 rc = asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
+                if (rc == -1) {
+                    jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                              "Out of ressoruces to generate the startup function name startup_%s\n", f->fname);
+                    exit(1);
+                }
                 (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, strdup(tmp));
                 free(tmp);
             }
@@ -5277,7 +5287,6 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("dague_default_find_deps"));
         }
     }
-    (void)rc;
 }
 
 /**
