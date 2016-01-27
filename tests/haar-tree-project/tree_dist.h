@@ -24,6 +24,7 @@ void tree_copy_node(tree_dist_t *dst_tree, int dst_nid, node_t *src);
 void tree_dist_insert_node(tree_dist_t *tree, node_t *node, int l, int n);
 void tree_dist_insert_data(tree_dist_t *tree, dague_data_t *data, int l, int n);
 tree_dist_t *tree_dist_create_empty(int myrank, int nodes);
+int tree_dist_lookup_node(tree_dist_t *tree, int n, int l);
 
 int tree_dist_to_dotfile(tree_dist_t *tree, char *filename);
 

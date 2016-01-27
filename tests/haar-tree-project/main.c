@@ -5,6 +5,9 @@
 
 #include "tree_dist.h"
 #include "project.h"
+#include "walk_utils.h" /** Must be included before walk.h */
+#include "walk.h"
+
 #include <unistd.h>
 extern char *optarg;
 extern int optind;
@@ -36,6 +39,34 @@ static void walker_checksum_child(tree_dist_t *tree, int nid, int pn, int pl, in
     (void)nid;
 }
 
+static void cksum_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *param)
+{
+    double *cksum = (double*)param;
+    *cksum += node->s + node->d;
+    *cksum += l ^ n;
+    (void)tree;
+}
+
+static void print_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *param)
+{
+    if( NULL != node )
+        printf("N_%d_%d [label=\"[%d,%d](%g, %g)\"];\n", n, l, n, l, node->s, node->d);
+    else
+        printf("N_%d_%d [label=\"[%d,%d](-, -)\"];\n", n, l, n, l);
+    (void)param;
+    (void)tree;
+}
+
+static void print_link_fn(tree_dist_t *tree, node_t *node, int n, int l, void *param)
+{
+    if(n > 0)
+        printf("N_%d_%d -> N_%d_%d;\n", n, l, n-1, l/2);
+    (void)param;
+    (void)tree;
+    (void)node;
+}
+
+
 int main(int argc, char *argv[])
 {
     dague_context_t* dague;
@@ -43,12 +74,14 @@ int main(int argc, char *argv[])
     tree_dist_t *treeA;
     two_dim_block_cyclic_t fakeDesc;
     dague_project_handle_t *project;
+    dague_walk_handle_t *walker;
     dague_arena_t arena;
     node_t node;
     int do_checks = 0;
     int pargc = 0, i, dashdash = -1;
     char **pargv;
     int ret, ch;
+    double cksum = 0.0;
 
 #if defined(DAGUE_HAVE_MPI)
     {
@@ -132,6 +165,21 @@ int main(int argc, char *argv[])
     dague_enqueue(dague, &project->super);
     dague_context_wait(dague);
 
+    printf("\n\n\n\n");
+
+    if( do_checks ) {
+        walker = dague_walk_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc,
+                                &cksum, cksum_node_fn, NULL,
+                                0);
+    } else {
+        walker = dague_walk_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc,
+                                NULL, print_node_fn, print_link_fn,
+                                0);
+    }
+    walker->arenas[DAGUE_walk_DEFAULT_ARENA] = &arena;
+    dague_enqueue(dague, &walker->super);
+    dague_context_wait(dague);
+
     if( world > 1 ) {
         printf("Distributed walking on tree not enabled yet.\n");
     } else {
@@ -147,6 +195,8 @@ int main(int argc, char *argv[])
 
     project->arenas[DAGUE_project_DEFAULT_ARENA] = NULL;
     dague_handle_free(&project->super);
+    walker->arenas[DAGUE_walk_DEFAULT_ARENA] = NULL;
+    dague_handle_free(&walker->super);
 
     dague_fini(&dague);
 
