@@ -36,6 +36,7 @@ on_fct_param       [type = "void*"]
 on_node_down       [type = "walk_fn_t"]
 on_node_up         [type = "walk_fn_t"] 
 tasks_done_locally [type = "uint32_t"]
+verbose            [type = "int"]
 
 BCAST_UP(rank)
   rank = 0 .. (NP-1)
@@ -47,8 +48,10 @@ CTL RL <- RL UP(0, 0)
 BODY
 {
     dague_handle_update_nbtask(&__dague_handle->super.super, - DAGUE_UNDETERMINED_NB_TASKS + tasks_done_locally + 3 + 1);
-    printf("Rank %d in BCAST_UP, counted %d tasks executed; nb_local_tasks = %d\n", rank,
-           tasks_done_locally, __dague_handle->super.super.nb_local_tasks);
+    if( verbose ) {
+        fprintf(stderr, "Rank %d in BCAST_UP, counted %d tasks executed; nb_local_tasks = %d\n", rank,
+                tasks_done_locally, __dague_handle->super.super.nb_local_tasks);
+    }
 }
 END
 
@@ -101,9 +104,11 @@ BODY
 {
     /* The root node has to delete all remaining tasks*/
     node_t *node = (node_t*)NODE;
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    printf("CALLING UP(%d, %d) on rank %d\n", n, l, rank);
+    if( verbose ) {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        fprintf(stderr, "CALLING UP(%d, %d) on rank %d\n", n, l, rank);
+    }
     dague_atomic_inc_32b(&tasks_done_locally);
     if( NULL != on_node_up ) {
         on_node_up(tree, node, n, l, on_fct_param);
@@ -141,17 +146,26 @@ DOWN (n, l) [hash_fn = down_hash
 // If the err <= thresh, then the control is send to the parent
 // node either on its left or its right to stop the node creation
 CTL RL      <- (n > 0) ? RL DOWN(n-1, l/2)
-            -> node_exists ? RL DOWN(n+1, 2*l)   : LEFT UP(n+1, 2*l)
-            -> node_exists ? RL DOWN(n+1, 2*l+1) : RIGHT UP(n+1, 2*l+1)
+            -> node_exists ? RL DOWN(n+1, 2*l)
+            -> node_exists ? RL DOWN(n+1, 2*l+1)
             -> node_exists ? RL DO_DOWN(n, l)
+    -> ((!node_exists) & ( (l%2) == 0 )) ? LEFT UP(n-1, l/2)
+    -> ((!node_exists) & ( (l%2) == 1 )) ? RIGHT UP(n-1, l/2)
 
 BODY
 {
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    printf("CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
+    if( verbose ) {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
+    }
 
     if( tree_dist_lookup_node(tree, n, l) == -1 ) {
+        if( verbose ) {
+            int rank;
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);
+        }
         this_task->locals.node_exists.value = 0;
     }
     
@@ -176,9 +190,11 @@ READ NODE <- treeDesc(n, l)
 BODY
 {
     node_t *node = (node_t*)NODE;
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    printf("CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
+    if( verbose ) {
+        int rank;
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        fprintf(stderr, "CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
+    }
 
     dague_atomic_inc_32b(&tasks_done_locally);
     if( NULL != on_node_down ) {
@@ -313,7 +329,11 @@ static int my_walk_startup(dague_execution_unit_t * eu, __dague_walk_DOWN_task_t
   new_task->locals.n.value = 0;
   new_task->locals.l.value = 0;
   new_task->locals.node_exists.value = 1;
-  
+
+  new_task->data.RL.data_repo = NULL;
+  new_task->data.RL.data_in = NULL;
+  new_task->data.RL.data_out = NULL;
+
   new_task->priority = 1;
 
   DAGUE_LIST_ITEM_SINGLETON(new_task);
