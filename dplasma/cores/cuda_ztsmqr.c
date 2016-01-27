@@ -56,25 +56,6 @@ extern int dague_cuda_output_stream;
 #define FORCE_LINK_STATIC_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 FORCE_LINK_STATIC_SYMBOL(dplasma_cuda_ztsmqr)
 
-static inline
-int gpu_kernel_push_ztsmqr( gpu_device_t* gpu_device,
-                            dague_gpu_context_t* this_task,
-                            dague_gpu_exec_stream_t* gpu_stream);
-
-static inline
-int gpu_kernel_submit_ztsmqr( gpu_device_t* gpu_device,
-                              dague_gpu_context_t* this_task,
-                              dague_gpu_exec_stream_t* gpu_stream);
-
-static inline
-int gpu_kernel_pop_ztsmqr( gpu_device_t* gpu_device,
-                           dague_gpu_context_t* this_task,
-                           dague_gpu_exec_stream_t* gpu_stream);
-
-static inline
-int  gpu_kernel_epilog_ztsmqr( gpu_device_t* gpu_device,
-                               dague_gpu_context_t* this_task );
-
 typedef struct dague_ztsmqr_args_s {
     dague_gpu_context_t super;
     int pushout_A1, pushout_A2;
@@ -84,100 +65,6 @@ typedef struct dague_ztsmqr_args_s {
 } dague_ztsmqr_args_t;
 
 #include <dague/devices/cuda/cuda_scheduling.h>
-
-/**
- *  This function schedule the move of all the data required for a
- *  specific task from the main memory into the GPU memory.
- *
- *  Returns:
- *     a positive number: the number of data to be moved.
- *     -1: data cannot be moved into the GPU.
- *     -2: No more room on the GPU to move this data.
- */
-static inline int
-gpu_kernel_push_ztsmqr( gpu_device_t            *gpu_device,
-                        dague_gpu_context_t     *gpu_task,
-                        dague_gpu_exec_stream_t *gpu_stream)
-{
-    int i, ret = 0;
-    int space_needed = 0;
-    dague_execution_context_t *this_task = gpu_task->ec;
-    dague_data_t              *original;
-    dague_data_copy_t         *data, *local;
-    const dague_flow_t        *flow;
-
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        if(NULL == this_task->function->in[i]) continue;
-
-        this_task->data[i].data_out = NULL;
-        data = this_task->data[i].data_in;
-        original = data->original;
-        flow = this_task->function->in[i];
-        if(NULL == flow) {
-            flow = this_task->function->out[i];
-        }
-        if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
-            if ( (flow->flow_flags & FLOW_ACCESS_WRITE) && local->readers > 0 ) {
-                return -86;
-            }
-            this_task->data[i].data_out = local;
-
-            /* Check the most up2date version of the data */
-            if( data->device_index != gpu_device->super.device_index ) {
-                if(data->version <= local->version) {
-                    if(data->version == local->version) continue;
-                    /* Trouble: there are two versions of this data coexisting in same
-                     * time, one using a read-only path and one that has been updated.
-                     * We don't handle this case yet!
-                     * TODO:
-                     */
-                    assert(0);
-                }
-            }
-            continue;  /* space available on the device */
-        }
-
-        /* If the data is needed as an input load it up */
-        if(this_task->function->in[i]->flow_flags & FLOW_ACCESS_READ)
-            space_needed++;
-    }
-
-    if( 0 != space_needed ) { /* Try to reserve enough room for all data */
-        ret = dague_gpu_data_reserve_device_space( gpu_device,
-                                                   this_task,
-                                                   space_needed );
-        if( ret < 0 ) {
-            goto release_and_return_error;
-        }
-    }
-
-    DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
-                             gpu_stream->profiling,
-                             (-1 == gpu_stream->prof_event_key_start ?
-                              DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,
-                                                        this_task->function->function_id) :
-                              gpu_stream->prof_event_key_start),
-                             this_task);
-
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        if(NULL == this_task->function->in[i]) continue;
-        assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
-
-        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                              "GPU[%1d]:\tIN  Data of %s <%x> on GPU\n",
-                              gpu_device->cuda_index, this_task->function->in[i]->name,
-                              this_task->data[i].data_out->original->key));
-        ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
-                                       &(this_task->data[i]), gpu_task, gpu_stream );
-        if( ret < 0 ) {
-            goto release_and_return_error;
-        }
-    }
-
-  release_and_return_error:
-    return ret;
-}
-
 
 static inline int
 gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,

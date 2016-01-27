@@ -17,8 +17,6 @@
 #include "dague/class/fifo.h"
 #include "data_dist/matrix/matrix.h"
 
-int gpu_kernel_init_ztsmqr( dague_context_t* dague_context );
-
 int gpu_ztsmqr( dague_execution_unit_t* eu_context,
                 dague_execution_context_t* this_task,
                 int pushout_A1, int pushout_A2, int m, int n, int k,
