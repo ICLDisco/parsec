@@ -274,6 +274,8 @@ static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJE
 
   DAGUE_LIST_ITEM_SINGLETON(new_task);
   __dague_schedule(eu, (dague_execution_context_t *)new_task);
+
+  (void)vpid;
   return DAGUE_HOOK_RETURN_DONE;
 }
 

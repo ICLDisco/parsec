@@ -341,6 +341,7 @@ int tree_dist_instanciate_node(tree_dist_t *tree, int pnid)
            pnid, tree->nodes[pnid]->l, tree->nodes[pnid]->n,
            tree->nodes[pnid]->nid_left == -1 ? "doesn't have":"have",
            tree->nodes[pnid]->nid_right == -1 ? "doesn't have":"have");
+    (void)parent;
     return pnid;
 }
 
@@ -443,7 +444,7 @@ static void walk_tree_rec(tree_walker_node_fn_t *node_fn,
                           void *fn_param, tree_dist_t *tree, int l, int n)
 {
     int nid = tree_lookup_nid(tree, l, n);
-    double s, d;
+    double s = -1., d = -1.;
     node_t *node;
     dague_data_copy_t *data_copy;
     if( nid != -1 ) {
