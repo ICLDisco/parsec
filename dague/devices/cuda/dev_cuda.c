@@ -660,8 +660,8 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
         dague_gpu_data_copy_t* gpu_elem;
         void *device_ptr;
 
-        cuda_status = (cudaError_t)cudaMalloc( &device_ptr, eltsize);
-        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_reserve) cudaMemAlloc ", cuda_status,
+        status = (cudaError_t)cudaMalloc( &device_ptr, eltsize);
+        DAGUE_CUDA_CHECK_ERROR( "(dague_cuda_memory_reserve) cudaMemAlloc ", status,
                                 ({
                                     size_t _free_mem, _total_mem;
                                     cudaMemGetInfo( &_free_mem, &_total_mem );
@@ -685,7 +685,7 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
     }
     if( 0 == mem_elem_per_gpu && dague_ulist_is_empty( &gpu_device->gpu_mem_lru ) ) {
         dague_warning("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!",
-                 gpu_device->super.context->my_rank, i);
+                 gpu_device->super.context->my_rank, gpu_device->cuda_index);
     }
     else {
         DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "GPU:\tAllocate %u tiles on the GPU memory", mem_elem_per_gpu );
