@@ -135,15 +135,15 @@ static uint32_t tree_dist_rank_of_key(dague_ddesc_t *desc, dague_data_key_t k)
 
 static uint32_t tree_dist_rank_of(dague_ddesc_t *desc, ...)
 {
+    tree_dist_t *tree = (tree_dist_t*)desc;
     va_list ap;
     int n, l;
-    int nid;
     va_start(ap, desc);
     n = va_arg(ap, int);
     l = va_arg(ap, int);
     va_end(ap);
-    nid = tree_lookup_or_allocate_node((tree_dist_t*)desc, n, l);
-    return tree_dist_rank_of_key(desc, nid);
+    (void)l;
+    return n % tree->super.nodes;
 }
 
 static dague_data_t* tree_dist_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
@@ -199,13 +199,12 @@ static int32_t tree_dist_vpid_of(dague_ddesc_t *desc, ...)
 {
     va_list ap;
     int n, l;
-    int nid;
     va_start(ap, desc);
     n = va_arg(ap, int);
     l = va_arg(ap, int);
     va_end(ap);
-    nid = tree_lookup_or_allocate_node((tree_dist_t*)desc, n, l);
-    return tree_dist_vpid_of_key(desc, nid);
+    (void)l;
+    return n % vpmap_get_nb_vp();
 }
 
 static int tree_dist_register_memory(dague_ddesc_t* desc, struct dague_device_s* device)
@@ -295,6 +294,10 @@ static int walk_tree_rec(tree_walker_node_fn_t *node_fn,
     double s = 0.0, d = 0.0;
     node_t *node;
     dague_data_copy_t *data_copy;
+    if( tree->super.nodes > 1 ) {
+        fprintf(stderr, "tree_dist does not implement distributed tree walking yet.\n");
+        return 0;
+    }
     if( tree_lookup_node(tree, n, l, &nid) ) {
         data_copy = dague_data_get_copy(tree->nodes[nid]->data, 0);
         if( NULL != data_copy ) {
