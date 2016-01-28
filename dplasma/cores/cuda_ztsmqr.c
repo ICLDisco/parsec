@@ -51,8 +51,6 @@ typedef cublas_status_t (*cublas_ztsmqr_t) ( PLASMA_enum side, PLASMA_enum trans
                                              cublas_handle_t h );
 #endif
 
-extern int dague_cuda_output_stream;
-
 #define FORCE_LINK_STATIC_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 FORCE_LINK_STATIC_SYMBOL(dplasma_cuda_ztsmqr)
 

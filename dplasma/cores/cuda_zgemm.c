@@ -42,8 +42,6 @@ typedef cublas_status_t (*cublas_zgemm_t) ( cublas_handle_t h,
                                             );
 #endif
 
-extern int dague_cuda_output_stream;
-
 #define FORCE_LINK_STATIC_SYMBOL(x) void* __ ## x ## _fp =(void*)&x;
 FORCE_LINK_STATIC_SYMBOL(cublasZgemm)
 
