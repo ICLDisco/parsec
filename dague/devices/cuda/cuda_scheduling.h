@@ -197,7 +197,6 @@ gpu_kernel_pop( gpu_device_t            *gpu_device,
             }
         }
         if( flow->flow_flags & FLOW_ACCESS_WRITE ) {
-            gpu_copy->version++;  /* on to the next version */
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
             /* Stage the transfer of the data back to main memory */
             gpu_device->super.required_data_out += original->nb_elts;
@@ -207,6 +206,7 @@ gpu_kernel_pop( gpu_device_t            *gpu_device,
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name));
             if( gpu_task->pushout[i] ) {
+                /* TODO: make sure no readers are working on the CPU version */
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                                       "GPU:\tMove D2H data <%s:%x> from GPU %d %p -> %p requested\n",
@@ -274,8 +274,12 @@ gpu_kernel_epilog( gpu_device_t        *gpu_device,
         assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
         cpu_copy->coherency_state = DATA_COHERENCY_SHARED;
-        /* TODO: make sure no readers are working on the CPU version */
+        /**
+         *  The cpu_copy will be updated in the completion, and at that moment
+         *  the two versions will be identical.
+         */
         cpu_copy->version = gpu_copy->version;
+        gpu_copy->version++;  /* on to the next version */
 
         /* Let's lie to the engine by reporting that working version of this
          * data (aka. the one that GEMM worked on) is now on the CPU.
