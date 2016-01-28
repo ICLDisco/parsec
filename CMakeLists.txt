@@ -1,7 +1,5 @@
 cmake_minimum_required (VERSION 2.8.7)
 project (DAGUE C)
-enable_language(Fortran OPTIONAL)
-enable_language(CXX OPTIONAL)
 
 include(CMakeDependentOption)
 include(CMakePushCheckState)
@@ -30,6 +28,18 @@ string(REPLACE " " ";" SHM_TEST_CMD_LIST "${SHM_TEST_CMD}")
 #####
 # ccmake tunable parameters
 #####
+
+## Check for the support of additional languages
+option(SUPPORT_FORTRAN
+       "Enable support for Fortran bindings (default ON)" ON)
+if( SUPPORT_FORTRAN )
+  enable_language(Fortran OPTIONAL)
+endif( SUPPORT_FORTRAN )
+option(SUPPORT_CXX
+       "Enable support for CXX bindings (default ON)" ON)
+if( SUPPORT_CXX )
+  enable_language(CXX OPTIONAL)
+endif( SUPPORT_CXX )
 
 ## Selectively compile only parts of the framework
 option(BUILD_TOOLS
