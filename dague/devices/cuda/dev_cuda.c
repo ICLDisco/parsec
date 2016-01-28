@@ -950,7 +950,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     }
 
     /* DtoD copy, if data is read only, then we go back to CPU copy, and fetch data from CPU (HtoD) */
-    if (in_elem != gpu_elem && in_elem != original->device_copies[0] && in_elem->version == original->device_copies[0]->version) {
+    if (in_elem != original->device_copies[0] && in_elem->version == original->device_copies[0]->version) {
         dague_data_copy_release(in_elem);  /* release the copy in GPU1 */
         task_data->data_in = original->device_copies[0];
         in_elem = task_data->data_in;
