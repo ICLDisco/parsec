@@ -10,7 +10,7 @@
 #include "dague/dague_binary_profile.h"
 #endif
 #include "dague/utils/colors.h"
-#include < errno.h>
+#include <errno.h>
 
 #if defined(DAGUE_PROF_GRAPHER)
 
