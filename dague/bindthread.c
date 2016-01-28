@@ -92,8 +92,8 @@ int dague_bindthread(int cpu, int ht)
     }
 #endif /* Architectures */
 
-#endif /* WITH_HWLO     */
-
+#endif /* !defined(HAVE_HWLOC) */
+    (void)ht;
     return cpu;
 }
 
