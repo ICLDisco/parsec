@@ -15,7 +15,6 @@ extern "C" %{
 #if defined(HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
 #include "dplasma/cores/cuda_zgemm.h"
-extern int *gpu_counter;
 #endif  /* defined(HAVE_CUDA) */
 %}
 
@@ -90,8 +89,8 @@ READ A <- (n == 0)            ? A READ_A(m, k) : A GEMM( m, (n+descC.nt-1) % des
        -> (n <= (descC.nt-2)) ? A GEMM( m, (n+1) % descC.nt, k )
 READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.mt, n, k )
        -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
-RW   C <- (k == descA.nt-1) ? dataC(m, n) : C GEMM( m, n, k+1 )
-       -> (k == 0         ) ? dataC(m, n) : C GEMM( m, n, k-1 )
+RW   C <- (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
+       -> (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
 
 BODY [type=CUDA dyld=cublasZgemm]
 {

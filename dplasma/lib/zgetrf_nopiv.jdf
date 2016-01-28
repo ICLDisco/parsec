@@ -149,27 +149,6 @@ zgemm(k, m, n)
              -> ((m == (k+1)) && (n >  (k+1))) ? B ztrsm_u(k+1, n)
              -> ((m >  (k+1)) && (n >  (k+1))) ? C zgemm(k+1, m, n)
 
-BODY
-{
-    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
-    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
-    int ldam = BLKLDD( descA, m );
-    int ldak = BLKLDD( descA, k );
-
-    printlog("CORE_zgemm(%d, %d, %d)\n"
-             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
-             k, n, m, m, k, A, k, n, B, m, n, C);
-
-#if !defined(DAGUE_DRY_RUN)
-    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
-               tempmm, tempnn, descA.mb,
-               -1., A /* dataA(m,k) */, ldam,
-                    B /* dataA(k,n) */, ldak,
-                1., C /* dataA(m,n) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
-}
-END
-
 BODY [type=CUDA dyld=cublasZgemm]
 {
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
@@ -195,3 +174,25 @@ BODY [type=CUDA dyld=cublasZgemm]
 #endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
+
+BODY
+{
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
+
+    printlog("CORE_zgemm(%d, %d, %d)\n"
+             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
+             k, n, m, m, k, A, k, n, B, m, n, C);
+
+#if !defined(DAGUE_DRY_RUN)
+    CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
+               tempmm, tempnn, descA.mb,
+               -1., A /* dataA(m,k) */, ldam,
+                    B /* dataA(k,n) */, ldak,
+                1., C /* dataA(m,n) */, ldam );
+#endif  /* !defined(DAGUE_DRY_RUN) */
+}
+END
+
