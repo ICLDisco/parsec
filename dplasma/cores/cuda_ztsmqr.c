@@ -23,11 +23,6 @@
 #include "cuda_ztsmqr.h"
 #include "dplasma_zcores.h"
 
-#define flow_A1  0
-#define flow_A2  1
-#define flow_V   2
-#define flow_T   3
-
 #define KERNEL_NAME ztsmqr
 #if CUDA_VERSION < 4000 || 1
 typedef void (*cublas_ztsmqr_t) ( PLASMA_enum side, PLASMA_enum trans,
@@ -242,10 +237,10 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
     gpu_task->super.ec = this_task;
     gpu_task->super.task_type = 0;
-    gpu_task->super.pushout[flow_A1] = pushout_A1;
-    gpu_task->super.pushout[flow_A2] = pushout_A2;
-    gpu_task->super.pushout[flow_V]  = 0;
-    gpu_task->super.pushout[flow_T]  = 0;
+    gpu_task->super.pushout[0] = 1; /*pushout_A1; /* A1 */
+    gpu_task->super.pushout[1] = 1; /*pushout_A2; /* A2 */
+    gpu_task->super.pushout[2] = 1; /*0;          /* V  */
+    gpu_task->super.pushout[3] = 1; /*0;          /* T  */
     gpu_task->side  = side;
     gpu_task->trans = trans;
     gpu_task->M1    = M1;

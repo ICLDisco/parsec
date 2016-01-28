@@ -205,7 +205,7 @@ gpu_kernel_pop( gpu_device_t            *gpu_device,
 
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name));
-            if( gpu_task->pushout[i] ) {
+            if( gpu_task->pushout[flow->flow_index] ) {
                 /* TODO: make sure no readers are working on the CPU version */
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
@@ -286,7 +286,7 @@ gpu_kernel_epilog( gpu_device_t        *gpu_device,
          */
         this_task->data[flow->flow_index].data_out = cpu_copy;
 
-        if( gpu_task->pushout[i] ) {
+        if( gpu_task->pushout[flow->flow_index] ) {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",

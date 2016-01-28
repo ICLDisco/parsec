@@ -22,10 +22,6 @@
 #include "cuda_zgemm.h"
 #include <cublas.h>
 
-#define flow_A  1
-#define flow_B  2
-#define flow_C  0
-
 #define KERNEL_NAME zgemm
 #if CUDA_VERSION < 4000 || 1
 typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
@@ -189,9 +185,9 @@ int gpu_zgemm( dague_execution_unit_t* eu_context,
     OBJ_CONSTRUCT(gpu_task, dague_list_item_t);
     gpu_task->super.ec = this_task;
     gpu_task->super.task_type = 0;
-    gpu_task->super.pushout[flow_A] = 0;
-    gpu_task->super.pushout[flow_B] = 0;
-    gpu_task->super.pushout[flow_C] = pushout;
+    gpu_task->super.pushout[0] = 1; /*0;       /* A */
+    gpu_task->super.pushout[1] = 1; /*0;       /* B */
+    gpu_task->super.pushout[2] = 1; /*pushout; /* C */
     gpu_task->alpha    = alpha;
     gpu_task->beta     = beta;
     gpu_task->transA   = transA;
