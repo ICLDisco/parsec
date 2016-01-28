@@ -17,7 +17,8 @@
 
 #define flow_T 0
 
-extern int dague_cuda_output_stream;
+#define KERNEL_NAME bandwidth
+#include <dague/devices/cuda/cuda_scheduling.h>
 
 static int
 gpu_kernel_submit_bandwidth( gpu_device_t            *gpu_device,
@@ -36,9 +37,6 @@ gpu_kernel_submit_bandwidth( gpu_device_t            *gpu_device,
     (void)gpu_device; (void)gpu_stream; (void)this_task;
     return 0;
 }
-
-#define KERNEL_NAME bandwidth
-#include <dague/devices/cuda/cuda_scheduling.h>
 
 static inline
 int bandwidth_cuda(dague_execution_unit_t* eu_context,
