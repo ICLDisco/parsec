@@ -7,7 +7,7 @@ if [ "x$USER" == "xbouteill" ]; then
     PLASMA_DIR=$HOME/DEVEL/dague/plasma
 
 elif [ "x$USER" == "xherault" ]; then
-    PLASMA_DIR=/Users/herault/Documents/Recherche/dague/plasma-installer_2.6.0/install
+    PLASMA_DIR=/Users/herault/Documents/Recherche/dague/plasma-installer_2.8.0/install
 elif [ "x$USER" == "xbosilca" ]; then 
     HWLOC_DIR=/Users/bosilca/opt
     CUDA_DIR=/Developer/NVIDIA/CUDA-6.5/
