@@ -59,7 +59,7 @@ typedef struct __dague_gpu_context {
     dague_list_item_t          list_item;
     dague_execution_context_t *ec;
     int task_type;
-    int pushout;
+    int pushout[MAX_PARAM_COUNT];
 } dague_gpu_context_t;
 
 typedef struct __dague_gpu_exec_stream {
