@@ -432,7 +432,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldam = BLKLDD( descA, m );
 
     return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     descA.nt == (k+1), descA.nt-k,
+                     (k == (descA.nt-1)), descA.nt-k,
                      PlasmaNoTrans, PlasmaConjTrans,
                      descA.mb, descA.nb, tempkm,
                      (dague_complex64_t)1., ldak,
