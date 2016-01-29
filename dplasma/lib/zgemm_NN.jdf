@@ -13,9 +13,11 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_CUDA)
+#include <dague/class/fifo.h>
 #include <dague/devices/cuda/dev_cuda.h>
-#include "dplasma/cores/cuda_zgemm.h"
+#include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
+
 %}
 
 /*
@@ -102,13 +104,16 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldbk = BLKLDD(descB, k);
     int ldcm = BLKLDD(descC, m);
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     ( k == 0 ), k+1,
-                     transA, transB,
-                     tempmm, tempnn, tempkk,
-                     alpha, ldam,
-                     ldbk,
-                     lbeta, ldcm);
+    cublasStatus_t status;
+    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasZgemm( lapack_const(transA), lapack_const(transB),
+                 tempmm, tempnn, tempkk,
+                 alpha, (cuDoubleComplex*)A, ldam,
+                        (cuDoubleComplex*)B, ldbk,
+                 lbeta, (cuDoubleComplex*)C, ldcm );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 

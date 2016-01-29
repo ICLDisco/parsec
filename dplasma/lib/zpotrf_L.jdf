@@ -17,8 +17,9 @@ extern "C" %{
 #endif
 
 #if defined(HAVE_CUDA)
-#include "dague/devices/cuda/dev_cuda.h"
-#include "dplasma/cores/cuda_zgemm.h"
+#include <dague/class/fifo.h>
+#include <dague/devices/cuda/dev_cuda.h>
+#include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
 
 /*
@@ -293,7 +294,7 @@ RW    C <- (k == 0)   ? dataA(m, n)  : C potrf_zgemm(m, n, k-1)
 
 ; (m >= (descA.mt - PRI_CHANGE)) ? (descA.mt - m) * (descA.mt - m) * (descA.mt - m) + 3 * ((2 * descA.mt) - m - n - 3) * (m - n) + 6 * (m - k) : PRI_MAX
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA2 dyld=cublasZgemm]
 {
     int tempmm = m == descA.mt-1 ? descA.m - m * descA.mb : descA.mb;
     int ldam = BLKLDD( descA, m );

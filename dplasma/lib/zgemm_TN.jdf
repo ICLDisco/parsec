@@ -13,8 +13,9 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_CUDA)
+#include <dague/class/fifo.h>
 #include <dague/devices/cuda/dev_cuda.h>
-#include "dplasma/cores/cuda_zgemm.h"
+#include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
 %}
 
@@ -91,7 +92,7 @@ READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.
 RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA.mt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
     dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
@@ -101,13 +102,16 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldbk = BLKLDD(descB, k);
     int ldcm = BLKLDD(descC, m);
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     ( k == descA.mt-1 ), descA.mt-k,
-                     transA, transB,
-                     tempmm, tempnn, tempkk,
-                     alpha, ldak,
-                     ldbk,
-                     lbeta, ldcm);
+    cublasStatus_t status;
+    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasZgemm( lapack_const(transA), lapack_const(transB),
+                 tempmm, tempnn, tempkk,
+                 alpha, (cuDoubleComplex*)A, ldak,
+                        (cuDoubleComplex*)B, ldbk,
+                 lbeta, (cuDoubleComplex*)C, ldcm );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 

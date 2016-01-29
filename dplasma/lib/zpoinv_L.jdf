@@ -14,15 +14,15 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_CUDA)
-#include "dague/devices/cuda/dev_cuda.h"
-#include "dplasma/cores/cuda_zgemm.h"
+#include <dague/class/fifo.h>
+#include <dague/devices/cuda/dev_cuda.h>
+#include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
 
 %}
 
 dataA     [type = "dague_ddesc_t *"]
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-
 
 potrf_zpotrf(k)
   /* Execution Space */
@@ -157,13 +157,16 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldam = BLKLDD( descA, m );
     int ldan = BLKLDD( descA, n );
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     ( n == k+1 ), (n-k),
-                     PlasmaNoTrans, PlasmaConjTrans,
-                     tempmm, descA.mb, descA.mb,
-                     (dague_complex64_t)-1., ldam,
-                                             ldan,
-                     (dague_complex64_t) 1., ldam);
+    cublasStatus_t status;
+    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasZgemm( 'N', lapack_const(PlasmaConjTrans),
+                 tempmm, descA.mb, descA.mb,
+                 -1., (cuDoubleComplex*)A, ldam,
+                      (cuDoubleComplex*)B, ldan,
+                  1., (cuDoubleComplex*)C, ldam );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 
@@ -260,13 +263,16 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldam = BLKLDD( descA, m );
     int ldak = BLKLDD( descA, k );
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     ( m == k+1 ), (m-k),
-                     PlasmaNoTrans, PlasmaNoTrans,
-                     tempmm, descA.mb, tempkn,
-                     (dague_complex64_t)1., ldam,
-                                            ldak,
-                     (dague_complex64_t)1., ldam);
+    cublasStatus_t status;
+    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasZgemm( 'N', 'N',
+                 tempmm, descA.mb, tempkn,
+                 1., (cuDoubleComplex*)A, ldam,
+                     (cuDoubleComplex*)B, ldak,
+                 1., (cuDoubleComplex*)C, ldam );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 
@@ -431,13 +437,16 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     (k == (descA.nt-1)), descA.nt-k,
-                     PlasmaNoTrans, PlasmaConjTrans,
-                     descA.mb, descA.nb, tempkm,
-                     (dague_complex64_t)1., ldak,
-                                            ldak,
-                     (dague_complex64_t)1., ldam);
+    cublasStatus_t status;
+    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasZgemm( 'N', lapack_const(PlasmaConjTrans),
+                 descA.mb, descA.nb, tempkm,
+                 1., (cuDoubleComplex*)A, ldak,
+                     (cuDoubleComplex*)B, ldak,
+                 1., (cuDoubleComplex*)C, ldam );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 

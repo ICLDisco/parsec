@@ -401,7 +401,7 @@ ztsmqr(k,m,n)
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
 
-BODY [type=CUDA dyld=dplasma_cuda_ztsmqr]
+BODY [type=CUDA2 dyld=dplasma_cuda_ztsmqr]
 {
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
