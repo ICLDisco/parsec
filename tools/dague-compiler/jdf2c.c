@@ -4419,18 +4419,20 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "    return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
             "\n"
-            "  gpu_task = (dague_gpu_context_t*)malloc(sizeof(dague_gpu_context_t));\n"
+            "  gpu_task = (dague_gpu_context_t*)calloc(1, sizeof(dague_gpu_context_t));\n"
             "  OBJ_CONSTRUCT(gpu_task, dague_list_item_t);\n"
             "  gpu_task->ec = (dague_execution_context_t*)this_task;\n"
             "  gpu_task->task_type = 0;\n",
             name, type_property->expr->jdf_var, dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename);
 
-    coutput("\n"
-            "  for(i=0; i<this_task->function->nb_flows; i++) {\n"
-            "    gpu_task->pushout[i] = 1;\n"
-            "  }\n"
-            "\n");
+    /* Dump the dataflow */
+    for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
+        coutput("  gpu_task->pushout[%d] = %d;\n"
+                "  gpu_task->flow[%d]    = &%s;\n",
+                di, (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? 1 : 0,
+                di, JDF_OBJECT_ONAME( fl ));
+    }
 
     coutput("\n"
             "  return gpu_kernel_scheduler_%s_%s( context, gpu_task, dev_index );\n"

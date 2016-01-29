@@ -58,8 +58,9 @@ typedef struct __dague_gpu_workspace {
 typedef struct __dague_gpu_context {
     dague_list_item_t          list_item;
     dague_execution_context_t *ec;
-    int task_type;
-    int pushout[MAX_PARAM_COUNT];
+    int                        task_type;
+    int                        pushout[MAX_PARAM_COUNT];
+    const dague_flow_t        *flow[MAX_PARAM_COUNT];
 } dague_gpu_context_t;
 
 typedef struct __dague_gpu_exec_stream {
@@ -133,7 +134,7 @@ typedef dague_data_copy_t dague_gpu_data_copy_t;
  * Data movement
  */
 int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
-                                         dague_execution_context_t *this_task,
+                                         dague_gpu_context_t *gpu_task,
                                          int  move_data_count );
 
 int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
