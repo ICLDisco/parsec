@@ -91,7 +91,7 @@ BODY
   /* The root node has to delete all remaining tasks*/
   if ( l == 0)
     {
-      dague_handle_update_nbtask( this_task->dague_handle, 1 - (this_task->dague_handle)->nb_local_tasks);
+      dague_handle_update_nbtask( this_task->dague_handle, 1 - (this_task->dague_handle)->nb_tasks);
     }
 }
 END

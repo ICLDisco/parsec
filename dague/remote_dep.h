@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -208,8 +208,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                               uint32_t propagation_mask);
 
 /* Memcopy a particular data using datatype specification */
-void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
-                             dague_handle_t* dague_handle,
+void dague_remote_dep_memcpy(dague_handle_t* dague_handle,
                              dague_data_copy_t *dst,
                              dague_data_copy_t *src,
                              dague_dep_data_description_t* data);

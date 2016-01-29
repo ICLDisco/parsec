@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The University of Tennessee and The University
+ * Copyright (c) 2011-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -484,7 +484,8 @@ dague_map_operator_New(const tiled_matrix_desc_t* src,
 #  endif /* defined(DAGUE_PROF_TRACE) */
 
     res->super.super.handle_id = 1111;
-    res->super.super.nb_local_tasks = src->nb_local_tiles;
+    res->super.super.nb_tasks = src->nb_local_tiles;
+    res->super.super.nb_pending_actions = 1;  /* for all local tasks */
     res->super.super.startup_hook = dague_map_operator_startup_fn;
     (void)dague_handle_reserve_id((dague_handle_t *)res);
     return (dague_handle_t*)res;

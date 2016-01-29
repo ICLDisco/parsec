@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -399,7 +399,7 @@ dague_execute_and_come_back(dague_context_t *context,
         dague_barrier_wait( &(context->barrier) );
     }
 
-    while(dague_handle->nb_local_tasks > dtd_handle->task_threshold_size ) {
+    while(dague_handle->nb_tasks > dtd_handle->task_threshold_size ) {
         if( misses_in_a_row > 1 ) {
             rqtp.tv_nsec = exponential_backoff(misses_in_a_row);
             nanosleep(&rqtp, NULL);
@@ -472,7 +472,7 @@ dague_dtd_context_wait_on_handle( dague_context_t     *dague,
 {
     (void)dague;
     /* decrementing the extra task we initialized the handle with */
-    __dague_complete_task( &(dague_handle->super), dague_handle->super.context);
+    dague_handle_update_nbtask( &(dague_handle->super), -1);
 
     /* We are checking if we have any handle still waiting to
      * be comepleted, if not we call the final function to
@@ -1184,7 +1184,8 @@ dague_dtd_handle_new( dague_context_t *context)
     __dague_handle->super.on_complete_data    = NULL;
     __dague_handle->super.devices_mask        = DAGUE_DEVICES_ALL;
     __dague_handle->super.nb_functions        = DAGUE_dtd_NB_FUNCTIONS;
-    __dague_handle->super.nb_local_tasks      = 1; /* For the bounded window, starting with +1 task */
+    __dague_handle->super.nb_tasks            = 1;  /* For the bounded window, starting with +1 task */
+    __dague_handle->super.nb_pending_actions  = 1;  /* For the future tasks that will be inserted */
 
     for(i = 0; i < vpmap_get_nb_vp(); i++) {
         __dague_handle->startup_list[i] = NULL;
@@ -1205,7 +1206,7 @@ dague_dtd_handle_new( dague_context_t *context)
     (void)dague_handle_reserve_id((dague_handle_t *) __dague_handle);
     __dague_dtd_master_fake_function = (dague_dtd_function_t *)create_function(__dague_handle, call_to_fake_writer, "Fake_writer", 1,
                                                                                sizeof(int), 1);
-    (void)dague_handle_enable((dague_handle_t *)__dague_handle, NULL, NULL, NULL, __dague_handle->super.nb_local_tasks);
+    (void)dague_handle_enable((dague_handle_t *)__dague_handle, NULL, NULL, NULL, __dague_handle->super.nb_pending_actions);
 
     return (dague_dtd_handle_t*) __dague_handle;
 }
@@ -2375,7 +2376,7 @@ insert_task_generic_fptr(dague_dtd_handle_t *__dague_handle,
     /* Assigning values to task objects  */
     this_task->param_list = head_of_param_list;
 
-    dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks),1);
+    dague_atomic_add_32b((int *)&(__dague_handle->super.nb_tasks), 1);
 
 #if defined(DEBUG_HEAVY)
     dague_dtd_task_insert( __dague_handle, this_task );
