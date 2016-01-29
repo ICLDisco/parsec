@@ -47,19 +47,20 @@ include(interfaces/superscalar/CMakeLists.txt)
 # set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" ${TAU_LIBRARY_DIR})
 
 set(SOURCES
+  debug.c
   barrier.c
   scheduling.c
   dague.c
   data.c
   arena.c
   remote_dep.c
-  debug.c
   bindthread.c
   mempool.c
   private_mempool.c
   vpmap.c
   devices/device.c
   mca/mca_repository.c
+  debug_marks.c
   profiling.c
   ${EXTRA_SOURCES}
   ${MCA_EXTRA_SOURCES}

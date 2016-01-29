@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -493,14 +493,14 @@ static int remote_dep_bind_thread(dague_context_t* context)
     if( context->comm_th_core >= 0 ) {
         /* Bind to the specified core */
         if(dague_bindthread(context->comm_th_core, -1) == context->comm_th_core) {
-            STATUS(("Communication thread bound to physical core %d\n",  context->comm_th_core));
+            DEBUG("Communication thread bound to physical core %d\n",  context->comm_th_core);
 
             /* Check if this core is not used by a computation thread */
             if( hwloc_bitmap_isset(context->index_core_free_mask, context->comm_th_core) )
                 do_nano = 0;
         } else {
             /* There is no guarantee the thread doesn't share the core. Let do_nano to 1. */
-            WARNING(("Request to bind the communication thread on core %d failed.\n", context->comm_th_core));
+            WARNING("Request to bind the communication thread on core %d failed.\n", context->comm_th_core);
         }
     } else if( context->comm_th_core == -2 ) {
         /* Bind to the specified mask */
@@ -520,7 +520,7 @@ static int remote_dep_bind_thread(dague_context_t* context)
         if( dague_bindthread_mask(context->comm_th_index_mask) >= 0 ) {
             DEBUG(("Communication thread bound on the index mask %s\n", str));
         } else {
-            WARNING(("Communication thread requested to be bound on the cpu mask %s \n", str));
+            WARNING("Communication thread requested to be bound on the cpu mask %s \n", str);
             do_nano = 1;
         }
     } else {
@@ -532,7 +532,7 @@ static int remote_dep_bind_thread(dague_context_t* context)
         if( !hwloc_bitmap_iszero(context->index_core_free_mask) ) {
             if( dague_bindthread_mask(context->index_core_free_mask) > -1 ){
                 hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
-                DEBUG(("Communication thread bound on the cpu mask %s\n", str));
+                DEBUG("Communication thread bound on the cpu mask %s\n", str);
                 free(str);
                 do_nano = 0;
             }
@@ -547,10 +547,10 @@ static int remote_dep_bind_thread(dague_context_t* context)
     }
     int boundto = dague_bindthread(nb_total_comp_threads, -1);
     if (boundto != nb_total_comp_threads) {
-        DEBUG(("Communication thread floats\n"));
+        DEBUG("Communication thread floats\n");
     } else {
         do_nano = 0;
-        DEBUG(("Communication thread bound to physical core %d\n", boundto));
+        DEBUG("Communication thread bound to physical core %d\n", boundto);
     }
 #endif /* NO HAVE_HWLOC */
     return 0;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,10 @@
 #include "profiling.h"
 #include "dague/class/list.h"
 #include "dague/utils/output.h"
+#include "dague/debug.h"
+#include "dague/debug_marks.h"
 #include "dague/data.h"
+
 
 #define DAGUE_REMOTE_DEP_USE_THREADS
 
@@ -951,8 +954,8 @@ static int __VAL_NEXT_TAG = MIN_MPI_TAG;
 static inline int next_tag(int k) {
     int __tag = __VAL_NEXT_TAG;
     if( __tag > (MAX_MPI_TAG-k) ) {
-        DEBUG(("rank %d rollover: min %d < %d (+%d) < max %d\n", dague_debug_rank,
-               MIN_MPI_TAG, __tag, k, MAX_MPI_TAG));
+        DEBUG2("rank %d tag rollover: min %d < %d (+%d) < max %d\n", dague_debug_rank,
+               MIN_MPI_TAG, __tag, k, MAX_MPI_TAG);
         __VAL_NEXT_TAG = __tag = MIN_MPI_TAG;
     } else
         __VAL_NEXT_TAG += k;
@@ -985,12 +988,12 @@ static int remote_dep_mpi_init(dague_context_t* context)
 #endif  /* defined(HAVE_MPI_20) */
     if( !mpi_tag_ub_exists ) {
         MAX_MPI_TAG = INT_MAX;
-        WARNING(("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n"));
+        WARNING("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n");
     } else {
         MAX_MPI_TAG = *ub;
 #if DAGUE_DEBUG_VERBOSE != 0
         if( MAX_MPI_TAG < INT_MAX ) {
-            WARNING(("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
+            DEBUG("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                     MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT));
         }
 #endif
@@ -1185,10 +1188,10 @@ static int remote_dep_mpi_pack_dep(int peer,
     /* We can only have up to k data sends related to this remote_dep (include the order itself) */
     item->cmd.activate.task.tag = next_tag(k);
     msg->tag = item->cmd.activate.task.tag;
-    DEBUG(("MPI:\tTO\t%d\tActivate\t% -8s\n"
-           "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager mask %lu length %d\n",
-           peer, tmp, msg->deps, msg->output_mask, msg->tag,
-           msg->output_mask ^ item->cmd.activate.task.output_mask, msg->length));
+    DEBUG("MPI:\tTO\t%d\tActivate\t% -8s\n"
+          "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager mask %lu length %d\n",
+          peer, tmp, msg->deps, msg->output_mask, msg->tag,
+          msg->output_mask ^ item->cmd.activate.task.output_mask, msg->length);
     /* And now pack the updated message (msg->length and msg->output_mask) itself. */
     MPI_Pack(msg, dep_count, dep_dtt, packed_buffer, length, &saved_position, dep_comm);
     return 0;

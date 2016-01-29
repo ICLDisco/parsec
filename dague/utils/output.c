@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2010 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2012 The University of Tennessee and The University
+ * Copyright (c) 2004-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2006 High Performance Computing Center Stuttgart,
@@ -180,8 +180,10 @@ bool dague_output_init(void)
         verbose.lds_want_stderr = true;
     }
     gethostname(hostname, sizeof(hostname));
+    /* This is spammy and redundant (mpirun --tag-output, etc)
     asprintf(&verbose.lds_prefix, "[%s:%05d] ", hostname, getpid());
-
+    */
+    
     for (i = 0; i < DAGUE_OUTPUT_MAX_STREAMS; ++i) {
         info[i].ldi_used = false;
         info[i].ldi_enabled = false;
@@ -198,7 +200,7 @@ bool dague_output_init(void)
 
     /* Set some defaults */
 
-    asprintf(&output_prefix, "output-pid%d-", getpid());
+    asprintf(&output_prefix, "dague@%s:pid%d.", hostname, getpid());
     output_dir = strdup(dague_tmp_directory());
 
     /* Open the default verbose stream */
@@ -945,3 +947,73 @@ int dague_output_get_verbosity(int output_id)
         return -1;
     }
 }
+
+
+#if !defined(HAVE_VASPRINTF) 
+#if defined(HAVE_ERRNO_H)
+#include <errno.h>
+#endif  /* defined(HAVE_ERRNO_H) */
+
+int vasprintf(char **ptr, const char *fmt, va_list ap) {
+    int length;
+    va_list ap2;
+    char dummy[4];
+
+    /* va_list might have pointer to internal state and using
+       it twice is a bad idea.  So make a copy for the second
+       use.  Copy order taken from Autoconf docs. */
+#if defined(HAVE_VA_COPY)
+    va_copy(ap2, ap);
+#elif defined(HAVE_UNDERSCORE_VA_COPY)
+    __va_copy(ap2, ap);
+#else
+    memcpy (&ap2, &ap, sizeof(va_list));
+#endif
+
+    /* guess the size using a nice feature of snprintf and friends:
+     *
+     *  The functions snprintf() and vsnprintf() do not write more than size bytes (including
+     *  the  trailing  '\0').  If the output was truncated due to this limit then the return
+     *  value is the number of characters (not including the trailing '\0') which  would
+     *  have  been written  to  the  final  string  if enough space had been available.
+     */
+    length = vsnprintf(dummy, 4, fmt, ap2);
+
+#if defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY)
+    va_end(ap2);
+#endif  /* defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY) */
+
+    /* allocate a buffer */
+    *ptr = (char *) malloc((size_t) length + 1);
+    if (NULL == *ptr) {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    /* fill the buffer */
+    length = vsprintf(*ptr, fmt, ap);
+
+
+    /* realloc */
+    *ptr = (char*) realloc(*ptr, (size_t) length + 1);
+    if (NULL == *ptr) {
+        errno = ENOMEM;
+        return -1;
+    }
+
+    return length;
+}
+#endif  /* !defined(HAVE_VASPRINTF) */
+
+#if !defined(HAVE_ASPRINTF)
+int asprintf(char **ptr, const char *fmt, ...) {
+    int length;
+    va_list ap;
+
+    va_start(ap, fmt);
+    length = vasprintf(ptr, fmt, ap);
+    va_end(ap);
+
+    return length;
+}
+#endif  /* !defined(HAVE_ASPRINTF) */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -44,10 +44,10 @@ static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
 #else
     hwloc_cpuset_asprintf(&str, cpuset);
 #endif /* DAGUE_DEBUG_VERBOSE */
-    dague_output(0, "%s %s\n", msg, str);
+    STATUS("%s %s\n", msg, str);
     free(str);
 #else
-    dague_output(0, "%s compiled without HWLOC support\n", msg);
+    STATUS("%s compiled without HWLOC support\n", msg);
 #endif  /* defined(HAVE_HWLOC) */
 }
 
@@ -333,8 +333,8 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     /* Get the core of index cpu_index */
     obj = core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
     if (!core) {
-        WARNING(("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )\n",
-                 cpu_index,  dague_hwloc_nb_real_cores()));
+        WARNING("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )\n",
+                 cpu_index,  dague_hwloc_nb_real_cores());
         return -1;
     }
    /* Get the cpuset of the core if not using SMT/HyperThreading,
@@ -346,8 +346,8 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
             obj = core->children[0];
 
         if (!obj) {
-            WARNING(("dague_hwloc: unable to get the core of index %i, HT %i (nb cores = %i)\n",
-                     cpu_index, local_ht_index, dague_hwloc_nb_real_cores()));
+            WARNING("dague_hwloc: unable to get the core of index %i, HT %i (nb cores = %i)\n",
+                     cpu_index, local_ht_index, dague_hwloc_nb_real_cores());
             return -1;
         }
     }
@@ -415,8 +415,10 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         return -1;
     }
 
-    dague_hwloc_print_cpuset("[BEFORE] Thread bound on the cpuset ", cpuset);
-    dague_hwloc_print_cpuset("[AFTER ] Thread bound on the cpuset ", binding_mask);
+    if( dague_debug_verbose > 0 ) {
+        dague_hwloc_print_cpuset("Thread binding: cpuset binding [BEFORE]: ", cpuset);
+        dague_hwloc_print_cpuset("Thread binding: cpuset binding [AFTER ]: ", binding_mask);
+    }
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
@@ -439,7 +441,7 @@ int dague_hwloc_allow_ht(int htnb)
     if (htnb > 1) {
         int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) / hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
         if( htnb > pu_per_core){
-            printf("Warning:: HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
+            WARNING("HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
             htnb = pu_per_core;
         }
     }

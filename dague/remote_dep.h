@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -153,7 +153,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
-    DEBUG(("remote_deps_allocate: %p\n", remote_deps));
+    DEBUG("remote_deps_allocate: %p\n", remote_deps);
     return remote_deps;
 }
 
@@ -183,7 +183,7 @@ static inline void remote_deps_free(dague_remote_deps_t* deps)
 #endif
     }
 #if defined(DAGUE_DEBUG_ENABLE)
-    DEBUG(("remote_deps_free: %p mask %x\n", deps, deps->outgoing_mask));
+    DEBUG("remote_deps_free: %p mask %x\n", deps, deps->outgoing_mask);
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
     deps->dague_handle      = NULL;

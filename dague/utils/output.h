@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2012 The University of Tennessee and The University
+ * Copyright (c) 2004-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -555,6 +555,14 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
  * the output fields that you want.
  */
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_output_stream_t);
+
+#if !defined(HAVE_VASPRINTF) 
+int vasprintf(char **ptr, const char *fmt, va_list ap);
+#endif  /* !defined(HAVE_VASPRINTF) */
+
+#if !defined(HAVE_ASPRINTF)
+int asprintf(char **ptr, const char *fmt, ...);
+#endif  /* !defined(HAVE_ASPRINTF) */
 
 END_C_DECLS
 

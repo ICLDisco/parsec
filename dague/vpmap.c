@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -236,7 +236,7 @@ int vpmap_init_from_file(const char *filename)
 
     f = fopen(filename, "r");
     if( NULL == f ) {
-        STATUS(("File %s can't be open (default thread binding).\n", filename));
+        WARNING("File open %s: %s (default thread binding).\n", filename, strerror(errno));
         return -1;
     }
 
@@ -271,7 +271,7 @@ int vpmap_init_from_file(const char *filename)
 
     if( nbvp == 0 ) {
         /* If no description is available for the MPI process, create a single monothread VP */
-        STATUS(("No VP parameter for the MPI process %i: create a single VP (monothread, unbound)\n", rank));
+        STATUS("No VP parameter for the MPI process %i: create a single VP (monothread, unbound)\n", rank);
         nbvp=1;
         map = (vpmap_t*)malloc(sizeof(vpmap_t));
         map[0].nbthreads = 1;
@@ -474,7 +474,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         /* convert the mask into a bitmap (define legal core indexes) */
         unsigned long mask = strtoul(position, NULL, 16);
         if (mask < 1)
-            ERROR(("P %i: empty binding mask\n", vp));
+            ERROR("P %i: empty binding mask\n", vp);
         hwloc_cpuset_t binding_mask = hwloc_bitmap_alloc();
         hwloc_bitmap_from_ulong(binding_mask, mask);
 
@@ -483,7 +483,6 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             char *str = NULL;
             hwloc_bitmap_asprintf(&str,  binding_mask);
             DEBUG2(("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str));
-            printf("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str);
             free(str);
         }
 #endif /* DAGUE_DEBUG_VERBOSE != 0 */
@@ -499,7 +498,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             if( core == -1 || core > nb_real_cores ) {
                 prev = -1;
                 core = hwloc_bitmap_next(binding_mask, prev);
-                WARNING(("Several thread of the VP number %i will be bound on the same core\n", vp));
+                WARNING("Several thread of the VP number %i will be bound on the same core\n", vp);
             }
             assert(core != -1);
 
@@ -527,7 +526,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             if( (arg < nb_real_cores) && (arg > -1) )
                 start = strtol(option, NULL, 10);
             else
-                WARNING(("binding start core not valid (restored to default value)"));
+                WARNING("binding start core not valid (restored to default value)");
         }
         position++;  /* skip the ; */
         if( '\0' != position[0] ) {
@@ -537,7 +536,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                 if( (arg < nb_real_cores) && (arg > -1) )
                     end = arg;
                 else
-                    WARNING(("binding end core not valid (restored to default value)\n"));
+                    WARNING("binding end core not valid (restored to default value)\n");
             }
             position = strchr(position, ';');  /* find the step */
         }
@@ -548,11 +547,11 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             if( (arg < nb_real_cores) && (arg > -1) )
                 step = arg;
             else
-                WARNING(("binding step not valid (restored to default value)\n"));
+                WARNING("binding step not valid (restored to default value)\n");
         }
 
         if( start > end ) {
-            WARNING(("Invalid range: start > end (end restored to default value)\n"));
+            WARNING("Invalid range: start > end (end restored to default value)\n");
             end=nb_real_cores-1;
         }
         DEBUG3(("binding defined by core range [%d;%d;%d]\n", start, end, step));
@@ -580,7 +579,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                         break;
 
                     if((skip > step) && (t < (nb_real_cores - 1))) {
-                        STATUS(( "WARNING:: No more available core to bind according to the range. The remaining %d threads are not bound\n", nbth-(t*nbht)));
+                        WARNING("No more available core to bind according to the range. The remaining %d threads are not bound\n", nbth-(t*nbht));
                         int th;
                         for( th = t+nbht; th < nbth;  th++) {
                             map[vp].threads[th] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
@@ -613,7 +612,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                     cmp++;
 
                 } else {
-                    WARNING(("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", arg, nb_real_cores-1));
+                    WARNING("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", arg, nb_real_cores-1);
                 }
 
                 if( NULL != (position = strpbrk(option, ",-"))) {
@@ -629,7 +628,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                                 if (cmp == nbth)
                                     break;
                             } else {
-                                WARNING(("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", t, nb_real_cores-1));
+                                WARNING("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", t, nb_real_cores-1);
                             }
                     }
                 }
@@ -678,7 +677,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
     return 0;
 #else
     (void)vp; (void)nbth; (void)binding;
-	WARNING(("the binding defined has been ignored (requires a build with HWLOC with bitmap support).\n"));
+    WARNING("the binding defined has been ignored (requires a build with HWLOC with bitmap support).\n");
     return -1;
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,6 +16,7 @@
 #include "dague/os-spec-timing.h"
 #include "dague/remote_dep.h"
 
+#include "dague/debug_marks.h"
 #include "dague/ayudame.h"
 #include "dague/constants.h"
 
@@ -110,10 +111,10 @@ int __dague_context_wait_task( dague_execution_unit_t* eu_context,
     (void)eu_context;
     switch(task->status) {
         case DAGUE_TASK_STATUS_NONE:
-#ifdef DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_ENABLE)
             char tmp[MAX_TASK_STRLEN];
-            DEBUG(("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
-                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task)));
+            DEBUG("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
+                   dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
 
@@ -153,9 +154,9 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     /* Try all the incarnations until one agree to execute. */
     do {
 #if DAGUE_DEBUG_VERBOSE != 0
-        DEBUG(("thread %d of VP %d Execute %s[%d]\n",
+        DEBUG("thread %d of VP %d Execute %s[%d]\n",
                eu_context->th_id, eu_context->virtual_process->vp_id,
-               tmp, function->incarnations[exec_context->chore_id].type));
+               tmp, function->incarnations[exec_context->chore_id].type);
 #endif
         rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
         if( DAGUE_HOOK_RETURN_NEXT != rc ) {
@@ -236,7 +237,7 @@ int dague_set_scheduler( dague_context_t *dague )
     current_scheduler   = (dague_sched_module_t*)new_scheduler;
     scheduler_component = (dague_sched_base_component_t*)new_component;
 
-    DEBUG((" Installing %s\n", current_scheduler->component->base_version.mca_component_name));
+    DEBUG(" Installing %s\n", current_scheduler->component->base_version.mca_component_name);
     PROFILING_SAVE_sINFO("sched", (char *)current_scheduler->component->base_version.mca_component_name);
 
     current_scheduler->module.install( dague );
