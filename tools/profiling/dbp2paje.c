@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2013 The University of Tennessee and The University
+ * Copyright (c) 2011-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -27,7 +27,7 @@
 #endif
 
 #if DAGUE_DEBUG_VERBOSE >= 1
-#define DEBUG(toto) output toto
+#define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)
 #endif
@@ -35,7 +35,7 @@
 #ifdef WARNING
 #undef WARNING
 #endif
-#define WARNING(toto) output toto
+#define WARNING(...) output(__VA_ARGS__)
 
 static void output(const char *format, ...)
 {
@@ -673,10 +673,10 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                         nit2 = dbp_iterator_find_matching_event_all_threads(nit, 1);
                         if( NULL == nit ) {
                             /* Argh, couldn't find the end in this trace */
-                            WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" rescheduled at %lu does not have a new starting point anywhere\n",
+                            WARNING("   Event of class %s id %"PRIu32":%"PRIu64" rescheduled at %lu does not have a new starting point anywhere\n",
                                      dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
                                      dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
-                                     dbp_event_get_timestamp(e)));
+                                     dbp_event_get_timestamp(e));
                             current_stat[ key ].nb_matcherror++;
                         }
                         else {
@@ -705,10 +705,10 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
                 if( NULL == nit ) {
                     /* Argh, couldn't find the end in this trace */
-                    WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
+                    WARNING("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                              dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
                              dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
-                             dbp_event_get_timestamp(e)));
+                             dbp_event_get_timestamp(e));
 
                     current_stat[ key ].nb_matcherror++;
                 }

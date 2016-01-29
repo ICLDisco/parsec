@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2014 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -79,8 +79,8 @@ static int sched_ip_schedule( dague_execution_unit_t* eu_context,
     dague_list_item_t *it = (dague_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
     do {
-        DEBUG3(("IP:\t Pushing task %s\n",
-                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
+        DEBUG3("IP:\t Pushing task %s\n",
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it));
         it = (dague_list_item_t*)((dague_list_item_t*)it)->list_next;
     } while( it != (dague_list_item_t*)new_context );
 #endif

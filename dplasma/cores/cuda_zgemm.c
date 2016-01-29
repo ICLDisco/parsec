@@ -195,9 +195,9 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     /*assert( DATA_COHERENCY_OWNED == this_task->data[flow_C].data_out->coherency_state );*/
     d_C = this_task->data[flow_C].data_out->device_private;
 
-    DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
+    DEBUG2( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
-             this_task->priority ));
+             this_task->priority );
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_stream->profiling,

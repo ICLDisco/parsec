@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,9 +31,9 @@ void parsec_pins_instrument(struct dague_execution_unit_s* exec_unit,
 void parsec_pins_disable_registration(int disable)
 {
     if (disable) {
-        DEBUG3(("PINS registration is disabled.\n"));
+        DEBUG3("PINS registration is disabled.\n");
     } else {
-        DEBUG3(("PINS registration is enabled.\n"));
+        DEBUG3("PINS registration is enabled.\n");
     }
     registration_disabled = disable;
 }
@@ -49,15 +49,15 @@ int parsec_pins_register_callback(struct dague_execution_unit_s* exec_unit,
                                   struct parsec_pins_next_callback_s* cb_data)
 {
     if( method_flag >= PINS_FLAG_COUNT ) {
-        DEBUG(("PINS register MUST called on a non valid type of event."));
+        DEBUG("PINS register MUST called on a non valid type of event.");
         return -1;
     }
     if( NULL == cb_data ) {
-        DEBUG(("PINS registration MUST be called with a non-NULL data. Discard PINS module"));
+        DEBUG("PINS registration MUST be called with a non-NULL data. Discard PINS module");
         return -1;
     }
     if (registration_disabled) {
-        DEBUG2(("NOTE: PINS has been disabled by command line argument, causing this registration to be ignored."));
+        DEBUG2("NOTE: PINS has been disabled by command line argument, causing this registration to be ignored.");
         return 0;
     }
 
@@ -78,11 +78,11 @@ int parsec_pins_unregister_callback(struct dague_execution_unit_s* exec_unit,
 {
     *cb_data = NULL;
     if( method_flag >= PINS_FLAG_COUNT ) {
-        DEBUG(("PINS unregister MUST called on a non valid type of event."));
+        DEBUG("PINS unregister MUST called on a non valid type of event.");
         return -1;
     }
     if (registration_disabled) {
-        DEBUG3(("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail."));
+        DEBUG3("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail.");
         return -1;
     }
 
@@ -91,7 +91,7 @@ int parsec_pins_unregister_callback(struct dague_execution_unit_s* exec_unit,
         cb_event = cb_event->cb_data;
     }
     if( NULL == cb_event->cb_data ) {
-        DEBUG(("Unmatched call to PINS unregister"));
+        DEBUG("Unmatched call to PINS unregister");
         return -1;
     }
     assert(cb_event->cb_func == cb);

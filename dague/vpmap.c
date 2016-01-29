@@ -482,7 +482,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str,  binding_mask);
-            DEBUG2(("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str));
+            DEBUG2("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str);
             free(str);
         }
 #endif /* DAGUE_DEBUG_VERBOSE != 0 */
@@ -657,7 +657,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             }
             str += offset;
          }
-        DEBUG(( "binding defined by the parsed list: %s \n", tmp));
+        DEBUG( "binding defined by the parsed list: %s \n", tmp);
 #endif /* DAGUE_DEBUG_VERBOSE */
 
         int c=0;

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2014 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -119,8 +119,8 @@ static int flow_lfq_init(dague_execution_unit_t* eu_context, struct dague_barrie
                 d = dague_hwloc_distance(eu_context->th_id, id);
                 if( d == 2*level || d == 2*level + 1 ) {
                     sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                    DEBUG(("%d of %d: my %d preferred queue is the task queue of %d (%p)\n",
-                           eu_context->th_id, eu_context->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]));
+                    DEBUG("%d of %d: my %d preferred queue is the task queue of %d (%p)\n",
+                           eu_context->th_id, eu_context->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]);
                     nq++;
                     if( nq == sched_obj->nb_hierarch_queues )
                         break;
@@ -151,8 +151,8 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
         exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
                                                                            dague_execution_context_priority_comparator);
         if( NULL != exec_context ) {
-            DEBUG3(("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
-                    eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]));
+            DEBUG3("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
+                    eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]);
 #if defined(PINS_ENABLE)
             exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
 #endif
@@ -162,8 +162,8 @@ static dague_execution_context_t *sched_lfq_select( dague_execution_unit_t *eu_c
 
     exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     if( NULL != exec_context ) {
-        DEBUG3(("LQ\t: %d:%d found task %p in its system queue %p\n",
-                eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue));
+        DEBUG3("LQ\t: %d:%d found task %p in its system queue %p\n",
+                eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
 #if defined(PINS_ENABLE)
         exec_context->victim_core = SYSTEM_NEIGHBOR;
 #endif

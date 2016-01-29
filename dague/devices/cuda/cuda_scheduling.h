@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -92,9 +92,9 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  check_in_deps:
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tUpload data (if any) for %s priority %d\n", gpu_device->super.device_index,
+        DEBUG2( "GPU[%1d]:\tUpload data (if any) for %s priority %d\n", gpu_device->super.device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
-                 this_task->ec->priority ));
+                 this_task->ec->priority );
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[0]),
@@ -110,9 +110,9 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     /* Stage-in completed for this task: it is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->cuda_index,
+        DEBUG2( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
-                 this_task->ec->priority ));
+                 this_task->ec->priority );
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[2+exec_stream]),
@@ -127,9 +127,9 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tRetrieve data (if any) for %s priority %d\n", gpu_device->super.device_index,
+        DEBUG2( "GPU[%1d]:\tRetrieve data (if any) for %s priority %d\n", gpu_device->super.device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
-                 this_task->ec->priority ));
+                 this_task->ec->priority );
     }
     if (out_task_submit == NULL && out_task_push == NULL) {
         this_task = dague_gpu_create_W2R_task(gpu_device, eu_context);
@@ -163,17 +163,17 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     }
     this_task = (dague_gpu_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != this_task ) {
-        DEBUG2(( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->cuda_index,
+        DEBUG2( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
-                 this_task->ec->priority ));
+                 this_task->ec->priority );
     }
     goto check_in_deps;
 
  complete_task:
     assert( NULL != this_task );
-    DEBUG2(( "GPU[%1d]:\tComplete %s priority %d\n", gpu_device->cuda_index,
+    DEBUG2( "GPU[%1d]:\tComplete %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task->ec),
-             this_task->ec->priority ));
+             this_task->ec->priority );
     /* Everything went fine so far, the result is correct and back in the main memory */
     DAGUE_LIST_ITEM_SINGLETON(this_task);
     if (this_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {

@@ -161,7 +161,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     o->register_memory   = twoDBC_memory_register;
     o->unregister_memory = twoDBC_memory_unregister;
 
-    DEBUG3(("two_dim_block_cyclic_init: \n"
+    DEBUG3("two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
            "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
@@ -172,7 +172,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            tdesc->i,  tdesc->j,
            tdesc->m,  tdesc->n,
            Ddesc->grid.strows, Ddesc->grid.stcols,
-           P, Q));
+           P, Q);
 }
 
 static void twoDBC_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t key, int *m, int *n)

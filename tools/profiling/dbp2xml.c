@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,7 +23,7 @@
 #endif
 
 #if DAGUE_DEBUG_VERBOSE >= 1
-#define DEBUG(toto) output toto
+#define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)
 #endif
@@ -31,7 +31,7 @@
 #ifdef WARNING
 #undef WARNING
 #endif
-#define WARNING(toto) output toto
+#define WARNING(...) output(__VA_ARGS__)
 
 static void output(const char *format, ...)
 {
@@ -61,10 +61,10 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                 (BASE_KEY( dbp_event_get_key(e) ) == k) ) {
 	      m = dbp_iterator_find_matching_event_all_threads(it, 0);
                 if( NULL == m ) {
-                    WARNING(("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
+                    WARNING("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                              dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
                              dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
-                             dbp_event_get_timestamp(e)));
+                             dbp_event_get_timestamp(e));
                 } else {
                     g = dbp_iterator_current(m);
 

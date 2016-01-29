@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -46,7 +46,7 @@ int dague_bindthread(int cpu, int ht)
     {
         cpu = dague_hwloc_bind_on_core_index(cpu, ht);
         if(cpu == -1 ) {
-            DEBUG(("Core binding on node %i failed\n", cpu));
+            DEBUG("Core binding on node %i failed\n", cpu);
             return -1;
         }
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -42,7 +42,7 @@ void dague_prof_grapher_init(const char *base_filename, int nbthreads)
 
     grapher_file = fopen(filename, "w");
     if( NULL == grapher_file ) {
-        WARNING(("Grapher:\tunable to create %s (%s) -- DOT graphing disabled\n", filename, strerror(errno)));
+        WARNING("Grapher:\tunable to create %s (%s) -- DOT graphing disabled\n", filename, strerror(errno));
         free(filename);
         return;
     } else {

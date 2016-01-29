@@ -683,7 +683,7 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
                  gpu_device->super.context->my_rank, i);
     }
     else {
-        DEBUG3(( "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));
+        DEBUG3( "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu );
     }
     DAGUE_OUTPUT_VERBOSE((5, dague_cuda_output_stream,
                           "GPU:\tAllocate %u tiles on the GPU memory\n", mem_elem_per_gpu ));

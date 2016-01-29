@@ -75,7 +75,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
  */
 #define DAGUE_DATA_COPY_RELEASE(DATA)     \
     do {                                  \
-        DEBUG3(("Release data copy %p at %s:%d\n", (DATA), __FILE__, __LINE__)); \
+        DEBUG3("Release data copy %p at %s:%d\n", (DATA), __FILE__, __LINE__); \
         OBJ_RELEASE((DATA));                                            \
     } while(0)
 

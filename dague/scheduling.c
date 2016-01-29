@@ -266,19 +266,19 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data_in ) {
-                        DEBUG2(("Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)\n",
+                        DEBUG2("Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)\n",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context),
-                                flow->name, __FILE__, __LINE__));
+                                flow->name, __FILE__, __LINE__);
                     }
                 }
             }
             /*if( set_parameters > 1 ) {
-                ERROR(( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
-                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__));
+                ERROR( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
+                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
             }*/ /* Change it as soon as dtd has a running version */
-            DEBUG2(( "thread %d of VP %d Schedules %s\n",
+            DEBUG2( "thread %d of VP %d Schedules %s\n",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
-                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) ));
+                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) );
             context = (dague_execution_context_t*)context->super.list_item.list_next;
         } while ( context != new_context );
     }

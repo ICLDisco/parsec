@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The University of Tennessee and The University
+ * Copyright (c) 2012-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -28,12 +28,12 @@ static void dague_data_copy_construct(dague_data_copy_t* obj)
     obj->arena_chunk          = NULL;
     obj->data_transfer_status = DATA_STATUS_NOT_TRANSFER;
     obj->push_task            = NULL;
-    DEBUG3(("Allocate data copy %p\n", obj));
+    DEBUG3("Allocate data copy %p\n", obj);
 }
 
 static void dague_data_copy_destruct(dague_data_copy_t* obj)
 {
-    DEBUG3(("Destruct data copy %p (attached to %p)\n", obj, obj->original));
+    DEBUG3("Destruct data copy %p (attached to %p)\n", obj, obj->original);
 
     /* If the copy is still attached to a data we should detach it first */
     if( NULL != obj->original) {
@@ -60,12 +60,12 @@ static void dague_data_construct(dague_data_t* obj )
     obj->nb_elts          = 0;
     for( uint32_t i = 0; i < dague_nb_devices;
          obj->device_copies[i] = NULL, i++ );
-    DEBUG3(("Allocate data %p\n", obj));
+    DEBUG3("Allocate data %p\n", obj);
 }
 
 static void dague_data_destruct(dague_data_t* obj )
 {
-    DEBUG3(("Release data %p\n", obj));
+    DEBUG3("Release data %p\n", obj);
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_data_copy_t *copy = NULL;
 

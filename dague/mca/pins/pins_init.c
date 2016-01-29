@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The University of Tennessee and The University
+ * Copyright (c) 2012-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -34,7 +34,7 @@ void pins_init(dague_context_t* master_context)
     char * modules_activated_str = NULL;
 #endif /* DAGUE_PROF_TRACE */
 
-    DEBUG(("Initialized PaRSEC PINS callbacks to pins_empty_callback()"));
+    DEBUG("Initialized PaRSEC PINS callbacks to pins_empty_callback()");
     user_list = mca_components_get_user_selection("pins");
     if( NULL == user_list ) {
         /* No PINS component requested by user */
@@ -53,16 +53,16 @@ void pins_init(dague_context_t* master_context)
             if (pins_components[i]->mca_query_component != NULL) {
                 err = pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
                 if( err != MCA_SUCCESS ) {
-                    DEBUG(("query function for component %s return no module\n", pins_components[i]->mca_component_name));
+                    DEBUG("query function for component %s return no module\n", pins_components[i]->mca_component_name);
                     continue;
                 }
-                DEBUG(("query function for component %s[%d] returns priority %d\n",
-                       pins_components[i]->mca_component_name, i, priority));
+                DEBUG("query function for component %s[%d] returns priority %d\n",
+                       pins_components[i]->mca_component_name, i, priority);
                 if (NULL != module->module.init) {
                     module->module.init(master_context);
                 }
-                DEBUG(("Activated PINS module %s.\n",
-                       module->component->base_version.mca_component_name));
+                DEBUG("Activated PINS module %s.\n",
+                       module->component->base_version.mca_component_name);
                 modules_activated[num_modules_activated++] = module;
 #if defined(DAGUE_PROF_TRACE)
                 strncat(modules_activated_str, pins_components[i]->mca_component_name, MAX_NAME_SIZE);
@@ -96,8 +96,8 @@ void pins_fini(dague_context_t* master_context)
         for(i = 0; i < num_modules_activated; i++) {
             if( NULL != modules_activated[i]->module.fini ) {
                 modules_activated[i]->module.fini(master_context);
-                DEBUG(("Finalized PINS module %s.\n",
-                       modules_activated[i]->component->base_version.mca_component_name));
+                DEBUG("Finalized PINS module %s.\n",
+                       modules_activated[i]->component->base_version.mca_component_name);
             }
         }
         free(modules_activated);
