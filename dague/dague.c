@@ -257,7 +257,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         vpmap_display_map(stderr);
 #endif
         return NULL;
@@ -528,14 +528,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     for(t = 0; t < nb_total_comp_threads; t++)
         hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     {
         char *str = NULL;
         hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
         DEBUG3( "binding core free mask is %s\n", str);
         free(str);
     }
-#endif /* DAGUE_DEBUG_VERBOSE != 0 */
+#endif /* defined(DAGUE_DEBUG_VERBOSE) */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
     /**
@@ -1108,7 +1108,7 @@ static int dague_update_deps_with_counter(const dague_handle_t *dague_handle,
                                           dague_dependency_t *deps)
 {
     dague_dependency_t dep_new_value, dep_cur_value;
-#if defined(DAGUE_DEBUG_ENABLE) || DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_ENABLE) || defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
@@ -1151,7 +1151,7 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
 {
     dague_dependency_t dep_new_value, dep_cur_value;
     const dague_function_t* function = exec_context->function;
-#if DAGUE_DEBUG_VERBOSE != 0 || defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_VERBOSE) || defined(DAGUE_DEBUG_ENABLE)
     char tmpo[MAX_TASK_STRLEN], tmpt[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmpo, MAX_TASK_STRLEN, origin);
     dague_snprintf_execution_context(tmpt, MAX_TASK_STRLEN, exec_context);
@@ -1177,7 +1177,7 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
         dep_new_value |= dague_check_IN_dependencies_with_mask( dague_handle, exec_context );
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         if( dep_new_value != 0 ) {
             DEBUG3("Activate IN dependencies with mask 0x%x\n", dep_new_value);
         }
@@ -1865,14 +1865,14 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             startup[t].bindto=prev;
         }
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str, context->comm_th_index_mask);
             DEBUG3( "binding (core indexes) defined by the mask %s\n", str);
             free(str);
         }
-#endif /* DAGUE_DEBUG_VERBOSE != 0 */
+#endif /* defined(DAGUE_DEBUG_VERBOSE) */
     }
 
     else if( NULL != (position = strchr(option, ':'))) {
@@ -1990,7 +1990,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     cmp=0;
             }
         }
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         {
             char tmp[MAX_CORE_LIST];
             char* str = tmp;
@@ -2004,7 +2004,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             }
             DEBUG3("binding defined by the parsed list: %s \n", tmp);
         }
-#endif /* DAGUE_DEBUG_VERBOSE != 0 */
+#endif /* defined(DAGUE_DEBUG_VERBOSE) */
     }
     return 0;
 #else

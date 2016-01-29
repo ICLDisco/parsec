@@ -991,7 +991,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
         WARNING("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n");
     } else {
         MAX_MPI_TAG = *ub;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         if( MAX_MPI_TAG < INT_MAX ) {
             DEBUG("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
                    MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
@@ -1345,7 +1345,7 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
 {
     remote_dep_wire_get_t* task = &item->cmd.activate.task;
     dague_remote_deps_t* deps = (dague_remote_deps_t*)task->deps;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
@@ -1376,7 +1376,7 @@ remote_dep_mpi_save_put_cb(dague_execution_unit_t* eu_context,
     remote_dep_wire_get_t* task;
     dague_remote_deps_t *deps;
     dep_cmd_item_t* item;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
@@ -1418,7 +1418,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
     void* dataptr;
     MPI_Datatype dtt;
 #endif  /* !defined(DAGUE_PROF_DRY_DEP) */
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1444,7 +1444,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
         dataptr = DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data);
         dtt     = deps->output[k].data.layout;
         nbdtt   = deps->output[k].data.count;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2("MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)\n",
                item->cmd.activate.peer, k, task->deps, dataptr, type_name, tag+k, deps->output[k].data.displ);
@@ -1584,7 +1584,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     /* Release all the already satisfied deps without posting the RDV */
     if(complete_mask) {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
                 DEBUG2("MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)\n",
@@ -1661,7 +1661,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
                                        dep_cmd_item_t *item )
 {
     dague_handle_t* obj = item->cmd.new_object.obj;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
 #endif
     DAGUE_ULIST_ITERATOR(&dep_activates_noobj_fifo, item,
@@ -1690,7 +1690,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
     int from = deps->from, k, count, nbdtt;
     remote_dep_wire_get_t msg;
     MPI_Datatype dtt;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN], type_name[MPI_MAX_OBJECT_NAME];
     int len;
     remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN);
@@ -1727,7 +1727,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
 #else
         dtt   = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
-#  if DAGUE_DEBUG_VERBOSE != 0
+#  if defined(DAGUE_DEBUG_VERBOSE)
         MPI_Type_get_name(dtt, type_name, &len);
         DEBUG2("MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)\n",
                 from, tmp, k, task->deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, nbdtt,
@@ -1775,7 +1775,7 @@ remote_dep_mpi_get_end_cb(dague_execution_unit_t* eu_context,
                           MPI_Status* status)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*)cb->storage1;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
 #endif
 

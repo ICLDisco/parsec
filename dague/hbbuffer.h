@@ -153,7 +153,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
             /* found a nice place, try to CAS */
             if( 1 == dague_atomic_cas( &b->items[best_index], (uintptr_t) best_context, (uintptr_t) topush ) ) {
                 /* Woohoo ! Success... */
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
                 char tmp[MAX_TASK_STRLEN];
 #endif
                 DEBUG3("HBB:\tPushed task %s in buffer %p.\n",
@@ -209,7 +209,7 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
     DEBUG3("HBB:\t  %s\n", NULL != ejected ? "More to push, go to father" : "Everything pushed - done");
 
     if( NULL != ejected ) {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         dague_list_item_t *it;
         char tmp[MAX_TASK_STRLEN];
 
@@ -279,7 +279,7 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
 
 
     /** Removes the element from the buffer. */
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     if( best_elt != NULL ) {
         char tmp[MAX_TASK_STRLEN];
         if (priority_offset == offsetof(dague_heap_h, priority)) {

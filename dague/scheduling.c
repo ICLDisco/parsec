@@ -142,7 +142,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
 {
     const dague_function_t* function = exec_context->function;
     int rc;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
@@ -153,7 +153,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
     /* Try all the incarnations until one agree to execute. */
     do {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
         DEBUG("thread %d of VP %d Execute %s[%d]\n",
                eu_context->th_id, eu_context->virtual_process->vp_id,
                tmp, function->incarnations[exec_context->chore_id].type);
@@ -253,7 +253,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     int ret;
 
-#if defined(DAGUE_DEBUG_ENABLE) && DAGUE_DEBUG_VERBOSE >= 2
+#if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE)
     {
         dague_execution_context_t* context = new_context;
         const struct dague_flow_s* flow;

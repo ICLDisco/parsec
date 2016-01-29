@@ -75,7 +75,7 @@ static dague_execution_context_t *sched_ip_select( dague_execution_unit_t *eu_co
 static int sched_ip_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )
 {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     dague_list_item_t *it = (dague_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
     do {

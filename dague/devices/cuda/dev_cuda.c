@@ -992,7 +992,7 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         /* TODO: take ownership of the data */
         return 1;
     }
-#if DAGUE_DEBUG_VERBOSE
+#if defined(DAGUE_DEBUG_VERBOSE)
     else {
         DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                               "GPU:\tNO PUSH from %p to %p, size %d\n",
@@ -1291,8 +1291,8 @@ int progress_stream( gpu_device_t* gpu_device,
         rc = cudaEventRecord( exec_stream->events[exec_stream->start], exec_stream->cuda_stream );
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
-#if DAGUE_OUTPUT_VERBOSE >= 3
-        if( task->type == GPU_TASK_TYPE_D2HTRANSFER ) {
+#if defined(DAGUE_DEBUG_VERBOSE)
+        if( task->task_type == GPU_TASK_TYPE_D2HTRANSFER ) {
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "GPU: Submitted Transfer(task %p) on stream %p\n",
                                   (void*)task->ec,
@@ -1331,8 +1331,8 @@ int progress_stream( gpu_device_t* gpu_device,
 
             /* Save the task for the next step */
             task = *out_task = exec_stream->tasks[exec_stream->end];
-#if DAGUE_OUTPUT_VERBOSE >= 3
-            if( task->type == GPU_TASK_TYPE_D2HTRANSFER ) {
+#if defined(DAGUE_DEBUG_VERBOSE)
+            if( task->task_type == GPU_TASK_TYPE_D2HTRANSFER ) {
                 DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                       "GPU: Completed Transfer(task %p) on stream %p\n",
                                       (void*)task->ec,

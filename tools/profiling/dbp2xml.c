@@ -22,7 +22,7 @@
 #undef DEBUG
 #endif
 
-#if DAGUE_DEBUG_VERBOSE >= 1
+#if defined(DAGUE_DEBUG_VERBOSE)
 #define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)

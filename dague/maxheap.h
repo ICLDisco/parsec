@@ -144,7 +144,7 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
     /* set priority to top priority */
     heap->priority = heap->top->priority;
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
     DEBUG3("MH:\tInserted exec C %s (%p) into maxheap %p of size %u\n",
             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, elem), elem, heap, heap->size);
@@ -231,7 +231,7 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
         to_use->super.list_item.list_next = (dague_list_item_t*)to_use; // safety's
         to_use->super.list_item.list_prev = (dague_list_item_t*)to_use; // sake
     }
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     if (to_use != NULL) {
         char tmp[MAX_TASK_STRLEN];
         DEBUG3("MH:\tStole exec C %s (%p) from heap %p\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
@@ -384,7 +384,7 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
         to_use->super.list_item.list_prev = (dague_list_item_t*)to_use; // sake
     }
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     if (to_use != NULL) {
         char tmp[MAX_TASK_STRLEN];
         DEBUG3("MH:\tStole exec C %s (%p) from heap %p\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);

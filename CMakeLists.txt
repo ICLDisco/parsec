@@ -104,9 +104,9 @@ endif()
 
 ### Debug options
 option(DAGUE_DEBUG_ENABLE
-    "Enable extra paranoid checks" OFF)
-set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
-    "Controls the amount of verbose debug output on stderr (0,1,2,3,...). Default is 0.")
+  "Enable extra paranoid checks and basic debug output." OFF)
+option(DAGUE_DEBUG_VERBOSE
+  "Compile in chatterbox like and possibly performance detrimental verbose debugging." OFF)
 option(DAGUE_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
 option(DAGUE_CALL_TRACE

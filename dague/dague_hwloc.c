@@ -38,7 +38,7 @@ static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
 {
 #if defined(HAVE_HWLOC)
     char *str = NULL;
-    /*#if (DAGUE_DEBUG_VERBOSE != 0) && defined(HAVE_HWLOC_BITMAP)*/
+    /*#if (defined(DAGUE_DEBUG_VERBOSE)) && defined(HAVE_HWLOC_BITMAP)*/
 #if defined(HAVE_HWLOC_BITMAP)
     hwloc_bitmap_asprintf(&str,  cpuset);
 #else

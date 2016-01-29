@@ -508,7 +508,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
                                                       char **olddir,
                                                       char **oldprefix);
 
-#if DAGUE_DEBUG_VERBOSE > 0
+#if defined(DAGUE_DEBUG_VERBOSE)
 /**
  * Main macro for use in sending debugging output to output streams;
  * will be "compiled out" when DAGUE is configured without

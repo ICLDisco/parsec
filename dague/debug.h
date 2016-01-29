@@ -17,8 +17,8 @@
  * Control debug output and verbosity
  *   default output is 0 (stderr)
  *   DEBUG is compiled out if !defined(DAGUE_DEBUG_ENABLE)
- *   DEBUG2 and DEBUG3 are compiled out if DAGUE_DEBUG_VERBOSE=0
- *   default runtime debug verbosity is 0 (silent)
+ *   DEBUG2 and DEBUG3 are compiled out if !defined(DAGUE_DEBUG_VERBOSE)
+ *   default runtime debug verbosity is 2 (error-info, no debug)
  *   debug history compiled in as soon as defined(DAGUE_DEBUG_HISTORY)
  *      independent of DAGUE_DEBUG_VERBOSE setting
  *      debug history verbosity follows dague_debug_verbose setting too
@@ -34,7 +34,7 @@ void dague_debug_fini(void);
 void dague_debug_backtrace_save(void);
 void dague_debug_backtrace_dump(void);
 
-#if defined(DAGUE_DEBUG_HISTORY) && defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_HISTORY)
     void dague_debug_history_add(const char *format, ...);
     void dague_debug_history_dump(void);
     void dague_debug_history_purge(void);
@@ -48,7 +48,7 @@ void dague_debug_backtrace_dump(void);
 #   define dague_debug_history_dump()
 #   define dague_debug_history_purge()    
 #   define _DAGUE_DEBUG_HISTORY(...)
-#endif
+#endif /* defined(DAGUE_DEBUG_HISTORY) */
 
 /* Use when encountering a FATAL condition. Will terminate the program. */
 #define ERROR(FMT, ...) do {                                        \
@@ -88,12 +88,14 @@ void dague_debug_backtrace_dump(void);
 } while(0)
 
 /* Increasingly heavy debugging output. Compiled out when
- * DAGUE_DEBUG_VERBOSE and DAGUE_DEBUG_HISTORY are not enabled */
+ * DAGUE_DEBUG_VERBOSE is not enabled.
+ * The entire history is logged as soon as debug_verbose >= 3
+ */
 #define DEBUG2(FMT, ...) do {                                       \
     DAGUE_OUTPUT_VERBOSE((4, dague_debug_output,                    \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__));                                       \
-    _DAGUE_DEBUG_HISTORY(4,                                         \
+    _DAGUE_DEBUG_HISTORY(3,                                         \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
 } while(0)
@@ -102,7 +104,7 @@ void dague_debug_backtrace_dump(void);
     DAGUE_OUTPUT_VERBOSE((5, dague_debug_output,                    \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__));                                       \
-    _DAGUE_DEBUG_HISTORY(5,                                         \
+    _DAGUE_DEBUG_HISTORY(3,                                         \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
 } while(0)

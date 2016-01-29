@@ -17,7 +17,7 @@
 #endif
 
 /* globals for use in macros from debug.h */
-char dague_debug_hostname[32]   = "unknownhostname";
+char dague_debug_hostname[32]   = "unknownhost";
 int dague_debug_rank            = -1;
 int dague_debug_output          = 0;
 int dague_debug_verbose         = 1;
@@ -55,14 +55,12 @@ void dague_debug_init(void) {
         ", 2: Errors..Info (default),"
 #if defined(DAGUE_DEBUG_ENABLE)
         ", 3: Errors..Debug"
-#if DAGUE_DEBUG_VERBOSE > 0 || defined(DAGUE_DEBUG_HISTORY)
-#if DAGUE_DEBUG_VERBOSE == 0
-        " (DAGUE_DEBUG_VERBOSE=0 in ccmake: verbose>3 control only the debug history memory)"
-#endif
-        ", 4: Errors..Heavy Debug \n"
+#if defined(DAGUE_DEBUG_VERBOSE)
+        ", 4: Errors..Verbose Debug"
         ", 5: Errors..Chatterbox Debug"
 #endif
-#else
+#endif
+#if !defined(DAGUE_DEBUG_ENABLE) || !defined(DAGUE_DEBUG_VERBOSE) || !defined(DAGUE_DEBUG_HISTORY)
         " (enable the compilation of more debug levels with DAGUE_DEBUG_ENABLE, DAGUE_DEBUG_VERBOSE and DAGUE_DEBUG_HISTORY in ccmake)"
 #endif
         , false, false, 2, &dague_debug_verbose);
@@ -166,7 +164,7 @@ void dague_debug_backtrace_dump(void) {
 
 /* DEBUG HISTORY circular buffer */
 
-#if defined(DAGUE_DEBUG_HISTORY) && defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_HISTORY)
 
 #define MAX_MARKS 96
 
@@ -271,4 +269,4 @@ void dague_debug_history_purge(void) {
     debug_history_purge_one();
 }
 
-#endif /* defined(DAGUE_DEBUG_HISTORY) && defined(DAGUE_DEBUG_ENABLE) */
+#endif /* defined(DAGUE_DEBUG_HISTORY) */

@@ -180,7 +180,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     void *d_A, *d_B, *d_C;
     cublasStatus_t status;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_VERBOSE)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
