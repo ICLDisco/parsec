@@ -285,7 +285,8 @@ if(_match_icc)
     # 1419: warning about extern functions being declared in .c
     #       files
     # 1572: cuda compares floats with 0.0f.
-    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572 -wd10237" )
+    # 11074: obnoxious about not inlining long functions.
+    set( C_WFLAGS "${C_WFLAGS} -wd424,981,1419,1572,10237,11074,11076" )
   ENDIF( HAVE_WD )
 else(_match_icc)
   CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" HAVE_PAR_EQUALITY )
