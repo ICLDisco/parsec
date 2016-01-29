@@ -68,15 +68,18 @@ gpu_kernel_push( gpu_device_t            *gpu_device,
     const dague_flow_t        *flow;
 
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        if(NULL == this_task->function->in[i]) continue;
+        flow = gpu_task->flow[i];
+        assert( flow && (flow->flow_index == i) );
+
+        /* Skip CTL flows only (Need to book space for ooutput only data) */
+        if(!(flow->flow_flags)) {
+            continue;
+        }
 
         this_task->data[i].data_out = NULL;
         data = this_task->data[i].data_in;
         original = data->original;
-        flow = this_task->function->in[i];
-        if(NULL == flow) {
-            flow = this_task->function->out[i];
-        }
+
         if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
             if ( (flow->flow_flags & FLOW_ACCESS_WRITE) && local->readers > 0 ) {
                 return -86;
@@ -99,13 +102,13 @@ gpu_kernel_push( gpu_device_t            *gpu_device,
         }
 
         /* If the data is needed as an input load it up */
-        if(this_task->function->in[i]->flow_flags & FLOW_ACCESS_READ)
+        if(flow->flow_flags & FLOW_ACCESS_READ)
             space_needed++;
     }
 
     if( 0 != space_needed ) { /* Try to reserve enough room for all data */
         ret = dague_gpu_data_reserve_device_space( gpu_device,
-                                                   this_task,
+                                                   gpu_task,
                                                    space_needed );
         if( ret < 0 ) {
             goto release_and_return_error;
@@ -121,14 +124,19 @@ gpu_kernel_push( gpu_device_t            *gpu_device,
                              this_task);
 
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        if(NULL == this_task->function->in[i]) continue;
+        flow = gpu_task->flow[i];
+        /* Skip CTL flows */
+        if(!(flow->flow_flags)) {
+            continue;
+        }
+
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
         DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                               "GPU[%1d]:\tIN  Data of %s <%x> on GPU\n",
-                              gpu_device->cuda_index, this_task->function->in[i]->name,
+                              gpu_device->cuda_index, flow->name,
                               this_task->data[i].data_out->original->key));
-        ret = dague_gpu_data_stage_in( gpu_device, this_task->function->in[i]->flow_flags,
+        ret = dague_gpu_data_stage_in( gpu_device, flow->flow_flags,
                                        &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
             goto release_and_return_error;
@@ -179,9 +187,8 @@ gpu_kernel_pop( gpu_device_t            *gpu_device,
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
-        flow = this_task->function->in[i];
-        if(NULL == flow)
-            flow = this_task->function->out[i];
+
+        flow = gpu_task->flow[i];
 
         gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
@@ -198,6 +205,7 @@ gpu_kernel_pop( gpu_device_t            *gpu_device,
         }
         if( flow->flow_flags & FLOW_ACCESS_WRITE ) {
             assert( gpu_copy == dague_data_get_copy(gpu_copy->original, gpu_device->super.device_index) );
+
             /* Stage the transfer of the data back to main memory */
             gpu_device->super.required_data_out += original->nb_elts;
             assert( ((dague_list_item_t*)gpu_copy)->list_next == (dague_list_item_t*)gpu_copy );
@@ -205,12 +213,13 @@ gpu_kernel_pop( gpu_device_t            *gpu_device,
 
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name));
-            if( gpu_task->pushout[flow->flow_index] ) {
+
+            if( gpu_task->pushout[i] ) {
                 /* TODO: make sure no readers are working on the CPU version */
                 original = gpu_copy->original;
                 DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
                                       "GPU:\tMove D2H data <%s:%x> from GPU %d %p -> %p requested\n",
-                                      this_task->function->in[i]->name, original->key, gpu_device->cuda_index,
+                                      flow->name, original->key, gpu_device->cuda_index,
                                       (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_stream->profiling,
@@ -254,26 +263,28 @@ gpu_kernel_epilog( gpu_device_t        *gpu_device,
     int i;
 
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        flow = this_task->function->out[i];
-        if(NULL == flow) continue;
+        /* Don't bother if there is no real data (aka. CTL or no output) */
+        if(NULL == this_task->data[i].data_out) continue;
 
-        gpu_copy = this_task->data[flow->flow_index].data_out;
+        gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
         cpu_copy = original->device_copies[0];
 
-        if( !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
+        if( !(gpu_task->flow[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
             /* Do not propagate GPU copies to successors (temporary solution) */
-            this_task->data[flow->flow_index].data_out = cpu_copy;
+            this_task->data[i].data_out = cpu_copy;
             continue;
         }
 
-        /* There might be a race condition here. We can't assume the first CPU
+        /**
+         * There might be a race condition here. We can't assume the first CPU
          * version is the corresponding CPU copy, as a new CPU-bound data
          * might have been created meanwhile.
          */
         assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
         cpu_copy->coherency_state = DATA_COHERENCY_SHARED;
+
         /**
          *  The cpu_copy will be updated in the completion, and at that moment
          *  the two versions will be identical.
@@ -281,12 +292,13 @@ gpu_kernel_epilog( gpu_device_t        *gpu_device,
         cpu_copy->version = gpu_copy->version;
         gpu_copy->version++;  /* on to the next version */
 
-        /* Let's lie to the engine by reporting that working version of this
+        /**
+         * Let's lie to the engine by reporting that working version of this
          * data (aka. the one that GEMM worked on) is now on the CPU.
          */
-        this_task->data[flow->flow_index].data_out = cpu_copy;
+        this_task->data[i].data_out = cpu_copy;
 
-        if( gpu_task->pushout[flow->flow_index] ) {
+        if( gpu_task->pushout[i] ) {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
                                   "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",

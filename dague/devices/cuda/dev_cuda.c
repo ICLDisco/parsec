@@ -798,11 +798,13 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
  *   -2: The task needs to rescheduled
  */
 int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
-                                         dague_execution_context_t *this_task,
+                                         dague_gpu_context_t *gpu_task,
                                          int  move_data_count )
 {
+    dague_execution_context_t *this_task = gpu_task->ec;
     dague_gpu_data_copy_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
     dague_data_t* master;
+    const dague_flow_t *flow;
     int i, j;
 
     /**
@@ -810,7 +812,13 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
      * corresponding data on the GPU available.
      */
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        if(NULL == this_task->function->in[i]) continue;
+        flow = gpu_task->flow[i];
+        assert( flow && (flow->flow_index == i) );
+
+        /* Skip CTL flows only (Need to book space for ooutput only data) */
+        if(!(flow->flow_flags)) {
+            continue;
+        }
 
         temp_loc[i] = NULL;
         master = this_task->data[i].data_in->original;
@@ -1066,14 +1074,18 @@ static inline int dague_gpu_check_space_needed(gpu_device_t *gpu_device, dague_g
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_data_t *original;
     dague_data_copy_t *data;
+    const dague_flow_t *flow;
+
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        if(NULL == this_task->function->in[i]) continue;
+        flow = gpu_task->flow[i];
+        if(!(flow->flow_flags)) continue;
+
         data = this_task->data[i].data_in;
         original = data->original;
         if( NULL != DAGUE_DATA_GET_COPY(original, gpu_device->super.device_index) ) {
             continue;
         }
-        if(this_task->function->in[i]->flow_flags & FLOW_ACCESS_READ)
+        if(flow->flow_flags & FLOW_ACCESS_READ)
             space_needed++;
     }
     return space_needed;
@@ -1258,8 +1270,9 @@ int dague_gpu_get_best_device( dague_execution_context_t* this_task, double rati
 {
     int i, dev_index, data_index = 0;
     dague_handle_t* handle = this_task->dague_handle;
+    const dague_flow_t *flow;
 
-    /* Step one: Find the first data in WRITE mode on a GPU */
+    /* Step one: Find the first data in WRITE mode stored on a GPU */
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         if( (NULL != this_task->function->out[i]) &&
             (this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
@@ -1316,6 +1329,7 @@ int progress_stream( gpu_device_t* gpu_device,
     int saved_rc = 0, rc, i;
     *out_task = NULL;
      dague_execution_context_t *this_task;
+     const dague_flow_t *flow;
 
     if( NULL != task ) {
         DAGUE_FIFO_PUSH(exec_stream->fifo_pending, (dague_list_item_t*)task);
@@ -1383,12 +1397,13 @@ int progress_stream( gpu_device_t* gpu_device,
             if (exec_stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
                 this_task = exec_stream->tasks[exec_stream->end]->ec;
                 for( i = 0; i < this_task->function->nb_flows; i++ ) {
-                    if(NULL == this_task->function->in[i]) continue;
-                    if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
-                        this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
+                    flow = this_task->function->in[i];
+                    if(NULL == flow || !flow->flow_flags) continue;
+                    if (this_task->data[flow->flow_index].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
+                        this_task->data[flow->flow_index].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
                         continue;
                     }
-                    if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
+                    if (this_task->data[flow->flow_index].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
                         return saved_rc;
                     }
                 }
