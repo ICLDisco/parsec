@@ -147,6 +147,7 @@ int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* 
 void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);
 int dague_gpu_free_workspace(gpu_device_t * gpu_device);
 
+int dague_gpu_get_best_device( dague_execution_context_t* this_task, double ratio );
 
 /* sort pending task list by number of spaces needed */
 int dague_gpu_sort_pending_list(gpu_device_t *gpu_device);

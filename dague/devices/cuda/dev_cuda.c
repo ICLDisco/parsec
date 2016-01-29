@@ -1235,6 +1235,66 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device,
 }
 
 
+/**
+ * Try to find the best device to execute the kernel based on the compute
+ * capability of the card.
+ *
+ * Returns:
+ *  > 1    - if the kernel should be executed by the a GPU
+ *  0 or 1 - if the kernel should be executed by some other meaning (in this case the
+ *         execution context is not released).
+ * -1      - if the kernel is scheduled to be executed on a GPU.
+ */
+
+/**
+ * This version is based on 4 streams: one for transfers from the memory to
+ * the GPU, 2 for kernel executions and one for tranfers from the GPU into
+ * the main memory. The synchronization on each stream is based on CUDA events,
+ * such an event indicate that a specific epoch of the lifetime of a task has
+ * been completed. Each type of stream (in, exec and out) has a pending FIFO,
+ * where tasks ready to jump to the respective step are waiting.
+ */
+int dague_gpu_get_best_device( dague_execution_context_t* this_task, double ratio )
+{
+    int i, dev_index, data_index = 0;
+    dague_handle_t* handle = this_task->dague_handle;
+
+    /* Step one: Find the first data in WRITE mode on a GPU */
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+        if( (NULL != this_task->function->out[i]) &&
+            (this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
+            data_index = this_task->function->out[i]->flow_index;
+            dev_index  = this_task->data[data_index].data_in->original->owner_device;
+            if (dev_index > 1) {
+                break;
+            }
+        }
+    }
+
+    /* 0 is CPU, and 1 is recursive device */
+    if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU.
+                             * Let's decide which GPU will work on it. */
+        int best_index = 0;  /* default value: first CPU device */
+        float weight, best_weight = dague_device_load[0] + ratio * dague_device_sweight[0];
+
+        /* Start at 2, to skip the recursive body */
+        for( dev_index = 2; dev_index < dague_devices_enabled(); dev_index++ ) {
+            /* Skip the device if it is not configured */
+            if(!(handle->devices_mask & (1 << dev_index))) continue;
+            weight = dague_device_load[dev_index] + ratio * dague_device_sweight[dev_index];
+            if( best_weight > weight ) {
+                best_index = dev_index;
+                best_weight = weight;
+            }
+        }
+        dague_device_load[best_index] += ratio * dague_device_sweight[best_index];
+        assert( best_index != 1 );
+        dev_index = best_index;
+    }
+
+    return dev_index;
+}
+
 #if DAGUE_GPU_USE_PRIORITIES
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
                                                           dague_list_item_t* elem )
