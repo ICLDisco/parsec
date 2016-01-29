@@ -329,8 +329,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_installdirs_open();
     dague_mca_param_init();
     dague_output_init();
-    dague_debug_init();
-    mca_components_repository_init();
 
     /* Extract what we can from the arguments */
     cmd_line = OBJ_NEW(dague_cmd_line_t);
@@ -388,6 +386,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         }
         free(environ);
     }
+    dague_debug_init();
+    mca_components_repository_init();
 
 #if defined(HAVE_HWLOC)
     dague_hwloc_init();
@@ -1243,7 +1243,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
     const dague_function_t* function = exec_context->function;
     dague_dependency_t *deps;
     int completed;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_ENABLE)
     char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context);
 #endif

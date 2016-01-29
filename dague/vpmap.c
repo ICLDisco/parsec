@@ -554,7 +554,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             WARNING("Invalid range: start > end (end restored to default value)\n");
             end=nb_real_cores-1;
         }
-        DEBUG3(("binding defined by core range [%d;%d;%d]\n", start, end, step));
+        DEBUG3("binding defined by core range [%d;%d;%d]\n", start, end, step);
 
         /* define the core according to the trio start/end/step */
         {

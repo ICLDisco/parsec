@@ -20,7 +20,7 @@
 char dague_debug_hostname[32]   = "unknownhostname";
 int dague_debug_rank            = -1;
 int dague_debug_output          = 0;
-int dague_debug_verbose         = 2;
+int dague_debug_verbose         = 1;
 
 /* debug backtrace circular buffer */
 static int bt_output    = -1;

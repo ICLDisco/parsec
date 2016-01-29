@@ -38,10 +38,11 @@ void dague_debug_backtrace_dump(void);
     void dague_debug_history_add(const char *format, ...);
     void dague_debug_history_dump(void);
     void dague_debug_history_purge(void);
-#   define _DAGUE_DEBUG_HISTORY(VERB, ...)                          \
-    if( VERB >= dague_debug_verbose ) {                             \
-        dague_debug_history_add(__VA_ARGS__);                       \
-    }
+#   define _DAGUE_DEBUG_HISTORY(VERB, ...) do {                     \
+        if( VERB >= dague_debug_verbose ) {                         \
+            dague_debug_history_add(__VA_ARGS__);                   \
+        }                                                           \
+    } while(0)
 #else
 #   define dague_debug_history_add(...)
 #   define dague_debug_history_dump()
@@ -79,31 +80,31 @@ void dague_debug_backtrace_dump(void);
  * routines. */
 #define DEBUG(FMT, ...) do {                                        \
     dague_output_verbose(3, dague_debug_output,                     \
-        "D@%05d "FMT" @%s:%s:%5d", dague_debug_rank, ##__VA_ARGS__, \
-        __FILE__, __func__, __LINE__);                              \
+        "D@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        __func__, __LINE__);                                        \
     _DAGUE_DEBUG_HISTORY(3,                                         \
-        "D@%05d "FMT" @%s:%s:%5d", dague_debug_rank, ##__VA_ARGS__, \
-        __FILE__, __func__, __LINE__);                              \
+        "D@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        __func__, __LINE__);                                        \
 } while(0)
 
-/* Increasingly heavy debugging output (2,3). Compiled out when
+/* Increasingly heavy debugging output. Compiled out when
  * DAGUE_DEBUG_VERBOSE and DAGUE_DEBUG_HISTORY are not enabled */
 #define DEBUG2(FMT, ...) do {                                       \
-    DAGUE_OUTPUT_VERBOSE((4, dague_debug_ouput,                     \
-        "d@%05d "FMT" @%s:%s:%5d", dague_debug_rank, ##__VA_ARGS__, \
-        __FILE__, __func__, __LINE__));                              \
-    _DAGUE_DEBUG_HISTORY(4                                          \
-        "d@%05d "FMT" @%s:%s:%5d", dague_debug_rank, ##__VA_ARGS__, \
-        __FILE__, __func__, __LINE__);                              \
+    DAGUE_OUTPUT_VERBOSE((4, dague_debug_output,                    \
+        "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        __func__, __LINE__));                                       \
+    _DAGUE_DEBUG_HISTORY(4,                                         \
+        "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        __func__, __LINE__);                                        \
 } while(0)
 
 #define DEBUG3(FMT, ...) do {                                       \
-    DAGUE_OUTPUT_VERBOSE((5, dague_debug_ouput,                     \
-        "d@%05d "FMT" @%s:%s:%5d", dague_debug_rank, ##__VA_ARGS__, \
-        __FILE__, __func__, __LINE__));                              \
+    DAGUE_OUTPUT_VERBOSE((5, dague_debug_output,                    \
+        "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        __func__, __LINE__));                                       \
     _DAGUE_DEBUG_HISTORY(5,                                         \
-        "d@%05d "FMT" @%s:%s:%5d", dague_debug_rank, ##__VA_ARGS__, \
-        __FILE__, __func__, __LINE__);                              \
+        "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        __func__, __LINE__);                                        \
 } while(0)
 
 #else

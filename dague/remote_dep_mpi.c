@@ -994,7 +994,7 @@ static int remote_dep_mpi_init(dague_context_t* context)
 #if DAGUE_DEBUG_VERBOSE != 0
         if( MAX_MPI_TAG < INT_MAX ) {
             DEBUG("MPI:\tYour MPI implementation defines the maximal TAG value to %d (0x%08x), which might be too small should you have more than %d simultaneous remote dependencies\n",
-                    MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT));
+                   MAX_MPI_TAG, (unsigned int)MAX_MPI_TAG, MAX_MPI_TAG / MAX_PARAM_COUNT);
         }
 #endif
     }
@@ -1125,7 +1125,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, saved_position = *position;
     uint32_t peer_bank, peer_mask, expected = 0;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_ENABLE)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, 128);
 #endif
@@ -1503,7 +1503,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 {
     remote_dep_datakey_t complete_mask = 0;
     int k, dsize, tag = (int)deps->msg.tag; (void)tag;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_ENABLE)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
@@ -1516,7 +1516,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 #endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
 
     DEBUG("MPI:\tFROM\t%d\tActivate\t% -8s\n"
-           "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d)\n",
+          "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d)\n",
            deps->from, tmp, deps->msg.deps, deps->incoming_mask,
            deps->msg.length, *position, length);
     for(k = 0; deps->incoming_mask>>k; k++) {
@@ -1613,7 +1613,7 @@ remote_dep_mpi_save_activate_cb(dague_execution_unit_t* eu_context,
                                 dague_comm_callback_t* cb,
                                 MPI_Status* status)
 {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_ENABLE)
     char tmp[MAX_TASK_STRLEN];
 #endif
     int position = 0, length;
