@@ -148,7 +148,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
 #endif
     Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 
-    DEBUG3("vector_two_dim_cyclic_init: \n"
+    DEBUGVV("vector_two_dim_cyclic_init: \n"
             "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
             "      nrst = %d, ncst = %d, P = %d, Q = %d\n",

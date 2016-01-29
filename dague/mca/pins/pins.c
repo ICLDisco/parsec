@@ -31,9 +31,9 @@ void parsec_pins_instrument(struct dague_execution_unit_s* exec_unit,
 void parsec_pins_disable_registration(int disable)
 {
     if (disable) {
-        DEBUG3("PINS registration is disabled.\n");
+        DEBUGVV("PINS registration is disabled.\n");
     } else {
-        DEBUG3("PINS registration is enabled.\n");
+        DEBUGVV("PINS registration is enabled.\n");
     }
     registration_disabled = disable;
 }
@@ -57,7 +57,7 @@ int parsec_pins_register_callback(struct dague_execution_unit_s* exec_unit,
         return -1;
     }
     if (registration_disabled) {
-        DEBUG2("NOTE: PINS has been disabled by command line argument, causing this registration to be ignored.");
+        DEBUGV("NOTE: PINS has been disabled by command line argument, causing this registration to be ignored.");
         return 0;
     }
 
@@ -82,7 +82,7 @@ int parsec_pins_unregister_callback(struct dague_execution_unit_s* exec_unit,
         return -1;
     }
     if (registration_disabled) {
-        DEBUG3("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail.");
+        DEBUGVV("NOTE: PINS has been disabled by command line argument, causing this UN-registration to fail.");
         return -1;
     }
 

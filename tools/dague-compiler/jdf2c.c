@@ -1219,7 +1219,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  int _vmax = (vMAX);                                                                        \\\n"
             "  (DEPS) = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +                   \\\n"
             "                   (_vmax - _vmin) * sizeof(dague_dependencies_union_t));                    \\\n"
-            "  DEBUG3(\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\",    \\\n"
+            "  DEBUGVV(\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\",    \\\n"
             "           (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP));    \\\n"
             "  (DEPS)->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | (FLAG);                                \\\n"
             "  (DEPS)->symbol = (vSYMBOL);                                                                \\\n"
@@ -2270,7 +2270,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("#if defined(DAGUE_DEBUG_VERBOSE)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
-            "%s    DEBUG2(\"Add startup task %%s\\n\",\n"
+            "%s    DEBUGV(\"Add startup task %%s\\n\",\n"
             "%s           dague_snprintf_execution_context(tmp, 128, (dague_execution_context_t*)new_task));\n"
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
@@ -2448,7 +2448,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     }
 
-    coutput("  DEBUG3(\"Allocating dependencies array for %s (nb_tasks = %%d)\\n\", nb_tasks);\n"
+    coutput("  DEBUGVV(\"Allocating dependencies array for %s (nb_tasks = %%d)\\n\", nb_tasks);\n"
             "  if( 0 != nb_tasks ) {\n",
             fname);
 

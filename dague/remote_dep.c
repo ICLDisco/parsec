@@ -32,7 +32,7 @@ static inline void
 remote_dep_reset_forwarded(dague_execution_unit_t* eu_context,
                            dague_remote_deps_t* rdeps)
 {
-    DEBUG3("fw reset\tcontext %p deps %p\n", (void*)eu_context, rdeps);
+    DEBUGVV("fw reset\tcontext %p deps %p\n", (void*)eu_context, rdeps);
     memset(rdeps->remote_dep_fw_mask, 0,
            eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
 }
@@ -45,7 +45,7 @@ remote_dep_mark_forwarded(dague_execution_unit_t* eu_context,
 {
     uint32_t boffset;
 
-    DEBUG3("fw mark\tREMOTE rank %d\n", rank);
+    DEBUGVV("fw mark\tREMOTE rank %d\n", rank);
     boffset = rank / (8 * sizeof(uint32_t));
     assert(boffset <= eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
     (void)eu_context;
@@ -63,7 +63,7 @@ remote_dep_is_forwarded(dague_execution_unit_t* eu_context,
     boffset = rank / (8 * sizeof(uint32_t));
     mask = ((uint32_t)1) << (rank % (8 * sizeof(uint32_t)));
     assert(boffset <= eu_context->virtual_process->dague_context->remote_dep_fw_mask_sizeof);
-    DEBUG3("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (rdeps->remote_dep_fw_mask[boffset] & mask));
+    DEBUGVV("fw test\tREMOTE rank %d (value=%x)\n", rank, (int) (rdeps->remote_dep_fw_mask[boffset] & mask));
     (void)eu_context;
     return (int) ((rdeps->remote_dep_fw_mask[boffset] & mask) != 0);
 }
@@ -95,7 +95,7 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
                                 dague_context_t* ctx)
 {
     int32_t saved = dague_atomic_sub_32b((int32_t*)&(*deps)->pending_ack, ncompleted);
-    DEBUG2("Complete %d (%d left) outputs of dep %p%s\n",
+    DEBUGV("Complete %d (%d left) outputs of dep %p%s\n",
             ncompleted, saved, *deps,
             (0 == saved ? " (decrease inflight)" : ""));
     if(0 == saved) {
@@ -376,13 +376,13 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                 count++;
 
                 if(remote_dep_is_forwarded(eu_context, remote_deps, rank)) {  /* already in the counting */
-                    DEBUG3("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)\n",
+                    DEBUGVV("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (already done)\n",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                     continue;
                 }
                 idx++;
                 if(my_idx == -1) {
-                    DEBUG3("[%d:%d] task %s my_idx %d idx %d rank %d -- skip\n",
+                    DEBUGVV("[%d:%d] task %s my_idx %d idx %d rank %d -- skip\n",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                     if(rank == eu_context->virtual_process->dague_context->my_rank) {
                         my_idx = idx;
@@ -390,18 +390,18 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     remote_dep_mark_forwarded(eu_context, remote_deps, rank);
                     continue;
                 }
-                DEBUG3(" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
+                DEBUGVV(" TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)\n",
                         tmp, remote_deps->root, eu_context->virtual_process->dague_context->my_rank, my_idx, rank);
 
                 if(remote_dep_bcast_child(my_idx, idx)) {
-                    DEBUG3("[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)\n",
+                    DEBUGVV("[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)\n",
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask);
                     assert(remote_deps->outgoing_mask & (1U<<i));
 #if defined(DAGUE_DEBUG_VERBOSE)
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
                         if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );
-                            DEBUG2(" TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)\n",
+                            DEBUGV(" TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)\n",
                                     tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
                                     eu_context->virtual_process->dague_context->my_rank, my_idx, rank, idx);
                             break;
@@ -421,7 +421,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     }
                     remote_dep_send(rank, remote_deps);
                 } else {
-                    DEBUG3("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)\n",
+                    DEBUGVV("[%d:%d] task %s my_idx %d idx %d rank %d -- skip (not my direct descendant)\n",
                             remote_deps->root, i, tmp, my_idx, idx, rank);
                 }
                 assert(!remote_dep_is_forwarded(eu_context, remote_deps, rank));

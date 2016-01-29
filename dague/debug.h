@@ -17,7 +17,7 @@
  * Control debug output and verbosity
  *   default output is 0 (stderr)
  *   DEBUG is compiled out if !defined(DAGUE_DEBUG_ENABLE)
- *   DEBUG2 and DEBUG3 are compiled out if !defined(DAGUE_DEBUG_VERBOSE)
+ *   DEBUGV and DEBUGVV are compiled out if !defined(DAGUE_DEBUG_VERBOSE)
  *   default runtime debug verbosity is 2 (error-info, no debug)
  *   debug history compiled in as soon as defined(DAGUE_DEBUG_HISTORY)
  *      independent of DAGUE_DEBUG_VERBOSE setting
@@ -91,7 +91,7 @@ void dague_debug_backtrace_dump(void);
  * DAGUE_DEBUG_VERBOSE is not enabled.
  * The entire history is logged as soon as debug_verbose >= 3
  */
-#define DEBUG2(FMT, ...) do {                                       \
+#define DEBUGV(FMT, ...) do {                                       \
     DAGUE_OUTPUT_VERBOSE((4, dague_debug_output,                    \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__));                                       \
@@ -100,7 +100,7 @@ void dague_debug_backtrace_dump(void);
         __func__, __LINE__);                                        \
 } while(0)
 
-#define DEBUG3(FMT, ...) do {                                       \
+#define DEBUGVV(FMT, ...) do {                                       \
     DAGUE_OUTPUT_VERBOSE((5, dague_debug_output,                    \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__));                                       \
@@ -111,8 +111,8 @@ void dague_debug_backtrace_dump(void);
 
 #else
 #define DEBUG(...)
-#define DEBUG2(...)    
-#define DEBUG3(...)
+#define DEBUGV(...)    
+#define DEBUGVV(...)
 #endif /* defined(DAGUE_DEBUG_ENABLE) */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */

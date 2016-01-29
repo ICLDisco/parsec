@@ -99,7 +99,7 @@ static int flow_lhq_init(dague_execution_unit_t* eu_context, struct dague_barrie
                                             level == 0 ? push_in_queue_wrapper : push_in_buffer_wrapper,
                                             level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1]);
                     sched_obj->hierarch_queues[idx]->assoc_core_num = p * vp->nb_cores + t; // stored for PINS
-                    DEBUG3("schedHQ %d: \tcreates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
+                    DEBUGVV("schedHQ %d: \tcreates hbbuffer of size %d (ideal %d) for level %d stored in %d: %p (parent: %p -- %s)\n",
                             eu->th_id, queue_size, nbcores,
                             level, idx, sched_obj->hierarch_queues[idx],
                             level == 0 ? (void*)sched_obj->system_queue : (void*)sched_obj->hierarch_queues[idx+1],
@@ -116,7 +116,7 @@ static int flow_lhq_init(dague_execution_unit_t* eu_context, struct dague_barrie
                 int idx = sched_obj->nb_hierarch_queues - 1 - level;
                 int m = dague_hwloc_master_id(level, eu->th_id);
                 if( eu->th_id != m ) {
-                    DEBUG3("schedHQ %d: \ttakes the buffer of %d at level %d stored in %d: %p\n",
+                    DEBUGVV("schedHQ %d: \ttakes the buffer of %d at level %d stored in %d: %p\n",
                             eu->th_id, m, level, idx, LOCAL_QUEUES_OBJECT(vp->execution_units[m])->hierarch_queues[idx]);
                     /* The slaves take their queue for this level from their master */
                     sched_obj->hierarch_queues[idx] = LOCAL_QUEUES_OBJECT(vp->execution_units[m])->hierarch_queues[idx];
@@ -144,7 +144,7 @@ static dague_execution_context_t *sched_lhq_select( dague_execution_unit_t *eu_c
         exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
                                                                            dague_execution_context_priority_comparator);
         if( NULL != exec_context ) {
-            DEBUG3("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
+            DEBUGVV("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]);
             return exec_context;
         }
@@ -152,7 +152,7 @@ static dague_execution_context_t *sched_lhq_select( dague_execution_unit_t *eu_c
 
     exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     if( NULL != exec_context ) {
-        DEBUG3("LQ\t: %d:%d found task %p in its system queue %p\n",
+        DEBUGVV("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     }
     return exec_context;

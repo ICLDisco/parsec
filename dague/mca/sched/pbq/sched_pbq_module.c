@@ -152,7 +152,7 @@ static dague_execution_context_t *sched_pbq_select( dague_execution_unit_t *eu_c
         exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
                                                                            dague_execution_context_priority_comparator);
         if( NULL != exec_context ) {
-            DEBUG3("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
+            DEBUGVV("LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]);
 #if defined(PINS_ENABLE)
 			exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
@@ -163,7 +163,7 @@ static dague_execution_context_t *sched_pbq_select( dague_execution_unit_t *eu_c
 
     exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     if( NULL != exec_context ) {
-        DEBUG3("LQ\t: %d:%d found task %p in its system queue %p\n",
+        DEBUGVV("LQ\t: %d:%d found task %p in its system queue %p\n",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
 #if defined(PINS_ENABLE)
 		exec_context->victim_core = SYSTEM_NEIGHBOR;

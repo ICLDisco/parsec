@@ -482,7 +482,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str,  binding_mask);
-            DEBUG2("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str);
+            DEBUGV("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str);
             free(str);
         }
 #endif /* defined(DAGUE_DEBUG_VERBOSE) */
@@ -554,7 +554,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             WARNING("Invalid range: start > end (end restored to default value)\n");
             end=nb_real_cores-1;
         }
-        DEBUG3("binding defined by core range [%d;%d;%d]\n", start, end, step);
+        DEBUGVV("binding defined by core range [%d;%d;%d]\n", start, end, step);
 
         /* define the core according to the trio start/end/step */
         {

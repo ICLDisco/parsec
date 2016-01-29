@@ -229,7 +229,7 @@ void dague_debug_history_dump(void) {
             dague_output(dague_debug_output, " %s", gm);
             free(gm);
         } else {
-            DEBUG3("A mark has not been stored at this position since the last dump\n");
+            DEBUGVV("A mark has not been stored at this position since the last dump\n");
         }
     }
     STATUS("== End debug history =====================================================\n");
