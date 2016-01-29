@@ -266,7 +266,7 @@ BODY [type=CUDA dyld=cublasZgemm]
     cublasStatus_t status;
     cublasSetKernelStream( gpu_stream->cuda_stream );
     cublasZgemm( 'N', 'N',
-                 tempmm, descA.mb, tempkn,
+                 tempmm, descA.nb, tempkn,
                  1., (cuDoubleComplex*)A, ldam,
                      (cuDoubleComplex*)B, ldak,
                  1., (cuDoubleComplex*)C, ldam );
@@ -439,7 +439,7 @@ BODY [type=CUDA dyld=cublasZgemm]
 
     cublasStatus_t status;
     cublasSetKernelStream( gpu_stream->cuda_stream );
-    cublasZgemm( 'N', lapack_const(PlasmaConjTrans),
+    cublasZgemm( lapack_const(PlasmaConjTrans), 'N',
                  descA.mb, descA.nb, tempkm,
                  1., (cuDoubleComplex*)A, ldak,
                      (cuDoubleComplex*)B, ldak,
