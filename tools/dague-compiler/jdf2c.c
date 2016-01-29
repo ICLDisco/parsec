@@ -568,6 +568,40 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
 }
 
 /**
+ * dump_data_initialization_from_data_out_array:
+ *  Takes the pointer to a flow *f, let say that f->varname == "A",
+ *  this produces a string like
+ *  dague_data_copy_t *gA = this_task->data[id].data_out;\n
+ *  void *A = DAGUE_DATA_COPY_GET_PTR(gA); (void)A;\n
+ */
+static char *dump_data_initialization_from_data_out_array(void **elem, void *arg)
+{
+    string_arena_t *sa = (string_arena_t *)arg;
+    jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
+    char *varname = f->varname;
+
+    if(f->flow_flags & JDF_FLOW_TYPE_CTL) {
+        return NULL;
+    }
+
+    string_arena_init(sa);
+
+    string_arena_add_string(sa,
+                            "  dague_data_copy_t *g%s = this_task->data.%s.data_out;\n",
+                            varname, f->varname);
+    if( !(f->flow_flags & JDF_FLOW_TYPE_READ) ) {  /* if only write then we can locally have NULL */
+        string_arena_add_string(sa,
+                                "  void *%s = (NULL != g%s) ? DAGUE_DATA_COPY_GET_PTR(g%s) : NULL; (void)%s;\n",
+                                varname, varname, varname, varname);
+    } else {
+        string_arena_add_string(sa,
+                                "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
+                                varname, varname, varname);
+    }
+    return string_arena_get_string(sa);
+}
+
+/**
  * dump_dataflow_varname:
  *  Takes the pointer to a flow *f, and print the varname
  */
@@ -4259,6 +4293,154 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     string_arena_free(sa2);
 }
 
+static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
+                                        const jdf_function_entry_t *f,
+                                        const jdf_body_t* body,
+                                        const char *name)
+{
+    jdf_def_list_t* type_property;
+    string_arena_t *sa, *sa2;
+    assignment_info_t ai;
+    jdf_dataflow_t *fl;
+    int di;
+    int profile_on;
+    char* output;
+
+    profile_on = jdf_property_get_int(f->properties, "profile", 1);
+    profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
+
+    jdf_find_property(body->properties, "type", &type_property);
+
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
+    ai.sa = sa2;
+    ai.holder = "this_task->locals.";
+    ai.expr = NULL;
+
+    coutput("\n"
+            "#ifdef KERNEL_NAME\n"
+            "#undef KERNEL_NAME\n"
+            "#endif\n"
+            "#define KERNEL_NAME %s_%s\n"
+            "#include <dague/devices/cuda/cuda_scheduling.h>\n"
+            "#undef KERNEL_NAME\n"
+            "\n"
+            "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
+            "                                   dague_gpu_context_t     *gpu_task,\n"
+            "                                   dague_gpu_exec_stream_t *gpu_stream )\n"
+            "{\n"
+            "  %s *this_task = (%s *)gpu_task->ec;\n"
+            "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
+            "  (void)gpu_device; (void)gpu_stream; (void)__dague_handle;\n"
+            "%s",
+            jdf_basename, f->fname,
+            jdf_basename, f->fname,
+            dague_get_name(jdf, f, "task_t"), dague_get_name(jdf, f, "task_t"),
+            jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST(sa, f->locals, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+
+    output = UTIL_DUMP_LIST(sa, f->dataflow, next,
+                            dump_data_initialization_from_data_out_array, sa2, "", "", "", "");
+    if( 0 != strlen(output) ) {
+        coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
+                "%s\n",
+                output);
+    }
+
+    /**
+     * Generate code for the simulation.
+     */
+    coutput("  /** Update starting simulation date */\n"
+            "#if defined(DAGUE_SIM)\n"
+            "  {\n"
+            "    this_task->sim_exec_date = 0;\n");
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+
+        if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
+
+        coutput("    data_repo_entry_t *e%s = this_task->data.%s.data_repo;\n"
+                "    if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
+                "      this_task->sim_exec_date = e%s->sim_exec_date;\n",
+                fl->varname, fl->varname,
+                fl->varname, fl->varname,
+                fl->varname);
+    }
+    coutput("    if( this_task->function->sim_cost_fct != NULL ) {\n"
+            "      this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+            "    }\n"
+            "    if( context->largest_simulation_date < this_task->sim_exec_date )\n"
+            "      context->largest_simulation_date = this_task->sim_exec_date;\n"
+            "  }\n"
+            "#endif\n");
+
+    jdf_generate_code_cache_awareness_update(jdf, f);
+
+    coutput("\n"
+            "DEBUG2(( \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
+            "       dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),\n"
+            "       this_task->priority ));\n");
+
+    jdf_generate_code_dry_run_before(jdf, f);
+    jdf_coutput_prettycomment('-', "%s BODY", f->fname);
+
+    if( profile_on ) {
+        coutput("  DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,\n"
+                "                           gpu_stream->profiling,\n"
+                "                           (-1 == gpu_stream->prof_event_key_start ?\n"
+                "                           DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,\n"
+                "                                                     this_task->function->function_id) :\n"
+                "                           gpu_stream->prof_event_key_start),\n"
+                "                           this_task);\n");
+    }
+
+    coutput("%s\n", body->external_code);
+    if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
+        coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
+    }
+    jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
+    jdf_generate_code_dry_run_after(jdf, f);
+    coutput("  return DAGUE_HOOK_RETURN_DONE;\n"
+            "}\n\n");
+
+    coutput("static int %s_%s(dague_execution_unit_t *context, %s *this_task)\n"
+            "{\n"
+            "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
+            "  dague_gpu_context_t *gpu_task;\n"
+            "  int i, dev_index;\n"
+            "  (void)context; (void)__dague_handle;\n"
+            "\n"
+            "  dev_index = dague_gpu_get_best_device((dague_execution_context_t*)this_task, 1.);\n"
+            "  assert(dev_index >= 0);\n"
+            "  if( dev_index < 2 ) {\n"
+            "    return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */\n"
+            "  }\n"
+            "\n"
+            "  gpu_task = (dague_gpu_context_t*)malloc(sizeof(dague_gpu_context_t));\n"
+            "  OBJ_CONSTRUCT(gpu_task, dague_list_item_t);\n"
+            "  gpu_task->ec = (dague_execution_context_t*)this_task;\n"
+            "  gpu_task->task_type = 0;\n",
+            name, type_property->expr->jdf_var, dague_get_name(jdf, f, "task_t"),
+            jdf_basename, jdf_basename);
+
+    coutput("\n"
+            "  for(i=0; i<this_task->function->nb_flows; i++) {\n"
+            "    gpu_task->pushout[i] = 1;\n"
+            "  }\n"
+            "\n");
+
+    coutput("\n"
+            "  return gpu_kernel_scheduler_%s_%s( context, gpu_task, dev_index );\n"
+            "}\n\n",
+            jdf_basename, f->fname);
+
+    string_arena_free(sa);
+    string_arena_free(sa2);
+}
+
 static void jdf_generate_code_hook(const jdf_t *jdf,
                                    const jdf_function_entry_t *f,
                                    const jdf_body_t* body,
@@ -4294,14 +4476,20 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             exit(1);
         }
     }
-    if( NULL != type_property)
+    if( NULL != type_property) {
         coutput("#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
 
+        if (!strcmp(type_property->expr->jdf_var, "CUDA")) {
+            jdf_generate_code_hook_cuda(jdf, f, body, name);
+            goto hook_end_block;
+        }
+    }
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
     ai.sa = sa2;
     ai.holder = "this_task->locals.";
     ai.expr = NULL;
+
     if(NULL == type_property)
         coutput("static int %s(dague_execution_unit_t *context, %s *this_task)\n",
                 name, dague_get_name(jdf, f, "task_t"));
@@ -4374,11 +4562,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     coutput("  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n");
 
-    if( NULL != type_property)
-        coutput("#endif  /*  defined(HAVE_%s) */\n", type_property->expr->jdf_var);
-
     string_arena_free(sa);
     string_arena_free(sa2);
+
+  hook_end_block:
+    if( NULL != type_property)
+        coutput("#endif  /*  defined(HAVE_%s) */\n\n", type_property->expr->jdf_var);
+
 }
 
 static void
