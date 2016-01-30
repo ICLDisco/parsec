@@ -151,7 +151,7 @@ potrf_zgemm(k, m, n)
 
 ; 40
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int ldam = BLKLDD( descA, m );
@@ -256,7 +256,7 @@ trtri_zgemm(k, m, n)
 
 ; 30
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
@@ -431,7 +431,7 @@ lauum_zgemm(k, n, m)
 
 ; 20
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int ldak = BLKLDD( descA, k );

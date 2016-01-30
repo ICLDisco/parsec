@@ -18,6 +18,12 @@ extern "C" %{
 #include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
 
+typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 double alpha, double *d_A, int lda,
+                                 double *d_B, int ldb,
+                                 double beta,  double *d_C, int ldc
+                                 );
+
 %}
 
 /*
@@ -94,7 +100,7 @@ READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.
 RW   C <- (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
        -> (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA dyld=cublasZgemm dyldtype="cublas_dgemm_t"]
 {
     dague_complex64_t lbeta = (k == descA.nt-1) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
@@ -106,7 +112,7 @@ BODY [type=CUDA dyld=cublasZgemm]
 
     cublasStatus_t status;
     cublasSetKernelStream( gpu_stream->cuda_stream );
-    cublasZgemm( lapack_const(transA), lapack_const(transB),
+    dyld_fn( lapack_const(transA), lapack_const(transB),
                  tempmm, tempnn, tempkk,
                  alpha, (cuDoubleComplex*)A, ldam,
                         (cuDoubleComplex*)B, ldbk,

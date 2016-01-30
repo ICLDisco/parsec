@@ -2691,6 +2691,14 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
             if( NULL == dyld_property ) {
                 string_arena_add_string(sa, "      .dyld     = NULL,\n");
             } else {
+                jdf_def_list_t* dyld_proptotype_property;
+                jdf_find_property(body->properties, "dyldtype", &dyld_proptotype_property);
+                if ( NULL == dyld_proptotype_property ) {
+                    fprintf(stderr,
+                            "Internal Error: function prototype (dyldtype) of dyld function (%s) is not defined in %s body of task %s at line %d\n",
+                            dyld_property->expr->jdf_var, type_property->expr->jdf_var, f->fname, JDF_OBJECT_LINENO( body ) );
+                    assert( NULL != dyld_proptotype_property );
+                }
                 string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
             }
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
@@ -4299,6 +4307,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                                         const char *name)
 {
     jdf_def_list_t* type_property;
+    jdf_def_list_t* dyld_property;
+    jdf_def_list_t* dyldtype_property;
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
     jdf_dataflow_t *fl;
@@ -4395,6 +4405,15 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "                                                     this_task->function->function_id) :\n"
                 "                           gpu_stream->prof_event_key_start),\n"
                 "                           this_task);\n");
+    }
+
+    jdf_find_property(body->properties, "dyld", &dyld_property);
+    if ( NULL != dyld_property ) {
+        jdf_find_property(body->properties, "dyldtype", &dyldtype_property);
+        coutput("  /* Pointer to dynamic gpu function */\n"
+                "  %s dyld_fn = (%s)this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
+                dyldtype_property->expr->jdf_var,
+                dyldtype_property->expr->jdf_var );
     }
 
     coutput("%s\n", body->external_code);

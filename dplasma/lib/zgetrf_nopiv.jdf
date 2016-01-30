@@ -151,7 +151,7 @@ zgemm(k, m, n)
              -> ((m == (k+1)) && (n >  (k+1))) ? B ztrsm_u(k+1, n)
              -> ((m >  (k+1)) && (n >  (k+1))) ? C zgemm(k+1, m, n)
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
