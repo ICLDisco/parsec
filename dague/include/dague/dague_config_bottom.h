@@ -33,13 +33,13 @@
 #define END_C_DECLS            /* empty */
 #endif
 
-#if defined(DAGUE_DAGUE_HAVE_ATTRIBUTE_VISIBILITY)
+#if defined(DAGUE_HAVE_ATTRIBUTE_VISIBILITY)
 #    define __dague_attribute_visibility__(a) __attribute__((__visibility__(a)))
 #else
 #    define __dague_attribute_visibility__(a)
 #endif
 
-#if defined(DAGUE_DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE)
+#if defined(DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE)
 #    define __dague_attribute_always_inline__ __attribute__((__always_inline__))
 #else
 #    define __dague_attribute_always_inline__

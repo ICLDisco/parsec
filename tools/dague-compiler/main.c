@@ -29,7 +29,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS,
     .compile = 1,  /* by default the file must be compiled */
-#if defined(DAGUE_DAGUE_HAVE_INDENT) && !defined(DAGUE_HAVE_AWK)
+#if defined(DAGUE_HAVE_INDENT) && !defined(DAGUE_HAVE_AWK)
     .noline = 1 /*< By default, don't print the #line per default if can't fix the line numbers with awk */
 #else
     .noline = 0 /*< Otherwise, go for it (without INDENT or with INDENT but without AWK, lines will be ok) */

@@ -465,9 +465,9 @@ IF( BUILD_DAGUE )
       set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
       set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES}")
       if(CUDA_VERSION VERSION_LESS "4.0")
-          set(DAGUE_DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
+          set(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
       else()
-          check_function_exists(cuDeviceCanAccessPeer DAGUE_DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+          check_function_exists(cuDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
       endif()
       CMAKE_POP_CHECK_STATE()
 
@@ -582,7 +582,7 @@ endif(NOT DAGUE_COMPILE_INPLACE)
 #
 # Check if indent is available on the system.
 #
-set(DAGUE_DAGUE_HAVE_INDENT 0)
+set(DAGUE_HAVE_INDENT 0)
 FIND_PROGRAM(INDENT_EXECUTABLE indent DOC "path to the indent executable")
 MARK_AS_ADVANCED(INDENT_EXECUTABLE)
 # K&R (not supported on Mac), so we settle for less
@@ -592,7 +592,7 @@ MARK_AS_ADVANCED(INDENT_EXECUTABLE)
 SET(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -ncdb -ce -cli0 -d0 -di1 -nfc1 -i4 -ip0 -lp -npcs -npsl -nsc -nsob -l120")
 MARK_AS_ADVANCED(INDENT_OPTIONS)
 if(INDENT_EXECUTABLE)
-  set(DAGUE_DAGUE_HAVE_INDENT 1)
+  set(DAGUE_HAVE_INDENT 1)
 endif(INDENT_EXECUTABLE)
 
 #

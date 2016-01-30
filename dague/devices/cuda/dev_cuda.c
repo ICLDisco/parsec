@@ -545,7 +545,7 @@ int dague_gpu_init(dague_context_t *dague_context)
         dague_devices_add(dague_context, &(gpu_device->super));
     }
 
-#if defined(DAGUE_DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+#if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     for( i = 0; i < ndevices; i++ ) {
         gpu_device_t *source_gpu, *target_gpu;
         CUdevice source, target;
