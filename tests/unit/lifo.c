@@ -8,7 +8,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 #endif
 
@@ -217,7 +217,7 @@ int main(int argc, char *argv[])
 
     min_time = 0;
     max_time = 0xffffffff;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -335,7 +335,7 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Finalized(&ch);
 #endif
     return 0;

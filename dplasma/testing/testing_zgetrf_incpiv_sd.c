@@ -28,7 +28,7 @@ int main(int argc, char ** argv)
     iparam[IPARAM_SMB] = 2;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
+#if defined(DAGUE_HAVE_CUDA) && defined(PRECISION_s) && 0
     iparam[IPARAM_NGPUS] = 0;
 #endif
     /* Initialize DAGuE */

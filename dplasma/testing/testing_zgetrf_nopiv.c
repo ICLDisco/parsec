@@ -9,7 +9,7 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dplasma/cores/cuda_zgemm.h"
 #endif
 
@@ -35,7 +35,7 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 40, 200, 200);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
     

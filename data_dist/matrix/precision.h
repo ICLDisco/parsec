@@ -29,7 +29,7 @@ extern "C" {
 
 #if defined(DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED)
 
-#if !defined(__cplusplus) && defined(HAVE_COMPLEX_H)
+#if !defined(__cplusplus) && defined(DAGUE_HAVE_COMPLEX_H)
 #include <complex.h>
 #else
 

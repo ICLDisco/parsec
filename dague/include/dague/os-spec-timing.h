@@ -11,7 +11,7 @@
 
 /** TIMING SYSTEM-SPECIFICS **/
 
-#if defined(HAVE_CLOCK_GETTIME)
+#if defined(DAGUE_HAVE_CLOCK_GETTIME)
 #include <unistd.h>
 #include <time.h>
 typedef struct timespec dague_time_t;

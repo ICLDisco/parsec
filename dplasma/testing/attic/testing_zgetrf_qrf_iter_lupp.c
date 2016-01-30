@@ -91,7 +91,7 @@ int main(int argc, char ** argv)
                 fclose(f);
             }
         }
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
         MPI_Bcast(&lastindex, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
         index = 0;
@@ -156,7 +156,7 @@ int main(int argc, char ** argv)
                     gflops = (flops/1e9)/(sync_time_elapsed);
                     dplasma_zgetrf_Destruct( DAGUE_zgetrf );
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 		    MPI_Bcast(&info, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
                 } else {

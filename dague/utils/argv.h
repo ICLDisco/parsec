@@ -33,10 +33,10 @@
 
 #include "dague_config.h"
 
-#ifdef HAVE_SYS_TYPES_H
+#ifdef DAGUE_HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef HAVE_STDBOOL_H
+#ifdef DAGUE_HAVE_STDBOOL_H
 #include <stdbool.h>
 #endif
 

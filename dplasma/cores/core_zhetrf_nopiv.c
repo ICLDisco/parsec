@@ -19,14 +19,14 @@
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
-#if defined(HAVE_STDARG_H)
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#if defined(DAGUE_HAVE_STDARG_H)
 #include <stdarg.h>
-#endif  /* defined(HAVE_STDARG_H) */
+#endif  /* defined(DAGUE_HAVE_STDARG_H) */
 #include <stdio.h>
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 
@@ -62,7 +62,7 @@ void CORE_zhetrf_nopiv(int uplo, int N, int ib,
  * @ingroup CORE_PLASMA_Complex64_t
  *
  **/
-#if defined(PLASMA_HAVE_WEAK)
+#if defined(PLASMA_DAGUE_HAVE_WEAK)
 #pragma weak CORE_zhetrf_nopiv = PCORE_zhetrf_nopiv
 #define CORE_zhetrf_nopiv PCORE_zhetrf_nopiv
 #endif

@@ -6,7 +6,7 @@
 
 #include "dague_config.h"
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dague/dague_internal.h"
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dague/profiling.h"
@@ -207,4 +207,4 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     return DAGUE_HOOK_RETURN_DISABLE;
 }
 
-#endif /* HAVE_CUDA */
+#endif /* DAGUE_HAVE_CUDA */

@@ -10,7 +10,7 @@
 #include <assert.h>
 #include <errno.h>
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 #endif
 
@@ -100,10 +100,10 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, i
         (thread >= nbthreadspervp )||
         (nbcores == -1) )
         return;
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     //nb_real_cores = dague_hwloc_nb_real_cores();
     nbht = dague_hwloc_get_ht();
-#endif /* HAVE_HWLOC */
+#endif /* DAGUE_HAVE_HWLOC */
     *cores = (vp * nbcores * nbht) + thread;
     if (nbht > 1 ) {
         *ht = (*cores) % nbht;
@@ -164,7 +164,7 @@ static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores, int 
 
 int vpmap_init_from_hardware_affinity(int nbcores)
 {
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     int vp_id, th_id, core_id, ht_id;
 
     /* Compute the number of VP according to the number of objects at the
@@ -232,9 +232,9 @@ int vpmap_init_from_file(const char *filename)
         return -1;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     f = fopen(filename, "r");
     if( NULL == f ) {
@@ -246,7 +246,7 @@ int vpmap_init_from_file(const char *filename)
 
     char * th_arg = NULL;
     char * binding = NULL;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     double mpi_num = -1;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -279,7 +279,7 @@ int vpmap_init_from_file(const char *filename)
         map[0].nbthreads = 1;
         map[0].threads = (vpmap_thread_t**)malloc(sizeof(vpmap_thread_t*));
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
         dague_hwloc_init();
         nbcores = dague_hwloc_nb_real_cores();
 #else
@@ -301,7 +301,7 @@ int vpmap_init_from_file(const char *filename)
         vpmap_nb_total_threads  = 0;
         while( getline(&line, &nline, f) != -1 ) {
             if( NULL != strchr(line, ':') ) {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
                 if (line[0] == ':')
                     mpi_num=0;
                 else
@@ -328,7 +328,7 @@ int vpmap_init_from_file(const char *filename)
                             parse_binding_parameter(v, nbth, binding);
 
                         } else {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
                             printf("[%i] No binding specified for threads of the VP %i \n", rank, v);
 #else
                             printf("No binding specified for threads of the VP %i \n", v);
@@ -336,7 +336,7 @@ int vpmap_init_from_file(const char *filename)
                         }
                     }
                     v++;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
                 }
 #endif
             }
@@ -361,9 +361,9 @@ int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
         return -1;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     nbcores = _nbcores;
     nbthreadspervp = _nbthreadspervp;
@@ -386,9 +386,9 @@ int vpmap_init_from_flat(int _nbcores)
         return -1;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     nbvp = 1;
     nbcores = _nbcores/nbht;
@@ -414,9 +414,9 @@ void vpmap_display_map(void) {
         return;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     dague_inform("Map with %d Virtual Processes", nbvp);
     for(v = 0; v < nbvp; v++) {
@@ -454,7 +454,7 @@ void vpmap_display_map(void) {
 
 int parse_binding_parameter(int vp, int nbth, char * binding)
 {
- #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+ #if defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP)
     char* option = binding;
     char* position;
     int t, ht;
@@ -485,9 +485,9 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 #endif /* defined(DAGUE_DEBUG_NOISIER) */
 
         int core=-1, prev=-1;
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
         nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
         /* extract a single core per thread (round-robin) */
         for( t=0; t<nbth; t+=nbht ) {
@@ -676,5 +676,5 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
     (void)vp; (void)nbth; (void)binding;
     dague_warning("the binding defined has been ignored (requires a build with HWLOC with bitmap support).");
     return -1;
-#endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
+#endif /* DAGUE_HAVE_HWLOC && DAGUE_HAVE_HWLOC_BITMAP */
 }

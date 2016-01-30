@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef MAC_OS_X
-#error This file should only be included on MAC OS X (Snow Leopard
+#ifndef DAGUE_OSX
+#error This file should only be included on MAC OS X > Snow Leopard
 #endif
 
 #include <libkern/OSAtomic.h>

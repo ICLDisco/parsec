@@ -38,12 +38,12 @@ typedef void * CORE_sgetrf_data_t;
 #define DRYRUN( body ) body
 #endif
 
-#ifndef HAVE_MPI
+#ifndef DAGUE_HAVE_MPI
 #define TEMP_TYPE MPITYPE
 #undef MPITYPE
 #define MPITYPE ((dague_datatype_t)QUOTEME(TEMP_TYPE))
 #undef TEMP_TYPE
-#endif  /* HAVE_MPI */
+#endif  /* DAGUE_HAVE_MPI */
 
 
 #endif /* _DPLASMAJDF_H_ */

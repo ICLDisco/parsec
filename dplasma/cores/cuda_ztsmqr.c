@@ -455,7 +455,7 @@ int gpu_ztsmqr( dague_execution_unit_t* eu_context,
 
     dev_index = this_task->data[flow_A1].data_in->original->owner_device;
 
-#if defined(HAVE_MPI) || 1 /* defined(GPU_STATIC) */
+#if defined(DAGUE_HAVE_MPI) || 1 /* defined(GPU_STATIC) */
     /**
      * Columns are distributed in a round-robin fashion
      */

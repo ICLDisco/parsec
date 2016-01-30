@@ -25,16 +25,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
+#ifdef DAGUE_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_SYS_PARAM_H
+#ifdef DAGUE_HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#ifdef HAVE_STDBOOL_H
+#ifdef DAGUE_HAVE_STDBOOL_H
 #include <stdbool.h>
 #endif
-#ifdef HAVE_CTYPE_H
+#ifdef DAGUE_HAVE_CTYPE_H
 #include <ctype.h>
 #endif
 
@@ -2199,7 +2199,7 @@ dague_info_out(const char *pretty_message, const char *plain_message, const char
     char *filler = NULL;
     char *pos, *v, savev;
 
-#ifdef HAVE_ISATTY
+#ifdef DAGUE_HAVE_ISATTY
     /* If we have isatty(), if this is not a tty, then disable
      * wrapping for grep-friendly behavior
      */

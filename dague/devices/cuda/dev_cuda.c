@@ -11,7 +11,7 @@
 #include "dague/utils/mca_param.h"
 #include "dague/constants.h"
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dague.h"
 #include "dague/data_internal.h"
 #include "dague/devices/cuda/dev_cuda.h"
@@ -545,7 +545,7 @@ int dague_gpu_init(dague_context_t *dague_context)
         dague_devices_add(dague_context, &(gpu_device->super));
     }
 
-#if defined(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+#if defined(DAGUE_DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     for( i = 0; i < ndevices; i++ ) {
         gpu_device_t *source_gpu, *target_gpu;
         CUdevice source, target;
@@ -1436,4 +1436,4 @@ void dump_GPU_state(gpu_device_t* gpu_device)
     printf("\n\n");
 }
 
-#endif /* HAVE_CUDA */
+#endif /* DAGUE_HAVE_CUDA */

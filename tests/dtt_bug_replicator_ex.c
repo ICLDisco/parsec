@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,6 +10,7 @@
 #include "dtt_bug_replicator.h"
 #include "dague/arena.h"
 #include <math.h>
+
 #define N     10
 #define NB    3
 
@@ -30,14 +31,14 @@ int main( int argc, char** argv )
 {
     dague_context_t* dague;
     dague_handle_t* handle;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Datatype tile_dtt, vdtt1, vdtt2, vdtt;
 #endif
     dague_dtt_bug_replicator_handle_t *dtt_handle;;
     int nodes, rank, i, j;
     (void)argc; (void)argv;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &nodes);
     MPI_Comm_size(MPI_COMM_WORLD, &nodes);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -64,7 +65,7 @@ int main( int argc, char** argv )
                 ((double*)ddescA.mat)[i * NB + j] = (double)(i * NB + j);
         dump_double_array("Original ", (double*)ddescA.mat, 0, 0, NB, NB, NB);
     }
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     dague_type_create_contiguous(NB*NB, dague_datatype_double_t, &tile_dtt);
     MPI_Type_set_name(tile_dtt, "TILE_DTT");
     MPI_Type_commit(&tile_dtt);
@@ -87,7 +88,7 @@ int main( int argc, char** argv )
     dague_context_wait(dague);
 
     dague_fini( &dague);
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Finalize();
 #endif
     return 0;

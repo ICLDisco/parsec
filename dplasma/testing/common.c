@@ -14,19 +14,19 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef HAVE_UNISTD_H
+#ifdef DAGUE_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#if defined(HAVE_GETOPT_H)
+#if defined(DAGUE_HAVE_GETOPT_H)
 #include <getopt.h>
-#endif  /* defined(HAVE_GETOPT_H) */
-#ifdef HAVE_MPI
+#endif  /* defined(DAGUE_HAVE_GETOPT_H) */
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
 #endif
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include <dague/devices/cuda/dev_cuda.h>
 #endif
 
@@ -47,9 +47,9 @@ char *DAGUE_SCHED_NAME[] = {
 /*******************************
  * globals and argv set values *
  *******************************/
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
-#endif  /* HAVE_MPI */
+#endif  /* DAGUE_HAVE_MPI */
 
 const int   side[2]  = { PlasmaLeft,    PlasmaRight };
 const int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
@@ -163,7 +163,7 @@ void print_usage(void)
 
 #define GETOPT_STRING "bc:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
 
-#if defined(HAVE_GETOPT_LONG)
+#if defined(DAGUE_HAVE_GETOPT_LONG)
 static struct option long_options[] =
 {
     /* PaRSEC specific options */
@@ -246,7 +246,7 @@ static struct option long_options[] =
     {"h",           no_argument,        0, 'h'},
     {0, 0, 0, 0}
 };
-#endif  /* defined(HAVE_GETOPT_LONG) */
+#endif  /* defined(DAGUE_HAVE_GETOPT_LONG) */
 
 static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
@@ -263,13 +263,13 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     iparam[IPARAM_MATRIX_INIT] = PlasmaMatrixRandom;
 
     do {
-#if defined(HAVE_GETOPT_LONG)
+#if defined(DAGUE_HAVE_GETOPT_LONG)
         c = getopt_long_only(argc, argv, "",
                         long_options, &opt);
 #else
         c = getopt(argc, argv, GETOPT_STRING);
         (void) opt;
-#endif  /* defined(HAVE_GETOPT_LONG) */
+#endif  /* defined(DAGUE_HAVE_GETOPT_LONG) */
 
         // printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
         switch(c)
@@ -615,7 +615,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     unix_timestamp = time(NULL);
     getcwd(cwd, sizeof(cwd));
 #endif
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -672,7 +672,7 @@ void cleanup_dague(dague_context_t* dague, int *iparam)
 {
     dague_fini(&dague);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
     (void)iparam;

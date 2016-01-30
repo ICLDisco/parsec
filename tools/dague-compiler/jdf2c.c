@@ -957,9 +957,9 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
     /* va_list might have pointer to internal state and using
        it twice is a bad idea.  So make a copy for the second
        use.  Copy order taken from Autoconf docs. */
-#if defined(HAVE_VA_COPY)
+#if defined(DAGUE_HAVE_VA_COPY)
     va_copy(ap2, ap);
-#elif defined(HAVE_UNDERSCORE_VA_COPY)
+#elif defined(DAGUE_HAVE_UNDERSCORE_VA_COPY)
     __va_copy(ap2, ap);
 #else
     memcpy (&ap2, &ap, sizeof(va_list));
@@ -972,9 +972,9 @@ static void jdf_coutput_prettycomment(char marker, const char *format, ...)
         length = vsnprintf(v, vs, format, ap2);
     }
 
-#if defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY)
+#if defined(DAGUE_HAVE_VA_COPY) || defined(DAGUE_HAVE_UNDERSCORE_VA_COPY)
     va_end(ap2);
-#endif  /* defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY) */
+#endif  /* defined(DAGUE_HAVE_VA_COPY) || defined(DAGUE_HAVE_UNDERSCORE_VA_COPY) */
     va_end(ap);
 
     /* Pretty printing */
@@ -1137,7 +1137,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("#include <dague.h>\n"
+    coutput("#include \"dague.h\"\n"
             "#include \"dague/debug.h\"\n"
             "#include \"dague/scheduling.h\"\n"
             "#include \"dague/mca/pins/pins.h\"\n"
@@ -2652,7 +2652,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
             string_arena_add_string(sa, "      .hook     = (dague_hook_t*)hook_of_%s },\n", base_name);
         } else {
-            string_arena_add_string(sa, "#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
+            string_arena_add_string(sa, "#if defined(DAGUE_HAVE_%s)\n", type_property->expr->jdf_var);
             string_arena_add_string(sa, "    { .type     = DAGUE_DEV_%s,\n", type_property->expr->jdf_var);
             if( NULL == dyld_property ) {
                 string_arena_add_string(sa, "      .dyld     = NULL,\n");
@@ -2661,7 +2661,7 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
             }
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
             string_arena_add_string(sa, "      .hook     = (dague_hook_t*)hook_of_%s_%s },\n", base_name, type_property->expr->jdf_var);
-            string_arena_add_string(sa, "#endif  /* defined(HAVE_%s) */\n", type_property->expr->jdf_var);
+            string_arena_add_string(sa, "#endif  /* defined(DAGUE_HAVE_%s) */\n", type_property->expr->jdf_var);
         }
         body = body->next;
     } while (NULL != body);
@@ -4295,7 +4295,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
         }
     }
     if( NULL != type_property)
-        coutput("#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
+        coutput("#if defined(DAGUE_HAVE_%s)\n", type_property->expr->jdf_var);
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
@@ -4375,7 +4375,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             "}\n");
 
     if( NULL != type_property)
-        coutput("#endif  /*  defined(HAVE_%s) */\n", type_property->expr->jdf_var);
+        coutput("#endif  /*  defined(DAGUE_HAVE_%s) */\n", type_property->expr->jdf_var);
 
     string_arena_free(sa);
     string_arena_free(sa2);
@@ -5348,7 +5348,7 @@ int jdf_optimize( jdf_t* jdf )
 
 /** Main Function */
 
-#if defined(HAVE_INDENT)
+#if defined(DAGUE_HAVE_INDENT)
 #include <sys/wait.h>
 #endif
 
@@ -5361,7 +5361,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     cfile = NULL;
     hfile = NULL;
 
-#if defined(HAVE_INDENT)
+#if defined(DAGUE_HAVE_INDENT)
     /* When we apply indent/awk to the output of jdf2c, we need to make 
      * sure that the resultant file is flushed onto the filesystem before 
      * the rest of the compilation chain can takeover. An original version
@@ -5394,7 +5394,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         char *command;
         close(cpipefd[1]);
         close(hpipefd[1]);
-#if !defined(HAVE_AWK)
+#if !defined(DAGUE_HAVE_AWK)
         asprintf(&command, "%s %s -o %s <&%d",
             DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c, cpipefd[0]);
         system(command);
@@ -5423,13 +5423,13 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
              output_h);
         system(command);
         free(command);
-#endif /* !defined(HAVE_AWK) */
+#endif /* !defined(DAGUE_HAVE_AWK) */
         exit(0);
     }
     cfile = fdopen(cpipefd[1], "w");
     close(hpipefd[0]);
     hfile = fdopen(hpipefd[1], "w");
-#else /* defined(HAVE_INDENT) */
+#else /* defined(DAGUE_HAVE_INDENT) */
     cfile = fopen(output_c, "w");
     if( cfile == NULL ) {
         fprintf(stderr, "unable to create %s: %s\n", output_c, strerror(errno));
@@ -5443,7 +5443,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         ret = -1;
         goto err;
     }
-#endif /* defined(HAVE_INDENT) */
+#endif /* defined(DAGUE_HAVE_INDENT) */
 
     cfile_lineno = 1;
     hfile_lineno = 1;
@@ -5500,7 +5500,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         fclose(hfile);
     }
 
-#if defined(HAVE_INDENT)
+#if defined(DAGUE_HAVE_INDENT)
     /* wait for the indent command to generate the output files for us */
     if( -1 != child ) {
         waitpid(child, NULL, 0);

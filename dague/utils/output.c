@@ -22,15 +22,15 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#ifdef HAVE_SYSLOG_H
+#ifdef DAGUE_HAVE_SYSLOG_H
 #include <syslog.h>
 #endif
 #include <string.h>
 #include <fcntl.h>
-#ifdef HAVE_UNISTD_H
+#ifdef DAGUE_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_SYS_PARAM_H
+#ifdef DAGUE_HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 
@@ -92,7 +92,7 @@ static int output(int output_id, const char *format, va_list arglist);
 
 
 #define DAGUE_OUTPUT_MAX_STREAMS 64
-#if defined(__WINDOWS__) || defined(HAVE_SYSLOG)
+#if defined(__WINDOWS__) || defined(DAGUE_HAVE_SYSLOG)
 #define USE_SYSLOG 1
 #else
 #define USE_SYSLOG 0
@@ -111,9 +111,9 @@ static output_desc_t info[DAGUE_OUTPUT_MAX_STREAMS];
 static char *temp_str = 0;
 static size_t temp_str_len = 0;
 static uint32_t mutex = 0;
-#if defined(HAVE_SYSLOG)
+#if defined(DAGUE_HAVE_SYSLOG)
 static bool syslog_opened = false;
-#endif  /* defined(HAVE_SYSLOG) */
+#endif  /* defined(DAGUE_HAVE_SYSLOG) */
 static char *redirect_syslog_ident = NULL;
 
 OBJ_CLASS_INSTANCE(dague_output_stream_t, dague_object_t, construct, NULL);
@@ -345,7 +345,7 @@ void dague_output_close(int output_id)
             }
         }
 
-#if defined(HAVE_SYSLOG)
+#if defined(DAGUE_HAVE_SYSLOG)
         if (i >= DAGUE_OUTPUT_MAX_STREAMS && syslog_opened) {
             closelog();
         }
@@ -595,7 +595,7 @@ static int do_open(int output_id, dague_output_stream_t * lds)
     info[i].ldi_verbose_level = lds->lds_verbose_level;
 
 #if USE_SYSLOG
-#if defined(HAVE_SYSLOG)
+#if defined(DAGUE_HAVE_SYSLOG)
     if (dague_output_redirected_to_syslog) {
         info[i].ldi_syslog = true;
         info[i].ldi_syslog_priority = dague_output_redirected_syslog_pri;
@@ -612,7 +612,7 @@ static int do_open(int output_id, dague_output_stream_t * lds)
         info[i].ldi_syslog = lds->lds_want_syslog;
         if (lds->lds_want_syslog) {
 
-#if defined(HAVE_SYSLOG)
+#if defined(DAGUE_HAVE_SYSLOG)
             if (NULL != lds->lds_syslog_ident) {
                 info[i].ldi_syslog_ident = strdup(lds->lds_syslog_ident);
                 openlog(lds->lds_syslog_ident, LOG_PID, LOG_USER);
@@ -631,7 +631,7 @@ static int do_open(int output_id, dague_output_stream_t * lds)
             info[i].ldi_syslog_priority = lds->lds_syslog_priority;
         }
 
-#if defined(HAVE_SYSLOG)
+#if defined(DAGUE_HAVE_SYSLOG)
     }
 #endif
 
@@ -891,7 +891,7 @@ static int output(int output_id, const char *format, va_list arglist)
         }
 
         /* Syslog output -- does not use the newline-appended string */
-#if defined(HAVE_SYSLOG)
+#if defined(DAGUE_HAVE_SYSLOG)
         if (ldi->ldi_syslog) {
             syslog(ldi->ldi_syslog_priority, "%s", str);
         }

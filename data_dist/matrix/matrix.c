@@ -15,7 +15,7 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 #endif
 

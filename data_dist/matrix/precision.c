@@ -6,7 +6,7 @@
 
 #include <precision.h>
 
-#ifndef HAVE_COMPLEX_H
+#ifndef DAGUE_HAVE_COMPLEX_H
 
 #include <math.h>
 

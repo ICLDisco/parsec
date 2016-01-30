@@ -7,9 +7,9 @@
 #ifndef _string_arena_h
 #define _string_arena_h
 
-#if defined(HAVE_STDARG_H)
+#if defined(DAGUE_HAVE_STDARG_H)
 #include <stdarg.h>
-#endif  /* defined(HAVE_STDARG_H) */
+#endif  /* defined(DAGUE_HAVE_STDARG_H) */
 
 typedef struct string_arena {
     char *ptr;

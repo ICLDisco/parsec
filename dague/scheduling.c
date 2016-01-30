@@ -21,17 +21,17 @@
 #include "dague/constants.h"
 
 #include <signal.h>
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif /* defined(HAVE_STRING_H) */
+#endif /* defined(DAGUE_HAVE_STRING_H) */
 #include <sched.h>
 #include <sys/types.h>
-#if defined(HAVE_ERRNO_H)
+#if defined(DAGUE_HAVE_ERRNO_H)
 #include <errno.h>
-#endif  /* defined(HAVE_ERRNO_H) */
-#if defined(HAVE_SCHED_SETAFFINITY)
+#endif  /* defined(DAGUE_HAVE_ERRNO_H) */
+#if defined(DAGUE_HAVE_SCHED_SETAFFINITY)
 #include <linux/unistd.h>
-#endif  /* defined(HAVE_SCHED_SETAFFINITY) */
+#endif  /* defined(DAGUE_HAVE_SCHED_SETAFFINITY) */
 #if defined(DAGUE_PROF_TRACE) && defined(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
 #define TAKE_TIME(EU_PROFILE, KEY, ID)  DAGUE_PROFILING_TRACE((EU_PROFILE), (KEY), (ID), NULL)
 #else
@@ -53,7 +53,7 @@ static uint32_t sched_priority_trace_counter;
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
 
-#if defined(HAVE_GETRUSAGE) && defined(HAVE_RUSAGE_THREAD)
+#if defined(DAGUE_HAVE_GETRUSAGE) && defined(DAGUE_HAVE_RUSAGE_THREAD)
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -98,7 +98,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
 }
 #else
 static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu) { (void)str; (void)eu; return; }
-#endif /* defined(HAVE_GETRUSAGE) */
+#endif /* defined(DAGUE_HAVE_GETRUSAGE) */
 #endif /* defined(DAGUE_PROF_RUSAGE_EU) */
 
 #if 0
@@ -286,9 +286,9 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
     return ret;
 }
 
-#ifdef  HAVE_SCHED_SETAFFINITY
+#ifdef  DAGUE_HAVE_SCHED_SETAFFINITY
 #define gettid() syscall(__NR_gettid)
-#endif /* HAVE_SCHED_SETAFFINITY */
+#endif /* DAGUE_HAVE_SCHED_SETAFFINITY */
 
 #define TIME_STEP 5410
 #define MIN(x, y) ( (x)<(y)?(x):(y) )

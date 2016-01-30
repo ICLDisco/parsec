@@ -114,7 +114,7 @@ int dplasma_zhetrf(dague_context_t *dague, tiled_matrix_desc_t *A)
     dplasma_ztrmdm_Destruct(dague_ztrmdm);
     */
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;

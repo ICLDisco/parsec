@@ -29,7 +29,7 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
     dague_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
     handle = dague_reduce_col_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     {
         int extent;
         MPI_Type_size(newtype, &extent);
@@ -70,7 +70,7 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
     dague_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
     handle = dague_reduce_row_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     {
         int extent;
         MPI_Type_size(newtype, &extent);

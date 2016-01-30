@@ -1,5 +1,4 @@
 extern "C" %{
-#include "dague.h"
 #include "dague/data_distribution.h"
 #include "dague/data_internal.h"
 #include "dague/utils/mca_param.h"
@@ -11,9 +10,9 @@ extern "C" %{
 
 #include "bandwidth.h"
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "tests/pingpong/pingpong_gpu.h"
-#endif  /* defined(HAVE_CUDA) */
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
 typedef struct {
     dague_ddesc_t  super;

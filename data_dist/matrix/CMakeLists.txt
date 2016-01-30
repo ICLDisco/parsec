@@ -41,7 +41,7 @@ set(sources
         ${generated_files}
         ${generated_jdf}
 )
-if( NOT HAVE_COMPLEX_H )
+if( NOT DAGUE_HAVE_COMPLEX_H )
   list(APPEND sources precision.c)
 endif()
 

@@ -13,9 +13,9 @@
 
 #include <math.h>
 #include <assert.h>
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 int default_vp_data_dist();
 

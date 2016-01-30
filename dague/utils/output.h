@@ -65,12 +65,12 @@
 
 #include "dague_config.h"
 
-#ifdef HAVE_STDARG_H
+#ifdef DAGUE_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
-#if defined(HAVE_STDBOOL_H)
+#if defined(DAGUE_HAVE_STDBOOL_H)
 #include <stdbool.h>
-#endif  /* defined(HAVE_STDBOOL_H) */
+#endif  /* defined(DAGUE_HAVE_STDBOOL_H) */
 
 #include <dague/class/dague_object.h>
 

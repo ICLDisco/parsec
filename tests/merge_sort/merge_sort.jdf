@@ -1,10 +1,9 @@
 extern "C" %{
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dague.h"
 #include "dague/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 #include "dague/data.h"
@@ -184,11 +183,11 @@ int global_to_local_index(int N, int idx){
     return 0;
 }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #define MY_TYPE MPI_INT
 #else
 #define MY_TYPE NULL
-#endif  /* defined(HAVE_MPI) */
+#endif  /* defined(DAGUE_HAVE_MPI) */
 %}
 
 dataA      [type = "struct tiled_matrix_desc_t *"]

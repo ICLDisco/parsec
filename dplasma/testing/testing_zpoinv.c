@@ -11,7 +11,7 @@
 #include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dplasma/cores/cuda_zgemm.h"
 #endif
 
@@ -26,7 +26,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 

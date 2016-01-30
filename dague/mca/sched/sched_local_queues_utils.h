@@ -34,7 +34,7 @@ static inline void push_in_queue_wrapper(void *store, dague_list_item_t *elt)
     dague_dequeue_chain_back( (dague_dequeue_t*)store, elt );
 }
 
-#ifdef HAVE_HWLOC
+#ifdef DAGUE_HAVE_HWLOC
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */

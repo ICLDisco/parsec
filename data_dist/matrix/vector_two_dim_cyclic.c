@@ -11,17 +11,17 @@
 #include "data_dist/matrix/vector_two_dim_cyclic.h"
 #include "dague/vpmap.h"
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 static uint32_t vector_twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t  vector_twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t* ddesc, ...);
 
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
 static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...);
-#endif /* defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA) */
+#endif /* defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA) */
 
 #if defined(DAGUE_PROF_TRACE)
 static int      vector_twoDBC_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
@@ -137,7 +137,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     o->vpid_of = vector_twoDBC_vpid_of;
     o->data_of = vector_twoDBC_data_of;
 
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
     o->data_key      = vector_twoDBC_data_key;
 #endif
 #if defined(DAGUE_PROF_TRACE)
@@ -277,7 +277,7 @@ static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
 /*
  * Common functions
  */
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
 /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...)
 {
@@ -296,7 +296,7 @@ static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...)
 
     return m;
 }
-#endif /* defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA) */
+#endif /* defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA) */
 
 #if defined(DAGUE_PROF_TRACE)
 /* return a string meaningful for profiling about data */

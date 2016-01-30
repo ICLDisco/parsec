@@ -11,7 +11,7 @@ BEGIN_C_DECLS
 
 int dague_bindthread(int cpu, int ht);
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
 #include <hwloc.h>
 int dague_bindthread_mask(hwloc_cpuset_t cpuset);
 #endif

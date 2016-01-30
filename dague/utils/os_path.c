@@ -19,12 +19,12 @@
 #include "dague_config.h"
 
 #include <string.h>
-#ifdef HAVE_UNISTD_H
+#ifdef DAGUE_HAVE_UNISTD_H
 #include <unistd.h>
-#endif  /* HAVE_UNISTD_H */
-#ifdef HAVE_SYS_PARAM_H
+#endif  /* DAGUE_HAVE_UNISTD_H */
+#ifdef DAGUE_HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif  /* HAVE_SYS_PARAM_H */
+#endif  /* DAGUE_HAVE_SYS_PARAM_H */
 #include <stdlib.h>
 #include <stdarg.h>
 

@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
     dague_context_t *dague;
     int i = 0, block = 10, n = 1000;
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
 
     free(descA.mat);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
     return 0;

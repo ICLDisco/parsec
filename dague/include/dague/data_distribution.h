@@ -11,19 +11,19 @@
 #include "dague_config.h"
 #include "dague/types.h"
 
-#if defined(HAVE_STDARG_H)
+#if defined(DAGUE_HAVE_STDARG_H)
 #include <stdarg.h>
-#endif  /* defined(HAVE_STDARG_H) */
-#if defined(HAVE_UNISTD_H)
+#endif  /* defined(DAGUE_HAVE_STDARG_H) */
+#if defined(DAGUE_HAVE_UNISTD_H)
 #include <unistd.h>
-#endif  /* defined(HAVE_UNISTD_H) */
+#endif  /* defined(DAGUE_HAVE_UNISTD_H) */
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include "mpi.h"
-#endif /*HAVE_MPI */
+#endif /*DAGUE_HAVE_MPI */
 
 struct dague_device_s;
 typedef int (*dague_memory_region_management_f)(dague_ddesc_t*, struct dague_device_s*);

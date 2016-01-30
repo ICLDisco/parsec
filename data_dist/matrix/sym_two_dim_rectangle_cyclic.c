@@ -10,17 +10,17 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef HAVE_STRING_H
+#ifdef DAGUE_HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #include <assert.h>
-#ifdef HAVE_ERRNO_H
+#ifdef DAGUE_HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_STDARG_H
+#ifdef DAGUE_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
 #include <stdint.h>

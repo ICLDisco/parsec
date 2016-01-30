@@ -18,14 +18,14 @@
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
-#if defined(HAVE_STDARG_H)
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#if defined(DAGUE_HAVE_STDARG_H)
 #include <stdarg.h>
-#endif  /* defined(HAVE_STDARG_H) */
+#endif  /* defined(DAGUE_HAVE_STDARG_H) */
 #include <stdio.h>
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 
@@ -179,7 +179,7 @@ int CORE_zgemdm(int transA, int transB,
  *          \retval <0 if -i, the i-th argument had an illegal value
  *
  ******************************************************************************/
-#if defined(PLASMA_HAVE_WEAK)
+#if defined(PLASMA_DAGUE_HAVE_WEAK)
 #pragma weak CORE_zgemdm = PCORE_zgemdm
 #define CORE_zgemdm PCORE_zgemdm
 #endif

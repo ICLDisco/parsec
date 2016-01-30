@@ -236,7 +236,7 @@ static int check_solution( dague_context_t *dague, int loud,
         }
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Bcast(&info_solution, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 

@@ -90,7 +90,7 @@ static int flow_ltq_init(dague_execution_unit_t * eu, struct dague_barrier_t* ba
     dague_barrier_wait(barrier);
 
     nq = 1;
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     hwloc_levels = dague_hwloc_nb_levels();
 #else
     hwloc_levels = -1;
@@ -104,7 +104,7 @@ static int flow_ltq_init(dague_execution_unit_t * eu, struct dague_barrier_t* ba
             sched_obj->hierarch_queues[nq] =
                 LOCAL_QUEUES_OBJECT(vp->execution_units[(eu->th_id + nq) % vp->nb_cores])->task_queue;
         }
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     }
     else {
         /* Then, they know about all other queues, from the closest to the farthest */

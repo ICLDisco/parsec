@@ -1,6 +1,6 @@
-#include <dague.h>
-#include <data_dist/matrix/matrix.h>
-#include <dague/arena.h>
+#include "dague.h"
+#include "data_dist/matrix/matrix.h"
+#include "dague/arena.h"
 
 #include "tree_dist.h"
 #include "project.h"
@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     char **pargv;
     int ret;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 
     dague_fini(&dague);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

@@ -10,14 +10,14 @@
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
-#if defined(HAVE_STDARG_H)
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#if defined(DAGUE_HAVE_STDARG_H)
 #include <stdarg.h>
-#endif  /* defined(HAVE_STDARG_H) */
+#endif  /* defined(DAGUE_HAVE_STDARG_H) */
 #include <stdio.h>
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #include <stdlib.h>

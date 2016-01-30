@@ -11,15 +11,15 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(HAVE_RECURSIVE)
+#if defined(DAGUE_HAVE_RECURSIVE)
 #include "data_dist/matrix/subtile.h"
 #include "dague/recursive.h"
 #endif
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dplasma/cores/cuda_zgemm.h"
-#endif  /* defined(HAVE_CUDA) */
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
 /*
  * Priorities used in this jdf:

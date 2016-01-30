@@ -5,7 +5,7 @@
  */
 
 #include "dague_config.h"
-#undef HAVE_MPI
+#undef DAGUE_HAVE_MPI
 
 #include <stdlib.h>
 #include <string.h>

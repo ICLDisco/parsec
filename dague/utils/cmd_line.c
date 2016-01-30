@@ -22,9 +22,9 @@
 #include "dague_config.h"
 
 #include <stdio.h>
-#ifdef HAVE_STRING_H
+#ifdef DAGUE_HAVE_STRING_H
 #include <string.h>
-#endif  /* HAVE_STRING_H */
+#endif  /* DAGUE_HAVE_STRING_H */
 #include <ctype.h>
 
 #include "dague/class/dague_object.h"

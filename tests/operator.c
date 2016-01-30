@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The University of Tennessee and The University
+ * Copyright (c) 2011-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -18,7 +18,7 @@ dague_operator_print_id( struct dague_execution_unit_s *eu,
     va_list ap;
     int k, n, rank = 0;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
@@ -41,7 +41,7 @@ int main( int argc, char* argv[] )
     int lm = 1000, ln = 1000;
     int rows = 1;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -71,7 +71,7 @@ int main( int argc, char* argv[] )
 
     dague_fini(&dague);
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Finalize();
 #endif
 

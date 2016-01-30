@@ -17,7 +17,7 @@ option(DPLASMA_WITH_RECURSIVE
   "Enable recursive kernels to be called when available" OFF)
 if(DPLASMA_WITH_RECURSIVE)
   # TODO: This will need to be added to the futur dplasma_config.h.in
-  add_definitions(-DHAVE_RECURSIVE)
+  add_definitions(-DDAGUE_HAVE_RECURSIVE)
 endif()
 
 if(NOT DPLASMA_PRECISIONS)

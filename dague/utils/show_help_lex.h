@@ -21,9 +21,9 @@
 #define DAGUE_SHOW_HELP_LEX_H
 
 #include "dague_config.h"
-#if defined(HAVE_STDBOOL_H)
+#if defined(DAGUE_HAVE_STDBOOL_H)
 #include <stdbool.h>
-#endif  /* defined(HAVE_STDBOOL_H) */
+#endif  /* defined(DAGUE_HAVE_STDBOOL_H) */
 
 #include <stdio.h>
 BEGIN_C_DECLS

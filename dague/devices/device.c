@@ -176,11 +176,11 @@ int dague_devices_fini(dague_context_t* dague_context)
     if(NULL != dague_device_dweight) free(dague_device_dweight);
     dague_device_dweight = NULL;
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
     rvalue = dague_gpu_fini();
 #else
     rvalue = 0;
-#endif  /* defined(HAVE_CUDA) */
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
     free(dague_devices);
     dague_devices = NULL;
@@ -237,11 +237,11 @@ int dague_devices_freezed(dague_context_t* context)
 int dague_devices_select(dague_context_t* context)
 {
     (void)context;
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
     return dague_gpu_init(context);
 #else
     return DAGUE_SUCCESS;
-#endif  /* defined(HAVE_CUDA) */
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 }
 
 int dague_devices_add(dague_context_t* context, dague_device_t* device)

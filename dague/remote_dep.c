@@ -118,7 +118,7 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
 
 #endif
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include "remote_dep_mpi.c"
 
 #else
@@ -482,7 +482,7 @@ static int remote_dep_bind_thread(dague_context_t* context)
 {
     do_nano = 1;
 
-#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+#if defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP)
     char *str = NULL;
     if( context->comm_th_core >= 0 ) {
         /* Bind to the specified core */
@@ -532,7 +532,7 @@ static int remote_dep_bind_thread(dague_context_t* context)
             }
         }
     }
-#else /* NO HAVE_HWLOC */
+#else /* NO DAGUE_HAVE_HWLOC */
     /* If we don't have hwloc, try to bind the thread on the core #nbcore as the
      * default strategy disributed the computation threads from core 0 to nbcore-1 */
     int p, nb_total_comp_threads = 0;
@@ -546,7 +546,7 @@ static int remote_dep_bind_thread(dague_context_t* context)
         do_nano = 0;
         dague_debug_verbose(4, dague_debug_output, "Communication thread bound to physical core %d", boundto);
     }
-#endif /* NO HAVE_HWLOC */
+#endif /* NO DAGUE_HAVE_HWLOC */
     return 0;
 }
 

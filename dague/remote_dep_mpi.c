@@ -5,9 +5,9 @@
  */
 
 /* /!\  THIS FILE IS NOT INTENDED TO BE COMPILED ON ITS OWN
- *      It should be included from remote_dep.c if HAVE_MPI is defined
+ *      It should be included from remote_dep.c if DAGUE_HAVE_MPI is defined
  */
-#include <dague_config.h>
+#include "dague_config.h"
 
 #include <mpi.h>
 #include "profiling.h"
@@ -937,7 +937,7 @@ static remote_dep_wire_get_t* dep_get_buff;
 /* Pointers are converted to long to be used as keys to fetch data in the get
  * rdv protocol. Make sure we can carry pointers correctly.
  */
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #if ULONG_MAX < UINTPTR_MAX
@@ -978,11 +978,11 @@ static int remote_dep_mpi_init(dague_context_t* context)
      * Based on MPI 1.1 the MPI_TAG_UB should only be defined
      * on MPI_COMM_WORLD.
      */
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
     MPI_Comm_get_attr(MPI_COMM_WORLD, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
 #else
     MPI_Attr_get(MPI_COMM_WORLD, MPI_TAG_UB, &ub, &mpi_tag_ub_exists);
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
     if( !mpi_tag_ub_exists ) {
         MAX_MPI_TAG = INT_MAX;
         dague_warning("Your MPI implementation does not define MPI_TAG_UB and thus violates the standard (MPI-2.2, page 29, line 30); Lets assume any integer value is a valid MPI Tag.\n");

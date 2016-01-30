@@ -33,9 +33,9 @@
 #endif
 
 #include <stdio.h>
-#if defined(HAVE_STDBOOL_H)
+#if defined(DAGUE_HAVE_STDBOOL_H)
 #include <stdbool.h>
-#endif  /* defined(HAVE_STDBOOL_H) */
+#endif  /* defined(DAGUE_HAVE_STDBOOL_H) */
 
 int dague_util_keyval_yylex(void);
 int dague_util_keyval_init_buffer(FILE *file);

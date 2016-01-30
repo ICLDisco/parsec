@@ -13,15 +13,15 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(HAVE_RECURSIVE)
+#if defined(DAGUE_HAVE_RECURSIVE)
 #include "data_dist/matrix/subtile.h"
 #include "dague/recursive.h"
 #endif
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dague/devices/cuda/dev_cuda.h"
 #include "dplasma/cores/cuda_ztsmqr.h"
-#endif  /* defined(HAVE_CUDA) */
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
 %}
 
@@ -416,7 +416,7 @@ BODY [type=CUDA dyld=dplasma_cuda_ztsmqr]
         pushout_A2 = 1;
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     pushout_A1 = 1;
 #endif
 

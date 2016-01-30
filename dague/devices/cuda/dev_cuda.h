@@ -12,7 +12,7 @@
 #include "dague/class/dague_object.h"
 #include "dague/devices/device.h"
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dague/class/list_item.h"
 #include "dague/class/list.h"
 
@@ -167,6 +167,6 @@ int progress_stream( gpu_device_t* gpu_device,
 
 END_C_DECLS
 
-#endif /* defined(HAVE_CUDA) */
+#endif /* defined(DAGUE_HAVE_CUDA) */
 
 #endif
