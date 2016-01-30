@@ -4,9 +4,6 @@ extern "C" %{
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dague_config.h"
-#include "dague/debug.h"
-#include "dague/dague_internal.h"
 #include "tests/vector.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 %}

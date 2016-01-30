@@ -1089,7 +1089,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
         datatype_index++;
     }
     houtput("#define DAGUE_%s_ARENA_INDEX_MIN %d\n", jdf_basename, datatype_index);
-    houtput("\ntypedef struct dague_%s_handle {\n", jdf_basename);
+    houtput("\ntypedef struct dague_%s_handle_s {\n", jdf_basename);
     houtput("  dague_handle_t super;\n");
     {
         typed_globals_info_t prop = { sa2, NULL, NULL };
@@ -1124,19 +1124,49 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             jdf_basename);
 }
 
-static void jdf_generate_structure(const jdf_t *jdf)
+/**
+ * Dump the definitions of all functions and flows. This function must be
+ * called early or the name of the functions and flows will not be defined.
+ */
+static void jdf_generate_predeclarations( const jdf_t *jdf )
 {
-    int nbfunctions, nbdata, need_profile = 0;
-    string_arena_t *sa1, *sa2;
-    jdf_function_entry_t* f;
-    jdf_name_list_t *pl;
+    jdf_function_entry_t *f;
+    jdf_dataflow_t *fl;
+    string_arena_t *sa = string_arena_new(64);
+    string_arena_t *sa2 = string_arena_new(64);
+    int rc;
 
+    coutput("/** Predeclarations of the dague_function_t */\n");
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        rc = asprintf(&JDF_OBJECT_ONAME( f ), "%s_%s", jdf_basename, f->fname);
+        assert(rc != -1);
+        coutput("static const dague_function_t %s;\n", JDF_OBJECT_ONAME( f ));
+    }
+    string_arena_free(sa);
+    string_arena_free(sa2);
+    coutput("/** Predeclarations of the parameters */\n");
+    for(f = jdf->functions; f != NULL; f = f->next) {
+        for(fl = f->dataflow; fl != NULL; fl = fl->next) {
+            rc = asprintf(&JDF_OBJECT_ONAME( fl ), "flow_of_%s_%s_for_%s", jdf_basename, f->fname, fl->varname);
+            assert(rc != -1);
+            coutput("static const dague_flow_t %s;\n",
+                    JDF_OBJECT_ONAME( fl ));
+        }
+    }
+    (void)rc;
+}
+
+/**
+ * Dump a minimalistic code including all the includes and all the defines that
+ * can be used in the prologue. Keep this small so that we don't generate code
+ * for structures that are not yet defind, such as those where the corresponding
+ * header will only be included in the prologue.
+ */
+static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
+{
+    int nbfunctions, nbdata;
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
-
-    sa1 = string_arena_new(64);
-    sa2 = string_arena_new(64);
-
     coutput("#include \"dague.h\"\n"
             "#include \"dague/debug.h\"\n"
             "#include \"dague/scheduling.h\"\n"
@@ -1146,21 +1176,40 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#include \"dague/data.h\"\n"
             "#include \"dague/mempool.h\"\n"
             "#include \"dague/utils/output.h\"\n"
-            "#include \"%s.h\"\n\n"
-            "#define DAGUE_%s_NB_FUNCTIONS %d\n"
-            "#define DAGUE_%s_NB_DATA %d\n"
             "#if defined(DAGUE_PROF_GRAPHER)\n"
             "#include \"dague/dague_prof_grapher.h\"\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
-            "#include <alloca.h>\n",
-            jdf_basename,
+            "#include <alloca.h>\n\n"
+            "#define DAGUE_%s_NB_FUNCTIONS %d\n"
+            "#define DAGUE_%s_NB_DATA %d\n\n"
+            "typedef struct __dague_%s_internal_handle_s __dague_%s_internal_handle_t;\n"
+            "struct dague_%s_internal_handle_s;\n\n"
+            "",
             jdf_basename, nbfunctions,
-            jdf_basename, nbdata);
-    coutput("typedef struct __dague_%s_internal_handle {\n"
+            jdf_basename, nbdata,
+            jdf_basename, jdf_basename,
+            jdf_basename);
+    jdf_generate_predeclarations(jdf);
+}
+
+static void jdf_generate_structure(const jdf_t *jdf)
+{
+    int nbfunctions, need_profile = 0;
+    string_arena_t *sa1, *sa2;
+    jdf_function_entry_t* f;
+    jdf_name_list_t *pl;
+
+    JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
+
+    sa1 = string_arena_new(64);
+    sa2 = string_arena_new(64);
+
+    coutput("#include \"%s.h\"\n\n"
+            "struct __dague_%s_internal_handle_s {\n"
             " dague_%s_handle_t super;\n"
             " volatile uint32_t sync_point;\n"
             " dague_execution_context_t* startup_queue;\n",
-            jdf_basename, jdf_basename);
+            jdf_basename, jdf_basename, jdf_basename);
 
     coutput("  /* The ranges to compute the hash key */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
@@ -1182,8 +1231,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
         coutput("  data_repo_t* repositories[%d];\n", nbfunctions );
     }
 
-    coutput("} __dague_%s_internal_handle_t;\n"
-            "\n", jdf_basename);
+    coutput("};\n\n");
 
     for( f = jdf->functions; NULL != f; f = f->next ) {
         /* If the profile property is ON then enable the profiling array */
@@ -2955,36 +3003,15 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     string_arena_free(sa);
 }
 
-static void jdf_generate_predeclarations( const jdf_t *jdf )
+static void jdf_generate_priority_prototypes( const jdf_t *jdf )
 {
     jdf_function_entry_t *f;
-    jdf_dataflow_t *fl;
-    string_arena_t *sa = string_arena_new(64);
-    string_arena_t *sa2 = string_arena_new(64);
-    int rc;
 
-    coutput("/** Predeclarations of the dague_function_t */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-        rc = asprintf(&JDF_OBJECT_ONAME( f ), "%s_%s", jdf_basename, f->fname);
-        assert(rc != -1);
-        coutput("static const dague_function_t %s;\n", JDF_OBJECT_ONAME( f ));
-        if( NULL != f->priority ) {
-            coutput("static inline int priority_of_%s_as_expr_fct(const __dague_%s_internal_handle_t *__dague_handle, const %s *assignments);\n",
-                    JDF_OBJECT_ONAME( f ), jdf_basename, dague_get_name(jdf, f, "assignment_t"));
-        }
+        if( NULL == f->priority ) continue;
+        coutput("static inline int priority_of_%s_as_expr_fct(const __dague_%s_internal_handle_t *__dague_handle, const %s *assignments);\n",
+                JDF_OBJECT_ONAME( f ), jdf_basename, dague_get_name(jdf, f, "assignment_t"));
     }
-    string_arena_free(sa);
-    string_arena_free(sa2);
-    coutput("/** Predeclarations of the parameters */\n");
-    for(f = jdf->functions; f != NULL; f = f->next) {
-        for(fl = f->dataflow; fl != NULL; fl = fl->next) {
-            rc = asprintf(&JDF_OBJECT_ONAME( fl ), "flow_of_%s_%s_for_%s", jdf_basename, f->fname, fl->varname);
-            assert(rc != -1);
-            coutput("static const dague_flow_t %s;\n",
-                    JDF_OBJECT_ONAME( fl ));
-        }
-    }
-    (void)rc;
 }
 
 static void jdf_generate_startup_hook( const jdf_t *jdf )
@@ -5458,6 +5485,8 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      */
     jdf_check_user_defined_internals(jdf);
 
+    jdf_minimal_code_before_prologue(jdf);
+
     /**
      * Dump the prologue section
      */
@@ -5470,9 +5499,9 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     jdf_generate_structure(jdf);
     jdf_generate_inline_c_functions(jdf);
     jdf_generate_hashfunctions(jdf);
-    jdf_generate_predeclarations( jdf );
+    jdf_generate_priority_prototypes(jdf);
     jdf_generate_functions_statics(jdf); // PETER generates startup tasks
-    jdf_generate_startup_hook( jdf );
+    jdf_generate_startup_hook(jdf);
 
     /**
      * Generate the externally visible function.

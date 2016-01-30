@@ -2,7 +2,6 @@
 #define _DPLASMAJDF_H_
 
 #include <core_blas.h>
-#include "dague.h"
 #include "dplasma.h"
 #include "dague/private_mempool.h"
 
