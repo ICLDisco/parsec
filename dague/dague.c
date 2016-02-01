@@ -1656,7 +1656,7 @@ void dague_handle_free(dague_handle_t *handle)
  *
  * The local_task allows for concurrent management of the startup_queue, and provide a way
  * to prevent a task from being added to the scheduler. The nb_tasks equal to zero prevents
- * the handle from being registered with the communications engine, as no remote depedencies
+ * the handle from being registered with the communications engine, as no remote dependencies
  * can exists (because there are no local tasks).
  */
 int dague_handle_enable(dague_handle_t* handle,
@@ -1689,22 +1689,23 @@ int dague_handle_enable(dague_handle_t* handle,
     return DAGUE_HOOK_RETURN_DONE;
 }
 
-/**< Update the task count of the object by nb_tasks. This update refers only to
- *   tasks and ignore all other runtime related activities.
+/**< Add nb_tasks to the task count of the handle. This update accounts only
+ *   for upper-level tasks, and ignore all other runtime related activities.
  */
 int dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks )
 {
     int remaining;
 
     assert( 0 != nb_tasks );
-    assert( 0 != handle->nb_tasks );
     remaining = dague_atomic_add_32b((int32_t*)&handle->nb_tasks, nb_tasks);
+    assert( 0 <= remaining );
     return (0 != remaining) ? 0 : dague_handle_update_runtime_nbtask(handle, -1);
 }
 
-/**< Update the  counter of runtime associated activities. When this counter reaches
- *   zero the handle is considered as completed, and all resources will be marked for
- * release.
+/**< Increases the number of runtime associated activities (decreases if
+ *   nb_tasks is negative). When this counter reaches zero the handle is
+ *   considered as completed, and all resources will be marked for
+ *   release.
  */
 int dague_handle_update_runtime_nbtask(dague_handle_t *handle, int32_t nb_tasks)
 {
@@ -1712,6 +1713,7 @@ int dague_handle_update_runtime_nbtask(dague_handle_t *handle, int32_t nb_tasks)
 
     assert( handle->nb_pending_actions != 0 );
     remaining = dague_atomic_add_32b((int32_t*)&(handle->nb_pending_actions), nb_tasks );
+    assert( 0<= remaining );
     return dague_check_complete_cb(handle, handle->context, remaining);
 }
 

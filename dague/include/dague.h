@@ -181,9 +181,10 @@ int dague_handle_enable(dague_handle_t* handle,
                         int nb_tasks);
 
 /**
- * Update the number of remaining tasks associated with the handle. If the task
- * counter reaches zero, it is assumed that no more tasks will be generated and
- * the runtime activity counter associated with the handle is decremented by one.
+ * Atomically add nb_tasks to the number of remaining tasks associated with the handle
+ * (if nb_tasks is positive it adds, otherwise it substract). If the tasks counter
+ * reaches zero, it is assumed that no additional tasks will be generated and the
+ * runtime activity counter associated with the handle is decremented by one.
  *
  * @return 0 if the handle has not been completed.
  * @return 1 if the handle has been completed and it has been marked for release.
