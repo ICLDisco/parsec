@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -418,8 +418,7 @@ static int remote_dep_dequeue_send(int rank,
     return 1;
 }
 
-void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
-                             dague_handle_t* dague_handle,
+void dague_remote_dep_memcpy(dague_handle_t* dague_handle,
                              dague_data_copy_t *dst,
                              dague_data_copy_t *src,
                              dague_dep_data_description_t* data)
@@ -438,7 +437,7 @@ void dague_remote_dep_memcpy(dague_execution_unit_t* eu_context,
     item->cmd.memcpy.count        = data->count;
 
     OBJ_RETAIN(src);
-    remote_dep_inc_flying_messages(dague_handle, eu_context->virtual_process->dague_context);
+    remote_dep_inc_flying_messages(dague_handle);
 
     dague_dequeue_push_back(&dep_cmd_queue, (dague_list_item_t*) item);
 }
@@ -605,8 +604,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
 #ifdef DAGUE_DIST_COLLECTIVES
     /* Corresponding comment below on the propagation part */
     if(0 == origin->incoming_mask) {
-        remote_dep_inc_flying_messages(task.dague_handle,
-                                       eu_context->virtual_process->dague_context);
+        remote_dep_inc_flying_messages(task.dague_handle);
         dague_atomic_add_32b(&origin->pending_ack, 1);
     }
 #endif  /* DAGUE_DIST_COLLECTIVES */
@@ -653,7 +651,7 @@ remote_dep_release_incoming(dague_execution_unit_t* eu_context,
             DAGUE_DATA_COPY_RELEASE(origin->output[i].data.data);
     }
 #if defined(DAGUE_DIST_COLLECTIVES)
-    remote_dep_complete_and_cleanup(&origin, 1, eu_context->virtual_process->dague_context);
+    remote_dep_complete_and_cleanup(&origin, 1);
 #else
     remote_deps_free(origin);
 #endif  /* DAGUE_DIST_COLLECTIVES */
@@ -808,8 +806,8 @@ static int remote_dep_nothread_memcpy(dague_execution_unit_t* eu_context,
                           cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           MPI_COMM_SELF, MPI_STATUS_IGNORE);
     DAGUE_DATA_COPY_RELEASE(cmd->memcpy.source);
-    remote_dep_dec_flying_messages(item->cmd.memcpy.dague_handle,
-                                   eu_context->virtual_process->dague_context);
+    remote_dep_dec_flying_messages(item->cmd.memcpy.dague_handle);
+    (void)eu_context;
     return (MPI_SUCCESS == rc ? 0 : -1);
 }
 
@@ -1251,7 +1249,7 @@ static int remote_dep_nothread_send(dague_execution_unit_t* eu_context,
 #endif   /* RDEP_MSG_SHORT_LIMIT != 0 */
             free(item);  /* only large messages are left */
 
-        remote_dep_complete_and_cleanup(&deps, 1, eu_context->virtual_process->dague_context);
+        remote_dep_complete_and_cleanup(&deps, 1);
     } while( NULL != ring );
     return 0;
 }
@@ -1480,8 +1478,9 @@ remote_dep_mpi_put_end_cb(dague_execution_unit_t* eu_context,
             deps->output[cb->storage2].data.data)); (void)status;
     DEBUG_MARK_DTA_MSG_END_SEND(status->MPI_TAG);
     TAKE_TIME(MPIsnd_prof, MPI_Data_plds_ek, cb->storage2);
-    remote_dep_complete_and_cleanup(&deps, 1, eu_context->virtual_process->dague_context);
+    remote_dep_complete_and_cleanup(&deps, 1);
     dague_comm_puts--;
+    (void)eu_context;
     return 0;
 }
 

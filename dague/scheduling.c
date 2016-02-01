@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -192,15 +192,6 @@ int dague_check_complete_cb(dague_handle_t *dague_handle, dague_context_t *conte
     return 0;
 }
 
-int __dague_complete_task(dague_handle_t *dague_handle, dague_context_t* context)
-{
-    int remaining;
-
-    assert( dague_handle->nb_local_tasks != 0 );
-    remaining = dague_atomic_dec_32b( &(dague_handle->nb_local_tasks) );
-    return dague_check_complete_cb(dague_handle, context, remaining);
-}
-
 dague_sched_module_t *current_scheduler                  = NULL;
 static dague_sched_base_component_t *scheduler_component = NULL;
 
@@ -321,7 +312,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     if( NULL != exec_context->function->complete_execution )
         rc = exec_context->function->complete_execution( eu_context, exec_context );
     /* Update the number of remaining tasks */
-    __dague_complete_task(exec_context->dague_handle, eu_context->virtual_process->dague_context);
+    (void)dague_handle_update_nbtask(exec_context->dague_handle, -1);
     PINS(eu_context, COMPLETE_EXEC_END, exec_context);
     AYU_TASK_COMPLETE(exec_context);
 
@@ -561,7 +552,7 @@ static int dague_composed_cb( dague_handle_t* o, void* cbdata )
     dague_compound_state_t* compound_state = (dague_compound_state_t*)compound->functions_array;
     int completed_objects = compound_state->completed_objects++;
     assert( o == compound_state->objects_array[completed_objects] ); (void)o;
-    if( compound->nb_local_tasks-- ) {
+    if( compound->nb_pending_actions-- ) {
         assert( NULL != compound_state->objects_array[completed_objects+1] );
         dague_enqueue(compound_state->ctx,
                       compound_state->objects_array[completed_objects+1]);
@@ -581,7 +572,7 @@ static void dague_compound_startup( dague_context_t *context,
     assert( NULL != first );
     first->startup_hook(context, first, startup_list);
     compound_state->ctx = context;
-    compound_object->nb_local_tasks = compound_state->nb_objects;
+    compound_object->nb_pending_actions = compound_state->nb_objects;
     for( i = 0; i < compound_state->nb_objects; i++ ) {
         dague_handle_t* o = compound_state->objects_array[i];
         assert( NULL != o );
@@ -596,19 +587,18 @@ dague_handle_t* dague_compose( dague_handle_t* start,
     dague_handle_t* compound = NULL;
     dague_compound_state_t* compound_state = NULL;
 
-    if( start->nb_functions == 0 ) {
+    if( start->nb_functions == 0 ) {  /* start is already a compound object */
         compound = start;
         compound_state = (dague_compound_state_t*)compound->functions_array;
         compound_state->objects_array[compound_state->nb_objects++] = next;
         /* make room for NULL terminating, if necessary */
-        if( 0 == (compound_state->nb_objects%16) ) {
+        if( 0 == (compound_state->nb_objects % 16) ) {
             compound_state = realloc(compound_state, sizeof(dague_compound_state_t) +
-                            (1 + compound_state->nb_objects/16) * 16 * sizeof(void*));
+                            (1 + compound_state->nb_objects / 16) * 16 * sizeof(void*));
             compound->functions_array = (void*)compound_state;
         }
         compound_state->objects_array[compound_state->nb_objects] = NULL;
-    }
-    else {
+    } else {
         compound = calloc(1, sizeof(dague_handle_t));
         compound->functions_array = malloc(sizeof(dague_compound_state_t) + 16 * sizeof(void*));
         compound_state = (dague_compound_state_t*)compound->functions_array;
@@ -673,7 +663,7 @@ int dague_enqueue( dague_context_t* context, dague_handle_t* handle )
         }
         free(startup_list);
     } else {
-        dague_check_complete_cb(handle, context, handle->nb_local_tasks);
+        dague_check_complete_cb(handle, context, handle->nb_pending_actions);
     }
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;
