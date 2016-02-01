@@ -276,7 +276,7 @@ dague_device_t* dague_devices_get(uint32_t device_index)
     return dague_devices[device_index];
 }
 
-int dague_device_remove(dague_device_t* device)
+int dague_devices_remove(dague_device_t* device)
 {
     int rc = DAGUE_SUCCESS;
 
@@ -296,3 +296,5 @@ int dague_device_remove(dague_device_t* device)
     dague_atomic_unlock(&dague_devices_mutex);  /* CRITICAL SECTION: BEGIN */
     return rc;
 }
+
+

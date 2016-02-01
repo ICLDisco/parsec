@@ -116,7 +116,7 @@ DAGUE_DECLSPEC dague_device_t* dague_devices_get(uint32_t);
  * originator of the data), and all tasks owned by the device will be discarded
  * and moved back into the main scheduling mechanism.
  */
-DAGUE_DECLSPEC int dague_device_remove(dague_device_t* device);
+DAGUE_DECLSPEC int dague_devices_remove(dague_device_t* device);
 /**
  * Returns the number of devices currently registered with the runtime. This
  * number can change until dague_devices_freeze() is called, fact that mark the

@@ -595,7 +595,7 @@ int dague_gpu_fini(void)
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
         if(DAGUE_DEV_CUDA != gpu_device->super.type) continue;
         dague_cuda_device_fini((dague_device_t*)gpu_device);
-        dague_device_remove((dague_device_t*)gpu_device);
+        dague_devices_remove((dague_device_t*)gpu_device);
     }
 
     if( dague_debug_output != dague_cuda_output_stream ) dague_output_close(dague_cuda_output_stream);
