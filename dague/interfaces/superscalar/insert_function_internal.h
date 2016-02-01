@@ -35,7 +35,7 @@ extern int my_rank;
 
 #define OVERLAP    1 /* enables window */
 #define LOCAL_DATA 200 /* function_id is uint8_t */
-/* #define DEBUG_HEAVY 1 */
+#define DEBUG_HEAVY 1
 
 /* Structure used to pack arguments of insert_task() */
 struct dague_dtd_task_param_s {
@@ -45,16 +45,21 @@ struct dague_dtd_task_param_s {
     dague_dtd_task_param_t    *next;
 };
 
-/* All the fields store info about the descendant except
- * op_type_parent(operation type ex. INPUT, INOUT or OUTPUT).
+/* Contains info about each flow of a task
+ * We assume each task will have at most MAX_FLOW
+ * number of flows
+ */
+typedef struct dague_dtd_flow_info_s {
+    int               op_type;  /* Operation type on the data */
+    dague_dtd_tile_t *tile;
+}dague_dtd_flow_info_t;
+
+/* All the fields store info about the descendant
  */
 typedef struct descendant_info_s {
-    /* Info about the current_task and not about descendant */
-    int                 op_type_parent;
-    int                 op_type;
-    uint8_t             flow_index;
-    dague_dtd_task_t   *task;
-    dague_dtd_tile_t   *tile;
+    int               op_type;
+    uint8_t           flow_index;
+    dague_dtd_task_t *task;
 }descendant_info_t;
 
 struct dague_dtd_task_s {
@@ -62,14 +67,14 @@ struct dague_dtd_task_s {
     dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
     int                         flow_count;
-    uint8_t                     belongs_to_function;
     /* Saves flow index for which we have to release data of a TASK
        with INPUT and ATOMIC_WRITE operation
      */
-    uint8_t                     dont_skip_releasing_data[MAX_DESC];
+    uint8_t                     dont_skip_releasing_data[MAX_FLOW];
     /* for testing PTG inserting task in DTD */
     dague_execution_context_t  *orig_task;
-    descendant_info_t           desc[MAX_DESC];
+    descendant_info_t           desc[MAX_FLOW];
+    dague_dtd_flow_info_t       flow[MAX_FLOW];
     dague_dtd_task_param_t     *param_list;
 };
 /* For creating objects of class dague_dtd_task_t */
@@ -219,6 +224,10 @@ add_profiling_info(dague_dtd_handle_t *__dague_handle,
 void
 dague_dtd_task_release( dague_dtd_handle_t  *dague_handle,
                         uint32_t             key );
+
+void
+dague_dtd_task_insert( dague_dtd_handle_t   *dague_handle,
+                       dague_dtd_task_t     *value );
 
 void
 dague_execute_and_come_back(dague_context_t *context,

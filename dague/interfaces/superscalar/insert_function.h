@@ -66,7 +66,7 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
 #define UNPACK_VALUE            1
 #define UNPACK_DATA             2
 #define UNPACK_SCRATCH          3
-#define MAX_DESC                25
+#define MAX_FLOW                25
 
 /* The parameters to pass to get pointer to data
  * 1. dague_dtd_handle_t*
