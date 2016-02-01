@@ -210,7 +210,7 @@ int main(int argc, char **argv)
     for(k=0;k<total;k++){
         tempkm = (k == (ddescA.super.mt - 1)) ? ddescA.super.m - k * ddescA.super.mb : ddescA.super.mb;
         ldak = BLKLDD(ddescA.super, k);
-        insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_PO, "Potrf",
+        insert_task_generic_fptr(DAGUE_dtd_handle, &call_to_kernel_PO, "Potrf",
                                  sizeof(int),      &uplo,              VALUE,
                                  sizeof(int),      &tempkm,            VALUE,
                                  PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, k, k), INOUT | REGION_FULL,
