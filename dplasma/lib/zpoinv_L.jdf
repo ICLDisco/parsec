@@ -45,7 +45,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int info = 0;
 
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_potrf_zpotrf(%d)\n"
              "\t(PlasmaLower, tempkm, A(%d,%d)[%p], ldak, descA.nb*k)\n",
@@ -81,7 +80,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_potrf_ztrsm(%d, %d)\n"
              "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, descA.mb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
@@ -117,7 +115,6 @@ BODY
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_potrf_zherk(%d, %d)\n"
              "\t(PlasmaLower, PlasmaNoTrans, tempmm, descA.mb, -1., A(%d,%d)[%p], ldam, 1., A(%d,%d)[%p], ldam)\n",
@@ -219,7 +216,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_trtri_ztrsmR(%d, %d)\n"
              "\t(PlasmaRight, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, tempmm, tempkn, -1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
@@ -323,7 +319,6 @@ BODY
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_trtri_ztrsmL(%d, %d)\n"
              "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, tempkn, descA.nb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
@@ -360,7 +355,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int info = 0;
 
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_trtri_ztrtri(%d)\n"
              "\t(PlasmaLower, PlasmaNonUnit, tempkn, A(%d,%d)[%p], ldak, descA.nb*k)\n",
@@ -396,7 +390,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldan = BLKLDD( descA, n );
 
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_zherk(%d, %d)\n"
              "\t(PlasmaLower, PlasmaConjTrans, descA.mb, tempkm, 1., A(%d,%d)[%p], ldak, 1., A(%d,%d)[%p], ldan)\n",
@@ -495,7 +488,6 @@ BODY
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_ztrmm(%d, %d)\n"
              "\t(PlasmaLeft, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempkm, descA.nb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
@@ -529,7 +521,6 @@ BODY
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_zlauum(%d)\n"
              "\t(PlasmaLower, tempkm, A(%d,%d)[%p], ldak)\n",

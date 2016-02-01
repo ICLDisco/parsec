@@ -3654,8 +3654,10 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    chunk = dague_arena_get_copy(%s, %s, target_device);\n",
-            spaces, arena, count);
+    coutput("%s    chunk = dague_arena_get_copy(%s, %s, target_device);\n"
+            "%s    chunk->original->owner_device = target_device;\n",
+            spaces, arena, count,
+            spaces);
     return;
 }
 
@@ -4563,6 +4565,22 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             "  }\n"
             "#endif\n");
 
+    if ((NULL == type_property) ||
+        (!strcmp(type_property->expr->jdf_var, "RECURSIVE"))) {
+        coutput("  /** Transfer the ownership to the CPU */\n"
+                "#if defined(HAVE_CUDA)\n");
+
+        for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+            /* Update the ownership of read/write data */
+            if ((fl->flow_flags & JDF_FLOW_TYPE_READ) &&
+                (fl->flow_flags & JDF_FLOW_TYPE_READ) ) {
+               coutput("    dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
+                        "                                           FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);\n",
+                        fl->varname);
+            }
+        }
+        coutput("#endif\n");
+    }
     jdf_generate_code_cache_awareness_update(jdf, f);
 
     jdf_generate_code_dry_run_before(jdf, f);

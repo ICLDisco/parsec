@@ -146,7 +146,6 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descC;
         dague_handle_t* dague_ztrsm;
 
-        dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
         small_descT = subtile_desc_create( &(descA), k, k,
                                            smallnb, smallnb, 0, 0, descA.mb, descA.mb );
@@ -179,7 +178,6 @@ BODY
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
