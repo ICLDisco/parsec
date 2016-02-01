@@ -18,11 +18,10 @@ extern "C" %{
 #include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
 
-typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
-                                 double alpha, double *d_A, int lda,
-                                 double *d_B, int ldb,
-                                 double beta,  double *d_C, int ldc
-                                 );
+typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda,
+                                 cuDoubleComplex *d_B, int ldb,
+                                 cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc );
 
 %}
 
@@ -113,10 +112,10 @@ BODY [type=CUDA dyld=cublasZgemm dyldtype="cublas_dgemm_t"]
     cublasStatus_t status;
     cublasSetKernelStream( gpu_stream->cuda_stream );
     dyld_fn( lapack_const(transA), lapack_const(transB),
-                 tempmm, tempnn, tempkk,
-                 alpha, (cuDoubleComplex*)A, ldam,
-                        (cuDoubleComplex*)B, ldbk,
-                 lbeta, (cuDoubleComplex*)C, ldcm );
+             tempmm, tempnn, tempkk,
+             alpha, (cuDoubleComplex*)A, ldam,
+                    (cuDoubleComplex*)B, ldbk,
+             lbeta, (cuDoubleComplex*)C, ldcm );
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );
