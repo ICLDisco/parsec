@@ -124,7 +124,7 @@
 
 BEGIN_C_DECLS
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
 /* Any kind of unique ID should do the job */
 #define DAGUE_OBJ_MAGIC_ID ((0xdeafbeedULL << 32) + 0xdeafbeedULL)
 #endif
@@ -164,11 +164,11 @@ struct dague_class_t {
  *
  * @param NAME   Name of the class to initialize
  */
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
 #define DAGUE_OBJ_STATIC_INIT(BASE_CLASS) { DAGUE_OBJ_MAGIC_ID, OBJ_CLASS(BASE_CLASS), 1, __FILE__, __LINE__ }
 #else
 #define DAGUE_OBJ_STATIC_INIT(BASE_CLASS) { OBJ_CLASS(BASE_CLASS), 1 }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
 
 /**
  * Base object.
@@ -176,17 +176,17 @@ struct dague_class_t {
  * This is special and does not follow the pattern for other classes.
  */
 struct dague_object_t {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     /** Magic ID -- want this to be the very first item in the
         struct's memory */
     uint64_t obj_magic_id;
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
     dague_class_t *obj_class;            /**< class descriptor */
     volatile int32_t obj_reference_count;   /**< reference count */
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     const char* cls_init_file_name;        /**< In debug mode store the file where the object get contructed */
     int   cls_init_lineno;           /**< In debug mode store the line number where the object get contructed */
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
 };
 
 /* macros ************************************************************/
@@ -241,7 +241,7 @@ struct dague_object_t {
  * @return              Pointer to the object
  */
 static inline dague_object_t *dague_obj_new(dague_class_t * cls);
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
 static inline dague_object_t *dague_obj_new_debug(dague_class_t* type, const char* file, int line)
 {
     dague_object_t* object = dague_obj_new(type);
@@ -255,14 +255,14 @@ static inline dague_object_t *dague_obj_new_debug(dague_class_t* type, const cha
 #else
 #define OBJ_NEW(type)                                   \
     ((type *) dague_obj_new(OBJ_CLASS(type)))
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
 
 /**
  * Retain an object (by incrementing its reference count)
  *
  * @param object        Pointer to the object
  */
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
 #define OBJ_RETAIN(object)                                              \
     do {                                                                \
         assert(NULL != ((dague_object_t *) (object))->obj_class);        \
@@ -278,7 +278,7 @@ static inline dague_object_t *dague_obj_new_debug(dague_class_t* type, const cha
  * Helper macro for the debug mode to store the locations where the status of
  * an object change.
  */
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
 #define OBJ_REMEMBER_FILE_AND_LINENO( OBJECT, FILE, LINENO )    \
     do {                                                        \
         ((dague_object_t*)(OBJECT))->cls_init_file_name = FILE;  \
@@ -291,7 +291,7 @@ static inline dague_object_t *dague_obj_new_debug(dague_class_t* type, const cha
 #else
 #define OBJ_REMEMBER_FILE_AND_LINENO( OBJECT, FILE, LINENO )
 #define OBJ_SET_MAGIC_ID( OBJECT, VALUE )
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
 
 /**
  * Release an object (by decrementing its reference count).  If the
@@ -303,7 +303,7 @@ static inline dague_object_t *dague_obj_new_debug(dague_class_t* type, const cha
  *
  * @param object        Pointer to the object
  */
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
 #define OBJ_RELEASE(object)                                     \
     do {                                                        \
         assert(NULL != ((dague_object_t *) (object))->obj_class);        \
@@ -358,7 +358,7 @@ do {                                                            \
  *
  * @param object        Pointer to the object
  */
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
 #define OBJ_DESTRUCT(object)                                    \
 do {                                                            \
     assert(DAGUE_OBJ_MAGIC_ID == ((dague_object_t *) (object))->obj_magic_id); \

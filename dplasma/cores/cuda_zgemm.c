@@ -180,7 +180,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     dague_zgemm_args_t        *args = (dague_zgemm_args_t*)gpu_task;
     void *d_A, *d_B, *d_C;
     cublasStatus_t status;
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG_MOTORMOUTH)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
@@ -195,7 +195,7 @@ gpu_kernel_submit_zgemm( gpu_device_t        *gpu_device,
     /*assert( DATA_COHERENCY_OWNED == this_task->data[flow_C].data_out->coherency_state );*/
     d_C = this_task->data[flow_C].data_out->device_private;
 
-    DEBUGV( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
              this_task->priority );
 
@@ -267,7 +267,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                       cudaMemcpyDeviceToHost,
                                       gpu_stream->cuda_stream );
             DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                    { WARNING("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                    { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                gpu_copy->device_private, original->device_copies[0]->device_private);
                                         return_code = -2;
                                         goto release_and_return_error;} );
@@ -325,7 +325,7 @@ gpu_kernel_pop_zgemm( gpu_device_t        *gpu_device,
                                           cudaMemcpyDeviceToHost,
                                           gpu_stream->cuda_stream );
                 DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                        { WARNING("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                        { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                                    gpu_copy->device_private, original->device_copies[0]->device_private);
                                             return_code = -2;
                                             goto release_and_return_error;} );

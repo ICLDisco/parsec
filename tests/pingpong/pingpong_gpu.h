@@ -148,7 +148,7 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
                                       cudaMemcpyDeviceToHost,
                                       gpu_stream->cuda_stream );
             DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                    { WARNING("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                    { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
                                               gpu_copy->device_private, original->device_copies[0]->device_private);
                                         return_code = -2;
                                         goto release_and_return_error;} );

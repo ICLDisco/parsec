@@ -347,7 +347,7 @@ dague_dtd_init()
 void
 dague_dtd_fini()
 {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert(handle_mempool != NULL);
 #endif
 
@@ -977,7 +977,7 @@ dague_dtd_tile_release(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
     assert(tile->super.list_item.super.obj_reference_count>1);
     dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
     if( tile->super.list_item.super.obj_reference_count == 1 ) {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         assert(tile->super.list_item.refcount == 0);
 #endif
         dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
@@ -1001,7 +1001,7 @@ dague_dtd_function_release( dague_dtd_handle_t  *dague_handle,
                             dague_dtd_funcptr_t *key )
 {
     dague_generic_bucket_t *bucket = dague_dtd_function_find_internal ( dague_handle, key );
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert (bucket != NULL);
 #endif
     dague_dtd_function_remove ( dague_handle, key );
@@ -1055,7 +1055,7 @@ dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
         /* Creating Tile object */
         dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
                                                           (dague_dtd_handle->tile_mempool->thread_mempools);
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         assert(temp_tile->super.list_item.refcount == 0);
 #endif
         temp_tile->key                  = ddesc->data_key(ddesc, i, j);
@@ -1072,7 +1072,7 @@ dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
                                 temp_tile, ddesc );
         return temp_tile;
     }else {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         assert(tmp->super.list_item.super.obj_reference_count > 0);
 #endif
         return tmp;
@@ -1110,7 +1110,7 @@ hook_of_dtd_task( dague_execution_unit_t    *context,
                           this_task);
 
     rc = dtd_task->fpointer(context, this_task);
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( rc == DAGUE_HOOK_RETURN_DONE );
 #endif
 
@@ -1175,7 +1175,7 @@ dague_dtd_handle_new( dague_context_t *context)
     dague_dtd_handle_t *__dague_handle;
     int i;
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( handle_mempool != NULL );
 #endif
     __dague_handle = (dague_dtd_handle_t *)dague_thread_mempool_allocate(handle_mempool->thread_mempools);

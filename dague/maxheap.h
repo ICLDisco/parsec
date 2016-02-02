@@ -105,7 +105,7 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
                (parents[level_counter] != NULL) &&
                (elem->priority > parents[level_counter]->priority) ) {
             parent = parents[level_counter];
-            DEBUGVV("MH:\tswapping parent %p and elem %p (priorities: %d and %d)\n",
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MH:\tswapping parent %p and elem %p (priorities: %d and %d)\n",
                     parent, elem, parent->priority, elem->priority);
             /* first, fix our grandparent, if necessary */
             if (level_counter + 1 < parents_size && parents[level_counter + 1] != NULL) {
@@ -144,9 +144,9 @@ void heap_insert(dague_heap_t * heap, dague_execution_context_t * elem)
     /* set priority to top priority */
     heap->priority = heap->top->priority;
 
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG_MOTORMOUTH)
     char tmp[MAX_TASK_STRLEN];
-    DEBUGVV("MH:\tInserted exec C %s (%p) into maxheap %p of size %u\n",
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MH:\tInserted exec C %s (%p) into maxheap %p of size %u\n",
             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, elem), elem, heap, heap->size);
 #endif
 }
@@ -184,7 +184,7 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
         to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
         if (heap->top->super.list_item.list_prev == NULL) {
             /* no left child, so 'top' is the only node */
-            DEBUGVV("MH:\tDestroying heap %p\n", heap->top, heap->top->super.list_item.list_next, heap);
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MH:\tDestroying heap %p\n", heap->top, heap->top->super.list_item.list_next, heap);
             heap->top = NULL;
             heap_destroy(heap_ptr);
             assert(*heap_ptr == NULL);
@@ -225,16 +225,16 @@ dague_execution_context_t * heap_split_and_steal(dague_heap_t ** heap_ptr, dague
                 heap->list_item.list_next = (dague_list_item_t*)(*new_heap_ptr);
                 (*new_heap_ptr)->list_item.list_prev = (dague_list_item_t*)heap;
                 (*new_heap_ptr)->list_item.list_next = (dague_list_item_t*)heap;
-                DEBUGVV("MH:\tSplit heap %p into itself and heap %p\n", heap, *new_heap_ptr);
+                DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MH:\tSplit heap %p into itself and heap %p\n", heap, *new_heap_ptr);
             }
         }
         to_use->super.list_item.list_next = (dague_list_item_t*)to_use; // safety's
         to_use->super.list_item.list_prev = (dague_list_item_t*)to_use; // sake
     }
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG_MOTORMOUTH)
     if (to_use != NULL) {
         char tmp[MAX_TASK_STRLEN];
-        DEBUGVV("MH:\tStole exec C %s (%p) from heap %p\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MH:\tStole exec C %s (%p) from heap %p\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
     }
 #endif
     return to_use;
@@ -250,7 +250,7 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
         to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
         if (heap->top->super.list_item.list_prev == NULL) {
             /* no left child, so 'top' is the only node */
-            DEBUGVV("MH:\tDestroying heap %p\n", heap->top, heap->top->super.list_item.list_next, heap);
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MH:\tDestroying heap %p\n", heap->top, heap->top->super.list_item.list_next, heap);
             assert(heap->size == 1);
             heap->top = NULL;
             heap_destroy(heap_ptr);
@@ -384,10 +384,10 @@ dague_execution_context_t * heap_remove(dague_heap_t ** heap_ptr) {
         to_use->super.list_item.list_prev = (dague_list_item_t*)to_use; // sake
     }
 
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG_MOTORMOUTH)
     if (to_use != NULL) {
         char tmp[MAX_TASK_STRLEN];
-        DEBUGVV("MH:\tStole exec C %s (%p) from heap %p\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MH:\tStole exec C %s (%p) from heap %p\n", dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
     }
 #endif
     return to_use;

@@ -180,7 +180,7 @@ struct dague_output_stream_t {
      *
      * This field should be "true" if the output is for debugging
      * purposes only.  In that case, the output will never be sent to
-     * the stream unless DAGUE was configured with --enable-debug.
+     * the stream unless DAGUE was configured with DAGUE_DEBUG_MOTORMOUTH.
      */
     bool lds_is_debugging;
 
@@ -508,11 +508,11 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
                                                       char **olddir,
                                                       char **oldprefix);
 
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG_MOTORMOUTH)
 /**
  * Main macro for use in sending debugging output to output streams;
  * will be "compiled out" when DAGUE is configured without
- * --enable-debug.
+ * DAGUE_DEBUG_MOTORMOUTH.
  *
  * @see dague_output()
  */
@@ -521,7 +521,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
 /**
  * Macro for use in sending debugging output to the output
  * streams.  Will be "compiled out" when DAGUE is configured
- * without --enable-debug.
+ * without DAGUE_DEBUG_MOTORMOUTH.
  *
  * @see dague_output_verbose()
  */
@@ -530,7 +530,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
 /**
  * Main macro for use in sending debugging output to output streams;
  * will be "compiled out" when DAGUE is configured without
- * --enable-debug.
+ * DAGUE_DEBUG_MOTORMOUTH.
  *
  * @see dague_output()
  */
@@ -539,7 +539,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
 /**
  * Macro for use in sending debugging output to the output
  * streams.  Will be "compiled out" when DAGUE is configured
- * without --enable-debug.
+ * without DAGUE_DEBUG_MOTORMOUTH.
  *
  * @see dague_output_verbose()
  */

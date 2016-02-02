@@ -23,7 +23,7 @@ int verbose_level = 0;
 
 extern const char *yyfilename;
 
-#if (defined(DAGUE_DEBUG_VERBOSE))
+#if (defined(DAGUE_DEBUG_MOTORMOUTH))
 #define DO_DEBUG_VERBOSE( VAL, ARG ) \
     if( verbose_level >= (VAL) ) { ARG; }
 #else

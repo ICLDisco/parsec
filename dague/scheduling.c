@@ -70,7 +70,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
         sys = ((current.ru_stime.tv_sec - eu->_eu_rusage.ru_stime.tv_sec) +
                (current.ru_stime.tv_usec - eu->_eu_rusage.ru_stime.tv_usec) / 1000000.0);
 
-        STATUS(("\n=============================================================\n"
+        dague_inform(("\n=============================================================\n"
                 "%s: Resource Usage Data for Exec. Unit ...\n"
                 "VP: %i Thread: %i (Core %i, socket %i)\n"
                 "-------------------------------------------------------------\n"
@@ -111,9 +111,9 @@ int __dague_context_wait_task( dague_execution_unit_t* eu_context,
     (void)eu_context;
     switch(task->status) {
         case DAGUE_TASK_STATUS_NONE:
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG)
             char tmp[MAX_TASK_STRLEN];
-            DEBUG("thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
+            dague_degug_verbose(5, dague_debug_output, "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
@@ -142,7 +142,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
 {
     const dague_function_t* function = exec_context->function;
     int rc;
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG)
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
@@ -153,8 +153,8 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
     /* Try all the incarnations until one agree to execute. */
     do {
-#if defined(DAGUE_DEBUG_VERBOSE)
-        DEBUG("thread %d of VP %d Execute %s[%d]\n",
+#if defined(DAGUE_DEBUG)
+        dague_debug_verbose(5, dague_debug_output, "Thread %d of VP %d Execute %s[%d]\n",
                eu_context->th_id, eu_context->virtual_process->vp_id,
                tmp, function->incarnations[exec_context->chore_id].type);
 #endif
@@ -237,7 +237,7 @@ int dague_set_scheduler( dague_context_t *dague )
     current_scheduler   = (dague_sched_module_t*)new_scheduler;
     scheduler_component = (dague_sched_base_component_t*)new_component;
 
-    DEBUG(" Installing %s\n", current_scheduler->component->base_version.mca_component_name);
+    dague_debug_verbose(4, dague_debug_output, " Installing scheduler %s\n", current_scheduler->component->base_version.mca_component_name);
     PROFILING_SAVE_sINFO("sched", (char *)current_scheduler->component->base_version.mca_component_name);
 
     current_scheduler->module.install( dague );
@@ -253,7 +253,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     int ret;
 
-#if defined(DAGUE_DEBUG_ENABLE) && defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG_PARANOID) && defined(DAGUE_DEBUG_MOTORMOUTH)
     {
         dague_execution_context_t* context = new_context;
         const struct dague_flow_s* flow;
@@ -266,23 +266,23 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data_in ) {
-                        DEBUGV("Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)\n",
+                        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)\n",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context),
                                 flow->name, __FILE__, __LINE__);
                     }
                 }
             }
             /*if( set_parameters > 1 ) {
-                ERROR( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
+                dague_abort( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
             }*/ /* Change it as soon as dtd has a running version */
-            DEBUGV( "thread %d of VP %d Schedules %s\n",
+            DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "thread %d of VP %d Schedules %s\n",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) );
             context = (dague_execution_context_t*)context->super.list_item.list_next;
         } while ( context != new_context );
     }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
 
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
@@ -515,7 +515,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     PINS(eu_context, SELECT_END, NULL);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
-    STATUS(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
+    dague_inform(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
             eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
             (long long unsigned int)found_remote,
             (long long unsigned int)found_victim,

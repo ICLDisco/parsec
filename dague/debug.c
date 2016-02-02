@@ -37,7 +37,7 @@ static int* stack_size  = NULL;
 
 void dague_debug_init(void) {
 #if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    int is_mpi_up, rc;
+    int is_mpi_up;
     MPI_Initialized(&is_mpi_up);
     if( 0 == is_mpi_up ) {
         return ;
@@ -45,28 +45,24 @@ void dague_debug_init(void) {
     MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
 #endif
     gethostname(dague_debug_hostname, sizeof(dague_debug_hostname));
-    
+
     dague_debug_output = dague_output_open(NULL);
-    
-    dague_mca_param_reg_int_name("debug", "verbose", 
+
+    dague_mca_param_reg_int_name("debug", "verbose",
         "Set the output level for debug messages"
         ", 0: Errors only"
-        ", 1: Errors..Warnings (minimum recommended)"
-        ", 2: Errors..Info (default),"
-#if defined(DAGUE_DEBUG_ENABLE)
-        ", 3: Errors..Debug"
-#if defined(DAGUE_DEBUG_VERBOSE)
-        ", 4: Errors..Verbose Debug"
-        ", 5: Errors..Chatterbox Debug"
-#endif
-#endif
-#if !defined(DAGUE_DEBUG_ENABLE) || !defined(DAGUE_DEBUG_VERBOSE) || !defined(DAGUE_DEBUG_HISTORY)
-        " (enable the compilation of more debug levels with DAGUE_DEBUG_ENABLE, DAGUE_DEBUG_VERBOSE and DAGUE_DEBUG_HISTORY in ccmake)"
+        ", 1: Warnings (minimum recommended)"
+        ", 2: Info (default)"
+        ", 3-4: User Debug"
+        ", 5-9: Devel Debug"
+        ", >=10: Chatterbox Debug"
+#if !defined(DAGUE_DEBUG_PARANOID) || !defined(DAGUE_DEBUG_MOTORMOUTH) || !defined(DAGUE_DEBUG_HISTORY)
+        " (heaviest debug output available only when compiling with DAGUE_DEBUG_PARANOID, DAGUE_DEBUG_MOTORMOUTH and/or DAGUE_DEBUG_HISTORY in ccmake)"
 #endif
         , false, false, 2, &dague_debug_verbose);
     dague_output_set_verbosity(dague_debug_output, dague_debug_verbose);
 
-    /* We do not want backtraces in the syslog, so, we do not 
+    /* We do not want backtraces in the syslog, so, we do not
      * inherit the defaults... */
     char* opt;
     dague_output_stream_t lds;
@@ -91,20 +87,20 @@ void dague_debug_init(void) {
         bt_output = dague_output_open(&lds);
         OBJ_DESTRUCT(&lds);
     }
-    else WARNING("Invalid value %s for parameter debug_backtrace_output\n", opt);
+    else dague_warning("Invalid value %s for parameter debug_backtrace_output\n", opt);
 
     dague_mca_param_reg_int_name("debug", "backtrace_keep",
-        "Maximum number of backtrace to keep in backtrace circular buffer", 
+        "Maximum number of backtrace to keep in backtrace circular buffer",
         false, false, ST_ASIZE, &ST_ASIZE);
     dague_mca_param_reg_int_name("debug", "backtrace_size",
-        "Maximum size for each backtrace", 
+        "Maximum size for each backtrace",
         false, false, ST_SIZE, &ST_SIZE);
     if( -1 != bt_output ) {
         stack = malloc(ST_ASIZE*ST_SIZE*sizeof(void*));
         stack_size = malloc(ST_ASIZE*sizeof(int));
-        if( NULL == stack_size 
+        if( NULL == stack_size
          || NULL == stack ) {
-             WARNING("Backtrace debug framework DISABLED: could not allocate the backtrace circular buffer with backtrace_keep=%d and backtrace_size=%d\n", ST_ASIZE, ST_SIZE);
+             dague_warning("Backtrace debug framework DISABLED: could not allocate the backtrace circular buffer with backtrace_keep=%d and backtrace_size=%d\n", ST_ASIZE, ST_SIZE);
              if( NULL != stack_size ) free(stack_size);
              if( NULL != stack ) free(stack);
              if( bt_output > 0 ) {
@@ -129,7 +125,7 @@ void dague_debug_fini(void)
     }
     if( NULL != stack_size ) free(stack_size);
     if( NULL != stack ) free(stack);
-    
+
     dague_debug_history_purge();
     if( 0 < dague_debug_output ) {
         dague_output_close(dague_debug_output);
@@ -219,7 +215,7 @@ void dague_debug_history_dump(void) {
     dague_atomic_cas( &marks, cmark, nmark );
 
     current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
-    STATUS("== Displaying debug history of the last %d of %u events pushed since last dump\n", current_mark, cmark->nextmark);
+    dague_inform("== Displaying debug history of the last %d of %u events pushed since last dump\n", current_mark, cmark->nextmark);
     for(ii = 0; ii < MAX_MARKS; ii++) {
         int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
@@ -229,10 +225,10 @@ void dague_debug_history_dump(void) {
             dague_output(dague_debug_output, " %s", gm);
             free(gm);
         } else {
-            DEBUGVV("A mark has not been stored at this position since the last dump\n");
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "A mark has not been stored at this position since the last dump\n");
         }
     }
-    STATUS("== End debug history =====================================================\n");
+    dague_inform("== End debug history =====================================================\n");
 }
 
 static void debug_history_purge_one(void) {

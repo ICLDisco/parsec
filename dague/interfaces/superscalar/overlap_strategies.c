@@ -181,7 +181,7 @@ ordering_correctly_2(dague_execution_unit_t *eu,
             }
         }
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         assert(current_desc != NULL);
 #endif
         desc_op_type = (current_task->desc[current_dep].op_type & GET_OP_TYPE);

@@ -42,7 +42,7 @@ void dague_prof_grapher_init(const char *base_filename, int nbthreads)
 
     grapher_file = fopen(filename, "w");
     if( NULL == grapher_file ) {
-        WARNING("Grapher:\tunable to create %s (%s) -- DOT graphing disabled\n", filename, strerror(errno));
+        dague_warning("Grapher:\tunable to create %s (%s) -- DOT graphing disabled\n", filename, strerror(errno));
         free(filename);
         return;
     } else {

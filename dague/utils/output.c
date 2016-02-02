@@ -585,7 +585,7 @@ static int do_open(int output_id, dague_output_stream_t * lds)
         dague_atomic_unlock(&mutex);
     }
     info[i].ldi_enabled = lds->lds_is_debugging ?
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG)
     true : true;
 #else
     false : true;

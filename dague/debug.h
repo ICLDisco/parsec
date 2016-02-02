@@ -15,13 +15,21 @@
 
 /**
  * Control debug output and verbosity
- *   default output is 0 (stderr)
- *   DEBUG is compiled out if !defined(DAGUE_DEBUG_ENABLE)
- *   DEBUGV and DEBUGVV are compiled out if !defined(DAGUE_DEBUG_VERBOSE)
- *   default runtime debug verbosity is 2 (error-info, no debug)
- *   debug history compiled in as soon as defined(DAGUE_DEBUG_HISTORY)
- *      independent of DAGUE_DEBUG_VERBOSE setting
- *      debug history verbosity follows dague_debug_verbose setting too
+ *   default output for errors, warnings and inform is 0 (stderr)
+ *   warning is verbosity 1, inform is verbosity 2
+ * 
+ * Debug macros decorate the output, but the calling module has to 
+ * select the output stream and verbosity.
+ *   The dague_debug_output can be used for misc outputs.
+ *
+ * Guide for setting the debug verbosity:
+ *   3-4: debug information (module initialized, available features etc).
+ *   5-9: light debug output
+ *   >=10: heavy debug output
+ *
+ * Debug history compiled in as soon as defined(DAGUE_DEBUG_HISTORY)
+ *   independent of DAGUE_DEBUG_VERBOSE setting
+ *   debug history verbosity follows dague_debug_history_verbose
  */
 extern int dague_debug_output;
 extern int dague_debug_verbose;
@@ -35,6 +43,7 @@ void dague_debug_backtrace_save(void);
 void dague_debug_backtrace_dump(void);
 
 #if defined(DAGUE_DEBUG_HISTORY)
+    extern int dague_debug_history_verbose;
     void dague_debug_history_add(const char *format, ...);
     void dague_debug_history_dump(void);
     void dague_debug_history_purge(void);
@@ -46,13 +55,13 @@ void dague_debug_backtrace_dump(void);
 #else
 #   define dague_debug_history_add(...)
 #   define dague_debug_history_dump()
-#   define dague_debug_history_purge()    
+#   define dague_debug_history_purge()
 #   define _DAGUE_DEBUG_HISTORY(...)
 #endif /* defined(DAGUE_DEBUG_HISTORY) */
 
 /* Use when encountering a FATAL condition. Will terminate the program. */
-#define ERROR(FMT, ...) do {                                        \
-    dague_output(dague_debug_output,                                \
+#define dague_abort(FMT, ...) do {                                  \
+    dague_output(0,                                                 \
         "X@%05d "FMT" @%s:%s:%5d %s:%5d", dague_debug_rank,         \
         ##__VA_ARGS__,                                              \
         __FILE__, __func__, __LINE__,                               \
@@ -63,57 +72,44 @@ void dague_debug_backtrace_dump(void);
 /* Use when encountering a SERIOUS condition. The program will continue
  * but a loud warning will always be issued on the default error output
  */
-#define WARNING(FMT, ...) do {                                      \
-    dague_output_verbose(1, dague_debug_output,                     \
+#define dague_warning(FMT, ...) do {                                \
+    dague_output_verbose(1, 0,                                      \
         "W@%05d "FMT, dague_debug_rank, ##__VA_ARGS__);             \
 } while(0)
 
 /* Use when some INFORMATION can be usefull for the end-user. */
-#define STATUS(FMT, ...) do {                                       \
-    dague_output_verbose(2, dague_debug_output,                     \
-        "i@%05d "FMT, dague_debug_rank, ##__VA_ARGS__);         \
+#define dague_inform(FMT, ...) do {                                 \
+    dague_output_verbose(2, 0,                                      \
+        "i@%05d "FMT, dague_debug_rank, ##__VA_ARGS__);             \
 } while(0)
 
-#if defined(DAGUE_DEBUG_ENABLE)
 /* Light debugging output, compiled in for all levels of
- * DAGUE_DEBUG_VERBOSE, so not to use in performance critical
- * routines. */
-#define DEBUG(FMT, ...) do {                                        \
-    dague_output_verbose(3, dague_debug_output,                     \
+ * so not to use in performance critical routines. */
+#define dague_debug_verbose(LVL, OUT, FMT, ...) do {                \
+    dague_output_verbose(LVL, OUT,                                  \
         "D@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
-    _DAGUE_DEBUG_HISTORY(3,                                         \
+    _DAGUE_DEBUG_HISTORY(LVL,                                       \
         "D@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
 } while(0)
 
+#if defined(DAGUE_DEBUG_MOTORMOUTH)
 /* Increasingly heavy debugging output. Compiled out when
  * DAGUE_DEBUG_VERBOSE is not enabled.
  * The entire history is logged as soon as debug_verbose >= 3
  */
-#define DEBUGV(FMT, ...) do {                                       \
-    DAGUE_OUTPUT_VERBOSE((4, dague_debug_output,                    \
+#define DAGUE_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
+    DAGUE_OUTPUT_VERBOSE((LVL, OUT,                                  \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
-        __func__, __LINE__));                                       \
-    _DAGUE_DEBUG_HISTORY(3,                                         \
-        "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
-        __func__, __LINE__);                                        \
-} while(0)
-
-#define DEBUGVV(FMT, ...) do {                                       \
-    DAGUE_OUTPUT_VERBOSE((5, dague_debug_output,                    \
-        "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
-        __func__, __LINE__));                                       \
-    _DAGUE_DEBUG_HISTORY(3,                                         \
+        __func__, __LINE__));                                        \
+    _DAGUE_DEBUG_HISTORY(LVL,                                       \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
 } while(0)
-
 #else
-#define DEBUG(...)
-#define DEBUGV(...)    
-#define DEBUGVV(...)
-#endif /* defined(DAGUE_DEBUG_ENABLE) */
+#define DAGUE_DEBUG_VERBOSE(...) do{} while(0)
+#endif /* defined(DAGUE_DEBUG_VERBOSE) */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */
 

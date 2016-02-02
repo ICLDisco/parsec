@@ -25,7 +25,7 @@
 #undef DEBUG
 #endif
 
-#if defined(DAGUE_DEBUG_VERBOSE)
+#if defined(DAGUE_DEBUG_MOTORMOUTH)
 #define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)

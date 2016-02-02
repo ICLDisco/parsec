@@ -28,12 +28,12 @@ static void dague_data_copy_construct(dague_data_copy_t* obj)
     obj->arena_chunk          = NULL;
     obj->data_transfer_status = DATA_STATUS_NOT_TRANSFER;
     obj->push_task            = NULL;
-    DEBUGVV("Allocate data copy %p\n", obj);
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Allocate data copy %p\n", obj);
 }
 
 static void dague_data_copy_destruct(dague_data_copy_t* obj)
 {
-    DEBUGVV("Destruct data copy %p (attached to %p)\n", obj, obj->original);
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Destruct data copy %p (attached to %p)\n", obj, obj->original);
 
     /* If the copy is still attached to a data we should detach it first */
     if( NULL != obj->original) {
@@ -60,12 +60,12 @@ static void dague_data_construct(dague_data_t* obj )
     obj->nb_elts          = 0;
     for( uint32_t i = 0; i < dague_nb_devices;
          obj->device_copies[i] = NULL, i++ );
-    DEBUGVV("Allocate data %p\n", obj);
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Allocate data %p\n", obj);
 }
 
 static void dague_data_destruct(dague_data_t* obj )
 {
-    DEBUGVV("Release data %p\n", obj);
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Release data %p\n", obj);
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_data_copy_t *copy = NULL;
 
@@ -283,36 +283,36 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
              && data->device_copies[i]->version > copy->version ) {
                 transfer_required = 1;
             }
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
             else {
                 assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
                      || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state
                      || copy->data_transfer_status );
                 assert( data->device_copies[i]->version <= copy->version );
             }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
         }
         break;
 
     case DATA_COHERENCY_EXCLUSIVE:
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;
             assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state );
         }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
         break;
 
     case DATA_COHERENCY_OWNED:
         assert( device == data->owner_device ); /* memory is owned, better be me otherwise 2 writters: wrong JDF */
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( device == i || NULL == data->device_copies[i] ) continue;
             assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
                  || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state );
             assert( copy->version >= data->device_copies[i]->version );
         }
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
         break;
     }
 
@@ -449,7 +449,7 @@ dague_data_destroy( dague_data_t *data )
          * dependency between the dague_data_copy_t and the dague_data_t
          */
         OBJ_DESTRUCT(data);
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         ((dague_object_t *)(data))->obj_magic_id = DAGUE_OBJ_MAGIC_ID;
 #endif
         OBJ_RELEASE(data);

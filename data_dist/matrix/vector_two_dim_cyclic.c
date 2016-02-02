@@ -63,10 +63,10 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     Ddesc->mat = NULL;  /* No data associated with the vector yet */
 
     if(nodes < P)
-        ERROR("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P);
+        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P);
     Q = nodes / P;
     if(nodes != P*Q)
-        WARNING("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q);
+        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q);
 
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
 
@@ -148,7 +148,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
 #endif
     Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 
-    DEBUGVV("vector_two_dim_cyclic_init: \n"
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "vector_two_dim_cyclic_init: \n"
             "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
             "      nrst = %d, ncst = %d, P = %d, Q = %d\n",

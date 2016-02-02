@@ -57,7 +57,7 @@ int default_vp_data_dist()
         q++;
         p = pq / q;
     }
-    DEBUGVV( "Default data distribution between VP defined by \"pxq\" %ix%i\n", p, q );
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "Default data distribution between VP defined by \"pxq\" %ix%i\n", p, q );
     return q;
 }
 
