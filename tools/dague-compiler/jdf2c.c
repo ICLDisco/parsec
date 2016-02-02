@@ -3057,7 +3057,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"
             "%s"
             "    }\n"
-            "    supported_dev |= (1 << device->type);\n"
+            "    supported_dev |= device->type;\n"
             "    __dague_handle->super.super.devices_mask |= (1 << _i);\n"
             "  }\n",
             jdf_basename, jdf_basename,
@@ -3084,7 +3084,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    uint32_t index = 0;\n"
             "    uint32_t j;\n"
             "    for( j = 0; NULL != chores[j].hook; j++ ) {\n"
-            "      if(supported_dev & (1 << chores[j].type)) {\n"
+            "      if(supported_dev & chores[j].type) {\n"
             "          if( j != index ) {\n"
             "            chores[index] = chores[j];\n"
             "            dague_debug_verbose(20, dague_debug_output, \"Device type %%i disabled for function %%s\"\n, chores[j].type, func->name);\n"
@@ -4431,7 +4431,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "{\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
             "  dague_gpu_context_t *gpu_task;\n"
-            "  int i, dev_index;\n"
+            "  int dev_index;\n"
             "  (void)context; (void)__dague_handle;\n"
             "\n"
             "  dev_index = dague_gpu_get_best_device((dague_execution_context_t*)this_task, 1.);\n"
