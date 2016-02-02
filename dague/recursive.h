@@ -4,6 +4,7 @@
 #include "dague/dague_internal.h"
 #include "dague/execution_unit.h"
 #include "dague/scheduling.h"
+#include "dague/devices/device.h"
 #include "data_dist/matrix/matrix.h"
 
 typedef struct cb_data_s {
