@@ -6,6 +6,7 @@
 
 #include "dague_config.h"
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -13,6 +14,18 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#if defined(HAVE_SYS_TYPES_H)
+#include <sys/types.h>
+#endif
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <libgen.h>
+#if defined(HAVE_UNISTD_H)
+#include <unistd.h>
+#endif
+#if defined(HAVE_LIMITS_H)
+#include <limits.h>
+#endif
 
 #include "jdf.h"
 #include "string_arena.h"
@@ -5414,15 +5427,20 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
 
 #if defined(HAVE_INDENT)
     {
-        char* command;
+        char command[4*PATH_MAX];
 
 #if !defined(HAVE_AWK)
-        asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c );
+        snprintf(command, 4*PATH_MAX, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c );
         system(command);
-        asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
+        snprintf(command, 4*PATH_MAX, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
         system(command);
 #else
-        asprintf(&command,
+        strncpy(command, output_c, PATH_MAX);
+        char* dir = dirname(command);
+        int fd = open(dir, O_SYNC|O_RDONLY);
+        if( -1 == fd ) { perror("Opening output directory for sync rename"); }
+
+        snprintf(command, 4*PATH_MAX,
                  "%s %s %s -st | "
                  "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
                  "> %s.indent.awk",
@@ -5430,10 +5448,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
                  DAGUE_AWK_PREFIX, output_c, output_c,
                  output_c);
         system(command);
-        asprintf(&command, "%s.indent.awk", output_c);
-        rename(command, output_c);
+        snprintf(command, PATH_MAX, "%s.indent.awk", output_c);
+        if( -1 == rename(command, output_c) ) { perror("Renaming output_c"); }
 
-        asprintf(&command,
+        snprintf(command, 4*PATH_MAX,
                  "%s %s %s -st | "
                  "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
                  "> %s.indent.awk",
@@ -5441,8 +5459,11 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
                  DAGUE_AWK_PREFIX, output_h, output_h,
                  output_h);
         system(command);
-        asprintf(&command, "%s.indent.awk", output_h);
+        snprintf(command, PATH_MAX, "%s.indent.awk", output_h);
         rename(command, output_h);
+
+        fsync(fd);
+        close(fd);
 #endif
     }
 #endif  /* defined(HAVE_INDENT) */
