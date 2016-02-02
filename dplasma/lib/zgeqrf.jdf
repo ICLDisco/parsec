@@ -19,8 +19,10 @@ extern "C" %{
 #endif
 
 #if defined(HAVE_CUDA)
-#include "dague/devices/cuda/dev_cuda.h"
-#include "dplasma/cores/cuda_ztsmqr.h"
+#include <dague/class/fifo.h>
+#include <dague/devices/cuda/dev_cuda.h>
+#include <cublas.h>
+#include "dplasma/cores/dplasma_zcores.h"
 #endif  /* defined(HAVE_CUDA) */
 
 %}
@@ -389,31 +391,26 @@ ztsmqr(k,m,n)
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
 
-BODY [type=CUDA2]
+BODY [type=CUDA]
 {
+    cuDoubleComplex *WORK, *WORKC;
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
-    int ret, pushout_A1 = 0, pushout_A2 = 0;
 
-    if (m == descA.mt - 1) {
-        pushout_A1 = 1;
-    }
-    if ((k+1) == m || (k+1) == n) {
-        pushout_A2 = 1;
-    }
+    WORK  = dague_gpu_pop_workspace(gpu_device, gpu_stream, descA.nb * ib * sizeof(dague_complex64_t));
+    WORKC = dague_gpu_pop_workspace(gpu_device, gpu_stream, descA.mb * ib * sizeof(dague_complex64_t));
 
-#if defined(HAVE_MPI)
-    pushout_A1 = 1;
-#endif
-
-    ret = gpu_ztsmqr( context, (dague_execution_context_t*)this_task,
-                      pushout_A1, pushout_A2, m, n, k,
-                      PlasmaLeft, PlasmaConjTrans,
-                      descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-                      ldak, ldam, ldam, descT.mb );
-    return ret;
+    dplasma_cuda_ztsmqr( PlasmaLeft, PlasmaConjTrans,
+                         descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                         A1 /* dataA(k,n) */, ldak,
+                         A2 /* dataA(m,n) */, ldam,
+                         V  /* dataA(m,k) */, ldam,
+                         T  /* dataT(m,k) */, descT.mb,
+                         WORK,  ib,
+                         WORKC, descA.mb,
+                         gpu_stream->cuda_stream );
 }
 END
 
