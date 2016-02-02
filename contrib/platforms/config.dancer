@@ -15,7 +15,11 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=ON"
   USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
-
+  if [ "$CC" = "gcc" ]; then
+      PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
+  else
+      PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-intel"}
+  fi
 elif [ "x$USER" = "xrhoque" ]; then
     CC=${CC:="gcc"}
     CXX=${CXX:="c++"}
