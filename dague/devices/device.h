@@ -16,12 +16,12 @@
 #include "dague/data_distribution.h"
 
 #define DAGUE_DEV_NONE       0x00
-#define DAGUE_DEV_CPU        0x01
-#define DAGUE_DEV_RECURSIVE  0x02
-#define DAGUE_DEV_CUDA       0x03
-#define DAGUE_DEV_INTEL_PHI  0x04
-#define DAGUE_DEV_OPENCL     0x05
-#define DAGUE_DEV_MAX        0x06
+#define DAGUE_DEV_CPU        (1 << 0)
+#define DAGUE_DEV_RECURSIVE  (1 << 1)
+#define DAGUE_DEV_CUDA       (1 << 2)
+#define DAGUE_DEV_INTEL_PHI  (1 << 3)
+#define DAGUE_DEV_OPENCL     (1 << 4)
+#define DAGUE_DEV_ALL        0x1f
 
 typedef struct dague_device_s dague_device_t;
 
@@ -126,5 +126,11 @@ static inline int dague_devices_enabled(void)
 {
     return dague_nb_devices;
 }
+
+/**
+ * Restrict the device type that can be used to execute the handle.
+ */
+DAGUE_DECLSPEC void dague_devices_handle_restrict( dague_handle_t *handle,
+                                                   uint8_t         devices_type );
 
 #endif  /* DAGUE_DEVICE_H_HAS_BEEN_INCLUDED */

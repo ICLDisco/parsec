@@ -313,14 +313,14 @@ dague_cuda_handle_register(dague_device_t* device, dague_handle_t* handle)
                     /* No dynamic load for this kernel */
                     chores[gpu_device->cuda_index].dyld_fn = NULL;
                     rc = DAGUE_SUCCESS;
-                    dev_mask |= (1 << chores[j].type);
+                    dev_mask |= chores[j].type;
                 }
                 else {
                     void* devf = cuda_solve_handle_dependencies(gpu_device, chores[j].dyld);
                     if( NULL != devf ) {
                         chores[gpu_device->cuda_index].dyld_fn = devf;
                         rc = DAGUE_SUCCESS;
-                        dev_mask |= (1 << chores[j].type);
+                        dev_mask |= chores[j].type;
                     }
                 }
             }
