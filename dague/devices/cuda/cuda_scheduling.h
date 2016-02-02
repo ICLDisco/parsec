@@ -259,7 +259,6 @@ gpu_kernel_epilog( gpu_device_t        *gpu_device,
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_gpu_data_copy_t     *gpu_copy, *cpu_copy;
     dague_data_t              *original;
-    const dague_flow_t        *flow;
     int i;
 
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
