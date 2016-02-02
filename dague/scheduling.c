@@ -301,6 +301,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
 int __dague_complete_execution( dague_execution_unit_t *eu_context,
                                 dague_execution_context_t *exec_context )
 {
+    dague_handle_t *handle;
     int rc = 0;
 
     /* complete execution==add==push (also includes exec of immediates) */
@@ -311,8 +312,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     }
     if( NULL != exec_context->function->complete_execution )
         rc = exec_context->function->complete_execution( eu_context, exec_context );
-    /* Update the number of remaining tasks */
-    (void)dague_handle_update_nbtask(exec_context->dague_handle, -1);
+
     PINS(eu_context, COMPLETE_EXEC_END, exec_context);
     AYU_TASK_COMPLETE(exec_context);
 
@@ -322,7 +322,11 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
 
     /* Release the execution context */
+    handle = exec_context->dague_handle;
     exec_context->function->release_task( eu_context, exec_context );
+
+    /* Update the number of remaining tasks */
+    (void)dague_handle_update_nbtask(handle, -1);
 
     return rc;
 }

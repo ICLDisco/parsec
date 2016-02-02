@@ -3078,10 +3078,10 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  uint32_t i;\n",
             jdf_basename, jdf_basename);
 
-    coutput("  for( i = 0; i < (handle->super.super.nb_functions + 1); i++ ) {  /* Extra startup function added at the end */\n"
+    coutput("  for( i = 0; i < (2 * handle->super.super.nb_functions); i++ ) {  /* Extra startup function added at the end */\n"
             "    dague_function_t* func = (dague_function_t*)handle->super.super.functions_array[i];\n"
             "    free((void*)func->incarnations);\n"
-            "    free(func);"
+            "    free(func);\n"
             "  }\n"
             "  free(handle->super.super.functions_array); handle->super.super.functions_array = NULL;\n"
             "  handle->super.super.nb_functions = 0;\n"
