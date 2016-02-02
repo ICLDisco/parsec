@@ -157,15 +157,12 @@ BODY [type=CUDA]
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
     int ldam = BLKLDD( descA, m );
     int ldak = BLKLDD( descA, k );
-    int pushout = ((m == (k+1)) && (n == (k+1))) ||
-                  ((m >  (k+1)) && (n == (k+1))) ||
-                  ((m == (k+1)) && (n >  (k+1)));
+    cublasStatus_t status;
 
     printlog("CUDA_zgemm(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
              k, n, m, m, k, A, k, n, B, m, n, C);
 
-    cublasStatus_t status;
     cublasSetKernelStream( gpu_stream->cuda_stream );
     cublasZgemm( 'N', 'N',
                  tempmm, tempnn, descA.mb,
