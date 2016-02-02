@@ -15,7 +15,7 @@ extern int optopt;
 extern int opterr;
 extern int optreset;
 
-#define SUM_VALUE 0xbdae8ab0a45fc32e
+#define SUM_VALUE 0xbdae8a4ea45fc32eLL
 
 typedef struct {
     int n;
@@ -39,7 +39,7 @@ static void cksum_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
 }
 
 typedef struct {
-    size_t size;
+    int32_t size;
     char *value;
     int32_t cur_pos;
     pthread_rwlock_t resize_lock;
@@ -47,7 +47,7 @@ typedef struct {
 
 static void rs_add(redim_string_t *rs, const char *format, ...)
 {
-    int sz, ns;
+    int sz;
     int32_t my_pos;
     va_list ap;
 
@@ -56,7 +56,7 @@ static void rs_add(redim_string_t *rs, const char *format, ...)
     sz = vsnprintf(NULL, 0, format, ap) + 1;
     va_end(ap);
 
-    my_pos = dague_atomic_add_32b(&rs->cur_pos, sz-1) - sz + 1;
+    my_pos = dague_atomic_add_32b(&rs->cur_pos, sz) - sz;
     assert(my_pos>=0);
     for(;;) {
         if( my_pos + sz < rs->size ) {
@@ -83,7 +83,7 @@ redim_string_t *rs_new(void)
 {
     redim_string_t *rs = (redim_string_t*)malloc(sizeof(redim_string_t));
     rs->size = 1;
-    rs->value = malloc(1);
+    rs->value = malloc(rs->size);
     rs->value[0] = '\0';
     rs->cur_pos = 0;
     pthread_rwlock_init(&rs->resize_lock, NULL);
@@ -99,6 +99,10 @@ void rs_free(redim_string_t *rs)
 
 char *rs_string(redim_string_t *rs)
 {
+    int i;
+    for(i = 0; i < rs->cur_pos-1; i++) {
+        if( rs->value[i] == '\0' ) rs->value[i] = '\n';
+    }
     return rs->value;
 }
 
@@ -106,9 +110,9 @@ static void print_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
 {
     redim_string_t *rs = (redim_string_t*)param;
     if( NULL != node )
-        rs_add(rs, "N_%d_%d [label=\"[%d,%d](%g, %g)\"];\n", n, l, n, l, node->s, node->d);
+        rs_add(rs, "N_%d_%d [label=\"[%d,%d](%g, %g)\"];", n, l, n, l, node->s, node->d);
     else
-        rs_add(rs, "N_%d_%d [label=\"[%d,%d](-, -)\"];\n", n, l, n, l);
+        rs_add(rs, "N_%d_%d [label=\"[%d,%d](-, -)\"];", n, l, n, l);
     (void)param;
     (void)tree;
 }
@@ -117,7 +121,7 @@ static void print_link_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
 {
     redim_string_t *rs = (redim_string_t*)param;
     if(n > 0)
-        rs_add(rs, "N_%d_%d -> N_%d_%d;\n", n, l, n-1, l/2);
+        rs_add(rs, "N_%d_%d -> N_%d_%d;", n, l, n-1, l/2);
     (void)param;
     (void)tree;
     (void)node;
@@ -132,7 +136,6 @@ int main(int argc, char *argv[])
     dague_project_handle_t *project;
     dague_walk_handle_t *walker;
     dague_arena_t arena;
-    node_t node;
     int do_checks = 0, be_verbose = 0;
     int pargc = 0, i, dashdash = -1;
     char **pargv;
@@ -238,7 +241,8 @@ int main(int argc, char *argv[])
     ret = 0;
     if( do_checks ) {
         uint64_t sum = 0;
-        MPI_Reduce(&cksum, &sum, 1, MPI_LONG_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+        printf("Rank %d contributes with %llx\n", rank, cksum);
+        MPI_Reduce(&cksum, &sum, 1, MPI_LONG_LONG, MPI_BXOR, 0, MPI_COMM_WORLD);
         if( rank == 0 ) {
             if( sum != SUM_VALUE ) {
                 printf("****  Sum = %llx instead of %llx\n", sum, SUM_VALUE);

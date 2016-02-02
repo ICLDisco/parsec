@@ -1697,10 +1697,23 @@ int dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks )
 {
     int remaining;
 
+    if( DAGUE_UNDETERMINED_NB_TASKS != handle->nb_tasks ) {
+        assert( 0 != nb_tasks );
+        remaining = dague_atomic_add_32b((int32_t*)&handle->nb_tasks, nb_tasks);
+        assert( 0 <= remaining );
+        return (0 != remaining) ? 0 : dague_handle_update_runtime_nbtask(handle, -1);
+    }
+    return 0;
+}
+
+/**< Set nb_tasks to an (absolute) number of tasks left to do. This update accounts only
+ *   for upper-level tasks, and ignore all other runtime related activities.
+ */
+void dague_handle_set_nbtask( dague_handle_t* handle, int32_t nb_tasks )
+{
     assert( 0 != nb_tasks );
-    remaining = dague_atomic_add_32b((int32_t*)&handle->nb_tasks, nb_tasks);
-    assert( 0 <= remaining );
-    return (0 != remaining) ? 0 : dague_handle_update_runtime_nbtask(handle, -1);
+    handle->nb_tasks = nb_tasks;
+    dague_mfence();
 }
 
 /**< Increases the number of runtime associated activities (decreases if

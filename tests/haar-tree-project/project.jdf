@@ -60,10 +60,10 @@ CTL RL <- RL END_PROPAGATE(0, 0)
 
 BODY
 {
-    dague_handle_update_nbtask(&__dague_handle->super.super, - DAGUE_UNDETERMINED_NB_TASKS + tasks_done_locally + 3 + 1);
+    dague_handle_set_nbtask(&__dague_handle->super.super, 1);
     if(verbose)
-        fprintf(stderr, "Rank %d in BCAST_END_PROPAGATE, counted %d tasks executed; nb_local_tasks = %d\n", rank,
-                tasks_done_locally, __dague_handle->super.super.nb_local_tasks);
+        fprintf(stderr, "Rank %d in BCAST_END_PROPAGATE, counted %d tasks executed; nb_tasks = %d\n", rank,
+                tasks_done_locally, __dague_handle->super.super.nb_tasks);
 }
 END
 

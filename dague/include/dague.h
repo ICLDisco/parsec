@@ -208,6 +208,15 @@ int dague_handle_enable(dague_handle_t* handle,
  */
 int dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks );
 
+/**
+ * Set nb_tasks to an absolute number of remaining tasks associated with the
+ * handle. If the tasks counter reaches zero, it is assumed that no additional
+ * tasks will be generated and the runtime activity counter associated with the
+ * handle is decremented by one. NB: if calling inside a task, there is at
+ * least one task left to do, so nb_tasks cannot be 0.
+ */
+void dague_handle_set_nbtask( dague_handle_t* handle, int32_t nb_tasks );
+
 /**< Print DAGuE usage message */
 void dague_usage(void);
 
