@@ -72,7 +72,7 @@ zgeqrt(k)
   /* Priority */
   ;(descA.nt-k)*(descA.nt-k)*(descA.nt-k)
 
-BODY [type=recursive]
+BODY [type=RECURSIVE]
 {
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
@@ -106,11 +106,11 @@ BODY [type=recursive]
                                                   p_work );
 
         /* recursive call */
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zgeqrt, dplasma_zgeqrfr_geqrt_Destruct,
                              2, small_descA, small_descT );
 
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         return DAGUE_HOOK_RETURN_NEXT;
@@ -164,7 +164,7 @@ zunmqr(k,n)
           -> (k == (descA.mt-1)) ? dataA(k, n)
           -> (k <  (descA.mt-1)) ? A1 ztsmqr(k, k+1, n)
 
-BODY [type=recursive]
+BODY [type=RECURSIVE]
 {
     int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : descA.mb;
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
@@ -199,11 +199,11 @@ BODY [type=recursive]
                                                         p_work );
 
         /* recursive call */
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zunmqr_panel, dplasma_zgeqrfr_unmqr_Destruct,
                              3, small_descA, small_descC, small_descT );
 
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         return DAGUE_HOOK_RETURN_NEXT;
@@ -277,7 +277,7 @@ ztsqrt(k,m)
     /* Priority */
 ; (descA.mt-k)*(descA.mt-k)*(descA.mt-k)
 
-BODY [type=recursive]
+BODY [type=RECURSIVE]
 {
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
     int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
@@ -315,11 +315,11 @@ BODY [type=recursive]
                                                  p_work, p_tau );
 
         /* recursive call */
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_ztsqrt, dplasma_zgeqrfr_tsqrt_Destruct,
                              3, small_descA1, small_descA2, small_descT );
 
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         return DAGUE_HOOK_RETURN_NEXT;
@@ -429,7 +429,7 @@ BODY [type=CUDA dyld=dplasma_cuda_ztsmqr]
 }
 END
 
-BODY [type=recursive]
+BODY [type=RECURSIVE]
 {
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
@@ -472,11 +472,11 @@ BODY [type=recursive]
                                                   p_work );
 
         /* recursive call */
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_ztsmqr, dplasma_zgeqrfr_tsmqr_Destruct,
                              4, small_descA1, small_descA2, small_descV, small_descT );
 
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         return DAGUE_HOOK_RETURN_NEXT;

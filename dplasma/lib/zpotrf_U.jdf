@@ -81,11 +81,11 @@ BODY [type=RECURSIVE]
 
         dague_zpotrf = dplasma_zpotrf_New(uplo, (tiled_matrix_desc_t *)small_descT, &iinfo );
 
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zpotrf, dplasma_zpotrf_Destruct,
                              1, small_descT );
 
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         /* Go for the sequential CPU version */
@@ -161,11 +161,11 @@ BODY [type=RECURSIVE]
                                         (tiled_matrix_desc_t *)small_descT,
                                         (tiled_matrix_desc_t *)small_descC );
 
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_ztrsm, dplasma_ztrsm_Destruct,
                              2, small_descT, small_descC );
 
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         /* Go for the sequential CPU version */
@@ -239,10 +239,10 @@ BODY [type=RECURSIVE]
                                          (double)-1.0, (tiled_matrix_desc_t*) small_descA,
                                          (double)1.0,  (tiled_matrix_desc_t*) small_descT);
 
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zherk, dplasma_zherk_Destruct,
                              2, small_descA, small_descT );
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         /* Go for the sequential CPU version */
@@ -361,11 +361,11 @@ BODY [type=RECURSIVE]
                                         (dague_complex64_t) 1.0,
                                         (tiled_matrix_desc_t *)small_descC);
 
-        dague_recursivecall( context, this_task,
+        dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zgemm, dplasma_zgemm_Destruct,
                              3, small_descA, small_descB, small_descC );
 
-        return DAGUE_HOOK_RETURN_AGAIN;
+        return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
         /* Go to CPU sequential kernel */
