@@ -2985,6 +2985,9 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
+    /* TODO: in the next debug_verbose(..., "...Device..."), the output should
+     * be dague_cuda_output_stream, but this is not an available global from
+     * the generated code. */
     coutput("static void %s_startup(dague_context_t *context, __dague_%s_internal_handle_t *__dague_handle, dague_list_item_t ** ready_tasks)\n"
             "{\n"
             "  uint32_t supported_dev = 0;\n"
@@ -2999,7 +3002,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    if(NULL == device) continue;\n"
             "    if(NULL != device->device_handle_register)\n"
             "      if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)__dague_handle) ) {\n"
-            "        dague_output_verbose(1, 0, \"Device %%s refused to register handle %%p\\n\", device->name, __dague_handle);\n"
+            "        dague_debug_verbose(3, dague_debug_output, \"Device %%s refused to register handle %%p\\n\", device->name, __dague_handle);\n"
             "        continue;\n"
             "      }\n"
             "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"
@@ -3014,13 +3017,13 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "      dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
                            ";\n"
                            "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
-                           "        dague_output_verbose(1, 0, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
+                           "        dague_debug_verbose(3, dague_debug_output, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
                            "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
                            "      }\n",
                            ";\n"
                            "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
-                           "        dague_output_verbose(1, 0, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
+                           "        dague_debug_verbose(3, dague_debug_output, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
                            "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
                            "      }\n"));
@@ -3035,7 +3038,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "      if(supported_dev & (1 << chores[j].type)) {\n"
             "          if( j != index ) {\n"
             "            chores[index] = chores[j];\n"
-            "            dague_output_verbose(1, 0, \"Device type %%i disabled for function %%s\"\n, chores[j].type, func->name);\n"
+            "            dague_debug_verbose(20, dague_debug_output, \"Device type %%i disabled for function %%s\"\n, chores[j].type, func->name);\n"
             "          }\n"
             "          index++;\n"
             "      }\n"

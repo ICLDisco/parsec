@@ -92,7 +92,7 @@ int dague_data_init(dague_context_t* context)
      * we can update the size of the dague_data_t class to the correct value.
      */
     if( !dague_devices_freezed(context) ) {
-        dague_output(0, "Cannot configure the data infrastructure as the devices layer has not yet been freezed\n");
+        dague_warning("Cannot configure the data infrastructure as the devices layer has not yet been froze.\n");
         return DAGUE_ERROR;
     }
     dague_data_t_class.cls_sizeof += sizeof(dague_data_copy_t*) * dague_nb_devices;
