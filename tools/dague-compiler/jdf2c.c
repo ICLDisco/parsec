@@ -4377,10 +4377,12 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
     jdf_generate_code_cache_awareness_update(jdf, f);
 
-    coutput("\n"
-            "DEBUG2(( \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
-            "       dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),\n"
-            "       this_task->priority ));\n");
+    coutput("  {\n"
+            "    char tmp[MAX_TASK_STRLEN];\n"
+            "    DEBUG2(( \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
+            "           dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t *)this_task),\n"
+            "           this_task->priority ));\n"
+            "  }\n");
 
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
