@@ -1857,7 +1857,7 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[2+exec_stream]),
-                          gpu_task->submit,
+                          (gpu_task == NULL) ? NULL : gpu_task->submit,
                           gpu_task, &progress_task );
     if( rc < 0 ) {
         if( -1 == rc )
