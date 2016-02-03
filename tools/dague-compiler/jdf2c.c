@@ -4653,6 +4653,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                 "                        this_task);\n");
     }
 
+    /* TODO: The data could be on the GPU */
     coutput("#if defined(DISTRIBUTED)\n"
             "  /** If not working on distributed, there is no risk that data is not in place */\n");
     for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
