@@ -31,9 +31,9 @@ void parsec_pins_instrument(struct dague_execution_unit_s* exec_unit,
 void parsec_pins_disable_registration(int disable)
 {
     if (disable) {
-        dague_debug_verbose(5, dague_debug_output, "PINS registration is disabled.\n");
+        dague_debug_verbose(5, dague_debug_output, "PINS registration is disabled.");
     } else {
-        dague_debug_verbose(5, dague_debug_output, "PINS registration is enabled.\n");
+        dague_debug_verbose(5, dague_debug_output, "PINS registration is enabled.");
     }
     registration_disabled = disable;
 }

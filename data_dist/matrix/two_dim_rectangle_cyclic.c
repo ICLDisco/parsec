@@ -89,10 +89,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 #endif
 
     if(nodes < P)
-        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P);
+        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
     Q = nodes / P;
     if(nodes != P*Q)
-        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q);
+        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
 
     assert( (storage != matrix_Lapack) || (P==1) );
 
@@ -164,7 +164,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
-           "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
+           "      nrst = %d, ncst = %d, P = %d, Q = %d",
            Ddesc, tdesc->mtype, tdesc->super.nodes,
            tdesc->super.myrank,
            tdesc->mb, tdesc->nb,

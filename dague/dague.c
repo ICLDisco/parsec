@@ -115,20 +115,20 @@ static void dague_statistics(char* str)
         sys = ((current.ru_stime.tv_sec - _dague_rusage.ru_stime.tv_sec) +
                (current.ru_stime.tv_usec - _dague_rusage.ru_stime.tv_usec) / 1000000.0);
 
-        dague_inform("=============================================================\n");
-        dague_inform("Resource Usage Data...\n", str);
-        dague_inform("-------------------------------------------------------------\n");
-        dague_inform("User Time   (secs)          : %10.3f\n", usr);
-        dague_inform("System Time (secs)          : %10.3f\n", sys);
-        dague_inform("Total Time  (secs)          : %10.3f\n", usr + sys);
-        dague_inform("Minor Page Faults           : %10ld\n", (current.ru_minflt  - _dague_rusage.ru_minflt));
-        dague_inform("Major Page Faults           : %10ld\n", (current.ru_majflt  - _dague_rusage.ru_majflt));
-        dague_inform("Swap Count                  : %10ld\n", (current.ru_nswap   - _dague_rusage.ru_nswap));
-        dague_inform("Voluntary Context Switches  : %10ld\n", (current.ru_nvcsw   - _dague_rusage.ru_nvcsw));
-        dague_inform("Involuntary Context Switches: %10ld\n", (current.ru_nivcsw  - _dague_rusage.ru_nivcsw));
-        dague_inform("Block Input Operations      : %10ld\n", (current.ru_inblock - _dague_rusage.ru_inblock));
-        dague_inform("Block Output Operations     : %10ld\n", (current.ru_oublock - _dague_rusage.ru_oublock));
-        dague_inform("=============================================================\n");
+        dague_inform("=============================================================");
+        dague_inform("Resource Usage Data...", str);
+        dague_inform("-------------------------------------------------------------");
+        dague_inform("User Time   (secs)          : %10.3f", usr);
+        dague_inform("System Time (secs)          : %10.3f", sys);
+        dague_inform("Total Time  (secs)          : %10.3f", usr + sys);
+        dague_inform("Minor Page Faults           : %10ld", (current.ru_minflt  - _dague_rusage.ru_minflt));
+        dague_inform("Major Page Faults           : %10ld", (current.ru_majflt  - _dague_rusage.ru_majflt));
+        dague_inform("Swap Count                  : %10ld", (current.ru_nswap   - _dague_rusage.ru_nswap));
+        dague_inform("Voluntary Context Switches  : %10ld", (current.ru_nvcsw   - _dague_rusage.ru_nvcsw));
+        dague_inform("Involuntary Context Switches: %10ld", (current.ru_nivcsw  - _dague_rusage.ru_nivcsw));
+        dague_inform("Block Input Operations      : %10ld", (current.ru_inblock - _dague_rusage.ru_inblock));
+        dague_inform("Block Output Operations     : %10ld", (current.ru_oublock - _dague_rusage.ru_oublock));
+        dague_inform("=============================================================");
     }
     _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;
@@ -175,7 +175,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* Bind to the specified CORE */
     dague_bindthread(startup->bindto, startup->bindto_ht);
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : bind thread %i.%i on core %i [HT %i]\n",
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : bind thread %i.%i on core %i [HT %i]",
             startup->virtual_process->vp_id, startup->virtual_process->vp_id,
             startup->th_id, startup->bindto, startup->bindto_ht);
 
@@ -532,7 +532,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     {
         char *str = NULL;
         hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "binding core free mask is %s\n", str);
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "binding core free mask is %s", str);
         free(str);
     }
 #endif /* defined(DAGUE_DEBUG_MOTORMOUTH) */
@@ -1122,18 +1122,18 @@ static int dague_update_deps_with_counter(const dague_handle_t *dague_handle,
     } else {
         dep_cur_value = dague_atomic_dec_32b( deps );
     }
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Activate counter dependency for %s leftover %d (excluding current)\n",
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Activate counter dependency for %s leftover %d (excluding current)",
             tmp, dep_cur_value);
 
 #if defined(DAGUE_DEBUG_PARANOID)
     {
         char wtmp[MAX_TASK_STRLEN];
         if( (uint32_t)dep_cur_value > (uint32_t)-128) {
-            dague_abort("function %s as reached an improbable dependency count of %u\n",
+            dague_abort("function %s as reached an improbable dependency count of %u",
                   wtmp, dep_cur_value );
         }
 
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Task %s has a current dependencies count of %d remaining. %s to go!\n",
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Task %s has a current dependencies count of %d remaining. %s to go!",
                tmp, dep_cur_value,
                (dep_cur_value == 0) ? "Ready" : "Not ready");
     }
@@ -1157,12 +1157,12 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
     dague_snprintf_execution_context(tmpt, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Activate mask dep for %s:%s (current 0x%x now 0x%x goal 0x%x) from %s:%s\n",
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Activate mask dep for %s:%s (current 0x%x now 0x%x goal 0x%x) from %s:%s",
             dest_flow->name, tmpt, *deps, (1 << dest_flow->flow_index), function->dependencies_goal,
             origin_flow->name, tmpo);
 #if defined(DAGUE_DEBUG_PARANOID)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
-        dague_abort("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)\n",
+        dague_abort("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)",
                dest_flow->flow_index, tmpo,
                origin_flow->name, *deps,
                tmpt, dest_flow->name );
@@ -1179,7 +1179,7 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
         dep_new_value |= dague_check_IN_dependencies_with_mask( dague_handle, exec_context );
 #if defined(DAGUE_DEBUG_MOTORMOUTH)
         if( dep_new_value != 0 ) {
-            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Activate IN dependencies with mask 0x%x\n", dep_new_value);
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Activate IN dependencies with mask 0x%x", dep_new_value);
         }
 #endif
     }
@@ -1194,13 +1194,13 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
         success = dague_atomic_cas( deps,
                                     tmp_mask, (tmp_mask | DAGUE_DEPENDENCIES_TASK_DONE) );
         if( !success || (tmp_mask & DAGUE_DEPENDENCIES_TASK_DONE) ) {
-            dague_abort("Task %s scheduled twice (second time by %s)!!!\n",
+            dague_abort("Task %s scheduled twice (second time by %s)!!!",
                    tmpt, tmpo);
         }
     }
 #endif  /* defined(DAGUE_DEBUG_PARANOID) */
 
-    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!\n",
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!",
             tmpt, dep_cur_value, function->dependencies_goal,
             ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ?
             "Ready" : "Not ready");
@@ -1248,7 +1248,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
     dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context);
 #endif
 
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Activate dependencies for %s flags = 0x%04x\n", tmp1, function->flags);
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Activate dependencies for %s flags = 0x%04x", tmp1, function->flags);
     deps = function->find_deps(origin->dague_handle, exec_context);
 
     if( function->flags & DAGUE_USE_DEPS_MASK ) {
@@ -1273,7 +1273,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
             AYU_ADD_TASK(new_context);
 
             DAGUE_DEBUG_VERBOSE(5, dague_debug_output,
-                   "%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d\n",
+                   "%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d",
                    tmp1,
                    dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin),
                    eu_context->th_id, eu_context->virtual_process->vp_id,
@@ -1293,7 +1293,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
             AYU_ADD_TASK_DEP(new_context, (int)dest_flow->flow_index);
 
             if(exec_context->function->flags & DAGUE_IMMEDIATE_TASK) {
-                DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "  Task %s is immediate and will be executed ASAP\n", tmp1);
+                DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "  Task %s is immediate and will be executed ASAP", tmp1);
                 __dague_execute(eu_context, new_context);
                 __dague_complete_execution(eu_context, new_context);
 #if 0 /* TODO */
@@ -1312,7 +1312,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
             }
         }
     } else { /* Service not ready */
-        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "  => Service %s not yet ready\n", tmp1);
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "  => Service %s not yet ready", tmp1);
     }
 
     return 0;
@@ -1815,7 +1815,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 
         f = fopen(filename, "r");
         if( NULL == f ) {
-            dague_warning("invalid binding file %s.\n", filename);
+            dague_warning("invalid binding file %s.", filename);
             return -1;
         }
 
@@ -1836,7 +1836,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                 dague_parse_binding_parameter(line, context, startup);
             }
             else {
-                DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "MPI_process %i uses the default thread binding\n", rank);
+                DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "MPI_process %i uses the default thread binding", rank);
             }
             free(line);
         }
@@ -1893,7 +1893,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str, context->comm_th_index_mask);
-            DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "binding (core indexes) defined by the mask %s\n", str);
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "binding (core indexes) defined by the mask %s", str);
             free(str);
         }
 #endif /* defined(DAGUE_DEBUG_MOTORMOUTH) */
@@ -1920,7 +1920,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                 if( (arg < nb_real_cores) && (arg > -1) )
                     end = arg;
                 else
-                    dague_warning("binding end core not valid (restored to default value)\n");
+                    dague_warning("binding end core not valid (restored to default value)");
             }
             position = strchr(position, ':');  /* find the step */
         }
@@ -1931,9 +1931,9 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             if( (arg < nb_real_cores) && (arg > -1) )
                 step = arg;
             else
-                dague_warning("binding step not valid (restored to default value)\n");
+                dague_warning("binding step not valid (restored to default value)");
         }
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "binding defined by core range [%d:%d:%d]\n", start, end, step);
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "binding defined by core range [%d:%d:%d]", start, end, step);
 
         /* redefine the core according to the trio start/end/step */
         {
@@ -1945,7 +1945,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     where = start + skip;
                     skip++;
                     if((skip > step) && (t < (nb_total_comp_threads - 1))) {
-                        dague_inform("No more available cores to bind to. The remaining %d threads are not bound\n", nb_total_comp_threads -1-t);
+                        dague_inform("No more available cores to bind to. The remaining %d threads are not bound", nb_total_comp_threads -1-t);
                         int j;
                         for( j = t+1; j < nb_total_comp_threads; j++ )
                             startup[j].bindto = -1;
@@ -1977,7 +1977,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     hwloc_bitmap_set(context->comm_th_index_mask, arg);
                     cmp++;
                 } else {
-                    dague_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n Binding restored to default\n", arg, nb_real_cores-1);
+                    dague_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n Binding restored to default", arg, nb_real_cores-1);
                 }
 
                 if( NULL != (position = strpbrk(option, ",-"))) {
@@ -2004,7 +2004,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             }
         }
         if( core_tab[0]== -1 )
-            dague_warning("bindind arguments are not valid (restored to default value)\n");
+            dague_warning("bindind arguments are not valid (restored to default value)");
         else { /* we have a legal list to defined the binding  */
             cmp=0;
             for(t=0; t<nb_total_comp_threads; t++) {
@@ -2026,7 +2026,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                 offset = sprintf(str, "%i ", core_tab[i]);
                 str += offset;
             }
-            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "binding defined by the parsed list: %s \n", tmp);
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "binding defined by the parsed list: %s ", tmp);
         }
 #endif /* defined(DAGUE_DEBUG_MOTORMOUTH) */
     }
@@ -2035,7 +2035,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     (void)optarg;
     (void)context;
     (void)startup;
-    dague_warning("the binding defined by --dague_bind has been ignored (requires a build with HWLOC with bitmap support).\n");
+    dague_warning("the binding defined by --dague_bind has been ignored (requires a build with HWLOC with bitmap support).");
     return -1;
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 }
@@ -2049,15 +2049,15 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
         if( (core > -1) && (core < dague_hwloc_nb_real_cores()) )
             context->comm_th_core=core;
         else
-            dague_warning("the binding defined by --dague_bind_comm has been ignored (illegal core number)\n");
+            dague_warning("the binding defined by --dague_bind_comm has been ignored (illegal core number)");
     } else {
         /* TODO:: Add binding NUIOA aware by default */
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "default binding for the communication thread\n");
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "default binding for the communication thread");
     }
     return 0;
 #else
     (void)optarg; (void)context;
-    dague_warning("The binding defined by --dague_bind has been ignored (requires HWLOC use with bitmap support).\n");
+    dague_warning("The binding defined by --dague_bind has been ignored (requires HWLOC use with bitmap support).");
     return -1;
 #endif  /* HAVE_HWLOC */
 }

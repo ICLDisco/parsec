@@ -87,7 +87,7 @@ void dague_debug_init(void) {
         bt_output = dague_output_open(&lds);
         OBJ_DESTRUCT(&lds);
     }
-    else dague_warning("Invalid value %s for parameter debug_backtrace_output\n", opt);
+    else dague_warning("Invalid value %s for parameter debug_backtrace_output", opt);
 
     dague_mca_param_reg_int_name("debug", "backtrace_keep",
         "Maximum number of backtrace to keep in backtrace circular buffer",
@@ -100,7 +100,7 @@ void dague_debug_init(void) {
         stack_size = malloc(ST_ASIZE*sizeof(int));
         if( NULL == stack_size
          || NULL == stack ) {
-             dague_warning("Backtrace debug framework DISABLED: could not allocate the backtrace circular buffer with backtrace_keep=%d and backtrace_size=%d\n", ST_ASIZE, ST_SIZE);
+             dague_warning("Backtrace debug framework DISABLED: could not allocate the backtrace circular buffer with backtrace_keep=%d and backtrace_size=%d", ST_ASIZE, ST_SIZE);
              if( NULL != stack_size ) free(stack_size);
              if( NULL != stack ) free(stack);
              if( bt_output > 0 ) {
@@ -215,7 +215,7 @@ void dague_debug_history_dump(void) {
     dague_atomic_cas( &marks, cmark, nmark );
 
     current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
-    dague_inform("== Displaying debug history of the last %d of %u events pushed since last dump\n", current_mark, cmark->nextmark);
+    dague_inform("== Displaying debug history of the last %d of %u events pushed since last dump", current_mark, cmark->nextmark);
     for(ii = 0; ii < MAX_MARKS; ii++) {
         int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
@@ -225,10 +225,10 @@ void dague_debug_history_dump(void) {
             dague_output(dague_debug_output, " %s", gm);
             free(gm);
         } else {
-            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "A mark has not been stored at this position since the last dump\n");
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "A mark has not been stored at this position since the last dump");
         }
     }
-    dague_inform("== End debug history =====================================================\n");
+    dague_inform("== End debug history =====================================================");
 }
 
 static void debug_history_purge_one(void) {

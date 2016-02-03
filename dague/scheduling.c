@@ -84,7 +84,7 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
                 "Involuntary Context Switches: %10ld\n"
                 "Block Input Operations      : %10ld\n"
                 "Block Output Operations     : %10ld\n"
-                "=============================================================\n\n"
+                "=============================================================\n"
                 , str, eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
                 usr, sys, usr + sys,
                 (current.ru_minflt  - eu->_eu_rusage.ru_minflt), (current.ru_majflt  - eu->_eu_rusage.ru_majflt),
@@ -154,7 +154,7 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     /* Try all the incarnations until one agree to execute. */
     do {
 #if defined(DAGUE_DEBUG)
-        dague_debug_verbose(5, dague_debug_output, "Thread %d of VP %d Execute %s[%d]\n",
+        dague_debug_verbose(5, dague_debug_output, "Thread %d of VP %d Execute %s[%d]",
                eu_context->th_id, eu_context->virtual_process->vp_id,
                tmp, function->incarnations[exec_context->chore_id].type);
 #endif
@@ -228,7 +228,7 @@ int dague_set_scheduler( dague_context_t *dague )
     current_scheduler   = (dague_sched_module_t*)new_scheduler;
     scheduler_component = (dague_sched_base_component_t*)new_component;
 
-    dague_debug_verbose(4, dague_debug_output, " Installing scheduler %s\n", current_scheduler->component->base_version.mca_component_name);
+    dague_debug_verbose(4, dague_debug_output, " Installing scheduler %s", current_scheduler->component->base_version.mca_component_name);
     PROFILING_SAVE_sINFO("sched", (char *)current_scheduler->component->base_version.mca_component_name);
 
     current_scheduler->module.install( dague );
@@ -257,17 +257,17 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data_in ) {
-                        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)\n",
+                        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context),
                                 flow->name, __FILE__, __LINE__);
                     }
                 }
             }
             /*if( set_parameters > 1 ) {
-                dague_abort( "Task %s has more than one input flow set (impossible)!! (%s:%d)\n",
+                dague_abort( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
             }*/ /* Change it as soon as dtd has a running version */
-            DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "thread %d of VP %d Schedules %s\n",
+            DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "thread %d of VP %d Schedules %s",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) );
             context = (dague_execution_context_t*)context->super.list_item.list_next;
@@ -510,7 +510,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     PINS(eu_context, SELECT_END, NULL);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
-    dague_inform(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu\n",
+    dague_inform(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu",
             eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
             (long long unsigned int)found_remote,
             (long long unsigned int)found_victim,

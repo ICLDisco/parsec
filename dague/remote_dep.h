@@ -153,7 +153,7 @@ static inline dague_remote_deps_t* remote_deps_allocate( dague_lifo_t* lifo )
     remote_deps->pending_ack     = 0;
     remote_deps->incoming_mask   = 0;
     remote_deps->outgoing_mask   = 0;
-    DAGUE_DEBUG_VERBOSE(30, dague_debug_output, "remote_deps_allocate: %p\n", remote_deps);
+    DAGUE_DEBUG_VERBOSE(30, dague_debug_output, "remote_deps_allocate: %p", remote_deps);
     return remote_deps;
 }
 
@@ -182,7 +182,7 @@ static inline void remote_deps_free(dague_remote_deps_t* deps)
         deps->output[k].data.displ  = 0xFFFFFFFF;
 #endif
     }
-    DAGUE_DEBUG_VERBOSE(30, dague_debug_output, "remote_deps_free: %p mask %x\n", deps, deps->outgoing_mask);
+    DAGUE_DEBUG_VERBOSE(30, dague_debug_output, "remote_deps_free: %p mask %x", deps, deps->outgoing_mask);
 #if defined(DAGUE_DEBUG_PARANOID)
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif

@@ -119,7 +119,7 @@ static int flow_pbq_init(dague_execution_unit_t* eu, struct dague_barrier_t* bar
                 d = dague_hwloc_distance(eu->th_id, id);
                 if( d == 2*level || d == 2*level + 1 ) {
                     sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "%d of %d: my %d-preferred queue is the task queue of %d (%p)\n",
+                    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "%d of %d: my %d-preferred queue is the task queue of %d (%p)",
                            eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]);
                     nq++;
                     if( nq == sched_obj->nb_hierarch_queues )
@@ -152,7 +152,7 @@ static dague_execution_context_t *sched_pbq_select( dague_execution_unit_t *eu_c
         exec_context = (dague_execution_context_t*)dague_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i],
                                                                            dague_execution_context_priority_comparator);
         if( NULL != exec_context ) {
-            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p\n",
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]);
 #if defined(PINS_ENABLE)
 			exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
@@ -163,7 +163,7 @@ static dague_execution_context_t *sched_pbq_select( dague_execution_unit_t *eu_c
 
     exec_context = (dague_execution_context_t *)dague_dequeue_try_pop_front(LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
     if( NULL != exec_context ) {
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "LQ\t: %d:%d found task %p in its system queue %p\n",
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "LQ\t: %d:%d found task %p in its system queue %p",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
 #if defined(PINS_ENABLE)
 		exec_context->victim_core = SYSTEM_NEIGHBOR;

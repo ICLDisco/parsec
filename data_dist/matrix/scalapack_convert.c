@@ -100,7 +100,7 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
             clength = clength - ((Ddesc->nt * Ddesc->nb) - Ddesc->n);
         }
 
-    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "allocate scalapack matrix: process %u(%d,%d) handles %d x %d blocks, for a total of %d x %d elements (matrix size is %d by %d)\n",
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "allocate scalapack matrix: process %u(%d,%d) handles %d x %d blocks, for a total of %d x %d elements (matrix size is %d by %d)",
            Ddesc->super.myrank, rr, cr, nb_elem_r, nb_elem_c, rlength, clength, Ddesc->m, Ddesc->n);
     
     smat =  dague_data_allocate(rlength * clength * dague_datadist_getsizeoftype(Ddesc->mtype));

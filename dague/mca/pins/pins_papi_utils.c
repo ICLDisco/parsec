@@ -144,11 +144,11 @@ int pins_papi_init(dague_context_t * master_context)
             init_status = -1;
             return -1;
         }
-        dague_debug_verbose(4, dague_debug_output, "Using PAPI version %x\n", PAPI_VER_CURRENT);
+        dague_debug_verbose(4, dague_debug_output, "Using PAPI version %x", PAPI_VER_CURRENT);
         /*PAPI_set_debug(PAPI_VERB_ECONT);*/
         err = PAPI_thread_init(( unsigned long ( * )( void ) ) ( pthread_self ));
         if( err != PAPI_OK ) {
-            dague_warning("PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
+            dague_warning("PAPI_thread_init failed (%s)! All components depending on PAPI will be disabled.", PAPI_strerror(err));
             init_status = -2;
             return -2;
         }
@@ -158,7 +158,7 @@ int pins_papi_init(dague_context_t * master_context)
      * otherwise we stick with the default system units.
      */
     if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
-        dague_inform("Could not find a proposed time unit equivalent for %s. Fall back to %s\n",
+        dague_inform("Could not find a proposed time unit equivalent for %s. Fall back to %s",
                      TIMER_UNIT, find_unit_name_by_type(system_units));
     }
 
@@ -185,7 +185,7 @@ int pins_papi_thread_init(dague_execution_unit_t * exec_unit)
     (void)exec_unit;
     int err = PAPI_register_thread();
     if( err != PAPI_OK ) {
-        dague_warning("PAPI_register_thread failed (%s). All components depending on PAPI will be disabled.\n", PAPI_strerror(err));
+        dague_warning("PAPI_register_thread failed (%s). All components depending on PAPI will be disabled.", PAPI_strerror(err));
         return -2;
     }
     return 0;
@@ -310,7 +310,7 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
 
     /* Create a temporary eventset for checking whether events are valid. */
     if( PAPI_OK != (err = PAPI_create_eventset(&tmp_eventset)) ) {
-        dague_warning( "Couldn't create the PAPI event set %s\n",
+        dague_warning( "Couldn't create the PAPI event set %s",
                        PAPI_strerror(err));
         return NULL;
     }
@@ -361,12 +361,12 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 char* remaining;
                 float value = strtof(&token[1], &remaining);
                 if( remaining == &token[1] ) { /* no conversion was possible */
-                    dague_debug_verbose(3, dague_debug_output, "Impossible to convert the frequency [%s] of the PINS event %s. Assume frequency of 1.\n",
+                    dague_debug_verbose(3, dague_debug_output, "Impossible to convert the frequency [%s] of the PINS event %s. Assume frequency of 1.",
                                  &token[1], token);
                     continue;
                 }
                 if( value < 0 ) {
-                    dague_debug_verbose(3, dague_debug_output, "Obtained a negative value [%ld:%s] for the frequency of the PINS event %s. Assume frequency of 1.\n",
+                    dague_debug_verbose(3, dague_debug_output, "Obtained a negative value [%ld:%s] for the frequency of the PINS event %s. Assume frequency of 1.",
                                  value, &token[1], token);
                     continue;
                 }
@@ -378,14 +378,14 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 }
                 else {
                     event->frequency = (int)value;
-                    dague_debug_verbose(3, dague_debug_output, "No units found.  Assuming task-based frequency: %d\n", event->frequency);
+                    dague_debug_verbose(3, dague_debug_output, "No units found.  Assuming task-based frequency: %d", event->frequency);
                 }
                 continue;
             }
 
             /* Convert event name to code */
             if(PAPI_OK != (err = PAPI_event_name_to_code(token, &event->pins_papi_native_event)) ) {
-                dague_debug_verbose(3, dague_debug_output, "Could not convert %s to a valid PAPI event name (%s). Ignore the event\n",
+                dague_debug_verbose(3, dague_debug_output, "Could not convert %s to a valid PAPI event name (%s). Ignore the event",
                              token, PAPI_strerror(err));
                 break;
             }
@@ -399,23 +399,23 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
                 (void)PAPI_cleanup_eventset(tmp_eventset);  /* just do it and don't complain */
                 if( PAPI_OK != (err = PAPI_add_event(tmp_eventset,
                                                      event->pins_papi_native_event)) ) {
-                    dague_debug_verbose(3, dague_debug_output, "Unsupported event %s [%x](ERROR: %s). Discard the event.\n",
+                    dague_debug_verbose(3, dague_debug_output, "Unsupported event %s [%x](ERROR: %s). Discard the event.",
                                  token, event->pins_papi_native_event, PAPI_strerror(err));
                     break;
                 }
             }
             if(event->frequency > 0){
-                dague_debug_verbose(10, dague_debug_output, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d tasks\n",
+                dague_debug_verbose(10, dague_debug_output, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %d tasks",
                              token, event->socket, event->core, event->frequency);
             } else {
-                dague_debug_verbose(10, dague_debug_output, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %f %s\n",
+                dague_debug_verbose(10, dague_debug_output, "Valid PAPI event %s on socket %d (-1 for all), core %d (-1 for all) with frequency %f %s",
                              token, event->socket, event->core, event->time, find_unit_name_by_type(system_units));
             }
             /* Remove the event to prevent issues with adding events from incompatible classes */
             PAPI_remove_event(tmp_eventset, event->pins_papi_native_event);
 
             if( PAPI_OK != (err = PAPI_get_event_info(event->pins_papi_native_event, &papi_info)) ) {
-                dague_debug_verbose(3, dague_debug_output, "Impossible to extract information about event %s [%x] (error %s). Discard the event.\n",
+                dague_debug_verbose(3, dague_debug_output, "Impossible to extract information about event %s [%x] (error %s). Discard the event.",
                               token, event->pins_papi_native_event, PAPI_strerror(err));
                 break;
             }
@@ -466,15 +466,15 @@ void parsec_pins_papi_event_cleanup(parsec_pins_papi_callback_t* event_cb,
 
     if(PAPI_NULL != event_cb->papi_eventset) {
         if( PAPI_OK != (err = PAPI_stop(event_cb->papi_eventset, pinfo->values)) ) {
-            dague_debug_verbose(3, dague_debug_output, "Couldn't stop PAPI eventset (error %s)\n",
+            dague_debug_verbose(3, dague_debug_output, "Couldn't stop PAPI eventset (error %s)",
                          PAPI_strerror(err));
         }
         if( PAPI_OK != (err = PAPI_cleanup_eventset(event_cb->papi_eventset)) ) {
-            dague_debug_verbose(3, dague_debug_output, "Failed to cleanup eventset (error %s)\n", PAPI_strerror(err));
+            dague_debug_verbose(3, dague_debug_output, "Failed to cleanup eventset (error %s)", PAPI_strerror(err));
         }
 
         if( PAPI_OK != (err = PAPI_destroy_eventset(&event_cb->papi_eventset)) ) {
-            dague_debug_verbose(3, dague_debug_output, "Failed to destroy PAPI eventset (error %s)\n", PAPI_strerror(err));
+            dague_debug_verbose(3, dague_debug_output, "Failed to destroy PAPI eventset (error %s)", PAPI_strerror(err));
         }
         event_cb->papi_eventset = PAPI_NULL;
     }

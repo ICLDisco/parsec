@@ -43,7 +43,7 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )
 {
-    dague_abort("Use of 64b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 set\n \n");
+    dague_abort("Use of 64b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_8 set\n ");
     (void)location; (void)old_value; (void)new_value;
     return -1;
 }
@@ -63,7 +63,7 @@ static inline int dague_atomic_cas_128b( volatile uint64_t* location,
                                          uint64_t old_value,
                                          uint64_t new_value )
 {
-    dague_abort("Use of 128b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 set\n \n");
+    dague_abort("Use of 128b CAS using atomic-gcc without __GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 set\n ");
     (void)location; (void)old_value; (void)new_value;
     return -1;
 }

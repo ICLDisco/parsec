@@ -53,15 +53,15 @@ void pins_init(dague_context_t* master_context)
             if (pins_components[i]->mca_query_component != NULL) {
                 err = pins_components[i]->mca_query_component((mca_base_module_t**)&module, &priority);
                 if( err != MCA_SUCCESS ) {
-                    dague_debug_verbose(4, dague_debug_output, "query function for component %s return no module\n", pins_components[i]->mca_component_name);
+                    dague_debug_verbose(4, dague_debug_output, "query function for component %s return no module", pins_components[i]->mca_component_name);
                     continue;
                 }
-                dague_debug_verbose(10, dague_debug_output, "query function for component %s[%d] returns priority %d\n",
+                dague_debug_verbose(10, dague_debug_output, "query function for component %s[%d] returns priority %d",
                        pins_components[i]->mca_component_name, i, priority);
                 if (NULL != module->module.init) {
                     module->module.init(master_context);
                 }
-                dague_debug_verbose(4, dague_debug_output, "Activated PINS module %s.\n",
+                dague_debug_verbose(4, dague_debug_output, "Activated PINS module %s.",
                        module->component->base_version.mca_component_name);
                 modules_activated[num_modules_activated++] = module;
 #if defined(DAGUE_PROF_TRACE)
@@ -72,7 +72,7 @@ void pins_init(dague_context_t* master_context)
         }
     }
     mca_components_free_user_list(user_list);
-    dague_debug_verbose(20, dague_debug_output, "Found %d components, activated %d\n", i, num_modules_activated);
+    dague_debug_verbose(20, dague_debug_output, "Found %d components, activated %d", i, num_modules_activated);
 #if defined(DAGUE_PROF_TRACE)
     /* replace trailing comma with \0 */
     if ( strlen(modules_activated_str) > 1) {
@@ -96,7 +96,7 @@ void pins_fini(dague_context_t* master_context)
         for(i = 0; i < num_modules_activated; i++) {
             if( NULL != modules_activated[i]->module.fini ) {
                 modules_activated[i]->module.fini(master_context);
-                dague_debug_verbose(20, dague_debug_output, "Finalized PINS module %s.\n",
+                dague_debug_verbose(20, dague_debug_output, "Finalized PINS module %s.",
                        modules_activated[i]->component->base_version.mca_component_name);
             }
         }

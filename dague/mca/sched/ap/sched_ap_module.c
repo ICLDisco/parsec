@@ -78,7 +78,7 @@ static int sched_ap_schedule( dague_execution_unit_t* eu_context,
     dague_list_item_t *it = (dague_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
     do {
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "AP:\t Pushing task %s\n",
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "AP:\t Pushing task %s",
                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it));
         it = (dague_list_item_t*)((dague_list_item_t*)it)->list_next;
     } while( it != (dague_list_item_t*)new_context );

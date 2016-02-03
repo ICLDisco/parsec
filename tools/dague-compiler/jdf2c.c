@@ -1219,7 +1219,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  int _vmax = (vMAX);                                                                        \\\n"
             "  (DEPS) = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +                   \\\n"
             "                   (_vmax - _vmin) * sizeof(dague_dependencies_union_t));                    \\\n"
-            "  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\",    \\\n"
+            "  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\",    \\\n"
             "           (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP));    \\\n"
             "  (DEPS)->flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | (FLAG);                                \\\n"
             "  (DEPS)->symbol = (vSYMBOL);                                                                \\\n"
@@ -1235,7 +1235,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
-            "    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"thread %%d VP %%d explore deps from %%s:%%s to %%s:%%s (from rank %%d to %%d) base ptr %%p\\n\",\\\n"
+            "    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"thread %%d VP %%d explore deps from %%s:%%s to %%s:%%s (from rank %%d to %%d) base ptr %%p\",\\\n"
             "           (NULL != (EU) ? (EU)->th_id : -1), (NULL != (EU) ? (EU)->virtual_process->vp_id : -1),\\\n"
             "           DEPO, dague_snprintf_execution_context(tmp1, 128, (dague_execution_context_t*)(TASKO)),\\\n"
             "           DEPI, dague_snprintf_execution_context(tmp2, 128, (dague_execution_context_t*)(TASKI)), (RSRC), (RDST), (DATA));\\\n"
@@ -1243,7 +1243,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#define ACQUIRE_FLOW(TASKI, DEPI, FUNO, DEPO, LOCALS, PTR)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
-            "    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"task %%s acquires flow %%s from %%s %%s data ptr %%p\\n\",\\\n"
+            "    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"task %%s acquires flow %%s from %%s %%s data ptr %%p\",\\\n"
             "           dague_snprintf_execution_context(tmp1, 128, (dague_execution_context_t*)(TASKI)), (DEPI),\\\n"
             "           (DEPO), dague_snprintf_assignments(tmp2, 128, (FUNO), (assignment_t*)(LOCALS)), (PTR));\\\n"
             "  } while(0)\n"
@@ -2271,7 +2271,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     coutput("#if defined(DAGUE_DEBUG_MOTORMOUTH)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
-            "%s    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, \"Add startup task %%s\\n\",\n"
+            "%s    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, \"Add startup task %%s\",\n"
             "%s           dague_snprintf_execution_context(tmp, 128, (dague_execution_context_t*)new_task));\n"
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
@@ -2449,7 +2449,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     }
 
-    coutput("  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (nb_tasks = %%d)\\n\", nb_tasks);\n"
+    coutput("  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (nb_tasks = %%d)\", nb_tasks);\n"
             "  if( 0 != nb_tasks ) {\n",
             fname);
 
@@ -3002,7 +3002,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    if(NULL == device) continue;\n"
             "    if(NULL != device->device_handle_register)\n"
             "      if( DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t*)__dague_handle) ) {\n"
-            "        dague_debug_verbose(3, dague_debug_output, \"Device %%s refused to register handle %%p\\n\", device->name, __dague_handle);\n"
+            "        dague_debug_verbose(3, dague_debug_output, \"Device %%s refused to register handle %%p\", device->name, __dague_handle);\n"
             "        continue;\n"
             "      }\n"
             "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"

@@ -43,10 +43,10 @@ static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
 #else
     hwloc_cpuset_asprintf(&str, cpuset);
 #endif
-    dague_inform("%s %s\n", msg, str);
+    dague_inform("%s %s", msg, str);
     free(str);
 #else
-    dague_inform("%s compiled without HWLOC support\n", msg);
+    dague_inform("%s compiled without HWLOC support", msg);
 #endif  /* defined(HAVE_HWLOC) */
 }
 
@@ -332,7 +332,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     /* Get the core of index cpu_index */
     obj = core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
     if (!core) {
-        dague_warning("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )\n",
+        dague_warning("dague_hwloc: unable to get the core of index %i (nb physical cores = %i )",
                  cpu_index,  dague_hwloc_nb_real_cores());
         return -1;
     }
@@ -345,7 +345,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
             obj = core->children[0];
 
         if (!obj) {
-            dague_warning("dague_hwloc: unable to get the core of index %i, HT %i (nb cores = %i)\n",
+            dague_warning("dague_hwloc: unable to get the core of index %i, HT %i (nb cores = %i)",
                      cpu_index, local_ht_index, dague_hwloc_nb_real_cores());
             return -1;
         }
@@ -372,7 +372,7 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 #endif
         return -1;
     }
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Thread bound on core index %i, [HT %i ]\n", cpu_index, local_ht_index);
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Thread bound on core index %i, [HT %i ]", cpu_index, local_ht_index);
     /*dague_hwloc_print_cpuset("Thread bound on ", cpuset);*/
 
     /* Get the number at Proc level*/
@@ -403,7 +403,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         /* Get the core of index cpu */
         obj = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
         if (!obj) {
-            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "dague_hwloc_bind_on_mask_index: unable to get the core of index %i\n", cpu_index);
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "dague_hwloc_bind_on_mask_index: unable to get the core of index %i", cpu_index);
         } else {
             hwloc_bitmap_or(binding_mask, binding_mask, obj->cpuset);
         }
@@ -440,7 +440,7 @@ int dague_hwloc_allow_ht(int htnb)
     if (htnb > 1) {
         int pu_per_core = hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_PU) / hwloc_get_nbobjs_by_type(topology, HWLOC_OBJ_CORE);
         if( htnb > pu_per_core){
-            dague_warning("HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)\n", htnb,  pu_per_core);
+            dague_warning("HyperThreading:: There not enought logical processors to consider %i HyperThreads per core (set up to %i)", htnb,  pu_per_core);
             htnb = pu_per_core;
         }
     }

@@ -82,7 +82,7 @@ void dague_arena_destruct(dague_arena_t* arena)
          || arena->max_used == INT32_MAX );
 
     while(NULL != (item = dague_lifo_pop(&arena->area_lifo))) {
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)\n",
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
                 item, ((dague_arena_chunk_t*)item)->data, arena);
         TRACE_FREE(arena_memory_free_key, item);
         arena->data_free(item);
@@ -124,7 +124,7 @@ dague_arena_release_chunk(dague_arena_t* arena,
     TRACE_FREE(arena_memory_unused_key, chunk);
 
     if( (chunk->count == 1) && (arena->released < arena->max_released) ) {
-        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
                 arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(dague_arena_chunk_t),
                 DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment));
         if(arena->max_released != INT32_MAX) {
@@ -133,7 +133,7 @@ dague_arena_release_chunk(dague_arena_t* arena,
         dague_lifo_push(&arena->area_lifo, &chunk->item);
         return;
     }
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
             arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(dague_arena_chunk_t),
             DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment));
     TRACE_FREE(arena_memory_free_key, chunk);

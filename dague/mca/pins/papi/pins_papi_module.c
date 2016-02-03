@@ -80,7 +80,7 @@ static void pins_papi_trace(dague_execution_unit_t* exec_unit,
 
             /* The elapsed time is longer than the frequency period, so we read. */
             if(elapsed_time > event_cb->groups[i].time){
-                DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "[Thread %d] Elapsed Time: %f (%s) > %f\n", exec_unit->th_id, elapsed_time,
+                DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "[Thread %d] Elapsed Time: %f (%s) > %f", exec_unit->th_id, elapsed_time,
                               find_unit_name_by_type(system_units), event_cb->groups[i].time);
                 event_cb->groups[i].start_time = current_time;
 
@@ -183,7 +183,7 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
 
     /* the event is now ready. Trigger it once ! */
     if( DAGUE_SUCCESS != (err = pins_papi_read_and_trace(exec_unit, event_cb)) ) {
-        dague_warning("PAPI event %s core %d socket %d frequency %d failed to generate. Disabled!\n",
+        dague_warning("PAPI event %s core %d socket %d frequency %d failed to generate. Disabled!",
             conv_string[i], event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
         return err;
     }
@@ -191,12 +191,12 @@ static int register_event_cb(dague_execution_unit_t * exec_unit,
     bool need_begin = false;
     for(i = 0; i < event_cb->num_groups; i++) {
         if(event_cb->groups[i].frequency > 0){ /* task-based frequency */
-            dague_debug_verbose(4, dague_debug_output, "PAPI event %s core %d socket %d frequency %d tasks enabled\n",
+            dague_debug_verbose(4, dague_debug_output, "PAPI event %s core %d socket %d frequency %d tasks enabled",
                          conv_string[i], event_cb->event->core, event_cb->event->socket, event_cb->groups[i].frequency);
             if(event_cb->groups[i].frequency == 1) /* An EXEC_BEGIN needs to be registered. */
                 need_begin = true;
         } else { /* time-based frequency */
-            dague_debug_verbose(4, dague_debug_output, "PAPI event %s core %d socket %d frequency %f %s enabled\n",
+            dague_debug_verbose(4, dague_debug_output, "PAPI event %s core %d socket %d frequency %f %s enabled",
                          conv_string[i], exec_unit->core_id, exec_unit->socket_id, event_cb->groups[i].time,
                          find_short_unit_name_by_type(system_units));
         }
@@ -279,7 +279,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
 
             /* Can we have any more events in this eventset? */
             if(event_cb->num_counters >= max_counters) {
-                dague_warning("On your system, PAPI component %d supports a maximum of %d counters, you are trying to add more that that.\n",
+                dague_warning("On your system, PAPI component %d supports a maximum of %d counters, you are trying to add more that that.",
                                event->papi_component_index, max_counters);
                 break;
             }
@@ -310,7 +310,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                 void *tmp;
                 tmp = realloc(event_cb->groups, event_cb->num_groups * sizeof(parsec_pins_papi_frequency_group_t));
                 if(tmp == NULL){
-                    dague_warning("Failed to add a new frequency group for event (%s), ERROR: %s.\n",
+                    dague_warning("Failed to add a new frequency group for event (%s), ERROR: %s.",
                                  event->pins_papi_event_name, strerror(errno));
                     return;
                 }
@@ -346,7 +346,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
                     void *temp_string;
                     temp_string = realloc(conv_string, event_cb->num_groups * sizeof(char*));
                     if(temp_string == NULL) {
-                        dague_warning("Failed to resize the events string, ERROR: %s\n", strerror(errno));
+                        dague_warning("Failed to resize the events string, ERROR: %s", strerror(errno));
                         return;
                     }
                     conv_string = (char**)temp_string;
@@ -363,7 +363,7 @@ static void pins_thread_init_papi(dague_execution_unit_t * exec_unit)
         if( NULL != event_cb ) {
             /* Register the event_cb with this exec_unit and conv_string.  Note: i is used for the event_id */
             if( DAGUE_SUCCESS != (err = register_event_cb(exec_unit, event_cb, conv_string, i)) ) {
-                dague_warning("Unable to register event_cb %d starting with '%s' on socket %d and core %d\n",
+                dague_warning("Unable to register event_cb %d starting with '%s' on socket %d and core %d",
                              i, event_cb->event->pins_papi_event_name, my_socket, my_core);
 
                 parsec_pins_papi_event_cleanup(event_cb, info);
@@ -414,7 +414,7 @@ static void pins_thread_fini_papi(dague_execution_unit_t* exec_unit)
             parsec_pins_papi_callback_t* start_cb;
             PINS_UNREGISTER(exec_unit, EXEC_BEGIN, pins_papi_trace, (parsec_pins_next_callback_t**)&start_cb);
             if( NULL == start_cb ) {
-                dague_debug_verbose(3, dague_debug_output, "Unsetting exception of an event with frequency 1 but without a start callback. Ignored.\n");
+                dague_debug_verbose(3, dague_debug_output, "Unsetting exception of an event with frequency 1 but without a start callback. Ignored.");
             }
         }
         /* Clean up the eventset, and perform final recordings. */

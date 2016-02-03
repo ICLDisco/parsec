@@ -46,7 +46,7 @@ int dague_bindthread(int cpu, int ht)
     {
         cpu = dague_hwloc_bind_on_core_index(cpu, ht);
         if(cpu == -1 ) {
-            dague_warning("Core binding on node %i failed\n", cpu);
+            dague_warning("Core binding on node %i failed", cpu);
             return -1;
         }
     }

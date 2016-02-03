@@ -102,7 +102,7 @@ typedef struct _gpu_device {
     do {                                                                \
         cudaError_t __cuda_error = (cudaError_t) (ERROR);               \
         if( cudaSuccess != __cuda_error ) {                             \
-            dague_warning( "%s:%d %s%s\n", __FILE__, __LINE__,          \
+            dague_warning( "%s:%d %s%s", __FILE__, __LINE__,          \
                     (STR), cudaGetErrorString(__cuda_error) );          \
             CODE;                                                       \
         }                                                               \
