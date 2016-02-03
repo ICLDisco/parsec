@@ -1186,6 +1186,9 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#if defined(DAGUE_PROF_GRAPHER)\n"
             "#include \"dague/dague_prof_grapher.h\"\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
+            "#if defined(HAVE_CUDA)\n"
+            "#include \"dague/devices/cuda/dev_cuda.h\"\n"
+            "#endif  /* defined(HAVE_CUDA) */\n"
             "#include <alloca.h>\n",
             jdf_basename,
             jdf_basename, nbfunctions,
@@ -4330,13 +4333,6 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     ai.expr = NULL;
 
     coutput("\n"
-            "#ifdef KERNEL_NAME\n"
-            "#undef KERNEL_NAME\n"
-            "#endif\n"
-            "#define KERNEL_NAME %s_%s\n"
-            "#include <dague/devices/cuda/cuda_scheduling.h>\n"
-            "#undef KERNEL_NAME\n"
-            "\n"
             "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
             "                                   dague_gpu_context_t     *gpu_task,\n"
             "                                   dague_gpu_exec_stream_t *gpu_stream )\n"
@@ -4345,7 +4341,6 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
             "  (void)gpu_device; (void)gpu_stream; (void)__dague_handle;\n"
             "%s",
-            jdf_basename, f->fname,
             jdf_basename, f->fname,
             dague_get_name(jdf, f, "task_t"), dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
@@ -4443,9 +4438,11 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  gpu_task = (dague_gpu_context_t*)calloc(1, sizeof(dague_gpu_context_t));\n"
             "  OBJ_CONSTRUCT(gpu_task, dague_list_item_t);\n"
             "  gpu_task->ec = (dague_execution_context_t*)this_task;\n"
+            "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n",
             name, type_property->expr->jdf_var, dague_get_name(jdf, f, "task_t"),
-            jdf_basename, jdf_basename);
+            jdf_basename, jdf_basename,
+            jdf_basename, f->fname);
 
     /* Dump the dataflow */
     for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
@@ -4456,9 +4453,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     }
 
     coutput("\n"
-            "  return gpu_kernel_scheduler_%s_%s( context, gpu_task, dev_index );\n"
-            "}\n\n",
-            jdf_basename, f->fname);
+            "  return dague_gpu_kernel_scheduler( context, gpu_task, dev_index );\n"
+            "}\n\n");
 
     string_arena_free(sa);
     string_arena_free(sa2);
