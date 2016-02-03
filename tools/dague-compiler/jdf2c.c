@@ -534,15 +534,25 @@ static char *dump_data_declaration(void **elem, void *arg)
 }
 
 /**
+ * Parameters of the dump_data_initialization_from_data_array
+ */
+typedef struct init_from_data_info {
+    string_arena_t *sa;
+    const char *where;
+} init_from_data_info_t;
+
+/**
  * dump_data_initialization_from_data_array:
- *  Takes the pointer to a flow *f, let say that f->varname == "A",
- *  this produces a string like
+ *  Takes the pointer to a flow *f, let say that f->varname == "A", and where ==
+ *  "in", this produces a string like
  *  dague_data_copy_t *gA = this_task->data[id].data_in;\n
  *  void *A = DAGUE_DATA_COPY_GET_PTR(gA); (void)A;\n
  */
 static char *dump_data_initialization_from_data_array(void **elem, void *arg)
 {
-    string_arena_t *sa = (string_arena_t *)arg;
+    init_from_data_info_t *info = (init_from_data_info_t*)arg;
+    string_arena_t *sa = info->sa;
+    const char *where = info->where;
     jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
     char *varname = f->varname;
 
@@ -553,42 +563,8 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa,
-                            "  dague_data_copy_t *g%s = this_task->data.%s.data_in;\n",
-                            varname, f->varname);
-    if( !(f->flow_flags & JDF_FLOW_TYPE_READ) ) {  /* if only write then we can locally have NULL */
-        string_arena_add_string(sa,
-                                "  void *%s = (NULL != g%s) ? DAGUE_DATA_COPY_GET_PTR(g%s) : NULL; (void)%s;\n",
-                                varname, varname, varname, varname);
-    } else {
-        string_arena_add_string(sa,
-                                "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
-                                varname, varname, varname);
-    }
-    return string_arena_get_string(sa);
-}
-
-/**
- * dump_data_initialization_from_data_out_array:
- *  Takes the pointer to a flow *f, let say that f->varname == "A",
- *  this produces a string like
- *  dague_data_copy_t *gA = this_task->data[id].data_out;\n
- *  void *A = DAGUE_DATA_COPY_GET_PTR(gA); (void)A;\n
- */
-static char *dump_data_initialization_from_data_out_array(void **elem, void *arg)
-{
-    string_arena_t *sa = (string_arena_t *)arg;
-    jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
-    char *varname = f->varname;
-
-    if(f->flow_flags & JDF_FLOW_TYPE_CTL) {
-        return NULL;
-    }
-
-    string_arena_init(sa);
-
-    string_arena_add_string(sa,
-                            "  dague_data_copy_t *g%s = this_task->data.%s.data_out;\n",
-                            varname, f->varname);
+                            "  dague_data_copy_t *g%s = this_task->data.%s.data_%s;\n",
+                            varname, f->varname, where);
     if( !(f->flow_flags & JDF_FLOW_TYPE_READ) ) {  /* if only write then we can locally have NULL */
         string_arena_add_string(sa,
                                 "  void *%s = (NULL != g%s) ? DAGUE_DATA_COPY_GET_PTR(g%s) : NULL; (void)%s;\n",
@@ -4316,6 +4292,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     jdf_def_list_t* dyldtype_property;
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
+    init_from_data_info_t ai2;
     jdf_dataflow_t *fl;
     int di;
     int profile_on;
@@ -4350,8 +4327,11 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
+
+    ai2.sa = sa2;
+    ai2.where = "out";
     output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                            dump_data_initialization_from_data_out_array, sa2, "", "", "", "");
+                            dump_data_initialization_from_data_array, &ai2, "", "", "", "");
     if( 0 != strlen(output) ) {
         coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
                 "%s\n",
@@ -4468,6 +4448,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     jdf_def_list_t* type_property;
     string_arena_t *sa, *sa2;
     assignment_info_t ai;
+    init_from_data_info_t ai2;
     jdf_dataflow_t *fl;
     int di;
     int profile_on;
@@ -4527,8 +4508,10 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
+    ai2.sa = sa2;
+    ai2.where = "in";
     output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                            dump_data_initialization_from_data_array, sa2, "", "", "", "");
+                            dump_data_initialization_from_data_array, &ai2, "", "", "", "");
     if( 0 != strlen(output) ) {
         coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
                 "%s\n",
