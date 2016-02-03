@@ -60,7 +60,7 @@ CTL RL <- RL END_PROPAGATE(0, 0)
 
 BODY
 {
-    dague_handle_set_nbtask(&__dague_handle->super.super, 1);
+    __dague_handle->super.super.nb_tasks = 1;
     if(verbose)
         fprintf(stderr, "Rank %d in BCAST_END_PROPAGATE, counted %d tasks executed; nb_tasks = %d\n", rank,
                 tasks_done_locally, __dague_handle->super.super.nb_tasks);
@@ -133,7 +133,7 @@ CREATE_NODE (n, l) [hash_fn = create_node_hash
 :treeAdesc(n, l)
 
 CTL RL <- RL PROJECT(n, l)
-    
+
 WRITE NODE <- [ type=DEFAULT ]
 
 BODY
@@ -141,7 +141,6 @@ BODY
     node_t *node = (node_t*)NODE;
 
     double sl, sr;
-    double s, d;
 
     if( verbose ) {
         int rank;
@@ -186,7 +185,6 @@ BODY
     double sl, sr;
     double s, d;
 
-    int n_c, l_r, l_l;
     if( verbose ) {
         int rank;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -229,7 +227,7 @@ static uint64_t create_node_hash(const struct __dague_project_internal_handle * 
     (void)__dague_handle;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
- 
+
 static uint64_t project_hash(const struct __dague_project_internal_handle * __dague_handle,
                                    struct __dague_project_PROJECT_assignment_s * assignments)
 {

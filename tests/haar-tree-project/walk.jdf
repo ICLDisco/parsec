@@ -34,7 +34,7 @@ NP                 [type = "int"]
 fakeDesc           [type = "dague_ddesc_t *"]
 on_fct_param       [type = "void*"]
 on_node_down       [type = "walk_fn_t"]
-on_node_up         [type = "walk_fn_t"] 
+on_node_up         [type = "walk_fn_t"]
 tasks_done_locally [type = "uint32_t"]
 verbose            [type = "int"]
 
@@ -47,7 +47,7 @@ CTL RL <- RL UP(0, 0)
 
 BODY
 {
-    dague_handle_set_nbtask(&__dague_handle->super.super, 1);
+    __dague_handle->super.super.nb_tasks = 1;
     if( verbose ) {
         fprintf(stderr, "Rank %d in BCAST_UP, counted %d tasks executed; nb_tasks = %d\n", rank,
                 tasks_done_locally, __dague_handle->super.super.nb_tasks);

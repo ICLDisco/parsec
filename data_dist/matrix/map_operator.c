@@ -14,6 +14,7 @@
 #include "dague/devices/device.h"
 #include "dague/vpmap.h"
 #include "dague/data_internal.h"
+#include "dague/interfaces/jdf/jdf.h"
 
 #if defined(DAGUE_PROF_TRACE)
 int dague_map_operator_profiling_array[2] = {-1};
@@ -393,6 +394,7 @@ static const dague_function_t dague_map_operator = {
     .iterate_successors = iterate_successors,
     .release_deps = release_deps,
     .complete_execution = complete_hook,
+    .release_task = dague_release_task_to_mempool_update_nbtasks,
     .fini = NULL,
 };
 

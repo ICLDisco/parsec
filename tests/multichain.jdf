@@ -125,7 +125,7 @@ int main(int argc, char* argv[])
     /**
      * Build the data and the arena to hold it up.
      */
-    mat_size = 2*BLOCK*size*NN;
+    mat_size = 2*BLOCK*size*ni;
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                size /*nodes*/, rank /*rank*/,
                                2*BLOCK, 1, mat_size, 1,
@@ -187,9 +187,12 @@ int main(int argc, char* argv[])
 
         dague_context_start(dague);
         sleep(5);
-        printf("Main thread going for the wait\n");
+        printf("Main thread going for the wait (remaining tasks %d)\n", handle->super.nb_tasks);
         /* By now most of the tasks should be completed */
+        TIMER_START(time_elapsed);
         dague_context_wait(dague);
+        TIMER_STOP(time_elapsed);
+        printf("DAG execution in %ld micro-sec\n", time_elapsed);
     }
     free(descA.mat);
 

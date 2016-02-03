@@ -504,7 +504,7 @@ dague_dtd_context_wait_on_handle( dague_context_t     *dague,
 {
     (void)dague;
     /* decrementing the extra task we initialized the handle with */
-    dague_handle_update_nbtask( &(dague_handle->super), -1);
+    dague_atomic_dec_32b(&dague_handle->super.nb_tasks);
 
     /* We are checking if we have any handle still waiting to
      * be comepleted, if not we call the final function to

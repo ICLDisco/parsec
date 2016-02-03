@@ -39,6 +39,7 @@ include(mca/CMakeLists.txt)
 
 # Import all the available interfce
 include(interfaces/superscalar/CMakeLists.txt)
+include(interfaces/jdf/CMakeLists.txt)
 
 # find_package(TAU REQUIRED)
 # include_directories(${TAU_INCLUDE_DIRS})

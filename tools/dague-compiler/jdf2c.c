@@ -1084,6 +1084,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include \"dague/debug.h\"\n"
             "#include \"dague/ayudame.h\"\n"
             "#include \"dague/devices/device.h\"\n"
+            "#include \"dague/interfaces/jdf/jdf.h\"\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 
@@ -2622,6 +2623,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             "      ov = __dague_handle->super.super.nb_tasks;\n"
             "    } while( !dague_atomic_cas(&__dague_handle->super.super.nb_tasks, ov, DAGUE_UNDETERMINED_NB_TASKS));\n"
             "  }\n");
+    /* If this startup task belongs to a task class that will generate initial tasks, then we
+     * should be careful to only generate these tasks once all the initial tasks have completed.
+     * Thus we synchronize the initial tasks via the sync, and all of them not ready to start
+     * the task generation step will be temporarily stored in the handle's startup_queue.
+     */
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         coutput("%s    do {\n"
                 "%s      this_task->super.list_item.list_next = (dague_list_item_t*)__dague_handle->startup_queue;\n"
@@ -2975,7 +2981,11 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_code_hooks(jdf, f, prefix);
     string_arena_add_string(sa, "  .complete_execution = (dague_hook_t*)complete_%s,\n", prefix);
 
-    string_arena_add_string(sa, "  .release_task = (dague_hook_t*)dague_release_task_to_mempool,\n");
+    if( f->user_defines & JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN ) {
+        string_arena_add_string(sa, "  .release_task = (dague_hook_t*)dague_release_task_to_mempool,\n");
+    } else {
+        string_arena_add_string(sa, "  .release_task = (dague_hook_t*)dague_release_task_to_mempool_update_nbtasks,\n");
+    }
 
     if( NULL != f->simcost ) {
         sprintf(prefix, "simulation_cost_of_%s_%s", jdf_basename, f->fname);
@@ -3289,10 +3299,10 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "    memcpy((__dague_chore_t*)func->incarnations, %s_functions[i]->incarnations, (j+1) * sizeof(__dague_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"
             "    __dague_handle->super.super.functions_array[__dague_handle->super.super.nb_functions+i] = func = (dague_function_t*)malloc(sizeof(dague_function_t));\n"
-            "    memcpy(func, (void*)&__dague_generic_startup, sizeof(dague_function_t));\n"
+            "    memcpy(func, (void*)&__dague_generic_jdf_startup, sizeof(dague_function_t));\n"
             "    func->function_id = __dague_handle->super.super.nb_functions + i;\n"
             "    func->incarnations = (__dague_chore_t*)malloc(2 * sizeof(__dague_chore_t));\n"
-            "    memcpy((__dague_chore_t*)func->incarnations, (void*)__dague_generic_startup.incarnations, 2 * sizeof(__dague_chore_t));\n"
+            "    memcpy((__dague_chore_t*)func->incarnations, (void*)__dague_generic_jdf_startup.incarnations, 2 * sizeof(__dague_chore_t));\n"
             "  }\n",
             jdf_basename,
             jdf_basename);
