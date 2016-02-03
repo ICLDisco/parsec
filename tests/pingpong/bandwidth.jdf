@@ -11,10 +11,6 @@ extern "C" %{
 
 #include "bandwidth.h"
 
-#if defined(HAVE_CUDA)
-#include "tests/pingpong/pingpong_gpu.h"
-#endif  /* defined(HAVE_CUDA) */
-
 typedef struct {
     dague_ddesc_t  super;
     int            frags;
