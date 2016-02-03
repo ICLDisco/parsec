@@ -4324,6 +4324,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                              UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                                   dump_string, NULL, "", "  (void)", ";", ";\n"));
 
+    /* Generate the gpu_kernel_submit function */
     coutput("\n"
             "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
             "                                   dague_gpu_context_t     *gpu_task,\n"
@@ -4411,6 +4412,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     coutput("  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n\n");
 
+    /* Generate the hook_cuda */
     coutput("static int %s_%s(dague_execution_unit_t *context, %s *this_task)\n"
             "{\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
@@ -4468,15 +4470,74 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             weight, device,
             jdf_basename, f->fname);
 
-    string_arena_free(info.sa);
-
     /* Dump the dataflow */
     for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
-        coutput("  gpu_task->pushout[%d] = %d;\n"
+        coutput("  gpu_task->pushout[%d] = 0;\n"
                 "  gpu_task->flow[%d]    = &%s;\n",
-                di, (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? 1 : 0,
+                di,
                 di, JDF_OBJECT_ONAME( fl ));
+
+        if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
+            jdf_dep_t *dl;
+            int testtrue, testfalse;
+
+            /**
+             * We force the pushout for every data that is not only going to the
+             * same kernel in the future.
+             * (TODO: could be avoided in different kernel in GPU compliant)
+             */
+            for(dl = fl->deps; dl != NULL; dl = dl->next) {
+                if( dl->dep_flags & JDF_DEP_FLOW_IN )
+                    continue;
+
+                testtrue = (dl->guard->calltrue != NULL) &&
+                    ((dl->guard->calltrue->var == NULL ) ||
+                     (strcmp(dl->guard->calltrue->func_or_mem, f->fname)));
+
+                testfalse = (dl->guard->callfalse != NULL) &&
+                    ((dl->guard->callfalse->var == NULL ) ||
+                     (strcmp(dl->guard->callfalse->func_or_mem, f->fname)));
+
+                switch( dl->guard->guard_type ) {
+                case JDF_GUARD_UNCONDITIONAL:
+                    if(testtrue) {
+                        coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                    }
+                    break;
+                case JDF_GUARD_BINARY:
+                    if(testtrue) {
+                        coutput("  if( %s ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                    }
+                    break;
+                case JDF_GUARD_TERNARY:
+                    if( testtrue ) {
+                        coutput("  if( %s ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }\n",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                        if( testfalse ) {
+                            coutput("  else {\n"
+                                    "    gpu_task->pushout[%d] = 1;\n"
+                                    "  }\n",
+                                    di);
+                        }
+                    }
+                    else if ( testfalse ) {
+                        coutput("  if( !(%s) ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }\n",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                    }
+                    break;
+                }
+            }
+        }
     }
+    string_arena_free(info.sa);
+
 
     coutput("\n"
             "  return dague_gpu_kernel_scheduler( context, gpu_task, dev_index );\n"
