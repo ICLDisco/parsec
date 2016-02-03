@@ -5460,10 +5460,10 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
                  output_h);
         system(command);
         snprintf(command, PATH_MAX, "%s.indent.awk", output_h);
-        rename(command, output_h);
+        if( -1 == rename(command, output_h) ) { perror("Renaming output_h"); }
 
-        fsync(fd);
-        close(fd);
+        if( -1 == fsync(fd) ) { perror("fsync on directory containing output"); }
+        if( -1 == close(fd) ) { perror("close on directory containing output"); }
 #endif
     }
 #endif  /* defined(HAVE_INDENT) */
