@@ -71,28 +71,24 @@ remote_dep_is_forwarded(dague_execution_unit_t* eu_context,
 
 /* make sure we don't leave before serving all data deps */
 static inline void
-remote_dep_inc_flying_messages(dague_handle_t *dague_handle,
-                               dague_context_t* ctx)
+remote_dep_inc_flying_messages(dague_handle_t* handle)
 {
-    assert( dague_handle->nb_local_tasks > 0 );
-    dague_atomic_inc_32b( &(dague_handle->nb_local_tasks) );
-    (void)ctx;
+    assert( handle->nb_pending_actions > 0 );
+    dague_atomic_inc_32b( &(handle->nb_pending_actions) );
 }
 
 /* allow for termination when all deps have been served */
 static inline void
-remote_dep_dec_flying_messages(dague_handle_t *dague_handle,
-                               dague_context_t* ctx)
+remote_dep_dec_flying_messages(dague_handle_t *handle)
 {
-    __dague_complete_task(dague_handle, ctx);
+    (void)dague_handle_update_runtime_nbtask(handle, -1);
 }
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
  * the free items queue if it is now done */
 static inline int
 remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
-                                int ncompleted,
-                                dague_context_t* ctx)
+                                int ncompleted)
 {
     int32_t saved = dague_atomic_sub_32b((int32_t*)&(*deps)->pending_ack, ncompleted);
     DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Complete %d (%d left) outputs of dep %p%s\n",
@@ -112,7 +108,7 @@ remote_dep_complete_and_cleanup(dague_remote_deps_t** deps,
             }
         (*deps)->outgoing_mask = 0;
         if(ncompleted)
-            remote_dep_dec_flying_messages((*deps)->dague_handle, ctx);
+            remote_dep_dec_flying_messages((*deps)->dague_handle);
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
@@ -412,8 +408,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     if( 1 == dague_atomic_add_32b(&remote_deps->pending_ack, 1) ) {
                         keeper = 1;
                         /* Let the engine know we're working to activate the dependencies remotely */
-                        remote_dep_inc_flying_messages(exec_context->dague_handle,
-                                                       eu_context->virtual_process->dague_context);
+                        remote_dep_inc_flying_messages(exec_context->dague_handle);
                         /* We need to increase the pending_ack to make the deps persistant until the
                          * end of this function.
                          */
@@ -429,8 +424,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
             }
         }
     }
-    remote_dep_complete_and_cleanup(&remote_deps, (keeper ? 1 : 0),
-                                    eu_context->virtual_process->dague_context);
+    remote_dep_complete_and_cleanup(&remote_deps, (keeper ? 1 : 0));
     return 0;
 }
 

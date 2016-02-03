@@ -90,7 +90,6 @@ int main(int argc, char ** argv)
         /* Set the recursive size */
         dplasma_zgeqrf_setrecursive( DAGUE_zgeqrf, iparam[IPARAM_HNB] );
         dague_enqueue(dague, DAGUE_zgeqrf);
-        nb_local_tasks = DAGUE_zgeqrf->nb_local_tasks;
         if( loud > 2 ) SYNC_TIME_PRINT(rank, ( "zgeqrf\tDAG created\n"));
 
         PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf);

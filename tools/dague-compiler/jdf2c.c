@@ -1637,6 +1637,7 @@ static void jdf_generate_symbols( const jdf_t *jdf, const jdf_function_entry_t *
     }
 
     string_arena_free(sa);
+    (void)rc;
 }
 
 static void jdf_generate_ctl_gather_compute(const jdf_t *jdf, const jdf_function_entry_t* of,
@@ -2536,15 +2537,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("  if( nb_tasks != DAGUE_UNDETERMINED_NB_TASKS ) {\n"
             "    uint32_t ov, nv;\n"
             "    do {\n"
-            "      ov = __dague_handle->super.super.nb_local_tasks;\n"
+            "      ov = __dague_handle->super.super.nb_tasks;\n"
             "      nv = (ov == DAGUE_UNDETERMINED_NB_TASKS ? DAGUE_UNDETERMINED_NB_TASKS : ov+nb_tasks);\n"
-            "    } while( !dague_atomic_cas(&__dague_handle->super.super.nb_local_tasks, ov, nv) );\n"
+            "    } while( !dague_atomic_cas(&__dague_handle->super.super.nb_tasks, ov, nv) );\n"
             "    nb_tasks = nv;\n"
             "  } else {\n"
             "    uint32_t ov;\n"
             "    do {\n"
-            "      ov = __dague_handle->super.super.nb_local_tasks;\n"
-            "    } while( !dague_atomic_cas(&__dague_handle->super.super.nb_local_tasks, ov, DAGUE_UNDETERMINED_NB_TASKS));\n"
+            "      ov = __dague_handle->super.super.nb_tasks;\n"
+            "    } while( !dague_atomic_cas(&__dague_handle->super.super.nb_tasks, ov, DAGUE_UNDETERMINED_NB_TASKS));\n"
             "  }\n");
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         coutput("%s    do {\n"
@@ -2569,7 +2570,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             need_to_iterate ? "(void)assignments;" : "");
     coutput("  if(0 == dague_atomic_dec_32b(&__dague_handle->sync_point)) {\n"
             "    dague_handle_enable((dague_handle_t*)__dague_handle, &__dague_handle->startup_queue,\n"
-            "                        (dague_execution_context_t*)this_task, eu, __dague_handle->super.super.nb_local_tasks);\n"
+            "                        (dague_execution_context_t*)this_task, eu, __dague_handle->super.super.nb_pending_actions);\n"
             "    return DAGUE_HOOK_RETURN_DONE;\n"
             "  }\n");
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
@@ -2905,6 +2906,7 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     string_arena_free(sa2);
     string_arena_free(sa);
+    (void)rc;
 }
 
 static void jdf_generate_functions_statics( const jdf_t *jdf )
@@ -2975,6 +2977,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
                     JDF_OBJECT_ONAME( fl ));
         }
     }
+    (void)rc;
 }
 
 static void jdf_generate_startup_hook( const jdf_t *jdf )
@@ -3075,10 +3078,10 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  uint32_t i;\n",
             jdf_basename, jdf_basename);
 
-    coutput("  for( i = 0; i < (handle->super.super.nb_functions + 1); i++ ) {  /* Extra startup function added at the end */\n"
+    coutput("  for( i = 0; i < (2 * handle->super.super.nb_functions); i++ ) {  /* Extra startup function added at the end */\n"
             "    dague_function_t* func = (dague_function_t*)handle->super.super.functions_array[i];\n"
             "    free((void*)func->incarnations);\n"
-            "    free(func);"
+            "    free(func);\n"
             "  }\n"
             "  free(handle->super.super.functions_array); handle->super.super.functions_array = NULL;\n"
             "  handle->super.super.nb_functions = 0;\n"
@@ -3189,7 +3192,8 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "  /* Twice the size to hold the startup tasks function_t */\n"
             "  __dague_handle->super.super.functions_array = (const dague_function_t**)\n"
             "              malloc(2 * __dague_handle->super.super.nb_functions * sizeof(dague_function_t*));\n"
-            "  __dague_handle->super.super.nb_local_tasks = __dague_handle->super.super.nb_functions;\n"
+            "  __dague_handle->super.super.nb_tasks = __dague_handle->super.super.nb_functions;\n"
+            "  __dague_handle->super.super.nb_pending_actions = 1;  /* for the startup tasks */\n"
             "  __dague_handle->sync_point = __dague_handle->super.super.nb_functions;\n"
             "  __dague_handle->startup_queue = NULL;\n"
             "%s",
@@ -3811,7 +3815,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 "%s    data.count  = %s;\n"
                 "%s    data.displ  = %s;\n"
                 "%s    assert( data.count > 0 );\n"
-                "%s    dague_remote_dep_memcpy(context, this_task->dague_handle,\n"
+                "%s    dague_remote_dep_memcpy(this_task->dague_handle,\n"
                 "%s                            dague_data_get_copy(%s(%s), 0),\n"
                 "%s                            this_task->data.%s.data_out, &data);\n"
                 "%s  }\n",
@@ -5204,6 +5208,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
     coutput("}\n"
             "\n");
+    (void)rc;
 }
 
 static void jdf_generate_inline_c_functions(jdf_t* jdf)
@@ -5224,10 +5229,16 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
 {
     jdf_function_entry_t *f;
     char *tmp;
+    int rc;
 
     for(f = jdf->functions; NULL != f; f = f->next) {
         if( NULL == jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL) ) {
-            asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
+            rc = asprintf(&tmp, JDF2C_NAMESPACE"hash_%s", f->fname);
+            if (rc == -1) {
+                jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                          "Out of ressoruces to generate the hash function name hash_%s\n", f->fname);
+                exit(1);
+            }
             (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_FN_NAME, strdup(tmp));
             free(tmp);
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_FUN;
@@ -5241,7 +5252,12 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
         } else {
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN;
             if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-                asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
+                rc = asprintf(&tmp, JDF2C_NAMESPACE"startup_%s", f->fname);
+                if (rc == -1) {
+                    jdf_fatal(JDF_OBJECT_LINENO(f->properties),
+                              "Out of ressoruces to generate the startup function name startup_%s\n", f->fname);
+                    exit(1);
+                }
                 (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, strdup(tmp));
                 free(tmp);
             }

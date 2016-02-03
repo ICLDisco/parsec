@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -60,7 +60,6 @@ int main(int argc, char ** argv)
         /* Set the recursive size */
         dplasma_zpotrf_setrecursive( DAGUE_zpotrf, iparam[IPARAM_HMB] );
         dague_enqueue(dague, DAGUE_zpotrf);
-        nb_local_tasks = DAGUE_zpotrf->nb_local_tasks;
         if( loud > 2 ) SYNC_TIME_PRINT(rank, ( "zpotrf\tDAG created\n"));
 
         PASTE_CODE_PROGRESS_KERNEL(dague, zpotrf);

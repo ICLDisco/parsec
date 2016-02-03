@@ -135,7 +135,7 @@ int dague_mca_cmd_line_process_args(dague_cmd_line_t *cmd,
 static int process_arg(const char *param, const char *value,
                        char ***params, char ***values)
 {
-    int i;
+    int i, rc;
     char *new_str;
 
     /* Look to see if we've already got an -mca argument for the same
@@ -144,7 +144,7 @@ static int process_arg(const char *param, const char *value,
 
     for (i = 0; NULL != *params && NULL != (*params)[i]; ++i) {
         if (0 == strcmp(param, (*params)[i])) {
-            asprintf(&new_str, "%s,%s", (*values)[i], value);
+            rc = asprintf(&new_str, "%s,%s", (*values)[i], value);
             free((*values)[i]);
             (*values)[i] = new_str;
 
@@ -158,6 +158,7 @@ static int process_arg(const char *param, const char *value,
     dague_argv_append_nosize(params, param);
     dague_argv_append_nosize(values, value);
 
+    (void)rc;
     return DAGUE_SUCCESS;
 }
 

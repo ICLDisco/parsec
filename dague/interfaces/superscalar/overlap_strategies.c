@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -226,7 +226,7 @@ ordering_correctly_2(dague_execution_unit_t *eu,
            fake_writer->super.function->release_task(eu, (dague_execution_context_t*)fake_writer);
         } else {
             OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
-            dague_atomic_add_32b((int *)&(current_task->super.dague_handle->nb_local_tasks),1);
+            dague_atomic_add_32b((int *)&(current_task->super.dague_handle->nb_tasks), 1);
 #if defined(DEBUG_HEAVY)
             dague_dtd_task_insert( (dague_dtd_handle_t *)current_task->super.dague_handle, fake_writer );
 #endif

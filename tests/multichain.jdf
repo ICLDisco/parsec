@@ -1,6 +1,6 @@
 extern "C" %{
 /**
- * Copyright (c) 2014-2015 The University of Tennessee and The University
+ * Copyright (c) 2014-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -39,7 +39,7 @@ RW   B <- (i == 0)      ? B(i, 0) : B HORIZONTAL(i-1)
        -> (i != (NI-1)) ? B HORIZONTAL(i+1)
 BODY
     if(verbose)
-        printf("HORIZONTAL(%d) [left-over tasks %d]\n", i, handle->super.nb_local_tasks);
+        printf("HORIZONTAL(%d) [left-over tasks %d]\n", i, handle->super.nb_tasks);
 END
 
 VERTICAL(i, j)
@@ -54,7 +54,7 @@ RW   B <- (i == 0)      ? B(i, 0) : B VERTICAL(i-1, j)
        -> (i != (NI-1)) ? B VERTICAL(i+1, j) : B(i, 0)
 BODY
     if(verbose)
-        printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, handle->super.nb_local_tasks);
+        printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, handle->super.nb_tasks);
 END
 
 extern "C" %{
@@ -161,8 +161,7 @@ int main(int argc, char* argv[])
         handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
         dague_enqueue( dague, (dague_handle_t*)handle );
         TIMER_STOP(time_elapsed);
-        printf("DAG construction %d tasks in %ld micro-sec\n",
-               handle->super.nb_local_tasks, time_elapsed);
+        printf("DAG construction in %ld micro-sec\n", time_elapsed);
 
         TIMER_START(time_elapsed);
         dague_context_wait(dague);

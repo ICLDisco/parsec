@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -278,10 +278,6 @@ int main(int argc, char **argv)
 
     DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zpotrf_dtd);
 
-    if( loud > 3 )
-        TIME_PRINT(rank, ("\t%d tasks computed,\t%f task/s rate\n",
-                          nb_local_tasks,
-                          nb_local_tasks/time_elapsed));
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));

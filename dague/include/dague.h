@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -152,10 +152,11 @@ void dague_handle_unregister(dague_handle_t* handle);
 void dague_handle_sync_ids(void);
 
 /**
- * Compose sequentially two handles. If start is already a composed
- * object, then next will be added sequentially to the list. These
- * handles will execute one after another as if there were sequential.
- * The resulting compound dague_handle is returned.
+ * Sequentially compose two handles, triggering the start of next upon
+ * completion of start. If start is already a composed object, then next will be
+ * appended to the already existing list. These handles will execute one after
+ * another as if there were sequential.  The resulting compound dague_handle is
+ * returned.
  */
 dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 
@@ -179,10 +180,16 @@ int dague_handle_enable(dague_handle_t* handle,
                         dague_execution_unit_t * eu,
                         int nb_tasks);
 
-/**< Update the number of tasks by adding the increment (if the increment is negative
- * the number of tasks is decreased).
+/**
+ * Atomically add nb_tasks to the number of remaining tasks associated with the handle
+ * (if nb_tasks is positive it adds, otherwise it substract). If the tasks counter
+ * reaches zero, it is assumed that no additional tasks will be generated and the
+ * runtime activity counter associated with the handle is decremented by one.
+ *
+ * @return 0 if the handle has not been completed.
+ * @return 1 if the handle has been completed and it has been marked for release.
  */
-void dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks );
+int dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks );
 
 /**< Print DAGuE usage message */
 void dague_usage(void);

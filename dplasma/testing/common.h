@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -120,13 +120,12 @@ void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb);
     int scheduler = iparam[IPARAM_SCHEDULER];                           \
     int random_seed = iparam[IPARAM_RANDOM_SEED];                       \
     int matrix_init = iparam[IPARAM_MATRIX_INIT];                       \
-    int nb_local_tasks = 0;                                             \
     int butterfly_level = iparam[IPARAM_BUT_LEVEL];                     \
     int async = iparam[IPARAM_ASYNC];                                   \
     (void)rank;(void)nodes;(void)cores;(void)gpus;(void)P;(void)Q;(void)M;(void)N;(void)K;(void)NRHS; \
     (void)LDA;(void)LDB;(void)LDC;(void)IB;(void)MB;(void)NB;(void)MT;(void)NT;(void)KT; \
     (void)SMB;(void)SNB;(void)HMB;(void)HNB;(void)check;(void)loud;(void)async; \
-    (void)scheduler;(void)nb_local_tasks; (void)butterfly_level;(void)check_inv;(void)random_seed;(void)matrix_init;
+    (void)scheduler;(void)butterfly_level;(void)check_inv;(void)random_seed;(void)matrix_init;
 
 /* Define a double type which not pass through the precision generation process */
 typedef double DagDouble_t;
@@ -190,18 +189,13 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     SYNC_TIME_START();                                                  \
     dague_handle_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
     dague_enqueue(DAGUE, DAGUE_##KERNEL);                               \
-    nb_local_tasks = DAGUE_##KERNEL->nb_local_tasks;                    \
     if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
 
 #define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
-    dague_context_wait(DAGUE);                                              \
-    if( loud > 3 )                                                      \
-        TIME_PRINT(rank, (#KERNEL "\t%d tasks computed,\t%f task/s rate\n",    \
-                          nb_local_tasks,                               \
-                          nb_local_tasks/time_elapsed));                \
+    dague_context_wait(DAGUE);                                          \
     SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \
                            P, Q, NB, N,                                 \
                            gflops=(flops/1e9)/sync_time_elapsed));      \

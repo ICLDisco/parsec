@@ -1,7 +1,5 @@
 cmake_minimum_required (VERSION 2.8.7)
 project (DAGUE C)
-enable_language(Fortran OPTIONAL)
-enable_language(CXX OPTIONAL)
 
 include(CMakeDependentOption)
 include(CMakePushCheckState)
@@ -30,6 +28,18 @@ string(REPLACE " " ";" SHM_TEST_CMD_LIST "${SHM_TEST_CMD}")
 #####
 # ccmake tunable parameters
 #####
+
+## Check for the support of additional languages
+option(SUPPORT_FORTRAN
+       "Enable support for Fortran bindings (default ON)" ON)
+if( SUPPORT_FORTRAN )
+  enable_language(Fortran OPTIONAL)
+endif( SUPPORT_FORTRAN )
+option(SUPPORT_CXX
+       "Enable support for CXX bindings (default ON)" ON)
+if( SUPPORT_CXX )
+  enable_language(CXX OPTIONAL)
+endif( SUPPORT_CXX )
 
 ## Selectively compile only parts of the framework
 option(BUILD_TOOLS
@@ -280,7 +290,8 @@ if(_match_icc)
     # 1419: warning about extern functions being declared in .c
     #       files
     # 1572: cuda compares floats with 0.0f.
-    set( C_WFLAGS "${C_WFLAGS} -wd424 -wd981 -wd1419 -wd1572 -wd10237" )
+    # 11074: obnoxious about not inlining long functions.
+    set( C_WFLAGS "${C_WFLAGS} -wd424,981,1419,1572,10237,11074,11076" )
   ENDIF( HAVE_WD )
 else(_match_icc)
   CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" HAVE_PAR_EQUALITY )

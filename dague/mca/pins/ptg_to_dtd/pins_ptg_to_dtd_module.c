@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -89,7 +89,7 @@ static void pins_fini_ptg_to_dtd(dague_context_t *master_context)
 static int pins_handle_complete_callback(dague_handle_t* ptg_handle, void* void_dtd_handle)
 {
     dague_handle_t* dtd_handle = (dague_handle_t*)void_dtd_handle;
-    dague_atomic_dec_32b(&dtd_handle->nb_local_tasks);
+    dague_atomic_dec_32b(&dtd_handle->nb_tasks);
     (void)ptg_handle;
     return DAGUE_HOOK_RETURN_DONE;
 }
@@ -340,7 +340,7 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
     this_task->param_list = head_of_param_list;
 
     /* Atomically increasing the nb_local_tasks_counter */
-    dague_atomic_add_32b((int *)&(__dague_handle->super.nb_local_tasks), 1);
+    dague_atomic_add_32b((int32_t*)&(__dague_handle->super.nb_tasks), 1);
 
     /* Increase the count of satisfied flows to counter-balance the increase in the
      * number of expected flows done during the task creation.  */
@@ -357,13 +357,13 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
 
     /* Building list of initial ready task */
     if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
-            DAGUE_LIST_ITEM_SINGLETON(this_task);
-            if (NULL != __dague_handle->startup_list[vpid]) {
-                dague_list_item_ring_merge((dague_list_item_t *)this_task,
-                                           (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
-            }
-            __dague_handle->startup_list[vpid] = (dague_execution_context_t*)this_task;
-            vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
+        DAGUE_LIST_ITEM_SINGLETON(this_task);
+        if (NULL != __dague_handle->startup_list[vpid]) {
+            dague_list_item_ring_merge((dague_list_item_t *)this_task,
+                                       (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
+        }
+        __dague_handle->startup_list[vpid] = (dague_execution_context_t*)this_task;
+        vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
     }
 
 #if defined(DAGUE_PROF_TRACE)
