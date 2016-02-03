@@ -1359,6 +1359,11 @@ progress_stream( gpu_device_t* gpu_device,
      * In case the task is succesfully progressed, the corresponding profiling
      * event is triggered.
      */
+    if ( NULL == progress_fct ) {
+        /* Grab the sumbit function */
+        progress_fct = task->submit;
+    }
+    assert( NULL != progress_fct );
     rc = progress_fct( gpu_device, task, exec_stream );
     if( 0 > rc ) {
         if( -1 == rc ) return -1;  /* Critical issue */
@@ -1857,7 +1862,7 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[2+exec_stream]),
-                          (gpu_task == NULL) ? NULL : gpu_task->submit,
+                          NULL,
                           gpu_task, &progress_task );
     if( rc < 0 ) {
         if( -1 == rc )
