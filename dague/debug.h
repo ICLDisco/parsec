@@ -100,9 +100,9 @@ void dague_debug_backtrace_dump(void);
  * The entire history is logged as soon as debug_verbose >= 3
  */
 #define DAGUE_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
-    DAGUE_OUTPUT_VERBOSE((LVL, OUT,                                  \
+    dague_output_verbose(LVL, OUT,                                  \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
-        __func__, __LINE__));                                        \
+        __func__, __LINE__);                                        \
     _DAGUE_DEBUG_HISTORY(LVL,                                       \
         "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
