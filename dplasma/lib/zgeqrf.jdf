@@ -391,7 +391,7 @@ ztsmqr(k,m,n)
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
 
-BODY [type=CUDA]
+BODY [type=CUDA device=inline_c %{ return n; %}]
 {
     cuDoubleComplex *WORK, *WORKC;
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;

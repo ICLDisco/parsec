@@ -13,15 +13,8 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_CUDA)
-#include <dague/class/fifo.h>
-#include <dague/devices/cuda/dev_cuda.h>
 #include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
-
-typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
-                                 cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda,
-                                 cuDoubleComplex *d_B, int ldb,
-                                 cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc );
 
 %}
 
@@ -99,7 +92,9 @@ READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC.mt-1) % descC.
 RW   C <- (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
        -> (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
 
-BODY [type=CUDA dyld=cublasZgemm dyldtype="cublas_dgemm_t"]
+BODY [type=CUDA
+      dyld=cublasZgemm dyldtype=cublas_zgemm_t
+      weight=k]
 {
     dague_complex64_t lbeta = (k == descA.nt-1) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;

@@ -46,5 +46,26 @@ typedef void * CORE_sgetrf_data_t;
 #endif  /* HAVE_MPI */
 
 
+#if defined(HAVE_CUDA)
+#include <cublas.h>
+
+typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda,
+                                 cuDoubleComplex *d_B, int ldb,
+                                 cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc );
+typedef void (*cublas_cgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 cuComplex alpha, cuComplex *d_A, int lda,
+                                 cuComplex *d_B, int ldb,
+                                 cuComplex beta,  cuComplex *d_C, int ldc );
+typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 double alpha, double *d_A, int lda,
+                                 double *d_B, int ldb,
+                                 double beta,  double *d_C, int ldc );
+typedef void (*cublas_sgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 float alpha, float *d_A, int lda,
+                                              float *d_B, int ldb,
+                                 float beta,  float *d_C, int ldc );
+#endif
+
 #endif /* _DPLASMAJDF_H_ */
 

@@ -12,11 +12,6 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(HAVE_CUDA)
-#include <dague/class/fifo.h>
-#include <dague/devices/cuda/dev_cuda.h>
-#include <cublas.h>
-#endif  /* defined(HAVE_CUDA) */
 %}
 
 /*

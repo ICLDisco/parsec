@@ -17,15 +17,8 @@ extern "C" %{
 #endif
 
 #if defined(HAVE_CUDA)
-#include <dague/class/fifo.h>
-#include <dague/devices/cuda/dev_cuda.h>
 #include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
-
-typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
-                                 cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda,
-                                 cuDoubleComplex *d_B, int ldb,
-                                 cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc );
 
 /*
  * Priorities used in this jdf:
@@ -298,7 +291,9 @@ RW    C <- (k == 0)   ? dataA(m, n)  : C potrf_zgemm(m, n, k-1)
 
 ; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - m - n - 3) * (n - m) + 6 * (n - k) : PRI_MAX
 
-BODY [type=CUDA dyld=cublasZgemm dyldtype="cublas_dgemm_t"]
+BODY [type=CUDA
+      dyld=cublasZgemm dyldtype=cublas_zgemm_t
+      weight=(m+1-k)]
 {
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
