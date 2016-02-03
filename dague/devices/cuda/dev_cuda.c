@@ -1544,7 +1544,7 @@ dague_gpu_kernel_push( gpu_device_t            *gpu_device,
         flow = gpu_task->flow[i];
         assert( flow && (flow->flow_index == i) );
 
-        /* Skip CTL flows only (Need to book space for ooutput only data) */
+        /* Skip CTL flows only (Need to book space for output only data) */
         if(!(flow->flow_flags)) {
             continue;
         }
