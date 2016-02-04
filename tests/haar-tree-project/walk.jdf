@@ -35,7 +35,6 @@ fakeDesc           [type = "dague_ddesc_t *"]
 on_fct_param       [type = "void*"]
 on_node_down       [type = "walk_fn_t"]
 on_node_up         [type = "walk_fn_t"]
-tasks_done_locally [type = "uint32_t"]
 verbose            [type = "int"]
 
 BCAST_UP(rank)
@@ -49,8 +48,7 @@ BODY
 {
     __dague_handle->super.super.nb_tasks = 1;
     if( verbose ) {
-        fprintf(stderr, "Rank %d in BCAST_UP, counted %d tasks executed; nb_tasks = %d\n", rank,
-                tasks_done_locally, __dague_handle->super.super.nb_tasks);
+        fprintf(stderr, "Rank %d in BCAST_UP\n", rank);
     }
 }
 END
@@ -109,7 +107,6 @@ BODY
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         fprintf(stderr, "CALLING UP(%d, %d) on rank %d\n", n, l, rank);
     }
-    dague_atomic_inc_32b(&tasks_done_locally);
     if( NULL != on_node_up ) {
         on_node_up(tree, node, n, l, on_fct_param);
     }
@@ -168,8 +165,6 @@ BODY
         }
         this_task->locals.node_exists.value = 0;
     }
-    
-    dague_atomic_inc_32b(&tasks_done_locally);
 }
 END
 
@@ -196,7 +191,6 @@ BODY
         fprintf(stderr, "CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
-    dague_atomic_inc_32b(&tasks_done_locally);
     if( NULL != on_node_down ) {
         on_node_down(tree, node, n, l, on_fct_param);
     }

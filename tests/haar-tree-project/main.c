@@ -219,7 +219,7 @@ int main(int argc, char *argv[])
                            DAGUE_ARENA_ALIGNMENT_SSE,
                            dague_datatype_float_t
                          );
-    project = dague_project_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc, 1e-3, 0, be_verbose);
+    project = dague_project_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc, 1e-3, be_verbose);
     project->arenas[DAGUE_project_DEFAULT_ARENA] = &arena;
     dague_enqueue(dague, &project->super);
     dague_context_wait(dague);
@@ -227,12 +227,12 @@ int main(int argc, char *argv[])
     if( do_checks ) {
         walker = dague_walk_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc,
                                 &cksum, cksum_node_fn, NULL,
-                                0, be_verbose);
+                                be_verbose);
     } else {
         rs = rs_new();
         walker = dague_walk_new(treeA, &treeA->super, world, (dague_ddesc_t*)&fakeDesc,
                                 rs, print_node_fn, print_link_fn,
-                                0, be_verbose);
+                                be_verbose);
     }
     walker->arenas[DAGUE_walk_DEFAULT_ARENA] = &arena;
     dague_enqueue(dague, &walker->super);

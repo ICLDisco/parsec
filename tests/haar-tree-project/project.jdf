@@ -48,7 +48,6 @@ treeAdesc           [type = "dague_ddesc_t *" default = "(dague_ddesc_t*)treeA"]
 NP                  [type = "int"]
 fakeDesc            [type = "dague_ddesc_t *"]
 thresh              [type = "double"]
-tasks_done_locally  [type = "uint32_t"]
 verbose             [type = "int"]
 
 BCAST_END_PROPAGATE(rank)
@@ -62,8 +61,7 @@ BODY
 {
     __dague_handle->super.super.nb_tasks = 1;
     if(verbose)
-        fprintf(stderr, "Rank %d in BCAST_END_PROPAGATE, counted %d tasks executed; nb_tasks = %d\n", rank,
-                tasks_done_locally, __dague_handle->super.super.nb_tasks);
+        fprintf(stderr, "Rank %d in BCAST_END_PROPAGATE\n", rank);
 }
 END
 
@@ -118,7 +116,6 @@ BODY
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         fprintf(stderr, "CALLING END_PROPAGATE(%d, %d) on rank %d\n", n, l, rank);
     }
-    dague_atomic_inc_32b(&tasks_done_locally);
 }
 END
 
@@ -157,7 +154,6 @@ BODY
     OBJ_RETAIN(gNODE);
     tree_dist_insert_data(treeA, gNODE->original, n, l);
 
-    dague_atomic_inc_32b(&tasks_done_locally);
 }
 END
 
@@ -183,7 +179,7 @@ BODY
 {
     double err;
     double sl, sr;
-    double s, d;
+    double d;
 
     if( verbose ) {
         int rank;
@@ -194,7 +190,6 @@ BODY
     sl = func(key_to_x(n+1, 2*l));
     sr = func(key_to_x(n+1, 2*l+1));
 
-    s = 0.5 * (sl + sr);
     d = 0.5 * (sl - sr);
 
     err = fabs(d) * pow(2.0, -0.5 * n);
@@ -203,7 +198,6 @@ BODY
         this_task->locals.larger_than_thresh.value = 0;
     }
 
-    dague_atomic_inc_32b(&tasks_done_locally);
 }
 END
 
