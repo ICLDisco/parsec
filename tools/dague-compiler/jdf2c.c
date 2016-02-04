@@ -5351,6 +5351,13 @@ int jdf_optimize( jdf_t* jdf )
 
 /** Main Function */
 
+#if defined(HAVE_INDENT)
+#if defined(HAVE_SYS_TYPES_H)
+#include <sys/types.h>
+#endif
+#include <sys/wait.h>
+#endif
+
 int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename, jdf_t *jdf)
 {
     int ret = 0;
@@ -5360,6 +5367,62 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     cfile = NULL;
     hfile = NULL;
 
+#if defined(HAVE_INDENT)
+    int cpipefd[2] = {-1,-1};
+    ret = pipe(cpipefd);
+    if( -1 == ret ) {
+        perror("Creating pipe between jdf2c and indent");
+        goto err;
+    }
+    int hpipefd[2] = {-1,-1};
+    ret = pipe(hpipefd);
+    if( -1 == ret ) {
+        perror("Creating pipe between jdf2c and indent");
+        goto err;
+    }
+    int child = fork();;
+    if( -1 == child ) {
+        perror("Creating fork to run indent");
+        goto err;
+    }
+    if( 0 == child ) {
+        char command[3*PATH_MAX];
+        close(cpipefd[1]);
+        close(hpipefd[1]);
+#if !defined(HAVE_AWK)
+        snprintf(command, 3*PATH_MAX,
+            "%s %s -o %s <&%d",
+            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c, cpipefd[0] );
+        system(command);
+        snprintf(command, 3*PATH_MAX,
+            "%s %s -o %s <&%d",
+            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h, hpipefd[0] );
+        system(command);
+#else
+        snprintf(command, 3*PATH_MAX,
+             "%s %s <&%d -st | "
+             "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+             ">%s",
+             DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, cpipefd[0],
+             DAGUE_AWK_PREFIX, output_c, output_c,
+             output_c);
+        system(command);
+
+        snprintf(command, 3*PATH_MAX,
+             "%s %s <&%d -st | "
+             "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+             ">%s",
+             DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, hpipefd[0],
+             DAGUE_AWK_PREFIX, output_h, output_h,
+             output_h);
+        system(command);
+#endif /* !defined(HAVE_AWK) */
+        exit(0);
+    }
+    cfile = fdopen(cpipefd[1], "w");
+    close(hpipefd[0]);
+    hfile = fdopen(hpipefd[1], "w");
+#else /* defined(HAVE_INDENT) */
     cfile = fopen(output_c, "w");
     if( cfile == NULL ) {
         fprintf(stderr, "unable to create %s: %s\n", output_c, strerror(errno));
@@ -5373,6 +5436,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         ret = -1;
         goto err;
     }
+#endif /* defined(HAVE_INDENT) */
 
     cfile_lineno = 1;
     hfile_lineno = 1;
@@ -5419,54 +5483,20 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     }
 
  err:
-    if( NULL != cfile )
+    if( NULL != cfile ) {
+        fsync(fileno(cfile));
         fclose(cfile);
+    }
 
-    if( NULL != hfile )
+    if( NULL != hfile ) {
+        fsync(fileno(hfile));
         fclose(hfile);
+    }
 
 #if defined(HAVE_INDENT)
-    {
-        char command[4*PATH_MAX];
-
-#if !defined(HAVE_AWK)
-        snprintf(command, 4*PATH_MAX, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c );
-        system(command);
-        snprintf(command, 4*PATH_MAX, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
-        system(command);
-#else
-        strncpy(command, output_c, PATH_MAX);
-        char* dir = dirname(command);
-        int fd = open(dir, O_SYNC|O_RDONLY);
-        if( -1 == fd ) { perror("Opening output directory for sync rename"); }
-
-        snprintf(command, 4*PATH_MAX,
-                 "%s %s %s -st | "
-                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
-                 "> %s.indent.awk",
-                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c,
-                 DAGUE_AWK_PREFIX, output_c, output_c,
-                 output_c);
-        system(command);
-        snprintf(command, PATH_MAX, "%s.indent.awk", output_c);
-        if( -1 == rename(command, output_c) ) { perror("Renaming output_c"); }
-
-        snprintf(command, 4*PATH_MAX,
-                 "%s %s %s -st | "
-                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
-                 "> %s.indent.awk",
-                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h,
-                 DAGUE_AWK_PREFIX, output_h, output_h,
-                 output_h);
-        system(command);
-        snprintf(command, PATH_MAX, "%s.indent.awk", output_h);
-        if( -1 == rename(command, output_h) ) { perror("Renaming output_h"); }
-
-        if( -1 == fsync(fd) ) { perror("fsync on directory containing output"); }
-        if( -1 == close(fd) ) { perror("close on directory containing output"); }
-#endif
+    if( -1 != child ) {
+        waitpid(child, NULL, 0);
     }
-#endif  /* defined(HAVE_INDENT) */
-
+#endif
     return ret;
 }
