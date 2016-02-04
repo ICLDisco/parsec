@@ -1185,7 +1185,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     item->cmd.activate.task.tag = next_tag(k);
     msg->tag = item->cmd.activate.task.tag;
 #if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_NOISIER)
-    dague_debug_verbose(5, dague_debug_output, "MPI:\tTO\t%d\tActivate\t% -8s\n"
+    dague_debug_verbose(6, dague_debug_output, "MPI:\tTO\t%d\tActivate\t% -8s\n"
           "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager mask %lu length %d",
           peer, tmp, msg->deps, msg->output_mask, msg->tag,
           msg->output_mask ^ item->cmd.activate.task.output_mask, msg->length);
@@ -1516,7 +1516,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 #endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
 
 #if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_NOISIER)
-    dague_debug_verbose(5, dague_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
+    dague_debug_verbose(6, dague_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
           "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d)",
            deps->from, tmp, deps->msg.deps, deps->incoming_mask,
            deps->msg.length, *position, length);

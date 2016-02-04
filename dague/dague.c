@@ -1272,7 +1272,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
             new_context->status = DAGUE_TASK_STATUS_NONE;
             AYU_ADD_TASK(new_context);
 
-            DAGUE_DEBUG_VERBOSE(5, dague_debug_output,
+            DAGUE_DEBUG_VERBOSE(6, dague_debug_output,
                    "%s becomes ready from %s on thread %d:%d, with mask 0x%04x and priority %d",
                    tmp1,
                    dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, origin),
