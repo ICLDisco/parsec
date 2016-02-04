@@ -46,7 +46,7 @@ CTL RL <- RL UP(0, 0)
 
 BODY
 {
-    __dague_handle->super.super.nb_tasks = 1;
+    __dague_handle->super.super.nb_tasks = 1; /** This is the last local task */
     if( verbose ) {
         fprintf(stderr, "Rank %d in BCAST_UP\n", rank);
     }
