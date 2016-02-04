@@ -41,6 +41,7 @@
 #include "dague/vpmap.h"
 #include "dague/utils/mca_param.h"
 #include "dague/mca/sched/sched.h"
+#include "dague/interfaces/interface.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 #include "dague/dague_prof_grapher.h"
 
@@ -484,12 +485,11 @@ dague_execute_and_come_back(dague_context_t *context,
 /**
  * Function to end the execution of a DTD handle
  *
- * This function should be called exactly once for each handle to
- * detach the handle from the PaRSEC context. This should be called
- * after the user do not want to attach any task colection to the
- * handle any more(done with this handle). After this function is called the handle can
- * not be used any more. This function should be called for exactly
- * as many times as PaRSEC DTD handles are created.
+ * This function should be called exactly once for each handle, and only after
+ * all the tasks initial have been generated. Once inside, new tasks can be
+ * created and attached to the handle, and this function will only returns
+ * once all tasks have been completed.
+ * Upon return the handle is released, and should not be used anymore.
  *
  * @param[in]       dague
  *                      The PaRSEC context
@@ -500,17 +500,23 @@ dague_execute_and_come_back(dague_context_t *context,
  */
 void
 dague_dtd_context_wait_on_handle( dague_context_t     *dague,
-                                  dague_dtd_handle_t  *dague_handle )
+                                  dague_dtd_handle_t  *dtd_handle )
 {
     (void)dague;
-    /* decrementing the extra task we initialized the handle with */
-    dague_atomic_dec_32b(&dague_handle->super.nb_tasks);
 
-    /* We are checking if we have any handle still waiting to
-     * be comepleted, if not we call the final function to
-     * finish the run */
-    if (dague->active_objects == 0)
-        dague_context_wait(dague);
+    /* First wait until no tasks are ready */
+    dague_dtd_handle_wait(dague, dtd_handle);
+
+    /* Now we  can therefore release the extra dependency we had on the handle,
+     * and if the handle is complete move on.
+     */
+    int remaining = dague_atomic_dec_32b(&dtd_handle->super.nb_tasks);
+    if( 0 == remaining ) {
+        if( dague_atomic_cas(&dtd_handle->super.nb_tasks, 0, 0xffffffff) )
+            dague_handle_update_runtime_nbtask(dtd_handle, -1);
+        return;  /* we're done in all cases */
+    }
+    assert(0 == remaining);
 }
 
 /* **************************************************************************** */
@@ -2021,7 +2027,7 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     function->prepare_input         = data_lookup_of_dtd_task;
     function->prepare_output        = output_data_of_dtd_task;
     function->complete_execution    = complete_hook_of_dtd;
-    function->release_task          = dague_release_task_to_mempool;
+    function->release_task          = dague_release_task_to_mempool_update_nbtasks;
     function->fini                  = NULL;
 
     /* Inserting Function structure in the hash table to keep track for each class of task */

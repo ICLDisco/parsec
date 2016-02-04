@@ -156,7 +156,7 @@ dague_dtd_handle_t* dague_dtd_handle_new(dague_context_t *);
 void dague_dtd_handle_destruct(dague_dtd_handle_t *);
 
 /* Makes the Dague context wait on the handle passed. The context will wait untill all the
- * tasks attached to this handle is over.
+ * tasks attached to this handle are over.
  * User can call this function multiple times in between a dague_dtd_handle_new() and dague_dtd_handle_destruct()
  */
 void dague_dtd_handle_wait( dague_context_t     *dague,

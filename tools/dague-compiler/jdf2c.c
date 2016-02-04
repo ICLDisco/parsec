@@ -1084,7 +1084,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include \"dague/debug.h\"\n"
             "#include \"dague/ayudame.h\"\n"
             "#include \"dague/devices/device.h\"\n"
-            "#include \"dague/interfaces/jdf/jdf.h\"\n"
+            "#include \"dague/interfaces/interface.h\"\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 
@@ -3299,10 +3299,10 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "    memcpy((__dague_chore_t*)func->incarnations, %s_functions[i]->incarnations, (j+1) * sizeof(__dague_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"
             "    __dague_handle->super.super.functions_array[__dague_handle->super.super.nb_functions+i] = func = (dague_function_t*)malloc(sizeof(dague_function_t));\n"
-            "    memcpy(func, (void*)&__dague_generic_jdf_startup, sizeof(dague_function_t));\n"
+            "    memcpy(func, (void*)&__dague_generic_startup, sizeof(dague_function_t));\n"
             "    func->function_id = __dague_handle->super.super.nb_functions + i;\n"
             "    func->incarnations = (__dague_chore_t*)malloc(2 * sizeof(__dague_chore_t));\n"
-            "    memcpy((__dague_chore_t*)func->incarnations, (void*)__dague_generic_jdf_startup.incarnations, 2 * sizeof(__dague_chore_t));\n"
+            "    memcpy((__dague_chore_t*)func->incarnations, (void*)__dague_generic_startup.incarnations, 2 * sizeof(__dague_chore_t));\n"
             "  }\n",
             jdf_basename,
             jdf_basename);
