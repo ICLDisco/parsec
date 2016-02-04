@@ -15,13 +15,13 @@
 #include "dague.h"
 #include "dague/data_distribution.h"
 
-#define DAGUE_DEV_NONE       0x00
-#define DAGUE_DEV_CPU        (1 << 0)
-#define DAGUE_DEV_RECURSIVE  (1 << 1)
-#define DAGUE_DEV_CUDA       (1 << 2)
-#define DAGUE_DEV_INTEL_PHI  (1 << 3)
-#define DAGUE_DEV_OPENCL     (1 << 4)
-#define DAGUE_DEV_ALL        0x1f
+#define DAGUE_DEV_NONE       ((uint8_t)    0x00)
+#define DAGUE_DEV_CPU        ((uint8_t)(1 << 0))
+#define DAGUE_DEV_RECURSIVE  ((uint8_t)(1 << 1))
+#define DAGUE_DEV_CUDA       ((uint8_t)(1 << 2))
+#define DAGUE_DEV_INTEL_PHI  ((uint8_t)(1 << 3))
+#define DAGUE_DEV_OPENCL     ((uint8_t)(1 << 4))
+#define DAGUE_DEV_ALL        ((uint8_t)    0x1f)
 
 typedef struct dague_device_s dague_device_t;
 
