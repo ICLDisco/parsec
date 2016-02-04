@@ -1185,9 +1185,10 @@ dague_gpu_context_t* dague_gpu_create_W2R_task(gpu_device_t *gpu_device, dague_e
     dague_list_item_t* item = (dague_list_item_t*)gpu_device->gpu_mem_owned_lru.ghost_element.list_next;
     int nb_cleaned = 0;
 
+    /* Find a data copy that has no pending users on the GPU, and can be
+     * safely moved back on the main memory */
     while(nb_cleaned < DAGUE_GPU_W2R_NB_MOVE_OUT) {
-        /* Find a data copy that has no pending users on the GPU, and can be
-         * safely moved back on the main memory */
+        /* Break at the end of the list */
         if( item == &(gpu_device->gpu_mem_owned_lru.ghost_element) ) {
             break;
         }
@@ -1411,15 +1412,18 @@ progress_stream( gpu_device_t* gpu_device,
              * actually ready to use
              */
             if (exec_stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
-                this_task = exec_stream->tasks[exec_stream->end]->ec;
+                dague_gpu_context_t *gtask = exec_stream->tasks[exec_stream->end];
+                this_task = gtask->ec;
                 for( i = 0; i < this_task->function->nb_flows; i++ ) {
-                    flow = this_task->function->in[i];
-                    if(NULL == flow || !flow->flow_flags) continue;
-                    if (this_task->data[flow->flow_index].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
-                        this_task->data[flow->flow_index].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
+                    flow = gtask->flow[i];
+                    assert( flow );
+                    assert( flow->flow_index == i );
+                    if(!flow->flow_flags) continue;
+                    if (this_task->data[i].data_out->push_task == this_task) {   /* only the task who did this PUSH can modify the status */
+                        this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
                         continue;
                     }
-                    if (this_task->data[flow->flow_index].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
+                    if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
                         return saved_rc;
                     }
                 }
