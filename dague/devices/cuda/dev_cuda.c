@@ -823,7 +823,7 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         flow = gpu_task->flow[i];
         assert( flow && (flow->flow_index == i) );
 
-        /* Skip CTL flows only (Need to book space for ooutput only data) */
+        /* Skip CTL flows only (Need to book space for output only data) */
         if(!(flow->flow_flags)) {
             continue;
         }
@@ -1131,7 +1131,6 @@ int dague_gpu_sort_pending_list(gpu_device_t *gpu_device)
 
     /* p is head */
     dague_list_item_t *p = gpu_device->sort_starting_p;
-
     int i, j, NB_SORT = 10, space_q, space_min;
 
     dague_list_item_t *q, *prev_p, *min_p;
@@ -1360,7 +1359,7 @@ progress_stream( gpu_device_t* gpu_device,
      * event is triggered.
      */
     if ( NULL == progress_fct ) {
-        /* Grab the sumbit function */
+        /* Grab the submit function */
         progress_fct = task->submit;
     }
     assert( NULL != progress_fct );
@@ -1405,8 +1404,12 @@ progress_stream( gpu_device_t* gpu_device,
         rc = cudaEventQuery(exec_stream->events[exec_stream->end]);
         if( CUDA_SUCCESS == rc ) {
 
-            /* even though cuda event return success, the PUSH may not be completed if no PUSH is required by this task and the PUSH is actually
-               done  by another task, so we need to check if the data is actually ready to use */
+            /**
+             * Even though cuda event return success, the PUSH may not be
+             * completed if no PUSH is required by this task and the PUSH is
+             * actually done by another task, so we need to check if the data is
+             * actually ready to use
+             */
             if (exec_stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
                 this_task = exec_stream->tasks[exec_stream->end]->ec;
                 for( i = 0; i < this_task->function->nb_flows; i++ ) {
