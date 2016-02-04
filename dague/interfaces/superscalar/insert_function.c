@@ -512,7 +512,7 @@ dague_dtd_context_wait_on_handle( dague_context_t     *dague,
      */
     int remaining = dague_atomic_dec_32b(&dtd_handle->super.nb_tasks);
     if( 0 == remaining ) {
-        if( dague_atomic_cas(&dtd_handle->super.nb_tasks, 0, 0xffffffff) )
+        if( dague_atomic_cas(&dtd_handle->super.nb_tasks, 0, DAGUE_RUNTIME_RESERVED_NB_TASKS) )
             dague_handle_update_runtime_nbtask(dtd_handle, -1);
         return;  /* we're done in all cases */
     }

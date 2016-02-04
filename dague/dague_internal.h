@@ -54,7 +54,8 @@ struct dague_handle_s {
                                            *   to zero signal a completed handle). However, in order to prevent
                                            *   multiple completions of the handle due to multiple tasks completing
                                            *   simultaneously, the runtime reuse this value (once set to zero), for
-                                           *   internal purposes (in which case it is atomically set to 0xffffffff).
+                                           *   internal purposes (in which case it is atomically set to
+                                           *   DAGUE_RUNTIME_RESERVED_NB_TASKS).
                                            */
     uint16_t                   nb_functions;
     uint16_t                   devices_mask;
@@ -101,6 +102,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_handle_t);
  * that they will call the object termination function themselves.
  */
 #define DAGUE_UNDETERMINED_NB_TASKS (0x0fffffff)
+#define DAGUE_RUNTIME_RESERVED_NB_TASKS (int32_t)(0xffffffff)
 
 /* The first time the IN dependencies are
  *       checked leave a trace in order to avoid doing it again.

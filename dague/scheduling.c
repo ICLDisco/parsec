@@ -318,9 +318,8 @@ static inline unsigned long exponential_backoff(uint64_t k)
 int __dague_complete_execution( dague_execution_unit_t *eu_context,
                                 dague_execution_context_t *exec_context )
 {
-    dague_handle_t *handle;
+    dague_handle_t *handle = exec_context->dague_handle;
     int rc = 0;
-    dague_handle_t* handle = exec_context->dague_handle;
 
     /* complete execution PINS event includes the preparation of the
      * output and the and the call to complete_execution.
@@ -342,7 +341,6 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
 
     /* Release the execution context */
-    handle = exec_context->dague_handle;
     exec_context->function->release_task( eu_context, exec_context );
 
     /* Check to see if the DSL has marked the handle as completed */
@@ -353,7 +351,7 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
          * this handle tasks once. We need to protect this action by atomically
          * setting the number of tasks to a non-zero value.
          */
-        if( dague_atomic_cas(&handle->nb_tasks, 0, 0xffffffff) )
+        if( dague_atomic_cas(&handle->nb_tasks, 0, DAGUE_RUNTIME_RESERVED_NB_TASKS) )
             dague_handle_update_runtime_nbtask(handle, -1);
     }
 

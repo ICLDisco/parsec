@@ -1631,7 +1631,7 @@ void dague_handle_unregister( dague_handle_t* object )
     dague_atomic_lock( &object_array_lock );
     assert( object->handle_id < object_array_size );
     assert( object_array[object->handle_id] == object );
-    assert( 0xffffffff == object->nb_tasks );
+    assert( DAGUE_RUNTIME_RESERVED_NB_TASKS == object->nb_tasks );
     assert( 0 == object->nb_pending_actions );
     object_array[object->handle_id] = NOOBJECT;
     dague_atomic_unlock( &object_array_lock );
