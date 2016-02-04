@@ -120,8 +120,8 @@ else()
 endif()
 option(DAGUE_DEBUG_PARANOID
   "Enable extra paranoid checks (may impact performance)." OFF)
-option(DAGUE_DEBUG_MOTORMOUTH
-  "Enable chatterbox like verbose debugging (may impact performance)." OFF)
+option(DAGUE_DEBUG_NOISIER
+  "Enable chatterbox-like verbose debugging (may impact performance)." OFF)
 option(DAGUE_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur." OFF)
 option(DAGUE_CALL_TRACE

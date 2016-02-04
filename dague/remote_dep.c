@@ -315,7 +315,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
 
     assert(eu_context->virtual_process->dague_context->nb_nodes > 1);
 
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
@@ -393,7 +393,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                     DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)",
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask);
                     assert(remote_deps->outgoing_mask & (1U<<i));
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
                     for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
                         if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
                             assert( NULL != exec_context->function->out[flow_index] );
@@ -403,7 +403,7 @@ int dague_remote_dep_activate(dague_execution_unit_t* eu_context,
                             break;
                         }
                     }
-#endif  /* DAGUE_DEBUG_MOTORMOUTH */
+#endif  /* DAGUE_DEBUG_NOISIER */
                     assert(output->parent->dague_handle == exec_context->dague_handle);
                     if( 1 == dague_atomic_add_32b(&remote_deps->pending_ack, 1) ) {
                         keeper = 1;

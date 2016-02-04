@@ -244,7 +244,7 @@ int __dague_schedule( dague_execution_unit_t* eu_context,
 {
     int ret;
 
-#if defined(DAGUE_DEBUG_PARANOID) && defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_PARANOID) && defined(DAGUE_DEBUG_NOISIER)
     {
         dague_execution_context_t* context = new_context;
         const struct dague_flow_s* flow;

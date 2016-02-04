@@ -188,7 +188,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
     dague_ztsmqr_args_t        *args = (dague_ztsmqr_args_t*)gpu_task;
     void *d_A1, *d_A2, *d_V, *d_T, *WORK, *WORKC;
     cublasStatus_t status;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     int Wn, Wld;

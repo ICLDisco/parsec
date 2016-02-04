@@ -56,8 +56,8 @@ void dague_debug_init(void) {
         ", 3-4: User Debug"
         ", 5-9: Devel Debug"
         ", >=10: Chatterbox Debug"
-#if !defined(DAGUE_DEBUG_PARANOID) || !defined(DAGUE_DEBUG_MOTORMOUTH) || !defined(DAGUE_DEBUG_HISTORY)
-        " (heaviest debug output available only when compiling with DAGUE_DEBUG_PARANOID, DAGUE_DEBUG_MOTORMOUTH and/or DAGUE_DEBUG_HISTORY in ccmake)"
+#if !defined(DAGUE_DEBUG_PARANOID) || !defined(DAGUE_DEBUG_NOISIER) || !defined(DAGUE_DEBUG_HISTORY)
+        " (heaviest debug output available only when compiling with DAGUE_DEBUG_PARANOID, DAGUE_DEBUG_NOISIER and/or DAGUE_DEBUG_HISTORY in ccmake)"
 #endif
         , false, false, 2, &dague_debug_verbose);
     dague_output_set_verbosity(dague_debug_output, dague_debug_verbose);

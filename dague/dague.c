@@ -257,7 +257,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
         vpmap_display_map(stderr);
 #endif
         return NULL;
@@ -528,14 +528,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     for(t = 0; t < nb_total_comp_threads; t++)
         hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
 
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     {
         char *str = NULL;
         hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
         DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "binding core free mask is %s", str);
         free(str);
     }
-#endif /* defined(DAGUE_DEBUG_MOTORMOUTH) */
+#endif /* defined(DAGUE_DEBUG_NOISIER) */
 #endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
 
     /**
@@ -1108,7 +1108,7 @@ static int dague_update_deps_with_counter(const dague_handle_t *dague_handle,
                                           dague_dependency_t *deps)
 {
     dague_dependency_t dep_new_value, dep_cur_value;
-#if defined(DAGUE_DEBUG_PARANOID) || defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_PARANOID) || defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
@@ -1151,7 +1151,7 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
 {
     dague_dependency_t dep_new_value, dep_cur_value;
     const dague_function_t* function = exec_context->function;
-#if defined(DAGUE_DEBUG_MOTORMOUTH) || defined(DAGUE_DEBUG_PARANOID)
+#if defined(DAGUE_DEBUG_NOISIER) || defined(DAGUE_DEBUG_PARANOID)
     char tmpo[MAX_TASK_STRLEN], tmpt[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmpo, MAX_TASK_STRLEN, origin);
     dague_snprintf_execution_context(tmpt, MAX_TASK_STRLEN, exec_context);
@@ -1177,7 +1177,7 @@ static int dague_update_deps_with_mask(const dague_handle_t *dague_handle,
     /* Mark the dependencies and check if this particular instance can be executed */
     if( !(DAGUE_DEPENDENCIES_IN_DONE & (*deps)) ) {
         dep_new_value |= dague_check_IN_dependencies_with_mask( dague_handle, exec_context );
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
         if( dep_new_value != 0 ) {
             DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Activate IN dependencies with mask 0x%x", dep_new_value);
         }
@@ -1243,7 +1243,7 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
     const dague_function_t* function = exec_context->function;
     dague_dependency_t *deps;
     int completed;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
     dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, exec_context);
 #endif
@@ -1889,14 +1889,14 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             startup[t].bindto=prev;
         }
 
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str, context->comm_th_index_mask);
             DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "binding (core indexes) defined by the mask %s", str);
             free(str);
         }
-#endif /* defined(DAGUE_DEBUG_MOTORMOUTH) */
+#endif /* defined(DAGUE_DEBUG_NOISIER) */
     }
 
     else if( NULL != (position = strchr(option, ':'))) {
@@ -2014,7 +2014,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     cmp=0;
             }
         }
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
         {
             char tmp[MAX_CORE_LIST];
             char* str = tmp;
@@ -2028,7 +2028,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             }
             DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "binding defined by the parsed list: %s ", tmp);
         }
-#endif /* defined(DAGUE_DEBUG_MOTORMOUTH) */
+#endif /* defined(DAGUE_DEBUG_NOISIER) */
     }
     return 0;
 #else

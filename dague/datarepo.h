@@ -132,7 +132,7 @@ data_repo_lookup_entry(data_repo_t *repo, uint64_t key)
  * you're done counting the number of references, otherwise the entry is non erasable.
  * See comment near the structure definition.
  */
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
 # define data_repo_lookup_entry_and_create(eu, repo, key) \
     __data_repo_lookup_entry_and_create(eu, repo, key, #repo, __FILE__, __LINE__)
 static inline data_repo_entry_t*
@@ -183,7 +183,7 @@ __data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *rep
     return e;
 }
 
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
 # define data_repo_entry_used_once(eu, repo, key) \
     __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
 static inline void
@@ -209,7 +209,7 @@ __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint6
             break;
         }
 
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     if( NULL == e ) {
         DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %" PRIu64 " of hash table %s could not be found at %s:%d", key, tablename, file, line);
     }
@@ -236,7 +236,7 @@ __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint6
     (void)eu;
 }
 
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) \
     __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
 static inline void
@@ -290,7 +290,7 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t us
 
 static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
 {
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     data_repo_entry_t *e;
     int h;
 
@@ -302,7 +302,7 @@ static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
                    e, e->key, repo, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more");
         }
     }
-#endif  /* defined(DAGUE_DEBUG_MOTORMOUTH) */
+#endif  /* defined(DAGUE_DEBUG_NOISIER) */
     free(repo);
 }
 

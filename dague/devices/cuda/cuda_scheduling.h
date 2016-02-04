@@ -58,7 +58,7 @@ gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     cudaError_t status;
     int rc, exec_stream = 0;
     dague_gpu_context_t *progress_task, *out_task_push, *out_task_submit, *out_task_pop;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
 

@@ -1121,7 +1121,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     remote_dep_wire_activate_t* msg = &deps->msg;
     int k, dsize, saved_position = *position;
     uint32_t peer_bank, peer_mask, expected = 0;
-#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, 128);
 #endif
@@ -1184,7 +1184,7 @@ static int remote_dep_mpi_pack_dep(int peer,
     /* We can only have up to k data sends related to this remote_dep (include the order itself) */
     item->cmd.activate.task.tag = next_tag(k);
     msg->tag = item->cmd.activate.task.tag;
-#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_NOISIER)
     dague_debug_verbose(5, dague_debug_output, "MPI:\tTO\t%d\tActivate\t% -8s\n"
           "    \t\t\twith datakey %lx\tmask %lx\t(tag=%d) eager mask %lu length %d",
           peer, tmp, msg->deps, msg->output_mask, msg->tag,
@@ -1343,7 +1343,7 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
 {
     remote_dep_wire_get_t* task = &item->cmd.activate.task;
     dague_remote_deps_t* deps = (dague_remote_deps_t*)task->deps;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
@@ -1374,7 +1374,7 @@ remote_dep_mpi_save_put_cb(dague_execution_unit_t* eu_context,
     remote_dep_wire_get_t* task;
     dague_remote_deps_t *deps;
     dep_cmd_item_t* item;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
@@ -1417,7 +1417,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
     void* dataptr;
     MPI_Datatype dtt;
 #endif  /* !defined(DAGUE_PROF_DRY_DEP) */
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char type_name[MPI_MAX_OBJECT_NAME];
     int len;
 #endif
@@ -1443,7 +1443,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
         dataptr = DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data);
         dtt     = deps->output[k].data.layout;
         nbdtt   = deps->output[k].data.count;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
         MPI_Type_get_name(dtt, type_name, &len);
         DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "MPI:\tTO\t%d\tPut START\tunknown \tk=%d\twith deps 0x%lx at %p type %s\t(tag=%d displ = %ld)",
                item->cmd.activate.peer, k, task->deps, dataptr, type_name, tag+k, deps->output[k].data.displ);
@@ -1503,7 +1503,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 {
     remote_dep_datakey_t complete_mask = 0;
     int k, dsize, tag = (int)deps->msg.tag; (void)tag;
-#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN);
 #endif
@@ -1515,7 +1515,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 #endif  /* !defined(DAGUE_PROF_DRY_DEP) */
 #endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
 
-#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_NOISIER)
     dague_debug_verbose(5, dague_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
           "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d)",
            deps->from, tmp, deps->msg.deps, deps->incoming_mask,
@@ -1586,7 +1586,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
     /* Release all the already satisfied deps without posting the RDV */
     if(complete_mask) {
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
         for(int k = 0; complete_mask>>k; k++)
             if((1U<<k) & complete_mask)
                 DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "MPI:\tHERE\t%d\tGet PREEND\t% -8s\tk=%d\twith datakey %lx at %p ALREADY SATISFIED\t(tag=%d)",
@@ -1615,7 +1615,7 @@ remote_dep_mpi_save_activate_cb(dague_execution_unit_t* eu_context,
                                 dague_comm_callback_t* cb,
                                 MPI_Status* status)
 {
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     int position = 0, length;
@@ -1663,7 +1663,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
                                        dep_cmd_item_t *item )
 {
     dague_handle_t* obj = item->cmd.new_object.obj;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     DAGUE_ULIST_ITERATOR(&dep_activates_noobj_fifo, item,
@@ -1692,7 +1692,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
     int from = deps->from, k, count, nbdtt;
     remote_dep_wire_get_t msg;
     MPI_Datatype dtt;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN], type_name[MPI_MAX_OBJECT_NAME];
     int len;
     remote_dep_cmd_to_string(task, tmp, MAX_TASK_STRLEN);
@@ -1729,7 +1729,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
 #else
         dtt   = deps->output[k].data.layout;
         nbdtt = deps->output[k].data.count;
-#  if defined(DAGUE_DEBUG_MOTORMOUTH)
+#  if defined(DAGUE_DEBUG_NOISIER)
         MPI_Type_get_name(dtt, type_name, &len);
         DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "MPI:\tTO\t%d\tGet START\t% -8s\tk=%d\twith datakey %lx at %p type %s count %d displ %ld extent %d\t(tag=%d)",
                 from, tmp, k, task->deps, DAGUE_DATA_COPY_GET_PTR(deps->output[k].data.data), type_name, nbdtt,
@@ -1777,7 +1777,7 @@ remote_dep_mpi_get_end_cb(dague_execution_unit_t* eu_context,
                           MPI_Status* status)
 {
     dague_remote_deps_t* deps = (dague_remote_deps_t*)cb->storage1;
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
 

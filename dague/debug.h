@@ -94,7 +94,7 @@ void dague_debug_backtrace_dump(void);
         __func__, __LINE__);                                        \
 } while(0)
 
-#if defined(DAGUE_DEBUG_MOTORMOUTH)
+#if defined(DAGUE_DEBUG_NOISIER)
 /* Increasingly heavy debugging output. Compiled out when
  * DAGUE_DEBUG_VERBOSE is not enabled.
  * The entire history is logged as soon as debug_verbose >= 3

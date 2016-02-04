@@ -1231,7 +1231,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "static inline int dague_imax(int a, int b) { return (a >= b) ? a : b; };\n\n");
 
     coutput("/* Release dependencies output macro */\n"
-            "#if defined(DAGUE_DEBUG_MOTORMOUTH)\n"
+            "#if defined(DAGUE_DEBUG_NOISIER)\n"
             "#define RELEASE_DEP_OUTPUT(EU, DEPO, TASKO, DEPI, TASKI, RSRC, RDST, DATA)\\\n"
             "  do { \\\n"
             "    char tmp1[128], tmp2[128]; (void)tmp1; (void)tmp2;\\\n"
@@ -2268,7 +2268,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
         }
     }
 
-    coutput("#if defined(DAGUE_DEBUG_MOTORMOUTH)\n"
+    coutput("#if defined(DAGUE_DEBUG_NOISIER)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
             "%s    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, \"Add startup task %%s\",\n"
