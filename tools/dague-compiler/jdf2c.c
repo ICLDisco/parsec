@@ -17,14 +17,8 @@
 #if defined(HAVE_SYS_TYPES_H)
 #include <sys/types.h>
 #endif
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <libgen.h>
 #if defined(HAVE_UNISTD_H)
 #include <unistd.h>
-#endif
-#if defined(HAVE_LIMITS_H)
-#include <limits.h>
 #endif
 
 #include "jdf.h"
@@ -5352,9 +5346,6 @@ int jdf_optimize( jdf_t* jdf )
 /** Main Function */
 
 #if defined(HAVE_INDENT)
-#if defined(HAVE_SYS_TYPES_H)
-#include <sys/types.h>
-#endif
 #include <sys/wait.h>
 #endif
 
@@ -5386,20 +5377,20 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         goto err;
     }
     if( 0 == child ) {
-        char command[3*PATH_MAX];
+        char *command;
         close(cpipefd[1]);
         close(hpipefd[1]);
 #if !defined(HAVE_AWK)
-        snprintf(command, 3*PATH_MAX,
-            "%s %s -o %s <&%d",
-            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c, cpipefd[0] );
+        asprintf(&command, "%s %s -o %s <&%d",
+            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c, cpipefd[0]);
         system(command);
-        snprintf(command, 3*PATH_MAX,
-            "%s %s -o %s <&%d",
-            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h, hpipefd[0] );
+        free(command);
+        asprintf(&command, "%s %s -o %s <&%d",
+            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h, hpipefd[0]);
         system(command);
+        free(command);
 #else
-        snprintf(command, 3*PATH_MAX,
+        asprintf(&command,
              "%s %s <&%d -st | "
              "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
              ">%s",
@@ -5407,8 +5398,9 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
              DAGUE_AWK_PREFIX, output_c, output_c,
              output_c);
         system(command);
+        free(command);
 
-        snprintf(command, 3*PATH_MAX,
+        asprintf(&command,
              "%s %s <&%d -st | "
              "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
              ">%s",
@@ -5416,6 +5408,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
              DAGUE_AWK_PREFIX, output_h, output_h,
              output_h);
         system(command);
+        free(command);
 #endif /* !defined(HAVE_AWK) */
         exit(0);
     }
