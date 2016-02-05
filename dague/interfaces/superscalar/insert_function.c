@@ -1595,7 +1595,7 @@ data_lookup_of_dtd_task(dague_execution_unit_t *context,
         if( INOUT == op_type_on_current_flow ||
             OUTPUT == op_type_on_current_flow ) {
             if( current_task->super.data[current_dep].data_in->readers > 0 ) {
-                return DAGUE_HOOK_RETURN_AGAIN;
+                //return DAGUE_HOOK_RETURN_AGAIN;
                 /* We create a new data copy to avoid WAR */
                 #if 0
                 dague_data_copy_t *new_copy = dague_data_copy_new(current_task->super.data[current_dep].data_in->original, current_task->super.data[current_dep].data_in->device_index);
@@ -2438,7 +2438,7 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
 
     dague_dtd_handle->flow_set_flag[function->function_id] = 1;
 
-    dague_atomic_add_32b((int *)&(dague_dtd_handle->super.nb_local_tasks), 1);
+    dague_atomic_add_32b((int *)&(dague_dtd_handle->super.nb_tasks), 1);
 
 #if defined(DEBUG_HEAVY)
     dague_dtd_task_insert( dague_dtd_handle, this_task );

@@ -40,8 +40,6 @@ extern int my_rank;
 /* Structure used to pack arguments of insert_task() */
 struct dague_dtd_task_param_s {
     void            *pointer_to_tile;
-    int             operation_type;
-    int             tile_type_index;
     dague_dtd_task_param_t    *next;
 };
 
