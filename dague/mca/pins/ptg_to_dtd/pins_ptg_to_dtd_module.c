@@ -329,42 +329,8 @@ insert_task_generic_fptr_for_testing(dague_dtd_handle_t *__dague_handle,
         current_paramm = current_paramm->next;
     }
 
-    /* Bypassing constness in function structure */
-    dague_flow_t **in = (dague_flow_t **)&(__dague_handle->super.functions_array[this_task->belongs_to_function]->in[flow_index]);
-    *in = NULL;
-    dague_flow_t **out = (dague_flow_t **)&(__dague_handle->super.functions_array[this_task->belongs_to_function]->out[flow_index]);
-    *out = NULL;
-    __dague_handle->flow_set_flag[this_task->belongs_to_function] = 1;
-
-    /* Assigning values to task objects  */
-    this_task->param_list = head_of_param_list;
-
-    /* Atomically increasing the nb_local_tasks_counter */
-    dague_atomic_add_32b((int32_t*)&(__dague_handle->super.nb_tasks), 1);
-
-    /* Increase the count of satisfied flows to counter-balance the increase in the
-     * number of expected flows done during the task creation.  */
-    satisfied_flow++;
-
-    if(!__dague_handle->super.context->active_objects) {
-        assert(0);
-        __dague_handle->task_id++;
-        /* executing the tasks as soon as we find it if no engine is attached */
-        __dague_execute(__dague_handle->super.context->virtual_processes[0]->execution_units[0],
-                        (dague_execution_context_t *)this_task);
-        return;
-    }
-
-    /* Building list of initial ready task */
-    if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
-        DAGUE_LIST_ITEM_SINGLETON(this_task);
-        if (NULL != __dague_handle->startup_list[vpid]) {
-            dague_list_item_ring_merge((dague_list_item_t *)this_task,
-                                       (dague_list_item_t *) (__dague_handle->startup_list[vpid]));
-        }
-        __dague_handle->startup_list[vpid] = (dague_execution_context_t*)this_task;
-        vpid = (vpid+1)%__dague_handle->super.context->nb_vp;
-    }
+    if( tmp_param != NULL )
+        tmp_param->next = NULL;
 
 #if defined(DAGUE_PROF_TRACE)
     if(track_function_created_or_not) {
@@ -449,25 +415,6 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                 op_type = INOUT | REGION_FULL;
             } else if((tmp_op_type & FLOW_ACCESS_READ) == FLOW_ACCESS_READ) {
                 op_type = INPUT | REGION_FULL;
-            } else if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
-                op_type = OUTPUT | REGION_FULL;
-            } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
-                op_type = INOUT | REGION_FULL;
-
-                this_task->unused[0] = 0;
-                this_task->function->iterate_predecessors(context, this_task, (1 << i),
-                                                          copy_content, (void*)&T1);
-                if (this_task->unused[0] != 0) {
-                    pred_found = 1;
-                    entry = data_repo_lookup_entry(T1.dague_handle->repo_array[T1.function->function_id],
-                                                   T1.function->key(T1.dague_handle, T1.locals));
-                    dague_data_copy_t* copy = entry->data[T1.unused[0]];
-                    ddesc = (dague_ddesc_t *)copy->original;
-                    key   =  copy->original->key;
-                } else {
-                    continue;  /* next IN flow */
-                }
-
             } else {
                 continue;  /* next IN flow */
             }
@@ -499,17 +446,6 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                 op_type = OUTPUT | REGION_FULL;
                 ddesc = (dague_ddesc_t *)this_task->data[i].data_out->original;
                 key = this_task->data[i].data_out->original->key;
-            } else if((tmp_op_type) == FLOW_ACCESS_NONE || tmp_op_type == FLOW_HAS_IN_DEPS) {
-                op_type = INOUT | REGION_FULL;
-
-                dague_data_t *fake_data = OBJ_NEW(dague_data_t);
-                fake_data->key = rand();
-                dague_data_copy_t *copy = OBJ_NEW(dague_data_copy_t);
-                copy->original = fake_data;
-                this_task->data[this_task->function->out[i]->flow_index].data_out = copy;
-
-                ddesc = (dague_ddesc_t *)fake_data;
-                key   =  fake_data->key;
             } else {
                 continue;
             }
@@ -530,8 +466,8 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
             current_param = tmp_param;
         }
 
-        insert_task_generic_fptr_for_testing(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
-                                             this_task, (char *)this_task->function->name, head_param);
+        insert_task_in_PaRSEC_ptg_to_dtd( dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
+                                          this_task, (char *)this_task->function->name, head_param);
 
         /* Cleaning the params */
         current_param = head_param;

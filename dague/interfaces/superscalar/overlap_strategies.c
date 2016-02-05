@@ -308,8 +308,13 @@ ordering_correctly_1(dague_execution_unit_t *eu,
         deps.dep_index = current_dep;
 #endif
         current_desc = current_task->desc[current_dep].task;
-        op_type_on_current_flow = (current_task->desc[current_dep].op_type_parent & GET_OP_TYPE);
-        tile = current_task->desc[current_dep].tile;
+        op_type_on_current_flow = (current_task->flow[current_dep].op_type & GET_OP_TYPE);
+        tile = current_task->flow[current_dep].tile;
+
+        if( INPUT == op_type_on_current_flow ) {
+            dague_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), -1 );
+            //DAGUE_DATA_COPY_RELEASE(current_task->super.data[current_dep].data_out);
+        }
 
         /**
          * In case the same data is used for multiple flows, only the last reference
@@ -355,7 +360,41 @@ ordering_correctly_1(dague_execution_unit_t *eu,
         while( NULL != current_desc ) {
             tmp_desc = current_desc;
             tmp_desc_flow_index = desc_flow_index;
-            tmp_desc_op_type = desc_op_type;
+            current_desc = nextinline;
+
+            /* Forward the data to each successor */
+            current_desc->super.data[desc_flow_index].data_in = current_task->super.data[current_dep].data_out;
+
+            get_out = 1;  /* by default escape */
+            if( !(OUTPUT == desc_op_type || INOUT == desc_op_type) ) {
+
+                dague_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), 1 );
+                /* Each reader increments the ref count of the data_copy
+                 * We should have a function to retain data copies like
+                 * DAGUE_DATA_COPY_RELEASE
+                 */
+                //OBJ_RETAIN(current_task->super.data[current_dep].data_out);
+
+                nextinline = current_desc->desc[desc_flow_index].task;
+                if( NULL != nextinline ) {
+                    desc_op_type    = (current_desc->desc[desc_flow_index].op_type & GET_OP_TYPE);
+                    desc_flow_index =  current_desc->desc[desc_flow_index].flow_index;
+                    get_out = 0;  /* We have a successor, keep going */
+                    if( nextinline == current_desc ) {
+                        /* We have same descendant using same data in multiple flows
+                         * So we activate the successor once and skip the other times
+                         */
+                        continue;
+                    } else {
+                        current_desc->desc[tmp_desc_flow_index].task = NULL;
+                    }
+                } else {
+                    /* Mark it specially as it is a task that performs INPUT type of operation
+                     * on the data.
+                     */
+                    current_desc->dont_skip_releasing_data[desc_flow_index] = 1;
+                }
+            }
 
             desc_op_type        = (current_desc->desc[desc_flow_index].op_type & GET_OP_TYPE);
             desc_flow_index     =  current_desc->desc[desc_flow_index].flow_index;

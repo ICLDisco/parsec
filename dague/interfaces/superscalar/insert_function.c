@@ -379,7 +379,7 @@ dague_execute_and_come_back(dague_context_t *context,
     uint64_t misses_in_a_row;
     dague_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
     dague_execution_context_t* exec_context;
-    int nbiterations = 0;
+    int rc, nbiterations = 0;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -423,24 +423,62 @@ dague_execute_and_come_back(dague_context_t *context,
             }
 #endif
 
-            PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
-            switch( exec_context->function->prepare_input(eu_context, exec_context) ) {
-            case DAGUE_HOOK_RETURN_DONE:
-            {
+            rc = DAGUE_HOOK_RETURN_DONE;
+            if(exec_context->status <= DAGUE_TASK_STATUS_PREPARE_INPUT) {
+                PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
+                rc = exec_context->function->prepare_input(eu_context, exec_context);
                 PINS(eu_context, PREPARE_INPUT_END, exec_context);
-                int rv = 0;
+            }
+            switch(rc) {
+            case DAGUE_HOOK_RETURN_DONE: {
+                if(exec_context->status <= DAGUE_TASK_STATUS_HOOK) {
+                    rc = __dague_execute( eu_context, exec_context );
+                }
                 /* We're good to go ... */
-                rv = __dague_execute( eu_context, exec_context );
-                if( 0 == rv ) {
+                switch(rc) {
+                case DAGUE_HOOK_RETURN_DONE:    /* This execution succeeded */
+                    exec_context->status = DAGUE_TASK_STATUS_COMPLETE;
                     __dague_complete_execution( eu_context, exec_context );
+                    break;
+                case DAGUE_HOOK_RETURN_AGAIN:   /* Reschedule later */
+                    exec_context->status = DAGUE_TASK_STATUS_HOOK;
+                    if(0 == exec_context->priority) {
+                        SET_LOWEST_PRIORITY(exec_context, dague_execution_context_priority_comparator);
+                    } else
+                        exec_context->priority /= 10;  /* demote the task */
+                    __dague_schedule(eu_context, exec_context);
+                    exec_context = NULL;
+                    break;
+                case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                                 * even try to change it's state, the completion
+                                                 * will be triggered asynchronously. */
+                    break;
+                case DAGUE_HOOK_RETURN_NEXT:    /* Try next variant [if any] */
+                case DAGUE_HOOK_RETURN_DISABLE: /* Disable the device, something went wrong */
+                case DAGUE_HOOK_RETURN_ERROR:   /* Some other major error happened */
+                    assert( 0 ); /* Internal error: invalid return value */
                 }
                 nbiterations++;
                 break;
             }
+            case DAGUE_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
+                                             * even try to change it's state, the completion
+                                             * will be triggered asynchronously. */
+                break;
+            case DAGUE_HOOK_RETURN_AGAIN:   /* Reschedule later */
+                if(0 == exec_context->priority) {
+                    SET_LOWEST_PRIORITY(exec_context, dague_execution_context_priority_comparator);
+                } else
+                    exec_context->priority /= 10;  /* demote the task */
+                DAGUE_LIST_ITEM_SINGLETON(exec_context);
+                __dague_schedule(eu_context, exec_context);
+                exec_context = NULL;
+                break;
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
 
+            // subsequent select begins
             PINS(eu_context, SELECT_BEGIN, NULL);
         } else {
             misses_in_a_row++;
@@ -1546,6 +1584,39 @@ int
 data_lookup_of_dtd_task(dague_execution_unit_t *context,
                         dague_execution_context_t *this_task)
 {
+    (void)context;
+
+    int current_dep, op_type_on_current_flow;
+    dague_dtd_task_t *current_task = (dague_dtd_task_t *)this_task;
+
+    for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
+        op_type_on_current_flow = (current_task->flow[current_dep].op_type & GET_OP_TYPE);
+
+        if( INOUT == op_type_on_current_flow ||
+            OUTPUT == op_type_on_current_flow ) {
+            if( current_task->super.data[current_dep].data_in->readers > 0 ) {
+                return DAGUE_HOOK_RETURN_AGAIN;
+                /* We create a new data copy to avoid WAR */
+                #if 0
+                dague_data_copy_t *new_copy = dague_data_copy_new(current_task->super.data[current_dep].data_in->original, current_task->super.data[current_dep].data_in->device_index);
+                new_copy->older = current_task->super.data[current_dep].data_in;
+
+                /* Copying the actual data */
+
+                //DAGUE_DATA_COPY_RELEASE(current_task->super.data[current_dep].data_out);
+                #endif
+            }
+        }
+    }
+
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
+/* prepare_output function, to be consistent with PaRSEC */
+int
+output_data_of_dtd_task(dague_execution_unit_t *context,
+                        dague_execution_context_t *this_task)
+{
     (void)context; (void)this_task;
     return DAGUE_HOOK_RETURN_DONE;
 }
@@ -2213,6 +2284,193 @@ create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *
     this_task->super.status = DAGUE_TASK_STATUS_NONE;
 
     return this_task;
+}
+
+/* **************************************************************************** */
+/**
+ * Function to set parameters of a dtd task
+ *
+ */
+void
+set_params_of_task( dague_dtd_task_t *this_task, dague_dtd_tile_t *tile,
+                    int tile_op_type, int *flow_index, void **current_val,
+                    dague_dtd_task_param_t *current_param, int *next_arg )
+{
+    /* We pack the task pointer and flow information together to avoid updating multiple fields
+     * atomically. Currently the last 4 bits are available and hence we can not deal with flow exceeding 16
+     */
+    assert( *flow_index < 16 );
+
+    if( (tile_op_type & GET_OP_TYPE) == INPUT  ||
+        (tile_op_type & GET_OP_TYPE) == OUTPUT ||
+        (tile_op_type & GET_OP_TYPE) == INOUT  ||
+        (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE)
+    {
+        current_param->pointer_to_tile = (void *)tile;
+
+        this_task->super.data[*flow_index].data_in   = NULL;
+        this_task->super.data[*flow_index].data_out  = NULL;
+        this_task->super.data[*flow_index].data_repo = NULL;
+
+
+        assert( NULL != tile );
+        assert(tile->data_copy != NULL);
+
+        /* Saving tile pointer for each flow in a task */
+        this_task->flow[*flow_index].tile    = tile;
+        this_task->flow[*flow_index].op_type = tile_op_type;
+
+        *flow_index += 1;
+    } else if ((tile_op_type & GET_OP_TYPE) == SCRATCH) {
+        if(NULL == tile) {
+            current_param->pointer_to_tile = *current_val;
+           *current_val = ((char*)*current_val) + *next_arg;
+        }else {
+            current_param->pointer_to_tile = (void *)tile;
+        }
+    } else {
+        memcpy(*current_val, (void *)tile, *next_arg);
+        current_param->pointer_to_tile = *current_val;
+       *current_val = ((char*)*current_val) + *next_arg;
+    }
+}
+
+/* **************************************************************************** */
+/**
+ * Function to insert task in PaRSEC
+ *
+ * In this function we track all the dependencies and create the DAG
+ *
+ */
+void
+dague_insert_dtd_task( dague_dtd_task_t *this_task )
+{
+    const dague_function_t *function           = this_task->super.function;
+    dague_dtd_handle_t *dague_dtd_handle = (dague_dtd_handle_t *)this_task->super.dague_handle;
+
+    int flow_index, satisfied_flow = 0, tile_op_type = 0;
+    static int vpid = 0;
+    dague_dtd_tile_t *tile = NULL;
+
+    /* In the next segment we resolve the dependencies of each flow */
+    for( flow_index = 0, tile = NULL, tile_op_type = 0; flow_index < function->nb_flows; flow_index ++ ) {
+        struct user last_user;
+        tile = this_task->flow[flow_index].tile;
+        tile_op_type = this_task->flow[flow_index].op_type;
+
+        if(0 == dague_dtd_handle->flow_set_flag[function->function_id]) {
+            /* Setting flow in function structure */
+            set_flow_in_function( dague_dtd_handle, this_task, tile_op_type, flow_index);
+        }
+
+        dague_dtd_task_t *parent = NULL;
+        dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)this_task|flow_index);
+
+        do {
+            parent = tile->last_user.task;
+            last_user.flow_index = GET_FLOW_IND(parent);
+            last_user.task       = GET_TASK_PTR(parent);
+            dague_mfence();  /* write */
+        } while (!dague_atomic_cas(&(tile->last_user.task), parent, task_pointer));
+        last_user.op_type           = tile->last_user.op_type;
+        tile->last_user.flow_index  = flow_index;
+        tile->last_user.op_type     = tile_op_type;
+
+        if(NULL != last_user.task) {
+            set_descendant(last_user.task, last_user.flow_index,
+                           this_task, flow_index, last_user.op_type,
+                           tile_op_type);
+
+            /* Are we using the same data multiple times for the same task? */
+            if(last_user.task == this_task) {
+                this_task->super.data[flow_index].data_in = tile->data_copy;
+                satisfied_flow += 1;
+            }
+
+#if defined (WILL_USE_IN_DISTRIBUTED)
+            if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
+                if (!testing_ptg_to_dtd) {
+                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle,
+                                                  (dague_function_t *)this_task->super.function, NULL,
+                                                  flow_index, 0, tile_type_index);
+                }
+
+            } else {
+                if (!testing_ptg_to_dtd) {
+                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle,
+                                                  (dague_function_t *)last_user.task->super.function,
+                                                  (dague_function_t *)this_task->super.function,
+                                                  last_user.flow_index, flow_index, tile_type_index);
+                }
+            }
+#endif
+        } else {  /* parentless */
+            this_task->super.data[flow_index].data_in = tile->data_copy;
+            satisfied_flow += 1;
+
+            if(INPUT == (tile_op_type & GET_OP_TYPE) || ATOMIC_WRITE == (tile_op_type & GET_OP_TYPE)) {
+                /* Saving the Flow for which a Task is the first one to
+                 use the data and the operation is INPUT or ATOMIC_WRITE
+                 */
+                this_task->dont_skip_releasing_data[flow_index] = 1;
+                dague_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , 1 );
+            }
+
+#if defined (WILL_USE_IN_DISTRIBUTED)
+            if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
+                if (!testing_ptg_to_dtd) {
+                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle, NULL,
+                                                  (dague_function_t *)this_task->super.function,
+                                                  0, flow_index, tile_type_index);
+                }
+            }
+            if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
+                if (!testing_ptg_to_dtd) {
+                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle,
+                                                  (dague_function_t *)this_task->super.function, NULL,
+                                                  flow_index, 0, tile_type_index);
+                }
+            }
+#endif
+
+        }
+    }
+
+    dague_dtd_handle->flow_set_flag[function->function_id] = 1;
+
+    dague_atomic_add_32b((int *)&(dague_dtd_handle->super.nb_local_tasks), 1);
+
+#if defined(DEBUG_HEAVY)
+    dague_dtd_task_insert( dague_dtd_handle, this_task );
+#endif
+
+    /* Increase the count of satisfied flows to counter-balance the increase in the
+     * number of expected flows done during the task creation.  */
+    satisfied_flow++;
+
+    if(!dague_dtd_handle->super.context->active_objects) {
+        assert(0);
+    }
+
+    /* Building list of initial ready task */
+    if ( 0 == dague_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
+#if defined(DEBUG_HEAVY)
+        dague_dtd_task_release( dague_dtd_handle, this_task->super.super.key );
+#endif
+        if(dump_traversal_info) {
+            printf("------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
+                   "%d\n-----\n", this_task->super.function->name, this_task->super.super.key,
+                   this_task->super.function->nb_flows, this_task->flow_count);
+        }
+
+        DAGUE_LIST_ITEM_SINGLETON(this_task);
+        if(NULL != dague_dtd_handle->startup_list[vpid]) {
+            dague_list_item_ring_merge((dague_list_item_t *) this_task,
+                                       (dague_list_item_t *) (dague_dtd_handle->startup_list[vpid]));
+        }
+        dague_dtd_handle->startup_list[vpid] = (dague_execution_context_t *)this_task;
+        vpid = (vpid+1)%dague_dtd_handle->super.context->nb_vp;
+    }
 }
 
 /* **************************************************************************** */

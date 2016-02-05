@@ -64,7 +64,6 @@ typedef struct descendant_info_s {
 
 struct dague_dtd_task_s {
     dague_execution_context_t   super;
-    dague_dtd_funcptr_t        *fpointer;
     uint32_t                    ref_count;
     int                         flow_count;
     /* Saves flow index for which we have to release data of a TASK
