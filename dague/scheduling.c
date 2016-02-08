@@ -379,7 +379,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     }
 
     if( NULL == current_scheduler ) {
-        fprintf(stderr, "DAGuE: Main thread entered dague_context_wait, while scheduler is not selected yet!\n");
+        dague_abort("Main thread entered dague_context_wait, while a scheduler is not selected yet!");
         return -1;
     }
 

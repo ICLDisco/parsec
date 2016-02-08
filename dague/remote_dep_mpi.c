@@ -221,10 +221,9 @@ static int remote_dep_dequeue_init(dague_context_t* context)
     MPI_Query_thread( &thread_level_support );
     if( thread_level_support == MPI_THREAD_SINGLE ||
         thread_level_support == MPI_THREAD_FUNNELED ) {
-        fprintf(stderr,
-                "*** Warning: MPI was not initialized with the appropriate level of thread support. ***\n"
-                "*** Current level is %s, while MPI_THREAD_SERIALIZED or MPI_THREAD_MULTIPLE is needed ***\n"
-                "*** to guarantee correctness. ***\n",
+        dague_warning("MPI was not initialized with the appropriate level of thread support.\n"
+                      "\t* Current level is %s, while MPI_THREAD_SERIALIZED or MPI_THREAD_MULTIPLE is needed\n"
+                      "\t* to guarantee correctness of the PaRSEC runtime.\n",
                 thread_level_support == MPI_THREAD_SINGLE ? "MPI_THREAD_SINGLE" : "MPI_THREAD_FUNNELED" );
     }
     MPI_Comm_size( (NULL == context->comm_ctx) ? MPI_COMM_WORLD : *(MPI_Comm*)context->comm_ctx,

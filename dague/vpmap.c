@@ -400,20 +400,16 @@ int vpmap_init_from_flat(int _nbcores)
     return 0;
 }
 
-void vpmap_display_map(FILE *out)
-{
+void vpmap_display_map(void) {
     int rank = 0;
     int v, t, c;
     char *cores = NULL, *ht = NULL, *tmp;
     int *dcores, *dht;
     int rc;
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
-    dague_inform( "Virtual Process Map ...", rank);
+    dague_inform( "Virtual Process Map ...");
     if( -1 == nbvp ) {
-        dague_inform("   Map undefined", rank);
+        dague_inform("   Map undefined");
         return;
     }
 
@@ -421,10 +417,10 @@ void vpmap_display_map(FILE *out)
     nbht = dague_hwloc_get_ht();
 #endif  /* defined(HAVE_HWLOC) */
 
-    dague_inform("Map with %d Virtual Processes", rank, nbvp);
+    dague_inform("Map with %d Virtual Processes", nbvp);
     for(v = 0; v < nbvp; v++) {
         dague_inform("   Virtual Process of index %d has %d threads",
-                rank, v, vpmap_get_nb_threads_in_vp(v) );
+                     v, vpmap_get_nb_threads_in_vp(v) );
         for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
             dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
             dht = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
@@ -447,7 +443,7 @@ void vpmap_display_map(FILE *out)
             free(dht);
 
             dague_inform("    Thread %d of VP %d can be bound on cores %s %s",
-                    rank, t, v, cores, ht);
+                         t, v, cores, ht);
             free(cores);
             free(ht);
         }

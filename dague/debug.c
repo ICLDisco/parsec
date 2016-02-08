@@ -61,6 +61,7 @@ void dague_debug_init(void) {
 #endif
         , false, false, 2, &dague_debug_verbose);
     dague_output_set_verbosity(dague_debug_output, dague_debug_verbose);
+    dague_output_set_verbosity(0, dague_debug_verbose);
 
     /* We do not want backtraces in the syslog, so, we do not
      * inherit the defaults... */

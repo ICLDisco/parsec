@@ -261,9 +261,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 
     /* The main thread of VP 0 will go back to the user level */
     if( DAGUE_THREAD_IS_MASTER(eu) ) {
-#if defined(DAGUE_DEBUG_NOISIER)
-        vpmap_display_map(stderr);
-#endif
         return NULL;
     }
 
@@ -294,7 +291,7 @@ static void dague_vp_init( dague_vp_t *vp,
         if( 1 == pi )
             vpmap_get_core_affinity(vp->vp_id, t, &startup[t].bindto, &startup[t].bindto_ht);
         else if( 1 < pi )
-            fprintf(stderr, "multiple core to bind on... for now, do nothing\n");
+            dague_warning("multiple core to bind on... for now, do nothing"); //TODO: what does that mean?
     }
 }
 
@@ -403,7 +400,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         GET_INT_ARGV(cmd_line, "ht", hyperth);
         dague_hwloc_allow_ht(hyperth);
 #else
-        fprintf(stderr, "Option ht (hyper-threading) is only supported when HWLOC is enabled.\n");
+        dague_inform("Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.");
 #endif  /* defined(HAVE_HWLOC) */
     }
 
@@ -416,7 +413,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( dague_cmd_line_is_taken(cmd_line, "gpus") ) {
-        fprintf(stderr, "Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.\n");
+        dague_warning("Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.");
     }
 
     GET_INT_ARGV(cmd_line, "cores", nb_cores);
@@ -448,15 +445,15 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
                     sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
                     vpmap_init_from_parameters(n, p, co);
                 } else {
-                    fprintf(stderr, "#XXXXX invalid VPMAP choice (-V argument): %s. Fallback to default!\n", optarg);
+                    dague_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
                 }
             }
-        } else {
-            /* Default case if vpmap has not been initialized */
-            if(vpmap_get_nb_vp() == -1)
-                vpmap_init_from_flat(nb_cores);
         }
         nb_vp = vpmap_get_nb_vp();
+        if( -1 == nb_vp ) {
+            vpmap_init_from_flat(nb_cores);
+            nb_vp = vpmap_get_nb_vp();
+        }
     }
 
     if( dague_cmd_line_is_taken(cmd_line, "dot") ) {
@@ -493,8 +490,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( nb_cores != nb_total_comp_threads ) {
-        fprintf(stderr, "Warning: using %d threads instead of the requested %d (need to change features in VP MAP)\n",
-                nb_total_comp_threads, nb_cores);
+        dague_inform("Your vpmap uses %d threads when %d cores where available",
+                     nb_total_comp_threads, nb_cores);
         nb_cores = nb_total_comp_threads;
     }
 
@@ -584,7 +581,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             ret = dague_profiling_dbp_start( dague_enable_profiling, dague_app_name );
         }
         if( ret != 0 ) {
-            fprintf(stderr, "*** %s. Profile deactivated.\n", dague_profiling_strerror());
+            dague_warning("Profiling framework deactivated because of error %s.", dague_profiling_strerror());
         }
 
         l = 0;
@@ -685,7 +682,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     if( 0 == dague_set_scheduler( context ) ) {
         /* TODO: handle memory leak / thread leak here: this is a fatal
          * error for PaRSEC */
-        fprintf(stderr, "PaRSEC: unable to load any scheduler in init function. Fatal error.\n");
+        dague_abort("Unable to load any scheduler in init function.");
         return NULL;
     }
 
@@ -693,10 +690,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 #if defined(DAGUE_PROF_GRAPHER)
         dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
 #else
-        fprintf(stderr,
-                "************************************************************************************************\n"
-                "*** Warning: dot generation requested, but DAGUE configured with DAGUE_PROF_GRAPHER disabled ***\n"
-                "************************************************************************************************\n");
+        dague_warning("DOT generation requested, but DAGUE_PROF_GRAPHER was not selected during compilation: DOT generation ignored.");
 #endif  /* defined(DAGUE_PROF_GRAPHER) */
     }
 
@@ -756,14 +750,14 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         dague_parse_binding_parameter(binding_parameter, context, startup);
 
     if( display_vpmap )
-        vpmap_display_map(stderr);
+        vpmap_display_map();
 
     if( dague_cmd_line_is_taken(cmd_line, "help") ||
         dague_cmd_line_is_taken(cmd_line, "h")) {
         char* help_msg = dague_cmd_line_get_usage_msg(cmd_line);
         dague_list_t* l = NULL;
 
-        fprintf(stdout, "%s\n\nRegistered MCA parameters:\n", help_msg);
+        dague_output(0, "%s\n\nRegistered MCA parameters", help_msg);
         free(help_msg);
 
         dague_mca_param_dump(&l, 1);
@@ -1724,7 +1718,7 @@ int dague_handle_update_runtime_nbtask(dague_handle_t *handle, int32_t nb_tasks)
 /**< Print DAGuE usage message */
 void dague_usage(void)
 {
-    fprintf(stderr,"\n"
+    dague_output(0,"\n"
             "A DAGuE argument sequence prefixed by \"--\" can end the command line\n\n"
             "     --dague_bind_comm   : define the core the communication thread will be bound on\n"
             "\n"
@@ -2207,7 +2201,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                 if( *dep & DAGUE_DEPENDENCIES_STARTUP_TASK ) {
                     (*nreleased)++;
                     if( show_startup )
-                        fprintf(stderr, "   Task %s is a local startup task\n",
+                        dague_debug_verbose(19, dague_debug_output, "  Task %s is a local startup task",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
                 } else {
                     if((*dep & DAGUE_DEPENDENCIES_BITMASK) == function->dependencies_goal) {
@@ -2215,7 +2209,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                     }
                     if( show_complete ||
                         ((*dep & DAGUE_DEPENDENCIES_BITMASK) != function->dependencies_goal) ) {
-                        fprintf(stderr, "   Task %s is a local task with dependency 0x%08x (goal is 0x%08x) -- Flags: %s %s\n",
+                        dague_debug_verbose(20, dague_debug_output, "  Task %s is a local task with dependency 0x%08x (goal is 0x%08x) -- Flags: %s %s",
                                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
                                 *dep & DAGUE_DEPENDENCIES_BITMASK,
                                 function->dependencies_goal,
@@ -2228,13 +2222,13 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                     (*nreleased)++;
 
                 if( (*dep != 0) || show_complete )
-                    fprintf(stderr, "   Task %s is a local task that must wait for %d more dependencies to complete -- using count method for this task (CTL gather)\n",
+                    dague_debug_verbose(20, dague_debug_output, "  Task %s is a local task that must wait for %d more dependencies to complete -- using count method for this task (CTL gather)",
                             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
                             *dep);
             }
         } else {
             if( show_remote )
-                fprintf(stderr, "   Task %s is a remote task\n",
+                dague_debug_verbose(20, dague_debug_output, "  Task %s is a remote task",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
         }
     } while( dague_debug_enumerate_next_in_execution_space(&context, 0)  );
@@ -2250,13 +2244,13 @@ void dague_debug_print_local_expecting_tasks_for_handle( dague_handle_t *handle,
         return;
 
     for(fi = 0; fi < handle->nb_functions; fi++) {
-        fprintf(stderr, " Tasks of Function %u (%s):\n", fi, handle->functions_array[fi]->name);
+        dague_debug_verbose(20, dague_debug_output, " Tasks of Function %u (%s):\n", fi, handle->functions_array[fi]->name);
         dague_debug_print_local_expecting_tasks_for_function( handle, handle->functions_array[fi],
                                                               show_remote, show_startup, show_complete,
                                                               &nlocal, &nreleased, &ntotal );
-        fprintf(stderr, " Total number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, ntotal);
-        fprintf(stderr, " Local number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, nlocal);
-        fprintf(stderr, " Number of Tasks of Class %s that have been released: %d\n", handle->functions_array[fi]->name, nreleased);
+        dague_debug_verbose(20, dague_debug_output, " Total number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, ntotal);
+        dague_debug_verbose(20, dague_debug_output, " Local number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, nlocal);
+        dague_debug_verbose(20, dague_debug_output, " Number of Tasks of Class %s that have been released: %d\n", handle->functions_array[fi]->name, nreleased);
     }
 }
 
@@ -2272,7 +2266,7 @@ void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup,
             continue;
         if( handle == NULL )
             continue;
-        fprintf(stderr, "Tasks of Handle %u:\n", oi);
+        dague_debug_verbose(20, dague_debug_output, "Tasks of Handle %u:\n", oi);
         dague_debug_print_local_expecting_tasks_for_handle( handle,
                                                             show_remote,
                                                             show_startup,

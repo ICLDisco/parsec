@@ -72,7 +72,7 @@ static int dague_cuda_lookup_device_cudacores(int *cuda_cores, int major, int mi
     } else if (major == 3) {
         *cuda_cores = 192;
     } else {
-        fprintf(stderr, "Unsupporttd GPU, skip.\n");
+        dague_debug_verbose(3, dague_debug_output, "Unsupporttd GPU %d, %d, skipping.", major, minor);
             return DAGUE_ERROR;
     }
     return DAGUE_SUCCESS;
@@ -230,7 +230,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     for( target = argv; (NULL != target) && (NULL != *target); target++ ) {
         struct stat status;
         if( 0 != stat(*target, &status) ) {
-            dague_debug_verbose(3, dague_cuda_output_stream,
+            dague_debug_verbose(10, dague_cuda_output_stream,
                                  "Could not stat the %s path (%s)", *target, strerror(errno));
             continue;
         }
@@ -245,7 +245,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 
         dlh = dlopen(library_name, RTLD_NOW | RTLD_NODELETE );
         if(NULL == dlh) {
-            dague_debug_verbose(3, dague_cuda_output_stream,
+            dague_debug_verbose(10, dague_cuda_output_stream,
                                  "Could not find %s dynamic library (%s)", library_name, dlerror());
             continue;
         }
@@ -277,7 +277,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 
     /* Still not found?? skip this GPU */
     if(NULL == fn) {
-        dague_debug_verbose(4, dague_cuda_output_stream,
+        dague_debug_verbose(10, dague_cuda_output_stream,
                              "No function %s found for CUDA device %s",
                              function_name, gpu_device->super.name);
         index--;
@@ -439,14 +439,6 @@ int dague_gpu_init(dague_context_t *dague_context)
         streaming_multiprocessor = prop.multiProcessorCount;
         computemode = prop.computeMode;
 
-        if( show_caps ) {
-            dague_inform("GPU Device %d (capability %d.%d): %s", i, major, minor, szName );
-            dague_inform("\tSM                 : %d", streaming_multiprocessor );
-            dague_inform("\tclockRate          : %d", clockRate );
-            dague_inform("\tconcurrency        : %s", (concurrency == 1 ? "yes" : "no") );
-            dague_inform("\tcomputeMode        : %d", computemode );
-        }
-
         gpu_device = (gpu_device_t*)calloc(1, sizeof(gpu_device_t));
         OBJ_CONSTRUCT(gpu_device, dague_list_item_t);
         gpu_device->cuda_index = (uint8_t)i;
@@ -522,7 +514,18 @@ int dague_gpu_init(dague_context_t *dague_context)
         gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
 
         if( show_caps ) {
-            dague_inform("\tFlops capacity     : single %2.4f, double %2.4f", gpu_device->super.device_sweight, gpu_device->super.device_dweight);
+            dague_inform("GPU Device %d (capability %d.%d): %s\n"
+                         "\tSM                 : %d\n"
+                         "\tclockRate          : %d\n"
+                         "\tconcurrency        : %s\n"
+                         "\tcomputeMode        : %d\n"
+                         "\tFlops capacity     : single %2.4f, double %2.4f",
+                         i, major, minor,szName,
+                         streaming_multiprocessor,
+                         clockRate,
+                         (concurrency == 1)? "yes": "no",
+                         computemode,
+                         gpu_device->super.device_sweight, gpu_device->super.device_dweight);
         }
 
         if( DAGUE_SUCCESS != dague_cuda_memory_reserve(gpu_device,
