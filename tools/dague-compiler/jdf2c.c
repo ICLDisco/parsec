@@ -4667,9 +4667,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                coutput("    dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
                        "                                           %s);\n",
                        fl->varname,
-                       ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
-                        ((flow->flow_flags & JDF_FLOW_TYPE_READ) ?
-                         ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_READ") : "FLOW_ACCESS_WRITE")));
+                       ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
+                        ((fl->flow_flags & JDF_FLOW_TYPE_READ) ?
+                         ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_READ") : "FLOW_ACCESS_WRITE")));
             }
         }
         coutput("#endif\n");
