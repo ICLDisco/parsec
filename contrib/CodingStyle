@@ -50,7 +50,7 @@ print messages to the default runtime output stream.
 - `dague_warning`: when an anomalous runtime condition needs
   to be reported (user requested hardware not available, for
   example), but the program can continue.
-- `dague_info`: when important (but not anomalous) information
+- `dague_inform`: when important (but not anomalous) information
   needs to be reported to the user (as an example, when reporting
   process placement, type of hardware, etc.)
 
