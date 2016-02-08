@@ -115,20 +115,24 @@ static void dague_statistics(char* str)
         sys = ((current.ru_stime.tv_sec - _dague_rusage.ru_stime.tv_sec) +
                (current.ru_stime.tv_usec - _dague_rusage.ru_stime.tv_usec) / 1000000.0);
 
-        dague_inform("=============================================================");
-        dague_inform("Resource Usage Data...", str);
-        dague_inform("-------------------------------------------------------------");
-        dague_inform("User Time   (secs)          : %10.3f", usr);
-        dague_inform("System Time (secs)          : %10.3f", sys);
-        dague_inform("Total Time  (secs)          : %10.3f", usr + sys);
-        dague_inform("Minor Page Faults           : %10ld", (current.ru_minflt  - _dague_rusage.ru_minflt));
-        dague_inform("Major Page Faults           : %10ld", (current.ru_majflt  - _dague_rusage.ru_majflt));
-        dague_inform("Swap Count                  : %10ld", (current.ru_nswap   - _dague_rusage.ru_nswap));
-        dague_inform("Voluntary Context Switches  : %10ld", (current.ru_nvcsw   - _dague_rusage.ru_nvcsw));
-        dague_inform("Involuntary Context Switches: %10ld", (current.ru_nivcsw  - _dague_rusage.ru_nivcsw));
-        dague_inform("Block Input Operations      : %10ld", (current.ru_inblock - _dague_rusage.ru_inblock));
-        dague_inform("Block Output Operations     : %10ld", (current.ru_oublock - _dague_rusage.ru_oublock));
-        dague_inform("=============================================================");
+        dague_inform("==== Resource Usage Data...   %s\n"
+                     "-------------------------------------------------------------\n"
+                     "User Time   (secs)          : %10.3f\n"
+                     "System Time (secs)          : %10.3f\n"
+                     "Total Time  (secs)          : %10.3f\n"
+                     "Minor Page Faults           : %10ld\n"
+                     "Major Page Faults           : %10ld\n"
+                     "Swap Count                  : %10ld\n"
+                     "Voluntary Context Switches  : %10ld\n"
+                     "Involuntary Context Switches: %10ld\n"
+                     "Block Input Operations      : %10ld\n"
+                     "Block Output Operations     : %10ld\n"
+                     "=============================================================\n",
+                     str, usr, sys, usr + sys,
+                     current.ru_minflt  - _dague_rusage.ru_minflt, current.ru_majflt  - _dague_rusage.ru_majflt,
+                     current.ru_nswap   - _dague_rusage.ru_nswap,
+                     current.ru_nvcsw   - _dague_rusage.ru_nvcsw, current.ru_nivcsw  - _dague_rusage.ru_nivcsw,
+                     current.ru_inblock - _dague_rusage.ru_inblock, current.ru_oublock - _dague_rusage.ru_oublock);
     }
     _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;

@@ -29,6 +29,14 @@ are stripped from the compilation. Lowercase ouput functions
 (i.e. `dague_debug_verbose` are always compiled in (including
 in "Release" build type!)
 
+`DAGUE_DEBUG_HISTORY` compiles in a lightweight debugging
+circular buffer. All debug output are copied to this circular
+buffer. Additional entries can be added to the circular buffer
+with the `dague_debug_history_add` function (usage seen in
+`debug_marks.c`). The content of the debug history buffer can
+be printed with `dague_debug_history_dump` (including from
+`gdb`).
+
 ### Printing information relevant to the type of users
 
 The runtime should never use `assert` to check for wrong input
