@@ -4661,11 +4661,15 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
         for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
             /* Update the ownership of read/write data */
+            /* Applied only on the Write data, since the number of readers is not atomically increased yet */
             if ((fl->flow_flags & JDF_FLOW_TYPE_READ) &&
-                (fl->flow_flags & JDF_FLOW_TYPE_READ) ) {
+                (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ) {
                coutput("    dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
-                        "                                           FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);\n",
-                        fl->varname);
+                       "                                           %s);\n",
+                       fl->varname,
+                       ((flow->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
+                        ((flow->flow_flags & JDF_FLOW_TYPE_READ) ?
+                         ((flow->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_READ") : "FLOW_ACCESS_WRITE")));
             }
         }
         coutput("#endif\n");
