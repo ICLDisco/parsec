@@ -1661,8 +1661,8 @@ dague_gpu_kernel_pop( gpu_device_t            *gpu_device,
                                       cudaMemcpyDeviceToHost,
                                       gpu_stream->cuda_stream );
             DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                    { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
-                                               gpu_copy->device_private, original->device_copies[0]->device_private));
+                                    { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                               gpu_copy->device_private, original->device_copies[0]->device_private);
                                         return_code = -2;
                                         goto release_and_return_error;} );
         }
@@ -1720,8 +1720,8 @@ dague_gpu_kernel_pop( gpu_device_t            *gpu_device,
                                           cudaMemcpyDeviceToHost,
                                           gpu_stream->cuda_stream );
                 DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", flow->name,
-                                                   gpu_copy->device_private, original->device_copies[0]->device_private));
+                                        { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                                   gpu_copy->device_private, original->device_copies[0]->device_private);
                                             return_code = -2;
                                             goto release_and_return_error;} );
                 gpu_device->super.transferred_data_out += original->nb_elts; /* TODO: not hardcoded, use datatype size */
@@ -1811,7 +1811,7 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     cudaError_t status;
     int rc, exec_stream = 0;
     dague_gpu_context_t *progress_task, *out_task_push, *out_task_submit, *out_task_pop;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
 
@@ -1845,9 +1845,9 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  check_in_deps:
     if( NULL != gpu_task ) {
-        DEBUG2(( "GPU[%1d]:\tUpload data (if any) for %s priority %d\n", gpu_device->super.device_index,
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tUpload data (if any) for %s priority %d", gpu_device->super.device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-                 gpu_task->ec->priority ));
+                 gpu_task->ec->priority );
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[0]),
@@ -1863,9 +1863,9 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     /* Stage-in completed for this task: it is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != gpu_task ) {
-        DEBUG2(( "GPU[%1d]:\tExecute %s priority %d\n", gpu_device->cuda_index,
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tExecute %s priority %d", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-                 gpu_task->ec->priority ));
+                 gpu_task->ec->priority );
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[2+exec_stream]),
@@ -1880,9 +1880,9 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != gpu_task ) {
-        DEBUG2(( "GPU[%1d]:\tRetrieve data (if any) for %s priority %d\n", gpu_device->super.device_index,
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->super.device_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-                 gpu_task->ec->priority ));
+                 gpu_task->ec->priority );
     }
     if (out_task_submit == NULL && out_task_push == NULL) {
         gpu_task = dague_gpu_create_W2R_task(gpu_device, eu_context);
@@ -1915,17 +1915,17 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     }
     gpu_task = (dague_gpu_context_t*)dague_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != gpu_task ) {
-        DEBUG2(( "GPU[%1d]:\tGet from shared queue %s priority %d\n", gpu_device->cuda_index,
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tGet from shared queue %s priority %d", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-                 gpu_task->ec->priority ));
+                 gpu_task->ec->priority );
     }
     goto check_in_deps;
 
  complete_task:
     assert( NULL != gpu_task );
-    DEBUG2(( "GPU[%1d]:\tComplete %s priority %d\n", gpu_device->cuda_index,
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tComplete %s priority %d", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-             gpu_task->ec->priority ));
+             gpu_task->ec->priority );
     /* Everything went fine so far, the result is correct and back in the main memory */
     DAGUE_LIST_ITEM_SINGLETON(gpu_task);
     if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
