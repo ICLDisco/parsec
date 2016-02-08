@@ -145,19 +145,6 @@ typedef dague_data_copy_t dague_gpu_data_copy_t;
 
 #include "dague/data_distribution.h"
 
-/*
- * Data movement
- */
-int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
-                                         dague_gpu_context_t *gpu_task,
-                                         int  move_data_count );
-
-int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
-                             int32_t type,
-                             dague_data_pair_t* task_data,
-                             dague_gpu_context_t *gpu_task,
-                             dague_gpu_exec_stream_t *gpu_stream );
-
 /* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);
 void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);

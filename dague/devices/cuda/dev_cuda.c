@@ -934,11 +934,12 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
  *    1: A copy has been scheduled on the corresponding stream
  *   -1: A copy cannot be issued due to CUDA.
  */
-int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
-                             int32_t type,
-                             dague_data_pair_t* task_data,
-                             dague_gpu_context_t *gpu_task,
-                             dague_gpu_exec_stream_t *gpu_stream )
+static inline int
+dague_gpu_data_stage_in( gpu_device_t* gpu_device,
+                         int32_t type,
+                         dague_data_pair_t* task_data,
+                         dague_gpu_context_t *gpu_task,
+                         dague_gpu_exec_stream_t *gpu_stream )
 {
     dague_data_copy_t* in_elem = task_data->data_in;
     dague_data_t* original = in_elem->original;
