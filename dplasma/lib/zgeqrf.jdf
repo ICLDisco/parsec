@@ -19,9 +19,6 @@ extern "C" %{
 #endif
 
 #if defined(HAVE_CUDA)
-#include <dague/class/fifo.h>
-#include <dague/devices/cuda/dev_cuda.h>
-#include <cublas.h>
 #include "dplasma/cores/dplasma_zcores.h"
 #endif  /* defined(HAVE_CUDA) */
 

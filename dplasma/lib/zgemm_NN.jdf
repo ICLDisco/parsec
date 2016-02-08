@@ -94,7 +94,7 @@ RW   C <- (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
 
 BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
-      weight=k]
+      weight=(k+1)]
 {
     dague_complex64_t lbeta = (k == descA.nt-1) ? beta : (dague_complex64_t)1.0;
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;

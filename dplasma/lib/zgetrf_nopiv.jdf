@@ -14,8 +14,6 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(HAVE_CUDA)
-#include <dague/class/fifo.h>
-#include <dague/devices/cuda/dev_cuda.h>
 #include <cublas.h>
 #endif  /* defined(HAVE_CUDA) */
 
@@ -159,9 +157,9 @@ BODY [type=CUDA]
     int ldak = BLKLDD( descA, k );
     cublasStatus_t status;
 
-    printlog("CUDA_zgemm(%d, %d, %d)\n"
-             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
-             k, n, m, m, k, A, k, n, B, m, n, C);
+    printlogcuda("CUDA_zgemm(%d, %d, %d)\n"
+                 "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
+                 k, n, m, m, k, A, k, n, B, m, n, C);
 
     cublasSetKernelStream( gpu_stream->cuda_stream );
     cublasZgemm( 'N', 'N',

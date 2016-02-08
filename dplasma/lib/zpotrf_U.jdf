@@ -312,6 +312,14 @@ BODY [type=CUDA
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );
+
+    printlogcuda("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
+                 m, n, k,
+                 plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
+                 descA.mb, tempnn, descA.nb,
+                 -1.0, k, m, A, ldak,
+                       k, n, B, ldak,
+                  1.0, m, n, C, ldam);
 }
 END
 
