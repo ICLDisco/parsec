@@ -952,21 +952,10 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     if( FLOW_ACCESS_WRITE & type ) {
         if (gpu_elem->readers > 0 ) {
             WARNING(("GPU:\tWrite access to data with existing readers (Possible anti-dependency, or concurrent accesses), please prevent that with CTL dependencies\n"));
-            //return -86;
+            return -86;
         }
         dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
-    }
-
-    /**
-     * If the source and target data are on the same device then they should be
-     * identical and the only thing left to do is update the number of readers.
-     */
-    if( in_elem == gpu_elem ) {
-        if( FLOW_ACCESS_READ & type ) gpu_elem->readers++;
-        assert( gpu_elem->data_transfer_status != DATA_STATUS_NOT_TRANSFER );
-        gpu_elem->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER; /* data is already in GPU, so no transfer required.*/
-        return 0;
     }
 
     /* DtoD copy, if data is read only, then we go back to CPU copy, and fetch data from CPU (HtoD) */
