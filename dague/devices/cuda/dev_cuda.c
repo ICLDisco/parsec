@@ -805,9 +805,9 @@ dague_cuda_memory_release( gpu_device_t* gpu_device )
  *    0: All gpu_mem/mem_elem have been initialized
  *   -2: The task needs to rescheduled
  */
-int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
-                                         dague_gpu_context_t *gpu_task,
-                                         int  move_data_count )
+static inline int
+dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
+                                     dague_gpu_context_t *gpu_task )
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_gpu_data_copy_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
@@ -823,14 +823,14 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         flow = gpu_task->flow[i];
         assert( flow && (flow->flow_index == i) );
 
-        /* Skip CTL flows only (Need to book space for output only data) */
-        if(!(flow->flow_flags)) {
-            continue;
-        }
+        /* Skip CTL flows only */
+        if(!(flow->flow_flags)) continue;
 
         temp_loc[i] = NULL;
-        master = this_task->data[i].data_in->original;
+        master   = this_task->data[i].data_in->original;
         gpu_elem = DAGUE_DATA_GET_COPY(master, gpu_device->super.device_index);
+        this_task->data[i].data_out = gpu_elem;
+
         /* There is already a copy on the device */
         if( NULL != gpu_elem ) continue;
 
@@ -849,8 +849,19 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             if( NULL == lru_gpu_elem ) {
                 /* Make sure all remaining temporary locations are set to NULL */
                 for( ;  i < this_task->function->nb_flows; temp_loc[i++] = NULL );
-                break;  /* Go and cleanup */
-            }
+
+                /* We can't find enough room on the GPU. Insert the tiles in the begining of
+                 * the LRU (in order to be reused asap) and return without scheduling the task.
+                 */
+                dague_warning("GPU:\tRequest space on GPU failed for %d out of %d data",
+                              this_task->function->nb_flows - i,
+                              this_task->function->nb_flows);
+                for( i = 0; i < this_task->function->nb_flows; i++ ) {
+                    if( NULL == temp_loc[i] ) continue;
+                    dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
+                }
+                return -2;
+             }
             DAGUE_LIST_ITEM_SINGLETON(lru_gpu_elem);
             DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                                   "Release LRU-retrieved CUDA copy %p [ref_count %d]",
@@ -876,7 +887,6 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                     for( j = 0; j < this_task->function->nb_flows; j++ ) {
                         if( NULL == this_task->data[j].data_in ) continue;
                         if( this_task->data[j].data_in->original == oldmaster ) {
-                            temp_loc[j] = lru_gpu_elem;
                             goto find_another_data;
                         }
                     }
@@ -906,25 +916,12 @@ int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         gpu_elem->version = 0;
         dague_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
         this_task->data[i].data_out = gpu_elem;
-        move_data_count--;
         temp_loc[i] = gpu_elem;
         OBJ_RETAIN(gpu_elem);
         DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                               "Retain and insert CUDA copy %p [ref_count %d] in LRU",
                               gpu_elem, gpu_elem->super.super.obj_reference_count);
         dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
-    }
-    if( 0 != move_data_count ) {
-        dague_warning("GPU:\tRequest space on GPU failed for %d out of %d data",
-                 move_data_count, this_task->function->nb_flows);
-        /* We can't find enough room on the GPU. Insert the tiles in the begining of
-         * the LRU (in order to be reused asap) and return without scheduling the task.
-         */
-        for( i = 0; i < this_task->function->nb_flows; i++ ) {
-            if( NULL == temp_loc[i] ) continue;
-            dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
-        }
-        return -2;
     }
     return 0;
 }
@@ -948,25 +945,33 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     dague_gpu_data_copy_t* gpu_elem = task_data->data_out;
     int transfer_from = -1;
 
-    /* If the data will be accessed in write mode, remove it from any lists
+    /**
+     * If the data will be accessed in write mode, remove it from any lists
      * until the task is completed.
      */
     if( FLOW_ACCESS_WRITE & type ) {
+        if (gpu_elem->readers > 0 ) {
+            WARNING(("GPU:\tWrite access to data with existing readers (Possible anti-dependency, or concurrent accesses), please prevent that with CTL dependencies\n"));
+            //return -86;
+        }
         dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);
         DAGUE_LIST_ITEM_SINGLETON(gpu_elem);
     }
 
-    /* If the source and target data are on the same device then they should be
+    /**
+     * If the source and target data are on the same device then they should be
      * identical and the only thing left to do is update the number of readers.
      */
     if( in_elem == gpu_elem ) {
         if( FLOW_ACCESS_READ & type ) gpu_elem->readers++;
+        assert( gpu_elem->data_transfer_status != DATA_STATUS_NOT_TRANSFER );
         gpu_elem->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER; /* data is already in GPU, so no transfer required.*/
         return 0;
     }
 
     /* DtoD copy, if data is read only, then we go back to CPU copy, and fetch data from CPU (HtoD) */
-    if (in_elem != original->device_copies[0] && in_elem->version == original->device_copies[0]->version) {
+    if( (in_elem != original->device_copies[0]) &&
+        (in_elem->version == original->device_copies[0]->version) ) {
         dague_data_copy_release(in_elem);  /* release the copy in GPU1 */
         task_data->data_in = original->device_copies[0];
         in_elem = task_data->data_in;
@@ -982,6 +987,8 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
                               "GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d",
                               original->key, in_elem->device_private, (void*)gpu_elem->device_private, original->nb_elts, gpu_device->super.device_index);
 
+        assert( gpu_elem->version <= in_elem->version );
+        assert( gpu_elem->version != in_elem->version || gpu_elem->data_transfer_status == DATA_STATUS_NOT_TRANSFER );
 
 #if defined(DAGUE_PROF_TRACE)
         if( gpu_stream->prof_event_track_enable ) {
@@ -1013,13 +1020,16 @@ int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         /* TODO: take ownership of the data */
         return 1;
     }
-#if defined(DAGUE_DEBUG_NOISIER)
     else {
+        assert( gpu_elem->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER ||
+                gpu_elem->data_transfer_status == DATA_STATUS_UNDER_TRANSFER);
+
+#if defined(DAGUE_DEBUG_NOISIER)
         DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream,
-                              "GPU:\tNO PUSH from %p to %p, size %d",
+                              "GPU:\tNO PUSH from %p to %p, size %d\n",
                               in_elem->device_private, gpu_elem->device_private, original->nb_elts);
-    }
 #endif
+    }
     /* TODO: data keeps the same coherence flags as before */
     return 0;
 }
@@ -1362,6 +1372,13 @@ progress_stream( gpu_device_t* gpu_device,
     if ( NULL == progress_fct ) {
         /* Grab the submit function */
         progress_fct = task->submit;
+        for( i = 0; i < task->ec->function->nb_flows; i++ ) {
+            flow = task->flow[i];
+            assert( flow );
+            assert( flow->flow_index == i );
+            if(!flow->flow_flags) continue;
+            assert(task->ec->data[i].data_out->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER);
+        }
     }
     assert( NULL != progress_fct );
     rc = progress_fct( gpu_device, task, exec_stream );
@@ -1424,6 +1441,7 @@ progress_stream( gpu_device_t* gpu_device,
                         continue;
                     }
                     if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
+                        assert(0);
                         return saved_rc;
                     }
                 }
@@ -1549,57 +1567,21 @@ dague_gpu_kernel_push( gpu_device_t            *gpu_device,
     int space_needed = 0;
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_data_t              *original;
-    dague_data_copy_t         *data, *local;
+    dague_data_copy_t         *data_in, *data_gpu;
     const dague_flow_t        *flow;
 
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        flow = gpu_task->flow[i];
-        assert( flow && (flow->flow_index == i) );
-
-        /* Skip CTL flows only (Need to book space for output only data) */
-        if(!(flow->flow_flags)) {
-            continue;
-        }
-
-        this_task->data[i].data_out = NULL;
-        data = this_task->data[i].data_in;
-        original = data->original;
-
-        if( NULL != (local = dague_data_get_copy(original, gpu_device->super.device_index)) ) {
-            if ( (flow->flow_flags & FLOW_ACCESS_WRITE) && local->readers > 0 ) {
-                return -86;
-            }
-            this_task->data[i].data_out = local;
-
-            /* Check the most up2date version of the data */
-            if( data->device_index != gpu_device->super.device_index ) {
-                if(data->version <= local->version) {
-                    if(data->version == local->version) continue;
-                    /* Trouble: there are two versions of this data coexisting in same
-                     * time, one using a read-only path and one that has been updated.
-                     * We don't handle this case yet!
-                     * TODO:
-                     */
-                    assert(0);
-                }
-            }
-            continue;  /* space available on the device */
-        }
-
-        /* If the data is needed as an input load it up */
-        if(flow->flow_flags & FLOW_ACCESS_READ)
-            space_needed++;
+    /**
+     * First, let's reserve enough space on the device to transfer the data on the GPU.
+     */
+    ret = dague_gpu_data_reserve_device_space( gpu_device,
+                                               gpu_task );
+    if( ret < 0 ) {
+        goto release_and_return_error;
     }
 
-    if( 0 != space_needed ) { /* Try to reserve enough room for all data */
-        ret = dague_gpu_data_reserve_device_space( gpu_device,
-                                                   gpu_task,
-                                                   space_needed );
-        if( ret < 0 ) {
-            goto release_and_return_error;
-        }
-    }
-
+    /**
+     * Second, We have enough space, let's schedule the required transfer
+     */
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_stream->profiling,
                              (-1 == gpu_stream->prof_event_key_start ?
@@ -1611,9 +1593,7 @@ dague_gpu_kernel_push( gpu_device_t            *gpu_device,
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
         flow = gpu_task->flow[i];
         /* Skip CTL flows */
-        if(!(flow->flow_flags)) {
-            continue;
-        }
+        if(!(flow->flow_flags)) continue;
 
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
