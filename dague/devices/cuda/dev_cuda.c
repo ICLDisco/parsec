@@ -847,21 +847,20 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         find_another_data:
             lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
-                /* Make sure all remaining temporary locations are set to NULL */
-                for( ;  i < this_task->function->nb_flows; temp_loc[i++] = NULL );
-
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
                  * the LRU (in order to be reused asap) and return without scheduling the task.
                  */
                 dague_warning("GPU:\tRequest space on GPU failed for %d out of %d data",
                               this_task->function->nb_flows - i,
                               this_task->function->nb_flows);
-                for( i = 0; i < this_task->function->nb_flows; i++ ) {
-                    if( NULL == temp_loc[i] ) continue;
-                    dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[i]);
+                for( j = 0; j < i; j++ ) {
+                    if( NULL != temp_loc[j] ) {
+                        dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[j]);
+                    }
                 }
                 return -2;
-             }
+            }
+
             DAGUE_LIST_ITEM_SINGLETON(lru_gpu_elem);
             DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                                   "Release LRU-retrieved CUDA copy %p [ref_count %d]",
@@ -875,6 +874,7 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             if( 0 != lru_gpu_elem->readers ) {
                 goto find_another_data; // TODO: add an assert of some sort to check for leaks here?
             }
+
             /* Make sure the new GPU element is clean and ready to be used */
             assert( master != lru_gpu_elem->original );
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
