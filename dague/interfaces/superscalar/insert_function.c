@@ -758,7 +758,7 @@ dague_dtd_task_find_internal( dague_dtd_handle_t  *dague_handle,
     hash_table *hash_table      =  dague_handle->task_h_table;
     uint32_t    hash            =  hash_table->hash( key, hash_table->size );
 
-    return hash_table_find_no_lock ( hash_table, key, hash );
+    return hash_table_nolock_find ( hash_table, key, hash );
 }
 
 /* **************************************************************************** */
@@ -861,7 +861,7 @@ dague_dtd_function_find_internal( dague_dtd_handle_t  *dague_handle,
     hash_table *hash_table      =  dague_handle->function_h_table;
     uint32_t    hash            =  hash_table->hash( (uint64_t)key, hash_table->size );
 
-    return (dague_generic_bucket_t *)hash_table_find_no_lock ( hash_table, (uint64_t)key, hash );
+    return (dague_generic_bucket_t *)hash_table_nolock_find ( hash_table, (uint64_t)key, hash );
 }
 
 /* **************************************************************************** */
@@ -980,7 +980,7 @@ dague_dtd_tile_find( dague_dtd_handle_t *dague_handle, uint32_t key,
     dague_list_t *list = hash_table->item_list[hash];
 
     dague_list_lock( list );
-    dague_dtd_tile_t *tile = hash_table_find_no_lock ( hash_table, combined_key, hash );
+    dague_dtd_tile_t *tile = hash_table_nolock_find ( hash_table, combined_key, hash );
     if( NULL != tile ) {
         OBJ_RETAIN(tile);
     }
