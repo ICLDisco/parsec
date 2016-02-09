@@ -4504,6 +4504,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 case JDF_GUARD_UNCONDITIONAL:
                     if(testtrue) {
                         coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                        goto nextflow;
                     }
                     break;
                 case JDF_GUARD_BINARY:
@@ -4536,6 +4537,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                     break;
                 }
             }
+          nextflow:
+            ;
         }
     }
     string_arena_free(info.sa);
