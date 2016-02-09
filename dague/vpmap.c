@@ -8,6 +8,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
 #if defined(HAVE_MPI)
 #include <mpi.h>
@@ -213,6 +214,7 @@ int vpmap_init_from_hardware_affinity(int nbcores)
 
     return 0;
 #else
+    (void)nbcores;
     return -1;
 #endif
 }
@@ -401,7 +403,6 @@ int vpmap_init_from_flat(int _nbcores)
 }
 
 void vpmap_display_map(void) {
-    int rank = 0;
     int v, t, c;
     char *cores = NULL, *ht = NULL, *tmp;
     int *dcores, *dht;
