@@ -158,6 +158,7 @@ static void read_conf_file(){
 }
 
 static void sig_handler(int signum) {
+    (void)signum;
     _keep_waiting = 0;
 }
 
