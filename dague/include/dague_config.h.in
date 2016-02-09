@@ -23,9 +23,10 @@
 #cmakedefine DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS
 
 /* debug */
-#define DAGUE_DEBUG_VERBOSE @DAGUE_DEBUG_VERBOSE@
+#cmakedefine DAGUE_DEBUG
+#cmakedefine DAGUE_DEBUG_PARANOID
+#cmakedefine DAGUE_DEBUG_NOISIER
 #cmakedefine DAGUE_DEBUG_HISTORY
-#cmakedefine DAGUE_DEBUG_ENABLE
 #cmakedefine DAGUE_LIFO_USE_ATOMICS
 #cmakedefine DAGUE_CALL_TRACE
 

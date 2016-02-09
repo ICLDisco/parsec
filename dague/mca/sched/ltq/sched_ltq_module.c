@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -116,8 +116,8 @@ static int flow_ltq_init(dague_execution_unit_t * eu, struct dague_barrier_t* ba
                 d = dague_hwloc_distance(eu->th_id, id);
                 if( d == 2*level || d == 2*level + 1 ) {
                     sched_obj->hierarch_queues[nq] = LOCAL_QUEUES_OBJECT(vp->execution_units[id])->task_queue;
-                    DEBUG(("%d of %d: my %d preferred queue is the task queue of %d (%p)\n",
-                           eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]));
+                    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "%d of %d: my %d preferred queue is the task queue of %d (%p)",
+                           eu->th_id, eu->virtual_process->vp_id, nq, id, sched_obj->hierarch_queues[nq]);
                     nq++;
                     if( nq == sched_obj->nb_hierarch_queues )
                         break;

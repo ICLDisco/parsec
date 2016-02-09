@@ -113,12 +113,17 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
-option(DAGUE_DEBUG_ENABLE
-    "Enable extra paranoid checks" OFF)
-set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
-    "Controls the amount of verbose debug output on stderr (0,1,2,3,...). Default is 0.")
+if( "Debug" STREQUAL CMAKE_BUILD_TYPE )
+  set(DAGUE_DEBUG ON)
+else()
+  set(DAGUE_DEBUG OFF)
+endif()
+option(DAGUE_DEBUG_PARANOID
+  "Enable extra paranoid checks (may impact performance)." OFF)
+option(DAGUE_DEBUG_NOISIER
+  "Enable chatterbox-like verbose debugging (may impact performance)." OFF)
 option(DAGUE_DEBUG_HISTORY
-  "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
+  "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur." OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
 

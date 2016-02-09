@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -188,7 +188,7 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
     dague_ztsmqr_args_t        *args = (dague_ztsmqr_args_t*)gpu_task;
     void *d_A1, *d_A2, *d_V, *d_T, *WORK, *WORKC;
     cublasStatus_t status;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     int Wn, Wld;
@@ -217,9 +217,9 @@ gpu_kernel_submit_ztsmqr( gpu_device_t            *gpu_device,
     WORK  = dague_gpu_pop_workspace(gpu_device, gpu_stream, Wn * Wld * sizeof(dague_complex64_t));
     WORKC = dague_gpu_pop_workspace(gpu_device, gpu_stream, args->M2 * args->IB * sizeof(dague_complex64_t));
 
-    DEBUG2(( "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tEnqueue on device %s priority %d\n", gpu_device->cuda_index,
              dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task),
-             this_task->priority ));
+             this_task->priority );
 
     DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_stream->profiling,
@@ -300,8 +300,8 @@ gpu_kernel_pop_ztsmqr( gpu_device_t        *gpu_device,
                                       cudaMemcpyDeviceToHost,
                                       gpu_stream->cuda_stream );
             DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                    { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
-                                               gpu_copy->device_private, original->device_copies[0]->device_private));
+                                    { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                               gpu_copy->device_private, original->device_copies[0]->device_private);
                                         return_code = -2;
                                         goto release_and_return_error;} );
         }
@@ -358,8 +358,8 @@ gpu_kernel_pop_ztsmqr( gpu_device_t        *gpu_device,
                                           cudaMemcpyDeviceToHost,
                                           gpu_stream->cuda_stream );
                 DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                        { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
-                                                   gpu_copy->device_private, original->device_copies[0]->device_private));
+                                        { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                                  gpu_copy->device_private, original->device_copies[0]->device_private);
                                             return_code = -2;
                                             goto release_and_return_error;} );
                 gpu_device->super.transferred_data_out += original->nb_elts; /* TODO: not hardcoded, use datatype size */

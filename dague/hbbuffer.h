@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -53,7 +53,7 @@ static inline dague_hbbuffer_t *dague_hbbuffer_new(size_t size,  size_t ideal_fi
         /** n->nbelt = 0; <not needed because callc */
     n->parent_push_fct = parent_push_fct;
     n->parent_store = parent_store;
-    DEBUG3(("HBB:\tCreated a new hierarchical buffer of %d elements\n", (int)size));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\tCreated a new hierarchical buffer of %d elements", (int)size);
     return n;
 }
 
@@ -77,7 +77,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
         for(; (size_t)i < b->size; i++) {
             if( 0 == dague_atomic_cas(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) )
                 continue;
-            DEBUG3(( "HBB:\tPush elem %p in local queue %p at position %d\n", elt, b, i ));
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "HBB:\tPush elem %p in local queue %p at position %d", elt, b, i );
             /* Found an empty space to push the first element. */
             nbelt++;
             break;
@@ -91,7 +91,7 @@ static inline void dague_hbbuffer_push_all(dague_hbbuffer_t *b, dague_list_item_
         elt = next;
     }
 
-    DEBUG3(("HBB:\tpushed %d elements. %s\n", nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done"));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\tpushed %d elements. %s", nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done");
 
     if( NULL != elt ) {
         if( NULL != next ) {
@@ -153,11 +153,11 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
             /* found a nice place, try to CAS */
             if( 1 == dague_atomic_cas( &b->items[best_index], (uintptr_t) best_context, (uintptr_t) topush ) ) {
                 /* Woohoo ! Success... */
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
                 char tmp[MAX_TASK_STRLEN];
 #endif
-                DEBUG3(("HBB:\tPushed task %s in buffer %p.\n",
-                        dague_snprintf_execution_context( tmp,  MAX_TASK_STRLEN, CTX(topush) ), b));
+                DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\tPushed task %s in buffer %p.",
+                        dague_snprintf_execution_context( tmp,  MAX_TASK_STRLEN, CTX(topush) ), b);
 
                 if( NULL != best_context ) {
                     /* best_context is the lowest priority element, and it was removed from the
@@ -167,8 +167,8 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
                      * the same function
                      */
 
-                    DEBUG3(("HBB:\tEjected task %s from buffer %p.\n",
-                            dague_snprintf_execution_context( tmp, 128, best_context ), b));
+                    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\tEjected task %s from buffer %p.",
+                            dague_snprintf_execution_context( tmp, 128, best_context ), b);
 
                     /* "Push" ejected after best_context, then consider ejected as best_context, to preserve the
                      * ordering of priorities in ejected.
@@ -206,18 +206,18 @@ static inline void dague_hbbuffer_push_all_by_priority(dague_hbbuffer_t *b, dagu
         }
     } /* end while( topush != NULL ) */
 
-    DEBUG3(("HBB:\t  %s\n", NULL != ejected ? "More to push, go to father" : "Everything pushed - done"));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\t  %s", NULL != ejected ? "More to push, go to father" : "Everything pushed - done");
 
     if( NULL != ejected ) {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
         dague_list_item_t *it;
         char tmp[MAX_TASK_STRLEN];
 
-        DEBUG3(("HBB:\t Elements that overflow and are given to the parent are:\n"));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\t Elements that overflow and are given to the parent are:");
         it = ejected;
         do {
-            DEBUG3(("HBB:\tPush Parent %s\n",
-                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, CTX(it))));
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\tPush Parent %s",
+                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, CTX(it)));
             it = DAGUE_LIST_ITEM_NEXT(it);
         } while(it != ejected);
 #endif
@@ -279,19 +279,19 @@ static inline dague_list_item_t *dague_hbbuffer_pop_best(dague_hbbuffer_t *b,
 
 
     /** Removes the element from the buffer. */
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
     if( best_elt != NULL ) {
         char tmp[MAX_TASK_STRLEN];
         if (priority_offset == offsetof(dague_heap_h, priority)) {
-                DEBUG3(("HBB:\tFound best element %s in heap %p in local queue %p at position %d\n",
+                DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\tFound best element %s in heap %p in local queue %p at position %d",
                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)((dague_heap_h*)best_elt)->top), best_elt,
-                        b, best_idx));
+                        b, best_idx);
         }
         // TODO these print statements are the reason for the dague_heap_h hack above.
         else {
-            DEBUG3(("HBB:\tFound best element %s in local queue %p at position %d\n",
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "HBB:\tFound best element %s in local queue %p at position %d",
                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)best_elt),
-                    b, best_idx));
+                    b, best_idx);
         }
     }
 #endif

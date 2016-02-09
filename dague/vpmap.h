@@ -105,9 +105,9 @@ extern vpmap_get_core_affinity_t vpmap_get_core_affinity;
 int vpmap_get_nb_total_threads(void);
 
 /**
- * Helping function: displays the virtual process map on @param out
+ * Helping function: displays the virtual process map 
  */
-void vpmap_display_map(FILE *out);
+void vpmap_display_map(void);
 
 END_C_DECLS
 #endif

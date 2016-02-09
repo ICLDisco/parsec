@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1276,8 +1276,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "  int _vmax = (vMAX);                                                                        \\\n"
             "  (DEPS) = (dague_dependencies_t*)calloc(1, sizeof(dague_dependencies_t) +                   \\\n"
             "                   (_vmax - _vmin) * sizeof(dague_dependencies_union_t));                    \\\n"
-            "  /*DEBUG((\"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\\n\", */         \\\n"
-            "  /*       (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP))); */ \\\n"
+            "  /*DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p last_dep 0x%%p\", */         \\\n"
+            "  /*       (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS), (void*)(PREVDEP)); */ \\\n"
             "  (DEPS)->dep_flags = DAGUE_DEPENDENCIES_FLAG_ALLOCATED | (FLAG);                                \\\n"
             "  DAGUE_STAT_INCREASE(mem_bitarray,  sizeof(dague_dependencies_t) + STAT_MALLOC_OVERHEAD +   \\\n"
             "                   (_vmax - _vmin) * sizeof(dague_dependencies_union_t));                    \\\n"
@@ -1833,11 +1833,11 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
                     idx, idx);
         }
     }
-    coutput("#if defined(DAGUE_DEBUG_ENABLE)\n"
+    coutput("#if defined(DAGUE_DEBUG_NOISIER)\n"
             "%s  {\n"
             "%s    char tmp[128];\n"
-            "%s    DEBUG((\"Add startup task %%s\\n\",\n"
-            "%s           dague_service_to_string(new_context, tmp, 128)));\n"
+            "%s    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Add startup task %%s\",\n"
+            "%s           dague_service_to_string(new_context, tmp, 128));\n"
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
@@ -3863,12 +3863,12 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     /*                                        "", "", ", ", "")); */
 
     string_arena_add_string(sa_open,
-                            "#if defined(DAGUE_DEBUG_ENABLE)\n"
+                            "#if defined(DAGUE_DEBUG_NOISIER)\n"
                             "%s%sif( NULL != eu ) {\n"
                             "%s%s  char tmp[128], tmp1[128];\n"
-                            "%s%s  DEBUG((\"thread %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\\n\", eu->eu_id,\n"
+                            "%s%s  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"thread %%d release deps of %s:%%s to %s:%%s (from node %%d to %%d)\", eu->eu_id,\n"
                             "%s%s         dague_service_to_string(this_task, tmp, 128),\n"
-                            "%s%s         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst));\n"
+                            "%s%s         dague_service_to_string(&%s, tmp1, 128), rank_src, rank_dst);\n"
                             "%s%s}\n"
                             "#endif\n",
                             prefix, indent(nbopen),

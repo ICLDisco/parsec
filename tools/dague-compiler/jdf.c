@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,7 +23,7 @@ int verbose_level = 0;
 
 extern const char *yyfilename;
 
-#if (DAGUE_DEBUG_VERBOSE != 0)
+#if (defined(DAGUE_DEBUG_NOISIER))
 #define DO_DEBUG_VERBOSE( VAL, ARG ) \
     if( verbose_level >= (VAL) ) { ARG; }
 #else

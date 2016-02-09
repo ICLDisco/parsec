@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -25,8 +25,8 @@
 #undef DEBUG
 #endif
 
-#if DAGUE_DEBUG_VERBOSE >= 1
-#define DEBUG(toto) output toto
+#if defined(DAGUE_DEBUG_NOISIER)
+#define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)
 #endif
@@ -34,7 +34,7 @@
 #ifdef WARNING
 #undef WARNING
 #endif
-#define WARNING(toto) output toto
+#define WARNING(...) output(__VA_ARGS__)
 
 static void output(const char *format, ...)
 {
@@ -214,8 +214,8 @@ static void release_events_buffer(dague_profiling_buffer_t *buffer)
     if( NULL == buffer )
         return;
     if( munmap(buffer, event_buffer_size) == -1 ) {
-        WARNING(("Warning profiling system: unmap of the events backend file at %p failed: %s\n",
-                 buffer, strerror(errno)));
+        WARNING("Warning profiling system: unmap of the events backend file at %p failed: %s\n",
+                 buffer, strerror(errno));
     }
 }
 
@@ -361,8 +361,8 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
                 (dbp_event_get_timestamp(ref) <= dbp_event_get_timestamp(e)) ) {
                 return 1;
             } else if ( dbp_event_get_event_id(e) != 0 ) {
-                WARNING(("Event with ID %d appear in reverse order\n",
-                         dbp_event_get_event_id(e)));
+                WARNING("Event with ID %d appear in reverse order\n",
+                         dbp_event_get_event_id(e));
             }
         }
         e = dbp_iterator_next( pos );

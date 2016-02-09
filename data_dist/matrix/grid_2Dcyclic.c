@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -57,7 +57,7 @@ int default_vp_data_dist()
         q++;
         p = pq / q;
     }
-    DEBUG3(( "Default data distribution between VP defined by \"pxq\" %ix%i\n", p, q ));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "Default data distribution between VP defined by \"pxq\" %ix%i", p, q );
     return q;
 }
 

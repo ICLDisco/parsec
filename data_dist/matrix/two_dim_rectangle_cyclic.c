@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -89,10 +89,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
 #endif
 
     if(nodes < P)
-        ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
+        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
     Q = nodes / P;
     if(nodes != P*Q)
-        WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
+        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
 
     assert( (storage != matrix_Lapack) || (P==1) );
 
@@ -161,10 +161,10 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     o->register_memory   = twoDBC_memory_register;
     o->unregister_memory = twoDBC_memory_unregister;
 
-    DEBUG3(("two_dim_block_cyclic_init: \n"
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "two_dim_block_cyclic_init: \n"
            "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
            "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
-           "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
+           "      nrst = %d, ncst = %d, P = %d, Q = %d",
            Ddesc, tdesc->mtype, tdesc->super.nodes,
            tdesc->super.myrank,
            tdesc->mb, tdesc->nb,
@@ -172,7 +172,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
            tdesc->i,  tdesc->j,
            tdesc->m,  tdesc->n,
            Ddesc->grid.strows, Ddesc->grid.stcols,
-           P, Q));
+           P, Q);
 }
 
 static void twoDBC_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t key, int *m, int *n)
@@ -319,9 +319,9 @@ inline void twoDBC_position_to_coordinates(two_dim_block_cyclic_t *Ddesc, int po
 
     *m = local_m*(Ddesc->grid.rows) + Ddesc->grid.rrank;
     *n = local_n*(Ddesc->grid.cols) + Ddesc->grid.crank;
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert(position == twoDBC_coordinates_to_position(Ddesc, *m, *n));
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
 
     return;
 }

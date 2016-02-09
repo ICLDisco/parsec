@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2014 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -75,13 +75,13 @@ static int sched_rnd_schedule( dague_execution_unit_t* eu_context,
                                dague_execution_context_t* new_context )
 {
     dague_list_item_t *it = (dague_list_item_t*)new_context;
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     do {
-#if DAGUE_DEBUG_VERBOSE != 0
-        DEBUG3(("RND:\t Pushing task %s\n",
-                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
+#if defined(DAGUE_DEBUG_NOISIER)
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "RND:\t Pushing task %s",
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it));
 #endif
         /* randomly assign priority */
         (*((int*)(((uintptr_t)it)+dague_execution_context_priority_comparator))) = rand();

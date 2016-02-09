@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2008 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2014 The University of Tennessee and The University
+ * Copyright (c) 2004-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -1184,7 +1184,7 @@ static int param_register(const char *type_name,
              is STRING and the new is INT, this is an developer error. */
 
             else if (param.mbp_type != array[i].mbp_type) {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG)
                 dague_show_help("help-mca-param.txt",
                                 "re-register with different type",
                                 true, array[i].mbp_full_name);
@@ -1867,7 +1867,7 @@ static void param_destructor(dague_mca_param_t *p)
     /* mark this parameter as invalid */
     p->mbp_type = DAGUE_MCA_PARAM_TYPE_MAX;
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     /* Cheap trick to reset everything to NULL */
     param_constructor(p);
 #endif

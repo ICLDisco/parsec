@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -132,7 +132,7 @@ data_repo_lookup_entry(data_repo_t *repo, uint64_t key)
  * you're done counting the number of references, otherwise the entry is non erasable.
  * See comment near the structure definition.
  */
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
 # define data_repo_lookup_entry_and_create(eu, repo, key) \
     __data_repo_lookup_entry_and_create(eu, repo, key, #repo, __FILE__, __LINE__)
 static inline data_repo_entry_t*
@@ -160,9 +160,9 @@ __data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *rep
     dague_atomic_unlock(&repo->heads[h].lock);
 
     e = (data_repo_entry_t*)dague_thread_mempool_allocate( eu->datarepo_mempools[repo->nbdata] );
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     { uint32_t i; for(i = 0; i < repo->nbdata; e->data[i] = NULL, i++);}
-#endif  /* defined(DAGUE_DEBUG_ENABLE) */
+#endif  /* defined(DAGUE_DEBUG_PARANOID) */
     e->data_repo_mempool_owner = eu->datarepo_mempools[repo->nbdata];
     e->key = key;
 #if defined(DAGUE_SIM)
@@ -177,13 +177,13 @@ __data_repo_lookup_entry_and_create(dague_execution_unit_t *eu, data_repo_t *rep
     repo->heads[h].first_entry = e;
     repo->heads[h].size++;
     dague_atomic_unlock(&repo->heads[h].lock);
-    DEBUG3(("entry %p/%" PRIu64 " of hash table %s has been allocated with an usage count of %u/%u and is retained %d at %s:%d\n",
-            e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained, file, line));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %p/%" PRIu64 " of hash table %s has been allocated with an usage count of %u/%u and is retained %d at %s:%d",
+            e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained, file, line);
 
     return e;
 }
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
 # define data_repo_entry_used_once(eu, repo, key) \
     __data_repo_entry_used_once(eu, repo, key, #repo, __FILE__, __LINE__)
 static inline void
@@ -209,16 +209,16 @@ __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint6
             break;
         }
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
     if( NULL == e ) {
-        DEBUG3(("entry %" PRIu64 " of hash table %s could not be found at %s:%d\n", key, tablename, file, line));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %" PRIu64 " of hash table %s could not be found at %s:%d", key, tablename, file, line);
     }
 #endif
     assert( NULL != e );
 
     if( (e->usagelmt == r) && (0 == e->retained) ) {
-        DEBUG3(("entry %p/%" PRIu64 " of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
-                e, e->key, tablename, r, r, file, line));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %p/%" PRIu64 " of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d",
+                e, e->key, tablename, r, r, file, line);
         if( NULL != p ) {
             p->data_repo_next_entry = e->data_repo_next_entry;
         } else {
@@ -229,14 +229,14 @@ __data_repo_entry_used_once(dague_execution_unit_t *eu, data_repo_t *repo, uint6
 
         dague_thread_mempool_free(e->data_repo_mempool_owner, e );
     } else {
-        DEBUG3(("entry %p/%" PRIu64 " of HT %s has %u/%u usage count and %s retained: not freeing it at %s:%d\n",
-                     e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %p/%" PRIu64 " of HT %s has %u/%u usage count and %s retained: not freeing it at %s:%d",
+                     e, e->key, tablename, r, e->usagelmt, e->retained ? "is" : "is not", file, line);
         dague_atomic_unlock(&repo->heads[h].lock);
     }
     (void)eu;
 }
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
 # define data_repo_entry_addto_usage_limit(repo, key, usagelmt) \
     __data_repo_entry_addto_usage_limit(repo, key, usagelmt, #repo, __FILE__, __LINE__)
 static inline void
@@ -271,8 +271,8 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t us
     assert( NULL != e );
 
     if( (e->usagelmt == e->usagecnt) && (0 == e->retained) ) {
-        DEBUG3(("entry %p/%" PRIu64 " of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d\n",
-                     e, e->key, tablename, e->usagecnt, e->usagelmt, file, line));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %p/%" PRIu64 " of hash table %s has a usage count of %u/%u and is not retained: freeing it at %s:%d",
+                     e, e->key, tablename, e->usagecnt, e->usagelmt, file, line);
         if( NULL != p ) {
             p->data_repo_next_entry = e->data_repo_next_entry;
         } else {
@@ -282,15 +282,15 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t us
         dague_atomic_unlock(&repo->heads[h].lock);
         dague_thread_mempool_free(e->data_repo_mempool_owner, e );
     } else {
-        DEBUG3(("entry %p/%" PRIu64 " of hash table %s has a usage count of %u/%u and is %s retained at %s:%d\n",
-                     e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %p/%" PRIu64 " of hash table %s has a usage count of %u/%u and is %s retained at %s:%d",
+                     e, e->key, tablename, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more", file, line);
         dague_atomic_unlock(&repo->heads[h].lock);
     }
 }
 
 static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
 {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
     data_repo_entry_t *e;
     int h;
 
@@ -298,11 +298,11 @@ static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
         for(e = repo->heads[h].first_entry;
             e != NULL;
             e = (data_repo_entry_t*)e->data_repo_next_entry) {
-            DEBUG(("entry %p/%" PRIu64 " of hash table %p has a usage count of %u/%u and is %s retained while the repo is destroyed\n",
-                   e, e->key, repo, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more"));
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "entry %p/%" PRIu64 " of hash table %p has a usage count of %u/%u and is %s retained while the repo is destroyed",
+                   e, e->key, repo, e->usagecnt, e->usagelmt, e->retained ? "still" : "no more");
         }
     }
-#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
+#endif  /* defined(DAGUE_DEBUG_NOISIER) */
     free(repo);
 }
 

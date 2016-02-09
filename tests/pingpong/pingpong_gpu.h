@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The University of Tennessee and The University
+ * Copyright (c) 2014-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -148,8 +148,8 @@ gpu_kernel_pop_bandwidth( gpu_device_t        *gpu_device,
                                       cudaMemcpyDeviceToHost,
                                       gpu_stream->cuda_stream );
             DAGUE_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                    { WARNING(("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
-                                               gpu_copy->device_private, original->device_copies[0]->device_private));
+                                    { dague_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                              gpu_copy->device_private, original->device_copies[0]->device_private);
                                         return_code = -2;
                                         goto release_and_return_error;} );
             gpu_device->super.transferred_data_out += original->nb_elts; /* TODO: not hardcoded, use datatype size */

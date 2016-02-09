@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -212,16 +212,16 @@ int dague_devices_freeze(dague_context_t* context)
     }
 
     /* Compute the weight of each device including the cores */
-    DEBUG(("Global Theoritical performance: single %2.4f double %2.4f\n", total_sperf, total_dperf));
+    dague_debug_verbose(4, dague_debug_output, "Global Theoritical performance: single %2.4f double %2.4f", total_sperf, total_dperf);
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
-        DEBUG(("Dev[%d]             ->ratio single %2.4e double %2.4e\n",
-               i, dague_device_sweight[i], dague_device_dweight[i]));
+        dague_debug_verbose(4, dague_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
+               i, dague_device_sweight[i], dague_device_dweight[i]);
 
         dague_device_sweight[i] = (total_sperf / dague_device_sweight[i]);
         dague_device_dweight[i] = (total_dperf / dague_device_dweight[i]);
         /* after the weighting */
-        DEBUG(("Dev[%d]             ->ratio single %2.4e double %2.4e\n",
-               i, dague_device_sweight[i], dague_device_dweight[i]));
+        dague_debug_verbose(4, dague_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
+               i, dague_device_sweight[i], dague_device_dweight[i]);
     }
 
     dague_devices_are_freezed = 1;

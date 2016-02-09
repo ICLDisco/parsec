@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The University of Tennessee and The University
+ * Copyright (c) 2011-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,7 +23,7 @@ dague_reduce_col_New( const tiled_matrix_desc_t* src,
 
     assert(src->mtype == dest->mtype);
     if( -1 == dague_translate_matrix_type(src->mtype, &oldtype) ) {
-        dague_output(0, "Unknown matrix type in %s.\n", __func__);
+        dague_debug_verbose(3, dague_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }
     dague_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
@@ -64,7 +64,7 @@ dague_reduce_row_New( const tiled_matrix_desc_t* src,
 
     assert(src->mtype == dest->mtype);
     if( -1 == dague_translate_matrix_type(src->mtype, &oldtype) ) {
-        dague_output(0, "Unknown matrix type in %s.\n", __func__);
+        dague_debug_verbose(3, dague_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }
     dague_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);

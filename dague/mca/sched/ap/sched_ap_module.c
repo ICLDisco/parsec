@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2013-2014 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * $COPYRIGHT$
@@ -74,12 +74,12 @@ static dague_execution_context_t *sched_ap_select( dague_execution_unit_t *eu_co
 static int sched_ap_schedule( dague_execution_unit_t* eu_context,
                               dague_execution_context_t* new_context )
 {
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
     dague_list_item_t *it = (dague_list_item_t*)new_context;
     char tmp[MAX_TASK_STRLEN];
     do {
-        DEBUG3(("AP:\t Pushing task %s\n",
-                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it)));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "AP:\t Pushing task %s",
+                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t*)it));
         it = (dague_list_item_t*)((dague_list_item_t*)it)->list_next;
     } while( it != (dague_list_item_t*)new_context );
 #endif

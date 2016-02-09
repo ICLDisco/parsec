@@ -123,11 +123,11 @@ hash_table_remove
     if( current_item != NULL ) {
         OBJ_RELEASE(current_item);
         if( current_item->super.obj_reference_count == 1 ) {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
             assert(current_item->refcount == 1);
 #endif
             dague_list_nolock_remove ( item_list, current_item );
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
             assert(current_item->refcount == 0);
 #endif
         }
