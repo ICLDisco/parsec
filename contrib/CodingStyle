@@ -57,12 +57,12 @@ print messages to the default runtime output stream.
 `dague_debug_verbose` can output to a stream with a verbosity
 parameter. All messages with a verbosity of 3,4 are considered to
 be targetting end-users. Higher verbosity levels are targetting
-develloppers.
+developers.
 
 ### Per-topic output streams
 
 The output stream `dague_debug_output` is always available to
-print debug messages. If you are devellopping a particular
+print debug messages. If you are developing a particular
 component/topic, you can serapate the outputs of this topic
 by creating your own output stream. That output stream can then
 be sent to a segregated output file, or have a different
