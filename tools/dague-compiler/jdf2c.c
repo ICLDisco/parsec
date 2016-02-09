@@ -5359,6 +5359,16 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     hfile = NULL;
 
 #if defined(HAVE_INDENT)
+    /* When we apply indent/awk to the output of jdf2c, we need to make 
+     * sure that the resultant file is flushed onto the filesystem before 
+     * the rest of the compilation chain can takeover. An original version
+     * was using rename(2) and temporary files to apply the indent/awk, but
+     * it turns out to be very difficult to portably ensure visibility of 
+     * the rename in subsequent operations (see PR#32 for the discussion).
+     * As an alternative, we use pipes between jdf2c and the system spawned
+     * indent/awk commands, so that we can spare the rename and rely on a 
+     * classic fsync on the output to ensure visibilitiy. 
+     */
     int cpipefd[2] = {-1,-1};
     ret = pipe(cpipefd);
     if( -1 == ret ) {
@@ -5487,6 +5497,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     }
 
 #if defined(HAVE_INDENT)
+    /* wait for the indent command to generate the output files for us */
     if( -1 != child ) {
         waitpid(child, NULL, 0);
     }
