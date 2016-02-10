@@ -33,29 +33,38 @@
  *
  ******************************************************************************/
 int
-release_ownership_of_data(const dague_dtd_task_t *current_task, int flow_index)
+release_ownership_of_data_1(const dague_dtd_task_t *current_task, int flow_index)
 {
-    dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)current_task|flow_index);
-    dague_dtd_tile_t* tile = current_task->desc[flow_index].tile;
+    dague_dtd_tile_t *tile = current_task->flow[flow_index].tile;
 
+    dague_dtd_last_user_lock( &(tile->last_user) );
     dague_mfence(); /* Write */
-    if( dague_atomic_cas(&(tile->last_user.task), task_pointer, NULL) ) {
+
+    /* If this_task is still the owner of the data we remove this_task */
+    if( tile->last_user.task == current_task ) {
+        tile->last_user.task        =  NULL;
+        tile->last_user.flow_index  = -1;
+        tile->last_user.op_type     = -1;
+        tile->last_user.alive       =  TASK_IS_NOT_ALIVE;
+        dague_dtd_last_user_unlock( &(tile->last_user) );
         /* we are successful, we do not need to wait and there is no successor yet*/
         return 1;
-    }
-    /* if we can not atomically swap the last user of the tile to NULL then we
-     * wait until we find our successor.
-     */
-    int unit_waited = 0;
-    while(NULL == current_task->desc[flow_index].task) {
-        unit_waited++;
-        if (1000 == unit_waited) {
-            unit_waited = 0;
-            usleep(1);
+    } else {
+        /* if we can not atomically swap the last user of the tile to NULL then we
+         * wait until we find our successor.
+         */
+        int unit_waited = 0;
+        while(NULL == current_task->desc[flow_index].task) {
+            unit_waited++;
+            if (1000 == unit_waited) {
+                unit_waited = 0;
+                usleep(1);
+            }
+            dague_mfence();  /* force the local update of the cache */
         }
-        dague_mfence();  /* force the local update of the cache */
+        dague_dtd_last_user_unlock( &(tile->last_user) );
+        return 0;
     }
-    return 0;
 }
 
 /***************************************************************************//**
@@ -331,7 +340,7 @@ ordering_correctly_1(dague_execution_unit_t *eu,
                  OUTPUT == op_type_on_current_flow ||
                 (current_task->dont_skip_releasing_data[current_dep])) {
 #if defined (OVERLAP)
-                if(release_ownership_of_data(current_task, current_dep)) { /* trying to release ownership */
+                if(release_ownership_of_data_1(current_task, current_dep)) { /* trying to release ownership */
 #endif
                     dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
                     continue;  /* no descendent for this data */

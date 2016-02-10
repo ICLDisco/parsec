@@ -1093,15 +1093,17 @@ dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
 #if defined(DAGUE_DEBUG_PARANOID)
         assert(temp_tile->super.list_item.refcount == 0);
 #endif
-        temp_tile->key                  = ddesc->data_key(ddesc, i, j);
-        temp_tile->rank                 = ddesc->rank_of_key(ddesc, temp_tile->key);
-        temp_tile->vp_id                = ddesc->vpid_of_key(ddesc, temp_tile->key);
-        temp_tile->data                 = ddesc->data_of_key(ddesc, temp_tile->key);
-        temp_tile->data_copy            = temp_tile->data->device_copies[0];
-        temp_tile->ddesc                = ddesc;
-        temp_tile->last_user.flow_index = -1;
-        temp_tile->last_user.op_type    = -1;
-        temp_tile->last_user.task       = NULL;
+        temp_tile->key                   = ddesc->data_key(ddesc, i, j);
+        temp_tile->rank                  = ddesc->rank_of_key(ddesc, temp_tile->key);
+        temp_tile->vp_id                 = ddesc->vpid_of_key(ddesc, temp_tile->key);
+        temp_tile->data                  = ddesc->data_of_key(ddesc, temp_tile->key);
+        temp_tile->data_copy             = temp_tile->data->device_copies[0];
+        temp_tile->ddesc                 = ddesc;
+        temp_tile->last_user.flow_index  = -1;
+        temp_tile->last_user.op_type     = -1;
+        temp_tile->last_user.task        = NULL;
+        temp_tile->last_user.alive       = TASK_IS_NOT_ALIVE;
+        temp_tile->last_user.atomic_lock = 0;
 
         dague_dtd_tile_insert ( dague_dtd_handle, temp_tile->key,
                                 temp_tile, ddesc );
@@ -1994,6 +1996,48 @@ set_flow_in_function( dague_dtd_handle_t *__dague_handle,
 
 /* **************************************************************************** */
 /**
+ * This function sets the parent of a task
+ *
+ * This function is called by the descendant and the descendant here
+ * puts itself as the descendant of the parent.
+ *
+ * @param[out]  parent_task
+ *                  Task we are setting descendant for
+ * @param[in]   parent_flow_index
+ *                  Flow index of parent for which the
+ *                  descendant is being set
+ * @param[in]   desc_task
+ *                  The descendant
+ * @param[in]   desc_flow_index
+ *                  Flow index of descendant
+ * @param[in]   parent_op_type
+ *                  Operation type of parent task on its flow
+ * @param[in]   desc_op_type
+ *                  Operation type of descendant task on its flow
+ *
+ * @ingroup     DTD_INTERFACE_INTERNAL
+ */
+void
+set_parent(dague_dtd_task_t *parent_task, uint8_t parent_flow_index,
+           dague_dtd_task_t *desc_task, uint8_t desc_flow_index,
+           int parent_op_type, int desc_op_type)
+{
+    (void)desc_op_type;
+    /* Setting the parent in the descendant for this flow */
+    if( (parent_op_type & GET_OP_TYPE)  == INPUT ) {
+        dague_dtd_task_t *tmp_task = parent_task;
+        parent_task       = parent_task->parent[parent_flow_index].task;
+        parent_op_type    = tmp_task->parent[parent_flow_index].op_type;
+        parent_flow_index = tmp_task->parent[parent_flow_index].flow_index;
+    }
+
+    desc_task->parent[desc_flow_index].task       = parent_task;
+    desc_task->parent[desc_flow_index].op_type    = parent_op_type;
+    desc_task->parent[desc_flow_index].flow_index = parent_flow_index;
+}
+
+/* **************************************************************************** */
+/**
  * This function sets the descendant of a task
  *
  * This function is called by the descendant and the descendant here
@@ -2025,6 +2069,11 @@ set_descendant(dague_dtd_task_t *parent_task, uint8_t parent_flow_index,
     parent_task->desc[parent_flow_index].op_type    = desc_op_type;
     dague_mfence();
     parent_task->desc[parent_flow_index].task       = desc_task;
+
+    /* Setting the parent in the descendant for this flow */
+    set_parent(parent_task, parent_flow_index,
+               desc_task, desc_flow_index,
+               parent_op_type, desc_op_type);
 }
 
 /* **************************************************************************** */
@@ -2345,7 +2394,7 @@ set_params_of_task( dague_dtd_task_t *this_task, dague_dtd_tile_t *tile,
 void
 dague_insert_dtd_task( dague_dtd_task_t *this_task )
 {
-    const dague_function_t *function           = this_task->super.function;
+    const dague_function_t *function     =  this_task->super.function;
     dague_dtd_handle_t *dague_dtd_handle = (dague_dtd_handle_t *)this_task->super.dague_handle;
 
     int flow_index, satisfied_flow = 0, tile_op_type = 0;
@@ -2354,7 +2403,7 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
 
     /* In the next segment we resolve the dependencies of each flow */
     for( flow_index = 0, tile = NULL, tile_op_type = 0; flow_index < function->nb_flows; flow_index ++ ) {
-        struct user last_user;
+        dague_dtd_tile_user_t last_user;
         tile = this_task->flow[flow_index].tile;
         tile_op_type = this_task->flow[flow_index].op_type;
 
@@ -2363,18 +2412,21 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
             set_flow_in_function( dague_dtd_handle, this_task, tile_op_type, flow_index);
         }
 
-        dague_dtd_task_t *parent = NULL;
-        dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)this_task|flow_index);
+        /* Locking the last_user of the tile */
+        dague_dtd_last_user_lock( &(tile->last_user) );
+        /* Reading the last_user info */
+        last_user.task          = tile->last_user.task;
+        last_user.flow_index    = tile->last_user.flow_index;
+        last_user.op_type       = tile->last_user.op_type;
+        last_user.alive         = tile->last_user.alive;
 
-        do {
-            parent = tile->last_user.task;
-            last_user.flow_index = GET_FLOW_IND(parent);
-            last_user.task       = GET_TASK_PTR(parent);
-            dague_mfence();  /* write */
-        } while (!dague_atomic_cas(&(tile->last_user.task), parent, task_pointer));
-        last_user.op_type           = tile->last_user.op_type;
+        /* Setting the last_user info with info of this_task */
+        tile->last_user.task        = this_task;
         tile->last_user.flow_index  = flow_index;
         tile->last_user.op_type     = tile_op_type;
+        tile->last_user.alive       = TASK_IS_ALIVE;
+        /* Unlocking the last_user of the tile */
+        dague_dtd_last_user_unlock( &(tile->last_user) );
 
         if(NULL != last_user.task) {
             set_descendant(last_user.task, last_user.flow_index,

@@ -37,6 +37,9 @@ extern int my_rank;
 #define LOCAL_DATA 200 /* function_id is uint8_t */
 #define DEBUG_HEAVY 1
 
+#define TASK_IS_ALIVE       1
+#define TASK_IS_NOT_ALIVE   0
+
 /* Structure used to pack arguments of insert_task() */
 struct dague_dtd_task_param_s {
     void            *pointer_to_tile;
@@ -60,6 +63,12 @@ typedef struct descendant_info_s {
     dague_dtd_task_t *task;
 }descendant_info_t;
 
+typedef struct dague_dtd_parent_info_s {
+    int                 op_type;
+    uint8_t             flow_index;
+    dague_dtd_task_t   *task;
+} dague_dtd_parent_info_t;
+
 struct dague_dtd_task_s {
     dague_execution_context_t   super;
     uint32_t                    ref_count;
@@ -71,6 +80,7 @@ struct dague_dtd_task_s {
     /* for testing PTG inserting task in DTD */
     dague_execution_context_t  *orig_task;
     descendant_info_t           desc[MAX_FLOW];
+    dague_dtd_parent_info_t     parent[MAX_FLOW];
     dague_dtd_flow_info_t       flow[MAX_FLOW];
     dague_dtd_task_param_t     *param_list;
 };
@@ -78,21 +88,23 @@ struct dague_dtd_task_s {
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_dtd_task_t);
 
 /** Tile structure **/
-struct user {
-    uint8_t     flow_index;
-    int         op_type;
-    dague_dtd_task_t  *task;
-};
+typedef struct dague_dtd_tile_user_s {
+    uint8_t           flow_index;
+    int               op_type;
+    dague_dtd_task_t *task;
+    int               alive;
+    volatile uint32_t atomic_lock;
+}dague_dtd_tile_user_t;
 
 struct dague_dtd_tile_s {
-    dague_hashtable_item_t   super;
-    uint32_t            rank;
-    int32_t             vp_id;
-    dague_data_key_t    key;
-    dague_data_copy_t   *data_copy;
-    dague_data_t        *data;
-    dague_ddesc_t       *ddesc;
-    struct user         last_user;
+    dague_hashtable_item_t super;
+    uint32_t               rank;
+    int32_t                vp_id;
+    dague_data_key_t       key;
+    dague_data_copy_t     *data_copy;
+    dague_data_t          *data;
+    dague_ddesc_t         *ddesc;
+    dague_dtd_tile_user_t  last_user;
 };
 /* For creating objects of class dague_dtd_tile_t */
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_dtd_tile_t);
@@ -229,6 +241,36 @@ dague_dtd_task_insert( dague_dtd_handle_t   *dague_handle,
 void
 dague_execute_and_come_back(dague_context_t *context,
                             dague_handle_t *dague_handle);
+
+/***************************************************************************//**
+ *
+ * Function to lock last_user of a tile
+ *
+ * @param[in,out]   last_user
+ *                      User we are trying to lock
+ * @ingroup         DTD_INTERFACE_INTERNAL
+ *
+ ******************************************************************************/
+static inline void
+dague_dtd_last_user_lock( dague_dtd_tile_user_t *last_user )
+{
+    dague_atomic_lock(&last_user->atomic_lock);
+}
+
+/***************************************************************************//**
+ *
+ * Function to unlock last_user of a tile
+ *
+ * @param[in,out]   last_user
+ *                      User we are trying to unlock
+ * @ingroup         DTD_INTERFACE_INTERNAL
+ *
+ ******************************************************************************/
+static inline void
+dague_dtd_last_user_unlock( dague_dtd_tile_user_t *last_user )
+{
+    dague_atomic_unlock(&last_user->atomic_lock);
+}
 
 END_C_DECLS
 

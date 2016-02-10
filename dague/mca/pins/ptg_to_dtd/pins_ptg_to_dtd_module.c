@@ -209,15 +209,17 @@ tile_manage_for_testing(dague_dtd_handle_t *dague_dtd_handle,
     if( NULL == tmp) {
         dague_dtd_tile_t *temp_tile = (dague_dtd_tile_t *) dague_thread_mempool_allocate
                                                           (dague_dtd_handle->tile_mempool->thread_mempools);
-        temp_tile->key                  = key;
-        temp_tile->rank                 = 0;
-        temp_tile->vp_id                = 0;
-        temp_tile->data                 = (dague_data_t*)ddesc;
-        temp_tile->data_copy            = temp_tile->data->device_copies[0];
-        temp_tile->ddesc                = ddesc;
-        temp_tile->last_user.flow_index = -1;
-        temp_tile->last_user.op_type    = -1;
-        temp_tile->last_user.task       = NULL;
+        temp_tile->key                   = key;
+        temp_tile->rank                  = 0;
+        temp_tile->vp_id                 = 0;
+        temp_tile->data                  = data;
+        temp_tile->data_copy             = data->device_copies[0];
+        temp_tile->ddesc                 = (dague_ddesc_t *)data;
+        temp_tile->last_user.flow_index  = -1;
+        temp_tile->last_user.op_type     = -1;
+        temp_tile->last_user.task        = NULL;
+        temp_tile->last_user.alive       = TASK_IS_NOT_ALIVE;
+        temp_tile->last_user.atomic_lock = 0;
 
         dague_dtd_tile_insert ( dague_dtd_handle, temp_tile->key,
                                 temp_tile, ddesc );
