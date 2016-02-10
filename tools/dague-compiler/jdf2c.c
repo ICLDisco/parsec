@@ -5372,19 +5372,20 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
      * indent/awk commands, so that we can spare the rename and rely on a 
      * classic fsync on the output to ensure visibilitiy. 
      */
+    int child = -1;
     int cpipefd[2] = {-1,-1};
+    int hpipefd[2] = {-1,-1};
     ret = pipe(cpipefd);
     if( -1 == ret ) {
         perror("Creating pipe between jdf2c and indent");
         goto err;
     }
-    int hpipefd[2] = {-1,-1};
     ret = pipe(hpipefd);
     if( -1 == ret ) {
         perror("Creating pipe between jdf2c and indent");
         goto err;
     }
-    int child = fork();;
+    child = fork();;
     if( -1 == child ) {
         perror("Creating fork to run indent");
         goto err;
