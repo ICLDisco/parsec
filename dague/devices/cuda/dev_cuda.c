@@ -755,7 +755,7 @@ static void dague_cuda_memory_release_list(gpu_device_t* gpu_device,
          * before we get here (aka below dague_fini), the destructor of the data
          * collection must have been called, releasing all the copies.
          */
-        OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
+        //OBJ_RELEASE(gpu_copy); assert(NULL == gpu_copy);
     }
 }
 
@@ -1363,6 +1363,7 @@ progress_stream( gpu_device_t* gpu_device,
     if ( NULL == progress_fct ) {
         /* Grab the submit function */
         progress_fct = task->submit;
+#if defined(DAGUE_DEBUG_ENABLE)
         for( i = 0; i < task->ec->function->nb_flows; i++ ) {
             flow = task->flow[i];
             assert( flow );
@@ -1370,6 +1371,7 @@ progress_stream( gpu_device_t* gpu_device,
             if(!flow->flow_flags) continue;
             assert(task->ec->data[i].data_out->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER);
         }
+#endif /* defined(DAGUE_DEBUG_ENABLE) */
     }
     assert( NULL != progress_fct );
     rc = progress_fct( gpu_device, task, exec_stream );
@@ -1822,9 +1824,11 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  check_in_deps:
     if( NULL != gpu_task ) {
-        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tUpload data (if any) for %s priority %d", gpu_device->super.device_index,
-                 dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
-                 gpu_task->ec->priority );
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,
+                            "GPU[%1d]:\tUpload data (if any) for %s priority %d",
+                            gpu_device->cuda_index,
+                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
+                            gpu_task->ec->priority );
     }
     rc = progress_stream( gpu_device,
                           &(gpu_device->exec_stream[0]),
