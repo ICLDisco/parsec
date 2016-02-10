@@ -124,8 +124,6 @@ static int dague_cuda_device_fini(dague_device_t* device)
     OBJ_DESTRUCT(&gpu_device->gpu_mem_lru);
     OBJ_DESTRUCT(&gpu_device->gpu_mem_owned_lru);
 
-    free(gpu_device);
-
     return DAGUE_SUCCESS;
 }
 
@@ -595,8 +593,9 @@ int dague_gpu_fini(void)
     for(i = 0; i < dague_devices_enabled(); i++) {
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
         if(DAGUE_DEV_CUDA != gpu_device->super.type) continue;
-        dague_devices_remove((dague_device_t*)gpu_device);
         dague_cuda_device_fini((dague_device_t*)gpu_device);
+        dague_devices_remove((dague_device_t*)gpu_device);
+        free(gpu_device);
     }
 
     if( dague_debug_output != dague_cuda_output_stream ) dague_output_close(dague_cuda_output_stream);
