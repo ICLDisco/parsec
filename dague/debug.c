@@ -21,7 +21,7 @@ char dague_debug_hostname[32]   = "unknownhost";
 int dague_debug_rank            = -1;
 int dague_debug_output          = 0;
 int dague_debug_verbose         = 1;
-int dague_debug_colorize        = 10;
+int dague_debug_colorize        = 10; /* 10 is the size of the format string for colors */
 
 /* debug backtrace circular buffer */
 static int bt_output    = -1;

@@ -25,7 +25,7 @@
  * Guide for setting the debug verbosity:
  *   3-4: debug information (module initialized, available features etc).
  *   5-9: light debug output
- *   >=dague_debug_colorize: heavy debug output
+ *   >=10: heavy debug output
  *
  * Debug history compiled in as soon as defined(DAGUE_DEBUG_HISTORY)
  *   independent of DAGUE_DEBUG_VERBOSE setting
