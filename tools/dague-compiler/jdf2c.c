@@ -6,6 +6,7 @@
 
 #include "dague_config.h"
 
+#include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
@@ -13,6 +14,12 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
+#if defined(HAVE_SYS_TYPES_H)
+#include <sys/types.h>
+#endif
+#if defined(HAVE_UNISTD_H)
+#include <unistd.h>
+#endif
 
 #include "jdf.h"
 #include "string_arena.h"
@@ -5341,6 +5348,10 @@ int jdf_optimize( jdf_t* jdf )
 
 /** Main Function */
 
+#if defined(HAVE_INDENT)
+#include <sys/wait.h>
+#endif
+
 int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename, jdf_t *jdf)
 {
     int ret = 0;
@@ -5350,6 +5361,74 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     cfile = NULL;
     hfile = NULL;
 
+#if defined(HAVE_INDENT)
+    /* When we apply indent/awk to the output of jdf2c, we need to make 
+     * sure that the resultant file is flushed onto the filesystem before 
+     * the rest of the compilation chain can takeover. An original version
+     * was using rename(2) and temporary files to apply the indent/awk, but
+     * it turns out to be very difficult to portably ensure visibility of 
+     * the rename in subsequent operations (see PR#32 for the discussion).
+     * As an alternative, we use pipes between jdf2c and the system spawned
+     * indent/awk commands, so that we can spare the rename and rely on a 
+     * classic fsync on the output to ensure visibilitiy. 
+     */
+    int cpipefd[2] = {-1,-1};
+    ret = pipe(cpipefd);
+    if( -1 == ret ) {
+        perror("Creating pipe between jdf2c and indent");
+        goto err;
+    }
+    int hpipefd[2] = {-1,-1};
+    ret = pipe(hpipefd);
+    if( -1 == ret ) {
+        perror("Creating pipe between jdf2c and indent");
+        goto err;
+    }
+    int child = fork();;
+    if( -1 == child ) {
+        perror("Creating fork to run indent");
+        goto err;
+    }
+    if( 0 == child ) {
+        char *command;
+        close(cpipefd[1]);
+        close(hpipefd[1]);
+#if !defined(HAVE_AWK)
+        asprintf(&command, "%s %s -o %s <&%d",
+            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c, cpipefd[0]);
+        system(command);
+        free(command);
+        asprintf(&command, "%s %s -o %s <&%d",
+            DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h, hpipefd[0]);
+        system(command);
+        free(command);
+#else
+        asprintf(&command,
+             "%s %s <&%d -st | "
+             "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+             ">%s",
+             DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, cpipefd[0],
+             DAGUE_AWK_PREFIX, output_c, output_c,
+             output_c);
+        system(command);
+        free(command);
+
+        asprintf(&command,
+             "%s %s <&%d -st | "
+             "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
+             ">%s",
+             DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, hpipefd[0],
+             DAGUE_AWK_PREFIX, output_h, output_h,
+             output_h);
+        system(command);
+        free(command);
+#endif /* !defined(HAVE_AWK) */
+        exit(0);
+    }
+    cfile = fdopen(cpipefd[1], "w");
+    close(hpipefd[0]);
+    hfile = fdopen(hpipefd[1], "w");
+#else /* defined(HAVE_INDENT) */
     cfile = fopen(output_c, "w");
     if( cfile == NULL ) {
         fprintf(stderr, "unable to create %s: %s\n", output_c, strerror(errno));
@@ -5363,6 +5442,7 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
         ret = -1;
         goto err;
     }
+#endif /* defined(HAVE_INDENT) */
 
     cfile_lineno = 1;
     hfile_lineno = 1;
@@ -5409,46 +5489,21 @@ int jdf2c(const char *output_c, const char *output_h, const char *_jdf_basename,
     }
 
  err:
-    if( NULL != cfile )
+    if( NULL != cfile ) {
+        fsync(fileno(cfile));
         fclose(cfile);
+    }
 
-    if( NULL != hfile )
+    if( NULL != hfile ) {
+        fsync(fileno(hfile));
         fclose(hfile);
+    }
 
 #if defined(HAVE_INDENT)
-    {
-        char* command;
-
-#if !defined(HAVE_AWK)
-        asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c );
-        system(command);
-        asprintf(&command, "%s %s %s", DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h );
-        system(command);
-#else
-        asprintf(&command,
-                 "%s %s %s -st | "
-                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
-                 "> %s.indent.awk",
-                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_c,
-                 DAGUE_AWK_PREFIX, output_c, output_c,
-                 output_c);
-        system(command);
-        asprintf(&command, "%s.indent.awk", output_c);
-        rename(command, output_c);
-
-        asprintf(&command,
-                 "%s %s %s -st | "
-                 "%s '$1==\"#line\" && $3==\"\\\"%s\\\"\" {printf(\"#line %%d \\\"%s\\\"\\n\", NR+1); next} {print}'"
-                 "> %s.indent.awk",
-                 DAGUE_INDENT_PREFIX, DAGUE_INDENT_OPTIONS, output_h,
-                 DAGUE_AWK_PREFIX, output_h, output_h,
-                 output_h);
-        system(command);
-        asprintf(&command, "%s.indent.awk", output_h);
-        rename(command, output_h);
-#endif
+    /* wait for the indent command to generate the output files for us */
+    if( -1 != child ) {
+        waitpid(child, NULL, 0);
     }
-#endif  /* defined(HAVE_INDENT) */
-
+#endif
     return ret;
 }
