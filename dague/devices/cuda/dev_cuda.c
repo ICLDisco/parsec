@@ -950,7 +950,7 @@ dague_gpu_data_stage_in( gpu_device_t* gpu_device,
      */
     if( FLOW_ACCESS_WRITE & type ) {
         if (gpu_elem->readers > 0 ) {
-            WARNING(("GPU:\tWrite access to data with existing readers (Possible anti-dependency, or concurrent accesses), please prevent that with CTL dependencies\n"));
+            dague_warning("GPU:\tWrite access to data with existing readers (Possible anti-dependency, or concurrent accesses), please prevent that with CTL dependencies\n");
             return -86;
         }
         dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);

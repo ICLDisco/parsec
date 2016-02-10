@@ -1164,6 +1164,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
             "#if defined(HAVE_CUDA)\n"
             "#include \"dague/devices/cuda/dev_cuda.h\"\n"
+            "extern int dague_cuda_output_stream;\n"
             "#endif  /* defined(HAVE_CUDA) */\n"
             "#include <alloca.h>\n",
             jdf_basename,
@@ -3013,9 +3014,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
-    /* TODO: in the next debug_verbose(..., "...Device..."), the output should
-     * be dague_cuda_output_stream, but this is not an available global from
-     * the generated code. */
     coutput("static void %s_startup(dague_context_t *context, __dague_%s_internal_handle_t *__dague_handle, dague_list_item_t ** ready_tasks)\n"
             "{\n"
             "  uint32_t supported_dev = 0;\n"
@@ -4377,12 +4375,14 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
     jdf_generate_code_cache_awareness_update(jdf, f);
 
-    coutput("  {\n"
+    coutput("#if defined(DAGUE_DEBUG_NOISIER)\n"
+            "  {\n"
             "    char tmp[MAX_TASK_STRLEN];\n"
-            "    DEBUG2(( \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
+            "    DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream, \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
             "           dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t *)this_task),\n"
-            "           this_task->priority ));\n"
-            "  }\n");
+            "           this_task->priority );\n"
+            "  }\n"
+            "#endif /* defined(DAGUE_DEBUG_NOISIER) */\n" );
 
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
