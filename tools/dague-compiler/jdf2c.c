@@ -4299,7 +4299,6 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     expr_info_t info;
     int di;
     int profile_on;
-    char* output_locals;
     char* output;
 
     profile_on = jdf_property_get_int(f->properties, "profile", 1);

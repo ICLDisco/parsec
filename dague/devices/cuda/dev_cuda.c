@@ -1557,10 +1557,7 @@ dague_gpu_kernel_push( gpu_device_t            *gpu_device,
                        dague_gpu_exec_stream_t *gpu_stream)
 {
     int i, ret = 0;
-    int space_needed = 0;
     dague_execution_context_t *this_task = gpu_task->ec;
-    dague_data_t              *original;
-    dague_data_copy_t         *data_in, *data_gpu;
     const dague_flow_t        *flow;
 
     /**
