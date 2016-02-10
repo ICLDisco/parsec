@@ -1587,10 +1587,10 @@ dague_gpu_kernel_push( gpu_device_t            *gpu_device,
 
         assert( NULL != dague_data_copy_get_ptr(this_task->data[i].data_in) );
 
-        DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                              "GPU[%1d]:\tIN  Data of %s <%x> on GPU\n",
-                              gpu_device->cuda_index, flow->name,
-                              this_task->data[i].data_out->original->key));
+        DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
+                            "GPU[%1d]:\tIN  Data of %s <%x> on GPU\n",
+                            gpu_device->cuda_index, flow->name,
+                            this_task->data[i].data_out->original->key);
         ret = dague_gpu_data_stage_in( gpu_device, flow->flow_flags,
                                        &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
@@ -1672,16 +1672,16 @@ dague_gpu_kernel_pop( gpu_device_t            *gpu_device,
             assert( ((dague_list_item_t*)gpu_copy)->list_next == (dague_list_item_t*)gpu_copy );
             assert( ((dague_list_item_t*)gpu_copy)->list_prev == (dague_list_item_t*)gpu_copy );
 
-            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                                  "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name));
+            DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
+                                "GPU[%1d]:\tOUT Data of %s\n", gpu_device->cuda_index, flow->name);
 
             if( gpu_task->pushout[i] ) {
                 /* TODO: make sure no readers are working on the CPU version */
                 original = gpu_copy->original;
-                DAGUE_OUTPUT_VERBOSE((2, dague_cuda_output_stream,
-                                      "GPU:\tMove D2H data <%s:%x> from GPU %d %p -> %p requested\n",
-                                      flow->name, original->key, gpu_device->cuda_index,
-                                      (void*)gpu_copy->device_private, original->device_copies[0]->device_private));
+                DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream,
+                                    "GPU:\tMove D2H data <%s:%x> from GPU %d %p -> %p requested\n",
+                                    flow->name, original->key, gpu_device->cuda_index,
+                                    (void*)gpu_copy->device_private, original->device_copies[0]->device_private);
                 DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_stream->profiling,
                                          (-1 == gpu_stream->prof_event_key_start ?
@@ -1760,9 +1760,9 @@ dague_gpu_kernel_epilog( gpu_device_t        *gpu_device,
 
         if( gpu_task->pushout[i] ) {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
-            DAGUE_OUTPUT_VERBOSE((3, dague_cuda_output_stream,
-                                  "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
-                                  gpu_copy, gpu_copy->super.super.obj_reference_count, __func__));
+            DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
+                                "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
+                                gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
         } else {
             dague_ulist_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
         }
@@ -1821,7 +1821,7 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
  check_in_deps:
     if( NULL != gpu_task ) {
-        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,
+        DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream,
                             "GPU[%1d]:\tUpload data (if any) for %s priority %d",
                             gpu_device->cuda_index,
                             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),

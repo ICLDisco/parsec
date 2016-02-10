@@ -286,7 +286,7 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
             if( NULL == data->device_copies[i] ) continue;
             if( DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state
                 && data->device_copies[i]->version > copy->version ) {
-                assert( i == valid_copy );
+                assert( (int)i == valid_copy );
                 transfer_required = 1;
             }
 #if defined(DAGUE_DEBUG_PARANOID)
