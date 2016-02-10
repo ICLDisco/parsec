@@ -595,8 +595,8 @@ int dague_gpu_fini(void)
     for(i = 0; i < dague_devices_enabled(); i++) {
         if( NULL == (gpu_device = (gpu_device_t*)dague_devices_get(i)) ) continue;
         if(DAGUE_DEV_CUDA != gpu_device->super.type) continue;
-        dague_cuda_device_fini((dague_device_t*)gpu_device);
         dague_devices_remove((dague_device_t*)gpu_device);
+        dague_cuda_device_fini((dague_device_t*)gpu_device);
     }
 
     if( dague_debug_output != dague_cuda_output_stream ) dague_output_close(dague_cuda_output_stream);
@@ -975,7 +975,7 @@ dague_gpu_data_stage_in( gpu_device_t* gpu_device,
 
         DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream,
                               "GPU:\tMove H2D data %x (H %p:D %p) %d bytes to GPU %d",
-                              original->key, in_elem->device_private, (void*)gpu_elem->device_private, original->nb_elts, gpu_device->super.device_index);
+                              original->key, in_elem->device_private, (void*)gpu_elem->device_private, original->nb_elts, gpu_device->cuda_index);
 
         assert( gpu_elem->version <= in_elem->version );
         assert( gpu_elem->version != in_elem->version || gpu_elem->data_transfer_status == DATA_STATUS_NOT_TRANSFER );
@@ -1858,7 +1858,7 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
 
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != gpu_task ) {
-        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->super.device_index,
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->cuda_index,
                  dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                  gpu_task->ec->priority );
     }
