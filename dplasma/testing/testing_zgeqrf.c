@@ -30,9 +30,6 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 32, 200, 200);
-#if defined(HAVE_CUDA)
-    iparam[IPARAM_NGPUS] = 0;
-#endif
     iparam[IPARAM_SMB] = 4;
     iparam[IPARAM_SNB] = 1;
     iparam[IPARAM_LDA] = -'m';
