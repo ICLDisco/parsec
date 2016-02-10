@@ -811,7 +811,7 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 {
     dague_execution_context_t *this_task = gpu_task->ec;
     dague_gpu_data_copy_t* temp_loc[MAX_PARAM_COUNT], *gpu_elem, *lru_gpu_elem;
-    dague_data_t* master;
+    dague_data_t* master, *oldmaster;
     const dague_flow_t *flow;
     int i, j;
 
@@ -844,7 +844,8 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         if( NULL == gpu_elem->device_private ) {
 #endif
 
-        find_another_data:
+          find_another_data:
+            /* Look for a data_copy to free */
             lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
@@ -858,6 +859,9 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                         dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[j]);
                     }
                 }
+#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+                OBJ_RELEASE(gpu_elem);
+#endif
                 return -2;
             }
 
@@ -865,7 +869,7 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                                   "Release LRU-retrieved CUDA copy %p [ref_count %d]",
                                   lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count);
-            OBJ_RELEASE(lru_gpu_elem);
+            assert( NULL != lru_gpu_elem );
 
             /* If there are pending readers, let the gpu_elem loose. This is a weak coordination
              * protocol between here and the dague_gpu_data_stage_in, where the readers don't necessarily
@@ -877,39 +881,34 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
             /* Make sure the new GPU element is clean and ready to be used */
             assert( master != lru_gpu_elem->original );
-#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-      //      assert(NULL != lru_gpu_elem->original);
-#endif
-            if( master != lru_gpu_elem->original ) {
-                if( NULL != lru_gpu_elem->original ) {
-                    dague_data_t* oldmaster = lru_gpu_elem->original;
-                    /* Let's check we're not trying to steal one of our own data */
-                    for( j = 0; j < this_task->function->nb_flows; j++ ) {
-                        if( NULL == this_task->data[j].data_in ) continue;
-                        if( this_task->data[j].data_in->original == oldmaster ) {
-                            goto find_another_data;
-                        }
-                    }
+            assert( NULL   != lru_gpu_elem->original );
 
-                    dague_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
-                    DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
-                                          "GPU[%d]:\tRepurpose copy %p to mirror block %p (in task %s:i) instead of %p",
-                                          gpu_device->cuda_index, lru_gpu_elem, master, this_task->function->name, i, oldmaster);
-
-#if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-                    zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
-                    DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
-                                          "Release LRU-retrieved CUDA copy %p [ref_count %d: must be 0]",
-                                          lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count);
-                    OBJ_RELEASE(lru_gpu_elem); assert( NULL == lru_gpu_elem );
-                    goto malloc_data;
-#endif
+            /* Let's check we're not trying to steal one of our own data */
+            oldmaster = lru_gpu_elem->original;
+            for( j = 0; j < this_task->function->nb_flows; j++ ) {
+                if( NULL == this_task->data[j].data_in ) continue;
+                if( this_task->data[j].data_in->original == oldmaster ) {
+                    goto find_another_data;
                 }
             }
-            gpu_elem = lru_gpu_elem;
+
+            /* The data is not used, and it's not one of ours: we can free it or reuse it */
+            dague_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
+            DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
+                                "GPU[%d]:\tRepurpose copy %p to mirror block %p (in task %s:i) instead of %p",
+                                gpu_device->cuda_index, lru_gpu_elem, master, this_task->function->name, i, oldmaster);
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
+            /* Let's free this space, and try again to amlloc some space */
+            zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
+            DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
+                                "Release LRU-retrieved CUDA copy %p [ref_count %d: must be 0]",
+                                lru_gpu_elem, lru_gpu_elem->super.super.obj_reference_count);
+            OBJ_RELEASE(lru_gpu_elem); assert( NULL == lru_gpu_elem );
+            goto malloc_data;
         }
+#else
+        gpu_elem = lru_gpu_elem;
 #endif
         assert( 0 == gpu_elem->readers );
         gpu_elem->coherency_state = DATA_COHERENCY_INVALID;
@@ -917,7 +916,6 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         dague_data_copy_attach(master, gpu_elem, gpu_device->super.device_index);
         this_task->data[i].data_out = gpu_elem;
         temp_loc[i] = gpu_elem;
-        OBJ_RETAIN(gpu_elem);
         DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                               "Retain and insert CUDA copy %p [ref_count %d] in LRU",
                               gpu_elem, gpu_elem->super.super.obj_reference_count);
@@ -1318,6 +1316,7 @@ int dague_gpu_get_best_device( dague_execution_context_t* this_task, double rati
 }
 
 #if DAGUE_GPU_USE_PRIORITIES
+
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
                                                           dague_list_item_t* elem )
 {
@@ -1650,6 +1649,12 @@ dague_gpu_kernel_pop( gpu_device_t            *gpu_device,
         gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
         assert(original == this_task->data[i].data_in->original);
+
+        if( !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
+            /* Do not propagate GPU copies to successors (temporary solution) */
+            this_task->data[i].data_out = original->device_copies[0];
+        }
+
         if( flow->flow_flags & FLOW_ACCESS_READ ) {
             gpu_copy->readers--; assert(gpu_copy->readers >= 0);
             if( (0 == gpu_copy->readers) &&
@@ -1724,13 +1729,13 @@ dague_gpu_kernel_epilog( gpu_device_t        *gpu_device,
 
         gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
-        cpu_copy = original->device_copies[0];
 
         if( !(gpu_task->flow[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
-            /* Do not propagate GPU copies to successors (temporary solution) */
-            this_task->data[i].data_out = cpu_copy;
+            /* Warning data_out for read only flow has been overwritten in pop */
             continue;
         }
+
+        cpu_copy = original->device_copies[0];
 
         /**
          * There might be a race condition here. We can't assume the first CPU
