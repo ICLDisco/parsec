@@ -45,6 +45,10 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
     endif( jdf_rules_IsInBinaryDir )
 
     list(APPEND ${jdf_rules_OUTPUTLIST} "${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.h;${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c")
+    get_source_file_property(jdf_rules_CompileFlags ${jdf_rules_SOURCE} COMPILE_FLAGS )
+    if( jdf_rules_CompileFlags )
+        set_source_files_properties(${CMAKE_CURRENT_BINARY_DIR}/${jdf_rules_OSRC}.c PROPERTIES COMPILE_FLAGS ${jdf_rules_CompileFlags} )
+    endif()
 
   endforeach()
   #
