@@ -1274,7 +1274,7 @@ dague_dtd_handle_destruct(dague_dtd_handle_t *dague_handle)
             dague_dtd_function_release( dague_handle, dtd_func->fpointer );
 
             for (j=0; j< func->nb_flows; j++) {
-                if(func->in[j] != NULL && func->in[j]->flow_flags == FLOW_ACCESS_READ) {
+                if(func->in[j] != NULL ) {
                     for(k=0; k<MAX_DEP_IN_COUNT; k++) {
                         if (func->in[j]->dep_in[k] != NULL) {
                             free((void*)func->in[j]->dep_in[k]);
@@ -1287,7 +1287,7 @@ dague_dtd_handle_destruct(dague_dtd_handle_t *dague_handle)
                     }
                     free((void*)func->in[j]);
                 }
-                if(func->out[j] != NULL) {
+                /*if(func->out[j] != NULL) {
                     for(k=0; k<MAX_DEP_IN_COUNT; k++) {
                         if (func->out[j]->dep_in[k] != NULL) {
                             free((void*)func->out[j]->dep_in[k]);
@@ -1299,7 +1299,7 @@ dague_dtd_handle_destruct(dague_dtd_handle_t *dague_handle)
                         }
                     }
                     free((void*)func->out[j]);
-                }
+                }*/
             }
             dague_mempool_destruct(dtd_func->context_mempool);
             free(dtd_func->context_mempool);
@@ -1581,7 +1581,7 @@ complete_hook_of_dtd( dague_execution_unit_t    *context,
     return 0;
 }
 
-/* prepare_input function, to be consistent with PaRSEC */
+/* Prepare_input function */
 int
 data_lookup_of_dtd_task(dague_execution_unit_t *context,
                         dague_execution_context_t *this_task)
@@ -1614,13 +1614,97 @@ data_lookup_of_dtd_task(dague_execution_unit_t *context,
     return DAGUE_HOOK_RETURN_DONE;
 }
 
-/* prepare_output function, to be consistent with PaRSEC */
+/* Prepare_output function */
 int
 output_data_of_dtd_task(dague_execution_unit_t *context,
                         dague_execution_context_t *this_task)
 {
     (void)context; (void)this_task;
     return DAGUE_HOOK_RETURN_DONE;
+}
+
+int
+find_free_in_flow
+(const dague_function_t *function)
+{
+    int i;
+    for (i=0; i<MAX_PARAM_COUNT-1; i++) {
+        if ( function->in[i] == NULL ) {
+            break;
+        }
+    }
+    return i;
+}
+
+int
+find_free_out_flow
+(const dague_function_t *function)
+{
+    int i;
+    for (i=0; i<MAX_PARAM_COUNT-1; i++) {
+        if ( function->out[i] == NULL ) {
+            break;
+        }
+    }
+    return i;
+}
+
+int
+find_out_flow( const dague_function_t *function, int flow_index )
+{
+    int i;
+    for (i=0; i<MAX_PARAM_COUNT-1; i++) {
+        if ( function->out[i] != NULL ) {
+            if ( function->out[i]->flow_index == flow_index ) {
+                break;
+            }
+        }
+    }
+    return i;
+}
+
+int
+find_in_flow( const dague_function_t *function, int flow_index )
+{
+    int i;
+    for (i=0; i<MAX_PARAM_COUNT-1; i++) {
+        if ( function->in[i] != NULL ) {
+            if ( function->in[i]->flow_index == flow_index ) {
+                break;
+            }
+        }
+    }
+    return i;
+}
+
+/***************************************************************************//**
+ *
+ * Function to find and return a dep between two tasks
+ *
+ * @param[in]   parent_task, desc_task, parent_flow_index, desc_flow_index
+ * @return
+ *              Dep found between two tasks
+ *
+ * @ingroup         DTD_INTERFACE_INTERNAL
+ *
+ ******************************************************************************/
+dep_t *
+find_and_return_dep( dague_dtd_task_t *parent_task, dague_dtd_task_t *desc_task,
+                     int parent_flow_index, int desc_flow_index )
+{
+    int out_index = find_out_flow( (dague_function_t *) parent_task->super.function, parent_flow_index );
+    dague_flow_t *flow = (dague_flow_t*)parent_task->super.function->out[out_index];
+    int desc_function_id = desc_task->super.function->function_id, i;
+    dep_t *dep = NULL;
+
+    for (i=0; i<MAX_DEP_OUT_COUNT; i++) {
+        if ( flow->dep_out[i]->function_id == desc_function_id &&
+            flow->dep_out[i]->flow->flow_index == desc_flow_index ) {
+            dep = (dep_t *) flow->dep_out[i];
+            break;
+        }
+    }
+    return dep;
 }
 
 #if defined (WILL_USE_IN_DISTRIBUTED)
@@ -1639,14 +1723,14 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
                               dague_function_t *parent_function,
                               dague_function_t *desc_function,
                               uint8_t parent_flow_index,
-                              uint8_t desc_flow_index,
-                              int tile_type_index)
+                              uint8_t desc_flow_index)
 {
     uint8_t i, dep_exists = 0, j;
 
     if (NULL == desc_function) {   /* Data is not going to any other task */
-        if(parent_function->out[parent_flow_index]) {
-            dague_flow_t *tmp_d_flow = (dague_flow_t *)parent_function->out[parent_flow_index];
+        int out_index = find_out_flow( parent_function, parent_flow_index );
+        if(NULL != parent_function->out[out_index]) {
+            dague_flow_t *tmp_d_flow = (dague_flow_t *)parent_function->out[out_index];
             for (i=0; i<MAX_DEP_IN_COUNT; i++) {
                 if (NULL != tmp_d_flow->dep_out[i]) {
                     if (tmp_d_flow->dep_out[i]->function_id == LOCAL_DATA ) {
@@ -1665,21 +1749,17 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
             desc_dep->function_id   = LOCAL_DATA; /* 100 is used to indicate data is coming from memory */
-            desc_dep->dep_index     = parent_flow_index;
-            desc_dep->belongs_to    = parent_function->out[parent_flow_index];
+            desc_dep->dep_index     = ((dague_dtd_function_t*)parent_function)->dep_out_index++;
+            desc_dep->belongs_to    = parent_function->out[out_index];
             desc_dep->flow          = NULL;
             desc_dep->direct_data   = NULL;
             /* specific for cholesky, will need to change */
-            desc_dep->dep_datatype_index = tile_type_index;
-            desc_dep->datatype.type.cst     = 0;
-            desc_dep->datatype.layout.cst   = 0;
-            desc_dep->datatype.count.cst    = 0;
-            desc_dep->datatype.displ.cst    = 0;
+            desc_dep->dep_datatype_index    = ((dague_dtd_function_t*)parent_function)->dep_datatype_index++;
 
             for (i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if (NULL == parent_function->out[parent_flow_index]->dep_out[i]) {
+                if (NULL == parent_function->out[out_index]->dep_out[i]) {
                     /* Bypassing constness in function structure */
-                    dague_flow_t **desc_in = (dague_flow_t**)&(parent_function->out[parent_flow_index]);
+                    dague_flow_t **desc_in = (dague_flow_t**)&(parent_function->out[out_index]);
                     /* Setting dep in the next available dep_in array index */
                     (*desc_in)->dep_out[i] = (dep_t *)desc_dep;
                     break;
@@ -1690,8 +1770,9 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
     }
 
     if (NULL == parent_function) {   /* Data is not coming from any other task */
-        if(desc_function->in[desc_flow_index]) {
-            dague_flow_t *tmp_d_flow = (dague_flow_t *)desc_function->in[desc_flow_index];
+        int in_index = find_in_flow( desc_function, desc_flow_index );
+        if(NULL != desc_function->in[in_index]) {
+            dague_flow_t *tmp_d_flow = (dague_flow_t *)desc_function->in[in_index];
             for (i=0; i<MAX_DEP_IN_COUNT; i++) {
                 if (NULL != tmp_d_flow->dep_in[i]) {
                     if (tmp_d_flow->dep_in[i]->function_id == LOCAL_DATA ) {
@@ -1708,21 +1789,17 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             }
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
-            desc_dep->function_id   = LOCAL_DATA; /* 100 is used to indicate data is coming from memory */
-            desc_dep->dep_index     = desc_flow_index;
-            desc_dep->belongs_to    = desc_function->in[desc_flow_index];
+            desc_dep->function_id   = LOCAL_DATA;
+            desc_dep->dep_index     = ((dague_dtd_function_t*)desc_function)->dep_in_index++;
+            desc_dep->belongs_to    = desc_function->in[in_index];
             desc_dep->flow          = NULL;
             desc_dep->direct_data   = NULL;
-            desc_dep->dep_datatype_index = tile_type_index; /* specific for cholesky, will need to change */
-            desc_dep->datatype.type.cst     = 0;
-            desc_dep->datatype.layout.cst   = 0;
-            desc_dep->datatype.count.cst    = 0;
-            desc_dep->datatype.displ.cst    = 0;
+            desc_dep->dep_datatype_index    = ((dague_dtd_function_t*)desc_function)->dep_datatype_index;
 
             for (i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if (NULL == desc_function->in[desc_flow_index]->dep_in[i]) {
+                if (NULL == desc_function->in[in_index]->dep_in[i]) {
                     /* Bypassing constness in function structure */
-                    dague_flow_t **desc_in = (dague_flow_t**)&(desc_function->in[desc_flow_index]);
+                    dague_flow_t **desc_in = (dague_flow_t**)&(desc_function->in[in_index]);
                     /* Setting dep in the next available dep_in array index */
                     (*desc_in)->dep_in[i]  = (dep_t *)desc_dep;
                     break;
@@ -1731,48 +1808,49 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
         }
         return;
     } else {
-        dague_flow_t *tmp_flow = (dague_flow_t *) parent_function->out[parent_flow_index];
+        int out_index = find_out_flow( parent_function, parent_flow_index );
+        dague_flow_t *tmp_flow = (dague_flow_t *) parent_function->out[out_index];
 
         if (NULL == tmp_flow) {
+            int in_index = find_in_flow( parent_function, parent_flow_index );
+            dep_t *tmp_dep;
             dague_flow_t *tmp_p_flow = NULL;
-            tmp_flow =(dague_flow_t *) parent_function->in[parent_flow_index];
+            tmp_flow =(dague_flow_t *) parent_function->in[in_index];
             for (i=0; i<MAX_DEP_IN_COUNT; i++) {
                 if(NULL != tmp_flow->dep_in[i]) {
-                    if(tmp_flow->dep_in[i]->dep_index == parent_flow_index &&
-                       tmp_flow->dep_in[i]->dep_datatype_index == tile_type_index) {
-                        if(tmp_flow->dep_in[i]->function_id == LOCAL_DATA) {
-                            set_dependencies_for_function(dague_handle,
-                                                          NULL, desc_function, 0,
-                                                          desc_flow_index, tile_type_index);
-                            return;
-                        }
-                        tmp_p_flow = (dague_flow_t *)tmp_flow->dep_in[i]->flow;
-                        parent_function =(dague_function_t *) dague_handle->functions_array[tmp_flow->dep_in[i]->function_id];
-                        for(j=0; j<MAX_DEP_OUT_COUNT; j++) {
-                            if(NULL != tmp_p_flow->dep_out[j]) {
-                                if((dague_flow_t *)tmp_p_flow->dep_out[j]->flow == tmp_flow) {
-                                    parent_flow_index = tmp_p_flow->dep_out[j]->dep_index;
-                                    set_dependencies_for_function(dague_handle,
-                                                                  parent_function,
-                                                                  desc_function,
-                                                                  parent_flow_index,
-                                                                  desc_flow_index,
-                                                                  tile_type_index);
-                                    return;
-                                }
-                            }
-                        }
+                    tmp_dep = (dep_t *) tmp_flow->dep_in[i];
+                }
+            }
+            if(tmp_dep->function_id == LOCAL_DATA) {
+                set_dependencies_for_function(dague_handle,
+                                              NULL, desc_function, 0,
+                                              desc_flow_index);
+                return;
+            }
+            tmp_p_flow = (dague_flow_t *)tmp_dep->flow;
+            parent_function = (dague_function_t *)dague_handle->functions_array[tmp_dep->function_id];
+
+            for(j=0; j<MAX_DEP_OUT_COUNT; j++) {
+                if(NULL != tmp_p_flow->dep_out[j]) {
+                    if((dague_flow_t *)tmp_p_flow->dep_out[j]->flow == tmp_flow) {
+                        parent_flow_index = tmp_p_flow->dep_out[j]->belongs_to->flow_index;
+                        set_dependencies_for_function(dague_handle,
+                                                      parent_function,
+                                                      desc_function,
+                                                      parent_flow_index,
+                                                      desc_flow_index);
+                        return;
                     }
                 }
             }
             dep_exists = 1;
         }
 
+        int desc_in_index = find_in_flow( desc_function, desc_flow_index );
         for (i=0; i<MAX_DEP_OUT_COUNT; i++) {
             if (NULL != tmp_flow->dep_out[i]) {
-                if (tmp_flow->dep_out[i]->function_id == desc_function->function_id &&
-                    tmp_flow->dep_out[i]->flow == desc_function->in[desc_flow_index] &&
-                    tmp_flow->dep_out[i]->dep_datatype_index == tile_type_index) {
+                if( tmp_flow->dep_out[i]->function_id == desc_function->function_id &&
+                    tmp_flow->dep_out[i]->flow == desc_function->in[desc_in_index] ) {
                     dep_exists = 1;
                     break;
                 }
@@ -1791,20 +1869,16 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             parent_dep->cond            = NULL;
             parent_dep->ctl_gather_nb   = NULL;
             parent_dep->function_id     = desc_function->function_id;
-            parent_dep->flow            = desc_function->in[desc_flow_index];
-            parent_dep->dep_index       = parent_flow_index;
-            parent_dep->belongs_to      = parent_function->out[parent_flow_index];
+            parent_dep->flow            = desc_function->in[desc_in_index];
+            parent_dep->dep_index       = ((dague_dtd_function_t*)parent_function)->dep_out_index++;
+            parent_dep->belongs_to      = parent_function->out[out_index];
             parent_dep->direct_data     = NULL;
-            parent_dep->dep_datatype_index = tile_type_index;
-            parent_dep->datatype.type.cst     = 0;
-            parent_dep->datatype.layout.cst   = 0;
-            parent_dep->datatype.count.cst    = 0;
-            parent_dep->datatype.displ.cst    = 0;
+            parent_dep->dep_datatype_index = ((dague_dtd_function_t*)parent_function)->dep_datatype_index++;
 
             for(i=0; i<MAX_DEP_OUT_COUNT; i++) {
-                if(NULL == parent_function->out[parent_flow_index]->dep_out[i]) {
+                if(NULL == parent_function->out[out_index]->dep_out[i]) {
                     /* to bypass constness in function structure */
-                    dague_flow_t **parent_out = (dague_flow_t **)&(parent_function->out[parent_flow_index]);
+                    dague_flow_t **parent_out = (dague_flow_t **)&(parent_function->out[out_index]);
                     (*parent_out)->dep_out[i] = (dep_t *)parent_dep;
                     break;
                 }
@@ -1814,29 +1888,25 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
             desc_dep->function_id   = parent_function->function_id;
-            desc_dep->flow          = parent_function->out[parent_flow_index];
-            desc_dep->dep_index     = desc_flow_index;
-            desc_dep->belongs_to    = desc_function->in[desc_flow_index];
+            desc_dep->flow          = parent_function->out[out_index];
+            desc_dep->dep_index     = ((dague_dtd_function_t*)desc_function)->dep_in_index++;
+            desc_dep->belongs_to    = desc_function->in[desc_in_index];
             desc_dep->direct_data   = NULL;
-            desc_dep->dep_datatype_index = tile_type_index;
-            desc_dep->datatype.type.cst     = 0;
-            desc_dep->datatype.layout.cst   = 0;
-            desc_dep->datatype.count.cst    = 0;
-            desc_dep->datatype.displ.cst    = 0;
+            desc_dep->dep_datatype_index = ((dague_dtd_function_t*)desc_function)->dep_datatype_index;
 
             for(i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if(NULL == desc_function->in[desc_flow_index]->dep_in[i]) {
+                if(NULL == desc_function->in[desc_in_index]->dep_in[i]) {
                     /* Bypassing constness in function strucutre */
-                    dague_flow_t **desc_in = (dague_flow_t **)&(desc_function->in[desc_flow_index]);
+                    dague_flow_t **desc_in = (dague_flow_t **)&(desc_function->in[desc_in_index]);
                     (*desc_in)->dep_in[i]  = (dep_t *)desc_dep;
                     break;
                 }
             }
         }
     }
-    return;
 }
 #endif
+
 
 /* **************************************************************************** */
 /**
@@ -1877,9 +1947,12 @@ create_function(dague_dtd_handle_t *__dague_handle, dague_dtd_funcptr_t* fpointe
     dague_dtd_function_t *dtd_function = (dague_dtd_function_t *) calloc(1, sizeof(dague_dtd_function_t));
     dague_function_t *function = (dague_function_t *) dtd_function;
 
-    dtd_function->count_of_params   = count_of_params;
-    dtd_function->size_of_param     = size_of_param;
-    dtd_function->fpointer          = fpointer;
+    dtd_function->dep_datatype_index = 0;
+    dtd_function->dep_in_index       = 0;
+    dtd_function->dep_out_index      = 0;
+    dtd_function->count_of_params    = count_of_params;
+    dtd_function->size_of_param      = size_of_param;
+    dtd_function->fpointer           = fpointer;
 
     /* Allocating mempool according to the size and param count */
     dtd_function->context_mempool = (dague_mempool_t*) malloc (sizeof(dague_mempool_t));
@@ -1979,19 +2052,12 @@ set_flow_in_function( dague_dtd_handle_t *__dague_handle,
         flow->flow_flags = FLOW_ACCESS_RW;
     }
 
-    /*
-     cannot pack the flows like PTG as it creates
-     a lot more complicated dependency building
-     between master structures.
-     */
-    if ((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
-        dague_flow_t **in = (dague_flow_t **)&(__dague_handle->super.functions_array[this_task->belongs_to_function]->in[flow_index]);
-        *in = flow;
-    }
-    if ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE || (tile_op_type & GET_OP_TYPE) == INOUT) {
-        dague_flow_t **out = (dague_flow_t **)&(__dague_handle->super.functions_array[this_task->belongs_to_function]->out[flow_index]);
-        *out = flow;
-    }
+    int in_index = find_free_in_flow (this_task->super.function);
+    dague_flow_t **in = (dague_flow_t **)&(this_task->super.function->in[in_index]);
+    *in = flow;
+    int out_index = find_free_out_flow (this_task->super.function);
+    dague_flow_t **out = (dague_flow_t **)&(this_task->super.function->out[out_index]);
+    *out = flow;
 }
 
 /* **************************************************************************** */
@@ -2440,21 +2506,10 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
             }
 
 #if defined (WILL_USE_IN_DISTRIBUTED)
-            if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
-                if (!testing_ptg_to_dtd) {
-                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle,
-                                                  (dague_function_t *)this_task->super.function, NULL,
-                                                  flow_index, 0, tile_type_index);
-                }
-
-            } else {
-                if (!testing_ptg_to_dtd) {
-                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle,
-                                                  (dague_function_t *)last_user.task->super.function,
-                                                  (dague_function_t *)this_task->super.function,
-                                                  last_user.flow_index, flow_index, tile_type_index);
-                }
-            }
+            set_dependencies_for_function( (dague_handle_t *)dague_dtd_handle,
+                                           (dague_function_t *)last_user.task->super.function,
+                                           (dague_function_t *)this_task->super.function,
+                                            last_user.flow_index, flow_index );
 #endif
         } else {  /* parentless */
             this_task->super.data[flow_index].data_in = tile->data_copy;
@@ -2470,21 +2525,11 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
 
 #if defined (WILL_USE_IN_DISTRIBUTED)
             if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
-                if (!testing_ptg_to_dtd) {
-                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle, NULL,
-                                                  (dague_function_t *)this_task->super.function,
-                                                  0, flow_index, tile_type_index);
-                }
-            }
-            if((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == ATOMIC_WRITE) {
-                if (!testing_ptg_to_dtd) {
-                    set_dependencies_for_function((dague_handle_t *)dague_dtd_handle,
-                                                  (dague_function_t *)this_task->super.function, NULL,
-                                                  flow_index, 0, tile_type_index);
-                }
+                    set_dependencies_for_function( (dague_handle_t *)dague_dtd_handle, NULL,
+                                                   (dague_function_t *)this_task->super.function,
+                                                    0, flow_index );
             }
 #endif
-
         }
     }
 

@@ -26,16 +26,17 @@ BEGIN_C_DECLS
 
 extern int dump_traversal_info; /* For printing traversal info */
 extern int dump_function_info; /* For printing function_structure info */
-extern int testing_ptg_to_dtd; /* to detect ptg testing dtd */
 extern int dtd_window_size;
 extern int my_rank;
 
-#define GET_TASK_PTR(TASK) (dague_dtd_task_t *)(((uintptr_t)TASK) & 0xFFFFFFFFFFFFFFF0)
-#define GET_FLOW_IND(TASK) (int)(((uintptr_t)TASK) & 0x0F)
+#define GET_HEAD_OF_PARAM_LIST(TASK) (dague_dtd_task_param_t *) (((char *)TASK) + sizeof(dague_dtd_task_t))
+#define GET_VALUE_BLOCK(HEAD, PARAM_COUNT) ((char *)HEAD) + PARAM_COUNT * sizeof(dague_dtd_task_param_t)
 
 #define OVERLAP    1 /* enables window */
 #define LOCAL_DATA 200 /* function_id is uint8_t */
-#define DEBUG_HEAVY 1
+//#define DEBUG_HEAVY 1
+#define WILL_USE_IN_DISTRIBUTED
+#define DAGUE_DEFAULT_ARENA     0
 
 #define TASK_IS_ALIVE       1
 #define TASK_IS_NOT_ALIVE   0
@@ -147,6 +148,9 @@ struct dague_dtd_function_s {
     dague_function_t     super;
     dague_dtd_funcptr_t *fpointer;
     dague_mempool_t     *context_mempool;
+    int                  dep_datatype_index;
+    int                  dep_out_index;
+    int                  dep_in_index;
     int                  count_of_params;
     long unsigned int    size_of_param;
 };
