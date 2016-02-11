@@ -68,11 +68,18 @@ static void dague_data_destruct(dague_data_t* obj )
     DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Release data %p", obj);
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_data_copy_t *copy = NULL;
+        dague_device_t *device = dague_devices_get(i);
 
         while( (copy = obj->device_copies[i]) != NULL )
         {
             dague_data_copy_detach( obj, copy, i );
-            OBJ_RELEASE( copy );
+            if ( !(device->type & DAGUE_DEV_CUDA) ){
+                /**
+                 * GPU copies are normally stored in LRU lists, and must be
+                 * destroyed by the release list to free the memory on the device
+                 */
+                OBJ_RELEASE( copy );
+            }
         }
         assert(NULL == obj->device_copies[i]);
     }
