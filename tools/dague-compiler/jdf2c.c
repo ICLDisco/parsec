@@ -4314,12 +4314,13 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     ai.holder = "this_task->locals.";
     ai.expr = NULL;
 
-    string_arena_add_string( sa3,
-                             UTIL_DUMP_LIST(sa, f->locals, next,
-                                            dump_local_assignments, &ai, "", "  ", "\n", "\n"));
-    string_arena_add_string( sa3,
-                             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST(sa, f->locals, next,
+                                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     /* Generate the gpu_kernel_submit function */
     coutput("\n"
@@ -4329,12 +4330,12 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "{\n"
             "  %s *this_task = (%s *)gpu_task->ec;\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
-            "  (void)gpu_device; (void)gpu_stream; (void)__dague_handle;\n"
-            "%s\n",
+            "%s\n"
+            "  (void)gpu_device; (void)gpu_stream; (void)__dague_handle;\n",
             jdf_basename, f->fname,
             dague_get_name(jdf, f, "task_t"), dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
-            string_arena_get_string( sa3 ) );
+            string_arena_get_string( sa3 ));
 
     ai2.sa = sa2;
     ai2.where = "out";
