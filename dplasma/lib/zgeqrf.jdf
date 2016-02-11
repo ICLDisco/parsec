@@ -390,7 +390,7 @@ ztsmqr(k,m,n)
 
 BODY [type=CUDA device=inline_c %{ return n; %}]
 {
-    cuDoubleComplex *WORK, *WORKC;
+    dague_complex64_t *WORK, *WORKC;
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );

@@ -295,6 +295,14 @@ BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
       weight=(m+1-k)]
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+    cuDoubleComplex mzone = make_cuDoubleComplex(-1., 0.);
+#else
+    double zone  =  1.;
+    double mzone = -1.;
+#endif
+
     int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
@@ -306,9 +314,9 @@ BODY [type=CUDA
     cublasSetKernelStream( gpu_stream->cuda_stream );
     dyld_fn( lapack_const(PlasmaConjTrans), 'N',
              descA.mb, tempnn, descA.mb,
-             -1., (cuDoubleComplex*)A, ldak,
-                  (cuDoubleComplex*)B, ldak,
-              1., (cuDoubleComplex*)C, ldam );
+             mzone, (cuDoubleComplex*)A, ldak,
+                    (cuDoubleComplex*)B, ldak,
+             zone,  (cuDoubleComplex*)C, ldam );
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );

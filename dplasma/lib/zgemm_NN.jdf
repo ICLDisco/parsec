@@ -96,7 +96,14 @@ BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
       weight=(k+1)]
 {
-    dague_complex64_t lbeta = (k == descA.nt-1) ? beta : (dague_complex64_t)1.0;
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex lalpha = make_cuDoubleComplex(creal(alpha), cimag(alpha));
+    cuDoubleComplex lbeta  = (k == descA.nt-1) ? make_cuDoubleComplex(creal(beta), cimag(beta))
+                                               : make_cuDoubleComplex(1.0, 0.0);
+#else
+    double lalpha = alpha;
+    double lbeta  = (k == descA.nt-1) ? beta : 1.0;
+#endif
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
     int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
     int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
@@ -108,9 +115,9 @@ BODY [type=CUDA
     cublasSetKernelStream( gpu_stream->cuda_stream );
     dyld_fn( lapack_const(transA), lapack_const(transB),
              tempmm, tempnn, tempkk,
-             alpha, (cuDoubleComplex*)A, ldam,
-                    (cuDoubleComplex*)B, ldbk,
-             lbeta, (cuDoubleComplex*)C, ldcm );
+             lalpha, (cuDoubleComplex*)A, ldam,
+                     (cuDoubleComplex*)B, ldbk,
+             lbeta,  (cuDoubleComplex*)C, ldcm );
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );

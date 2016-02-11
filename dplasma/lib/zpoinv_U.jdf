@@ -147,6 +147,14 @@ potrf_zgemm(k, m, n)
 
 BODY [type=CUDA]
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+    cuDoubleComplex mzone = make_cuDoubleComplex(-1., 0.);
+#else
+    double zone  =  1.;
+    double mzone = -1.;
+#endif
+
     int tempmm = (m == (descA.nt-1)) ? (descA.n - m * descA.nb) : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldan = BLKLDD( descA, n );
@@ -155,9 +163,9 @@ BODY [type=CUDA]
     cublasSetKernelStream( gpu_stream->cuda_stream );
     cublasZgemm( lapack_const(PlasmaConjTrans), 'N',
                  descA.mb, tempmm, descA.mb,
-                 -1., (cuDoubleComplex*)A, ldak,
-                      (cuDoubleComplex*)B, ldak,
-                  1., (cuDoubleComplex*)C, ldan );
+                 mzone, (cuDoubleComplex*)A, ldak,
+                        (cuDoubleComplex*)B, ldak,
+                 zone,  (cuDoubleComplex*)C, ldan );
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );
@@ -250,6 +258,12 @@ trtri_zgemm(k, m, n)
 
 BODY [type=CUDA]
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+#else
+    double zone  =  1.;
+#endif
+
     int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int ldam = BLKLDD( descA, m );
@@ -259,9 +273,9 @@ BODY [type=CUDA]
     cublasSetKernelStream( gpu_stream->cuda_stream );
     cublasZgemm( 'N', 'N',
                  descA.mb, tempnn, tempkm,
-                 1., (cuDoubleComplex*)A, ldam,
-                     (cuDoubleComplex*)B, ldak,
-                 1., (cuDoubleComplex*)C, ldam );
+                 zone, (cuDoubleComplex*)A, ldam,
+                       (cuDoubleComplex*)B, ldak,
+                 zone, (cuDoubleComplex*)C, ldam );
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );
@@ -421,6 +435,12 @@ lauum_zgemm(k, m, n)
 
 BODY [type=CUDA]
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+#else
+    double zone  =  1.;
+#endif
+
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int ldam = BLKLDD( descA, m );
     int ldan = BLKLDD( descA, n );
@@ -429,9 +449,9 @@ BODY [type=CUDA]
     cublasSetKernelStream( gpu_stream->cuda_stream );
     cublasZgemm( 'N', lapack_const(PlasmaConjTrans),
                  descA.mb, descA.nb, tempkn,
-                 1., (cuDoubleComplex*)A, ldam,
-                     (cuDoubleComplex*)B, ldan,
-                 1., (cuDoubleComplex*)C, ldam );
+                 zone, (cuDoubleComplex*)A, ldam,
+                       (cuDoubleComplex*)B, ldan,
+                 zone, (cuDoubleComplex*)C, ldam );
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );
