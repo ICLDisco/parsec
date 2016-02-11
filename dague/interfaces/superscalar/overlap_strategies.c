@@ -42,10 +42,7 @@ release_ownership_of_data_1(const dague_dtd_task_t *current_task, int flow_index
 
     /* If this_task is still the owner of the data we remove this_task */
     if( tile->last_user.task == current_task ) {
-        tile->last_user.task        =  NULL;
-        tile->last_user.flow_index  = -1;
-        tile->last_user.op_type     = -1;
-        tile->last_user.alive       =  TASK_IS_NOT_ALIVE;
+        tile->last_user.alive       = TASK_IS_NOT_ALIVE;
         dague_dtd_last_user_unlock( &(tile->last_user) );
         /* we are successful, we do not need to wait and there is no successor yet*/
         return 1;

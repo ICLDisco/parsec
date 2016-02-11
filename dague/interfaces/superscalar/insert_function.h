@@ -59,6 +59,7 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
                 REGION_L=1<<1, /* Lower triangle */
                 REGION_D=1<<2, /* Diagonal */
                 REGION_U=1<<3, /* Upper Triangle */
+                AFFINITY=1<<4, /* Data affinity */
              } dtd_regions;
 
 #define DAGUE_dtd_NB_FUNCTIONS  25 /* Max number of task classes allowed */

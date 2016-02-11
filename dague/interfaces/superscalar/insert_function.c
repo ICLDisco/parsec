@@ -2452,6 +2452,22 @@ set_params_of_task( dague_dtd_task_t *this_task, dague_dtd_tile_t *tile,
 
 /* **************************************************************************** */
 /**
+ * Body of fake task we insert before every INPUT task that reads
+ * from memory
+ *
+ * @param   context, this_task
+ *
+ * @ingroup DTD_INTERFACE_INTERNAL
+ */
+int
+fake_first_out_body( dague_execution_unit_t *context, dague_execution_context_t *this_task)
+{
+    (void)context; (void)this_task;
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
+/* **************************************************************************** */
+/**
  * Function to insert task in PaRSEC
  *
  * In this function we track all the dependencies and create the DAG
@@ -2486,6 +2502,26 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
         last_user.op_type       = tile->last_user.op_type;
         last_user.alive         = tile->last_user.alive;
 
+
+        if( NULL == last_user.task && (tile_op_type & GET_OP_TYPE) == INPUT ) {
+            dague_dtd_last_user_unlock( &(tile->last_user) );
+
+            OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
+            /* parentless */
+            /* Create Fake output_task */
+            insert_task_in_PaRSEC( (dague_dtd_handle_t *)this_task->super.dague_handle,
+                                   &fake_first_out_body,  "Fake_FIRST_OUT",
+                                    PASSED_BY_REF,         tile,       INOUT | REGION_FULL | AFFINITY,
+                                    0 );
+
+            dague_dtd_last_user_lock( &(tile->last_user) );
+            /* Reading the last_user info */
+            last_user.task          = tile->last_user.task;
+            last_user.flow_index    = tile->last_user.flow_index;
+            last_user.op_type       = tile->last_user.op_type;
+            last_user.alive         = tile->last_user.alive;
+        }
+
         /* Setting the last_user info with info of this_task */
         tile->last_user.task        = this_task;
         tile->last_user.flow_index  = flow_index;
@@ -2494,7 +2530,8 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
         /* Unlocking the last_user of the tile */
         dague_dtd_last_user_unlock( &(tile->last_user) );
 
-        if(NULL != last_user.task) {
+        /* TASK_IS_ALIVE indicates we have a parent */
+        if(TASK_IS_ALIVE == last_user.alive) {
             set_descendant(last_user.task, last_user.flow_index,
                            this_task, flow_index, last_user.op_type,
                            tile_op_type);
@@ -2511,13 +2548,17 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
                                            (dague_function_t *)this_task->super.function,
                                             last_user.flow_index, flow_index );
 #endif
-        } else {  /* parentless */
+        } else {  /* Have parent, but parent is not alive */
             this_task->super.data[flow_index].data_in = tile->data_copy;
             satisfied_flow += 1;
 
-            if(INPUT == (tile_op_type & GET_OP_TYPE) || ATOMIC_WRITE == (tile_op_type & GET_OP_TYPE)) {
+            set_parent( last_user.task, last_user.flow_index,
+                        this_task, flow_index, last_user.op_type,
+                        tile_op_type );
+
+            if( INPUT == (tile_op_type & GET_OP_TYPE) ) {
                 /* Saving the Flow for which a Task is the first one to
-                 use the data and the operation is INPUT or ATOMIC_WRITE
+                 * use the data and the operation is INPUT or ATOMIC_WRITE
                  */
                 this_task->dont_skip_releasing_data[flow_index] = 1;
                 dague_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , 1 );
