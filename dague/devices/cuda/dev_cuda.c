@@ -1431,6 +1431,10 @@ progress_stream( gpu_device_t* gpu_device,
                         continue;
                     }
                     if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
+                        /**
+                         * As long as we have only one stream to push the data
+                         * to the GPU, we should never end up in this case.
+                         */
                         assert(0);
                         return saved_rc;
                     }
