@@ -1013,11 +1013,9 @@ dague_gpu_data_stage_in( gpu_device_t* gpu_device,
         assert( gpu_elem->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER ||
                 gpu_elem->data_transfer_status == DATA_STATUS_UNDER_TRANSFER);
 
-#if defined(DAGUE_DEBUG_NOISIER)
         DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream,
                             "GPU:\tNO PUSH from %p to %p, size %d\n",
                             in_elem->device_private, gpu_elem->device_private, original->nb_elts);
-#endif
     }
     /* TODO: data keeps the same coherence flags as before */
     return 0;
