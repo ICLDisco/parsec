@@ -149,7 +149,9 @@ zgemm(k, m, n)
              -> ((m == (k+1)) && (n >  (k+1))) ? B ztrsm_u(k+1, n)
              -> ((m >  (k+1)) && (n >  (k+1))) ? C zgemm(k+1, m, n)
 
-BODY [type=CUDA]
+BODY [type=CUDA
+      dyld=cublasZgemm dyldtype=cublas_zgemm_t
+      weight="dplasma_imin( m-k, n-k )"]
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
@@ -170,11 +172,11 @@ BODY [type=CUDA]
                  k, n, m, m, k, A, k, n, B, m, n, C);
 
     cublasSetKernelStream( gpu_stream->cuda_stream );
-    cublasZgemm( 'N', 'N',
-                 tempmm, tempnn, descA.mb,
-                 mzone, (cuDoubleComplex*)A, ldam,
-                        (cuDoubleComplex*)B, ldak,
-                 zone,  (cuDoubleComplex*)C, ldam );
+    dyld_fn( 'N', 'N',
+             tempmm, tempnn, descA.mb,
+             mzone, (cuDoubleComplex*)A, ldam,
+                    (cuDoubleComplex*)B, ldak,
+             zone,  (cuDoubleComplex*)C, ldam );
     status = cublasGetError();
     DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );
