@@ -1741,6 +1741,15 @@ dague_gpu_kernel_epilog( gpu_device_t        *gpu_device,
          * There might be a race condition here. We can't assume the first CPU
          * version is the corresponding CPU copy, as a new CPU-bound data
          * might have been created meanwhile.
+         *
+         * WARNING: For now we always forward the cpu_copy to the next task, to
+         * do that, we lie to the engine by updating the CPU copy to the same
+         * status than the GPU copy without updating the data itself. Thus, the
+         * cpu copy is really invalid. this is related to Issue #88, and the
+         * fact that:
+         *      - we don't forward the gpu copy as output
+         *      - we always take a cpu copy as input, so it has to be in the
+         *        same state as the GPU to prevent an extra data movement.
          */
         assert( DATA_COHERENCY_OWNED == gpu_copy->coherency_state );
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
