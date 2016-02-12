@@ -898,7 +898,7 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                                 gpu_device->cuda_index, lru_gpu_elem, master, this_task->function->name, i, oldmaster);
 
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-            /* Let's free this space, and try again to amlloc some space */
+            /* Let's free this space, and try again to malloc some space */
             zone_free( gpu_device->memory, (void*)(lru_gpu_elem->device_private) );
             DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                                 "Release LRU-retrieved CUDA copy %p [ref_count %d: must be 0]",
