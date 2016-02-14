@@ -957,10 +957,8 @@ int dague_output_get_verbosity(int output_id)
 }
 
 
-#if !defined(HAVE_VASPRINTF) 
-#if defined(HAVE_ERRNO_H)
+#if !defined(DAGUE_HAVE_VASPRINTF)
 #include <errno.h>
-#endif  /* defined(HAVE_ERRNO_H) */
 
 int vasprintf(char **ptr, const char *fmt, va_list ap) {
     int length;
@@ -970,9 +968,9 @@ int vasprintf(char **ptr, const char *fmt, va_list ap) {
     /* va_list might have pointer to internal state and using
        it twice is a bad idea.  So make a copy for the second
        use.  Copy order taken from Autoconf docs. */
-#if defined(HAVE_VA_COPY)
+#if defined(DAGUE_HAVE_VA_COPY)
     va_copy(ap2, ap);
-#elif defined(HAVE_UNDERSCORE_VA_COPY)
+#elif defined(DAGUE_HAVE_UNDERSCORE_VA_COPY)
     __va_copy(ap2, ap);
 #else
     memcpy (&ap2, &ap, sizeof(va_list));
@@ -987,9 +985,9 @@ int vasprintf(char **ptr, const char *fmt, va_list ap) {
      */
     length = vsnprintf(dummy, 4, fmt, ap2);
 
-#if defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY)
+#if defined(DAGUE_HAVE_VA_COPY) || defined(DAGUE_HAVE_UNDERSCORE_VA_COPY)
     va_end(ap2);
-#endif  /* defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY) */
+#endif  /* defined(DAGUE_HAVE_VA_COPY) || defined(DAGUE_HAVE_UNDERSCORE_VA_COPY) */
 
     /* allocate a buffer */
     *ptr = (char *) malloc((size_t) length + 1);
@@ -1011,9 +1009,9 @@ int vasprintf(char **ptr, const char *fmt, va_list ap) {
 
     return length;
 }
-#endif  /* !defined(HAVE_VASPRINTF) */
+#endif  /* !defined(DAGUE_HAVE_VASPRINTF) */
 
-#if !defined(HAVE_ASPRINTF)
+#if !defined(DAGUE_HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...) {
     int length;
     va_list ap;
@@ -1024,4 +1022,4 @@ int asprintf(char **ptr, const char *fmt, ...) {
 
     return length;
 }
-#endif  /* !defined(HAVE_ASPRINTF) */
+#endif  /* !defined(DAGUE_HAVE_ASPRINTF) */

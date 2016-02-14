@@ -32,12 +32,12 @@ static void **stack     = NULL;
 static int* stack_size  = NULL;
 
 
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 #endif
 
 void dague_debug_init(void) {
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
     int is_mpi_up;
     MPI_Initialized(&is_mpi_up);
     if( 0 == is_mpi_up ) {

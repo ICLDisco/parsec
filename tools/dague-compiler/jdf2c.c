@@ -14,10 +14,10 @@
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
-#if defined(HAVE_SYS_TYPES_H)
+#if defined(DAGUE_HAVE_SYS_TYPES_H)
 #include <sys/types.h>
 #endif
-#if defined(HAVE_UNISTD_H)
+#if defined(DAGUE_HAVE_UNISTD_H)
 #include <unistd.h>
 #endif
 

@@ -556,13 +556,13 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
  */
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_output_stream_t);
 
-#if !defined(HAVE_VASPRINTF) 
+#if !defined(DAGUE_HAVE_VASPRINTF)
 int vasprintf(char **ptr, const char *fmt, va_list ap);
-#endif  /* !defined(HAVE_VASPRINTF) */
+#endif  /* !defined(DAGUE_HAVE_VASPRINTF) */
 
-#if !defined(HAVE_ASPRINTF)
+#if !defined(DAGUE_HAVE_ASPRINTF)
 int asprintf(char **ptr, const char *fmt, ...);
-#endif  /* !defined(HAVE_ASPRINTF) */
+#endif  /* !defined(DAGUE_HAVE_ASPRINTF) */
 
 END_C_DECLS
 
