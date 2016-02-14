@@ -29,8 +29,9 @@ typedef struct {
 
 #define LOCAL_QUEUES_OBJECT(eu_context) ((local_queues_scheduler_object_t*)(eu_context)->scheduler_object)
 
-static inline void push_in_queue_wrapper(void *store, parsec_list_item_t *elt)
+static inline void push_in_queue_wrapper(void *store, parsec_list_item_t *elt, int32_t distance)
 {
+    (void)distance;
     parsec_dequeue_chain_back( (parsec_dequeue_t*)store, elt );
 }
 
@@ -38,10 +39,10 @@ static inline void push_in_queue_wrapper(void *store, parsec_list_item_t *elt)
 /** In case of hierarchical bounded buffer, define
  *  the wrappers to functions
  */
-static inline void push_in_buffer_wrapper(void *store, parsec_list_item_t *elt)
+static inline void push_in_buffer_wrapper(void *store, parsec_list_item_t *elt, int32_t distance)
 {
     /* Store is a hbbbuffer */
-    parsec_hbbuffer_push_all( (parsec_hbbuffer_t*)store, elt );
+    parsec_hbbuffer_push_all( (parsec_hbbuffer_t*)store, elt, distance );
 }
 #endif
 

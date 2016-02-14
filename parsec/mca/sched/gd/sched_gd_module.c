@@ -22,8 +22,12 @@
  * Module functions
  */
 static int sched_gd_install(parsec_context_t* master);
-static int sched_gd_schedule(parsec_execution_unit_t* eu_context, parsec_execution_context_t* new_context);
-static parsec_execution_context_t *sched_gd_select( parsec_execution_unit_t *eu_context );
+static int sched_gd_schedule(parsec_execution_unit_t* eu_context,
+                             parsec_execution_context_t* new_context,
+                             int32_t distance);
+static parsec_execution_context_t*
+sched_gd_select(parsec_execution_unit_t *eu_context,
+                int32_t* distance);
 static int flow_gd_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
 static void sched_gd_remove(parsec_context_t* master);
 
@@ -59,20 +63,25 @@ static int flow_gd_init(parsec_execution_unit_t* eu_context, struct parsec_barri
     return 0;
 }
 
-static parsec_execution_context_t *sched_gd_select( parsec_execution_unit_t *eu_context )
+static parsec_execution_context_t*
+sched_gd_select(parsec_execution_unit_t *eu_context,
+                int32_t* distance)
 {
     parsec_execution_context_t * context =
         (parsec_execution_context_t*)parsec_dequeue_try_pop_front( (parsec_dequeue_t*)eu_context->scheduler_object );
+    *distance = 0;
     return context;
 }
 
-static int sched_gd_schedule( parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context )
+static int sched_gd_schedule(parsec_execution_unit_t* eu_context,
+                             parsec_execution_context_t* new_context,
+                             int32_t distance)
 {
 #if defined(PINS_ENABLE)
     new_context->creator_core = 1;
 #endif
-    if( new_context->function->flags & PARSEC_HIGH_PRIORITY_TASK ) {
+    if( (new_context->function->flags & PARSEC_HIGH_PRIORITY_TASK) &&
+        (0 == distance) ) {
         parsec_dequeue_chain_front( (parsec_dequeue_t*)eu_context->scheduler_object, (parsec_list_item_t*)new_context);
     } else {
         parsec_dequeue_chain_back( (parsec_dequeue_t*)eu_context->scheduler_object, (parsec_list_item_t*)new_context);

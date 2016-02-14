@@ -14,10 +14,8 @@
  *
  * Scheduler framework component interface.
  *
- * Intent
- *
- * provide modular schedulers that can install themselves in the
- * parsec runtime system.
+ * Intent provide modular schedulers that can install themselves in the
+ * PaRSEC runtime system.
  *
  */
 
@@ -67,15 +65,25 @@ typedef int  (*parsec_sched_base_module_flow_init_fn_t)(parsec_execution_unit_t*
                                                        struct parsec_barrier_t*);
 /**
  * A double linked ring of ready tasks are available for the scheduler to insert
- * in the local queues. This call is only called on the target execution flow,
- * based on the runtime decision.
+ * in it's management structures. The distance where the insertion will start is
+ * indicated by the distance argument, the largest the value the further away the
+ * tasks will start to be inserted. The available range for the distance is
+ * scheduler dependent, but all scheduler must accept unreasonable values as indication
+ * for the most distant scheduling level. This call is only called on the target
+ * execution flow, based on the runtime decision.
  */
-typedef int  (*parsec_sched_base_module_schedule_fn_t)(parsec_execution_unit_t* eu_context,
-                                                      parsec_execution_context_t* new_context);
+typedef int  (*parsec_sched_base_module_schedule_fn_t)
+                 (parsec_execution_unit_t* eu_context,
+                  parsec_execution_context_t* new_context,
+                  int32_t distance);
 /**
- * Select the best candidate to be executed next.
+ * Select the best candidate to be executed next. Returns the distance where the
+ * returned candidate has been found (greater means further away). The distance
+ * is more than a hint, if ignored live locks can happen.
  */
-typedef parsec_execution_context_t *(*parsec_sched_base_module_select_fn_t)(parsec_execution_unit_t *eu_context);
+typedef parsec_execution_context_t *(*parsec_sched_base_module_select_fn_t)
+                 (parsec_execution_unit_t *eu_context,
+                  int32_t* distance);
 
 /**
  * Dump runtime statistics.

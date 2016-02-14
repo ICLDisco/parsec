@@ -34,8 +34,12 @@ static int SYSTEM_NEIGHBOR = 0;
  * Module functions
  */
 static int sched_lfq_install(parsec_context_t* master);
-static int sched_lfq_schedule(parsec_execution_unit_t* eu_context, parsec_execution_context_t* new_context);
-static parsec_execution_context_t *sched_lfq_select( parsec_execution_unit_t *eu_context );
+static int sched_lfq_schedule(parsec_execution_unit_t* eu_context,
+                              parsec_execution_context_t* new_context,
+                              int32_t distance);
+static parsec_execution_context_t*
+sched_lfq_select(parsec_execution_unit_t *eu_context,
+                 int32_t* distance);
 static void sched_lfq_remove(parsec_context_t* master);
 static int flow_lfq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
 
@@ -135,7 +139,9 @@ static int flow_lfq_init(parsec_execution_unit_t* eu_context, struct parsec_barr
     return 0;
 }
 
-static parsec_execution_context_t *sched_lfq_select( parsec_execution_unit_t *eu_context )
+static parsec_execution_context_t*
+sched_lfq_select(parsec_execution_unit_t *eu_context,
+                 int32_t* distance)
 {
     parsec_execution_context_t *exec_context = NULL;
     int i;
@@ -145,6 +151,7 @@ static parsec_execution_context_t *sched_lfq_select( parsec_execution_unit_t *eu
 #if defined(PINS_ENABLE)
         exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
 #endif
+        *distance = 0;
         return exec_context;
     }
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
@@ -156,6 +163,7 @@ static parsec_execution_context_t *sched_lfq_select( parsec_execution_unit_t *eu
 #if defined(PINS_ENABLE)
             exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
 #endif
+            *distance = i + 1;
             return exec_context;
         }
     }
@@ -167,14 +175,18 @@ static parsec_execution_context_t *sched_lfq_select( parsec_execution_unit_t *eu
 #if defined(PINS_ENABLE)
         exec_context->victim_core = SYSTEM_NEIGHBOR;
 #endif
+        *distance = 1 + LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues;
     }
     return exec_context;
 }
 
-static int sched_lfq_schedule( parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context )
+static int sched_lfq_schedule(parsec_execution_unit_t* eu_context,
+                              parsec_execution_context_t* new_context,
+                              int32_t distance)
 {
-    parsec_hbbuffer_push_all( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (parsec_list_item_t*)new_context );
+    parsec_hbbuffer_push_all(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+                             (parsec_list_item_t*)new_context,
+                             distance);
 /* #if defined(PARSEC_PROF_TRACE) */
 /*     TAKE_TIME(eu_context->eu_profile, queue_add_begin, 0); */
 /*     TAKE_TIME(eu_context->eu_profile, queue_add_end, 0); */

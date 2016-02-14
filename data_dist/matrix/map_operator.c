@@ -266,10 +266,10 @@ static int release_deps(parsec_execution_unit_t *eu,
         for(i = 0; i < vpmap_get_nb_vp(); i++) {
             if( NULL != ready_list[i] ) {
                 if( i == eu->virtual_process->vp_id )
-                    __parsec_schedule(eu, ready_list[i]);
+                    __parsec_schedule(eu, ready_list[i], 0);
                 else
                     __parsec_schedule(eu->virtual_process->parsec_context->virtual_processes[i]->execution_units[0],
-                                     ready_list[i]);
+                                     ready_list[i], 0);
             }
         }
     }
@@ -435,7 +435,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
                 add_task_to_list(eu, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
                                  __parsec_handle->super.src->super.myrank, -1,
                                  0, (void*)&ready_list);
-                __parsec_schedule( eu, ready_list );
+                __parsec_schedule( eu, ready_list, 0 );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )
                     goto done;

@@ -25,12 +25,15 @@ typedef struct parsec_hbbuffer_s parsec_hbbuffer_t;
  */
 
 /**
- * parent push function: takes a pointer to the parent store object, and
- * a pointer to the element that is ejected out of this bounded buffer because
- * of a push. elt must be stored in the parent store (linked list, hbbuffer, or
- * dequeue, etc...) before the function returns
+ * Generic push function: takes a pointer to a store object, a pointer to a
+ * ring of items (usually tasks), and a distance where to start inserting
+ * the elements. The store object can be of any type, it will internally be
+ * able to cast itself to the right type. The provided elements should be
+ * stored before this functions returns.
  */
-typedef void (*parsec_hbbuffer_parent_push_fct_t)(void *store, parsec_list_item_t *elt);
+typedef void (*parsec_hbbuffer_parent_push_fct_t)(void *store,
+                                                  parsec_list_item_t *elt,
+                                                  int32_t distance);
 
 struct parsec_hbbuffer_s {
     size_t size;       /**< the size of the buffer, in number of void* */
@@ -62,10 +65,16 @@ static inline void parsec_hbbuffer_destruct(parsec_hbbuffer_t *b)
     free(b);
 }
 
-static inline void parsec_hbbuffer_push_all(parsec_hbbuffer_t *b, parsec_list_item_t *elt)
+static inline void
+parsec_hbbuffer_push_all(parsec_hbbuffer_t *b,
+                         parsec_list_item_t *elt,
+                         int32_t distance)
 {
     parsec_list_item_t *next = elt;
     int i = 0, nbelt = 0;
+
+    if( (0 != distance) && (NULL != b->parent_push_fct) )
+        goto push_upstream;
 
     while( NULL != elt ) {
         /* Assume that we're going to push elt.
@@ -91,20 +100,23 @@ static inline void parsec_hbbuffer_push_all(parsec_hbbuffer_t *b, parsec_list_it
         elt = next;
     }
 
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tpushed %d elements. %s", nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done");
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tpushed %d elements. %s",
+                         nbelt, NULL != elt ? "More to push, go to father" : "Everything pushed - done");
 
-    if( NULL != elt ) {
-        if( NULL != next ) {
-            parsec_list_item_ring_push(next, elt);
-        }
-        else {
-            parsec_list_item_singleton(elt);
-        }
-        b->parent_push_fct(b->parent_store, elt);
+    if( NULL == elt ) return;
+
+    if( NULL != next ) {
+        parsec_list_item_ring_push(next, elt);
     }
+
+  push_upstream:
+    b->parent_push_fct(b->parent_store, elt, distance - 1);
 }
 
-static inline void parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b, parsec_list_item_t *list)
+static inline void
+parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
+                                     parsec_list_item_t *list,
+                                     int32_t distance)
 {
     int i = 0;
     parsec_execution_context_t *candidate, *best_context;
@@ -112,6 +124,11 @@ static inline void parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b, pa
     int best_index;
     parsec_list_item_t *ejected = NULL;
 #define CTX(to) ((parsec_execution_context_t*)(to))
+
+    if( (0 != distance) && (NULL != b->parent_push_fct) ) {
+        ejected = list;
+        goto push_upstream;
+    }
 
     /* Assume that we're going to push list.
      * Remove the first element from the list, keeping the rest of the list in topush
@@ -206,7 +223,9 @@ static inline void parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b, pa
         }
     } /* end while( topush != NULL ) */
 
-    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\t  %s", NULL != ejected ? "More to push, go to father" : "Everything pushed - done");
+  push_upstream:
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\t  %s",
+                         NULL != ejected ? "More to push, go to father" : "Everything pushed - done");
 
     if( NULL != ejected ) {
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -222,7 +241,7 @@ static inline void parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b, pa
         } while(it != ejected);
 #endif
 
-        b->parent_push_fct(b->parent_store, ejected);
+        b->parent_push_fct(b->parent_store, ejected, distance - 1);
     }
 #undef CTX
 }

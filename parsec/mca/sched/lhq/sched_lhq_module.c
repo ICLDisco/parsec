@@ -32,8 +32,12 @@
  * Module functions
  */
 static int sched_lhq_install(parsec_context_t* master);
-static int sched_lhq_schedule(parsec_execution_unit_t* eu_context, parsec_execution_context_t* new_context);
-static parsec_execution_context_t *sched_lhq_select( parsec_execution_unit_t *eu_context );
+static int sched_lhq_schedule(parsec_execution_unit_t* eu_context,
+                              parsec_execution_context_t* new_context,
+                              int32_t distance);
+static parsec_execution_context_t*
+sched_lhq_select(parsec_execution_unit_t *eu_context,
+                 int32_t* distance);
 static int flow_lhq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
 static void sched_lhq_remove(parsec_context_t* master);
 
@@ -130,7 +134,9 @@ static int flow_lhq_init(parsec_execution_unit_t* eu_context, struct parsec_barr
     return 0;
 }
 
-static parsec_execution_context_t *sched_lhq_select( parsec_execution_unit_t *eu_context )
+static parsec_execution_context_t*
+sched_lhq_select(parsec_execution_unit_t *eu_context,
+                 int32_t* distance)
 {
     parsec_execution_context_t *exec_context = NULL;
     int i;
@@ -138,6 +144,7 @@ static parsec_execution_context_t *sched_lhq_select( parsec_execution_unit_t *eu
     exec_context = (parsec_execution_context_t*)parsec_hbbuffer_pop_best(LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
                                                                        parsec_execution_context_priority_comparator);
     if( NULL != exec_context ) {
+        *distance = 0;
         return exec_context;
     }
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
@@ -146,6 +153,7 @@ static parsec_execution_context_t *sched_lhq_select( parsec_execution_unit_t *eu
         if( NULL != exec_context ) {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]);
+            *distance = i + 1;
             return exec_context;
         }
     }
@@ -154,14 +162,18 @@ static parsec_execution_context_t *sched_lhq_select( parsec_execution_unit_t *eu
     if( NULL != exec_context ) {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its system queue %p",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
+        *distance = 1 + LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues;
     }
     return exec_context;
 }
 
-static int sched_lhq_schedule( parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context )
+static int sched_lhq_schedule(parsec_execution_unit_t* eu_context,
+                              parsec_execution_context_t* new_context,
+                              int32_t distance)
 {
-    parsec_hbbuffer_push_all( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (parsec_list_item_t*)new_context );
+    parsec_hbbuffer_push_all( LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+                              (parsec_list_item_t*)new_context,
+                              distance );
 #if defined(PARSEC_PROF_TRACE)
     TAKE_TIME(eu_context->eu_profile, queue_add_begin, 0);
     TAKE_TIME(eu_context->eu_profile, queue_add_end, 0);

@@ -23,8 +23,11 @@ static int SYSTEM_NEIGHBOR = 0;
  * Module functions
  */
 static int sched_rnd_install(parsec_context_t* master);
-static int sched_rnd_schedule(parsec_execution_unit_t* eu_context, parsec_execution_context_t* new_context);
-static parsec_execution_context_t *sched_rnd_select( parsec_execution_unit_t *eu_context );
+static int sched_rnd_schedule(parsec_execution_unit_t* eu_context,
+                              parsec_execution_context_t* new_context,
+                              int32_t distance);
+static parsec_execution_context_t *sched_rnd_select(parsec_execution_unit_t *eu_context,
+                                                    int32_t* distance);
 static int flow_rnd_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
 static void sched_rnd_remove(parsec_context_t* master);
 
@@ -60,7 +63,9 @@ static int flow_rnd_init(parsec_execution_unit_t* eu_context, struct parsec_barr
     return 0;
 }
 
-static parsec_execution_context_t *sched_rnd_select( parsec_execution_unit_t *eu_context )
+static parsec_execution_context_t*
+sched_rnd_select(parsec_execution_unit_t *eu_context,
+                 int32_t* distance)
 {
     parsec_execution_context_t * context =
         (parsec_execution_context_t*)parsec_list_pop_front((parsec_list_t*)eu_context->scheduler_object);
@@ -68,11 +73,13 @@ static parsec_execution_context_t *sched_rnd_select( parsec_execution_unit_t *eu
     if (NULL != context)
         context->victim_core = SYSTEM_NEIGHBOR;
 #endif
+    *distance = 0;
     return context;
 }
 
-static int sched_rnd_schedule( parsec_execution_unit_t* eu_context,
-                               parsec_execution_context_t* new_context )
+static int sched_rnd_schedule(parsec_execution_unit_t* eu_context,
+                              parsec_execution_context_t* new_context,
+                              int32_t distance)
 {
     parsec_list_item_t *it = (parsec_list_item_t*)new_context;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -90,6 +97,9 @@ static int sched_rnd_schedule( parsec_execution_unit_t* eu_context,
     parsec_list_chain_sorted((parsec_list_t*)eu_context->scheduler_object,
                             (parsec_list_item_t*)new_context,
                             parsec_execution_context_priority_comparator);
+    /* We can ignore distance, the task will randomly get inserted in a place that
+     * will prevent livelocks. */
+    (void)distance;
     return 0;
 }
 

@@ -374,7 +374,7 @@ parsec_execute_and_come_back(parsec_context_t *context,
     uint64_t misses_in_a_row;
     parsec_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
     parsec_execution_context_t* exec_context;
-    int rc, nbiterations = 0;
+    int rc, nbiterations = 0, distance;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -400,7 +400,7 @@ parsec_execute_and_come_back(parsec_context_t *context,
             nanosleep(&rqtp, NULL);
         }
 
-        exec_context = current_scheduler->module.select(eu_context);
+        exec_context = current_scheduler->module.select(eu_context, &distance);
 
         if( exec_context != NULL ) {
             PINS(eu_context, SELECT_END, exec_context);
@@ -441,7 +441,7 @@ parsec_execute_and_come_back(parsec_context_t *context,
                         SET_LOWEST_PRIORITY(exec_context, parsec_execution_context_priority_comparator);
                     } else
                         exec_context->priority /= 10;  /* demote the task */
-                    __parsec_schedule(eu_context, exec_context);
+                    __parsec_schedule(eu_context, exec_context, distance + 1);
                     exec_context = NULL;
                     break;
                 case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
@@ -466,7 +466,7 @@ parsec_execute_and_come_back(parsec_context_t *context,
                 } else
                     exec_context->priority /= 10;  /* demote the task */
                 PARSEC_LIST_ITEM_SINGLETON(exec_context);
-                __parsec_schedule(eu_context, exec_context);
+                __parsec_schedule(eu_context, exec_context, distance + 1);
                 exec_context = NULL;
                 break;
             default:
@@ -1541,9 +1541,9 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
             continue;
         }
         if (__vp_id == eu->virtual_process->vp_id) {
-            __parsec_schedule(eu, arg.ready_lists[__vp_id]);
+            __parsec_schedule(eu, arg.ready_lists[__vp_id], 0);
         }else {
-            __parsec_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);
+            __parsec_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id], 0);
         }
         arg.ready_lists[__vp_id] = NULL;
     }
@@ -2203,24 +2203,22 @@ void
 schedule_tasks (parsec_dtd_handle_t *__parsec_handle)
 {
     parsec_execution_context_t **startup_list = __parsec_handle->startup_list;
+    parsec_list_t temp;
 
-    int p;
-    for(p = 0; p < vpmap_get_nb_vp(); p++) {
-        if( NULL != startup_list[p] ) {
-            parsec_list_t temp;
+    OBJ_CONSTRUCT( &temp, parsec_list_t );
+    for(int p = 0; p < vpmap_get_nb_vp(); p++) {
+        if( NULL == startup_list[p] ) continue;
 
-            OBJ_CONSTRUCT( &temp, parsec_list_t );
-            /* Order the tasks by priority */
-            parsec_list_chain_sorted(&temp, (parsec_list_item_t*)startup_list[p],
-                                    parsec_execution_context_priority_comparator);
-            startup_list[p] = (parsec_execution_context_t*)parsec_list_nolock_unchain(&temp);
-            OBJ_DESTRUCT(&temp);
-            /* We should add these tasks on the system queue when there is one */
-            __parsec_schedule( __parsec_handle->super.context->virtual_processes[p]->execution_units[0],
-                              startup_list[p] );
-            startup_list[p] = NULL;
-        }
+        /* Order the tasks by priority */
+        parsec_list_chain_sorted(&temp, (parsec_list_item_t*)startup_list[p],
+                                parsec_execution_context_priority_comparator);
+        startup_list[p] = (parsec_execution_context_t*)parsec_list_nolock_unchain(&temp);
+        /* We should add these tasks on the system queue when there is one */
+        __parsec_schedule( __parsec_handle->super.context->virtual_processes[p]->execution_units[0],
+                          startup_list[p], 0 );
+        startup_list[p] = NULL;
     }
+    OBJ_DESTRUCT(&temp);
 }
 
 /* **************************************************************************** */

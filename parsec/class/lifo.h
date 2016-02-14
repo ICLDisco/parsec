@@ -18,8 +18,6 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
 
 static inline int
 parsec_lifo_is_empty( parsec_lifo_t* lifo );
-static inline int
-parsec_lifo_nolock_is_empty( parsec_lifo_t* lifo);
 
 static inline void
 parsec_lifo_push(parsec_lifo_t* lifo, parsec_list_item_t* item);

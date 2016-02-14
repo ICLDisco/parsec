@@ -16,15 +16,24 @@ BEGIN_C_DECLS
  * input dependencies are resolved. The execution context can be
  * executed immediately or delayed until resources become available.
  *
+ * @param [IN] The execution unit where the tasks are to be proposed
+ *             for scheduling. This is a hint, as the scheduling engine
+ *             is free to push them where it decides.
  * @param [IN] The execution context to be executed. This include
  *             calling the attached hook (if any) as well as marking
  *             all dependencies as completed.
+ * @param [IN] Suggested distance to the current state where the tasks
+ *             are to be pushed. The larger the value (in absolute) the
+ *             further away the tasks will be pushed. This is a hint
+ *             that the schedulers are free to ignore.
  *
  * @return  0 If the execution was succesful and all output dependencies
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int __parsec_schedule( parsec_execution_unit_t*, parsec_execution_context_t*);
+int __parsec_schedule( parsec_execution_unit_t*,
+                       parsec_execution_context_t*,
+                       int32_t distance);
 
 int __parsec_context_wait(parsec_execution_unit_t* eu_context);
 
@@ -43,7 +52,7 @@ int __parsec_execute( parsec_execution_unit_t*, parsec_execution_context_t*);
  * @return -1   If something went wrong.
  */
 int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
-                              parsec_execution_context_t *exec_context );
+                                 parsec_execution_context_t *exec_context );
 
 /**
  * Signal the handle that a certain number of runtime bound activities have been

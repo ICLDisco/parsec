@@ -34,8 +34,11 @@ static int SYSTEM_NEIGHBOR = 0;
  * Module functions
  */
 static int sched_pbq_install(parsec_context_t* master);
-static int sched_pbq_schedule(parsec_execution_unit_t* eu_context, parsec_execution_context_t* new_context);
-static parsec_execution_context_t *sched_pbq_select( parsec_execution_unit_t *eu_context );
+static int sched_pbq_schedule(parsec_execution_unit_t* eu_context,
+                              parsec_execution_context_t* new_context,
+                              int32_t distance);
+static parsec_execution_context_t *sched_pbq_select(parsec_execution_unit_t *eu_context,
+                                                    int32_t* distance);
 static int flow_pbq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
 static void sched_pbq_remove(parsec_context_t* master);
 
@@ -136,7 +139,9 @@ static int flow_pbq_init(parsec_execution_unit_t* eu, struct parsec_barrier_t* b
     return 0;
 }
 
-static parsec_execution_context_t *sched_pbq_select( parsec_execution_unit_t *eu_context )
+static parsec_execution_context_t*
+sched_pbq_select( parsec_execution_unit_t *eu_context,
+                  int32_t* distance)
 {
     parsec_execution_context_t *exec_context = NULL;
     int i;
@@ -144,8 +149,9 @@ static parsec_execution_context_t *sched_pbq_select( parsec_execution_unit_t *eu
                                                                        parsec_execution_context_priority_comparator);
     if( NULL != exec_context ) {
 #if defined(PINS_ENABLE)
-		exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+        exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
 #endif
+        *distance = 0;
         return exec_context;
     }
     for(i = 0; i <  LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues; i++ ) {
@@ -155,8 +161,9 @@ static parsec_execution_context_t *sched_pbq_select( parsec_execution_unit_t *eu
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its %d-preferred hierarchical queue %p",
                     eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, i, LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]);
 #if defined(PINS_ENABLE)
-			exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
+            exec_context->victim_core = LOCAL_QUEUES_OBJECT(eu_context)->hierarch_queues[i]->assoc_core_num;
 #endif
+            *distance = i + 1;
             return exec_context;
         }
     }
@@ -166,18 +173,22 @@ static parsec_execution_context_t *sched_pbq_select( parsec_execution_unit_t *eu
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "LQ\t: %d:%d found task %p in its system queue %p",
                 eu_context->virtual_process->vp_id, eu_context->th_id, exec_context, LOCAL_QUEUES_OBJECT(eu_context)->system_queue);
 #if defined(PINS_ENABLE)
-		exec_context->victim_core = SYSTEM_NEIGHBOR;
+        exec_context->victim_core = SYSTEM_NEIGHBOR;
 #endif
+        *distance = 1 + LOCAL_QUEUES_OBJECT(eu_context)->nb_hierarch_queues;
     }
     return exec_context;}
 
 static int sched_pbq_schedule( parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context )
+                              parsec_execution_context_t* new_context,
+                              int32_t distance)
 {
 #if defined(PINS_ENABLE)
-	new_context->creator_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
+    new_context->creator_core = LOCAL_QUEUES_OBJECT(eu_context)->task_queue->assoc_core_num;
 #endif
-    parsec_hbbuffer_push_all_by_priority( LOCAL_QUEUES_OBJECT(eu_context)->task_queue, (parsec_list_item_t*)new_context);
+    parsec_hbbuffer_push_all_by_priority( LOCAL_QUEUES_OBJECT(eu_context)->task_queue,
+                                          (parsec_list_item_t*)new_context,
+                                          distance);
     return 0;
 }
 
