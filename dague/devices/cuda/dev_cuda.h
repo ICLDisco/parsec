@@ -160,11 +160,6 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_t
 /**
  * Progress
  */
-typedef int (*advance_task_function_t)(gpu_device_t            *gpu_device,
-                                       dague_gpu_context_t     *gpu_task,
-                                       dague_gpu_exec_stream_t *gpu_stream);
-
-
 /**
  * This version is based on 4 streams: one for transfers from the memory to
  * the GPU, 2 for kernel executions and one for tranfers from the GPU into
