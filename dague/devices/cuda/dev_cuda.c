@@ -1508,39 +1508,39 @@ void dump_GPU_state(gpu_device_t* gpu_device)
 {
     int i;
 
-    dague_output("\n\n");
-    dague_output("Device %d:%d (%p)\n", gpu_device->cuda_index, gpu_device->super.device_index, gpu_device);
-    dague_output("\tpeer mask %x executed tasks %llu max streams %d\n",
+    dague_output(dague_cuda_output_stream, "\n\n");
+    dague_output(dague_cuda_output_stream, "Device %d:%d (%p)\n", gpu_device->cuda_index, gpu_device->super.device_index, gpu_device);
+    dague_output(dague_cuda_output_stream, "\tpeer mask %x executed tasks %llu max streams %d\n",
                  gpu_device->peer_access_mask, (unsigned long long)gpu_device->super.executed_tasks, gpu_device->max_exec_streams);
-    dague_output("\tstats transferred [in %llu out %llu] required [in %llu out %llu]\n",
+    dague_output(dague_cuda_output_stream, "\tstats transferred [in %llu out %llu] required [in %llu out %llu]\n",
                  (unsigned long long)gpu_device->super.transferred_data_in, (unsigned long long)gpu_device->super.transferred_data_out,
                  (unsigned long long)gpu_device->super.required_data_in, (unsigned long long)gpu_device->super.required_data_out);
     for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
         dump_exec_stream(&gpu_device->exec_stream[i]);
     }
     if( !dague_ulist_is_empty(&gpu_device->gpu_mem_lru) ) {
-        dague_output("#\n# LRU list\n#\n");
+        dague_output(dague_cuda_output_stream, "#\n# LRU list\n#\n");
         i = 0;
         DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_lru, item,
                              {
                                  dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-                                 dague_output("  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
+                                 dague_output(dague_cuda_output_stream, "  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
                                  dague_dump_data_copy(gpu_copy);
                                  i++;
                              });
     };
     if( !dague_ulist_is_empty(&gpu_device->gpu_mem_owned_lru) ) {
-        dague_output("#\n# Owned LRU list\n#\n");
+        dague_output(dague_cuda_output_stream, "#\n# Owned LRU list\n#\n");
         i = 0;
         DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
                              {
                                  dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
-                                 dague_output("  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
+                                 dague_output(dague_cuda_output_stream, "  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
                                  dague_dump_data_copy(gpu_copy);
                                  i++;
                              });
     };
-    dague_output("\n\n");
+    dague_output(dague_cuda_output_stream, "\n\n");
 }
 
 /**
