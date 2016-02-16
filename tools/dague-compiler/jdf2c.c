@@ -4454,7 +4454,9 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     }
     coutput("  ratio = %s;\n"
             "  dev_index = %s;\n"
-            "  if (dev_index == -1) {\n"
+            "  if (dev_index < -1) {\n"
+            "    return DAGUE_HOOK_RETURN_NEXT;\n"
+            "  } else if (dev_index == -1) {\n"
             "    dev_index = dague_gpu_get_best_device((dague_execution_context_t*)this_task, ratio);\n"
             "  } else {\n"
             "    dev_index = (dev_index %% (dague_devices_enabled()-2)) + 2;\n"
