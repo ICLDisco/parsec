@@ -3042,13 +3042,15 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            dump_data_name, sa2, "",
                            "      dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
                            ";\n"
-                           "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "      if( (NULL != dague_ddesc->register_memory) &&\n"
+                           "          (DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) ) {\n"
                            "        dague_debug_verbose(3, dague_debug_output, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
                            "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
                            "      }\n",
                            ";\n"
-                           "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "      if( (NULL != dague_ddesc->register_memory) &&\n"
+                           "          (DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) ) {\n"
                            "        dague_debug_verbose(3, dague_debug_output, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
                            "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
@@ -3158,8 +3160,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             UTIL_DUMP_LIST(sa, jdf->globals, next,
                            dump_data_name, sa1, "",
                            "  dague_ddesc = (dague_ddesc_t*)handle->super.",
-                           ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n",
-                           ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n"));
+                           ";\n  if( NULL != dague_ddesc->unregister_memory ) { (void)dague_ddesc->unregister_memory(dague_ddesc, device); };\n",
+                           ";\n  if( NULL != dague_ddesc->unregister_memory ) { (void)dague_ddesc->unregister_memory(dague_ddesc, device); };\n"));
 
     coutput("  /* Unregister the handle from the devices */\n"
             "  for( i = 0; i < dague_nb_devices; i++ ) {\n"
@@ -4441,7 +4443,6 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     else {
         weight = "1.";
     }
-    coutput("  ratio = %s;\n", weight);
 
     /* Get the hint for statix and/or external gpu scheduling */
     jdf_find_property( body->properties, "device", &device_property );
