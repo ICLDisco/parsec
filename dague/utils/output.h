@@ -556,7 +556,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
  */
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_output_stream_t);
 
-#if !defined(HAVE_VASPRINTF) 
+#if !defined(HAVE_VASPRINTF)
 int vasprintf(char **ptr, const char *fmt, va_list ap);
 #endif  /* !defined(HAVE_VASPRINTF) */
 
