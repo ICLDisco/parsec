@@ -960,7 +960,8 @@ dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     if( (in_elem != original->device_copies[0]) &&
         (in_elem->version == original->device_copies[0]->version) ) {
         /* We should never enter here, as long as we don't foward the GPU data to the input */
-        assert(0);
+        assert(!((in_elem != original->device_copies[0]) &&
+                 (in_elem->version == original->device_copies[0]->version)));
         dague_data_copy_release(in_elem);  /* release the copy in GPU1 */
         task_data->data_in = original->device_copies[0];
         in_elem = task_data->data_in;
@@ -1430,12 +1431,13 @@ progress_stream( gpu_device_t* gpu_device,
                         this_task->data[i].data_out->data_transfer_status = DATA_STATUS_COMPLETE_TRANSFER;
                         continue;
                     }
+                    assert(this_task->data[i].data_out->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER);
                     if (this_task->data[i].data_out->data_transfer_status != DATA_STATUS_COMPLETE_TRANSFER) {  /* data is not ready */
                         /**
                          * As long as we have only one stream to push the data
                          * to the GPU, we should never end up in this case.
+                         * Remove previous assert if changed.
                          */
-                        assert(0);
                         return saved_rc;
                     }
                 }
