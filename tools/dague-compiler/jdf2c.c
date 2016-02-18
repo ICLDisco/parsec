@@ -534,15 +534,25 @@ static char *dump_data_declaration(void **elem, void *arg)
 }
 
 /**
+ * Parameters of the dump_data_initialization_from_data_array
+ */
+typedef struct init_from_data_info {
+    string_arena_t *sa;
+    const char *where;
+} init_from_data_info_t;
+
+/**
  * dump_data_initialization_from_data_array:
- *  Takes the pointer to a flow *f, let say that f->varname == "A",
- *  this produces a string like
+ *  Takes the pointer to a flow *f, let say that f->varname == "A", and where ==
+ *  "in", this produces a string like
  *  dague_data_copy_t *gA = this_task->data[id].data_in;\n
  *  void *A = DAGUE_DATA_COPY_GET_PTR(gA); (void)A;\n
  */
 static char *dump_data_initialization_from_data_array(void **elem, void *arg)
 {
-    string_arena_t *sa = (string_arena_t *)arg;
+    init_from_data_info_t *info = (init_from_data_info_t*)arg;
+    string_arena_t *sa = info->sa;
+    const char *where = info->where;
     jdf_dataflow_t *f = (jdf_dataflow_t*)elem;
     char *varname = f->varname;
 
@@ -553,8 +563,8 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa,
-                            "  dague_data_copy_t *g%s = this_task->data.%s.data_in;\n",
-                            varname, f->varname);
+                            "  dague_data_copy_t *g%s = this_task->data.%s.data_%s;\n",
+                            varname, f->varname, where);
     if( !(f->flow_flags & JDF_FLOW_TYPE_READ) ) {  /* if only write then we can locally have NULL */
         string_arena_add_string(sa,
                                 "  void *%s = (NULL != g%s) ? DAGUE_DATA_COPY_GET_PTR(g%s) : NULL; (void)%s;\n",
@@ -1152,6 +1162,10 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#if defined(DAGUE_PROF_GRAPHER)\n"
             "#include \"dague/dague_prof_grapher.h\"\n"
             "#endif  /* defined(DAGUE_PROF_GRAPHER) */\n"
+            "#if defined(HAVE_CUDA)\n"
+            "#include \"dague/devices/cuda/dev_cuda.h\"\n"
+            "extern int dague_cuda_output_stream;\n"
+            "#endif  /* defined(HAVE_CUDA) */\n"
             "#include <alloca.h>\n",
             jdf_basename,
             jdf_basename, nbfunctions,
@@ -2657,6 +2671,14 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
             if( NULL == dyld_property ) {
                 string_arena_add_string(sa, "      .dyld     = NULL,\n");
             } else {
+                jdf_def_list_t* dyld_proptotype_property;
+                jdf_find_property(body->properties, "dyldtype", &dyld_proptotype_property);
+                if ( NULL == dyld_proptotype_property ) {
+                    fprintf(stderr,
+                            "Internal Error: function prototype (dyldtype) of dyld function (%s) is not defined in %s body of task %s at line %d\n",
+                            dyld_property->expr->jdf_var, type_property->expr->jdf_var, f->fname, JDF_OBJECT_LINENO( body ) );
+                    assert( NULL != dyld_proptotype_property );
+                }
                 string_arena_add_string(sa, "      .dyld     = \"%s\",\n", dyld_property->expr->jdf_var);
             }
             string_arena_add_string(sa, "      .evaluate = %s,\n", "NULL");
@@ -2992,9 +3014,6 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
-    /* TODO: in the next debug_verbose(..., "...Device..."), the output should
-     * be dague_cuda_output_stream, but this is not an available global from
-     * the generated code. */
     coutput("static void %s_startup(dague_context_t *context, __dague_%s_internal_handle_t *__dague_handle, dague_list_item_t ** ready_tasks)\n"
             "{\n"
             "  uint32_t supported_dev = 0;\n"
@@ -3015,7 +3034,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    if(NULL != device->device_memory_register) {  /* Register all the data */\n"
             "%s"
             "    }\n"
-            "    supported_dev |= (1 << device->type);\n"
+            "    supported_dev |= device->type;\n"
             "    __dague_handle->super.super.devices_mask |= (1 << _i);\n"
             "  }\n",
             jdf_basename, jdf_basename,
@@ -3023,13 +3042,15 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            dump_data_name, sa2, "",
                            "      dague_ddesc = (dague_ddesc_t*)__dague_handle->super.",
                            ";\n"
-                           "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "      if( (NULL != dague_ddesc->register_memory) &&\n"
+                           "          (DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) ) {\n"
                            "        dague_debug_verbose(3, dague_debug_output, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
                            "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
                            "      }\n",
                            ";\n"
-                           "      if(DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) {\n"
+                           "      if( (NULL != dague_ddesc->register_memory) &&\n"
+                           "          (DAGUE_SUCCESS != dague_ddesc->register_memory(dague_ddesc, device)) ) {\n"
                            "        dague_debug_verbose(3, dague_debug_output, \"Device %s refused to register memory for data %s (%p) from handle %p\",\n"
                            "                     device->name, dague_ddesc->key_base, dague_ddesc, __dague_handle);\n"
                            "        continue;\n"
@@ -3042,7 +3063,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    uint32_t index = 0;\n"
             "    uint32_t j;\n"
             "    for( j = 0; NULL != chores[j].hook; j++ ) {\n"
-            "      if(supported_dev & (1 << chores[j].type)) {\n"
+            "      if(supported_dev & chores[j].type) {\n"
             "          if( j != index ) {\n"
             "            chores[index] = chores[j];\n"
             "            dague_debug_verbose(20, dague_debug_output, \"Device type %%i disabled for function %%s\"\n, chores[j].type, func->name);\n"
@@ -3139,8 +3160,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             UTIL_DUMP_LIST(sa, jdf->globals, next,
                            dump_data_name, sa1, "",
                            "  dague_ddesc = (dague_ddesc_t*)handle->super.",
-                           ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n",
-                           ";\n  (void)dague_ddesc->unregister_memory(dague_ddesc, device);\n"));
+                           ";\n  if( NULL != dague_ddesc->unregister_memory ) { (void)dague_ddesc->unregister_memory(dague_ddesc, device); };\n",
+                           ";\n  if( NULL != dague_ddesc->unregister_memory ) { (void)dague_ddesc->unregister_memory(dague_ddesc, device); };\n"));
 
     coutput("  /* Unregister the handle from the devices */\n"
             "  for( i = 0; i < dague_nb_devices; i++ ) {\n"
@@ -3612,8 +3633,10 @@ static void jdf_generate_code_call_init_output(const jdf_t *jdf, const jdf_call_
             }
         }
     }
-    coutput("%s    chunk = dague_arena_get_copy(%s, %s, target_device);\n",
-            spaces, arena, count);
+    coutput("%s    chunk = dague_arena_get_copy(%s, %s, target_device);\n"
+            "%s    chunk->original->owner_device = target_device;\n",
+            spaces, arena, count,
+            spaces);
     return;
 }
 
@@ -4259,15 +4282,23 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
     string_arena_free(sa2);
 }
 
-static void jdf_generate_code_hook(const jdf_t *jdf,
-                                   const jdf_function_entry_t *f,
-                                   const jdf_body_t* body,
-                                   const char *name)
+static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
+                                        const jdf_function_entry_t *f,
+                                        const jdf_body_t* body,
+                                        const char *name)
 {
-    jdf_def_list_t* type_property;
-    string_arena_t *sa, *sa2;
+    jdf_def_list_t *type_property;
+    jdf_def_list_t *weight_property;
+    jdf_def_list_t *device_property;
+    const char *dyld;
+    const char *dyldtype;
+    const char *device;
+    const char *weight;
+    string_arena_t *sa, *sa2, *sa3;
     assignment_info_t ai;
+    init_from_data_info_t ai2;
     jdf_dataflow_t *fl;
+    expr_info_t info;
     int di;
     int profile_on;
     char* output;
@@ -4276,52 +4307,55 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
 
     jdf_find_property(body->properties, "type", &type_property);
-    if(NULL != type_property) {
-        if(JDF_VAR != type_property->expr->op) {
-            expr_info_t ei;
 
-            ei.sa = string_arena_new(64);
-            ei.prefix = "";
-            ei.suffix = "";
-            ei.assignments = NULL;
-
-            jdf_fatal(body->super.lineno,
-                      "Type property set to unknown value for function %s in file %s:%d\n"
-                      "Currently set to [%s]<%d>\n",
-                      f->fname, body->super.filename, body->super.lineno,
-                      dump_expr((void**)type_property->expr, (void*)&ei), type_property->expr->op);
-            string_arena_free(ei.sa);
-            exit(1);
-        }
-    }
-    if( NULL != type_property)
-        coutput("#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
+    /* Get the dynamic function properties */
+    dyld = jdf_property_get_string(body->properties, "dyld", NULL);
+    dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
 
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
+    sa3 = string_arena_new(64);
+
     ai.sa = sa2;
     ai.holder = "this_task->locals.";
     ai.expr = NULL;
-    if(NULL == type_property)
-        coutput("static int %s(dague_execution_unit_t *context, %s *this_task)\n",
-                name, dague_get_name(jdf, f, "task_t"));
-    else
-        coutput("static int %s_%s(dague_execution_unit_t *context, %s *this_task)\n",
-                name, type_property->expr->jdf_var, dague_get_name(jdf, f, "task_t"));
 
-    coutput("{\n"
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST(sa, f->locals, next,
+                                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+
+    string_arena_add_string(sa3, "%s",
+                            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+
+    /* Generate the gpu_kernel_submit structure and function */
+    coutput("struct dague_body_cuda_%s_%s_s {\n"
+            "  uint8_t      index;\n"
+            "  cudaStream_t stream;\n"
+            "  %s           dyld_fn;\n"
+            "};\n"
+            "\n"
+            "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
+            "                                   dague_gpu_context_t     *gpu_task,\n"
+            "                                   dague_gpu_exec_stream_t *gpu_stream )\n"
+            "{\n"
+            "  %s *this_task = (%s *)gpu_task->ec;\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
-            "  (void)context; (void)__dague_handle;\n"
-            "%s",
+            "  struct dague_body_cuda_%s_%s_s dague_body = { gpu_device->cuda_index, gpu_stream->cuda_stream, NULL };\n"
+            "%s\n"
+            "  (void)gpu_device; (void)gpu_stream; (void)__dague_handle; (void)dague_body;\n",
+            jdf_basename, f->fname,
+            dyldtype,
+            jdf_basename, f->fname,
+            dague_get_name(jdf, f, "task_t"), dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
-            UTIL_DUMP_LIST(sa, f->locals, next,
-                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
-    coutput("%s\n",
-            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
-                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+            jdf_basename, f->fname,
+            string_arena_get_string( sa3 ));
 
+    ai2.sa = sa2;
+    ai2.where = "out";
     output = UTIL_DUMP_LIST(sa, f->dataflow, next,
-                            dump_data_initialization_from_data_array, sa2, "", "", "", "");
+                            dump_data_initialization_from_data_array, &ai2, "", "", "", "");
     if( 0 != strlen(output) ) {
         coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
                 "%s\n",
@@ -4356,6 +4390,311 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
     jdf_generate_code_cache_awareness_update(jdf, f);
 
+    coutput("#if defined(DAGUE_DEBUG_NOISIER)\n"
+            "  {\n"
+            "    char tmp[MAX_TASK_STRLEN];\n"
+            "    DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream, \"GPU[%%1d]:\\tEnqueue on device %%s priority %%d\\n\", gpu_device->cuda_index, \n"
+            "           dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (dague_execution_context_t *)this_task),\n"
+            "           this_task->priority );\n"
+            "  }\n"
+            "#endif /* defined(DAGUE_DEBUG_NOISIER) */\n" );
+
+    jdf_generate_code_dry_run_before(jdf, f);
+    jdf_coutput_prettycomment('-', "%s BODY", f->fname);
+
+    if( profile_on ) {
+        coutput("  DAGUE_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,\n"
+                "                           gpu_stream->profiling,\n"
+                "                           (-1 == gpu_stream->prof_event_key_start ?\n"
+                "                           DAGUE_PROF_FUNC_KEY_START(this_task->dague_handle,\n"
+                "                                                     this_task->function->function_id) :\n"
+                "                           gpu_stream->prof_event_key_start),\n"
+                "                           this_task);\n");
+    }
+
+    dyld = jdf_property_get_string(body->properties, "dyld", NULL);
+    dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
+    if ( NULL != dyld ) {
+        coutput("  /* Pointer to dynamic gpu function */\n"
+                "  dague_body.dyld_fn = (%s)this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
+                dyldtype );
+    }
+
+    coutput("%s\n", body->external_code);
+    if( !JDF_COMPILER_GLOBAL_ARGS.noline ) {
+        coutput("#line %d \"%s\"\n", cfile_lineno+1, jdf_cfilename);
+    }
+    jdf_coutput_prettycomment('-', "END OF %s BODY", f->fname);
+    jdf_generate_code_dry_run_after(jdf, f);
+    coutput("  return DAGUE_HOOK_RETURN_DONE;\n"
+            "}\n\n");
+
+    /* Generate the hook_cuda */
+    coutput("static int %s_%s(dague_execution_unit_t *context, %s *this_task)\n"
+            "{\n"
+            "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
+            "  dague_gpu_context_t *gpu_task;\n"
+            "  double ratio;\n"
+            "  int dev_index;\n"
+            "  %s\n"
+            "  (void)context; (void)__dague_handle;\n"
+            "\n",
+            name, type_property->expr->jdf_var, dague_get_name(jdf, f, "task_t"),
+            jdf_basename, jdf_basename,
+            string_arena_get_string( sa3 ));
+
+    info.sa = string_arena_new(64);
+    info.prefix = "";
+    info.suffix = "";
+    info.assignments = "&this_task->locals";
+
+    /* Get the ratio to  apply on the weight for this task */
+    jdf_find_property( body->properties, "weight", &weight_property );
+    if ( NULL != weight_property ) {
+        weight = dump_expr((void**)weight_property->expr, &info);
+    }
+    else {
+        weight = "1.";
+    }
+
+    /* Get the hint for statix and/or external gpu scheduling */
+    jdf_find_property( body->properties, "device", &device_property );
+    if ( NULL != device_property ) {
+        device = dump_expr((void**)device_property->expr, &info);
+    }
+    else {
+        device = "-1";
+    }
+    coutput("  ratio = %s;\n"
+            "  dev_index = %s;\n"
+            "  if (dev_index < -1) {\n"
+            "    return DAGUE_HOOK_RETURN_NEXT;\n"
+            "  } else if (dev_index == -1) {\n"
+            "    dev_index = dague_gpu_get_best_device((dague_execution_context_t*)this_task, ratio);\n"
+            "  } else {\n"
+            "    dev_index = (dev_index %% (dague_devices_enabled()-2)) + 2;\n"
+            "  }\n"
+            "  assert(dev_index >= 0);\n"
+            "  if( dev_index < 2 ) {\n"
+            "    return DAGUE_HOOK_RETURN_NEXT;  /* Fall back */\n"
+            "  }\n"
+            "  dague_device_load[dev_index] += ratio * dague_device_sweight[dev_index];\n"
+            "\n"
+            "  gpu_task = (dague_gpu_context_t*)calloc(1, sizeof(dague_gpu_context_t));\n"
+            "  OBJ_CONSTRUCT(gpu_task, dague_list_item_t);\n"
+            "  gpu_task->ec = (dague_execution_context_t*)this_task;\n"
+            "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
+            "  gpu_task->task_type = 0;\n",
+            weight, device,
+            jdf_basename, f->fname);
+
+    /* Dump the dataflow */
+    for(fl = f->dataflow, di = 0; fl != NULL; fl = fl->next, di++) {
+        coutput("  gpu_task->pushout[%d] = 0;\n"
+                "  gpu_task->flow[%d]    = &%s;\n",
+                di,
+                di, JDF_OBJECT_ONAME( fl ));
+
+        if (fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
+            jdf_dep_t *dl;
+            int testtrue, testfalse;
+
+            /**
+             * We force the pushout for every data that is not only going to the
+             * same kind of kernel in the future.
+             * (TODO: could be avoided with different GPU compliant kernels)
+             */
+            for(dl = fl->deps; dl != NULL; dl = dl->next) {
+                if( dl->dep_flags & JDF_DEP_FLOW_IN )
+                    continue;
+
+                testtrue = (dl->guard->calltrue != NULL) &&
+                    ((dl->guard->calltrue->var == NULL ) ||
+                     (strcmp(dl->guard->calltrue->func_or_mem, f->fname)));
+
+                testfalse = (dl->guard->callfalse != NULL) &&
+                    ((dl->guard->callfalse->var == NULL ) ||
+                     (strcmp(dl->guard->callfalse->func_or_mem, f->fname)));
+
+                switch( dl->guard->guard_type ) {
+                case JDF_GUARD_UNCONDITIONAL:
+                    if(testtrue) {
+                        coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                        goto nextflow;
+                    }
+                    break;
+                case JDF_GUARD_BINARY:
+                    if(testtrue) {
+                        coutput("  if( %s ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                    }
+                    break;
+                case JDF_GUARD_TERNARY:
+                    if( testtrue ) {
+                        coutput("  if( %s ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }\n",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                        if( testfalse ) {
+                            coutput("  else {\n"
+                                    "    gpu_task->pushout[%d] = 1;\n"
+                                    "  }\n",
+                                    di);
+                        }
+                    }
+                    else if ( testfalse ) {
+                        coutput("  if( !(%s) ) {\n"
+                                "    gpu_task->pushout[%d] = 1;\n"
+                                "  }\n",
+                                dump_expr((void**)dl->guard->guard, &info), di);
+                    }
+                    break;
+                }
+            }
+          nextflow:
+            ;
+        }
+    }
+    string_arena_free(info.sa);
+
+
+    coutput("\n"
+            "  return dague_gpu_kernel_scheduler( context, gpu_task, dev_index );\n"
+            "}\n\n");
+
+    string_arena_free(sa);
+    string_arena_free(sa2);
+    string_arena_free(sa3);
+}
+
+static void jdf_generate_code_hook(const jdf_t *jdf,
+                                   const jdf_function_entry_t *f,
+                                   const jdf_body_t* body,
+                                   const char *name)
+{
+    jdf_def_list_t* type_property;
+    string_arena_t *sa, *sa2;
+    assignment_info_t ai;
+    init_from_data_info_t ai2;
+    jdf_dataflow_t *fl;
+    int di;
+    int profile_on;
+    char* output;
+
+    profile_on = jdf_property_get_int(f->properties, "profile", 1);
+    profile_on = jdf_property_get_int(body->properties, "profile", profile_on);
+
+    jdf_find_property(body->properties, "type", &type_property);
+    if(NULL != type_property) {
+        if(JDF_VAR != type_property->expr->op) {
+            expr_info_t ei;
+
+            ei.sa = string_arena_new(64);
+            ei.prefix = "";
+            ei.suffix = "";
+            ei.assignments = NULL;
+
+            jdf_fatal(body->super.lineno,
+                      "Type property set to unknown value for function %s in file %s:%d\n"
+                      "Currently set to [%s]<%d>\n",
+                      f->fname, body->super.filename, body->super.lineno,
+                      dump_expr((void**)type_property->expr, (void*)&ei), type_property->expr->op);
+            string_arena_free(ei.sa);
+            exit(1);
+        }
+    }
+    if( NULL != type_property) {
+        coutput("#if defined(HAVE_%s)\n", type_property->expr->jdf_var);
+
+        if (!strcmp(type_property->expr->jdf_var, "CUDA")) {
+            jdf_generate_code_hook_cuda(jdf, f, body, name);
+            goto hook_end_block;
+        }
+    }
+    sa  = string_arena_new(64);
+    sa2 = string_arena_new(64);
+    ai.sa = sa2;
+    ai.holder = "this_task->locals.";
+    ai.expr = NULL;
+
+    if(NULL == type_property)
+        coutput("static int %s(dague_execution_unit_t *context, %s *this_task)\n",
+                name, dague_get_name(jdf, f, "task_t"));
+    else
+        coutput("static int %s_%s(dague_execution_unit_t *context, %s *this_task)\n",
+                name, type_property->expr->jdf_var, dague_get_name(jdf, f, "task_t"));
+
+    coutput("{\n"
+            "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
+            "  (void)context; (void)__dague_handle;\n"
+            "%s",
+            jdf_basename, jdf_basename,
+            UTIL_DUMP_LIST(sa, f->locals, next,
+                           dump_local_assignments, &ai, "", "  ", "\n", "\n"));
+    coutput("%s\n",
+            UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
+                                 dump_string, NULL, "", "  (void)", ";", ";\n"));
+
+    ai2.sa = sa2;
+    ai2.where = "in";
+    output = UTIL_DUMP_LIST(sa, f->dataflow, next,
+                            dump_data_initialization_from_data_array, &ai2, "", "", "", "");
+    if( 0 != strlen(output) ) {
+        coutput("  /** Declare the variables that will hold the data, and all the accounting for each */\n"
+                "%s\n",
+                output);
+    }
+
+    /**
+     * Generate code for the simulation.
+     */
+    coutput("  /** Update starting simulation date */\n"
+            "#if defined(DAGUE_SIM)\n"
+            "  {\n"
+            "    this_task->sim_exec_date = 0;\n");
+    for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+
+        if(fl->flow_flags & JDF_FLOW_TYPE_CTL) continue;  /* control flow, nothing to store */
+
+        coutput("    data_repo_entry_t *e%s = this_task->data.%s.data_repo;\n"
+                "    if( (NULL != e%s) && (e%s->sim_exec_date > this_task->sim_exec_date) )\n"
+                "      this_task->sim_exec_date = e%s->sim_exec_date;\n",
+                fl->varname, fl->varname,
+                fl->varname, fl->varname,
+                fl->varname);
+    }
+    coutput("    if( this_task->function->sim_cost_fct != NULL ) {\n"
+            "      this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+            "    }\n"
+            "    if( context->largest_simulation_date < this_task->sim_exec_date )\n"
+            "      context->largest_simulation_date = this_task->sim_exec_date;\n"
+            "  }\n"
+            "#endif\n");
+
+    if ((NULL == type_property) ||
+        (!strcmp(type_property->expr->jdf_var, "RECURSIVE"))) {
+        coutput("  /** Transfer the ownership to the CPU */\n"
+                "#if defined(HAVE_CUDA)\n");
+
+        for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
+            /* Update the ownership of read/write data */
+            /* Applied only on the Write data, since the number of readers is not atomically increased yet */
+            if ((fl->flow_flags & JDF_FLOW_TYPE_READ) &&
+                (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ) {
+               coutput("    dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
+                       "                                           %s);\n",
+                       fl->varname,
+                       ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
+                        ((fl->flow_flags & JDF_FLOW_TYPE_READ) ?
+                         ((fl->flow_flags & JDF_FLOW_TYPE_WRITE) ? "FLOW_ACCESS_RW" : "FLOW_ACCESS_READ") : "FLOW_ACCESS_WRITE")));
+            }
+        }
+        coutput("#endif\n");
+    }
+    jdf_generate_code_cache_awareness_update(jdf, f);
+
     jdf_generate_code_dry_run_before(jdf, f);
     jdf_coutput_prettycomment('-', "%s BODY", f->fname);
 
@@ -4374,11 +4713,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
     coutput("  return DAGUE_HOOK_RETURN_DONE;\n"
             "}\n");
 
-    if( NULL != type_property)
-        coutput("#endif  /*  defined(HAVE_%s) */\n", type_property->expr->jdf_var);
-
     string_arena_free(sa);
     string_arena_free(sa2);
+
+  hook_end_block:
+    if( NULL != type_property)
+        coutput("#endif  /*  defined(HAVE_%s) */\n\n", type_property->expr->jdf_var);
+
 }
 
 static void
@@ -4428,6 +4769,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
                 "                        this_task);\n");
     }
 
+    /* TODO: The data could be on the GPU */
     coutput("#if defined(DISTRIBUTED)\n"
             "  /** If not working on distributed, there is no risk that data is not in place */\n");
     for( fl = f->dataflow; fl != NULL; fl = fl->next ) {

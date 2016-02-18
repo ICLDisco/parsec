@@ -36,7 +36,7 @@ typedef MPI_Aint     dague_aint_t;
 
 #define DAGUE_DATATYPE_NULL  ((intptr_t)NULL)
 typedef intptr_t  dague_datatype_t;
-typedef size_t    MPI_Aint;
+typedef size_t    dague_aint_t;
 
 #define dague_datatype_int_t              1
 #define dague_datatype_int8_t             2

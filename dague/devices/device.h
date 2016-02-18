@@ -15,13 +15,13 @@
 #include "dague.h"
 #include "dague/data_distribution.h"
 
-#define DAGUE_DEV_NONE       0x00
-#define DAGUE_DEV_CPU        0x01
-#define DAGUE_DEV_RECURSIVE  0x02
-#define DAGUE_DEV_CUDA       0x03
-#define DAGUE_DEV_INTEL_PHI  0x04
-#define DAGUE_DEV_OPENCL     0x05
-#define DAGUE_DEV_MAX        0x06
+#define DAGUE_DEV_NONE       ((uint8_t)    0x00)
+#define DAGUE_DEV_CPU        ((uint8_t)(1 << 0))
+#define DAGUE_DEV_RECURSIVE  ((uint8_t)(1 << 1))
+#define DAGUE_DEV_CUDA       ((uint8_t)(1 << 2))
+#define DAGUE_DEV_INTEL_PHI  ((uint8_t)(1 << 3))
+#define DAGUE_DEV_OPENCL     ((uint8_t)(1 << 4))
+#define DAGUE_DEV_ALL        ((uint8_t)    0x1f)
 
 typedef struct dague_device_s dague_device_t;
 
@@ -116,7 +116,7 @@ DAGUE_DECLSPEC dague_device_t* dague_devices_get(uint32_t);
  * originator of the data), and all tasks owned by the device will be discarded
  * and moved back into the main scheduling mechanism.
  */
-DAGUE_DECLSPEC int dague_device_remove(dague_device_t* device);
+DAGUE_DECLSPEC int dague_devices_remove(dague_device_t* device);
 /**
  * Returns the number of devices currently registered with the runtime. This
  * number can change until dague_devices_freeze() is called, fact that mark the
@@ -126,5 +126,11 @@ static inline int dague_devices_enabled(void)
 {
     return dague_nb_devices;
 }
+
+/**
+ * Restrict the device type that can be used to execute the handle.
+ */
+DAGUE_DECLSPEC void dague_devices_handle_restrict( dague_handle_t *handle,
+                                                   uint8_t         devices_type );
 
 #endif  /* DAGUE_DEVICE_H_HAS_BEEN_INCLUDED */

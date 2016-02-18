@@ -182,7 +182,7 @@ int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
                             size_t alignment, int resized )
 {
     dague_datatype_t newtype = DAGUE_DATATYPE_NULL;
-    MPI_Aint extent = 0;
+    dague_aint_t extent = 0;
     int rc;
 
 #if defined(HAVE_MPI)

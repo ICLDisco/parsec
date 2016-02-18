@@ -11,9 +11,6 @@
 #include "flops.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA)
-#include "dplasma/cores/cuda_zgemm.h"
-#endif
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
 struct dague_execution_unit_s;

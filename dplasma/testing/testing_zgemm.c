@@ -9,9 +9,6 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA)
-#include "dplasma/cores/cuda_zgemm.h"
-#endif
 
 static int check_solution( dague_context_t *dague, int loud,
                            PLASMA_enum transA, PLASMA_enum transB,

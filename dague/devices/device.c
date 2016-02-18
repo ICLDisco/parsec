@@ -276,7 +276,7 @@ dague_device_t* dague_devices_get(uint32_t device_index)
     return dague_devices[device_index];
 }
 
-int dague_device_remove(dague_device_t* device)
+int dague_devices_remove(dague_device_t* device)
 {
     int rc = DAGUE_SUCCESS;
 
@@ -296,3 +296,25 @@ int dague_device_remove(dague_device_t* device)
     dague_atomic_unlock(&dague_devices_mutex);  /* CRITICAL SECTION: BEGIN */
     return rc;
 }
+
+
+void dague_devices_handle_restrict( dague_handle_t *handle,
+                                    uint8_t         devices_type )
+{
+    dague_device_t *device;
+    uint32_t i;
+
+    for (i = 0; i < dague_nb_devices; i++) {
+	if (!(handle->devices_mask & (1 << i)))
+	    continue;
+
+	device = dague_devices_get(i);
+	if ((NULL == device) || (device->type & devices_type))
+	    continue;
+
+        /* Disable this type of device */
+        handle->devices_mask &= ~(1 << i);
+    }
+    return;
+}
+

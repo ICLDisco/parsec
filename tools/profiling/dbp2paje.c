@@ -421,6 +421,7 @@ static uidentry_t *uidhash_lookup_create_entry(const char *first, ...)
     n->next = UIDs[idx];
     UIDs[idx] = n;
 
+    (void)rc;
     return n;
 }
 
@@ -510,6 +511,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
         addContainer (0.00000, n->alias, "CT_T", mpi_alias, identifier, "");
     }
 
+    (void)rc;
     return n->alias;
 }
 

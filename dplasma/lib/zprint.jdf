@@ -11,8 +11,6 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#define PRECISION_z
-
 static inline void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_complex64_t *M )
 {
     int tempmm = ( m == descA.mt-1 ) ? descA.m - m*descA.mb : descA.mb;
