@@ -171,8 +171,8 @@ BODY [type=CUDA
                  "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
                  k, n, m, m, k, A, k, n, B, m, n, C);
 
-    cublasSetKernelStream( gpu_stream->cuda_stream );
-    dyld_fn( 'N', 'N',
+    cublasSetKernelStream( dague_body.stream );
+    dague_body.dyld_fn( 'N', 'N',
              tempmm, tempnn, descA.mb,
              mzone, (cuDoubleComplex*)A, ldam,
                     (cuDoubleComplex*)B, ldak,

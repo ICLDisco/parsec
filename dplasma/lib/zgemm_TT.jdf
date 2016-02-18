@@ -110,8 +110,8 @@ BODY [type=CUDA
     int ldcm = BLKLDD(descC, m);
 
     cublasStatus_t status;
-    cublasSetKernelStream( gpu_stream->cuda_stream );
-    dyld_fn( lapack_const(transA), lapack_const(transB),
+    cublasSetKernelStream( dague_body.stream );
+    dague_body.dyld_fn( lapack_const(transA), lapack_const(transB),
              tempmm, tempnn, tempkk,
              lalpha, (cuDoubleComplex*)A, ldam,
                      (cuDoubleComplex*)B, ldbn,

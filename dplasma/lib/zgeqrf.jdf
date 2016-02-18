@@ -407,7 +407,7 @@ BODY [type=CUDA device=inline_c %{ return n; %}]
                          T  /* dataT(m,k) */, descT.mb,
                          WORK,  ib,
                          WORKC, descA.mb,
-                         gpu_stream->cuda_stream );
+                         dague_body.stream );
 }
 END
 

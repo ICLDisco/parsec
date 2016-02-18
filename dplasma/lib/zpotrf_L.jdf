@@ -310,8 +310,8 @@ BODY [type=CUDA
     assert( ldan <= descA.mb );
     assert( ldam <= descA.mb );
 
-    cublasSetKernelStream( gpu_stream->cuda_stream );
-    dyld_fn( 'N', lapack_const(PlasmaConjTrans),
+    cublasSetKernelStream( dague_body.stream );
+    dague_body.dyld_fn( 'N', lapack_const(PlasmaConjTrans),
              tempmm, descA.mb, descA.mb,
              mzone, (cuDoubleComplex*)A, ldam,
                     (cuDoubleComplex*)B, ldan,

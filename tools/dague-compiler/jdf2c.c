@@ -4308,6 +4308,10 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
     jdf_find_property(body->properties, "type", &type_property);
 
+    /* Get the dynamic function properties */
+    dyld = jdf_property_get_string(body->properties, "dyld", NULL);
+    dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
+
     sa  = string_arena_new(64);
     sa2 = string_arena_new(64);
     sa3 = string_arena_new(64);
@@ -4324,19 +4328,28 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                             UTIL_DUMP_LIST_FIELD(sa, f->locals, next, name,
                                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    /* Generate the gpu_kernel_submit function */
-    coutput("\n"
+    /* Generate the gpu_kernel_submit structure and function */
+    coutput("struct dague_body_cuda_%s_%s_s {\n"
+            "  uint8_t      index;\n"
+            "  cudaStream_t stream;\n"
+            "  %s           dyld_fn;\n"
+            "};\n"
+            "\n"
             "static int gpu_kernel_submit_%s_%s(gpu_device_t            *gpu_device,\n"
             "                                   dague_gpu_context_t     *gpu_task,\n"
             "                                   dague_gpu_exec_stream_t *gpu_stream )\n"
             "{\n"
             "  %s *this_task = (%s *)gpu_task->ec;\n"
             "  __dague_%s_internal_handle_t *__dague_handle = (__dague_%s_internal_handle_t *)this_task->dague_handle;\n"
+            "  struct dague_body_cuda_%s_%s_s dague_body = { gpu_device->cuda_index, gpu_stream->cuda_stream, NULL };\n"
             "%s\n"
-            "  (void)gpu_device; (void)gpu_stream; (void)__dague_handle;\n",
+            "  (void)gpu_device; (void)gpu_stream; (void)__dague_handle; (void)dague_body;\n",
+            jdf_basename, f->fname,
+            dyldtype,
             jdf_basename, f->fname,
             dague_get_name(jdf, f, "task_t"), dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename,
+            jdf_basename, f->fname,
             string_arena_get_string( sa3 ));
 
     ai2.sa = sa2;
@@ -4400,11 +4413,11 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     }
 
     dyld = jdf_property_get_string(body->properties, "dyld", NULL);
+    dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
     if ( NULL != dyld ) {
-        dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
         coutput("  /* Pointer to dynamic gpu function */\n"
-                "  %s dyld_fn = (%s)this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
-                dyldtype, dyldtype );
+                "  dague_body.dyld_fn = (%s)this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
+                dyldtype );
     }
 
     coutput("%s\n", body->external_code);
@@ -4488,8 +4501,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
 
             /**
              * We force the pushout for every data that is not only going to the
-             * same kernel in the future.
-             * (TODO: could be avoided in different kernel in GPU compliant)
+             * same kind of kernel in the future.
+             * (TODO: could be avoided with different GPU compliant kernels)
              */
             for(dl = fl->deps; dl != NULL; dl = dl->next) {
                 if( dl->dep_flags & JDF_DEP_FLOW_IN )

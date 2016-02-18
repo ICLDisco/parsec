@@ -160,7 +160,7 @@ BODY [type=CUDA]
     int ldan = BLKLDD( descA, n );
 
     cublasStatus_t status;
-    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasSetKernelStream( dague_body.stream );
     cublasZgemm( lapack_const(PlasmaConjTrans), 'N',
                  descA.mb, tempmm, descA.mb,
                  mzone, (cuDoubleComplex*)A, ldak,
@@ -270,7 +270,7 @@ BODY [type=CUDA]
     int ldak = BLKLDD( descA, k );
 
     cublasStatus_t status;
-    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasSetKernelStream( dague_body.stream );
     cublasZgemm( 'N', 'N',
                  descA.mb, tempnn, tempkm,
                  zone, (cuDoubleComplex*)A, ldam,
@@ -446,7 +446,7 @@ BODY [type=CUDA]
     int ldan = BLKLDD( descA, n );
 
     cublasStatus_t status;
-    cublasSetKernelStream( gpu_stream->cuda_stream );
+    cublasSetKernelStream( dague_body.stream );
     cublasZgemm( 'N', lapack_const(PlasmaConjTrans),
                  descA.mb, descA.nb, tempkn,
                  zone, (cuDoubleComplex*)A, ldam,
