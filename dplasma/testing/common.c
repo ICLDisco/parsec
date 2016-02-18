@@ -94,6 +94,7 @@ void print_usage(void)
             " -z --HNB --HMB    : Inner NB/MB used for recursive algorithms (default: MB)\n"
             " -x --check        : verify the results\n"
             " -X --check_inv    : verify the results against the inverse\n"
+            " -b --sync         : call the step by step version of the algorithm if exists\n"
             "\n"
             "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
             "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
@@ -211,7 +212,7 @@ static struct option long_options[] =
     {"check_inv",   no_argument,        0, 'X'},
     {"X",           no_argument,        0, 'X'},
 
-    {"async",       no_argument,        0, 'b'},
+    {"sync",        no_argument,        0, 'b'},
     {"b",           no_argument,        0, 'b'},
 
     /* HQR options */
