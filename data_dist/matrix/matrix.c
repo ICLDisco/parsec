@@ -231,9 +231,9 @@ static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t data
     n = datakey / Ddesc->lmt;
     res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
     if (res < 0)
-        {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", m, n, datakey);
-        }
+    {
+        printf("error in key_to_string for tile (%u, %u) key: %u\n", m, n, datakey);
+    }
     return res;
 }
 #endif /* DAGUE_PROF_TRACE */
