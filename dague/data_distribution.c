@@ -6,6 +6,7 @@
  *                         Univ. Bordeaux. All rights reserved.
  */
 
+#include "dague/data.h"
 #include "dague/data_distribution.h"
 
 /**
@@ -35,7 +36,7 @@ dague_ddesc_default_rank_of(dague_ddesc_t *d, ...)
     return dague_ddesc_default_rank_of_key(d, 0);
 }
 
-uint32_t
+dague_data_t *
 dague_ddesc_default_data_of_key(dague_ddesc_t *d,
                                 dague_data_key_t key)
 {
@@ -46,13 +47,13 @@ dague_ddesc_default_data_of_key(dague_ddesc_t *d,
     return fake_data;
 }
 
-uint32_t
+dague_data_t *
 dague_ddesc_default_data_of(dague_ddesc_t *d, ...)
 {
     return dague_ddesc_default_data_of_key(d, 0);
 }
 
-uint32_t
+int32_t
 dague_ddesc_default_vpid_of_key(dague_ddesc_t *d,
                                 dague_data_key_t key)
 {
@@ -61,7 +62,7 @@ dague_ddesc_default_vpid_of_key(dague_ddesc_t *d,
     return 0;
 }
 
-uint32_t
+int32_t
 dague_ddesc_default_vpid_of(dague_ddesc_t *d, ...)
 {
     return dague_ddesc_default_vpid_of_key(d, 0);

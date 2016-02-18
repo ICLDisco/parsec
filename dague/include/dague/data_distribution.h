@@ -85,8 +85,8 @@ uint32_t         dague_ddesc_default_rank_of_key(dague_ddesc_t *d, dague_data_ke
 uint32_t         dague_ddesc_default_rank_of(dague_ddesc_t *d, ...);
 dague_data_t *   dague_ddesc_default_data_of_key(dague_ddesc_t *d, dague_data_key_t key);
 dague_data_t *   dague_ddesc_default_data_of(dague_ddesc_t *d, ...);
-uint32_t         dague_ddesc_default_vpid_of_key(dague_ddesc_t *d, dague_data_key_t key );
-uint32_t         dague_ddesc_default_vpid_of(dague_ddesc_t *d, ... );
+int32_t          dague_ddesc_default_vpid_of_key(dague_ddesc_t *d, dague_data_key_t key );
+int32_t          dague_ddesc_default_vpid_of(dague_ddesc_t *d, ... );
 
 #if defined(DAGUE_PROF_TRACE)
 int              dague_ddesc_default_key_to_string(struct dague_ddesc_s *desc,
