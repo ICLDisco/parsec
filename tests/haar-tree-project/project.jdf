@@ -19,16 +19,16 @@ struct __dague_project_END_PROPAGATE_assignment_s;
 struct __dague_project_PROJECT_assignment_s;
 struct __dague_project_PROJECT_task_s;
 
-static uint64_t end_propagate_hash(const struct __dague_project_internal_handle * __dague_handle,
+static uint64_t end_propagate_hash(const struct __dague_project_internal_handle_s * __dague_handle,
                                    struct __dague_project_END_PROPAGATE_assignment_s * assignments);
-static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle *__dague_handle);
+static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle_s *__dague_handle);
 
-static void               *my_alloc_deps(struct __dague_project_internal_handle *__dague_handle);
-static void                my_free_deps(struct __dague_project_internal_handle *__dague_handle, void *deps);
+static void               *my_alloc_deps(struct __dague_project_internal_handle_s *__dague_handle);
+static void                my_free_deps(struct __dague_project_internal_handle_s *__dague_handle, void *deps);
 static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
                                         const dague_execution_context_t* restrict exec_context);
 
-static uint64_t project_hash(const struct __dague_project_internal_handle * __dague_handle,
+static uint64_t project_hash(const struct __dague_project_internal_handle_s * __dague_handle,
                                    struct __dague_project_PROJECT_assignment_s * assignments);
 static int my_project_startup(dague_execution_unit_t * eu,
                               struct __dague_project_PROJECT_task_s * this_task);
@@ -196,26 +196,26 @@ BODY
 END
 
 extern "C" %{
-static uint64_t end_propagate_hash(const struct __dague_project_internal_handle * __dague_handle,
+static uint64_t end_propagate_hash(const struct __dague_project_internal_handle_s * __dague_handle,
                                    struct __dague_project_END_PROPAGATE_assignment_s * assignments)
 {
     (void)__dague_handle;
     return assignments->nid.value;
 }
 
- static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle *__dague_handle)
+ static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle_s *__dague_handle)
 {
     (void)__dague_handle;
     return DAGUE_UNDETERMINED_NB_TASKS;
 }
 
-static void               *my_alloc_deps(struct __dague_project_internal_handle *__dague_handle)
+static void               *my_alloc_deps(struct __dague_project_internal_handle_s *__dague_handle)
 {
     (void)__dague_handle;
     return calloc(6000, sizeof(dague_dependency_t));
 }
 
-static void                my_free_deps(struct __dague_project_internal_handle *__dague_handle, void *deps)
+static void                my_free_deps(struct __dague_project_internal_handle_s *__dague_handle, void *deps)
 {
     (void)__dague_handle;
     free(deps);
@@ -229,7 +229,7 @@ static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
     return &dep_array[exec_context->locals[0].value];
 }
 
-static uint64_t project_hash(const struct __dague_project_internal_handle * __dague_handle,
+static uint64_t project_hash(const struct __dague_project_internal_handle_s * __dague_handle,
                                    struct __dague_project_PROJECT_assignment_s * assignments)
 {
     (void)__dague_handle;

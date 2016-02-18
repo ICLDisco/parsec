@@ -21,9 +21,9 @@
 
 #include "dague_config.h"
 #include <stdlib.h>
-#ifdef HAVE_STRING_H
+#ifdef DAGUE_HAVE_STRING_H
 #include <string.h>
-#endif  /* HAVE_STRING_H */
+#endif  /* DAGUE_HAVE_STRING_H */
 
 #include "dague/utils/argv.h"
 #include "dague/constants.h"

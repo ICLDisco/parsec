@@ -32,7 +32,7 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
     iparam_default_ibnbmb(iparam, 0, 200, 200);
-#if defined(HAVE_CUDA) && defined(PRECISION_s) && 0
+#if defined(DAGUE_HAVE_CUDA) && defined(PRECISION_s) && 0
     iparam[IPARAM_NGPUS] = 0;
 #endif
     /* Initialize DAGuE */

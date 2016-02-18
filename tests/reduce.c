@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -38,7 +38,7 @@ int main( int argc, char* argv[] )
     int rows = 1;
     dague_datatype_t newtype;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -62,9 +62,9 @@ int main( int argc, char* argv[] )
                                                NULL);
     /* Prepare the arena for the reduction */
     dague_type_create_contiguous(nb, dague_datatype_float_t, &newtype);
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Type_commit(&newtype);
-#endif  /* defined(HAVE_MPI) */
+#endif  /* defined(DAGUE_HAVE_MPI) */
     dague_arena_construct(((dague_reduce_handle_t*)object)->arenas[DAGUE_reduce_DEFAULT_ARENA],
                           nb*sizeof(float),
                           DAGUE_ARENA_ALIGNMENT_SSE,
@@ -78,9 +78,9 @@ int main( int argc, char* argv[] )
 
     dague_fini(&dague);
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Finalize();
-#endif  /* defined(HAVE_MPI) */
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
     return 0;
 }

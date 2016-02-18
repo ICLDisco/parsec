@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015 The University of Tennessee and The University
+ * Copyright (c) 2014-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,15 +31,15 @@ dague_handle_t *ep_new(dague_ddesc_t *A, int nt, int level)
 
     o = dague_ep_new(nt, level, A);
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         MPI_Aint extent;
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
         MPI_Aint lb = 0; 
         MPI_Type_get_extent(MPI_BYTE, &lb, &extent);
 #else
         MPI_Type_extent(MPI_BYTE, &extent);
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
         dague_arena_construct(o->arenas[DAGUE_ep_DEFAULT_ARENA],
                               extent, DAGUE_ARENA_ALIGNMENT_SSE,
                               MPI_BYTE);

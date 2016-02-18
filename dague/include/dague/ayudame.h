@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#if defined(HAVE_AYUDAME)
+#if defined(DAGUE_HAVE_AYUDAME)
 
 #include <dague_internal.h>
 #include <Ayudame.h>
@@ -109,4 +109,4 @@
 #define AYU_TASK_COMPLETE(TASK)
 #define AYU_TASK_FAILED(TASK)
 
-#endif  /* defined(HAVE_AYUDAME) */
+#endif  /* defined(DAGUE_HAVE_AYUDAME) */

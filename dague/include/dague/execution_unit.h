@@ -9,7 +9,7 @@
 
 #include "dague_config.h"
 
-#ifdef HAVE_HWLOC
+#ifdef DAGUE_HAVE_HWLOC
 #include <hwloc.h>
 #endif
 
@@ -24,7 +24,7 @@
 #include "dague/mca/pins/pins.h"
 #endif
 
-#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
+#if defined(DAGUE_HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
@@ -58,10 +58,10 @@ struct dague_execution_unit_s {
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
-#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
+#if defined(DAGUE_HAVE_GETRUSAGE) || !defined(__bgp__)
     int _eu_rusage_first_call;
     struct rusage _eu_rusage;
-#endif /* HAVE_GETRUSAGE */
+#endif /* DAGUE_HAVE_GETRUSAGE */
 #endif
 
     struct dague_vp_s      *virtual_process;   /**< Backlink to the virtual process that holds this thread */
@@ -127,7 +127,7 @@ struct dague_context_s {
     int largest_simulation_date;
 #endif
 
-#ifdef HAVE_HWLOC
+#ifdef DAGUE_HAVE_HWLOC
     int comm_th_core;
     hwloc_cpuset_t comm_th_index_mask;
     hwloc_cpuset_t index_core_free_mask;

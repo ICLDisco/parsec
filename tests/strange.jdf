@@ -6,9 +6,8 @@ extern "C" %{
  *
  */
 
-#include "dague.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "strange.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 /**
  * This test build a chain using different different local variables
@@ -69,7 +68,7 @@ int main(int argc, char* argv[] )
         argc -= 1;
     }
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
@@ -101,7 +100,7 @@ int main(int argc, char* argv[] )
     free(descA.mat);
     dague_fini( &dague);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

@@ -29,7 +29,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS,
     .compile = 1,  /* by default the file must be compiled */
-#if defined(HAVE_INDENT) && !defined(HAVE_AWK)
+#if defined(DAGUE_HAVE_INDENT) && !defined(DAGUE_HAVE_AWK)
     .noline = 1 /*< By default, don't print the #line per default if can't fix the line numbers with awk */
 #else
     .noline = 0 /*< Otherwise, go for it (without INDENT or with INDENT but without AWK, lines will be ok) */
@@ -306,21 +306,21 @@ int main(int argc, char *argv[])
     yyscan_t scanner = NULL;
 
     parse_args(argc, argv);
-#if defined(HAVE_RECENT_LEX)
+#if defined(DAGUE_HAVE_RECENT_LEX)
     yylex_init( &scanner );
     yyset_debug( 1, scanner );
-#endif  /* defined(HAVE_RECENT_LEX) */
+#endif  /* defined(DAGUE_HAVE_RECENT_LEX) */
     if( strcmp(JDF_COMPILER_GLOBAL_ARGS.input, DEFAULTS.input) ) {
         FILE* my_file = fopen(JDF_COMPILER_GLOBAL_ARGS.input, "r");
         if( my_file == NULL ) {
             fprintf(stderr, "unable to open input file %s: %s\n", JDF_COMPILER_GLOBAL_ARGS.input, strerror(errno));
             exit(1);
         }
-#if defined(HAVE_RECENT_LEX)
+#if defined(DAGUE_HAVE_RECENT_LEX)
         yyset_in( my_file, scanner );
 #else
         yyin = my_file;
-#endif  /* defined(HAVE_RECENT_LEX) */
+#endif  /* defined(DAGUE_HAVE_RECENT_LEX) */
         yyfilename = strdup(JDF_COMPILER_GLOBAL_ARGS.input);
     } else {
         yyfilename = strdup("(stdin)");
@@ -332,9 +332,9 @@ int main(int argc, char *argv[])
     if( yyparse(scanner) > 0 ) {
         exit(1);
     }
-#if defined(HAVE_RECENT_LEX)
+#if defined(DAGUE_HAVE_RECENT_LEX)
     yylex_destroy( scanner );
-#endif  /* defined(HAVE_RECENT_LEX) */
+#endif  /* defined(DAGUE_HAVE_RECENT_LEX) */
 
     rc = jdf_sanity_checks( JDF_COMPILER_GLOBAL_ARGS.wmask );
     if(rc < 0)

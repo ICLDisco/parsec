@@ -101,16 +101,16 @@ Hopefully, once the expected arguments are provided the output will look similar
 -- Found target for X86
 -- Performing Test C_M32or64
 -- Performing Test C_M32or64 - Failed
--- Performing Test HAVE_STD_C99
--- Performing Test HAVE_STD_C99 - Failed
--- Performing Test HAVE_WALL
--- Performing Test HAVE_WALL - Failed
--- Performing Test HAVE_WEXTRA
--- Performing Test HAVE_WEXTRA - Failed
--- Performing Test HAVE_WD
--- Performing Test HAVE_WD - Failed
--- Performing Test HAVE_G3
--- Performing Test HAVE_G3 - Failed
+-- Performing Test DAGUE_HAVE_STD_C99
+-- Performing Test DAGUE_HAVE_STD_C99 - Failed
+-- Performing Test DAGUE_HAVE_WALL
+-- Performing Test DAGUE_HAVE_WALL - Failed
+-- Performing Test DAGUE_HAVE_WEXTRA
+-- Performing Test DAGUE_HAVE_WEXTRA - Failed
+-- Performing Test DAGUE_HAVE_WD
+-- Performing Test DAGUE_HAVE_WD - Failed
+-- Performing Test DAGUE_HAVE_G3
+-- Performing Test DAGUE_HAVE_G3 - Failed
 -- Performing Test DAGUE_ATOMIC_USE_GCC_32_BUILTINS
 -- Performing Test DAGUE_ATOMIC_USE_GCC_32_BUILTINS - Failed
 -- Performing Test DAGUE_ATOMIC_USE_XLC_32_BUILTINS
@@ -128,8 +128,8 @@ Hopefully, once the expected arguments are provided the output will look similar
 -- Could NOT find Threads (missing:  Threads_FOUND)
 -- Looking for sched_setaffinity
 -- Looking for sched_setaffinity - not found
--- Performing Test HAVE_TIMESPEC_TV_NSEC
--- Performing Test HAVE_TIMESPEC_TV_NSEC - Failed
+-- Performing Test DAGUE_HAVE_TIMESPEC_TV_NSEC
+-- Performing Test DAGUE_HAVE_TIMESPEC_TV_NSEC - Failed
 -- Looking for clock_gettime in rt
 -- Looking for clock_gettime in rt - not found
 -- Looking for include file stdarg.h
@@ -157,12 +157,12 @@ Hopefully, once the expected arguments are provided the output will look similar
 -- Looking for include file complex.h
 -- Looking for include file complex.h - not found.
 -- Found HWLOC: /opt/lib/libhwloc.dylib
--- Performing Test HAVE_HWLOC_PARENT_MEMBER
--- Performing Test HAVE_HWLOC_PARENT_MEMBER - Failed
--- Performing Test HAVE_HWLOC_CACHE_ATTR
--- Performing Test HAVE_HWLOC_CACHE_ATTR - Failed
--- Performing Test HAVE_HWLOC_OBJ_PU
--- Performing Test HAVE_HWLOC_OBJ_PU - Failed
+-- Performing Test DAGUE_HAVE_HWLOC_PARENT_MEMBER
+-- Performing Test DAGUE_HAVE_HWLOC_PARENT_MEMBER - Failed
+-- Performing Test DAGUE_HAVE_HWLOC_CACHE_ATTR
+-- Performing Test DAGUE_HAVE_HWLOC_CACHE_ATTR - Failed
+-- Performing Test DAGUE_HAVE_HWLOC_OBJ_PU
+-- Performing Test DAGUE_HAVE_HWLOC_OBJ_PU - Failed
 -- Looking for hwloc_bitmap_free in /opt/lib/libhwloc.dylib
 -- Looking for hwloc_bitmap_free in /opt/lib/libhwloc.dylib - not found
 -- Found MPI_C: /opt/trunk/debug/lib/libmpi.dylib;/usr/lib/libm.dylib

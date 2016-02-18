@@ -2,7 +2,6 @@
 #define PINS_PRINT_STEALS_H
 
 #include "dague.h"
-#include "dague_config.h"
 #include "dague/mca/mca.h"
 #include "dague/mca/pins/pins.h"
 

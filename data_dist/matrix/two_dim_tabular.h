@@ -6,9 +6,9 @@
 #ifndef __TWODTD_H__
 #define __TWODTD_H__
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 #include "data_dist/matrix/matrix.h"
 

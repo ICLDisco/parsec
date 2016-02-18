@@ -11,9 +11,9 @@
 #include "dague/devices/device.h"
 #include "dague/vpmap.h"
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 static uint32_t twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
@@ -75,7 +75,7 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     Ddesc->mat = NULL;  /* No data associated with the matrix yet */
 
     /* WARNING: This has to be removed when padding will be removed */
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     if ( (storage == matrix_Lapack) && (nodes > 1) ) {
         if ( tdesc->lm % mb != 0 ) {
             fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");

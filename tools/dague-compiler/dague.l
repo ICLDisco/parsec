@@ -54,7 +54,7 @@ char string_buf[MAX_STR_CONST];
 char *string_buf_ptr;
 extern YYSTYPE yylval;
 
-#if defined(HAVE_RECENT_LEX)
+#if defined(DAGUE_HAVE_RECENT_LEX)
 #define YY_USER_ACTION yylloc->first_line = yylloc->last_line = yylineno; \
     yylloc->first_column = yycolumn; yylloc->last_column = yycolumn + yyleng - 1; \
     yycolumn += yyleng;
@@ -66,7 +66,7 @@ extern YYSTYPE yylval;
 #define YY_PUSH_STATE(STATE)  yy_push_state(STATE)
 #define YY_POP_STATE()        yy_pop_state()
 typedef void* yyscan_t;
-#endif  /* defined(HAVE_RECENT_LEX) */
+#endif  /* defined(DAGUE_HAVE_RECENT_LEX) */
 %}
 /*%option debug*/
 /*%option bison-bridge bison-locations*/

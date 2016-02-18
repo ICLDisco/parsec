@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include <dague.h>
-#include <dague/constants.h>
-#include <dague/arena.h>
+#include "dague.h"
+#include "dague/constants.h"
+#include "dague/arena.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 int dague_matrix_get_extent( MPI_Datatype dt, MPI_Aint* extent )
 {
     int rc;
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
     MPI_Aint lb = 0; (void)lb;
     rc = MPI_Type_get_extent(dt, &lb, extent);
 #else
     rc = MPI_Type_extent( dt, extent);
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
     return (MPI_SUCCESS == rc ? DAGUE_SUCCESS : DAGUE_ERROR);
 }
 
@@ -49,7 +49,7 @@ int dague_matrix_define_contiguous( dague_datatype_t oldtype,
         MPI_Type_free(&tmp);
     }
     MPI_Type_commit(newtype);
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -58,7 +58,7 @@ int dague_matrix_define_contiguous( dague_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "CONT %s*%4u", oldtype_name, nb_elem);
         MPI_Type_set_name(*newtype, newtype_name);
     }
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
     return DAGUE_SUCCESS;
 }
 
@@ -96,7 +96,7 @@ int dague_matrix_define_rectangle( dague_datatype_t oldtype,
         MPI_Type_free(&tmp);
     }
     MPI_Type_commit(newtype);
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -105,7 +105,7 @@ int dague_matrix_define_rectangle( dague_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT %s*%4u*%4u", oldtype_name, mb, nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
     return DAGUE_SUCCESS;
 }
 
@@ -152,7 +152,7 @@ int dague_matrix_define_triangle( dague_datatype_t oldtype,
     }
     dague_type_size(oldtype, &oldsize);
     dague_type_create_resized( tmp, 0, ld*n*oldsize, newtype );
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -161,7 +161,7 @@ int dague_matrix_define_triangle( dague_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "UPPER %s*%4u*%4u", oldtype_name, m, n);
         MPI_Type_set_name(*newtype, newtype_name);
     }
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
     MPI_Type_commit(newtype);
     MPI_Type_free(&tmp);
     free(blocklens);
@@ -174,7 +174,7 @@ int dague_matrix_undefine_type(dague_datatype_t* type)
     return (MPI_SUCCESS == MPI_Type_free(type) ? DAGUE_SUCCESS : DAGUE_ERROR);
 }
 
-#endif /* defined(HAVE_MPI) */
+#endif /* defined(DAGUE_HAVE_MPI) */
 
 int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
                             int uplo, int diag,
@@ -185,7 +185,7 @@ int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
     dague_aint_t extent = 0;
     int rc;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     switch( uplo ) {
     case matrix_Lower:
     case matrix_Upper:
@@ -228,7 +228,7 @@ int dague_matrix_del2arena( dague_arena_t *arena )
     int rc = DAGUE_SUCCESS;
     (void)arena;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     dague_matrix_undefine_type( &(arena->opaque_dtt) );
 #endif
     return rc;

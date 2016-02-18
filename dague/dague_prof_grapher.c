@@ -23,7 +23,7 @@ void dague_prof_grapher_init(const char *base_filename, int nbthreads)
     char *filename;
     int t, size = 1, rank = 0;
 
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
     char *format;
     int l10 = 0, cs;
 

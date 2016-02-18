@@ -10,9 +10,9 @@
 #endif
 #include "dague.h"
 #include "merge_sort_wrapper.h"
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
 #include "sort_data.h"
 
 int main(int argc, char *argv[])
@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     tiled_matrix_desc_t *ddescA;
     dague_handle_t *msort;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 
     dague_fini(&dague);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

@@ -36,7 +36,7 @@ int dplasma_core_zgeadd(PLASMA_enum trans, int M, int N,
                               dague_complex64_t  beta,
                               dague_complex64_t *B, int LDB);
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 
@@ -64,6 +64,6 @@ int dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
                          dague_complex64_t *WORK, int LDWORK,
                          dague_complex64_t *WORKC, int LDWORKC,
                          cudaStream_t stream);
-#endif /* defined(HAVE_CUDA) */
+#endif /* defined(DAGUE_HAVE_CUDA) */
 
 #endif /* _DPLASMA_Z_CORES_ */

@@ -7,9 +7,26 @@
 #ifndef DAGUE_H_HAS_BEEN_INCLUDED
 #define DAGUE_H_HAS_BEEN_INCLUDED
 
+#ifndef PARSEC_BUILDING
+#define PARSEC_BUILDING 0
+#endif
+
+#ifndef DAGUE_CONFIG_H_HAS_BEEN_INCLUDED
 #include "dague_config.h"
+#endif /* #ifndef DAGUE_CONFIG_H */
 
 BEGIN_C_DECLS
+
+/* Define the PaRSEC version */
+#define PARSEC_VERSION    2
+#define PARSEC_SUBVERSION 0
+/* For backward compatibility */
+#define DAGUE_VERSION_MAJOR 2
+#define DAGUE_VERSION_MINOR 0
+
+#if defined(DAGUE_HAVE_STDDEF_H)
+#include <stddef.h>
+#endif
 
 typedef struct dague_handle_s            dague_handle_t;
 typedef struct dague_execution_context_s dague_execution_context_t;

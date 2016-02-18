@@ -15,12 +15,12 @@
 #include <errno.h>
 #include <unistd.h>
 #include <limits.h>
-#if defined(HAVE_GEN_H)
+#if defined(DAGUE_HAVE_GEN_H)
 #include <libgen.h>
-#endif  /* defined(HAVE_GEN_H) */
-#if defined(HAVE_GETOPT_H)
+#endif  /* defined(DAGUE_HAVE_GEN_H) */
+#if defined(DAGUE_HAVE_GETOPT_H)
 #include <getopt.h>
-#endif  /* defined(HAVE_GETOPT_H) */
+#endif  /* defined(DAGUE_HAVE_GETOPT_H) */
 #include <dague/ayudame.h>
 
 #include "dague/mca/pins/pins.h"
@@ -48,11 +48,11 @@
 #endif
 
 #include "dague/dague_hwloc.h"
-#ifdef HAVE_HWLOC
+#ifdef DAGUE_HAVE_HWLOC
 #include "dague/hbbuffer.h"
 #endif
 
-#ifdef HAVE_CUDA
+#ifdef DAGUE_HAVE_CUDA
 #include <cuda.h>
 #include <cuda_runtime_api.h>
 #endif
@@ -81,11 +81,11 @@ int arena_memory_used_key, arena_memory_unused_key;
 int task_memory_alloc_key, task_memory_free_key;
 #endif  /* DAGUE_PROF_TRACE */
 
-#ifdef HAVE_HWLOC
+#ifdef DAGUE_HAVE_HWLOC
 #define MAX_CORE_LIST 128
 #endif
 
-#if defined(HAVE_GETRUSAGE) || !defined(__bgp__)
+#if defined(DAGUE_HAVE_GETRUSAGE) || !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -140,7 +140,7 @@ static void dague_statistics(char* str)
 }
 #else
 static void dague_statistics(char* str) { (void)str; return; }
-#endif /* defined(HAVE_GETRUSAGE) */
+#endif /* defined(DAGUE_HAVE_GETRUSAGE) */
 
 static void dague_handle_empty_repository(void);
 
@@ -192,11 +192,11 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     eu->scheduler_object = NULL;
     startup->virtual_process->execution_units[startup->th_id] = eu;
     eu->core_id          = startup->bindto;
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     eu->socket_id        = dague_hwloc_socket_id(startup->bindto);
 #else
     eu->socket_id        = 0;
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
     eu-> _eu_rusage_first_call = 1;
@@ -390,18 +390,18 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_debug_init();
     mca_components_repository_init();
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     dague_hwloc_init();
 #endif  /* defined(HWLOC) */
 
     if( dague_cmd_line_is_taken(cmd_line, "ht") ) {
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
         int hyperth = 0;
         GET_INT_ARGV(cmd_line, "ht", hyperth);
         dague_hwloc_allow_ht(hyperth);
 #else
         dague_inform("Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.");
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
     }
 
     /* Set a default the number of cores if not defined by parameters
@@ -515,16 +515,16 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         t += vpmap_get_nb_threads_in_vp(p);
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     context->comm_th_core   = -1;
-#if defined(HAVE_HWLOC_BITMAP)
+#if defined(DAGUE_HAVE_HWLOC_BITMAP)
     context->comm_th_index_mask = hwloc_bitmap_alloc();
     context->index_core_free_mask = hwloc_bitmap_alloc();
     hwloc_bitmap_set_range(context->index_core_free_mask, 0, dague_hwloc_nb_real_cores()-1);
-#endif /* HAVE_HWLOC_BITMAP */
+#endif /* DAGUE_HAVE_HWLOC_BITMAP */
 #endif
 
-#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+#if defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP)
     /* update the index_core_free_mask according to the thread binding defined */
     for(t = 0; t < nb_total_comp_threads; t++)
         hwloc_bitmap_clr(context->index_core_free_mask, startup[t].bindto);
@@ -537,7 +537,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         free(str);
     }
 #endif /* defined(DAGUE_DEBUG_NOISIER) */
-#endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
+#endif /* DAGUE_HAVE_HWLOC && DAGUE_HAVE_HWLOC_BITMAP */
 
     /**
      * Parameters defining the default ARENA behavior. Handle with care they can lead to
@@ -877,13 +877,13 @@ int dague_fini( dague_context_t** pcontext )
     /* Destroy all resources allocated for the barrier */
     dague_barrier_destroy( &(context->barrier) );
 
-#if defined(HAVE_HWLOC_BITMAP)
+#if defined(DAGUE_HAVE_HWLOC_BITMAP)
     /* Release thread binding masks */
     hwloc_bitmap_free(context->comm_th_index_mask);
     hwloc_bitmap_free(context->index_core_free_mask);
 
     dague_hwloc_fini();
-#endif  /* HAVE_HWLOC_BITMAP */
+#endif  /* DAGUE_HAVE_HWLOC_BITMAP */
 
     if (dague_app_name != NULL ) {
         free(dague_app_name);
@@ -894,7 +894,7 @@ int dague_fini( dague_context_t** pcontext )
     {
         char filename[64];
         char prefix[32];
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
         int rank, size;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
         MPI_Comm_size(MPI_COMM_WORLD, &size);
@@ -1605,7 +1605,7 @@ void dague_handle_sync_ids( void )
     uint32_t idx;
     dague_atomic_lock( &object_array_lock );
     idx = (int)object_array_pos;
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
 #endif
     if( idx >= object_array_size ) {
@@ -1789,7 +1789,7 @@ void dague_usage(void)
 int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                                   __dague_temporary_thread_initialization_t* startup)
 {
-#if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+#if defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP)
     char* option = optarg;
     char* position;
     int p, t, nb_total_comp_threads;
@@ -1817,7 +1817,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             return -1;
         }
 
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
         /* distributed version: first retrieve the parameter for the process */
         int rank, line_num=0;
         MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -1847,7 +1847,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             dague_parse_binding_parameter(line, context, startup);
             free(line);
         }
-#endif /* DISTRIBUTED && HAVE_MPI */
+#endif /* DISTRIBUTED && DAGUE_HAVE_MPI */
         else
             dague_warning("default thread binding");
         fclose(f);
@@ -2035,12 +2035,12 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     (void)startup;
     dague_warning("the binding defined by --dague_bind has been ignored (requires a build with HWLOC with bitmap support).");
     return -1;
-#endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
+#endif /* DAGUE_HAVE_HWLOC && DAGUE_HAVE_HWLOC_BITMAP */
 }
 
 static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context)
 {
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     char* option = optarg;
     if( option[0]!='\0' ) {
         int core=atoi(optarg);
@@ -2057,7 +2057,7 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
     (void)optarg; (void)context;
     dague_warning("The binding defined by --dague_bind has been ignored (requires HWLOC use with bitmap support).");
     return -1;
-#endif  /* HAVE_HWLOC */
+#endif  /* DAGUE_HAVE_HWLOC */
 }
 
 #if defined(DAGUE_SIM)

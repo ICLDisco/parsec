@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 48, 144, 144);
-#if defined(HAVE_CUDA) && defined(PRECISION_s)
+#if defined(DAGUE_HAVE_CUDA) && defined(PRECISION_s)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     if( check ) {
         printf( "No check implemented yet.\n" );
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
         /* Regenerate A, distributed so that the random generators are doing
          * the same things */
         PASTE_CODE_ALLOCATE_MATRIX(ddescAcpy, 1,
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
                 }
             }
         }
-#endif  /* defined(HAVE_MPI) */
+#endif  /* defined(DAGUE_HAVE_MPI) */
     }
     dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
 

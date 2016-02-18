@@ -8,9 +8,9 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#if defined(HAVE_STDDEF_H)
+#if defined(DAGUE_HAVE_STDDEF_H)
 #include <stddef.h>
-#endif  /* HAVE_STDDEF_H */
+#endif  /* DAGUE_HAVE_STDDEF_H */
 #include "dague/debug.h"
 
 #include <dague/sys/atomic.h>

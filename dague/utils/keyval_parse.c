@@ -22,9 +22,9 @@
 #include "dague/utils/keyval_parse.h"
 #include "dague/utils/keyval_lex.h"
 #include "dague/utils/output.h"
-#ifdef HAVE_STRING_H
+#ifdef DAGUE_HAVE_STRING_H
 #include <string.h>
-#endif  /* HAVE_STRING_H */
+#endif  /* DAGUE_HAVE_STRING_H */
 #include <pthread.h>
 
 static const char *keyval_filename;

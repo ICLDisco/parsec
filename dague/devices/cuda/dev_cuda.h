@@ -13,7 +13,7 @@
 #include "dague/class/fifo.h"
 #include "dague/devices/device.h"
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dague/class/list_item.h"
 #include "dague/class/list.h"
 
@@ -212,6 +212,6 @@ dague_gpu_kernel_epilog( gpu_device_t        *gpu_device,
 
 END_C_DECLS
 
-#endif /* defined(HAVE_CUDA) */
+#endif /* defined(DAGUE_HAVE_CUDA) */
 
 #endif

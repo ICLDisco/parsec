@@ -7,10 +7,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <sys/time.h>
-#ifdef HAVE_UNISTD_H
+#ifdef DAGUE_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 
@@ -46,7 +46,7 @@ main (int argc, char *argv[])
     HERK_COUNT = 0;
     GEMM_COUNT = 0;
 */
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -153,7 +153,7 @@ main (int argc, char *argv[])
     starpu_shutdown();
     fflush(stderr);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

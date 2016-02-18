@@ -92,7 +92,7 @@
 #include "dague_config.h"
 
 #include <stdarg.h>
-#ifdef HAVE_STDBOOL_H
+#ifdef DAGUE_HAVE_STDBOOL_H
 #include <stdbool.h>
 #endif
 

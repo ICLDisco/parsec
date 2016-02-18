@@ -12,7 +12,7 @@
 
 #define dplasma_comm MPI_COMM_WORLD
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 
 #define dplasma_progress( object )                  \
     do {                                            \

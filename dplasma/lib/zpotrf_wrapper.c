@@ -240,7 +240,7 @@ dplasma_zpotrf( dague_context_t *dague,
         dplasma_zpotrf_Destruct( dague_zpotrf );
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;
@@ -318,7 +318,7 @@ dplasma_zpotrf_rec( dague_context_t *dague,
         dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;

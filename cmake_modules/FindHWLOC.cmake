@@ -11,9 +11,9 @@
 #    link against to use PLASMA
 #  HWLOC_STATIC  if set on this determines what kind of linkage we do (static)
 #
-#  HAVE_HWLOC_PARENT_MEMBER - new API, older versions don't have it
-#  HAVE_HWLOC_CACHE_ATTR - new API, older versions don't have it
-#  HAVE_HWLOC_OBJ_PU - new API, older versions don't have it
+#  DAGUE_HAVE_HWLOC_PARENT_MEMBER - new API, older versions don't have it
+#  DAGUE_HAVE_HWLOC_CACHE_ATTR - new API, older versions don't have it
+#  DAGUE_HAVE_HWLOC_OBJ_PU - new API, older versions don't have it
 #
 ##########
 
@@ -48,15 +48,15 @@ find_package_handle_standard_args(HWLOC
 if(HWLOC_FOUND)
   set(HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES ${CMAKE_REQUIRED_INCLUDES})
   list(APPEND CMAKE_REQUIRED_INCLUDES ${HWLOC_INCLUDE_DIR})
-  check_struct_has_member( "struct hwloc_obj" parent hwloc.h HAVE_HWLOC_PARENT_MEMBER )
-  check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h HAVE_HWLOC_CACHE_ATTR )
+  check_struct_has_member( "struct hwloc_obj" parent hwloc.h DAGUE_HAVE_HWLOC_PARENT_MEMBER )
+  check_struct_has_member( "struct hwloc_cache_attr_s" size hwloc.h DAGUE_HAVE_HWLOC_CACHE_ATTR )
   check_c_source_compiles( "#include <hwloc.h>
-    int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" HAVE_HWLOC_OBJ_PU)
-  check_library_exists(${HWLOC_LIBRARY} hwloc_bitmap_free "" HAVE_HWLOC_BITMAP)
+    int main(void) { hwloc_obj_t o; o->type = HWLOC_OBJ_PU; return 0;}" DAGUE_HAVE_HWLOC_OBJ_PU)
+  check_library_exists(${HWLOC_LIBRARY} hwloc_bitmap_free "" DAGUE_HAVE_HWLOC_BITMAP)
   set(CMAKE_REQUIRED_INCLUDES ${HWLOC_SAVE_CMAKE_REQUIRED_INCLUDES})
 else(HWLOC_FOUND)
-  unset(HAVE_HWLOC_PARENT_MEMBER CACHE)
-  unset(HAVE_HWLOC_CACHE_ATTR CACHE)
-  unset(HAVE_HWLOC_OBJ_PU CACHE)
-  unset(HAVE_HWLOC_BITMAP CACHE)
+  unset(DAGUE_HAVE_HWLOC_PARENT_MEMBER CACHE)
+  unset(DAGUE_HAVE_HWLOC_CACHE_ATTR CACHE)
+  unset(DAGUE_HAVE_HWLOC_OBJ_PU CACHE)
+  unset(DAGUE_HAVE_HWLOC_BITMAP CACHE)
 endif(HWLOC_FOUND)

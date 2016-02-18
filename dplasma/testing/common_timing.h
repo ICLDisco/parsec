@@ -8,7 +8,7 @@
 extern double time_elapsed;
 extern double sync_time_elapsed;
 
-#if defined( HAVE_MPI)
+#if defined( DAGUE_HAVE_MPI)
 # define get_cur_time() MPI_Wtime()
 #else
 static inline double get_cur_time(void)
@@ -36,7 +36,7 @@ static inline double get_cur_time(void)
   printf print; \
 } while(0)
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 # define SYNC_TIME_START() do {                 \
         MPI_Barrier(MPI_COMM_WORLD);            \
         DAGUE_PROFILING_START();                \

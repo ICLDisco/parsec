@@ -2,7 +2,6 @@
 #define _DPLASMAJDF_H_
 
 #include <core_blas.h>
-#include "dague.h"
 #include "dplasma.h"
 #include "dague/private_mempool.h"
 
@@ -41,15 +40,15 @@ typedef void * CORE_sgetrf_data_t;
 #define DRYRUN( body ) body
 #endif
 
-#ifndef HAVE_MPI
+#ifndef DAGUE_HAVE_MPI
 #define TEMP_TYPE MPITYPE
 #undef MPITYPE
 #define MPITYPE ((dague_datatype_t)QUOTEME(TEMP_TYPE))
 #undef TEMP_TYPE
-#endif  /* HAVE_MPI */
+#endif  /* DAGUE_HAVE_MPI */
 
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include <cublas.h>
 
 typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
@@ -68,7 +67,7 @@ typedef void (*cublas_sgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  float alpha, float *d_A, int lda,
                                               float *d_B, int ldb,
                                  float beta,  float *d_C, int ldc );
-#endif
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
 #endif /* _DPLASMAJDF_H_ */
 

@@ -49,9 +49,9 @@
 #cmakedefine DAGUE_SIM
 
 /* system */
-#cmakedefine HAVE_PTHREAD
-#cmakedefine HAVE_SCHED_SETAFFINITY
-#cmakedefine HAVE_CLOCK_GETTIME
+#cmakedefine DAGUE_HAVE_PTHREAD
+#cmakedefine DAGUE_HAVE_SCHED_SETAFFINITY
+#cmakedefine DAGUE_HAVE_CLOCK_GETTIME
 #cmakedefine DAGUE_ATOMIC_USE_GCC_32_BUILTINS
 #cmakedefine DAGUE_ATOMIC_USE_GCC_64_BUILTINS
 #cmakedefine DAGUE_ATOMIC_USE_GCC_128_BUILTINS
@@ -61,30 +61,30 @@
 #cmakedefine DAGUE_ATOMIC_USE_MIPOSPRO_64_BUILTINS
 #cmakedefine DAGUE_ATOMIC_USE_SUN_32
 #cmakedefine DAGUE_ATOMIC_USE_SUN_64
-#cmakedefine HAVE_ASPRINTF
-#cmakedefine HAVE_VASPRINTF
-#cmakedefine HAVE_STDARG_H
-#cmakedefine HAVE_UNISTD_H
-#cmakedefine HAVE_SYS_PARAM_H
-#cmakedefine HAVE_SYS_TYPES_H
-#cmakedefine HAVE_SYSLOG_H
-#cmakedefine HAVE_VA_COPY
-#cmakedefine HAVE_UNDERSCORE_VA_COPY
-#cmakedefine HAVE_GETOPT_LONG
-#cmakedefine HAVE_GETRUSAGE
-#cmakedefine HAVE_GETOPT_H
-#cmakedefine HAVE_ERRNO_H
-#cmakedefine HAVE_STDDEF_H
-#cmakedefine HAVE_STDBOOL_H
-#cmakedefine HAVE_CTYPE_H
-#cmakedefine HAVE_LIMITS_H
-#cmakedefine HAVE_STRING_H
-#cmakedefine HAVE_GEN_H
-#cmakedefine HAVE_COMPLEX_H
-#cmakedefine ARCH_X86
-#cmakedefine ARCH_X86_64
-#cmakedefine ARCH_PPC
-#cmakedefine MAC_OS_X
+#cmakedefine DAGUE_HAVE_ASPRINTF
+#cmakedefine DAGUE_HAVE_VASPRINTF
+#cmakedefine DAGUE_HAVE_STDARG_H
+#cmakedefine DAGUE_HAVE_UNISTD_H
+#cmakedefine DAGUE_HAVE_SYS_PARAM_H
+#cmakedefine DAGUE_HAVE_SYS_TYPES_H
+#cmakedefine DAGUE_HAVE_SYSLOG_H
+#cmakedefine DAGUE_HAVE_VA_COPY
+#cmakedefine DAGUE_HAVE_UNDERSCORE_VA_COPY
+#cmakedefine DAGUE_HAVE_GETOPT_LONG
+#cmakedefine DAGUE_HAVE_GETRUSAGE
+#cmakedefine DAGUE_HAVE_GETOPT_H
+#cmakedefine DAGUE_HAVE_ERRNO_H
+#cmakedefine DAGUE_HAVE_STDDEF_H
+#cmakedefine DAGUE_HAVE_STDBOOL_H
+#cmakedefine DAGUE_HAVE_CTYPE_H
+#cmakedefine DAGUE_HAVE_LIMITS_H
+#cmakedefine DAGUE_HAVE_STRING_H
+#cmakedefine DAGUE_HAVE_GEN_H
+#cmakedefine DAGUE_HAVE_COMPLEX_H
+#cmakedefine DAGUE_ARCH_X86
+#cmakedefine DAGUE_ARCH_X86_64
+#cmakedefine DAGUE_ARCH_PPC
+#cmakedefine DAGUE_OSX
 
 #cmakedefine DAGUE_HAVE_ATTRIBUTE_VISIBILITY
 #cmakedefine DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE
@@ -98,28 +98,28 @@
 #define CMAKE_PARSEC_C_INCLUDES   "@PARSEC_C_INCLUDES@"
 
 /* Optional packages */
-#cmakedefine HAVE_HWLOC
-#cmakedefine HAVE_HWLOC_BITMAP
-#cmakedefine HAVE_HWLOC_PARENT_MEMBER
-#cmakedefine HAVE_HWLOC_CACHE_ATTR
-#cmakedefine HAVE_HWLOC_OBJ_PU
+#cmakedefine DAGUE_HAVE_HWLOC
+#cmakedefine DAGUE_HAVE_HWLOC_BITMAP
+#cmakedefine DAGUE_HAVE_HWLOC_PARENT_MEMBER
+#cmakedefine DAGUE_HAVE_HWLOC_CACHE_ATTR
+#cmakedefine DAGUE_HAVE_HWLOC_OBJ_PU
 
-#cmakedefine HAVE_PAPI
-#cmakedefine HAVE_CUDA
-#cmakedefine HAVE_OPENCL
-#cmakedefine HAVE_MPI
-#cmakedefine HAVE_MPI_20
+#cmakedefine DAGUE_HAVE_PAPI
+#cmakedefine DAGUE_HAVE_CUDA
+#cmakedefine DAGUE_HAVE_OPENCL
+#cmakedefine DAGUE_HAVE_MPI
+#cmakedefine DAGUE_HAVE_MPI_20
 
-#cmakedefine HAVE_AYUDAME
+#cmakedefine DAGUE_HAVE_AYUDAME
 
-#cmakedefine HAVE_RECENT_LEX
+#cmakedefine DAGUE_HAVE_RECENT_LEX
 
-#cmakedefine HAVE_INDENT
+#cmakedefine DAGUE_HAVE_INDENT
 #define DAGUE_INDENT_PREFIX "@INDENT_EXECUTABLE@"
 #define DAGUE_INDENT_OPTIONS "@INDENT_OPTIONS@"
 #define DAGUE_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 
-#cmakedefine HAVE_AWK
+#cmakedefine DAGUE_HAVE_AWK
 #define DAGUE_AWK_PREFIX "@AWK_EXECUTABLE@"
 
 /* Default PATH to look for the CUDA .so files */
@@ -129,7 +129,7 @@
 #define _GNU_SOURCE
 #endif  /* !defined(_GNU_SOURCE) */
 
-#ifdef ARCH_PPC
+#ifdef DAGUE_ARCH_PPC
 #define inline __inline__
 #define restrict
 #endif

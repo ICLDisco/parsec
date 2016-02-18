@@ -11,7 +11,7 @@
 #include "dague/utils/mca_param.h"
 #include "dague/constants.h"
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include "dague.h"
 #include "dague/data_internal.h"
 #include "dague/devices/cuda/dev_cuda.h"
@@ -1986,4 +1986,4 @@ dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
     return DAGUE_HOOK_RETURN_DISABLE;
 }
 
-#endif /* HAVE_CUDA */
+#endif /* DAGUE_HAVE_CUDA */

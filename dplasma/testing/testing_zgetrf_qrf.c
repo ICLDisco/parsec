@@ -145,7 +145,7 @@ int main(int argc, char ** argv)
 
     /* Compute percentage of LU/QR */
     {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
         {
             int *lu_tab2 = (int*)malloc( MT*sizeof(int) );
             MPI_Allreduce ( lu_tab, lu_tab2, MT, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
