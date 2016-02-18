@@ -1364,7 +1364,7 @@ progress_stream( gpu_device_t* gpu_device,
     if ( NULL == progress_fct ) {
         /* Grab the submit function */
         progress_fct = task->submit;
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
         for( i = 0; i < task->ec->function->nb_flows; i++ ) {
             flow = task->flow[i];
             assert( flow );
@@ -1372,7 +1372,7 @@ progress_stream( gpu_device_t* gpu_device,
             if(!flow->flow_flags) continue;
             assert(task->ec->data[i].data_out->data_transfer_status == DATA_STATUS_COMPLETE_TRANSFER);
         }
-#endif /* defined(DAGUE_DEBUG_ENABLE) */
+#endif /* defined(DAGUE_DEBUG_PARANOID) */
     }
     assert( NULL != progress_fct );
     rc = progress_fct( gpu_device, task, exec_stream );
