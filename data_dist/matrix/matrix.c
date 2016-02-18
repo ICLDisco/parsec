@@ -77,17 +77,14 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     dague_ddesc_t *o = (dague_ddesc_t*)tdesc;
 
     /* Super setup */
-    o->nodes     = nodes;
-    o->myrank    = myrank;
+    dague_ddesc_init( o, nodes, myrank );
 
-    o->data_key      = tiled_matrix_data_key;
-#if defined(DAGUE_PROF_TRACE)
-    o->key_to_string = tiled_matrix_key_to_string;
-    o->key_dim       = NULL;
-    o->key           = NULL;
-#endif
-    o->memory_registration_status    = MEMORY_STATUS_UNREGISTERED;
-    o->key_base = NULL;
+    /* Change the common data_key */
+    o->data_key = tiled_matrix_data_key;
+
+    /**
+     * Setup the tiled matrix properties
+     */
 
     /* Matrix address */
     /* tdesc->mat = NULL; */
@@ -135,7 +132,9 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->mt = (i+m-1)/mb - i/mb + 1;
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
 
+    /* finish to update the main object properties */
 #if defined(DAGUE_PROF_TRACE)
+    o->key_to_string = tiled_matrix_key_to_string;
     asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
 }
