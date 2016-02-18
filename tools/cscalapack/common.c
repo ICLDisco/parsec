@@ -18,7 +18,17 @@ void setup_params( int params[], int argc, char* argv[] )
 {
     int i;
     int ictxt, iam, nprocs, p, q;
-    MPI_Init( &argc, &argv );
+    int provided;
+    MPI_Init_thread( &argc, &argv, MPI_THREAD_MULTIPLE, &provided );
+
+#if 0
+    fprintf(stderr, "Level of thread provided is %s\n",
+	    provided == MPI_THREAD_MULTIPLE   ? "MPI_THREAD_MULTIPLE" :
+	    provided == MPI_THREAD_SERIALIZED ? "MPI_THREAD_SERIALIZED" :
+	    provided == MPI_THREAD_FUNNELED   ? "MPI_THREAD_FUNNELED" :
+	    provided == MPI_THREAD_SINGLE     ? "MPI_THREAD_SINGLE" : "UNKNOWN" );
+#endif
+
     Cblacs_pinfo( &iam, &nprocs );
     Cblacs_get( -1, 0, &ictxt );
 
@@ -39,6 +49,11 @@ void setup_params( int params[], int argc, char* argv[] )
         }
         if( strcmp( argv[i], "-q" ) == 0 ) {
             q = atoi(argv[i+1]);
+            i++;
+            continue;
+        }
+        if( strcmp( argv[i], "-m" ) == 0 ) {
+            params[PARAM_M] = atoi(argv[i+1]);
             i++;
             continue;
         }
@@ -66,10 +81,11 @@ void setup_params( int params[], int argc, char* argv[] )
             params[PARAM_SEED] = atoi(argv[i+1]);
             i++;
         }
-        fprintf( stderr, "### USAGE: %s [-p NUM][-q NUM][-n NUM][-b NUM][-x][-s NUM]\n"
+        fprintf( stderr, "### USAGE: %s [-p NUM][-q NUM][-m NUM][-n NUM][-b NUM][-x][-s NUM]\n"
                          "#     -p         : number of rows in the PxQ process grid\n"
                          "#     -q         : number of columns in the PxQ process grid\n"
-                         "#     -n         : dimension of the matrix (NxN)\n"
+                         "#     -m         : dimension of the matrix (MxN)\n"
+                         "#     -n         : dimension of the matrix (MxN)\n"
                          "#     -b         : block size (NB)\n"
                          "#     -s | -nrhs : number of right hand sides for backward error computation (NRHS)\n"
                          "#     -x         : disable verification\n"
