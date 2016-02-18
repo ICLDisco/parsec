@@ -2,26 +2,26 @@
 #  Settings for targets
 #
 set(BASE_SOURCES
+  class/dague_dequeue.c
+  class/dague_fifo.c
+  class/dague_lifo.c
+  class/dague_list.c
   class/dague_object.c
   class/dague_value_array.c
-  class/dague_list.c
-  class/dague_lifo.c
-  class/dague_fifo.c
-  class/dague_dequeue.c
   class/hash_table.c
-  utils/installdirs.c
-  utils/os_path.c
-  utils/dague_environ.c
   utils/argv.c
+  utils/cmd_line.c
+  utils/colors.c
+  utils/dague_environ.c
+  utils/installdirs.c
+  utils/keyval_parse.c
+  utils/mca_param.c
+  utils/mca_param_cmd_line.c
+  utils/mca_parse_paramfile.c
+  utils/os_path.c
   utils/output.c
   utils/show_help.c
-  utils/keyval_parse.c
-  utils/mca_parse_paramfile.c
-  utils/cmd_line.c
-  utils/mca_param_cmd_line.c
-  utils/mca_param.c
   utils/zone_malloc.c
-  utils/colors.c
 )
 
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)
@@ -47,21 +47,22 @@ include(interfaces/superscalar/CMakeLists.txt)
 # set (CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib" ${TAU_LIBRARY_DIR})
 
 set(SOURCES
-  debug.c
+  arena.c
   barrier.c
-  scheduling.c
+  bindthread.c
   dague.c
   data.c
-  arena.c
-  remote_dep.c
-  bindthread.c
-  mempool.c
-  private_mempool.c
-  vpmap.c
+  data_distribution.c
+  debug.c
+  debug_marks.c
   devices/device.c
   mca/mca_repository.c
-  debug_marks.c
+  mempool.c
+  private_mempool.c
   profiling.c
+  remote_dep.c
+  scheduling.c
+  vpmap.c
   ${EXTRA_SOURCES}
   ${MCA_EXTRA_SOURCES}
 )

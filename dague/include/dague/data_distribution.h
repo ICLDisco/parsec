@@ -39,19 +39,19 @@ struct dague_ddesc_s {
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
     /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-    dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...);
+    dague_data_key_t (*data_key)(dague_ddesc_t *d, ...);
 
     /* return the rank of the process owning the data  */
-    uint32_t (*rank_of)(dague_ddesc_t *mat, ...);
-    uint32_t (*rank_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    uint32_t (*rank_of)(dague_ddesc_t *d, ...);
+    uint32_t (*rank_of_key)(dague_ddesc_t *d, dague_data_key_t key);
 
     /* return the pointer to the data possessed locally */
-    dague_data_t* (*data_of)(dague_ddesc_t *mat, ...);
-    dague_data_t* (*data_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    dague_data_t* (*data_of)(dague_ddesc_t *d, ...);
+    dague_data_t* (*data_of_key)(dague_ddesc_t *d, dague_data_key_t key);
 
     /* return the virtual process ID of data possessed locally */
-    int32_t  (*vpid_of)(dague_ddesc_t *mat, ...);
-    int32_t  (*vpid_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    int32_t  (*vpid_of)(dague_ddesc_t *d, ...);
+    int32_t  (*vpid_of_key)(dague_ddesc_t *d, dague_data_key_t key);
 
     /* Memory management function. They are used to register/unregister the data description
      * with the active devices.
@@ -64,7 +64,7 @@ struct dague_ddesc_s {
 
 #ifdef DAGUE_PROF_TRACE
     /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
-    int (*key_to_string)(dague_ddesc_t *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size);
+    int (*key_to_string)(dague_ddesc_t *d, dague_data_key_t key, char * buffer, uint32_t buffer_size);
     char      *key_dim;
     char      *key;
 #endif /* DAGUE_PROF_TRACE */
@@ -76,15 +76,34 @@ struct dague_ddesc_s {
  */
 extern const dague_ddesc_t dague_static_local_data_ddesc;
 
-static inline void dague_ddesc_destroy(dague_ddesc_t *d)
-{
+/**
+ * Set of default functions that describes one fake data of size 0 owned by
+ * everyone node on VP 0
+ */
+dague_data_key_t dague_ddesc_default_data_key(dague_ddesc_t *d, ...);
+uint32_t         dague_ddesc_default_rank_of_key(dague_ddesc_t *d, dague_data_key_t key);
+uint32_t         dague_ddesc_default_rank_of(dague_ddesc_t *d, ...);
+dague_data_t *   dague_ddesc_default_data_of_key(dague_ddesc_t *d, dague_data_key_t key);
+dague_data_t *   dague_ddesc_default_data_of(dague_ddesc_t *d, ...);
+uint32_t         dague_ddesc_default_vpid_of_key(dague_ddesc_t *d, dague_data_key_t key );
+uint32_t         dague_ddesc_default_vpid_of(dague_ddesc_t *d, ... );
+
 #if defined(DAGUE_PROF_TRACE)
-    if( NULL != d->key_dim ) free(d->key_dim);
-    d->key_dim = NULL;
-#endif
-    if( NULL != d->key_base ) free(d->key_base);
-    d->key_base = NULL;
-}
+int              dague_ddesc_default_key_to_string(struct dague_ddesc_s *desc,
+                                                   uint32_t datakey,
+                                                   char * buffer,
+                                                   uint32_t buffer_size);
+#endif /* defined(DAGUE_PROF_TRACE) */
+
+
+/**
+ * Initialize the dague_desc to default values:
+ * A descriptor with one fake data of size 0, replicated on all nodes on VP 0
+ */
+void dague_ddesc_init(dague_ddesc_t *d,
+                      int nodes, int myrank );
+void dague_ddesc_destroy(dague_ddesc_t *d);
+
 
 #if defined(DAGUE_PROF_TRACE)
 #include "dague/profiling.h"
