@@ -12,9 +12,9 @@
 
 #include <stdio.h>
 #include <string.h>
-#ifdef HAVE_UNISTD_H
+#if defined(DAGUE_HAVE_UNISTD_H)
 #include <unistd.h>
-#endif
+#endif  /* DAGUE_HAVE_UNISTD_H */
 
 /* globals for use in macros from debug.h */
 char dague_debug_hostname[32]   = "unknownhost";

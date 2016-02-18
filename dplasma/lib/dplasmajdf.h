@@ -48,7 +48,7 @@ typedef void * CORE_sgetrf_data_t;
 #endif  /* DAGUE_HAVE_MPI */
 
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
 #include <cublas.h>
 
 typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
@@ -67,7 +67,7 @@ typedef void (*cublas_sgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  float alpha, float *d_A, int lda,
                                               float *d_B, int ldb,
                                  float beta,  float *d_C, int ldc );
-#endif
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
 #endif /* _DPLASMAJDF_H_ */
 
