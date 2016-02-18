@@ -1597,7 +1597,7 @@ data_lookup_of_dtd_task(dague_execution_unit_t *context,
         if( INOUT == op_type_on_current_flow ||
             OUTPUT == op_type_on_current_flow ) {
             if( current_task->super.data[current_dep].data_in->readers > 0 ) {
-                //return DAGUE_HOOK_RETURN_AGAIN;
+                return DAGUE_HOOK_RETURN_AGAIN;
                 /* We create a new data copy to avoid WAR */
                 #if 0
                 dague_data_copy_t *new_copy = dague_data_copy_new(current_task->super.data[current_dep].data_in->original, current_task->super.data[current_dep].data_in->device_index);
@@ -2538,8 +2538,17 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
 
             /* Are we using the same data multiple times for the same task? */
             if(last_user.task == this_task) {
-                this_task->super.data[flow_index].data_in = tile->data_copy;
                 satisfied_flow += 1;
+                this_task->super.data[flow_index].data_in = tile->data_copy;
+
+                /* What if we have the same task using the same data in different flows
+                 * with the corresponding  operation type on the data : R then W, we are
+                 * doomed and this is to not get doomed
+                 */
+                if( ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT)
+                    && (last_user.op_type & GET_OP_TYPE) == INPUT ) {
+                    dague_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , -1 );
+                }
             }
 
 #if defined (WILL_USE_IN_DISTRIBUTED)

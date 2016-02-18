@@ -374,13 +374,6 @@ ordering_correctly_1(dague_execution_unit_t *eu,
             get_out = 1;  /* by default escape */
             if( !(OUTPUT == desc_op_type || INOUT == desc_op_type) ) {
 
-                dague_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), 1 );
-                /* Each reader increments the ref count of the data_copy
-                 * We should have a function to retain data copies like
-                 * DAGUE_DATA_COPY_RELEASE
-                 */
-                //OBJ_RETAIN(current_task->super.data[current_dep].data_out);
-
                 nextinline = current_desc->desc[desc_flow_index].task;
                 if( NULL != nextinline ) {
                     desc_op_type    = (current_desc->desc[desc_flow_index].op_type & GET_OP_TYPE);
@@ -400,6 +393,14 @@ ordering_correctly_1(dague_execution_unit_t *eu,
                      */
                     current_desc->dont_skip_releasing_data[desc_flow_index] = 1;
                 }
+
+                dague_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), 1 );
+                /* Each reader increments the ref count of the data_copy
+                 * We should have a function to retain data copies like
+                 * DAGUE_DATA_COPY_RELEASE
+                 */
+                //OBJ_RETAIN(current_task->super.data[current_dep].data_out);
+
             }
 
             desc_op_type        = (current_desc->desc[desc_flow_index].op_type & GET_OP_TYPE);
