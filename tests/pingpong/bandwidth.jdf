@@ -8,10 +8,6 @@ extern "C" %{
 
 #include "bandwidth.h"
 
-#if defined(DAGUE_HAVE_CUDA)
-#include "tests/pingpong/pingpong_gpu.h"
-#endif  /* defined(DAGUE_HAVE_CUDA) */
-
 typedef struct {
     dague_ddesc_t  super;
     int            frags;
@@ -270,7 +266,9 @@ RW   T <- T PING(t, f)
 CTL  C -> C SYNC(t+1)
 
 BODY [type = CUDA]
-    return bandwidth_cuda(context, (dague_execution_context_t*)this_task);
+{
+    /* Nothing to do */
+}
 END
 
 BODY

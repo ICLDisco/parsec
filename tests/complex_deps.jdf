@@ -12,7 +12,6 @@ extern "C" %{
 #include <stdlib.h>
 
 #define BLOCK 10
-#define N     100
 #define NN    10
 #define TYPE  matrix_RealFloat
 

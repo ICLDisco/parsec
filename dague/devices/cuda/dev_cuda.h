@@ -10,6 +10,7 @@
 #include "dague_config.h"
 #include "dague/dague_internal.h"
 #include "dague/class/dague_object.h"
+#include "dague/class/fifo.h"
 #include "dague/devices/device.h"
 
 #if defined(DAGUE_HAVE_CUDA)
@@ -55,13 +56,29 @@ typedef struct __dague_gpu_workspace {
     int total_workspace;
 } dague_gpu_workspace_t;
 
-typedef struct __dague_gpu_context {
+struct __dague_gpu_context;
+typedef struct __dague_gpu_context dague_gpu_context_t;
+
+struct __dague_gpu_exec_stream;
+typedef struct __dague_gpu_exec_stream dague_gpu_exec_stream_t;
+
+struct _gpu_device;
+typedef struct _gpu_device gpu_device_t;
+
+typedef int (*advance_task_function_t)(gpu_device_t            *gpu_device,
+                                       dague_gpu_context_t     *gpu_task,
+                                       dague_gpu_exec_stream_t *gpu_stream);
+
+struct __dague_gpu_context {
     dague_list_item_t          list_item;
     dague_execution_context_t *ec;
-    int task_type;
-} dague_gpu_context_t;
+    advance_task_function_t    submit;
+    int                        task_type;
+    int                        pushout[MAX_PARAM_COUNT];
+    const dague_flow_t        *flow[MAX_PARAM_COUNT];
+};
 
-typedef struct __dague_gpu_exec_stream {
+struct __dague_gpu_exec_stream {
     struct __dague_gpu_context **tasks;
     cudaEvent_t *events;
     cudaStream_t cuda_stream;
@@ -77,9 +94,9 @@ typedef struct __dague_gpu_exec_stream {
     int prof_event_track_enable;
     int prof_event_key_start, prof_event_key_end;
 #endif  /* defined(PROFILING) */
-} dague_gpu_exec_stream_t;
+};
 
-typedef struct _gpu_device {
+struct _gpu_device {
     dague_device_t super;
     uint8_t cuda_index;
     uint8_t major;
@@ -96,7 +113,7 @@ typedef struct _gpu_device {
     dague_list_t pending;
     zone_malloc_t *memory;
     dague_list_item_t *sort_starting_p;
-} gpu_device_t;
+};
 
 #define DAGUE_CUDA_CHECK_ERROR( STR, ERROR, CODE )                      \
     do {                                                                \
@@ -128,24 +145,12 @@ typedef dague_data_copy_t dague_gpu_data_copy_t;
 
 #include "dague/data_distribution.h"
 
-/*
- * Data movement
- */
-int dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
-                                         dague_execution_context_t *this_task,
-                                         int  move_data_count );
-
-int dague_gpu_data_stage_in( gpu_device_t* gpu_device,
-                             int32_t type,
-                             dague_data_pair_t* task_data,
-                             dague_gpu_context_t *gpu_task,
-                             dague_gpu_exec_stream_t *gpu_stream );
-
 /* GPU workspace  ONLY works when DAGUE_ALLOC_GPU_PER_TILE is OFF */
 int dague_gpu_push_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream);
 void* dague_gpu_pop_workspace(gpu_device_t* gpu_device, dague_gpu_exec_stream_t* gpu_stream, size_t size);
 int dague_gpu_free_workspace(gpu_device_t * gpu_device);
 
+int dague_gpu_get_best_device( dague_execution_context_t* this_task, double ratio );
 
 /* sort pending task list by number of spaces needed */
 int dague_gpu_sort_pending_list(gpu_device_t *gpu_device);
@@ -155,15 +160,55 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device, dague_gpu_context_t *w2r_t
 /**
  * Progress
  */
-typedef int (*advance_task_function_t)(gpu_device_t* gpu_device,
-                                       dague_gpu_context_t* task,
-                                       dague_gpu_exec_stream_t* gpu_stream);
+/**
+ * This version is based on 4 streams: one for transfers from the memory to
+ * the GPU, 2 for kernel executions and one for tranfers from the GPU into
+ * the main memory. The synchronization on each stream is based on CUDA events,
+ * such an event indicate that a specific epoch of the lifetime of a task has
+ * been completed. Each type of stream (in, exec and out) has a pending FIFO,
+ * where tasks ready to jump to the respective step are waiting.
+ */
+dague_hook_return_t
+dague_gpu_kernel_scheduler( dague_execution_unit_t *eu_context,
+                            dague_gpu_context_t    *gpu_task,
+                            int which_gpu );
 
-int progress_stream( gpu_device_t* gpu_device,
-                     dague_gpu_exec_stream_t* gpu_stream,
-                     advance_task_function_t progress_fct,
-                     dague_gpu_context_t* task,
-                     dague_gpu_context_t** out_task );
+/**
+ * Predefined generic progress functions
+ */
+
+/**
+ *  This function schedule the move of all the data required for a
+ *  specific task from the main memory into the GPU memory.
+ *
+ *  Returns:
+ *     a positive number: the number of data to be moved.
+ *     -1: data cannot be moved into the GPU.
+ *     -2: No more room on the GPU to move this data.
+ */
+int
+dague_gpu_kernel_push( gpu_device_t            *gpu_device,
+                       dague_gpu_context_t     *gpu_task,
+                       dague_gpu_exec_stream_t *gpu_stream);
+
+/**
+ *  This function schedule the move of all the modified data for a
+ *  specific task from the GPU memory into the main memory.
+ *
+ *  Returns: negative number if any error occured.
+ *           positive: the number of data to be moved.
+ */
+int
+dague_gpu_kernel_pop( gpu_device_t            *gpu_device,
+                      dague_gpu_context_t     *gpu_task,
+                      dague_gpu_exec_stream_t *gpu_stream);
+
+/**
+ * Make sure all data on the device is correctly put back into the queues.
+ */
+int
+dague_gpu_kernel_epilog( gpu_device_t        *gpu_device,
+                         dague_gpu_context_t *gpu_task );
 
 END_C_DECLS
 

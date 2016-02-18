@@ -759,7 +759,6 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     DESTINATION include/dague/devices )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/cuda_scheduling.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/dev_cuda.h
     DESTINATION include/dague/devices/cuda )
 

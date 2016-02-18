@@ -1312,7 +1312,7 @@ dtd_startup( dague_context_t            *context,
             if (DAGUE_SUCCESS != device->device_handle_register(device, (dague_handle_t *) dague_handle))
                 continue;
 
-        supported_dev |= (1 << device->type);
+        supported_dev |= device->type;
         dague_handle->devices_mask |= (1 << _i);
     }
     (void)pready_list;

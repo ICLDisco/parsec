@@ -12,7 +12,6 @@ extern "C" %{
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #define BLOCK 10
-#define N     100
 #define NN    4
 #define TYPE  matrix_RealFloat
 

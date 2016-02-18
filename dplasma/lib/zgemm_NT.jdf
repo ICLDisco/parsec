@@ -1,22 +1,20 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010-2013
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
  *
  * @precisions normal z -> s d c
+ * $COPYRIGHT
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
 #if defined(DAGUE_HAVE_CUDA)
-#include <dague/devices/cuda/dev_cuda.h>
-#include "dplasma/cores/cuda_zgemm.h"
-extern int *gpu_counter;
+#include <cublas.h>
 #endif  /* defined(DAGUE_HAVE_CUDA) */
+
 %}
 
 /*
@@ -92,9 +90,18 @@ READ B <- (m == 0)            ? B READ_B(n, k) : B GEMM( (m+descC.mt-1) % descC.
 RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA
+      dyld=cublasZgemm dyldtype=cublas_zgemm_t
+      weight=(descA.nt-k)]
 {
-    dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex lalpha = make_cuDoubleComplex(creal(alpha), cimag(alpha));
+    cuDoubleComplex lbeta  = (k == 0) ? make_cuDoubleComplex(creal(beta), cimag(beta))
+                                      : make_cuDoubleComplex(1.0, 0.0);
+#else
+    double lalpha = alpha;
+    double lbeta  = (k == 0) ? beta : 1.0;
+#endif
     int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
     int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
     int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
@@ -102,13 +109,16 @@ BODY [type=CUDA dyld=cublasZgemm]
     int ldbn = BLKLDD(descB, n);
     int ldcm = BLKLDD(descC, m);
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     ( k == descA.nt-1 ), descA.nt-k,
-                     transA, transB,
-                     tempmm, tempnn, tempkk,
-                     alpha, ldam,
-                     ldbn,
-                     lbeta, ldcm);
+    cublasStatus_t status;
+    cublasSetKernelStream( dague_body.stream );
+    dague_body.dyld_fn( lapack_const(transA), lapack_const(transB),
+             tempmm, tempnn, tempkk,
+             lalpha, (cuDoubleComplex*)A, ldam,
+                     (cuDoubleComplex*)B, ldbn,
+             lbeta,  (cuDoubleComplex*)C, ldcm );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 

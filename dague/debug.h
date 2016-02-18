@@ -63,7 +63,7 @@ void dague_debug_backtrace_dump(void);
 /* Use when encountering a FATAL condition. Will terminate the program. */
 #define dague_abort(FMT, ...) do {                                  \
     dague_output(0,                                                 \
-        "%.*sX@%05d%.*s "FMT" %.*s@%.30s:%-5d%.*s",                 \
+        "%.*sX@%05d%.*s " FMT " %.*s@%.30s:%-5d%.*s",                 \
         dague_debug_colorize, "\x1B[1;37;41m", dague_debug_rank, dague_debug_colorize, "\033[0m", ##__VA_ARGS__,\
         dague_debug_colorize, "\x1B[36m", __func__, __LINE__, dague_debug_hostname, getpid(), dague_debug_colorize, "\033[0m");\
     abort();                                                        \
@@ -91,11 +91,11 @@ void dague_debug_backtrace_dump(void);
  * so not to use in performance critical routines. */
 #define dague_debug_verbose(LVL, OUT, FMT, ...) do {                \
     dague_output_verbose(LVL, OUT,                                  \
-        "%.*sD@%05d%.*s "FMT" %.*s@%.30s:%-5d%.*s",                 \
+        "%.*sD@%05d%.*s " FMT " %.*s@%.30s:%-5d%.*s",                 \
         dague_debug_colorize, "\x1B[0;37;44m", dague_debug_rank, dague_debug_colorize, "\033[0m", ##__VA_ARGS__,\
         dague_debug_colorize, "\x1B[36m", __func__, __LINE__, dague_debug_colorize, "\033[0m");         \
     _DAGUE_DEBUG_HISTORY(LVL,                                       \
-        "D@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        "D@%05d " FMT " @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
 } while(0)
 
@@ -106,11 +106,11 @@ void dague_debug_backtrace_dump(void);
  */
 #define DAGUE_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
     dague_output_verbose(LVL, OUT,                                  \
-        "%.*sd@%05d%.*s "FMT" %.*s@%.30s:%-5d%.*s",                 \
+        "%.*sd@%05d%.*s " FMT " %.*s@%.30s:%-5d%.*s",                 \
         dague_debug_colorize, "\x1B[0;37;44m", dague_debug_rank, dague_debug_colorize, "\033[0m", ##__VA_ARGS__,\
         dague_debug_colorize, "\x1B[36m", __func__, __LINE__, dague_debug_colorize, "\033[0m");         \
     _DAGUE_DEBUG_HISTORY(LVL,                                       \
-        "d@%05d "FMT" @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
+        "d@%05d " FMT " @%.20s:%-5d", dague_debug_rank, ##__VA_ARGS__,\
         __func__, __LINE__);                                        \
 } while(0)
 #else

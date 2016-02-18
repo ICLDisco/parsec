@@ -846,11 +846,11 @@ int dague_fini( dague_context_t** pcontext )
 
     dague_data_fini(context);
 
-    dague_device_remove(dague_device_cpus);
+    dague_devices_remove(dague_device_cpus);
     free(dague_device_cpus);
     dague_device_cpus = NULL;
 
-    dague_device_remove(dague_device_recursive);
+    dague_devices_remove(dague_device_recursive);
     free(dague_device_recursive);
     dague_device_recursive = NULL;
 

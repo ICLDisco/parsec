@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -14,15 +14,13 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(DAGUE_HAVE_CUDA)
-#include "dague/devices/cuda/dev_cuda.h"
-#include "dplasma/cores/cuda_zgemm.h"
+#include <cublas.h>
 #endif  /* defined(DAGUE_HAVE_CUDA) */
 
 %}
 
 dataA     [type = "dague_ddesc_t *"]
 descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-
 
 potrf_zpotrf(k)
   /* Execution Space */
@@ -45,7 +43,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int info = 0;
 
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_potrf_zpotrf(%d)\n"
              "\t(PlasmaLower, tempkm, A(%d,%d)[%p], ldak, descA.nb*k)\n",
@@ -81,7 +78,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_potrf_ztrsm(%d, %d)\n"
              "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, descA.mb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
@@ -117,7 +113,6 @@ BODY
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_potrf_zherk(%d, %d)\n"
              "\t(PlasmaLower, PlasmaNoTrans, tempmm, descA.mb, -1., A(%d,%d)[%p], ldam, 1., A(%d,%d)[%p], ldam)\n",
@@ -151,19 +146,30 @@ potrf_zgemm(k, m, n)
 
 ; 40
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+    cuDoubleComplex mzone = make_cuDoubleComplex(-1., 0.);
+#else
+    double zone  =  1.;
+    double mzone = -1.;
+#endif
+
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int ldam = BLKLDD( descA, m );
     int ldan = BLKLDD( descA, n );
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     ( n == k+1 ), (n-k),
-                     PlasmaNoTrans, PlasmaConjTrans,
-                     tempmm, descA.mb, descA.mb,
-                     (dague_complex64_t)-1., ldam,
-                                             ldan,
-                     (dague_complex64_t) 1., ldam);
+    cublasStatus_t status;
+    cublasSetKernelStream( dague_body.stream );
+    cublasZgemm( 'N', lapack_const(PlasmaConjTrans),
+                 tempmm, descA.mb, descA.mb,
+                 mzone, (cuDoubleComplex*)A, ldam,
+                        (cuDoubleComplex*)B, ldan,
+                 zone,  (cuDoubleComplex*)C, ldam );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 
@@ -216,7 +222,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_trtri_ztrsmR(%d, %d)\n"
              "\t(PlasmaRight, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, tempmm, tempkn, -1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
@@ -253,20 +258,29 @@ trtri_zgemm(k, m, n)
 
 ; 30
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+#else
+    double zone  =  1.;
+#endif
+
     int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int ldam = BLKLDD( descA, m );
     int ldak = BLKLDD( descA, k );
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     ( m == k+1 ), (m-k),
-                     PlasmaNoTrans, PlasmaNoTrans,
-                     tempmm, descA.mb, tempkn,
-                     (dague_complex64_t)1., ldam,
-                                            ldak,
-                     (dague_complex64_t)1., ldam);
+    cublasStatus_t status;
+    cublasSetKernelStream( dague_body.stream );
+    cublasZgemm( 'N', 'N',
+                 tempmm, descA.nb, tempkn,
+                 zone, (cuDoubleComplex*)A, ldam,
+                       (cuDoubleComplex*)B, ldak,
+                 zone, (cuDoubleComplex*)C, ldam );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 
@@ -317,7 +331,6 @@ BODY
     int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_trtri_ztrsmL(%d, %d)\n"
              "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, tempkn, descA.nb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
@@ -354,7 +367,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int info = 0;
 
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_trtri_ztrtri(%d)\n"
              "\t(PlasmaLower, PlasmaNonUnit, tempkn, A(%d,%d)[%p], ldak, descA.nb*k)\n",
@@ -390,7 +402,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldan = BLKLDD( descA, n );
 
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_zherk(%d, %d)\n"
              "\t(PlasmaLower, PlasmaConjTrans, descA.mb, tempkm, 1., A(%d,%d)[%p], ldak, 1., A(%d,%d)[%p], ldan)\n",
@@ -425,19 +436,28 @@ lauum_zgemm(k, n, m)
 
 ; 20
 
-BODY [type=CUDA dyld=cublasZgemm]
+BODY [type=CUDA]
 {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+#else
+    double zone  =  1.;
+#endif
+
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    return gpu_zgemm(context, (dague_execution_context_t*)this_task,
-                     descA.nt == (k+1), descA.nt-k,
-                     PlasmaNoTrans, PlasmaConjTrans,
-                     descA.mb, descA.nb, tempkm,
-                     (dague_complex64_t)1., ldak,
-                                            ldak,
-                     (dague_complex64_t)1., ldam);
+    cublasStatus_t status;
+    cublasSetKernelStream( dague_body.stream );
+    cublasZgemm( lapack_const(PlasmaConjTrans), 'N',
+                 descA.mb, descA.nb, tempkm,
+                 zone, (cuDoubleComplex*)A, ldak,
+                       (cuDoubleComplex*)B, ldak,
+                 zone, (cuDoubleComplex*)C, ldam );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
 }
 END
 
@@ -486,7 +506,6 @@ BODY
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gB->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_ztrmm(%d, %d)\n"
              "\t(PlasmaLeft, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempkm, descA.nb, 1., A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
@@ -520,7 +539,6 @@ BODY
     int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_zlauum(%d)\n"
              "\t(PlasmaLower, tempkm, A(%d,%d)[%p], ldak)\n",

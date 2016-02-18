@@ -68,11 +68,18 @@ static void dague_data_destruct(dague_data_t* obj )
     DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Release data %p", obj);
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_data_copy_t *copy = NULL;
+        dague_device_t *device = dague_devices_get(i);
 
         while( (copy = obj->device_copies[i]) != NULL )
         {
             dague_data_copy_detach( obj, copy, i );
-            OBJ_RELEASE( copy );
+            if ( !(device->type & DAGUE_DEV_CUDA) ){
+                /**
+                 * GPU copies are normally stored in LRU lists, and must be
+                 * destroyed by the release list to free the memory on the device
+                 */
+                OBJ_RELEASE( copy );
+            }
         }
         assert(NULL == obj->device_copies[i]);
     }
@@ -280,7 +287,8 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
         for( i = 0; i < dague_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
             if( DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state
-             && data->device_copies[i]->version > copy->version ) {
+                && data->device_copies[i]->version > copy->version ) {
+                assert( (int)i == valid_copy );
                 transfer_required = 1;
             }
 #if defined(DAGUE_DEBUG_PARANOID)
@@ -288,7 +296,6 @@ int dague_data_transfer_ownership_to_copy(dague_data_t* data,
                 assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
                      || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state
                      || copy->data_transfer_status );
-                assert( data->device_copies[i]->version <= copy->version );
             }
 #endif  /* defined(DAGUE_DEBUG_PARANOID) */
         }

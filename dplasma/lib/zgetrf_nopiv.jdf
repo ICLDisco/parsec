@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -14,8 +14,8 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 
 #if defined(DAGUE_HAVE_CUDA)
-#include "dplasma/cores/cuda_zgemm.h"
-#endif
+#include <cublas.h>
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
 %}
 
@@ -149,6 +149,40 @@ zgemm(k, m, n)
              -> ((m == (k+1)) && (n >  (k+1))) ? B ztrsm_u(k+1, n)
              -> ((m >  (k+1)) && (n >  (k+1))) ? C zgemm(k+1, m, n)
 
+BODY [type=CUDA
+      dyld=cublasZgemm dyldtype=cublas_zgemm_t
+      weight="dplasma_imin( m-k, n-k )"]
+{
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex zone  = make_cuDoubleComplex( 1., 0.);
+    cuDoubleComplex mzone = make_cuDoubleComplex(-1., 0.);
+#else
+    double zone  =  1.;
+    double mzone = -1.;
+#endif
+
+    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
+    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
+    cublasStatus_t status;
+
+    printlogcuda("CUDA_zgemm(%d, %d, %d)\n"
+                 "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
+                 k, n, m, m, k, A, k, n, B, m, n, C);
+
+    cublasSetKernelStream( dague_body.stream );
+    dague_body.dyld_fn( 'N', 'N',
+             tempmm, tempnn, descA.mb,
+             mzone, (cuDoubleComplex*)A, ldam,
+                    (cuDoubleComplex*)B, ldak,
+             zone,  (cuDoubleComplex*)C, ldam );
+    status = cublasGetError();
+    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                            {return -1;} );
+}
+END
+
 BODY
 {
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
@@ -170,28 +204,3 @@ BODY
 }
 END
 
-BODY [type=CUDA dyld=cublasZgemm]
-{
-    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
-    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
-    int ldam = BLKLDD( descA, m );
-    int ldak = BLKLDD( descA, k );
-    int pushout = ((m == (k+1)) && (n == (k+1))) ||
-                  ((m >  (k+1)) && (n == (k+1))) ||
-                  ((m == (k+1)) && (n >  (k+1)));
-
-    printlog("CUDA_zgemm(%d, %d, %d)\n"
-             "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA.mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
-             k, n, m, m, k, A, k, n, B, m, n, C);
-
-#if !defined(DAGUE_DRY_RUN)
-    gpu_zgemm( context, (dague_execution_context_t*)this_task,
-               pushout, dague_imin( m-k, n-k ),
-               PlasmaNoTrans, PlasmaNoTrans,
-               tempmm, tempnn, descA.mb,
-               -1., ldam,
-                    ldak,
-                1., ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
-}
-END

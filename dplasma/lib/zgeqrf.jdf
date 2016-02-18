@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -19,8 +19,7 @@ extern "C" %{
 #endif
 
 #if defined(DAGUE_HAVE_CUDA)
-#include "dague/devices/cuda/dev_cuda.h"
-#include "dplasma/cores/cuda_ztsmqr.h"
+#include "dplasma/cores/dplasma_zcores.h"
 #endif  /* defined(DAGUE_HAVE_CUDA) */
 
 %}
@@ -87,8 +86,6 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descT;
         dague_handle_t *dague_zgeqrt;
 
-        dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-        dague_data_transfer_ownership_to_copy(gT->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
         small_descA = subtile_desc_create( &(descA), k, k,
                                            dplasma_imin(descA.mb, ldak), smallnb,
@@ -123,8 +120,6 @@ BODY
     int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gA->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    dague_data_transfer_ownership_to_copy(gT->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_zgeqrt(%d)\n"
              "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -176,7 +171,6 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descC;
         dague_handle_t *dague_zunmqr_panel;
 
-        dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
         small_descA = subtile_desc_create( &(descA), k, k,
                                            dplasma_imin(descA.mb, ldak), smallnb,
@@ -216,7 +210,6 @@ BODY
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );
 
-    dague_data_transfer_ownership_to_copy(gC->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_zunmqr(%d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT.mb, A(%d,%d)[%p], ldak, p_elem_A, descT.nb)\n",
@@ -290,9 +283,6 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descT;
         dague_handle_t *dague_ztsqrt;
 
-        dague_data_transfer_ownership_to_copy(gA1->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-        dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-        dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
         small_descA1 = subtile_desc_create( &(descA), k, k,
                                             dplasma_imin(descA.mb, ldak), smallnb,
@@ -333,9 +323,6 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    dague_data_transfer_ownership_to_copy(gA1->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    dague_data_transfer_ownership_to_copy(gT->original,  0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_ztsqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
@@ -401,31 +388,26 @@ ztsmqr(k,m,n)
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
 
-BODY [type=CUDA dyld=dplasma_cuda_ztsmqr]
+BODY [type=CUDA device=inline_c %{ return n; %}]
 {
+    dague_complex64_t *WORK, *WORKC;
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;
     int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : descA.nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
-    int ret, pushout_A1 = 0, pushout_A2 = 0;
 
-    if (m == descA.mt - 1) {
-        pushout_A1 = 1;
-    }
-    if ((k+1) == m || (k+1) == n) {
-        pushout_A2 = 1;
-    }
+    WORK  = dague_gpu_pop_workspace(gpu_device, gpu_stream, descA.nb * ib * sizeof(dague_complex64_t));
+    WORKC = dague_gpu_pop_workspace(gpu_device, gpu_stream, descA.mb * ib * sizeof(dague_complex64_t));
 
-#if defined(DAGUE_HAVE_MPI)
-    pushout_A1 = 1;
-#endif
-
-    ret = gpu_ztsmqr( context, (dague_execution_context_t*)this_task,
-                      pushout_A1, pushout_A2, m, n, k,
-                      PlasmaLeft, PlasmaConjTrans,
-                      descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
-                      ldak, ldam, ldam, descT.mb );
-    return ret;
+    dplasma_cuda_ztsmqr( PlasmaLeft, PlasmaConjTrans,
+                         descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
+                         A1 /* dataA(k,n) */, ldak,
+                         A2 /* dataA(m,n) */, ldam,
+                         V  /* dataA(m,k) */, ldam,
+                         T  /* dataT(m,k) */, descT.mb,
+                         WORK,  ib,
+                         WORKC, descA.mb,
+                         dague_body.stream );
 }
 END
 
@@ -443,8 +425,6 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descT;
         dague_handle_t *dague_ztsmqr;
 
-        dague_data_transfer_ownership_to_copy(gA1->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-        dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
         small_descA1 = subtile_desc_create( &(descA), k, n,
                                             dplasma_imin(descA.mb, ldak), smallnb,
@@ -491,8 +471,6 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldwork = ib;
 
-    dague_data_transfer_ownership_to_copy(gA1->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
-    dague_data_transfer_ownership_to_copy(gA2->original, 0 /* device */, FLOW_ACCESS_READ | FLOW_ACCESS_WRITE);
 
     printlog("CORE_ztsmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",

@@ -202,7 +202,7 @@ int pins_papi_thread_fini(dague_execution_unit_t * exec_unit)
     (void)exec_unit;
     int err = PAPI_unregister_thread();
     if ( err != PAPI_OK )
-        dague_debug_output(3, dague_debug_output, "PAPI_unregister_thread failed (%s).\n", PAPI_strerror(err));
+        dague_debug_verbose(3, dague_debug_output, "PAPI_unregister_thread failed (%s).\n", PAPI_strerror(err));
     return 0;
 }
 

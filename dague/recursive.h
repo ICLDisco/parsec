@@ -4,6 +4,7 @@
 #include "dague/dague_internal.h"
 #include "dague/execution_unit.h"
 #include "dague/scheduling.h"
+#include "dague/devices/device.h"
 #include "data_dist/matrix/matrix.h"
 
 typedef struct cb_data_s {
@@ -44,7 +45,7 @@ static inline int dague_recursivecall( dague_execution_unit_t    *eu,
     va_list ap;
 
     /* Set mask to be used only on CPU */
-    handle->devices_mask = 1;
+    dague_devices_handle_restrict( handle, DAGUE_DEV_CPU );
 
     /* Callback */
     cbdata = (cb_data_t *) malloc( sizeof(cb_data_t) + (nbdesc-1)*sizeof(dague_ddesc_t*));
