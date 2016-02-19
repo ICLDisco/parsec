@@ -1101,6 +1101,9 @@ dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
 
         dague_dtd_tile_insert ( dague_dtd_handle, temp_tile->key,
                                 temp_tile, ddesc );
+#if defined(DAGUE_HAVE_CUDA)
+        temp_tile->data_copy->readers    = 0;
+#endif
         return temp_tile;
     }else {
 #if defined(DAGUE_DEBUG_PARANOID)
