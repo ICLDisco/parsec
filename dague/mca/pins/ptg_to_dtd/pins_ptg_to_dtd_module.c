@@ -229,6 +229,16 @@ tile_manage_for_testing(dague_dtd_handle_t *dague_dtd_handle,
         return tmp;
     }
 }
+/* Prepare_input function */
+int
+data_lookup_ptg_to_dtd_task(dague_execution_unit_t *context,
+                            dague_execution_context_t *this_task)
+{
+    (void)context;(void)this_task;
+
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
 
 /*
  * INSERT Task Function.
@@ -273,6 +283,7 @@ insert_task_in_PaRSEC_ptg_to_dtd( dague_dtd_handle_t  *dague_dtd_handle,
 
         __dague_chore_t **incarnations = (__dague_chore_t **)&(function->incarnations);
         *incarnations                  = (__dague_chore_t *)dtd_chore_for_testing;
+        function->prepare_input        = data_lookup_ptg_to_dtd_task;
 
 #if defined(DAGUE_PROF_TRACE)
         add_profiling_info(dague_dtd_handle, function, name, flow_index);
