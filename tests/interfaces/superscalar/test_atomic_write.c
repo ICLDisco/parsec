@@ -75,11 +75,13 @@ int main(int argc, char ** argv)
 
     int total = ddescDATA.super.mt;
 
+#if defined (OVERLAP)
     dague_context_start(dague);
+#endif
 
     for(kk = 0; kk< no_of_tasks; kk++) {
         for( k = 0; k < total; k++ ) {
-            insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel,     "Task",
+            insert_task_in_PaRSEC(DAGUE_dtd_handle, call_to_kernel,     "Task",
                                      PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, k, k),   ATOMIC_WRITE | REGION_FULL,
                                      0);
         }

@@ -293,7 +293,7 @@ int main(int argc, char ** argv)
         check_info = k == ddescA.super.mt-1;
         iinfo = (ddescA.super.nb)*k;
 
-        insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_GE_TRF_INC,               "getrf_inc",
+        insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_GE_TRF_INC,               "getrf_inc",
                              sizeof(int),           &tempkm,                           VALUE,
                              sizeof(int),           &tempkn,                           VALUE,
                              sizeof(int),           &ib,                               VALUE,
@@ -308,7 +308,7 @@ int main(int argc, char ** argv)
             tempnn = n == ddescA.super.nt-1 ? (ddescA.super.n)-n*(ddescA.super.nb) : ddescA.super.nb;
             ldl = ddescL.super.mb;
 
-            insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_GE_SSM,               "gessm",
+            insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_GE_SSM,               "gessm",
                                  sizeof(int),           &tempkm,                           VALUE,
                                  sizeof(int),           &tempnn,                           VALUE,
                                  sizeof(int),           &tempkm,                           VALUE,
@@ -330,7 +330,7 @@ int main(int argc, char ** argv)
             check_info = m == ddescA.super.mt-1;
             iinfo = (ddescA.super.nb)*k;
 
-            insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_TS_TRF,               "tstrf",
+            insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_TS_TRF,               "tstrf",
                                  sizeof(int),           &tempmm,                           VALUE,
                                  sizeof(int),           &tempkn,                           VALUE,
                                  sizeof(int),           &ib,                               VALUE,
@@ -352,7 +352,7 @@ int main(int argc, char ** argv)
                 anb = ddescA.super.nb;
                 ldl = ddescL.super.mb;
 
-                insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_SS_SSM,               "ssssm",
+                insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_SS_SSM,               "ssssm",
                                      sizeof(int),           &anb,                               VALUE,
                                      sizeof(int),           &tempnn,                            VALUE,
                                      sizeof(int),           &tempmm,                            VALUE,

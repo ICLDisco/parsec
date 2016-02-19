@@ -143,6 +143,11 @@ dague_dtd_tile_t* dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
 void insert_task_generic_fptr(dague_dtd_handle_t *,
                               dague_dtd_funcptr_t *, char *, ...);
 
+void
+insert_task_in_PaRSEC( dague_dtd_handle_t  *dague_dtd_handle,
+                       dague_dtd_funcptr_t *fpointer,
+                       char *name_of_kernel, ... );
+
 /* This function will create a handle and return it. Provide the corresponding
  * dague context, so that the new handle is associated with.
  */

@@ -156,6 +156,18 @@ struct dague_dtd_function_s {
 };
 
 /* Function prototypes */
+dague_dtd_task_t *
+create_and_initialize_dtd_task( dague_dtd_handle_t *dague_dtd_handle,
+                                dague_function_t   *function);
+
+void
+set_params_of_task( dague_dtd_task_t *this_task, dague_dtd_tile_t *tile,
+                    int tile_op_type, int *flow_index, void **current_val,
+                    dague_dtd_task_param_t *current_param, int *next_arg );
+
+void
+dague_insert_dtd_task( dague_dtd_task_t *this_task );
+
 dague_ontask_iterate_t  dtd_release_dep_fct(struct dague_execution_unit_s *eu,
                                             const dague_execution_context_t *newcontext,
                                             const dague_execution_context_t *oldcontext,
@@ -176,21 +188,6 @@ void ordering_correctly_1(dague_execution_unit_t * eu,
                      uint32_t action_mask,
                      dague_ontask_function_t * ontask,
                      void *ontask_arg);
-
-void ordering_correctly_2(dague_execution_unit_t * eu,
-                     const dague_execution_context_t * this_task,
-                     uint32_t action_mask,
-                     dague_ontask_function_t * ontask,
-                     void *ontask_arg);
-
-dague_dtd_task_t *
-create_fake_writer_task( dague_dtd_handle_t  *__dague_handle, dague_dtd_tile_t *tile );
-
-void
-set_task(dague_dtd_task_t *temp_task, void *tmp, dague_dtd_tile_t *tile, int *satisfied_flow,
-         int tile_op_type, dague_dtd_task_param_t *current_param,
-         uint8_t flow_set_flag[DAGUE_dtd_NB_FUNCTIONS], void **current_val,
-         dague_dtd_handle_t *__dague_handle, int *flow_index, int *next_arg);
 
 void
 schedule_tasks(dague_dtd_handle_t *__dague_handle);

@@ -21,7 +21,14 @@ int
 call_to_kernel_type( dague_execution_unit_t    *context,
                      dague_execution_context_t *this_task )
 {
-    (void)context; (void)this_task;
+    (void)context;
+    int *data;
+
+    dague_dtd_unpack_args(this_task,
+                          UNPACK_DATA,  &data
+                          );
+    *data += 1;
+
     return 0;
 }
 
@@ -42,10 +49,25 @@ int main(int argc, char ** argv)
     dague = dague_init(ncores, &argc, &argv);
 
     two_dim_block_cyclic_t ddescDATA;
-    two_dim_block_cyclic_init(&ddescDATA, matrix_Integer, matrix_Tile, 1/*nodes*/, 0/*rank*/, 1, 1,/* tile_size*/
-                              no_of_tasks, no_of_tasks, /* Global matrix size*/ 0, 0, /* starting point */ no_of_tasks, no_of_tasks, 1, 1, 1);
+    two_dim_block_cyclic_init( &ddescDATA, matrix_Integer, matrix_Tile, 1/*nodes*/, 0/*rank*/,
+                                1, 1,/* tile_size*/ no_of_tasks, no_of_tasks,
+                                /* Global matrix size*/ 0, 0, /* starting point */ no_of_tasks,
+                                no_of_tasks, 1, 1, 1);
 
+    ddescDATA.mat = calloc((size_t)ddescDATA.super.nb_local_tiles * (size_t) ddescDATA.super.bsiz,
+                           (size_t) dague_datadist_getsizeoftype(ddescDATA.super.mtype));
     dague_ddesc_set_key ((dague_ddesc_t *)&ddescDATA, "ddescDATA");
+
+    dague_ddesc_t *ddesc = &(ddescDATA.super.super);
+
+    printf("---Starting--- \n");
+    for( m = 0; m < no_of_tasks; m++ ) {
+        for( n = 0; n < no_of_tasks; n++ ) {
+            dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc, m, n))->device_copies[0];
+            int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
+            printf("At index [%d, %d]:\t%d\n", m, n, *data);
+        }
+    }
 
     dague_dtd_init();
 
@@ -62,9 +84,9 @@ int main(int argc, char ** argv)
 
     for( m = 0; m < no_of_tasks; m++ ) {
         for( n = 0; n < no_of_tasks; n++ ) {
-            insert_task_in_PaRSEC(DAGUE_dtd_handle, call_to_kernel_type,     "Test_noOverlap_Task",
-                                     PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, m, n),   INOUT | REGION_FULL,
-                                     0);
+            insert_task_in_PaRSEC( DAGUE_dtd_handle, call_to_kernel_type,     "Test_Task",
+                                   PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, m, n),   INOUT | REGION_FULL,
+                                   0 );
         }
     }
 
@@ -74,6 +96,15 @@ int main(int argc, char ** argv)
     dague_dtd_handle_destruct(DAGUE_dtd_handle);
 
     TIME_STOP();
+
+    printf("---Finally--- \n");
+    for( m = 0; m < no_of_tasks; m++ ) {
+        for( n = 0; n < no_of_tasks; n++ ) {
+            dague_data_copy_t *gdata = ddesc->data_of_key(ddesc, ddesc->data_key(ddesc, m, n))->device_copies[0];
+            int *data = DAGUE_DATA_COPY_GET_PTR((dague_data_copy_t *) gdata);
+            printf("At index [%d, %d]:\t%d\n", m, n, *data);
+        }
+    }
 
     printf("Time Elapsed:\t");
     printf("\n%lf\n", time_elapsed);

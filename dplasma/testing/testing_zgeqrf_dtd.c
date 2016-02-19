@@ -269,7 +269,7 @@ int main(int argc, char ** argv)
         tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-(k*ddescA.super.nb) : ddescA.super.nb;
         ldak = BLKLDD(ddescA.super, k);
 
-        insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_GE_QRT,            "geqrt",
+        insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_GE_QRT,            "geqrt",
                              sizeof(int),           &tempkm,                           VALUE,
                              sizeof(int),           &tempkn,                           VALUE,
                              sizeof(int),           &ib,                               VALUE,
@@ -284,7 +284,7 @@ int main(int argc, char ** argv)
         for (n = k+1; n < ddescA.super.nt; n++) {
             tempnn = n == ddescA.super.nt-1 ? ddescA.super.n-(n*ddescA.super.nb) : ddescA.super.nb;
 
-            insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_UN_MQR,               "unmqr",
+            insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_UN_MQR,               "unmqr",
                                  sizeof(PLASMA_enum),   &side,                              VALUE,
                                  sizeof(PLASMA_enum),   &trans,                             VALUE,
                                  sizeof(int),           &tempkm,                            VALUE,
@@ -305,7 +305,7 @@ int main(int argc, char ** argv)
             tempmm = m == ddescA.super.mt-1 ? ddescA.super.m-(m*ddescA.super.mb) : ddescA.super.mb;
             ldam = BLKLDD(ddescA.super, m);
 
-            insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_TS_QRT,             "tsqrt",
+            insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_TS_QRT,             "tsqrt",
                                  sizeof(PLASMA_enum),   &tempmm,                            VALUE,
                                  sizeof(int),           &tempkn,                            VALUE,
                                  sizeof(int),           &ib,                                VALUE,
@@ -323,7 +323,7 @@ int main(int argc, char ** argv)
                 tempnn = n == ddescA.super.nt-1 ? ddescA.super.n-(n*ddescA.super.nb) : ddescA.super.nb;
                 int ldwork = PlasmaLeft == PlasmaLeft ? ib : ddescT.super.nb;
 
-                insert_task_generic_fptr(DAGUE_dtd_handle,      call_to_kernel_TS_MQR,               "tsmqr",
+                insert_task_in_PaRSEC(DAGUE_dtd_handle,      call_to_kernel_TS_MQR,               "tsmqr",
                                      sizeof(PLASMA_enum),   &side,                             VALUE,
                                      sizeof(PLASMA_enum),   &trans,                            VALUE,
                                      sizeof(int),           &ddescA.super.mb,                  VALUE,
