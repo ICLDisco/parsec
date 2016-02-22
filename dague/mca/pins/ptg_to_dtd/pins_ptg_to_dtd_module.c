@@ -119,7 +119,8 @@ static void pins_handle_init_ptg_to_dtd(dague_handle_t *ptg_handle)
     }
 
     __dtd_handle = dague_dtd_handle_new(ptg_handle->context);
-    dtd_global_deque = OBJ_NEW(dague_list_t);
+    __dtd_handle->mode = NOT_OVERLAPPED;
+    dtd_global_deque   = OBJ_NEW(dague_list_t);
     copy_chores(ptg_handle, __dtd_handle);
     {
         dague_event_cb_t lfct = NULL;
@@ -224,11 +225,15 @@ tile_manage_for_testing(dague_dtd_handle_t *dague_dtd_handle,
         dague_dtd_tile_insert ( dague_dtd_handle, temp_tile->key,
                                 temp_tile, (dague_ddesc_t *)data );
 
+        if( NULL != temp_tile->data_copy )
+            temp_tile->data_copy->readers = 0;
+
         return temp_tile;
     } else {
         return tmp;
     }
 }
+
 /* Prepare_input function */
 int
 data_lookup_ptg_to_dtd_task(dague_execution_unit_t *context,
@@ -239,12 +244,11 @@ data_lookup_ptg_to_dtd_task(dague_execution_unit_t *context,
     return DAGUE_HOOK_RETURN_DONE;
 }
 
-
 /*
  * INSERT Task Function.
  * Each time the user calls it a task is created with the respective parameters the user has passed.
  * For each task class a structure known as "function" is created as well. (e.g. for Cholesky 4 function
- structures are created for each task class).
+ * structures are created for each task class).
  * The flow of data from each task to others and all other dependencies are tracked from this function.
  */
 void
@@ -325,8 +329,6 @@ insert_task_in_PaRSEC_ptg_to_dtd( dague_dtd_handle_t  *dague_dtd_handle,
         tmp_param->next = NULL;
 
     dague_insert_dtd_task( this_task );
-
-    schedule_tasks (dague_dtd_handle);
 }
 
 /**

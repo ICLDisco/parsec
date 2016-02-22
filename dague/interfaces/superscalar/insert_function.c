@@ -1239,6 +1239,12 @@ dague_dtd_handle_new( dague_context_t *context)
     __dague_handle->task_window_size      = 1;
     __dague_handle->task_threshold_size   = dtd_threshold_size;
     __dague_handle->function_counter      = 0;
+    __dague_handle->function_counter      = 0;
+#if defined (OVERLAP)
+    __dague_handle->mode                  = OVERLAPPED;
+#else
+    __dague_handle->mode                  = NOT_OVERLAPPED;
+#endif
 
     (void)dague_handle_reserve_id((dague_handle_t *) __dague_handle);
     (void)dague_handle_enable((dague_handle_t *)__dague_handle, NULL, NULL, NULL, __dague_handle->super.nb_pending_actions);
@@ -2458,6 +2464,21 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
         dague_dtd_handle->startup_list[vpid] = (dague_execution_context_t *)this_task;
         vpid = (vpid+1)%dague_dtd_handle->super.context->nb_vp;
     }
+
+    if( OVERLAPPED == dague_dtd_handle->mode ) {
+        if( (this_task->super.super.key % dague_dtd_handle->task_window_size) == 0 ) {
+            schedule_tasks (dague_dtd_handle);
+            if ( dague_dtd_handle->task_window_size <= dtd_window_size ) {
+                 dague_dtd_handle->task_window_size *= 2;
+            } else {
+#if defined (OVERLAP)
+                dague_execute_and_come_back (dague_dtd_handle->super.context, &dague_dtd_handle->super);
+#endif
+            }
+        }
+    } else if( NOT_OVERLAPPED == dague_dtd_handle->mode ) {
+        schedule_tasks (dague_dtd_handle);
+    }
 }
 
 /* **************************************************************************** */
@@ -2570,15 +2591,4 @@ insert_task_in_PaRSEC( dague_dtd_handle_t  *dague_dtd_handle,
     va_end(args);
 
     dague_insert_dtd_task( this_task );
-
-    if((this_task->super.super.key % dague_dtd_handle->task_window_size) == 0 ) {
-        schedule_tasks (dague_dtd_handle);
-        if ( dague_dtd_handle->task_window_size <= dtd_window_size ) {
-             dague_dtd_handle->task_window_size *= 2;
-        } else {
-#if defined (OVERLAP)
-            dague_execute_and_come_back (dague_dtd_handle->super.context, &dague_dtd_handle->super);
-#endif
-        }
-    }
 }

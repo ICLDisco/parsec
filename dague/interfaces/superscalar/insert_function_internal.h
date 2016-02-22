@@ -38,6 +38,9 @@ extern int my_rank;
 #define WILL_USE_IN_DISTRIBUTED
 #define DAGUE_DEFAULT_ARENA     0
 
+#define NOT_OVERLAPPED 1
+#define OVERLAPPED     0
+
 #define TASK_IS_ALIVE       1
 #define TASK_IS_NOT_ALIVE   0
 
@@ -123,6 +126,7 @@ struct dague_dtd_handle_s {
     dague_thread_mempool_t *mempool_owner;
     /* The array of datatypes, the region_info */
     dague_arena_t   **arenas;
+    uint8_t         mode;
     int             arenas_size;
     int             task_id;
     int             task_window_size;
