@@ -233,9 +233,9 @@ typedef int (dague_data_ref_fn_t)(dague_execution_context_t *exec_context,
  * Find the dependency corresponding to a given execution context.
  */
 typedef dague_dependency_t *(dague_find_dependency_fn_t)(const dague_handle_t *dague_handle,
-                                                         const dague_execution_context_t* restrict exec_context);
+                                                         const dague_execution_context_t* exec_context);
 dague_dependency_t *dague_default_find_deps(const dague_handle_t *dague_handle,
-                                            const dague_execution_context_t* restrict exec_context);
+                                            const dague_execution_context_t* exec_context);
 
 typedef struct __dague_internal_incarnation_s {
     int32_t                    type;
