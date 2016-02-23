@@ -252,7 +252,7 @@ data_lookup_ptg_to_dtd_task(dague_execution_unit_t *context,
  * The flow of data from each task to others and all other dependencies are tracked from this function.
  */
 void
-insert_task_in_PaRSEC_ptg_to_dtd( dague_dtd_handle_t  *dague_dtd_handle,
+dague_insert_task_ptg_to_dtd( dague_dtd_handle_t  *dague_dtd_handle,
                                   dague_dtd_funcptr_t *fpointer, dague_execution_context_t *orig_task,
                                   char *name_of_kernel, dague_dtd_task_param_t *packed_parameters_head )
 {
@@ -453,8 +453,8 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
             current_param = tmp_param;
         }
 
-        insert_task_in_PaRSEC_ptg_to_dtd( dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
-                                          this_task, (char *)this_task->function->name, (dague_dtd_task_param_t *)head_param);
+        dague_insert_task_ptg_to_dtd(dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
+                                     this_task, (char *)this_task->function->name, (dague_dtd_task_param_t *)head_param);
 
         /* Cleaning the params */
         current_param = head_param;

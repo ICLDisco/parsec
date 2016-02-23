@@ -62,7 +62,7 @@ int main(int argc, char ** argv)
 
     for(kk = 0; kk< no_of_tasks; kk++) {
         for( k = 0; k < total; k++ ) {
-            insert_task_in_PaRSEC(DAGUE_dtd_handle, call_to_kernel,     "Task",
+            dague_insert_task(DAGUE_dtd_handle, call_to_kernel,     "Task",
                                      0);
         }
     }

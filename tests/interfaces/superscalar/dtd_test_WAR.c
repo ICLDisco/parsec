@@ -105,15 +105,15 @@ int main(int argc, char ** argv)
 
     for( m = 0; m < no_of_tasks; m++ ) {
         for( n = 0; n < no_of_tasks; n++ ) {
-            insert_task_in_PaRSEC( DAGUE_dtd_handle, call_to_kernel_type_write,     "Write_Task",
+            dague_insert_task( DAGUE_dtd_handle, call_to_kernel_type_write,     "Write_Task",
                                    PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, m, n),   INOUT | REGION_FULL,
                                    0 );
             for( k = 0; k < no_of_read_tasks; k++ ) {
-                insert_task_in_PaRSEC( DAGUE_dtd_handle, call_to_kernel_type_read,     "Read_Task",
+                dague_insert_task( DAGUE_dtd_handle, call_to_kernel_type_read,     "Read_Task",
                                        PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, m, n),   INPUT | REGION_FULL,
                                        0 );
             }
-            insert_task_in_PaRSEC( DAGUE_dtd_handle, call_to_kernel_type_write,     "Write_Task",
+            dague_insert_task( DAGUE_dtd_handle, call_to_kernel_type_write,     "Write_Task",
                                    PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, m, n),   INOUT | REGION_FULL,
                                    0 );
         }

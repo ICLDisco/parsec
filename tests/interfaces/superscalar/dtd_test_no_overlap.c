@@ -62,7 +62,7 @@ int main(int argc, char ** argv)
 
     for( m = 0; m < no_of_tasks; m++ ) {
         for( n = 0; n < no_of_tasks; n++ ) {
-            insert_task_in_PaRSEC(DAGUE_dtd_handle, call_to_kernel_type,     "Test_noOverlap_Task",
+            dague_insert_task(DAGUE_dtd_handle, call_to_kernel_type,     "Test_noOverlap_Task",
                                      PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, DATA, m, n),   INOUT | REGION_FULL,
                                      0);
         }

@@ -1202,7 +1202,7 @@ dague_dtd_handle_t *
 dague_dtd_handle_new( dague_context_t *context)
 {
     if (dump_traversal_info) {
-        printf("\n\n------ New Handle -----\n\n\n");
+        dague_output(dague_debug_output, "\n\n------ New Handle -----\n\n\n");
     }
 
     my_rank = context->my_rank;
@@ -1441,7 +1441,7 @@ dtd_release_dep_fct( dague_execution_unit_t *eu,
 
     if(is_ready) {
         if(dump_traversal_info) {
-            printf("------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
+            dague_output(dague_debug_output, "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
                    "%d\n-----\n", current_task->super.function->name, current_task->super.super.key,
                    current_task->super.function->nb_flows, current_task->flow_count);
         }
@@ -1561,7 +1561,7 @@ complete_hook_of_dtd( dague_execution_unit_t    *context,
     if (dump_traversal_info) {
         static int counter= 0;
         dague_atomic_add_32b(&counter,1);
-        printf("------------------------------------------------\n"
+        dague_output(dague_debug_output, "------------------------------------------------\n"
                "execution done of task: %s \t %" PRIu64 "\n"
                "task done %d \n",
                this_task->function->name,
@@ -1761,7 +1761,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
         if (!dep_exists) {
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
             if (dump_function_info) {
-                printf("%s -> LOCAL\n", parent_function->name);
+                dague_output(dague_debug_output, "%s -> LOCAL\n", parent_function->name);
             }
 
             desc_dep->cond          = NULL;
@@ -1803,7 +1803,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
         if (!dep_exists) {
             dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
             if(dump_function_info) {
-                printf("LOCAL -> %s\n", desc_function->name);
+                dague_output(dague_debug_output, "LOCAL -> %s\n", desc_function->name);
             }
             desc_dep->cond          = NULL;
             desc_dep->ctl_gather_nb = NULL;
@@ -1880,7 +1880,7 @@ set_dependencies_for_function(dague_handle_t* dague_handle,
             dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
 
             if (dump_function_info) {
-                printf("%s -> %s\n", parent_function->name, desc_function->name);
+                dague_output(dague_debug_output, "%s -> %s\n", parent_function->name, desc_function->name);
             }
 
             /* setting out-dependency for parent */
@@ -2314,7 +2314,7 @@ fake_first_out_body( dague_execution_unit_t *context, dague_execution_context_t 
 
 /* **************************************************************************** */
 /**
- * Function to insert task in PaRSEC
+ * Function to insert dtd task in PaRSEC
  *
  * In this function we track all the dependencies and create the DAG
  *
@@ -2355,7 +2355,7 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
             OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
             /* parentless */
             /* Create Fake output_task */
-            insert_task_in_PaRSEC( (dague_dtd_handle_t *)this_task->super.dague_handle,
+            dague_insert_task( (dague_dtd_handle_t *)this_task->super.dague_handle,
                                    &fake_first_out_body,  "Fake_FIRST_OUT",
                                     PASSED_BY_REF,         tile,       INOUT | REGION_FULL | AFFINITY,
                                     0 );
@@ -2451,9 +2451,9 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
         dague_dtd_task_release( dague_dtd_handle, this_task->super.super.key );
 #endif
         if(dump_traversal_info) {
-            printf("------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
-                   "%d\n-----\n", this_task->super.function->name, this_task->super.super.key,
-                   this_task->super.function->nb_flows, this_task->flow_count);
+            dague_output(dague_debug_output, "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
+                         "%d\n-----\n", this_task->super.function->name, this_task->super.super.key,
+                         this_task->super.function->nb_flows, this_task->flow_count);
         }
 
         DAGUE_LIST_ITEM_SINGLETON(this_task);
@@ -2504,7 +2504,7 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
  * @ingroup         DTD_INTERFACE
  */
 void
-insert_task_in_PaRSEC( dague_dtd_handle_t  *dague_dtd_handle,
+dague_insert_task( dague_dtd_handle_t  *dague_dtd_handle,
                        dague_dtd_funcptr_t *fpointer,
                        char *name_of_kernel, ... )
 {
@@ -2544,8 +2544,8 @@ insert_task_in_PaRSEC( dague_dtd_handle_t  *dague_dtd_handle,
         va_end(args_for_size);
 
         if (dump_function_info) {
-            printf("Function Created for task Class: %s\n Has %d parameters\n"
-                   "Total Size: %lu\n", name_of_kernel, count_of_params_sent_by_user, size_of_params);
+            dague_output(dague_debug_output, "Function Created for task Class: %s\n Has %d parameters\n"
+                         "Total Size: %lu\n", name_of_kernel, count_of_params_sent_by_user, size_of_params);
         }
 
         function = create_function(dague_dtd_handle, fpointer, name_of_kernel, count_of_params_sent_by_user,

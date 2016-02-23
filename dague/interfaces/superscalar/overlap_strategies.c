@@ -195,7 +195,7 @@ ordering_correctly_1(dague_execution_unit_t *eu,
             }
 
             if(dump_traversal_info) {
-                printf("------\nsuccessor: %s \t %lld\nTotal flow: %d  flow_count:"
+                dague_output(dague_debug_output, "------\nsuccessor: %s \t %lld\nTotal flow: %d  flow_count:"
                        "%d\n-----for pred flow: %d and desc flow: %d\n", current_desc->super.function->name, current_desc->super.super.key,
                        current_desc->super.function->nb_flows, current_desc->flow_count, current_dep, tmp_desc_flow_index);
             }
