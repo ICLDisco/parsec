@@ -2069,56 +2069,6 @@ int dague_getsimulationdate( dague_context_t *dague_context ){
 }
 #endif
 
-/**
- * Array based local data handling.
- */
-#include "dague/data_distribution.h"
-static uint32_t return_local_u(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
-static int32_t  return_local_s(dague_ddesc_t *unused, ...) { (void)unused; return 0; };
-static dague_data_t* return_data(dague_ddesc_t *unused, ...) { (void)unused; return NULL; };
-static uint32_t rank_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{ (void)unused; (void)key; return 0; }
-static dague_data_t* data_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{ (void)unused; (void)key; return NULL; }
-static int32_t  vpid_of_key(dague_ddesc_t *unused, dague_data_key_t key)
-{ (void)unused; (void)key; return 0; }
-static dague_data_key_t data_key(dague_ddesc_t *mat, ...)
-{ (void)mat; return 0; }
-#if defined(DAGUE_PROF_TRACE)
-static int key_to_string(dague_ddesc_t *unused, dague_data_key_t datakey, char* buffer, uint32_t buffer_size)
-{
-    (void)unused;
-    return snprintf( buffer, buffer_size, "%u ", datakey);
-}
-#endif /* DAGUE_PROF_TRACE */
-
-const dague_ddesc_t dague_static_local_data_ddesc = {
-    0, /* uint32_t myrank */
-    1, /* uint32_t nodes */
-
-    data_key,  /* dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...) */
-
-    return_local_u,  /* uint32_t (*rank_of)(struct dague_ddesc *, ...) */
-    rank_of_key,
-
-    return_data,   /* dague_data_t*   (*data_of)(struct dague_ddesc *, ...) */
-    data_of_key,
-
-    return_local_s,  /* int32_t  (*vpid_of)(struct dague_ddesc *, ...) */
-    vpid_of_key,
-
-    NULL,  /* dague_memory_region_management_f register_memory */
-    NULL,  /* dague_memory_region_management_f unregister_memory */
-    MEMORY_STATUS_UNREGISTERED,  /* memory_registration_status_t memory_registration_status */
-    NULL,  /* char      *key_base */
-
-#ifdef DAGUE_PROF_TRACE
-    key_to_string, /* int (*key_to_string)(struct dague_ddesc *, uint32_t datakey, char * buffer, uint  32_t buffer_size) */
-    NULL,  /* char      *key_dim */
-    NULL,  /* char      *key */
-#endif /* DAGUE_PROF_TRACE */
-};
-
 static int32_t dague_expr_eval32(const expr_t *expr, dague_execution_context_t *context)
 {
     dague_handle_t *handle = context->dague_handle;

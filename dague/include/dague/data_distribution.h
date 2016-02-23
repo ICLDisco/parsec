@@ -71,12 +71,6 @@ struct dague_ddesc_s {
 };
 
 /**
- * Define a static data representation where all data are local
- * on the current dague_context_t.
- */
-extern const dague_ddesc_t dague_static_local_data_ddesc;
-
-/**
  * Initialize the dague_desc to default values.
  */
 void dague_ddesc_init(dague_ddesc_t *d,
