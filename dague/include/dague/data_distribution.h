@@ -77,6 +77,13 @@ struct dague_ddesc_s {
 extern const dague_ddesc_t dague_static_local_data_ddesc;
 
 /**
+ * Initialize the dague_desc to default values.
+ */
+void dague_ddesc_init(dague_ddesc_t *d,
+                      int nodes, int myrank );
+void dague_ddesc_destroy(dague_ddesc_t *d);
+
+/**
  * Set of default functions that describes one fake data of size 0 owned by
  * everyone node on VP 0
  */
@@ -95,15 +102,9 @@ int              dague_ddesc_default_key_to_string(struct dague_ddesc_s *desc,
                                                    uint32_t buffer_size);
 #endif /* defined(DAGUE_PROF_TRACE) */
 
-
-/**
- * Initialize the dague_desc to default values:
- * A descriptor with one fake data of size 0, replicated on all nodes on VP 0
- */
-void dague_ddesc_init(dague_ddesc_t *d,
-                      int nodes, int myrank );
-void dague_ddesc_destroy(dague_ddesc_t *d);
-
+void dague_ddesc_default_init(dague_ddesc_t *d,
+                              int nodes, int myrank );
+void dague_ddesc_default_destroy(dague_ddesc_t *d);
 
 #if defined(DAGUE_PROF_TRACE)
 #include "dague/profiling.h"

@@ -10,6 +10,32 @@
 #include "dague/data_distribution.h"
 
 /**
+ * Initialize all the fields of the dague_ddesc with the default descriptor.
+ */
+void
+dague_ddesc_init(dague_ddesc_t *d,
+                 int nodes,
+                 int myrank)
+{
+    memset( d, 0, sizeof(dague_ddesc_t) );
+
+    d->nodes  = nodes;
+    d->myrank = myrank;
+    d->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
+}
+
+void
+dague_ddesc_destroy(dague_ddesc_t *d)
+{
+#if defined(DAGUE_PROF_TRACE)
+    if( NULL != d->key_dim ) free(d->key_dim);
+    d->key_dim = NULL;
+#endif
+    if( NULL != d->key_base ) free(d->key_base);
+    d->key_base = NULL;
+}
+
+/**
  * Set of function that describes a default descriptor with only one fake data
  * of size 0, that is owned by everyone nodes on the VP 0.
  */
@@ -85,16 +111,14 @@ dague_ddesc_default_key_to_string(struct dague_ddesc_s *desc,
 #endif /* defined(DAGUE_PROF_TRACE) */
 
 /**
- * Initialize all the fileds of the dague_ddesc with the default descriptor.
+ * Initialize all the fields of the dague_ddesc with the default descriptor.
  */
 void
-dague_ddesc_init(dague_ddesc_t *d,
-                 int nodes,
-                 int myrank)
+dague_ddesc_default_init(dague_ddesc_t *d,
+                         int nodes,
+                         int myrank)
 {
-    /* Super setup */
-    d->nodes  = nodes;
-    d->myrank = myrank;
+    dague_ddesc_init(d, nodes, myrank);
 
     d->data_key    = dague_ddesc_default_data_key;
     d->rank_of     = dague_ddesc_default_rank_of;
@@ -104,27 +128,15 @@ dague_ddesc_init(dague_ddesc_t *d,
     d->vpid_of     = dague_ddesc_default_vpid_of;
     d->vpid_of_key = dague_ddesc_default_vpid_of_key;
 
-    d->register_memory   = NULL;
-    d->unregister_memory = NULL;
-    d->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
-
-    d->key_base = NULL;
 #if defined(DAGUE_PROF_TRACE)
     d->key_to_string = dague_ddesc_default_key_to_string;
-    d->key_dim       = NULL;
-    d->key           = NULL;
 #endif
 }
 
 void
-dague_ddesc_destroy(dague_ddesc_t *d)
+dague_ddesc_default_destroy(dague_ddesc_t *d)
 {
-#if defined(DAGUE_PROF_TRACE)
-    if( NULL != d->key_dim ) free(d->key_dim);
-    d->key_dim = NULL;
-#endif
-    if( NULL != d->key_base ) free(d->key_base);
-    d->key_base = NULL;
+    dague_ddesc_destroy(d);
 }
 
 
