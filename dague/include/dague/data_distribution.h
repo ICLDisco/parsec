@@ -71,40 +71,29 @@ struct dague_ddesc_s {
 };
 
 /**
- * Initialize the dague_desc to default values.
+ * Initialize/destroy the dague_ddesc to default values.
  */
-void dague_ddesc_init(dague_ddesc_t *d,
-                      int nodes, int myrank );
-void dague_ddesc_destroy(dague_ddesc_t *d);
+static inline void
+dague_ddesc_init(dague_ddesc_t *d,
+                 int nodes, int myrank )
+{
+    memset( d, 0, sizeof(dague_ddesc_t) );
 
-/**
- * Create and destroy a descriptor that has no associated data with it, and that
- * is local to all nodes.
- */
-void dague_ddesc_default_init(dague_ddesc_t *d,
-                              int nodes, int myrank );
-void dague_ddesc_default_destroy(dague_ddesc_t *d);
+    d->nodes  = nodes;
+    d->myrank = myrank;
+    d->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
+}
 
-/**
- * Set the data_of and data_of_key functions to default values that returns
- * empty data. This might be used to create a task descriptor based on an
- * existing data descriptor.
- */
-void dague_ddesc_set_empty_data(dague_ddesc_t *d);
-
-/**
- * Set the rank_of and rank_of_key functions to default values that always
- * informs that the data/task is local to the calling node. This might be used
- * to create a shared memory descriptor, or a data replicated on multiple node
- * where each one of them owns it's own version.
- */
-void dague_ddesc_set_local_distribution(dague_ddesc_t *d);
-
-/**
- * Set the vpid_of and vpid_of_key functions to default values that always
- * returns 0, when no vpid is not used in the algorithm.
- */
-void dague_ddesc_set_no_vpid(dague_ddesc_t *d);
+static inline void
+dague_ddesc_destroy(dague_ddesc_t *d)
+{
+#if defined(DAGUE_PROF_TRACE)
+    if( NULL != d->key_dim ) free(d->key_dim);
+    d->key_dim = NULL;
+#endif
+    if( NULL != d->key_base ) free(d->key_base);
+    d->key_base = NULL;
+}
 
 #if defined(DAGUE_PROF_TRACE)
 #include "dague/profiling.h"
