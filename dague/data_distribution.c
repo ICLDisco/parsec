@@ -139,5 +139,23 @@ dague_ddesc_default_destroy(dague_ddesc_t *d)
     dague_ddesc_destroy(d);
 }
 
+void
+dague_ddesc_set_empty_data(dague_ddesc_t *d)
+{
+    d->data_of     = dague_ddesc_default_data_of;
+    d->data_of_key = dague_ddesc_default_data_of_key;
+}
 
+void
+dague_ddesc_set_local_distribution(dague_ddesc_t *d)
+{
+    d->rank_of     = dague_ddesc_default_rank_of;
+    d->rank_of_key = dague_ddesc_default_rank_of_key;
+}
 
+void
+dague_ddesc_set_no_vpid(dague_ddesc_t *d)
+{
+    d->vpid_of     = dague_ddesc_default_vpid_of;
+    d->vpid_of_key = dague_ddesc_default_vpid_of_key;
+}
