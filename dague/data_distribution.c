@@ -41,14 +41,14 @@ dague_ddesc_destroy(dague_ddesc_t *d)
  */
 dague_data_t *fake_data = NULL;
 
-dague_data_key_t
+static dague_data_key_t
 dague_ddesc_default_data_key(dague_ddesc_t *d, ...)
 {
     (void)d;
     return 0;
 }
 
-uint32_t
+static uint32_t
 dague_ddesc_default_rank_of_key(dague_ddesc_t *d,
                                 dague_data_key_t key)
 {
@@ -56,13 +56,13 @@ dague_ddesc_default_rank_of_key(dague_ddesc_t *d,
     return d->myrank;
 }
 
-uint32_t
+static uint32_t
 dague_ddesc_default_rank_of(dague_ddesc_t *d, ...)
 {
     return dague_ddesc_default_rank_of_key(d, 0);
 }
 
-dague_data_t *
+static dague_data_t *
 dague_ddesc_default_data_of_key(dague_ddesc_t *d,
                                 dague_data_key_t key)
 {
@@ -73,13 +73,13 @@ dague_ddesc_default_data_of_key(dague_ddesc_t *d,
     return fake_data;
 }
 
-dague_data_t *
+static dague_data_t *
 dague_ddesc_default_data_of(dague_ddesc_t *d, ...)
 {
     return dague_ddesc_default_data_of_key(d, 0);
 }
 
-int32_t
+static int32_t
 dague_ddesc_default_vpid_of_key(dague_ddesc_t *d,
                                 dague_data_key_t key)
 {
@@ -88,14 +88,14 @@ dague_ddesc_default_vpid_of_key(dague_ddesc_t *d,
     return 0;
 }
 
-int32_t
+static int32_t
 dague_ddesc_default_vpid_of(dague_ddesc_t *d, ...)
 {
     return dague_ddesc_default_vpid_of_key(d, 0);
 }
 
 #if defined(DAGUE_PROF_TRACE)
-int
+static int
 dague_ddesc_default_key_to_string(struct dague_ddesc_s *desc,
                                   uint32_t datakey,
                                   char * buffer,

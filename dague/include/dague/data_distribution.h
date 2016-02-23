@@ -78,24 +78,9 @@ void dague_ddesc_init(dague_ddesc_t *d,
 void dague_ddesc_destroy(dague_ddesc_t *d);
 
 /**
- * Set of default functions that describes one fake data of size 0 owned by
- * everyone node on VP 0
+ * Create and destroy a descriptor that has no associated data with it, and that
+ * is local to all nodes.
  */
-dague_data_key_t dague_ddesc_default_data_key(dague_ddesc_t *d, ...);
-uint32_t         dague_ddesc_default_rank_of_key(dague_ddesc_t *d, dague_data_key_t key);
-uint32_t         dague_ddesc_default_rank_of(dague_ddesc_t *d, ...);
-dague_data_t *   dague_ddesc_default_data_of_key(dague_ddesc_t *d, dague_data_key_t key);
-dague_data_t *   dague_ddesc_default_data_of(dague_ddesc_t *d, ...);
-int32_t          dague_ddesc_default_vpid_of_key(dague_ddesc_t *d, dague_data_key_t key );
-int32_t          dague_ddesc_default_vpid_of(dague_ddesc_t *d, ... );
-
-#if defined(DAGUE_PROF_TRACE)
-int              dague_ddesc_default_key_to_string(struct dague_ddesc_s *desc,
-                                                   uint32_t datakey,
-                                                   char * buffer,
-                                                   uint32_t buffer_size);
-#endif /* defined(DAGUE_PROF_TRACE) */
-
 void dague_ddesc_default_init(dague_ddesc_t *d,
                               int nodes, int myrank );
 void dague_ddesc_default_destroy(dague_ddesc_t *d);
