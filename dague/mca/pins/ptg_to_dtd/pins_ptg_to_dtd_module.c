@@ -278,7 +278,7 @@ dague_insert_task_ptg_to_dtd( dague_dtd_handle_t  *dague_dtd_handle,
         }
 
         if (dump_function_info) {
-            printf("Function Created for task Class: %s\n Has %d parameters\n"
+            dague_output(dague_debug_output, "Function Created for task Class: %s\n Has %d parameters\n"
                    "Total Size: %lu\n", name_of_kernel, count_of_params, size_of_params);
         }
 
