@@ -9,6 +9,7 @@
 
 #include "dague_config.h"
 #include "dague/dague_internal.h"
+#include "dague/debug.h"
 #include "dague/data.h"
 #include "dague/data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
@@ -77,17 +78,14 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     dague_ddesc_t *o = (dague_ddesc_t*)tdesc;
 
     /* Super setup */
-    o->nodes     = nodes;
-    o->myrank    = myrank;
+    dague_ddesc_init( o, nodes, myrank );
 
-    o->data_key      = tiled_matrix_data_key;
-#if defined(DAGUE_PROF_TRACE)
-    o->key_to_string = tiled_matrix_key_to_string;
-    o->key_dim       = NULL;
-    o->key           = NULL;
-#endif
-    o->memory_registration_status    = MEMORY_STATUS_UNREGISTERED;
-    o->key_base = NULL;
+    /* Change the common data_key */
+    o->data_key = tiled_matrix_data_key;
+
+    /**
+     * Setup the tiled matrix properties
+     */
 
     /* Matrix address */
     /* tdesc->mat = NULL; */
@@ -135,7 +133,9 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->mt = (i+m-1)/mb - i/mb + 1;
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
 
+    /* finish to update the main object properties */
 #if defined(DAGUE_PROF_TRACE)
+    o->key_to_string = tiled_matrix_key_to_string;
     asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
 }
@@ -159,19 +159,19 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     nb = tdesc->nb;
 
     if ( (i < 0) || ( (i%mb) != 0 ) ) {
-        fprintf(stderr, "Invalid value of i\n");
+        dague_warning("Invalid value of i");
         return NULL;
     }
     if ( (j < 0) || ( (j%nb) != 0 ) ) {
-        fprintf(stderr, "Invalid value of j\n");
+        dague_warning("Invalid value of j");
         return NULL;
     }
     if ( (m < 0) || ((m+i) > tdesc->lm) ) {
-        fprintf(stderr, "Invalid value of m\n");
+        dague_warning("Invalid value of m");
         return NULL;
     }
     if ( (n < 0) || ((n+j) > tdesc->ln) ) {
-        fprintf(stderr, "Invalid value of n\n");
+        dague_warning("Invalid value of n");
         return NULL;
     }
 
@@ -183,7 +183,7 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
         newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
     } else {
-        fprintf(stderr, "Type not completely defined\n");
+        dague_warning("Type not completely defined");
         return NULL;
     }
 
@@ -231,9 +231,9 @@ static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t data
     n = datakey / Ddesc->lmt;
     res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
     if (res < 0)
-        {
-            printf("error in key_to_string for tile (%u, %u) key: %u\n", m, n, datakey);
-        }
+    {
+        dague_warning("Wrong key_to_string for tile (%u, %u) key: %u", m, n, datakey);
+    }
     return res;
 }
 #endif /* DAGUE_PROF_TRACE */
@@ -254,7 +254,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
+        dague_warning("The file %s cannot be open", filename);
         return -1;
     }
 
@@ -302,7 +302,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
+        dague_warning("The file %s cannot be open", filename);
         return -1;
     }
 
@@ -314,7 +314,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                     buf = dague_data_get_ptr(data, 0);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
-                        fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
+                        dague_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                 i, j, ret, tdesc->bsiz);
                         return -1;
                     }
@@ -329,7 +329,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {
-                            fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
+                            dague_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                     i, j, ret, tdesc->mb);
                             return -1;
                         }

@@ -19,6 +19,7 @@
 #endif  /* defined(DAGUE_HAVE_UNISTD_H) */
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 #ifdef DAGUE_HAVE_MPI
@@ -39,19 +40,19 @@ struct dague_ddesc_s {
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
     /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-    dague_data_key_t (*data_key)(dague_ddesc_t *mat, ...);
+    dague_data_key_t (*data_key)(dague_ddesc_t *d, ...);
 
     /* return the rank of the process owning the data  */
-    uint32_t (*rank_of)(dague_ddesc_t *mat, ...);
-    uint32_t (*rank_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    uint32_t (*rank_of)(dague_ddesc_t *d, ...);
+    uint32_t (*rank_of_key)(dague_ddesc_t *d, dague_data_key_t key);
 
     /* return the pointer to the data possessed locally */
-    dague_data_t* (*data_of)(dague_ddesc_t *mat, ...);
-    dague_data_t* (*data_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    dague_data_t* (*data_of)(dague_ddesc_t *d, ...);
+    dague_data_t* (*data_of_key)(dague_ddesc_t *d, dague_data_key_t key);
 
     /* return the virtual process ID of data possessed locally */
-    int32_t  (*vpid_of)(dague_ddesc_t *mat, ...);
-    int32_t  (*vpid_of_key)(dague_ddesc_t *mat, dague_data_key_t key);
+    int32_t  (*vpid_of)(dague_ddesc_t *d, ...);
+    int32_t  (*vpid_of_key)(dague_ddesc_t *d, dague_data_key_t key);
 
     /* Memory management function. They are used to register/unregister the data description
      * with the active devices.
@@ -64,19 +65,28 @@ struct dague_ddesc_s {
 
 #ifdef DAGUE_PROF_TRACE
     /* compute a string in 'buffer' meaningful for profiling about data, return the size of the string */
-    int (*key_to_string)(dague_ddesc_t *mat, dague_data_key_t key, char * buffer, uint32_t buffer_size);
+    int (*key_to_string)(dague_ddesc_t *d, dague_data_key_t key, char * buffer, uint32_t buffer_size);
     char      *key_dim;
     char      *key;
 #endif /* DAGUE_PROF_TRACE */
 };
 
 /**
- * Define a static data representation where all data are local
- * on the current dague_context_t.
+ * Initialize/destroy the dague_ddesc to default values.
  */
-extern const dague_ddesc_t dague_static_local_data_ddesc;
+static inline void
+dague_ddesc_init(dague_ddesc_t *d,
+                 int nodes, int myrank )
+{
+    memset( d, 0, sizeof(dague_ddesc_t) );
 
-static inline void dague_ddesc_destroy(dague_ddesc_t *d)
+    d->nodes  = nodes;
+    d->myrank = myrank;
+    d->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
+}
+
+static inline void
+dague_ddesc_destroy(dague_ddesc_t *d)
 {
 #if defined(DAGUE_PROF_TRACE)
     if( NULL != d->key_dim ) free(d->key_dim);
