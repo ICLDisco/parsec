@@ -19,6 +19,7 @@
 #endif  /* defined(DAGUE_HAVE_UNISTD_H) */
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 
 #ifdef DAGUE_HAVE_MPI
