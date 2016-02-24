@@ -50,7 +50,7 @@ if( NOT DAGUE_FOUND )
 
   include(CheckIncludeFiles)
   list(APPEND CMAKE_REQUIRED_INCLUDES ${DAGUE_INCLUDE_DIRS})
-  check_include_files(FOUND_DAGUE_INCLUDE dague.h)
+  check_include_files(dague.h FOUND_DAGUE_INCLUDE)
   include_directories( ${DAGUE_INCLUDE_DIRS} )
   if( NOT FOUND_DAGUE_INCLUDE )
     if( DAGUE_FIND_REQUIRED )
@@ -76,7 +76,7 @@ if( NOT DAGUE_FOUND )
   endforeach()
 
   # Add all dependencies from the configuration
-  check_include_files(FOUND_DAGUE_CONFIG dague_config.h)
+  check_include_files(dague_config.h FOUND_DAGUE_CONFIG)
   if( FOUND_DAGUE_CONFIG )
     CheckSymbolExists(DAGUE_HAVE_HWLOC dague_config.h CHK_WITH_HWLOC)
     if( CHK_WITH_HWLOC )
