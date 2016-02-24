@@ -19,7 +19,7 @@ void setup_params( int params[], int argc, char* argv[] )
     int i;
     int ictxt, iam, nprocs, p, q;
     int provided;
-    MPI_Init_thread( &argc, &argv, MPI_THREAD_MULTIPLE, &provided );
+    MPI_Init_thread( &argc, &argv, MPI_THREAD_FUNNELED, &provided );
 
 #if 0
     fprintf(stderr, "Level of thread provided is %s\n",
