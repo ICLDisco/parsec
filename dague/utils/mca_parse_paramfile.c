@@ -70,11 +70,6 @@ static void save_value(const char *name, const char *value)
 
 int dague_mca_parse_paramfile(const char *paramfile)
 {
-    int rc;
     file_being_read = (char*)paramfile;
-
-    dague_util_keyval_parse_init();
-    rc = dague_util_keyval_parse(paramfile, save_value);
-    dague_util_keyval_parse_finalize();
-    return rc;
+    return dague_util_keyval_parse(paramfile, save_value);
 }
