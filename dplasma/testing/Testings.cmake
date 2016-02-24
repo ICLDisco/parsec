@@ -28,8 +28,8 @@ foreach(prec ${DPLASMA_PRECISIONS} )
   add_test(shm_${prec}trmm_${DTD_TEST}  ${SHM_TEST_CMD_LIST} ./testing_${prec}trmm  -M 106 -N 150 -K 97 -t 56 ${OPTIONS} ${DTD_OPTIONS})
   set_tests_properties("shm_${prec}trmm" PROPERTIES DEPENDS "shm_${prec}lange")
 
-  add_test(shm_${prec}trsm  ${SHM_TEST_CMD_LIST} ./testing_${prec}trsm  -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
-  add_test(shm_${prec}trsmo_${DTD_TEST}  ${SHM_TEST_CMD_LIST} ./testing_${prec}trsm  -M 106 -N 150 -K 97 -t 56 ${OPTIONS} ${DTD_OPTIONS})
+  add_test(shm_${prec}trsm              ${SHM_TEST_CMD_LIST} ./testing_${prec}trsm -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
+  add_test(shm_${prec}trsm_${DTD_TEST}  ${SHM_TEST_CMD_LIST} ./testing_${prec}trsm -M 106 -N 150 -K 97 -t 56 ${OPTIONS} ${DTD_OPTIONS})
   set_tests_properties("shm_${prec}trsm" PROPERTIES DEPENDS "shm_${prec}trmm")
 
   add_test(shm_${prec}gemm  ${SHM_TEST_CMD_LIST} ./testing_${prec}gemm  -M 106 -N 283 -K 97 -t 56 ${OPTIONS})
