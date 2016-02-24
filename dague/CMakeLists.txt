@@ -52,7 +52,6 @@ set(SOURCES
   bindthread.c
   dague.c
   data.c
-  data_distribution.c
   debug.c
   debug_marks.c
   devices/device.c
