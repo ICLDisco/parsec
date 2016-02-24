@@ -159,19 +159,19 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     nb = tdesc->nb;
 
     if ( (i < 0) || ( (i%mb) != 0 ) ) {
-        dague_warning("Invalid value of i\n");
+        dague_warning("Invalid value of i");
         return NULL;
     }
     if ( (j < 0) || ( (j%nb) != 0 ) ) {
-        dague_warning("Invalid value of j\n");
+        dague_warning("Invalid value of j");
         return NULL;
     }
     if ( (m < 0) || ((m+i) > tdesc->lm) ) {
-        dague_warning("Invalid value of m\n");
+        dague_warning("Invalid value of m");
         return NULL;
     }
     if ( (n < 0) || ((n+j) > tdesc->ln) ) {
-        dague_warning("Invalid value of n\n");
+        dague_warning("Invalid value of n");
         return NULL;
     }
 
@@ -183,7 +183,7 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
         newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
     } else {
-        dague_warning("Type not completely defined\n");
+        dague_warning("Type not completely defined");
         return NULL;
     }
 
@@ -232,7 +232,7 @@ static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t data
     res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
     if (res < 0)
     {
-        dague_warning("error in key_to_string for tile (%u, %u) key: %u\n", m, n, datakey);
+        dague_warning("Wrong key_to_string for tile (%u, %u) key: %u", m, n, datakey);
     }
     return res;
 }
@@ -254,7 +254,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        dague_warning("ERROR: The file %s cannot be open\n", filename);
+        dague_warning("The file %s cannot be open", filename);
         return -1;
     }
 
@@ -302,7 +302,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        dague_warning("ERROR: The file %s cannot be open\n", filename);
+        dague_warning("The file %s cannot be open", filename);
         return -1;
     }
 
@@ -314,7 +314,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                     buf = dague_data_get_ptr(data, 0);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
-                        dague_warning("ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
+                        dague_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                 i, j, ret, tdesc->bsiz);
                         return -1;
                     }
@@ -329,7 +329,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {
-                            dague_warning("ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
+                            dague_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                     i, j, ret, tdesc->mb);
                             return -1;
                         }
