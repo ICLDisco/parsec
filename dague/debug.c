@@ -94,7 +94,10 @@ void dague_debug_init(void) {
         bt_output = dague_output_open(&lds);
         OBJ_DESTRUCT(&lds);
     }
-    else dague_warning("Invalid value %s for parameter debug_backtrace_output", opt);
+    else {
+        dague_warning("Invalid value %s for parameter debug_backtrace_output", opt);
+    }
+    free(opt);
 
     dague_mca_param_reg_int_name("debug", "backtrace_keep",
         "Maximum number of backtrace to keep in backtrace circular buffer",

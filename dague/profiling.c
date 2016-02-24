@@ -369,6 +369,9 @@ int dague_profiling_dictionary_flush( void )
         if( NULL != dague_prof_keys[i].name ) {
             free(dague_prof_keys[i].name);
             free(dague_prof_keys[i].attributes);
+            if( NULL != dague_prof_keys[i].convertor ) {
+                free(dague_prof_keys[i].convertor);
+            }
         }
     }
     dague_prof_keys_count = 0;

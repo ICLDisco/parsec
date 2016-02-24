@@ -601,6 +601,10 @@ int dague_gpu_fini(void)
     if( dague_debug_output != dague_cuda_output_stream ) dague_output_close(dague_cuda_output_stream);
     dague_cuda_output_stream = -1;
 
+    if ( cuda_lib_path ) {
+        free(cuda_lib_path);
+    }
+
     return DAGUE_SUCCESS;
 }
 

@@ -94,7 +94,6 @@ static struct rusage _dague_rusage;
 
 static char *dague_enable_dot = NULL;
 static char *dague_app_name = NULL;
-static char *dague_enable_profiling = NULL;  /* profiling file when DAGUE_PROF_TRACE is on */
 static dague_device_t* dague_device_cpus = NULL;
 static dague_device_t* dague_device_recursive = NULL;
 
@@ -326,6 +325,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     dague_cmd_line_t *cmd_line = NULL;
     char **environ = NULL;
     char **env_variable, *env_name, *env_value;
+    char *dague_enable_profiling = NULL;  /* profiling file prefix when DAGUE_PROF_TRACE is on */
 
     dague_installdirs_open();
     dague_mca_param_init();
@@ -642,6 +642,9 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         dague_profiling_start();
     }
 #endif  /* DAGUE_PROF_TRACE */
+    if (dague_enable_profiling) {
+        free(dague_enable_profiling);
+    }
 
     /* Initialize Performance Instrumentation (PINS) */
     PINS_INIT(context);

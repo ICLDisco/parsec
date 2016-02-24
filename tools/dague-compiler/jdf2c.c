@@ -1275,8 +1275,10 @@ static void jdf_generate_structure(const jdf_t *jdf)
         jdf_function_entry_t* f;
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
-            coutput("#define %s_repo (__dague_handle->repositories[%d])\n",
-                    f->fname, f->function_id);
+            if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
+                coutput("#define %s_repo (__dague_handle->repositories[%d])\n",
+                        f->fname, f->function_id);
+            }
         }
     }
 
@@ -2626,9 +2628,21 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa1);
     string_arena_free(sa2);
     coutput("\n  AYU_REGISTER_TASK(&%s_%s);\n", jdf_basename, f->fname);
-    idx = 0;
-    JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, idx);
-    coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
+
+    if( f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS ) {
+        coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
+                "  __dague_handle->repositories[%d] = NULL;\n"
+                "%s"
+                "  %s (void)__dague_handle; (void)eu;\n",
+                f->function_id,
+                f->function_id,
+                string_arena_get_string(sa_end),
+                need_to_iterate ? "(void)assignments;" : "");
+    }
+    else {
+        idx = 0;
+        JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, idx);
+        coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n"
             "  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(nb_tasks, %d);\n"
             "%s"
             "  %s (void)__dague_handle; (void)eu;\n",
@@ -2636,6 +2650,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             f->function_id, idx,
             string_arena_get_string(sa_end),
             need_to_iterate ? "(void)assignments;" : "");
+    }
     coutput("  if(0 == dague_atomic_dec_32b(&__dague_handle->sync_point)) {\n"
             "    dague_handle_enable((dague_handle_t*)__dague_handle, &__dague_handle->startup_queue,\n"
             "                        (dague_execution_context_t*)this_task, eu, __dague_handle->super.super.nb_pending_actions);\n"
@@ -3154,8 +3169,10 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
     coutput("  /* Destroy the data repositories for this object */\n");
     for( f = jdf->functions; NULL != f; f = f->next ) {
-        coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
-                f->function_id, f->fname);
+        if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
+            coutput("   data_repo_destroy_nothreadsafe(handle->repositories[%d]);  /* %s */\n",
+                    f->function_id, f->fname);
+        }
     }
 
     coutput("  /* Release the dependencies arrays for this object */\n");
@@ -4947,17 +4964,17 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
             name, dague_get_name(jdf, f, "task_t"),
             jdf_basename, jdf_basename);
 
-    coutput("  if( action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_GET_REPO_ENTRY) ) {\n"
-            "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s(__dague_handle, (%s*)(&this_task->locals)) );\n"
-            "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
-            "#if defined(DAGUE_SIM)\n"
-            "    assert(arg.output_entry->sim_exec_date == 0);\n"
-            "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
-            "#endif\n"
-            "  }\n",
-            f->fname, jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), dague_get_name(jdf, f, "assignment_t"));
-
     if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
+       coutput("  if( action_mask & (DAGUE_ACTION_RELEASE_LOCAL_DEPS | DAGUE_ACTION_GET_REPO_ENTRY) ) {\n"
+                "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s(__dague_handle, (%s*)(&this_task->locals)) );\n"
+                "    arg.output_entry->generator = (void*)this_task;  /* for AYU */\n"
+                "#if defined(DAGUE_SIM)\n"
+                "    assert(arg.output_entry->sim_exec_date == 0);\n"
+                "    arg.output_entry->sim_exec_date = this_task->sim_exec_date;\n"
+                "#endif\n"
+                "  }\n",
+                f->fname, jdf_property_get_string(f->properties, JDF_PROP_UD_HASH_FN_NAME, NULL), dague_get_name(jdf, f, "assignment_t"));
+
         coutput("  iterate_successors_of_%s_%s(eu, this_task, action_mask, dague_release_dep_fct, &arg);\n"
                 "\n",
                 jdf_basename, f->fname);

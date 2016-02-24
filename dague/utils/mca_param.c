@@ -49,6 +49,7 @@
 #include <dague/utils/argv.h>
 #include <dague/utils/show_help.h>
 #include <dague/utils/dague_environ.h>
+#include <dague/utils/keyval_parse.h>
 
 /*
  * Local types
@@ -802,9 +803,11 @@ static int read_files(char *file_list)
     files = dague_argv_split(file_list, DAGUE_ENV_SEP);
     count = dague_argv_count(files);
 
+    dague_util_keyval_parse_init();
     for (i = count - 1; i >= 0; --i) {
         dague_mca_parse_paramfile(files[i]);
     }
+    dague_util_keyval_parse_finalize();
     dague_argv_free(files);
 
     return DAGUE_SUCCESS;

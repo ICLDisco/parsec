@@ -71,6 +71,5 @@ static void save_value(const char *name, const char *value)
 int dague_mca_parse_paramfile(const char *paramfile)
 {
     file_being_read = (char*)paramfile;
-
     return dague_util_keyval_parse(paramfile, save_value);
 }
