@@ -9,6 +9,7 @@
 
 #include "dague_config.h"
 #include "dague/dague_internal.h"
+#include "dague/debug.h"
 #include "dague/data.h"
 #include "dague/data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
@@ -158,19 +159,19 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     nb = tdesc->nb;
 
     if ( (i < 0) || ( (i%mb) != 0 ) ) {
-        fprintf(stderr, "Invalid value of i\n");
+        dague_warning("Invalid value of i\n");
         return NULL;
     }
     if ( (j < 0) || ( (j%nb) != 0 ) ) {
-        fprintf(stderr, "Invalid value of j\n");
+        dague_warning("Invalid value of j\n");
         return NULL;
     }
     if ( (m < 0) || ((m+i) > tdesc->lm) ) {
-        fprintf(stderr, "Invalid value of m\n");
+        dague_warning("Invalid value of m\n");
         return NULL;
     }
     if ( (n < 0) || ((n+j) > tdesc->ln) ) {
-        fprintf(stderr, "Invalid value of n\n");
+        dague_warning("Invalid value of n\n");
         return NULL;
     }
 
@@ -182,7 +183,7 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
         newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
     } else {
-        fprintf(stderr, "Type not completely defined\n");
+        dague_warning("Type not completely defined\n");
         return NULL;
     }
 
@@ -231,7 +232,7 @@ static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t data
     res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
     if (res < 0)
     {
-        printf("error in key_to_string for tile (%u, %u) key: %u\n", m, n, datakey);
+        dague_warning("error in key_to_string for tile (%u, %u) key: %u\n", m, n, datakey);
     }
     return res;
 }
@@ -253,7 +254,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
+        dague_warning("ERROR: The file %s cannot be open\n", filename);
         return -1;
     }
 
@@ -301,7 +302,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        fprintf(stderr, "ERROR: The file %s cannot be open\n", filename);
+        dague_warning("ERROR: The file %s cannot be open\n", filename);
         return -1;
     }
 
@@ -313,7 +314,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                     buf = dague_data_get_ptr(data, 0);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
-                        fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
+                        dague_warning("ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
                                 i, j, ret, tdesc->bsiz);
                         return -1;
                     }
@@ -328,7 +329,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {
-                            fprintf(stderr, "ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
+                            dague_warning("ERROR: The read on tile(%d, %d) read %d elements instead of %d\n",
                                     i, j, ret, tdesc->mb);
                             return -1;
                         }
