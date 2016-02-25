@@ -189,9 +189,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <string>STRING
 %type <number>INT
 %type <number>DEPENDENCY_TYPE
+%type <number>DATA_NEW
+%type <number>DATA_NULL
 
 %token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY_START BODY_END STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
+%token DATA_NEW DATA_NULL
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE OPTION
 
@@ -713,6 +716,38 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   }
                   JDF_OBJECT_LINENO(data) = JDF_OBJECT_LINENO($3);
               }
+       |      DATA_NEW
+              {
+                  jdf_call_t *c = new(jdf_call_t);
+                  c->var = NULL;
+                  c->func_or_mem = strdup(PARSEC_WRITE_MAGIC_NAME);
+                  c->parameters = NULL;
+                  JDF_OBJECT_LINENO(c) = current_lineno;
+
+                  jdf_guarded_call_t *g = new(jdf_guarded_call_t);
+                  g->guard_type = JDF_GUARD_UNCONDITIONAL;
+                  g->guard = NULL;
+                  g->calltrue = c;
+                  g->callfalse = NULL;
+                  $$ = g;
+                  JDF_OBJECT_LINENO($$) = current_lineno;
+             }
+       |     DATA_NULL
+             {
+                 jdf_call_t *c = new(jdf_call_t);
+                 c->var = NULL;
+                 c->func_or_mem = NULL;
+                 c->parameters = NULL;
+                 JDF_OBJECT_LINENO(c) = current_lineno;
+
+                 jdf_guarded_call_t *g = new(jdf_guarded_call_t);
+                 g->guard_type = JDF_GUARD_UNCONDITIONAL;
+                 g->guard = NULL;
+                 g->calltrue = c;
+                 g->callfalse = NULL;
+                 $$ = g;
+                 JDF_OBJECT_LINENO($$) = current_lineno;
+             }
        ;
 
 priority:     SEMICOLON expr_simple
