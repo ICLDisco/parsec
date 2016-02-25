@@ -30,7 +30,7 @@ reduce(l, p)
   READ B <- ((p * (1 << l) + (1 << (l-1))) >=  MT)  ? A(0,0) /*ELEM_NEUTRE(0)*/
          <- ((1 == l) & ((p * (1 << l) + (1 << (l-1)) < MT))) ? A(2*p+1,0)
          <- ((1 != l) & ((p * (1 << l) + (1 << (l-1)) < MT))) ? C reduce(l - 1, p * 2 + 1)
-  WRITE C <- [type = DEFAULT]
+  WRITE C <- NEW  [type = DEFAULT]
           -> ((depth+1) == l) ? R(p, 0)
           -> (((depth+1) != l) & (0 == (p%2))) ? A reduce(l+1, p/2)
           -> (((depth+1) != l) & (0 != (p%2))) ? B reduce(l+1, p/2)
