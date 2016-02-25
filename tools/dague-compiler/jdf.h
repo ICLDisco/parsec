@@ -61,6 +61,7 @@ typedef struct jdf_object_t {
  * variable, and can be safely used as a marker.
  */
 #define PARSEC_WRITE_MAGIC_NAME "__parsec_write_type"
+#define PARSEC_NULL_MAGIC_NAME "__parsec_null_type"
 
 /**
  * Checks the sanity of the current_jdf.
