@@ -136,9 +136,9 @@ READ NODEB <- ((nid != 0) & ((n%2) == 0)) ? NODEL PROJECT(pid) [type = DEFAULT]
 
 // The parent task creates a left child. Then it passes it to its
 // child node if it exists (larger_than_thresh == 1)
-WRITE NODEL <- [ type=DEFAULT ]
+WRITE NODEL <- NEW [ type=DEFAULT ]
             -> (larger_than_thresh == 1) ? NODEB PROJECT(inline_c %{ return tree_dist_left_child_of_node(treeA, nid); %})
-WRITE NODER <- [ type=DEFAULT ]
+WRITE NODER <- NEW [ type=DEFAULT ]
             -> (larger_than_thresh == 1) ? NODEB PROJECT(inline_c %{ return tree_dist_right_child_of_node(treeA, nid); %})
 
 
