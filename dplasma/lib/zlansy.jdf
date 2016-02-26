@@ -44,81 +44,6 @@ norm         [type = "double *"]
 
 descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
 
-RWCOL(m, n) [profile = off]
-
-    // Execution space
-    m = 0 .. descA.mt-1
-    n = 0 .. PQ-1
-    hastile = inline_c %{
-        int nn = 0;
-        int r;
-        while (nn < descA.nt) {
-            if ( (uplo == PlasmaLower && m  < nn) ||
-                 (uplo == PlasmaUpper && nn < m ) )
-                r = my_rank_of( nn, m );
-            else
-                r = my_rank_of( m, nn );
-            if ( r == n )
-                break;
-            else
-                nn++;
-        }
-        return nn;
-        %}
-
-    // Parallel partitioning
-    :Tdist(m, n)
-
-    // Parameters
-    WRITE W -> (hastile <  descA.nt) ? W STEP1(m, hastile)  [type = COL]
-            -> (hastile == descA.nt) ? W STEP2(m, n      )  [type = COL]
-
-BODY
-{
-#if !defined(DAGUE_DRY_RUN)
-        /* Initialize W */
-        if (ntype == PlasmaMaxNorm) {
-            ((double *)W)[0] = 0.;
-        } else if (ntype == PlasmaFrobeniusNorm) {
-            ((double *)W)[0] = 0.;
-            ((double *)W)[1] = 1.;
-        } else {
-            int i;
-            for(i = 0; i < descA.mb; i++)
-                ((double *)W)[i] = 0.;
-        }
-#endif /* !defined(DAGUE_DRY_RUN) */
-}
-END
-
-RWELT(m, n) [profile = off]
-
-    // Execution space
-    m = 0 .. P-1
-    n = 0 .. Q-1
-    row = inline_c %{
-        return descA.mt-((descA.mt-m-1)%P)-1;
-        %}
-
-    // Parallel partitioning
-    :Tdist(m, n)
-
-    // Parameters
-    WRITE W -> (m <  descA.mt   ) ? W STEP3(row, n)  [type = ELT]
-            -> (m > (descA.mt-1)) ? W STEP4(m,   n)  [type = ELT]
-
-BODY
-{
-#if !defined(DAGUE_DRY_RUN)
-        /* Initialize Welt */
-        ((double *)W)[0] = 0.;
-        if (ntype == PlasmaFrobeniusNorm) {
-            ((double *)W)[1] = 1.;
-        }
-#endif /* !defined(DAGUE_DRY_RUN) */
-}
-END
-
 /**************************************************
  *
  *                    STEP 1
@@ -185,7 +110,7 @@ STEP1(m,n)
 
     // Parameters
     READ A <-  dataA(m1, n1)
-    RW   W <-  ( prevn+1 > 0        ) ? W STEP1( m, prevn ) : W RWCOL( m, lr ) [type = COL]
+    RW   W <-  ( prevn+1 > 0        ) ? W STEP1( m, prevn ) : NEW              [type = COL]
            ->  ( nextn   < descA.nt ) ? W STEP1( m, nextn ) : W STEP2( m, lr ) [type = COL]
 
 BODY
@@ -199,68 +124,77 @@ BODY
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
 #if !defined(DAGUE_DRY_RUN)
+    double *dW = (double*)W;
 
-        double *dW = (double*)W;
-
-        /*
-         * Max norm
-         */
-        if (ntype == PlasmaMaxNorm) {
-            double lnorm = 0.;
-            if ( n == m ) {
-                if (trans == PlasmaConjTrans) {
-                    CORE_zlanhe(PlasmaMaxNorm, uplo, tempmm,
-                                A, ldam, NULL, &lnorm);
-                } else {
-                    CORE_zlansy(PlasmaMaxNorm, uplo, tempmm,
-                                A, ldam, NULL, &lnorm);
-                }
+    /*
+     * Max norm
+     */
+    if (ntype == PlasmaMaxNorm) {
+        double lnorm = 0.;
+        if (!(prevn+1 > 0)) {
+            *dW = 0.;
+        }
+        if ( n == m ) {
+            if (trans == PlasmaConjTrans) {
+                CORE_zlanhe(PlasmaMaxNorm, uplo, tempmm,
+                            A, ldam, NULL, &lnorm);
             } else {
-                CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
+                CORE_zlansy(PlasmaMaxNorm, uplo, tempmm,
                             A, ldam, NULL, &lnorm);
             }
-            *dW = ( lnorm > *dW ) ? lnorm : *dW;
+        } else {
+            CORE_zlange(PlasmaMaxNorm, tempmm, tempnn,
+                        A, ldam, NULL, &lnorm);
         }
-        /*
-         * Frobenius Norm
-         */
-        else if (ntype == PlasmaFrobeniusNorm) {
-            if ( n == m ) {
-                if (trans == PlasmaConjTrans) {
-                    CORE_zhessq( uplo, tempmm, A, ldam, dW, dW+1);
-                }
-                else {
-                    CORE_zsyssq( uplo, tempmm, A, ldam, dW, dW+1);
-                }
-            } else {
-                CORE_zgessq(tempmm, tempnn,
-                            A, ldam, dW, dW+1 );
+        *dW = ( lnorm > *dW ) ? lnorm : *dW;
+    }
+    /*
+     * Frobenius Norm
+     */
+    else if (ntype == PlasmaFrobeniusNorm) {
+        if (!(prevn+1 > 0)) {
+            dW[0] = 0.;
+            dW[1] = 1.;
+        }
+        if ( n == m ) {
+            if (trans == PlasmaConjTrans) {
+                CORE_zhessq( uplo, tempmm, A, ldam, dW, dW+1);
             }
+            else {
+                CORE_zsyssq( uplo, tempmm, A, ldam, dW, dW+1);
+            }
+        } else {
+            CORE_zgessq(tempmm, tempnn,
+                        A, ldam, dW, dW+1 );
         }
-        /*
-         * Inf and One -norms
-         */
-        else {
-            if ( m == n ) {
-                CORE_dzasum(PlasmaRowwise, uplo,
+    }
+    /*
+     * Inf and One -norms
+     */
+    else {
+        if (!(prevn+1 > 0)) {
+            memset( W, 0, descA.mb * sizeof(double) );
+        }
+        if ( m == n ) {
+            CORE_dzasum(PlasmaRowwise, uplo,
+                        tempmm, tempnn,
+                        A, ldam, W);
+        } else {
+
+            /* !uplo side */
+            if ( (uplo == PlasmaLower && m < n) ||
+                 (uplo == PlasmaUpper && n < m) ) {
+                CORE_dzasum(PlasmaColumnwise, PlasmaUpperLower,
                             tempmm, tempnn,
                             A, ldam, W);
+                /* uplo side */
             } else {
-
-                /* !uplo side */
-                if ( (uplo == PlasmaLower && m < n) ||
-                     (uplo == PlasmaUpper && n < m) ) {
-                    CORE_dzasum(PlasmaColumnwise, PlasmaUpperLower,
-                                tempmm, tempnn,
-                                A, ldam, W);
-                    /* uplo side */
-                } else {
-                    CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
-                                tempmm, tempnn,
-                                A, ldam, W);
-                }
+                CORE_dzasum(PlasmaRowwise, PlasmaUpperLower,
+                            tempmm, tempnn,
+                            A, ldam, W);
             }
         }
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -297,8 +231,8 @@ STEP2(m, n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n+Q < PQ )       ? W STEP2(m, n+Q)  : Tdist(m, n) /* Unused*/  [type = COL]
-    RW   W <- ((hadtile+1) == 0) ? W RWCOL(m, n )   : W STEP1(m, hadtile)      [type = COL]
+    READ A <- ( n+Q < PQ )       ? W STEP2(m, n+Q)  : NULL                     [type = COL]
+    RW   W <- ((hadtile+1) == 0) ? NEW              : W STEP1(m, hadtile)      [type = COL]
            -> ( n < Q )          ? W STEP2BIS(m, n) : A STEP2(m, n-Q)          [type = COL]
 
 BODY
@@ -310,28 +244,42 @@ BODY
              context->th_id, m, n, tempmm, m, n-1, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        if(n+Q < PQ)
-        {
-            double *dA = (double*)A;
-            double *dW = (double*)W;
+    double *dA = (double*)A;
+    double *dW = (double*)W;
 
-            if (ntype == PlasmaMaxNorm) {
-                *dW = ( *dA > *dW ) ? *dA : *dW;
-            }
-            else if (ntype == PlasmaFrobeniusNorm) {
-                if ( dA[0] > 0. ){
-                    if( dW[0] < dA[0] ) {
-                        dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
-                        dW[0] = dA[0];
-                    } else {
-                        dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
-                    }
+    if (ntype == PlasmaMaxNorm) {
+        if ((hadtile+1) == 0) {
+            *dW = 0.;
+        }
+
+        if(n+Q < PQ) {
+            *dW = ( *dA > *dW ) ? *dA : *dW;
+        }
+    }
+    else if (ntype == PlasmaFrobeniusNorm) {
+        if ((hadtile+1) == 0) {
+            dW[0] = 0.;
+            dW[1] = 1.;
+        }
+        if(n+Q < PQ) {
+            if ( dA[0] > 0. ){
+                if( dW[0] < dA[0] ) {
+                    dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                    dW[0] = dA[0];
+                } else {
+                    dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
                 }
             }
-            else {
-                cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
-            }
         }
+    }
+    else {
+        if ((hadtile+1) == 0) {
+            memset( W, 0, descA.mb * sizeof(double) );
+        }
+        if(n+Q < PQ) {
+            cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
+        }
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -352,9 +300,9 @@ STEP2BIS(m, n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n == 0     ) ? Tdist(m, n) /* Unused */ : W STEP2BIS(m, n-1)   [type = COL]
-    RW   W <- W STEP2(m, n)                                                    [type = COL]
-           -> ( n == (Q-1) ) ? A STEP3(m, 0..Q-1)       : A STEP2BIS(m, n+1)   [type = COL]
+    READ A <- ( n == 0     ) ? NULL               : W STEP2BIS(m, n-1)   [type = COL]
+    RW   W <- W STEP2(m, n)                                              [type = COL]
+           -> ( n == (Q-1) ) ? A STEP3(m, 0..Q-1) : A STEP2BIS(m, n+1)   [type = COL]
 
 BODY
 {
@@ -365,28 +313,28 @@ BODY
              context->th_id, m, n, tempmm, m, n-1, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        if(n > 0)
-        {
-            double *dA = (double*)A;
-            double *dW = (double*)W;
+    if(n > 0)
+    {
+        double *dA = (double*)A;
+        double *dW = (double*)W;
 
-            if (ntype == PlasmaMaxNorm) {
-                *dW = ( *dA > *dW ) ? *dA : *dW;
-            }
-            else if (ntype == PlasmaFrobeniusNorm) {
-                if ( dA[0] > 0. ){
-                    if( dW[0] < dA[0] ) {
-                            dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
-                            dW[0] = dA[0];
-                    } else {
-                        dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
-                    }
+        if (ntype == PlasmaMaxNorm) {
+            *dW = ( *dA > *dW ) ? *dA : *dW;
+        }
+        else if (ntype == PlasmaFrobeniusNorm) {
+            if ( dA[0] > 0. ){
+                if( dW[0] < dA[0] ) {
+                    dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                    dW[0] = dA[0];
+                } else {
+                    dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
                 }
             }
-            else {
-                cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
-            }
         }
+        else {
+            cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
+        }
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -409,7 +357,7 @@ STEP3(m, n)
 
     // Parameters
     READ A <- W STEP2BIS(m, Q-1)                                         [type = COL]
-    RW   W <- (m < (descA.mt-P)) ? W STEP3( m+P, n ) : W RWELT( m%P, n ) [type = ELT]
+    RW   W <- (m < (descA.mt-P)) ? W STEP3( m+P, n ) : NEW               [type = ELT]
            -> (m < P           ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
 
 BODY
@@ -420,37 +368,41 @@ BODY
              context->th_id, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        double *dA = (double*)A;
-        double *dW = (double*)W;
+    double *dA = (double*)A;
+    double *dW = (double*)W;
 
-        if (ntype == PlasmaMaxNorm){
-            if ( m < (descA.mt-P) ) {
-                *dW = ( *dA > *dW ) ? *dA : *dW;
-            } else {
-                *dW = *dA;
-            }
+    if (ntype == PlasmaMaxNorm){
+        if ( m < (descA.mt-P) ) {
+            *dW = ( *dA > *dW ) ? *dA : *dW;
+        } else {
+            *dW = *dA;
         }
-        else if (ntype == PlasmaFrobeniusNorm) {
-            if( dW[0] < dA[0] ) {
-                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
-                dW[0] = dA[0];
-            } else {
-                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
-            }
+    }
+    else if (ntype == PlasmaFrobeniusNorm) {
+        if ( m >= (descA.mt-P) ) {
+            dW[0] = 0.;
+            dW[1] = 1.;
         }
-        else {
-            double maxval = 0;
-            int i;
+        if( dW[0] < dA[0] ) {
+            dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+            dW[0] = dA[0];
+        } else {
+            dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+        }
+    }
+    else {
+        double maxval = 0;
+        int i;
 
-            for(i = 0; i < tempmm; i++, dA++)
-                maxval = ( maxval > *dA ) ? maxval : *dA;
+        for(i = 0; i < tempmm; i++, dA++)
+            maxval = ( maxval > *dA ) ? maxval : *dA;
 
-            if ( m < (descA.mt-P) ) {
-                *dW = ( maxval > *dW ) ? maxval : *dW;
-            } else {
-                *dW = maxval;
-            }
+        if ( m < (descA.mt-P) ) {
+            *dW = ( maxval > *dW ) ? maxval : *dW;
+        } else {
+            *dW = maxval;
         }
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
@@ -471,9 +423,9 @@ STEP4(m,n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m == 0 )           ?   Tdist(m, n) /* Unused */ : W STEP4(m-1, n) [type = ELT]
-    RW   W <- ( m >  (descA.mt-1)) ? W RWELT( m, n)             : W STEP3(m,   n) [type = ELT]
-           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n)     : A STEP4(m+1, n) [type = ELT]
+    READ A <- ( m == 0 )           ? NULL                   : W STEP4(m-1, n) [type = ELT]
+    RW   W <- ( m >  (descA.mt-1)) ? NEW                    : W STEP3(m,   n) [type = ELT]
+           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
 
 BODY
 {
@@ -482,10 +434,14 @@ BODY
 
     double *dA = (double*)A;
     double *dW = (double*)W;
-    if(m > 0) {
-        if (ntype == PlasmaFrobeniusNorm) {
-            double  sqr;
+    if (ntype == PlasmaFrobeniusNorm) {
+        double  sqr;
 
+        if ( m > (descA.mt-1)) {
+            dW[0] = 0.;
+            dW[1] = 1.;
+        }
+        if(m > 0) {
             if( dW[0] < dA[0] ) {
                 sqr = dW[0] / dA[0];
                 sqr = sqr * sqr;
@@ -496,7 +452,12 @@ BODY
                 sqr = sqr * sqr;
                 dW[1] = dW[1] + sqr * dA[1];
             }
-        } else {
+        }
+    } else {
+        if ( m > (descA.mt-1)) {
+            *dW = 0.;
+        }
+        if(m > 0) {
             *dW = ( *dA > *dW ) ? *dA : *dW;
         }
     }
