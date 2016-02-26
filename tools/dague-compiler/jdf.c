@@ -480,7 +480,8 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
                         continue;
                     }
                     if( !strcmp(guard->calltrue->func_or_mem, f1->fname) &&
-                        (guard->calltrue->var == NULL) ) {
+                        (guard->calltrue->var == NULL) &&
+                        (guard->calltrue->parameters != NULL)) {
                         jdf_fatal(JDF_OBJECT_LINENO(dep),
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
@@ -489,7 +490,8 @@ static int jdf_sanity_check_dataflow_naming_collisions(void)
                     }
                     if( guard->guard_type == JDF_GUARD_TERNARY &&
                         !strcmp(guard->callfalse->func_or_mem, f1->fname) &&
-                        (guard->callfalse->var == NULL) ) {
+                        (guard->callfalse->var == NULL) &&
+                        (guard->callfalse->parameters != NULL)) {
                         jdf_fatal(JDF_OBJECT_LINENO(dep),
                                   "%s is the name of a function (defined line %d):\n"
                                   "  it cannot be also used as a memory reference in function %s\n",
@@ -631,12 +633,14 @@ static int jdf_sanity_check_in_out_flow_match( jdf_function_entry_t* fout,
                 continue;
 
             if( (dep->guard->calltrue->var != NULL) &&
+                (dep->guard->calltrue->parameters != NULL) &&
                 (0 == strcmp(dep->guard->calltrue->func_or_mem, fout->fname)) ) {
                 matched = 1;
                 break;
             }
             if( (dep->guard->guard_type == JDF_GUARD_TERNARY) &&
                 (dep->guard->callfalse->var != NULL) &&
+                (dep->guard->callfalse->parameters != NULL) &&
                 (0 == strcmp(dep->guard->callfalse->func_or_mem, fout->fname)) ) {
                 matched = 1;
                 break;
@@ -806,7 +810,9 @@ static int jdf_sanity_check_call_compatible(const jdf_call_t *c,
     ciscanon = compute_canonical_data_location( c->func_or_mem, c->parameters, &cstr, &ccanon );
     discanon = compute_canonical_data_location( d->func_or_mem, d->parameters, &dstr, &dcanon );
 
-    if( strcmp(ccanon, dcanon) && strcmp(dcanon, PARSEC_WRITE_MAGIC_NAME"()") ) {
+    if( strcmp(ccanon, dcanon)
+        && strcmp(dcanon, PARSEC_WRITE_MAGIC_NAME"()")
+        && strcmp(dcanon, PARSEC_NULL_MAGIC_NAME"()") ) {
         /* d does not have the same representation as c..
          * There is a risk: depends on the data distribution...,
          *  on expression evaluations, etc...
