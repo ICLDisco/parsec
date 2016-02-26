@@ -183,9 +183,9 @@ include (CheckIncludeFiles)
 IF( BUILD_TOOLS )
   # Check for compiler tools
   find_package(BISON)
+ENDIF( BUILD_TOOLS )
   find_package(FLEX)
   set(DAGUE_HAVE_RECENT_LEX 0)
-ENDIF( BUILD_TOOLS )
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")

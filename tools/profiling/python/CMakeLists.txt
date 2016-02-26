@@ -19,7 +19,7 @@ set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../../../dague/dague_binary_profile.h"
-                dague-base dague)
+                dague-base)
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.c")
 
 #

@@ -1,0 +1,94 @@
+#!/bin/sh
+#
+# This file is for a cross-compilation. DAGuE will be compiled
+# on the head node, disarming the interlagos module for the toolchain.
+# and reenabling it for the runtime and dplasma. All dependencies
+# (including PLASMA) have to be compiled for the expected target
+# architecture.
+#
+
+
+cat << _EOF
+#
+# Preparing the compilation of the native tools.
+#
+_EOF
+
+LOCATION=`dirname $0`/../../
+USER_OPTIONS="$* "
+SAVE_LDFLAGS=$LDFLAGS
+
+
+# First make the native build, so we can use the tools
+mkdir -p native
+cd native
+rm -rf CMakeCache.txt CMakeFiles
+
+## Defaults for local native compilation
+module swap craype-interlagos craype-mc8
+CC=${CC:="cc"}
+CXX=${CXX:="CC"}
+FC=${FC:="ftn"}
+#LDFLAGS="${LDFLAGS} -lnuma"
+export CC CXX FC LDFLAGS
+
+MPI="-DDAGUE_DIST_WITH_MPI=OFF"
+CUDA="-DDAGUE_GPU_WITH_CUDA=OFF"
+OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_DAGUE=ON -DBUILD_DPLASMA=OFF"
+HWLOC=""
+
+cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ../${LOCATION}
+#
+# Now let's compile the tools
+#
+cd tools && make
+cd ../..
+
+#
+# Now let's move on with the second step, cross-compile for
+# the compute node target
+#
+rm -rf CMakeCache.txt CMakeFiles
+
+cat << _EOF
+#
+# Preparing the cross-compile of the Cray XK7 compute node part
+#
+_EOF
+
+#
+# Generate the cross-compiling file
+#
+cat << _EOF > Toolchain-interlagos-Cray-xk7.cmake
+# this one is important
+SET(CMAKE_SYSTEM_NAME Catamount)
+SET(CMAKE_SYSTEM_PROCESSOR amd64)
+SET( DAGUE_ATOMIC_USE_GCC_32_BUILTINS_EXITCODE 
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+SET( DAGUE_ATOMIC_USE_GCC_64_BUILTINS_EXITCODE 
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+SET( DAGUE_ATOMIC_USE_GCC_128_BUILTINS_EXITCODE 
+     "0"
+     CACHE STRING "Result from TRY_RUN" FORCE)
+_EOF
+
+# Compilers to use in cross-compile mode
+module swap craype-mc8 craype-interlagos
+CC=cc
+CXX=CC
+FC=ftn
+CFLAGS+=-mcx16
+
+MPI="-DDAGUE_DIST_WITH_MPI=ON -DMPI_C_COMPILER=$CC -DMPI_CXX_COMPILER=$CXX -DMPI_Fortran_COMPILER=$FC"
+CUDA="-DDAGUE_GPU_WITH_CUDA=ON"
+HWLOC="-DHWLOC_DIR=$HOME/parsec/titan/hwloc-1.11.2"
+PLASMA="-DPLASMA_DIR=$HOME/parsec/titan/plasma-2.8.0"
+OPTS="-DBUILD_TOOLS=OFF"
+
+# Done with variable allocation, do the thing with Cmake
+export CC CXX FC CFLAGS
+
+cmake -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=Toolchain-interlagos-Cray-xk7.cmake -DIMPORT_EXECUTABLES=native/ImportExecutables.cmake ${PLASMA} ${MPI} ${HWLOC} ${CUDA} ${OPTS} ${USER_OPTIONS} ${LOCATION}
+
