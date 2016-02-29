@@ -946,7 +946,18 @@ dague_dtd_tile_remove( dague_dtd_handle_t *dague_handle, uint32_t key,
     uint64_t    combined_key = (uint64_t)ddesc << 32 | (uint64_t)key;
     uint32_t    hash         =  hash_table->hash ( combined_key, hash_table->size );
 
-    hash_table_remove ( hash_table, combined_key, hash );
+    dague_list_t *list = hash_table->item_list[hash];
+
+    dague_list_lock( list );
+    dague_dtd_tile_t *tile = hash_table_nolock_remove( hash_table, combined_key, hash );
+    if( tile->super.list_item.super.obj_reference_count == 1 ) {
+#if defined(DAGUE_DEBUG_PARANOID)
+        assert(tile->super.list_item.refcount == 0);
+#endif
+        dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
+    }
+
+    dague_list_unlock( list );
 }
 
 /* **************************************************************************** */
@@ -1005,12 +1016,6 @@ dague_dtd_tile_release(dague_dtd_handle_t *dague_handle, dague_dtd_tile_t *tile)
 {
     assert(tile->super.list_item.super.obj_reference_count>1);
     dague_dtd_tile_remove ( dague_handle, tile->key, tile->ddesc );
-    if( tile->super.list_item.super.obj_reference_count == 1 ) {
-#if defined(DAGUE_DEBUG_PARANOID)
-        assert(tile->super.list_item.refcount == 0);
-#endif
-        dague_thread_mempool_free( dague_handle->tile_mempool->thread_mempools, tile );
-    }
 }
 
 /* **************************************************************************** */
@@ -2352,12 +2357,15 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
         if( NULL == last_user.task && (tile_op_type & GET_OP_TYPE) == INPUT ) {
             dague_dtd_last_user_unlock( &(tile->last_user) );
 
-            OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
+            dague_dtd_tile_t *tmp = dague_dtd_tile_find ( dague_dtd_handle, tile->key,
+                                                  tile->ddesc );
+            assert(tile == tmp );
+            //OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
             /* parentless */
             /* Create Fake output_task */
             dague_insert_task( (dague_dtd_handle_t *)this_task->super.dague_handle,
-                                   &fake_first_out_body,  "Fake_FIRST_OUT",
-                                    PASSED_BY_REF,         tile,       INOUT | REGION_FULL | AFFINITY,
+                               &fake_first_out_body,  "Fake_FIRST_OUT",
+                                PASSED_BY_REF,         tile,       INOUT | REGION_FULL | AFFINITY,
                                     0 );
 
             dague_dtd_last_user_lock( &(tile->last_user) );
