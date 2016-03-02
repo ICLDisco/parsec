@@ -81,13 +81,16 @@ void dague_arena_destruct(dague_arena_t* arena)
          || arena->max_used == 0
          || arena->max_used == INT32_MAX );
 
-    while(NULL != (item = dague_lifo_pop(&arena->area_lifo))) {
-        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
-                item, ((dague_arena_chunk_t*)item)->data, arena);
-        TRACE_FREE(arena_memory_free_key, item);
-        arena->data_free(item);
+    /* If elem_size == 0, the arena has not been initialized */
+    if ( 0 != arena->elem_size ) {
+        while(NULL != (item = dague_lifo_pop(&arena->area_lifo))) {
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
+                                item, ((dague_arena_chunk_t*)item)->data, arena);
+            TRACE_FREE(arena_memory_free_key, item);
+            arena->data_free(item);
+        }
+        OBJ_DESTRUCT(&arena->area_lifo);
     }
-    OBJ_DESTRUCT(&arena->area_lifo);
 }
 
 static inline dague_list_item_t*
