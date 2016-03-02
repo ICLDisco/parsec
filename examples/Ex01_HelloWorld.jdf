@@ -99,9 +99,9 @@ int main(int argc, char *argv[])
     handle = (dague_handle_t*)dague_Ex01_HelloWorld_new(&taskdist);
 
     /**
-     * Let's do some computation with the runtime, and wait for the end.
-     * Here, no computation is performed.
+     * Let's submit this handle to the runtime and wait for the completion
      */
+    dague_enqueue( dague, handle );
     dague_context_wait(dague);
 
     /**
