@@ -37,6 +37,8 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t max_allocated_memory,
                              size_t max_cached_memory)
 {
+    arena->elem_size = 0;  /* make sure the arena is marked as uninitialized to allow
+                              the destructor to skip the lifo destruction. */
     /* alignment must be more than zero and power of two */
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
         return -1;
