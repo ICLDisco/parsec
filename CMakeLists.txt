@@ -470,15 +470,14 @@ IF( BUILD_DAGUE )
           check_function_exists(cuDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
       endif()
       CMAKE_POP_CHECK_STATE()
-
-      # Look for dl library to dynamically load the kernels
-      find_library(DL_LIBRARY dl)
-      if(DL_LIBRARY)
-        list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
-      endif()
-
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
+
+  # Look for dl library to dynamically load the kernels
+  find_library(DL_LIBRARY dl)
+  if(DL_LIBRARY)
+    list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
+  endif(DL_LIBRARY)
 
   find_package(AYUDAME QUIET)
   set(DAGUE_HAVE_AYUDAME ${AYUDAME_FOUND})
@@ -764,8 +763,27 @@ if( DAGUE_WITH_DEVEL_HEADERS )
 
 endif(DAGUE_WITH_DEVEL_HEADERS)
 
+# Due to the lack of standardization detecting libraries under CMake leads
+# to unconsistents lists of libraries, where some libraries are using full path,
+# other a combination of "-L* and -l*" and others just the library name. Try
+# to get a consistent string that can be used for the generation of the
+# pkg-config files, by leaving the fullpath libraries as is, and converting
+# everything else to -l.
+SET(EXTRA_LIBS_EXPANDED)
+FOREACH(LIB IN ITEMS ${EXTRA_LIBS})
+  if( IS_ABSOLUTE ${LIB} )
+    LIST(APPEND EXTRA_LIBS_EXPANDED ${LIB})
+  else( IS_ABSOLUTE ${LIB} )
+    if( $LIB MATCHES "^-(.)*" )
+      LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
+    else( $LIB MATCHES "^-(.)*" )
+      LIST(APPEND EXTRA_LIBS_EXPANDED "-l${LIB}")
+    endif( $LIB MATCHES "^-(.)*" )
+  endif( IS_ABSOLUTE ${LIB} )
+ENDFOREACH(LIB)
+
 # pkg-config file
-string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS}")
+string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
