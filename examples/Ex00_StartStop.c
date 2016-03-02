@@ -1,5 +1,9 @@
 /**
- * This first example shows how to initialize, and terminate PaRSEC
+ * This first example shows how to initialize, and terminate PaRSEC, in an mpi,
+ * or non mpi environment.
+ *    dague_init()
+ *    dague_context_wait()
+ *    dague_fini()
  *
  * [mpicc|cc] -o Ex00_StartStop Ex00_StartStop.c `pkg-config --cflags --libs parsec` -lpthread -lm -lrt [-ldl -lcudart]
  *

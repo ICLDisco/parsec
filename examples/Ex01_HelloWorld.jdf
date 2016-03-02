@@ -1,5 +1,14 @@
 extern "C" %{
 
+/**
+ * This second example shows how to create a simple jdf that has only one single task.
+ *    JDF syntax
+ *    dague_JDFNAME_New()
+ *    dague_enqueue()
+ *    dague_ddesc_init()
+ *
+ */
+
 #include <dague.h>
 #include <dague/data_distribution.h>
 #include <dague/datatype.h>
