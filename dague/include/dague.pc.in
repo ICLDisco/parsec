@@ -9,5 +9,5 @@ Version: @DAGUE_VERSION_MAJOR@.@DAGUE_VERSION_MINOR@
 Requires: @PARSEC_PKG_REQUIRE@
 Libs: -L${libdir} -ldague -ldague-base @EXTRA_LIBS_EXPANDED@
 Libs.private: @PAPI_LIBRARIES@
-Cflags: -I${includedir} @CMAKE_C_FLAGS@
+Cflags: -I${includedir} @CMAKE_C_FLAGS@ -I@MPI_C_INCLUDE_PATH@
 
