@@ -39,7 +39,7 @@ BODY
     }
 
     MPI_Comm_rank( MPI_COMM_WORLD, &rank );
-    printf("HelloWorld %d computed on node %d\n", *Aint, rank );
+    printf("I am element %d in the chain computed on node %d\n", *Aint, rank );
 }
 END
 

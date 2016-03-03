@@ -46,7 +46,7 @@ BODY
         *Aint += 1;
     }
 
-    printf("HelloWorld %d\n", *Aint );
+    printf("I am element %d in the chain\n", *Aint );
 }
 END
 

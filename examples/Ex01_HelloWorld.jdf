@@ -7,6 +7,7 @@ extern "C" %{
  *    dague_enqueue()
  *    dague_ddesc_init()
  *
+ * Can play with the HelloWorld bounds to show embarissingly parallel algorithm.
  */
 
 #include <dague.h>
@@ -49,7 +50,7 @@ READ A <- NULL
  */
 BODY
 {
-    printf("HelloWorld\n");
+    printf("HelloWorld %d\n", k);
 }
 END
 
