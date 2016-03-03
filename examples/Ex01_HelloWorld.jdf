@@ -118,6 +118,11 @@ int main(int argc, char *argv[])
      */
     handle->destructor(handle);
 
+    /**
+     * Cleanup the descriptor
+     */
+    dague_ddesc_destroy(&taskdist);
+
     dague_fini(&dague);
 #if defined(DAGUE_HAVE_MPI)
     MPI_Finalize();

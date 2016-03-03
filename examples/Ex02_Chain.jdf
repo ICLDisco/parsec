@@ -106,6 +106,7 @@ int main(int argc, char *argv[])
     dague_context_wait(dague);
 
     ((dague_handle_t*)handle)->destructor( (dague_handle_t*)handle );
+    dague_ddesc_destroy(&taskdist);
 
     dague_fini(&dague);
 #if defined(DAGUE_HAVE_MPI)
