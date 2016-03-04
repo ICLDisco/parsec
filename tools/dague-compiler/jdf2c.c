@@ -3880,10 +3880,28 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             }
         }
         if( has_output_deps ) {
-            coutput("    /* Now get the local version of the data to be worked on */\n"
-                    "    %sthis_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n\n",
-                    (flow->flow_flags & JDF_FLOW_TYPE_WRITE ? "if( NULL != chunk )\n  " : ""),
-                    flow->varname);
+            if ( flow->flow_flags & JDF_FLOW_TYPE_WRITE ) {
+                coutput("    /* Now get the local version of the data to be worked on */\n"
+                        "    if( NULL != chunk ) {\n"
+                        "        this_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n"
+                        "    }\n",
+                        flow->varname);
+            }
+            /* Check that we do not forward a NULL input */
+            else if ( flow->flow_flags & JDF_FLOW_TYPE_READ ) {
+                coutput("    /* Now get the local version of the data to be worked on */\n"
+                        "    if( NULL == chunk ) {\n"
+                        "        dague_abort(\"A NULL input on a READ flow %s:%s has been forwarded\");\n"
+                        "    }\n"
+                        "    this_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n",
+                        f->fname, flow->varname,
+                        flow->varname);
+            }
+            else { /* CTL */
+                coutput("    /* Now get the local version of the data to be worked on */\n"
+                        "    this_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n",
+                        flow->varname);
+            }
         } else
             coutput("    this_task->data.%s.data_out = NULL;  /* input only */\n\n", flow->varname);
     }
@@ -4763,8 +4781,13 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             /* Applied only on the Write data, since the number of readers is not atomically increased yet */
             if ((fl->flow_flags & JDF_FLOW_TYPE_READ) &&
                 (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ) {
-               coutput("    dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
+               coutput("    if ( NULL == g%s ) {\n"
+                       "      dague_abort(\"A NULL input on a RW flow %s:%s has been forwarded\");\n"
+                       "    }\n"
+                       "    dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
                        "                                           %s);\n",
+                       fl->varname,
+                       f->fname, fl->varname,
                        fl->varname,
                        ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
                         ((fl->flow_flags & JDF_FLOW_TYPE_READ) ?
@@ -4834,11 +4857,20 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         if(JDF_FLOW_TYPE_CTL & fl->flow_flags) continue;
         if(fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
-            if(fl->flow_flags & JDF_FLOW_TYPE_READ)
-                coutput("this_task->data.%s.data_out->version++;  /* %s */\n", fl->varname, fl->varname);
-            else
-                coutput("if( NULL !=  this_task->data.%s.data_out) this_task->data.%s.data_out->version++;\n",
+            if(fl->flow_flags & JDF_FLOW_TYPE_READ) {
+                /**
+                 * We should not have NULL forwarded here, because it should
+                 * have already abort in the hook function
+                 */
+                coutput("  assert( this_task->data.%s.data_out );\n"
+                        "  this_task->data.%s.data_out->version++;  /* %s */\n",
+                        fl->varname,
+                        fl->varname, fl->varname );
+            }
+            else {
+                coutput("if( NULL != this_task->data.%s.data_out) this_task->data.%s.data_out->version++;\n",
                         fl->varname, fl->varname);
+            }
         }
     }
 
