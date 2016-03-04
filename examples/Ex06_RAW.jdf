@@ -16,7 +16,7 @@ nodes   [ type="int" ]
 rank    [ type="int" ]
 NB      [ type="int" hidden=on default="(6)" ]
 
-TaskSend(k)
+TaskBcast(k)
 
 k = 0 .. inline_c %{ return nodes-1; %}
 
@@ -44,7 +44,7 @@ loc = inline_c %{ return k + n; %}
 
 : mydata( loc )
 
-READ A <- A TaskSend( k )
+READ A <- A TaskBcast( k )
 
 BODY
 {
@@ -63,7 +63,7 @@ k = 0 .. inline_c %{ return nodes-1; %}
 
 : mydata( k )
 
-RW  A <- A TaskSend(k)
+RW  A <- A TaskBcast(k)
       -> mydata( k )
 
 BODY
