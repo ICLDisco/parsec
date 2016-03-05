@@ -1,7 +1,7 @@
 extern "C" %{
 
 /**
- * This example shows how to use execution spaces and broadcast informations
+ * This example shows how to use execution spaces and broadcast information
  *    Global properties
  *    inline
  *
