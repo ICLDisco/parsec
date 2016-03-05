@@ -48,81 +48,6 @@ NT           [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMNT : d
 M            [type = "int" hidden=on default="(uplo == PlasmaUpper) ? minMN  : descA.m"]
 N            [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMN  : descA.n"]
 
-RWCOL(m, n) [profile = off]
-
-    // Execution space
-    m = 0 .. P-1
-    n = 0 .. NT-1
-    row = inline_c %{
-    switch (uplo) {
-    case PlasmaLower:
-    {
-        int tmpm = MT-((MT-m-1)%P)-1;
-        if (( m > MT-1 ) || ( tmpm < n ))
-            return MT;
-        else
-            return tmpm;
-    }
-    break;
-    case PlasmaUpper:
-    {
-        if ( m > n )
-            return MT;
-        else {
-            int nmax = dplasma_imin( n, MT-1 );
-            return nmax-((nmax-m)%P);
-        }
-    }
-    break;
-    default:
-      if ( m > MT-1 )
-          return MT;
-      else
-          return MT-((MT-m-1)%P)-1;
-    }
-    %}
-
-    // Parallel partitioning
-    :Tdist(m, n)
-
-    // Parameters
-    WRITE W -> (m <  MT   ) ? W STEP1(row, n)  [type = COL]
-            -> (m > (MT-1)) ? W STEP2(m,   n)  [type = COL]
-
-BODY
-{
-#if !defined(DAGUE_DRY_RUN)
-    /* Initialize W */
-    memset( W, 0, descA.nb * sizeof(double) );
-#endif /* !defined(DAGUE_DRY_RUN) */
-}
-END
-
-RWELT(m, n) [profile = off]
-
-    // Execution space
-    m = 0 .. P-1
-    n = 0 .. Q-1
-    col = inline_c %{
-      return NT-((NT-n-1)%Q)-1;
-    %}
-
-    // Parallel partitioning
-    :Tdist(m, n)
-
-    // Parameters
-    WRITE W -> (n <  NT   ) ? W STEP3(m, col)  [type = ELT]
-            -> (n > (NT-1)) ? W STEP4(m,   n)  [type = ELT]
-
-BODY
-{
-#if !defined(DAGUE_DRY_RUN)
-    /* Initialize W */
-    ((double *)W)[0] = 0.;
-#endif /* !defined(DAGUE_DRY_RUN) */
-}
-END
-
 /**************************************************
  *
  *                    STEP 1
@@ -146,7 +71,7 @@ STEP1(m,n)
 
     // Parameters
     READ A <-  dataA(m, n)
-    RW   W <-  ( m < (mmax+1-P)) ? W STEP1( m+P, n ) : W RWCOL( m%P, n ) [type = COL]
+    RW   W <-  ( m < (mmax+1-P)) ? W STEP1( m+P, n ) : NEW               [type = COL]
            ->  ( m < (mmin+P)  ) ? W STEP2( m%P, n ) : W STEP1( m-P, n ) [type = COL]
 
 BODY
@@ -160,6 +85,10 @@ BODY
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
 #if !defined(DAGUE_DRY_RUN)
+    if( m > (mmax-P)) {
+        memset( W, 0, descA.nb * sizeof(double) );
+    }
+
     if ( (m == n) && (uplo != PlasmaUpperLower) ) {
         CORE_ztrasm( PlasmaColumnwise, uplo, diag,
                      tempmm, tempnn,
@@ -194,8 +123,8 @@ STEP2(m, n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m   ==  0     ) ?   Tdist(m, n)      : W STEP2(m-1, n) [type = COL]
-    RW   W <- ( row >  (MT-1) ) ? W RWCOL(m, n)      : W STEP1(row, n) [type = COL]
+    READ A <- ( m   ==  0     ) ? NULL               : W STEP2(m-1, n) [type = COL]
+    RW   W <- ( row >  (MT-1) ) ? NEW                : W STEP1(row, n) [type = COL]
            -> ( m   == (P-1)  ) ? A STEP3(0..P-1, n) : A STEP2(m+1, n) [type = COL]
 
 BODY
@@ -207,6 +136,9 @@ BODY
              context->th_id, m, n, tempnn, m-1, n, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
+    if( row > (MT-1)) {
+        memset( W, 0, descA.nb * sizeof(double) );
+    }
     if(m > 0)
     {
         cblas_daxpy( tempnn, 1., A, 1, W, 1);
@@ -234,7 +166,7 @@ STEP3(m, n)
 
     // Parameters
     READ A <- W STEP2(P-1, n)                                      [type = COL]
-    RW   W <- (n < (NT-Q)) ? W STEP3( m, n+Q ) : W RWELT( m, n%Q ) [type = ELT]
+    RW   W <- (n < (NT-Q)) ? W STEP3( m, n+Q ) : NEW               [type = ELT]
            -> (n < Q     ) ? W STEP4( m, n   ) : W STEP3( m, n-Q ) [type = ELT]
 
 BODY
@@ -278,8 +210,8 @@ STEP4(m,n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n ==  0     ) ?   Tdist(m, n)          : W STEP4(m, n-1) [type = ELT]
-    RW   W <- ( n >  (NT-1) ) ? W RWELT(m, n)          : W STEP3(m, n  ) [type = ELT]
+    READ A <- ( n ==  0     ) ? NULL                   : W STEP4(m, n-1) [type = ELT]
+    RW   W <- ( n >  (NT-1) ) ? NEW                    : W STEP3(m, n  ) [type = ELT]
            -> ( n == (Q-1)  ) ? W WRITE_RES(m, 0..Q-1) : A STEP4(m, n+1) [type = ELT]
 
 BODY

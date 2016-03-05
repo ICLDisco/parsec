@@ -58,115 +58,6 @@ NT           [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMNT : d
 M            [type = "int" hidden=on default="(uplo == PlasmaUpper) ? minMN  : descA.m"]
 N            [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMN  : descA.n"]
 
-RWCOL(m, n) [profile = off]
-
-    // Execution space
-    m = 0 .. MT-1
-    n = 0 .. Q-1
-    col = inline_c %{
-    switch (uplo) {
-    case PlasmaLower:
-    {
-        if ( n > m )
-            return NT;
-        else {
-            int mmax = dplasma_imin( m, NT-1 );
-            return mmax-((mmax-n)%Q);
-        }
-    }
-    break;
-    case PlasmaUpper:
-    {
-        int tmpn = NT-((NT-n-1)%Q)-1;
-        if (( n > NT-1 ) || ( tmpn < m ))
-            return NT;
-        else
-            return tmpn;
-    }
-    break;
-    default:
-      if ( n > NT-1 )
-          return NT;
-      else
-          return NT-((NT-n-1)%Q)-1;
-    }
-    %}
-
-    // Parallel partitioning
-    :Tdist(m, n)
-
-    // Parameters
-    WRITE W -> (col < NT  ) ? W STEP1(m, col)  [type = COL]
-            -> (col > NT-1) ? W STEP2(m, n)    [type = COL]
-
-BODY
-{
-    printlog( "zlange RWCOL(%d, %d) [%d]\n", m, n, col);
-
-#if !defined(DAGUE_DRY_RUN)
-    /* Initialize W */
-    switch( ntype ) {
-    case PlasmaMaxNorm:
-        ((double *)W)[0] = 0.;
-        break;
-
-    case PlasmaInfNorm:
-        memset( W, 0, descA.mb * sizeof(double) );
-        break;
-
-    case PlasmaFrobeniusNorm:
-        /* Initialize W */
-        ((double *)W)[0] = 0.;
-        ((double *)W)[1] = 1.;
-        break;
-
-    default:
-        fprintf(stderr, "Unknown norm %d\n", ntype );
-    }
-#endif /* !defined(DAGUE_DRY_RUN) */
-}
-END
-
-RWELT(m, n) [profile = off]
-
-    // Execution space
-    m = 0 .. P-1
-    n = 0 .. Q-1
-    row = inline_c %{
-      return MT-((MT-m-1)%P)-1;
-    %}
-
-    // Parallel partitioning
-    :Tdist(m, n)
-
-    // Parameters
-    WRITE W -> (m <  MT   ) ? W STEP3(row, n)  [type = ELT]
-            -> (m > (MT-1)) ? W STEP4(m,   n)  [type = ELT]
-
-BODY
-{
-    printlog( "zlange RWELT(%d, %d) [%d]\n", m, n, row);
-
-#if !defined(DAGUE_DRY_RUN)
-    /* Initialize W */
-    switch( ntype ) {
-    case PlasmaMaxNorm:
-    case PlasmaInfNorm:
-        ((double *)W)[0] = 0.;
-        break;
-
-    case PlasmaFrobeniusNorm:
-        /* Initialize W */
-        ((double *)W)[0] = 0.;
-        ((double *)W)[1] = 1.;
-        break;
-    default:
-        fprintf(stderr, "Unknown norm %d\n", ntype );
-    }
-#endif /* !defined(DAGUE_DRY_RUN) */
-}
-END
-
 /**************************************************
  *
  *                    STEP 1
@@ -187,7 +78,7 @@ STEP1(m, n)
 
     // Parameters
     READ A <- dataA(m, n)
-    RW   W <- ( n < (nmax+1-Q)) ? W STEP1( m, n+Q ) : W RWCOL( m, n%Q ) [type = COL]
+    RW   W <- ( n < (nmax+1-Q)) ? W STEP1( m, n+Q ) : NEW               [type = COL]
            -> ( n < (nmin+Q)  ) ? W STEP2( m, n%Q ) : W STEP1( m, n-Q ) [type = COL]
 
 BODY
@@ -209,6 +100,9 @@ BODY
     case PlasmaMaxNorm:
     {
         double lnorm = 0.;
+        if (n > (nmax-Q)) {
+            dW[0] = 0.;
+        }
         if ( (n == m)  && (uplo != PlasmaUpperLower) ) {
             CORE_zlantr(PlasmaMaxNorm, uplo, diag, tempmm, tempnn,
                         A, ldam, NULL, &lnorm);
@@ -225,6 +119,9 @@ BODY
      */
     case PlasmaInfNorm:
     {
+        if (n > (nmax-Q)) {
+            memset( W, 0, descA.mb * sizeof(double) );
+        }
         if ( (m == n) && (uplo != PlasmaUpperLower) ) {
             CORE_ztrasm( PlasmaRowwise, uplo, diag,
                          tempmm, tempnn,
@@ -243,6 +140,10 @@ BODY
      */
     case PlasmaFrobeniusNorm:
     {
+        if (n > (nmax-Q)) {
+            dW[0] = 0.;
+            dW[1] = 1.;
+        }
         if ( (n == m)  && (uplo != PlasmaUpperLower) ) {
             CORE_ztrssq( uplo, diag, tempmm, tempnn,
                          A, ldam, dW, dW+1);
@@ -280,8 +181,8 @@ STEP2(m, n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n   ==  0     ) ? Tdist(m, n)        : W STEP2( m, n-1 ) [type = COL]
-    RW   W <- ( col >  (NT-1) ) ? W RWCOL(m, n )     : W STEP1( m, col ) [type = COL]
+    READ A <- ( n   ==  0     ) ? NULL               : W STEP2( m, n-1 ) [type = COL]
+    RW   W <- ( col >  (NT-1) ) ? NEW                : W STEP1( m, col ) [type = COL]
            -> ( n   == (Q-1)  ) ? A STEP3(m, 0..Q-1) : A STEP2( m, n+1 ) [type = COL]
 
 BODY
@@ -294,24 +195,37 @@ BODY
               m, n, nmin, col, m, n-1, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-    if(n > 0)
+    switch( ntype ) {
+    case PlasmaMaxNorm:
     {
-        switch( ntype ) {
-        case PlasmaMaxNorm:
-        {
+        if( col > (NT-1)) {
+            *dW = 0.;
+        }
+        if(n > 0) {
             *dW = ( *dA > *dW ) ? *dA : *dW;
         }
-        break;
+    }
+    break;
 
-        case PlasmaInfNorm:
-        {
-            int tempmm = ( m == (MT-1) ) ? M - m * descA.mb : descA.mb;
+    case PlasmaInfNorm:
+    {
+        int tempmm = ( m == (MT-1) ) ? M - m * descA.mb : descA.mb;
+        if( col > (NT-1)) {
+            memset( W, 0, descA.mb * sizeof(double) );
+        }
+        if(n > 0) {
             cblas_daxpy( tempmm, 1., A, 1, W, 1);
         }
-        break;
+    }
+    break;
 
-        case PlasmaFrobeniusNorm:
-        {
+    case PlasmaFrobeniusNorm:
+    {
+        if( col > (NT-1)) {
+            dW[0] = 0.;
+            dW[1] = 1.;
+        }
+        if(n > 0) {
             if( dW[0] < dA[0] ) {
                 dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
                 dW[0] = dA[0];
@@ -319,11 +233,11 @@ BODY
                 dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
             }
         }
-        break;
+    }
+    break;
 
-        default:
-            fprintf(stderr, "Unknown norm %d\n", ntype );
-        }
+    default:
+        fprintf(stderr, "Unknown norm %d\n", ntype );
     }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
@@ -347,7 +261,7 @@ STEP3(m, n)
 
     // Parameters
     READ A <- W STEP2(m, Q-1)                                      [type = COL]
-    RW   W <- (m < (MT-P)) ? W STEP3( m+P, n ) : W RWELT( m%P, n ) [type = ELT]
+    RW   W <- (m < (MT-P)) ? W STEP3( m+P, n ) : NEW               [type = ELT]
            -> (m < P     ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
 
 BODY
@@ -388,6 +302,10 @@ BODY
 
     case PlasmaFrobeniusNorm:
     {
+        if (m >= (MT-P)) {
+            dW[0] = 0.;
+            dW[1] = 1.;
+        }
         if( dW[0] < dA[0] ) {
             dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
             dW[0] = dA[0];
@@ -420,9 +338,9 @@ STEP4(m,n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m ==  0     ) ?   Tdist(m, n) /* Unused */ : W STEP4(m-1, n) [type = ELT]
-    RW   W <- ( m >  (MT-1) ) ? W RWELT(m, n)              : W STEP3(m,   n) [type = ELT]
-           -> ( m == (P-1)  ) ? W WRITE_RES(0..P-1, n)     : A STEP4(m+1, n) [type = ELT]
+    READ A <- ( m ==  0     ) ? NULL                   : W STEP4(m-1, n) [type = ELT]
+    RW   W <- ( m >  (MT-1) ) ? NEW                    : W STEP3(m,   n) [type = ELT]
+           -> ( m == (P-1)  ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
 
 BODY
 {
@@ -437,6 +355,9 @@ BODY
         case PlasmaMaxNorm:
         case PlasmaInfNorm:
         {
+            if (m  > (MT-1)) {
+                dW[0] = 0.;
+            }
             *dW = ( *dA > *dW ) ? *dA : *dW;
         }
         break;
@@ -445,6 +366,10 @@ BODY
         {
             double  sqr;
 
+            if (m  > (MT-1)) {
+                dW[0] = 0.;
+                dW[1] = 1.;
+            }
             if( dW[0] < dA[0] ) {
                 sqr = dW[0] / dA[0];
                 sqr = sqr * sqr;

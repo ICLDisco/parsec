@@ -74,7 +74,7 @@ void dague_debug_backtrace_dump(void);
  */
 #define dague_warning(FMT, ...) do {                                \
     dague_output_verbose(1, 0,                                      \
-        "%.*sW@%05d%.*s "FMT,                                       \
+        "%.*sW@%05d%.*s " FMT,                                       \
         dague_debug_colorize, "\x1B[1;37;43", dague_debug_rank, dague_debug_colorize, "\033[0m",        \
         ##__VA_ARGS__);                                             \
 } while(0)
@@ -82,7 +82,7 @@ void dague_debug_backtrace_dump(void);
 /* Use when some INFORMATION can be usefull for the end-user. */
 #define dague_inform(FMT, ...) do {                                 \
     dague_output_verbose(2, 0,                                      \
-        "%.*si@%05d%.*s "FMT,                                       \
+        "%.*si@%05d%.*s " FMT,                                       \
         dague_debug_colorize, "\x1B[1;37;42", dague_debug_rank, dague_debug_colorize, "\033[0m",        \
         ##__VA_ARGS__);                                             \
 } while(0)

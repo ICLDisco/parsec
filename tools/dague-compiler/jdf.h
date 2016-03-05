@@ -61,6 +61,7 @@ typedef struct jdf_object_t {
  * variable, and can be safely used as a marker.
  */
 #define PARSEC_WRITE_MAGIC_NAME "__parsec_write_type"
+#define PARSEC_NULL_MAGIC_NAME "__parsec_null_type"
 
 /**
  * Checks the sanity of the current_jdf.
@@ -293,8 +294,19 @@ typedef struct jdf_call {
     struct jdf_expr          *parameters;
 } jdf_call_t;
 
-#define JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(DEP) \
-    ((NULL == (DEP)->guard->guard) && (NULL != (DEP)->guard->calltrue) && (NULL == (DEP)->guard->callfalse) && \
+#define JDF_IS_CALL_WITH_NO_INPUT(CALL)                         \
+    ((NULL == (CALL)->var) && (NULL == (CALL)->parameters))
+
+/**
+ * Return true if the flow is set only to define the global datatype of WRITE-only flow
+ * If it is the case the guard is unconditional with only the NEW keyword and
+ * optionnally some properties as follow:
+ *   WRITE X <- NEW  [type = DEFAULT]
+ */
+#define JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(DEP)                           \
+    ((NULL == (DEP)->guard->guard) &&                                   \
+     (NULL != (DEP)->guard->calltrue) &&                                \
+     (NULL == (DEP)->guard->callfalse) &&                               \
      (0 == strcmp(PARSEC_WRITE_MAGIC_NAME, (DEP)->guard->calltrue->func_or_mem)))
 
 /*******************************************************************/

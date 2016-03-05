@@ -135,6 +135,8 @@ WRITE                 { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
 WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
+"NEW"                 { ECHO; return DATA_NEW;                             }
+"NULL"                { ECHO; return DATA_NULL;                            }
 "->"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_OUT;
                         ECHO; return ARROW;                                }
 "<-"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_IN;

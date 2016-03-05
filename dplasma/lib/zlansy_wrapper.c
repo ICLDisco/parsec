@@ -137,7 +137,8 @@ dplasma_zlansy_New( PLASMA_enum norm,
         0, 0,   /* Starting points (not important here) */
         m, P*Q, /* Dimensions of the submatrix          */
         1, 1, P);
-    Tdist->super.super.data_of = fake_data_of;
+    Tdist->super.super.data_of = NULL;
+    Tdist->super.super.data_of_key = NULL;
 
     /* Create the DAG */
     dague_zlansy = (dague_handle_t*)dague_zlansy_new(
