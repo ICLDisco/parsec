@@ -54,19 +54,19 @@ hash_table_fini(hash_table *obj, int size_of_table)
     OBJ_RELEASE(obj);
 }
 
-/* item element's reference accounting:
+/* Item element's reference accounting:
  * Everytime we insert a item in the hashtable,
  * we increment the object's ref. count. Everytime
  * we find an element in the hash table, we
  * increment the ref. count.
  */
 
-/* Function to insert element in the hash table (thread safe)
+/* Function to insert element in the hash table
  * Arguments:
  * Returns:
  */
 void
-hash_table_insert
+hash_table_nolock_insert
 ( hash_table *hash_table,
   dague_hashtable_item_t *item,
   uint32_t hash )
@@ -75,10 +75,8 @@ hash_table_insert
 
     dague_list_t *item_list  = hash_table->item_list[hash];
 
-    dague_list_lock ( item_list );
     OBJ_RETAIN(current_item);
     dague_list_nolock_push_back ( item_list, current_item );
-    dague_list_unlock ( item_list );
 }
 
 /* Function to find element in the hash table (not thread safe)
@@ -86,7 +84,7 @@ hash_table_insert
  * Returns:
  */
 void *
-hash_table_find_no_lock
+hash_table_nolock_find
 ( hash_table *hash_table,
   uint64_t key, uint32_t hash )
 {
@@ -107,18 +105,17 @@ hash_table_find_no_lock
     return (void *)NULL;
 }
 
-/* Function to remove element from the hash table (thread safe)
+/* Function to remove element from the hash table (not thread safe)
  * Arguments:
  * Returns:
  */
 void *
-hash_table_remove
+hash_table_nolock_remove
 ( hash_table *hash_table,
   uint64_t key, uint32_t hash )
 {
     dague_list_t *item_list = hash_table->item_list[hash];
-    dague_list_lock ( item_list );
-    dague_list_item_t *current_item = hash_table_find_no_lock ( hash_table, key, hash );
+    dague_list_item_t *current_item = hash_table_nolock_find ( hash_table, key, hash );
 
     if( current_item != NULL ) {
         OBJ_RELEASE(current_item);
@@ -132,7 +129,59 @@ hash_table_remove
 #endif
         }
     }
-    dague_list_unlock ( item_list );
 
     return current_item;
+}
+
+/* Function to insert element in the hash table (thread safe)
+ * Arguments:
+ * Returns:
+ */
+void
+hash_table_insert
+( hash_table *hash_table,
+  dague_hashtable_item_t *item,
+  uint32_t hash )
+{
+    dague_list_t *item_list  = hash_table->item_list[hash];
+
+    dague_list_lock ( item_list );
+    hash_table_nolock_insert( hash_table, item, hash );
+    dague_list_unlock ( item_list );
+}
+
+/* Function to find element in the hash table (thread safe)
+ * Arguments:
+ * Returns:
+ */
+void *
+hash_table_find
+( hash_table *hash_table,
+  uint64_t key, uint32_t hash )
+{
+    dague_list_t *item_list = hash_table->item_list[hash];
+
+    dague_list_lock ( item_list );
+    void *item = hash_table_nolock_find( hash_table, key, hash );
+    dague_list_unlock ( item_list );
+
+    return item;
+}
+
+/* Function to remove element from the hash table (thread safe)
+ * Arguments:
+ * Returns:
+ */
+void *
+hash_table_remove
+( hash_table *hash_table,
+  uint64_t key, uint32_t hash )
+{
+    dague_list_t *item_list = hash_table->item_list[hash];
+
+    dague_list_lock ( item_list );
+    void *item = hash_table_nolock_remove( hash_table, key, hash );
+    dague_list_unlock ( item_list );
+
+    return item;
 }

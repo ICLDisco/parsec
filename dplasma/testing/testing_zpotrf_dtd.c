@@ -210,7 +210,7 @@ int main(int argc, char **argv)
     for(k=0;k<total;k++){
         tempkm = (k == (ddescA.super.mt - 1)) ? ddescA.super.m - k * ddescA.super.mb : ddescA.super.mb;
         ldak = BLKLDD(ddescA.super, k);
-        insert_task_generic_fptr(DAGUE_dtd_handle, call_to_kernel_PO, "Potrf",
+        dague_insert_task(DAGUE_dtd_handle, &call_to_kernel_PO, "Potrf",
                                  sizeof(int),      &uplo,              VALUE,
                                  sizeof(int),      &tempkm,            VALUE,
                                  PASSED_BY_REF,    TILE_OF(DAGUE_dtd_handle, A, k, k), INOUT | REGION_FULL,
@@ -220,7 +220,7 @@ int main(int argc, char **argv)
         for(m=k+1;m<total;m++){
             tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
             ldam = BLKLDD(ddescA.super, m);
-            insert_task_generic_fptr(DAGUE_dtd_handle, &call_to_kernel_TR, "Trsm",
+            dague_insert_task(DAGUE_dtd_handle, &call_to_kernel_TR, "Trsm",
                                      sizeof(int),      &side,               VALUE,
                                      sizeof(int),      &uplo,               VALUE,
                                      sizeof(int),      &transA_p,           VALUE,
@@ -237,7 +237,7 @@ int main(int argc, char **argv)
         for(m=k+1;m<total;m++){
             tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
             ldam = BLKLDD(ddescA.super, m);
-            insert_task_generic_fptr(DAGUE_dtd_handle, &call_to_kernel_HE, "Herk",
+            dague_insert_task(DAGUE_dtd_handle, &call_to_kernel_HE, "Herk",
                                     sizeof(int),       &uplo,               VALUE,
                                     sizeof(int),       &trans,              VALUE,
                                     sizeof(int),       &tempmm,             VALUE,
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
                                     0);
             for(n=k+1;n<m;n++){
                    ldan = BLKLDD(ddescA.super, n);
-                   insert_task_generic_fptr(DAGUE_dtd_handle,  &call_to_kernel_GE, "Gemm",
+                   dague_insert_task(DAGUE_dtd_handle,  &call_to_kernel_GE, "Gemm",
                                            sizeof(int),        &transA_g,           VALUE,
                                            sizeof(int),        &transB,             VALUE,
                                            sizeof(int),        &tempmm,             VALUE,

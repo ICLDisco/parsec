@@ -462,6 +462,15 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
                                              * even try to change it's state, the completion
                                              * will be triggered asynchronously. */
                 break;
+            case DAGUE_HOOK_RETURN_AGAIN:   /* Reschedule later */
+                if(0 == exec_context->priority) {
+                    SET_LOWEST_PRIORITY(exec_context, dague_execution_context_priority_comparator);
+                } else
+                    exec_context->priority /= 10;  /* demote the task */
+                DAGUE_LIST_ITEM_SINGLETON(exec_context);
+                __dague_schedule(eu_context, exec_context);
+                exec_context = NULL;
+                break;
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }

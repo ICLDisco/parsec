@@ -59,6 +59,7 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
                 REGION_L=1<<1, /* Lower triangle */
                 REGION_D=1<<2, /* Diagonal */
                 REGION_U=1<<3, /* Upper Triangle */
+                AFFINITY=1<<4, /* Data affinity */
              } dtd_regions;
 
 #define DAGUE_dtd_NB_FUNCTIONS  25 /* Max number of task classes allowed */
@@ -66,7 +67,7 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
 #define UNPACK_VALUE            1
 #define UNPACK_DATA             2
 #define UNPACK_SCRATCH          3
-#define MAX_DESC                25
+#define MAX_FLOW                25
 
 /* The parameters to pass to get pointer to data
  * 1. dague_dtd_handle_t*
@@ -139,8 +140,10 @@ dague_dtd_tile_t* dague_dtd_tile_of(dague_dtd_handle_t *dague_dtd_handle,
                                                                             specific data dependency.)
       4. "0" indicates the end of paramter list. Must be provided.
  */
-void insert_task_generic_fptr(dague_dtd_handle_t *,
-                              dague_dtd_funcptr_t *, char *, ...);
+void
+dague_insert_task( dague_dtd_handle_t  *dague_dtd_handle,
+                       dague_dtd_funcptr_t *fpointer,
+                       char *name_of_kernel, ... );
 
 /* This function will create a handle and return it. Provide the corresponding
  * dague context, so that the new handle is associated with.
