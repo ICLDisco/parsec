@@ -1619,7 +1619,7 @@ static int jdf_generate_initfinal_data( const jdf_t *jdf,
                 "                     dague_data_ref_t *refs)\n"
                 "{\n"
                 "    const __dague_%s_internal_handle_t *__dague_handle = (const __dague_%s_internal_handle_t*)this_task->dague_handle;\n"
-                "    dague_ddesc_t *__d;\n"
+                "    dague_ddesc_t *__d = NULL;\n"
                 "    int __flow_nb = 0;\n",
                 name, dague_get_name(jdf, f, "task_t"),
                 jdf_basename, jdf_basename);

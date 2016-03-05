@@ -2560,7 +2560,7 @@ dague_insert_task( dague_dtd_handle_t  *dague_dtd_handle,
                                    size_of_params, flow_count_of_template);
 
 #if defined(DAGUE_PROF_TRACE)
-        add_profiling_info(dague_dtd_handle, function, name, flow_index);
+        add_profiling_info(dague_dtd_handle, function, name_of_kernel, flow_index);
 #endif /* defined(DAGUE_PROF_TRACE) */
     }
 

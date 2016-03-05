@@ -290,7 +290,7 @@ dague_insert_task_ptg_to_dtd( dague_dtd_handle_t  *dague_dtd_handle,
         function->prepare_input        = data_lookup_ptg_to_dtd_task;
 
 #if defined(DAGUE_PROF_TRACE)
-        add_profiling_info(dague_dtd_handle, function, name, flow_index);
+        add_profiling_info(dague_dtd_handle, function, name_of_kernel, flow_index);
 #endif /* defined(DAGUE_PROF_TRACE) */
     }
 
