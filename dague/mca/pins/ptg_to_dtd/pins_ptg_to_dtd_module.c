@@ -331,28 +331,6 @@ dague_insert_task_ptg_to_dtd( dague_dtd_handle_t  *dague_dtd_handle,
     dague_insert_dtd_task( this_task );
 }
 
-/**
- * To copy the dague_context_t of the predecessor needed for tracking control flow
- */
-static dague_ontask_iterate_t
-copy_content(dague_execution_unit_t *eu,
-             const dague_execution_context_t *newcontext,
-             const dague_execution_context_t *oldcontext,
-             const dep_t *dep, dague_dep_data_description_t *data,
-             int src_rank, int dst_rank, int dst_vpid, void *param)
-{
-    dague_execution_context_t* my_task = (dague_execution_context_t*)param;
-    /* assinging 1 to "unused" field in dague_context_t of the successor to indicate we found a predecesor */
-    uint8_t *val = (uint8_t *) &(oldcontext->unused[0]);
-    *val += 1;
-
-    /* Saving the flow index of the parent in the "unused" field of the predecessor */
-    memcpy(my_task, newcontext, sizeof(dague_execution_context_t));
-    my_task->unused[0] = dep->flow->flow_index;
-    (void)eu; (void)data; (void)src_rank; (void)dst_rank; (void)dst_vpid;
-    return DAGUE_ITERATE_STOP;
-}
-
 static int
 fake_hook_for_testing(dague_execution_unit_t    *context,
                       dague_execution_context_t *this_task)

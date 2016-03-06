@@ -46,6 +46,7 @@ static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
     dague_inform("%s %s", msg, str);
     free(str);
 #else
+    (void)cpuset;
     dague_inform("%s compiled without HWLOC support", msg);
 #endif  /* defined(DAGUE_HAVE_HWLOC) */
 }
