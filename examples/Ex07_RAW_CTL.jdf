@@ -1,0 +1,169 @@
+extern "C" %{
+
+/**
+ * This example illustrates the Read After Write problem that might happen when anti-dependencies are present in the code
+ * Each process broadcast an information to NB/2 tasks, and to a local task that updates the information.
+ */
+
+#include <dague.h>
+#include <dague/data_distribution.h>
+#include <dague/datatype.h>
+
+%}
+
+mydata  [ type="dague_ddesc_t*" ]
+nodes   [ type="int" ]
+rank    [ type="int" ]
+NB      [ type="int" hidden=on default="(6)" ]
+
+TaskBcast(k)
+
+k = 0 .. inline_c %{ return nodes-1; %}
+
+: mydata( k )
+
+RW  A <- mydata( k )
+      -> A TaskUpdate( k )
+      -> A TaskRecv( k, 0 .. NB .. 2 )
+
+BODY
+{
+    int *Aint = (int*)A;
+    *Aint = k+1;
+
+    printf("[%d] Send %d\n", rank, k );
+}
+END
+
+
+TaskRecv(k, n)
+
+k = 0 .. inline_c %{ return nodes-1; %}
+n = 0 .. NB .. 2
+loc = inline_c %{ return k + n; %}
+
+: mydata( loc )
+
+READ A <- A TaskBcast( k )
+
+/**
+ * We had a control flow, to tell the engine this task must be done before
+ * TaskUpdate( k )
+ */
+CTL ctl -> ctl TaskUpdate( k )
+
+BODY
+{
+    int *Aint = (int*)A;
+    printf("[%d] Recv %d\n", rank, *Aint );
+}
+END
+
+TaskUpdate(k)
+
+k = 0 .. inline_c %{ return nodes-1; %}
+
+: mydata( k )
+
+RW  A <- A TaskBcast(k)
+      -> mydata( k )
+
+/**
+ * We wait for all tasks that are using this data to be done with it before writing
+ */
+CTL ctl <- ctl TaskRecv( k, 0 .. NB .. 2 )
+
+BODY
+{
+    int *Aint = (int*)A;
+    *Aint = -k-1;
+}
+END
+
+
+extern "C" %{
+
+static uint32_t
+rank_of(dague_ddesc_t *desc, ...)
+{
+    int k;
+    va_list ap;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    return k % desc->nodes;
+}
+
+static int32_t
+vpid_of(dague_ddesc_t *desc, ...)
+{
+    (void)desc;
+    return 0;
+}
+
+static dague_data_t *ddata_mycounter = NULL;
+
+static dague_data_t *
+data_of(dague_ddesc_t *desc, ...)
+{
+    (void)desc;
+    return ddata_mycounter;
+}
+
+int main(int argc, char *argv[])
+{
+    dague_context_t* dague;
+    int rank, world;
+    dague_ddesc_t mydata;
+    dague_Ex07_RAW_CTL_handle_t *handle;
+    int mycounter;
+
+#if defined(DAGUE_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    world = 1;
+    rank = 0;
+#endif
+
+    dague = dague_init(-1, &argc, &argv);
+
+    mycounter = 300 + rank;
+    ddata_mycounter = dague_data_create(
+        &ddata_mycounter, &mydata, 0,
+        &mycounter, sizeof(int));
+
+    dague_ddesc_init(&mydata, world, rank);
+    mydata.rank_of = rank_of;
+    mydata.vpid_of = vpid_of;
+    mydata.data_of = data_of;
+
+    handle = dague_Ex07_RAW_CTL_new(&mydata, world, rank);
+
+    dague_arena_construct(handle->arenas[DAGUE_Ex07_RAW_CTL_DEFAULT_ARENA],
+                          sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
+                          dague_datatype_int_t );
+
+    dague_enqueue( dague, (dague_handle_t*)handle );
+    dague_context_wait(dague);
+
+    dague_handle_free((dague_handle_t*)handle);
+
+    dague_data_destroy( ddata_mycounter );
+    dague_ddesc_destroy( &mydata );
+
+    dague_fini(&dague);
+#if defined(DAGUE_HAVE_MPI)
+    MPI_Finalize();
+#endif
+
+    return 0;
+}
+
+%}

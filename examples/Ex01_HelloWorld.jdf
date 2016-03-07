@@ -1,0 +1,133 @@
+extern "C" %{
+
+/**
+ * This second example shows how to create a simple jdf that has only one single task.
+ *    JDF syntax
+ *    dague_JDFNAME_New()
+ *    dague_enqueue()
+ *    dague_ddesc_init()
+ *
+ * Can play with the HelloWorld bounds to show embarissingly parallel algorithm.
+ */
+
+#include <dague.h>
+#include <dague/data_distribution.h>
+#include <dague/datatype.h>
+
+%}
+
+/**
+ * HelloWorld task that is performed by the owner of taskdist(k)
+ *
+ * A task always needs at least:
+ *   1) an execution space, even if only one task exists. In this case, we just
+ *      use a variable k that varies from 0 to 0 included.
+ *   2) a task placement/distribution that is given through a descriptor
+ *   3) one flow READ, WRITE, RW or CTL with a name and some input (<-) / output
+ *      (->) dependencies
+ *
+ */
+HelloWorld(k)
+
+k = 0 .. 0
+
+/**
+ * Here we define which process will execute the task, this is explained in
+ * further details in following examples
+ */
+: taskdist( k )
+
+/**
+ * A task has a finite number of input/output, and needs at least one input even
+ * if this one is not used. We start here by a task that doesn't use
+ * information, so we have only one 'flow' named A that receives NULL.
+ */
+READ A <- NULL
+
+/**
+ * This is the body of the task that will be executed by one of the thread in the
+ * engine.
+ */
+BODY
+{
+    printf("HelloWorld %d\n", k);
+}
+END
+
+extern "C" %{
+
+static uint32_t
+rank_of(dague_ddesc_t *desc, ...)
+{
+    (void)desc;
+    return 0;
+}
+
+static int32_t
+vpid_of(dague_ddesc_t *desc, ...)
+{
+    (void)desc;
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    dague_context_t* dague;
+    int rank, world;
+    dague_ddesc_t taskdist;
+    dague_handle_t *handle;
+
+#if defined(DAGUE_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    world = 1;
+    rank = 0;
+#endif
+
+    dague = dague_init(-1, &argc, &argv);
+
+    /**
+     * See Ex03_ChainMPI.jdf for explanation
+     */
+    dague_ddesc_init(&taskdist, world, rank);
+    taskdist.rank_of = rank_of;
+    taskdist.vpid_of = vpid_of;
+
+    /**
+     * Let's create the handle that contains the description of the algorithm to
+     * run.
+     * The prototype of the dague_Ex01_HelloWorld_new() is automatically
+     * generated and included in the generated .h file Ex01_HelloWorld.h
+     */
+    handle = (dague_handle_t*)dague_Ex01_HelloWorld_new(&taskdist);
+
+    /**
+     * Let's submit this handle to the runtime and wait for the completion
+     */
+    dague_enqueue( dague, handle );
+    dague_context_wait(dague);
+
+    /**
+     * Let's cleanup the handle.
+     */
+    dague_handle_free(handle);
+
+    /**
+     * See Ex03_ChainMPI.jdf for explanation
+     */
+    dague_ddesc_destroy(&taskdist);
+
+    dague_fini(&dague);
+#if defined(DAGUE_HAVE_MPI)
+    MPI_Finalize();
+#endif
+
+    return 0;
+}
+
+%}

@@ -1,0 +1,151 @@
+extern "C" %{
+
+/**
+ * This example shows how to use a user data, and how to modify it.
+ *    data_of()
+ *    dague_data_create()
+ *    dague_data_destroy()
+ */
+
+#include <dague.h>
+#include <dague/data_distribution.h>
+#include <dague/datatype.h>
+
+%}
+
+mydata  [ type="dague_ddesc_t*" ]
+NB      [ type="int" ]
+
+Task(k)
+
+k = 0 .. NB
+
+: mydata( k )
+
+/**
+ * The task now reads a data from the memory at a position described by the descriptor.
+ * WARNING: The direct memory access read and/or write must always be colocated
+ * with the task placement.
+ */
+RW  A <- (k == 0)  ? mydata( k ) : A Task( k-1 )
+      -> (k == NB) ? mydata( k ) : A Task( k+1 )
+
+BODY
+{
+    int *Aint = (int*)A;
+    int rank;
+    *Aint += 1;
+
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+    printf("I am element %d in the chain computed on node %d\n", *Aint, rank );
+}
+END
+
+extern "C" %{
+
+static uint32_t
+rank_of(dague_ddesc_t *desc, ...)
+{
+    int k;
+    va_list ap;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    return k % desc->nodes;
+}
+
+static int32_t
+vpid_of(dague_ddesc_t *desc, ...)
+{
+    (void)desc;
+    return 0;
+}
+
+/**
+ * The funtion data_of is similar to rank_of instead that it returns the
+ * dague_data_t structure that handle the single piece of data corresponding to
+ * the given indexes.
+ * Each piece of data that will go through the engine needs to have it's own
+ * dague_data_t stucture that stores its status information about it
+ * (See further down, how to create the dague_data_t)
+ *
+ * In this example, we consider that we have only one area of memory per node,
+ * so we always return the global dague_data_t structure that has been
+ * initialized on the current node.
+ */
+static dague_data_t *ddata_mycounter = NULL;
+
+static dague_data_t *
+data_of(dague_ddesc_t *desc, ...)
+{
+    (void)desc;
+    return ddata_mycounter;
+}
+
+int main(int argc, char *argv[])
+{
+    dague_context_t* dague;
+    int rank, world;
+    dague_ddesc_t mydata;
+    dague_Ex04_ChainData_handle_t *handle;
+    int mycounter;
+
+#if defined(DAGUE_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    world = 1;
+    rank = 0;
+#endif
+
+    dague = dague_init(-1, &argc, &argv);
+
+    /**
+     * Let's create the local data (mycounter), and the dague_data_t associated to it
+     */
+    mycounter = 300 + rank;
+    ddata_mycounter = dague_data_create( &ddata_mycounter, /* The dague_data_t handle value   */
+                                         &mydata,          /* The descriptor associated to it */
+                                         0,                /* The data key (see later)        */
+                                         &mycounter,       /* The pointer to the data         */
+                                         sizeof(int)       /* The size of the data            */);
+
+
+    dague_ddesc_init(&mydata, world, rank);
+    mydata.rank_of = rank_of;
+    mydata.vpid_of = vpid_of;
+
+    /**
+     * Here we update the data_of pointer from the descriptor
+     */
+    mydata.data_of = data_of;
+
+    handle = dague_Ex04_ChainData_new(&mydata, 20);
+
+    dague_arena_construct(handle->arenas[DAGUE_Ex04_ChainData_DEFAULT_ARENA],
+                          sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
+                          dague_datatype_int_t );
+
+    dague_enqueue( dague, (dague_handle_t*)handle );
+    dague_context_wait(dague);
+
+    dague_handle_free((dague_handle_t*)handle);
+
+    dague_data_destroy( ddata_mycounter );
+    dague_ddesc_destroy( &mydata );
+
+    dague_fini(&dague);
+#if defined(DAGUE_HAVE_MPI)
+    MPI_Finalize();
+#endif
+
+    return 0;
+}
+
+%}
