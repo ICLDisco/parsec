@@ -144,7 +144,7 @@ int main(int argc, char *argv[])
     mydata.vpid_of = vpid_of;
     mydata.data_of = data_of;
 
-    handle = dague_Ex06_RAW_new(&mydata, world, rank);
+    handle = dague_Ex07_RAW_CTL_new(&mydata, world, rank);
 
     dague_arena_construct(handle->arenas[DAGUE_Ex07_RAW_CTL_DEFAULT_ARENA],
                           sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
