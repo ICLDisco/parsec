@@ -1,6 +1,6 @@
-CC=mpicc
-CFLAGS=-Wall `pkg-config --cflags parsec` -g3
-LDFLAGS=`pkg-config --libs parsec` -pthread -lm -lrt -ldl -lcudart
+CC=cc
+CFLAGS=`pkg-config --cflags parsec` -Wall
+LDFLAGS=`pkg-config --libs parsec`
 
 DAGUEPP=daguepp
 DAGUEPPFLAGS=
