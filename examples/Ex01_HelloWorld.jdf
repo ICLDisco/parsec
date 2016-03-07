@@ -92,9 +92,7 @@ int main(int argc, char *argv[])
     dague = dague_init(-1, &argc, &argv);
 
     /**
-     * Let's initialize the task distribution descriptor
-     * rank_of, and vpid_of will be explained later, but right now those two
-     * functions always return 0.
+     * See Ex03_ChainMPI.jdf for explanation
      */
     dague_ddesc_init(&taskdist, world, rank);
     taskdist.rank_of = rank_of;
@@ -117,10 +115,10 @@ int main(int argc, char *argv[])
     /**
      * Let's cleanup the handle.
      */
-    handle->destructor(handle);
+    dague_handle_free(handle);
 
     /**
-     * Cleanup the descriptor
+     * See Ex03_ChainMPI.jdf for explanation
      */
     dague_ddesc_destroy(&taskdist);
 

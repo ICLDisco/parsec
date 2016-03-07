@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     dague_enqueue( dague, (dague_handle_t*)handle );
     dague_context_wait(dague);
 
-    ((dague_handle_t*)handle)->destructor( (dague_handle_t*)handle );
+    dague_handle_free((dague_handle_t*)handle);
 
     dague_data_destroy( ddata_mycounter );
     dague_ddesc_destroy( &mydata );

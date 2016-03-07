@@ -59,10 +59,6 @@ BODY
 }
 END
 
-/**
- * We had this task with the data A as RW, which is also a READ only data in
- * TaskRecv
- */
 TaskUpdate(k)
 
 k = 0 .. inline_c %{ return nodes-1; %}
@@ -107,18 +103,6 @@ vpid_of(dague_ddesc_t *desc, ...)
     return 0;
 }
 
-/**
- * The funtion data_of is similar to rank_of instead that it returns the
- * dague_data_t structure that handle the single piece of data corresponding to
- * the given indexes.
- * Each piece of data that will go through the engine needs to have it's own
- * dague_data_t stucture that stores its status information about it
- * (See further down, how to create the dague_data_t)
- *
- * In this example, we consider that we have only one area of memory per node,
- * so we always return the global dague_data_t structure that has been
- * initialized on the current node.
- */
 static dague_data_t *ddata_mycounter = NULL;
 
 static dague_data_t *
@@ -151,22 +135,16 @@ int main(int argc, char *argv[])
     dague = dague_init(-1, &argc, &argv);
 
     mycounter = 300 + rank;
-    ddata_mycounter = dague_data_create( &ddata_mycounter, /* The dague_data_t handle value   */
-                                         &mydata,          /* The descriptor associated to it */
-                                         0,                /* The data key (see later)        */
-                                         &mycounter,       /* The pointer to the data         */
-                                         sizeof(int)       /* The size of the data            */);
-
+    ddata_mycounter = dague_data_create(
+        &ddata_mycounter, &mydata, 0,
+        &mycounter, sizeof(int));
 
     dague_ddesc_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
     mydata.vpid_of = vpid_of;
     mydata.data_of = data_of;
 
-    /**
-     * We now remove the NB parameter as it is an hidden global
-     */
-    handle = dague_Ex07_RAW_CTL_new(&mydata, world, rank);
+    handle = dague_Ex06_RAW_new(&mydata, world, rank);
 
     dague_arena_construct(handle->arenas[DAGUE_Ex07_RAW_CTL_DEFAULT_ARENA],
                           sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
@@ -175,7 +153,7 @@ int main(int argc, char *argv[])
     dague_enqueue( dague, (dague_handle_t*)handle );
     dague_context_wait(dague);
 
-    ((dague_handle_t*)handle)->destructor( (dague_handle_t*)handle );
+    dague_handle_free((dague_handle_t*)handle);
 
     dague_data_destroy( ddata_mycounter );
     dague_ddesc_destroy( &mydata );
