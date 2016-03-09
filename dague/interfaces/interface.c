@@ -6,7 +6,7 @@
 
 #include "dague/interfaces/interface.h"
 #include "dague/devices/device.h"
-#if defined(HAVE_LIMITS_H)
+#if defined(DAGUE_HAVE_LIMITS_H)
 #include <limits.h>
 #endif  /* defined(HAVE_LIMITS_H) */
 

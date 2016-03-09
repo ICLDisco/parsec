@@ -25,11 +25,17 @@ typedef struct {
 
 static void cksum_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *param)
 {
+    union {
+        double   d;
+        uint64_t u;
+    } aliasing;
     uint64_t *cksum = (uint64_t*)param;
     uint64_t up = 0;
     uint64_t nv, ov;
-    up ^= *(uint64_t*)&node->s;
-    up ^= *(uint64_t*)&node->d;
+    aliasing.d = node->s;
+    up ^= aliasing.u;
+    aliasing.d = node->d;
+    up ^= aliasing.u;
     up ^= (((uint64_t)l)<<32) | (uint64_t)n;
     do {
         ov = *cksum;

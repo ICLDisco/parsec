@@ -8,16 +8,16 @@ struct __dague_walk_DOWN_assignment_s;
 struct __dague_walk_DO_DOWN_assignment_s;
 struct __dague_walk_DOWN_task_s;
 
-static uint64_t up_hash(const struct __dague_walk_internal_handle * __dague_handle,
+static uint64_t up_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
                         struct __dague_walk_UP_assignment_s * assignments);
-static uint64_t down_hash(const struct __dague_walk_internal_handle * __dague_handle,
+static uint64_t down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
                           struct __dague_walk_DOWN_assignment_s * assignments);
-static uint64_t do_down_hash(const struct __dague_walk_internal_handle * __dague_handle,
+static uint64_t do_down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
                              struct __dague_walk_DO_DOWN_assignment_s * assignments);
-static uint32_t undetermined_nb_tasks(struct __dague_walk_internal_handle *__dague_handle);
+static uint32_t undetermined_nb_tasks(struct __dague_walk_internal_handle_s *__dague_handle);
 
-static void               *my_alloc_deps(struct __dague_walk_internal_handle *__dague_handle);
-static void                my_free_deps(struct __dague_walk_internal_handle *__dague_handle, void *deps);
+static void               *my_alloc_deps(struct __dague_walk_internal_handle_s *__dague_handle);
+static void                my_free_deps(struct __dague_walk_internal_handle_s *__dague_handle, void *deps);
 static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
                                         const dague_execution_context_t* restrict exec_context);
 
@@ -203,21 +203,21 @@ static uint64_t my_simple_tree_hash(int n, int l)
     return (((uint64_t)n) << 32) | ((uint64_t)l);
 }
 
-static uint64_t up_hash(const struct __dague_walk_internal_handle * __dague_handle,
+static uint64_t up_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
                         struct __dague_walk_UP_assignment_s * assignments)
 {
     (void)__dague_handle;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t down_hash(const struct __dague_walk_internal_handle * __dague_handle,
+static uint64_t down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
                           struct __dague_walk_DOWN_assignment_s * assignments)
 {
     (void)__dague_handle;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t do_down_hash(const struct __dague_walk_internal_handle * __dague_handle,
+static uint64_t do_down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
                              struct __dague_walk_DO_DOWN_assignment_s * assignments)
 {
     (void)__dague_handle;
@@ -225,7 +225,7 @@ static uint64_t do_down_hash(const struct __dague_walk_internal_handle * __dague
 }
 
  
-static uint32_t undetermined_nb_tasks(struct __dague_walk_internal_handle *__dague_handle)
+static uint32_t undetermined_nb_tasks(struct __dague_walk_internal_handle_s *__dague_handle)
 {
     (void)__dague_handle;
     return DAGUE_UNDETERMINED_NB_TASKS;
@@ -243,7 +243,7 @@ typedef struct {
     simple_hash_entry_t **buckets;
 } simple_hash_t;
 
-static void               *my_alloc_deps(struct __dague_walk_internal_handle *__dague_handle)
+static void               *my_alloc_deps(struct __dague_walk_internal_handle_s *__dague_handle)
 {
     simple_hash_t *sh;
     (void)__dague_handle;
@@ -254,7 +254,7 @@ static void               *my_alloc_deps(struct __dague_walk_internal_handle *__
     return (void*)sh;
 }
 
-static void                my_free_deps(struct __dague_walk_internal_handle *__dague_handle, void *deps)
+static void                my_free_deps(struct __dague_walk_internal_handle_s *__dague_handle, void *deps)
 {
     simple_hash_t *sh;
     int i;
@@ -312,6 +312,7 @@ static int my_walk_startup(dague_execution_unit_t * eu, __dague_walk_DOWN_task_t
       return DAGUE_HOOK_RETURN_DONE;
   if (NULL != ((dague_ddesc_t *) __dague_handle->super.tree)->vpid_of) {
       vpid = ((dague_ddesc_t *) __dague_handle->super.tree)->vpid_of((dague_ddesc_t *) __dague_handle->super.tree, 0, 0);
+      (void)vpid;
       assert(context->nb_vp >= vpid);
   }
   new_task = (__dague_walk_DOWN_task_t *) dague_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
