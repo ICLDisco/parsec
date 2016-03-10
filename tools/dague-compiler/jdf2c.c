@@ -2536,13 +2536,10 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     }
 
-    coutput("  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (nb_tasks = %%d)\", nb_tasks);\n"
-            "  if( 0 != nb_tasks ) {\n",
+    coutput("  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (nb_tasks = %%d)\", nb_tasks);\n",
             fname);
 
     if(need_to_iterate) {
-        coutput("DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (nb_tasks = %%d)\", nb_tasks);\n",
-                fname);
         if(need_to_count_tasks) {
             coutput("if( 0 != nb_tasks ) {\n");
         }
@@ -2557,8 +2554,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                         indent(nesting), JDF2C_NAMESPACE, f->parameters->name, JDF2C_NAMESPACE, f->parameters->name, f->parameters->name,
                         jdf_basename, f->fname, f->parameters->name);
             } else {
-                coutput("%s    dep = NULL;\n", indent(nesting));
-
                 nesting = 0;
                 for(dl = f->locals; dl != NULL; dl = dl->next) {
 
@@ -2638,7 +2633,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  dague_atomic_add_32b(&__dague_handle->super.super.initial_number_tasks, nb_tasks);\n");
         coutput("%s  } else this_task->status = DAGUE_TASK_STATUS_COMPLETE;\n", indent(nesting));
     }
-    coutput("%s  } else this_task->status = DAGUE_TASK_STATUS_COMPLETE;\n", indent(nesting));
 
     string_arena_free(sa1);
     string_arena_free(sa2);
@@ -3289,8 +3283,8 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "  /* Twice the size to hold the startup tasks function_t */\n"
             "  __dague_handle->super.super.functions_array = (const dague_function_t**)\n"
             "              malloc(2 * __dague_handle->super.super.nb_functions * sizeof(dague_function_t*));\n"
-            "  __dague_handle->super.super.nb_tasks = __dague_handle->super.super.nb_functions;\n"
-            "  __dague_handle->super.super.nb_pending_actions = 1;  /* for the startup tasks */\n"
+            "  __dague_handle->super.super.nb_tasks = 1;\n"
+            "  __dague_handle->super.super.nb_pending_actions = 1 + __dague_handle->super.super.nb_functions;  /* for the startup tasks */\n"
             "  __dague_handle->sync_point = __dague_handle->super.super.nb_functions;\n"
             "  __dague_handle->startup_queue = NULL;\n"
             "%s",
@@ -3308,6 +3302,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
             "    func->function_id = __dague_handle->super.super.nb_functions + i;\n"
             "    func->incarnations = (__dague_chore_t*)malloc(2 * sizeof(__dague_chore_t));\n"
             "    memcpy((__dague_chore_t*)func->incarnations, (void*)__dague_generic_startup.incarnations, 2 * sizeof(__dague_chore_t));\n"
+            "    func->release_task = dague_release_task_to_mempool_and_count_as_runtime_tasks;\n"
             "  }\n",
             jdf_basename,
             jdf_basename);

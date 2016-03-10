@@ -27,4 +27,7 @@ dague_hook_return_t
 dague_release_task_to_mempool_update_nbtasks(dague_execution_unit_t *eu,
                                              dague_execution_context_t *this_task);
 
+dague_hook_return_t
+dague_release_task_to_mempool_and_count_as_runtime_tasks(dague_execution_unit_t *eu,
+                                                         dague_execution_context_t *this_task);
 #endif  /* DAGUE_INTERFACE_H_HAS_BEEN_INCLUDED */

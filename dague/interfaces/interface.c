@@ -80,11 +80,13 @@ __dague_generic_startup_hash(const dague_handle_t * __dague_handle,
 }
 
 /**
- * This function is to be used instead of NULL in the generic startup
- * function_t.
+ * This function is a stub that we attach at all the critical locations
+ * to make sure the user of these objects are setting them up correcty.
+ * The default action here is to assert.
  */
 static int dague_empty_function_without_arguments(void)
 {
+    assert(0 /* always assert to make sure no object reference this function */);
     return DAGUE_HOOK_RETURN_DONE;
 }
 

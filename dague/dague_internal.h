@@ -59,6 +59,7 @@ struct dague_handle_s {
                                            */
     uint16_t                   nb_functions;
     uint16_t                   devices_mask;
+    int32_t                    initial_number_tasks;
     int32_t                    priority;
     volatile uint32_t          nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
                                                      *   activities (such as communications, data movement, and
