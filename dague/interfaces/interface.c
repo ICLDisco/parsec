@@ -29,7 +29,17 @@ dague_release_task_to_mempool_update_nbtasks(dague_execution_unit_t *eu,
 {
     (void)eu;
     dague_thread_mempool_free( this_task->super.mempool_owner, this_task );
-    dague_atomic_dec_32b( &this_task->dague_handle->nb_tasks);
+    dague_atomic_dec_32b( &this_task->dague_handle->nb_tasks );
+    return DAGUE_HOOK_RETURN_DONE;
+}
+
+dague_hook_return_t
+dague_release_task_to_mempool_and_count_as_runtime_tasks(dague_execution_unit_t *eu,
+                                                         dague_execution_context_t *this_task)
+{
+    (void)eu;
+    dague_thread_mempool_free( this_task->super.mempool_owner, this_task );
+    dague_handle_update_runtime_nbtask(this_task->dague_handle, -1);
     return DAGUE_HOOK_RETURN_DONE;
 }
 

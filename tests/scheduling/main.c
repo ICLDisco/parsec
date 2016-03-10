@@ -45,7 +45,9 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
     dague = dague_init(0, &argc, &argv);
-
+    if( NULL == dague ) {
+        exit(-1);
+    }
     printf("#All measured values are times. Times are expressed in " TIMER_UNIT "\n");
 
     level   = 4 * world;
