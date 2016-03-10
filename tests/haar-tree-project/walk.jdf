@@ -103,8 +103,7 @@ BODY
     /* The root node has to delete all remaining tasks*/
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
         fprintf(stderr, "CALLING UP(%d, %d) on rank %d\n", n, l, rank);
     }
     if( NULL != on_node_up ) {
@@ -152,15 +151,13 @@ CTL RL      <- (n > 0) ? RL DOWN(n-1, l/2)
 BODY
 {
     if( verbose ) {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
         fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
     if( tree_dist_lookup_node(tree, n, l) == -1 ) {
         if( verbose ) {
-            int rank;
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
             fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);
         }
         this_task->locals.node_exists.value = 0;
@@ -186,8 +183,7 @@ BODY
 {
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
         fprintf(stderr, "CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 

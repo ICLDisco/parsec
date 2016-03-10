@@ -245,6 +245,7 @@ int main(int argc, char *argv[])
     dague_context_wait(dague);
 
     ret = 0;
+#if defined(HAVE_MPI)
     if( do_checks ) {
         uint64_t sum = 0;
         printf("Rank %d contributes with %llx\n", rank, cksum);
@@ -279,6 +280,7 @@ int main(int argc, char *argv[])
             rs_free(rs);
         }
     }
+#endif  /* defined(HAVE_MPI) */
 
     project->arenas[DAGUE_project_DEFAULT_ARENA] = NULL;
     dague_handle_free(&project->super);

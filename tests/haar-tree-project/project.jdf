@@ -110,8 +110,7 @@ BODY
 {
   /* The root node has to delete all remaining tasks*/
     if( verbose ) {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
         fprintf(stderr, "CALLING END_PROPAGATE(%d, %d) on rank %d\n", n, l, rank);
     }
 }
@@ -138,8 +137,7 @@ BODY
     double sl, sr;
 
     if( verbose ) {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
         fprintf(stderr, "CALLING CREATE_NODE(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -180,8 +178,7 @@ BODY
     double d;
 
     if( verbose ) {
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
         fprintf(stderr, "CALLING PROJECT(%d, %d) on rank %d\n", n, l, rank);
     }
 
