@@ -169,7 +169,6 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_HAS_UD_HASH_FUN           ((jdf_flags_t)(1 << 0))
 #define JDF_PROP_UD_HASH_FN_NAME               "hash_fn"
 
-#define JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN ((jdf_flags_t)(1 << 1))
 #define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 
 #define JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN  ((jdf_flags_t)(1 << 2))

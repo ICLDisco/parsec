@@ -39,6 +39,8 @@ static int my_project_startup(dague_execution_unit_t * eu,
                               struct __dague_project_PROJECT_task_s * this_task);
 %}
 
+%option nb_local_tasks_fn = undetermined_nb_tasks
+
 // These are global variables that are instanciated in the main.c
 treeA               [type = "tree_dist_t *"]
 // The only type known to parsec is dague_ddesc_t
@@ -57,7 +59,7 @@ CTL RL <- RL END_PROPAGATE(0, 0)
 
 BODY
 {
-    __dague_handle->super.super.nb_tasks = 1; /** This is the last local task */
+    __dague_handle->super.super.nb_tasks = 0; /** We are now DONE ! **/
     if(verbose)
         fprintf(stderr, "Rank %d in BCAST_END_PROPAGATE\n", rank);
 }
@@ -72,7 +74,6 @@ END
 //    is built and all the remaining tasks are killed
 
 END_PROPAGATE (n, l) [hash_fn = end_propagate_hash
-                      nb_local_tasks_fn = undetermined_nb_tasks
                       find_deps_fn  = my_find_deps
                       alloc_deps_fn = my_alloc_deps
                       free_deps_fn  = my_free_deps ]
@@ -117,7 +118,6 @@ BODY
 END
 
 CREATE_NODE (n, l) [hash_fn = create_node_hash
-                    nb_local_tasks_fn = undetermined_nb_tasks
                     find_deps_fn  = my_find_deps
                     alloc_deps_fn = my_alloc_deps
                     free_deps_fn  = my_free_deps ]
@@ -154,7 +154,6 @@ BODY
 END
 
 PROJECT (n, l) [hash_fn = project_hash
-                nb_local_tasks_fn = undetermined_nb_tasks
                 find_deps_fn  = my_find_deps
                 alloc_deps_fn = my_alloc_deps
                 free_deps_fn  = my_free_deps
