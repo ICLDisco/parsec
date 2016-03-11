@@ -97,6 +97,8 @@ static char *dague_app_name = NULL;
 static dague_device_t* dague_device_cpus = NULL;
 static dague_device_t* dague_device_recursive = NULL;
 
+static int dague_runtime_max_number_of_cores = -1;
+
 /**
  * Object based task definition (no specialized constructor and destructor) */
 OBJ_CLASS_INSTANCE(dague_execution_context_t, dague_hashtable_item_t,
@@ -408,8 +410,17 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
      * - with hwloc if available
      * - with sysconf otherwise (hyperthreaded core number)
      */
+    dague_mca_param_reg_int_name("runtime", "num_cores", "The total number of cores to be used by the runtime (-1 for all available)",
+                                 false, false, dague_runtime_max_number_of_cores, &dague_runtime_max_number_of_cores);
     if( nb_cores <= 0 ) {
-        nb_cores = dague_hwloc_nb_real_cores();
+        if( -1 == dague_runtime_max_number_of_cores )
+            nb_cores = dague_hwloc_nb_real_cores();
+        else {
+            nb_cores = dague_runtime_max_number_of_cores;
+            if( dague_runtime_max_number_of_cores > dague_hwloc_nb_real_cores() ) {
+                dague_warning("The runtime is running in an over-subscribe mode, usually unfit for performance.");
+            }
+        }
     }
 
     if( dague_cmd_line_is_taken(cmd_line, "gpus") ) {
