@@ -2535,6 +2535,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     }
 
+    /**
+     * Assume that all startup tasks complete right away, without going through the
+     * second stage.
+     */
+    coutput("  this_task->status = DAGUE_TASK_STATUS_COMPLETE;\n");
     if( need_to_iterate ) {
         if(need_to_count_tasks) {
             coutput("if( 0 != nb_tasks ) {\n");
@@ -2623,12 +2628,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 "%s    } while(!dague_atomic_cas(&__dague_handle->startup_queue, this_task->super.list_item.list_next, this_task));\n"
                 "%s    this_task->status = DAGUE_TASK_STATUS_HOOK;\n",
                 indent(nesting), indent(nesting), indent(nesting), indent(nesting));
-    } else {
-        /**
-         * Assume that all startup tasks complete right away, without going through the
-         * second stage.
-         */
-        coutput("%s    this_task->status = DAGUE_TASK_STATUS_COMPLETE;\n", indent(nesting));
     }
     if(need_to_count_tasks) {
         coutput("%s  dague_atomic_add_32b(&__dague_handle->super.super.initial_number_tasks, nb_tasks);\n"
