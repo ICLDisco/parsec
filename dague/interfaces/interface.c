@@ -6,6 +6,7 @@
 
 #include "dague/interfaces/interface.h"
 #include "dague/devices/device.h"
+#include "dague/debug.h"
 #if defined(DAGUE_HAVE_LIMITS_H)
 #include <limits.h>
 #endif  /* defined(HAVE_LIMITS_H) */
@@ -84,9 +85,12 @@ __dague_generic_startup_hash(const dague_handle_t * __dague_handle,
  * to make sure the user of these objects are setting them up correcty.
  * The default action here is to assert.
  */
-static int dague_empty_function_without_arguments(void)
+static int dague_empty_function_without_arguments(dague_execution_unit_t *eu,
+                                                  dague_execution_context_t *this_task)
 {
-    assert(0 /* always assert to make sure no object reference this function */);
+    char tmp[128];
+    dague_abort("Task %s is incorrectly initialized\n",
+                dague_snprintf_execution_context(tmp, 128, this_task));
     return DAGUE_HOOK_RETURN_DONE;
 }
 
