@@ -31,6 +31,13 @@ static inline int dague_atomic_cas_32b( volatile uint32_t* location,
     return __compare_and_swap( (volatile int*)location, &old, new_value );
 }
 
+/**
+ * Use the XLC intrinsics directly.
+ */
+#define DAGUE_HAVE_ATOMIC_LLSC_PTR
+#define dague_atomic_ll_64b __ldarx
+#define dague_atomic_sc_64b __stdcx
+
 #if defined(DAGUE_ATOMIC_USE_XLC_64_BUILTINS)
 static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
