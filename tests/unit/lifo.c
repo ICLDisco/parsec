@@ -155,8 +155,6 @@ static void *translate_elements_random(void *params)
     uint64_t *p = (uint64_t*)params;
     dague_time_t start, end;
 
-    dague_bindthread( (int)*p, -1 );
-
     pthread_mutex_lock(&heavy_synchro_lock);
     while( heavy_synchro == 0 ) {
         pthread_cond_wait(&heavy_synchro_cond, &heavy_synchro_lock);
