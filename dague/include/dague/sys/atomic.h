@@ -40,6 +40,13 @@
 
 #include <assert.h>
 
+#if !defined(DAGUE_ATOMIC_HAS_WMB)
+#define dague_atomic_wmb    dague_mfence
+#endif  /* !defined(DAGUE_ATOMIC_HAS_WMB) */
+#if !defined(DAGUE_ATOMIC_HAS_RMB)
+#define dague_atomic_rmb    dague_mfence
+#endif  /* !defined(DAGUE_ATOMIC_HAS_RMB) */
+
 static inline int dague_atomic_cas_xxb( volatile void* location,
                                         uint64_t old_value,
                                         uint64_t new_value,
@@ -76,6 +83,7 @@ static inline uint64_t dague_atomic_bor_xxb( volatile void* location,
     dague_atomic_cas_xxb((volatile void*)(LOCATION),                   \
                          (uint64_t)(OLD_VALUE), (uint64_t)(NEW_VALUE), \
                          sizeof(*(LOCATION)))
+
 
 #define dague_atomic_set_mask(LOCATION, MASK) dague_atomic_bor((LOCATION), (MASK))
 #define dague_atomic_clear_mask(LOCATION, MASK)  dague_atomic_band((LOCATION), ~(MASK))

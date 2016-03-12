@@ -4,10 +4,11 @@
  *                         reserved.
  */
 
-static inline void dague_mfence( void )
-{
-    __sync();
-}
+#define dague_mfence     __sync
+#define DAGUE_ATOMIC_HAS_RMB
+#define RMB              __lwsync
+#define DAGUE_ATOMIC_HAS_WMB
+#define WMB()            __eieio
 
 static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                         uint32_t value )

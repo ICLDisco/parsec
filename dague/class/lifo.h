@@ -57,12 +57,8 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
                                             ( sizeof(void*) ) :         \
                                             ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 
-#ifdef DAGUE_LIFO_USE_ATOMICS
-
 #include <stdlib.h>
 #include <dague/sys/atomic.h>
-
-#undef DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B
 
 /**
  * This code is imported from Open MPI.
@@ -84,22 +80,12 @@ typedef union dague_counted_pointer_u {
 #endif  /* defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B) */
 } dague_counted_pointer_t;
 
-typedef dague_counted_pointer_t dague_lifo_head_t;
-#if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
-#define __dague_lifo_cas dague_atomic_cas_128b
-#else
-#define __dague_lifo_cas dague_atomic_cas
-#endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
-
 struct dague_lifo_s {
-    dague_object_t     super;
-    uint8_t            alignment;
-    dague_list_item_t *lifo_ghost;
-    dague_lifo_head_t  lifo_head;
+    dague_object_t           super;
+    uint8_t                  alignment;
+    dague_list_item_t       *lifo_ghost;
+    dague_counted_pointer_t  lifo_head;
 };
-
-#define dague_atomic_wmb    dague_mfence
-#define dague_atomic_rmb    dague_mfence
 
 /* The ghost pointer will never change. The head will change via an
  * atomic compare-and-swap. On most architectures the reading of a
@@ -229,7 +215,7 @@ static inline void dague_lifo_push(dague_lifo_t *lifo,
         dague_list_item_t *next = (dague_list_item_t *) lifo->lifo_head.data.item;
         item->list_next = next;
         dague_atomic_wmb();
-         if( __dague_lifo_cas(&lifo->lifo_head.data.item, next, item) ) {
+         if( dague_atomic_cas(&lifo->lifo_head.data.item, next, item) ) {
             dague_atomic_wmb();
             /* now safe to pop this item */
             item->aba_key = 0;
@@ -255,7 +241,7 @@ static inline void dague_lifo_chain( dague_lifo_t* lifo,
         dague_list_item_t *next = (dague_list_item_t *) lifo->lifo_head.data.item;
         tail->list_next = next;
         dague_atomic_wmb();
-         if( __dague_lifo_cas(&lifo->lifo_head.data.item, next, ring) ) {
+         if( dague_atomic_cas(&lifo->lifo_head.data.item, next, ring) ) {
             dague_atomic_wmb();
             /* now safe to pop this item */
             ring->aba_key = 0;
@@ -345,7 +331,7 @@ static inline dague_list_item_t *dague_lifo_pop(dague_lifo_t* lifo)
         dague_atomic_wmb ();
 
         /* try to swap out the head pointer */
-        if( __dague_lifo_cas(&lifo->lifo_head.data.item, item,
+        if( dague_atomic_cas(&lifo->lifo_head.data.item, item,
                                    (void *) item->list_next) ) {
             break;
         }
@@ -378,7 +364,7 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
         dague_atomic_wmb ();
 
         /* try to swap out the head pointer */
-        if( __dague_lifo_cas(&lifo->lifo_head.data.item, item,
+        if( dague_atomic_cas(&lifo->lifo_head.data.item, item,
                                    (void *) item->list_next) ) {
             return NULL;
         }
@@ -436,59 +422,6 @@ static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )
     DAGUE_ITEM_DETACH(item);
     return item;
 }
-
-#else
-
-#include "list.h"
-
-struct dague_lifo_s {
-    dague_list_t list;
-    uint8_t      alignment;
-};
-
-static inline int
-dague_lifo_is_empty( dague_lifo_t* lifo ) {
-    return dague_list_is_empty((dague_list_t*)lifo);
-}
-
-static inline int
-dague_lifo_nolock_is_empty( dague_lifo_t* lifo)
-{
-    return dague_list_nolock_is_empty((dague_list_t*)lifo);
-}
-
-static inline void
-dague_lifo_push(dague_lifo_t* lifo, dague_list_item_t* item) {
-    dague_list_push_front((dague_list_t*)lifo, item);
-}
-static inline void
-dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item) {
-    dague_list_nolock_push_front((dague_list_t*)lifo, item);
-}
-
-static inline void
-dague_lifo_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
-    dague_list_chain_front((dague_list_t*)lifo, items);
-}
-static inline void
-dague_lifo_nolock_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
-    dague_list_nolock_chain_front((dague_list_t*)lifo, items);
-}
-
-static inline dague_list_item_t*
-dague_lifo_pop(dague_lifo_t* lifo) {
-    return dague_list_pop_front((dague_list_t*)lifo);
-}
-static inline dague_list_item_t*
-dague_lifo_try_pop(dague_lifo_t* lifo) {
-    return dague_list_try_pop_front((dague_list_t*)lifo);
-}
-static inline dague_list_item_t*
-dague_lifo_nolock_pop(dague_lifo_t* lifo) {
-    return dague_list_nolock_pop_front((dague_list_t*)lifo);
-}
-
-#endif /* LIFO_USE_ATOMICS */
 
 /*
  * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric

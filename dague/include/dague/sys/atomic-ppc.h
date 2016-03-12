@@ -4,6 +4,11 @@
  *                         reserved.
  */
 
+
+/**
+ * Based on shared Internet knowledge and the Power7 optimization book.
+ * http://www.redbooks.ibm.com/redbooks/pdfs/sg248079.pdf
+ */
 #ifndef __PPC
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
@@ -18,8 +23,14 @@
 
 static inline void dague_mfence( void )
 {
-    __asm__ __volatile__ ("lwsync\n\t":::"memory");
+    __asm__ __volatile__ ("sync\n\t":::"memory");
 }
+
+#define DAGUE_ATOMIC_HAS_RMB
+#define RMB() __asm__ __volatile__ ("lwsync" : : : "memory")
+
+#define DAGUE_ATOMIC_HAS_WMB
+#define WMB() __asm__ __volatile__ ("eieio" : : : "memory")
 
 static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t mask )
