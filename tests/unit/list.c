@@ -107,32 +107,32 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
     printf(" - pop them from %s, check they are ok, and push them back in %s\n",
            l1name, l2name);
 
-    elt = (elt_t *)dague_ulist_lifo_pop( l1 );
+    elt = (elt_t *)dague_list_nolock_lifo_pop( l1 );
     if( NULL == elt )
         fatal(" ! Error: expecting a full list in %s, got an empty one...\n", l1name);
     if( elt->base == 0 ) {
         check_elt( elt );
-        dague_ulist_lifo_push( l2, (dague_list_item_t *)elt );
+        dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
         for(e = 1; e < NBELT; e++) {
-            elt = (elt_t *)dague_ulist_lifo_pop( l1 );
+            elt = (elt_t *)dague_list_nolock_lifo_pop( l1 );
             if( NULL == elt )
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, l1name);
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            dague_ulist_lifo_push( l2, (dague_list_item_t *)elt );
+            dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
         }
     } else if( elt->base == NBELT-1 ) {
         check_elt( elt );
-        dague_ulist_lifo_push( l2, (dague_list_item_t *)elt );
+        dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
         for(e = NBELT-2; ; e--) {
-            elt = (elt_t *)dague_ulist_lifo_pop( l1 );
+            elt = (elt_t *)dague_list_nolock_lifo_pop( l1 );
             if( NULL == elt )
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, l1name);
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            dague_ulist_lifo_push( l2, (dague_list_item_t *)elt );
+            dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
             if( 0 == e )
                 break;
         }
@@ -154,31 +154,31 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
 static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
 {
     printf(" - sort empty list l2\n");
-    dague_ulist_sort(l2, elt_comparator);
+    dague_list_nolock_sort(l2, elt_comparator);
 
     printf(" - sort already sorted list l1, check it is in order\n");
-    dague_ulist_sort(l1, elt_comparator);
+    dague_list_nolock_sort(l1, elt_comparator);
     check_lifo_translate_inorder(l1,l2,"l1","l2");
 
     printf(" - sort reverse sorted list l2, check it is in order\n");
-    dague_ulist_sort(l2, elt_comparator);
+    dague_list_nolock_sort(l2, elt_comparator);
     check_lifo_translate_inorder(l2,l1,"l2","l1");
 
     printf(" - randomize list l1 into l2, sort l2, check it is in order\n");
     elt_t* e;
-    while(NULL != (e = (elt_t*)dague_ulist_fifo_pop(l1)))
+    while(NULL != (e = (elt_t*)dague_list_nolock_fifo_pop(l1)))
     {
         int choice = rand()%3; /* do not care for true random*/
         switch(choice)
         {
             case 0:
-                dague_ulist_fifo_push(l1, &e->list); /* return in l1, for later */
+                dague_list_nolock_fifo_push(l1, &e->list); /* return in l1, for later */
                 break;
             case 1:
-                dague_ulist_push_front(l2, &e->list);
+                dague_list_nolock_push_front(l2, &e->list);
                 break;
             case 2:
-                dague_ulist_push_back(l2, &e->list);
+                dague_list_nolock_push_back(l2, &e->list);
                 break;
         }
     }
@@ -304,7 +304,7 @@ int main(int argc, char *argv[])
     printf(" - create %u random elements and push them in l1\n", NBELT);
     for(e = 0; e < NBELT; e++) {
         elt = create_elem(e);
-        dague_ulist_lifo_push( &l1, (dague_list_item_t *)elt );
+        dague_list_nolock_lifo_push( &l1, (dague_list_item_t *)elt );
     }
 
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
@@ -351,8 +351,8 @@ int main(int argc, char *argv[])
     printf(" - move all elements to l1\n");
     p = NULL;
     ch = 0;
-    while( !dague_ulist_is_empty( &l2 ) ) {
-        elt = (elt_t*)dague_ulist_lifo_pop( &l2 );
+    while( !dague_list_nolock_is_empty( &l2 ) ) {
+        elt = (elt_t*)dague_list_nolock_lifo_pop( &l2 );
         if( elt == NULL )
             fatal(" ! Error: list l2 is supposed to be non empty, but it is!\n");
         if( elt == p )
@@ -360,7 +360,7 @@ int main(int argc, char *argv[])
                   ch);
         ch++;
         p = elt;
-        dague_ulist_lifo_push( &l1, (dague_list_item_t*)elt );
+        dague_list_nolock_lifo_push( &l1, (dague_list_item_t*)elt );
     }
 
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
@@ -368,12 +368,12 @@ int main(int argc, char *argv[])
 
 
     printf(" - pop all elements from l1, and free them\n");
-    while( !dague_ulist_is_empty( &l1 ) ) {
+    while( !dague_list_nolock_is_empty( &l1 ) ) {
         elt = (elt_t*)dague_list_lifo_pop( &l1 );
         free(elt);
     }
     printf(" - pop all elements from l2, and free them\n");
-    while( !dague_ulist_is_empty( &l2 ) ) {
+    while( !dague_list_nolock_is_empty( &l2 ) ) {
         elt = (elt_t*)dague_list_lifo_pop( &l2 );
         free(elt);
     }

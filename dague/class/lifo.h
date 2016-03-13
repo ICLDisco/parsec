@@ -17,19 +17,16 @@ static inline int
 dague_lifo_is_empty( dague_lifo_t* lifo );
 static inline int
 dague_lifo_nolock_is_empty( dague_lifo_t* lifo);
-#define dague_ulifo_is_empty(lifo) dague_lifo_nolock_is_empty(lifo);
 
 static inline void
 dague_lifo_push(dague_lifo_t* lifo, dague_list_item_t* item);
 static inline void
 dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item);
-#define dague_ulifo_push(lifo, item) dague_lifo_nolock_push(lifo, item)
 
 static inline void
 dague_lifo_chain(dague_lifo_t* lifo, dague_list_item_t* items);
 static inline void
 dague_lifo_nolock_chain(dague_lifo_t* lifo, dague_list_item_t* items);
-#define dague_ulifo_chain(lifo, items) dague_lifo_nolock_chain(lifo, items)
 
 static inline dague_list_item_t*
 dague_lifo_pop(dague_lifo_t* lifo);
@@ -37,8 +34,6 @@ static inline dague_list_item_t*
 dague_lifo_try_pop(dague_lifo_t* lifo);
 static inline dague_list_item_t*
 dague_lifo_nolock_pop(dague_lifo_t* lifo);
-#define dague_ulifo_pop(lifo) dague_lifo_nolock_pop(lifo)
-
 
 /***********************************************************************
  * Interface is defined. Everything else is private thereafter */

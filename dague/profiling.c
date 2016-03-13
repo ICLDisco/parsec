@@ -290,7 +290,7 @@ int dague_profiling_fini( void )
         }
     }
 
-    while( (t = (dague_thread_profiling_t*)dague_ulist_fifo_pop(&threads)) ) {
+    while( (t = (dague_thread_profiling_t*)dague_list_nolock_fifo_pop(&threads)) ) {
         free(t->hr_id);
         free(t);
     }

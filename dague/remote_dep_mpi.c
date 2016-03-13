@@ -699,7 +699,7 @@ remote_dep_dequeue_nothread_progress(dague_context_t* context,
         if( DEP_CTL == item->action ) {
             /* A DEP_CTL is a barrier that must not be crossed, flush the
              * ordered fifo and don't add anything until it is consumed */
-            if( dague_ulist_is_empty(&dep_cmd_fifo) && dague_ulist_is_empty(&temp_list) )
+            if( dague_list_nolock_is_empty(&dep_cmd_fifo) && dague_list_nolock_is_empty(&temp_list) )
                 goto handle_now;
             dague_dequeue_push_front(&dep_cmd_queue, (dague_list_item_t*)item);
             break;
@@ -736,7 +736,7 @@ remote_dep_dequeue_nothread_progress(dague_context_t* context,
         if(how_many > dague_param_nb_tasks_extracted)
             break;
     }
-    if( !dague_ulist_is_empty(&temp_list) ) {
+    if( !dague_list_nolock_is_empty(&temp_list) ) {
         /* Sort the temporary list */
         dague_list_nolock_sort(&temp_list, dep_cmd_prio);
         /* Remove the ordered items from the list, and clean the list */
@@ -1297,12 +1297,12 @@ static int remote_dep_mpi_progress(dague_execution_unit_t* eu_context)
         }
 
       feed_more_work:
-        if((dague_comm_gets < dague_comm_gets_max) && !dague_ulist_is_empty(&dep_activates_fifo)) {
-            dague_remote_deps_t* deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dep_activates_fifo);
+        if((dague_comm_gets < dague_comm_gets_max) && !dague_list_nolock_is_empty(&dep_activates_fifo)) {
+            dague_remote_deps_t* deps = (dague_remote_deps_t*)dague_list_nolock_fifo_pop(&dep_activates_fifo);
             remote_dep_mpi_get_start(eu_context, deps);
         }
-        if((dague_comm_puts < dague_comm_puts_max) && !dague_ulist_is_empty(&dep_put_fifo)) {
-            dep_cmd_item_t* item = (dep_cmd_item_t*)dague_ulist_fifo_pop(&dep_put_fifo);
+        if((dague_comm_puts < dague_comm_puts_max) && !dague_list_nolock_is_empty(&dep_put_fifo)) {
+            dep_cmd_item_t* item = (dep_cmd_item_t*)dague_list_nolock_fifo_pop(&dep_put_fifo);
             remote_dep_mpi_put_start(eu_context, item);
         }
         if(0 == outcount) return ret;
@@ -1361,7 +1361,7 @@ static void remote_dep_mpi_put_short(dague_execution_unit_t* eu_context,
     DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MPI: Put Short DELAYED for %s from %d tag %u which 0x%x (deps %p)",
             tmp, item->cmd.activate.peer, task->tag, task->output_mask, deps);
 
-    dague_ulist_push_sorted(&dep_put_fifo, (dague_list_item_t*)item, dep_cmd_prio);
+    dague_list_nolock_push_sorted(&dep_put_fifo, (dague_list_item_t*)item, dep_cmd_prio);
 }
 #endif  /* RDEP_MSG_SHORT_LIMIT != 0 */
 
@@ -1390,9 +1390,9 @@ remote_dep_mpi_save_put_cb(dague_execution_unit_t* eu_context,
     item->priority = deps->max_priority;
 
     /* Get the highest priority PUT operation */
-    dague_ulist_push_sorted(&dep_put_fifo, (dague_list_item_t*)item, dep_cmd_prio);
+    dague_list_nolock_push_sorted(&dep_put_fifo, (dague_list_item_t*)item, dep_cmd_prio);
     if( dague_comm_puts < dague_comm_puts_max ) {
-        item = (dep_cmd_item_t*)dague_ulist_fifo_pop(&dep_put_fifo);
+        item = (dep_cmd_item_t*)dague_list_nolock_fifo_pop(&dep_put_fifo);
         remote_dep_mpi_put_start(eu_context, item);
     } else {
         DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MPI: Put DELAYED for %s from %d tag %u which 0x%x (deps %p)",
@@ -1434,7 +1434,7 @@ remote_dep_mpi_put_start(dague_execution_unit_t* eu_context,
 
         if(dague_comm_puts == dague_comm_puts_max) {
             DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MPI:\treach PUT limit for deps 0x%lx. Reschedule.", deps);
-            dague_ulist_push_front(&dep_put_fifo, (dague_list_item_t*)item);
+            dague_list_nolock_push_front(&dep_put_fifo, (dague_list_item_t*)item);
             return;
         }
         DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MPI:\t[idx %d mask(0x%x / 0x%x)] %p, %p", k, (1U<<k), task->output_mask,
@@ -1599,12 +1599,12 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
     if(NULL != deps) {
         assert(0 != deps->incoming_mask);
         assert(0 != deps->msg.output_mask);
-        dague_ulist_push_sorted(&dep_activates_fifo, (dague_list_item_t*)deps, rdep_prio);
+        dague_list_nolock_push_sorted(&dep_activates_fifo, (dague_list_item_t*)deps, rdep_prio);
     }
 
     /* Check if we have any pending GET orders */
-    if((dague_comm_gets < dague_comm_gets_max) && !dague_ulist_is_empty(&dep_activates_fifo)) {
-        deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dep_activates_fifo);
+    if((dague_comm_gets < dague_comm_gets_max) && !dague_list_nolock_is_empty(&dep_activates_fifo)) {
+        deps = (dague_remote_deps_t*)dague_list_nolock_fifo_pop(&dep_activates_fifo);
         remote_dep_mpi_get_start(eu_context, deps);
     }
 }
@@ -1641,7 +1641,7 @@ remote_dep_mpi_save_activate_cb(dague_execution_unit_t* eu_context,
             memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
             position += deps->msg.length;  /* move to the next order */
             deps->dague_handle = (dague_handle_t*)packed_buffer;  /* temporary storage */
-            dague_ulist_fifo_push(&dep_activates_noobj_fifo, (dague_list_item_t*)deps);
+            dague_list_nolock_fifo_push(&dep_activates_noobj_fifo, (dague_list_item_t*)deps);
             continue;
         }
         DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
@@ -1665,7 +1665,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
 #if defined(DAGUE_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
-    DAGUE_ULIST_ITERATOR(&dep_activates_noobj_fifo, item,
+    DAGUE_LIST_NOLOCK_ITERATOR(&dep_activates_noobj_fifo, item,
     ({
         dague_remote_deps_t* deps = (dague_remote_deps_t*)item;
         if( deps->msg.handle_id == obj->handle_id ) {
@@ -1676,7 +1676,7 @@ static void remote_dep_mpi_new_object( dague_execution_unit_t* eu_context,
             DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     deps->msg.deps, deps->msg.output_mask);
-            item = dague_ulist_remove(&dep_activates_noobj_fifo, item);
+            item = dague_list_nolock_remove(&dep_activates_noobj_fifo, item);
             remote_dep_mpi_recv_activate(eu_context, deps, buffer, deps->msg.length, &position);
             free(buffer);
             (void)rc;
@@ -1702,7 +1702,7 @@ static void remote_dep_mpi_get_start(dague_execution_unit_t* eu_context,
     if( (dague_comm_gets + count) > dague_comm_gets_max ) {
         assert(deps->msg.output_mask != 0);
         assert(deps->incoming_mask != 0);
-        dague_ulist_push_front(&dep_activates_fifo, (dague_list_item_t*)deps);
+        dague_list_nolock_push_front(&dep_activates_fifo, (dague_list_item_t*)deps);
         return;
     }
     (void)eu_context;
