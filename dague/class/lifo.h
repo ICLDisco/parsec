@@ -96,7 +96,7 @@ static inline int dague_lifo_is_empty( dague_lifo_t* lifo )
  * to allow the upper level to detect if this element is the first one in the
  * list (if the list was empty before this operation).
  */
-static inline bool
+static inline int
 dague_update_counted_pointer(volatile dague_counted_pointer_t *addr, dague_counted_pointer_t old,
                              dague_list_item_t *item)
 {
@@ -246,7 +246,7 @@ static inline void dague_lifo_chain( dague_lifo_t* lifo,
     } while (1);
 }
 
-#if DAGUE_HAVE_ATOMIC_LLSC_PTR
+#if defined(DAGUE_HAVE_ATOMIC_LLSC_PTR)
 
 static inline void _dague_lifo_release_cpu (void)
 {
@@ -276,15 +276,15 @@ static inline dague_list_item_t *dague_lifo_pop(dague_lifo_t* lifo)
             attempt = 0;
         }
 
-        item = (dague_list_item_t *) dague_atomic_ll_ptr (&lifo->lifo_head.data.item);
+        item = (dague_list_item_t *) dague_atomic_ll_ptr((long*)&(lifo->lifo_head.data.item));
         if (&lifo->lifo_ghost == item) {
             return NULL;
         }
 
         next = (dague_list_item_t *) item->list_next;
-    } while (!dague_atomic_sc_ptr (&lifo->lifo_head.data.item, next));
+    } while (!dague_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)next));
 
-    dague_atomic_wmb ();
+    dague_atomic_wmb();
 
     item->list_next = NULL;
     return item;
@@ -295,16 +295,16 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
     dague_list_item_t *item, *next;
     int attempt = 0;
 
-    item = (dague_list_item_t *) dague_atomic_ll_ptr (&lifo->lifo_head.data.item);
+    item = (dague_list_item_t *) dague_atomic_ll_ptr((long*)&lifo->lifo_head.data.item);
     if (&lifo->lifo_ghost == item) {
         return NULL;
     }
 
     next = (dague_list_item_t *) item->list_next;
-    if( !dague_atomic_sc_ptr (&lifo->lifo_head.data.item, next) )
+    if( !dague_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)next) )
         return NULL;
 
-    dague_atomic_wmb ();
+    dague_atomic_wmb();
 
     item->list_next = NULL;
     return item;
@@ -379,7 +379,7 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
     item->list_next = NULL;
     return item;
 }
-#endif /* DAGUE_HAVE_ATOMIC_LLSC_PTR */
+#endif /* defined(DAGUE_HAVE_ATOMIC_LLSC_PTR) */
 
 
 #endif  /* defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)) */

@@ -6,6 +6,7 @@
 
 #include <dague_config.h>
 #include "dague/class/lifo.h"
+#include "dague/sys/atomic.h"
 
 static inline void dague_lifo_construct( dague_lifo_t* lifo )
 {

@@ -123,6 +123,17 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
 }
 
 #define DAGUE_HAVE_ATOMIC_LLSC_PTR
+static inline int32_t dague_atomic_ll_32b(volatile int32_t *location)
+{
+   int32_t ret;
+
+   __asm__ __volatile__ ("lwarx   %0, 0, %1  \n\t"
+                         : "=&r" (ret)
+                         : "r" (location)
+                         :);
+   return ret;
+}
+
 static inline int64_t dague_atomic_ll_64b(volatile int64_t *location)
 {
    int64_t ret;
@@ -132,6 +143,22 @@ static inline int64_t dague_atomic_ll_64b(volatile int64_t *location)
                          : "r" (location)
                          :);
    return ret;
+}
+#define dague_atomic_ll_ptr dague_atomic_ll_64b
+
+static inline int dague_atomic_sc_32b(volatile int32_t *location, int32_t newval)
+{
+    int32_t ret, foo;
+
+    __asm__ __volatile__ ("   stwcx.  %4, 0, %3  \n\t"
+                          "   li      %0,0       \n\t"
+                          "   bne-    1f         \n\t"
+                          "   ori     %0,%0,1    \n\t"
+                          "1:"
+                          : "=r" (ret), "=m" (*location), "=r" (foo)
+                          : "r" (location), "r" (newval)
+                          : "cc", "memory");
+    return ret;
 }
 
 static inline int dague_atomic_sc_64b(volatile int64_t *location, int64_t newval)
@@ -148,6 +175,7 @@ static inline int dague_atomic_sc_64b(volatile int64_t *location, int64_t newval
                           : "cc", "memory");
     return ret;
 }
+#define dague_atomic_sc_ptr dague_atomic_sc_64b
 
 #define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B
 static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
