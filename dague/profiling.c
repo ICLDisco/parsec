@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -25,6 +25,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <pthread.h>
+#if defined(DAGUE_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
 #include "dague/profiling.h"
 #include "dague/dague_binary_profile.h"

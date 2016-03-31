@@ -226,11 +226,11 @@ int dague_remote_dep_new_object(dague_handle_t* obj) {
 
 #ifdef DAGUE_DIST_COLLECTIVES
 /**
- * This function is called from the task successor iterator in order to rebuilt
+ * This function is called from the successor iterator in order to rebuilt
  * the information needed to propagate the collective in a meaningful way. In
  * other words it reconstruct the entire information as viewed by the root of
  * the collective. This information is stored in the corresponding output
- * structures. In addition, this function compute the set of data is currently
+ * structures. In addition, this function compute the set of data currently
  * available locally and can be propagated to our predecessors.
  */
 dague_ontask_iterate_t

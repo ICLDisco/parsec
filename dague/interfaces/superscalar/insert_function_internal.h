@@ -172,14 +172,6 @@ set_params_of_task( dague_dtd_task_t *this_task, dague_dtd_tile_t *tile,
 void
 dague_insert_dtd_task( dague_dtd_task_t *this_task );
 
-dague_ontask_iterate_t  dtd_release_dep_fct(struct dague_execution_unit_s *eu,
-                                            const dague_execution_context_t *newcontext,
-                                            const dague_execution_context_t *oldcontext,
-                                            const dep_t* dep,
-                                            dague_dep_data_description_t *data,
-                                            int rank_src, int rank_dst, int vpid_dst,
-                                            void *param);
-
 void dtd_startup(dague_context_t *context,
                  dague_handle_t *dague_handle,
                  dague_execution_context_t **pready_list);

@@ -22,10 +22,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#ifdef DAGUE_HAVE_MPI
-#include "mpi.h"
-#endif /*DAGUE_HAVE_MPI */
-
 struct dague_device_s;
 typedef int (*dague_memory_region_management_f)(dague_ddesc_t*, struct dague_device_s*);
 

@@ -17,7 +17,7 @@
 
 double time_elapsed = 0.0;
 
-int count = 0;
+uint32_t count = 0;
 
 int
 call_to_kernel_type_read( dague_execution_unit_t    *context,

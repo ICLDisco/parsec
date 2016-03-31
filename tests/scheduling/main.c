@@ -12,6 +12,9 @@
 #include <string.h>
 #endif  /* defined(DAGUE_HAVE_STRING_H) */
 #include <math.h>
+#if defined(DAGUE_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
 #define MAXNT   16384
 #define MAXLEVEL 1024

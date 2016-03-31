@@ -6,6 +6,7 @@
 
 #include "hash_datadist.h"
 #include "dague/vpmap.h"
+#include "dague/utils/output.h"
 
 #define DEFAULT_HASH_SIZE 65536
 
@@ -61,22 +62,37 @@ void dague_hash_datadist_destroy(dague_hash_datadist_t *d)
     uint32_t i;
 
     for(i = 0; i < d->hash_size; i++) {
-        if( d->hash[i] != NULL ) {
-            for(n = d->hash[i]; n!= NULL; n = next) {
-                next = n->next;
-                if( n->data != NULL ) {
-                    OBJ_RELEASE(n->data);
-                }
-                    free(n);
+        if( NULL == d->hash[i] ) continue;
+        for(n = d->hash[i]; NULL != n; n = next) {
+            next = n->next;
+            if( n->data != NULL ) {
+                OBJ_RELEASE(n->data);
             }
-            d->hash[i] = NULL;
+            free(n);
         }
+        d->hash[i] = NULL;
     }
     free(d->hash);
     d->hash = NULL;
     d->hash_size = 0;
     dague_ddesc_destroy( &d->super );
     free(d);
+}
+
+void dague_hash_datadist_dump(dague_hash_datadist_t *d)
+{
+    dague_hash_datadist_entry_t *n;
+    uint32_t i;
+
+    for(i = 0; i < d->hash_size; i++) {
+        if( NULL == d->hash[i] ) continue;
+        for(n = d->hash[i]; n!= NULL; n = n->next) {
+            if( n->data != NULL ) {
+                dague_output(0, "key %u rank %d vpid %d size %u\n",
+                             n->key, n->rank, n->vpid, n->size);
+            }
+        }
+    }
 }
 
 static dague_hash_datadist_entry_t *hash_lookup(dague_hash_datadist_t *d, uint32_t key)
@@ -149,8 +165,14 @@ static uint32_t      hash_rank_of(    dague_ddesc_t* ddesc, ... )
 static uint32_t      hash_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key)
 {
     dague_hash_datadist_entry_t *e = hash_lookup( (dague_hash_datadist_t*)ddesc, key );
-    assert(e != NULL);
-    return e->rank;
+    /**
+     * Allow for incomplete hash data collections (each node has a partial view).
+     * If we don't know the datadist entry then let's return a non-existing rank,
+     * that will break the communication engine if it makes it's way down there,
+     * but will allow the high level language to make assumptions about the
+     * locality of the data.
+     */
+    return (NULL == e ? ddesc->nodes : e->rank);
 }
 
 static int32_t       hash_vpid_of(    dague_ddesc_t* ddesc, ... )

@@ -10,6 +10,9 @@
 #if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
 #endif  /* defined(DAGUE_HAVE_STRING_H) */
+#if defined(DAGUE_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
 int main(int argc, char *argv[])
 {
