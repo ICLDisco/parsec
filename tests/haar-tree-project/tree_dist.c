@@ -30,8 +30,13 @@ static int tree_lookup_node(tree_dist_t *tree, int n, int l, int *id)
         }
         if( (tree->nodes[i]->n == n) && (tree->nodes[i]->l == l) ) {
             pthread_rwlock_unlock( &tree->resize_lock );
-            *id = i;
-            return 1;
+            if( NULL != tree->nodes[i]->data ) {
+                *id = i;
+                return 1;
+            } else {
+                *id = -1;
+                return 0;
+            }
         }
         i = ((i+1) % tree->allocated_nodes);
     } while(i != hash_key);
@@ -356,8 +361,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     res = (tree_dist_t*)malloc(sizeof(tree_dist_t));
 
     /** Let's take care of the DAGUE data distribution interface first */
-    res->super.myrank = myrank;
-    res->super.nodes  = nodes;
+    dague_ddesc_init(&res->super, nodes, myrank);
     res->super.data_key = tree_dist_data_key;
     res->super.rank_of  = tree_dist_rank_of;
     res->super.rank_of_key = tree_dist_rank_of_key;
