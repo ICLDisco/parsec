@@ -180,33 +180,26 @@ dague_handle_t* dague_compose(dague_handle_t* start, dague_handle_t* next);
 /**< Free the resource allocated in the dague handle. The handle should be unregistered first. */
 void dague_handle_free(dague_handle_t *handle);
 
-/**<
+/**
  * The final step of a handle activation. At this point we assume that all the local
- * initializations have been succesfully completed for all components, and that the
- * handle is ready to be registered in the system, and any potential pending tasks
- * ready to go.
+ * initializations have been successfully completed for all components, and that the
+ * handle is ready to be registered with the system, and any potential pending tasks
+ * ready to go. If distributed is non 0, then the runtime assumes that the handle has
+ * a distributed scope and should be registered with the communication engine.
  *
  * The local_task allows for concurrent management of the startup_queue, and provide a way
- * to prevent a task from being added to the scheduler. The execution unit eu, is only
- * meaningful if there are any tasks to be scheduled. The nb_tasks is used to detect
- * if the handle should be registered with the communication engine or not.
+ * to prevent a task from being added to the scheduler. As the different tasks classes are
+ * initialized concurrently, we need a way to prevent the beginning of the tasks generation until
+ * all the tasks classes associated with a DAG are completed. Thus, until the synchronization
+ * is complete, the task generators are put on hold in the startup_queue. Once the handle is
+ * ready to advance, and this is the same moment as when the handle is ready to be enabled,
+ * we reactivate all pending tasks, starting the tasks generation step for all type classes.
  */
 int dague_handle_enable(dague_handle_t* handle,
                         dague_execution_context_t** startup_queue,
                         dague_execution_context_t* local_task,
                         dague_execution_unit_t * eu,
                         int nb_tasks);
-
-/**
- * Atomically add nb_tasks to the number of remaining tasks associated with the handle
- * (if nb_tasks is positive it adds, otherwise it substract). If the tasks counter
- * reaches zero, it is assumed that no additional tasks will be generated and the
- * runtime activity counter associated with the handle is decremented by one.
- *
- * @return 0 if the handle has not been completed.
- * @return 1 if the handle has been completed and it has been marked for release.
- */
-int dague_handle_update_nbtask( dague_handle_t* handle, int32_t nb_tasks );
 
 /**< Print DAGuE usage message */
 void dague_usage(void);

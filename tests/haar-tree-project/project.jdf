@@ -1,13 +1,14 @@
 extern "C" %{
 #include "tree_dist.h"
 #include <math.h>
+#include "dague/sys/atomic.h"
 
 #define L 10.0
 
-static double key_to_x(int l, int n)
+static double key_to_x(int n, int l)
 {
-  double scale = (2.0*L)*pow(2.0, -l);
-  return -L + scale * (0.5 + n);
+  double scale = (2.0*L)*pow(2.0, -n);
+  return -L + scale * (0.5 + l);
 }
 
 static double func(double x) {
@@ -17,10 +18,16 @@ static double func(double x) {
 struct __dague_project_internal_handle;
 struct __dague_project_END_PROPAGATE_assignment_s;
 struct __dague_project_PROJECT_assignment_s;
+struct __dague_project_CREATE_NODE_assignment_s;
 struct __dague_project_PROJECT_task_s;
 
 static uint64_t end_propagate_hash(const struct __dague_project_internal_handle_s * __dague_handle,
                                    struct __dague_project_END_PROPAGATE_assignment_s * assignments);
+static uint64_t project_hash(const struct __dague_project_internal_handle_s * __dague_handle,
+                             struct __dague_project_PROJECT_assignment_s * assignments);
+static uint64_t create_node_hash(const struct __dague_project_internal_handle_s * __dague_handle,
+                                 struct __dague_project_CREATE_NODE_assignment_s * assignments);
+
 static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle_s *__dague_handle);
 
 static void               *my_alloc_deps(struct __dague_project_internal_handle_s *__dague_handle);
@@ -28,17 +35,35 @@ static void                my_free_deps(struct __dague_project_internal_handle_s
 static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
                                         const dague_execution_context_t* restrict exec_context);
 
-static uint64_t project_hash(const struct __dague_project_internal_handle_s * __dague_handle,
-                                   struct __dague_project_PROJECT_assignment_s * assignments);
 static int my_project_startup(dague_execution_unit_t * eu,
                               struct __dague_project_PROJECT_task_s * this_task);
 %}
+
+%option nb_local_tasks_fn = undetermined_nb_tasks
 
 // These are global variables that are instanciated in the main.c
 treeA               [type = "tree_dist_t *"]
 // The only type known to parsec is dague_ddesc_t
 treeAdesc           [type = "dague_ddesc_t *" default = "(dague_ddesc_t*)treeA"]
+NP                  [type = "int"]
+fakeDesc            [type = "dague_ddesc_t *"]
 thresh              [type = "double"]
+verbose             [type = "int"]
+
+BCAST_END_PROPAGATE(rank)
+  rank = 0 .. (NP-1)
+
+:fakeDesc(rank, rank)
+
+CTL RL <- RL END_PROPAGATE(0, 0)
+
+BODY
+{
+    __dague_handle->super.super.nb_tasks = 0; /** We are now DONE ! **/
+    if(verbose)
+        fprintf(stderr, "Rank %d in BCAST_END_PROPAGATE\n", rank);
+}
+END
 
 // END_PROPAGATE is used to stop the creation of the nodes.
 // The algorithm is the following :
@@ -48,192 +73,230 @@ thresh              [type = "double"]
 // 4- Once the root node receives both its children controls, the tree
 //    is built and all the remaining tasks are killed
 
-END_PROPAGATE (nid) [hash_fn = end_propagate_hash
-                     nb_local_tasks_fn = undetermined_nb_tasks
-                     find_deps_fn  = my_find_deps
-                     alloc_deps_fn = my_alloc_deps
-                     free_deps_fn  = my_free_deps ]
-  nid = 0 .. 6000
-  pid = inline_c %{ return tree_dist_parent_of_node(treeA, nid); %}
-  lid = inline_c %{ return tree_dist_left_child_of_node(treeA, nid); %}
-  rid = inline_c %{ return tree_dist_right_child_of_node(treeA, nid); %}
-  l = inline_c %{ return tree_dist_level_of_node(treeA, nid); %}
-  n = inline_c %{ return tree_dist_position_of_node(treeA, nid); %}
+END_PROPAGATE (n, l) [hash_fn = end_propagate_hash
+                      find_deps_fn  = my_find_deps
+                      alloc_deps_fn = my_alloc_deps
+                      free_deps_fn  = my_free_deps ]
+n = 0 .. 31
+l = 0 .. 1<<n
 
-:treeAdesc(l, n)
+:treeAdesc(n, l)
 
  // The controls (CTL) are used as counters. Each END_PROPAGATE task
  // has to receive exactly two controls. But, the parent of leaf nodes
  // should receive the CTL from the PROJECT tasks and all the other
  // parent nodes receive them from END_PROPAGATE. Thus, it is not
  // possible to write a condition which explicitely says from which
- // task the control was received (in other words, we cannot know if 
+ // task the control was received (in other words, we cannot know if
  // the child nodes are leaves or node without more information).
  // Fortunately, we know exactly how many controls a task is waiting (2)
  // and the runtime does not check the id of the task sending the controls,
  // instead, it just counts the number of controls.
 
-CTL LEFT  <- 1 ? RL END_PROPAGATE(lid) : RL PROJECT(lid)
+CTL LEFT  <- 1 ? RL END_PROPAGATE(n+1, 2*l) : RL PROJECT(n+1, 2*l)
  // The line above says that the left control is received from
  // the left control of the task end_propagate(lid) if true.
  // For the runtime, this just means that a control has to be received
 
-CTL RIGHT <- 1 ? RL END_PROPAGATE(rid) : RL PROJECT(rid)
+CTL RIGHT <- 1 ? RL END_PROPAGATE(n+1, 2*l+1) : RL PROJECT(n+1, 2*l+1)
 
 //Once both controls are received, this task sends the control
 // to its parent on the right or on the left control of its parent
 // depending on its n and its l
-CTL RL    -> (((n%2) == 0) & (l>0)) ? LEFT END_PROPAGATE(pid)
-          -> (((n%2) == 1) & (l>0)) ? RIGHT END_PROPAGATE(pid)
+CTL RL    -> (((l%2) == 0) & (n>0)) ? LEFT END_PROPAGATE(n-1, l/2)
+          -> (((l%2) == 1) & (n>0)) ? RIGHT END_PROPAGATE(n-1, l/2)
+          -> (n==0) ? RL BCAST_END_PROPAGATE(0 .. (NP-1))
 
 BODY
 {
   /* The root node has to delete all remaining tasks*/
-  if ( l == 0)
-    {
-      dague_handle_update_nbtask( this_task->dague_handle, 1 - (this_task->dague_handle)->nb_tasks);
+    if( verbose ) {
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
+        fprintf(stderr, "CALLING END_PROPAGATE(%d, %d) on rank %d\n", n, l, rank);
     }
 }
 END
 
-// The algorithms of the project task is the following :
-// 1- The root task :
-//    a- It is automatically inserted in the tree
-//    b- It creates it's children node
-//    c- It sends the pointer of the created left node (NODEL) and right
-//    node (NODER) to it's children
-// 2- The children node :
-//    a- A child node receives the pointer to its node from its father
-//    (received in NODEB)
-//    b- If it's error is less than the threshold, it update's its s
-//       value (nodeb -> s) and sends the info to its father with the task
-//       END_PROPAGATE
-//    c- Otherwise, it creates its children and send the node pointer
-//       (just like the root)
+CREATE_NODE (n, l) [hash_fn = create_node_hash
+                    find_deps_fn  = my_find_deps
+                    alloc_deps_fn = my_alloc_deps
+                    free_deps_fn  = my_free_deps ]
+  n = 0 .. 31
+  l = 0 .. (1<<n)
 
-PROJECT (nid) [hash_fn = project_hash
-               nb_local_tasks_fn = undetermined_nb_tasks
-               find_deps_fn  = my_find_deps
-               alloc_deps_fn = my_alloc_deps
-               free_deps_fn  = my_free_deps
-               startup_fn = my_project_startup ]
-  nid = 0 .. 6000
-  l = inline_c %{ if(nid == 0) return 0; else return tree_dist_level_of_node(treeA, nid); %}
-  n = inline_c %{ if(nid == 0) return 0; else return tree_dist_position_of_node(treeA, nid); %}
-  pid = inline_c %{ return tree_dist_parent_of_node(treeA, nid); %}
-  larger_than_thresh = 1 // this is used to check if the error is > thresh
+:treeAdesc(n, l)
 
-:treeAdesc(l, n)
+CTL RL <- RL PROJECT(n, l)
 
-// NODEB is the node of the current task. The root node is created 
-// before the task (in the main). Thus it just needs to get it from
-// treeAdesc(0, 0)
-// Otherwise the nodeb is received from the parent node. It comes
-// either from the NODEL variable or NODER variable of the parent
-READ NODEB <- ((nid != 0) & ((n%2) == 0)) ? NODEL PROJECT(pid) [type = DEFAULT]
-           <- ((nid != 0) & ((n%2) == 1)) ? NODER PROJECT(pid) [type = DEFAULT]
-           <- (nid == 0) ? treeAdesc(l, n)
-
-// The parent task creates a left child. Then it passes it to its
-// child node if it exists (larger_than_thresh == 1)
-WRITE NODEL <- NEW [ type=DEFAULT ]
-            -> (larger_than_thresh == 1) ? NODEB PROJECT(inline_c %{ return tree_dist_left_child_of_node(treeA, nid); %})
-WRITE NODER <- NEW [ type=DEFAULT ]
-            -> (larger_than_thresh == 1) ? NODEB PROJECT(inline_c %{ return tree_dist_right_child_of_node(treeA, nid); %})
-
-
-// If the err <= thresh, then the control is send to the parent
-// node either on its left or its right to stop the node creation
-CTL RL      -> ((larger_than_thresh == 0) & (l >= 3) & ((n%2) == 0)) ? LEFT  END_PROPAGATE(pid)
-            -> ((larger_than_thresh == 0) & (l >= 3) & ((n%2) == 1)) ? RIGHT  END_PROPAGATE(pid)
-
+WRITE NODE <- NEW [ type=DEFAULT ]
 
 BODY
 {
-    node_t *nodeb = (node_t*)NODEB;
-    node_t *noder = (node_t*)NODER;
-    node_t *nodel = (node_t*)NODEL;
+    node_t *node = (node_t*)NODE;
 
-    double err;
     double sl, sr;
-    double s, d;
 
-    int l_c, n_r, n_l;
+    if( verbose ) {
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
+        fprintf(stderr, "CALLING CREATE_NODE(%d, %d) on rank %d\n", n, l, rank);
+    }
 
+    sl = func(key_to_x(n+1, 2*l));
+    sr = func(key_to_x(n+1, 2*l+1));
 
-    sl = func(key_to_x(l+1, 2*n));
-    sr = func(key_to_x(l+1, 2*n+1));
+    node->s = 0.5 * (sl + sr);
+    node->d = 0.5 * (sl - sr);
+    // To tell parsec to keep the reference of these two data, so it shouldn't delete them
+    OBJ_RETAIN(gNODE);
+    tree_dist_insert_data(treeA, gNODE->original, n, l);
 
-    s = 0.5 * (sl + sr);
-    d = 0.5 * (sl - sr);
-
-    err = fabs(d) * pow(2.0, -0.5 * l);
-
-    if ((l >= 3) && (err <= thresh))
-      {
-        this_task->locals.larger_than_thresh.value = 0;
-        nodeb -> s = s; /* The node is already in the tree, just need to update its s*/
-      }
-    else
-      {
-        /* Create the children nodes and add them to the tree*/
-        l_c = l + 1;
-        n_l = 2 * n;
-        n_r = 2 * n + 1;
-
-        noder -> s = 0;
-        nodel -> s = 0;
-        noder -> d = 0;
-        nodel -> d = 0;
-
-        // To tell parsec to keep the reference of these two data, so it shouldn't delete them
-        OBJ_RETAIN(gNODEL);
-        OBJ_RETAIN(gNODER);
-        tree_dist_insert_data(treeA, gNODEL->original, l_c, n_l);
-        tree_dist_insert_data(treeA, gNODER->original, l_c, n_r);
-      }
 }
 END
 
+PROJECT (n, l) [hash_fn = project_hash
+                find_deps_fn  = my_find_deps
+                alloc_deps_fn = my_alloc_deps
+                free_deps_fn  = my_free_deps
+                startup_fn = my_project_startup ]
+  n = 0 .. 31
+  l = 0 .. (1<<n)
+  larger_than_thresh = 1 // this is used to check if the error is > thresh
+
+:treeAdesc(n, l)
+
+CTL RL <- (n!=0) ? RL PROJECT(n-1, l/2)
+       -> larger_than_thresh ? RL PROJECT(n+1, (l*2) .. ((l*2)+1))
+       -> larger_than_thresh ? RL CREATE_NODE(n, l)
+       -> ((!larger_than_thresh) & ((l%2) == 0)) ? LEFT END_PROPAGATE(n-1, l/2)
+       -> ((!larger_than_thresh) & ((l%2) == 1)) ? RIGHT END_PROPAGATE(n-1, l/2)
+
+BODY
+{
+    double err;
+    double sl, sr;
+    double d;
+
+    if( verbose ) {
+        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
+        fprintf(stderr, "CALLING PROJECT(%d, %d) on rank %d\n", n, l, rank);
+    }
+
+    sl = func(key_to_x(n+1, 2*l));
+    sr = func(key_to_x(n+1, 2*l+1));
+
+    d = 0.5 * (sl - sr);
+
+    err = fabs(d) * pow(2.0, -0.5 * n);
+
+    if ((n >= 3) && (err <= thresh)) {
+        this_task->locals.larger_than_thresh.value = 0;
+    }
+
+}
+END
+
+
 extern "C" %{
+static uint64_t my_simple_tree_hash(int n, int l)
+{
+    return (((uint64_t)n) << 32) | ((uint64_t)l);
+}
+
 static uint64_t end_propagate_hash(const struct __dague_project_internal_handle_s * __dague_handle,
                                    struct __dague_project_END_PROPAGATE_assignment_s * assignments)
 {
     (void)__dague_handle;
-    return assignments->nid.value;
+    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
- static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle_s *__dague_handle)
+static uint64_t create_node_hash(const struct __dague_project_internal_handle_s * __dague_handle,
+                                 struct __dague_project_CREATE_NODE_assignment_s * assignments)
 {
     (void)__dague_handle;
-    return DAGUE_UNDETERMINED_NB_TASKS;
-}
-
-static void               *my_alloc_deps(struct __dague_project_internal_handle_s *__dague_handle)
-{
-    (void)__dague_handle;
-    return calloc(6000, sizeof(dague_dependency_t));
-}
-
-static void                my_free_deps(struct __dague_project_internal_handle_s *__dague_handle, void *deps)
-{
-    (void)__dague_handle;
-    free(deps);
-}
-
-static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
-                                        const dague_execution_context_t* restrict exec_context)
-{
-    dague_dependency_t *dep_array;
-    dep_array = (dague_dependency_t*)dague_handle->dependencies_array[ exec_context->function->function_id ];
-    return &dep_array[exec_context->locals[0].value];
+    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
 static uint64_t project_hash(const struct __dague_project_internal_handle_s * __dague_handle,
                                    struct __dague_project_PROJECT_assignment_s * assignments)
 {
     (void)__dague_handle;
-    return assignments->nid.value;
+    return my_simple_tree_hash(assignments->n.value, assignments->l.value);
+}
+
+static uint32_t undetermined_nb_tasks(struct __dague_project_internal_handle_s *__dague_handle)
+{
+    (void)__dague_handle;
+    return DAGUE_UNDETERMINED_NB_TASKS;
+}
+
+typedef struct {
+    int n;
+    int l;
+    dague_dependency_t dep;
+} simple_hash_entry_t;
+
+typedef struct {
+    int size;
+    int used;
+    simple_hash_entry_t **buckets;
+} simple_hash_t;
+
+static void               *my_alloc_deps(struct __dague_project_internal_handle_s *__dague_handle)
+{
+    simple_hash_t *sh;
+    (void)__dague_handle;
+    sh = (simple_hash_t*)malloc(sizeof(simple_hash_t));
+    sh->size = 6000;
+    sh->used = 0;
+    sh->buckets = (simple_hash_entry_t**)calloc(sh->size, sizeof(simple_hash_entry_t *));
+    return (void*)sh;
+}
+
+static void                my_free_deps(struct __dague_project_internal_handle_s *__dague_handle, void *deps)
+{
+    simple_hash_t *sh;
+    int i;
+    (void)__dague_handle;
+    sh = (simple_hash_t*)deps;
+    for(i = 0; i < sh->size; i++)
+        if( sh->buckets[i] !=  NULL )
+            free(sh->buckets[i]);
+    free(sh->buckets);
+    free(sh);
+}
+
+static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
+                                        const dague_execution_context_t* restrict exec_context)
+{
+    simple_hash_t *sh;
+    simple_hash_entry_t *ne = NULL;
+    int p, i;
+    int n, l;
+    
+    n = exec_context->locals[0].value;
+    l = exec_context->locals[1].value;
+    
+    sh = (simple_hash_t*)dague_handle->dependencies_array[ exec_context->function->function_id ];
+    p = my_simple_tree_hash(n, l) % sh->size;
+    for(i = p; i != p-1; i = ((i+1) % sh->size)) {
+        if( NULL == sh->buckets[i] ) {
+            /** Empty spot: I'm not in the hash, I try to take it */
+            if( NULL == ne ) {
+                ne = (simple_hash_entry_t*)malloc(sizeof(simple_hash_entry_t));
+                ne->n = n;
+                ne->l = l;
+                ne->dep = (dague_dependency_t)0;
+            }
+            if( dague_atomic_cas(&sh->buckets[i], NULL, ne) )
+                return &ne->dep;
+        }
+        if( (sh->buckets[i]->n == n) && (sh->buckets[i]->l == l) ) {
+            if(ne) free(ne);
+            return &sh->buckets[i]->dep;
+        }
+    }
+    fprintf(stderr, "Simple hash overflow: %d elements already inserted in the hash table\n", sh->size);
+    exit(1); /** Catastrophic failure */
 }
 
 static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJECT_task_t * this_task)
@@ -255,20 +318,12 @@ static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJE
   new_task->function = __dague_handle->super.super.functions_array[project_PROJECT.function_id];
   new_task->chore_id = 0;
 
-  new_task->locals.nid.value = 0;
-  new_task->locals.l.value = 0;
   new_task->locals.n.value = 0;
-  new_task->locals.pid.value = -1;
+  new_task->locals.l.value = 0;
   new_task->locals.larger_than_thresh.value = 1;
-  new_task->data.NODEB.data_repo = NULL;
-  new_task->data.NODEB.data_in = NULL;
-  new_task->data.NODEB.data_out = NULL;
-  new_task->data.NODEL.data_repo = NULL;
-  new_task->data.NODEL.data_in = NULL;
-  new_task->data.NODEL.data_out = NULL;
-  new_task->data.NODER.data_repo = NULL;
-  new_task->data.NODER.data_in = NULL;
-  new_task->data.NODER.data_out = NULL;
+  new_task->data.RL.data_repo = NULL;
+  new_task->data.RL.data_in = NULL;
+  new_task->data.RL.data_out = NULL;
 
   new_task->priority = 1;
 

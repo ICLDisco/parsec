@@ -15,6 +15,7 @@
 #include "dague/mca/pins/pins.h"
 #include "dague/os-spec-timing.h"
 #include "dague/remote_dep.h"
+#include "dague/scheduling.h"
 
 #include "dague/debug_marks.h"
 #include "dague/ayudame.h"
@@ -172,6 +173,21 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     return DAGUE_HOOK_RETURN_ERROR;
 }
 
+/**< Increases the number of runtime associated activities (decreases if
+ *   nb_tasks is negative). When this counter reaches zero the handle is
+ *   considered as completed, and all resources will be marked for
+ *   release.
+ */
+int dague_handle_update_runtime_nbtask(dague_handle_t *handle, int32_t nb_tasks)
+{
+    int remaining;
+
+    assert( handle->nb_pending_actions != 0 );
+    remaining = dague_atomic_add_32b((int32_t*)&(handle->nb_pending_actions), nb_tasks );
+    assert( 0<= remaining );
+    return dague_check_complete_cb(handle, handle->context, remaining);
+}
+
 static inline int all_tasks_done(dague_context_t* context)
 {
     return (context->active_objects == 0);
@@ -302,10 +318,12 @@ static inline unsigned long exponential_backoff(uint64_t k)
 int __dague_complete_execution( dague_execution_unit_t *eu_context,
                                 dague_execution_context_t *exec_context )
 {
-    dague_handle_t *handle;
+    dague_handle_t *handle = exec_context->dague_handle;
     int rc = 0;
 
-    /* complete execution==add==push (also includes exec of immediates) */
+    /* complete execution PINS event includes the preparation of the
+     * output and the and the call to complete_execution.
+     */
     PINS(eu_context, COMPLETE_EXEC_BEGIN, exec_context);
 
     if( NULL != exec_context->function->prepare_output ) {
@@ -323,11 +341,19 @@ int __dague_complete_execution( dague_execution_unit_t *eu_context,
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
 
     /* Release the execution context */
-    handle = exec_context->dague_handle;
     exec_context->function->release_task( eu_context, exec_context );
 
-    /* Update the number of remaining tasks */
-    (void)dague_handle_update_nbtask(handle, -1);
+    /* Check to see if the DSL has marked the handle as completed */
+    if( 0 == handle->nb_tasks ) {
+        /* The handle has been marked as complete. Unfortunately, it is possible
+         * that multiple threads are completing tasks associated with this handle
+         * simultaneously and we need to release the runtime action associated with
+         * this handle tasks once. We need to protect this action by atomically
+         * setting the number of tasks to a non-zero value.
+         */
+        if( dague_atomic_cas(&handle->nb_tasks, 0, DAGUE_RUNTIME_RESERVED_NB_TASKS) )
+            dague_handle_update_runtime_nbtask(handle, -1);
+    }
 
     return rc;
 }

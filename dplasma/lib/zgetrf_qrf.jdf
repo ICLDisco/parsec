@@ -1374,7 +1374,7 @@ BODY
             }
         }
 
-        dague_handle_update_nbtask( this_task->dague_handle, -nb_tasks );
+        dague_atomic_add_32b( &this_task->dague_handle->nb_tasks, -nb_tasks );
     }
 }
 END

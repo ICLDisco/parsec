@@ -38,7 +38,7 @@ list(APPEND BASE_SOURCES ${FLEX_keyval_flex_OUTPUTS})
 include(mca/CMakeLists.txt)
 
 # Import all the available interfce
-include(interfaces/superscalar/CMakeLists.txt)
+include(interfaces/CMakeLists.txt)
 
 # find_package(TAU REQUIRED)
 # include_directories(${TAU_INCLUDE_DIRS})
