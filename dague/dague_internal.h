@@ -465,12 +465,6 @@ int dague_release_local_OUT_dependencies(dague_execution_unit_t* eu_context,
 
 #define dague_execution_context_priority_comparator offsetof(dague_execution_context_t, priority)
 
-/**
- * Search the dague_handle_t for a function named fname, and return it if such
- * a function exists. Returns NULL otherwise.
- */
-const dague_function_t* dague_find(const dague_handle_t *dague_handle, const char *fname);
-
 #if defined(DAGUE_SIM)
 int dague_getsimulationdate( dague_context_t *dague_context );
 #endif

@@ -259,9 +259,9 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     }
     /* Couldn't load from named dynamic libs, try linked/static */
     if(NULL == fn) {
-        dague_debug_verbose(10, dague_cuda_output_stream,
-                            "No dynamic function %s found, trying from compile time linked in",
-                            function_name);
+        dague_output_verbose(10, dague_cuda_output_stream,
+                             "No dynamic function %s found, trying from compile time linked in\n",
+                             function_name);
         dlh = dlopen(NULL, RTLD_NOW | RTLD_NODELETE);
         if(NULL != dlh) {
             fn = dlsym(dlh, function_name);

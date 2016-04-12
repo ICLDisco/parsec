@@ -8,7 +8,6 @@
 #define LIFO_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
-#include "dague/class/dague_object.h"
 #include "dague/class/list_item.h"
 
 typedef struct dague_lifo_s dague_lifo_t;

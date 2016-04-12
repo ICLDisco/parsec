@@ -5,7 +5,6 @@
  */
 
 #include "dague_config.h"
-#include "dague/class/dague_object.h"
 #include "dague/class/list_item.h"
 #include "dague/mempool.h"
 

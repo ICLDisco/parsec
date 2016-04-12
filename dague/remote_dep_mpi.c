@@ -1602,7 +1602,7 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
         dague_ulist_push_sorted(&dep_activates_fifo, (dague_list_item_t*)deps, rdep_prio);
     }
 
-    /* Check if we have some pending get orders */
+    /* Check if we have any pending GET orders */
     if((dague_comm_gets < dague_comm_gets_max) && !dague_ulist_is_empty(&dep_activates_fifo)) {
         deps = (dague_remote_deps_t*)dague_ulist_fifo_pop(&dep_activates_fifo);
         remote_dep_mpi_get_start(eu_context, deps);

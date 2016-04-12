@@ -159,20 +159,6 @@ static int dague_parse_binding_parameter(void * optarg, dague_context_t* context
                                          __dague_temporary_thread_initialization_t* startup);
 static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context);
 
-const dague_function_t* dague_find(const dague_handle_t *dague_handle, const char *fname)
-{
-    unsigned int i;
-    const dague_function_t* object;
-
-    for( i = 0; i < dague_handle->nb_functions; i++ ) {
-        object = dague_handle->functions_array[i];
-        if( 0 == strcmp( object->name, fname ) ) {
-            return object;
-        }
-    }
-    return NULL;
-}
-
 static void* __dague_thread_init( __dague_temporary_thread_initialization_t* startup )
 {
     dague_execution_unit_t* eu;
