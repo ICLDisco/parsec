@@ -172,6 +172,7 @@ mark_as_advanced(CORES_PER_SOCKET)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
 include (CheckCCompilerFlag)
+include (CheckCSourceCompiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
 include (CheckIncludeFiles)
@@ -416,6 +417,14 @@ check_include_files(sys/param.h DAGUE_HAVE_SYS_PARAM_H)
 check_include_files(sys/types.h DAGUE_HAVE_SYS_TYPES_H)
 check_include_files(syslog.h DAGUE_HAVE_SYSLOG_H)
 
+check_c_source_compiles("
+      int main( int argc, char** argv) {
+         int x = 0;
+         if ( __builtin_expect(!!(x), 0) )
+            return -1;
+         return 0;
+      }
+      " DAGUE_HAVE_BUILTIN_EXPECT)
 #
 # Find optional packages
 #
