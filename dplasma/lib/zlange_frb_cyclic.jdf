@@ -172,18 +172,21 @@ STEP2(m, n)
     // Execution space
     m = 0 .. MT-1
     n = 0 .. Q-1
-    nmin = inline_c %{ if (uplo == PlasmaUpper ) return m; else return 0; %}
-    col = inline_c %{
-      return nmin + n - nmin%Q;
-    %}
+    col  = inline_c %{
+    if ( uplo == PlasmaUpper ) {
+        return (n >= m%Q ) ? m + n - m%Q : m + n + Q - m%Q;
+    } else {
+        return n;
+    } %}
+    nmax = inline_c %{ if (uplo == PlasmaLower ) return dplasma_imin(m, NT-1); else return NT-1; %}
 
     // Parallel partitioning
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( n   ==  0     ) ? NULL               : W STEP2( m, n-1 ) [type = COL]
-    RW   W <- ( col >  (NT-1) ) ? NEW                : W STEP1( m, col ) [type = COL]
-           -> ( n   == (Q-1)  ) ? A STEP3(m, 0..Q-1) : A STEP2( m, n+1 ) [type = COL]
+    READ A <- ( n   ==  0   ) ? NULL               : W STEP2( m, n-1 ) [type = COL]
+    RW   W <- ( col >  nmax ) ? NEW                : W STEP1( m, col ) [type = COL]
+           -> ( n   == (Q-1)) ? A STEP3(m, 0..Q-1) : A STEP2( m, n+1 ) [type = COL]
 
 BODY
 {
@@ -198,7 +201,7 @@ BODY
     switch( ntype ) {
     case PlasmaMaxNorm:
     {
-        if( col > (NT-1)) {
+        if( col > nmax ) {
             *dW = 0.;
         }
         if(n > 0) {
@@ -210,7 +213,7 @@ BODY
     case PlasmaInfNorm:
     {
         int tempmm = ( m == (MT-1) ) ? M - m * descA.mb : descA.mb;
-        if( col > (NT-1)) {
+        if( col > nmax ) {
             memset( W, 0, descA.mb * sizeof(double) );
         }
         if(n > 0) {
@@ -221,16 +224,24 @@ BODY
 
     case PlasmaFrobeniusNorm:
     {
-        if( col > (NT-1)) {
-            dW[0] = 0.;
-            dW[1] = 1.;
-        }
         if(n > 0) {
-            if( dW[0] < dA[0] ) {
-                dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+            if( col > nmax ) {
                 dW[0] = dA[0];
-            } else {
-                dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+                dW[1] = dA[1];
+            }
+            else {
+                if( dW[0] < dA[0] ) {
+                    dW[1] = dA[1] + (dW[1] * (( dW[0] / dA[0] ) * ( dW[0] / dA[0] )));
+                    dW[0] = dA[0];
+                } else {
+                    dW[1] = dW[1] + (dA[1] * (( dA[0] / dW[0] ) * ( dA[0] / dW[0] )));
+                }
+            }
+        }
+        else {
+            if( col > nmax ) {
+                dW[0] = 0.;
+                dW[1] = 1.;
             }
         }
     }
