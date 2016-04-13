@@ -94,6 +94,7 @@ int    dplasma_zunmqr_param( parsec_context_t *parsec, PLASMA_enum side, PLASMA_
 int    dplasma_zlacpy( parsec_context_t *parsec, PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 double dplasma_zlange( parsec_context_t *parsec, PLASMA_enum ntype, const tiled_matrix_desc_t *A);
 double dplasma_zlanhe( parsec_context_t *parsec, PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A);
+double dplasma_zlanm2( parsec_context_t *parsec, const tiled_matrix_desc_t *A, int *info);
 double dplasma_zlansy( parsec_context_t *parsec, PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A);
 double dplasma_zlantr( parsec_context_t *parsec, PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag, const tiled_matrix_desc_t *A);
 int    dplasma_zlascal(parsec_context_t *parsec, PLASMA_enum type, parsec_complex64_t alpha, tiled_matrix_desc_t *A);
@@ -174,6 +175,7 @@ parsec_handle_t* dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans, 
 parsec_handle_t* dplasma_zlacpy_New( PLASMA_enum uplo, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B);
 parsec_handle_t* dplasma_zlange_New( PLASMA_enum ntype, const tiled_matrix_desc_t *A, double *norm);
 parsec_handle_t* dplasma_zlanhe_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
+parsec_handle_t* dplasma_zlanm2_New( const tiled_matrix_desc_t *A, double *norm, int *info );
 parsec_handle_t* dplasma_zlansy_New( PLASMA_enum ntype, PLASMA_enum uplo, const tiled_matrix_desc_t *A, double *result);
 parsec_handle_t* dplasma_zlantr_New( PLASMA_enum ntype, PLASMA_enum uplo, PLASMA_enum diag, const tiled_matrix_desc_t *A, double *result);
 parsec_handle_t* dplasma_zlascal_New( PLASMA_enum type, parsec_complex64_t alpha, tiled_matrix_desc_t *A);
@@ -238,6 +240,7 @@ void dplasma_zunmqr_param_Destruct( parsec_handle_t *o );
 void dplasma_zlacpy_Destruct( parsec_handle_t *o );
 void dplasma_zlange_Destruct( parsec_handle_t *o );
 void dplasma_zlanhe_Destruct( parsec_handle_t *o );
+void dplasma_zlanm2_Destruct( parsec_handle_t *o );
 void dplasma_zlansy_Destruct( parsec_handle_t *o );
 void dplasma_zlantr_Destruct( parsec_handle_t *o );
 void dplasma_zlascal_Destruct( parsec_handle_t *o );

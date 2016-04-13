@@ -1,0 +1,692 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2011-2016 The University of Tennessee and The University
+ *                          of Tennessee Research Foundation.  All rights
+ *                          reserved.
+ *  Copyright (c) 2013-2016 Inria. All rights reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ * This jdf computes an estimate of the 2-norm of a matrix A.
+ *
+ * This jdf is optimized for 2D-Block cyclic distributed data with a grid
+ * P-by-Q.
+ * The first step sums the local data of each rows.
+ * The second finishes the sums on each rows. At the end of this step, all Q
+ * processes belonging to a row have the same data.
+ * The third step search the local maximum.
+ * The fourth step combines the local maxima together. At the end all processes
+ * owns the same value.
+ *
+ * The reductions are down by a pipeline followed by a broadcast of the results.
+ *
+ */
+#include <math.h>
+#include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+
+%}
+
+/* Globals
+ */
+P            [type = "int"]
+Q            [type = "int"]
+Tdist        [type = "dague_ddesc_t *"]
+dataA        [type = "dague_ddesc_t *" aligned=Tdist]
+e            [type = "double *"]
+iter         [type = "int *"]
+
+descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
+
+maxiter      [type = "int"    hidden=on default="dplasma_imin(100, descA.n)"]
+loop         [type = "int"    hidden=on default="(1)"]
+MT           [type = "int"    hidden=on default="descA.mt"]
+NT           [type = "int"    hidden=on default="descA.nt"]
+e0           [type = "double" hidden=on default="0."]
+e1           [type = "double" hidden=on default="0."]
+tol          [type = "double" hidden=on default="3.e-1"]
+normx        [type = "double" hidden=on default="0."]
+normsx       [type = "double" hidden=on default="0."]
+
+/**
+ * STEP 1:
+ *  For j in [1,P], W(i, n) = reduce( A(i+k*P, n) )
+ */
+STEP1(m,n)
+
+    // Execution space
+    m = 0 .. MT-1
+    n = 0 .. NT-1
+
+    // Parallel partitioning
+    :Tdist(m, n)
+
+    // Parameters
+    READ A <- dataA(m, n)
+    RW   W <- ( m < (MT-P)) ? W STEP1( m+P, n ) : NEW             [type = DROW]
+           -> ( m > (P -1)) ? W STEP1( m-P, n ) : W STEP2( m, n ) [type = DROW]
+
+BODY
+{
+    int tempmm = ( m == (MT-1) ) ? descA.m - m * descA.mb : descA.mb;
+    int tempnn = ( n == (NT-1) ) ? descA.n - n * descA.nb : descA.nb;
+    int ldam = BLKLDD( descA, m );
+
+    printlog("zlange STEP1(%d, %d)\n"
+             "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
+             m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
+
+    if ( m >= (MT-P)) {
+        memset(W, 0, tempnn*sizeof(double) );
+    }
+
+    CORE_dzasum(PlasmaColumnwise, PlasmaUpperLower,
+                tempmm, tempnn,
+                A, ldam, W);
+}
+END
+
+/**
+ * STEP 2:
+ *  End the reduction of the sum per column.
+ *  For each i, W(i, n) = reduce( W(0..P-1, n) )
+ */
+STEP2(m, n)
+
+    // Execution space
+    m = 0 .. P-1
+    n = 0 .. NT-1
+    mmax = inline_c %{ return dague_imin(MT, P)-1; %}
+
+    // Parallel partitioning
+    :Tdist(m, n)
+
+    // Parameters
+    READ A <- (m == 0)      ? NULL : W STEP2(m-1, n)               [type = DROW]
+    RW   W <- (m >  (MT-1)) ? NEW : W STEP1(m, n)                  [type = DROW]
+           -> (m == (P -1)) ? A STEP3(0..P-1, n) : A STEP2(m+1, n) [type = DROW]
+
+BODY
+{
+    int tempnn = ( n == (NT-1) ) ? descA.n - n * descA.nb : descA.nb;
+
+    printlog("zlange STEP2(%d, %d)\n"
+             "\t( tempnn=%d, W(%d, %d) + W(%d, %d)\n",
+             m, n, tempnn, m-1, n, m, n);
+
+    if ( m >= MT ) {
+        memset( W, 0, tempnn*sizeof(double) );
+    }
+
+    if (m > 0)
+    {
+        cblas_daxpy( tempnn, 1., A, 1, W, 1);
+    }
+}
+END
+
+
+/**
+ * STEP 3:
+ *   Compute the Frobenius norm of each segment of the vector X, the computation
+ *   is replicated P times per segment, since it is replicated on each row of
+ *   processes.
+ *   For n in 0..Q-1, W(m, n) = max( W(m, n..nt[Q] ) )
+ */
+STEP3(m, n)
+
+    // Execution space
+    m = 0 .. P-1
+    n = 0 .. NT-1
+
+    // Parallel partitioning
+    :Tdist(m, n)
+
+    // Parameters
+    READ A <- W STEP2(P-1, n)                                      [type = DROW]
+           -> (m < MT)     ? DX SCALEX(1, m, n)                    [type = DROW]
+    RW   W <- (n < (NT-Q)) ? W STEP3( m, n+Q ) : NEW               [type = ELT]
+           -> (n < Q     ) ? W STEP4( m, n   ) : W STEP3( m, n-Q ) [type = ELT]
+
+BODY
+{
+    int tempnn = ( n == (NT-1) ) ? descA.n - n * descA.nb : descA.nb;
+    double *dW = (double*)W;
+
+    printlog("zlange STEP3(%d, %d)\n", m, n);
+
+    if ( n >= (NT-Q) ) {
+        dW[0] = 0.;
+        dW[1] = 1.;
+    }
+
+    CORE_dgessq( 1, tempnn, A, 1, dW, dW+1 );
+}
+END
+
+/**
+ * STEP 4:
+ *   Reduce the Frobenius norm on the vector (Replicated on each row of processes)
+ *   For each j, W(m, j) = max( W(m, 0..Q-1) )
+ **/
+STEP4(m,n)
+
+    // Execution space
+    m = 0 .. P-1
+    n = 0 .. Q-1
+
+    // Parallel partitioning
+    :Tdist(m, n)
+
+    // Parameters
+    READ A <- (n ==  0    ) ? NULL                          : W STEP4(m, n-1) [type = ELT]
+    RW   W <- (n >  (NT-1)) ? NEW                           : W STEP3(m, n  ) [type = ELT]
+           -> (n == (Q-1) ) ? X WRITE_RES(0, m, 0 .. (Q-1)) : A STEP4(m, n+1) [type = ELT]
+
+BODY
+{
+    double *dA = (double*)A;
+    double *dW = (double*)W;
+    double  sqr;
+
+    printlog("zlange STEP4(%d, %d)\n", m, n);
+
+    if ( n > (NT-1) ) {
+        dW[0] = 0.;
+        dW[1] = 1.;
+    }
+    if (n > 0) {
+        if( dW[0] < dA[0] ) {
+            sqr = dW[0] / dA[0];
+            sqr = sqr * sqr;
+            dW[1] = dA[1] + sqr * dW[1];
+            dW[0] = dA[0];
+        } else {
+            sqr = dA[0] / dW[0];
+            sqr = sqr * sqr;
+            dW[1] = dW[1] + sqr * dA[1];
+        }
+    }
+}
+END
+
+/**
+ * STEP5
+ *
+ */
+WRITE_RES(i, m, n)
+
+    // Execution space
+    i = 0 .. maxiter
+    m = 0 .. P-1
+    n = 0 .. Q-1
+
+    // Parallel partitioning
+    :Tdist(m, n)
+
+    // Parameters
+    READ X  <- (i == 0) ? W STEP4( m, Q-1 ) : W NORM_X_STEP2(i, 0)  [type = ELT]
+    READ SX <- (i == 0) ? NULL              : W NORM_SX_STEP2(i, 0) [type = ELT]
+
+    CTL newiter -> (m < MT) ? newiter SCALEX(i+1, m, n .. NT-1 .. Q)
+
+BODY
+{
+    double *ptr;
+    ptr = (double*)X;
+    normx = ptr[0] * dplasma_dsqrt( ptr[1] );
+
+    if (i == 0) {
+        e0 = 0.;
+        e1 = normx;
+    }
+    else {
+        ptr = (double*)SX;
+        normsx = ptr[0] * dplasma_dsqrt( ptr[1] );
+
+        e0 = e1;
+        e1 = normx / normsx;
+    }
+    if ( loop && (fabs(e1 - e0) <= (tol * e1)) ) {
+        int nbtasks = 0;
+        int mymt, mynt;
+
+        loop = 0;
+        *e = e1;
+
+        /* Let's remove the existing tasks */
+        mymt = dplasma_iceil( descA.llm, descA.mb );
+        mynt = dplasma_iceil( descA.lln, descA.nb );
+        nbtasks +=  mynt * mymt * 2; /* GEMV_*_PARTIAL */
+
+        nbtasks += mymt * dplasma_imin( mynt, 1 ); /* GEMV_SX_REDUCE */
+        nbtasks += mynt * dplasma_imin( mymt, 1 ); /* GEMV_X_REDUCE */
+
+        if (n == 0) {
+            nbtasks += mymt + dplasma_imin( mymt, 1 ); /* NORM_SX_STEP* */
+        }
+        if (m == 0) {
+            nbtasks += mynt + dplasma_imin( mynt, 1 ); /* NORM_X_STEP* */
+        }
+        nbtasks++; /* WRITE_RES */
+        nbtasks *= (maxiter - i);
+
+        /* SCALE_X */
+        /**
+         * For SCALE_X we remove only the i+2 .. maxiter tasks to avoid memory leaks
+         * The SCALE tasks are gathering the X segments and must destroy them,
+         * they are the only ones activated on the next iteration.
+         */
+        nbtasks += mynt * dplasma_imin( mymt, 1 ) * (maxiter-i-1);
+
+        printlog("DAG[%d] ZLANM2[%d] I'm done, and I remove %d tasks\n",
+                 context->virtual_process->dague_context->my_rank,
+                 i, nbtasks );
+        dague_atomic_add_32b( &this_task->dague_handle->nb_tasks, -nbtasks );
+
+        if (NULL != iter) {
+            *iter = i;
+        }
+    }
+    printlog("DAG[%d] ZLANM2[%d] normx=%e / normsx=%e / e0=%e / e1=%e / e=%e \n",
+            context->virtual_process->dague_context->my_rank,
+            i, normx, normsx, e0, e1, *e );
+}
+END
+
+/**********************************************************************/
+
+
+/**
+ * Now we start the loop
+ */
+
+/**
+ * First we scale the P replica of X, so each row of Q processes possess one
+ * copy of the scaled X.
+ * We always copy DX or ZX before scaling it, because we might not have propagated X to all nodes yet.
+ * Here, we decide to create a copy instead of having anti-dependencies to check
+ * that everyone already receive X to compute normX.
+ */
+SCALEX(i, m, n)
+    i = 1 .. maxiter
+    m = 0 .. inline_c %{ return dague_imin(MT, P)-1; %}
+    n = 0 .. NT-1
+
+    // Parallel partitioning
+    :Tdist(m, n)
+
+    READ  DX <- (i == 1) ? A STEP3(m, n)              : NULL    [type = DROW]
+    READ  ZX <- (i != 1) ? W GEMV_X_REDUCE(i-1, n, 0) : NULL    [type = ZROW]
+
+    WRITE ZXO -> loop ? B GEMV_SX_PARTIAL(i, m .. MT-1 .. P, n) [type = ZROW]
+
+    CTL newiter <- newiter WRITE_RES(i-1, m, n%Q)
+BODY
+{
+    int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
+    dague_complex64_t scl = (dague_complex64_t)1.0  / (dague_complex64_t)normx;
+
+    printlog("scalex(%d, %d, %d)\n", i, m, n);
+
+    if (!loop) {
+        return DAGUE_HOOK_RETURN_DONE;
+    }
+    if (i == 1)
+    {
+#if defined(PRECISION_z) || defined(PRECISION_c)
+        CORE_dlag2z( 1, tempnn, DX, 1, ZXO, 1 );
+#else
+        CORE_zlacpy( PlasmaUpperLower, 1, tempnn, DX, 1, ZXO, 1 );
+#endif
+    }
+    else {
+        CORE_zlacpy( PlasmaUpperLower, 1, tempnn, ZX, 1, ZXO, 1 );
+    }
+    cblas_zscal(tempnn, CBLAS_SADDR(scl), ZXO, 1);
+}
+END
+
+/**
+ * We use the fact that X is replicated on each consecutive group of P nodes to
+ * do partial computations that are fully local:
+ *    Sx_(m,q) = sum( A_(m,k), X_(k), k=q..NT-1..Q ):
+ *
+ * Example with PxQ = 3*2 of the tiled reduced together
+ *    0 3 0 3 0 3     0=1=2    0+3
+ *    1 4 1 4 1 4     3=4=5    1+4
+ *    2 5 2 5 2 5  X  0=1=2  = 2+5
+ *    0 3 0 3 0 3     3=4=5    0+3
+ *    1 4 1 4 1 4     0=1=2    1+4
+ *    2 5 2 5 2 5     3=4=5    2+5
+ *
+ */
+GEMV_SX_PARTIAL(i, m, k)
+
+// Execution space
+i = 1 .. maxiter
+m = 0 .. MT-1
+k = 0 .. NT-1
+
+// Parallel partitioning
+: Tdist(m, k)
+
+// Parameters
+READ  A  <- dataA(m, k)
+READ  B  <- ZXO SCALEX(i, m%P, k)                               [type = ZROW]
+
+RW    C  <- (k >= (NT-Q)) ? NEW                                 [type = ZCOL]
+         <- (k <  (NT-Q)) ? C GEMV_SX_PARTIAL(i, m, k+Q)        [type = ZCOL]
+
+         -> (k >= Q)             ? C GEMV_SX_PARTIAL(i, m, k-Q) [type = ZCOL]
+         -> (k <  Q) && (k < NT) ? W GEMV_SX_REDUCE( i, m, k  ) [type = ZCOL]
+BODY
+{
+    dague_complex64_t zbeta = (k >= (NT-Q)) ? 0. : (dague_complex64_t)1.0;
+    int tempmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
+    int tempkn = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
+    int ldam = BLKLDD( descA, m );
+
+    printlog("gemv_sx_partial(%d, %d, %d)\n", i, m, k);
+
+    CORE_zgemv(
+        PlasmaNoTrans,
+        tempmm, tempkn,
+        1.,    A, ldam,
+               B, 1,
+        zbeta, C, 1);
+}
+END
+
+GEMV_SX_REDUCE(i, m, k)
+
+// Execution space
+i = 1 .. maxiter
+m = 0 .. MT-1
+kmax = inline_c %{ return dague_imin(NT, Q)-1; %}
+k = 0 .. kmax
+
+// Parallel partitioning
+: Tdist(m, k)
+
+// Parameters
+READ A <- ( k == kmax ) ? NULL : W GEMV_SX_REDUCE(i, m, k+1) [type = ZCOL]
+
+RW   W <- C GEMV_SX_PARTIAL(i, m, k)                         [type = ZCOL]
+
+       -> ( k != 0 ) ? A GEMV_SX_REDUCE(i, m, k-1)           [type = ZCOL]
+       -> ( k == 0 ) ? B GEMV_X_PARTIAL(i, 0..NT-1, m)       [type = ZCOL]
+       -> ( k == 0 ) ? A NORM_SX_STEP1(i, m)                 [type = ZCOL]
+
+
+BODY
+{
+    int tempmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
+
+    printlog("gemv_sx_reduce(%d, %d, %d)\n", i, m, k);
+
+    if(k < kmax)
+    {
+        dague_complex64_t zone = 1.;
+        cblas_zaxpy(tempmm, CBLAS_SADDR(zone), A, 1, W, 1);
+    }
+}
+END
+
+/**
+ * Second reduction with x = S'(Sx)
+ * We use the fact that Sx is replicated by broadcast on each consecutive group of Q nodes to
+ * do partial computations that are fully local:
+ *    S'(Sx')_(n,p) = sum( A_(k,n), X_(k), k=p..MT-1..P ):
+ *
+ * Example with PxQ = 3*2 of the tiled reduced together
+ *    0 1 2 0 1 2     0=3    0+1+2
+ *    3 4 5 3 4 5     1=4    3+4+5
+ *    0 1 2 0 1 2  X  2=5  = 0+1+2
+ *    3 4 5 3 4 5     0=3    3+4+5
+ *    0 1 2 0 1 2     1=4    0+1+2
+ *    3 4 5 3 4 5     2=5    3+4+5
+ *
+ */
+GEMV_X_PARTIAL(i, n, k)
+
+// Execution space
+i = 1 .. maxiter
+n = 0 .. NT-1
+k = 0 .. MT-1
+
+// Parallel partitioning
+: Tdist(k, n)
+
+// Parameters
+READ  A <- dataA(k, n)
+READ  B <- W GEMV_SX_REDUCE(i, k, 0)                          [type = ZCOL]
+
+RW    C <- (k >= (MT-P)) ? NEW                                [type = ZROW]
+        <- (k <  (MT-P)) ? C GEMV_X_PARTIAL(i, n, k+P)        [type = ZROW]
+
+        -> (k >= P)             ? C GEMV_X_PARTIAL(i, n, k-P) [type = ZROW]
+        -> (k <  P) && (k < MT) ? W GEMV_X_REDUCE( i, n, k)   [type = ZROW]
+BODY
+{
+    dague_complex64_t zbeta = (k >= (MT-P)) ? 0. : (dague_complex64_t)1.0;
+    int tempkm = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;
+    int tempnn = ( n == descA.nt-1 ) ? descA.n - n * descA.nb : descA.nb;
+    int ldan = BLKLDD( descA, n );
+
+    printlog("gemv_x_partial(%d, %d, %d)\n", i, n, k);
+
+    CORE_zgemv(
+        PlasmaConjTrans,
+        tempkm, tempnn,
+        1.,    A, ldan,
+               B, 1,
+        zbeta, C, 1);
+}
+END
+
+GEMV_X_REDUCE(i, n, k)
+
+// Execution space
+i = 1 .. maxiter
+n = 0 .. NT-1
+kmax = inline_c %{ return dague_imin(MT, P)-1; %}
+k = 0 .. kmax
+
+// Parallel partitioning
+: Tdist(k, n)
+
+// Parameters
+READ A <- ( k == kmax ) ? NULL : W GEMV_X_REDUCE(i, n, k+1)       [type = ZROW]
+
+RW   W <- C GEMV_X_PARTIAL(i, n, k)                               [type = ZROW]
+
+       -> ( k != 0 ) ? A GEMV_X_REDUCE(i, n, k-1)                 [type = ZROW]
+       -> ( k == 0 ) ? A NORM_X_STEP1(i, n)                       [type = ZROW]
+       -> ( k == 0 ) && (i < maxiter) ? ZX SCALEX(i+1, 0..P-1, n) [type = ZROW]
+
+BODY
+{
+    int tempnn = ( n == descA.nt-1 ) ? descA.n - n * descA.nb : descA.nb;
+
+    printlog("gemv_x_reduce(%d, %d, %d)\n", i, n, k);
+
+    if(k < kmax)
+    {
+        dague_complex64_t zone = 1.;
+        cblas_zaxpy(tempnn, CBLAS_SADDR(zone), A, 1, W, 1);
+    }
+}
+END
+
+/**
+ * NORM_SX_STEP1:
+ *   Compute the Frobenius norm of each segment of the vector Sx, and reduce it per node
+ */
+NORM_SX_STEP1(i, m)
+
+    // Execution space
+    i = 1 .. maxiter
+    m = 0 .. MT-1
+
+    // Parallel partitioning
+    :Tdist(m, 0)
+
+    // Parameters
+    READ  A  <- W GEMV_SX_REDUCE(i, m, 0)               [type = ZCOL]
+
+    RW    W  <- (m >= (MT-P)) ? NEW                     [type = ELT]
+             <- (m <  (MT-P)) ? W NORM_SX_STEP1(i, m+P) [type = ELT]
+
+             -> (m >= P) ? W NORM_SX_STEP1(i, m-P)      [type = ELT]
+             -> (m <  P) ? A NORM_SX_STEP2(i, m)        [type = ELT]
+
+BODY
+{
+    int tempmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
+    double *dW = (double*)W;
+
+    printlog("norm_sx_step1(%d, %d)\n", i, m);
+
+    if (m >= (MT-P)) {
+        dW[0] = 0.;
+        dW[1] = 1.;
+    }
+
+    CORE_zgessq( 1, tempmm, A, 1, dW, dW+1 );
+}
+END
+
+/**
+ * NORM_SX_STEP2:
+ *   End the reduction by combining the P partial norms
+ */
+NORM_SX_STEP2(i, m)
+
+    // Execution space
+    i = 1 .. maxiter
+    mmax = inline_c %{ return dague_imin(MT, P)-1; %}
+    m = 0 .. mmax
+
+    // Parallel partitioning
+    :Tdist(m, 0)
+
+    // Parameters
+    READ A <- W NORM_SX_STEP1(i, m)                        [type = ELT]
+
+    RW   W <- (m == mmax) ? NEW : W NORM_SX_STEP2(i, m+1)  [type = ELT]
+           -> (m == 0) ? SX WRITE_RES(i, 0..P-1, 0..Q-1)   [type = ELT]
+           -> (m != 0) ? W NORM_SX_STEP2(i, m-1)           [type = ELT]
+
+BODY
+{
+    double *dA = (double*)A;
+    double *dW = (double*)W;
+    double  sqr;
+
+    printlog("norm_sx_step2(%d, %d)\n", i, m);
+
+    if (m == mmax) {
+        dW[0] = dA[0];
+        dW[1] = dA[1];
+    }
+    else {
+        if( dW[0] < dA[0] ) {
+            sqr = dW[0] / dA[0];
+            sqr = sqr * sqr;
+            dW[1] = dA[1] + sqr * dW[1];
+            dW[0] = dA[0];
+        } else {
+            sqr = dA[0] / dW[0];
+            sqr = sqr * sqr;
+            dW[1] = dW[1] + sqr * dA[1];
+        }
+    }
+}
+END
+
+/**
+ * NORM_X_STEP1:
+ *   Compute the Frobenius norm of each segment of the vector Sx, and reduce it per node
+ */
+NORM_X_STEP1(i, n)
+
+    // Execution space
+    i = 1 .. maxiter
+    n = 0 .. NT-1
+
+    // Parallel partitioning
+    :Tdist(0, n)
+
+    // Parameters
+    READ  A  <- W GEMV_X_REDUCE(i, n, 0)                [type = ZROW]
+
+    RW    W  <- (n >= (NT-Q)) ? NEW                     [type = ELT]
+             <- (n <  (NT-Q)) ? W NORM_X_STEP1(i, n+Q)  [type = ELT]
+
+             -> (n >= Q) ? W NORM_X_STEP1(i, n-Q)       [type = ELT]
+             -> (n <  Q) ? A NORM_X_STEP2(i, n)         [type = ELT]
+
+BODY
+{
+    int tempnn = ( n == descA.nt-1 ) ? descA.n - n * descA.nb : descA.nb;
+    double *dW = (double*)W;
+
+    printlog("norm_x_step1(%d, %d)\n", i, n);
+
+    if (n >= (NT-Q)) {
+        dW[0] = 0.;
+        dW[1] = 1.;
+    }
+
+    CORE_zgessq( 1, tempnn, A, 1, dW, dW+1 );
+}
+END
+
+/**
+ * NORM_X_STEP2:
+ *   End the reduction by combining the P partial norms
+ */
+NORM_X_STEP2(i, n)
+
+    // Execution space
+    i = 1 .. maxiter
+    nmax = inline_c %{ return dague_imin(NT, Q)-1; %}
+    n = 0 .. nmax
+
+    // Parallel partitioning
+    :Tdist(0, n)
+
+    // Parameters
+    READ A <- W NORM_X_STEP1(i, n)                        [type = ELT]
+
+    RW   W <- (n == nmax) ? NEW : W NORM_X_STEP2(i, n+1)  [type = ELT]
+           -> (n == 0) ? X WRITE_RES(i, 0..P-1, 0..Q-1)   [type = ELT]
+           -> (n != 0) ? W NORM_X_STEP2(i, n-1)           [type = ELT]
+
+BODY
+{
+    double *dA = (double*)A;
+    double *dW = (double*)W;
+    double  sqr;
+
+    printlog("norm_x_step3(%d, %d)\n", i, n);
+
+    if (n == nmax) {
+        dW[0] = dA[0];
+        dW[1] = dA[1];
+    }
+    else {
+        if( dW[0] < dA[0] ) {
+            sqr = dW[0] / dA[0];
+            sqr = sqr * sqr;
+            dW[1] = dA[1] + sqr * dW[1];
+            dW[0] = dA[0];
+        } else {
+            sqr = dA[0] / dW[0];
+            sqr = sqr * sqr;
+            dW[1] = dW[1] + sqr * dA[1];
+        }
+    }
+}
+END

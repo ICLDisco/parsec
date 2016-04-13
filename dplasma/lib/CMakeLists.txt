@@ -22,7 +22,7 @@ add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" ${EXTRA_SOU
 set(JDF
   # Auxiliary
   zlange_frb_cyclic.jdf zlange_one_cyclic.jdf
-  zlansy.jdf
+  zlansy.jdf zlanm2.jdf
   zlaswp.jdf
   zpltmg_chebvand.jdf zpltmg_fiedler.jdf zpltmg_hankel.jdf zpltmg_toeppd.jdf
   zprint.jdf
@@ -114,6 +114,7 @@ set(SOURCES
   zlanhe_wrapper.c
   zlansy_wrapper.c
   zlantr_wrapper.c
+  zlanm2_wrapper.c
   zlascal_wrapper.c
   zlaset_wrapper.c
   zlaswp_wrapper.c

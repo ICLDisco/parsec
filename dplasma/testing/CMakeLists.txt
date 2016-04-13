@@ -13,6 +13,7 @@ set(TESTS
   testing_zgeadd.c
   testing_zprint.c
   testing_zlange.c
+  testing_zlanm2.c
   # Level 3 Blas
   testing_zgemm.c
   testing_zhemm.c
