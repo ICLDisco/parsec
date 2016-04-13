@@ -18,6 +18,9 @@
 #include "string_arena.h"
 #include "jdf2c_utils.h"
 
+#define DAGUE_ERR_NEW_AS_OUTPUT  "Automatic data allocation with NEW only supported in IN dependencies.\n"
+#define DAGUE_ERR_NULL_AS_OUTPUT "NULL data only supported in IN dependencies.\n"
+
 #define YYDEBUG_LEXER_TEXT yytext
 
 /**
@@ -234,6 +237,10 @@ prologue:       EXTERN_DECL
                     $$ = new(jdf_external_entry_t);
                     $$->external_code = $1;
                     JDF_OBJECT_LINENO($$) = current_lineno;
+                }
+        |
+                {
+                    $$ = NULL;
                 }
         ;
 epilogue:       EXTERN_DECL
@@ -550,8 +557,7 @@ dependency:   ARROW guarded_call properties
                       (NULL == $2->guard) && (NULL == $2->callfalse) ) {
                       if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2),
-                                        "Automatic data allocation only supported in IN dependencies.\n");
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NEW_AS_OUTPUT);
                               YYERROR;
                           }
                       }
@@ -561,15 +567,13 @@ dependency:   ARROW guarded_call properties
                   if( JDF_IS_CALL_WITH_NO_INPUT($2->calltrue) ) {
                       if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2),
-                                        "Automatic data allocation only supported in IN dependencies.\n");
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NEW_AS_OUTPUT);
                               YYERROR;
                           }
                       }
                       else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2),
-                                        "NULL data only supported in IN dependencies.\n");
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NULL_AS_OUTPUT);
                               YYERROR;
                           }
                       } else {
@@ -584,15 +588,13 @@ dependency:   ARROW guarded_call properties
                   if( $2->callfalse && JDF_IS_CALL_WITH_NO_INPUT($2->callfalse) ) {
                       if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->callfalse->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2),
-                                        "Automatic data allocation with NEW only supported in IN dependencies.\n");
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NEW_AS_OUTPUT);
                               YYERROR;
                           }
                       }
                       else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $2->callfalse->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2),
-                                        "NULL data only supported in IN dependencies.\n");
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NULL_AS_OUTPUT);
                               YYERROR;
                           }
                       } else {

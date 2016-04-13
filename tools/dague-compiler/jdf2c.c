@@ -566,8 +566,8 @@ static char *dump_data_initialization_from_data_array(void **elem, void *arg)
                             "  dague_data_copy_t *g%s = this_task->data.%s.data_%s;\n",
                             varname, f->varname, where);
     string_arena_add_string(sa,
-                            "  void *%s = (NULL != g%s) ? DAGUE_DATA_COPY_GET_PTR(g%s) : NULL; (void)%s;\n",
-                            varname, varname, varname, varname);
+                            "  void *%s = DAGUE_DATA_COPY_GET_PTR(g%s); (void)%s;\n",
+                            varname, varname, varname);
     return string_arena_get_string(sa);
 }
 
@@ -2648,10 +2648,17 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  __dague_handle->super.super.dependencies_array[%d] = dep;\n",
                 f->function_id);
     }
-    coutput("  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(%s, %d);\n"
-            "%s"
+
+    if( f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) {
+        coutput("  __dague_handle->repositories[%d] = NULL;\n",
+                f->function_id );
+    } else {
+        coutput("  __dague_handle->repositories[%d] = data_repo_create_nothreadsafe(%s, %d);\n",
+                f->function_id, need_to_count_tasks ? "nb_tasks" : "MAX_DATAREPO_HASH", idx );
+    }
+
+    coutput("%s"
             "  %s (void)__dague_handle; (void)eu;\n",
-            f->function_id, need_to_count_tasks ? "nb_tasks" : "MAX_DATAREPO_HASH", idx,
             string_arena_get_string(sa_end),
             need_to_iterate ? "(void)assignments;" : "");
     /**
@@ -3780,7 +3787,9 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     if( JDF_FLOW_TYPE_CTL & flow->flow_flags ) {
         coutput("  /* %s is a control flow */\n"
                 "  this_task->data.%s.data_in   = NULL;\n"
+                "  this_task->data.%s.data_out  = NULL;\n"
                 "  this_task->data.%s.data_repo = NULL;\n",
+                flow->varname,
                 flow->varname,
                 flow->varname,
                 flow->varname);
@@ -3901,30 +3910,19 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
             }
         }
         if( has_output_deps ) {
-            if ( flow->flow_flags & JDF_FLOW_TYPE_WRITE ) {
-                coutput("    /* Now get the local version of the data to be worked on */\n"
-                        "    if( NULL != chunk ) {\n"
-                        "        this_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n"
-                        "    }\n",
-                        flow->varname);
-            }
-            /* Check that we do not forward a NULL input */
-            else if ( flow->flow_flags & JDF_FLOW_TYPE_READ ) {
-                coutput("    /* Now get the local version of the data to be worked on */\n"
-                        "    if( NULL == chunk ) {\n"
-                        "        dague_abort(\"A NULL input on a READ flow %s:%s has been forwarded\");\n"
-                        "    }\n"
-                        "    this_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n",
-                        f->fname, flow->varname,
-                        flow->varname);
-            }
-            else { /* CTL */
-                coutput("    /* Now get the local version of the data to be worked on */\n"
-                        "    this_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n",
-                        flow->varname);
-            }
-        } else
+            /* CTL does not reach that point */
+            assert( flow->flow_flags & JDF_FLOW_TYPE_WRITE ||
+                    flow->flow_flags & JDF_FLOW_TYPE_READ);
+            coutput("    /* Now get the local version of the data to be worked on */\n"
+                    "    if( NULL != chunk ) {\n"
+                    "        this_task->data.%s.data_out = dague_data_get_copy(chunk->original, target_device);\n"
+                    "    } else {\n"
+                    "        this_task->data.%s.data_out = NULL;\n"
+                    "    }\n",
+                    flow->varname, flow->varname);
+        } else {
             coutput("    this_task->data.%s.data_out = NULL;  /* input only */\n\n", flow->varname);
+        }
     }
     string_arena_free(sa);
 }
@@ -4802,13 +4800,11 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             /* Applied only on the Write data, since the number of readers is not atomically increased yet */
             if ((fl->flow_flags & JDF_FLOW_TYPE_READ) &&
                 (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ) {
-               coutput("    if ( NULL == g%s ) {\n"
-                       "      dague_abort(\"A NULL input on a RW flow %s:%s has been forwarded\");\n"
-                       "    }\n"
-                       "    dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
-                       "                                           %s);\n",
+               coutput("    if ( NULL != g%s ) {\n"
+                       "      dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
+                       "                                           %s);\n"
+                       "    }\n",
                        fl->varname,
-                       f->fname, fl->varname,
                        fl->varname,
                        ((fl->flow_flags & JDF_FLOW_TYPE_CTL) ? "FLOW_ACCESS_NONE" :
                         ((fl->flow_flags & JDF_FLOW_TYPE_READ) ?
@@ -4878,20 +4874,14 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
     for( di = 0, fl = f->dataflow; fl != NULL; fl = fl->next, di++ ) {
         if(JDF_FLOW_TYPE_CTL & fl->flow_flags) continue;
         if(fl->flow_flags & JDF_FLOW_TYPE_WRITE) {
-            if(fl->flow_flags & JDF_FLOW_TYPE_READ) {
-                /**
-                 * We should not have NULL forwarded here, because it should
-                 * have already abort in the hook function
-                 */
-                coutput("  assert( this_task->data.%s.data_out );\n"
-                        "  this_task->data.%s.data_out->version++;  /* %s */\n",
-                        fl->varname,
-                        fl->varname, fl->varname );
-            }
-            else {
-                coutput("if( NULL != this_task->data.%s.data_out) this_task->data.%s.data_out->version++;\n",
-                        fl->varname, fl->varname);
-            }
+            /**
+             * The data_out might be NULL if we don't forward anything.
+             */
+            coutput("  if ( NULL != this_task->data.%s.data_out ) {\n"
+                    "    this_task->data.%s.data_out->version++;  /* %s */\n"
+                    "  }\n",
+                    fl->varname,
+                    fl->varname, fl->varname );
         }
     }
 
@@ -5433,6 +5423,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
             string_arena_init(sa_tmp_nbelt);
             string_arena_init(sa_tmp_layout);
             string_arena_init(sa_tmp_displ);
+
             if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) {
                 string_arena_add_string(sa_tmp_type, "NULL");
                 string_arena_add_string(sa_tmp_nbelt, "  /* Control: always empty */ 0");
@@ -5486,6 +5477,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
                 }
                 last_datatype_idx = dl->dep_datatype_index;
             }
+
             string_arena_init(sa_ontask);
             string_arena_add_string(sa_ontask,
                                     "if( DAGUE_ITERATE_STOP == ontask(eu, &nc, (const dague_execution_context_t *)this_task, &%s, &data, rank_src, rank_dst, vpid_dst, ontask_arg) )\n"

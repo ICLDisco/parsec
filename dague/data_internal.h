@@ -83,6 +83,6 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
  * Return the device private pointer for a datacopy.
  */
 #define DAGUE_DATA_COPY_GET_PTR(DATA) \
-    ((DATA)->device_private)
+    ((DATA) ? (DATA)->device_private : NULL)
 
 #endif  /* DATA_INTERNAL_H_HAS_BEEN_INCLUDED */
