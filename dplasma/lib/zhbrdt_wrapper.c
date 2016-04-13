@@ -32,6 +32,6 @@ dague_handle_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
 
 void dplasma_zhbrdt_Destruct( dague_handle_t *handle )
 {
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 

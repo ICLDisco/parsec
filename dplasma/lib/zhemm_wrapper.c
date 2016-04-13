@@ -130,7 +130,7 @@ dplasma_zhemm_Destruct( dague_handle_t *handle )
 {
     dague_zhemm_handle_t *zhemm_handle = (dague_zhemm_handle_t*)handle;
     dague_matrix_del2arena( zhemm_handle->arenas[DAGUE_zhemm_DEFAULT_ARENA] );
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

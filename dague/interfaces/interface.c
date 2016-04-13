@@ -7,6 +7,7 @@
 #include "dague/interfaces/interface.h"
 #include "dague/devices/device.h"
 #include "dague/debug.h"
+#include "dague/scheduling.h"
 #if defined(DAGUE_HAVE_LIMITS_H)
 #include <limits.h>
 #endif  /* defined(HAVE_LIMITS_H) */
@@ -91,6 +92,7 @@ static int dague_empty_function_without_arguments(dague_execution_unit_t *eu,
     char tmp[128];
     dague_abort("Task %s is incorrectly initialized\n",
                 dague_snprintf_execution_context(tmp, 128, this_task));
+    (void)eu;
     return DAGUE_HOOK_RETURN_DONE;
 }
 

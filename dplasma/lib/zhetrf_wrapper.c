@@ -59,7 +59,7 @@ dplasma_zhetrf_Destruct( dague_handle_t *handle )
 
     dague_matrix_del2arena( obut->arenas[DAGUE_zhetrf_DEFAULT_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 
@@ -90,7 +90,7 @@ dplasma_ztrmdm_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( obut->arenas[DAGUE_ztrmdm_DEFAULT_ARENA] );
 
     //dague_ztrmdm_destroy(obut);
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /*

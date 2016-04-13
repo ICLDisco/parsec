@@ -37,7 +37,7 @@ zlaset(m, n) [profile = off]
   /* Locality */
   : dataQ(m,n)
 
-  READ  A    <- dataQ(m,n)
+  RW    A    <- dataQ(m,n)
              ->  cc ? C zunmlq(k, m)
              -> (!cc & ((n <= KT) & (m >= n))) ? A1 ztsmlq(k, descQ.nt-1, m)
              -> (!cc & ((n >  KT) | (m <  n))) ? A2 ztsmlq(k, n,          m)

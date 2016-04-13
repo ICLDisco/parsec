@@ -45,6 +45,14 @@
 #    define __dague_attribute_always_inline__
 #endif
 
+#if defined(DAGUE_HAVE_BUILTIN_EXPECT)
+#define DAGUE_LIKELY(x)       __builtin_expect(!!(x), 1)
+#define DAGUE_UNLIKELY(x)     __builtin_expect(!!(x), 0)
+#else
+#define DAGUE_LIKELY(x)       (x)
+#define DAGUE_UNLIKELY(x)     (x)
+#endif
+
 #if defined(DAGUE_HAVE_STDDEF_H)
 #include <stddef.h>
 #endif  /* DAGUE_HAVE_STDDEF_H */
@@ -174,4 +182,3 @@ typedef uint32_t dague_dependency_t;
 #define DAGUE_PATH_SEP "/"
 #define DAGUE_ENV_SEP  ':'
 #endif
-

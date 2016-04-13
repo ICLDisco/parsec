@@ -3,7 +3,7 @@
 #
 
 set(DTD_TEST "PTG_to_DTD")
-set(DTD_OPTIONS "--;--mca;mca_pins ptg_to_dtd")
+set(DTD_OPTIONS "--;--mca;mca_pins;ptg_to_dtd")
 set(OPTIONS "-x;-v=5")
 #set(OPTIONS "")
 

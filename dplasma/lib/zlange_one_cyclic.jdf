@@ -114,18 +114,21 @@ STEP2(m, n)
     // Execution space
     m = 0 .. P-1
     n = 0 .. NT-1
-    mmin = inline_c %{ if (uplo == PlasmaLower ) return n; else return 0; %}
-    row = inline_c %{
-      return mmin + m - mmin%P;
-    %}
+    row  = inline_c %{
+    if ( uplo == PlasmaLower ) {
+        return (m >= n%P ) ? n + m - n%P : n + m + P - n%P;
+    } else {
+        return m;
+    } %}
+    mmax = inline_c %{ if (uplo == PlasmaUpper ) return dplasma_imin(n, MT-1); else return MT-1; %}
 
     // Parallel partitioning
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m   ==  0     ) ? NULL               : W STEP2(m-1, n) [type = COL]
-    RW   W <- ( row >  (MT-1) ) ? NEW                : W STEP1(row, n) [type = COL]
-           -> ( m   == (P-1)  ) ? A STEP3(0..P-1, n) : A STEP2(m+1, n) [type = COL]
+    READ A <- ( m   == 0    ) ? NULL               : W STEP2(m-1, n) [type = COL]
+    RW   W <- ( row >  mmax ) ? NEW                : W STEP1(row, n) [type = COL]
+           -> ( m   == (P-1)) ? A STEP3(0..P-1, n) : A STEP2(m+1, n) [type = COL]
 
 BODY
 {
@@ -136,7 +139,7 @@ BODY
              context->th_id, m, n, tempnn, m-1, n, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-    if( row > (MT-1)) {
+    if( row > mmax) {
         memset( W, 0, descA.nb * sizeof(double) );
     }
     if(m > 0)
@@ -220,10 +223,14 @@ BODY
              context->th_id, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
-        double *dA = (double*)A;
-        double *dW = (double*)W;
-        if(n > 0)
-            *dW = ( *dA > *dW ) ? *dA : *dW;
+    double *dA = (double*)A;
+    double *dW = (double*)W;
+    if(n > (NT-1)) {
+        *dW = 0;
+    }
+    if(n > 0) {
+        *dW = ( *dA > *dW ) ? *dA : *dW;
+    }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }
 END

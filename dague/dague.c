@@ -1328,6 +1328,24 @@ dague_release_dep_fct(dague_execution_unit_t *eu,
     dague_release_dep_fct_arg_t *arg = (dague_release_dep_fct_arg_t *)param;
     const dague_flow_t* src_flow = dep->belongs_to;
 
+    /**
+     * Check that we don't forward a NULL data to someone else. This
+     * can be done only on the src node, since the dst node can
+     * check for datatypes without knowing the data yet.
+     * By checking now, we allow for the data to be created any time bfore we
+     * actually try to transfer it.
+     */
+    if( DAGUE_UNLIKELY((data->data == NULL) &&
+                       (eu->virtual_process->dague_context->my_rank == src_rank) &&
+                       ((dep->belongs_to->flow_flags & FLOW_ACCESS_MASK) != FLOW_ACCESS_NONE)) ) {
+        char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
+        dague_abort("A NULL is forwarded\n"
+                    "\tfrom: %s flow %s\n"
+                    "\tto:   %s flow %s",
+                    dague_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, oldcontext), dep->belongs_to->name,
+                    dague_snprintf_execution_context(tmp2, MAX_TASK_STRLEN, newcontext), dep->flow->name);
+    }
+
 #if defined(DISTRIBUTED)
     if( dst_rank != src_rank ) {
 

@@ -168,7 +168,7 @@ dplasma_zhebut_Destruct( dague_handle_t *handle )
         dague_matrix_del2arena( obut->arenas[i] );
     }
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /* GE for General */
@@ -239,7 +239,7 @@ dplasma_zgebut_Destruct( dague_handle_t *handle )
         dague_matrix_del2arena( obut->arenas[i] );
     }
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /*
@@ -310,7 +310,7 @@ dplasma_zgebmm_Destruct( dague_handle_t *handle )
         dague_matrix_del2arena( obmm->arenas[i] );
     }
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 

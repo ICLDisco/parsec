@@ -194,7 +194,7 @@ dplasma_zlansy_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_COL_ARENA] );
     dague_matrix_del2arena( dague_zlansy->arenas[DAGUE_zlansy_ELT_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

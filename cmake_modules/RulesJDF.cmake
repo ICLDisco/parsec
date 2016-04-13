@@ -15,7 +15,7 @@ macro(jdf_rules jdf_rules_OUTPUTLIST jdf_rules_SOURCES)
 
   foreach(jdf_rules_SOURCE ${jdf_rules_SOURCES})
     # Remove .jdf if present
-    string(REGEX REPLACE ".jdf" "" jdf_rules_SRC ${jdf_rules_SOURCE})
+    string(REGEX REPLACE "\\.jdf" "" jdf_rules_SRC ${jdf_rules_SOURCE})
     string(REGEX REPLACE "^(.*/)*(.+)\\.*.*" "\\2" jdf_rules_BSRC ${jdf_rules_SRC})
     set(jdf_rules_OSRC "${jdf_rules_BSRC}")
     GET_PROPERTY(ADDITIONAL_DAGUEPP_CFLAGS SOURCE ${jdf_rules_SOURCE} PROPERTY ADDITIONAL_DAGUEPP_CFLAGS)

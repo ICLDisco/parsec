@@ -41,7 +41,7 @@ zlaset(m, n) [profile = off]
 
   : dataQ(m,n)
 
-  READ  A    <- dataQ(m,n)
+  RW    A    <- dataQ(m,n)
              ->  cc ? C zunmqr(k, 0, n)
              -> (!cc & ((m <= KT) & (n >= m))) ? A1 zttmqr(k, prevm, n)
              -> (!cc & ((m >  KT) | (n <  m))) ? A2 zttmqr(k, m,     n)

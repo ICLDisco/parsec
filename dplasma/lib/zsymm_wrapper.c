@@ -132,7 +132,7 @@ dplasma_zsymm_Destruct( dague_handle_t *handle )
 {
     dague_zsymm_handle_t *zsymm_handle = (dague_zsymm_handle_t*)handle;
     dague_matrix_del2arena( zsymm_handle->arenas[DAGUE_zsymm_DEFAULT_ARENA] );
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

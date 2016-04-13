@@ -148,7 +148,7 @@ dplasma_zherk_Destruct( dague_handle_t *handle )
 {
     dague_zherk_LN_handle_t *zherk_handle = (dague_zherk_LN_handle_t*)handle;
     dague_matrix_del2arena( zherk_handle->arenas[DAGUE_zherk_LN_DEFAULT_ARENA] );
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

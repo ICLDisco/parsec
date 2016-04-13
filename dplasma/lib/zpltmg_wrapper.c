@@ -223,7 +223,7 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
 
         dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA] );
         dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ] );
-        handle->destructor(handle);
+        dague_handle_free(handle);
         return 0;
     } else {
         return -101;

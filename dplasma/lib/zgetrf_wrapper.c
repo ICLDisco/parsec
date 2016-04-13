@@ -158,7 +158,7 @@ dplasma_zgetrf_Destruct( dague_handle_t *handle )
     if ( dague_zgetrf->getrfdata != NULL )
         free( dague_zgetrf->getrfdata );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

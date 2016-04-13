@@ -160,7 +160,7 @@ dplasma_ztrsmpl_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_trsmpl->arenas[DAGUE_ztrsmpl_PIVOT_ARENA  ] );
     dague_matrix_del2arena( dague_trsmpl->arenas[DAGUE_ztrsmpl_SMALL_L_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

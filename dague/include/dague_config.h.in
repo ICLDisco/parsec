@@ -85,6 +85,7 @@
 #cmakedefine DAGUE_ARCH_X86_64
 #cmakedefine DAGUE_ARCH_PPC
 #cmakedefine DAGUE_OSX
+#cmakedefine DAGUE_HAVE_BUILTIN_EXPECT
 
 #cmakedefine DAGUE_HAVE_ATTRIBUTE_VISIBILITY
 #cmakedefine DAGUE_HAVE_ATTRIBUTE_ALWAYS_INLINE

@@ -174,7 +174,7 @@ dplasma_zpotrf_Destruct( dague_handle_t *handle )
     dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA] );
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

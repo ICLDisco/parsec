@@ -136,7 +136,7 @@ dplasma_zpoinv_Destruct( dague_handle_t *handle )
 
     dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ] );
     /* dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA] ); */
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**
