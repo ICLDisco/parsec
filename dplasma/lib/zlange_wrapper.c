@@ -203,7 +203,7 @@ dplasma_zlange_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zlange->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA] );
     dague_matrix_del2arena( dague_zlange->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

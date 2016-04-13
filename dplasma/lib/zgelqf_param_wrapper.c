@@ -173,7 +173,7 @@ dplasma_zgelqf_param_Destruct( dague_handle_t *handle )
     free( dague_zgelqf_param->p_work );
     free( dague_zgelqf_param->p_tau  );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

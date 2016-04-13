@@ -80,7 +80,7 @@ dplasma_zger_internal_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( ((dague_zger_handle_t *)handle)->arenas[DAGUE_zger_DEFAULT_ARENA] );
     dague_matrix_del2arena( ((dague_zger_handle_t *)handle)->arenas[DAGUE_zger_VECTOR_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 static inline int

@@ -195,7 +195,7 @@ dplasma_zgetrf_incpiv_Destruct( dague_handle_t *handle )
     dague_private_memory_fini( dague_zgetrf_incpiv->work_pool );
     free( dague_zgetrf_incpiv->work_pool );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

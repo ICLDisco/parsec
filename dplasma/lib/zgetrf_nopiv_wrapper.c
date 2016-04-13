@@ -108,7 +108,7 @@ dplasma_zgetrf_nopiv_Destruct( dague_handle_t *handle )
 
     dague_matrix_del2arena( dague_zgetrf_nopiv->arenas[DAGUE_zgetrf_nopiv_DEFAULT_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

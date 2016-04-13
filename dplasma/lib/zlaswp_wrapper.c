@@ -109,7 +109,7 @@ dplasma_zlaswp_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zlaswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zlaswp->arenas[DAGUE_zlaswp_PIVOT_ARENA  ] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**
