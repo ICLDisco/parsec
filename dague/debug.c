@@ -22,6 +22,7 @@ int dague_debug_rank            = -1;
 int dague_debug_output          = 0;
 int dague_debug_verbose         = 1;
 int dague_debug_colorize        = 10; /* 10 is the size of the format string for colors */
+int dague_debug_coredump_on_abort = 0;
 
 /* debug backtrace circular buffer */
 static int bt_output    = -1;
@@ -68,6 +69,11 @@ void dague_debug_init(void) {
         "Toggle on/off color output for debug messages",
         false, false, 1, &dague_debug_colorize);
     dague_debug_colorize = dague_debug_colorize? 10: 0;
+
+    dague_mca_param_reg_int_name("debug", "coredump_on_abort",
+        "Toggle on/off raise sigabort on internal engine error",
+        false, false, 0, &dague_debug_coredump_on_abort);
+    dague_debug_coredump_on_abort = dague_debug_coredump_on_abort ? 1: 0;
 
     /* We do not want backtraces in the syslog, so, we do not
      * inherit the defaults... */

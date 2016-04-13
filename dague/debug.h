@@ -17,8 +17,8 @@
  * Control debug output and verbosity
  *   default output for errors, warnings and inform is 0 (stderr)
  *   warning is verbosity 1, inform is verbosity 2
- * 
- * Debug macros decorate the output, but the calling module has to 
+ *
+ * Debug macros decorate the output, but the calling module has to
  * select the output stream and verbosity.
  *   The dague_debug_output can be used for misc outputs.
  *
@@ -35,6 +35,7 @@ extern int dague_debug_output;
 extern int dague_debug_verbose;
 extern int dague_debug_colorize;
 extern int dague_debug_rank;
+extern int dague_debug_coredump_on_abort;
 extern char dague_debug_hostname[];
 
 void dague_debug_init(void);
@@ -68,7 +69,11 @@ void dague_debug_backtrace_dump(void);
         dague_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
         dague_debug_colorize, "\x1B[36m", __func__, __LINE__, dague_debug_hostname, getpid(), \
         dague_debug_colorize, "\033[0m");                           \
-    abort();                                                        \
+    if ( dague_debug_coredump_on_abort ) {                          \
+        abort();                                                    \
+    } else {                                                        \
+        exit(1);                                                    \
+    }                                                               \
 } while(0)
 
 /* Use when encountering a SERIOUS condition. The program will continue
@@ -124,4 +129,3 @@ void dague_debug_backtrace_dump(void);
 #endif /* defined(DAGUE_DEBUG_VERBOSE) */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */
-
