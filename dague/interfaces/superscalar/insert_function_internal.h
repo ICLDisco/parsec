@@ -130,7 +130,7 @@ struct dague_dtd_handle_s {
     int             arenas_size;
     int             task_id;
     int             task_window_size;
-    uint32_t        task_threshold_size;
+    int32_t         task_threshold_size;
     uint8_t         function_counter;
     uint8_t         flow_set_flag[DAGUE_dtd_NB_FUNCTIONS];
     dague_mempool_t *tile_mempool;

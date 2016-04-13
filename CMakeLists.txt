@@ -717,6 +717,10 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     DESTINATION include/dague/mca )
 
   install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/interfaces/interface.h
+    DESTINATION include/dague/interfaces/ )
+
+  install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_papi_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_tau_utils.h
