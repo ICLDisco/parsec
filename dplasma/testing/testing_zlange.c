@@ -132,12 +132,11 @@ int main(int argc, char ** argv)
 
         /* Computing the norm */
         PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
-                                   1, rank, MB, NB, LDA, N, 0, 0,
-                                   M, N, SMB, SNB, 1));
+            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                                   nodes, rank, MB, NB, LDA, N, 0, 0,
+                                   M, N, SMB, SNB, P));
 
-        for(u=1; u<2; u++) {
-
+        for(u=0; u<2; u++) {
             dplasma_zplrnt( dague, 0., (tiled_matrix_desc_t *)&ddescA, 3872);
 
             for(d=0; d<2; d++) {
