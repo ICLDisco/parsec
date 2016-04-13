@@ -69,7 +69,7 @@ END
 
 zgeqrt_zunmqr(k, n)
   /* Execution space */
-  k = 0   .. inline_c %{ return dplasma_imin((descA.nt-2), minMNT); %}
+  k = 0   .. %{ return dplasma_imin((descA.nt-2), minMNT); %}
   n = k+1 .. descA.nt-1
 
   : dataA(0,n)

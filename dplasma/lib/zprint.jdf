@@ -64,8 +64,8 @@ sizeu   [type = "int" hidden=on default="( descA.mt * descA.nt - (descA.mt * (de
 PRINT_F(k) [profile = off]
   // Execution space
   k = 0..(((uplo != plasma_upper) && (uplo != plasma_lower)) ? sizef - 1 : imone)
-  m = inline_c %{ return k % descA.mt; %}
-  n = inline_c %{ return k / descA.mt; %}
+  m = %{ return k % descA.mt; %}
+  n = %{ return k / descA.mt; %}
 
   // Parallel partitioning
   : dataA(m, n)
@@ -89,8 +89,8 @@ END
 PRINT_L(k) [profile = off]
   // Execution space
   k = 0..((uplo == plasma_lower) ? sizel-1 : imone)
-  m = inline_c %{ int new_m = k; int new_n = 0; while ( new_m > descA.mt-1 ) { new_m -= (descA.mt - new_n - 1); new_n++; }; return new_m; %}
-  n = inline_c %{ int new_m = k; int new_n = 0; while ( new_m > descA.mt-1 ) { new_m -= (descA.mt - new_n - 1); new_n++; }; return new_n; %}
+  m = %{ int new_m = k; int new_n = 0; while ( new_m > descA.mt-1 ) { new_m -= (descA.mt - new_n - 1); new_n++; }; return new_m; %}
+  n = %{ int new_m = k; int new_n = 0; while ( new_m > descA.mt-1 ) { new_m -= (descA.mt - new_n - 1); new_n++; }; return new_n; %}
 
   // Parallel partitioning
   : dataA(m, n)
@@ -113,8 +113,8 @@ END
 PRINT_U(k) [profile = off]
   // Execution space
   k = 0..((uplo == plasma_upper) ? sizeu-1 : imone)
-  m = inline_c %{ int new_m = k; int new_n = 0; while ( new_m > new_n ) { new_n++; new_m -= new_n; }; return new_m; %}
-  n = inline_c %{ int new_m = k; int new_n = 0; while ( new_m > new_n ) { new_n++; new_m -= new_n; }; return new_n; %}
+  m = %{ int new_m = k; int new_n = 0; while ( new_m > new_n ) { new_n++; new_m -= new_n; }; return new_m; %}
+  n = %{ int new_m = k; int new_n = 0; while ( new_m > new_n ) { new_n++; new_m -= new_n; }; return new_n; %}
 
   // Parallel partitioning
   : dataA(m, n)

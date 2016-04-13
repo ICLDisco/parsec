@@ -35,9 +35,9 @@ zlaset(m, n) [profile = off]
   /* Execution Space */
   m = 0 .. descQ.mt-1
   n = 0 .. descQ.nt-1
-  k     = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
-  prevn = inline_c %{ return qrtree.prevpiv(&qrtree, k, n, n); %}
-  cc    = inline_c %{ return ((descQ.nt == descA.mt) & (m == (descQ.nt-1)) & (n == (descQ.nt-1))); %}
+  k     = %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
+  prevn = %{ return qrtree.prevpiv(&qrtree, k, n, n); %}
+  cc    = %{ return ((descQ.nt == descA.mt) & (m == (descQ.nt-1)) & (n == (descQ.nt-1))); %}
 
   : dataQ(m,n)
 
@@ -67,10 +67,10 @@ END
 zunmlq(k, i, m)
   /* Execution space */
   k = 0 .. KT
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   m = k .. descQ.mt-1
-  n     = inline_c %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextn = inline_c %{ return qrtree.nextpiv( &qrtree, k, n, descQ.nt); %}
+  n     = %{ return qrtree.getm(    &qrtree, k, i); %}
+  nextn = %{ return qrtree.nextpiv( &qrtree, k, n, descQ.nt); %}
 
   /* Locality */
   : dataQ(m, n)
@@ -117,8 +117,8 @@ END
 
 zunmlq_in_A(k,i)  [profile = off]
   k = 0 .. KT
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  n = inline_c %{ return qrtree.getm( &qrtree, k, i); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  n = %{ return qrtree.getm( &qrtree, k, i); %}
 
   : dataA( k, n )
 
@@ -133,8 +133,8 @@ END
 
 zunmlq_in_T(k,i)  [profile = off]
   k = 0 .. KT
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  n = inline_c %{ return qrtree.getm( &qrtree, k, i); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  n = %{ return qrtree.getm( &qrtree, k, i); %}
 
   : dataTS( k, n )
 
@@ -153,17 +153,17 @@ zttmlq(k, m, n)
   m = k   .. descQ.mt-1
   n = k+1 .. descQ.nt-1
 
-  p =     inline_c %{ return qrtree.currpiv( &qrtree, k, n);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k, p, n); %}
-  nextn = inline_c %{ return qrtree.nextpiv( &qrtree, k, n, descQ.nt); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, p, n); %}
-  prevn = inline_c %{ return qrtree.prevpiv( &qrtree, k, n, n); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k, n );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k, p );   %}
-  in    = inline_c %{ return qrtree.geti(    &qrtree, k, n );   %}
+  p =     %{ return qrtree.currpiv( &qrtree, k, n);    %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k, p, n); %}
+  nextn = %{ return qrtree.nextpiv( &qrtree, k, n, descQ.nt); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, p, n); %}
+  prevn = %{ return qrtree.prevpiv( &qrtree, k, n, n); %}
+  type  = %{ return qrtree.gettype( &qrtree, k, n );   %}
+  ip    = %{ return qrtree.geti(    &qrtree, k, p );   %}
+  in    = %{ return qrtree.geti(    &qrtree, k, n );   %}
 
-  type1 = inline_c %{ return (k == KT) ? -1 : qrtree.gettype( &qrtree, k+1, n ); %}
-  in1   = inline_c %{ return (k == KT) ? -1 : qrtree.geti(    &qrtree, k+1, n ); %}
+  type1 = %{ return (k == KT) ? -1 : qrtree.gettype( &qrtree, k+1, n ); %}
+  in1   = %{ return (k == KT) ? -1 : qrtree.geti(    &qrtree, k+1, n ); %}
 
   /* Locality */
   : dataQ(m, n)
@@ -234,7 +234,7 @@ END
 zttmlq_in_A(k, n)  [profile = off]
   k = 0   .. KT2
   n = k+1 .. descQ.nt-1
-  type = inline_c %{ return qrtree.gettype( &qrtree, k, n );   %}
+  type = %{ return qrtree.gettype( &qrtree, k, n );   %}
 
   : dataA(k, n)
 
@@ -251,7 +251,7 @@ END
 zttmlq_in_T(k, n)  [profile = off]
   k = 0   .. KT2
   n = k+1 .. descQ.nt-1
-  type = inline_c %{ return qrtree.gettype( &qrtree, k, n );   %}
+  type = %{ return qrtree.gettype( &qrtree, k, n );   %}
 
   : dataTT(k, n)
 

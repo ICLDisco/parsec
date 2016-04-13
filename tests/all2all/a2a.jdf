@@ -40,12 +40,12 @@ t = 0 .. NT-1
 
 : B(t, 0)
 
-READ B <- (r == 0) ? B(t, 0) : B READER_B(r-1, t) [count = inline_c %{ return 1; %}
-                                                   displ = inline_c %{ return 0; %}]
+READ B <- (r == 0) ? B(t, 0) : B READER_B(r-1, t) [count = %{ return 1; %}
+                                                   displ = %{ return 0; %}]
        -> A RECV(r, 0 .. NT-1, t)                 [count = 1
                                                    displ = 0]
-       -> A FANIN(r, t)                           [count = inline_c %{ return always_one(); %}
-                                                   displ = inline_c %{ return always_zero(); %}]
+       -> A FANIN(r, t)                           [count = %{ return always_one(); %}
+                                                   displ = %{ return always_zero(); %}]
        -> (r != NR-1) ? B READER_B(r+1, t)
 BODY
 END

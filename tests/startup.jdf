@@ -32,7 +32,7 @@ STARTUP(i, j, k)
   valid1 = i == 1 && j == 1
   valid2 = (i == 1) && (j == 1)
 
-  prio = inline_c %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
+  prio = %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
 
   : A(i,0)
 

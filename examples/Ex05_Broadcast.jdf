@@ -21,7 +21,7 @@ NB      [ type="int" hidden=on default="(6)" ]
 
 TaskBcast(k)
 
-k = 0 .. inline_c %{ return nodes-1; %}
+k = 0 .. %{ return nodes-1; %}
 
 : mydata( k )
 
@@ -40,9 +40,9 @@ END
 
 TaskRecv(k, n)
 
-k = 0 .. inline_c %{ return nodes-1; %}
+k = 0 .. %{ return nodes-1; %}
 n = 0 .. NB .. 2
-loc = inline_c %{ return k + n; %}
+loc = %{ return k + n; %}
 
 : mydata( loc )
 

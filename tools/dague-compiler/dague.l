@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -108,9 +108,9 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                           YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2, 1 );
                           ECHO; return EXTERN_DECL;
                       }
-<INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}            {
+<INITIAL,properties>(inline_c)?{WHITE}*\%c?\{([^\%]|(\%[^\}]))+\%\}        {
                           int start;
-                          for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
+                          for(start = 0; yytext[start] != '{'; start++) /* nothing */ ;
                           start++;
                           YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2, 0 );
                           ECHO; return EXTERN_DECL;

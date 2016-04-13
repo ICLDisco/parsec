@@ -36,7 +36,7 @@ tile2panel(k, n) [profile = off]
   k = 0   .. KT-1
   n = k+1 .. descA.nt-1
 
-  ntrd = inline_c %{ return nbthreads( k+1 ); %}
+  ntrd = %{ return nbthreads( k+1 ); %}
 
   :dataA(k+1, n)
 
@@ -58,7 +58,7 @@ END
  ************************************************************************************/
 IPIV_in(k) [profile = off]
   k     = 0 .. KT
-  nbtrd = inline_c %{ return nbthreads( k ); %}
+  nbtrd = %{ return nbthreads( k ); %}
 
   : dataIP(0, k)
 
@@ -91,9 +91,9 @@ END
 getrf(k, t) [high_priority = on]
   /* Execution space */
   k  = 0 .. KT
-  t  = 0 .. inline_c %{ return nbthreads( k ); %}
-  m1 = inline_c %{ return k + t * 4; %}
-  m2 = inline_c %{ return dplasma_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
+  t  = 0 .. %{ return nbthreads( k ); %}
+  m1 = %{ return k + t * 4; %}
+  m2 = %{ return dplasma_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
 
   /* Locality */
   :dataA(k, k)
@@ -256,7 +256,7 @@ gemm(k, m, n)
   m = k+1 .. descA.mt-1
   n = k+1 .. descA.nt-1
 
-  ntrd = inline_c %{ return nbthreads( k+1 ); %}
+  ntrd = %{ return nbthreads( k+1 ); %}
 
   /* Locality */
   :dataA(m, n)

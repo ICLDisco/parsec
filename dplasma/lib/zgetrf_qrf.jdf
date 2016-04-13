@@ -230,8 +230,8 @@ zgemm(k, m, n)
   m = k+1 .. descA.mt-1
   n = k+1 .. descA.nt-1
 
-  diagdom0 = inline_c %{ return ((m-k  )%param_p); %}
-  diagdom1 = inline_c %{ return ((m-k-1)%param_p); %}
+  diagdom0 = %{ return ((m-k  )%param_p); %}
+  diagdom1 = %{ return ((m-k-1)%param_p); %}
 
   : A(m, n)
 
@@ -281,9 +281,9 @@ END
 zgeqrt(k, i)
   /* Execution space */
   k = 0 .. minMNT
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1;         %}
-  m      = inline_c %{ return qrtree.getm(       &qrtree, k, i);           %}
-  nextm  = inline_c %{ return qrtree.nextpiv(    &qrtree, k, m, descA.mt); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1;         %}
+  m      = %{ return qrtree.getm(       &qrtree, k, i);           %}
+  nextm  = %{ return qrtree.nextpiv(    &qrtree, k, m, descA.mt); %}
 
   : A(m, k)
 
@@ -328,8 +328,8 @@ END
 zgeqrt_typechange(k, i) [profile = off]
   /* Execution space */
   k = 0 .. minMNT
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m =      inline_c %{ return qrtree.getm(       &qrtree, k, i); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  m =      %{ return qrtree.getm(       &qrtree, k, i); %}
 
   : A(m, k)
 
@@ -353,10 +353,10 @@ zunmqr(k, i, n)
 
   /* Execution space */
   k = 0   .. minMNT
-  i = 0   .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  i = 0   .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   n = k+1 .. descA.nt-1
-  m     = inline_c %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = inline_c %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
+  m     = %{ return qrtree.getm(    &qrtree, k, i); %}
+  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
 
   : A(m, n)
 
@@ -413,13 +413,13 @@ zttqrt(k, m)
   k = 0   .. minMNT
   m = k+1 .. descA.mt-1
 
-  p =     inline_c %{ return qrtree.currpiv( &qrtree, k, m);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, p, m); %}
-  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k, m, m); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k, p );   %}
-  im    = inline_c %{ return qrtree.geti(    &qrtree, k, m );   %}
+  p =     %{ return qrtree.currpiv( &qrtree, k, m);    %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, p, m); %}
+  prevm = %{ return qrtree.prevpiv( &qrtree, k, m, m); %}
+  type  = %{ return qrtree.gettype( &qrtree, k, m );   %}
+  ip    = %{ return qrtree.geti(    &qrtree, k, p );   %}
+  im    = %{ return qrtree.geti(    &qrtree, k, m );   %}
 
   : A(m, k)
 
@@ -481,7 +481,7 @@ END
 
 zttqrt_out_A1(k) [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
   : A(k, k)
 
@@ -512,17 +512,17 @@ zttmqr(k, m, n)
   m = k+1 .. descA.mt-1
   n = k+1 .. descA.nt-1
 
-  p =     inline_c %{ return qrtree.currpiv( &qrtree, k,   m);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
-  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k,   m );   %}
-  type1 = inline_c %{ return qrtree.gettype( &qrtree, k+1, m );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k,   p );   %}
-  im    = inline_c %{ return qrtree.geti(    &qrtree, k,   m );   %}
-  im1   = inline_c %{ return qrtree.geti(    &qrtree, k+1, m );   %}
+  p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
+  prevm = %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
+  type  = %{ return qrtree.gettype( &qrtree, k,   m );   %}
+  type1 = %{ return qrtree.gettype( &qrtree, k+1, m );   %}
+  ip    = %{ return qrtree.geti(    &qrtree, k,   p );   %}
+  im    = %{ return qrtree.geti(    &qrtree, k,   m );   %}
+  im1   = %{ return qrtree.geti(    &qrtree, k+1, m );   %}
 
-  diagdom = inline_c %{ return ((m-k-1)%param_p); %}
+  diagdom = %{ return ((m-k-1)%param_p); %}
 
   : A(m, n)
 
@@ -589,7 +589,7 @@ END
 zttmqr_out_A1(k, n) [profile = off]
   k = 0   .. minMNT-1
   n = k+1 .. descA.nt-1
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
   : A(k, n)
 
@@ -619,10 +619,10 @@ tile2panel(k, n) [ profile = off ]
   k = 0   .. minMNT-1
   n = k+2 .. descA.nt-1
 
-  did_lu = inline_c %{ return lu_tab[k];   %}
-  do_lu  = inline_c %{ return lu_tab[k+1]; %}
-  q      = inline_c %{ return (n-k)%param_q; %}
-  hmax   = inline_c %{ return dplasma_log2( dplasma_imin(param_p, descA.mt-k )-1 ); %}
+  did_lu = %{ return lu_tab[k];   %}
+  do_lu  = %{ return lu_tab[k+1]; %}
+  q      = %{ return (n-k)%param_q; %}
+  hmax   = %{ return dplasma_log2( dplasma_imin(param_p, descA.mt-k )-1 ); %}
 
   :A(k+1, n)
 
@@ -652,10 +652,10 @@ copypanel(k, m) [ profile = off ]
   k = 0 .. minMNT
   m = k .. descA.mt-1
 
-  did_lu  = inline_c %{ return ( k > 0 ) ? lu_tab[k-1] : -1; %}
-  diagdom = inline_c %{ return (m-k)%param_p; %}
-  s       = inline_c %{ return (descA.mt-k+param_p-1) / param_p; %}
-  nbthrd  = inline_c %{ return nbthreads( s ); %}
+  did_lu  = %{ return ( k > 0 ) ? lu_tab[k-1] : -1; %}
+  diagdom = %{ return (m-k)%param_p; %}
+  s       = %{ return (descA.mt-k+param_p-1) / param_p; %}
+  nbthrd  = %{ return nbthreads( s ); %}
 
   :A(m, k)
 
@@ -745,8 +745,8 @@ END
 zlufacto(k, t)
   /* Execution space */
   k  = 0 .. minMNT
-  s  = inline_c %{ return (descA.mt-k+param_p-1) / param_p; %}
-  nbthrd = inline_c %{ return nbthreads( s ); %}
+  s  = %{ return (descA.mt-k+param_p-1) / param_p; %}
+  nbthrd = %{ return nbthreads( s ); %}
   t  = 0 .. nbthrd
 
   : A(k, k)
@@ -858,7 +858,7 @@ reduce_norm(k, p)
 /*Add the norm of all local tile before sending the information to others processors*/
   k = 0 .. minMNT
 
-  pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k); %}
+  pmax = %{ return dplasma_imin(param_p, descA.mt-k); %}
 
   p = 0 .. pmax-1
 
@@ -949,13 +949,13 @@ setchoice(k, p, h)
   /* Execution space */
   k = 0 .. minMNT
 
-  pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k); %}
-  hmax = inline_c %{ return dplasma_log2( pmax-1 ); %}
+  pmax = %{ return dplasma_imin(param_p, descA.mt-k); %}
+  hmax = %{ return dplasma_log2( pmax-1 ); %}
 
   p = 0 .. pmax-1
   h = 0 .. hmax
 
-  pui = inline_c %{ return 1 << h; %}
+  pui = %{ return 1 << h; %}
 
   : A(k+p, k)
 
@@ -1168,13 +1168,13 @@ setchoice_update(k, p, q)
   /* Execution space */
   k = 0 .. minMNT
 
-  pmax = inline_c %{ return dplasma_imin(param_p, descA.mt-k)-1; %}
-  qmax = inline_c %{ return dplasma_imin(param_q, descA.nt-k)-1; %}
+  pmax = %{ return dplasma_imin(param_p, descA.mt-k)-1; %}
+  qmax = %{ return dplasma_imin(param_q, descA.nt-k)-1; %}
 
   p = 0 .. pmax
   q = 1 .. qmax
 
-  hmax = inline_c %{ return dplasma_log2( pmax ); %}
+  hmax = %{ return dplasma_log2( pmax ); %}
 
   : A(k+p, k+q)
 
@@ -1207,15 +1207,15 @@ selector(k,m,n)
   m = k .. descA.mt-1
   n = k .. descA.nt-1
 
-  i      = inline_c %{ return qrtree.geti(    &qrtree, k, m );   %}
-  type   = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
-  did_lu = inline_c %{ return (k == 0) ? -1 : lu_tab[k-1]; %}
-  do_lu  = inline_c %{ return lu_tab[k]; %}
-  diagdom= inline_c %{ return ((m-k)%param_p == 0); %}
-  panel  = inline_c %{ return diagdom && (n == k); %}
-  p    = inline_c %{ return (m-k)%param_p; %}
-  q    = inline_c %{ return (n-k)%param_q; %}
-  hmax = inline_c %{ return dplasma_log2( dplasma_imin(param_p, descA.mt-k)-1 ); %}
+  i      = %{ return qrtree.geti(    &qrtree, k, m );   %}
+  type   = %{ return qrtree.gettype( &qrtree, k, m );   %}
+  did_lu = %{ return (k == 0) ? -1 : lu_tab[k-1]; %}
+  do_lu  = %{ return lu_tab[k]; %}
+  diagdom= %{ return ((m-k)%param_p == 0); %}
+  panel  = %{ return diagdom && (n == k); %}
+  p    = %{ return (m-k)%param_p; %}
+  q    = %{ return (n-k)%param_q; %}
+  hmax = %{ return dplasma_log2( dplasma_imin(param_p, descA.mt-k)-1 ); %}
 
   : A(m,n)
 

@@ -17,10 +17,10 @@ k = 0 .. NT
 : A(k)
 
 RW D  <- (k == 0) ? A(k)
-      <- inline_c %{ return (k > 0) && (decision[k-1] == 1); %} ? D TA(k-1)
-      <- inline_c %{ return (k > 0) && (decision[k-1] == 2); %} ? D TB(k-1)
-      -> inline_c %{ return (k <= NT) && (decision[k] == 1); %} ? D TA(k)
-      -> inline_c %{ return (k <= NT) && (decision[k] == 2); %} ? D TB(k)
+      <- %{ return (k > 0) && (decision[k-1] == 1); %} ? D TA(k-1)
+      <- %{ return (k > 0) && (decision[k-1] == 2); %} ? D TB(k-1)
+      -> %{ return (k <= NT) && (decision[k] == 1); %} ? D TA(k)
+      -> %{ return (k <= NT) && (decision[k] == 2); %} ? D TB(k)
 
 CTL T -> (k == NT) ? T Terminate(0..P-1)
 
