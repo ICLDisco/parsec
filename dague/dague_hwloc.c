@@ -56,16 +56,18 @@ static int hyperth_per_core = 1;
 /**
  * Print the cpuset as a string prefaced with the provided message.
  */
-static void dague_hwloc_print_cpuset(char* msg, hwloc_cpuset_t cpuset)
+static void dague_hwloc_print_cpuset(int verb, char* msg, hwloc_cpuset_t cpuset)
 {
 #if defined(DAGUE_HAVE_HWLOC)
     char *str = NULL;
     HWLOC_ASPRINTF(&str, cpuset);
-    dague_inform("%s %s", msg, str);
+    if( 1 == verb ) dague_warning("%s %s", msg, str);
+    else if( 2 == verb ) dague_inform("%s %s", msg, str);
+    else dague_debug_verbose(verb, dague_debug_output, "%s %s", msg, str);
     free(str);
 #else
     (void)cpuset;
-    dague_inform("%s compiled without HWLOC support", msg);
+    dague_debug_verbose(3, dague_debug_output, "%s compiled without HWLOC support", msg);
 #endif  /* defined(DAGUE_HAVE_HWLOC) */
 }
 
@@ -352,11 +354,11 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
 
     /* And try to bind ourself there.  */
     if (hwloc_set_cpubind(topology, cpuset, HWLOC_CPUBIND_THREAD)) {
-        dague_hwloc_print_cpuset( "WARNING: dague_hwloc: couldn't bind to cpuset", obj->cpuset );
+        dague_hwloc_print_cpuset(1, "dague_hwloc: couldn't bind to cpuset", obj->cpuset );
         cpu_index = -1;
         goto free_and_return;
     }
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Thread bound on core index %i, [HT %i ]", cpu_index, local_ht_index);
+    dague_debug_verbose(3, dague_debug_output, "Thread bound on core index %i, [HT %i ]", cpu_index, local_ht_index);
 
     /* Get the number at Proc level*/
     cpu_index = obj->os_index;
@@ -388,14 +390,12 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     } hwloc_bitmap_foreach_end();
 
     if (hwloc_set_cpubind(topology, binding_mask, HWLOC_CPUBIND_THREAD)) {
-        dague_hwloc_print_cpuset("Couldn't bind to cpuset ", binding_mask);
+        dague_hwloc_print_cpuset(1, "Couldn't bind to cpuset ", binding_mask);
         return -1;
     }
 
-    if( dague_debug_verbose > 0 ) {
-        dague_hwloc_print_cpuset("Thread binding: cpuset binding [BEFORE]: ", cpuset);
-        dague_hwloc_print_cpuset("Thread binding: cpuset binding [AFTER ]: ", binding_mask);
-    }
+    dague_hwloc_print_cpuset(9, "Thread binding: cpuset binding [BEFORE]: ", cpuset);
+    dague_hwloc_print_cpuset(3, "Thread binding: cpuset binding [ACTUAL]: ", binding_mask);
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
