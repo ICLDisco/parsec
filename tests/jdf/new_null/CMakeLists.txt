@@ -65,14 +65,22 @@ jdf_rules(forward_READ_NULL "${CMAKE_CURRENT_SOURCE_DIR}/forward_READ_NULL.jdf")
 dague_addtest(C jdf_forward_READ_NULL "${forward_READ_NULL}")
 
 add_test(shm_jdf_forward_RW_NULL   ${SHM_TEST_CMD_LIST}       ./jdf_forward_RW_NULL)
-add_test(mpi_jdf_forward_RW_NULL   ${MPI_TEST_CMD_LIST} -np 2 ./jdf_forward_RW_NULL)
 add_test(shm_jdf_forward_READ_NULL ${SHM_TEST_CMD_LIST}       ./jdf_forward_READ_NULL)
-add_test(mpi_jdf_forward_READ_NULL ${MPI_TEST_CMD_LIST} -np 2 ./jdf_forward_READ_NULL)
+if( MPI_C_FOUND )
+  add_test(mpi_jdf_forward_RW_NULL   ${MPI_TEST_CMD_LIST} -np 2 ./jdf_forward_RW_NULL)
+  add_test(mpi_jdf_forward_READ_NULL ${MPI_TEST_CMD_LIST} -np 2 ./jdf_forward_READ_NULL)
+  set_tests_properties(
+    mpi_jdf_forward_RW_NULL
+    mpi_jdf_forward_READ_NULL
+    PROPERTIES
+    PASS_REGULAR_EXPRESSION "A NULL is forwarded"
+  )
+endif( MPI_C_FOUND )
 
 set_tests_properties(
-  shm_jdf_forward_RW_NULL mpi_jdf_forward_RW_NULL
-  shm_jdf_forward_READ_NULL mpi_jdf_forward_READ_NULL
+  shm_jdf_forward_RW_NULL
+  shm_jdf_forward_READ_NULL
   PROPERTIES
   PASS_REGULAR_EXPRESSION "A NULL is forwarded"
-  )
+)
 
