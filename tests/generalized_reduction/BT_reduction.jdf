@@ -99,9 +99,9 @@ NT         [type = int]
 REDUCTION(i)
   // Execution space
   i  = 0..NT-1
-  t  = inline_c %{ return index_to_tree(NT,i); %}
-  li = inline_c %{ return global_to_local_index(NT,i); %}
-  sz = inline_c %{ return log_of_tree_size(NT, t); %}
+  t  = %{ return index_to_tree(NT,i); %}
+  li = %{ return global_to_local_index(NT,i); %}
+  sz = %{ return log_of_tree_size(NT, t); %}
 
   : dataA(i,0)
 
@@ -118,13 +118,13 @@ END
  */
 BT_REDUC(t,s,i)
   // Execution space
-  tree_count  = inline_c %{ return count_bits(NT); %}
+  tree_count  = %{ return count_bits(NT); %}
   t  = 1 .. tree_count
-  sz = inline_c %{ return log_of_tree_size(NT, t); %}
+  sz = %{ return log_of_tree_size(NT, t); %}
   s  = 1 .. sz
   lvl = sz-s
-  i  = 0 .. inline_c %{ return (1<<lvl)-1; %}
-  offset = inline_c %{return compute_offset(NT, t); %}
+  i  = 0 .. %{ return (1<<lvl)-1; %}
+  offset = %{return compute_offset(NT, t); %}
 
   // Parallel partitioning
   : dataA(offset+i*2,0)
@@ -152,10 +152,10 @@ END
  *
  */
 LINEAR_REDUC(i)
-  tree_count  = inline_c %{ return count_bits(NT); %}
+  tree_count  = %{ return count_bits(NT); %}
   i  = 1 .. tree_count
-  sz = inline_c %{ return log_of_tree_size(NT, i); %}
-  offset = inline_c %{return compute_offset(NT, i); %}
+  sz = %{ return log_of_tree_size(NT, i); %}
+  offset = %{return compute_offset(NT, i); %}
 
   : dataA(offset,0)
 
@@ -187,9 +187,9 @@ END
 
 LINE_TERMINATOR(j)
     j = 0..0
-    tree_count = inline_c %{ return count_bits(NT); %}
+    tree_count = %{ return count_bits(NT); %}
     i = tree_count
-    offset = inline_c %{return compute_offset(NT, i); %}
+    offset = %{return compute_offset(NT, i); %}
 
     : dataA(offset, 0)
 

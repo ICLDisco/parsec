@@ -36,7 +36,7 @@ smallnb [type = "int" hidden = on default = "descA.nb" ]
 
 zgeqrt_typechange(k)  [profile = off]
   /* Execution space */
-  k = 0 .. inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-1)); %}
+  k = 0 .. %{ return dplasma_imin((descA.nt-1),(descA.mt-1)); %}
 
   : dataA(k,k)
 
@@ -55,7 +55,7 @@ END
  **************************************************/
 zgeqrt(k)
   /* Execution space */
-  k = 0 .. inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-1)); %}
+  k = 0 .. %{ return dplasma_imin((descA.nt-1),(descA.mt-1)); %}
 
   : dataA(k,k)
 
@@ -148,7 +148,7 @@ END
  **************************************************/
 zunmqr(k,n)
   /* Execution space */
-  k = 0   .. inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
+  k = 0   .. %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
   n = k+1 .. descA.nt-1
 
   : dataA(k,n)
@@ -251,7 +251,7 @@ END
  **************************************************/
 ztsqrt(k,m)
   /* Execution space */
-  k = 0   .. inline_c %{ return dplasma_imin((descA.nt-1),(descA.mt-2)); %}
+  k = 0   .. %{ return dplasma_imin((descA.nt-1),(descA.mt-2)); %}
   m = k+1 .. descA.mt-1
 
   : dataA(m, k)
@@ -348,7 +348,7 @@ END
 
 
 ztsmqr_out_A1(k, n) [profile = off]
-  k = 0   .. inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-2)); %}
+  k = 0   .. %{ return dplasma_imin((descA.nt-2),(descA.mt-2)); %}
   n = k+1 .. descA.nt-1
 
   : dataA(k, n)
@@ -367,7 +367,7 @@ END
  **************************************************/
 ztsmqr(k,m,n)
   /* Execution space */
-  k = 0     .. inline_c %{ return dplasma_imin((descA.mt-2),(descA.nt-2)); %}
+  k = 0     .. %{ return dplasma_imin((descA.mt-2),(descA.nt-2)); %}
   m = (k+1) .. (descA.mt-1)
   n = (k+1) .. (descA.nt-1)
 
@@ -388,7 +388,7 @@ ztsmqr(k,m,n)
     /* Priority */
 ; (descA.mt-k)*(descA.mt-n)*(descA.mt-n)
 
-BODY [type=CUDA device=inline_c %{ return n; %}]
+BODY [type=CUDA device=%{ return n; %}]
 {
     dague_complex64_t *WORK, *WORKC;
     int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : descA.mb;

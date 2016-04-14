@@ -31,8 +31,8 @@ zlaset(m, n) [profile = off]
   /* Execution Space */
   m  = 0 .. descQ.mt-1
   n  = 0 .. descQ.nt-1
-  k  = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
-  cc = inline_c %{ return ((descQ.nt == descA.mt) & (m == (descQ.nt-1)) & (n == (descQ.nt-1))); %}
+  k  = %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
+  cc = %{ return ((descQ.nt == descA.mt) & (m == (descQ.nt-1)) & (n == (descQ.nt-1))); %}
 
   /* Locality */
   : dataQ(m,n)

@@ -65,20 +65,20 @@ GEBUT(i,j)
   : A(i,j)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A GEBUT_Reader(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBUT_Writer(i,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atl <- A GEBUT_Reader(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A GEBUT_Reader(i+mt/2,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBUT_Writer(i+mt/2,j) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abl <- A GEBUT_Reader(i+mt/2,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i+mt/2,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A GEBUT_Reader(i,j+nt/2) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBUT_Writer(i,j+nt/2) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atr <- A GEBUT_Reader(i,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A GEBUT_Reader(i+mt/2,j+nt/2) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A GEBUT_Writer(i+mt/2,j+nt/2) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abr <- A GEBUT_Reader(i+mt/2,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i+mt/2,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 
@@ -150,11 +150,11 @@ GEBUT_Reader(i,j)
 
   : A(i,j)
 
-READ A <- A(i, j)                                               [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- A(i, j)                                               [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -205,11 +205,11 @@ GEBUT_Writer(i,j)
 
   : A(i,j)
 
-READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
-       -> A(i, j)                                               [ type = inline_c %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> A(i, j)                                               [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)

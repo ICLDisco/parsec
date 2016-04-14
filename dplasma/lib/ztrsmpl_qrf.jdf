@@ -146,8 +146,8 @@ zgemm(k, m, n)
   m = k+1 .. descB.mt-1
   n = 0   .. descB.nt-1
 
-  diagdom0 = inline_c %{ return ((m-k  )%param_p); %}
-  diagdom1 = inline_c %{ return ((m-k-1)%param_p); %}
+  diagdom0 = %{ return ((m-k  )%param_p); %}
+  diagdom1 = %{ return ((m-k-1)%param_p); %}
 
   : B(m, n)
 
@@ -214,11 +214,11 @@ zunmqr(k, i, n)
 
   /* Execution space */
   k = 0 .. descB.mt-1
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   n = 0 .. descB.nt-1
 
-  m     = inline_c %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = inline_c %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
+  m     = %{ return qrtree.getm(    &qrtree, k, i); %}
+  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
 
   : B(m, n)
 
@@ -265,8 +265,8 @@ END
 
 zunmqr_in(k,i)  [profile = off]
   k = 0 .. descB.mt-1
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m = inline_c %{ return qrtree.getm( &qrtree, k, i); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  m = %{ return qrtree.getm( &qrtree, k, i); %}
 
   : A(m, k)
 
@@ -301,17 +301,17 @@ zttmqr(k, m, n)
   m = k+1 .. descB.mt-1
   n = 0   .. descB.nt-1
 
-  p =     inline_c %{ return qrtree.currpiv( &qrtree, k,   m);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
-  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k,   m );   %}
-  type1 = inline_c %{ return qrtree.gettype( &qrtree, k+1, m );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k,   p );   %}
-  im    = inline_c %{ return qrtree.geti(    &qrtree, k,   m );   %}
-  im1   = inline_c %{ return qrtree.geti(    &qrtree, k+1, m );   %}
+  p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
+  prevm = %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
+  type  = %{ return qrtree.gettype( &qrtree, k,   m );   %}
+  type1 = %{ return qrtree.gettype( &qrtree, k+1, m );   %}
+  ip    = %{ return qrtree.geti(    &qrtree, k,   p );   %}
+  im    = %{ return qrtree.geti(    &qrtree, k,   m );   %}
+  im1   = %{ return qrtree.geti(    &qrtree, k+1, m );   %}
 
-  diagdom = inline_c %{ return ((m-k-1)%param_p == 0) ? 0 : 1; %}
+  diagdom = %{ return ((m-k-1)%param_p == 0) ? 0 : 1; %}
 
   : B(m, n)
 
@@ -383,7 +383,7 @@ END
 zttmqr_in(k,m)  [profile = off]
   k = 0   .. descA.mt-2
   m = k+1 .. descA.mt-1
-  type = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
+  type = %{ return qrtree.gettype( &qrtree, k, m );   %}
 
   : A(m, k)
 
@@ -405,7 +405,7 @@ END
 zttmqr_out_A1(k, n) [profile = off]
   k = 0 .. descA.mt-2
   n = 0 .. descB.nt-1
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
   : B(k, n)
 
@@ -431,8 +431,8 @@ tile2panel(k, n) [ profile = off ]
   k = 0 .. descB.mt-2
   n = 0 .. descB.nt-1
 
-  did_lu = inline_c %{ return lu_tab[k];   %}
-  do_lu  = inline_c %{ return lu_tab[k+1]; %}
+  did_lu = %{ return lu_tab[k];   %}
+  do_lu  = %{ return lu_tab[k+1]; %}
 
   :B(k+1, n)
 
@@ -455,11 +455,11 @@ selector(k,m,n)
   m = k .. descB.mt-1
   n = 0 .. descB.nt-1
 
-  i      = inline_c %{ return qrtree.geti(    &qrtree, k, m );   %}
-  type   = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
-  did_lu = inline_c %{ return (k == 0) ? -1 : lu_tab[k-1]; %}
-  do_lu  = inline_c %{ return lu_tab[k]; %}
-  diagdom= inline_c %{ return ((m-k)%param_p == 0); %}
+  i      = %{ return qrtree.geti(    &qrtree, k, m );   %}
+  type   = %{ return qrtree.gettype( &qrtree, k, m );   %}
+  did_lu = %{ return (k == 0) ? -1 : lu_tab[k-1]; %}
+  do_lu  = %{ return lu_tab[k]; %}
+  diagdom= %{ return ((m-k)%param_p == 0); %}
 
   : B(m,n)
 
@@ -503,8 +503,8 @@ inputs(k)
   /* Execution space */
   k = 0 .. descB.mt-1
 
-  do_lu = inline_c %{ return lu_tab[k]; %}
-  nbqr = inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  do_lu = %{ return lu_tab[k]; %}
+  nbqr = %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
 
   : A(k, k)
 
@@ -520,8 +520,8 @@ BODY
 END
 
 cleantasks(p, q)
-  p = 0 .. inline_c %{ return dplasma_imin(param_p, descA.mt)-1; %}
-  q = 0 .. inline_c %{ return dplasma_imin(param_q, dplasma_imax(descA.nt, descB.nt))-1; %}
+  p = 0 .. %{ return dplasma_imin(param_p, descA.mt)-1; %}
+  q = 0 .. %{ return dplasma_imin(param_q, dplasma_imax(descA.nt, descB.nt))-1; %}
 
   :A(p, q)
 

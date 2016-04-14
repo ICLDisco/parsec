@@ -48,10 +48,10 @@ minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : des
 zgessm(k, i, n)
   /* Execution space */
   k = 0 .. minMN-1
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   n = 0 .. descB.nt-1
-  m     = inline_c %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = inline_c %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
+  m     = %{ return qrtree.getm(    &qrtree, k, i); %}
+  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
 
   SIMCOST 6
 
@@ -93,8 +93,8 @@ END
 zgessm_in(k, i) [profile = off]
   /* Execution space */
   k = 0 .. minMN-1
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m     = inline_c %{ return qrtree.getm(    &qrtree, k, i); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  m     = %{ return qrtree.getm(    &qrtree, k, i); %}
 
   : A(m,k)
 
@@ -125,17 +125,17 @@ zttmqr(k, m, n)
   k = 0   .. minMN-1
   m = k+1 .. descA.mt-1
   n = 0   .. descB.nt-1
-  p =     inline_c %{ return qrtree.currpiv( &qrtree, k,   m);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
-  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k,   m );   %}
-  type1 = inline_c %{ return qrtree.gettype( &qrtree, k+1, m );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k,   p );   %}
-  im    = inline_c %{ return qrtree.geti(    &qrtree, k,   m );   %}
-  im1   = inline_c %{ return qrtree.geti(    &qrtree, k+1, m );   %}
+  p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
+  prevm = %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
+  type  = %{ return qrtree.gettype( &qrtree, k,   m );   %}
+  type1 = %{ return qrtree.gettype( &qrtree, k+1, m );   %}
+  ip    = %{ return qrtree.geti(    &qrtree, k,   p );   %}
+  im    = %{ return qrtree.geti(    &qrtree, k,   m );   %}
+  im1   = %{ return qrtree.geti(    &qrtree, k+1, m );   %}
 
-  SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
+  SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
   : B(m, n)
 
@@ -209,7 +209,7 @@ END
 zttmqr_out_A1(k, n) [profile = off]
   k = 0 .. minMN-2
   n = 0 .. descB.nt-1
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, k, k); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k); %}
 
   : B(k, n)
 
@@ -225,7 +225,7 @@ zttmqr_in(k, m) [profile = off]
   /* Execution space */
   k = 0   .. minMN-1
   m = k+1 .. descA.mt-1
-  type = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
+  type = %{ return qrtree.gettype( &qrtree, k, m );   %}
 
   : A(m,k)
 

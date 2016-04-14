@@ -69,8 +69,8 @@ STEP1(m, n)
 
     // Execution space
     m = 0 .. MT-1
-    nmin = inline_c %{ if (uplo == PlasmaUpper ) return m; else return 0; %}
-    nmax = inline_c %{ if (uplo == PlasmaLower ) return dplasma_imin(m, NT-1); else return NT-1; %}
+    nmin = %{ if (uplo == PlasmaUpper ) return m; else return 0; %}
+    nmax = %{ if (uplo == PlasmaLower ) return dplasma_imin(m, NT-1); else return NT-1; %}
     n = nmin .. nmax
 
     // Parallel partitioning
@@ -172,13 +172,13 @@ STEP2(m, n)
     // Execution space
     m = 0 .. MT-1
     n = 0 .. Q-1
-    col  = inline_c %{
+    col  = %{
     if ( uplo == PlasmaUpper ) {
         return (n >= m%Q ) ? m + n - m%Q : m + n + Q - m%Q;
     } else {
         return n;
     } %}
-    nmax = inline_c %{ if (uplo == PlasmaLower ) return dplasma_imin(m, NT-1); else return NT-1; %}
+    nmax = %{ if (uplo == PlasmaLower ) return dplasma_imin(m, NT-1); else return NT-1; %}
 
     // Parallel partitioning
     :Tdist(m, n)

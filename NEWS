@@ -12,6 +12,8 @@ v 2.0.0rc1
    all depending libraries must be compiled either as Position Independent
    Code (-fPIC) or as shared libraries. Hint: add --cflags="-fPIC" when
    running the plasma-installer.
+ - The "inline_c %{ ... %}" block syntax has been simplified to either
+   "%c{ ... %}" or "%{ ... %}". The change is backward compatible.
 
 v 1.2.0
  - The support for C is required from MPI.
