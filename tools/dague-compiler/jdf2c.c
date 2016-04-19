@@ -2542,15 +2542,15 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("  this_task->status = DAGUE_TASK_STATUS_COMPLETE;\n");
     if( need_to_iterate ) {
         if(need_to_count_tasks) {
-            coutput("if( 0 != nb_tasks ) {\n");
+            coutput("if( 0 != nb_tasks ) {\n"
+                    "  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (nb_tasks = %%d)\", nb_tasks);\n"
+                    "  /**\n"
+                    "   * Now, for each of the dimensions, re-iterate on the space and, if at least one\n"
+                    "   * value is defined, allocate arrays to point to it. Array dimensions are defined\n"
+                    "   * are defined by the (rough) observation above\n"
+                    "   */\n",
+                    fname);
         }
-        coutput("  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (nb_tasks = %%d)\", nb_tasks);\n"
-                "  /**\n"
-                "   * Now, for each of the dimensions, re-iterate on the space and, if at least one\n"
-                "   * value is defined, allocate arrays to point to it. Array dimensions are defined\n"
-                "   * are defined by the (rough) observation above\n"
-                "   */\n",
-                fname);
         if( f->parameters->next == NULL ) {
             coutput("%s    ALLOCATE_DEP_TRACKING(dep, %s%s_min, %s%s_max, \"%s\", &symb_%s_%s_%s, NULL, DAGUE_DEPENDENCIES_FLAG_FINAL);\n",
                     indent(nesting), JDF2C_NAMESPACE, f->parameters->name, JDF2C_NAMESPACE, f->parameters->name, f->parameters->name,
@@ -2640,7 +2640,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     idx = 0;
     JDF_COUNT_LIST_ENTRIES(f->dataflow, jdf_dataflow_t, next, idx);
     if( f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) {
-        coutput("  DAGUE_DEBUG_VERBOSE(20,\"Allocating dependencies array for %s (user-defined allocator)\\n\");\n",
+        coutput("  DAGUE_DEBUG_VERBOSE(20, dague_debug_output, \"Allocating dependencies array for %s (user-defined allocator)\\n\");\n",
                 fname);
         coutput("  __dague_handle->super.super.dependencies_array[%d] = %s(__dague_handle);\n",
                 f->function_id, jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL));
