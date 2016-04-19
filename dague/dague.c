@@ -98,6 +98,7 @@ static dague_device_t* dague_device_cpus = NULL;
 static dague_device_t* dague_device_recursive = NULL;
 
 static int dague_runtime_max_number_of_cores = -1;
+static int dague_runtime_bind_main_thread = 1;
 
 /**
  * Object based task definition (no specialized constructor and destructor) */
@@ -164,11 +165,18 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     dague_execution_unit_t* eu;
     int pi;
 
-    /* Bind to the specified CORE */
-    dague_bindthread(startup->bindto, startup->bindto_ht);
-    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : bind thread %i.%i on core %i [HT %i]",
-            startup->virtual_process->vp_id, startup->virtual_process->vp_id,
-            startup->th_id, startup->bindto, startup->bindto_ht);
+    /* don't use DAGUE_THREAD_IS_MASTER, it is too early and we cannot yet allocate the eu struct */
+    if( (0 == startup->virtual_process) && (0 == startup->th_id) && dague_runtime_bind_main_thread ) {
+        /* Bind to the specified CORE */
+        dague_bindthread(startup->bindto, startup->bindto_ht);
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : bind thread %i.%i on core %i [HT %i]",
+                            startup->virtual_process->vp_id, startup->virtual_process->vp_id,
+                            startup->th_id, startup->bindto, startup->bindto_ht);
+    } else {
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : Don't bind the main thread %i.%i",
+                            startup->virtual_process->vp_id, startup->virtual_process->vp_id,
+                            startup->th_id);
+    }
 
     eu = (dague_execution_unit_t*)malloc(sizeof(dague_execution_unit_t));
     if( NULL == eu ) {
@@ -408,6 +416,8 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
             }
         }
     }
+    dague_mca_param_reg_int_name("runtime", "bind_main_thread", "Force the binding of the thread calling dague_init",
+                                 false, false, dague_runtime_bind_main_thread, &dague_runtime_bind_main_thread);
 
     if( dague_cmd_line_is_taken(cmd_line, "gpus") ) {
         dague_warning("Option g (for accelerators) is deprecated as an argument. Use the MCA parameter instead.");

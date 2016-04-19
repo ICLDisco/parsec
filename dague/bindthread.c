@@ -36,6 +36,8 @@ extern kern_return_t thread_policy_set( thread_t               thread,
 
 int dague_bindthread(int cpu, int ht)
 {
+    if( -1 == cpu )  /* Don't try binding if not required */
+        return -1;
 #ifdef MARCEL
     {
         marcel_vpset_t vpset = MARCEL_VPSET_ZERO;
