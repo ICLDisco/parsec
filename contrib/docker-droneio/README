@@ -1,0 +1,29 @@
+Run 
+  docker build -t <IMAGENAME> .
+in this directory to mimic what drone-io does.
+  <IMAGENAME> abides to the following convention:
+     <USERNAME>/<IMAGENAME>:<TAG>
+  Typical:
+     parsec/drone-io:v1.0
+
+If anything fails and you want to debug, run
+  docker images
+Your image is one recent with no name (the name is given
+only if the build command succeeded). Copy the IMAGE ID, and run
+  docker run -t -i <IMAGE ID> /bin/bash
+parsec should be cloned, configured, and compiled in /parsec
+Everything is done as root (in the virtual image).
+
+Run docker ps -a
+to list the containers still running. docker rm <CONTAINER ID> to
+remove the stall processes
+
+Run docker images to list images
+Run docker rmi <IMAGE ID> to remove stall images
+
+It is necessary to sync by hand the Dockerfile and the drone-io
+configuration commands in
+  https://drone.io/bitbucket.org/icldistcomp/parsec/admin
+
+The list of compiler packages is just a guess. It is unspecified on
+drone.io what packages are installed when declaring a C program.
