@@ -53,6 +53,18 @@ vpid_of(dague_ddesc_t *desc, ...)
     return 0;
 }
 
+static dague_data_key_t data_key(dague_ddesc_t *desc, ...)
+{
+    int k;
+    va_list ap;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    return (dague_data_key_t)k;
+}
+
 int main(int argc, char *argv[])
 {
     dague_context_t* dague;
@@ -77,11 +89,13 @@ int main(int argc, char *argv[])
     /**
      * Let's initialize the task distribution descriptor
      * rank_of, and vpid_of will be explained later, but right now those two
-     * functions always return 0.
+     * functions always return 0. A unique naming of data must also be provided
+     * for profiling, we just return the index of the data as the key.
      */
     dague_ddesc_init(&taskdist, world, rank);
-    taskdist.rank_of = rank_of;
-    taskdist.vpid_of = vpid_of;
+    taskdist.rank_of  = rank_of;
+    taskdist.vpid_of  = vpid_of;
+    taskdist.data_key = data_key;
 
     handle = dague_forward_READ_NULL_new(&taskdist, 20);
 
