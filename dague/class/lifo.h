@@ -9,6 +9,9 @@
 
 #include "dague_config.h"
 #include "dague/class/list_item.h"
+#if defined(DAGUE_HAVE_ATOMIC_LLSC_PTR)
+#include <time.h>
+#endif  /* defined(DAGUE_HAVE_ATOMIC_LLSC_PTR) */
 
 typedef struct dague_lifo_s dague_lifo_t;
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_lifo_t);
