@@ -30,7 +30,7 @@ int main(int argc, char ** argv)
 
     if (check) {
         tiled_matrix_desc_t *B;
-        int alltreel[] = { 0, 1, 2, 3 };
+        int alltreel[] = { 0, 1, 2, 3, 4 };
         int alltreeh[] = { 0, 1, 2, 3, 4 };
         int allP[]     = { 3, 5, 7, 8 };
         int allA[]     = { 1, 2, 4, 7 };
@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
                                 continue;
 
                             B = tiled_matrix_submatrix((tiled_matrix_desc_t*)&ddescA, 0, 0, allM[m], allN[n] );
-                            dplasma_hqr_init( &qrtree, B, alltreel[l], 0, allA[a], -1, 0, r);
+                            dplasma_hqr_init( &qrtree, PlasmaNoTrans, B, alltreel[l], 0, allA[a], -1, 0, r );
 
                             rc = dplasma_qrtree_check( B, &qrtree );
                             if (rc != 0) {
@@ -83,7 +83,6 @@ int main(int argc, char ** argv)
                                         allM[m], allN[n], alltreel[l], allA[a], r, rc);
                                 ret |= 1;
                             }
-
                             dplasma_hqr_finalize( &qrtree );
                             free(B);
 
@@ -95,6 +94,8 @@ int main(int argc, char ** argv)
             }
             /* With High level */
             for( d=0; d<2; d++) { /* Domino */
+                if (d == 1 && alltreel[l] == DPLASMA_GREEDY1P_TREE)
+                    continue;
                 for( h=0; h<nbtreeh; h++) {
                     for( p=0; p<nbP; p++) {
                         for( a=0; a<nbA; a++) {
@@ -105,7 +106,7 @@ int main(int argc, char ** argv)
                                             continue;
 
                                         B = tiled_matrix_submatrix((tiled_matrix_desc_t*)&ddescA, 0, 0, allM[m], allN[n] );
-                                        dplasma_hqr_init( &qrtree, B, alltreel[l], alltreeh[h], allA[a], allP[p], d, r);
+                                        dplasma_hqr_init( &qrtree, PlasmaNoTrans, B, alltreel[l], alltreeh[h], allA[a], allP[p], d, r);
 
                                         rc = dplasma_qrtree_check( B, &qrtree );
                                         if (rc != 0) {
@@ -139,7 +140,7 @@ int main(int argc, char ** argv)
                 for( m=0; m<nbM; m++) {
                     for( n=0; n<nbN; n++) {
                         B = tiled_matrix_submatrix((tiled_matrix_desc_t*)&ddescA, 0, 0, allM[m], allN[n] );
-                        dplasma_systolic_init( &qrtree, B, allA[a], allP[p]);
+                        dplasma_systolic_init( &qrtree, PlasmaNoTrans, B, allA[a], allP[p]);
 
                         rc = dplasma_qrtree_check( B, &qrtree );
                         if (rc != 0) {
@@ -172,12 +173,12 @@ int main(int argc, char ** argv)
 
 #if defined(SYSTOLIC)
         dplasma_systolic_init( &qrtree,
-                               (tiled_matrix_desc_t *)&ddescA,
+                               PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
                                iparam[IPARAM_QR_HLVL_SZE],
                                iparam[IPARAM_QR_TS_SZE] );
 #else
         dplasma_hqr_init( &qrtree,
-                          (tiled_matrix_desc_t*)&ddescA,
+                          PlasmaNoTrans, (tiled_matrix_desc_t*)&ddescA,
                           iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                           iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_HLVL_SZE],
                           iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );

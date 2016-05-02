@@ -750,6 +750,165 @@ static void hqr_low_greedy_init(hqr_subpiv_t *arg, int minMN){
 };
 
 /****************************************************
+ *          HQR_LOW_GREEDY1P_TREE
+ ***************************************************/
+/* Return the pivot to use for the row m at step k */
+inline static int hqr_low_greedy1p_currpiv( const hqr_subpiv_t *qrpiv, int k, int m ) {
+    if (qrpiv->domino)
+        return (qrpiv->ipiv)[ k * (qrpiv->ldd) + ( (m / qrpiv->p) / qrpiv->a ) ];
+    else
+        return (qrpiv->ipiv)[ ( (m%qrpiv->p) * qrpiv->minMN + k ) * (qrpiv->ldd)
+                              + ( ( m  / qrpiv->p ) / qrpiv->a ) ];
+}
+
+/* Return the last row which has used the row m as a pivot in step k before the row start */
+inline static int hqr_low_greedy1p_prevpiv( const hqr_subpiv_t *qrpiv, int k, int p, int start_pa ) {
+    int i;
+    int p_pa = p / qrpiv->p / qrpiv->a;
+    int *ipiv = qrpiv->domino ? qrpiv->ipiv : qrpiv->ipiv + p%qrpiv->p * qrpiv->minMN *qrpiv->ldd;
+
+    for( i=start_pa+1; i<(qrpiv->ldd); i++ )
+        if ( ipiv[i +  k * (qrpiv->ldd)] == p_pa )
+            return i;
+    return i;
+ }
+
+/* Return the next row which will use the row m as a pivot in step k after it has been used by row start */
+inline static int hqr_low_greedy1p_nextpiv( const hqr_subpiv_t *qrpiv, int k, int p, int start_pa ) {
+    int i;
+    int pa = qrpiv->p * qrpiv->a;
+    int k_a = qrpiv->domino ? k / qrpiv->a :  (k + qrpiv->p - 1 - p%(qrpiv->p)) / qrpiv->p / qrpiv->a;
+    int p_pa = p / pa;
+    int *ipiv = qrpiv->domino ? qrpiv->ipiv : qrpiv->ipiv + p%qrpiv->p * qrpiv->minMN *qrpiv->ldd;
+
+    for( i=start_pa-1; i> k_a; i-- )
+        if ( ipiv[i + k * (qrpiv->ldd)] == p_pa )
+            return i;
+
+    return (qrpiv->ldd);
+}
+
+static void hqr_low_greedy1p_init(hqr_subpiv_t *arg, int minMN){
+    int *ipiv;
+    int mt, a, p, pa, domino;
+    int j, k, height, start, end, nT, nZ;
+
+    arg->currpiv = hqr_low_greedy1p_currpiv;
+    arg->nextpiv = hqr_low_greedy1p_nextpiv;
+    arg->prevpiv = hqr_low_greedy1p_prevpiv;
+
+    mt = arg->ldd;
+    a = arg->a;
+    p = arg->p;
+    pa = p * a;
+    domino = arg->domino;
+
+    /* This section has not been coded yet, and will perform a classic greedy */
+    if ( domino )
+    {
+        arg->minMN =  dplasma_imin( minMN, mt*a );
+        minMN = arg->minMN;
+
+        arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) );
+        ipiv = arg->ipiv;
+        memset(ipiv, 0, mt*minMN*sizeof(int));
+
+        /**
+         * Compute the local greedy tree of each column, on each node
+         */
+        for(k=0; k<minMN; k++) {
+            /* Number of tiles to factorized in this column on this rank */
+            nT = dplasma_imax( mt - (k / a), 0 );
+            /* Number of tiles already killed */
+            nZ = 0;
+
+            while( nZ < (nT-1) ) {
+                height = (nT - nZ) / 2;
+                start = mt - nZ - 1;
+                end = start - height;
+                nZ += height;
+
+                for( j=start; j > end; j-- ) {
+                    ipiv[ k*mt + j ] = (j - height);
+                }
+            }
+            assert( nZ+1 == nT );
+        }
+    }
+    else
+    {
+        int myrank;
+        end = 0;
+
+        arg->ipiv = (int*)malloc( mt * minMN * sizeof(int) * p );
+        ipiv = arg->ipiv;
+
+        memset( ipiv,  0, minMN*sizeof(int)*mt*p);
+
+        for ( myrank=0; myrank<p; myrank++ ) {
+
+            /**
+             * Compute the local greedy tree of each column, on each node
+             */
+            for(k=0; k<minMN; k++) {
+                /* Number of tiles to factorized in this column on this rank */
+                nT = dplasma_imax( mt - ((k + p - 1 - myrank) / pa), 0 );
+                /* Number of tiles already killed */
+                nZ = 0;
+
+                /* No more computations on this node */
+                if ( nT == 0 ) {
+                    break;
+                }
+
+                while( nZ < (nT-1) ) {
+                    height = (nT - nZ) / 2;
+                    start = mt - nZ - 1;
+                    end = start - height;
+                    nZ += height;
+
+                    for( j=start; j > end; j-- ) {
+                        ipiv[ myrank*mt*minMN + k*mt + j ] = (j - height);
+                    }
+                }
+                assert( nZ+1 == nT );
+            }
+        }
+    }
+
+#if 0
+    {
+        int m, k;
+        for(m=0; m<mt; m++) {
+            printf("%3d | ", m);
+            for (k=0; k<minMN; k++) {
+                printf( "%3d ", ipiv[k*mt + m] );
+            }
+            printf("\n");
+        }
+    }
+    if (!arg->domino) {
+        int m, k, myrank;
+        for ( myrank=1; myrank<p; myrank++ ) {
+            ipiv += mt*minMN;
+            printf("-------- rank %d ---------\n", myrank );
+            for(m=0; m<mt; m++) {
+                printf("%3d | ", m);
+                for (k=0; k<minMN; k++) {
+                  int k_a = (k + p - 1 - myrank) / p / a;
+                  if ( m >= k_a )
+                    printf( "%3d ", ipiv[k*mt + m] );
+                  else
+                    printf( "--- " );
+                }
+                printf("\n");
+            }
+        }
+    }
+#endif
+};
+
+/****************************************************
  *                 HQR_HIGH_FLAT_TREE
  ***************************************************/
 static int hqr_high_flat_currpiv(const hqr_subpiv_t *arg, int k, int m)
@@ -953,7 +1112,7 @@ static void hqr_high_greedy1p_init(hqr_subpiv_t *arg){
     memset(ipiv, 0, p*sizeof(int));
 
     {
-      int minMN = 1;
+        int minMN = 1;
         int j, k, height, start, end, firstk = 0;
         int *nT = (int*)malloc(minMN*sizeof(int));
         int *nZ = (int*)malloc(minMN*sizeof(int));
@@ -1588,7 +1747,7 @@ hqr_getinvperm( const dplasma_qrtree_t *qrtree, int k, int m )
  *          @arg DPLASMA_FIBONACCI_TREE: A Fibonacci tree is used to reduce the
  *          tiles.
  *          @arg DPLASMA_BINARY_TREE: A Binary tree is used to reduce the tiles.
- *          @arg DPLASMA_BINARY1P_TREE: A Greedy tree is computed for the first
+ *          @arg DPLASMA_GREEDY1P_TREE: A Greedy tree is computed for the first
  *          column and then duplicated on all others.
  *          @arg -1: The default is used (DPLASMA_FIBONACCI_TREE)
  *
@@ -1670,10 +1829,6 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
         dplasma_error("dplasma_hqr_init", "illegal value of A");
         return -3;
     }
-    if ( p < 0 ) {
-        dplasma_error("dplasma_hqr_init", "illegal value of p");
-        return -7;
-    }
 
     /* Compute parameters */
     a = (a == -1) ? 4 : dplasma_imax( a, 1 );
@@ -1738,6 +1893,9 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     case DPLASMA_BINARY_TREE :
         hqr_low_binary_init(arg->llvl);
         break;
+    case DPLASMA_GREEDY1P_TREE :
+        hqr_low_greedy1p_init(arg->llvl, minMN);
+        break;
     case DPLASMA_GREEDY_TREE :
     default:
         hqr_low_greedy_init(arg->llvl, minMN);
@@ -1767,6 +1925,7 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
             break;
         case DPLASMA_FIBONACCI_TREE :
             hqr_high_fibonacci_init(arg->hlvl);
+            break;
         default:
             if ( ratio >= 0.5 ) {
                 hqr_high_flat_init(arg->hlvl);
