@@ -91,6 +91,37 @@ zgemm(k,m,n)
           -> ((1+k)==m) ? B ztrsm(m, n)
           -> (m>=(k+2)) ? E zgemm(k+1, m, n)
 
+BODY [type=CUDA
+      dyld=cublasZgemm dyldtype=cublas_zgemm_t
+      weight=(n+1-k)]
+{
+#if defined(PRECISION_z) || defined(PRECISION_c)
+    cuDoubleComplex mzone = make_cuDoubleComplex(-1., 0.);
+#else
+    double mzone = -1.;
+#endif
+
+    int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
+    int tempkm = ((k)==(0)) ? (descB->m-((descB->mt-1)*descB->mb)) : descB->mb;
+    parsec_complex64_t lalpha = ((k)==(0)) ? (alpha) : (parsec_complex64_t)(1.0);
+    int ldam = BLKLDD( descB, (descA.mt-1)-m );
+    int ldbm = BLKLDD( descB, (descB->mt-1)-m );
+    int ldb  = BLKLDD( descB, (descB->mt-1)-k );
+
+    cublasStatus_t status;
+
+    cublasSetKernelStream( parsec_body.stream );
+    parsec_body.dyld_fn( 'N', 'N',
+                         descB->mb, tempnn, tempkm,
+                         mzone,  (cuDoubleComplex*)C, ldam,
+                                 (cuDoubleComplex*)D, ldb,
+                         lalpha, (cuDoubleComplex*)E, ldbm );
+    status = cublasGetError();
+    PARSEC_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+                             {return -1;} );
+}
+END
+
 BODY
 {
     int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
