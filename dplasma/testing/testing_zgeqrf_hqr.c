@@ -35,6 +35,7 @@ int main(int argc, char ** argv)
     iparam[IPARAM_SNB] = 1;
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
+    iparam[IPARAM_QR_HLVL_SZE] = -'P';
 
     /* Initialize PaRSEC */
     parsec = setup_parsec(argc, argv, iparam);

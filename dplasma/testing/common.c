@@ -494,8 +494,8 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(0 == iparam[IPARAM_HNB]) iparam[IPARAM_HNB] = iparam[IPARAM_NB];
 
     /* HQR */
-    if(-1 == iparam[IPARAM_QR_HLVL_SZE])
-        iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_NNODES];
+    if(-'P' == iparam[IPARAM_QR_HLVL_SZE]) iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_P];
+    if(-'Q' == iparam[IPARAM_QR_HLVL_SZE]) iparam[IPARAM_QR_HLVL_SZE] = iparam[IPARAM_Q];
 
     (void)rc;
 }
