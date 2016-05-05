@@ -280,7 +280,7 @@ static inline dague_list_item_t *dague_lifo_pop(dague_lifo_t* lifo)
         }
 
         item = (dague_list_item_t *) dague_atomic_ll_ptr((long*)&(lifo->lifo_head.data.item));
-        if (&lifo->lifo_ghost == item) {
+        if (lifo->lifo_ghost == item) {
             return NULL;
         }
 
@@ -299,7 +299,7 @@ static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
     int attempt = 0;
 
     item = (dague_list_item_t *) dague_atomic_ll_ptr((long*)&lifo->lifo_head.data.item);
-    if (&lifo->lifo_ghost == item) {
+    if (lifo->lifo_ghost == item) {
         return NULL;
     }
 
