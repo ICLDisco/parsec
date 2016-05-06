@@ -164,7 +164,7 @@ static void *translate_elements_random(void *params)
     i = 0;
     start = take_time();
     while( i < heavy_synchro ) {
-        if( rand() % 2 == 0 ) {
+        if( (rand() % 2) == 0 ) {
             e = dague_lifo_pop( &lifo1 );
             if(NULL != e) {
                 dague_lifo_push(&lifo2, e);
