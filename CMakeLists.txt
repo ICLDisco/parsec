@@ -375,8 +375,10 @@ endif( NOT DAGUE_HAVE_TIMESPEC_TV_NSEC )
 check_function_exists(clock_gettime DAGUE_HAVE_CLOCK_GETTIME)
 if( NOT DAGUE_HAVE_CLOCK_GETTIME )
   check_library_exists(rt clock_gettime "" DAGUE_HAVE_CLOCK_GETTIMERT)
-  list(APPEND EXTRA_LIBS -lrt)
-  set(DAGUE_HAVE_CLOCK_GETTIME true)
+  if(DAGUE_HAVE_CLOCK_GETTIMERT)
+    list(APPEND EXTRA_LIBS -lrt)
+    set(DAGUE_HAVE_CLOCK_GETTIME true)
+  endif(DAGUE_HAVE_CLOCK_GETTIMERT)
 endif( NOT DAGUE_HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
