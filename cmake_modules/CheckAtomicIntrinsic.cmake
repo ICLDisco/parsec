@@ -6,7 +6,7 @@ if(NOT DAGUE_HAVE_COMPARE_AND_SWAP_32 AND NOT DAGUE_HAVE_COMPARE_AND_SWAP_64 AND
   include(CheckCSourceRuns)
 
 # Gcc style atomics?
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
       int main( int argc, char** argv) {
          int32_t where = 0;
@@ -16,7 +16,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
 if( DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
-  CHECK_C_SOURCE_RUNS("
+    CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
         int main( int argc, char** argv) {
            int64_t where = 0;
@@ -27,7 +27,7 @@ if( DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
         " DAGUE_ATOMIC_USE_GCC_64_BUILTINS)
 endif( DAGUE_ATOMIC_USE_GCC_32_BUILTINS )
 if( DAGUE_ATOMIC_USE_GCC_64_BUILTINS )
-  CHECK_C_SOURCE_RUNS("
+    CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
         int main( int argc, char** argv ) {
             __int128_t where = 0;
@@ -41,7 +41,7 @@ if( DAGUE_ATOMIC_USE_GCC_64_BUILTINS )
     CMAKE_PUSH_CHECK_STATE()
     SET( CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -mcx16" )
     UNSET( DAGUE_ATOMIC_USE_GCC_128_BUILTINS CACHE )
-    CHECK_C_SOURCE_RUNS("
+    CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
         int main( int argc, char** argv ) {
             __int128_t where = 0;
@@ -58,7 +58,7 @@ if( DAGUE_ATOMIC_USE_GCC_64_BUILTINS )
 endif( DAGUE_ATOMIC_USE_GCC_64_BUILTINS )
 
 # Xlc style atomics?
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main( int argc, char** argv)
@@ -72,7 +72,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
 if( DAGUE_ATOMIC_USE_XLC_32_BUILTINS )
-  CHECK_C_SOURCE_RUNS("
+  CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
 
         int main( int argc, char** argv)
@@ -88,7 +88,7 @@ if( DAGUE_ATOMIC_USE_XLC_32_BUILTINS )
 endif( DAGUE_ATOMIC_USE_XLC_32_BUILTINS )
 
 # MIPS style atomics?
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <stdint.h>
 
       int main(int, const char**)
@@ -101,7 +101,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS)
 if( DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
-  CHECK_C_SOURCE_RUNS("
+  CHECK_C_SOURCE_COMPILES("
         #include <stdint.h>
 
         int main(int, const char**)
@@ -116,7 +116,7 @@ if( DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
 endif( DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS )
 
 # SUN OS style atomics? 
-CHECK_C_SOURCE_RUNS("
+CHECK_C_SOURCE_COMPILES("
       #include <atomic.h>
       #include <stdint.h>
 
@@ -130,7 +130,7 @@ CHECK_C_SOURCE_RUNS("
       }
       " DAGUE_ATOMIC_USE_SUN_32)
 if( DAGUE_ATOMIC_USE_SUN_32 )
-  CHECK_C_SOURCE_RUNS("
+    CHECK_C_SOURCE_COMPILES("
         #include <atomic.h>
         #include <stdint.h>
 
