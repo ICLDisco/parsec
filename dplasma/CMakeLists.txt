@@ -39,6 +39,9 @@ endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
 #
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/")
 
+include(FortranCInterface)
+
+
 find_package(COREBLAS)
 if( PLASMA_SRC )
    list(APPEND COREBLAS_INCLUDE_DIRS ${PLASMA_SRC})
