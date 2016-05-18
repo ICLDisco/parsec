@@ -675,7 +675,7 @@ if( BUILD_DAGUE )
     FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
                              MACRO_NAMESPACE "DAGUE_F2C_"
                              SYMBOL_NAMESPACE "dague_f2c_"
-                             SYMBOLS mysub daguef:my_sub)
+                             SYMBOLS my_sub daguef:my_sub)
     add_subdirectory(dague/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
