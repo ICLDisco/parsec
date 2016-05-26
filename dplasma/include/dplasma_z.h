@@ -320,4 +320,26 @@ void dplasma_zhbrdt_Destruct( parsec_taskpool_t *o );
 void dplasma_zheev_Destruct( parsec_taskpool_t *o );
 void dplasma_zherbt_Destruct( parsec_taskpool_t *o );
 
+/* New LU */
+void   dplasma_ztrsmpl_fusion( dague_context_t *dague, const tiled_matrix_desc_t *A,
+                             const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
+int    dplasma_zgetrf_fusion( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
+int    dplasma_zgetrf_panel( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
+int    dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matrix_desc_t* ddescA);
+int    dplasma_zgetrf_std( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
+int    dplasma_zgerfs( dague_context_t *dague, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescLU, tiled_matrix_desc_t* ddescB, tiled_matrix_desc_t* ddescX);
+
+dague_handle_t* dplasma_ztrsmpl_fusion_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
+dague_handle_t* dplasma_zgetrf_std_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
+dague_handle_t* dplasma_zgetrf_panel_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
+dague_handle_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
+dague_handle_t* dplasma_zgetrf_sp_New(double criteria, tiled_matrix_desc_t *A, int *info);
+
+void dplasma_ztrsmpl_fusion_Destruct( dague_handle_t *o );
+void dplasma_ztrsmpl_sd_Destruct( dague_handle_t *o );
+void dplasma_zgetrf_std_Destruct( dague_handle_t *o );
+void dplasma_zgetrf_panel_Destruct( dague_handle_t *o );
+void dplasma_zgetrf_fusion_Destruct( dague_handle_t *o );
+void dplasma_zgetrf_sp_Destruct( dague_handle_t *o );
+
 #endif /* _DPLASMA_Z_H_ */

@@ -1,0 +1,516 @@
+extern "C" %{
+/*
+ *  Copyright (c) 2010
+ *
+ *  The University of Tennessee and The University
+ *  of Tennessee Research Foundation.  All rights
+ *  reserved.
+ *
+ * @precisions normal z -> s d c
+ *
+ */
+#include "dplasma/lib/dplasmajdf.h"
+#include "data_dist/matrix/matrix.h"
+#include "dplasma/cores/dplasma_zcores.h"
+
+#include <plasma.h>
+#include <lapacke.h>
+#include <core_blas.h>
+#include <math.h>
+
+/*
+ * The idea here is to generate a permutation from the sequence of
+ * pivot.  To avoid storing one whole column at each step, we keep
+ * track of two vectors of nb elements, the first one contains the
+ * permutation of the first nb elements, and the second one contains
+ * the inverse permutation of those same elements.
+ *
+ * Let's have i the element to pivot with ip. IPIV[i] = ip;
+ * We set i_1 as such iperm[ i_1  ] = i
+ *  and  ip_1 as such iperm[ ip_1 ] = ip
+ *
+ * At each step we want to:
+ *   - swap perm[i] and perm[ip]
+ *   - set iperm[i_1] to ip
+ *   - set iperm[ip_1] to i
+ *
+ */
+static inline void pivot_to_permutation(int *IP, int hmax, int *perm, int *invperm, int diff )
+{
+    int i, j, ip;
+    int i_1, ip_1;
+
+    for(i=0; i < hmax; i++)
+        perm[i] = invperm[i] = i + diff;
+
+    for(i = 0; i < hmax; i++) {
+        ip = IP[i]-1;
+        assert( ip - diff >= i );
+        if ( ip-diff > i ) {
+
+            i_1 = perm[i];
+
+            if (ip-diff < hmax) {
+                ip_1 = perm[ip-diff];
+                perm[ip-diff] = i_1;
+            } else {
+                ip_1 = ip;
+                for(j=0; j < hmax; j++) {
+                    if( invperm[j] == ip ) {
+                        ip_1 = j + diff;
+                        break;
+                    }
+                }
+            }
+
+            perm[i] = ip_1;
+            i_1  -= diff;
+            ip_1 -= diff;
+
+            if (i_1  < hmax) invperm[i_1 ] = ip;
+            if (ip_1 < hmax) invperm[ip_1] = i+diff;
+        }
+    }
+}
+
+static inline int get_priority(int k, int n) {
+    return - (k * (k+1) + 1 + n - ( ((n-k)%2) * k ));
+}
+
+%}
+
+/* Globals
+ */
+A            [type = "dague_ddesc_t *"]
+IPIV         [type = "dague_ddesc_t *"]
+B            [type = "dague_ddesc_t *"]
+P            [type = "int"]
+
+descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)A)" ]
+descB        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)B)" ]
+minmnt       [type = "int" hidden=on default="( dague_imin( ((tiled_matrix_desc_t*)A)->mt, ((tiled_matrix_desc_t*)A)->nt ) - 1 )" ]
+
+
+/**************************************************
+ *                    PERM_in (pseudo task)
+ **************************************************/
+PERM_in_TR(k, m) [profile = off]
+
+// Execution space
+k = 0 .. minmnt
+m = 0 .. inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
+r = inline_c %{ return (k+m) % P; %}
+
+// Parallel partitioning
+:IPIV( r, k )
+
+// Parameters
+READ  IP   <- IPIV( r, k )
+
+WRITE PERM -> PERM B_SWAP_COLLECT(k, (k+m) .. (descB.mt-1) .. P, 0 .. (descB.nt-1) )  [type = PERMUT]
+
+;inline_c %{ return get_priority(k, minmnt+k); %}
+
+BODY
+{
+    DRYRUN(
+        int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
+        int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
+        int minmn  = dague_imin( tempkm, tempkn );
+
+        pivot_to_permutation( (int*)IP, minmn,
+                              (int*)PERM,
+                              (int*)PERM + descA.mb,
+                              k * descA.mb );
+           );
+}
+END
+
+/**************************************************
+ *                    A_in (pseudo task)
+ **************************************************/
+A_in_TR(k, m) [profile = off]
+
+// Execution space
+k = 0 .. minmnt
+m = k .. descA.mt-1
+
+// Parallel partitioning
+:A(m, k)
+
+// Parameters
+READ  A  <- A(m, k)
+         -> (k == m) ? T B_TRSM_U(k, 0..descB.nt-1)
+         -> (k != m) ? A B_GEMM(k, m, 0..descB.nt-1)
+
+;inline_c %{ return get_priority(k, minmnt + k); %}
+
+BODY
+{
+        /* Nothing to do */
+}
+END
+
+/**************************************************
+ *                    B_SWAP_COPY
+ * Copying the A(k,n) and send it to itself
+ **************************************************/
+B_SWAP_COPY(k,n) [immediate = off]
+
+// Execution space
+k = 0 .. minmnt
+n = 0 .. descB.nt-1
+
+// Parallel partitioning
+:B(k, n)
+
+// Parameters
+READ      A <-  (k == 0) ? B(k, n) : C B_GEMM(k-1, k, n)
+            ->  C B_TRSM_U(k, n)
+
+WRITE BCOPY ->  U B_SWAP_RECV(k, k+1 .. descA.mt-1, n)
+            ->  T B_SWAP_COLLECT(k, k, n)
+             
+;inline_c %{ return get_priority(k, minmnt+n); %}
+
+BODY
+{
+    int tempkm = (k == (descB.mt-1)) ? descB.m - k * descB.mb : descB.mb;
+    int tempnn = (n == (descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+    int ldbk = BLKLDD( descB, k );
+
+    printlog("B_SWAP_COPY(k=%d,n=%d)\n", k, n);
+
+#if !defined(NDEBUG)
+    memset(BCOPY, 0, descB.mb*descB.nb*sizeof(dague_complex64_t));
+#endif
+    DRYRUN(
+        LAPACKE_zlacpy_work(LAPACK_COL_MAJOR,
+                            'a', tempkm, tempnn,
+                            A    , ldbk,
+                            BCOPY, descB.mb);
+           );
+}
+END
+
+/**************************************************
+ *                    B_SWAP_RECV
+ * Swapping all the lines from the A(k,n) copy by
+ * the current process then sending it to next process
+ **************************************************/
+B_SWAP_RECV(k,m,n)
+
+// Execution space
+k = 0   .. minmnt
+m = k+1 .. descB.mt-1
+n = 0   .. descB.nt-1
+
+// Parallel partitioning
+:B(m, n)
+
+// Parameters
+READ      U <- BCOPY B_SWAP_COPY(k, n)
+
+READ   PERM <- PERM B_SWAP_COLLECT(k, m, n)                  [type = PERMUT]
+
+RW        T <- T    B_SWAP_COLLECT(k, m, n)
+            -> (m > k) ? C B_GEMM(k, m, n)
+
+;inline_c %{ return get_priority(k, minmnt+n); %}
+
+BODY
+{
+    printlog("B_SWAP_RECV(k=%d,m=%d,n=%d)\n",k,m,n);
+
+    DRYRUN(
+        int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
+        int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
+        int tempnn = (n == (descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+        int minmn = dague_imin( tempkm, tempkn );
+        int ldbm = BLKLDD( descB, m );
+        int *invperm = (int*)PERM + descB.nb;
+        int owner_index;
+        int index;
+        int i;
+
+        dague_complex64_t *lU = (dague_complex64_t*)U;
+        dague_complex64_t *lT = (dague_complex64_t*)T;
+
+        for(i = 0; i < minmn; i++) {
+            owner_index = *invperm / descB.mb;
+            index       = *invperm % descB.mb;
+            if(owner_index == m) {
+                cblas_zcopy(tempnn, lU + i    , descB.mb,
+                                    lT + index, ldbm);
+            }
+            invperm++;
+        }
+           );
+}
+END
+
+
+/**************************************************
+ *                    B_SWAP_COLLECT
+ * Swapping all the lines for the current process
+ * in the temporary buffer
+ **************************************************/
+B_SWAP_COLLECT(k, m, n)
+
+// Execution space
+k = 0 .. minmnt
+m = k .. descB.mt-1
+n = 0 .. descB.nt-1
+i = inline_c %{ return ((m-k)%P); %}
+
+lastM = inline_c %{ return descB.mt - ( descB.mt - 1 - k - i)%P - 1; %}
+
+// Parallel partitioning
+:B(m, n)
+
+// Parameters
+RW    BUF   <-  ((m-k) <  P ) ? B(m, n)                            /* Unused */
+            <-  ((m-k) >= P ) ? BUFIN B_SWAP_COLLECT(k, k+i, n)
+
+            ->  ((m-k) >= P) && ((descB.mt-m-1) <  P) && (i%2 == 0) ? Rtop    B_SWAP_SND(k, 1, i/2, n )
+            ->  ((m-k) >= P) && ((descB.mt-m-1) <  P) && (i%2 == 1) ? Rbottom B_SWAP_SND(k, 1, i/2, n )
+
+READ  T     <-  (k == m) ? BCOPY B_SWAP_COPY(k, n)
+            <-  (k != m) && (k == 0) ? B(m, n)
+            <-  (k != m) && (k != 0) ? C B_GEMM(k-1, m, n)
+            ->  (m > k) ? T B_SWAP_RECV(k,m,n)
+
+READ  PERM  <-  PERM PERM_in_TR(k, i )                                                   [type = PERMUT]
+            ->  PERM B_SWAP_RECV(k, m, n )                                               [type = PERMUT]
+            ->  (((descB.mt-m-1) <  P) && (i%2 == 0) ) ? PERM B_SWAP_SND(k, 1, i/2, n )  [type = PERMUT]
+
+WRITE BUFIN ->  ((m-k) < P) && ((descA.mt-m-1) >= P) ? BUF B_SWAP_COLLECT(k, m+P .. (descB.mt-1) .. P, n)
+            ->  ((m-k) < P) && ((descA.mt-m-1) <  P) && (i%2 == 0) ? Rtop    B_SWAP_SND(k, 1, i/2, n )
+            ->  ((m-k) < P) && ((descA.mt-m-1) <  P) && (i%2 == 1) ? Rbottom B_SWAP_SND(k, 1, i/2, n )
+
+CTL   ctl   ->   ((descB.mt-m-1) >=  P)? ctl B_SWAP_COLLECT(k, lastM, n)
+            <-  (((descB.mt-m-1) <  P) && ((descB.mt-k+i-1) >=  P))? ctl B_SWAP_COLLECT(k, k+i .. m-P .. P, n)
+
+;inline_c %{ return get_priority(k, minmnt+n); %}
+
+BODY
+{
+    printlog("B_SWAP_COLLECT(k=%d,m=%d,n=%d)\n",k,m,n);
+
+    DRYRUN(
+        int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
+        int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
+        int tempnn = (n == (descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+        int minmn = dague_imin( tempkm, tempkn );
+        int ldbm = BLKLDD( descB, m );
+        int *perm = (int*)PERM;
+        int owner_index;
+        int index;
+        int j;
+
+        dague_complex64_t *lT = (dague_complex64_t*)T;
+        dague_complex64_t *lM;
+
+        if ( (m-k) < P ) {
+            lM = (dague_complex64_t*)BUFIN;
+#if !defined(NDEBUG)
+            memset(BUFIN, 0, descA.mb*descA.nb*sizeof(dague_complex64_t));
+#endif
+        } else {
+            lM = (dague_complex64_t*)BUF;
+        }
+
+        for(j = 0; j < minmn; j++) {
+            owner_index = *perm / descB.mb;
+            index       = *perm % descB.mb;
+
+            if(owner_index == m) {
+                cblas_zcopy(tempnn, lT + index, ldbm,
+                                    lM + j    , descB.mb);
+            }
+            perm++;
+        }
+           );
+}
+END
+
+/**************************************************
+ *                    B_SWAP_SND
+ *      Reduction tree of the collected rows
+ **************************************************/
+B_SWAP_SND(k, l, i, n) [immediate=off]
+
+/* Execution space */
+k = 0 .. minmnt
+height = inline_c %{ return dague_imin( descA.mt-k, P ); %}
+depth  = inline_c %{ return (int)ceil( log ( dague_imax(height,2) ) / log(2.) ); %}
+l = 1 .. depth
+i = 0 .. inline_c %{ return dague_imin( ((1 << (depth - l)) - 1), height / 2 ); %}
+n = 0 .. descB.nt-1
+
+size = inline_c %{ return 1<<(l-1); %}
+iT = inline_c %{ return  2*i   *size; %}
+iB = inline_c %{ return (2*i+1)*size; %}
+mT = inline_c %{ return descB.mt - ( descB.mt - 1 - k - iT)%P - 1; %}
+mB = inline_c %{ return descB.mt - ( descB.mt - 1 - k - iB)%P - 1; %}
+
+// Parallel partitioning
+:B(mT, n)
+
+// Parameters
+RW       Rtop    <- (l == 1) && ((mT-k) <  P) ? BUFIN  B_SWAP_COLLECT( k, mT, n )
+                 <- (l == 1) && ((mT-k) >= P) ? BUF    B_SWAP_COLLECT( k, mT, n )
+                 <- (l != 1) ? Rtop B_SWAP_SND( k, l-1, 2*i, n )
+
+                 -> (( l <  depth) && (0 == (i % 2))) ? Rtop    B_SWAP_SND( k, l+1, i/2, n )
+                 -> (( l <  depth) && (1 == (i % 2))) ? Rbottom B_SWAP_SND( k, l+1, i/2, n )
+                 ->  ( l == depth) ? B B_TRSM_U(k, n)
+
+READ     Rbottom <- (l == 1) && (iB <  height) && ((mB-k) <  P) ? BUFIN B_SWAP_COLLECT( k, mB, n )
+                 <- (l == 1) && (iB <  height) && ((mB-k) >= P) ? BUF   B_SWAP_COLLECT( k, mB, n )
+                 <- (l == 1) && (iB >= height) ? B(mT, n) /* Unused */
+                 <- (l != 1) && (iB >= height) ? B(mT, n) /* Unused */
+                 <- (l != 1) && (iB <  height) ? Rtop B_SWAP_SND( k, l-1, 2*i+1, n )
+
+READ     PERM    <- (l == 1) ? PERM B_SWAP_COLLECT( k, mT, n )                            [type = PERMUT]
+                 <- (l != 1) ? PERM B_SWAP_SND( k, l-1, 2*i, n )                          [type = PERMUT]
+                 -> (( l < depth) && (0 == (i % 2))) ? PERM B_SWAP_SND( k, l+1, i/2, n )  [type = PERMUT]
+
+
+;inline_c %{ return get_priority(k, minmnt+n); %}
+
+BODY
+{
+    printlog("B_SWAP_SND(k=%d,l=%d,i=%d,n=%d) => Merge( %d [%d], %d [%d])\n",
+             k, l, i, n, mT, iT, mB, iB );
+
+    DRYRUN(
+        if ( iB < height ) {
+
+            int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
+            int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
+            int tempnn = (n == (descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+            int minmn = dague_imin( tempkm, tempkn );
+            int *perm = (int*)PERM;
+            int owner_index;
+            int j;
+
+            dague_complex64_t *lT = (dague_complex64_t*)Rtop;
+            dague_complex64_t *lB = (dague_complex64_t*)Rbottom;
+
+            for(j=0; j<minmn; j++) {
+                owner_index = (*perm) / descB.mb;
+                owner_index = (owner_index - k)%P - iB;
+
+                if( (0 <= owner_index) && (owner_index < size) ) {
+                    cblas_zcopy(tempnn, lB + j, descB.mb,
+                                        lT + j, descB.mb);
+                }
+                perm++;
+            }
+        }
+      );
+}
+END
+
+
+/**************************************************
+ *                 SWAP + TRSM                    *
+ *                A(k, k+1..NT-1)                 *
+ **************************************************/
+B_TRSM_U(k, n)
+
+// Execution space
+k = 0 .. minmnt
+n = 0 .. descB.nt-1
+
+depth = inline_c %{ int height = dague_imax(dague_imin( descB.mt-k, P ),2);
+                    return (int)ceil( log ( height ) / log(2.) ); %}
+
+// Parallel partitioning
+: B(k, n)
+
+// Parameters
+READ    T <- A A_in_TR(k, k)
+RW      C <- A B_SWAP_COPY(k, n)
+          -> B B_GEMM(k, k+1..descA.mt-1, n)
+          -> B(k, n)
+
+READ    B <- Rtop B_SWAP_SND(k, depth, 0, n)
+
+;inline_c %{ return get_priority(k, minmnt+n); %}
+
+BODY
+{
+    int tempkm = (k == (descB.mt-1)) ? descB.m - k * descB.mb : descB.mb;
+    int tempnn = (n == (descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+    int ldak = BLKLDD( descA, k );
+    int ldbk = BLKLDD( descB, k );
+
+    printlog("B_TRSM_U(k=%d, n=%d)\n"
+             "\t(M=%d, N=%d, LDA=%d, LDC=%d)\n", k, n, tempkm, tempnn, ldak, ldbk );
+
+    DRYRUN(
+        /* Put back the swapped tile */
+        LAPACKE_zlacpy_work(LAPACK_COL_MAJOR, 'A',
+                            tempkm, tempnn,
+                            B /* Buf(k,n)*/, descB.mb,
+                            C /* A(k, n) */, ldbk );
+
+
+        CORE_ztrsm(
+            PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,
+            tempkm, tempnn,
+            1., T /*A(k, k)*/, ldak,
+                C /*B(k, n)*/, ldbk );
+           );
+}
+END
+
+/**************************************************
+* *                      GEMM                      *
+ **************************************************/
+B_GEMM(k, m, n)
+
+// Execution space
+k = 0   .. minmnt-1
+m = k+1 .. descB.mt-1
+n = 0   .. descB.nt-1
+
+// Parallel partitioning
+: B(m, n)
+
+// Parameters
+READ  A <- A A_in_TR(k, m)
+READ  B <- C B_TRSM_U(k, n)
+RW    C <- T B_SWAP_RECV(k, m, n)
+        -> (m == k+1) ? A B_SWAP_COPY(k+1,n)       /* Swap */
+        -> (m >  k+1) ? T B_SWAP_COLLECT(k+1,m,n)  /* Everything else */
+
+;inline_c %{ return get_priority(k, minmnt+n); %}
+
+BODY
+{
+    int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
+    int tempmm = (m == (descB.mt-1)) ? descB.m - m * descB.mb : descB.mb;
+    int tempnn = (n == (descB.nt-1)) ? descB.n - n * descB.nb : descB.nb;
+    int ldam = BLKLDD( descA, m );
+    int ldbk = BLKLDD( descB, k );
+    int ldbm = BLKLDD( descB, m );
+
+    printlog("B_GEMM(k=%d, m=%d, n=%d)"
+             "\tCORE_gemm(M=%d,N=%d,K=%d,A(%d,%d),lda=%d,B(%d,%d),ldb=%d,C(%d,%d),ldc=%d)\n",
+             k, m, n, tempmm, tempnn, tempkn,
+             m, k, ldam, k, n, ldbk, m, n, ldbm);
+
+    DRYRUN(
+        CORE_zgemm(
+            PlasmaNoTrans, PlasmaNoTrans,
+            tempmm, tempnn, tempkn,
+            (dague_complex64_t)-1.0, A /*A(m, k)*/, ldam,
+                                     B /*B(k, n)*/, ldbk,
+            (dague_complex64_t) 1.0, C /*B(m, n)*/, ldbm )
+           );
+
+}
+END

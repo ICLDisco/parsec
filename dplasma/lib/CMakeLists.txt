@@ -93,6 +93,9 @@ set(JDF
   zhetrd_b2s.jdf
   ztrdsm.jdf
   ztrmdm.jdf
+  # Under development in this branch
+  zgetrf_fusion.jdf
+  ztrsmpl_fusion.jdf
 )
 precisions_rules_py(generated_jdf
                     "${JDF}"
@@ -195,6 +198,9 @@ set(SOURCES
   zhetrs_wrapper.c
   ztrdsm_wrapper.c
   zheev_wrapper.c
+  #
+  zgetrf_fusion_wrapper.c
+  ztrsmpl_fusion_wrapper.c
 )
 precisions_rules_py(generated_wrappers
                     "${SOURCES}"
