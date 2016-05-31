@@ -154,6 +154,7 @@ subs = {
     ('spltmg','dpltmg','cpltmg','zpltmg'),
     ('slasc', 'dlasc', 'clasc', 'zlasc'),
     ('slaset','dlaset','claset','zlaset'),
+    ('slatms', 'dlatms', 'clatms', 'zlatms'),
     ('sprint','dprint','cprint','zprint'),
     ('slacgv','dlacgv','clacgv','zlacgv'),
     ('slacpy','dlacpy','clacpy','zlacpy'),

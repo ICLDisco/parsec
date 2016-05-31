@@ -100,9 +100,10 @@ double dplasma_zlantr( parsec_context_t *parsec, PLASMA_enum ntype, PLASMA_enum 
 int    dplasma_zlascal(parsec_context_t *parsec, PLASMA_enum type, parsec_complex64_t alpha, tiled_matrix_desc_t *A);
 int    dplasma_zlaset( parsec_context_t *parsec, PLASMA_enum uplo, parsec_complex64_t alpha, parsec_complex64_t beta, tiled_matrix_desc_t *A);
 int    dplasma_zlaswp( parsec_context_t *parsec, tiled_matrix_desc_t *A, const tiled_matrix_desc_t *IPIV, int inc);
-int    dplasma_zplghe( parsec_context_t *parsec, double            bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
+int    dplasma_zlatms( parsec_context_t *parsec, PLASMA_enum mtxtype, double cond, tiled_matrix_desc_t *A, unsigned long long int seed);
+int    dplasma_zplghe( parsec_context_t *parsec, double             bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
 int    dplasma_zplgsy( parsec_context_t *parsec, parsec_complex64_t bump, PLASMA_enum uplo, tiled_matrix_desc_t *A, unsigned long long int seed);
-int    dplasma_zplrnt( parsec_context_t *parsec, int diagdom,                              tiled_matrix_desc_t *A, unsigned long long int seed);
+int    dplasma_zplrnt( parsec_context_t *parsec, int diagdom,                               tiled_matrix_desc_t *A, unsigned long long int seed);
 
 /* Auxiliary routines available only through synchronous interface */
 int    dplasma_zpltmg( parsec_context_t *parsec, PLASMA_enum mtxtype, tiled_matrix_desc_t *A, unsigned long long int seed);

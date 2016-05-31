@@ -122,6 +122,7 @@ set(SOURCES
   zplgsy_wrapper.c
   zplrnt_wrapper.c
   zpltmg_wrapper.c
+  zlatms_wrapper.c
   zprint_wrapper.c
   # Level 3 Blas
   zgemm_wrapper.c
