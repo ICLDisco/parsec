@@ -501,7 +501,7 @@ remote_dep_mpi_retrieve_datatype(dague_execution_unit_t *eu,
     }
     output->data.data = NULL;
 
-    deps->priority       = oldcontext->priority;
+    if( deps->max_priority < newcontext->priority ) deps->max_priority = newcontext->priority;
     deps->incoming_mask |= (1U << dep->dep_datatype_index);
     deps->root           = src_rank;
     return DAGUE_ITERATE_STOP;
@@ -1516,9 +1516,9 @@ static void remote_dep_mpi_recv_activate(dague_execution_unit_t* eu_context,
 
 #if defined(DAGUE_DEBUG) || defined(DAGUE_DEBUG_NOISIER)
     dague_debug_verbose(6, dague_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\n"
-          "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d)",
+          "\twith datakey %lx\tparams %lx length %d (pack buf %d/%d) prio %d",
            deps->from, tmp, deps->msg.deps, deps->incoming_mask,
-           deps->msg.length, *position, length);
+           deps->msg.length, *position, length, deps->max_priority);
 #endif
     for(k = 0; deps->incoming_mask>>k; k++) {
         if(!(deps->incoming_mask & (1U<<k))) continue;
