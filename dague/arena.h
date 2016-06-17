@@ -21,7 +21,7 @@ BEGIN_C_DECLS
 /**
  * Maximum amount of memory each arena is allowed to manipulate.
  */
-size_t dague_arena_max_allocated_memory;
+extern size_t dague_arena_max_allocated_memory;
 
 /**
  * Maximum amount of memory cached on each arena.
