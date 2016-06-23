@@ -58,8 +58,7 @@ struct dague_execution_unit_s {
 #endif  /* defined(PINS_ENABLE) */
 
 #if defined(DAGUE_PROF_RUSAGE_EU)
-#if defined(DAGUE_HAVE_GETRUSAGE) || !defined(__bgp__)
-    int _eu_rusage_first_call;
+#if defined(DAGUE_HAVE_GETRUSAGE) && !defined(__bgp__)
     struct rusage _eu_rusage;
 #endif /* DAGUE_HAVE_GETRUSAGE */
 #endif

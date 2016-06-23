@@ -52,18 +52,14 @@ static uint32_t sched_priority_trace_counter;
 #endif
 
 
-#if defined(DAGUE_PROF_RUSAGE_EU)
-
-#if defined(DAGUE_HAVE_GETRUSAGE) && defined(DAGUE_HAVE_RUSAGE_THREAD)
+#if defined(DAGUE_PROF_RUSAGE_EU) && defined(DAGUE_HAVE_GETRUSAGE) && defined(DAGUE_HAVE_RUSAGE_THREAD) && !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
-static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
-{
-
+static void dague_rusage_per_eu(dague_execution_unit_t* eu, bool print) {
     struct rusage current;
     getrusage(RUSAGE_THREAD, &current);
-    if( !eu->_eu_rusage_first_call ) {
+    if( print ) {
         double usr, sys;
 
         usr = ((current.ru_utime.tv_sec - eu->_eu_rusage.ru_utime.tv_sec) +
@@ -71,9 +67,8 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
         sys = ((current.ru_stime.tv_sec - eu->_eu_rusage.ru_stime.tv_sec) +
                (current.ru_stime.tv_usec - eu->_eu_rusage.ru_stime.tv_usec) / 1000000.0);
 
-        dague_inform(("\n=============================================================\n"
-                "%s: Resource Usage Data for Exec. Unit ...\n"
-                "VP: %i Thread: %i (Core %i, socket %i)\n"
+        dague_inform(
+                "Resource Usage Exec. Unit VP: %i Thread: %i (Core %i, socket %i)\n"
                 "-------------------------------------------------------------\n"
                 "User Time   (secs)          : %10.3f\n"
                 "System Time (secs)          : %10.3f\n"
@@ -86,21 +81,20 @@ static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu)
                 "Block Input Operations      : %10ld\n"
                 "Block Output Operations     : %10ld\n"
                 "=============================================================\n"
-                , str, eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
+                , eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
                 usr, sys, usr + sys,
                 (current.ru_minflt  - eu->_eu_rusage.ru_minflt), (current.ru_majflt  - eu->_eu_rusage.ru_majflt),
                 (current.ru_nswap   - eu->_eu_rusage.ru_nswap) , (current.ru_nvcsw   - eu->_eu_rusage.ru_nvcsw),
-                (current.ru_inblock - eu->_eu_rusage.ru_inblock), (current.ru_oublock - eu->_eu_rusage.ru_oublock)));
+                (current.ru_inblock - eu->_eu_rusage.ru_inblock), (current.ru_oublock - eu->_eu_rusage.ru_oublock));
 
     }
-    eu->_eu_rusage_first_call = !eu->_eu_rusage_first_call;
     eu->_eu_rusage = current;
     return;
 }
+#define dague_rusage_per_eu(eu, b) do { if(dague_want_rusage > 1) dague_rusage_per_eu(eu, b); } while(0)
 #else
-static void dague_statistics_per_eu(char* str, dague_execution_unit_t* eu) { (void)str; (void)eu; return; }
-#endif /* defined(DAGUE_HAVE_GETRUSAGE) */
-#endif /* defined(DAGUE_PROF_RUSAGE_EU) */
+#define dague_rusage_per_eu(eu, b) do {} while(0)
+#endif /* defined(DAGUE_HAVE_GETRUSAGE) defined(DAGUE_PROF_RUSAGE_EU) */
 
 #if 0
 /**
@@ -385,9 +379,8 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
         dague_context->flags |= DAGUE_CONTEXT_FLAG_CONTEXT_ACTIVE;
     }
 
-#if defined(DAGUE_PROF_RUSAGE_EU)
-    dague_statistics_per_eu("EU", eu_context);
-#endif
+    dague_rusage_per_eu(eu_context, false);
+
     /* first select begin, right before the wait_for_the... goto label */
     PINS(eu_context, SELECT_BEGIN, NULL);
 
@@ -508,9 +501,7 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
         }
     }
 
-#if defined(DAGUE_PROF_RUSAGE_EU)
-    dague_statistics_per_eu("EU ", eu_context);
-#endif
+    dague_rusage_per_eu(eu_context, true);
 
     /* We're all done ? */
     dague_barrier_wait( &(dague_context->barrier) );
@@ -545,12 +536,12 @@ int __dague_context_wait( dague_execution_unit_t* eu_context )
     PINS(eu_context, SELECT_END, NULL);
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
-    dague_inform(("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu",
+    dague_inform("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu",
             eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
             (long long unsigned int)found_remote,
             (long long unsigned int)found_victim,
             (long long unsigned int)miss_local,
-            (long long unsigned int)miss_victim ));
+            (long long unsigned int)miss_victim );
 
     if( DAGUE_THREAD_IS_MASTER(eu_context) ) {
         char  priority_trace_fname[64];

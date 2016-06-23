@@ -85,11 +85,11 @@ int task_memory_alloc_key, task_memory_free_key;
 #define MAX_CORE_LIST 128
 #endif
 
-#if defined(DAGUE_HAVE_GETRUSAGE) || !defined(__bgp__)
+int dague_want_rusage = 0;
+#if defined(DAGUE_HAVE_GETRUSAGE) && !defined(__bgp__)
 #include <sys/time.h>
 #include <sys/resource.h>
 
-static int _dague_rusage_first_call = 1;
 static struct rusage _dague_rusage;
 
 static char *dague_enable_dot = NULL;
@@ -105,11 +105,11 @@ static int dague_runtime_bind_main_thread = 1;
 OBJ_CLASS_INSTANCE(dague_execution_context_t, dague_hashtable_item_t,
                    NULL, NULL);
 
-static void dague_statistics(char* str)
+static void dague_rusage(bool print)
 {
     struct rusage current;
     getrusage(RUSAGE_SELF, &current);
-    if( !_dague_rusage_first_call ) {
+    if( print ) {
         double usr, sys;
 
         usr = ((current.ru_utime.tv_sec - _dague_rusage.ru_utime.tv_sec) +
@@ -117,7 +117,7 @@ static void dague_statistics(char* str)
         sys = ((current.ru_stime.tv_sec - _dague_rusage.ru_stime.tv_sec) +
                (current.ru_stime.tv_usec - _dague_rusage.ru_stime.tv_usec) / 1000000.0);
 
-        dague_inform("==== Resource Usage Data...   %s\n"
+        dague_inform("==== Resource Usage Data...\n"
                      "-------------------------------------------------------------\n"
                      "User Time   (secs)          : %10.3f\n"
                      "System Time (secs)          : %10.3f\n"
@@ -130,18 +130,18 @@ static void dague_statistics(char* str)
                      "Block Input Operations      : %10ld\n"
                      "Block Output Operations     : %10ld\n"
                      "=============================================================\n",
-                     str, usr, sys, usr + sys,
+                     usr, sys, usr + sys,
                      current.ru_minflt  - _dague_rusage.ru_minflt, current.ru_majflt  - _dague_rusage.ru_majflt,
                      current.ru_nswap   - _dague_rusage.ru_nswap,
                      current.ru_nvcsw   - _dague_rusage.ru_nvcsw, current.ru_nivcsw  - _dague_rusage.ru_nivcsw,
                      current.ru_inblock - _dague_rusage.ru_inblock, current.ru_oublock - _dague_rusage.ru_oublock);
     }
-    _dague_rusage_first_call = !_dague_rusage_first_call;
     _dague_rusage = current;
     return;
 }
+#define dague_rusage(b) do { if(dague_want_rusage > 0) dague_rusage(b); } while(0)
 #else
-static void dague_statistics(char* str) { (void)str; return; }
+#define dague_rusage(b) do {} while(0)
 #endif /* defined(DAGUE_HAVE_GETRUSAGE) */
 
 static void dague_handle_empty_repository(void);
@@ -192,10 +192,6 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
 #else
     eu->socket_id        = 0;
 #endif  /* defined(DAGUE_HAVE_HWLOC) */
-
-#if defined(DAGUE_PROF_RUSAGE_EU)
-    eu-> _eu_rusage_first_call = 1;
-#endif
 
 #if defined(DAGUE_SCHED_REPORT_STATISTICS)
     eu->sched_nb_tasks_done = 0;
@@ -322,6 +318,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     char **environ = NULL;
     char **env_variable, *env_name, *env_value;
     char *dague_enable_profiling = NULL;  /* profiling file prefix when DAGUE_PROF_TRACE is on */
+    int slow_option_warning = 0;
 
     dague_installdirs_open();
     dague_mca_param_init();
@@ -396,7 +393,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         GET_INT_ARGV(cmd_line, "ht", hyperth);
         dague_hwloc_allow_ht(hyperth);
 #else
-        dague_inform("Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.");
+        dague_warning("Option ht (hyper-threading) is only supported when HWLOC is enabled at compile time.");
 #endif  /* defined(DAGUE_HAVE_HWLOC) */
     }
 
@@ -497,7 +494,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     if( nb_cores != nb_total_comp_threads ) {
-        dague_inform("Your vpmap uses %d threads when %d cores where available",
+        dague_warning("Your vpmap uses %d threads when %d cores where available",
                      nb_total_comp_threads, nb_cores);
         nb_cores = nb_total_comp_threads;
     }
@@ -653,8 +650,28 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
         free(dague_enable_profiling);
     }
 
+    /* Introduce communication engine */
+    (void)dague_remote_dep_init(context);
+
     /* Initialize Performance Instrumentation (PINS) */
     PINS_INIT(context);
+
+    if(dague_enable_dot) {
+#if defined(DAGUE_PROF_GRAPHER)
+        dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
+        slow_option_warning = 1;
+#else
+        dague_warning("DOT generation requested, but DAGUE_PROF_GRAPHER was not selected during compilation: DOT generation ignored.");
+#endif  /* defined(DAGUE_PROF_GRAPHER) */
+    }
+
+#if defined(DAGUE_DEBUG_NOISIER) || defined(DAGUE_DEBUG_PARANOID)
+    slow_option_warning = 1;
+#endif
+    if( slow_option_warning && 0 == context->my_rank ) {
+        dague_warning("/!\\ THE PERFORMANCE OF THIS RUN ARE NOT OPTIMAL /!\\.\n");
+        dague_debug_verbose(4, dague_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
+    }
 
     dague_devices_init(context);
     /* By now let's add one device for the CPUs */
@@ -694,14 +711,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
          * error for PaRSEC */
         dague_abort("Unable to load any scheduler in init function.");
         return NULL;
-    }
-
-    if(dague_enable_dot) {
-#if defined(DAGUE_PROF_GRAPHER)
-        dague_prof_grapher_init(dague_enable_dot, nb_total_comp_threads);
-#else
-        dague_warning("DOT generation requested, but DAGUE_PROF_GRAPHER was not selected during compilation: DOT generation ignored.");
-#endif  /* defined(DAGUE_PROF_GRAPHER) */
     }
 
     if( nb_total_comp_threads > 1 ) {
@@ -747,12 +756,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     }
     free(startup);
 
-    /* Introduce communication thread */
-    (void)dague_remote_dep_init(context);
-    dague_statistics("DAGuE");
-
-    AYU_INIT();
-
     /* Play with the thread placement */
     if( NULL != comm_binding_parameter )
         dague_parse_comm_binding_parameter(comm_binding_parameter, context);
@@ -761,6 +764,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
 
     if( display_vpmap )
         vpmap_display_map();
+
+    dague_mca_param_reg_int_name("profile", "rusage", "Report 'getrusage' satistics.\n"
+            "0: no report, 1: per process report, 2: per thread report (if available).\n",
+            false, false, dague_want_rusage, &dague_want_rusage);
+    dague_rusage(false);
+
+    AYU_INIT();
 
     if( dague_cmd_line_is_taken(cmd_line, "help") ||
         dague_cmd_line_is_taken(cmd_line, "h")) {
@@ -824,6 +834,8 @@ int dague_fini( dague_context_t** pcontext )
     /* Now wait until every thread is back */
     context->__dague_internal_finalization_in_progress = 1;
     dague_barrier_wait( &(context->barrier) );
+
+    dague_rusage(true);
 
     PINS_THREAD_FINI(context->virtual_processes[0]->execution_units[0]);
 

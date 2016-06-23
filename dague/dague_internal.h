@@ -302,6 +302,11 @@ DAGUE_DECLSPEC extern size_t dague_task_startup_iter;
 DAGUE_DECLSPEC extern size_t dague_task_startup_chunk;
 
 /**
+ * Global configuration variable controlling the getrusage report.
+ */
+DAGUE_DECLSPEC extern int dague_want_rusage;
+
+/**
  * Description of the state of the task. It indicates what will be the next
  * next stage in the life-time of a task to be executed.
  */
