@@ -395,7 +395,7 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     }
 
     dague_hwloc_print_cpuset(9, "Thread binding: cpuset binding [BEFORE]: ", cpuset);
-    dague_hwloc_print_cpuset(3, "Thread binding: cpuset binding [ACTUAL]: ", binding_mask);
+    dague_hwloc_print_cpuset(4, "Thread binding: cpuset binding [ACTUAL]: ", binding_mask);
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);
