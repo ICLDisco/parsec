@@ -2092,32 +2092,47 @@ static int32_t dague_expr_eval32(const expr_t *expr, dague_execution_context_t *
 }
 
 static int dague_debug_enumerate_next_in_execution_space(dague_execution_context_t *context,
-                                                         int param_depth)
+                                                         int init, int li)
 {
     const dague_function_t *function = context->function;
     int cur, max, incr, min;
 
-    if( param_depth == function->nb_parameters )
-        return 0;
+    if( li == function->nb_locals )
+        return init; /** We did not find a new context */
 
-    if( param_depth < function->nb_parameters ) {
-        if( dague_debug_enumerate_next_in_execution_space(context, param_depth+1) )
-            return 1;
+    min = dague_expr_eval32(function->locals[li]->min,
+                            context);
+
+    max = dague_expr_eval32(function->locals[li]->max,
+                            context);
+    if ( min > max ) {
+        return 0; /* There is no context starting with these locals */
     }
-    cur = context->locals[ function->params[param_depth]->context_index ].value;
-    max = dague_expr_eval32(function->params[param_depth]->max, context);
-    if( function->params[param_depth]->expr_inc == NULL ) {
-        incr = function->params[param_depth]->cst_inc;
-    } else {
-        incr = dague_expr_eval32(function->params[param_depth]->expr_inc, context);
+
+    if( init ) {
+        context->locals[li].value = min;
     }
-    if( cur + incr > max ) {
-        min = dague_expr_eval32(function->params[param_depth]->min, context);
-        context->locals[ function->params[param_depth]->context_index ].value = min;
-        return 0;
-    }
-    context->locals[ function->params[param_depth]->context_index ].value = cur + incr;
-    return 1;
+
+    do {
+        if( dague_debug_enumerate_next_in_execution_space(context, init, li+1) )
+            return 1; /** We did find a new context */
+
+        if( min == max )
+            return 0; /** We can't change this local */
+
+        cur = context->locals[li].value;
+        if( function->locals[li]->expr_inc == NULL ) {
+            incr = function->locals[li]->cst_inc;
+        } else {
+            incr = dague_expr_eval32(function->locals[li]->expr_inc, context);
+        }
+
+        if( cur + incr > max ) {
+            return 0;
+        }
+        context->locals[li].value = cur + incr;
+        init = 1;
+    } while(1);
 }
 
 void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handle,
@@ -2132,7 +2147,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
     dague_execution_context_t context;
     dague_dependency_t *dep;
     dague_data_ref_t ref;
-    int pi, li;
+    int li, init;
 
     DAGUE_LIST_ITEM_SINGLETON( &context.super.list_item );
     context.super.mempool_owner = NULL;
@@ -2151,14 +2166,11 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
         context.locals[li].value = -1;
     }
 
-    /* Starting point of the context space enumeration */
-    for( pi = 0; pi < function->nb_parameters; pi++) {
-        context.locals[function->params[pi]->context_index].value = dague_expr_eval32(function->params[pi]->min,
-                                                                                      &context);
-    }
-
-    do {
+    init = 1;
+    while( dague_debug_enumerate_next_in_execution_space(&context, init, 0) ) {
         char tmp[MAX_TASK_STRLEN];
+        init = 0;
+
         (*ntotal)++;
         function->data_affinity(&context, &ref);
         if( ref.ddesc->rank_of_key(ref.ddesc, ref.key) == ref.ddesc->myrank ) {
@@ -2169,7 +2181,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                     (*nreleased)++;
                     if( show_startup )
                         dague_debug_verbose(19, dague_debug_output, "  Task %s is a local startup task",
-                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
+                                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
                 } else {
                     if((*dep & DAGUE_DEPENDENCIES_BITMASK) == function->dependencies_goal) {
                         (*nreleased)++;
@@ -2177,11 +2189,11 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                     if( show_complete ||
                         ((*dep & DAGUE_DEPENDENCIES_BITMASK) != function->dependencies_goal) ) {
                         dague_debug_verbose(20, dague_debug_output, "  Task %s is a local task with dependency 0x%08x (goal is 0x%08x) -- Flags: %s %s",
-                                dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
-                                *dep & DAGUE_DEPENDENCIES_BITMASK,
-                                function->dependencies_goal,
-                                *dep & DAGUE_DEPENDENCIES_TASK_DONE ? "TASK_DONE" : "",
-                                *dep & DAGUE_DEPENDENCIES_IN_DONE ? "IN_DONE" : "");
+                                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
+                                            *dep & DAGUE_DEPENDENCIES_BITMASK,
+                                            function->dependencies_goal,
+                                            *dep & DAGUE_DEPENDENCIES_TASK_DONE ? "TASK_DONE" : "",
+                                            *dep & DAGUE_DEPENDENCIES_IN_DONE ? "IN_DONE" : "");
                     }
                 }
             } else {
@@ -2190,15 +2202,15 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
 
                 if( (*dep != 0) || show_complete )
                     dague_debug_verbose(20, dague_debug_output, "  Task %s is a local task that must wait for %d more dependencies to complete -- using count method for this task (CTL gather)",
-                            dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
-                            *dep);
+                                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
+                                        *dep);
             }
         } else {
             if( show_remote )
                 dague_debug_verbose(20, dague_debug_output, "  Task %s is a remote task",
-                        dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
+                                    dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
         }
-    } while( dague_debug_enumerate_next_in_execution_space(&context, 0)  );
+    }
 }
 
 void dague_debug_print_local_expecting_tasks_for_handle( dague_handle_t *handle,
