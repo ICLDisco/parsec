@@ -21,7 +21,7 @@
 #include <string.h>
 #include <math.h>
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
 #endif
 
@@ -216,7 +216,7 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
     }
 }
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 
 //#include <lapack.h>
 

@@ -1,6 +1,6 @@
 
 macro(dague_addtest lang target input)
-list(APPEND EXTRA_LIBS m)
+  list(APPEND EXTRA_LIBS m)
 
   if( MPI_C_FOUND )
     set(${target}_${lang}FLAGS  "${MPI_C_COMPILE_FLAGS} ${${target}_${lang}FLAGS}")
@@ -10,25 +10,26 @@ list(APPEND EXTRA_LIBS m)
 
   add_executable(${target} ${input})
   set_target_properties(${target} PROPERTIES
-                        LINKER_LANGUAGE ${lang}
-                        COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
-                        LINK_FLAGS "${${target}_LDFLAGS}")
+    LINKER_LANGUAGE ${lang}
+    COMPILE_FLAGS "${${target}_${lang}FLAGS} ${LOCAL_${lang}_LINK_FLAGS}"
+    LINK_FLAGS "${${target}_LDFLAGS}")
   target_link_libraries(${target} ${${target}_LIBS})
   #  install(TARGETS ${target} RUNTIME DESTINATION bin)
 
 endmacro(dague_addtest)
 
-Add_Subdirectory(haar-tree-project)
-Add_Subdirectory(pingpong)
-Add_Subdirectory(branching)
-Add_Subdirectory(choice)
-Add_Subdirectory(controlgather)
-Add_Subdirectory(scheduling)
-Add_Subdirectory(all2all)
-Add_Subdirectory(generalized_reduction)
-Add_Subdirectory(merge_sort)
-Add_Subdirectory(profiling)
-Add_Subdirectory(interfaces/superscalar)
+add_Subdirectory(haar-tree-project)
+add_Subdirectory(pingpong)
+add_Subdirectory(branching)
+add_Subdirectory(choice)
+add_Subdirectory(controlgather)
+add_Subdirectory(scheduling)
+add_Subdirectory(all2all)
+add_Subdirectory(generalized_reduction)
+add_Subdirectory(merge_sort)
+add_Subdirectory(profiling)
+add_Subdirectory(interfaces/superscalar)
+add_Subdirectory(jdf/new_null)
 
 Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)

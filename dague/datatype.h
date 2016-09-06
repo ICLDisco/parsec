@@ -8,7 +8,7 @@
  */
 #include "dague.h"
 #include "dague/constants.h"
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 
 #define DAGUE_DATATYPE_NULL  MPI_DATATYPE_NULL
@@ -32,11 +32,11 @@ typedef MPI_Aint     dague_aint_t;
 
 #include "dague/datatype/datatype_mpi.h"
 
-#else  /* !defined(HAVE_MPI) */
+#else  /* !defined(DAGUE_HAVE_MPI) */
 
 #define DAGUE_DATATYPE_NULL  ((intptr_t)NULL)
 typedef intptr_t  dague_datatype_t;
-typedef size_t    MPI_Aint;
+typedef size_t    dague_aint_t;
 
 #define dague_datatype_int_t              1
 #define dague_datatype_int8_t             2
@@ -98,6 +98,6 @@ int dague_type_create_resized(dague_datatype_t oldtype,
 
 END_C_DECLS
 
-#endif  /* defined(HAVE_MPI) */
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
 #endif  /* DAGUE_DATATYPE_H_HAS_BEEN_INCLUDED */

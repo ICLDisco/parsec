@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,14 +11,14 @@
 #include "matrix.h"
 #include "dague/debug.h"
 
-#ifdef HAVE_STRING_H
+#ifdef DAGUE_HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #include <stdio.h>
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
 #endif
 
@@ -100,8 +100,8 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
             clength = clength - ((Ddesc->nt * Ddesc->nb) - Ddesc->n);
         }
 
-    DEBUG3(("allocate scalapack matrix: process %u(%d,%d) handles %d x %d blocks, for a total of %d x %d elements (matrix size is %d by %d)\n",
-           Ddesc->super.myrank, rr, cr, nb_elem_r, nb_elem_c, rlength, clength, Ddesc->m, Ddesc->n));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "allocate scalapack matrix: process %u(%d,%d) handles %d x %d blocks, for a total of %d x %d elements (matrix size is %d by %d)",
+           Ddesc->super.myrank, rr, cr, nb_elem_r, nb_elem_c, rlength, clength, Ddesc->m, Ddesc->n);
     
     smat =  dague_data_allocate(rlength * clength * dague_datadist_getsizeoftype(Ddesc->mtype));
 
@@ -115,8 +115,8 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
     sca_desc[7] = 0;
     sca_desc[8] = rlength;
 
-    DEBUG3(("allocate scalapack matrix: scalapack descriptor: [(dense == 1) %d, (ICTX) %d, (M) %d, (N) %d, (MB) %d, (NB) %d,(IRSRC) %d, (ICSRC) %d, (LLD) %d ]\n ",
-           sca_desc[0], sca_desc[1], sca_desc[2], sca_desc[3], sca_desc[4], sca_desc[5], sca_desc[6], sca_desc[7], sca_desc[8]));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "allocate scalapack matrix: scalapack descriptor: [(dense == 1) %d, (ICTX) %d, (M) %d, (N) %d, (MB) %d, (NB) %d,(IRSRC) %d, (ICSRC) %d, (LLD) %d ]\n ",
+           sca_desc[0], sca_desc[1], sca_desc[2], sca_desc[3], sca_desc[4], sca_desc[5], sca_desc[6], sca_desc[7], sca_desc[8]);
 
     memset(smat, 0 , rlength * clength * dague_datadist_getsizeoftype(Ddesc->mtype));
     return smat;    
@@ -124,7 +124,7 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
 
 int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, int process_grid_rows)
 {
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     int length, size;
 #endif
 
@@ -133,7 +133,7 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
     info->sca_mat = sca_mat;
     info->process_grid_rows = process_grid_rows;
     
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     /* mpi type creation*/
     /* type for full blocks */
     MPI_Type_vector(info->Ddesc->nb, info->Ddesc->mb, sca_desc[8],
@@ -184,13 +184,13 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
     MPI_Type_commit (&(info->MPI_Dague_last_block));
 
     /* MPI_Type_vector(count, blocklength, stride, MPI_DOUBLE, &(info->MPI_Sca_last_block)); */
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
     return 0;
 }
 
 void tiles_to_scalapack_info_destroy(scalapack_info_t * info)
 {
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Type_free(&(info->MPI_Sca_full_block));
     MPI_Type_free(&(info->MPI_Sca_last_row));
     MPI_Type_free(&(info->MPI_Sca_last_col));
@@ -201,12 +201,12 @@ void tiles_to_scalapack_info_destroy(scalapack_info_t * info)
     MPI_Type_free(&(info->MPI_Dague_last_block));
 #else
     (void)info;
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
     return;
 }
 
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 /* to compute which process will get this tile as a scalapack block */
 static int twoDBC_get_rank(tiled_matrix_desc_t * Ddesc, int process_grid_rows, int row, int col)
 {
@@ -306,7 +306,7 @@ int tiles_to_scalapack(scalapack_info_t * info)
     return 0;
 }
 
-#else /* ! HAVE_MPI */
+#else /* ! DAGUE_HAVE_MPI */
 
 void tile_to_block_double(scalapack_info_t * info, int row, int col)
 {

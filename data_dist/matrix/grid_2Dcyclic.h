@@ -6,9 +6,9 @@
 #ifndef __GRID_2DCYCLIC_H__
 #define __GRID_2DCYCLIC_H__
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 #include "dague_config.h"
 

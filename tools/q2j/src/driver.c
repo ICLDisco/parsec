@@ -106,9 +106,10 @@ static void parse_line(char *line){
     /* Break the "key = value" formated input into two parts. */
     sscanf(line, " %[^ =] = %d", key, &value);
 
-    if( !strlen(key) )
+    if( !strlen(key) ) {
+        free(key);
         return;
-
+    }
     if( !strcmp(key,"produce_shmem_jdf") ){
         _q2j_produce_shmem_jdf = value;
     }else if( !strcmp(key,"add_phony_tasks") ){
@@ -132,7 +133,7 @@ static void parse_line(char *line){
     }
 
     /* ignore silently unrecognized keys */
-
+    free(key);
     return;
 }
 
@@ -158,6 +159,7 @@ static void read_conf_file(){
 }
 
 static void sig_handler(int signum) {
+    (void)signum;
     _keep_waiting = 0;
 }
 

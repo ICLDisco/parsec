@@ -7,12 +7,8 @@ include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
 
 if( CUDA_FOUND )
     set(CORE_CUDA_HEADERS
-        cuda_zgemm.h
-        cuda_ztsmqr.h
     )
     set(CORE_CUDA_SOURCES
-        cuda_zgemm.c
-        cuda_ztsmqr.c
         dplasma_cuda_ztsmqr.c
     )
 else()

@@ -2,7 +2,6 @@
 #define _DPLASMAJDF_H_
 
 #include <core_blas.h>
-#include "dague.h"
 #include "dplasma.h"
 #include "dague/private_mempool.h"
 
@@ -26,9 +25,12 @@ typedef void * CORE_sgetrf_data_t;
 #   include <stdio.h>
 #   define printlog(str, ...) fprintf(stderr, "thread %d VP %d " str "\n", \
                                       context->th_id, context->virtual_process->vp_id, __VA_ARGS__)
+#   define printlogcuda(str, ...) fprintf(stderr, "cuda %d " str "\n", \
+                                          gpu_device->cuda_index, __VA_ARGS__)
 #   define OUTPUT(ARG)  printf ARG
 #else
 #   define printlog(...) do {} while(0)
+#   define printlogcuda(...) do {} while(0)
 #   define OUTPUT(ARG)
 #endif
 
@@ -38,13 +40,34 @@ typedef void * CORE_sgetrf_data_t;
 #define DRYRUN( body ) body
 #endif
 
-#ifndef HAVE_MPI
+#ifndef DAGUE_HAVE_MPI
 #define TEMP_TYPE MPITYPE
 #undef MPITYPE
 #define MPITYPE ((dague_datatype_t)QUOTEME(TEMP_TYPE))
 #undef TEMP_TYPE
-#endif  /* HAVE_MPI */
+#endif  /* DAGUE_HAVE_MPI */
 
+
+#if defined(DAGUE_HAVE_CUDA)
+#include <cublas.h>
+
+typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 cuDoubleComplex alpha, cuDoubleComplex *d_A, int lda,
+                                 cuDoubleComplex *d_B, int ldb,
+                                 cuDoubleComplex beta,  cuDoubleComplex *d_C, int ldc );
+typedef void (*cublas_cgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 cuComplex alpha, cuComplex *d_A, int lda,
+                                 cuComplex *d_B, int ldb,
+                                 cuComplex beta,  cuComplex *d_C, int ldc );
+typedef void (*cublas_dgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 double alpha, double *d_A, int lda,
+                                 double *d_B, int ldb,
+                                 double beta,  double *d_C, int ldc );
+typedef void (*cublas_sgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
+                                 float alpha, float *d_A, int lda,
+                                              float *d_B, int ldb,
+                                 float beta,  float *d_C, int ldc );
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
 #endif /* _DPLASMAJDF_H_ */
 

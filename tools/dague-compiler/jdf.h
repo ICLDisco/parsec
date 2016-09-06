@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -61,6 +61,7 @@ typedef struct jdf_object_t {
  * variable, and can be safely used as a marker.
  */
 #define PARSEC_WRITE_MAGIC_NAME "__parsec_write_type"
+#define PARSEC_NULL_MAGIC_NAME "__parsec_null_type"
 
 /**
  * Checks the sanity of the current_jdf.
@@ -77,7 +78,7 @@ typedef uint64_t jdf_warning_mask_t;
 #define JDF_WARN_MUTUAL_EXCLUSIVE_INPUTS ((jdf_warning_mask_t)(1 <<  1))
 #define JDF_WARN_REMOTE_MEM_REFERENCE    ((jdf_warning_mask_t)(1 <<  2))
 
-#define JDF_WARNINGS_ARE_ERROR           ((jdf_warning_mask_t)(1 <<  3))
+#define JDF_WARNINGS_ARE_ERROR           (jdf_warning_mask_t)(1 <<  3)
 
 #define JDF_WARNINGS_DISABLED_BY_DEFAULT (JDF_WARNINGS_ARE_ERROR)
 #define JDF_ALL_WARNINGS                 ((jdf_warning_mask_t)~JDF_WARNINGS_DISABLED_BY_DEFAULT)
@@ -168,7 +169,6 @@ typedef unsigned int jdf_flags_t;
 #define JDF_FUNCTION_HAS_UD_HASH_FUN           ((jdf_flags_t)(1 << 0))
 #define JDF_PROP_UD_HASH_FN_NAME               "hash_fn"
 
-#define JDF_FUNCTION_HAS_UD_NB_LOCAL_TASKS_FUN ((jdf_flags_t)(1 << 1))
 #define JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME     "nb_local_tasks_fn"
 
 #define JDF_FUNCTION_HAS_UD_STARTUP_TASKS_FUN  ((jdf_flags_t)(1 << 2))
@@ -293,8 +293,19 @@ typedef struct jdf_call {
     struct jdf_expr          *parameters;
 } jdf_call_t;
 
-#define JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(DEP) \
-    ((NULL == (DEP)->guard->guard) && (NULL != (DEP)->guard->calltrue) && (NULL == (DEP)->guard->callfalse) && \
+#define JDF_IS_CALL_WITH_NO_INPUT(CALL)                         \
+    ((NULL == (CALL)->var) && (NULL == (CALL)->parameters))
+
+/**
+ * Return true if the flow is set only to define the global datatype of WRITE-only flow
+ * If it is the case the guard is unconditional with only the NEW keyword and
+ * optionnally some properties as follow:
+ *   WRITE X <- NEW  [type = DEFAULT]
+ */
+#define JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(DEP)                           \
+    ((NULL == (DEP)->guard->guard) &&                                   \
+     (NULL != (DEP)->guard->calltrue) &&                                \
+     (NULL == (DEP)->guard->callfalse) &&                               \
      (0 == strcmp(PARSEC_WRITE_MAGIC_NAME, (DEP)->guard->calltrue->func_or_mem)))
 
 /*******************************************************************/

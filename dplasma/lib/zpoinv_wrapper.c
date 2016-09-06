@@ -136,7 +136,7 @@ dplasma_zpoinv_Destruct( dague_handle_t *handle )
 
     dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ] );
     /* dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA] ); */
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**
@@ -197,7 +197,7 @@ dplasma_zpoinv( dague_context_t *dague,
         dplasma_zpoinv_Destruct( dague_zpoinv );
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;

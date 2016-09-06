@@ -77,6 +77,6 @@ void dplasma_zherbt_Destruct( dague_handle_t *handle )
         dague_private_memory_fini( dague_zherbt->pool_3 );
         free( dague_zherbt->pool_3 );
 
-        handle->destructor(handle);
+        dague_handle_free(handle);
     }
 }

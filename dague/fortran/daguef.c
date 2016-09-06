@@ -1,9 +1,9 @@
 /*
- * Copyright (c) 2013      The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include <dague.h>
+#include "dague.h"
 #include <string.h>
 #include <stdlib.h>
 

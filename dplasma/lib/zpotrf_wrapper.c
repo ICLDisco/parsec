@@ -174,7 +174,7 @@ dplasma_zpotrf_Destruct( dague_handle_t *handle )
     dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)handle;
 
     dague_matrix_del2arena( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA] );
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**
@@ -240,7 +240,7 @@ dplasma_zpotrf( dague_context_t *dague,
         dplasma_zpotrf_Destruct( dague_zpotrf );
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;
@@ -318,7 +318,7 @@ dplasma_zpotrf_rec( dague_context_t *dague,
         dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;

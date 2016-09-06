@@ -15,7 +15,7 @@ static inline void getnbluqr( int rank, int MT, int *lu_tab, int *nbqr, int *nbl
     int i;
     (void)rank;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int *lu_tab2 = (int*)malloc( MT*sizeof(int) );
         MPI_Allreduce ( lu_tab, lu_tab2, MT, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
@@ -155,7 +155,7 @@ int main(int argc, char ** argv)
                 fclose(f);
             }
         }
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
         MPI_Bcast(&lastindex, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
         index = 0;

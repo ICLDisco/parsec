@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,6 @@
 #define LIFO_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
-#include "dague/class/dague_object.h"
 #include "dague/class/list_item.h"
 
 typedef struct dague_lifo_s dague_lifo_t;
@@ -111,7 +110,7 @@ static inline int dague_lifo_nolock_is_empty( dague_lifo_t* lifo )
 static inline void dague_lifo_push( dague_lifo_t* lifo,
                                     dague_list_item_t* item )
 {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( (uintptr_t)item % DAGUE_LIFO_ALIGNMENT(lifo) == 0 );
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
@@ -131,7 +130,7 @@ static inline void dague_lifo_push( dague_lifo_t* lifo,
 static inline void dague_lifo_nolock_push( dague_lifo_t* lifo,
                                            dague_list_item_t* item )
 {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( (uintptr_t)item % DAGUE_LIFO_ALIGNMENT(lifo) == 0 );
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
@@ -143,7 +142,7 @@ static inline void dague_lifo_nolock_push( dague_lifo_t* lifo,
 static inline void dague_lifo_chain( dague_lifo_t* lifo,
                                      dague_list_item_t* items )
 {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( (uintptr_t)items % DAGUE_LIFO_ALIGNMENT(lifo) == 0 );
 #endif
     DAGUE_ITEMS_ATTACH(lifo, items);
@@ -166,7 +165,7 @@ static inline void dague_lifo_chain( dague_lifo_t* lifo,
 static inline void dague_lifo_nolock_chain( dague_lifo_t* lifo,
                                             dague_list_item_t* items )
 {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( (uintptr_t)items % DAGUE_LIFO_ALIGNMENT(lifo) == 0 );
 #endif
     DAGUE_ITEMS_ATTACH(lifo, items);

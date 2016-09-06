@@ -151,7 +151,7 @@ dplasma_map_Destruct( dague_handle_t *handle )
 
     dague_matrix_del2arena( omap->arenas[DAGUE_map_DEFAULT_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

@@ -9,9 +9,6 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#if defined(HAVE_CUDA)
-#include "dplasma/cores/cuda_zgemm.h"
-#endif
 
 static int check_solution( dague_context_t *dague, int loud,
                            tiled_matrix_desc_t *ddescA,
@@ -35,10 +32,10 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 40, 200, 200);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
-    
+
     /* Initialize DAGuE */
     dague = setup_dague(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);

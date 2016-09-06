@@ -6,6 +6,7 @@
 
 #include "hash_datadist.h"
 #include "dague/vpmap.h"
+#include "dague/utils/output.h"
 
 #define DEFAULT_HASH_SIZE 65536
 
@@ -27,10 +28,7 @@ dague_hash_datadist_t *dague_hash_datadist_create(int np, int myrank)
     dague_hash_datadist_t *o;
 
     o = (dague_hash_datadist_t*)malloc(sizeof(dague_hash_datadist_t));
-
-    /* Super setup */
-    o->super.nodes  = np;
-    o->super.myrank = myrank;
+    dague_ddesc_init( (dague_ddesc_t*)o, np, myrank );
 
     o->super.data_key      = hash_data_key;
     o->super.rank_of       = hash_rank_of;
@@ -39,12 +37,6 @@ dague_hash_datadist_t *dague_hash_datadist_create(int np, int myrank)
     o->super.data_of_key   = hash_data_of_key;
     o->super.vpid_of       = hash_vpid_of;
     o->super.vpid_of_key   = hash_vpid_of_key;
-
-#if defined(DAGUE_PROF_TRACE)
-    o->super.key_to_string = NULL;
-    o->super.key_dim       = NULL;
-    o->super.key           = NULL;
-#endif
 
     o->hash_size = DEFAULT_HASH_SIZE;
     o->hash = (dague_hash_datadist_entry_t **)calloc(DEFAULT_HASH_SIZE,
@@ -61,22 +53,37 @@ void dague_hash_datadist_destroy(dague_hash_datadist_t *d)
     uint32_t i;
 
     for(i = 0; i < d->hash_size; i++) {
-        if( d->hash[i] != NULL ) {
-            for(n = d->hash[i]; n!= NULL; n = next) {
-                next = n->next;
-                if( n->data != NULL ) {
-                    OBJ_RELEASE(n->data);
-                }
-                    free(n);
+        if( NULL == d->hash[i] ) continue;
+        for(n = d->hash[i]; NULL != n; n = next) {
+            next = n->next;
+            if( n->data != NULL ) {
+                dague_data_destroy( n->data );
             }
-            d->hash[i] = NULL;
+            free(n);
         }
+        d->hash[i] = NULL;
     }
     free(d->hash);
     d->hash = NULL;
     d->hash_size = 0;
     dague_ddesc_destroy( &d->super );
     free(d);
+}
+
+void dague_hash_datadist_dump(dague_hash_datadist_t *d)
+{
+    dague_hash_datadist_entry_t *n;
+    uint32_t i;
+
+    for(i = 0; i < d->hash_size; i++) {
+        if( NULL == d->hash[i] ) continue;
+        for(n = d->hash[i]; n!= NULL; n = n->next) {
+            if( n->data != NULL ) {
+                dague_output(0, "key %u rank %d vpid %d size %u\n",
+                             n->key, n->rank, n->vpid, n->size);
+            }
+        }
+    }
 }
 
 static dague_hash_datadist_entry_t *hash_lookup(dague_hash_datadist_t *d, uint32_t key)
@@ -149,8 +156,14 @@ static uint32_t      hash_rank_of(    dague_ddesc_t* ddesc, ... )
 static uint32_t      hash_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key)
 {
     dague_hash_datadist_entry_t *e = hash_lookup( (dague_hash_datadist_t*)ddesc, key );
-    assert(e != NULL);
-    return e->rank;
+    /**
+     * Allow for incomplete hash data collections (each node has a partial view).
+     * If we don't know the datadist entry then let's return a non-existing rank,
+     * that will break the communication engine if it makes it's way down there,
+     * but will allow the high level language to make assumptions about the
+     * locality of the data.
+     */
+    return (NULL == e ? ddesc->nodes : (uint32_t)e->rank);
 }
 
 static int32_t       hash_vpid_of(    dague_ddesc_t* ddesc, ... )
@@ -185,31 +198,7 @@ static dague_data_t* hash_data_of(    dague_ddesc_t* ddesc, ... )
 static dague_data_t* hash_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key)
 {
     dague_hash_datadist_entry_t *e = hash_lookup( (dague_hash_datadist_t*)ddesc, key );
-    dague_data_t* data;
-
     assert(e != NULL);
-    data = e->data;
-
-    if( data == NULL ) {
-        dague_data_copy_t* data_copy = OBJ_NEW(dague_data_copy_t);
-        data = OBJ_NEW(dague_data_t);
-
-        data_copy->coherency_state = DATA_COHERENCY_OWNED;
-        data_copy->original = NULL;
-        data_copy->device_private = e->actual_data;
-
-        data->owner_device = 0;
-        data->key          = key;
-        data->ddesc        = ddesc;
-        data->nb_elts      = e->size;
-        dague_data_copy_attach(data, data_copy, 0);
-
-        if( !dague_atomic_cas(&e->data, NULL, data) ) {
-            free(data_copy);
-            free(data);
-            data = e->data;
-        }
-    }
-
-    return data;
+    return dague_data_create( &(e->data), ddesc, key,
+                              e->actual_data, e->size );
 }

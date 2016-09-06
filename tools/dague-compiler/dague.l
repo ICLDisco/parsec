@@ -1,6 +1,6 @@
 %{
 /*
- * Copyright (c) 2009-2012 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -54,7 +54,7 @@ char string_buf[MAX_STR_CONST];
 char *string_buf_ptr;
 extern YYSTYPE yylval;
 
-#if defined(HAVE_RECENT_LEX)
+#if defined(DAGUE_HAVE_RECENT_LEX)
 #define YY_USER_ACTION yylloc->first_line = yylloc->last_line = yylineno; \
     yylloc->first_column = yycolumn; yylloc->last_column = yycolumn + yyleng - 1; \
     yycolumn += yyleng;
@@ -66,7 +66,7 @@ extern YYSTYPE yylval;
 #define YY_PUSH_STATE(STATE)  yy_push_state(STATE)
 #define YY_POP_STATE()        yy_pop_state()
 typedef void* yyscan_t;
-#endif  /* defined(HAVE_RECENT_LEX) */
+#endif  /* defined(DAGUE_HAVE_RECENT_LEX) */
 %}
 /*%option debug*/
 /*%option bison-bridge bison-locations*/
@@ -108,9 +108,9 @@ extern{WHITE}+\"[^\"]+\"{WHITE}+\%\{{WHITE}*"\n"([^\%]|(\%[^\}]))*\%\}          
                           YYLVAL(string) = extern_code( yytext + bstart, strlen(yytext)-bstart-2, 1 );
                           ECHO; return EXTERN_DECL;
                       }
-<INITIAL,properties>inline_c{WHITE}*\%\{([^\%]|(\%[^\}]))+\%\}            {
+<INITIAL,properties>(inline_c)?{WHITE}*\%c?\{([^\%]|(\%[^\}]))+\%\}        {
                           int start;
-                          for(start = 8; yytext[start] != '{'; start++) /* nothing */ ;
+                          for(start = 0; yytext[start] != '{'; start++) /* nothing */ ;
                           start++;
                           YYLVAL(string) = extern_code( yytext + start, strlen(yytext)-start-2, 0 );
                           ECHO; return EXTERN_DECL;
@@ -135,6 +135,8 @@ WRITE                 { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
 WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
+"NEW"                 { ECHO; return DATA_NEW;                             }
+"NULL"                { ECHO; return DATA_NULL;                            }
 "->"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_OUT;
                         ECHO; return ARROW;                                }
 "<-"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_IN;

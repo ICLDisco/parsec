@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,7 @@
 #include "dague/data_distribution.h"
 #include "dague/arena.h"
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
@@ -28,7 +28,7 @@ dague_handle_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
 {
     int worldsize;
     dague_ctlgat_handle_t *o = NULL;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 #else
     worldsize = 1;
@@ -41,17 +41,17 @@ dague_handle_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
 
     o = dague_ctlgat_new(A, nb, worldsize);
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         MPI_Aint extent;
     	MPI_Type_contiguous(size, MPI_INT, &block);
         MPI_Type_commit(&block);
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
         MPI_Aint lb = 0; 
         MPI_Type_get_extent(block, &lb, &extent);
 #else
         MPI_Type_extent(block, &extent);
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
         dague_arena_construct(o->arenas[DAGUE_ctlgat_DEFAULT_ARENA],
                               extent, DAGUE_ARENA_ALIGNMENT_SSE,
                               block);
@@ -66,7 +66,7 @@ dague_handle_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
  */
 void ctlgat_destroy(dague_handle_t *o)
 {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 

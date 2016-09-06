@@ -1055,7 +1055,6 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
     // FIXME: This will create variables with names like A.nt, but in the "real" code, these will be structure members. Is that ok?
     node_t *container_block, *ind_vars[2];
     matrix_variable_t *curr;
-    (void)rc;
 
     assert( NULL != list );
     assert( (Q2J_ANN_QUARK == _q2j_annot_API) || (Q2J_ANN_GENER == _q2j_annot_API) );
@@ -1196,6 +1195,7 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
         }
     }
 
+    (void)rc;
     return;
 }
 

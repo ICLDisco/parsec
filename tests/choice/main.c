@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,12 +8,12 @@
 #include "choice_wrapper.h"
 #include "choice_data.h"
 #include "dague/data_distribution.h"
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
-#if defined(HAVE_MPI)
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
-#endif  /* defined(HAVE_MPI) */
+#endif  /* defined(DAGUE_HAVE_MPI) */
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     dague_handle_t *choice;
     char **dargv, ***pargv;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -93,7 +93,7 @@ int main(int argc, char *argv[])
                 printf("%c%s", c == 0 ? '#' : (c == 1 ? 'A' : 'B'), i == nb ? "\n" : ", ");
             }
         }
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
     }
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     free_data(ddescA);
     free(decision);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

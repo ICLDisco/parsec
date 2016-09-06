@@ -6,9 +6,9 @@
 #ifndef __VECTOR_TWO_DIM_CYCLIC_H__
 #define __VECTOR_TWO_DIM_CYCLIC_H__
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 #include "dague_config.h"
 #include "data_dist/matrix/matrix.h"

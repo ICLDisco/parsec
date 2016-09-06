@@ -144,7 +144,7 @@ dplasma_zheev_Destruct( dague_handle_t *handle )
 
     dague_matrix_del2arena( ((dague_diag_band_to_rect_handle_t *)handle)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA] );
 #endif
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

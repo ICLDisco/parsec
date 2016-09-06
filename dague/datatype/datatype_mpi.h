@@ -14,9 +14,9 @@
 #error __FILE__ should only be directly included from dague/datatype.h. Include "dague/datatype.h" instead.
 #endif  /* !defined(DAGUE_DATATYPE_H_HAS_BEEN_INCLUDED) */
 
-#if !defined(HAVE_MPI)
+#if !defined(DAGUE_HAVE_MPI)
 #error __FILE__ should only be used when MPI support is enabled.
-#endif  /* !defined(HAVE_MPI) */
+#endif  /* !defined(DAGUE_HAVE_MPI) */
 
 static inline int
 dague_type_size( dague_datatype_t type, int *size )
@@ -106,14 +106,14 @@ dague_type_create_resized(dague_datatype_t oldtype,
                           dague_datatype_t *newtype)
 {
     int rc;
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
     rc = MPI_Type_create_resized(oldtype, lb, extent, newtype);
 #else
     int blocklens[] = {1, 1, 1};
     MPI_Aint indices[] = {lb, 0, extent};
     MPI_Datatype old_types[] = {MPI_LB, oldtype, MPI_UB};
     rc = MPI_Type_struct( 3, blocklens, indices, old_types, newtype );
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
     return (MPI_SUCCESS == rc ? DAGUE_SUCCESS : DAGUE_ERROR);
 }
 

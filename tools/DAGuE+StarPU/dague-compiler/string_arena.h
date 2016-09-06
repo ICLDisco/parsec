@@ -40,9 +40,9 @@ static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
     /* va_list might have pointer to internal state and using
        it twice is a bad idea.  So make a copy for the second
        use.  Copy order taken from Autoconf docs. */
-#if defined(HAVE_VA_COPY)
+#if defined(DAGUE_HAVE_VA_COPY)
     va_copy(ap2, ap);
-#elif defined(HAVE_UNDERSCORE_VA_COPY)
+#elif defined(DAGUE_HAVE_UNDERSCORE_VA_COPY)
     __va_copy(ap2, ap);
 #else
     memcpy (&ap2, &ap, sizeof(va_list));
@@ -57,9 +57,9 @@ static void string_arena_add_string(string_arena_t *sa, const char *format, ...)
     }
     sa->pos += length;
 
-#if defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY)
+#if defined(DAGUE_HAVE_VA_COPY) || defined(DAGUE_HAVE_UNDERSCORE_VA_COPY)
     va_end(ap2);
-#endif  /* defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY) */
+#endif  /* defined(DAGUE_HAVE_VA_COPY) || defined(DAGUE_HAVE_UNDERSCORE_VA_COPY) */
     va_end(ap);
 }
 

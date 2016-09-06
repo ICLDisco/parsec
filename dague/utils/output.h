@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2012 The University of Tennessee and The University
+ * Copyright (c) 2004-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -65,12 +65,12 @@
 
 #include "dague_config.h"
 
-#ifdef HAVE_STDARG_H
+#ifdef DAGUE_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
-#if defined(HAVE_STDBOOL_H)
+#if defined(DAGUE_HAVE_STDBOOL_H)
 #include <stdbool.h>
-#endif  /* defined(HAVE_STDBOOL_H) */
+#endif  /* defined(DAGUE_HAVE_STDBOOL_H) */
 
 #include <dague/class/dague_object.h>
 
@@ -180,7 +180,7 @@ struct dague_output_stream_t {
      *
      * This field should be "true" if the output is for debugging
      * purposes only.  In that case, the output will never be sent to
-     * the stream unless DAGUE was configured with --enable-debug.
+     * the stream unless DAGUE was configured with DAGUE_DEBUG_NOISIER.
      */
     bool lds_is_debugging;
 
@@ -508,11 +508,11 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
                                                       char **olddir,
                                                       char **oldprefix);
 
-#if DAGUE_DEBUG_VERBOSE > 0
+#if defined(DAGUE_DEBUG_NOISIER)
 /**
  * Main macro for use in sending debugging output to output streams;
  * will be "compiled out" when DAGUE is configured without
- * --enable-debug.
+ * DAGUE_DEBUG_NOISIER.
  *
  * @see dague_output()
  */
@@ -521,7 +521,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
 /**
  * Macro for use in sending debugging output to the output
  * streams.  Will be "compiled out" when DAGUE is configured
- * without --enable-debug.
+ * without DAGUE_DEBUG_NOISIER.
  *
  * @see dague_output_verbose()
  */
@@ -530,7 +530,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
 /**
  * Main macro for use in sending debugging output to output streams;
  * will be "compiled out" when DAGUE is configured without
- * --enable-debug.
+ * DAGUE_DEBUG_NOISIER.
  *
  * @see dague_output()
  */
@@ -539,7 +539,7 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
 /**
  * Macro for use in sending debugging output to the output
  * streams.  Will be "compiled out" when DAGUE is configured
- * without --enable-debug.
+ * without DAGUE_DEBUG_NOISIER.
  *
  * @see dague_output_verbose()
  */
@@ -555,6 +555,14 @@ DAGUE_DECLSPEC void dague_output_set_output_file_info(const char *dir,
  * the output fields that you want.
  */
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_output_stream_t);
+
+#if !defined(DAGUE_HAVE_VASPRINTF)
+int vasprintf(char **ptr, const char *fmt, va_list ap);
+#endif  /* !defined(DAGUE_HAVE_VASPRINTF) */
+
+#if !defined(DAGUE_HAVE_ASPRINTF)
+int asprintf(char **ptr, const char *fmt, ...);
+#endif  /* !defined(DAGUE_HAVE_ASPRINTF) */
 
 END_C_DECLS
 

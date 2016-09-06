@@ -1,4 +1,4 @@
-prefix=/usr/local
+prefix=@CMAKE_INSTALL_PREFIX@
 exec_prefix=${prefix}/bin
 libdir=${prefix}/lib
 includedir=${prefix}/include
@@ -8,6 +8,6 @@ Description: Distributed PLASMA over PaRSEC runtime
 Version: 1.0
 Requires: parsec coreblas @PARSEC_PKG_REQUIRE@
 Libs: -L${libdir} -ldplasma -ldague_distribution_matrix
-Libs.private: @EXTRA_LIBS@
-Cflags: -I${includedir} -I/usr/include
+Libs.private:
+Cflags: -I${includedir}
 

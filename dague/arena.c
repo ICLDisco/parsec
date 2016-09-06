@@ -37,6 +37,8 @@ int dague_arena_construct_ex(dague_arena_t* arena,
                              size_t max_allocated_memory,
                              size_t max_cached_memory)
 {
+    arena->elem_size = 0;  /* make sure the arena is marked as uninitialized to allow
+                              the destructor to skip the lifo destruction. */
     /* alignment must be more than zero and power of two */
     if( (alignment <= 1) || (alignment & (alignment - 1)) )
         return -1;
@@ -81,13 +83,16 @@ void dague_arena_destruct(dague_arena_t* arena)
          || arena->max_used == 0
          || arena->max_used == INT32_MAX );
 
-    while(NULL != (item = dague_lifo_pop(&arena->area_lifo))) {
-        DEBUG3(("Arena:\tfree element base ptr %p, data ptr %p (from arena %p)\n",
-                item, ((dague_arena_chunk_t*)item)->data, arena));
-        TRACE_FREE(arena_memory_free_key, item);
-        arena->data_free(item);
+    /* If elem_size == 0, the arena has not been initialized */
+    if ( 0 != arena->elem_size ) {
+        while(NULL != (item = dague_lifo_pop(&arena->area_lifo))) {
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Arena:\tfree element base ptr %p, data ptr %p (from arena %p)",
+                                item, ((dague_arena_chunk_t*)item)->data, arena);
+            TRACE_FREE(arena_memory_free_key, item);
+            arena->data_free(item);
+        }
+        OBJ_DESTRUCT(&arena->area_lifo);
     }
-    OBJ_DESTRUCT(&arena->area_lifo);
 }
 
 static inline dague_list_item_t*
@@ -124,18 +129,18 @@ dague_arena_release_chunk(dague_arena_t* arena,
     TRACE_FREE(arena_memory_unused_key, chunk);
 
     if( (chunk->count == 1) && (arena->released < arena->max_released) ) {
-        DEBUG2(("Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+        DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Arena:\tpush a data of size %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
                 arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(dague_arena_chunk_t),
-                DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+                DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment));
         if(arena->max_released != INT32_MAX) {
             dague_atomic_inc_32b((uint32_t*)&arena->released);
         }
         dague_lifo_push(&arena->area_lifo, &chunk->item);
         return;
     }
-    DEBUG2(("Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)\n",
+    DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "Arena:\tdeallocate a tile of size %zu x %zu from arena %p, aligned by %zu, base ptr %p, data ptr %p, sizeof prefix %zu(%zd)",
             arena->elem_size, chunk->count, arena, arena->alignment, chunk, chunk->data, sizeof(dague_arena_chunk_t),
-            DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment)));
+            DAGUE_ARENA_MIN_ALIGNMENT(arena->alignment));
     TRACE_FREE(arena_memory_free_key, chunk);
     if(arena->max_used != 0 && arena->max_used != INT32_MAX)
         dague_atomic_sub_32b(&arena->used, chunk->count);
@@ -172,7 +177,7 @@ dague_data_copy_t *dague_arena_get_copy(dague_arena_t *arena, size_t count, int 
     }
     if(NULL == chunk) return NULL;  /* no more */
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     DAGUE_LIST_ITEM_SINGLETON( &chunk->item );
 #endif
     TRACE_MALLOC(arena_memory_used_key, size, chunk);

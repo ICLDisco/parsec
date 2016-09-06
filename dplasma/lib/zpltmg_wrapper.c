@@ -223,7 +223,7 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
 
         dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA] );
         dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ] );
-        handle->destructor(handle);
+        dague_handle_free(handle);
         return 0;
     } else {
         return -101;
@@ -424,7 +424,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
         Vmat[0] = 1.;
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Bcast( &tau, 1, dague_datatype_double_complex_t, 0, MPI_COMM_WORLD );
 #endif
 

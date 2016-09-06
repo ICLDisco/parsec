@@ -65,9 +65,9 @@ minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : des
 zgeqrt(k, i)
   /* Execution space */
   k = 0 .. minMN-1
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m      = inline_c %{ return qrtree.getm(       &qrtree, k, i); %}
-  nextm  = inline_c %{ return qrtree.nextpiv(    &qrtree, k, m, descA.mt); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  m      = %{ return qrtree.getm(       &qrtree, k, i); %}
+  nextm  = %{ return qrtree.nextpiv(    &qrtree, k, m, descA.mt); %}
 
   SIMCOST 4
 
@@ -87,7 +87,7 @@ zgeqrt(k, i)
           -> dataTS(m, k)                                                      [type = LITTLE_T]
           -> (k < descA.nt-1) ? T zunmqr(k, i, (k+1)..(descA.nt-1))            [type = LITTLE_T]
 
-  ; inline_c %{ return GETPRIO_PANEL(m, k); %}
+  ; %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
 {
@@ -122,8 +122,8 @@ END
 zgeqrt_typechange(k, i) [profile = off]
   /* Execution space */
   k = 0 .. minMN-1
-  i = 0 .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m =      inline_c %{ return qrtree.getm(       &qrtree, k, i); %}
+  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  m =      %{ return qrtree.getm(       &qrtree, k, i); %}
 
   : dataA(m, k)
 
@@ -144,10 +144,10 @@ END
 zunmqr(k, i, n)
   /* Execution space */
   k = 0   .. minMN-1
-  i = 0   .. inline_c %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  i = 0   .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   n = k+1 .. descA.nt-1
-  m     = inline_c %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = inline_c %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
+  m     = %{ return qrtree.getm(    &qrtree, k, i); %}
+  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
 
   SIMCOST 6
 
@@ -163,7 +163,7 @@ zunmqr(k, i, n)
           -> ((k <  (descA.mt-1)) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
           -> ((k <  (descA.mt-1)) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
 
-    ; inline_c %{ return GETPRIO_UPDTE(m, n, k); %}
+    ; %{ return GETPRIO_UPDTE(m, n, k); %}
 
 BODY
 {
@@ -209,15 +209,15 @@ zttqrt(k, m)
   /* Execution space */
   k = 0   .. minMN-1
   m = k+1 .. descA.mt-1
-  p =     inline_c %{ return qrtree.currpiv( &qrtree, k, m);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, p, m); %}
-  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k, m, m); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k, m );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k, p );   %}
-  im    = inline_c %{ return qrtree.geti(    &qrtree, k, m );   %}
+  p =     %{ return qrtree.currpiv( &qrtree, k, m);    %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, p, m); %}
+  prevm = %{ return qrtree.prevpiv( &qrtree, k, m, m); %}
+  type  = %{ return qrtree.gettype( &qrtree, k, m );   %}
+  ip    = %{ return qrtree.geti(    &qrtree, k, p );   %}
+  im    = %{ return qrtree.geti(    &qrtree, k, m );   %}
 
-  SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 6 : 2; %}
+  SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 6 : 2; %}
 
   : dataA(m, k)
 
@@ -241,7 +241,7 @@ zttqrt(k, m)
           -> dataTT(m, k)                                              [type = LITTLE_T]
           -> (descA.nt-1 > k)? T zttmqr(k, m, (k+1)..(descA.nt-1)) [type = LITTLE_T]
 
- ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
+ ; %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
 {
@@ -282,7 +282,7 @@ END
 
 zttqrt_out_A1(k) [profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
   : dataA(k, k)
 
@@ -309,17 +309,17 @@ zttmqr(k, m, n)
   k = 0   .. minMN-1
   m = k+1 .. descA.mt-1
   n = k+1 .. descA.nt-1
-  p =     inline_c %{ return qrtree.currpiv( &qrtree, k,   m);    %}
-  nextp = inline_c %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
-  prevm = inline_c %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
-  type  = inline_c %{ return qrtree.gettype( &qrtree, k,   m );   %}
-  type1 = inline_c %{ return qrtree.gettype( &qrtree, k+1, m );   %}
-  ip    = inline_c %{ return qrtree.geti(    &qrtree, k,   p );   %}
-  im    = inline_c %{ return qrtree.geti(    &qrtree, k,   m );   %}
-  im1   = inline_c %{ return qrtree.geti(    &qrtree, k+1, m );   %}
+  p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
+  prevm = %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
+  type  = %{ return qrtree.gettype( &qrtree, k,   m );   %}
+  type1 = %{ return qrtree.gettype( &qrtree, k+1, m );   %}
+  ip    = %{ return qrtree.geti(    &qrtree, k,   p );   %}
+  im    = %{ return qrtree.geti(    &qrtree, k,   m );   %}
+  im1   = %{ return qrtree.geti(    &qrtree, k+1, m );   %}
 
-  SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
+  SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
   : dataA(m, n)
 
@@ -343,7 +343,7 @@ zttmqr(k, m, n)
 
   READ  T <- T  zttqrt(k, m)               [type = LITTLE_T]
 
-    ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
+    ; %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
 {
@@ -388,7 +388,7 @@ END
 zttmqr_out_A1(k, n) [profile = off]
   k = 0   .. minMN-2
   n = k+1 .. descA.nt-1
-  prevp = inline_c %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
+  prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
   : dataA(k, n)
 

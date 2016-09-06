@@ -30,6 +30,7 @@ static char * file_being_read;
 static void save_value(const char *name, const char *value)
 {
     dague_mca_param_file_value_t *fv;
+    int found_elem = 0;
 
     /* First traverse through the list and ensure that we don't
        already have a param of this name.  If we do, just replace the
@@ -47,12 +48,13 @@ static void save_value(const char *name, const char *value)
                     fv->mbpfv_value = NULL;
                 }
                 fv->mbpfv_file = strdup(file_being_read);
-                return;
+                found_elem = 1;
+                break;  /* do not return, we hold the lock */
             }
         });
+    if( found_elem ) return;
 
     /* We didn't already have the param, so append it to the list */
-
     fv = OBJ_NEW(dague_mca_param_file_value_t);
     if (NULL != fv) {
         fv->mbpfv_param = strdup(name);
@@ -69,6 +71,5 @@ static void save_value(const char *name, const char *value)
 int dague_mca_parse_paramfile(const char *paramfile)
 {
     file_being_read = (char*)paramfile;
-
     return dague_util_keyval_parse(paramfile, save_value);
 }

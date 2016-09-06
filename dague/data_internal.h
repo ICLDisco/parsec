@@ -62,7 +62,7 @@ struct dague_data_copy_s {
                                                       *   Overlay data distributions assume that arithmetic
                                                       *   can be done on these pointers. */
     dague_data_status_t      data_transfer_status;   /** three status */
-    struct dague_execution_context_s *push_task;            /** the task who actually do the PUSH */
+    struct dague_execution_context_s *push_task;     /** the task who actually do the PUSH */
 };
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
 
@@ -75,7 +75,7 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
  */
 #define DAGUE_DATA_COPY_RELEASE(DATA)     \
     do {                                  \
-        DEBUG3(("Release data copy %p at %s:%d\n", (DATA), __FILE__, __LINE__)); \
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Release data copy %p at %s:%d", (DATA), __FILE__, __LINE__); \
         OBJ_RELEASE((DATA));                                            \
     } while(0)
 
@@ -83,6 +83,6 @@ DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_data_copy_t);
  * Return the device private pointer for a datacopy.
  */
 #define DAGUE_DATA_COPY_GET_PTR(DATA) \
-    ((DATA)->device_private)
+    ((DATA) ? (DATA)->device_private : NULL)
 
 #endif  /* DATA_INTERNAL_H_HAS_BEEN_INCLUDED */

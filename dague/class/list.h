@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -382,7 +382,7 @@ dague_list_nolock_add_before( dague_list_t* list,
                               dague_list_item_t* position,
                               dague_list_item_t* newel )
 {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, newel);
@@ -397,7 +397,7 @@ dague_list_nolock_add_after( dague_list_t* list,
                              dague_list_item_t* position,
                              dague_list_item_t* newel )
 {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( position->belong_to == list );
 #endif
     DAGUE_ITEM_ATTACH(list, newel);
@@ -413,7 +413,7 @@ dague_list_nolock_remove( dague_list_t* list,
                           dague_list_item_t* item)
 {
     assert( &list->ghost_element != item );
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     assert( list == item->belong_to );
 #endif
     (void)list;

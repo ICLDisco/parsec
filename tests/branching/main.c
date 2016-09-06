@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,9 +7,12 @@
 #include "dague.h"
 #include "branching_wrapper.h"
 #include "branching_data.h"
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#if defined(DAGUE_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
 int main(int argc, char *argv[])
 {
@@ -19,7 +22,7 @@ int main(int argc, char *argv[])
     dague_ddesc_t *ddescA;
     dague_handle_t *branching;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -54,7 +57,7 @@ int main(int argc, char *argv[])
 
     dague_fini(&dague);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

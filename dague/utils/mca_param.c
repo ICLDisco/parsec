@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2008 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2014 The University of Tennessee and The University
+ * Copyright (c) 2004-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2005 High Performance Computing Center Stuttgart,
@@ -25,16 +25,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
+#ifdef DAGUE_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef HAVE_SYS_PARAM_H
+#ifdef DAGUE_HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
-#ifdef HAVE_STDBOOL_H
+#ifdef DAGUE_HAVE_STDBOOL_H
 #include <stdbool.h>
 #endif
-#ifdef HAVE_CTYPE_H
+#ifdef DAGUE_HAVE_CTYPE_H
 #include <ctype.h>
 #endif
 
@@ -49,6 +49,7 @@
 #include <dague/utils/argv.h>
 #include <dague/utils/show_help.h>
 #include <dague/utils/dague_environ.h>
+#include <dague/utils/keyval_parse.h>
 
 /*
  * Local types
@@ -802,9 +803,11 @@ static int read_files(char *file_list)
     files = dague_argv_split(file_list, DAGUE_ENV_SEP);
     count = dague_argv_count(files);
 
+    dague_util_keyval_parse_init();
     for (i = count - 1; i >= 0; --i) {
         dague_mca_parse_paramfile(files[i]);
     }
+    dague_util_keyval_parse_finalize();
     dague_argv_free(files);
 
     return DAGUE_SUCCESS;
@@ -1184,7 +1187,7 @@ static int param_register(const char *type_name,
              is STRING and the new is INT, this is an developer error. */
 
             else if (param.mbp_type != array[i].mbp_type) {
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG)
                 dague_show_help("help-mca-param.txt",
                                 "re-register with different type",
                                 true, array[i].mbp_full_name);
@@ -1867,7 +1870,7 @@ static void param_destructor(dague_mca_param_t *p)
     /* mark this parameter as invalid */
     p->mbp_type = DAGUE_MCA_PARAM_TYPE_MAX;
 
-#if defined(DAGUE_DEBUG_ENABLE)
+#if defined(DAGUE_DEBUG_PARANOID)
     /* Cheap trick to reset everything to NULL */
     param_constructor(p);
 #endif
@@ -2199,7 +2202,7 @@ dague_info_out(const char *pretty_message, const char *plain_message, const char
     char *filler = NULL;
     char *pos, *v, savev;
 
-#ifdef HAVE_ISATTY
+#ifdef DAGUE_HAVE_ISATTY
     /* If we have isatty(), if this is not a tty, then disable
      * wrapping for grep-friendly behavior
      */

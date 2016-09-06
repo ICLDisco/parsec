@@ -8,9 +8,9 @@
 
 #include "dague_config.h"
 #include "dague_internal.h"
-#if defined(HAVE_STDDEF_H)
+#if defined(DAGUE_HAVE_STDDEF_H)
 #include <stddef.h>
-#endif  /* HAVE_STDDEF_H */
+#endif  /* DAGUE_HAVE_STDDEF_H */
 #include "dague/debug.h"
 
 #include <dague/sys/atomic.h>
@@ -21,12 +21,12 @@ BEGIN_C_DECLS
 /**
  * Maximum amount of memory each arena is allowed to manipulate.
  */
-size_t dague_arena_max_allocated_memory;
+extern size_t dague_arena_max_allocated_memory;
 
 /**
  * Maximum amount of memory cached on each arena.
  */
-size_t dague_arena_max_cached_memory;
+extern size_t dague_arena_max_cached_memory;
 
 #define DAGUE_ALIGN(x,a,t) (((x)+((t)(a)-1)) & ~(((t)(a)-1)))
 #define DAGUE_ALIGN_PTR(x,a,t) ((t)DAGUE_ALIGN((uintptr_t)x, a, uintptr_t))

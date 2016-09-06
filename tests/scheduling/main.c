@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,10 +8,13 @@
 #include "ep_wrapper.h"
 #include "schedmicro_data.h"
 #include "dague/os-spec-timing.h"
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
 #include <math.h>
+#if defined(DAGUE_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
 #define MAXNT   16384
 #define MAXLEVEL 1024
@@ -33,7 +36,7 @@ int main(int argc, char *argv[])
     dague_time_t start, end;
     double sum, sumsqr, val;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -45,7 +48,9 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
     dague = dague_init(0, &argc, &argv);
-
+    if( NULL == dague ) {
+        exit(-1);
+    }
     printf("#All measured values are times. Times are expressed in " TIMER_UNIT "\n");
 
     level   = 4 * world;
@@ -90,7 +95,7 @@ int main(int argc, char *argv[])
     free_data(ddescA);
 
     dague_fini(&dague);
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

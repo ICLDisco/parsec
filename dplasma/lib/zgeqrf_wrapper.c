@@ -201,7 +201,7 @@ dplasma_zgeqrf_Destruct( dague_handle_t *handle )
     free( dague_zgeqrf->p_work );
     free( dague_zgeqrf->p_tau  );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 

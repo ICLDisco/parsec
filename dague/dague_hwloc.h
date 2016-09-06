@@ -130,7 +130,7 @@ void dague_hwloc_free_xml_buffer(char *xmlbuffer);
  * Bind the current thread according the mask of index mask_index.
  *
  */
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
 #include <hwloc.h>
 #else
 typedef int hwloc_cpuset_t;

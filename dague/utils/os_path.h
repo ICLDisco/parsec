@@ -45,9 +45,9 @@
 
 #include <stdio.h>
 #include <stdarg.h>
-#if defined(HAVE_STDBOOL_H)
+#if defined(DAGUE_HAVE_STDBOOL_H)
 #include <stdbool.h>
-#endif  /* defined(HAVE_STDBOOL_H) */
+#endif  /* defined(DAGUE_HAVE_STDBOOL_H) */
 
 BEGIN_C_DECLS
 

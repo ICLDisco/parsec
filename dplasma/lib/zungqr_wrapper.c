@@ -151,7 +151,7 @@ dplasma_zungqr_Destruct( dague_handle_t *handle )
     dague_private_memory_fini( dague_zungqr->p_work );
     free( dague_zungqr->p_work );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

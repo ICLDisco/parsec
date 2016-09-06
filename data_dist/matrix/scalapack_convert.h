@@ -11,16 +11,16 @@
 #include "dague/data_distribution.h"
 #include "matrix.h"
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif/* HAVE_MPI */
+#endif/* DAGUE_HAVE_MPI */
 
 typedef struct scalapack_info_t {
     tiled_matrix_desc_t * Ddesc;
     int * sca_desc;
     void * sca_mat;
     int process_grid_rows;
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Datatype MPI_Sca_full_block;
     MPI_Datatype MPI_Sca_last_row;
     MPI_Datatype MPI_Sca_last_col;
@@ -30,7 +30,7 @@ typedef struct scalapack_info_t {
     MPI_Datatype MPI_Dague_last_row;
     MPI_Datatype MPI_Dague_last_col;
     MPI_Datatype MPI_Dague_last_block;
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 } scalapack_info_t;
 
 /* allocate buffer size to handle a matrix in scalapack format in 2D block cyclic, given a dague matrix specification and a process grid

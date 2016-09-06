@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,17 +11,17 @@
 #include "data_dist/matrix/vector_two_dim_cyclic.h"
 #include "dague/vpmap.h"
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 static uint32_t vector_twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
 static int32_t  vector_twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
 static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t* ddesc, ...);
 
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
 static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...);
-#endif /* defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA) */
+#endif /* defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA) */
 
 #if defined(DAGUE_PROF_TRACE)
 static int      vector_twoDBC_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
@@ -63,10 +63,10 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     Ddesc->mat = NULL;  /* No data associated with the vector yet */
 
     if(nodes < P)
-        ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
+        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
     Q = nodes / P;
     if(nodes != P*Q)
-        WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
+        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
 
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
 
@@ -137,7 +137,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     o->vpid_of = vector_twoDBC_vpid_of;
     o->data_of = vector_twoDBC_data_of;
 
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
     o->data_key      = vector_twoDBC_data_key;
 #endif
 #if defined(DAGUE_PROF_TRACE)
@@ -148,17 +148,17 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
 #endif
     Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
 
-    DEBUG3(("vector_two_dim_cyclic_init: \n"
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "vector_two_dim_cyclic_init: \n"
             "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
-            "      nrst = %d, ncst = %d, P = %d, Q = %d\n",
+            "      nrst = %d, ncst = %d, P = %d, Q = %d",
             Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.myrank,
             Ddesc->super.mb, Ddesc->super.nb,
             Ddesc->super.lm, Ddesc->super.ln,
             Ddesc->super.i,  Ddesc->super.j,
             Ddesc->super.m,  Ddesc->super.n,
             Ddesc->grid.strows, Ddesc->grid.stcols,
-            P, Q));
+            P, Q);
 }
 
 
@@ -277,7 +277,7 @@ static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
 /*
  * Common functions
  */
-#if defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA)
+#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
 /* return a unique key (unique only for the specified dague_ddesc) associated to a data */
 static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...)
 {
@@ -296,7 +296,7 @@ static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...)
 
     return m;
 }
-#endif /* defined(DAGUE_PROF_TRACE) || defined(HAVE_CUDA) */
+#endif /* defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA) */
 
 #if defined(DAGUE_PROF_TRACE)
 /* return a string meaningful for profiling about data */

@@ -31,13 +31,13 @@ zlaset(m, n) [profile = off]
   /* Execution Space */
   m  = 0 .. descQ.mt-1
   n  = 0 .. descQ.nt-1
-  k  = inline_c %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
-  cq = inline_c %{ return ((descQ.mt == descA.nt) & (m == (descQ.mt-1)) & (n == (descQ.mt-1))); %}
+  k  = %{ return dplasma_imin(KT,dplasma_imin(m, n)); %}
+  cq = %{ return ((descQ.mt == descA.nt) & (m == (descQ.mt-1)) & (n == (descQ.mt-1))); %}
 
   /* Locality */
   : dataQ(m,n)
 
-  READ  A    <- dataQ(m,n)
+  RW    A    <- dataQ(m,n)
              ->  cq ? C zunmqr(k, n)
              -> (!cq & ((m <= KT) & (n >= m))) ? A1 ztsmqr(k, descQ.mt-1, n)
              -> (!cq & ((m >  KT) | (n <  m))) ? A2 ztsmqr(k, m,          n)

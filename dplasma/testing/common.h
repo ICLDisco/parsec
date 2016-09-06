@@ -144,9 +144,9 @@ typedef double DagDouble_t;
  * globals values
  *******************************/
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 extern MPI_Datatype SYNCHRO;
-#endif  /* HAVE_MPI */
+#endif  /* DAGUE_HAVE_MPI */
 
 extern const int side[2];
 extern const int uplo[2];

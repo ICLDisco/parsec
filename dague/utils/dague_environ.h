@@ -28,7 +28,7 @@
 #define DAGUE_ENVIRON_H
 
 #include "dague_config.h"
-#ifdef HAVE_STDBOOL_H
+#ifdef DAGUE_HAVE_STDBOOL_H
 #include <stdbool.h>
 #endif
 
@@ -134,7 +134,7 @@ DAGUE_DECLSPEC const char* dague_tmp_directory( void );
    libraries.  Handle that care here... */
 #if !defined(__WINDOWS__)
 
-#ifdef HAVE__NSGETENVIRON
+#ifdef DAGUE_HAVE__NSGETENVIRON
 #define environ (*_NSGetEnviron())
 #else
 DAGUE_DECLSPEC extern char **environ;

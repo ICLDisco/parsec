@@ -1,0 +1,135 @@
+extern "C" %{
+
+/**
+ * This example shows how to distribute the tasks over different nodes
+ *    descriptor as global
+ *    rank_of() / possibility of playing with value in rank_of
+ */
+
+#include <dague.h>
+#include <dague/data_distribution.h>
+#include <dague/datatype.h>
+
+%}
+
+/**
+ * Data descriptor used in the jdf can be declared manually as global to fix the
+ * parameters order of the _New function
+ */
+taskdist  [ type="dague_ddesc_t*" ]
+NB        [ type="int" ]
+
+Task(k)
+
+k = 0 .. NB
+
+: taskdist( k )
+
+RW  A <- (k == 0) ? NEW : A Task( k-1 )
+      -> (k < NB) ? A Task( k+1 )
+
+BODY
+{
+    int *Aint = (int*)A;
+    int rank;
+    if ( k == 0 ) {
+        *Aint = 0;
+    } else {
+        *Aint += 1;
+    }
+
+    MPI_Comm_rank( MPI_COMM_WORLD, &rank );
+    printf("I am element %d in the chain computed on node %d\n", *Aint, rank );
+}
+END
+
+extern "C" %{
+
+/**
+ * The rank_of function must return the rank owner of the task/data with the
+ * coordinates given as the va_args.
+ * The coordinates are given as integers, and the number of dimensions is up to
+ * the user.
+ *
+ * In this example, we implemented a 1D function that distributes the indexes in
+ * a round-robin fashion among all the nodes.
+ */
+static uint32_t
+rank_of(dague_ddesc_t *desc, ...)
+{
+    int k;
+    va_list ap;
+
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+
+    return k % desc->nodes;
+}
+
+static int32_t
+vpid_of(dague_ddesc_t *desc, ...)
+{
+    (void)desc;
+    return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    dague_context_t* dague;
+    int rank, world;
+    dague_ddesc_t taskdist;
+    dague_Ex03_ChainMPI_handle_t *handle;
+
+#if defined(DAGUE_HAVE_MPI)
+    {
+        int provided;
+        MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
+    }
+    MPI_Comm_size(MPI_COMM_WORLD, &world);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#else
+    world = 1;
+    rank = 0;
+#endif
+
+    dague = dague_init(-1, &argc, &argv);
+
+    /**
+     * Let's initialize the task distribution descriptor
+     * rank_of, and vpid_of will be explained later, but right now those two
+     * functions always return 0.
+     */
+    dague_ddesc_init(&taskdist, world, rank);
+    taskdist.rank_of = rank_of;
+    taskdist.vpid_of = vpid_of;
+
+    handle = dague_Ex03_ChainMPI_new(&taskdist, 20);
+
+    /**
+     * The arena is now also used to describe the layout to the communication
+     * engine (MPI)
+     */
+    dague_arena_construct(handle->arenas[DAGUE_Ex03_ChainMPI_DEFAULT_ARENA],
+                          sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
+                          dague_datatype_int_t );
+
+    dague_enqueue( dague, (dague_handle_t*)handle );
+    dague_context_wait(dague);
+
+    dague_handle_free((dague_handle_t*)handle);
+
+    /**
+     * Cleanup the descriptor
+     */
+    dague_ddesc_destroy(&taskdist);
+
+    dague_fini(&dague);
+#if defined(DAGUE_HAVE_MPI)
+    MPI_Finalize();
+#endif
+
+    return 0;
+}
+
+%}

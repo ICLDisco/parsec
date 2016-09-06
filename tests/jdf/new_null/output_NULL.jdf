@@ -1,0 +1,16 @@
+/**
+ * This test check that the compiler fails when an output is set to NULL
+ */
+TASK(k)
+
+k = 0 .. 10
+
+: A( k )
+
+  RW A <- A(k)
+       -> NULL
+BODY
+{
+    /* Nothing */
+}
+END

@@ -15,12 +15,16 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   #USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=ON"
   USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
-
+  if [ "$CC" = "gcc" ]; then
+      PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
+  else
+      PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-intel"}
+  fi
 elif [ "x$USER" = "xrhoque" ]; then
-    CC=${CC:="gcc"}
-    CXX=${CXX:="c++"}
-    FC=${FC:="gfortran"}
-    PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-2.7.1-gcc-5.1"}
+    CC="/opt/gcc-5.1/bin/gcc"
+    CXX="/opt/gcc-5.1/bin/c++"
+    FC="/opt/gcc-5.1/bin/gfortran"
+    PLASMA_DIR="/opt/plasma-2.7.1-gcc-5.1"
 
 elif [ "x$USER" = "xYOURSELF" ]; then
     PLASMA_DIR="SOMEWHERE"
@@ -35,7 +39,7 @@ echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
 HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 GTG_DIR=${GTG_DIR:="/opt/gtg"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
-PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-2.8.0-intel"}
+PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
 TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode -np 1\""
 
 . $(dirname $0)/config.inc

@@ -20,6 +20,8 @@
 #include "dague/remote_dep.h"
 #include "dague/interfaces/superscalar/insert_function_internal.h"
 
+extern int dump_traversal_info; /**< For printing traversal info */
+
 /***************************************************************************//**
  *
  * This function releases the ownership of a data for a task
@@ -33,76 +35,35 @@
  *
  ******************************************************************************/
 int
-release_ownership_of_data(const dague_dtd_task_t *current_task, int flow_index)
+release_ownership_of_data_1(const dague_dtd_task_t *current_task, int flow_index)
 {
-    dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)current_task|flow_index);
-    dague_dtd_tile_t* tile = current_task->desc[flow_index].tile;
+    dague_dtd_tile_t *tile = current_task->flow[flow_index].tile;
 
+    dague_dtd_last_user_lock( &(tile->last_user) );
     dague_mfence(); /* Write */
-    if( dague_atomic_cas(&(tile->last_user.task), task_pointer, NULL) ) {
+
+    /* If this_task is still the owner of the data we remove this_task */
+    if( tile->last_user.task == current_task ) {
+        tile->last_user.alive       = TASK_IS_NOT_ALIVE;
+        dague_dtd_last_user_unlock( &(tile->last_user) );
         /* we are successful, we do not need to wait and there is no successor yet*/
         return 1;
-    }
-    /* if we can not atomically swap the last user of the tile to NULL then we
-     * wait until we find our successor.
-     */
-    int unit_waited = 0;
-    while(NULL == current_task->desc[flow_index].task) {
-        unit_waited++;
-        if (1000 == unit_waited) {
-            unit_waited = 0;
-            usleep(1);
+    } else {
+        /* if we can not atomically swap the last user of the tile to NULL then we
+         * wait until we find our successor.
+         */
+        int unit_waited = 0;
+        while(NULL == current_task->desc[flow_index].task) {
+            unit_waited++;
+            if (1000 == unit_waited) {
+                unit_waited = 0;
+                usleep(1);
+            }
+            dague_mfence();  /* force the local update of the cache */
         }
-        dague_mfence();  /* force the local update of the cache */
+        dague_dtd_last_user_unlock( &(tile->last_user) );
+        return 0;
     }
-    return 0;
-}
-
-/***************************************************************************//**
- *
- * This function tries to make a Fake task with operation type of OUTPUT
- * on the data as the last user of the tile. If this try fails we make
- * sure we get the last_user of the tile updated for us to read.
- *
- * @param[in]   last_read
- *                  The last reader of the tile
- * @param[in]   fake_writer
- *                  Fake task we are trying to set as last user
- *                  of the data(tile)
- * @param[in]   last_read_flow_index
- *                  Flow index of the last reader of the tile
- * @return
- *              1 if successfully set the fake writer as the last user,
- *              0 otherwise
- *
- ******************************************************************************/
-int
-put_fake_writer_as_last_user( dague_dtd_task_t *last_read,
-                              dague_dtd_task_t *fake_writer,
-                              int last_read_flow_index )
-{
-    dague_dtd_tile_t* tile = last_read->desc[last_read_flow_index].tile;
-    dague_dtd_task_t *task_pointer = (dague_dtd_task_t *)((uintptr_t)last_read|last_read_flow_index);
-
-    dague_mfence(); /* Write */
-    if( dague_atomic_cas(&(tile->last_user.task), task_pointer, fake_writer) ) {
-        tile->last_user.op_type = OUTPUT;
-        /* we are successful, we do not need to wait and there is no successor yet*/
-        return 1;
-    }
-    /* if we can not atomically swap the last user of the tile to NULL then we
-     * wait until we find our successor.
-     */
-    int unit_waited = 0;
-    while(NULL == last_read->desc[last_read_flow_index].task) {
-        unit_waited++;
-        if (1000 == unit_waited) {
-            unit_waited = 0;
-            usleep(1);
-        }
-        dague_mfence();  /* force the local update of the cache, Read */
-    }
-    return 0;
 }
 
 /***************************************************************************//**
@@ -124,17 +85,16 @@ put_fake_writer_as_last_user( dague_dtd_task_t *last_read,
  *
  ******************************************************************************/
 void
-ordering_correctly_2(dague_execution_unit_t *eu,
+ordering_correctly_1(dague_execution_unit_t *eu,
                      const dague_execution_context_t *this_task,
                      uint32_t action_mask,
                      dague_ontask_function_t *ontask,
                      void *ontask_arg)
 {
     dague_dtd_task_t *current_task = (dague_dtd_task_t *)this_task;
-    int current_dep, count;
-    dague_dtd_task_t *last_read, *out_task;
+    int current_dep;
     dague_dtd_task_t *current_desc = NULL;
-    int op_type_on_current_flow, desc_op_type, desc_flow_index, out_task_flow_index;
+    int op_type_on_current_flow, desc_op_type, desc_flow_index;
     dague_dtd_tile_t *tile;
 
     dep_t deps;
@@ -146,11 +106,14 @@ ordering_correctly_2(dague_execution_unit_t *eu,
 #if defined(DAGUE_PROF_GRAPHER)
         deps.dep_index = current_dep;
 #endif
-        last_read = NULL; out_task = NULL;
-        count = 0;
         current_desc = current_task->desc[current_dep].task;
-        op_type_on_current_flow = (current_task->desc[current_dep].op_type_parent & GET_OP_TYPE);
-        tile = current_task->desc[current_dep].tile;
+        op_type_on_current_flow = (current_task->flow[current_dep].op_type & GET_OP_TYPE);
+        tile = current_task->flow[current_dep].tile;
+
+        if( INPUT == op_type_on_current_flow ) {
+            dague_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), -1 );
+            //DAGUE_DATA_COPY_RELEASE(current_task->super.data[current_dep].data_out);
+        }
 
         /**
          * In case the same data is used for multiple flows, only the last reference
@@ -167,7 +130,7 @@ ordering_correctly_2(dague_execution_unit_t *eu,
                  OUTPUT == op_type_on_current_flow ||
                 (current_task->dont_skip_releasing_data[current_dep])) {
 #if defined (OVERLAP)
-                if(release_ownership_of_data(current_task, current_dep)) { /* trying to release ownership */
+                if(release_ownership_of_data_1(current_task, current_dep)) { /* trying to release ownership */
 #endif
                     dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
                     continue;  /* no descendent for this data */
@@ -177,6 +140,7 @@ ordering_correctly_2(dague_execution_unit_t *eu,
                 } /* Current task has a descendant hence we must activate her */
 #endif
             } else {
+                dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
                 continue;
             }
         }
@@ -184,83 +148,63 @@ ordering_correctly_2(dague_execution_unit_t *eu,
 #if defined(DAGUE_DEBUG_ENABLE)
         assert(current_desc != NULL);
 #endif
+
         desc_op_type = (current_task->desc[current_dep].op_type & GET_OP_TYPE);
         desc_flow_index = current_task->desc[current_dep].flow_index;
 
-        int tmp_desc_flow_index = 254;
-        int8_t keep_fake_writer = 0;
+        int get_out = 0, tmp_desc_flow_index;
+        dague_dtd_task_t *nextinline = current_desc;
 
-        /* Create Fake output_task */
-        dague_dtd_task_t *fake_writer = create_fake_writer_task( (dague_dtd_handle_t *)current_task->super.dague_handle , tile);
-        out_task = fake_writer;
-        out_task_flow_index = 0;
+        do {
+            tmp_desc_flow_index = desc_flow_index;
+            current_desc = nextinline;
 
-        while( NULL != current_desc ) {
-            /* Check to make sure we don't overcount in case task uses same data in multiple flows */
-            if( current_desc == last_read ) {
-                count--;
-            }
-            if( OUTPUT == desc_op_type || INOUT == desc_op_type ) {
-                out_task = current_desc;
-                out_task_flow_index = desc_flow_index;
-                break; /* We have found our last_out_task, lets get out */
-            }
-            count++;
+            /* Forward the data to each successor */
+            current_desc->super.data[desc_flow_index].data_in = current_task->super.data[current_dep].data_out;
 
-            tmp_desc_flow_index =  desc_flow_index;
-            last_read           =  current_desc;
-            current_desc        =  current_desc->desc[tmp_desc_flow_index].task;
-            desc_flow_index     =  last_read->desc[tmp_desc_flow_index].flow_index;
-            desc_op_type        = (last_read->desc[tmp_desc_flow_index].op_type & GET_OP_TYPE);
+            get_out = 1;  /* by default escape */
+            if( !(OUTPUT == desc_op_type || INOUT == desc_op_type) ) {
 
-            if( current_desc == NULL ) {
-                if( !(keep_fake_writer = put_fake_writer_as_last_user(last_read, fake_writer, tmp_desc_flow_index)) ) {
-                    current_desc    = last_read->desc[tmp_desc_flow_index].task;
-                    desc_flow_index = last_read->desc[tmp_desc_flow_index].flow_index;
-                    desc_op_type    = (last_read->desc[tmp_desc_flow_index].op_type & GET_OP_TYPE);
+                nextinline = current_desc->desc[desc_flow_index].task;
+                if( NULL != nextinline ) {
+                    desc_op_type    = (current_desc->desc[desc_flow_index].op_type & GET_OP_TYPE);
+                    desc_flow_index =  current_desc->desc[desc_flow_index].flow_index;
+                    get_out = 0;  /* We have a successor, keep going */
+                    if( nextinline == current_desc ) {
+                        /* We have same descendant using same data in multiple flows
+                         * So we activate the successor once and skip the other times
+                         */
+                        continue;
+                    } else {
+                        current_desc->desc[tmp_desc_flow_index].task = NULL;
+                    }
+                } else {
+                    /* Mark it specially as it is a task that performs INPUT type of operation
+                     * on the data.
+                     */
+                    current_desc->dont_skip_releasing_data[desc_flow_index] = 1;
                 }
+
+                dague_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), 1 );
+                /* Each reader increments the ref count of the data_copy
+                 * We should have a function to retain data copies like
+                 * DAGUE_DATA_COPY_RELEASE
+                 */
+                //OBJ_RETAIN(current_task->super.data[current_dep].data_out);
+
             }
-        }
 
-        if( !keep_fake_writer ) {
-           fake_writer->super.function->release_task(eu, (dague_execution_context_t*)fake_writer);
-        } else {
-            OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
-            dague_atomic_add_32b((int *)&(current_task->super.dague_handle->nb_tasks), 1);
-#if defined(DEBUG_HEAVY)
-            dague_dtd_task_insert( (dague_dtd_handle_t *)current_task->super.dague_handle, fake_writer );
-#endif
-        }
-
-        /* Looping through the chain and assigning the out_task as a descendant of all the
-         * INPUT tasks in the chain.
-         */
-        current_desc = current_task->desc[current_dep].task;
-        desc_op_type = (current_task->desc[current_dep].op_type & GET_OP_TYPE);
-        desc_flow_index = current_task->desc[current_dep].flow_index;
-
-        dague_dtd_task_t *tmp_desc;
-        dague_atomic_add_32b((int *) &(out_task->flow_count), count);
-        while( out_task != current_desc && NULL != current_desc ) {
-            tmp_desc = current_desc;
-            tmp_desc_flow_index =  desc_flow_index;
-
-            desc_flow_index     =  current_desc->desc[desc_flow_index].flow_index;
-            current_desc        =  current_desc->desc[tmp_desc_flow_index].task;
-
-            if( tmp_desc != current_desc ) {
-                tmp_desc->desc[tmp_desc_flow_index].task = out_task;
-                tmp_desc->desc[tmp_desc_flow_index].flow_index = out_task_flow_index;
-                tmp_desc->desc[tmp_desc_flow_index].op_type = out_task->desc[out_task_flow_index].op_type_parent;
+            if(dump_traversal_info) {
+                dague_output(dague_debug_output, "------\nsuccessor: %s \t %lld\nTotal flow: %d  flow_count:"
+                       "%d\n-----for pred flow: %d and desc flow: %d\n", current_desc->super.function->name, current_desc->super.super.key,
+                       current_desc->super.function->nb_flows, current_desc->flow_count, current_dep, tmp_desc_flow_index);
             }
-            ontask( eu, (dague_execution_context_t *)tmp_desc, (dague_execution_context_t *)current_task,
-                    &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
-        }
 
+            ontask( eu, (dague_execution_context_t *)current_desc, (dague_execution_context_t *)current_task,
+                    &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
+            vpid_dst = (vpid_dst+1) % current_task->super.dague_handle->context->nb_vp;
+
+        } while (0 == get_out);
         dague_dtd_tile_release( (dague_dtd_handle_t *)current_task->super.dague_handle, tile);
-        ontask( eu, (dague_execution_context_t *)out_task, (dague_execution_context_t *)current_task,
-                    &deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg);
-
-        vpid_dst = (vpid_dst+1)%current_task->super.dague_handle->context->nb_vp;
     }
 }

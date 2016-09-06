@@ -8,15 +8,18 @@
 #include "dague_config.h"
 
 #include <stdio.h>
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
 #include <stdlib.h>
 #include <assert.h>
 
 #include "jdf.h"
 #include "string_arena.h"
 #include "jdf2c_utils.h"
+
+#define DAGUE_ERR_NEW_AS_OUTPUT  "Automatic data allocation with NEW only supported in IN dependencies.\n"
+#define DAGUE_ERR_NULL_AS_OUTPUT "NULL data only supported in IN dependencies.\n"
 
 #define YYDEBUG_LEXER_TEXT yytext
 
@@ -189,9 +192,12 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <string>STRING
 %type <number>INT
 %type <number>DEPENDENCY_TYPE
+%type <number>DATA_NEW
+%type <number>DATA_NULL
 
 %token VAR ASSIGNMENT EXTERN_DECL COMMA OPEN_PAR CLOSE_PAR BODY_START BODY_END STRING SIMCOST
 %token COLON SEMICOLON DEPENDENCY_TYPE ARROW QUESTION_MARK PROPERTIES_ON PROPERTIES_OFF
+%token DATA_NEW DATA_NULL
 %token EQUAL NOTEQUAL LESS LEQ MORE MEQ AND OR XOR NOT INT
 %token PLUS MINUS TIMES DIV MODULO SHL SHR RANGE OPTION
 
@@ -231,6 +237,10 @@ prologue:       EXTERN_DECL
                     $$ = new(jdf_external_entry_t);
                     $$->external_code = $1;
                     JDF_OBJECT_LINENO($$) = current_lineno;
+                }
+        |
+                {
+                    $$ = NULL;
                 }
         ;
 epilogue:       EXTERN_DECL
@@ -541,14 +551,57 @@ dependency:   ARROW guarded_call properties
                       expr = jdf_find_property( property, "type", &property );
                       property->next = $3;
                   }
-                  /* Validate the WRITE only data allocation */
-                  if( (JDF_GUARD_UNCONDITIONAL == $2->guard_type) && (NULL == $2->guard) && (NULL == $2->callfalse) ) {
+
+                  /* Validate the datatype definition of WRITE only data */
+                  if( (JDF_GUARD_UNCONDITIONAL == $2->guard_type) &&
+                      (NULL == $2->guard) && (NULL == $2->callfalse) ) {
                       if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
                           if($1 != JDF_DEP_FLOW_IN) {
-                              jdf_fatal(JDF_OBJECT_LINENO($2),
-                                        "Automatic data allocation only supported in IN dependencies.\n");
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NEW_AS_OUTPUT);
                               YYERROR;
                           }
+                      }
+                  }
+
+                  /* Validate the WRITE only data allocation, and the unused data */
+                  if( JDF_IS_CALL_WITH_NO_INPUT($2->calltrue) ) {
+                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
+                          if($1 != JDF_DEP_FLOW_IN) {
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NEW_AS_OUTPUT);
+                              YYERROR;
+                          }
+                      }
+                      else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $2->calltrue->func_or_mem) ) {
+                          if($1 != JDF_DEP_FLOW_IN) {
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NULL_AS_OUTPUT);
+                              YYERROR;
+                          }
+                      } else {
+                          jdf_fatal(JDF_OBJECT_LINENO($2),
+                                    "%s is not a supported keyword to describe a data (Only NEW and NULL are supported by themselves)\n",
+                                    $2->calltrue->func_or_mem );
+                          YYERROR;
+                      }
+                  }
+
+                  /* Validate the WRITE only data allocation, and the unused data */
+                  if( $2->callfalse && JDF_IS_CALL_WITH_NO_INPUT($2->callfalse) ) {
+                      if( 0 == strcmp(PARSEC_WRITE_MAGIC_NAME, $2->callfalse->func_or_mem) ) {
+                          if($1 != JDF_DEP_FLOW_IN) {
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NEW_AS_OUTPUT);
+                              YYERROR;
+                          }
+                      }
+                      else if( 0 == strcmp(PARSEC_NULL_MAGIC_NAME, $2->callfalse->func_or_mem) ) {
+                          if($1 != JDF_DEP_FLOW_IN) {
+                              jdf_fatal(JDF_OBJECT_LINENO($2), DAGUE_ERR_NULL_AS_OUTPUT);
+                              YYERROR;
+                          }
+                      } else {
+                          jdf_fatal(JDF_OBJECT_LINENO($2),
+                                    "%s is not a supported keyword to describe a data (Only NEW and NULL are supported by themselves)\n",
+                                    $2->callfalse->func_or_mem );
+                          YYERROR;
                       }
                   }
 
@@ -660,22 +713,6 @@ guarded_call: call
                   assert( 0 != JDF_OBJECT_LINENO($1) );
                   JDF_OBJECT_LINENO($$) = JDF_OBJECT_LINENO($1);
               }
-       |
-              {
-                  jdf_call_t *c = new(jdf_call_t);
-                  c->var = NULL;
-                  c->func_or_mem = strdup(PARSEC_WRITE_MAGIC_NAME);
-                  c->parameters = NULL;
-                  JDF_OBJECT_LINENO(c) = current_lineno;
-
-                  jdf_guarded_call_t *g = new(jdf_guarded_call_t);
-                  g->guard_type = JDF_GUARD_UNCONDITIONAL;
-                  g->guard = NULL;
-                  g->calltrue = c;
-                  g->callfalse = NULL;
-                  $$ = g;
-                  JDF_OBJECT_LINENO($$) = current_lineno;
-              }
        ;
 
 call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
@@ -713,6 +750,24 @@ call:         VAR VAR OPEN_PAR expr_list_range CLOSE_PAR
                   }
                   JDF_OBJECT_LINENO(data) = JDF_OBJECT_LINENO($3);
               }
+       |      DATA_NEW
+              {
+                  jdf_call_t *c = new(jdf_call_t);
+                  c->var = NULL;
+                  c->func_or_mem = strdup(PARSEC_WRITE_MAGIC_NAME);
+                  c->parameters = NULL;
+                  JDF_OBJECT_LINENO(c) = current_lineno;
+                  $$ = c;
+             }
+       |     DATA_NULL
+             {
+                 jdf_call_t *c = new(jdf_call_t);
+                 c->var = NULL;
+                 c->func_or_mem = strdup(PARSEC_NULL_MAGIC_NAME);
+                 c->parameters = NULL;
+                 JDF_OBJECT_LINENO(c) = current_lineno;
+                 $$ = c;
+             }
        ;
 
 priority:     SEMICOLON expr_simple

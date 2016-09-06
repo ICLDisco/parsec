@@ -10,14 +10,14 @@ decision [ type = "dague_ddesc_t *" ]
 GenChoice(k)
 
 k = 0 .. NT
-pos = inline_c %{ return k*P + k%P; %}
+pos = %{ return k*P + k%P; %}
 
 : A(k)
 
 RW D  <- D Selector(k, k)
       -> (k == NT) ? A(k)
-      -> inline_c %{ return (k < NT) && idecision(pos) == 1; %} ? D TA(k, k)
-      -> inline_c %{ return (k < NT) && idecision(pos) == 2; %} ? D TB(k, k)
+      -> %{ return (k < NT) && idecision(pos) == 1; %} ? D TA(k, k)
+      -> %{ return (k < NT) && idecision(pos) == 2; %} ? D TB(k, k)
 RW C  <- decision( pos )           [type=DECISION]
       -> A LChoice( k, 0 .. P-1 )  [type=DECISION]
 
@@ -61,7 +61,7 @@ LChoice( k, p )
 k = 0 .. NT
 p = 0 .. P-1
 
-first = inline_c %{
+first = %{
     int i = ( k / P ) * P;
     if( p > k%P )
         return i + p;
@@ -94,11 +94,11 @@ Selector(k, m)
 
 k = 0 .. NT
 m = k .. NT
-d1 = inline_c %{
+d1 = %{
     /*assert( k == 0 || idecision(P*k + m%P) != 0);*/
     return idecision(P*k + m%P);
     %}
-d2 = inline_c %{
+d2 = %{
     /*assert( k == 0 || idecision(P*(k-1) + m%P) != 0);*/
     if ( k == 0 )
         return 0;
@@ -127,14 +127,14 @@ TA(k, m)
 
 k = 0 .. NT
 m = k .. NT
-pos = inline_c %{ return k*P + m%P; %}
+pos = %{ return k*P + m%P; %}
 
 : A(m)
 
-RW  D <- inline_c %{ return (k == m) && (idecision(k*P+m%P) == 1); %} ? D GenChoice(k)
-      <- inline_c %{ return (k != m) && (idecision(k*P+m%P) == 1); %} ? D Selector(k,   m)
-      -> inline_c %{ return (m >  k) && (idecision(k*P+m%P) == 1); %} ? D Selector(k+1, m)
-          //-> inline_c %{ return (m == k) && (idecision(k*P+m%P) == 1); %} ? A(m)
+RW  D <- %{ return (k == m) && (idecision(k*P+m%P) == 1); %} ? D GenChoice(k)
+      <- %{ return (k != m) && (idecision(k*P+m%P) == 1); %} ? D Selector(k,   m)
+      -> %{ return (m >  k) && (idecision(k*P+m%P) == 1); %} ? D Selector(k+1, m)
+          //-> %{ return (m == k) && (idecision(k*P+m%P) == 1); %} ? A(m)
 
 BODY
 {
@@ -148,14 +148,14 @@ TB(k, m)
 
 k = 0 .. NT
 m = k .. NT
-pos = inline_c %{ return k*P + m%P; %}
+pos = %{ return k*P + m%P; %}
 
 : A(m)
 
-RW  D <- inline_c %{ return (k == m) && (idecision(pos) == 2); %} ? D GenChoice(k)
-      <- inline_c %{ return (k != m) && (idecision(pos) == 2); %} ? D Selector(k,   m)
-      -> inline_c %{ return (m >  k) && (idecision(pos) == 2); %} ? D Selector(k+1, m)
-          //      -> inline_c %{ return (m == k) && (idecision(pos) == 2); %} ? A(m)
+RW  D <- %{ return (k == m) && (idecision(pos) == 2); %} ? D GenChoice(k)
+      <- %{ return (k != m) && (idecision(pos) == 2); %} ? D Selector(k,   m)
+      -> %{ return (m >  k) && (idecision(pos) == 2); %} ? D Selector(k+1, m)
+          //      -> %{ return (m == k) && (idecision(pos) == 2); %} ? A(m)
 
 BODY
 {

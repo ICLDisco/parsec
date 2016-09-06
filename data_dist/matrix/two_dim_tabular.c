@@ -16,9 +16,9 @@
 
 #include <math.h>
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 static uint32_t      twoDTD_rank_of(    dague_ddesc_t* ddesc, ... );
 static uint32_t      twoDTD_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);

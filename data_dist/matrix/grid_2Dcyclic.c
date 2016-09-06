@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,9 +13,9 @@
 
 #include <math.h>
 #include <assert.h>
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
 #include <mpi.h>
-#endif /* HAVE_MPI */
+#endif /* DAGUE_HAVE_MPI */
 
 int default_vp_data_dist();
 
@@ -57,7 +57,7 @@ int default_vp_data_dist()
         q++;
         p = pq / q;
     }
-    DEBUG3(( "Default data distribution between VP defined by \"pxq\" %ix%i\n", p, q ));
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "Default data distribution between VP defined by \"pxq\" %ix%i", p, q );
     return q;
 }
 

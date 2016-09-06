@@ -17,7 +17,7 @@ option(DPLASMA_WITH_RECURSIVE
   "Enable recursive kernels to be called when available" OFF)
 if(DPLASMA_WITH_RECURSIVE)
   # TODO: This will need to be added to the futur dplasma_config.h.in
-  add_definitions(-DHAVE_RECURSIVE)
+  add_definitions(-DDAGUE_HAVE_RECURSIVE)
 endif()
 
 if(NOT DPLASMA_PRECISIONS)
@@ -38,6 +38,9 @@ endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
 # Find packages to decide if we compile DPLASMA support or not
 #
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/")
+
+include(FortranCInterface)
+
 
 find_package(COREBLAS)
 if( PLASMA_SRC )

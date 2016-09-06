@@ -59,7 +59,7 @@ dplasma_zhetrf_Destruct( dague_handle_t *handle )
 
     dague_matrix_del2arena( obut->arenas[DAGUE_zhetrf_DEFAULT_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 
@@ -90,7 +90,7 @@ dplasma_ztrmdm_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( obut->arenas[DAGUE_ztrmdm_DEFAULT_ARENA] );
 
     //dague_ztrmdm_destroy(obut);
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /*
@@ -114,7 +114,7 @@ int dplasma_zhetrf(dague_context_t *dague, tiled_matrix_desc_t *A)
     dplasma_ztrmdm_Destruct(dague_ztrmdm);
     */
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;

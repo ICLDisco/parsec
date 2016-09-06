@@ -27,6 +27,7 @@
 extern char *_q2j_data_prefix;
 extern FILE *_q2j_output;
 extern int _q2j_dump_mapping;
+extern int   _q2j_annot_API;
 
 string_arena_t *create_pool_declarations();
 
@@ -34,30 +35,39 @@ string_arena_t *create_pool_declarations();
 //
 void print_header(void)
 {
-    jdfoutput("extern \"C\" %%{\n"
-              "/*\n"
-              " *  Copyright (c) 2010\n"
-              " *\n"
-              " *  The University of Tennessee and The University\n"
-              " *  of Tennessee Research Foundation.  All rights\n"
-              " *  reserved.\n"
-              " *\n"
-              " * @precisions normal z -> s d c\n"
-              " *\n"
-              " */\n"
-              "#define PRECISION_z\n"
-              "\n"
-              "#include <plasma.h>\n"
-              "#include <core_blas.h>\n"
-              "\n"
-              "#include \"dague.h\"\n"
-              "#include \"data_distribution.h\"\n"
-              "#include \"data_dist/matrix/precision.h\"\n"
-              "#include \"data_dist/matrix/matrix.h\"\n"
-              "#include \"dplasma/lib/memory_pool.h\"\n"
-              "#include \"dplasma/lib/dplasmajdf.h\"\n"
-              "\n"
-              "%%}\n\n");
+    if (Q2J_ANN_QUARK == _q2j_annot_API) {
+        jdfoutput("extern \"C\" %%{\n"
+                  "/*\n"
+                  " *  Copyright (c) 2010\n"
+                  " *\n"
+                  " *  The University of Tennessee and The University\n"
+                  " *  of Tennessee Research Foundation.  All rights\n"
+                  " *  reserved.\n"
+                  " *\n"
+                  " * @precisions normal z -> s d c\n"
+                  " *\n"
+                  " */\n"
+                  "#define PRECISION_z\n"
+                  "\n"
+                  "#include <plasma.h>\n"
+                  "#include <core_blas.h>\n"
+                  "\n"
+                  "#include \"dague.h\"\n"
+                  "#include \"data_distribution.h\"\n"
+                  "#include \"data_dist/matrix/precision.h\"\n"
+                  "#include \"data_dist/matrix/matrix.h\"\n"
+                  "#include \"dplasma/lib/memory_pool.h\"\n"
+                  "#include \"dplasma/lib/dplasmajdf.h\"\n"
+                  "\n"
+                  "%%}\n\n");
+    }
+    else {
+        jdfoutput("extern \"C\" %%{\n"
+                  "/*\n"
+                  " *  File automatically generated through q2j\n"
+                  " */\n"
+                  "%%}\n\n");
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

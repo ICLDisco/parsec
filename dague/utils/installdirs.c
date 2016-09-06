@@ -14,12 +14,12 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
-#if defined(HAVE_STDBOOL_H)
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#if defined(DAGUE_HAVE_STDBOOL_H)
 #include <stdbool.h>
-#endif  /* defined(HAVE_STDBOOL_H) */
+#endif  /* defined(DAGUE_HAVE_STDBOOL_H) */
 
 #include <dague/constants.h>
 #include <dague/utils/installdirs.h>

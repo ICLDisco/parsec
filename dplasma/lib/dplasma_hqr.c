@@ -70,14 +70,14 @@
  *     high level tree to reduce communications.
  *     These lines are defined by (i-k)/p = 0.
  */
-#include <dague.h>
+#include "dague.h"
 #include "dplasma.h"
 #include "dplasma_qr_param.h"
 
 #include <math.h>
-#if defined(HAVE_STRING_H)
+#if defined(DAGUE_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(HAVE_STRING_H) */
+#endif  /* defined(DAGUE_HAVE_STRING_H) */
 
 #define PRINT_PIVGEN 0
 #ifdef PRINT_PIVGEN

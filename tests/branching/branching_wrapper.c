@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,7 +8,7 @@
 #include "dague/data_distribution.h"
 #include "dague/arena.h"
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
@@ -35,7 +35,7 @@ dague_handle_t *branching_new(dague_ddesc_t *A, int size, int nb)
 
     o = dague_branching_new(A, nb);
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         MPI_Type_vector(1, size, size, MPI_BYTE, &block);
         MPI_Type_commit(&block);
@@ -53,7 +53,7 @@ dague_handle_t *branching_new(dague_ddesc_t *A, int size, int nb)
  */
 void branching_destroy(dague_handle_t *o)
 {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 

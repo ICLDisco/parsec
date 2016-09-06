@@ -21,10 +21,10 @@
  * $HEADER$
  */
 
-#include <dague_config.h>
+#include "dague_config.h"
 
 #include <stdio.h>
-#ifdef HAVE_UNISTD_H
+#ifdef DAGUE_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 

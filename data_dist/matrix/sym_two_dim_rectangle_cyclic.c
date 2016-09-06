@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,17 +10,17 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef HAVE_STRING_H
+#ifdef DAGUE_HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef HAVE_LIMITS_H
+#ifdef DAGUE_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #include <assert.h>
-#ifdef HAVE_ERRNO_H
+#ifdef DAGUE_HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_STDARG_H
+#ifdef DAGUE_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
 #include <stdint.h>
@@ -245,10 +245,10 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     o->unregister_memory = sym_twoDBC_memory_unregister;
 
     if(nodes < P)
-        ERROR(("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d\n", nodes, P));
+        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
     Q = nodes / P;
     if(nodes != P*Q)
-        WARNING(("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d\n", nodes, P, Q));
+        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
 
     /* Extra parameters */

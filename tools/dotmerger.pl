@@ -19,15 +19,15 @@ sub parseArgs {
   my $help = 0;
   my @il;
   my $result = GetOptions ("nodefmt=s"   => \$nodefmt,
-			   "nodeshape=s" => \$nodeshapeexpr,
-			   "nodefc=s"    => \$nodefcexpr,
-			   "nodelc=s"    => \$nodelcexpr,
-			   "linkfmt=s"   => \$linkfmt,
-			   "linkc=s"     => \$linkcolorexpr,
-			   "links=s"     => \$linkstyleexpr,
-			   "help!"       => \$help,
-			   "ignore=s"    => \@il,
-			   "input=s"     => \@{$inputs});
+                           "nodeshape=s" => \$nodeshapeexpr,
+                           "nodefc=s"    => \$nodefcexpr,
+                           "nodelc=s"    => \$nodelcexpr,
+                           "linkfmt=s"   => \$linkfmt,
+                           "linkc=s"     => \$linkcolorexpr,
+                           "links=s"     => \$linkstyleexpr,
+                           "help!"       => \$help,
+                           "ignore=s"    => \@il,
+                           "input=s"     => \@{$inputs});
   foreach my $f (@ARGV) {
     push @{$inputs}, $f;
   }
@@ -38,13 +38,13 @@ usage:
    --nodefmt             Define the text in the node.
                            Expect a printf-like format.
                            Can use %R, %V, %T, %K, %P, and %p (see below)
-                           Default: `$nodefmt'
+                           Default: '$nodefmt'
    --nodeshape           Define the shape of the node.
                            Expect an integer expression.
                            Can use %k, %r, %v, %t, %R, %V, %T (see below)
-                           Default: `$nodeshapeexpr'
+                           Default: '$nodeshapeexpr'
                            Shapes are:
-                             
+
 END
     my $r=0;
     foreach my $s (@shapes) {
@@ -55,25 +55,25 @@ END
    --nodegfc             Define the fill color of the node.
                            Expect an integer expression.
                            Can use %k, %r, %v, %t, %R, %V, %T (see below)
-                           Default: `$nodefcexpr'
+                           Default: '$nodefcexpr'
                            See palette below.
    --nodelc              Define the line color of the node.
                            Expect an integer expression.
                            Can use %k, %r, %v, %t, %R, %V, %T (see below)
-                           Default: `$nodelcexpr'
+                           Default: '$nodelcexpr'
                            See palette below.
    --linkfmt             Define the text on the link.
                            Expect a printf-like format.
                            Can use %S, %D, %s and %d (see below)
-                           Default: `$linkfmt'
+                           Default: '$linkfmt'
    --linkc               Define the color of the link.
                            Expect an RGB color (without the # sign)
                            Can use %E and %C (see below)
-                           Default: `$linkcolorexpr'
+                           Default: '$linkcolorexpr'
    --links               Define the line style of the node.
                            Expect a string expression that reduces to "solid" or "dashed"
                            Can use %E and %C (see below)
-                           Default: `$linkstyleexpr'
+                           Default: '$linkstyleexpr'
    --ignore=KERNEL      Ignore this kernel. This option can appear multiple times
    --input=INPUT        Add this input file. This option can appear multiple times.
                         Remaining arguments (unparsed) are considered as other input files.
@@ -206,7 +206,7 @@ sub outputNode {
   $label =~ s/%K/$K/g;
   $label =~ s/%P/$P/g;
   $label =~ s/%p/$p/g;
-	
+
   my $Kid = kernelID($K);
   my $nodeshape = nodeShape($R, $V, $T, $Kid);
   my $nodefill  = nodeFillColor($R, $V, $T, $Kid);
@@ -257,12 +257,12 @@ sub onNodes {
       last if ($line =~ /^}/);
       next if ($line =~ / -> /);
       my ($ID, $COLOR, $T, $V, $K, $P, $p);
-      if( ($ID, $COLOR, $T, $V, $K, $P, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^)]*)\)<([^>]+)>/) ) {
-	if( !ignored($K) ) {
-	  $fct->($ID, $R, $V, $T, $K, $P, $p);
-	}
+      if( ($ID, $COLOR, $T, $V, $K, $P, $p) = ($line =~ /^([^ ]+) \[shape="[^"]+",style=filled,fillcolor="#(......)",fontcolor="black",label="<([0-9]+)\/([0-9]+)> ([^(]+)\(([^<]*)\]<([^>]+)>/) ) {
+        if( !ignored($K) ) {
+          $fct->($ID, $R, $V, $T, $K, $P, $p);
+        }
       } else {
-	print STDERR "  Error on $f:$lnb malformed line $line\n";
+        print STDERR "  Error on $f:$lnb malformed line $line\n";
       }
     }
     $R++;
@@ -273,12 +273,12 @@ sub onNodes {
 sub outputLink {
   my ($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL) = @_;
   my $label = $linkfmt;
-  
+
   $label =~ s/%S/$VSRC/g;
   $label =~ s/%D/$VDST/g;
   $label =~ s/%s/$NSRC/g;
   $label =~ s/%d/$NDST/g;
-  
+
   my $color=linkColor($EL, $NSRC!=$NDST);
   my $style=linkStyle($EL, $NSRC!=$NDST);
 
@@ -300,15 +300,15 @@ sub onLinks {
       last if ($line =~ /^}/);
       next unless ($line =~ / -> /);
       my ($ID1, $ID2, $VSRC, $VDST, $COLOR);
-      if( ($ID1, $ID2, $VSRC, $VDST, $COLOR) = ($line =~ /^([^ ]+) -> ([^ ]+) \[label="([^=]+)=>([^"]+)" color="#(......)"/) ) {
-	if( exists($TASKS->{$ID1}) && exists($TASKS->{$ID2}) ) {
-	  my $NSRC=nodeRank($ID1);
-	  my $NDST=nodeRank($ID2);
-	  my $EL=( $COLOR eq "00FF00" );
-	  $fct->($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL);
-	}
+      if( ($ID1, $ID2, $VSRC, $VDST, $COLOR) = ($line =~ /^([^ ]+) -> ([^ ]+) \[label="([^=]+)=>([^"]+)",color="#(......)"/) ) {
+        if( exists($TASKS->{$ID1}) && exists($TASKS->{$ID2}) ) {
+          my $NSRC=nodeRank($ID1);
+          my $NDST=nodeRank($ID2);
+          my $EL=( $COLOR eq "00FF00" );
+          $fct->($ID1, $ID2, $VSRC, $VDST, $NSRC, $NDST, $EL);
+        }
       } else {
-	print STDERR "  Error on $f:$lnb malformed line $line\n";
+        print STDERR "  Error on $f:$lnb malformed line $line\n";
       }
     }
     $R++;
@@ -321,4 +321,3 @@ onNodes(\&computeSpaceNode, @{$inputs});
 onNodes(\&outputNode, @{$inputs});
 onLinks(\&outputLink, @{$inputs});
 print "}\n";
-

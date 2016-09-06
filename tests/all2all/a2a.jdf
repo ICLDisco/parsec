@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,11 +8,10 @@ extern "C" %{
  *
  */
 
-#include "dague.h"
 #include "dague/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 static dague_datatype_t block;
 #endif
@@ -41,12 +40,12 @@ t = 0 .. NT-1
 
 : B(t, 0)
 
-READ B <- (r == 0) ? B(t, 0) : B READER_B(r-1, t) [count = inline_c %{ return 1; %}
-                                                   displ = inline_c %{ return 0; %}]
+READ B <- (r == 0) ? B(t, 0) : B READER_B(r-1, t) [count = %{ return 1; %}
+                                                   displ = %{ return 0; %}]
        -> A RECV(r, 0 .. NT-1, t)                 [count = 1
                                                    displ = 0]
-       -> A FANIN(r, t)                           [count = inline_c %{ return always_one(); %}
-                                                   displ = inline_c %{ return always_zero(); %}]
+       -> A FANIN(r, t)                           [count = %{ return always_one(); %}
+                                                   displ = %{ return always_zero(); %}]
        -> (r != NR-1) ? B READER_B(r+1, t)
 BODY
 END
@@ -115,7 +114,7 @@ dague_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size
     dague_a2a_handle_t *o = NULL;
     (void)size;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 #else
     worldsize = 1;
@@ -128,17 +127,17 @@ dague_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size
 
     o = dague_a2a_new(A, B, repeat, worldsize);
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         MPI_Aint extent;
         MPI_Type_contiguous(size, MPI_INT, &block);
         MPI_Type_commit(&block);
-#if defined(HAVE_MPI_20)
+#if defined(DAGUE_HAVE_MPI_20)
         MPI_Aint lb = 0;
         MPI_Type_get_extent(block, &lb, &extent);
 #else
         MPI_Type_extent(block, &extent);
-#endif  /* defined(HAVE_MPI_20) */
+#endif  /* defined(DAGUE_HAVE_MPI_20) */
         dague_arena_construct(o->arenas[DAGUE_a2a_DEFAULT_ARENA],
                               extent, DAGUE_ARENA_ALIGNMENT_SSE,
                               block);
@@ -153,7 +152,7 @@ dague_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size
  */
 void a2a_destroy(dague_handle_t *o)
 {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 

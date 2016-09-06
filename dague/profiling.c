@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -25,6 +25,9 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <pthread.h>
+#if defined(DAGUE_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(DAGUE_HAVE_MPI) */
 
 #include "dague/profiling.h"
 #include "dague/dague_binary_profile.h"
@@ -38,19 +41,19 @@
 #define min(a, b) ((a)<(b)?(a):(b))
 
 #ifndef HOST_NAME_MAX
-#if defined(MAC_OS_X)
+#if defined(DAGUE_OSX)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #else
 #define HOST_NAME_MAX 1024
-#endif  /* defined(MAC_OS_X) */
+#endif  /* defined(DAGUE_OSX) */
 #endif /* defined(HOST_NAME_MAX) */
 
 #ifndef HOST_NAME_MAX
-#if defined(MAC_OS_X)
+#if defined(DAGUE_OSX)
 #define HOST_NAME_MAX _SC_HOST_NAME_MAX
 #else
 #define HOST_NAME_MAX 1024
-#endif  /* defined(MAC_OS_X) */
+#endif  /* defined(DAGUE_OSX) */
 #endif /* defined(HOST_NAME_MAX) */
 
 /**
@@ -218,7 +221,7 @@ void dague_profiling_start(void)
     if(start_called)
         return;
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     {
         int flag;
         (void)MPI_Initialized(&flag);
@@ -369,6 +372,9 @@ int dague_profiling_dictionary_flush( void )
         if( NULL != dague_prof_keys[i].name ) {
             free(dague_prof_keys[i].name);
             free(dague_prof_keys[i].attributes);
+            if( NULL != dague_prof_keys[i].convertor ) {
+                free(dague_prof_keys[i].convertor);
+            }
         }
     }
     dague_prof_keys_count = 0;
@@ -906,7 +912,7 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
     char *xmlbuffer;
     int rank = 0, worldsize = 1, buflen;
     int  min_fd, rc;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     char *unique_str;
 
     int MPI_ready;
@@ -939,7 +945,7 @@ int dague_profiling_dbp_start( const char *basefile, const char *hr_info )
         }
     }
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     if( worldsize > 1) {
         unique_str = bpf_filename + (strlen(bpf_filename) - 6);  /* pinpoint directly into the bpf_filename */
 

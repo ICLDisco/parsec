@@ -113,12 +113,17 @@ if(DAGUE_GPU_WITH_OPENCL)
 endif()
 
 ### Debug options
-option(DAGUE_DEBUG_ENABLE
-    "Enable extra paranoid checks" OFF)
-set   (DAGUE_DEBUG_VERBOSE 0 CACHE STRING
-    "Controls the amount of verbose debug output on stderr (0,1,2,3,...). Default is 0.")
+if( "Debug" STREQUAL CMAKE_BUILD_TYPE )
+  set(DAGUE_DEBUG ON)
+else()
+  set(DAGUE_DEBUG OFF)
+endif()
+option(DAGUE_DEBUG_PARANOID
+  "Enable extra paranoid checks (may impact performance)." OFF)
+option(DAGUE_DEBUG_NOISIER
+  "Enable chatterbox-like verbose debugging (may impact performance)." OFF)
 option(DAGUE_DEBUG_HISTORY
-  "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur" OFF)
+  "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur." OFF)
 option(DAGUE_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
 
@@ -167,6 +172,7 @@ mark_as_advanced(CORES_PER_SOCKET)
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
 include (CheckCCompilerFlag)
+include (CheckCSourceCompiles)
 include (CheckFunctionExists)
 include (CheckSymbolExists)
 include (CheckIncludeFiles)
@@ -178,28 +184,28 @@ include (CheckIncludeFiles)
 IF( BUILD_TOOLS )
   # Check for compiler tools
   find_package(BISON)
-  find_package(FLEX)
-  set(HAVE_RECENT_LEX 0)
 ENDIF( BUILD_TOOLS )
+  find_package(FLEX)
+  set(DAGUE_HAVE_RECENT_LEX 0)
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
 STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_x86)
     MESSAGE(STATUS "Found target for X86")
-    SET(ARCH_X86 1)
+    SET(DAGUE_ARCH_X86 1)
 ENDIF (_mach_x86)
 
 STRING(REGEX MATCH "(x86_64-*)|(X86_64-*)|(AMD64-*)|(amd64-*)" _mach_x86_64 ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_x86_64)
     MESSAGE(STATUS "Found target X86_64")
-    SET(ARCH_X86_64 1)
+    SET(DAGUE_ARCH_X86_64 1)
 ENDIF (_mach_x86_64)
 
 STRING(REGEX MATCH "(ppc-*)|(powerpc-*)" _mach_ppc ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_ppc)
     MESSAGE(STATUS "Found target for PPC")
-    SET(ARCH_PPC 1)
+    SET(DAGUE_ARCH_PPC 1)
 ENDIF (_mach_ppc)
 
 #
@@ -249,27 +255,27 @@ IF( NOT _match_xlc )
   if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
     SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} " )
   else()
-    CHECK_C_COMPILER_FLAG( "-std=c99" HAVE_STD_C99)
-    IF( HAVE_STD_C99 )
+    CHECK_C_COMPILER_FLAG( "-std=c99" DAGUE_HAVE_STD_C99)
+    IF( DAGUE_HAVE_STD_C99 )
       SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
-    ENDIF( HAVE_STD_C99 )
+    ENDIF( DAGUE_HAVE_STD_C99 )
   endif()
 ELSE( NOT _match_xlc )
-  CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" HAVE_STD_C99)
-  IF( HAVE_STD_C99 )
+  CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" DAGUE_HAVE_STD_C99)
+  IF( DAGUE_HAVE_STD_C99 )
     SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qlanglvl=extc99" )
-  ENDIF( HAVE_STD_C99 )
+  ENDIF( DAGUE_HAVE_STD_C99 )
 ENDIF( NOT _match_xlc )
 
 # Set warnings for debug builds
-CHECK_C_COMPILER_FLAG( "-Wall" HAVE_WALL )
-IF( HAVE_WALL )
+CHECK_C_COMPILER_FLAG( "-Wall" DAGUE_HAVE_WALL )
+IF( DAGUE_HAVE_WALL )
     set( C_WFLAGS "${C_WFLAGS} -Wall" )
-ENDIF( HAVE_WALL )
-CHECK_C_COMPILER_FLAG( "-Wextra" HAVE_WEXTRA )
-IF( HAVE_WEXTRA )
+ENDIF( DAGUE_HAVE_WALL )
+CHECK_C_COMPILER_FLAG( "-Wextra" DAGUE_HAVE_WEXTRA )
+IF( DAGUE_HAVE_WEXTRA )
     set( C_WFLAGS "${C_WFLAGS} -Wextra" )
-ENDIF( HAVE_WEXTRA )
+ENDIF( DAGUE_HAVE_WEXTRA )
 
 #
 # flags for Intel icc
@@ -277,8 +283,8 @@ ENDIF( HAVE_WEXTRA )
 STRING(REGEX MATCH ".*icc$" _match_icc ${CMAKE_C_COMPILER})
 if(_match_icc)
   # Silence annoying warnings
-  CHECK_C_COMPILER_FLAG( "-wd424" HAVE_WD )
-  IF( HAVE_WD )
+  CHECK_C_COMPILER_FLAG( "-wd424" DAGUE_HAVE_WD )
+  IF( DAGUE_HAVE_WD )
     # 424: checks for duplicate ";"
     # 981: every volatile triggers a "unspecified evaluation order", obnoxious
     #      but might be useful for some debugging sessions.
@@ -287,22 +293,22 @@ if(_match_icc)
     # 1572: cuda compares floats with 0.0f.
     # 11074: obnoxious about not inlining long functions.
     set( C_WFLAGS "${C_WFLAGS} -wd424,981,1419,1572,10237,11074,11076" )
-  ENDIF( HAVE_WD )
+  ENDIF( DAGUE_HAVE_WD )
 else(_match_icc)
-  CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" HAVE_PAR_EQUALITY )
-  IF( HAVE_PAR_EQUALITY )
+  CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" DAGUE_HAVE_PAR_EQUALITY )
+  IF( DAGUE_HAVE_PAR_EQUALITY )
         set( C_WFLAGS "${C_WFLAGS} -Wno-parentheses-equality" )
-  ENDIF( HAVE_PAR_EQUALITY )
+  ENDIF( DAGUE_HAVE_PAR_EQUALITY )
 endif(_match_icc)
 
 # add gdb symbols in debug and relwithdebinfo
-CHECK_C_COMPILER_FLAG( "-g3" HAVE_G3 )
-IF( HAVE_G3 )
+CHECK_C_COMPILER_FLAG( "-g3" DAGUE_HAVE_G3 )
+IF( DAGUE_HAVE_G3 )
     set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3" )
     set( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g3" )
 ELSE()
     set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" )
-ENDIF( HAVE_G3)
+ENDIF( DAGUE_HAVE_G3)
 # verbose compilation in debug
 set( CMAKE_C_FLAGS_DEBUG "${C_WFLAGS} ${CMAKE_C_FLAGS_DEBUG}" )
 # remove asserts in release
@@ -313,7 +319,7 @@ SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set( MAC_OS_X 1 CACHE INTERNAL "Compile on MAC OS X")
+  set( DAGUE_OSX 1 CACHE INTERNAL "Compile on MAC OS X")
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 #
@@ -328,48 +334,57 @@ foreach( ITEM ${TMP_LIST})
 endforeach()
 
 mark_as_advanced(DAGUE_LIFO_USE_ATOMICS)
-if(NOT HAVE_COMPARE_AND_SWAP_128)
+if(NOT DAGUE_HAVE_COMPARE_AND_SWAP_128)
   option(DAGUE_LIFO_USE_ATOMICS
          "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation) -- DANGEROUS: no CAS128 -- risk of ABA"
          OFF)
-else(NOT HAVE_COMPARE_AND_SWAP_128)
+else(NOT DAGUE_HAVE_COMPARE_AND_SWAP_128)
   option(DAGUE_LIFO_USE_ATOMICS
          "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)"
          ON)
-endif(NOT HAVE_COMPARE_AND_SWAP_128)
+endif(NOT DAGUE_HAVE_COMPARE_AND_SWAP_128)
 
 find_package(Threads)
 if(Threads_FOUND)
-  CMAKE_PUSH_CHECK_STATE()
-  list( APPEND CMAKE_REQUIRED_LIBRARIES "${CMAKE_THREAD_LIBS_INIT}" )
-  check_function_exists(pthread_create HAVE_PTHREAD)
-  CMAKE_POP_CHECK_STATE()
-  if(HAVE_PTHREAD)
-    list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
-  endif(HAVE_PTHREAD)
+  set(DAGUE_HAVE_PTHREAD true)
+  list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
 endif(Threads_FOUND)
 
-check_function_exists(sched_setaffinity HAVE_SCHED_SETAFFINITY)
-if( NOT HAVE_SCHED_SETAFFINITY )
-  check_library_exists(rt sched_setaffinity "" HAVE_SCHED_SETAFFINITY)
-endif( NOT HAVE_SCHED_SETAFFINITY )
+check_function_exists(sched_setaffinity DAGUE_HAVE_SCHED_SETAFFINITY)
+if(NOT DAGUE_HAVE_SCHED_SETAFFINITY)
+  check_library_exists(rt sched_setaffinity "" DAGUE_HAVE_SCHED_SETAFFINITYRT)
+  if(DAGUE_HAVE_SCHED_SETAFFINITYRT)
+    list(APPEND EXTRA_LIBS -lrt)
+    set(DAGUE_HAVE_SCHED_SETAFFINITY true)
+  endif()
+endif(NOT DAGUE_HAVE_SCHED_SETAFFINITY)
 
 # timeval, timespec, realtime clocks, etc
 include(CheckStructHasMember)
-check_struct_has_member("struct timespec" tv_nsec time.h HAVE_TIMESPEC_TV_NSEC)
-if( NOT HAVE_TIMESPEC_TV_NSEC )
-  add_definitions(-D_GNU_SOURCE)
-  check_struct_has_member("struct timespec" tv_nsec time.h HAVE_TIMESPEC_TV_NSEC)
-endif( NOT HAVE_TIMESPEC_TV_NSEC )
-check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME)
-if( HAVE_CLOCK_GETTIME )
-  list(APPEND EXTRA_LIBS -lrt)
-endif( HAVE_CLOCK_GETTIME )
+check_struct_has_member("struct timespec" tv_nsec time.h DAGUE_HAVE_TIMESPEC_TV_NSEC)
+if( NOT DAGUE_HAVE_TIMESPEC_TV_NSEC )
+  CMAKE_PUSH_CHECK_STATE()
+  list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
+  check_struct_has_member("struct timespec" tv_nsec time.h DAGUE_HAVE_TIMESPEC_TV_NSEC_GNU)
+  CMAKE_POP_CHECK_STATE()
+  if( DAGUE_HAVE_TIMESPEC_TV_NSEC_GNU )
+    add_definitions(-D_GNU_SOURCE)
+    set(DAGUE_HAVE_TIMESPEC_TV_NSEC true)
+  endif( DAGUE_HAVE_TIMESPEC_TV_NSEC_GNU )
+endif( NOT DAGUE_HAVE_TIMESPEC_TV_NSEC )
+check_function_exists(clock_gettime DAGUE_HAVE_CLOCK_GETTIME)
+if( NOT DAGUE_HAVE_CLOCK_GETTIME )
+  check_library_exists(rt clock_gettime "" DAGUE_HAVE_CLOCK_GETTIMERT)
+  if(DAGUE_HAVE_CLOCK_GETTIMERT)
+    list(APPEND EXTRA_LIBS -lrt)
+    set(DAGUE_HAVE_CLOCK_GETTIME true)
+  endif(DAGUE_HAVE_CLOCK_GETTIMERT)
+endif( NOT DAGUE_HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
-check_include_files(stdarg.h HAVE_STDARG_H)
+check_include_files(stdarg.h DAGUE_HAVE_STDARG_H)
 # va_copy is special as it is not required to be a function.
-if (HAVE_STDARG_H)
+if (DAGUE_HAVE_STDARG_H)
   check_c_source_compiles("
       #include <stdarg.h>
       int main(void) {
@@ -377,10 +392,10 @@ if (HAVE_STDARG_H)
           va_copy(a, b);
           return 0;
       }"
-      HAVE_VA_COPY
+      DAGUE_HAVE_VA_COPY
       )
 
-  if (NOT HAVE_VA_COPY)
+  if (NOT DAGUE_HAVE_VA_COPY)
     check_c_source_compiles("
         #include <stdarg.h>
         int main(void) {
@@ -388,35 +403,69 @@ if (HAVE_STDARG_H)
             __va_copy(a, b);
             return 0;
         }"
-        HAVE_UNDERSCORE_VA_COPY
+        DAGUE_HAVE_UNDERSCORE_VA_COPY
         )
-  endif (NOT HAVE_VA_COPY)
-endif (HAVE_STDARG_H)
-check_function_exists(asprintf HAVE_ASPRINTF)
-check_function_exists(vasprintf HAVE_VASPRINTF)
-check_include_files(getopt.h HAVE_GETOPT_H)
-check_include_files(unistd.h HAVE_UNISTD_H)
-check_function_exists(getopt_long HAVE_GETOPT_LONG)
-check_include_files(errno.h HAVE_ERRNO_H)
-check_include_files(stddef.h HAVE_STDDEF_H)
-check_include_files(stdbool.h HAVE_STDBOOL_H)
-check_include_files(ctype.h HAVE_CTYPE_H)
-check_function_exists(getrusage HAVE_GETRUSAGE)
-check_symbol_exists(RUSAGE_THREAD sys/resource.h HAVE_RUSAGE_THREAD)
-check_include_files(limits.h HAVE_LIMITS_H)
-check_include_files(string.h HAVE_STRING_H)
-check_include_files(libgen.h HAVE_GEN_H)
-check_include_files(complex.h HAVE_COMPLEX_H)
-check_include_files(sys/param.h HAVE_SYS_PARAM_H)
-check_include_files(sys/types.h HAVE_SYS_TYPES_H)
-check_include_files(syslog.h HAVE_SYSLOG_H)
+  endif (NOT DAGUE_HAVE_VA_COPY)
+endif (DAGUE_HAVE_STDARG_H)
+check_function_exists(asprintf DAGUE_HAVE_ASPRINTF)
+check_function_exists(vasprintf DAGUE_HAVE_VASPRINTF)
+check_include_files(getopt.h DAGUE_HAVE_GETOPT_H)
+check_include_files(unistd.h DAGUE_HAVE_UNISTD_H)
+check_function_exists(getopt_long DAGUE_HAVE_GETOPT_LONG)
+check_include_files(errno.h DAGUE_HAVE_ERRNO_H)
+check_include_files(stddef.h DAGUE_HAVE_STDDEF_H)
+check_include_files(stdbool.h DAGUE_HAVE_STDBOOL_H)
+check_include_files(ctype.h DAGUE_HAVE_CTYPE_H)
+check_function_exists(getrusage DAGUE_HAVE_GETRUSAGE)
+check_symbol_exists(RUSAGE_THREAD sys/resource.h DAGUE_HAVE_RUSAGE_THREAD)
+if( NOT DAGUE_HAVE_RUSAGE_THREAD )
+  CMAKE_PUSH_CHECK_STATE()
+  list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
+  check_symbol_exists(RUSAGE_THREAD sys/resource.h DAGUE_HAVE_RUSAGE_THREAD_GNU)
+  CMAKE_POP_CHECK_STATE()
+  if( DAGUE_HAVE_RUSAGE_THREAD_GNU )
+    add_definitions(-D_GNU_SOURCE)
+    set(DAGUE_HAVE_RUSAGE_THREAD true)
+  endif( DAGUE_HAVE_RUSAGE_THREAD_GNU )
+endif( NOT DAGUE_HAVE_RUSAGE_THREAD)
+check_include_files(limits.h DAGUE_HAVE_LIMITS_H)
+check_include_files(string.h DAGUE_HAVE_STRING_H)
+check_include_files(libgen.h DAGUE_HAVE_GEN_H)
+check_include_files(complex.h DAGUE_HAVE_COMPLEX_H)
+check_include_files(sys/param.h DAGUE_HAVE_SYS_PARAM_H)
+check_include_files(sys/types.h DAGUE_HAVE_SYS_TYPES_H)
+check_include_files(syslog.h DAGUE_HAVE_SYSLOG_H)
 
+check_c_source_compiles("
+      int main( int argc, char** argv) {
+         int x = 0;
+         if ( __builtin_expect(!!(x), 0) )
+            return -1;
+         return 0;
+      }
+      " DAGUE_HAVE_BUILTIN_EXPECT)
 #
 # Find optional packages
 #
 IF( BUILD_DAGUE )
+  # Look for dl library to dynamically load the mca modules and cuda kernels
+  check_function_exists(dlsym DAGUE_HAVE_DL)
+  if( NOT DAGUE_HAVE_DL )
+    find_library(DL_LIBRARY dl)
+    if(DL_LIBRARY)
+      CMAKE_PUSH_CHECK_STATE()
+      list(APPEND CMAKE_REQUIRED_LIBRARIES ${DL_LIBRARY})
+      check_function_exists(dlsym DAGUE_HAVE_DLDL)
+      CMAKE_POP_CHECK_STATE()
+      if(DAGUE_HAVE_DLDL)
+        list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
+        set(DAGUE_HAVE_DL true)
+      endif(DAGUE_HAVE_DLDL)
+    endif(DL_LIBRARY)
+  endif( NOT DAGUE_HAVE_DL )
+
   find_package(HWLOC)
-  set(HAVE_HWLOC ${HWLOC_FOUND})
+  set(DAGUE_HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
@@ -426,7 +475,7 @@ IF( BUILD_DAGUE )
   if (DAGUE_DIST_WITH_MPI)
     # Force the detection of the C library
     find_package(MPI)
-    set(HAVE_MPI ${MPI_C_FOUND})
+    set(DAGUE_HAVE_MPI ${MPI_C_FOUND})
     if (MPI_C_FOUND)
       list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
       include_directories( ${MPI_C_INCLUDE_PATH} )
@@ -439,15 +488,15 @@ IF( BUILD_DAGUE )
   #
   if (MPI_C_FOUND)
     CMAKE_PUSH_CHECK_STATE()
-    set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${MPI_C_INCLUDE_PATH}")
-    set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${MPI_C_LIBRARIES}")
-    check_function_exists(MPI_Type_create_resized HAVE_MPI_20)
+    list(APPEND CMAKE_REQUIRED_INCLUDES  "${MPI_C_INCLUDE_PATH}")
+    list(APPEND CMAKE_REQUIRED_LIBRARIES "${MPI_C_LIBRARIES}")
+    check_function_exists(MPI_Type_create_resized DAGUE_HAVE_MPI_20)
     CMAKE_POP_CHECK_STATE()
   endif (MPI_C_FOUND)
 
   if( DAGUE_GPU_WITH_CUDA )
     find_package(CUDA QUIET)
-    set(HAVE_CUDA ${CUDA_FOUND})
+    set(DAGUE_HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
       message(STATUS "Found CUDA ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
       if(CUDA_VERSION VERSION_LESS "3.0")
@@ -457,26 +506,19 @@ IF( BUILD_DAGUE )
       include_directories(${CUDA_INCLUDE_DIRS})
       list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
       CMAKE_PUSH_CHECK_STATE()
-      set(CMAKE_REQUIRED_INCLUDES  "${CMAKE_REQUIRED_INCLUDES};${CUDA_INCLUDE_DIRS}")
-      set(CMAKE_REQUIRED_LIBRARIES "${CMAKE_REQUIRED_LIBRARIES};${CUDA_LIBRARIES}")
+      list(APPEND CMAKE_REQUIRED_INCLUDES  "${CUDA_INCLUDE_DIRS}")
+      list(APPEND CMAKE_REQUIRED_LIBRARIES "${CUDA_LIBRARIES}")
       if(CUDA_VERSION VERSION_LESS "4.0")
           set(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
       else()
-          check_function_exists(cuDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+          check_function_exists(cudaDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
       endif()
       CMAKE_POP_CHECK_STATE()
-
-      # Look for dl library to dynamically load the kernels
-      find_library(DL_LIBRARY dl)
-      if(DL_LIBRARY)
-        list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
-      endif()
-
     endif (CUDA_FOUND)
   endif( DAGUE_GPU_WITH_CUDA )
 
   find_package(AYUDAME QUIET)
-  set(HAVE_AYUDAME ${AYUDAME_FOUND})
+  set(DAGUE_HAVE_AYUDAME ${AYUDAME_FOUND})
 #
 # If AYUDAME support is enabled it means we need to deal with weak symbols. On
 # MAC OS X we need to add a special linker flag or the applications will not
@@ -577,7 +619,7 @@ endif(NOT DAGUE_COMPILE_INPLACE)
 #
 # Check if indent is available on the system.
 #
-set(HAVE_INDENT 0)
+set(DAGUE_HAVE_INDENT 0)
 FIND_PROGRAM(INDENT_EXECUTABLE indent DOC "path to the indent executable")
 MARK_AS_ADVANCED(INDENT_EXECUTABLE)
 # K&R (not supported on Mac), so we settle for less
@@ -587,17 +629,17 @@ MARK_AS_ADVANCED(INDENT_EXECUTABLE)
 SET(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -ncdb -ce -cli0 -d0 -di1 -nfc1 -i4 -ip0 -lp -npcs -npsl -nsc -nsob -l120")
 MARK_AS_ADVANCED(INDENT_OPTIONS)
 if(INDENT_EXECUTABLE)
-  set(HAVE_INDENT 1)
+  set(DAGUE_HAVE_INDENT 1)
 endif(INDENT_EXECUTABLE)
 
 #
 # Check if awk is available on the system.
 #
-set(HAVE_AWK 0)
+set(DAGUE_HAVE_AWK 0)
 FIND_PROGRAM(AWK_EXECUTABLE awk DOC "path to the awk executable")
 MARK_AS_ADVANCED(AWK_EXECUTABLE)
 if(AWK_EXECUTABLE)
-  set(HAVE_AWK 1)
+  set(DAGUE_HAVE_AWK 1)
 endif(AWK_EXECUTABLE)
 
 get_property(PARSEC_C_INCLUDES DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
@@ -629,11 +671,11 @@ if( BUILD_DAGUE )
 # If we have support for F90 build the DAGuE module
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    #include(FortranCInterface)
-    #FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
-    #                         MACRO_NAMESPACE "DAGUE_"
-    #                         SYMBOL_NAMESPACE "dague_")
-    #                         SYMBOLS mysub daguef:my_sub)
+    include(FortranCInterface)
+    FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
+                             MACRO_NAMESPACE "DAGUE_F2C_"
+                             SYMBOL_NAMESPACE "dague_f2c_"
+                             SYMBOLS my_sub daguef:my_sub)
     add_subdirectory(dague/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 ENDIF( BUILD_DAGUE )
@@ -704,6 +746,10 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     DESTINATION include/dague/mca )
 
   install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/dague/interfaces/interface.h
+    DESTINATION include/dague/interfaces/ )
+
+  install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_papi_utils.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_tau_utils.h
@@ -754,14 +800,32 @@ if( DAGUE_WITH_DEVEL_HEADERS )
     DESTINATION include/dague/devices )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/cuda_scheduling.h
     ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/dev_cuda.h
     DESTINATION include/dague/devices/cuda )
 
 endif(DAGUE_WITH_DEVEL_HEADERS)
 
+# Due to the lack of standardization detecting libraries under CMake leads
+# to unconsistents lists of libraries, where some libraries are using full path,
+# other a combination of "-L* and -l*" and others just the library name. Try
+# to get a consistent string that can be used for the generation of the
+# pkg-config files, by leaving the fullpath libraries as is, and converting
+# everything else to -l.
+SET(EXTRA_LIBS_EXPANDED)
+FOREACH(LIB IN ITEMS ${EXTRA_LIBS})
+  if( IS_ABSOLUTE ${LIB} )
+    LIST(APPEND EXTRA_LIBS_EXPANDED ${LIB})
+  else( IS_ABSOLUTE ${LIB} )
+    if( LIB MATCHES "(^|;)-l.*" )
+      LIST(APPEND EXTRA_LIBS_EXPANDED "${LIB}")
+    else( LIB MATCHES "(^|;)-l.*" )
+      LIST(APPEND EXTRA_LIBS_EXPANDED "-l${LIB}")
+    endif( LIB MATCHES "(^|;)-l.*" )
+  endif( IS_ABSOLUTE ${LIB} )
+ENDFOREACH(LIB)
+
 # pkg-config file
-string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS}")
+string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
   "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)

@@ -20,9 +20,9 @@
 #endif
 #if defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
 #  include "atomic-xlc.h"
-#elif defined(MAC_OS_X)
+#elif defined(DAGUE_OSX)
 #  include "atomic-macosx.h"
-#elif defined(ARCH_PPC)
+#elif defined(DAGUE_ARCH_PPC)
 #  if defined(__bgp__)
 #    include "atomic-ppc-bgp.h"
 #  else
@@ -30,9 +30,9 @@
 #  endif
 #elif defined(DAGUE_ATOMIC_USE_GCC_32_BUILTINS)
 #  include "atomic-gcc.h"
-#elif defined(ARCH_X86)
+#elif defined(DAGUE_ARCH_X86)
 #  include "atomic-x86_32.h"
-#elif defined(ARCH_X86_64)
+#elif defined(DAGUE_ARCH_X86_64)
 #  include "atomic-x86_64.h"
 #else
 #  error "No safe atomics available"

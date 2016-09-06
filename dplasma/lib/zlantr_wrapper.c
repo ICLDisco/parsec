@@ -146,7 +146,8 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
         0, 0, /* Starting points (not important here) */
         m, n, /* Dimensions of the submatrix          */
         1, 1, P);
-    Tdist->super.super.data_of = fake_data_of;
+    Tdist->super.super.data_of = NULL;
+    Tdist->super.super.data_of_key = NULL;
 
     /* Create the DAG */
     switch( norm ) {
@@ -210,7 +211,7 @@ dplasma_zlantr_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA] );
     dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA] );
 
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

@@ -103,7 +103,7 @@ END
 
 ztsmlq(k, m, n)
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
+  k = 0     .. %{ return dplasma_imin((descA.nt-2),(descA.mt-1)); %}
   m = (k+1) .. (descB.mt-1)
   n = 0     .. (descB.nt-1)
 
@@ -154,7 +154,7 @@ END
 
 ztsmlq_in_data_T2(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descB.mt-2),(descA.mt-1)); %}
+  k = 0     .. %{ return dplasma_imin((descB.mt-2),(descA.mt-1)); %}
   m = (k+1) .. (descB.mt-1)
 
   /* Locality */
@@ -171,7 +171,7 @@ END
 
 ztsmlq_in_data_A1(k, m) [profile = off]
   /* Execution Space */
-  k = 0     .. inline_c %{ return dplasma_imin((descB.mt-2),(descA.mt-1)); %}
+  k = 0     .. %{ return dplasma_imin((descB.mt-2),(descA.mt-1)); %}
   m = (k+1) .. (descB.mt-1)
 
   /* Locality */
@@ -188,7 +188,7 @@ END
 
 ztsmlq_out_data_B0(k, n) [profile = off]
   /* Execution Space */
-  k = 0 .. inline_c %{ return dplasma_imin((descB.mt-2),(descA.mt-1)); %}
+  k = 0 .. %{ return dplasma_imin((descB.mt-2),(descA.mt-1)); %}
   n = 0 .. (descB.nt-1)
 
   /* Locality */

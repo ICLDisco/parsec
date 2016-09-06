@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,158 +8,124 @@
 #define DEBUG_H_HAS_BEEN_INCLUDED
 
 #include "dague_config.h"
+#include "dague/utils/output.h"
 
-#if defined(HAVE_STDARG_H)
-#include <stdarg.h>
-#endif  /* define(HAVE_STDARG_H) */
-#if !defined(HAVE_ASPRINTF)
-int asprintf(char **ret, const char *format, ...);
-#endif  /* !defined(HAVE_ASPRINTF) */
-#if !defined(HAVE_VASPRINTF)
-int vasprintf(char **ret, const char *format, va_list ap);
-#endif  /* !defined(HAVE_VASPRINTF) */
-
-#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 
-void dague_debug_init();
-void dague_debug_fini();
-
-void debug_save_stack_trace(void);
-void debug_dump_stack_traces(void);
 /**
- * The default file decriptor to be used to dump the output. By default it is set to
- * seterr, but can be changed to something more meaningful early in the setup to
- * redirect the output to a file.
+ * Control debug output and verbosity
+ *   default output for errors, warnings and inform is 0 (stderr)
+ *   warning is verbosity 1, inform is verbosity 2
+ *
+ * Debug macros decorate the output, but the calling module has to
+ * select the output stream and verbosity.
+ *   The dague_debug_output can be used for misc outputs.
+ *
+ * Guide for setting the debug verbosity:
+ *   3-4: debug information (module initialized, available features etc).
+ *   5-9: light debug output
+ *   >=10: heavy debug output
+ *
+ * Debug history compiled in as soon as defined(DAGUE_DEBUG_HISTORY)
+ *   independent of DAGUE_DEBUG_VERBOSE setting
+ *   debug history verbosity follows dague_debug_history_verbose
  */
-extern FILE* dague_debug_file;
-
-/**
- * The level of the output verbosity. Set to zero to disable everything.
- */
-extern int dague_verbose;
+extern int dague_debug_output;
+extern int dague_debug_verbose;
+extern int dague_debug_colorize;
 extern int dague_debug_rank;
+extern int dague_debug_coredump_on_abort;
+extern char dague_debug_hostname[];
 
-/* only one printf to avoid line breaks in the middle */
-static inline char* arprintf(const char* fmt, ...)
-{
-    char* txt;
-    va_list args;
-    int rc;
+void dague_debug_init(void);
+void dague_debug_fini(void);
 
-    va_start(args, fmt);
-    rc = vasprintf(&txt, fmt, args);
-    va_end(args);
-
-    (void)rc;
-    return txt;
-}
+void dague_debug_backtrace_save(void);
+void dague_debug_backtrace_dump(void);
 
 #if defined(DAGUE_DEBUG_HISTORY)
+    extern int dague_debug_history_verbose;
     void dague_debug_history_add(const char *format, ...);
-#   define _DAGUE_DEBUG_HISTORY(ARG) dague_debug_history_add ARG
+    void dague_debug_history_dump(void);
+    void dague_debug_history_purge(void);
+#   define _DAGUE_DEBUG_HISTORY(VERB, ...) do {                     \
+        if( VERB >= dague_debug_verbose ) {                         \
+            dague_debug_history_add(__VA_ARGS__);                   \
+        }                                                           \
+    } while(0)
 #else
-#   define _DAGUE_DEBUG_HISTORY(ARG)
-#endif
+#   define dague_debug_history_add(...)
+#   define dague_debug_history_dump()
+#   define dague_debug_history_purge()
+#   define _DAGUE_DEBUG_HISTORY(...)
+#endif /* defined(DAGUE_DEBUG_HISTORY) */
 
-#define _DAGUE_OUTPUT(PRFX, ARG) do {                               \
-    char* __debug_str = arprintf ARG ;                              \
-    if(NULL == dague_debug_file) dague_debug_file = stderr;         \
-    fprintf(dague_debug_file,  "[" PRFX "DAGuE %2d]:\t%s", dague_debug_rank, __debug_str); \
-    free(__debug_str);                                              \
+/* Use when encountering a FATAL condition. Will terminate the program. */
+#define dague_abort(FMT, ...) do {                                  \
+    dague_output(0,                                                 \
+        "%.*sX@%05d%.*s " FMT " %.*s@%.30s:%-5d (%.30s:%-5d)%.*s",  \
+        dague_debug_colorize, "\x1B[1;37;41m", dague_debug_rank,    \
+        dague_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
+        dague_debug_colorize, "\x1B[36m", __func__, __LINE__, dague_debug_hostname, getpid(), \
+        dague_debug_colorize, "\033[0m");                           \
+    if ( dague_debug_coredump_on_abort ) {                          \
+        abort();                                                    \
+    } else {                                                        \
+        exit(1);                                                    \
+    }                                                               \
 } while(0)
 
-#define ABORT() abort()
-
-#define STATUS(ARG) do { \
-    _DAGUE_OUTPUT("..", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-#define WARNING(ARG) do { \
-    _DAGUE_OUTPUT("!.", ARG) ; \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-} while(0)
-
-#define ERROR(ARG) do { \
-    _DAGUE_OUTPUT("X.", ARG); \
-    _DAGUE_DEBUG_HISTORY(ARG); \
-    ABORT(); \
+/* Use when encountering a SERIOUS condition. The program will continue
+ * but a loud warning will always be issued on the default error output
+ */
+#define dague_warning(FMT, ...) do {                                \
+    dague_output_verbose(1, 0,                                      \
+        "%.*sW@%05d%.*s " FMT,                                      \
+        dague_debug_colorize, "\x1B[1;37;43m", dague_debug_rank,    \
+        dague_debug_colorize, "\033[0m", ##__VA_ARGS__);            \
 } while(0)
 
-#ifdef DAGUE_DEBUG_HISTORY
-#   ifndef DAGUE_DEBUG_VERBOSE
-#       define DAGUE_DEBUG_VERBOSE 3
-#   endif
+/* Use when some INFORMATION can be usefull for the end-user. */
+#define dague_inform(FMT, ...) do {                                 \
+    dague_output_verbose(2, 0,                                      \
+        "%.*si@%05d%.*s " FMT,                                      \
+        dague_debug_colorize, "\x1B[1;37;42m", dague_debug_rank,    \
+        dague_debug_colorize, "\033[0m", ##__VA_ARGS__);            \
+} while(0)
 
-struct dague_execution_context_s;
-void debug_mark_exe(int th, int vp, const struct dague_execution_context_s *ctx);
-#define DEBUG_MARK_EXE(th, vp, ctx) debug_mark_exe(th, vp, ctx)
+/* Light debugging output, compiled in for all levels of
+ * so not to use in performance critical routines. */
+#define dague_debug_verbose(LVL, OUT, FMT, ...) do {                \
+    dague_output_verbose(LVL, OUT,                                  \
+        "%.*sD@%05d%.*s " FMT " %.*s@%.30s:%-5d%.*s",               \
+        dague_debug_colorize, "\x1B[0;37;44m", dague_debug_rank,    \
+        dague_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
+        dague_debug_colorize, "\x1B[36m", __func__, __LINE__,       \
+        dague_debug_colorize, "\033[0m");                           \
+    _DAGUE_DEBUG_HISTORY(LVL,                                       \
+        "D@%05d " FMT " @%.20s:%-5d", dague_debug_rank,             \
+        ##__VA_ARGS__, __func__, __LINE__);                         \
+} while(0)
 
-struct remote_dep_wire_activate_s;
-void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_s *m);
-#define DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(to, buffer, message) debug_mark_ctl_msg_activate_sent(to, buffer, message)
-void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remote_dep_wire_activate_s *m);
-#define DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, buffer, message) debug_mark_ctl_msg_activate_recv(from, buffer, message)
-
-struct remote_dep_wire_get_s;
-void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_wire_get_s *m);
-#define DEBUG_MARK_CTL_MSG_GET_SENT(to, buffer, message) debug_mark_ctl_msg_get_sent(to, buffer, message)
-void debug_mark_ctl_msg_get_recv(int from, const void *b, const struct remote_dep_wire_get_s *m);
-#define DEBUG_MARK_CTL_MSG_GET_RECV(from, buffer, message) debug_mark_ctl_msg_get_recv(from, buffer, message)
-
-void debug_mark_dta_msg_start_send(int to, const void *b, int tag);
-#define DEBUG_MARK_DTA_MSG_START_SEND(to, buffer, tag) debug_mark_dta_msg_start_send(to, buffer, tag)
-void debug_mark_dta_msg_start_recv(int from, const void *b, int tag);
-#define DEBUG_MARK_DTA_MSG_START_RECV(from, buffer, tag) debug_mark_dta_msg_start_recv(from, buffer, tag)
-void debug_mark_dta_msg_end_send(int tag);
-#define DEBUG_MARK_DTA_MSG_END_SEND(tag) debug_mark_dta_msg_end_send(tag)
-void debug_mark_dta_msg_end_recv(int tag);
-#define DEBUG_MARK_DTA_MSG_END_RECV(tag) debug_mark_dta_msg_end_recv(tag)
-
-void debug_mark_display_history(void);
-void debug_mark_purge_history(void);
-void debug_mark_purge_all_history(void);
-
-#else /* DAGUE_DEBUG_HISTORY */
-
-#define DEBUG_MARK_EXE(th, vp, ctx)
-#define DEBUG_MARK_CTL_MSG_ACTIVATE_SENT(to, buffer, message)
-#define DEBUG_MARK_CTL_MSG_ACTIVATE_RECV(from, buffer, message)
-#define DEBUG_MARK_CTL_MSG_GET_SENT(to, buffer, message)
-#define DEBUG_MARK_CTL_MSG_GET_RECV(from, buffer, message)
-#define DEBUG_MARK_DTA_MSG_START_SEND(to, buffer, tag)
-#define DEBUG_MARK_DTA_MSG_START_RECV(from, buffer, tag)
-#define DEBUG_MARK_DTA_MSG_END_SEND(tag)
-#define DEBUG_MARK_DTA_MSG_END_RECV(tag)
-#define debug_mark_purge_history()
-#define debug_mark_purge_all_history()
-
-#endif /* DAGUE_DEBUG_HISTORY */
-
-#if DAGUE_DEBUG_VERBOSE != 0
-# define DEBUG3(ARG)                            \
-    if( dague_verbose >= 3 ) {                  \
-        _DAGUE_OUTPUT("D^", ARG);               \
-        _DAGUE_DEBUG_HISTORY(ARG);              \
-    }
-
-# define DEBUG2(ARG)                            \
-    if( dague_verbose >= 2 ) {                  \
-        _DAGUE_OUTPUT("D.", ARG);               \
-        _DAGUE_DEBUG_HISTORY(ARG);              \
-    }
-
-# define DEBUG(ARG)                             \
-    if( dague_verbose >= 1 ) {                  \
-        _DAGUE_OUTPUT("d.", ARG);               \
-        _DAGUE_DEBUG_HISTORY(ARG);              \
-    }
+#if defined(DAGUE_DEBUG_NOISIER)
+/* Increasingly heavy debugging output. Compiled out when
+ * DAGUE_DEBUG_VERBOSE is not enabled.
+ * The entire history is logged as soon as debug_verbose >= 3
+ */
+#define DAGUE_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
+    dague_output_verbose(LVL, OUT,                                  \
+        "%.*sd@%05d%.*s " FMT " %.*s@%.30s:%-5d%.*s",               \
+        dague_debug_colorize, "\x1B[0;37;44m", dague_debug_rank,    \
+        dague_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
+        dague_debug_colorize, "\x1B[36m", __func__, __LINE__,       \
+        dague_debug_colorize, "\033[0m");                           \
+    _DAGUE_DEBUG_HISTORY(LVL,                                       \
+        "d@%05d " FMT " @%.20s:%-5d", dague_debug_rank,             \
+        ##__VA_ARGS__, __func__, __LINE__);                         \
+} while(0)
 #else
-# define DEBUG(ARG)  do {} while(0)
-# define DEBUG2(ARG) do {} while(0)
-# define DEBUG3(ARG) do {} while(0)
-#endif  /* DAGUE_DEBUG_VERBOSE != 0 */
+#define DAGUE_DEBUG_VERBOSE(...) do{} while(0)
+#endif /* defined(DAGUE_DEBUG_VERBOSE) */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */
-

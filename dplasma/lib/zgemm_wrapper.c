@@ -171,7 +171,7 @@ void
 dplasma_zgemm_Destruct( dague_handle_t *handle )
 {
     dague_matrix_del2arena( ((dague_zgemm_NN_handle_t *)handle)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA] );
-    handle->destructor(handle);
+    dague_handle_free(handle);
 }
 
 /**

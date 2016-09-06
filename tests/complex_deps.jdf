@@ -5,7 +5,6 @@ extern "C" %{
  *                         reserved.
  */
 
-#include "dague.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <sys/time.h>
 #include <inttypes.h>
@@ -13,7 +12,6 @@ extern "C" %{
 #include <stdlib.h>
 
 #define BLOCK 10
-#define N     100
 #define NN    10
 #define TYPE  matrix_RealFloat
 

@@ -1,10 +1,9 @@
 extern "C" %{
-#include "dague.h"
-#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <sys/time.h>
 #include <inttypes.h>
 #include <string.h>
 #include <stdlib.h>
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 /**
  * This test stress the startup mechanism by generating NI*NJ*NK independent
@@ -33,7 +32,7 @@ STARTUP(i, j, k)
   valid1 = i == 1 && j == 1
   valid2 = (i == 1) && (j == 1)
 
-  prio = inline_c %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
+  prio = %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
 
   : A(i,0)
 
@@ -90,7 +89,7 @@ int main( int argc, char** argv )
     int ni = NN, nj = NN, nk = NN, verbose = 0, i = 1;
     long time_elapsed;
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
@@ -180,7 +179,7 @@ int main( int argc, char** argv )
 
     dague_fini( &dague);
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
 

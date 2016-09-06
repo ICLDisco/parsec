@@ -14,7 +14,7 @@
  * even on platforms without unistd.h (such as Windows). Therefore, if we
  * know this file is not available, we can prevent flex from including it.
  */
-#ifndef HAVE_UNISTD_H
+#ifndef DAGUE_HAVE_UNISTD_H
 #define YY_NO_UNISTD_H
 #endif
 
@@ -45,15 +45,23 @@
 #    define __dague_attribute_always_inline__
 #endif
 
-#if defined(HAVE_STDDEF_H)
+#if defined(DAGUE_HAVE_BUILTIN_EXPECT)
+#define DAGUE_LIKELY(x)       __builtin_expect(!!(x), 1)
+#define DAGUE_UNLIKELY(x)     __builtin_expect(!!(x), 0)
+#else
+#define DAGUE_LIKELY(x)       (x)
+#define DAGUE_UNLIKELY(x)     (x)
+#endif
+
+#if defined(DAGUE_HAVE_STDDEF_H)
 #include <stddef.h>
-#endif  /* HAVE_STDDEF_H */
+#endif  /* DAGUE_HAVE_STDDEF_H */
 #include <stdint.h>
 
 #define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 # define DISTRIBUTED
 #else
 # undef DISTRIBUTED
@@ -154,7 +162,7 @@ typedef uint32_t dague_dependency_t;
 #  endif  /* defined(_USRDLL) */
 #  include "dague/win32/win_compat.h"
 #else
-#  if defined(DAGUE_C_HAVE_VISIBILITY)
+#  if defined(DAGUE_C_DAGUE_HAVE_VISIBILITY)
 #    define DAGUE_DECLSPEC           __dague_attribute_visibility__("default")
 #    define DAGUE_MODULE_DECLSPEC    __dague_attribute_visibility__("default")
 #  else
@@ -174,4 +182,3 @@ typedef uint32_t dague_dependency_t;
 #define DAGUE_PATH_SEP "/"
 #define DAGUE_ENV_SEP  ':'
 #endif
-

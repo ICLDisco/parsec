@@ -87,8 +87,8 @@ param_d [type = int default="pivfct->domino" hidden=on]
 zgetrf_hpp_typechange(k, i) [profile = off]
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
-  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
+  i = 0..%{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  m = %{ return dplasma_qr_getm( pivfct, k, i); %}
 
   : A(m, k)
 
@@ -102,13 +102,13 @@ END
 zgetrf_hpp(k, i, t)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
-  t  = 0..inline_c %{ return nbthreads( k, i ); %}
-  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, i); %}
-  nextm = inline_c %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
-  m1 = inline_c %{ return m + param_p; %}
-  ms = inline_c %{ return m + (s-1)*param_p; %}
+  i = 0..%{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  t  = 0..%{ return nbthreads( k, i ); %}
+  m = %{ return dplasma_qr_getm( pivfct, k, i); %}
+  s = %{ return dplasma_qr_getsize( pivfct, k, i); %}
+  nextm = %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
+  m1 = %{ return m + param_p; %}
+  ms = %{ return m + (s-1)*param_p; %}
 
   SIMCOST 4
 
@@ -129,7 +129,7 @@ zgetrf_hpp(k, i, t)
 		     -> ( ( t == 0 ) & (k < descA.nt-1) ) ? IP swptrsm(k, i, k+1..descA.nt-1)              [type = PIVOT]
   CTL   ctl  <- (k > 0) ? ctl2 tile2panel(k-1, ms, k)
 
-  ; inline_c %{ return GETPRIO_PANEL(m, k); %}
+  ; %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
   //int tempm  = m * descA.mb;
@@ -184,13 +184,13 @@ END
 swptrsm(k, i, n)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  i = 0..%{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
   n = k+1..descA.nt-1
-  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, i); %}
-  nextm = inline_c %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
-  m1 = inline_c %{ return m + param_p; %}
-  ms = inline_c %{ return m + (s-1)*param_p; %}
+  m = %{ return dplasma_qr_getm( pivfct, k, i); %}
+  s = %{ return dplasma_qr_getsize( pivfct, k, i); %}
+  nextm = %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
+  m1 = %{ return m + param_p; %}
+  ms = %{ return m + (s-1)*param_p; %}
 
   /* Locality */
   :A(m, n)
@@ -263,20 +263,20 @@ zttqrt(k, m)
   /* Execution space */
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
-  p =     inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
-  nextp = inline_c %{ return dplasma_qr_nexttriangle(pivfct, p, k, m); %}
-  nextp2 = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
-  prevp = inline_c %{ return dplasma_qr_prevtriangle(pivfct, p, k, m); %}
-  prevm = inline_c %{ return dplasma_qr_prevtriangle(pivfct, m, k, m); %}
-  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k, m ); %}
-  ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k, p ); %}
-  im    = inline_c %{ return dplasma_qr_geti(    pivfct, k, m ); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, im); %}
-  nextm = inline_c %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
-  m1 = inline_c %{ return m + param_p; %}
-  ms = inline_c %{ return m + (s-1)*param_p; %}
+  p =     %{ return dplasma_qr_currpiv(pivfct, m, k); %}
+  nextp = %{ return dplasma_qr_nexttriangle(pivfct, p, k, m); %}
+  nextp2 = %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
+  prevp = %{ return dplasma_qr_prevtriangle(pivfct, p, k, m); %}
+  prevm = %{ return dplasma_qr_prevtriangle(pivfct, m, k, m); %}
+  type  = %{ return dplasma_qr_gettype( pivfct, k, m ); %}
+  ip    = %{ return dplasma_qr_geti(    pivfct, k, p ); %}
+  im    = %{ return dplasma_qr_geti(    pivfct, k, m ); %}
+  s = %{ return dplasma_qr_getsize( pivfct, k, im); %}
+  nextm = %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
+  m1 = %{ return m + param_p; %}
+  ms = %{ return m + (s-1)*param_p; %}
 
-  SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 6 : 2; %}
+  SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 6 : 2; %}
 
   : A(m, k)
 
@@ -299,7 +299,7 @@ zttqrt(k, m)
           -> LT(m, k)                                                           [type = LITTLE_T]
           -> (descA.nt-1 > k) ? T zttmqr(k, m, (k+1)..(descA.nt-1))             [type = LITTLE_T]
 
- ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
+ ; %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
 #if !defined(DAGUE_DRY_RUN)
@@ -343,7 +343,7 @@ END
 
 zttqrt_out(k) //[profile = off]
   k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
-  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
+  prevp = %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
   : A(k, k)
 
@@ -358,7 +358,7 @@ END
 zttmqr_out(k, n) //[profile = off]
   k = 0..( (descA.mt < descA.nt) ? descA.mt-2 : descA.nt-2 )
   n = k+1..descA.nt-1
-  prevp = inline_c %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
+  prevp = %{ return dplasma_qr_prevpiv(pivfct, k, k, k); %}
 
   : A(k, n)
 
@@ -382,9 +382,9 @@ END
 /*zttmqr_in0(m,n)
   m = 1..descA.mt-1
   n = 1..descA.nt-1
-  type  = inline_c %{ return dplasma_qr_gettype( pivfct, 0,   m ); %}
+  type  = %{ return dplasma_qr_gettype( pivfct, 0,   m ); %}
 
-  SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
+  SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
   : A(m, n)
 
@@ -401,24 +401,24 @@ zttmqr(k, m, n)
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
-  p =     inline_c %{ return dplasma_qr_currpiv(pivfct, m, k); %}
-  nextp = inline_c %{ return dplasma_qr_nexttriangle(pivfct, p, k, m); %}
-  nextp2 = inline_c %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
-  prevp = inline_c %{ return dplasma_qr_prevtriangle(pivfct, p, k, m); %}
-  prevm = inline_c %{ return dplasma_qr_prevtriangle(pivfct, m, k, m); %}
-  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
-  nexttype = inline_c %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
-  ip    = inline_c %{ return dplasma_qr_geti(    pivfct, k,   p ); %}
-  nextim   = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m ); %}
-  nextm = inline_c %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
-  m0 = inline_c %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k) : m; %}
-  im    = inline_c %{ return (type == 0) ? dplasma_qr_geti(    pivfct, k,   m0 ) : dplasma_qr_geti(    pivfct, k,   m ); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, im); %}
-  ms = inline_c %{ return m0 + (s-1)*param_p; %}
-  j = inline_c %{ return (type != 0)? dplasma_qr_getjkill( pivfct, k, p, m) : 0; %}
-  ntrd   = inline_c %{ return nbthreads( k+1, nextim ); %}
+  p =     %{ return dplasma_qr_currpiv(pivfct, m, k); %}
+  nextp = %{ return dplasma_qr_nexttriangle(pivfct, p, k, m); %}
+  nextp2 = %{ return dplasma_qr_nextpiv(pivfct, p, k, m); %}
+  prevp = %{ return dplasma_qr_prevtriangle(pivfct, p, k, m); %}
+  prevm = %{ return dplasma_qr_prevtriangle(pivfct, m, k, m); %}
+  type  = %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
+  nexttype = %{ return dplasma_qr_gettype( pivfct, k+1, m ); %}
+  ip    = %{ return dplasma_qr_geti(    pivfct, k,   p ); %}
+  nextim   = %{ return dplasma_qr_geti(    pivfct, k+1, m ); %}
+  nextm = %{ return dplasma_qr_nexttriangle( pivfct, m, k, descA.mt); %}
+  m0 = %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k) : m; %}
+  im    = %{ return (type == 0) ? dplasma_qr_geti(    pivfct, k,   m0 ) : dplasma_qr_geti(    pivfct, k,   m ); %}
+  s = %{ return dplasma_qr_getsize( pivfct, k, im); %}
+  ms = %{ return m0 + (s-1)*param_p; %}
+  j = %{ return (type != 0)? dplasma_qr_getjkill( pivfct, k, p, m) : 0; %}
+  ntrd   = %{ return nbthreads( k+1, nextim ); %}
 
-  SIMCOST inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
+  SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
   : A(m, n)
 
@@ -447,7 +447,7 @@ zttmqr(k, m, n)
   CTL ctl2 <- (type != 0) ? ctl low2high_release(k, ip, n, j)
 
 
-    ; inline_c %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
+    ; %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_UPDTE(p, n, k) : GETPRIO_UPDTE(m, n, k); %}
 
 BODY
 #if !defined(DAGUE_DRY_RUN)
@@ -496,12 +496,12 @@ tile2panel(k, m, n) /*[profile = off]*/
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k+1..descA.mt-1
   n = k+1..descA.nt-1
-  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k+1,   m ); %}
-  m0 = inline_c %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k+1) : m; %}
-  i    = inline_c %{ return dplasma_qr_geti(    pivfct, k+1, m0 ); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k+1, i); %}
-  ms = inline_c %{ return m0 + (s-1)*param_p; %}
-  ntrd   = inline_c %{ return nbthreads( k+1, i ); %}
+  type  = %{ return dplasma_qr_gettype( pivfct, k+1,   m ); %}
+  m0 = %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k+1) : m; %}
+  i    = %{ return dplasma_qr_geti(    pivfct, k+1, m0 ); %}
+  s = %{ return dplasma_qr_getsize( pivfct, k+1, i); %}
+  ms = %{ return m0 + (s-1)*param_p; %}
+  ntrd   = %{ return nbthreads( k+1, i ); %}
 
   :A(k, n)
 
@@ -521,12 +521,12 @@ low2high(k,m,n) /*[profile = off]*/
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
   m = k..descA.mt-1
   n = k+1..descA.nt-1
-  type  = inline_c %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
-  m0 = inline_c %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k) : m; %}
-  i    = inline_c %{ return dplasma_qr_geti(    pivfct, k, m0 ); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, i); %}
-  ms = inline_c %{ return m0 + (s-1)*param_p; %}
-  nbkill = inline_c %{ return dplasma_qr_nbkill( pivfct, k, m0); %}
+  type  = %{ return dplasma_qr_gettype( pivfct, k,   m ); %}
+  m0 = %{ return type == 0 ? dplasma_qr_currpiv(pivfct, m, k) : m; %}
+  i    = %{ return dplasma_qr_geti(    pivfct, k, m0 ); %}
+  s = %{ return dplasma_qr_getsize( pivfct, k, i); %}
+  ms = %{ return m0 + (s-1)*param_p; %}
+  nbkill = %{ return dplasma_qr_nbkill( pivfct, k, m0); %}
 
   :A(k, n)
 
@@ -545,13 +545,13 @@ END
 
 low2high_release(k,i,n,j)
   k = 0..( (descA.mt < descA.nt) ? descA.mt-1 : descA.nt-1 )
-  i = 0..inline_c %{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
+  i = 0..%{ return dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) - 1; %}
   n = k+1..descA.nt-1
-  j = 0..inline_c %{ return dplasma_qr_nbkill( pivfct, k, dplasma_qr_getm( pivfct, k, i)) -1; %}
-  m = inline_c %{ return dplasma_qr_getm( pivfct, k, i); %}
-  s = inline_c %{ return dplasma_qr_getsize( pivfct, k, i); %}
-  ms = inline_c %{ return m + (s-1)*param_p; %}
-  kill = inline_c %{ return dplasma_qr_getkill( pivfct, k, m, j); %}
+  j = 0..%{ return dplasma_qr_nbkill( pivfct, k, dplasma_qr_getm( pivfct, k, i)) -1; %}
+  m = %{ return dplasma_qr_getm( pivfct, k, i); %}
+  s = %{ return dplasma_qr_getsize( pivfct, k, i); %}
+  ms = %{ return m + (s-1)*param_p; %}
+  kill = %{ return dplasma_qr_getkill( pivfct, k, m, j); %}
   
   :A(m,n)
 

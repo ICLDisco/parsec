@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,7 +20,7 @@ int main( int argc, char** argv )
     dague_context_t* dague;
     dague_handle_t* handle;
 
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Init(NULL, NULL);
 #endif
     dague = dague_init(1, &argc, &argv);
@@ -35,7 +35,7 @@ int main( int argc, char** argv )
 
         touch_finalize();
     }
-#ifdef HAVE_MPI
+#ifdef DAGUE_HAVE_MPI
     MPI_Finalize();
 #endif
     return 0;

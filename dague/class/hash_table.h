@@ -5,7 +5,6 @@
  */
 
 #include "dague_config.h"
-#include "dague/class/dague_object.h"
 #include "dague/class/list_item.h"
 #include "dague/mempool.h"
 
@@ -65,18 +64,42 @@ hash_table_fini(hash_table *hash_table, int size_of_table);
  * Returns:
  */
 void
-hash_table_insert( hash_table *hash_table,
+hash_table_nolock_insert( hash_table *hash_table,
                    dague_hashtable_item_t *item,
                    uint32_t hash );
-
 
 /* Function to find element in the hash table
  * Arguments:
  * Returns:
  */
 void *
-hash_table_find_no_lock( hash_table *hash_table,
-                         uint64_t key, uint32_t hash );
+hash_table_nolock_find( hash_table *hash_table,
+                 uint64_t key, uint32_t hash );
+
+/* Function to find element in the hash table
+ * Arguments:
+ * Returns:
+ */
+void *
+hash_table_nolock_remove( hash_table *hash_table,
+                   uint64_t key, uint32_t hash );
+
+/* Function to insert element in the hash table
+ * Arguments:
+ * Returns:
+ */
+void
+hash_table_insert( hash_table *hash_table,
+                   dague_hashtable_item_t *item,
+                   uint32_t hash );
+
+/* Function to find element in the hash table
+ * Arguments:
+ * Returns:
+ */
+void *
+hash_table_find( hash_table *hash_table,
+                 uint64_t key, uint32_t hash );
 
 /* Function to find element in the hash table
  * Arguments:

@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -8,8 +8,9 @@
 
 #include <string.h>
 #include <assert.h>
+#include <errno.h>
 
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
 #include <mpi.h>
 #endif
 
@@ -99,10 +100,10 @@ static void vpmap_get_core_affinity_parameters(int vp, int thread, int *cores, i
         (thread >= nbthreadspervp )||
         (nbcores == -1) )
         return;
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     //nb_real_cores = dague_hwloc_nb_real_cores();
     nbht = dague_hwloc_get_ht();
-#endif /* HAVE_HWLOC */
+#endif /* DAGUE_HAVE_HWLOC */
     *cores = (vp * nbcores * nbht) + thread;
     if (nbht > 1 ) {
         *ht = (*cores) % nbht;
@@ -163,7 +164,7 @@ static void vpmap_get_core_affinity_datamap(int vp, int thread, int *cores, int 
 
 int vpmap_init_from_hardware_affinity(int nbcores)
 {
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     int vp_id, th_id, core_id, ht_id;
 
     /* Compute the number of VP according to the number of objects at the
@@ -213,6 +214,7 @@ int vpmap_init_from_hardware_affinity(int nbcores)
 
     return 0;
 #else
+    (void)nbcores;
     return -1;
 #endif
 }
@@ -230,13 +232,13 @@ int vpmap_init_from_file(const char *filename)
         return -1;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     f = fopen(filename, "r");
     if( NULL == f ) {
-        STATUS(("File %s can't be open (default thread binding).\n", filename));
+        dague_warning("File open %s: %s (default thread binding).", filename, strerror(errno));
         return -1;
     }
 
@@ -244,7 +246,7 @@ int vpmap_init_from_file(const char *filename)
 
     char * th_arg = NULL;
     char * binding = NULL;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
     double mpi_num = -1;
 
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -271,13 +273,13 @@ int vpmap_init_from_file(const char *filename)
 
     if( nbvp == 0 ) {
         /* If no description is available for the MPI process, create a single monothread VP */
-        STATUS(("No VP parameter for the MPI process %i: create a single VP (monothread, unbound)\n", rank));
+        dague_inform("No VP parameter for the MPI process %i: create a single VP (monothread, unbound)", rank);
         nbvp=1;
         map = (vpmap_t*)malloc(sizeof(vpmap_t));
         map[0].nbthreads = 1;
         map[0].threads = (vpmap_thread_t**)malloc(sizeof(vpmap_thread_t*));
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
         dague_hwloc_init();
         nbcores = dague_hwloc_nb_real_cores();
 #else
@@ -299,7 +301,7 @@ int vpmap_init_from_file(const char *filename)
         vpmap_nb_total_threads  = 0;
         while( getline(&line, &nline, f) != -1 ) {
             if( NULL != strchr(line, ':') ) {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
                 if (line[0] == ':')
                     mpi_num=0;
                 else
@@ -326,7 +328,7 @@ int vpmap_init_from_file(const char *filename)
                             parse_binding_parameter(v, nbth, binding);
 
                         } else {
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
                             printf("[%i] No binding specified for threads of the VP %i \n", rank, v);
 #else
                             printf("No binding specified for threads of the VP %i \n", v);
@@ -334,7 +336,7 @@ int vpmap_init_from_file(const char *filename)
                         }
                     }
                     v++;
-#if defined(HAVE_MPI)
+#if defined(DAGUE_HAVE_MPI)
                 }
 #endif
             }
@@ -359,9 +361,9 @@ int vpmap_init_from_parameters(int _nbvp, int _nbthreadspervp, int _nbcores)
         return -1;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     nbcores = _nbcores;
     nbthreadspervp = _nbthreadspervp;
@@ -384,9 +386,9 @@ int vpmap_init_from_flat(int _nbcores)
         return -1;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     nbvp = 1;
     nbcores = _nbcores/nbht;
@@ -400,31 +402,26 @@ int vpmap_init_from_flat(int _nbcores)
     return 0;
 }
 
-void vpmap_display_map(FILE *out)
-{
-    int rank = 0;
+void vpmap_display_map(void) {
     int v, t, c;
     char *cores = NULL, *ht = NULL, *tmp;
     int *dcores, *dht;
     int rc;
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-#endif
 
-    fprintf(out, "# [%d] Virtual Process Map ...\n", rank);
+    dague_inform( "Virtual Process Map ...");
     if( -1 == nbvp ) {
-        fprintf(out, "# [%d]   Map undefined\n", rank);
+        dague_inform("   Map undefined");
         return;
     }
 
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
     nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
-    fprintf(out, "# [%d]  Map with %d Virtual Processes\n", rank, nbvp);
+    dague_inform("Map with %d Virtual Processes", nbvp);
     for(v = 0; v < nbvp; v++) {
-        fprintf(out, "# [%d]  Virtual Process of index %d has %d threads\n",
-                rank, v, vpmap_get_nb_threads_in_vp(v) );
+        dague_inform("   Virtual Process of index %d has %d threads",
+                     v, vpmap_get_nb_threads_in_vp(v) );
         for(t = 0; t < vpmap_get_nb_threads_in_vp(v); t++) {
             dcores = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
             dht = (int*)malloc(vpmap_get_nb_cores_affinity(v, t) * sizeof(int));
@@ -446,8 +443,8 @@ void vpmap_display_map(FILE *out)
             free(dcores);
             free(dht);
 
-            fprintf(out, "# [%d]    Thread %d of VP %d can be bound on cores %s %s\n",
-                    rank, t, v, cores, ht);
+            dague_inform("    Thread %d of VP %d can be bound on cores %s %s",
+                         t, v, cores, ht);
             free(cores);
             free(ht);
         }
@@ -457,7 +454,7 @@ void vpmap_display_map(FILE *out)
 
 int parse_binding_parameter(int vp, int nbth, char * binding)
 {
- #if defined(HAVE_HWLOC) && defined(HAVE_HWLOC_BITMAP)
+ #if defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP)
     char* option = binding;
     char* position;
     int t, ht;
@@ -474,24 +471,23 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         /* convert the mask into a bitmap (define legal core indexes) */
         unsigned long mask = strtoul(position, NULL, 16);
         if (mask < 1)
-            ERROR(("P %i: empty binding mask\n", vp));
+            dague_abort("P %i: empty binding mask", vp);
         hwloc_cpuset_t binding_mask = hwloc_bitmap_alloc();
         hwloc_bitmap_from_ulong(binding_mask, mask);
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
         {
             char *str = NULL;
             hwloc_bitmap_asprintf(&str,  binding_mask);
-            DEBUG2(("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str));
-            printf("VP %i : binding of the %i threads defined by the mask %s\n", vp, nbth, str);
+            DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : binding of the %i threads defined by the mask %s", vp, nbth, str);
             free(str);
         }
-#endif /* DAGUE_DEBUG_VERBOSE != 0 */
+#endif /* defined(DAGUE_DEBUG_NOISIER) */
 
         int core=-1, prev=-1;
-#if defined(HAVE_HWLOC)
+#if defined(DAGUE_HAVE_HWLOC)
         nbht = dague_hwloc_get_ht();
-#endif  /* defined(HAVE_HWLOC) */
+#endif  /* defined(DAGUE_HAVE_HWLOC) */
 
         /* extract a single core per thread (round-robin) */
         for( t=0; t<nbth; t+=nbht ) {
@@ -499,7 +495,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             if( core == -1 || core > nb_real_cores ) {
                 prev = -1;
                 core = hwloc_bitmap_next(binding_mask, prev);
-                WARNING(("Several thread of the VP number %i will be bound on the same core\n", vp));
+                dague_warning("Several thread of the VP number %i will be bound on the same core", vp);
             }
             assert(core != -1);
 
@@ -527,7 +523,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             if( (arg < nb_real_cores) && (arg > -1) )
                 start = strtol(option, NULL, 10);
             else
-                WARNING(("binding start core not valid (restored to default value)"));
+                dague_warning("binding start core not valid (restored to default value)");
         }
         position++;  /* skip the ; */
         if( '\0' != position[0] ) {
@@ -537,7 +533,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                 if( (arg < nb_real_cores) && (arg > -1) )
                     end = arg;
                 else
-                    WARNING(("binding end core not valid (restored to default value)\n"));
+                    dague_warning("binding end core not valid (restored to default value)");
             }
             position = strchr(position, ';');  /* find the step */
         }
@@ -548,14 +544,14 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             if( (arg < nb_real_cores) && (arg > -1) )
                 step = arg;
             else
-                WARNING(("binding step not valid (restored to default value)\n"));
+                dague_warning("binding step not valid (restored to default value)");
         }
 
         if( start > end ) {
-            WARNING(("Invalid range: start > end (end restored to default value)\n"));
+            dague_warning("Invalid range: start > end (end restored to default value)");
             end=nb_real_cores-1;
         }
-        DEBUG3(("binding defined by core range [%d;%d;%d]\n", start, end, step));
+        DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "binding defined by core range [%d;%d;%d]\n", start, end, step);
 
         /* define the core according to the trio start/end/step */
         {
@@ -580,7 +576,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                         break;
 
                     if((skip > step) && (t < (nb_real_cores - 1))) {
-                        STATUS(( "WARNING:: No more available core to bind according to the range. The remaining %d threads are not bound\n", nbth-(t*nbht)));
+                        dague_warning("No more available core to bind according to the range. The remaining %d threads are not bound", nbth-(t*nbht));
                         int th;
                         for( th = t+nbht; th < nbth;  th++) {
                             map[vp].threads[th] = (vpmap_thread_t*)malloc(sizeof(vpmap_thread_t));
@@ -613,7 +609,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                     cmp++;
 
                 } else {
-                    WARNING(("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", arg, nb_real_cores-1));
+                    dague_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)", arg, nb_real_cores-1);
                 }
 
                 if( NULL != (position = strpbrk(option, ",-"))) {
@@ -629,7 +625,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
                                 if (cmp == nbth)
                                     break;
                             } else {
-                                WARNING(("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n", t, nb_real_cores-1));
+                                dague_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)", t, nb_real_cores-1);
                             }
                     }
                 }
@@ -641,7 +637,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             }
         }
 
-#if DAGUE_DEBUG_VERBOSE != 0
+#if defined(DAGUE_DEBUG_NOISIER)
         char tmp[MAX_STR_SIZE];
         char* str = tmp;
         size_t offset;
@@ -658,8 +654,8 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
             }
             str += offset;
          }
-        DEBUG(( "binding defined by the parsed list: %s \n", tmp));
-#endif /* DAGUE_DEBUG_VERBOSE */
+        DAGUE_DEBUG_VERBOSE( 20, dague_debug_output, "binding defined by the parsed list: %s ", tmp);
+#endif /* DAGUE_DEBUG_NOISIER */
 
         int c=0;
         for( t = 0; t < nbth; t+=nbht ) {
@@ -678,7 +674,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
     return 0;
 #else
     (void)vp; (void)nbth; (void)binding;
-	WARNING(("the binding defined has been ignored (requires a build with HWLOC with bitmap support).\n"));
+    dague_warning("the binding defined has been ignored (requires a build with HWLOC with bitmap support).");
     return -1;
-#endif /* HAVE_HWLOC && HAVE_HWLOC_BITMAP */
+#endif /* DAGUE_HAVE_HWLOC && DAGUE_HAVE_HWLOC_BITMAP */
 }

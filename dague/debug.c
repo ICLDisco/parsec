@@ -1,169 +1,180 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #include "dague_config.h"
-#include "dague_internal.h"
-#include "dague/remote_dep.h"
+#include "dague/debug.h"
+#include "dague/utils/output.h"
 #include "dague/sys/atomic.h"
 #include "dague/utils/mca_param.h"
 
-#if defined(HAVE_ERRNO_H)
-#include <errno.h>
-#endif  /* defined(HAVE_ERRNO_H) */
 #include <stdio.h>
+#include <string.h>
+#if defined(DAGUE_HAVE_UNISTD_H)
+#include <unistd.h>
+#endif  /* DAGUE_HAVE_UNISTD_H */
 
-#include <execinfo.h>
+/* globals for use in macros from debug.h */
+char dague_debug_hostname[32]   = "unknownhost";
+int dague_debug_rank            = -1;
+int dague_debug_output          = 0;
+int dague_debug_verbose         = 1;
+int dague_debug_colorize        = 10; /* 10 is the size of the format string for colors */
+int dague_debug_coredump_on_abort = 0;
 
-int dague_verbose = DAGUE_DEBUG_VERBOSE;
-int dague_debug_rank = -1;
-FILE* dague_debug_file = NULL;
-static char* dague_debug_filename = NULL;
+/* debug backtrace circular buffer */
+static int bt_output    = -1;
+static int ST_SIZE      = 128;
+static int ST_ASIZE     = 64;
+static uint32_t st_idx  = 0;
+static void **stack     = NULL;
+static int* stack_size  = NULL;
 
-#define ST_SIZE 128
-#define ST_ASIZE 64
-static uint32_t st_idx = 0;
-static void *stack[ST_ASIZE][ST_SIZE];
-static int   stack_size[ST_ASIZE];
 
-void dague_debug_init(void)
-{
-    dague_mca_param_reg_int_name("debug", "verbose", "Set the output level for debug messages ([0..3])",
-                                 false, false, DAGUE_DEBUG_VERBOSE, &dague_verbose);
-    dague_mca_param_reg_string_name("debug", "filename", "Define the base name for the debug messages",
-                                    false, false, "log", &dague_debug_filename);
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
+#include <mpi.h>
+#endif
 
-    dague_debug_file = stderr;
-#if defined(DISTRIBUTED) && defined(HAVE_MPI)
-    int is_mpi_up, rc;
+void dague_debug_init(void) {
+#if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
+    int is_mpi_up;
     MPI_Initialized(&is_mpi_up);
     if( 0 == is_mpi_up ) {
         return ;
     }
     MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
-    rc = asprintf(&dague_debug_filename, "%s.rank%02d", dague_debug_filename, dague_debug_rank);
-    assert(rc != -1); (void)rc;
 #endif
-#if 0  /* Set to 1 to log all output on your local directory */
-    if( NULL != dague_debug_filename ) {
-        dague_debug_file = fopen(dague_debug_filename, "w");
+    gethostname(dague_debug_hostname, sizeof(dague_debug_hostname));
+
+    dague_debug_output = dague_output_open(NULL);
+
+    dague_mca_param_reg_int_name("debug", "verbose",
+        "Set the output level for debug messages"
+        ", 0: Errors only"
+        ", 1: Warnings (minimum recommended)"
+        ", 2: Info (default)"
+        ", 3-4: User Debug"
+        ", 5-9: Devel Debug"
+        ", >=10: Chatterbox Debug"
+#if !defined(DAGUE_DEBUG_PARANOID) || !defined(DAGUE_DEBUG_NOISIER) || !defined(DAGUE_DEBUG_HISTORY)
+        " (heaviest debug output available only when compiling with DAGUE_DEBUG_PARANOID, DAGUE_DEBUG_NOISIER and/or DAGUE_DEBUG_HISTORY in ccmake)"
+#endif
+        , false, false, 2, &dague_debug_verbose);
+    dague_output_set_verbosity(dague_debug_output, dague_debug_verbose);
+    dague_output_set_verbosity(0, dague_debug_verbose);
+
+    dague_mca_param_reg_int_name("debug", "color",
+        "Toggle on/off color output for debug messages",
+        false, false, 1, &dague_debug_colorize);
+    dague_debug_colorize = dague_debug_colorize? 10: 0;
+
+    dague_mca_param_reg_int_name("debug", "coredump_on_abort",
+        "Toggle on/off raise sigabort on internal engine error",
+        false, false, 0, &dague_debug_coredump_on_abort);
+    dague_debug_coredump_on_abort = dague_debug_coredump_on_abort ? 1: 0;
+
+    /* We do not want backtraces in the syslog, so, we do not
+     * inherit the defaults... */
+    char* opt;
+    dague_output_stream_t lds;
+    dague_mca_param_reg_string_name("debug", "backtrace_output",
+        "Define the output for the backtrace dumps (none, stderr, file)",
+        false, false, "file", &opt);
+    if( 0 == strcasecmp(opt, "none") ) {
+        bt_output = -1;
     }
-#endif
-    if( NULL == dague_debug_file ) {
-        dague_debug_file = stderr;
-        if( NULL != dague_debug_filename ) {
-            free(dague_debug_filename);
-            dague_debug_filename = NULL;
-        }
+    else if( 0 == strcasecmp(opt, "stderr") ) {
+        OBJ_CONSTRUCT(&lds, dague_output_stream_t);
+        lds.lds_want_stderr = true;
+        lds.lds_want_syslog = false;
+        bt_output = dague_output_open(&lds);
+        OBJ_DESTRUCT(&lds);
+    }
+    else if( 0 == strcasecmp(opt, "file") ) {
+        OBJ_CONSTRUCT(&lds, dague_output_stream_t);
+        lds.lds_want_file = true;
+        lds.lds_want_syslog = false;
+        lds.lds_file_suffix = "backtraces";
+        bt_output = dague_output_open(&lds);
+        OBJ_DESTRUCT(&lds);
+    }
+    else {
+        dague_warning("Invalid value %s for parameter debug_backtrace_output", opt);
+    }
+    free(opt);
+
+    dague_mca_param_reg_int_name("debug", "backtrace_keep",
+        "Maximum number of backtrace to keep in backtrace circular buffer",
+        false, false, ST_ASIZE, &ST_ASIZE);
+    dague_mca_param_reg_int_name("debug", "backtrace_size",
+        "Maximum size for each backtrace",
+        false, false, ST_SIZE, &ST_SIZE);
+    if( -1 != bt_output ) {
+        stack = malloc(ST_ASIZE*ST_SIZE*sizeof(void*));
+        stack_size = malloc(ST_ASIZE*sizeof(int));
+        if( NULL == stack_size
+         || NULL == stack ) {
+             dague_warning("Backtrace debug framework DISABLED: could not allocate the backtrace circular buffer with backtrace_keep=%d and backtrace_size=%d", ST_ASIZE, ST_SIZE);
+             if( NULL != stack_size ) free(stack_size);
+             if( NULL != stack ) free(stack);
+             if( bt_output > 0 ) {
+                 dague_output_close(bt_output);
+                 bt_output = -1;
+                 return;
+             }
+         }
+         memset(stack_size, 0, ST_ASIZE*sizeof(int));
+         memset(stack, 0, ST_ASIZE*ST_SIZE*sizeof(int));
     }
 }
 
 void dague_debug_fini(void)
 {
-    if( (NULL != dague_debug_file) && (stderr != dague_debug_file) ) {
-        fclose(dague_debug_file);
+    if( 0 < dague_debug_output ) {
+        dague_output_close(dague_debug_output);
     }
-    dague_debug_file = NULL;
-    if( NULL!= dague_debug_filename ) {
-        free(dague_debug_filename);
-        dague_debug_filename = NULL;
+
+    if( 0 < bt_output ) {
+        dague_output_close(bt_output);
+    }
+    if( NULL != stack_size ) free(stack_size);
+    if( NULL != stack ) free(stack);
+
+    dague_debug_history_purge();
+    if( 0 < dague_debug_output ) {
+        dague_output_close(dague_debug_output);
     }
 }
 
-void debug_save_stack_trace(void)
-{
-    uint32_t my_idx = dague_atomic_inc_32b( &st_idx ) % ST_ASIZE;
-    stack_size[my_idx] = backtrace( stack[my_idx], ST_SIZE );
+
+/* STACKTRACES circular buffer */
+#include <execinfo.h>
+
+void dague_debug_backtrace_save(void) {
+    uint32_t my_idx = dague_atomic_inc_32b(&st_idx) % ST_ASIZE;
+    stack_size[my_idx] = backtrace(&stack[my_idx*ST_SIZE], ST_SIZE);
 }
 
-void debug_dump_stack_traces(void)
-{
-    int i, my, r = 0, t;
+void dague_debug_backtrace_dump(void) {
+    int i, my, r = dague_debug_rank, t;
     char **s;
-#if defined(HAVE_MPI)
-    MPI_Comm_rank(MPI_COMM_WORLD, &r);
-#endif
 
     for(i = 0; i < ST_ASIZE; i++) {
         my = (st_idx + i) % ST_ASIZE;
-        fprintf(dague_debug_file, "[%d] --- %u ---\n", r, st_idx + i);
-        s = backtrace_symbols(stack[my], stack_size[my]);
+        if( NULL == stack[my*ST_SIZE] ) continue;
+        dague_output(bt_output, "[%d] --- %u ---\n", r, st_idx + i);
+        s = backtrace_symbols(&stack[my*ST_SIZE], stack_size[my]);
         for(t = 0; t < stack_size[my]; t++) {
-            fprintf(dague_debug_file, "[%d]  %s\n", r, s[t]);
+            dague_output(bt_output, "[%d]  %s\n", r, s[t]);
         }
         free(s);
-        fprintf(dague_debug_file, "[%d]\n", r);
+        dague_output(bt_output, "[%d]\n", r);
     }
 }
 
-#if !defined(HAVE_ASPRINTF)
-int asprintf(char **ptr, const char *fmt, ...)
-{
-    int length;
-    va_list ap;
-
-    va_start(ap, fmt);
-    length = vasprintf(ptr, fmt, ap);
-    va_end(ap);
-
-    return length;
-}
-#endif  /* !defined(HAVE_ASPRINTF) */
-
-#if !defined(HAVE_VASPRINTF)
-int vasprintf(char **ptr, const char *fmt, va_list ap)
-{
-    int length;
-    va_list ap2;
-    char* temp = (char*)malloc(64);
-
-    /* va_list might have pointer to internal state and using
-       it twice is a bad idea.  So make a copy for the second
-       use.  Copy order taken from Autoconf docs. */
-#if defined(HAVE_VA_COPY)
-    va_copy(ap2, ap);
-#elif defined(HAVE_UNDERSCORE_VA_COPY)
-    __va_copy(ap2, ap);
-#else
-    memcpy (&ap2, &ap, sizeof(va_list));
-#endif
-
-    /* guess the size using a nice feature of snprintf and friends:
-     *
-     *  The functions snprintf() and vsnprintf() do not write more than size bytes (including
-     *  the  trailing  '\0').  If the output was truncated due to this limit then the return
-     *  value is the number of characters (not including the trailing '\0') which  would
-     *  have  been written  to  the  final  string  if enough space had been available.
-     */
-    length = vsnprintf(temp, 64, fmt, ap);
-    free(temp);
-
-    /* allocate a buffer */
-    *ptr = (char *) malloc((size_t) length + 1);
-    if (NULL == *ptr) {
-        errno = ENOMEM;
-        va_end(ap2);
-        return -1;
-    }
-
-    /* fill the buffer */
-    length = vsprintf(*ptr, fmt, ap2);
-#if defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY)
-    va_end(ap2);
-#endif  /* defined(HAVE_VA_COPY) || defined(HAVE_UNDERSCORE_VA_COPY) */
-
-    /* realloc */
-    *ptr = (char*) realloc(*ptr, (size_t) length + 1);
-    if (NULL == *ptr) {
-        errno = ENOMEM;
-        return -1;
-    }
-
-    return length;
-}
-#endif  /* !defined(HAVE_VASPRINTF) */
+/* DEBUG HISTORY circular buffer */
 
 #if defined(DAGUE_DEBUG_HISTORY)
 
@@ -178,8 +189,7 @@ static mark_buffer_t marks_A = {.nextmark = 0},
                      marks_B = {.nextmark = 0};
 static mark_buffer_t  *marks = &marks_A;
 
-static inline void set_my_mark(const char *newm)
-{
+static inline void set_my_mark(const char *newm) {
     uint32_t mymark_idx = dague_atomic_inc_32b(&marks->nextmark) - 1;
     char *oldm;
     mymark_idx %= MAX_MARKS;
@@ -191,8 +201,7 @@ static inline void set_my_mark(const char *newm)
         free(oldm);
 }
 
-void dague_debug_history_add(const char *format, ...)
-{
+void dague_debug_history_add(const char *format, ...) {
     char* debug_str;
     va_list args;
 
@@ -200,125 +209,10 @@ void dague_debug_history_add(const char *format, ...)
     vasprintf(&debug_str, format, args);
     va_end(args);
 
-    set_my_mark( debug_str );
+    set_my_mark(debug_str);
 }
 
-void debug_mark_exe(int th, int vp, const struct dague_execution_context_s *ctx)
-{
-    int j, pos = 0, len = 512;
-    char msg[512];
-
-    pos += snprintf(msg+pos, len-pos, "%s(", ctx->function->name);
-    for(j = 0; j < ctx->function->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
-                        j, ctx->function->locals[j]->name, ctx->locals[j].value,
-                        (j == ctx->function->nb_parameters-1) ? ")\n" : ", ");
-    }
-
-    dague_debug_history_add("Mark: execution on thread %d of VP %d:\t%s",
-                            th, vp, msg);
-}
-
-void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote_dep_wire_activate_s *m)
-{
-    int j, pos = 0, len = 512;
-    char msg[512];
-    dague_handle_t *object;
-    const dague_function_t *f;
-
-    pos += snprintf(msg+pos, len-pos, "Mark: emission of an activate message to %d\n", to);
-    pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n", b);
-    object = dague_handle_lookup( m->handle_id );
-    f = object->functions_array[m->function_id];
-    pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-    for(j = 0; j < f->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
-                        j,
-                        f->locals[j]->name, m->locals[j].value,
-                        (j == f->nb_parameters - 1) ? ")\n" : ", ");
-    }
-    pos += snprintf(msg+pos, len-pos, "\toutput_mask = 0x%08x\n",
-                    (uint32_t)m->output_mask);
-
-    /* Do not use set_my_mark: msg is a stack-allocated buffer */
-    dague_debug_history_add("%s", msg);
-}
-
-void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remote_dep_wire_activate_s *m)
-{
-    int j, pos = 0, len = 512;
-    char msg[512];
-    dague_handle_t *object;
-    const dague_function_t *f;
-
-    pos += snprintf(msg+pos, len-pos, "Mark: reception of an activate message from %d\n", from);
-    pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n", b);
-    object = dague_handle_lookup( m->handle_id );
-    f = object->functions_array[m->function_id];
-    pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-    for(j = 0; j < f->nb_parameters; j++) {
-        pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
-                        j,
-                        f->locals[j]->name, m->locals[j].value,
-                        (j == f->nb_parameters - 1) ? ")\n" : ", ");
-    }
-    pos += snprintf(msg+pos, len-pos, "\toutput_mask = 0x%08x\n",
-                    (uint32_t)m->output_mask);
-    pos += snprintf(msg+pos, len-pos, "\t      deps = 0x%X\n",
-                    (uint32_t)m->deps);
-
-    /* Do not use set_my_mark: msg is a stack-allocated buffer */
-    dague_debug_history_add("%s", msg);
-}
-
-void debug_mark_ctl_msg_get_sent(int to, const void *b, const struct remote_dep_wire_get_s *m)
-{
-    dague_debug_history_add("Mark: emission of a Get control message to %d\n"
-                            "\t      Using buffer %p for emission\n"
-                            "\t      deps requested = 0x%X\n"
-                            "\t      which requested = 0x%08x\n"
-                            "\t      tag for the reception of data = %d\n",
-                            to, b, m->deps, (uint32_t)m->output_mask, m->tag);
-}
-
-void debug_mark_ctl_msg_get_recv(int from, const void *b, const struct remote_dep_wire_get_s *m)
-{
-    dague_debug_history_add("Mark: reception of a Get control message from %d\n"
-                            "\t      Using buffer %p for reception\n"
-                            "\t      deps requested = 0x%X\n"
-                            "\t      which requested = 0x%08x\n"
-                            "\t      tag for the reception of data = %d\n",
-                            from, b, m->deps, (uint32_t)m->output_mask, m->tag);
-}
-
-void debug_mark_dta_msg_start_send(int to, const void *b, int tag)
-{
-    dague_debug_history_add("Mark: Start emitting data to %d\n"
-                            "\t      Using buffer %p for emission\n"
-                            "\t      tag for the emission of data = %d\n",
-                            to, b, tag);
-}
-
-void debug_mark_dta_msg_end_send(int tag)
-{
-    dague_debug_history_add("Mark: Done sending data of tag %d\n", tag);
-}
-
-void debug_mark_dta_msg_start_recv(int from, const void *b, int tag)
-{
-    dague_debug_history_add("Mark: Start receiving data from %d\n"
-                            "\t      Using buffer %p for reception\n"
-                            "\t      tag for the reception of data = %d\n",
-                            from, b, tag);
-}
-
-void debug_mark_dta_msg_end_recv(int tag)
-{
-    dague_debug_history_add("Mark: Done receiving data with tag %d\n", tag);
-}
-
-void debug_mark_display_history(void)
-{
+void dague_debug_history_dump(void) {
     int current_mark, ii;
     char *gm;
     mark_buffer_t *cmark, *nmark;
@@ -329,7 +223,7 @@ void debug_mark_display_history(void)
     cmark = marks;
     nmark = (marks == &marks_A ? &marks_B : &marks_A );
     nmark->nextmark = 0;
-    /* This CAS can only fail if debug_mark_display_history is called
+    /* This CAS can only fail if dague_debug_history_dump is called
      * in parallel by two threads. The atomic swap is not wanted for that,
      * it is wanted to avoid reading from the buffer that is being used to
      * push new marks.
@@ -337,23 +231,23 @@ void debug_mark_display_history(void)
     dague_atomic_cas( &marks, cmark, nmark );
 
     current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
+    dague_inform("== Displaying debug history of the last %d of %u events pushed since last dump", current_mark, cmark->nextmark);
     for(ii = 0; ii < MAX_MARKS; ii++) {
         int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
             gm = cmark->marks[i];
         } while( !dague_atomic_cas( &cmark->marks[i], gm, NULL ) );
         if( gm != NULL ) {
-            _DAGUE_OUTPUT("..", ("%s", gm));
+            dague_output(dague_debug_output, " %s", gm);
             free(gm);
         } else {
-            if(dague_verbose) _DAGUE_OUTPUT("^.", ("A mark here was already displayed, or has not been pushed yet\n"));
+            DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "A mark has not been stored at this position since the last dump");
         }
     }
-    if(dague_verbose) _DAGUE_OUTPUT("^.", ("DISPLAYED last %d of %u events pushed since last display\n", current_mark, cmark->nextmark));
+    dague_inform("== End debug history =====================================================");
 }
 
-void debug_mark_purge_history(void)
-{
+static void debug_history_purge_one(void) {
     int ii;
     char *gm;
     mark_buffer_t *cmark, *nmark;
@@ -364,7 +258,7 @@ void debug_mark_purge_history(void)
     cmark = marks;
     nmark = (marks == &marks_A ? &marks_B : &marks_A );
     nmark->nextmark = 0;
-    /* This CAS can only fail if debug_mark_display_history is called
+    /* This CAS can only fail if dague_debug_history_dump is called
      * in parallel by two threads. The atomic swap is not wanted for that,
      * it is wanted to avoid reading from the buffer that is being used to
      * push new marks.
@@ -382,9 +276,9 @@ void debug_mark_purge_history(void)
     }
 }
 
-void debug_mark_purge_all_history(void) {
-    debug_mark_purge_history();
-    debug_mark_purge_history();
+void dague_debug_history_purge(void) {
+    debug_history_purge_one();
+    debug_history_purge_one();
 }
 
-#endif
+#endif /* defined(DAGUE_DEBUG_HISTORY) */

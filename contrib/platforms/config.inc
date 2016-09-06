@@ -3,7 +3,7 @@
 # Parse command line arguments
 if [ "$1" = "debug" ]; then 
     shift
-    DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG_ENABLE=ON -DDAGUE_DEBUG_HISTORY=ON"
+    DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG_HISTORY=ON -DDAGUE_DEBUG_PARANOID=ON -DDAGUE_DEBUG_NOISIER=ON"
 fi
 
 if [ "$1" = "profile" ]; then

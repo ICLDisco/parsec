@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -176,11 +176,11 @@ int dague_devices_fini(dague_context_t* dague_context)
     if(NULL != dague_device_dweight) free(dague_device_dweight);
     dague_device_dweight = NULL;
 
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
     rvalue = dague_gpu_fini();
 #else
     rvalue = 0;
-#endif  /* defined(HAVE_CUDA) */
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 
     free(dague_devices);
     dague_devices = NULL;
@@ -212,16 +212,16 @@ int dague_devices_freeze(dague_context_t* context)
     }
 
     /* Compute the weight of each device including the cores */
-    DEBUG(("Global Theoritical performance: single %2.4f double %2.4f\n", total_sperf, total_dperf));
+    dague_debug_verbose(4, dague_debug_output, "Global Theoritical performance: single %2.4f double %2.4f", total_sperf, total_dperf);
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
-        DEBUG(("Dev[%d]             ->ratio single %2.4e double %2.4e\n",
-               i, dague_device_sweight[i], dague_device_dweight[i]));
+        dague_debug_verbose(4, dague_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
+               i, dague_device_sweight[i], dague_device_dweight[i]);
 
         dague_device_sweight[i] = (total_sperf / dague_device_sweight[i]);
         dague_device_dweight[i] = (total_dperf / dague_device_dweight[i]);
         /* after the weighting */
-        DEBUG(("Dev[%d]             ->ratio single %2.4e double %2.4e\n",
-               i, dague_device_sweight[i], dague_device_dweight[i]));
+        dague_debug_verbose(4, dague_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
+               i, dague_device_sweight[i], dague_device_dweight[i]);
     }
 
     dague_devices_are_freezed = 1;
@@ -237,11 +237,11 @@ int dague_devices_freezed(dague_context_t* context)
 int dague_devices_select(dague_context_t* context)
 {
     (void)context;
-#if defined(HAVE_CUDA)
+#if defined(DAGUE_HAVE_CUDA)
     return dague_gpu_init(context);
 #else
     return DAGUE_SUCCESS;
-#endif  /* defined(HAVE_CUDA) */
+#endif  /* defined(DAGUE_HAVE_CUDA) */
 }
 
 int dague_devices_add(dague_context_t* context, dague_device_t* device)
@@ -276,7 +276,7 @@ dague_device_t* dague_devices_get(uint32_t device_index)
     return dague_devices[device_index];
 }
 
-int dague_device_remove(dague_device_t* device)
+int dague_devices_remove(dague_device_t* device)
 {
     int rc = DAGUE_SUCCESS;
 
@@ -296,3 +296,25 @@ int dague_device_remove(dague_device_t* device)
     dague_atomic_unlock(&dague_devices_mutex);  /* CRITICAL SECTION: BEGIN */
     return rc;
 }
+
+
+void dague_devices_handle_restrict( dague_handle_t *handle,
+                                    uint8_t         devices_type )
+{
+    dague_device_t *device;
+    uint32_t i;
+
+    for (i = 0; i < dague_nb_devices; i++) {
+	if (!(handle->devices_mask & (1 << i)))
+	    continue;
+
+	device = dague_devices_get(i);
+	if ((NULL == device) || (device->type & devices_type))
+	    continue;
+
+        /* Disable this type of device */
+        handle->devices_mask &= ~(1 << i);
+    }
+    return;
+}
+
