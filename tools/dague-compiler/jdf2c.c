@@ -4116,14 +4116,22 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
  * allows us to delay the code generation in order to merge together multiple deps
  * using the same datatype, count and displacement.
  */
-#define JDF_CODE_DATATYPE_DUMP(SA_WHERE, MASK, SA_COND, SA_DATATYPE)    \
+#define JDF_CODE_DATATYPE_DUMP(SA_WHERE, MASK, SA_COND, SA_DATATYPE, SKIP_COND)    \
     do {                                                                \
         if( strlen(string_arena_get_string((SA_DATATYPE))) ) {          \
             if( strlen(string_arena_get_string((SA_COND))) ) {          \
                 string_arena_add_string((SA_WHERE),                     \
-                                        "    if( ((*flow_mask) & 0x%xU) " \
-                                        "&& (%s) ) {\n",                \
-                                        (MASK), string_arena_get_string((SA_COND))); \
+                                        "    if( ((*flow_mask) & 0x%xU)", \
+                                        (MASK));                        \
+                if( !(SKIP_COND) ) {                                    \
+                    string_arena_add_string((SA_WHERE),                 \
+                                            "\n && (%s)",               \
+                                            string_arena_get_string((SA_COND))); \
+                }                                                       \
+                string_arena_add_string((SA_WHERE),                     \
+                                        " ) {%s\n",                     \
+                    ((SKIP_COND) ? "  /* Have unconditional! */" : "")); \
+                (SKIP_COND) = 0;                                        \
             }                                                           \
             string_arena_add_string((SA_WHERE),                         \
                                     "%s"                                \
@@ -4161,7 +4169,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     string_arena_t *sa_layout     = string_arena_new(256);
     string_arena_t *sa_tmp_layout = string_arena_new(256);
     string_arena_t *sa_cond       = string_arena_new(256);
-    int last_datatype_idx, continue_dependencies, type;
+    int last_datatype_idx, continue_dependencies, type, skip_condition;
     uint32_t mask_in = 0, mask_out = 0, current_mask = 0;
     expr_info_t info;
 
@@ -4205,6 +4213,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
         } else {
             if( !(fl->flow_flags & JDF_FLOW_IS_OUT) ) continue;
         }
+        skip_condition = 0;  /* Assume we have a valid not-yet-optimized condition */
         string_arena_init(sa_coutput);
         string_arena_add_string(sa_coutput, "if( (*flow_mask) & 0x%xU ) {  /* Flow %s */\n",
                                 (type == JDF_DEP_FLOW_OUT ? fl->flow_dep_mask_out : (1U << fl->flow_index)), fl->varname);
@@ -4226,7 +4235,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
 
             /* Prepare the memory layout of the output dependency. */
             if( last_datatype_idx != dl->dep_datatype_index ) {
-                JDF_CODE_DATATYPE_DUMP(sa_coutput, current_mask, sa_cond, sa_datatype);
+                JDF_CODE_DATATYPE_DUMP(sa_coutput, current_mask, sa_cond, sa_datatype, skip_condition);
 
                 int updated = 0;
                 string_arena_init(sa_tmp_type);
@@ -4285,6 +4294,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
 
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
+                skip_condition = 1;
             case JDF_GUARD_TERNARY:
                 if( type == JDF_DEP_FLOW_IN ) continue_dependencies = 0;
                 break;
@@ -4299,7 +4309,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
 
             if( !continue_dependencies ) break;
         }
-        JDF_CODE_DATATYPE_DUMP(sa_coutput, current_mask, sa_cond, sa_datatype);
+        JDF_CODE_DATATYPE_DUMP(sa_coutput, current_mask, sa_cond, sa_datatype, skip_condition);
 
         string_arena_add_string(sa_coutput, "}  /* (flow_mask & 0x%xU) */\n",
                                 (type == JDF_DEP_FLOW_OUT ? fl->flow_dep_mask_out : (1U << fl->flow_index)));
