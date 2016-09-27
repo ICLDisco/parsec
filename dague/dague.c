@@ -2180,7 +2180,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                 if( *dep & DAGUE_DEPENDENCIES_STARTUP_TASK ) {
                     (*nreleased)++;
                     if( show_startup )
-                        dague_debug_verbose(19, dague_debug_output, "  Task %s is a local startup task",
+                        dague_debug_verbose(0, dague_debug_output, "  Task %s is a local startup task",
                                             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
                 } else {
                     if((*dep & DAGUE_DEPENDENCIES_BITMASK) == function->dependencies_goal) {
@@ -2188,7 +2188,7 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                     }
                     if( show_complete ||
                         ((*dep & DAGUE_DEPENDENCIES_BITMASK) != function->dependencies_goal) ) {
-                        dague_debug_verbose(20, dague_debug_output, "  Task %s is a local task with dependency 0x%08x (goal is 0x%08x) -- Flags: %s %s",
+                        dague_debug_verbose(0, dague_debug_output, "  Task %s is a local task with dependency 0x%08x (goal is 0x%08x) -- Flags: %s %s",
                                             dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
                                             *dep & DAGUE_DEPENDENCIES_BITMASK,
                                             function->dependencies_goal,
@@ -2201,13 +2201,13 @@ void dague_debug_print_local_expecting_tasks_for_function( dague_handle_t *handl
                     (*nreleased)++;
 
                 if( (*dep != 0) || show_complete )
-                    dague_debug_verbose(20, dague_debug_output, "  Task %s is a local task that must wait for %d more dependencies to complete -- using count method for this task (CTL gather)",
+                    dague_debug_verbose(0, dague_debug_output, "  Task %s is a local task that must wait for %d more dependencies to complete -- using count method for this task (CTL gather)",
                                         dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context),
                                         *dep);
             }
         } else {
             if( show_remote )
-                dague_debug_verbose(20, dague_debug_output, "  Task %s is a remote task",
+                dague_debug_verbose(0, dague_debug_output, "  Task %s is a remote task",
                                     dague_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
         }
     }
@@ -2223,13 +2223,13 @@ void dague_debug_print_local_expecting_tasks_for_handle( dague_handle_t *handle,
         return;
 
     for(fi = 0; fi < handle->nb_functions; fi++) {
-        dague_debug_verbose(20, dague_debug_output, " Tasks of Function %u (%s):\n", fi, handle->functions_array[fi]->name);
+        dague_debug_verbose(0, dague_debug_output, " Tasks of Function %u (%s):\n", fi, handle->functions_array[fi]->name);
         dague_debug_print_local_expecting_tasks_for_function( handle, handle->functions_array[fi],
                                                               show_remote, show_startup, show_complete,
                                                               &nlocal, &nreleased, &ntotal );
-        dague_debug_verbose(20, dague_debug_output, " Total number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, ntotal);
-        dague_debug_verbose(20, dague_debug_output, " Local number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, nlocal);
-        dague_debug_verbose(20, dague_debug_output, " Number of Tasks of Class %s that have been released: %d\n", handle->functions_array[fi]->name, nreleased);
+        dague_debug_verbose(0, dague_debug_output, " Total number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, ntotal);
+        dague_debug_verbose(0, dague_debug_output, " Local number of Tasks of Class %s: %d\n", handle->functions_array[fi]->name, nlocal);
+        dague_debug_verbose(0, dague_debug_output, " Number of Tasks of Class %s that have been released: %d\n", handle->functions_array[fi]->name, nreleased);
     }
 }
 
@@ -2245,7 +2245,7 @@ void dague_debug_print_local_expecting_tasks( int show_remote, int show_startup,
             continue;
         if( handle == NULL )
             continue;
-        dague_debug_verbose(20, dague_debug_output, "Tasks of Handle %u:\n", oi);
+        dague_debug_verbose(0, dague_debug_output, "Tasks of Handle %u:\n", oi);
         dague_debug_print_local_expecting_tasks_for_handle( handle,
                                                             show_remote,
                                                             show_startup,
