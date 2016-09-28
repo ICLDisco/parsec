@@ -166,7 +166,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
     int pi;
 
     /* don't use DAGUE_THREAD_IS_MASTER, it is too early and we cannot yet allocate the eu struct */
-    if( (0 == startup->virtual_process) && (0 == startup->th_id) && dague_runtime_bind_main_thread ) {
+    if( (0 != startup->virtual_process) || (0 != startup->th_id) || dague_runtime_bind_main_thread ) {
         /* Bind to the specified CORE */
         dague_bindthread(startup->bindto, startup->bindto_ht);
         DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : bind thread %i.%i on core %i [HT %i]",
