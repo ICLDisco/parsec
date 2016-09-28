@@ -173,6 +173,7 @@ static void* __dague_thread_init( __dague_temporary_thread_initialization_t* sta
                             startup->virtual_process->vp_id, startup->virtual_process->vp_id,
                             startup->th_id, startup->bindto, startup->bindto_ht);
     } else {
+        dague_bindthread(startup->bindto, startup->bindto_ht);
         DAGUE_DEBUG_VERBOSE(10, dague_debug_output, "VP %i : Don't bind the main thread %i.%i",
                             startup->virtual_process->vp_id, startup->virtual_process->vp_id,
                             startup->th_id);
