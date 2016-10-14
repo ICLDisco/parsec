@@ -270,10 +270,10 @@ static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
     simple_hash_entry_t *ne = NULL;
     int p, i;
     int n, l;
-    
+
     n = exec_context->locals[0].value;
     l = exec_context->locals[1].value;
-    
+
     sh = (simple_hash_t*)parsec_handle->dependencies_array[ exec_context->function->function_id ];
     p = my_simple_tree_hash(n, l) % sh->size;
     for(i = p; i != p-1; i = ((i+1) % sh->size)) {
@@ -285,7 +285,7 @@ static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
                 ne->l = l;
                 ne->dep = (parsec_dependency_t)0;
             }
-            if( parsec_atomic_cas(&sh->buckets[i], NULL, ne) )
+            if( parsec_atomic_cas_ptr(&sh->buckets[i], NULL, ne) )
                 return &ne->dep;
         }
         if( (sh->buckets[i]->n == n) && (sh->buckets[i]->l == l) ) {

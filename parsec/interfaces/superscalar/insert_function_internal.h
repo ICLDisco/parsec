@@ -93,11 +93,11 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dtd_task_t);
 
 /** Tile structure **/
 typedef struct parsec_dtd_tile_user_s {
-    uint8_t           flow_index;
-    int               op_type;
-    parsec_dtd_task_t *task;
-    int               alive;
-    volatile uint32_t atomic_lock;
+    uint8_t              flow_index;
+    int                  op_type;
+    parsec_dtd_task_t   *task;
+    int                  alive;
+    parsec_atomic_lock_t atomic_lock;
 }parsec_dtd_tile_user_t;
 
 struct parsec_dtd_tile_s {

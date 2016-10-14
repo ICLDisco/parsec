@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,10 +15,10 @@ static inline int parsec_atomic_cas_32b(volatile uint32_t* location,
 {
     unsigned char ret;
     __asm__ __volatile__ (
-                          "lock; cmpxchgl %3,%4   \n\t"
+                          "lock; cmpxchgl %3,%2   \n\t"
                           "      sete     %0      \n\t"
-                          : "=qm" (ret), "=a" (old_value), "=m" (*location)
-                          : "q"(new_value), "m"(*location), "1"(old_value)
+                          : "=qm" (ret), "+a" (old_value), "+m" (*location)
+                          : "q"(new_value)
                           : "memory", "cc");
 
     return (int)ret;
@@ -52,10 +52,10 @@ static inline int parsec_atomic_cas_64b(volatile uint64_t* location,
 {
     unsigned char ret;
     __asm__ __volatile__ (
-                          "lock; cmpxchgq %3,%4   \n\t"
+                          "lock; cmpxchgq %3,%2   \n\t"
                           "      sete     %0      \n\t"
-                          : "=qm" (ret), "=a" (old_value), "=m" (*((volatile long*)location))
-                          : "q"(new_value), "m"(*((volatile long*)location)), "1"(old_value)
+                          : "=qm" (ret), "+a" (old_value), "+m" (*((volatile long*)location))
+                          : "q"(new_value)
                           : "memory", "cc");
 
    return (int)ret;
@@ -85,8 +85,8 @@ static inline int32_t parsec_atomic_add_32(volatile int32_t* v, int32_t i)
     int ret = i;
    __asm__ __volatile__(
                         "lock; xaddl %1,%0"
-                        :"=m" (*v), "+r" (ret)
-                        :"m" (*v)
+                        :"+m" (*v), "+r" (ret)
+                        :
                         :"memory", "cc");
    return (ret+i);
 }
@@ -97,8 +97,8 @@ static inline int32_t parsec_atomic_sub_32(volatile int32_t* v, int32_t i)
     int ret = -i;
    __asm__ __volatile__(
                         "lock; xaddl %1,%0"
-                        :"=m" (*v), "+r" (ret)
-                        :"m" (*v)
+                        :"+m" (*v), "+r" (ret)
+                        :
                         :"memory", "cc");
    return (ret-i);
 }

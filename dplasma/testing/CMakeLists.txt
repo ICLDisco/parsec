@@ -1,3 +1,5 @@
+cmake_policy(SET CMP0054 NEW)
+
 add_library(common common.c common_timing.h flops.h)
 add_dependencies(common dplasma_includes)
 

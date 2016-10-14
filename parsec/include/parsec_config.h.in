@@ -27,6 +27,7 @@
 #cmakedefine PARSEC_DEBUG_PARANOID
 #cmakedefine PARSEC_DEBUG_NOISIER
 #cmakedefine PARSEC_DEBUG_HISTORY
+#cmakedefine PARSEC_LIFO_USE_ATOMICS
 #cmakedefine PARSEC_CALL_TRACE
 
 /* profiling */
@@ -51,6 +52,7 @@
 #cmakedefine PARSEC_HAVE_PTHREAD
 #cmakedefine PARSEC_HAVE_SCHED_SETAFFINITY
 #cmakedefine PARSEC_HAVE_CLOCK_GETTIME
+#cmakedefine PARSEC_HAVE_C11_ATOMICS
 #cmakedefine PARSEC_ATOMIC_USE_GCC_32_BUILTINS
 #cmakedefine PARSEC_ATOMIC_USE_GCC_64_BUILTINS
 #cmakedefine PARSEC_ATOMIC_USE_GCC_128_BUILTINS
@@ -129,6 +131,8 @@
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif  /* !defined(_GNU_SOURCE) */
+
+#define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
 
 #ifdef PARSEC_ARCH_PPC
 #define inline __inline__

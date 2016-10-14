@@ -1,5 +1,5 @@
 # - Find the PAPI library
-# This module finds an installed  lirary that implements the 
+# This module finds an installed  lirary that implements the
 # performance counter interface (PAPI) (see http://icl.cs.utk.edu/papi/).
 #
 # This module sets the following variables:

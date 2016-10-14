@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec_config.h"
 #undef NDEBUG
 #include <pthread.h>
@@ -15,6 +21,7 @@
 #include "parsec/class/list.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/bindthread.h"
+#include "parsec/parsec_hwloc.h"
 
 static unsigned int NBELT = 8192;
 static unsigned int NBTIMES = 1000000;
@@ -80,7 +87,7 @@ static void check_lifo_translate_outoforder(parsec_list_t *l1,
         memset(seen, 0, NBELT);
 
     for(e = 0; e < NBELT; e++) {
-        elt = (elt_t *)parsec_list_lifo_pop( l1 );
+        elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
         if( NULL == elt )
             fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, l1name, NBELT);
         check_elt( elt );
@@ -92,7 +99,7 @@ static void check_lifo_translate_outoforder(parsec_list_t *l1,
         seen[elt->base] = 1;
     }
     /* No need to check that seen[e] == 1 for all e: this is captured by if (NULL == elt) */
-    if( (elt = (elt_t*)parsec_list_lifo_pop( l1 )) != NULL )
+    if( (elt = (elt_t*)parsec_list_nolock_lifo_pop( l1 )) != NULL )
         fatal(" ! Error: unexpected element of base %u in %s: it should be empty\n",
               elt->base, l1name);
 }
@@ -293,6 +300,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    parsec_hwloc_init();
+
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
@@ -382,6 +391,7 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
+    parsec_hwloc_fini();
 #if defined(PARSEC_HAVE_MPI)
     MPI_Finalized(&ch);
 #endif

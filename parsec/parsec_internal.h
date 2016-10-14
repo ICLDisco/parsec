@@ -43,7 +43,7 @@ typedef void (*parsec_startup_fn_t)(parsec_context_t *context,
 typedef void (*parsec_destruct_fn_t)(parsec_handle_t* parsec_handle);
 
 struct parsec_handle_s {
-    parsec_list_item_t          super;
+    parsec_list_item_t         super;
     uint32_t                   handle_id;
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
                                            *   in the handle. This value is checked upon each task completion by

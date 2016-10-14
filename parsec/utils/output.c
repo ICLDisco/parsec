@@ -110,7 +110,7 @@ static int default_stderr_fd = -1;
 static output_desc_t info[PARSEC_OUTPUT_MAX_STREAMS];
 static char *temp_str = 0;
 static size_t temp_str_len = 0;
-static uint32_t mutex = 0;
+static parsec_atomic_lock_t mutex = { PARSEC_ATOMIC_UNLOCKED };
 #if defined(PARSEC_HAVE_SYSLOG)
 static bool syslog_opened = false;
 #endif  /* defined(PARSEC_HAVE_SYSLOG) */

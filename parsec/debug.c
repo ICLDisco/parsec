@@ -195,7 +195,7 @@ static inline void set_my_mark(const char *newm) {
 
     do {
         oldm = marks->marks[mymark_idx];
-    } while( !parsec_atomic_cas( &marks->marks[mymark_idx], oldm, newm ) );
+    } while( !parsec_atomic_cas_ptr( &marks->marks[mymark_idx], oldm, newm ) );
     if( oldm != NULL )
         free(oldm);
 }
@@ -227,7 +227,7 @@ void parsec_debug_history_dump(void) {
      * it is wanted to avoid reading from the buffer that is being used to
      * push new marks.
      */
-    parsec_atomic_cas( &marks, cmark, nmark );
+    parsec_atomic_cas_ptr( &marks, cmark, nmark );
 
     current_mark = cmark->nextmark > MAX_MARKS ? MAX_MARKS : cmark->nextmark;
     parsec_inform("== Displaying debug history of the last %d of %u events pushed since last dump", current_mark, cmark->nextmark);
@@ -235,7 +235,7 @@ void parsec_debug_history_dump(void) {
         int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
             gm = cmark->marks[i];
-        } while( !parsec_atomic_cas( &cmark->marks[i], gm, NULL ) );
+        } while( !parsec_atomic_cas_ptr( &cmark->marks[i], gm, NULL ) );
         if( gm != NULL ) {
             parsec_output(parsec_debug_output, " %s", gm);
             free(gm);
@@ -262,13 +262,13 @@ static void debug_history_purge_one(void) {
      * it is wanted to avoid reading from the buffer that is being used to
      * push new marks.
      */
-    parsec_atomic_cas( &marks, cmark, nmark );
+    parsec_atomic_cas_ptr( &marks, cmark, nmark );
 
     for(ii = 0; ii < MAX_MARKS; ii++) {
         int i = ((int)cmark->nextmark + ii) % MAX_MARKS;
         do {
             gm = cmark->marks[i];
-        } while( !parsec_atomic_cas( &cmark->marks[i], gm, NULL ) );
+        } while( !parsec_atomic_cas_ptr( &cmark->marks[i], gm, NULL ) );
         if( gm != NULL ) {
             free(gm);
         }

@@ -197,7 +197,7 @@ int parsec_check_complete_cb(parsec_handle_t *parsec_handle, parsec_context_t *c
         if( NULL != parsec_handle->on_complete ) {
             (void)parsec_handle->on_complete( parsec_handle, parsec_handle->on_complete_data );
         }
-        parsec_atomic_dec_32b( &(context->active_objects) );
+        (void)parsec_atomic_dec_32b( &(context->active_objects) );
         PINS_HANDLE_FINI(parsec_handle);
         return 1;
     }
@@ -347,7 +347,7 @@ int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
          * this handle tasks once. We need to protect this action by atomically
          * setting the number of tasks to a non-zero value.
          */
-        if( parsec_atomic_cas(&handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+        if( parsec_atomic_cas_32b(&handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
             parsec_handle_update_runtime_nbtask(handle, -1);
     }
 
@@ -664,7 +664,7 @@ int parsec_enqueue( parsec_context_t* context, parsec_handle_t* handle )
     PINS_HANDLE_INIT(handle);  /* PINS handle initialization */
 
     /* Update the number of pending objects */
-    parsec_atomic_inc_32b( &(context->active_objects) );
+    (void)parsec_atomic_inc_32b( &(context->active_objects) );
 
     /* If necessary trigger the on_enqueue callback */
     if( NULL != handle->on_enqueue ) {
@@ -713,9 +713,9 @@ __parsec_context_cas_or_flag(parsec_context_t* context,
     uint32_t current_flags = context->flags;
     /* if the flags are already set don't reset them */
     if( flags == (current_flags & flags) ) return 0;
-    return parsec_atomic_cas(&context->flags,
-                            current_flags,
-                            current_flags | flags);
+    return parsec_atomic_cas_32b(&context->flags,
+                                 current_flags,
+                                 current_flags | flags);
 }
 
 /**

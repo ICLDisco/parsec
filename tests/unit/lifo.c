@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec_config.h"
 #undef NDEBUG
 #include <pthread.h>
@@ -16,6 +22,7 @@
 #include "parsec/class/lifo.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/bindthread.h"
+#include "parsec/parsec_hwloc.h"
 
 static unsigned int NBELT = 8192;
 static unsigned int NBTIMES = 1000000;
@@ -249,6 +256,8 @@ int main(int argc, char *argv[])
         }
     }
 
+    parsec_hwloc_init();
+
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
@@ -308,7 +317,7 @@ int main(int argc, char *argv[])
         elt = (elt_t*)parsec_lifo_pop( &lifo2 );
         if( elt == NULL ) 
             fatal(" ! Error: list lifo2 is supposed to be non empty, but it is!\n");
-        if( elt == p ) 
+        if( elt == p )
             fatal(" ! I keep poping the same element in the list at element %u... It is now officially a frying pan\n",
                   ch);
         ch++;
@@ -333,6 +342,7 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
+    parsec_hwloc_fini();
 #if defined(PARSEC_HAVE_MPI)
     MPI_Finalized(&ch);
 #endif

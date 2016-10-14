@@ -74,7 +74,7 @@ static inline void
 remote_dep_inc_flying_messages(parsec_handle_t* handle)
 {
     assert( handle->nb_pending_actions > 0 );
-    parsec_atomic_inc_32b( &(handle->nb_pending_actions) );
+    (void)parsec_atomic_inc_32b( &(handle->nb_pending_actions) );
 }
 
 /* allow for termination when all deps have been served */
@@ -412,7 +412,7 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                         /* We need to increase the pending_ack to make the deps persistant until the
                          * end of this function.
                          */
-                        parsec_atomic_add_32b((int32_t*)&remote_deps->pending_ack, 1);
+                        (void)parsec_atomic_add_32b((int32_t*)&remote_deps->pending_ack, 1);
                     }
                     remote_dep_send(rank, remote_deps);
                 } else {

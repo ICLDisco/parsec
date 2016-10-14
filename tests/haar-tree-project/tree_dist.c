@@ -71,7 +71,7 @@ static int tree_lookup_or_allocate_node(tree_dist_t *tree, int n, int l)
                 node->l = l;
                 node->data = NULL;
             }
-            if( parsec_atomic_cas(&tree->nodes[i], NULL, node) ) {
+            if( parsec_atomic_cas_ptr(&tree->nodes[i], NULL, node) ) {
                 pthread_rwlock_unlock( &tree->resize_lock );
                 return i;
             }

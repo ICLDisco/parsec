@@ -2657,12 +2657,12 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         coutput("%s    do {\n"
                 "%s      this_task->super.list_item.list_next = (parsec_list_item_t*)__parsec_handle->startup_queue;\n"
-                "%s    } while(!parsec_atomic_cas(&__parsec_handle->startup_queue, this_task->super.list_item.list_next, this_task));\n"
+                "%s    } while(!parsec_atomic_cas_ptr(&__parsec_handle->startup_queue, this_task->super.list_item.list_next, this_task));\n"
                 "%s    this_task->status = PARSEC_TASK_STATUS_HOOK;\n",
                 indent(nesting), indent(nesting), indent(nesting), indent(nesting));
     }
     if(need_to_count_tasks) {
-        coutput("%s  parsec_atomic_add_32b(&__parsec_handle->super.super.initial_number_tasks, nb_tasks);\n"
+        coutput("%s  (void)parsec_atomic_add_32b(&__parsec_handle->super.super.initial_number_tasks, nb_tasks);\n"
                 "%s  }\n", indent(nesting), indent(nesting));
     }
 
