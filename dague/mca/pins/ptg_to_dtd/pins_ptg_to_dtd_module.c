@@ -97,7 +97,12 @@ static void pins_fini_ptg_to_dtd(dague_context_t *master_context)
 static int pins_handle_complete_callback(dague_handle_t* ptg_handle, void* void_dtd_handle)
 {
     dague_handle_t* dtd_handle = (dague_handle_t*)void_dtd_handle;
-    dague_atomic_dec_32b(&dtd_handle->nb_tasks);
+    int remaining = dague_atomic_dec_32b(&dtd_handle->nb_tasks);
+    if( 0 == remaining ) {
+        if( dague_atomic_cas(&dtd_handle->nb_tasks, 0, DAGUE_RUNTIME_RESERVED_NB_TASKS) )
+            dague_handle_update_runtime_nbtask((dague_handle_t*)dtd_handle, -1);
+        return;  /* we're done in all cases */
+    }
     (void)ptg_handle;
     return DAGUE_HOOK_RETURN_DONE;
 }
@@ -374,7 +379,8 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
         for (i=0; this_task->function->in[i] != NULL ; i++) {
 
             tmp_op_type = this_task->function->in[i]->flow_flags;
-            int op_type, pred_found = 0;
+            int op_type;
+            dague_dtd_tile_t *tile = NULL;
 
             if ((tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_RW) {
                 op_type = INOUT | REGION_FULL;
@@ -384,11 +390,11 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
                 continue;  /* next IN flow */
             }
 
-            if (pred_found == 0) {
+            if( NULL != this_task->data[i].data_in ) {
                 data = this_task->data[i].data_in->original;
                 key = this_task->data[i].data_in->original->key;
+                tile = tile_manage_for_testing(dtd_handle, data, key);
             }
-            dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, data, key);
 
             tmp_param = (dague_dtd_task_param_ptg_to_dtd_t *) malloc(sizeof(dague_dtd_task_param_ptg_to_dtd_t));
             tmp_param->super.pointer_to_tile = (void *)tile;
@@ -407,15 +413,18 @@ fake_hook_for_testing(dague_execution_unit_t    *context,
         for( i = 0; NULL != this_task->function->out[i]; i++) {
             int op_type;
             tmp_op_type = this_task->function->out[i]->flow_flags;
+            dague_dtd_tile_t *tile = NULL;
             if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
                 op_type = OUTPUT | REGION_FULL;
-                data = this_task->data[i].data_out->original;
-                key = this_task->data[i].data_out->original->key;
+                if( NULL != this_task->data[i].data_out ) {
+                    data = this_task->data[i].data_out->original;
+                    key = this_task->data[i].data_out->original->key;
+                    tile = tile_manage_for_testing(dtd_handle, data, key);
+                }
             } else {
                 continue;
             }
 
-            dague_dtd_tile_t *tile = tile_manage_for_testing(dtd_handle, data, key);
 
             tmp_param = (dague_dtd_task_param_ptg_to_dtd_t *) malloc(sizeof(dague_dtd_task_param_ptg_to_dtd_t));
             tmp_param->super.pointer_to_tile = (void *)tile;
