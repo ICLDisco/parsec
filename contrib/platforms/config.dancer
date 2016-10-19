@@ -21,10 +21,11 @@ elif [ "x${USER}" = "xmfaverge" ]; then
       PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-intel"}
   fi
 elif [ "x$USER" = "xrhoque" ]; then
-    CC="/opt/gcc-5.1/bin/gcc"
-    CXX="/opt/gcc-5.1/bin/c++"
-    FC="/opt/gcc-5.1/bin/gfortran"
+    CC="/opt/gcc/5.1/bin/gcc"
+    CXX="/opt/gcc/5.1/bin/c++"
+    FC="/opt/gcc/5.1/bin/gfortran"
     PLASMA_DIR="/opt/plasma-2.7.1-gcc-5.1"
+    MPI_DIR="/opt/ompi/1.8.8/"
 
 elif [ "x$USER" = "xYOURSELF" ]; then
     PLASMA_DIR="SOMEWHERE"

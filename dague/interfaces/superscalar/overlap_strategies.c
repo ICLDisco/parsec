@@ -110,6 +110,10 @@ ordering_correctly_1(dague_execution_unit_t *eu,
         op_type_on_current_flow = (current_task->flow[current_dep].op_type & GET_OP_TYPE);
         tile = current_task->flow[current_dep].tile;
 
+        if( NULL == tile ) {
+            continue;
+        }
+
         if( INPUT == op_type_on_current_flow ) {
             dague_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), -1 );
             //DAGUE_DATA_COPY_RELEASE(current_task->super.data[current_dep].data_out);
