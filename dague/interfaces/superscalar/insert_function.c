@@ -514,6 +514,7 @@ dague_dtd_context_wait_on_handle( dague_context_t     *dague,
     if( 0 == remaining ) {
         if( dague_atomic_cas(&dtd_handle->super.nb_tasks, 0, DAGUE_RUNTIME_RESERVED_NB_TASKS) )
             dague_handle_update_runtime_nbtask((dague_handle_t*)dtd_handle, -1);
+        dague_context_wait(dague);
         return;  /* we're done in all cases */
     }
     assert(0 == remaining);
@@ -1606,6 +1607,8 @@ data_lookup_of_dtd_task( dague_execution_unit_t *context,
     for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
         op_type_on_current_flow = (current_task->flow[current_dep].op_type & GET_OP_TYPE);
 
+        if( NULL == current_task->super.data[current_dep].data_in ) continue;
+
         if( INOUT == op_type_on_current_flow ||
             OUTPUT == op_type_on_current_flow ) {
             if( current_task->super.data[current_dep].data_in->readers > 0 ) {
@@ -1639,6 +1642,16 @@ output_data_of_dtd_task( dague_execution_unit_t *context,
 
     for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
         op_type_on_current_flow = (current_task->flow[current_dep].op_type & GET_OP_TYPE);
+        /* The following check makes sure the behavior is correct when NULL is provided as input to a flow.
+           Dependency tracking and building is completely ignored in flow = NULL case, and no expectation should exist.
+        */
+        if( NULL == current_task->super.data[current_dep].data_in &&
+            NULL != current_task->super.data[current_dep].data_out ) {
+            dague_warning( "Please make sure you are not assigning data in data_out when data_in is provided as NULL.\n"
+                           "No dependency tracking is performed for a flow when NULL is passed as as INPUT for that flow.\n" );
+            exit(0);
+        }
+
         current_task->super.data[current_dep].data_out = current_task->super.data[current_dep].data_in;
 
         if( INOUT == op_type_on_current_flow ||
@@ -2285,9 +2298,6 @@ set_params_of_task( dague_dtd_task_t *this_task, dague_dtd_tile_t *tile,
         this_task->super.data[*flow_index].data_out  = NULL;
         this_task->super.data[*flow_index].data_repo = NULL;
 
-        assert( NULL != tile );
-        assert(tile->data_copy != NULL);
-
         /* Saving tile pointer for each flow in a task */
         this_task->flow[*flow_index].tile    = tile;
         this_task->flow[*flow_index].op_type = tile_op_type;
@@ -2349,6 +2359,11 @@ dague_insert_dtd_task( dague_dtd_task_t *this_task )
         if(0 == dague_dtd_handle->flow_set_flag[function->function_id]) {
             /* Setting flow in function structure */
             set_flow_in_function( dague_dtd_handle, this_task, tile_op_type, flow_index);
+        }
+
+        if( NULL == tile ) {
+            satisfied_flow++;
+            continue;
         }
 
         /* Locking the last_user of the tile */
