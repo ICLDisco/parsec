@@ -127,9 +127,17 @@ struct dague_context_s {
 #endif
 
 #ifdef DAGUE_HAVE_HWLOC
-    int comm_th_core;
-    hwloc_cpuset_t comm_th_index_mask;
-    hwloc_cpuset_t index_core_free_mask;
+    int comm_th_core;  /* if specified on the MCA subsystem it holds the core where the
+                        * communication thread is to be bound.
+                        */
+    /* Indicates the HWLOC bitmap of all hardware cores that are described by the MCA
+     * thread location variables.
+     */
+    hwloc_cpuset_t cpuset_allowed_mask;
+    /* Describe the HWLOC bitmap for all cores that are part of cpuset_allowed_mask
+     * but were not used to currently bind computational threads.
+     */
+    hwloc_cpuset_t cpuset_free_mask;
 #endif
 
     /* This field should always be the last one in the structure. Even if the
