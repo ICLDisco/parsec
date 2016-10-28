@@ -483,13 +483,13 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     context->comm_ctx            = NULL;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
-    context->cpuset_allowed_mask = NULL;
-    context->cpuset_free_mask    = NULL;
 #if defined(DAGUE_SIM)
     context->largest_simulation_date = 0;
 #endif /* DAGUE_SIM */
 #if defined(DAGUE_HAVE_HWLOC)
-    context->comm_th_core   = -1;
+    context->cpuset_allowed_mask = NULL;
+    context->cpuset_free_mask    = NULL;
+    context->comm_th_core        = -1;
 #endif  /* defined(DAGUE_HAVE_HWLOC) */
 
     /* TODO: nb_cores should depend on the vp_id */
@@ -633,7 +633,6 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     /* Extract the expected thread placement */
     if( NULL != comm_binding_parameter )
         dague_parse_comm_binding_parameter(comm_binding_parameter, context);
-    context->cpuset_allowed_mask = hwloc_bitmap_alloc();
     dague_parse_binding_parameter(binding_parameter, context, startup);
 
     /* Introduce communication engine */
@@ -1788,6 +1787,7 @@ void dague_usage(void)
  * for the hwloc binding.
  */
 
+#if defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP)
 #define DAGUE_BIND_THREAD(THR, WHERE)                                   \
     do {                                                                \
         int __where = (WHERE);                                          \
@@ -1800,6 +1800,7 @@ void dague_usage(void)
         }                                                               \
         hwloc_bitmap_set(context->cpuset_allowed_mask, __where);  /* update the mask */ \
     } while (0)
+#endif  /* defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP) */
 
 int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                                   __dague_temporary_thread_initialization_t* startup)
@@ -1808,6 +1809,9 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
     char *option = optarg, *position, *endptr;
     int i, thr_idx = 0, nb_total_comp_threads = 0, where;
     int nb_real_cores = dague_hwloc_nb_real_cores();
+
+    if( NULL == context->cpuset_allowed_mask )
+        context->cpuset_allowed_mask = hwloc_bitmap_alloc();
 
     for(i = 0; i < context->nb_vp; i++)
         nb_total_comp_threads += context->virtual_processes[i]->nb_cores;
