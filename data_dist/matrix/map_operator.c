@@ -193,11 +193,9 @@ add_task_to_list(dague_execution_unit_t *eu_context,
 {
     dague_execution_context_t** pready_list = (dague_execution_context_t**)_ready_lists;
     dague_execution_context_t* new_context = (dague_execution_context_t*)dague_thread_mempool_allocate( eu_context->context_mempool );
-    dague_thread_mempool_t* mpool = new_context->super.mempool_owner;
 
-    memcpy( new_context, newcontext, sizeof(dague_execution_context_t) );
-    new_context->super.mempool_owner = mpool;
     new_context->status = DAGUE_TASK_STATUS_NONE;
+    DAGUE_COPY_EXECUTION_CONTEXT(new_context, newcontext);
     pready_list[vpid_dst] = (dague_execution_context_t*)dague_list_item_ring_push_sorted( (dague_list_item_t*)(pready_list[vpid_dst]),
                                                                                           (dague_list_item_t*)new_context,
                                                                                           dague_execution_context_priority_comparator );
