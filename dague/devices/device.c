@@ -212,7 +212,7 @@ int dague_devices_freeze(dague_context_t* context)
     }
 
     /* Compute the weight of each device including the cores */
-    dague_debug_verbose(4, dague_debug_output, "Global Theoritical performance: single %2.4f double %2.4f", total_sperf, total_dperf);
+    dague_debug_verbose(4, dague_debug_output, "Global Theoretical performance: single %2.4f double %2.4f", total_sperf, total_dperf);
     for( uint32_t i = 0; i < dague_nb_devices; i++ ) {
         dague_debug_verbose(4, dague_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
                i, dague_device_sweight[i], dague_device_dweight[i]);
