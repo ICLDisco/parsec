@@ -16,40 +16,37 @@ extern "C" %{
 
 %}
 
-dataA  [type = "dague_ddesc_t *"]
-dataC  [type = "dague_ddesc_t *"]
-dataT  [type = "dague_ddesc_t *" aligned=dataA]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT.mb*descT.nb)"]
+descA  [type = "tiled_matrix_desc_t*"]
+descC  [type = "tiled_matrix_desc_t*" aligned=descA]
+descT  [type = "tiled_matrix_desc_t*" aligned=descA]
+p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*descT->mb*descT->nb)"]
 
-descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
-descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)"]
-minMNT [type = "int" hidden=on default = "dplasma_imin(descA.nt, ((descA.m+descA.nb-1)/descA.nb))-1"]
-ib     [type = "int" hidden=on default = "descT.mb" ]
+minMNT [type = "int" hidden=on default = "dplasma_imin(descA->nt, ((descA->m+descA->nb-1)/descA->nb))-1"]
+ib     [type = "int" hidden=on default = "descT->mb" ]
 
 
 zunmqr_zunmqr(k, n)
   /* Execution space */
   k = 0 .. minMNT
-  n = 0 .. descC.nt-1
+  n = 0 .. descC->nt-1
 
-  : dataC(0, n)
+  : descC(0, n)
 
   READ  V <- A read_A(k)
   READ  T <- T read_T(k)                                 [type = LITTLE_T]
-  RW    C <- (k == 0) ? dataC(0, n) : C zunmqr_zunmqr(k-1, n)
-          -> (k == descA.nt-1) ? dataC(0, n)
-          -> (k <  descA.nt-1) ? C zunmqr_zunmqr(k+1, n)
+  RW    C <- (k == 0) ? descC(0, n) : C zunmqr_zunmqr(k-1, n)
+          -> (k == descA->nt-1) ? descC(0, n)
+          -> (k <  descA->nt-1) ? C zunmqr_zunmqr(k+1, n)
 
 BODY
 {
     dague_complex64_t *lV = (dague_complex64_t*)V;
     dague_complex64_t *lC = (dague_complex64_t*)C;
-    int tempm = descC.m - k * descC.nb;
-    int tempnn = (n == (descC.nt-1)) ? (descC.n - n * descC.nb) : descC.nb;
-    int tempkk = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int ldv = BLKLDD( descA, 0 );
-    int ldc = BLKLDD( descC, 0 );
+    int tempm = descC->m - k * descC->nb;
+    int tempnn = (n == (descC->nt-1)) ? (descC->n - n * descC->nb) : descC->nb;
+    int tempkk = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
+    int ldv = BLKLDDP( descA, 0 );
+    int ldc = BLKLDDP( descC, 0 );
 
     printlog("CORE_zunmqr(%d, %d)\n", k, n);
 
@@ -58,10 +55,10 @@ BODY
 
     CORE_zunmqr( PlasmaLeft, PlasmaConjTrans,
                  tempm, tempnn, tempkk, ib,
-                 lV + k * descA.nb, ldv,
-                 T,                 descT.mb,
-                 lC + k * descA.nb, ldc,
-                 p_elem_W, descA.nb);
+                 lV + k * descA->nb, ldv,
+                 T,                 descT->mb,
+                 lC + k * descA->nb, ldc,
+                 p_elem_W, descA->nb);
 
     dague_private_memory_push( p_work, p_elem_W );
 #endif  /* !defined(DAGUE_DRY_RUN) */
@@ -71,10 +68,10 @@ END
 read_A(k) [profile = off]
   k = 0 .. minMNT
 
-  : dataA(0, k)
+  : descA(0, k)
 
-  RW A <- dataA(0, k)
-       -> V zunmqr_zunmqr(k, 0 .. descC.nt-1)
+  RW A <- descA(0, k)
+       -> V zunmqr_zunmqr(k, 0 .. descC->nt-1)
 BODY
 {
     /* nothing */
@@ -82,12 +79,12 @@ BODY
 END
 
 read_T(k) [profile = off]
-  k = 0 .. descT.nt-1
+  k = 0 .. descT->nt-1
 
-  : dataT(0, k)
+  : descT(0, k)
 
-  RW T <- dataT(0, k)                               [type = LITTLE_T]
-       -> T zunmqr_zunmqr(k, 0 .. descC.nt-1)       [type = LITTLE_T]
+  RW T <- descT(0, k)                               [type = LITTLE_T]
+       -> T zunmqr_zunmqr(k, 0 .. descC->nt-1)       [type = LITTLE_T]
 BODY
 {
     /* nothing */

@@ -38,13 +38,12 @@ extern "C" %{
 /* Globals
  */
 uplo       [type = PLASMA_enum]
-dataA      [type = "dague_ddesc_t *"]
+descA      [type = "tiled_matrix_desc_t*"]
 INFO       [type = "int*"]
 
-descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 PRI_CHANGE [type = "int" hidden = on default = 0 ]
-PRI_MAX    [type = "int" hidden = on default = "(descA.mt * ( 3 + descA.mt * ( 2 + descA.mt )))" ]
-smallnb    [type = "int" hidden = on default = "descA.mb" ]
+PRI_MAX    [type = "int" hidden = on default = "(descA->mt * ( 3 + descA->mt * ( 2 + descA->mt )))" ]
+smallnb    [type = "int" hidden = on default = "descA->mb" ]
 
 /**************************************************
  *               potrf_zpotrf                     *
@@ -52,37 +51,37 @@ smallnb    [type = "int" hidden = on default = "descA.mb" ]
 potrf_zpotrf(k) [high_priority = on]
 
 // Execution space
-k = 0 .. descA.nt-1
+k = 0 .. descA->nt-1
 
 // Parallel partitioning
-:dataA(k, k)
+:descA(k, k)
 
 // Parameters
-RW T <- (k == 0) ? dataA(k, k) : T potrf_zherk(k-1, k)
-     -> T potrf_ztrsm(k, k+1..descA.nt-1)
-     -> dataA(k, k)
+RW T <- (k == 0) ? descA(k, k) : T potrf_zherk(k-1, k)
+     -> T potrf_ztrsm(k, k+1..descA->nt-1)
+     -> descA(k, k)
 
-; (k >= (descA.nt - PRI_CHANGE)) ? (descA.nt - k) * (descA.nt - k) * (descA.nt - k) : PRI_MAX
+; (k >= (descA->nt - PRI_CHANGE)) ? (descA->nt - k) * (descA->nt - k) * (descA->nt - k) : PRI_MAX
 
 BODY [type=RECURSIVE]
 {
-    int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
+    int tempkn = k == descA->nt-1 ? descA->n - k*descA->nb : descA->nb;
     int iinfo = 0;
 
     if (tempkn > smallnb)
     {
-        subtile_desc_t *small_descT;
+        subtile_desc_t *small_descT->
         dague_handle_t *dague_zpotrf;
 
-        small_descT = subtile_desc_create( &(descA), k, k,
+        small_descT->= subtile_desc_create( &(descA->, k, k,
                                            smallnb, smallnb, 0, 0, tempkn, tempkn );
         small_descT->mat = T;
 
-        dague_zpotrf = dplasma_zpotrf_New(uplo, (tiled_matrix_desc_t *)small_descT, &iinfo );
+        dague_zpotrf = dplasma_zpotrf_New(uplo, (tiled_matrix_desc_t *)small_descT-> &iinfo );
 
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zpotrf, dplasma_zpotrf_Destruct,
-                             1, small_descT );
+                             1, small_descT->);
 
         return DAGUE_HOOK_RETURN_ASYNC;
     }
@@ -94,15 +93,15 @@ END
 
 BODY
 {
-    int tempkn = k == descA.nt-1 ? descA.n - k*descA.nb : descA.nb;
+    int tempkn = k == descA->nt-1 ? descA->n - k*descA->nb : descA->nb;
     int iinfo = 0;
-    int ldak = BLKLDD( descA, k );
+    int ldak = BLKLDDP( descA, k );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zpotrf(uplo, tempkn, T, ldak, &iinfo );
 
     if( iinfo != 0 && *INFO == 0 )
-        *INFO = k*descA.nb+iinfo; /* Should return here */
+        *INFO = k*descA->nb+iinfo; /* Should return here */
 #endif  /* !defined(DAGUE_DRY_RUN) */
 
     printlog("CORE_zpotrf( %d )\n\t( %s, %d, A(%d,%d)[%p], %d) return info = %d\n",
@@ -118,50 +117,50 @@ END
 potrf_ztrsm(k, n) [high_priority = on]
 
 // Execution space
-k = 0   .. descA.nt-2
-n = k+1 .. descA.nt-1
+k = 0   .. descA->nt-2
+n = k+1 .. descA->nt-1
 
 // Parallel partitioning
-: dataA(k, n)
+: descA(k, n)
 
 // Parameters
 READ  T <- T potrf_zpotrf(k)
-RW    C <- (k == 0) ? dataA(k, n) : C potrf_zgemm(k, n, k-1)
+RW    C <- (k == 0) ? descA(k, n) : C potrf_zgemm(k, n, k-1)
         -> A potrf_zherk(k, n)
-        -> A potrf_zgemm(n, n+1..descA.nt-1, k)
+        -> A potrf_zgemm(n, n+1..descA->nt-1, k)
         -> B potrf_zgemm(k+1..n-1, n, k)
-        -> dataA(k, n)
+        -> descA(k, n)
 
-; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - k - n - 1) * (n - k) : PRI_MAX
+; (n >= (descA->nt - PRI_CHANGE)) ? (descA->nt - n) * (descA->nt - n) * (descA->nt - n) + 3 * ((2 * descA->nt) - k - n - 1) * (n - k) : PRI_MAX
 
 BODY [type=RECURSIVE]
 {
-    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+    int tempnn = n == descA->nt-1 ? descA->n - n * descA->nb : descA->nb;
 
-    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    if ( (tempnn > smallnb) || (descA->mb > smallnb) )
     {
-        subtile_desc_t *small_descT;
+        subtile_desc_t *small_descT->
         subtile_desc_t *small_descC;
         dague_handle_t* dague_ztrsm;
 
 
-        small_descT = subtile_desc_create( &(descA), k, k,
-                                           smallnb, smallnb, 0, 0, descA.mb, descA.mb );
+        small_descT->= subtile_desc_create( &(descA->, k, k,
+                                           smallnb, smallnb, 0, 0, descA->mb, descA->mb );
         small_descT->mat = T;
 
-        small_descC = subtile_desc_create( &(descA), k, n,
-                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descC = subtile_desc_create( &(descA->, k, n,
+                                           smallnb, smallnb, 0, 0, descA->mb, tempnn );
         small_descC->mat = C;
 
         dague_ztrsm = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper,
                                         PlasmaConjTrans, PlasmaNonUnit,
                                         (dague_complex64_t)1.0,
-                                        (tiled_matrix_desc_t *)small_descT,
+                                        (tiled_matrix_desc_t *)small_descT->
                                         (tiled_matrix_desc_t *)small_descC );
 
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_ztrsm, dplasma_ztrsm_Destruct,
-                             2, small_descT, small_descC );
+                             2, small_descT-> small_descC );
 
         return DAGUE_HOOK_RETURN_ASYNC;
     }
@@ -173,13 +172,13 @@ END
 
 BODY
 {
-    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
-    int ldak = BLKLDD( descA, k );
+    int tempnn = n == descA->nt-1 ? descA->n - n * descA->nb : descA->nb;
+    int ldak = BLKLDDP( descA, k );
 
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrsm(PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit,
-               descA.mb, tempnn,
+               descA->mb, tempnn,
                (dague_complex64_t)1.0, T /*A(k, k)*/, ldak,
                                        C /*A(k, n)*/, ldak);
 #endif  /* !defined(DAGUE_DRY_RUN) */
@@ -188,7 +187,7 @@ BODY
              k, n,
              plasma_const( PlasmaLeft ), plasma_const( PlasmaUpper ),
              plasma_const( PlasmaConjTrans ), plasma_const( PlasmaNonUnit ),
-             descA.mb, tempnn,
+             descA->mb, tempnn,
              1.0, k, k, T, ldak,
                   k, n, C, ldak);
 }
@@ -201,44 +200,44 @@ END
 potrf_zherk(k, n) [high_priority = on]
 
 // Execution space
-k = 0   .. descA.nt-2
-n = k+1 .. descA.nt-1
+k = 0   .. descA->nt-2
+n = k+1 .. descA->nt-1
 
 // Parallel partitioning
-: dataA(n, n)
+: descA(n, n)
 
 //Parameters
 READ  A <- C potrf_ztrsm(k, n)
-RW    T <- (k == 0)   ? dataA(n, n) : T potrf_zherk(k-1, n)
+RW    T <- (k == 0)   ? descA(n, n) : T potrf_zherk(k-1, n)
         -> (n == k+1) ? T potrf_zpotrf(n)  : T potrf_zherk(k+1, n)
 
-; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * (n - k) : PRI_MAX
+; (n >= (descA->nt - PRI_CHANGE)) ? (descA->nt - n) * (descA->nt - n) * (descA->nt - n) + 3 * (n - k) : PRI_MAX
 
 BODY [type=RECURSIVE]
 {
-    int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
+    int tempnn = n == descA->nt-1 ? descA->n - n*descA->nb : descA->nb;
 
-    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    if ( (tempnn > smallnb) || (descA->mb > smallnb) )
     {
-        subtile_desc_t *small_descT;
-        subtile_desc_t *small_descA;
+        subtile_desc_t *small_descT->
+        subtile_desc_t *small_descA->
         dague_handle_t* dague_zherk;
 
-        small_descT = subtile_desc_create( &(descA), n, n,
+        small_descT->= subtile_desc_create( &(descA->, n, n,
                                            smallnb, smallnb, 0, 0, tempnn, tempnn );
         small_descT->mat = T;
 
-        small_descA = subtile_desc_create( &(descA), k, n,
-                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descA->= subtile_desc_create( &(descA->, k, n,
+                                           smallnb, smallnb, 0, 0, descA->mb, tempnn );
         small_descA->mat = A;
 
         dague_zherk = dplasma_zherk_New( PlasmaUpper, PlasmaConjTrans,
-                                         (double)-1.0, (tiled_matrix_desc_t*) small_descA,
-                                         (double)1.0,  (tiled_matrix_desc_t*) small_descT);
+                                         (double)-1.0, (tiled_matrix_desc_t*) small_descA->
+                                         (double)1.0,  (tiled_matrix_desc_t*) small_descT->;
 
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zherk, dplasma_zherk_Destruct,
-                             2, small_descA, small_descT );
+                             2, small_descA-> small_descT->);
         return DAGUE_HOOK_RETURN_ASYNC;
     }
     else
@@ -249,13 +248,13 @@ END
 
 BODY
 {
-    int tempnn = n == descA.nt-1 ? descA.n - n*descA.nb : descA.nb;
-    int ldak = BLKLDD( descA, k );
-    int ldan = BLKLDD( descA, n );
+    int tempnn = n == descA->nt-1 ? descA->n - n*descA->nb : descA->nb;
+    int ldak = BLKLDDP( descA, k );
+    int ldan = BLKLDDP( descA, n );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zherk(PlasmaUpper, PlasmaConjTrans,
-               tempnn, descA.mb,
+               tempnn, descA->mb,
                (double)-1.0, A /*A(k, n)*/, ldak,
                (double) 1.0, T /*A(n, n)*/, ldan);
 #endif /* !defined(DAGUE_DRY_RUN) */
@@ -263,7 +262,7 @@ BODY
              "CORE_zherk( %d, %d )\n\t( %s, %s, %d, %d, %f, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              k, n,
              plasma_const( PlasmaUpper ), plasma_const( PlasmaConjTrans ),
-             tempnn, descA.mb,
+             tempnn, descA->mb,
              -1.0, k, n, A, ldak,
               1.0, n, n, T, ldan);
 }
@@ -276,20 +275,20 @@ END
 potrf_zgemm(m, n, k)
 
 // Execution space
-k = 0   .. descA.mt-3
-m = k+1 .. descA.mt-1
-n = m+1 .. descA.nt-1
+k = 0   .. descA->mt-3
+m = k+1 .. descA->mt-1
+n = m+1 .. descA->nt-1
 
 // Parallel partitioning
-: dataA(m, n)
+: descA(m, n)
 
 // Parameters
 READ  A <- C potrf_ztrsm(k, m)
 READ  B <- C potrf_ztrsm(k, n)
-RW    C <- (k == 0)   ? dataA(m, n)  : C potrf_zgemm(m, n, k-1)
+RW    C <- (k == 0)   ? descA(m, n)  : C potrf_zgemm(m, n, k-1)
         -> (m == k+1) ? C potrf_ztrsm(m, n) : C potrf_zgemm(m, n, k+1)
 
-; (n >= (descA.nt - PRI_CHANGE)) ? (descA.nt - n) * (descA.nt - n) * (descA.nt - n) + 3 * ((2 * descA.nt) - m - n - 3) * (n - m) + 6 * (n - k) : PRI_MAX
+; (n >= (descA->nt - PRI_CHANGE)) ? (descA->nt - n) * (descA->nt - n) * (descA->nt - n) + 3 * ((2 * descA->nt) - m - n - 3) * (n - m) + 6 * (n - k) : PRI_MAX
 
 BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
@@ -303,17 +302,17 @@ BODY [type=CUDA
     double mzone = -1.;
 #endif
 
-    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
-    int ldak = BLKLDD( descA, k );
-    int ldam = BLKLDD( descA, m );
+    int tempnn = n == descA->nt-1 ? descA->n - n * descA->nb : descA->nb;
+    int ldak = BLKLDDP( descA, k );
+    int ldam = BLKLDDP( descA, m );
 
     cublasStatus_t status;
-    assert( ldak <= descA.mb );
-    assert( ldam <= descA.mb );
+    assert( ldak <= descA->mb );
+    assert( ldam <= descA->mb );
 
     cublasSetKernelStream( dague_body.stream );
     dague_body.dyld_fn( lapack_const(PlasmaConjTrans), 'N',
-             descA.mb, tempnn, descA.mb,
+             descA->mb, tempnn, descA->mb,
              mzone, (cuDoubleComplex*)A, ldak,
                     (cuDoubleComplex*)B, ldak,
              zone,  (cuDoubleComplex*)C, ldam );
@@ -324,7 +323,7 @@ BODY [type=CUDA
     printlogcuda("CUDA_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
                  m, n, k,
                  plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
-                 descA.mb, tempnn, descA.nb,
+                 descA->mb, tempnn, descA->nb,
                  -1.0, k, m, A, ldak,
                        k, n, B, ldak,
                   1.0, m, n, C, ldam);
@@ -333,37 +332,37 @@ END
 
 BODY [type=RECURSIVE]
 {
-    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
+    int tempnn = n == descA->nt-1 ? descA->n - n * descA->nb : descA->nb;
 
-    if ( (tempnn > smallnb) || (descA.mb > smallnb) )
+    if ( (tempnn > smallnb) || (descA->mb > smallnb) )
     {
-        subtile_desc_t *small_descA;
-        subtile_desc_t *small_descB;
+        subtile_desc_t *small_descA->
+        subtile_desc_t *small_descB->
         subtile_desc_t *small_descC;
         dague_handle_t *dague_zgemm;
 
-        small_descA = subtile_desc_create( &(descA), k, m,
-                                           smallnb, smallnb, 0, 0, descA.mb, descA.nb );
+        small_descA->= subtile_desc_create( &(descA->, k, m,
+                                           smallnb, smallnb, 0, 0, descA->mb, descA->nb );
         small_descA->mat = A;
 
-        small_descB = subtile_desc_create( &(descA), k, n,
-                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descB->= subtile_desc_create( &(descA->, k, n,
+                                           smallnb, smallnb, 0, 0, descA->mb, tempnn );
         small_descB->mat = B;
 
-        small_descC = subtile_desc_create( &(descA), m, n,
-                                           smallnb, smallnb, 0, 0, descA.mb, tempnn );
+        small_descC = subtile_desc_create( &(descA->, m, n,
+                                           smallnb, smallnb, 0, 0, descA->mb, tempnn );
         small_descC->mat = C;
 
         dague_zgemm = dplasma_zgemm_New(PlasmaConjTrans, PlasmaNoTrans,
                                         (dague_complex64_t)-1.0,
-                                        (tiled_matrix_desc_t *)small_descA,
-                                        (tiled_matrix_desc_t *)small_descB,
+                                        (tiled_matrix_desc_t *)small_descA->
+                                        (tiled_matrix_desc_t *)small_descB->
                                         (dague_complex64_t) 1.0,
                                         (tiled_matrix_desc_t *)small_descC);
 
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zgemm, dplasma_zgemm_Destruct,
-                             3, small_descA, small_descB, small_descC );
+                             3, small_descA-> small_descB-> small_descC );
 
         return DAGUE_HOOK_RETURN_ASYNC;
     }
@@ -375,13 +374,13 @@ END
 
 BODY
 {
-    int tempnn = n == descA.nt-1 ? descA.n - n * descA.nb : descA.nb;
-    int ldak = BLKLDD( descA, k );
-    int ldam = BLKLDD( descA, m );
+    int tempnn = n == descA->nt-1 ? descA->n - n * descA->nb : descA->nb;
+    int ldak = BLKLDDP( descA, k );
+    int ldam = BLKLDDP( descA, m );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(PlasmaConjTrans, PlasmaNoTrans,
-               descA.mb, tempnn, descA.nb,
+               descA->mb, tempnn, descA->nb,
                (dague_complex64_t)-1.0, A /*A(k, m)*/, ldak,
                                         B /*A(k, n)*/, ldak,
                (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam);
@@ -390,7 +389,7 @@ BODY
     printlog("CORE_zgemm( %d, %d, %d )\n\t( %s, %s, %d, %d, %d, %f, A(%d,%d)[%p], %d, A(%d,%d)[%p], %d, %f, A(%d,%d)[%p], %d)\n",
              m, n, k,
              plasma_const( PlasmaConjTrans ),  plasma_const( PlasmaNoTrans ),
-             descA.mb, tempnn, descA.nb,
+             descA->mb, tempnn, descA->nb,
              -1.0, k, m, A, ldak,
                    k, n, B, ldak,
               1.0, m, n, C, ldam);

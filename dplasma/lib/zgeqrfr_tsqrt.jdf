@@ -16,54 +16,51 @@ extern "C" %{
 
 %}
 
-dataA1 [type = "dague_ddesc_t *"]
-dataA2 [type = "dague_ddesc_t *" aligned=dataA1]
-dataT  [type = "dague_ddesc_t *" aligned=dataA1]
+descA1 [type = "tiled_matrix_desc_t*"]
+descA2 [type = "tiled_matrix_desc_t*" aligned=descA1]
+descT  [type = "tiled_matrix_desc_t*" aligned=descA1]
 p_work [type = "dague_memory_pool_t *"]
 p_tau  [type = "dague_memory_pool_t *"]
 
-descA1 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA1)"]
-descA2 [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA2)"]
-descT  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataT)" ]
 
-ib     [type = "int" hidden=on default = "descT.mb" ]
+ib     [type = "int" hidden=on default = "descT->mb" ]
 
 ztsqrt_ztsqrt(k)
   /* Execution space */
-  k = 0 .. descA2.nt-1
+  k = 0 .. descA2->nt-1
 
-  : dataA2(0, k)
+  : descA2(0, k)
 
-  RW   A1 <- (0 == k) ? dataA1(0, k) : A1 ztsqrt_ztsmqr(k-1, k)
-          -> dataA1(0, k)
+  RW   A1 <- (0 == k) ? descA1(0, k) : A1 ztsqrt_ztsmqr(k-1, k)
+          -> descA1(0, k)
 
-  RW   A2 <- (0 == k) ? dataA2(0, k) : A2 ztsqrt_ztsmqr(k-1, k)
-          -> (k < (descA2.nt-1)) ? V ztsqrt_ztsmqr(k, k+1 ..  descA2.nt-1)
-          -> dataA2(0, k)
+  RW   A2 <- (0 == k) ? descA2(0, k) : A2 ztsqrt_ztsmqr(k-1, k)
+          -> (k < (descA2->nt-1)) ? V ztsqrt_ztsmqr(k, k+1 ..  descA2->nt-1)
+          -> descA2(0, k)
 
-  RW    T <- dataT(0, k)                                                   [type = LITTLE_T]
-          -> (k < (descA2.nt-1)) ? T ztsqrt_ztsmqr(k, k+1 ..  descA2.nt-1) [type = LITTLE_T]
-          -> dataT(0, k)                                                   [type = LITTLE_T]
+  RW    T <- descT(0, k)                                                   [type = LITTLE_T]
+          -> (k < (descA2->nt-1)) ? T ztsqrt_ztsmqr(k, k+1 ..  descA2->nt-1) [type = LITTLE_T]
+          -> descT(0, k)                                                   [type = LITTLE_T]
 
 BODY
 {
-    dague_complex64_t *lA1 = ((dague_complex64_t*)A1) + k * descA1.nb;
-    int tempkn = (k == (descA2.nt-1)) ? (descA2.n - k * descA2.nb) : descA2.nb;
-    int lda1 = BLKLDD( descA1, 0 );
-    int lda2 = BLKLDD( descA2, 0 );
+    dague_complex64_t *lA1 = ((dague_complex64_t*)A1) + k * descA1->nb;
+    int tempkn = (k == (descA2->nt-1)) ? (descA2->n - k * descA2->nb) : descA2->nb;
+    int lda1 = BLKLDDP( descA1, 0 );
+    int lda2 = BLKLDDP( descA2, 0 );
 
     printlog("CORE_ztsqrt(%d, %d)\n"
-             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, p_elem_B)\n",
+             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT->mb, p_elem_A, p_elem_B)\n",
              k, k, k, k, T, k, k, A1, k, k, A2);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_tau  = dague_private_memory_pop( p_tau );
     void *p_elem_work = dague_private_memory_pop( p_work );
 
-    CORE_ztsqrt( descA2.m, tempkn, ib,
+    CORE_ztsqrt( descA2->m, tempkn, ib,
                  lA1, lda1,
                  A2,  lda2,
-                 T,   descT.mb,
+                 T,   descT->mb,
                  p_elem_tau, p_elem_work );
 
     dague_private_memory_push( p_tau,  p_elem_tau  );
@@ -74,17 +71,17 @@ END
 
 ztsqrt_ztsmqr(k, n)
   /* Execution space */
-  k = 0   .. descA2.nt-2
-  n = k+1 .. descA2.nt-1
+  k = 0   .. descA2->nt-2
+  n = k+1 .. descA2->nt-1
 
-  : dataA2(0,n)
+  : descA2(0,n)
 
-  RW   A1 <- ( k == 0 ) ? dataA1(0, n)   : A1 ztsqrt_ztsmqr(k-1, n)
+  RW   A1 <- ( k == 0 ) ? descA1(0, n)   : A1 ztsqrt_ztsmqr(k-1, n)
 
           -> (n == (k+1)) ? A1 ztsqrt_ztsqrt(k+1)
           -> (n >  (k+1)) ? A1 ztsqrt_ztsmqr(k+1, n)
 
-  RW   A2 <- ( k == 0 ) ? dataA2(0, n) : A2 ztsqrt_ztsmqr(k-1, n)
+  RW   A2 <- ( k == 0 ) ? descA2(0, n) : A2 ztsqrt_ztsmqr(k-1, n)
 
           -> (n == (k+1)) ? A2 ztsqrt_ztsqrt(k+1)
           -> (n >  (k+1)) ? A2 ztsqrt_ztsmqr(k+1, n)
@@ -94,25 +91,25 @@ ztsqrt_ztsmqr(k, n)
 
 BODY
 {
-    dague_complex64_t *lA1 = ((dague_complex64_t*)A1) + k * descA1.nb;
-    int tempnn = (n == (descA2.nt-1)) ? (descA2.n - n * descA2.nb) : descA2.nb;
-    int lda1 = BLKLDD( descA1, 0 );
-    int lda2 = BLKLDD( descA2, 0 );
+    dague_complex64_t *lA1 = ((dague_complex64_t*)A1) + k * descA1->nb;
+    int tempnn = (n == (descA2->nt-1)) ? (descA2->n - n * descA2->nb) : descA2->nb;
+    int lda1 = BLKLDDP( descA1, 0 );
+    int lda2 = BLKLDDP( descA2, 0 );
 
     printlog("CORE_ztsmqr(%d, %d, %d)\n"
-             "\t(PlasmaLeft, PlasmaConjTrans, descA.mb, tempnn, tempmm, tempnn, descA.nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT.mb, p_elem_A, ldwork)\n",
+             "\t(PlasmaLeft, PlasmaConjTrans, descA->mb, tempnn, tempmm, tempnn, descA->nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT->mb, p_elem_A, ldwork)\n",
              k, k, n, k, n, A1, k, n, A2, k, k, V, k, k, T);
 
 #if !defined(DAGUE_DRY_RUN)
     void *p_elem_W = dague_private_memory_pop( p_work );
 
     CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
-                descA1.nb, tempnn, descA2.m, tempnn, descA1.nb, ib,
-                lA1 /* dataA1(n) */, lda1,
-                A2  /* dataA2(n) */, lda2,
-                V   /* dataA2(k) */, lda2,
-                T   /* dataT(k)  */, descT.mb,
-                p_elem_W, descT.mb );
+                descA1->nb, tempnn, descA2->m, tempnn, descA1->nb, ib,
+                lA1 /* descA1(n) */, lda1,
+                A2  /* descA2(n) */, lda2,
+                V   /* descA2(k) */, lda2,
+                T   /* descT(k)  */, descT->mb,
+                p_elem_W, descT->mb );
 
     dague_private_memory_push( p_work, p_elem_W );
 #endif  /* !defined(DAGUE_DRY_RUN) */

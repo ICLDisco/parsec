@@ -26,8 +26,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#define my_rank_of(m, n) (((dague_ddesc_t*)(__dague_handle->super.dataA))->rank_of((dague_ddesc_t*)__dague_handle->super.dataA, m, n))
-
+#define my_rank_of(m, n) (((dague_ddesc_t*)(descA))->rank_of((dague_ddesc_t*)descA, m, n))
 %}
 
 /* Globals
@@ -38,11 +37,10 @@ PQ           [type = "int" hidden=on default="P*Q"]
 ntype        [type = "PLASMA_enum"]
 uplo         [type = "PLASMA_enum"]
 trans        [type = "PLASMA_enum"]
-dataA        [type = "dague_ddesc_t *"]
+descA        [type = "const tiled_matrix_desc_t*"]
 Tdist        [type = "dague_ddesc_t *"]
 norm         [type = "double *"]
 
-descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
 
 /**************************************************
  *
@@ -54,8 +52,8 @@ descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_de
 STEP1(m,n)
 
     // Execution space
-    m = 0 .. descA.mt-1
-    n = 0 .. descA.nt-1
+    m = 0 .. descA->mt-1
+    n = 0 .. descA->nt-1
     m1 = %{
     if ( (uplo == PlasmaLower && m < n) ||
          (uplo == PlasmaUpper && n < m) )
@@ -91,7 +89,7 @@ STEP1(m,n)
     nextn = %{
         int nn = n+1;
         int r;
-        while (nn < descA.nt) {
+        while (nn < descA->nt) {
             if ( (uplo == PlasmaLower && m  < nn) ||
                  (uplo == PlasmaUpper && nn < m ) )
                 r = my_rank_of( nn, m );
@@ -106,18 +104,18 @@ STEP1(m,n)
     %}
 
     // Parallel partitioning
-    :dataA(m1, n1)
+    :descA(m1, n1)
 
     // Parameters
-    READ A <-  dataA(m1, n1)
-    RW   W <-  ( prevn+1 > 0        ) ? W STEP1( m, prevn ) : NEW              [type = COL]
-           ->  ( nextn   < descA.nt ) ? W STEP1( m, nextn ) : W STEP2( m, lr ) [type = COL]
+    READ A <-  descA(m1, n1)
+    RW   W <-  ( prevn+1 > 0         ) ? W STEP1( m, prevn ) : NEW              [type = COL]
+           ->  ( nextn   < descA->nt ) ? W STEP1( m, nextn ) : W STEP2( m, lr ) [type = COL]
 
 BODY
 {
-    int tempmm = ( m1 == (descA.mt-1) ) ? descA.m - m1 * descA.mb : descA.mb;
-    int tempnn = ( n1 == (descA.nt-1) ) ? descA.n - n1 * descA.nb : descA.nb;
-    int ldam = BLKLDD( descA, m );
+    int tempmm = ( m1 == (descA->mt-1) ) ? descA->m - m1 * descA->mb : descA->mb;
+    int tempnn = ( n1 == (descA->nt-1) ) ? descA->n - n1 * descA->nb : descA->nb;
+    int ldam = BLKLDDP( descA, m );
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
@@ -173,7 +171,7 @@ BODY
      */
     else {
         if (!(prevn+1 > 0)) {
-            memset( W, 0, descA.mb * sizeof(double) );
+            memset( W, 0, descA->mb * sizeof(double) );
         }
         if ( m == n ) {
             CORE_dzasum(PlasmaRowwise, uplo,
@@ -208,10 +206,10 @@ END
 STEP2(m, n)
 
     // Execution space
-    m = 0 .. descA.mt-1
+    m = 0 .. descA->mt-1
     n = 0 .. PQ-1
     hadtile = %{
-        int nn = descA.nt-1;
+        int nn = descA->nt-1;
         int r;
         while (nn > -1) {
             if ( (uplo == PlasmaLower && m  < nn) ||
@@ -237,7 +235,7 @@ STEP2(m, n)
 
 BODY
 {
-    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+    int tempmm = ( m == (descA->mt-1) ) ? descA->m - m * descA->mb : descA->mb;
 
     printlog("thread %d zlange STEP2(%d, %d)\n"
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
@@ -274,7 +272,7 @@ BODY
     }
     else {
         if ((hadtile+1) == 0) {
-            memset( W, 0, descA.mb * sizeof(double) );
+            memset( W, 0, descA->mb * sizeof(double) );
         }
         if(n+Q < PQ) {
             cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
@@ -293,7 +291,7 @@ END
 STEP2BIS(m, n)
 
     // Execution space
-    m = 0 .. descA.mt-1
+    m = 0 .. descA->mt-1
     n = 0 .. Q-1
 
     // Parallel partitioning
@@ -306,7 +304,7 @@ STEP2BIS(m, n)
 
 BODY
 {
-    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+    int tempmm = ( m == (descA->mt-1) ) ? descA->m - m * descA->mb : descA->mb;
 
     printlog("thread %d zlange STEP2(%d, %d)\n"
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
@@ -349,7 +347,7 @@ END
 STEP3(m, n)
 
     // Execution space
-    m = 0 .. descA.mt-1
+    m = 0 .. descA->mt-1
     n = 0 .. Q-1
 
     // Parallel partitioning
@@ -357,12 +355,12 @@ STEP3(m, n)
 
     // Parameters
     READ A <- W STEP2BIS(m, Q-1)                                         [type = COL]
-    RW   W <- (m < (descA.mt-P)) ? W STEP3( m+P, n ) : NEW               [type = ELT]
-           -> (m < P           ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
+    RW   W <- (m < (descA->mt-P)) ? W STEP3( m+P, n ) : NEW               [type = ELT]
+           -> (m < P            ) ? W STEP4( m,   n ) : W STEP3( m-P, n ) [type = ELT]
 
 BODY
 {
-    int tempmm = ( m == descA.mt-1) ? descA.m - m * descA.mb  : descA.mb;
+    int tempmm = ( m == descA->mt-1) ? descA->m - m * descA->mb  : descA->mb;
 
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
@@ -372,14 +370,14 @@ BODY
     double *dW = (double*)W;
 
     if (ntype == PlasmaMaxNorm){
-        if ( m < (descA.mt-P) ) {
+        if ( m < (descA->mt-P) ) {
             *dW = ( *dA > *dW ) ? *dA : *dW;
         } else {
             *dW = *dA;
         }
     }
     else if (ntype == PlasmaFrobeniusNorm) {
-        if ( m >= (descA.mt-P) ) {
+        if ( m >= (descA->mt-P) ) {
             dW[0] = 0.;
             dW[1] = 1.;
         }
@@ -397,7 +395,7 @@ BODY
         for(i = 0; i < tempmm; i++, dA++)
             maxval = ( maxval > *dA ) ? maxval : *dA;
 
-        if ( m < (descA.mt-P) ) {
+        if ( m < (descA->mt-P) ) {
             *dW = ( maxval > *dW ) ? maxval : *dW;
         } else {
             *dW = maxval;
@@ -423,9 +421,9 @@ STEP4(m,n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- ( m == 0 )           ? NULL                   : W STEP4(m-1, n) [type = ELT]
-    RW   W <- ( m >  (descA.mt-1)) ? NEW                    : W STEP3(m,   n) [type = ELT]
-           -> ( m == (P-1)       ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
+    READ A <- ( m == 0 )            ? NULL                   : W STEP4(m-1, n) [type = ELT]
+    RW   W <- ( m >  (descA->mt-1)) ? NEW                    : W STEP3(m,   n) [type = ELT]
+           -> ( m == (P-1)        ) ? W WRITE_RES(0..P-1, n) : A STEP4(m+1, n) [type = ELT]
 
 BODY
 {
@@ -437,7 +435,7 @@ BODY
     if (ntype == PlasmaFrobeniusNorm) {
         double  sqr;
 
-        if ( m > (descA.mt-1)) {
+        if ( m > (descA->mt-1)) {
             dW[0] = 0.;
             dW[1] = 1.;
         }
@@ -454,7 +452,7 @@ BODY
             }
         }
     } else {
-        if ( m > (descA.mt-1)) {
+        if ( m > (descA->mt-1)) {
             *dW = 0.;
         }
         if(m > 0) {

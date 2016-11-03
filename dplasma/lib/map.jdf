@@ -15,30 +15,29 @@ extern "C" %{
  * Globals
  */
 uplo     [type = PLASMA_enum]
-dataA    [type = "dague_ddesc_t *"]
+descA    [type = "tiled_matrix_desc_t*"]
 operator [type = "tiled_matrix_unary_op_t" ]
 op_args  [type = "void *" ]
 
-descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
 plasma_upper [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 
 MAP_L(m, n)  [profile = off]
   // Execution space
-  m = 1 .. ((uplo == plasma_upper) ? 0 : descA.mt-1)
-  n = 0 .. ( m < descA.nt ? m-1 : descA.nt-1 )
+  m = 1 .. ((uplo == plasma_upper) ? 0 : descA->mt-1)
+  n = 0 .. ( m < descA->nt ? m-1 : descA->nt-1 )
 
   // Parallel partitioning
-  : dataA(m, n)
+  : descA(m, n)
 
   // Parameters
-  RW    A <- dataA(m, n)
-          -> dataA(m, n)
+  RW    A <- descA(m, n)
+          -> descA(m, n)
 
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-    operator( context, &(descA), A,
+    operator( context, descA, A,
               PlasmaUpperLower, m, n, op_args );
 #endif /* !defined(DAGUE_DRY_RUN) */
 
@@ -49,20 +48,20 @@ END
 
 MAP_U(m, n)  [profile = off]
   // Execution space
-  m = 0   .. descA.mt-1
-  n = m+1 .. ((uplo == plasma_lower) ? 0 : descA.nt-1)
+  m = 0   .. descA->mt-1
+  n = m+1 .. ((uplo == plasma_lower) ? 0 : descA->nt-1)
 
   // Parallel partitioning
-  : dataA(m, n)
+  : descA(m, n)
 
   // Parameters
-  RW    A <- dataA(m, n)
-          -> dataA(m, n)
+  RW    A <- descA(m, n)
+          -> descA(m, n)
 
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-    operator( context, &(descA), A,
+    operator( context, descA, A,
               PlasmaUpperLower, m, n, op_args );
 #endif /* !defined(DAGUE_DRY_RUN) */
 
@@ -73,19 +72,19 @@ END
 
 MAP_DIAG(k) [profile = off]
   // Execution space
-  k = 0 .. ( descA.mt < descA.nt ? descA.mt-1 : descA.nt-1 )
+  k = 0 .. ( descA->mt < descA->nt ? descA->mt-1 : descA->nt-1 )
 
   // Parallel partitioning
-  : dataA(k, k)
+  : descA(k, k)
 
   // Parameters
-  RW    A <- dataA(k, k)
-          -> dataA(k, k)
+  RW    A <- descA(k, k)
+          -> descA(k, k)
 
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-    operator( context, &(descA), A,
+    operator( context, descA, A,
               uplo, k, k, op_args );
 #endif /* !defined(DAGUE_DRY_RUN) */
 

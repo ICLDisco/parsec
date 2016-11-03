@@ -19,22 +19,20 @@ uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 diag      [type = "PLASMA_enum"]
 alpha     [type = "dague_complex64_t"]
-dataA     [type = "dague_ddesc_t *"]
-descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-dataB     [type = "dague_ddesc_t *"]
-descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
+descA     [type = "tiled_matrix_desc_t*"]
+descB     [type = "tiled_matrix_desc_t*"]
 
 read_A(m, k) [profile = off]
   /* Execution Space */
-  m = 0 .. (descB.mt-1)
-  k = m .. (descA.mt-1)
+  m = 0 .. (descB->mt-1)
+  k = m .. (descA->mt-1)
 
   /* Locality */
-  : dataA(m,k)
+  : descA(m,k)
 
-  READ  A    <- dataA(m,k)
-             -> (m == k) ? A ztrmm(m, 0..(descB.nt-1))
-             -> (m != k) ? A zgemm(m, 0..(descB.nt-1), k)
+  READ  A    <- descA(m,k)
+             -> (m == k) ? A ztrmm(m, 0..(descB->nt-1))
+             -> (m != k) ? A zgemm(m, 0..(descB->nt-1), k)
 
 BODY
 {
@@ -44,13 +42,13 @@ END
 
 read_B(n, k) [profile = off]
   /* Execution Space */
-  n = 0..(descB.nt-1)
-  k = 1..(descB.mt-1)
+  n = 0..(descB->nt-1)
+  k = 1..(descB->mt-1)
 
   /* Locality */
-  : dataB(k,n)
+  : descB(k,n)
 
-  READ  B    <- dataB(k,n)
+  READ  B    <- descB(k,n)
              -> B zgemm(0..(k-1), n, k)
 
 BODY
@@ -61,24 +59,24 @@ END
 
 ztrmm(m, n)
   /* Execution Space */
-  m = 0..(descB.mt-1)
-  n = 0..(descB.nt-1)
+  m = 0..(descB->mt-1)
+  n = 0..(descB->nt-1)
 
   /* Locality */
-  : dataB(m,n)
+  : descB(m,n)
 
   CTL   ctl0 <- ctl0 zgemm(0..(m-1), n, m)
   READ  A    <- A read_A(m, m)
-  RW    B    <- dataB(m,n)
-             -> (m == (descB.mt-1)) ? dataB(m,n)
-             -> (m <  (descB.mt-1)) ? C zgemm(m, n, m+1)
+  RW    B    <- descB(m,n)
+             -> (m == (descB->mt-1)) ? descB(m,n)
+             -> (m <  (descB->mt-1)) ? C zgemm(m, n, m+1)
 
 BODY
 {
-    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-    int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-    int lda = BLKLDD( descA, m );
-    int ldb = BLKLDD( descB, m );
+    int tempmm = ((m)==(descB->mt-1)) ? (descB->m-(m*descB->mb)) : descB->mb;
+    int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
+    int lda = BLKLDDP( descA, m );
+    int ldb = BLKLDDP( descB, m );
 
     printlog("CORE_ztrmm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
@@ -87,37 +85,37 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrmm(side, uplo, trans,
                diag, tempmm, tempnn,
-               alpha, A /* dataA(m,m) */, lda,
-                      B /* dataB(m,n) */, ldb );
+               alpha, A /* descA(m,m) */, lda,
+                      B /* descB(m,n) */, ldb );
 #endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
 zgemm(m, n, k)
   /* Execution Space */
-  m = 0..(descB.mt-2)
-  n = 0..(descB.nt-1)
-  k = (m+1)..(descB.mt-1)
+  m = 0..(descB->mt-2)
+  n = 0..(descB->nt-1)
+  k = (m+1)..(descB->mt-1)
 
   /* Locality */
-  : dataB(m,n)
+  : descB(m,n)
 
   CTL   ctl0 -> ctl0 ztrmm(k, n)
   READ  A    <- A read_A(m, k)
   READ  B    <- B read_B(n, k)
   RW    C    <- (k >  (m+1)) ? C zgemm(m, n, k-1)
              <- (k == (m+1)) ? B ztrmm(k-1, n)
-             -> (k == (descB.mt-1)) ? dataB(m,n)
-             -> (k <  (descB.mt-1)) ? C zgemm(m, n, k+1)
+             -> (k == (descB->mt-1)) ? descB(m,n)
+             -> (k <  (descB->mt-1)) ? C zgemm(m, n, k+1)
 
 BODY
 {
-    int tempmm = ((m)==(descB.mt-1)) ? (descB.m-(m*descB.mb)) : descB.mb;
-    int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : descB.nb;
-    int tempkn = ((k)==(descA.nt-1)) ? (descA.n-(k*descA.nb)) : descA.nb;
-    int lda = BLKLDD( descA, m );
-    int ldbk = BLKLDD( descB, k );
-    int ldb = BLKLDD( descB, m );
+    int tempmm = ((m)==(descB->mt-1)) ? (descB->m-(m*descB->mb)) : descB->mb;
+    int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
+    int tempkn = ((k)==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
+    int lda = BLKLDDP( descA, m );
+    int ldbk = BLKLDDP( descB, k );
+    int ldb = BLKLDDP( descB, m );
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaNoTrans, tempmm, tempnn, tempkn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldbk, 1.000000, B(%d,%d)[%p], ldb)\n",
@@ -125,9 +123,9 @@ BODY
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(trans, PlasmaNoTrans, tempmm, tempnn, tempkn,
-               alpha, A /* dataA(m,k) */, lda,
-                      B /* dataB(k,n) */, ldbk,
-               1.0,   C /* dataB(m,n) */, ldb );
+               alpha, A /* descA(m,k) */, lda,
+                      B /* descB(k,n) */, ldbk,
+               1.0,   C /* descB(m,n) */, ldb );
 #endif  /* !defined(DAGUE_DRY_RUN) */
 }
 END

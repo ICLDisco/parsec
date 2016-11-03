@@ -88,7 +88,7 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
         return NULL;
     }
 
-    dague_getrf = dague_zgetrf_new( (dague_ddesc_t*)A,
+    dague_getrf = dague_zgetrf_new( A,
                                     (dague_ddesc_t*)IPIV,
                                     INFO );
 
@@ -99,16 +99,16 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
     } else {
         CORE_zgetrf_reclap_init();
     }
-    dague_getrf->nbmaxthrd = dplasma_imin( nbthreads, 48 );
+    dague_getrf->_g_nbmaxthrd = dplasma_imin( nbthreads, 48 );
 
 #else
 
     if ( A->storage == matrix_Tile ) {
-        dague_getrf->getrfdata = CORE_zgetrf_rectil_init(nbthreads);
+        dague_getrf->_g_getrfdata = CORE_zgetrf_rectil_init(nbthreads);
     } else {
-        dague_getrf->getrfdata = CORE_zgetrf_reclap_init(nbthreads);
+        dague_getrf->_g_getrfdata = CORE_zgetrf_reclap_init(nbthreads);
     }
-    dague_getrf->nbmaxthrd = nbthreads;
+    dague_getrf->_g_nbmaxthrd = nbthreads;
 
 #endif
 
@@ -155,8 +155,8 @@ dplasma_zgetrf_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA  ] );
 
-    if ( dague_zgetrf->getrfdata != NULL )
-        free( dague_zgetrf->getrfdata );
+    if ( dague_zgetrf->_g_getrfdata != NULL )
+        free( dague_zgetrf->_g_getrfdata );
 
     dague_handle_free(handle);
 }

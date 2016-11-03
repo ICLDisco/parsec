@@ -16,10 +16,8 @@ extern "C" %{
 %}
 
 /** Globals */
-dataA     [type = "dague_ddesc_t *"]
-descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-dataIP    [type = "dague_ddesc_t *"]
-descIP    [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataIP)"]
+dataA     [type = "tiled_matrix_desc_t*"]
+dataIP    [type = "const tiled_matrix_desc_t*"]
 inc       [type = "int"]
 
 /************************************************************************************
@@ -27,12 +25,12 @@ inc       [type = "int"]
  ************************************************************************************/
 
 LASWP_IPIV_in(k) [profile = off]
-  k = 0..descIP.nt-1
+  k = 0..dataIP->nt-1
 
 :dataIP(0, k)
 
 READ IP <- dataIP(0, k)                         [type = PIVOT]
-        -> IPIV LASWP_laswp(k, 0..descA.nt-1)   [type = PIVOT]
+        -> IPIV LASWP_laswp(k, 0..dataA->nt-1)   [type = PIVOT]
 
 BODY
 {
@@ -43,8 +41,8 @@ END
 
 LASWP_laswp(k, n)
   /* Execution space */
-  k = 0..descIP.nt-1
-  n = 0..descA.nt-1
+  k = 0..dataIP->nt-1
+  n = 0..dataA->nt-1
 
   /* Locality */
   :dataA(k, n)
@@ -52,23 +50,23 @@ LASWP_laswp(k, n)
   READ  A    <- dataA(k, n)
   READ  IPIV <- IP LASWP_IPIV_in(k)             [type = PIVOT]
   CTL   ctl  <- ( (inc > 0) && (k > 0 )          ) ? ctl LASWP_laswp(k-1, n)
-             <- ( (inc < 0) && (k < descIP.nt-1 )) ? ctl LASWP_laswp(k+1, n)
-             -> ( (inc > 0) && (k < descIP.nt-1 )) ? ctl LASWP_laswp(k+1, n)
+             <- ( (inc < 0) && (k < dataIP->nt-1 )) ? ctl LASWP_laswp(k+1, n)
+             -> ( (inc > 0) && (k < dataIP->nt-1 )) ? ctl LASWP_laswp(k+1, n)
              -> ( (inc < 0) && (k > 0 )          ) ? ctl LASWP_laswp(k-1, n)
 
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-        int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-        int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-        int ldak = BLKLDD(descA, k);
+        int tempkm = ((k)==(dataA->mt-1)) ? (dataA->m-(k*dataA->mb)) : (dataA->mb);
+        int tempnn = ((n)==(dataA->nt-1)) ? (dataA->n-(n*dataA->nb)) : (dataA->nb);
+        int ldak = BLKLDDP(dataA, k);
 
-        if ( descA.storage == matrix_Tile ) {
-            int tempk = k * descA.mb;
-            int tempm = descA.m - tempk;
+        if ( dataA->storage == matrix_Tile ) {
+            int tempk = k * dataA->mb;
+            int tempm = dataA->m - tempk;
             PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                   descA.mb, descA.nb, descA.mb * descA.nb,
-                                                   ( descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                                   dataA->mb, dataA->nb, dataA->mb * dataA->nb,
+                                                   (dataA->mt-k)*dataA->mb, dataA->nb, 0, 0,
                                                    tempm, tempnn);
             pdescA.mat = A;
             CORE_zlaswp_ontile( pdescA, 1, tempkm, IPIV, 1);

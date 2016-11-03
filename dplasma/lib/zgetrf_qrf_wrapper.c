@@ -193,10 +193,10 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
         dplasma_genrandom_lutab(lu_tab, 0, minMNT-1, nb_lu, 0);
     }
 
-    handle = dague_zgetrf_qrf_new( (dague_ddesc_t*)A,
+    handle = dague_zgetrf_qrf_new( A,
                                    (dague_ddesc_t*)IPIV,
-                                   (dague_ddesc_t*)TS,
-                                   (dague_ddesc_t*)TT,
+                                   TS,
+                                   TT,
                                    lu_tab, *qrtree,
                                    ib, criteria, alpha,
                                    NULL, NULL, NULL,
@@ -214,21 +214,21 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
 #else
 
     if ( A->storage == matrix_Tile ) {
-        handle->getrfdata = CORE_zgetrf_rectil_init(nbthreads);
+        handle->_g_getrfdata = CORE_zgetrf_rectil_init(nbthreads);
     } else {
-        handle->getrfdata = CORE_zgetrf_reclap_init(nbthreads);
+        handle->_g_getrfdata = CORE_zgetrf_reclap_init(nbthreads);
     }
-    handle->nbmaxthrd = nbthreads;
+    handle->_g_nbmaxthrd = nbthreads;
 
 #endif
 
-    handle->W = (double*)malloc(sizeW * sizeof(double));
+    handle->_g_W = (double*)malloc(sizeW * sizeof(double));
 
-    handle->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
-    handle->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_tau, TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_tau, TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( handle->arenas[DAGUE_zgetrf_qrf_DEFAULT_ARENA],
@@ -306,14 +306,14 @@ dplasma_zgetrf_qrf_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_ReduceVec_ARENA ] );
     dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_CHOICE_ARENA    ] );
 
-    dague_private_memory_fini( dague_zgetrf_qrf->p_work );
-    dague_private_memory_fini( dague_zgetrf_qrf->p_tau  );
+    dague_private_memory_fini( dague_zgetrf_qrf->_g_p_work );
+    dague_private_memory_fini( dague_zgetrf_qrf->_g_p_tau  );
 
-    if ( dague_zgetrf_qrf->getrfdata != NULL )
-        free( dague_zgetrf_qrf->getrfdata );
-    free( dague_zgetrf_qrf->W );
-    free( dague_zgetrf_qrf->p_work );
-    free( dague_zgetrf_qrf->p_tau  );
+    if ( dague_zgetrf_qrf->_g_getrfdata != NULL )
+        free( dague_zgetrf_qrf->_g_getrfdata );
+    free( dague_zgetrf_qrf->_g_W );
+    free( dague_zgetrf_qrf->_g_p_work );
+    free( dague_zgetrf_qrf->_g_p_tau  );
 
     dague_handle_free(handle);
 }

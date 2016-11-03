@@ -82,7 +82,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        handle = (dague_handle_t*)dague_zpoinv_U_new( (dague_ddesc_t*)A /*, info */);
+        handle = (dague_handle_t*)dague_zpoinv_U_new( A /*, info */);
 
         /* Upper part of A with diagonal part */
         /* dplasma_add2arena_upper( ((dague_zpoinv_U_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_U_UPPER_TILE_ARENA], */
@@ -90,7 +90,7 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
         /*                          DAGUE_ARENA_ALIGNMENT_SSE, */
         /*                          dague_datatype_double_complex_t, A->mb, 1 ); */
     } else {
-        handle = (dague_handle_t*)dague_zpoinv_L_new( (dague_ddesc_t*)A /*, info */);
+        handle = (dague_handle_t*)dague_zpoinv_L_new( A /*, info */);
 
         /* Lower part of A with diagonal part */
         /* dplasma_add2arena_lower( ((dague_zpoinv_L_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA], */

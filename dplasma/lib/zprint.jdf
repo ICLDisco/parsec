@@ -11,11 +11,11 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-static inline void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA, dague_complex64_t *M )
+static inline void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t* descA, dague_complex64_t *M )
 {
-    int tempmm = ( m == descA.mt-1 ) ? descA.m - m*descA.mb : descA.mb;
-    int tempnn = ( n == descA.nt-1 ) ? descA.n - n*descA.nb : descA.nb;
-    int ldam = BLKLDD( descA, m );
+    int tempmm = ( m == descA->mt-1 ) ? descA->m - m*descA->mb : descA->mb;
+    int tempnn = ( n == descA->nt-1 ) ? descA->n - n*descA->nb : descA->nb;
+    int ldam = BLKLDDP( descA, m );
 
     int ii, jj;
 
@@ -46,16 +46,15 @@ static inline void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t descA,
  * Globals
  */
 uplo   [type = PLASMA_enum]
-dataA  [type = "dague_ddesc_t *"]
+descA  [type = "const tiled_matrix_desc_t*"]
 
-descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
 plasma_upper [type = "PLASMA_enum"         hidden=on default=PlasmaUpper ]
 plasma_lower [type = "PLASMA_enum"         hidden=on default=PlasmaLower ]
 
 imone   [type = "int" hidden=on default="-1" ]
-sizef   [type = "int" hidden=on default="( descA.mt * descA.nt )" ]
-sizel   [type = "int" hidden=on default="( descA.nt * descA.mt - (descA.nt * (descA.nt-1))/2 )" ]
-sizeu   [type = "int" hidden=on default="( descA.mt * descA.nt - (descA.mt * (descA.mt-1))/2 )" ]
+sizef   [type = "int" hidden=on default="( descA->mt * descA->nt )" ]
+sizel   [type = "int" hidden=on default="( descA->nt * descA->mt - (descA->nt * (descA->nt-1))/2 )" ]
+sizeu   [type = "int" hidden=on default="( descA->mt * descA->nt - (descA->mt * (descA->mt-1))/2 )" ]
 
 
 /*
@@ -64,14 +63,14 @@ sizeu   [type = "int" hidden=on default="( descA.mt * descA.nt - (descA.mt * (de
 PRINT_F(k) [profile = off]
   // Execution space
   k = 0..(((uplo != plasma_upper) && (uplo != plasma_lower)) ? sizef - 1 : imone)
-  m = %{ return k % descA.mt; %}
-  n = %{ return k / descA.mt; %}
+  m = %{ return k % descA->mt; %}
+  n = %{ return k / descA->mt; %}
 
   // Parallel partitioning
-  : dataA(m, n)
+  : descA(m, n)
 
   // Parameters
-READ A   <- dataA(m, n)
+READ A   <- descA(m, n)
 CTL  ctl <- (k > 0)       ? ctl PRINT_F(k-1)
          -> (k < sizef-1) ? ctl PRINT_F(k+1)
 BODY
@@ -89,14 +88,14 @@ END
 PRINT_L(k) [profile = off]
   // Execution space
   k = 0..((uplo == plasma_lower) ? sizel-1 : imone)
-  m = %{ int new_m = k; int new_n = 0; while ( new_m > descA.mt-1 ) { new_m -= (descA.mt - new_n - 1); new_n++; }; return new_m; %}
-  n = %{ int new_m = k; int new_n = 0; while ( new_m > descA.mt-1 ) { new_m -= (descA.mt - new_n - 1); new_n++; }; return new_n; %}
+  m = %{ int new_m = k; int new_n = 0; while ( new_m > descA->mt-1 ) { new_m -= (descA->mt - new_n - 1); new_n++; }; return new_m; %}
+  n = %{ int new_m = k; int new_n = 0; while ( new_m > descA->mt-1 ) { new_m -= (descA->mt - new_n - 1); new_n++; }; return new_n; %}
 
   // Parallel partitioning
-  : dataA(m, n)
+  : descA(m, n)
 
   // Parameters
-READ  A   <- dataA(m, n)
+READ  A   <- descA(m, n)
 CTL   ctl <- (k > 0)       ? ctl PRINT_L(k-1)
           -> (k < sizel-1) ? ctl PRINT_L(k+1)
 BODY
@@ -117,10 +116,10 @@ PRINT_U(k) [profile = off]
   n = %{ int new_m = k; int new_n = 0; while ( new_m > new_n ) { new_n++; new_m -= new_n; }; return new_n; %}
 
   // Parallel partitioning
-  : dataA(m, n)
+  : descA(m, n)
 
   // Parameters
-READ  A   <- dataA(m, n)
+READ  A   <- descA(m, n)
 CTL   ctl <- (k > 0)       ? ctl PRINT_U(k-1)
           -> (k < sizeu-1) ? ctl PRINT_U(k+1)
 BODY

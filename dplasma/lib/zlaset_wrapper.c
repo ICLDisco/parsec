@@ -28,7 +28,7 @@ dplasma_zlaset_operator( dague_execution_unit_t *eu,
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDD( *descA, m );
+    ldam = BLKLDDP( descA, m );
 
     if (m == n) {
         LAPACKE_zlaset_work(

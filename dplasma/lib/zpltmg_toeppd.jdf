@@ -17,23 +17,22 @@ extern "C" %{
  * Globals
  */
 seed   [type = "unsigned long long int" ]
-dataA  [type = "dague_ddesc_t *"]
-descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+descA  [type = "tiled_matrix_desc_t*"]
 
 /**************************************************
  *                       READ_X                   *
  **************************************************/
 GEN_RANDOM(m) [profile = off]
 
-m = 0 .. descA.mt-1
+m = 0 .. descA->mt-1
 
-: dataA(m, 0)
+: descA(m, 0)
 
-    WRITE R -> R PLRNT(m, 0..descA.nt-1, m)  [type = VECTOR]
+    WRITE R -> R PLRNT(m, 0..descA->nt-1, m)  [type = VECTOR]
 
 BODY
 {
-    CORE_zpltmg_toeppd1( descA.m, m * descA.mb + 1, descA.mb, R, seed );
+    CORE_zpltmg_toeppd1( descA->m, m * descA->mb + 1, descA->mb, R, seed );
 }
 END
 
@@ -43,29 +42,29 @@ END
 PLRNT(m, n, k) [profile = off]
 
 // Execution space
-m = 0 .. descA.mt-1
-n = 0 .. descA.nt-1
-k = 0 .. descA.mt-1
+m = 0 .. descA->mt-1
+n = 0 .. descA->nt-1
+k = 0 .. descA->mt-1
 
 // Parallel partitioning
-: dataA(m, n)
+: descA(m, n)
 
 // Parameters
 RW   R <- ( m == k )                       ? R GEN_RANDOM(m)                          [type = VECTOR]
-       <- ( m != k )                       ? R PLRNT(          (m+1)%descA.mt, n, k)  [type = VECTOR]
-       -> ( (descA.mt+m-1)%descA.mt != k ) ? R PLRNT( (descA.mt+m-1)%descA.mt, n, k)  [type = VECTOR]
+       <- ( m != k )                       ? R PLRNT(          (m+1)%descA->mt, n, k)  [type = VECTOR]
+       -> ( (descA->mt+m-1)%descA->mt != k ) ? R PLRNT( (descA->mt+m-1)%descA->mt, n, k)  [type = VECTOR]
 
-RW   A <- ( m == k )                ? dataA(m, n)
-       <- ( m != k )                ? A PLRNT( m, n, (descA.mt+k-1)%descA.mt )
-       -> ( ((k+1)%descA.mt) == m ) ? dataA(m, n)
-       -> ( ((k+1)%descA.mt) != m ) ? A PLRNT( m, n,          (k+1)%descA.mt )
+RW   A <- ( m == k )                ? descA(m, n)
+       <- ( m != k )                ? A PLRNT( m, n, (descA->mt+k-1)%descA->mt )
+       -> ( ((k+1)%descA->mt) == m ) ? descA(m, n)
+       -> ( ((k+1)%descA->mt) != m ) ? A PLRNT( m, n,          (k+1)%descA->mt )
 
 BODY
 {
-    int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
-    int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
-    int tempkm = (k == descA.mt-1) ? descA.m - k * descA.nb : descA.mb;
-    int ldam = BLKLDD(descA, m);
+    int tempmm = (m == descA->mt-1) ? descA->m - m * descA->mb : descA->mb;
+    int tempnn = (n == descA->nt-1) ? descA->n - n * descA->nb : descA->nb;
+    int tempkm = (k == descA->mt-1) ? descA->m - k * descA->nb : descA->mb;
+    int ldam = BLKLDDP(descA, m);
 
 #if !defined(DAGUE_DRY_RUN)
     /* This is the first one */
@@ -75,7 +74,7 @@ BODY
 
     CORE_zpltmg_toeppd2(
         tempmm, tempnn, tempkm,
-        m * descA.mb, n*descA.nb, R,
+        m * descA->mb, n*descA->nb, R,
         A, ldam );
 #endif
 }

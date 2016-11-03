@@ -26,28 +26,25 @@ transB [type = int]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-dataA  [type = "dague_ddesc_t *"]
-descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-dataB  [type = "dague_ddesc_t *"]
-descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
-dataC  [type = "dague_ddesc_t *"]
-descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
+descA  [type = "tiled_matrix_desc_t*"]
+descB  [type = "tiled_matrix_desc_t*"]
+descC  [type = "tiled_matrix_desc_t*"]
 
 /**************************************************
  *                       READ_A                   *
  **************************************************/
 READ_A(m, k)  [profile = off]
 
-m = 0 .. descA.mt-1
-k = 0 .. descA.nt-1
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
 
-: dataA(m, k)
+: descA(m, k)
 
-READ A <- dataA(m, k)
+READ A <- descA(m, k)
        -> A GEMM(m, 0, k)
 BODY
 {
-    printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.dataA->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.descA->myrank, m, k);
 }
 END
 
@@ -56,16 +53,16 @@ END
  **************************************************/
 READ_B(n, k)  [profile = off]
 
-n = 0 .. descB.mt-1
-k = 0 .. descB.nt-1
+n = 0 .. descB->mt-1
+k = 0 .. descB->nt-1
 
-: dataB(n, k)
+: descB(n, k)
 
-READ B <- dataB(n, k)
+READ B <- descB(n, k)
        -> B GEMM(0, n, k)
 BODY
 {
-     printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.dataB->myrank, n, k);
+     printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.descB->myrank, n, k);
 }
 END
 
@@ -75,24 +72,24 @@ END
 GEMM(m, n, k)
 
 // Execution space
-m = 0 .. descC.mt-1
-n = 0 .. descC.nt-1
-k = 0 .. descA.nt-1
+m = 0 .. descC->mt-1
+n = 0 .. descC->nt-1
+k = 0 .. descA->nt-1
 
 // Parallel partitioning
-: dataC(m, n)
+: descC(m, n)
 
 // Parameters
-READ A <- (n == 0)            ? A READ_A(m, k) : A GEMM( m, (n+descC.nt-1) % descC.nt, k )
-       -> (n <= (descC.nt-2)) ? A GEMM( m, (n+1) % descC.nt, k )
-READ B <- (m == 0)            ? B READ_B(n, k) : B GEMM( (m+descC.mt-1) % descC.mt, n, k )
-       -> (m <= (descC.mt-2)) ? B GEMM( (m+1) % descC.mt, n, k )
-RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (descA.nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
+READ A <- (n == 0)             ? A READ_A(m, k) : A GEMM( m, (n+descC->nt-1) % descC->nt, k )
+       -> (n <= (descC->nt-2))  ? A GEMM( m, (n+1) % descC->nt, k )
+READ B <- (m == 0)             ? B READ_B(n, k) : B GEMM( (m+descC->mt-1) % descC->mt, n, k )
+       -> (m <= (descC->mt-2))  ? B GEMM( (m+1) % descC->mt, n, k )
+RW   C <- (k == 0)             ? descC(m, n) : C GEMM( m, n, k-1 )
+       -> (k == (descA->nt-1)) ? descC(m, n) : C GEMM( m, n, k+1 )
 
 BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
-      weight=(descA.nt-k)]
+      weight=(descA->nt-k)]
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex lalpha = make_cuDoubleComplex(creal(alpha), cimag(alpha));
@@ -102,12 +99,12 @@ BODY [type=CUDA
     double lalpha = alpha;
     double lbeta  = (k == 0) ? beta : 1.0;
 #endif
-    int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
-    int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
-    int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
-    int ldam = BLKLDD(descA, m);
-    int ldbn = BLKLDD(descB, n);
-    int ldcm = BLKLDD(descC, m);
+    int tempmm = m == descC->mt-1 ? descC->m - m * descC->mb : descC->mb;
+    int tempnn = n == descC->nt-1 ? descC->n - n * descC->nb : descC->nb;
+    int tempkk = k == descA->nt-1 ? descA->n - k * descA->nb : descA->nb;
+    int ldam = BLKLDDP(descA, m);
+    int ldbn = BLKLDDP(descB, n);
+    int ldcm = BLKLDDP(descC, m);
 
     cublasStatus_t status;
     cublasSetKernelStream( dague_body.stream );
@@ -125,12 +122,12 @@ END
 BODY
 {
     dague_complex64_t lbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
-    int tempmm = m == descC.mt-1 ? descC.m - m * descC.mb : descC.mb;
-    int tempnn = n == descC.nt-1 ? descC.n - n * descC.nb : descC.nb;
-    int tempkk = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
-    int ldam = BLKLDD(descA, m);
-    int ldbn = BLKLDD(descB, n);
-    int ldcm = BLKLDD(descC, m);
+    int tempmm = m == descC->mt-1 ? descC->m - m * descC->mb : descC->mb;
+    int tempnn = n == descC->nt-1 ? descC->n - n * descC->nb : descC->nb;
+    int tempkk = k == descA->nt-1 ? descA->n - k * descA->nb : descA->nb;
+    int ldam = BLKLDDP(descA, m);
+    int ldbn = BLKLDDP(descB, n);
+    int ldcm = BLKLDDP(descC, m);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(transA, transB,

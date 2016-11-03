@@ -50,8 +50,7 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
 {
     dague_handle_t *dague_trdsm = NULL; 
 
-    dague_trdsm = (dague_handle_t*)dague_ztrdsm_new( *A, (dague_ddesc_t*)A,
-                                                     *B, (dague_ddesc_t*)B );
+    dague_trdsm = (dague_handle_t*)dague_ztrdsm_new( A, B );
 
     dplasma_add2arena_tile(((dague_ztrdsm_handle_t*)dague_trdsm)->arenas[DAGUE_ztrdsm_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(dague_complex64_t),

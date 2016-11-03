@@ -21,49 +21,45 @@ extern "C" %{
 
 side      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
-dataA     [type = "dague_ddesc_t *"]
-dataB     [type = "dague_ddesc_t *"]
-dataTS    [type = "dague_ddesc_t *" aligned=dataA ]
-dataTT    [type = "dague_ddesc_t *" aligned=dataA ]
+descA    [type = "tiled_matrix_desc_t*"]
+descB    [type = "tiled_matrix_desc_t*"]
+descTS   [type = "tiled_matrix_desc_t*" aligned=descA]
+descTT   [type = "tiled_matrix_desc_t*" aligned=descA]
 qrtree    [type = "dplasma_qrtree_t"]
 
-descA   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)dataA)"  hidden=on]
-descB   [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)dataB)"  hidden=on]
-descTS  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)dataTS)" hidden=on]
-descTT  [type = "tiled_matrix_desc_t" default="*((tiled_matrix_desc_t*)dataTT)" hidden=on]
-ib      [type = "int" hidden = on default = "descTS.mb" ]
-KT      [type = "int" hidden = on default = "descA.mt-1" ]
-KT2     [type = "int" hidden = on default = "dplasma_imin( KT, descA.nt-2 )" ]
-p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS.nb))"]
+ib      [type = "int" hidden = on default = "descTS->mb" ]
+KT      [type = "int" hidden = on default = "descA->mt-1" ]
+KT2     [type = "int" hidden = on default = "dplasma_imin( KT, descA->nt-2 )" ]
+p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS->nb))"]
 
 zunmlq(k, i, m)
   /* Execution space */
   k = 0 .. KT
   i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m = 0 .. descB.mt-1
+  m = 0 .. descB->mt-1
 
   p     = %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextp = %{ return qrtree.nextpiv( &qrtree, k, p, descA.nt); %}
+  nextp = %{ return qrtree.nextpiv( &qrtree, k, p, descA->nt); %}
 
   /* Locality */
-  : dataB(m, p)
+  : descB(m, p)
 
   READ  A    <- A zunmlq_in(k, i)   [type = UPPER_TILE]
   READ  T    <- T zunmlq_in(k, i)   [type = LITTLE_T]
-  RW    C    -> ( k == 0 ) ? dataB(m, p)
+  RW    C    -> ( k == 0 ) ? descB(m, p)
              -> ( k >  0 ) ? A2 zttmlq(k-1, m, p)
-             <- ( k == descA.nt-1 ) ? dataB(m, p)
-             <- ((k <  descA.nt-1) & (nextp != descA.nt) ) ? A1 zttmlq(k, m, nextp)
-             <- ((k <  descA.nt-1) & (nextp == descA.nt) ) ? A2 zttmlq(k, m, p    )
+             <- ( k == descA->nt-1 ) ? descB(m, p)
+             <- ((k <  descA->nt-1) & (nextp != descA->nt) ) ? A1 zttmlq(k, m, nextp)
+             <- ((k <  descA->nt-1) & (nextp == descA->nt) ) ? A2 zttmlq(k, m, p    )
 
 BODY
 {
-    int tempmm = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
-    int temppn = (p == (descB.nt-1)) ? (descB.n - p * descB.nb) : descB.nb;
-    int tempkm = (k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
+    int tempmm = (m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
+    int temppn = (p == (descB->nt-1)) ? (descB->n - p * descB->nb) : descB->nb;
+    int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
     int tempmin = dplasma_imin( tempkm, temppn );
-    int ldak    = BLKLDD( descA, k );
-    int ldbm    = BLKLDD( descB, m );
+    int ldak    = BLKLDDP( descA, k );
+    int ldbm    = BLKLDDP( descB, m );
 
     void *W = dague_private_memory_pop( p_work );
 
@@ -71,16 +67,16 @@ BODY
              "\t(side=%s, trans=%s, M=%d, N=%d, K=%d, ib=%d,\n"
              "\t A(%d,%d)[%p], lda=%d, T(%d,%d)[%p], ldt=%d, B(%d,%d)[%p], ldb=%d, W=%p, LDW=%d)\n",
              k, i, m, p, nextp, plasma_const( side ), plasma_const( trans ), tempmm, temppn, tempmin, ib,
-             k, p, A, ldak, k, p, T, descTS.mb, m, p, C, ldbm, W, descTS.nb );
+             k, p, A, ldak, k, p, T, descTS->mb, m, p, C, ldbm, W, descTS->nb );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zunmlq(
         side, trans,
         tempmm, temppn, tempmin, ib,
         A /* A(k, p) */, ldak,
-        T /* T(k, p) */, descTS.mb,
+        T /* T(k, p) */, descTS->mb,
         C /* B(m, p) */, ldbm,
-        W, descTS.nb );
+        W, descTS->nb );
 #endif /* !defined(DAGUE_DRY_RUN) */
 
     dague_private_memory_push( p_work, W );
@@ -92,13 +88,13 @@ zunmlq_in(k,i)  [profile = off]
   i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   p = %{ return qrtree.getm( &qrtree, k, i); %}
 
-  : dataA(k, p)
+  : descA(k, p)
 
-  RW A <- dataA(k, p)                      [type = UPPER_TILE]
-       -> A zunmlq(k, i, 0 .. descB.mt-1)  [type = UPPER_TILE]
+  RW A <- descA(k, p)                       [type = UPPER_TILE]
+       -> A zunmlq(k, i, 0 .. descB->mt-1)  [type = UPPER_TILE]
 
-  RW T <- dataTS(k, p)                     [type = LITTLE_T]
-       -> T zunmlq(k, i, 0 .. descB.mt-1)  [type = LITTLE_T]
+  RW T <- descTS(k, p)                      [type = LITTLE_T]
+       -> T zunmlq(k, i, 0 .. descB->mt-1)  [type = LITTLE_T]
 
 BODY
 {
@@ -109,8 +105,8 @@ END
 zttmlq(k, m, n)
   /* Execution Space */
   k = 0   .. KT2
-  m = 0   .. descB.mt-1
-  n = k+1 .. descB.nt-1
+  m = 0   .. descB->mt-1
+  n = k+1 .. descB->nt-1
 
   p =     %{ return qrtree.currpiv( &qrtree, k, n);    %}
   nextp = %{ return qrtree.nextpiv( &qrtree, k, p, n); %}
@@ -124,20 +120,20 @@ zttmlq(k, m, n)
   in1   = %{ return (k == KT) ? -1 : qrtree.geti(    &qrtree, k+1, n ); %}
 
   /* Locality */
-  : dataB(m, n)
+  : descB(m, n)
 
-  RW    A1   ->  (prevp == descA.nt) ? C zunmlq( k, ip, m ) : A1 zttmlq(k, m, prevp )
+  RW    A1   ->  (prevp == descA->nt) ? C zunmlq( k, ip, m ) : A1 zttmlq(k, m, prevp )
 
-             <- ((nextp == descA.nt) & ( p == k ) ) ? A  zttmlq_out_B(p, m)
-             <- ((nextp == descA.nt) & ( p != k ) ) ? A2 zttmlq( k, m, p    )
-             <-  (nextp != descA.nt) ?                A1 zttmlq( k, m, nextp)
+             <- ((nextp == descA->nt) & ( p == k ) ) ? A  zttmlq_out_B(p, m)
+             <- ((nextp == descA->nt) & ( p != k ) ) ? A2 zttmlq( k, m, p    )
+             <-  (nextp != descA->nt) ?                A1 zttmlq( k, m, nextp)
 
-  RW    A2   -> ( (type  == 0 ) && (k     == 0        ) ) ? dataB(m, n)
+  RW    A2   -> ( (type  == 0 ) && (k     == 0        ) ) ? descB(m, n)
              -> ( (type  == 0 ) && (k     != 0        ) ) ? A2 zttmlq(k-1, m, n )
-             -> ( (type  != 0 ) && (prevn == descA.nt ) ) ? C  zunmlq(k, in, m    )
-             -> ( (type  != 0 ) && (prevn != descA.nt ) ) ? A1 zttmlq(k, m, prevn )
+             -> ( (type  != 0 ) && (prevn == descA->nt ) ) ? C  zunmlq(k, in, m    )
+             -> ( (type  != 0 ) && (prevn != descA->nt ) ) ? A1 zttmlq(k, m, prevn )
 
-             <-   (k == KT)                    ? dataB( m, n )
+             <-   (k == KT)                    ? descB( m, n )
              <- ( (k <  KT) && (type1 != 0 ) ) ? C  zunmlq( k+1, in1, m )
              <- ( (k <  KT) && (type1 == 0 ) ) ? A2 zttmlq( k+1, m, n )
 
@@ -148,12 +144,12 @@ zttmlq(k, m, n)
 
 BODY
 {
-    int tempmm = ( m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
-    int tempnn = ( n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
-    int tempkm = ( k == (descA.mt-1)) ? (descA.m - k * descA.mb) : descA.mb;
-    int ldak = BLKLDD( descA, k );
-    int ldbm = BLKLDD( descB, m );
-    int ldwork = descTS.nb;
+    int tempmm = ( m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
+    int tempnn = ( n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
+    int tempkm = ( k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
+    int ldak = BLKLDDP( descA, k );
+    int ldbm = BLKLDDP( descB, m );
+    int ldwork = descTS->nb;
 
     void *W = dague_private_memory_pop( p_work );
 
@@ -161,27 +157,27 @@ BODY
              "\t(side=%s, trans=%s, M1=%d, N1=%d, M2=%d, N2=%d, K=%d, ib=%d,\n"
              "\t A1(%d,%d)[%p], lda1=%d, A2(%d,%d)[%p], lda2=%d, V(%d,%d)[%p], ldv=%d, T(%d,%d)[%p], ldt=%d, W=%p, LDW=%d)\n",
              k, m, n, plasma_const( side ), plasma_const( trans ),
-             tempmm, descB.nb, tempmm, tempnn, tempkm, ib,
-             m, p, A1, ldbm, m, n, A2, ldbm, k, n, V, ldak, k, n, T, descTS.mb, W, ldwork );
+             tempmm, descB->nb, tempmm, tempnn, tempkm, ib,
+             m, p, A1, ldbm, m, n, A2, ldbm, k, n, V, ldak, k, n, T, descTS->mb, W, ldwork );
 
 #if !defined(DAGUE_DRY_RUN)
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmlq(
             side, trans,
-            tempmm, descB.nb, tempmm, tempnn, tempkm, ib,
+            tempmm, descB->nb, tempmm, tempnn, tempkm, ib,
             A1 /* B(m, p) */, ldbm,
             A2 /* B(m, n) */, ldbm,
             V  /* A(k, n) */, ldak,
-            T  /* T(k, n) */, descTT.mb,
+            T  /* T(k, n) */, descTT->mb,
             W, ldwork );
     } else {
         CORE_zttmlq(
             side, trans,
-            tempmm, descB.nb, tempmm, tempnn, tempkm, ib,
+            tempmm, descB->nb, tempmm, tempnn, tempkm, ib,
             A1 /* B(m, p) */, ldbm,
             A2 /* B(m, n) */, ldbm,
             V  /* A(k, n) */, ldak,
-            T  /* T(k, n) */, descTT.mb,
+            T  /* T(k, n) */, descTT->mb,
             W, ldwork );
     }
 #endif /* !defined(DAGUE_DRY_RUN) */
@@ -192,17 +188,17 @@ END
 
 zttmlq_in(k, n)  [profile = off]
   k = 0   .. KT2
-  n = k+1 .. descA.nt-1
+  n = k+1 .. descA->nt-1
   type = %{ return qrtree.gettype( &qrtree, k, n );   %}
 
-  : dataA(k, n)
+  : descA(k, n)
 
-  RW A <- dataA(k, n)
-       -> (type == 0) ? V zttmlq(k, 0..descB.mt-1, n)
-       -> (type != 0) ? V zttmlq(k, 0..descB.mt-1, n) [type = LOWER_TILE]
+  RW A <- descA(k, n)
+       -> (type == 0) ? V zttmlq(k, 0..descB->mt-1, n)
+       -> (type != 0) ? V zttmlq(k, 0..descB->mt-1, n) [type = LOWER_TILE]
 
-  RW T <- dataTT(k, n)                                [type = LITTLE_T]
-       -> T zttmlq(k, 0..descB.mt-1, n)               [type = LITTLE_T]
+  RW T <- descTT(k, n)                                [type = LITTLE_T]
+       -> T zttmlq(k, 0..descB->mt-1, n)               [type = LITTLE_T]
 
 BODY
 {
@@ -212,13 +208,13 @@ END
 
 zttmlq_out_B(k, m) [profile = off]
   k = 0 .. KT2
-  m = 0 .. descB.mt-1
+  m = 0 .. descB->mt-1
   prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
-  : dataB(m, k)
+  : descB(m, k)
 
   RW A -> A1 zttmlq( k, m, prevp )
-       <- dataB(m, k)
+       <- descB(m, k)
 
 BODY
 {

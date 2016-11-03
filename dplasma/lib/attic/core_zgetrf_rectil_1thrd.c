@@ -125,7 +125,7 @@ CORE_zgetrf_rectil_update(const PLASMA_desc A, int *IPIV,
     PLASMA_Complex64_t *Atop, *Atop2, *U, *L;
     int offset = A.i;
 
-    ldft = PLASMA_BLKLDD(A, 0);
+    ldft = PLASMA_BLKLDDP(A, 0);
     Atop  = A(0, 0) + column * ldft;
     Atop2 = Atop    + n1     * ldft;
 
@@ -138,7 +138,7 @@ CORE_zgetrf_rectil_update(const PLASMA_desc A, int *IPIV,
         {
             it = ip / A.mb;
             i  = ip % A.mb;
-            ld = PLASMA_BLKLDD(A, it);
+            ld = PLASMA_BLKLDDP(A, it);
             cblas_zswap(n2, Atop2                     + j, ldft,
                         A(it, 0) + (column+n1)*ld + i, ld   );
         }
@@ -167,7 +167,7 @@ CORE_zgetrf_rectil_update(const PLASMA_desc A, int *IPIV,
     /* Update the other blocks */
     for( it = ft+1; it < lt; it++)
     {
-        ld = PLASMA_BLKLDD( A, it );
+        ld = PLASMA_BLKLDDP( A, it );
         L  = A( it, 0 ) + column * ld;
         lm = it == A.mt-1 ? A.m - it * A.mb : A.mb;
 
@@ -198,7 +198,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
     double             abstmp1;
     int offset = A.i;
 
-    ldft = PLASMA_BLKLDD(A, 0);
+    ldft = PLASMA_BLKLDDP(A, 0);
     Atop = A(0, 0) + column * ldft;
 
     if ( width > 1 ) {
@@ -224,7 +224,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
                 {
                     it = ip / A.mb;
                     i  = ip % A.mb;
-                    ld = PLASMA_BLKLDD(A, it);
+                    ld = PLASMA_BLKLDDP(A, it);
                     cblas_zswap(n2, Atop2                     + j, ldft,
                                     A(it, 0) + (column+n1)*ld + i, ld   );
                 }
@@ -287,7 +287,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
         /* Update the other blocks */
         for( it = ft+1; it < lt; it++)
         {
-            ld = PLASMA_BLKLDD( A, it );
+            ld = PLASMA_BLKLDDP( A, it );
             L  = A( it, 0 ) + column * ld;
             lm = it == A.mt-1 ? A.m - it * A.mb : A.mb;
 
@@ -327,7 +327,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
         U[n1] = *pivot; /* all threads have the pivot element: no need for synchronization */
         if ( jp-offset != column+n1 ) /* if there is a need to exchange the pivot */
         {
-            ld = PLASMA_BLKLDD(A, max_it);
+            ld = PLASMA_BLKLDDP(A, max_it);
             Atop2 = A( max_it, 0 ) + (column + n1 )* ld + max_i;
             *Atop2 = tmp2;
         }
@@ -347,7 +347,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
                 {
                     it = ip / A.mb;
                     i  = ip % A.mb;
-                    ld = PLASMA_BLKLDD(A, it);
+                    ld = PLASMA_BLKLDDP(A, it);
                     cblas_zswap(n1, Atop + j,                 ldft,
                                     A(it, 0) + column*ld + i, ld  );
                 }
@@ -362,7 +362,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
             tmp2 = Atop[column];
 
             /* First tmp1 */
-            ld = PLASMA_BLKLDD(A, ft);
+            ld = PLASMA_BLKLDDP(A, ft);
             Atop2   = A( ft, 0 );
             lm      = ft == A.mt-1 ? A.m - ft * A.mb : A.mb;
             max_it  = ft;
@@ -415,7 +415,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
 
                     for( it = ft+1; it < lt; it++)
                     {
-                        ld = PLASMA_BLKLDD(A, it);
+                        ld = PLASMA_BLKLDDP(A, it);
                         Atop2 = A( it, 0 ) + column * ld;
                         lm = it == A.mt-1 ? A.m - it * A.mb : A.mb;
                         cblas_zscal( lm, CBLAS_SADDR(pivval), Atop2, 1 );
@@ -434,7 +434,7 @@ CORE_zgetrf_rectil_rec(const PLASMA_desc A, int *IPIV, int *info,
 
                     for( it = ft+1; it < lt; it++)
                         {
-                            ld = PLASMA_BLKLDD(A, it);
+                            ld = PLASMA_BLKLDDP(A, it);
                             Atop2 = A( it, 0 ) + column * ld;
                             lm = it == A.mt-1 ? A.m - it * A.mb : A.mb;
 

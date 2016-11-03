@@ -46,17 +46,16 @@ Q            [type = "int"]
 ntype        [type = "PLASMA_enum"]
 uplo         [type = "PLASMA_enum"]
 diag         [type = "PLASMA_enum"]
-dataA        [type = "dague_ddesc_t *"]
+descA        [type = "const tiled_matrix_desc_t*"]
 Tdist        [type = "dague_ddesc_t *"]
 norm         [type = "double *"]
 
-descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
-minMNT       [type = "int" hidden=on default="dplasma_imin( descA.mt, descA.nt )" ]
-minMN        [type = "int" hidden=on default="dplasma_imin( descA.m,  descA.n )"  ]
-MT           [type = "int" hidden=on default="(uplo == PlasmaUpper) ? minMNT : descA.mt"]
-NT           [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMNT : descA.nt"]
-M            [type = "int" hidden=on default="(uplo == PlasmaUpper) ? minMN  : descA.m"]
-N            [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMN  : descA.n"]
+minMNT       [type = "int" hidden=on default="dplasma_imin( descA->mt, descA->nt )" ]
+minMN        [type = "int" hidden=on default="dplasma_imin( descA->m,  descA->n )"  ]
+MT           [type = "int" hidden=on default="(uplo == PlasmaUpper) ? minMNT : descA->mt"]
+NT           [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMNT : descA->nt"]
+M            [type = "int" hidden=on default="(uplo == PlasmaUpper) ? minMN  : descA->m"]
+N            [type = "int" hidden=on default="(uplo == PlasmaLower) ? minMN  : descA->n"]
 
 /**************************************************
  *
@@ -74,19 +73,19 @@ STEP1(m, n)
     n = nmin .. nmax
 
     // Parallel partitioning
-    :dataA(m, n)
+    :descA(m, n)
 
     // Parameters
-    READ A <- dataA(m, n)
+    READ A <- descA(m, n)
     RW   W <- ( n < (nmax+1-Q)) ? W STEP1( m, n+Q ) : NEW               [type = COL]
            -> ( n < (nmin+Q)  ) ? W STEP2( m, n%Q ) : W STEP1( m, n-Q ) [type = COL]
 
 BODY
 {
     double *dW = (double*)W;
-    int tempmm = ( m == (MT-1) ) ? M - m * descA.mb : descA.mb;
-    int tempnn = ( n == (NT-1) ) ? N - n * descA.nb : descA.nb;
-    int ldam = BLKLDD( descA, m );
+    int tempmm = ( m == (MT-1) ) ? M - m * descA->mb : descA->mb;
+    int tempnn = ( n == (NT-1) ) ? N - n * descA->nb : descA->nb;
+    int ldam = BLKLDDP( descA, m );
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
@@ -120,7 +119,7 @@ BODY
     case PlasmaInfNorm:
     {
         if (n > (nmax-Q)) {
-            memset( W, 0, descA.mb * sizeof(double) );
+            memset( W, 0, descA->mb * sizeof(double) );
         }
         if ( (m == n) && (uplo != PlasmaUpperLower) ) {
             CORE_ztrasm( PlasmaRowwise, uplo, diag,
@@ -212,9 +211,9 @@ BODY
 
     case PlasmaInfNorm:
     {
-        int tempmm = ( m == (MT-1) ) ? M - m * descA.mb : descA.mb;
+        int tempmm = ( m == (MT-1) ) ? M - m * descA->mb : descA->mb;
         if( col > nmax ) {
-            memset( W, 0, descA.mb * sizeof(double) );
+            memset( W, 0, descA->mb * sizeof(double) );
         }
         if(n > 0) {
             cblas_daxpy( tempmm, 1., A, 1, W, 1);
@@ -296,7 +295,7 @@ BODY
 
     case PlasmaInfNorm:
     {
-        int tempmm = ( m == (MT-1) ) ? M - m * descA.mb : descA.mb;
+        int tempmm = ( m == (MT-1) ) ? M - m * descA->mb : descA->mb;
         double maxval = 0;
         int i;
 

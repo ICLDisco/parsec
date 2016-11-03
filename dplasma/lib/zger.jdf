@@ -19,24 +19,21 @@ extern "C" %{
  */
 trans [type = int]
 alpha [type = dague_complex64_t]
-dataX [type = "dague_ddesc_t *"]
-descX [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataX)"]
-dataY [type = "dague_ddesc_t *"]
-descY [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataY)"]
-dataA [type = "dague_ddesc_t *"]
-descA [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+descX [type = "const tiled_matrix_desc_t*"]
+descY [type = "const tiled_matrix_desc_t*"]
+descA [type = "tiled_matrix_desc_t*"]
 
 /**************************************************
  *                       READ_X                   *
  **************************************************/
 READ_X(m)  [profile = off]
 
-m = 0 .. descX.mt-1
+m = 0 .. descX->mt-1
 
-: dataX(m)
+: descX(m)
 
-READ X <- dataX(m)                  [type = VECTOR]
-       -> X GER(m, 0..descA.nt-1)   [type = VECTOR]
+READ X <- descX(m)                  [type = VECTOR]
+       -> X GER(m, 0..descA->nt-1)   [type = VECTOR]
 BODY
 {
     printlog("X(%d)\n", m );
@@ -48,12 +45,12 @@ END
  **************************************************/
 READ_Y(m)  [profile = off]
 
-m = 0 .. descY.mt-1
+m = 0 .. descY->mt-1
 
-: dataY(m)
+: descY(m)
 
-READ Y <- dataY(m)                  [type = VECTOR]
-       -> Y GER(0..descA.mt-1, m)   [type = VECTOR]
+READ Y <- descY(m)                  [type = VECTOR]
+       -> Y GER(0..descA->mt-1, m)   [type = VECTOR]
 BODY
 {
     printlog("read Y(%d)\n", m );
@@ -66,22 +63,22 @@ END
 GER(m, n)
 
 // Execution space
-m = 0 .. descA.mt-1
-n = 0 .. descA.nt-1
+m = 0 .. descA->mt-1
+n = 0 .. descA->nt-1
 
 // Parallel partitioning
-: dataA(m, n)
+: descA(m, n)
 
 // Parameters
 READ X <- X READ_X(m)  [type = VECTOR]
 READ Y <- Y READ_Y(n)  [type = VECTOR]
-RW   A <- dataA(m, n)
-       -> dataA(m, n)
+RW   A <- descA(m, n)
+       -> descA(m, n)
 BODY
 {
-    int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
-    int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
-    int ldam = BLKLDD(descA, m);
+    int tempmm = (m == descA->mt-1) ? descA->m - m * descA->mb : descA->mb;
+    int tempnn = (n == descA->nt-1) ? descA->n - n * descA->nb : descA->nb;
+    int ldam = BLKLDDP(descA, m);
 
 #if !defined(DAGUE_DRY_RUN)
     if ( trans == PlasmaConjTrans ){

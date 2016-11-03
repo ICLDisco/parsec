@@ -16,13 +16,10 @@ extern "C" %{
  * into a 1D cyclic rectangle                              *
  ***********************************************************/
 
-#define ddescA (__dague_handle->super.A)
-#define ddescB (__dague_handle->super.B)
-
 %}
 
-A   [type = "sym_two_dim_block_cyclic_t*"]
-B   [type = "two_dim_block_cyclic_t*"]
+gA  [type = "sym_two_dim_block_cyclic_t*"]
+gB  [type = "two_dim_block_cyclic_t*"]
 MT  [type = int]
 NT  [type = int]
 MB  [type = int]
@@ -33,12 +30,12 @@ convert_diag(k)
 
 k = 0 .. NT
 
-: B(0,k)
+: gB(0,k)
 
-RO  D   <- (k < NT)     ? A read_diag(k)    : B(0,k)
-RO  SD  <- (k < NT-1)   ? A read_subdiag(k) : B(0,k)
-RW  B   <- B(0,k)
-        -> B(0,k)
+RO  D   <- (k < NT)     ? A read_diag(k)    : gB(0,k)
+RO  SD  <- (k < NT-1)   ? A read_subdiag(k) : gB(0,k)
+RW  B   <- gB(0,k)
+        -> gB(0,k)
 
 BODY
     int j;
@@ -56,7 +53,7 @@ BODY
     if(k == NT)
     {
         /* Check if the output matrix has size for padding */
-        if(ddescB->super.n == (NT+1)*BNB)
+        if(gB->super.n == (NT+1)*BNB)
         {
             /*
             for(j = 0; j < NB+2; j++) for(i = 0; i < MB+1; i++)
@@ -66,7 +63,7 @@ BODY
         }
         else
         {
-            assert(ddescB->super.n == NT*BNB);
+            assert(gB->super.n == NT*BNB);
         }
     }
     else
@@ -103,9 +100,9 @@ read_diag(k)
 
 k = 0 .. NT-1
 
-: A(k,k)
+: gA(k,k)
 
-RO  A <- A(k,k)
+RO  A <- gA(k,k)
       -> D convert_diag(k)
 
 BODY
@@ -119,9 +116,9 @@ read_subdiag(k)
 
 k = 0 .. NT-2
 
-: A(k+1,k)
+: gA(k+1,k)
 
-RO  A <- A(k+1,k)
+RO  A <- gA(k+1,k)
       -> SD convert_diag(k)
 
 BODY

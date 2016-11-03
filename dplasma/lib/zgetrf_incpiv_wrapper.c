@@ -125,8 +125,8 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
                                         NULL, INFO, NULL);
     }
 
-    dague_getrf_incpiv->work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( dague_getrf_incpiv->work_pool, ib * L->nb * sizeof(dague_complex64_t) );
+    dague_getrf_incpiv->_g_work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( dague_getrf_incpiv->_g_work_pool, ib * L->nb * sizeof(dague_complex64_t) );
 
     /* A */
     dplasma_add2arena_tile( dague_getrf_incpiv->arenas[DAGUE_zgetrf_incpiv_DEFAULT_ARENA],
@@ -192,8 +192,8 @@ dplasma_zgetrf_incpiv_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_SMALL_L_ARENA   ] );
     dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_PIVOT_ARENA     ] );
 
-    dague_private_memory_fini( dague_zgetrf_incpiv->work_pool );
-    free( dague_zgetrf_incpiv->work_pool );
+    dague_private_memory_fini( dague_zgetrf_incpiv->_g_work_pool );
+    free( dague_zgetrf_incpiv->_g_work_pool );
 
     dague_handle_free(handle);
 }

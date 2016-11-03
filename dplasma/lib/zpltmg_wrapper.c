@@ -49,7 +49,7 @@ dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
 
     tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
     tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
-    ldam   = BLKLDD( *descA, m );
+    ldam   = BLKLDDP( descA, m );
 
     if ( args->mtxtype == PlasmaMatrixCircul ) {
         return CORE_zpltmg_circul(
@@ -124,9 +124,8 @@ dplasma_zpltmg_generic( dague_context_t *dague,
         dplasma_progress(dague);
         dplasma_map_Destruct( dague_zpltmg );
         return 0;
-    } else {
-        return -101;
     }
+    return -101;
 }
 
 /**
@@ -177,25 +176,25 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
     switch( mtxtype ) {
     case PlasmaMatrixChebvand:
         handle = (dague_handle_t*)dague_zpltmg_chebvand_new( seed,
-                                                             (dague_ddesc_t*)A );
+                                                            A );
         vectorsize = 2 * A->nb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixFiedler:
         handle = (dague_handle_t*)dague_zpltmg_fiedler_new( seed,
-                                                            (dague_ddesc_t*)A );
+                                                            A );
         vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixHankel:
         handle = (dague_handle_t*)dague_zpltmg_hankel_new( seed,
-                                                           (dague_ddesc_t*)A );
+                                                           A );
         vectorsize = A->mb * sizeof(dague_complex64_t);
         break;
 
     case PlasmaMatrixToeppd:
         handle = (dague_handle_t*)dague_zpltmg_toeppd_new( seed,
-                                                           (dague_ddesc_t*)A );
+                                                           A );
         vectorsize = 2 * A->mb * sizeof(dague_complex64_t);
         break;
 

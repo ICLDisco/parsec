@@ -48,13 +48,12 @@ void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
           PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal );
 %}
 
-descA  [type = "dague_seg_ddesc_t*"]
-A      [type = "dague_ddesc_t *"]
+mA     [type = "dague_seg_ddesc_t*"]
 Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*mA->A_org.mb*mA->A_org.nb)"]
 
 %option DAGUE_ARENA_STRUT = 36
 
@@ -65,19 +64,19 @@ HEBUT_Diag(i)
   /* Execution space */
   i = 0 .. mt/2-1
 
-  : A(i,i)
+  : mA(i,i)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBUT_Reader_TL(i,i) [ type = %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBUT_Writer_TL(i,i) [ type = %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Atl <- A HEBUT_Reader_TL(i,i) [ type = %{ return segment_to_arena_index(mA, i, i); %}]
+          -> A HEBUT_Writer_TL(i,i) [ type = %{ return segment_to_arena_index(mA, i, i); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBUT_Reader_BL(i,i) [ type = %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBUT_Writer_BL(i,i) [ type = %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Abl <- A HEBUT_Reader_BL(i,i) [ type = %{ return segment_to_arena_index(mA, i, i); %}]
+          -> A HEBUT_Writer_BL(i,i) [ type = %{ return segment_to_arena_index(mA, i, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBUT_Reader_BR(i,i) [ type = %{ return segment_to_arena_index(descA, i, i); %}]
-          -> A HEBUT_Writer_BR(i,i) [ type = %{ return segment_to_arena_index(descA, i, i); %}]
+  RW  Abr <- A HEBUT_Reader_BR(i,i) [ type = %{ return segment_to_arena_index(mA, i, i); %}]
+          -> A HEBUT_Writer_BR(i,i) [ type = %{ return segment_to_arena_index(mA, i, i); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-i
@@ -94,16 +93,16 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
            i, i, i, Atl);
 
-  type = segment_to_type_index(descA->seg_info, i, i);
-  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(mA->seg_info, i, i);
+  type_exists = type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
-  segment_to_tile(descA, i, i, &i_tile, &j_tile, &off_in_tile);
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
+  segment_to_tile(mA, i, i, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
-  N = descA->A_org->lm;
+  N = mA->A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
@@ -113,9 +112,9 @@ BODY
   printf ("=> HEBUT_Diag(%d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, i_tile, j_tile, off_in_tile, i_seg, j_seg);
 #endif
 
-  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Abl, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Abl, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
-  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Abl, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Abl, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Abl, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Abl, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, ON_DIAG);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("--> HEBUT_Diag(%d): mb_tile=%u, nb_tile=%u, mb_seg=%u, nb_seg=%u\n",i, mb_tile, nb_tile, mb_seg, nb_seg);
@@ -163,23 +162,23 @@ HEBUT_Lower(i,j)
   i = 1 .. mt/2-1
   j = 0 .. i-1
 
-  : A(i,j)
+  : mA(i,j)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A HEBUT_Reader_TL(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBUT_Writer_TL(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Atl <- A HEBUT_Reader_TL(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+          -> A HEBUT_Writer_TL(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A HEBUT_Reader_BL(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBUT_Writer_BL(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abl <- A HEBUT_Reader_BL(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+          -> A HEBUT_Writer_BL(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A HEBUT_Reader_BL(j,i) [ type = %{ return segment_to_arena_index(descA, j, i); %}]
-          -> A HEBUT_Writer_BL(j,i) [ type = %{ return segment_to_arena_index(descA, j, i); %}]
+  RW  Atr <- A HEBUT_Reader_BL(j,i) [ type = %{ return segment_to_arena_index(mA, j, i); %}]
+          -> A HEBUT_Writer_BL(j,i) [ type = %{ return segment_to_arena_index(mA, j, i); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A HEBUT_Reader_BR(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-          -> A HEBUT_Writer_BR(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+  RW  Abr <- A HEBUT_Reader_BR(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+          -> A HEBUT_Writer_BR(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -201,24 +200,24 @@ BODY
   fflush(stdout);
 #endif
 
-  type = segment_to_type_index(descA->seg_info, i, j);
+  type = segment_to_type_index(mA->seg_info, i, j);
 #if defined(DEBUG_BUTTERFLY)
   printf("type = %d\n",type);
   fflush(stdout);
 #endif
-  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type_exists = type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
 #if defined(DEBUG_BUTTERFLY)
   printf("mb_seg = %d, nb_seg = %d\n",mb_seg, nb_seg);
   fflush(stdout);
 #endif
   assert( type_exists ); (void)type_exists;
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
-  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
+  segment_to_tile(mA, i, j, &i_tile, &j_tile, &off_in_tile);
 
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
-  N = descA->A_org->lm;
+  N = mA->A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
@@ -229,10 +228,10 @@ BODY
   printf ("=> HEBUT_Lower(%d, %d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, j, i_tile, j_tile, off_in_tile, i_seg, j_seg);
 #endif
 
-  BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
-  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
-  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubef, Uaft, BL_IS_TR_TRANS);
-  BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
+  BFT_zQTL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
+  BFT_zQBL(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
+  BFT_zQTR_trans( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubef, Uaft, BL_IS_TR_TRANS);
+  BFT_zQBR(       mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubef, Uaft, BL_IS_TR_TRANS, OFF_DIAG);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("--> HEBUT_Lower(%d,%d): mb_tile=%u, nb_tile=%u, mb_seg=%u, nb_seg=%u\n",i,j, mb_tile, nb_tile, mb_seg, nb_seg);
@@ -281,10 +280,10 @@ HEBUT_Reader_TL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i,j)
+  : mA(i,j)
 
-READ A <- A(i, j)                                           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- mA(i, j)                                          [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+       -> (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -304,15 +303,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_TL(%d,%d)\n",i,j);
 
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
 
-  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(mA, i, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(mA->seg_info, i, j);
+  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -335,12 +334,12 @@ HEBUT_Reader_BL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i+mt/2,j)
+  : mA(i+mt/2,j)
 
-READ A <- A(i+mt/2, j)                  [ type = %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
-       -> (i>j)  ? Abl HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i==j) ? Abl HEBUT_Diag(i)    [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-       -> (i<j)  ? Atr HEBUT_Lower(j,i) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- mA(i+mt/2, j)                 [ type = %{ return segment_to_arena_index(mA, i+mt/2, j); %}]
+       -> (i>j)  ? Abl HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+       -> (i==j) ? Abl HEBUT_Diag(i)    [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+       -> (i<j)  ? Atr HEBUT_Lower(j,i) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -360,15 +359,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BL(%d,%d)\n",i,j);
 
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
 
-  segment_to_tile(descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(mA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(mA->seg_info, i, j);
+  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -391,10 +390,10 @@ HEBUT_Reader_BR(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+mt/2,j+nt/2)
+  : mA(i+mt/2,j+nt/2)
 
-READ A <- A(i+mt/2, j+nt/2)                                 [ type = %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
-       -> (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- mA(i+mt/2, j+nt/2)                                [ type = %{ return segment_to_arena_index(mA, i+mt/2, j+nt/2); %}]
+       -> (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
 
 /* Priority */
 ;nt*mt-(i*nt)-j
@@ -414,15 +413,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Reader_BR(%d,%d)\n",i,j);
 
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
 
-  segment_to_tile(descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(mA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(mA->seg_info, i, j);
+  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -445,10 +444,10 @@ HEBUT_Writer_TL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i,j)
+  : mA(i,j)
 
-RW A <- (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i, j)                                            [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+RW A <- (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+     -> mA(i, j)                                           [ type = %{ return segment_to_arena_index(mA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -465,15 +464,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_TL(%d,%d)\n",i,j);
 
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
 
-  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(mA, i, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(mA->seg_info, i, j);
+  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");
@@ -496,12 +495,12 @@ HEBUT_Writer_BL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i+mt/2,j)
+  : mA(i+mt/2,j)
 
-RW A <- (i==j) ? Abl HEBUT_Diag(i)     [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     <- (i>j)  ? Abl HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     <- (i<j)  ? Abl HEBUT_Lower(j, i) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j)                   [ type = %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
+RW A <- (i==j) ? Abl HEBUT_Diag(i)     [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+     <- (i>j)  ? Abl HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+     <- (i<j)  ? Abl HEBUT_Lower(j, i) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+     -> mA(i+mt/2, j)                  [ type = %{ return segment_to_arena_index(mA, i+mt/2, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -518,15 +517,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BL(%d,%d)\n",i,j);
 
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
 
-  segment_to_tile(descA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(mA, i+mt/2, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(mA->seg_info, i, j);
+  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");
@@ -549,10 +548,10 @@ HEBUT_Writer_BR(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+mt/2,j+nt/2)
+  : mA(i+mt/2,j+nt/2)
 
-RW A <- (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j+nt/2)                                  [ type = %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
+RW A <- (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+     -> mA(i+mt/2, j+nt/2)                                 [ type = %{ return segment_to_arena_index(mA, i+mt/2, j+nt/2); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -569,15 +568,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("HEBUT_Writer_BR(%d,%d)\n",i,j);
 
-  mb_tile = descA->A_org->mb;
-  nb_tile = descA->A_org->nb;
+  mb_tile = mA->A_org->mb;
+  nb_tile = mA->A_org->nb;
 
-  segment_to_tile(descA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(mA, i+mt/2, j+nt/2, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(mA->seg_info, i, j);
+  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");

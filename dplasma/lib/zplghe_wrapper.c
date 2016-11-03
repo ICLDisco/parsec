@@ -21,7 +21,7 @@ typedef struct zplghe_args_s zplghe_args_t;
 
 static int
 dplasma_zplghe_operator( dague_execution_unit_t *eu,
-                         const tiled_matrix_desc_t *descA,
+                         const tiled_matrix_desc_t *descA->
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *op_data )
@@ -34,7 +34,7 @@ dplasma_zplghe_operator( dague_execution_unit_t *eu,
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam   = BLKLDD( *descA, m );
+    ldam   = BLKLDDP( *descA-> m );
 
     CORE_zplghe(
         args->bump, tempmm, tempnn, A, ldam,

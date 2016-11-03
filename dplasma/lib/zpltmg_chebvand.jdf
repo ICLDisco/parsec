@@ -17,17 +17,16 @@ extern "C" %{
  * Globals
  */
 seed   [type = "unsigned long long int" ]
-dataA  [type = "dague_ddesc_t *"]
-descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
+descA  [type = "tiled_matrix_desc_t*"]
 
 /**************************************************
  *                       READ_X                   *
  **************************************************/
 GENWS(n) [profile = off]
 
-n = 0 .. descA.nt-1
+n = 0 .. descA->nt-1
 
-: dataA(0, n)
+: descA(0, n)
 
 WRITE W -> W PLRNT(0, n)  [type = VECTOR]
 
@@ -43,29 +42,29 @@ END
 PLRNT(m, n) [profile = off]
 
 // Execution space
-m = 0 .. descA.mt-1
-n = 0 .. descA.nt-1
+m = 0 .. descA->mt-1
+n = 0 .. descA->nt-1
 
 // Parallel partitioning
-: dataA(m, n)
+: descA(m, n)
 
 // Parameters
 RW   W <- (m == 0) ? W GENWS(n) : W PLRNT( m-1, n )  [type = VECTOR]
-       -> (m < descA.mt-1) ? W PLRNT( m+1, n )       [type = VECTOR]
+       -> (m < descA->mt-1) ? W PLRNT( m+1, n )       [type = VECTOR]
 
-RW   A <- dataA(m, n)
-       -> dataA(m, n)
+RW   A <- descA(m, n)
+       -> descA(m, n)
 
 BODY
 {
-    int tempmm = (m == descA.mt-1) ? descA.m - m * descA.mb : descA.mb;
-    int tempnn = (n == descA.nt-1) ? descA.n - n * descA.nb : descA.nb;
-    int ldam = BLKLDD(descA, m);
+    int tempmm = (m == descA->mt-1) ? descA->m - m * descA->mb : descA->mb;
+    int tempnn = (n == descA->nt-1) ? descA->n - n * descA->nb : descA->nb;
+    int ldam = BLKLDDP(descA, m);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zpltmg_chebvand(
         tempmm, tempnn, A, ldam,
-        descA.n, m*descA.mb, n*descA.nb, W );
+        descA->n, m*descA->mb, n*descA->nb, W );
 #endif
 }
 END

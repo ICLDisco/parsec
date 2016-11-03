@@ -13,18 +13,17 @@ extern "C" %{
 #include "data_dist/matrix/matrix.h"
 #include "dague/vpmap.h"
 
-#define nbthreads( __k ) (dplasma_imin( ((descA.mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
+#define nbthreads( __k ) (dplasma_imin( ((descA->mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
 
 %}
 
 /** Globals */
-dataA     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t*"]
 dataIP    [type = "dague_ddesc_t *"]
 INFO      [type = "int*"]
 
-descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 nbmaxthrd [type = "int" hidden=on default="( dplasma_imax( 1, dplasma_imin( vpmap_get_nb_threads_in_vp(0) - 1, 48 ) ) )" ] /* 48 is the actual limit of the kernel */
-KT        [type = "int" hidden=on default="( dplasma_imin( descA.mt, descA.nt )-1 )" ]
+KT        [type = "int" hidden=on default="( dplasma_imin( descA->mt, descA->nt )-1 )" ]
 
 getrfdata [type = "CORE_zgetrf_data_t *" hidden = on default = "NULL"]
 
@@ -34,18 +33,18 @@ getrfdata [type = "CORE_zgetrf_data_t *" hidden = on default = "NULL"]
  ************************************************************************************/
 tile2panel(k, n) [profile = off]
   k = 0   .. KT-1
-  n = k+1 .. descA.nt-1
+  n = k+1 .. descA->nt-1
 
   ntrd = %{ return nbthreads( k+1 ); %}
 
-  :dataA(k+1, n)
+  :descA(k+1, n)
 
-  CTL  ctl <- ctl gemm(k, k+1..descA.mt-1, n)
+  CTL  ctl <- ctl gemm(k, k+1..descA->mt-1, n)
            -> (n == (k+1)) ? ctl getrf(k+1, 0..ntrd)
            -> (n >  (k+1)) ? ctl swptrsm(k+1, n)
            -> ctl swpback(k+1, k)
 
-  ;descA.nt-n-1
+  ;descA->nt-n-1
 
 BODY
 {
@@ -93,39 +92,39 @@ getrf(k, t) [high_priority = on]
   k  = 0 .. KT
   t  = 0 .. %{ return nbthreads( k ); %}
   m1 = %{ return k + t * 4; %}
-  m2 = %{ return dplasma_imin( k + (t+1) * 4 - 1, descA.mt-1); %}
+  m2 = %{ return dplasma_imin( k + (t+1) * 4 - 1, descA->mt-1); %}
 
   /* Locality */
-  :dataA(k, k)
+  :descA(k, k)
 
-  RW    A    <- (k == 0) ? dataA(k, k) : C gemm(k-1, k, k)
-             -> (t == 0) && (k < (descA.nt-1)) ? A swptrsm(k, k+1..descA.nt-1)
-             -> (t == 0) ? dataA(k, k)
+  RW    A    <- (k == 0) ? descA(k, k) : C gemm(k-1, k, k)
+             -> (t == 0) && (k < (descA->nt-1)) ? A swptrsm(k, k+1..descA->nt-1)
+             -> (t == 0) ? descA(k, k)
 
   RW    IPIV <- IP IPIV_in(k)                                                       [type = PIVOT]
              -> ( t==0 ) ? IP IPIV_out(k)                                           [type = PIVOT]
-             -> ((t==0) && (k < (descA.nt-1))) ? IPIV swptrsm(k, k+1 .. descA.nt-1) [type = PIVOT]
+             -> ((t==0) && (k < (descA->nt-1))) ? IPIV swptrsm(k, k+1 .. descA->nt-1) [type = PIVOT]
              -> ((t==0) && (k > 0))            ? IPIV swpback(k, 0 .. k-1)          [type = PIVOT]
 
   CTL   ctl  <- (k > 0) ? ctl tile2panel(k-1, k)
-             -> (t == 0) && (k < descA.mt-1) ? ctl GEMM_A_in(k, k+1..descA.mt-1)
+             -> (t == 0) && (k < descA->mt-1) ? ctl GEMM_A_in(k, k+1..descA->mt-1)
 
   /* Priority */
-  ; descA.nt-k-1
+  ; descA->nt-k-1
 
 BODY
 {
-    int tempk  = k * descA.mb;
-    int tempm  = descA.m - tempk;
-    int tempkn = k == descA.nt-1 ? descA.n-k*descA.nb : descA.nb;
-    int ldak = BLKLDD(descA, k);
+    int tempk  = k * descA->mb;
+    int tempm  = descA->m - tempk;
+    int tempkn = k == descA->nt-1 ? descA->n-k*descA->nb : descA->nb;
+    int ldak = BLKLDDP(descA, k);
 
     printlog("CORE_zgetrf_rec(%d)\n"
              "\t(%d, %d, dataA(%d,%d)[%p], %d, dataIP(%d)[%p])",
              k, tempm, tempkn, k, k, A, ldak, k, IPIV);
 
 #if !defined(DAGUE_DRY_RUN)
-    int tempkm = k == descA.mt-1 ? tempm : descA.mb;
+    int tempkm = k == descA->mt-1 ? tempm : descA->mb;
     int nbthrd = nbthreads( k );
     int info[3];
 
@@ -139,10 +138,10 @@ BODY
     info[1] = t;
     info[2] = nbthrd+1;
 
-    if ( descA.storage == matrix_Tile ) {
+    if ( descA->storage == matrix_Tile ) {
         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                               descA.mb, descA.nb, descA.mb * descA.nb,
-                                               (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                               descA->mb, descA->nb, descA->mb * descA->nb,
+                                               (descA->mt-k)*descA->mb, descA->nb, 0, 0,
                                                tempm, tempkn);
         pdescA.mat = A;
         CORE_zgetrf_rectil(
@@ -176,41 +175,41 @@ END
 swptrsm(k, n)
   /* Execution space */
   k = 0   .. KT
-  n = k+1 .. descA.nt-1
+  n = k+1 .. descA->nt-1
 
   /* Locality */
-  :dataA(k, n)
+  :descA(k, n)
 
   READ  A    <- A    getrf(k, 0)
   READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
 
-  RW    B    <- ( 0 == k ) ? dataA(k,n) : C gemm(k-1, k, n)
-          /* <- dataA(k..descA.mt-1, n) : C gemm(k-1, k..descA.mt-1, n) */
-             -> (k < descA.mt-1) ? B gemm(k, k+1..descA.mt-1, n)
-             -> dataA(k, n)
+  RW    B    <- ( 0 == k ) ? descA(k,n) : C gemm(k-1, k, n)
+          /* <- descA(k..descA->mt-1, n) : C gemm(k-1, k..descA->mt-1, n) */
+             -> (k < descA->mt-1) ? B gemm(k, k+1..descA->mt-1, n)
+             -> descA(k, n)
 
   CTL   ctl  <- ( k > 0 ) ? ctl tile2panel(k-1, n)
 
 /* Priority */
-;descA.nt-n-1
+;descA->nt-n-1
 
 BODY
 {
-    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
-    int ldak = BLKLDD(descA, k);
+    int tempkm = ((k)==(descA->mt-1)) ? (descA->m-(k*descA->mb)) : (descA->mb);
+    int tempnn = ((n)==(descA->nt-1)) ? (descA->n-(n*descA->nb)) : (descA->nb);
+    int ldak = BLKLDDP(descA, k);
 
     printlog("CORE_zswptrsm(%d, %d)\n"
              "\t(%d, %d, dataA(%d,%d)[%p], B(%d,%d)[%p])",
              k, n, tempkm, tempnn, k, k, A, k, n, B);
 
 #if !defined(DAGUE_DRY_RUN)
-    if ( descA.storage == matrix_Tile ) {
-        int tempk = k * descA.mb;
-        int tempm = descA.m - tempk;
+    if ( descA->storage == matrix_Tile ) {
+        int tempk = k * descA->mb;
+        int tempm = descA->m - tempk;
         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                               descA.mb, descA.nb, descA.mb * descA.nb,
-                                               (descA.mt-k)*descA.mb, descA.nb, 0, 0,
+                                               descA->mb, descA->nb, descA->mb * descA->nb,
+                                               (descA->mt-k)*descA->mb, descA->nb, 0, 0,
                                                tempm, tempnn);
         pdescA.mat = (void*)B;
 
@@ -234,13 +233,13 @@ END
 GEMM_A_in(k, m)
   /* Execution space */
   k = 0   .. KT
-  m = k+1 .. descA.mt-1
+  m = k+1 .. descA->mt-1
 
   /* Locality */
-  :dataA(m, k)
+  :descA(m, k)
 
-  READ  A  <- ( k == 0 ) ? dataA(m, k) : C gemm(k-1, m, k)
-           -> A gemm(k, m, k+1..descA.nt-1)
+  READ  A  <- ( k == 0 ) ? descA(m, k) : C gemm(k-1, m, k)
+           -> A gemm(k, m, k+1..descA->nt-1)
   CTL  ctl <- ctl getrf(k, 0)
 
 BODY
@@ -253,17 +252,17 @@ END
 gemm(k, m, n)
   /* Execution space */
   k = 0   .. KT
-  m = k+1 .. descA.mt-1
-  n = k+1 .. descA.nt-1
+  m = k+1 .. descA->mt-1
+  n = k+1 .. descA->nt-1
 
   ntrd = %{ return nbthreads( k+1 ); %}
 
   /* Locality */
-  :dataA(m, n)
+  :descA(m, n)
 
   READ  A  <- A GEMM_A_in(k, m)
   READ  B  <- B swptrsm(k, n)
-  RW    C  <- ( k   == 0 ) ? dataA(m, n) : C gemm(k-1, m, n)
+  RW    C  <- ( k   == 0 ) ? descA(m, n) : C gemm(k-1, m, n)
            -> ( k+1 == n ) && ( k+1 == m ) ? A getrf(k+1, 0..ntrd)
            -> ( k+1 == n ) && ( k+1 <  m ) ? A GEMM_A_in(k+1, m)
            -> ( k+1 <  n ) && ( k+1 == m ) ? B swptrsm(k+1, n)
@@ -272,22 +271,22 @@ gemm(k, m, n)
   CTL  ctl -> (k < KT) ? ctl tile2panel(k, n)
 
   /* Priority */
-  ;descA.nt-n-1
+  ;descA->nt-n-1
 
 BODY
 {
-    int tempmm = (m == (descA.mt-1)) ? descA.m - m * descA.mb : descA.mb;
-    int tempnn = (n == (descA.nt-1)) ? descA.n - n * descA.nb : descA.nb;
-    int ldak = BLKLDD(descA, k);
-    int ldam = BLKLDD(descA, m);
+    int tempmm = (m == (descA->mt-1)) ? descA->m - m * descA->mb : descA->mb;
+    int tempnn = (n == (descA->nt-1)) ? descA->n - n * descA->nb : descA->nb;
+    int ldak = BLKLDDP(descA, k);
+    int ldam = BLKLDDP(descA, m);
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(%d, %d, %d, dataA(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)",
-             k, m, n, tempmm, tempnn, descA.mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
+             k, m, n, tempmm, tempnn, descA->mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
-               tempmm, tempnn, descA.mb,
+               tempmm, tempnn, descA->mb,
                -1., A /*(m, k)*/, ldam,
                     B /*(k, n)*/, ldak,
                1.,  C /*(m, n)*/, ldam );
@@ -305,14 +304,14 @@ swpback(k, n)
   n = 0 .. k-1
 
   /* Locality */
-  :dataA(k, n)
+  :descA(k, n)
 
-  RW    A    <- dataA(k, n)
-             -> dataA(k, n)
+  RW    A    <- descA(k, n)
+             -> descA(k, n)
 
   READ  IPIV <- IPIV getrf(k, 0)                                [type = PIVOT]
 
-  CTL   ctl  <- (n == (k-1)) ? ctl tile2panel(n, k..descA.nt-1)
+  CTL   ctl  <- (n == (k-1)) ? ctl tile2panel(n, k..descA->nt-1)
 
   CTL   ctl2 <- (n <  (k-1)) ? ctl2 swpback(k-1, n)
              -> (k <  KT   ) ? ctl2 swpback(k+1, n)
@@ -322,27 +321,27 @@ swpback(k, n)
 
 BODY
 {
-    int tempkm = k == descA.mt-1 ? descA.m - k * descA.mb : descA.mb;
-    int tempkn = k == descA.nt-1 ? descA.n - k * descA.nb : descA.nb;
+    int tempkm = k == descA->mt-1 ? descA->m - k * descA->mb : descA->mb;
+    int tempkn = k == descA->nt-1 ? descA->n - k * descA->nb : descA->nb;
     int tempmin = dplasma_imin(tempkn, tempkm);
-    int ldak = BLKLDD(descA, k);
+    int ldak = BLKLDDP(descA, k);
 
     printlog("CORE_zswpback(%d, %d)\n"
              "\t(%d, dataA(%d,%d)[%p], %d, dataIP(%d)[%p])",
-             k, n, descA.nb, k, n, A, ldak, k, IPIV);
+             k, n, descA->nb, k, n, A, ldak, k, IPIV);
 
 #if !defined(DAGUE_DRY_RUN)
-    if ( descA.storage == matrix_Tile ) {
-        int tempk  = k * descA.mb;
-        int tempm  = descA.m - tempk;
+    if ( descA->storage == matrix_Tile ) {
+        int tempk  = k * descA->mb;
+        int tempm  = descA->m - tempk;
         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                               descA.mb, descA.nb, descA.mb * descA.nb,
-                                               (descA.mt-k)*descA.mb, descA.nb, 0, 0,
-                                               tempm, descA.nb);
+                                               descA->mb, descA->nb, descA->mb * descA->nb,
+                                               (descA->mt-k)*descA->mb, descA->nb, 0, 0,
+                                               tempm, descA->nb);
         pdescA.mat = (void*)A;
         CORE_zlaswp_ontile(pdescA, 1, tempmin, IPIV, 1);
     } else {
-        CORE_zlaswp( descA.nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
+        CORE_zlaswp( descA->nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
     }
 #endif /* !defined(DAGUE_DRY_RUN) */
 }

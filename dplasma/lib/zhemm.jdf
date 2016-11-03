@@ -22,12 +22,9 @@ uplo   [type = PLASMA_enum]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-dataA  [type = "dague_ddesc_t *"]
-descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-dataB  [type = "dague_ddesc_t *"]
-descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
-dataC  [type = "dague_ddesc_t *"]
-descC  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataC)"]
+descA  [type = "tiled_matrix_desc_t*"]
+descB  [type = "tiled_matrix_desc_t*"]
+descC  [type = "tiled_matrix_desc_t*"]
 
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
@@ -39,16 +36,16 @@ c [type="int" hidden=on default="( (side == PlasmaLeft) ? ((uplo == PlasmaLower)
 
 hemm_in_A(m, n) [profile = off]
 // Execution space
-m = 0 .. descA.mt-1
-n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA.nt-1 : m)
+m = 0 .. descA->mt-1
+n = ((uplo == plasma_upper) ? m : 0) .. ((uplo == plasma_upper) ? descA->nt-1 : m)
 
-: dataA(m, n)
+: descA(m, n)
 
-  RW A <- dataA(m, n)
-       ->  (c == 0) || (c == 1)              ? A HEMM(m, 0..descC.nt-1, n)
-       -> ((c == 0) || (c == 1)) && (m != n) ? A HEMM(n, 0..descC.nt-1, m)
-       ->  (c == 2) || (c == 3)              ? B HEMM(0..descC.mt-1, n, m)
-       -> ((c == 2) || (c == 3)) && (m != n) ? B HEMM(0..descC.mt-1, m, n)
+  RW A <- descA(m, n)
+       ->  (c == 0) || (c == 1)              ? A HEMM(m, 0..descC->nt-1, n)
+       -> ((c == 0) || (c == 1)) && (m != n) ? A HEMM(n, 0..descC->nt-1, m)
+       ->  (c == 2) || (c == 3)              ? B HEMM(0..descC->mt-1, n, m)
+       -> ((c == 2) || (c == 3)) && (m != n) ? B HEMM(0..descC->mt-1, m, n)
 BODY
 {
     /* nothing */
@@ -57,14 +54,14 @@ END
 
 hemm_in_B(m, n) [profile = off]
 // Execution space
-m = 0 .. descB.mt-1
-n = 0 .. descB.nt-1
+m = 0 .. descB->mt-1
+n = 0 .. descB->nt-1
 
-: dataB(m, n)
+: descB(m, n)
 
-  RW B <- dataB(m, n)
-       -> (c == 0) || (c == 1) ? B HEMM(0..descB.mt-1, n, m)
-       -> (c == 2) || (c == 3) ? A HEMM(m, 0..descB.nt-1, n)
+  RW B <- descB(m, n)
+       -> (c == 0) || (c == 1) ? B HEMM(0..descB->mt-1, n, m)
+       -> (c == 2) || (c == 3) ? A HEMM(m, 0..descB->nt-1, n)
 BODY
 {
     /* nothing */
@@ -74,12 +71,12 @@ END
 HEMM(m, n, k)
 
 // Execution space
-m = 0 .. descC.mt-1
-n = 0 .. descC.nt-1
-k = 0 .. (side == plasma_left ) ? descC.mt-1 : descC.nt-1
+m = 0 .. descC->mt-1
+n = 0 .. descC->nt-1
+k = 0 .. (side == plasma_left ) ? descC->mt-1 : descC->nt-1
 
 // Parallel partitioning
-: dataC(m, n)
+: descC(m, n)
 
 // Parameters
 
@@ -93,19 +90,19 @@ READ  B <- (c == 2) && (k <= n) ? A hemm_in_A(n, k)
         <- (c == 3) && (k <= n) ? A hemm_in_A(k, n)
         <- (c == 3) && (k >  n) ? A hemm_in_A(n, k)
         <- (c == 0) || (c == 1) ? B hemm_in_B(k, n)
-RW    C <- ( k == 0 ) ? dataC(m, n) : C HEMM( m, n, k-1 )
-        -> ( ( (side == plasma_left) && (k == descC.mt-1) ) || ( (side == plasma_right) && (k == descC.nt-1) ) ) ? dataC( m, n ) : C HEMM(m, n, k+1)
+RW    C <- ( k == 0 ) ? descC(m, n) : C HEMM( m, n, k-1 )
+        -> ( ( (side == plasma_left) && (k == descC->mt-1) ) || ( (side == plasma_right) && (k == descC->nt-1) ) ) ? descC( m, n ) : C HEMM(m, n, k+1)
 BODY
 {
     dague_complex64_t zbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
-    int tempmm = ( m == descC.mt-1 ) ? descC.m - m * descC.mb : descC.mb;
-    int tempnn = ( n == descC.nt-1 ) ? descC.n - n * descC.nb : descC.nb;
-    int ldcm   = BLKLDD( descC, m );
+    int tempmm = ( m == descC->mt-1 ) ? descC->m - m * descC->mb : descC->mb;
+    int tempnn = ( n == descC->nt-1 ) ? descC->n - n * descC->nb : descC->nb;
+    int ldcm   = BLKLDDP( descC, m );
 
 #if !defined(DAGUE_DRY_RUN)
     if (side == PlasmaLeft && k == m) {
-        int ldam = BLKLDD( descA, m );
-        int ldbk = BLKLDD( descB, k );
+        int ldam = BLKLDDP( descA, m );
+        int ldbk = BLKLDDP( descB, k );
 
         CORE_zhemm(
             side, uplo,
@@ -115,8 +112,8 @@ BODY
             zbeta, C, ldcm);
     }
     else if (side == PlasmaRight && k == n) {
-        int ldak = BLKLDD( descA, k );
-        int ldbm = BLKLDD( descB, m );
+        int ldak = BLKLDDP( descA, k );
+        int ldbm = BLKLDDP( descB, m );
 
         CORE_zhemm(
             side, uplo,
@@ -127,13 +124,13 @@ BODY
     } else {
         PLASMA_enum transl = (c == 0 && k > m) || (c == 1 && k < m) ? PlasmaConjTrans : PlasmaNoTrans;
         PLASMA_enum transr = (c == 3 && k > n) || (c == 2 && k < n) ? PlasmaConjTrans : PlasmaNoTrans;
-        int tempk = (side == PlasmaLeft) ? (( k == descC.mt-1 ) ? descC.m - k * descC.mb : descC.mb)
-        :                                  (( k == descC.nt-1 ) ? descC.n - k * descC.nb : descC.nb);
+        int tempk = (side == PlasmaLeft) ? (( k == descC->mt-1 ) ? descC->m - k * descC->mb : descC->mb)
+        :                                  (( k == descC->nt-1 ) ? descC->n - k * descC->nb : descC->nb);
 
-        int lda = (side == PlasmaRight) ? BLKLDD(descB, m)
-        : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDD(descA, k) : BLKLDD(descA, m) );
-        int ldb = (side == PlasmaLeft) ? BLKLDD(descB, k)
-        : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDD(descA, n) : BLKLDD(descA, k) );
+        int lda = (side == PlasmaRight) ? BLKLDDP(descB, m)
+        : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDDP(descA, k) : BLKLDDP(descA, m) );
+        int ldb = (side == PlasmaLeft) ? BLKLDDP(descB, k)
+        : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDDP(descA, n) : BLKLDDP(descA, k) );
 
         CORE_zgemm(
             transl, transr,

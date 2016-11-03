@@ -18,20 +18,17 @@ extern "C" %{
 #endif
 
 #define getIPIV(__ptr) ((int*)(__ptr))
-#define getL(__ptr)    ((dague_complex64_t*)(__ptr) + descL.nb)
+#define getL(__ptr)    ((dague_complex64_t*)(__ptr) + descL->nb)
 
 %}
 
-dataA     [type = "dague_ddesc_t *"]
-dataL     [type = "dague_ddesc_t *" aligned=dataA]
-dataIP    [type = "dague_ddesc_t *" aligned=dataA] /* Unused: Here only to keep alignment with getrf_incpiv object */
-dataB     [type = "dague_ddesc_t *"]
+descA     [type = "tiled_matrix_desc_t*"]
+descL     [type = "tiled_matrix_desc_t*" aligned=descA]
+dataIP    [type = "dague_ddesc_t *" aligned=descA] /* Unused: Here only to keep alignment with getrf_incpiv object */
+descB     [type = "tiled_matrix_desc_t*"]
 
-descA     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
-descL     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataL)"]
-descB     [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataB)"]
-ib        [type = "int" hidden=on default="descL.mb" ]
-KT        [type = "int" hidden=on default="dplasma_imin( descA.mt, descA.nt)-1" ]
+ib        [type = "int" hidden=on default="descL->mb" ]
+KT        [type = "int" hidden=on default="dplasma_imin( descA->mt, descA->nt)-1" ]
 
 /**************************************************
  *                      ZGESSM                    *
@@ -40,12 +37,12 @@ zgessm_inAIPIV(k) [profile = off]
 
   k = 0 .. KT
 
-  :dataA(k, k)
+  :descA(k, k)
 
-  READ A  <- dataA(k, k)
-          -> L  zgessm(k, 0..descB.nt-1)
-  READ IP <- dataL(k, k)                              [type = PIVOT]
-          -> IP zgessm(k, 0..descB.nt-1)              [type = PIVOT]
+  READ A  <- descA(k, k)
+          -> L  zgessm(k, 0..descB->nt-1)
+  READ IP <- descL(k, k)                              [type = PIVOT]
+          -> IP zgessm(k, 0..descB->nt-1)              [type = PIVOT]
 
 BODY
 {
@@ -57,34 +54,34 @@ END
 zgessm(k, n)
   /* Execution space */
   k = 0 .. KT
-  n = 0 .. descB.nt-1
+  n = 0 .. descB->nt-1
 
-  :dataB(k, n)
+  :descB(k, n)
 
   READ  L  <- A  zgessm_inAIPIV(k)
   READ  IP <- IP zgessm_inAIPIV(k)                     [type = PIVOT]
 
-  RW    B  <- (k == 0) ? dataB(k, n) : C zssssm(k-1, k, n)
-           -> (k == (descA.mt-1)) ? dataB(k, n)
-           -> (k <  (descA.mt-1)) ? B zssssm(k, k+1, n)
+  RW    B  <- (k == 0) ? descB(k, n) : C zssssm(k-1, k, n)
+           -> (k == (descA->mt-1)) ? descB(k, n)
+           -> (k <  (descA->mt-1)) ? B zssssm(k, k+1, n)
 
 BODY
 {
-    int tempnn = ((n)==(descB.nt-1)) ? (descB.n-(n*descB.nb)) : (descB.nb);
-    int tempkm = ((k)==(descA.mt-1)) ? (descA.m-(k*descA.mb)) : (descA.mb);
-    int ldak   = BLKLDD( descA, k );
-    int ldbk   = BLKLDD( descB, k );
+    int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : (descB->nb);
+    int tempkm = ((k)==(descA->mt-1)) ? (descA->m-(k*descA->mb)) : (descA->mb);
+    int ldak   = BLKLDDP( descA, k );
+    int ldbk   = BLKLDDP( descB, k );
     int tempkmin;
 
     printlog("CORE_zgessm(%d, %d)\n"
              "\t(tempkm, tempnn, tempkm, ib, dataIP(%d,%d)[%p], \n"
-             "\tdataA(%d,%d)[%p], ldak, dataA(%d,%d)[%p], ldak)\n",
+             "\tdescA(%d,%d)[%p], ldak, descA(%d,%d)[%p], ldak)\n",
              k, n, k, k, IP, k, k, L, k, n, B);
 
-    if ( descA.mt < descA.nt ) {
-        tempkmin = (k == descA.mt-1) ? descA.m - k * descA.mb : descA.mb;
+    if ( descA->mt < descA->nt ) {
+        tempkmin = (k == descA->mt-1) ? descA->m - k * descA->mb : descA->mb;
     } else {
-        tempkmin = (k == descA.nt-1) ? descA.n - k * descA.mb : descA.mb;
+        tempkmin = (k == descA->nt-1) ? descA->n - k * descA->mb : descA->mb;
     }
 
 #if !defined(DAGUE_DRY_RUN)
@@ -101,14 +98,14 @@ END
  **************************************************/
 zssssm_inALIPIV(k, m) [profile = off]
   k = 0   .. KT
-  m = k+1 .. descA.mt-1
+  m = k+1 .. descA->mt-1
 
-  :dataA(m, k)
+  :descA(m, k)
 
-  READ A  <- dataA(m, k)
-          -> A  zssssm(k, m, 0..descB.nt-1)
-  READ L  <- dataL(m, k)                     [type = L_PIVOT]
-          -> L  zssssm(k, m, 0..descB.nt-1)  [type = L_PIVOT]
+  READ A  <- descA(m, k)
+          -> A  zssssm(k, m, 0..descB->nt-1)
+  READ L  <- descL(m, k)                     [type = L_PIVOT]
+          -> L  zssssm(k, m, 0..descB->nt-1)  [type = L_PIVOT]
 
 BODY
 {
@@ -119,12 +116,12 @@ END
 
 zssssm_out(k, n) [profile = off]
   k = 0 .. KT-1
-  n = 0 .. descB.nt-1
+  n = 0 .. descB->nt-1
 
-  :dataB(k, n)
+  :descB(k, n)
 
-  READ B <- B zssssm(k, descA.mt-1, n)
-         -> dataB(k, n)
+  READ B <- B zssssm(k, descA->mt-1, n)
+         -> descB(k, n)
 BODY
 {
     /* Nothing */
@@ -135,45 +132,45 @@ END
 zssssm(k,m,n)
   /* Execution space */
   k = 0   .. KT
-  m = k+1 .. descA.mt-1
-  n = 0   .. descB.nt-1
+  m = k+1 .. descA->mt-1
+  n = 0   .. descB->nt-1
 
-  :dataB(m, n)
+  :descB(m, n)
 
   READ  A <- A zssssm_inALIPIV(k, m)
 
   RW    B <- (m == (k+1))        ? B zgessm(m-1, n)  : B zssssm(k, m-1, n)
-          -> (m == (descA.mt-1)) ? B zssssm_out(k,n) : B zssssm(k, m+1, n)
+          -> (m == (descA->mt-1)) ? B zssssm_out(k,n) : B zssssm(k, m+1, n)
 
-  RW    C <- (k == 0) ? dataB(m,n) : C zssssm(k-1, m, n)
-          ->  (k == (descA.nt-1)) ? dataB(m, n)
-          -> ((k <  (descA.nt-1)) & (m == (k+1))) ? B zgessm(k+1, n)    /* Next Row */
-          -> ((k <  (descA.nt-1)) & (m >  (k+1))) ? C zssssm(k+1, m, n) /* Trailing submatrix */
+  RW    C <- (k == 0) ? descB(m,n) : C zssssm(k-1, m, n)
+          ->  (k == (descA->nt-1)) ? descB(m, n)
+          -> ((k <  (descA->nt-1)) & (m == (k+1))) ? B zgessm(k+1, n)    /* Next Row */
+          -> ((k <  (descA->nt-1)) & (m >  (k+1))) ? C zssssm(k+1, m, n) /* Trailing submatrix */
 
   READ  L  <- L  zssssm_inALIPIV(k, m)      [type = L_PIVOT]
 
 BODY
 {
-    int tempmm = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
-    int tempnn = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
-    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
-    int ldbk   = BLKLDD(descB, k);
-    int ldbm   = BLKLDD(descB, m);
-    int ldam   = BLKLDD(descA, m);
+    int tempmm = (m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
+    int tempnn = (n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
+    int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
+    int ldbk   = BLKLDDP(descB, k);
+    int ldbm   = BLKLDDP(descB, m);
+    int ldam   = BLKLDDP(descA, m);
 
     printlog("CORE_zssssm(%d, %d, %d)\n"
-             "\t(%d, %d, %d, %d, %d, %d, dataA(%d,%d)[%p], %d, dataA(%d,%d)[%p], %d, \n"
-             "\t dataL(%d,%d)[%p], %d, dataA(%d,%d)[%p], %d, dataIP(%d,%d)[%p])\n",
+             "\t(%d, %d, %d, %d, %d, %d, descA(%d,%d)[%p], %d, descA(%d,%d)[%p], %d, \n"
+             "\t descL(%d,%d)[%p], %d, descA(%d,%d)[%p], %d, dataIP(%d,%d)[%p])\n",
              k, m, n,
-             descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
-             k, n, B, ldbk, m, n, C, ldbm, m, k, getL(L), descL.mb, m, k, A, ldam, m, k, getIPIV(L) );
+             descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
+             k, n, B, ldbk, m, n, C, ldbm, m, k, getL(L), descL->mb, m, k, A, ldam, m, k, getIPIV(L) );
 
 #if !defined(DAGUE_DRY_RUN)
-    CORE_zssssm(descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
-                B          /* dataB(k,n) */, ldbk,
-                C          /* dataB(m,n) */, ldbm,
-                getL(L)    /* dataL(m,k) */, descL.mb,
-                A          /* dataA(m,k) */, ldam,
+    CORE_zssssm(descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
+                B          /* descB(k,n) */, ldbk,
+                C          /* descB(m,n) */, ldbm,
+                getL(L)    /* descL(m,k) */, descL->mb,
+                A          /* descA(m,k) */, ldam,
                 getIPIV(L) /* dataIP(m,k) */ );
 #endif /* !defined(DAGUE_DRY_RUN) */
 }

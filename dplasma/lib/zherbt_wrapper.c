@@ -43,8 +43,8 @@ dplasma_zherbt_New( PLASMA_enum uplo, int IB,
 
     if( PlasmaLower == uplo ) {
         dague_zherbt = dague_zherbt_L_new(uplo, IB,
-                                          *A, (dague_ddesc_t*)A,
-                                          *T, (dague_ddesc_t*)T,
+                                          A,
+                                          T,
                                           pool[3], pool[2], pool[1], pool[0]);
         dplasma_add2arena_rectangle( dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA],
                                      A->mb*A->nb*sizeof(dague_complex64_t),
@@ -63,19 +63,19 @@ void dplasma_zherbt_Destruct( dague_handle_t *handle )
 {
     dague_zherbt_L_handle_t *dague_zherbt = (dague_zherbt_L_handle_t *)handle;
 
-    if( PlasmaLower == dague_zherbt->uplo ) {
+    if( PlasmaLower == dague_zherbt->_g_uplo ) {
 
         dague_matrix_del2arena( dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA   ] );
         dague_matrix_del2arena( dague_zherbt->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA  ] );
 
-        dague_private_memory_fini( dague_zherbt->pool_0 );
-        free( dague_zherbt->pool_0 );
-        dague_private_memory_fini( dague_zherbt->pool_1 );
-        free( dague_zherbt->pool_1 );
-        dague_private_memory_fini( dague_zherbt->pool_2 );
-        free( dague_zherbt->pool_2 );
-        dague_private_memory_fini( dague_zherbt->pool_3 );
-        free( dague_zherbt->pool_3 );
+        dague_private_memory_fini( dague_zherbt->_g_pool_0 );
+        free( dague_zherbt->_g_pool_0 );
+        dague_private_memory_fini( dague_zherbt->_g_pool_1 );
+        free( dague_zherbt->_g_pool_1 );
+        dague_private_memory_fini( dague_zherbt->_g_pool_2 );
+        free( dague_zherbt->_g_pool_2 );
+        dague_private_memory_fini( dague_zherbt->_g_pool_3 );
+        free( dague_zherbt->_g_pool_3 );
 
         dague_handle_free(handle);
     }
