@@ -848,6 +848,7 @@ int dague_profiling_dbp_dump( void )
     int nb_threads = 0;
     dague_thread_profiling_t *t;
     int nb_infos, nb_dico;
+    dague_list_item_t *it;
 
     if( !__profile_initialized ) return 0;
 
@@ -861,13 +862,15 @@ int dague_profiling_dbp_dump( void )
     }
 
     /* Flush existing events buffer, unconditionally */
-    DAGUE_LIST_ITERATOR(&threads, it, {
+    for(it = DAGUE_LIST_ITERATOR_FIRST( &threads );
+        it != DAGUE_LIST_ITERATOR_END( &threads );
+        it = DAGUE_LIST_ITERATOR_NEXT( it ) ) {
         t = (dague_thread_profiling_t*)it;
         if( NULL != t->current_events_buffer && t->next_event_position != 0 ) {
             write_down_existing_buffer(t->current_events_buffer, t->next_event_position);
             t->current_events_buffer = NULL;
         }
-    });
+    }
 
     profile_head->dictionary_offset = dump_dictionary(&nb_dico);
     profile_head->dictionary_size = nb_dico;
