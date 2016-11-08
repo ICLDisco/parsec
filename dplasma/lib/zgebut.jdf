@@ -44,12 +44,12 @@ void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
           PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal );
 %}
 
-mA     [type = "dague_seg_ddesc_t*"]
+descA  [type = "dague_seg_ddesc_t*"]
 Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*mA->A_org.mb*mA->A_org.nb)"]
+pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
 
 %option DAGUE_ARENA_STRUT = 36
 
@@ -61,23 +61,23 @@ GEBUT(i,j)
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : mA(i,j)
+  : descA(i,j)
 
   /* Atl: A from Top Left */
-  RW  Atl <- A GEBUT_Reader(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-          -> A GEBUT_Writer(i,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+  RW  Atl <- A GEBUT_Reader(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abl: A from Bottom Left */
-  RW  Abl <- A GEBUT_Reader(i+mt/2,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-          -> A GEBUT_Writer(i+mt/2,j) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+  RW  Abl <- A GEBUT_Reader(i+mt/2,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i+mt/2,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Atr: A from Top Right */
-  RW  Atr <- A GEBUT_Reader(i,j+nt/2) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-          -> A GEBUT_Writer(i,j+nt/2) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+  RW  Atr <- A GEBUT_Reader(i,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
   /* Abr: A from Bottom Right */
-  RW  Abr <- A GEBUT_Reader(i+mt/2,j+nt/2) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-          -> A GEBUT_Writer(i+mt/2,j+nt/2) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+  RW  Abr <- A GEBUT_Reader(i+mt/2,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+          -> A GEBUT_Writer(i+mt/2,j+nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 
@@ -90,17 +90,17 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->th_id, i, j, i, j, Atl);
 
-  type = segment_to_type_index(mA->seg_info, i, j);
-  type_exists = type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
-  mb_tile = mA->A_org->mb;
-  nb_tile = mA->A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(mA, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
   i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  N = mA->A_org->lm;
+  N = descA->A_org->lm;
 
   p_elem_tl = dague_private_memory_pop( pool_0 );
   p_elem_bl = dague_private_memory_pop( pool_0 );
@@ -111,10 +111,10 @@ BODY
   printf("-- GEBUT\n");
 #endif
 
-  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
-  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
-  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubef, Uaft, BL_IS_BL);
-  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, mA->level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
+  BFT_zQTL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_tl, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
+  BFT_zQBL( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_bl, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
+  BFT_zQTR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_tr, Ubef, Uaft, BL_IS_BL);
+  BFT_zQBR( mb_seg, nb_seg, mb_tile, i_seg, j_seg, descA->level, N, Atl, Abl, Atr, Abr, p_elem_br, Ubef, Uaft, BL_IS_BL, OFF_DIAG);
 
   for(jj=0; jj<nb_seg; jj++){
       uintptr_t off = (mb_tile*jj) * sizeof(PLASMA_Complex64_t);
@@ -147,13 +147,13 @@ GEBUT_Reader(i,j)
   i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : mA(i,j)
+  : descA(i,j)
 
-READ A <- mA(i, j)                                              [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+READ A <- descA(i, j)                                              [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -170,15 +170,15 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("GEBUT_Reader(%d,%d)\n",i,j);
 
-  mb_tile = mA->A_org->mb;
-  nb_tile = mA->A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  segment_to_tile(mA, i, j, &i_tile, &j_tile, &off_in_tile);
+  segment_to_tile(descA, i, j, &i_tile, &j_tile, &off_in_tile);
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(mA->seg_info, i, j);
-  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -202,13 +202,13 @@ GEBUT_Writer(i,j)
   i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : mA(i,j)
+  : descA(i,j)
 
-READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(mA, i, j); %}]
-       -> mA(i, j)                                              [ type = %{ return segment_to_arena_index(mA, i, j); %}]
+READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> descA(i, j)                                              [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -223,11 +223,11 @@ BODY
 #if defined(DEBUG_BUTTERFLY)
   printf ("GEBUT_Writer(%d,%d)\n",i,j);
 
-  mb_tile = mA->A_org->mb;
-  nb_tile = mA->A_org->nb;
+  mb_tile = descA->A_org->mb;
+  nb_tile = descA->A_org->nb;
 
-  type = segment_to_type_index(mA->seg_info, i, j);
-  (void)type_index_to_sizes(mA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(descA->seg_info, i, j);
+  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");

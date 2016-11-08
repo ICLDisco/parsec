@@ -96,7 +96,7 @@ BODY
 {
     int tempkm = k == descA->mt-1 ? descA->m - k*descA->mb : descA->mb;
     int iinfo = 0;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zpotrf( uplo, tempkm, T, ldak, &iinfo );
@@ -173,8 +173,8 @@ END
 BODY
 {
     int tempmm = m == descA->mt-1 ? descA->m - m * descA->mb : descA->mb;
-    int ldak = BLKLDDP( descA, k );
-    int ldam = BLKLDDP( descA, m );
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
 
 #if !defined(DAGUE_DRY_RUN)
@@ -250,7 +250,7 @@ END
 BODY
 {
     int tempmm = m == descA->mt-1 ? descA->m - m*descA->mb : descA->mb;
-    int ldam = BLKLDDP( descA, m );
+    int ldam = BLKLDD( descA, m );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zherk(PlasmaLower, PlasmaNoTrans,
@@ -303,8 +303,8 @@ BODY [type=CUDA
 #endif
 
     int tempmm = m == descA->mt-1 ? descA->m - m * descA->mb : descA->mb;
-    int ldam = BLKLDDP( descA, m );
-    int ldan = BLKLDDP( descA, n );
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
 
     cublasStatus_t status;
     assert( ldan <= descA->mb );
@@ -367,8 +367,8 @@ END
 BODY
 {
     int tempmm = m == descA->mt-1 ? descA->m - m * descA->mb : descA->mb;
-    int ldam = BLKLDDP( descA, m );
-    int ldan = BLKLDDP( descA, n );
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,

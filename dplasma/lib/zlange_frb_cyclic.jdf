@@ -85,7 +85,7 @@ BODY
     double *dW = (double*)W;
     int tempmm = ( m == (MT-1) ) ? M - m * descA->mb : descA->mb;
     int tempnn = ( n == (NT-1) ) ? N - n * descA->nb : descA->nb;
-    int ldam = BLKLDDP( descA, m );
+    int ldam = BLKLDD( descA, m );
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
@@ -194,7 +194,7 @@ BODY
 
     printlog( "zlange STEP2(%d, %d) [%d, %d]\n"
               "\t( W(%d, %d) || W(%d, %d) )\n",
-              m, n, nmin, col, m, n-1, m, n);
+              m, n, nmax, col, m, n-1, m, n);
 
 #if !defined(DAGUE_DRY_RUN)
     switch( ntype ) {

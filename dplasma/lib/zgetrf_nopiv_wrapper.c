@@ -70,7 +70,7 @@ dplasma_zgetrf_nopiv_New( tiled_matrix_desc_t *A,
 {
     dague_zgetrf_nopiv_handle_t *dague_getrf_nopiv;
 
-    dague_getrf_nopiv = dague_zgetrf_nopiv_new( (dague_ddesc_t*)A, INFO );
+    dague_getrf_nopiv = dague_zgetrf_nopiv_new( A, INFO );
 
     /* A */
     dplasma_add2arena_tile( dague_getrf_nopiv->arenas[DAGUE_zgetrf_nopiv_DEFAULT_ARENA],

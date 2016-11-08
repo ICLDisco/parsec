@@ -20,8 +20,8 @@ static dague_multichain_handle_t* handle;
 static int verbose = 0;
 %}
 
-A          [type = "two_dim_block_cyclic_t*"]
-B          [type = "two_dim_block_cyclic_t*" aligned=A]
+descA      [type = "two_dim_block_cyclic_t*"]
+descB      [type = "two_dim_block_cyclic_t*" aligned=descA]
 NI         [type = int]
 NJ         [type = int]
 
@@ -29,11 +29,11 @@ HORIZONTAL(i)
 
   i = 0 .. NI-1
 
-: A(i, 0)
+: descA(i, 0)
 
-READ A <- A(i, 0)
+READ A <- descA(i, 0)
        -> A VERTICAL(i, 0)
-RW   B <- (i == 0)      ? B(i, 0) : B HORIZONTAL(i-1)
+RW   B <- (i == 0)      ? descB(i, 0) : B HORIZONTAL(i-1)
        -> (i != (NI-1)) ? B HORIZONTAL(i+1)
 BODY
     if(verbose)
@@ -44,12 +44,12 @@ VERTICAL(i, j)
   i = 0 .. NI-1
   j = 0 .. NJ-1
 
-: A(i, 0)
+: descA(i, 0)
 
 READ A <- (j == 0)      ? A HORIZONTAL(i) : A VERTICAL(i, j-1)
        -> (j != (NJ-1)) ? A VERTICAL(i, j+1)
-RW   B <- (i == 0)      ? B(i, 0) : B VERTICAL(i-1, j)
-       -> (i != (NI-1)) ? B VERTICAL(i+1, j) : B(i, 0)
+RW   B <- (i == 0)      ? descB(i, 0) : B VERTICAL(i-1, j)
+       -> (i != (NI-1)) ? B VERTICAL(i+1, j) : descB(i, 0)
 BODY
     if(verbose)
         printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, handle->super.nb_tasks);

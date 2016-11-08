@@ -57,8 +57,8 @@ BODY
     int tempnn  = (n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
     int tempAkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
     int tempmin = dplasma_imin( temppm, tempAkn );
-    int ldap    = BLKLDDP( descA, p );
-    int ldbp    = BLKLDDP( descB, p );
+    int ldap    = BLKLDD( descA, p );
+    int ldbp    = BLKLDD( descB, p );
 
     void *W = dague_private_memory_pop( p_work );
 
@@ -146,9 +146,9 @@ BODY
     int tempmm = ( m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
     int tempnn = ( n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
     int tempkn = ( k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldam = BLKLDDP( descA, m );
-    int ldbp = BLKLDDP( descB, p );
-    int ldbm = BLKLDDP( descB, m );
+    int ldam = BLKLDD( descA, m );
+    int ldbp = BLKLDD( descB, p );
+    int ldbm = BLKLDD( descB, m );
     int ldwork = ib;
 
     void *W = dague_private_memory_pop( p_work );

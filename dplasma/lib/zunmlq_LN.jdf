@@ -44,8 +44,8 @@ BODY
     int tempkm   = (k == (descB->mt-1)) ? (descB->m - k * descB->mb) : descB->mb;
     int tempnn   = (n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
     int tempkmin = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldak = BLKLDDP( descA, k );
-    int ldbk = BLKLDDP( descB, k );
+    int ldak = BLKLDD( descA, k );
+    int ldbk = BLKLDD( descB, k );
 
     printlog("CORE_zunmlq(%d, %d)\n"
              "\t(side, trans, tempkm, tempnn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT->mb, B(%d,%d)[%p], ldbk, p_elem_A, descT->nb)\n",
@@ -124,9 +124,9 @@ BODY
     int tempnn   = (n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
     int tempmm   = (m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
     int tempkmin = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldbk = BLKLDDP( descB, k );
-    int ldbm = BLKLDDP( descB, m );
-    int ldak = BLKLDDP( descA, k );
+    int ldbk = BLKLDD( descB, k );
+    int ldbm = BLKLDD( descB, m );
+    int ldak = BLKLDD( descA, k );
     int ldwork = ib;
 
     printlog("CORE_ztsmlq(%d, %d, %d)\n"

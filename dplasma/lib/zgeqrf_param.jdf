@@ -90,7 +90,7 @@ BODY
 {
     int tempmm = (m==(descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
     int tempkn = (k==(descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldam   = BLKLDDP( descA, m );
+    int ldam   = BLKLDD( descA, m );
 
     printlog("thread %d VP %d CORE_zgeqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, dataA(%d,%d)[%p], ldam, dataTS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
@@ -166,7 +166,7 @@ BODY
 {
     int tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
-    int ldam   = BLKLDDP( descA, m );
+    int ldam   = BLKLDD( descA, m );
 
     printlog("thread %d VP %d CORE_zunmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
@@ -244,8 +244,8 @@ BODY
 {
     int tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     int tempkn = ((k)==((descA->nt)-1)) ? ((descA->n)-(k*(descA->nb))) : (descA->nb);
-    int ldap = BLKLDDP( descA, p );
-    int ldam = BLKLDDP( descA, m );
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
 
     printlog("thread %d VP %d CORE_zttqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, dataA(%d,%d)[%p], A.mb, dataA(%d,%d)[%p], ldam, dataTT(%d,%d)[%p], descTT->mb, p_elem_A, p_elem_B)\n",
@@ -346,8 +346,8 @@ BODY
 {
     int tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
     int tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
-    int ldap = BLKLDDP( descA, p );
-    int ldam = BLKLDDP( descA, m );
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
     int ldwork = ib;
 
     printlog("thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"

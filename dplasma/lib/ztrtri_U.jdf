@@ -46,7 +46,7 @@ BODY
 {
     int tempkm = (k == (descA->mt-1)) ? (descA->m - k*descA->mb) : descA->mb;
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n*descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
 
     printlog("CORE_ztrsm(%d, %d)\n"
              "\t(PlasmaRight, uplo, PlasmaNoTrans, diag, tempmm, tempkn, -1, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
@@ -98,8 +98,8 @@ BODY
     int tempmm = (m == (descA->mt-1)) ? (descA->m - m*descA->mb) : descA->mb;
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n*descA->nb) : descA->nb;
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k*descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
-    int ldam = BLKLDDP( descA, m );
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, tempkn, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
@@ -140,8 +140,8 @@ ztrsmR(k, m)
 BODY
 {
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k*descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
-    int ldam = BLKLDDP( descA, m );
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
     printlog("CORE_ztrsm(%d, %d)\n"
              "\t(PlasmaRight, uplo, PlasmaNoTrans, diag, descA->mb, tempkn, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
@@ -189,7 +189,7 @@ ztrtri(k)
 BODY
 {
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k*descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
     int info = 0;
 
     printlog("CORE_ztrtri(%d)\n"

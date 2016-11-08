@@ -34,7 +34,7 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam   = BLKLDDP( descA, m );
+    ldam   = BLKLDD( descA, m );
 
     CORE_zplrnt(
         tempmm, tempnn, A, ldam,

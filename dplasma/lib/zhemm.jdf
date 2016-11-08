@@ -22,8 +22,8 @@ uplo   [type = PLASMA_enum]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-descA  [type = "tiled_matrix_desc_t*"]
-descB  [type = "tiled_matrix_desc_t*"]
+descA  [type = "const tiled_matrix_desc_t*"]
+descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
 
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
@@ -97,12 +97,12 @@ BODY
     dague_complex64_t zbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
     int tempmm = ( m == descC->mt-1 ) ? descC->m - m * descC->mb : descC->mb;
     int tempnn = ( n == descC->nt-1 ) ? descC->n - n * descC->nb : descC->nb;
-    int ldcm   = BLKLDDP( descC, m );
+    int ldcm   = BLKLDD( descC, m );
 
 #if !defined(DAGUE_DRY_RUN)
     if (side == PlasmaLeft && k == m) {
-        int ldam = BLKLDDP( descA, m );
-        int ldbk = BLKLDDP( descB, k );
+        int ldam = BLKLDD( descA, m );
+        int ldbk = BLKLDD( descB, k );
 
         CORE_zhemm(
             side, uplo,
@@ -112,8 +112,8 @@ BODY
             zbeta, C, ldcm);
     }
     else if (side == PlasmaRight && k == n) {
-        int ldak = BLKLDDP( descA, k );
-        int ldbm = BLKLDDP( descB, m );
+        int ldak = BLKLDD( descA, k );
+        int ldbm = BLKLDD( descB, m );
 
         CORE_zhemm(
             side, uplo,
@@ -127,10 +127,10 @@ BODY
         int tempk = (side == PlasmaLeft) ? (( k == descC->mt-1 ) ? descC->m - k * descC->mb : descC->mb)
         :                                  (( k == descC->nt-1 ) ? descC->n - k * descC->nb : descC->nb);
 
-        int lda = (side == PlasmaRight) ? BLKLDDP(descB, m)
-        : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDDP(descA, k) : BLKLDDP(descA, m) );
-        int ldb = (side == PlasmaLeft) ? BLKLDDP(descB, k)
-        : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDDP(descA, n) : BLKLDDP(descA, k) );
+        int lda = (side == PlasmaRight) ? BLKLDD(descB, m)
+        : ((c == 0 && k > m) || (c == 1 && k < m) ? BLKLDD(descA, k) : BLKLDD(descA, m) );
+        int ldb = (side == PlasmaLeft) ? BLKLDD(descB, k)
+        : ((c == 3 && k > n) || (c == 2 && k < n) ? BLKLDD(descA, n) : BLKLDD(descA, k) );
 
         CORE_zgemm(
             transl, transr,

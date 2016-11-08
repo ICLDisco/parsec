@@ -64,7 +64,7 @@ int CORE_ztrdsm(int M, int N,
 %}
 
 
-desc_A [type = "tiled_matrix_desc_t*"]
+desc_A [type = "const tiled_matrix_desc_t*"]
 desc_B [type = "tiled_matrix_desc_t*"]
 
 
@@ -87,8 +87,8 @@ BODY
 
   int tempkm = ((k)==((desc_B->mt)-1)) ? ((desc_B->m)-(k*(desc_B->mb))) : (desc_B->mb);
   int tempkn = ((n)==((desc_B->nt)-1)) ? ((desc_B->n)-(n*(desc_B->nb))) : (desc_B->nb);
-  int lda = BLKLDDP( desc_A, k );
-  int ldb = BLKLDDP( desc_B, k );
+  int lda = BLKLDD( desc_A, k );
+  int ldb = BLKLDD( desc_B, k );
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_ztrdsm(tempkm, tempkn, A, lda, B, ldb );

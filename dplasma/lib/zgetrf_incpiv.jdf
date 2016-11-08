@@ -72,7 +72,7 @@ BODY
 {
     int tempkm = ((k)==(descA->mt-1)) ? (descA->m-(k*descA->mb)) : (descA->mb);
     int tempkn = ((k)==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : (descA->nb);
-    int ldak   = BLKLDDP(descA, k);
+    int ldak   = BLKLDD(descA, k);
     int iinfo  = 0;
 
     printlog("CORE_zgetrf(%d)\n"
@@ -123,7 +123,7 @@ BODY
 {
     int tempnn = ((n)==(descA->nt-1)) ? (descA->n-(n*descA->nb)) : (descA->nb);
     int tempkm = ((k)==(descA->mt-1)) ? (descA->m-(k*descA->mb)) : (descA->mb);
-    int ldak   = BLKLDDP( descA, k );
+    int ldak   = BLKLDD( descA, k );
 
     printlog("CORE_zgessm(%d, %d)\n"
              "\t(tempkm, tempnn, tempkm, ib, dataIP(%d,%d)[%p], \n"
@@ -187,8 +187,8 @@ BODY
 {
     int tempmm = ((m)==(descA->mt-1)) ? (descA->m-(m*descA->mb)) : (descA->mb);
     int tempkn = ((k)==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : (descA->nb);
-    int ldak   = BLKLDDP(descA, k);
-    int ldam   = BLKLDDP(descA, m);
+    int ldak   = BLKLDD(descA, k);
+    int ldam   = BLKLDD(descA, m);
     int iinfo;
     dague_complex64_t *work = dague_private_memory_pop(work_pool);
 
@@ -267,8 +267,8 @@ BODY
 {
     int tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
-    int ldak   = BLKLDDP(descA, k);
-    int ldam   = BLKLDDP(descA, m);
+    int ldak   = BLKLDD(descA, k);
+    int ldam   = BLKLDD(descA, m);
 
     printlog("CORE_zssssm(%d, %d, %d)\n"
              "\t(%d, %d, %d, %d, %d, %d, dataA(%d,%d)[%p], %d, dataA(%d,%d)[%p], %d, \n"

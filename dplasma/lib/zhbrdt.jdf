@@ -15,8 +15,8 @@ extern "C" %{
 
 %}
 
-mA         [type = "tiled_matrix_desc_t*"]
-NT         [type = int  hidden = on  default="mA->nt"]
+descA      [type = "tiled_matrix_desc_t*"]
+NT         [type = int  hidden = on  default="descA->nt"]
 NB         [type = int]
 
 /*
@@ -25,9 +25,9 @@ NB         [type = int]
 in_dat(i) [profile = off hidden = on]
   i = 1..(NT-1)
 
-  : mA(0,i)
+  : descA(0,i)
 
-  RW A <- mA(0,i)
+  RW A <- descA(0,i)
        -> B zhbrdt(0,0,i-1)
 BODY
 /* nothing */
@@ -44,17 +44,17 @@ zhbrdt(s1,s,i)
   s = 0..NB-1
   i = s1..NT-2
 
-  : mA(0,i)
+  : descA(0,i)
 
   /* A == data_A(0,i) */
   /* B == data_A(0,i+1) */
 
-  RW    A <- (i==s1) & (0==s) & (0==i) ? mA(0,i)
+  RW    A <- (i==s1) & (0==s) & (0==i) ? descA(0,i)
           <- (i==s1) & (0==s) & (i>=1) ? A zhbrdt(s1-1, NB-1, s1)
           <- (i==s1) & (s>=1)          ? A zhbrdt(s1, s-1, s1)
           <- (s1<i)                    ? B zhbrdt(s1, s, i-1)
 
-          -> ((1+s)==NB) & (i==s1)     ? mA(0,i)
+          -> ((1+s)==NB) & (i==s1)     ? descA(0,i)
           -> ((1+s)==NB) & ((1+s1)==i) ? A zhbrdt(s1+1, 0, s1+1)
           -> ((1+s)==NB) & ((1+s1)<i)  ? B zhbrdt(s1+1, 0, i-1)
           -> (i==s1) & ((1+s)<NB)      ? A zhbrdt(s1, s+1, i)
@@ -70,8 +70,8 @@ zhbrdt(s1,s,i)
           ->                             A zhbrdt(s1, s, i+1)
 BODY
     int nbA, mbA;
-    nbA   = mA->nb;
-    mbA   = mA->mb;
+    nbA   = descA->nb;
+    mbA   = descA->mb;
     dague_complex64_t *vi, *vii, *taui, *tauii;
     vi    = (dague_complex64_t*)A + mbA * NB;
     vii   = (dague_complex64_t*)B + mbA * NB;
@@ -100,24 +100,24 @@ zhbrdt_half(s1,s)
   s1 = 0..NT-1
   s = 0..NB-1
 
-  : mA(0,NT-1)
+  : descA(0,NT-1)
 
   /* A == data_A(0,i) */
 
-  RW    A <- (1==NT) & (0==s) ? mA(0,NT-1)
+  RW    A <- (1==NT) & (0==s) ? descA(0,NT-1)
           <- ((NT-1)!=s1)     ? B zhbrdt(s1, s, NT-2)
           <- (0==s) & (1!=NT) ? A zhbrdt_half(s1-1, NB-1)
           <- (0!=s)           ? A zhbrdt_half(s1, s-1)
 
-          -> ((NT-1)==s1) & ((NB-1)==s) ? mA(0,NT-1)
+          -> ((NT-1)==s1) & ((NB-1)==s) ? descA(0,NT-1)
           -> ((NT-1)==s1)               ? A zhbrdt_half(s1, s+1)
           -> ((NT-2)==s1) & ((NB-1)==s) ? A zhbrdt_half(s1+1, 0)
           -> ((NB-1)==s)                ? B zhbrdt(s1+1, 0, NT-2)
                                         : B zhbrdt(s1, s+1, NT-2)
 BODY
     int nbA, mbA;
-    nbA   = mA->nb;
-    mbA   = mA->mb;
+    nbA   = descA->nb;
+    mbA   = descA->mb;
     dague_complex64_t *vi, *taui;
     vi    = (dague_complex64_t*)A + mbA * NB;
     taui  = vi + mbA;

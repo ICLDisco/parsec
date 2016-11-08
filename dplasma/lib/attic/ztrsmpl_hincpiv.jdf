@@ -25,10 +25,10 @@ extern "C" %{
 %}
 
 A      [type = "dague_ddesc_t *"]
-descA-> [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)A)"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)A)"]
 IPIV   [type = "dague_ddesc_t *" aligned=A]
 B      [type = "dague_ddesc_t *"]
-descB-> [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)B)"]
+descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)B)"]
 LT     [type = "dague_ddesc_t *" aligned=A]
 descLT [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)LT)"]
 qrtree [type = "dplasma_qrtree_t"]
@@ -37,7 +37,7 @@ p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(d
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descLT.nb))"]
 INFO   [type = "int*"]
 
-minMN  [type = "int" hidden=on default="( (descA->mt < descA->nt) ? descA->mt : descA->nt )" ]
+minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
 
 
 /**
@@ -49,9 +49,9 @@ zgessm(k, i, n)
   /* Execution space */
   k = 0 .. minMN-1
   i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  n = 0 .. descB->nt-1
+  n = 0 .. descB.nt-1
   m     = %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA->mt); %}
+  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
 
   SIMCOST 6
 
@@ -62,18 +62,18 @@ zgessm(k, i, n)
 
   RW    C <- ( 0 == k ) ? B(m, n)
           <- ( k >  0 ) ? A2 zttmqr(k-1, m, n)
-          -> ( k == descA->mt-1 ) ? B(m, n)
-          -> ( (k < descA->mt-1) & (nextm != descA->mt) ) ? A1 zttmqr(k, nextm, n)
-          -> ( (k < descA->mt-1) & (nextm == descA->mt) ) ? A2 zttmqr(k, m,     n)
+          -> ( k == descA.mt-1 ) ? B(m, n)
+          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
+          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
 
 BODY
 {
-    int tempknA = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int tempmmB = (m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
-    int tempnnB = (n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
+    int tempknA = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int tempmmB = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
+    int tempnnB = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
     int tempk   = dplasma_imin( tempknA, tempmmB );
-    int ldam    = BLKLDDP( descA, m );
-    int ldbm    = BLKLDDP( descB, m );
+    int ldam    = BLKLDD( descA, m );
+    int ldbm    = BLKLDD( descB, m );
 
     printlog("\nthread %d VP %d   zgessm( k=%d, i=%d, n=%d, m=%d, nextm=%d)\n"
              "\t( m=%d, n=%d, k=%d, ib, IPIV(%d,%d)[%p], \n"
@@ -99,9 +99,9 @@ zgessm_in(k, i) [profile = off]
   : A(m,k)
 
   READ A <- A(m,k)                                                    [type = LOWER_TILE]
-         -> A zgessm(k, i, 0..descB->nt-1)                             [type = LOWER_TILE]
+         -> A zgessm(k, i, 0..descB.nt-1)                             [type = LOWER_TILE]
   READ P <- IPIV(m,k)                                                 [type = PIVOT]
-         -> P zgessm(k, i, 0..descB->nt-1)                             [type = PIVOT]
+         -> P zgessm(k, i, 0..descB.nt-1)                             [type = PIVOT]
 
 BODY
 {
@@ -117,14 +117,14 @@ END
  * type1 defines the operations to perfom at next step k+1 on the row m
  *   if type1 == 0, it will be a TS so the tile goes to a TTQRT/TTMQR operation
  *   if type1 != 0, it will be a TT so the tile goes to a GEQRT/UNMQR operation
- * im1 is the index of the killer m at the next step k+1 if its type is !0, descA->mt otherwise
+ * im1 is the index of the killer m at the next step k+1 if its type is !0, descA.mt otherwise
  *
  */
 zttmqr(k, m, n)
   /* Execution space */
   k = 0   .. minMN-1
-  m = k+1 .. descA->mt-1
-  n = 0   .. descB->nt-1
+  m = k+1 .. descA.mt-1
+  n = 0   .. descB.nt-1
   p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
   nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
   prevp = %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
@@ -139,15 +139,15 @@ zttmqr(k, m, n)
 
   : B(m, n)
 
-  RW   A1 <- (   prevp == descA->mt ) ? C  zgessm( k, ip, n ) : A1 zttmqr(k, prevp, n )
-          -> (   nextp != descA->mt ) ? A1 zttmqr( k, nextp, n)
-          -> ( ( nextp == descA->mt ) && ( p == k ) ) ? A  zttmqr_out_A1(p, n)
-          -> ( ( nextp == descA->mt ) && ( p != k ) ) ? A2 zttmqr( k, p, n )
+  RW   A1 <- (   prevp == descA.mt ) ? C  zgessm( k, ip, n ) : A1 zttmqr(k, prevp, n )
+          -> (   nextp != descA.mt ) ? A1 zttmqr( k, nextp, n)
+          -> ( ( nextp == descA.mt ) && ( p == k ) ) ? A  zttmqr_out_A1(p, n)
+          -> ( ( nextp == descA.mt ) && ( p != k ) ) ? A2 zttmqr( k, p, n )
 
   RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? B(m, n)
           <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
-          <- ( (type != 0) && (prevm == descA->mt ) ) ? C  zgessm(k, im, n)
-          <- ( (type != 0) && (prevm != descA->mt ) ) ? A1 zttmqr(k, prevm, n )
+          <- ( (type != 0) && (prevm == descA.mt ) ) ? C  zgessm(k, im, n)
+          <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttmqr(k, prevm, n )
           -> (type1 != 0) ? C  zgessm( k+1, im1, n )
           -> (type1 == 0) ? A2 zttmqr( k+1, m,   n )
 
@@ -161,19 +161,19 @@ zttmqr(k, m, n)
 
 BODY
 {
-    int tempnn = (n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
-    int tempmm = (m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
-    int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldbp = BLKLDDP( descB, p );
-    int ldbm = BLKLDDP( descB, m );
-    int ldam = BLKLDDP( descA, m );
+    int tempnn = (n == (descB.nt-1)) ? (descB.n - n * descB.nb) : descB.nb;
+    int tempmm = (m == (descB.mt-1)) ? (descB.m - m * descB.mb) : descB.mb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldbp = BLKLDD( descB, p );
+    int ldbm = BLKLDD( descB, m );
+    int ldam = BLKLDD( descA, m );
 
     printlog("\nthread %d VP %d zttmqr( k=%d, m=%d, n=%d, p=%d, nextp=%d, prevp=%d, prevm=%d, type=%d, type1=%d, ip=%d, im=%d, im1=%d)\n"
              "\t(M1=%d, N1=%d, M2=%d, N2=%d, K=%d, ib=%d, \n"
              "\t B(%d,%d)[%p], %d, B(%d,%d)[%p], %d,\n"
              "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], %d)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, nextp, prevp, prevm, type, type1, ip, im, im1,
-             descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
+             descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
              p, n, A1, ldbp, m, n, A2, ldbm,
              m, k, L, descLT.mb, m, k, V, ldam);
 
@@ -181,7 +181,7 @@ BODY
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_zssssm(
-                descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
+                descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
                 A1 /* B(p, n)  */, ldbp,
                 A2 /* B(m, n)  */, ldbm,
                 L  /* LT(m, k) */, descLT.mb,
@@ -192,7 +192,7 @@ BODY
 
             CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
+                descB.mb, tempnn, tempmm, tempnn, tempkn, ib,
                 A1 /* B(p, n)  */, ldbp,
                 A2 /* B(m, n)  */, ldbm,
                 V  /* A(m, k)  */, ldam,
@@ -208,7 +208,7 @@ END
 
 zttmqr_out_A1(k, n) [profile = off]
   k = 0 .. minMN-2
-  n = 0 .. descB->nt-1
+  n = 0 .. descB.nt-1
   prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k); %}
 
   : B(k, n)
@@ -224,20 +224,20 @@ END
 zttmqr_in(k, m) [profile = off]
   /* Execution space */
   k = 0   .. minMN-1
-  m = k+1 .. descA->mt-1
+  m = k+1 .. descA.mt-1
   type = %{ return qrtree.gettype( &qrtree, k, m );   %}
 
   : A(m,k)
 
   READ A <- A(m,k)
-         -> (type == 0) ? V zttmqr(k, m, 0..descB->nt-1)
-         -> (type != 0) ? V zttmqr(k, m, 0..descB->nt-1)                [type = UPPER_TILE]
+         -> (type == 0) ? V zttmqr(k, m, 0..descB.nt-1)
+         -> (type != 0) ? V zttmqr(k, m, 0..descB.nt-1)                [type = UPPER_TILE]
 
   READ P <- IPIV(m,k)                                                  [type = PIVOT]
-         -> (type == 0) ? P zttmqr(k, m, 0..descB->nt-1)                [type = PIVOT]
+         -> (type == 0) ? P zttmqr(k, m, 0..descB.nt-1)                [type = PIVOT]
 
   READ L <- LT(m,k)                                                    [type = SMALL_L]
-         -> L zttmqr(k,m,0..descB->nt-1)                                [type = SMALL_L]
+         -> L zttmqr(k,m,0..descB.nt-1)                                [type = SMALL_L]
 
 BODY
 {

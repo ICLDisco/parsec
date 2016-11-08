@@ -48,9 +48,9 @@ BODY
     int tempm  = descA1->m - k * descA1->nb;
     int tempnn = (n == (descA2->nt-1)) ? (descA2->n - n * descA2->nb) : descA2->nb;
     int tempkk = (k == (descV->nt -1)) ? (descV->n  - k * descV->nb ) : descV->nb;
-    int ldv  = BLKLDDP( descV,  0 );
-    int lda1 = BLKLDDP( descA1, 0 );
-    int lda2 = BLKLDDP( descA2, 0 );
+    int ldv  = BLKLDD( descV,  0 );
+    int lda1 = BLKLDD( descA1, 0 );
+    int lda2 = BLKLDD( descA2, 0 );
 
     printlog("CORE_ztsmqr(%d, %d)\n", k, n);
 
@@ -163,10 +163,10 @@ dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
 {
     dague_handle_t* handle;
 
-    handle = (dague_handle_t*)dague_zgeqrfr_tsmqr_new( (dague_ddesc_t*)A1,
-                                                       (dague_ddesc_t*)A2,
-                                                       (dague_ddesc_t*)V,
-                                                       (dague_ddesc_t*)T,
+    handle = (dague_handle_t*)dague_zgeqrfr_tsmqr_new( A1,
+                                                       A2,
+                                                       V,
+                                                       T,
                                                        (dague_memory_pool_t*)work );
     /* Default type */
     dplasma_add2arena_rectangle( ((dague_zgeqrfr_tsmqr_handle_t*)handle)->arenas[DAGUE_zgeqrfr_tsmqr_DEFAULT_ARENA],

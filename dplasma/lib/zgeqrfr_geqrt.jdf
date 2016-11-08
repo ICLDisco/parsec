@@ -42,7 +42,7 @@ BODY
     dague_complex64_t *lA = (dague_complex64_t*)A;
     int tempm  = descA->m - k * descA->nb;
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int lda    = BLKLDDP( descA, 0 );
+    int lda    = BLKLDD( descA, 0 );
 
     printlog("CORE_zgeqrt(%d)\n"
              "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT->mb, p_elem_A, p_elem_B)\n",
@@ -85,7 +85,7 @@ BODY
     dague_complex64_t *lC = (dague_complex64_t*)C;
     int tempm = descA->m - k * descA->nb;
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
-    int lda = BLKLDDP( descA, 0 );
+    int lda = BLKLDD( descA, 0 );
 
     printlog("CORE_zunmqr(%d, %d)\n", k, n);
 
@@ -177,9 +177,9 @@ dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
 {
     dague_zgeqrfr_geqrt_handle_t *geqrt;
 
-    geqrt = dague_zgeqrfr_geqrt_new( (dague_ddesc_t*)A,
-                                      (dague_ddesc_t*)T,
-                                      (dague_memory_pool_t*)work );
+    geqrt = dague_zgeqrfr_geqrt_new( A,
+                                     T,
+                                     (dague_memory_pool_t*)work );
 
     /* Default type */
     dplasma_add2arena_rectangle( geqrt->arenas[DAGUE_zgeqrfr_geqrt_DEFAULT_ARENA],

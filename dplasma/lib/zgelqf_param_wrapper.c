@@ -100,9 +100,9 @@ dplasma_zgelqf_param_New( dplasma_qrtree_t *qrtree,
         return NULL;
     }
 
-    handle = dague_zgelqf_param_new( (dague_ddesc_t*)A,
-                                     (dague_ddesc_t*)TS,
-                                     (dague_ddesc_t*)TT,
+    handle = dague_zgelqf_param_new( A,
+                                     TS,
+                                     TT,
                                      *qrtree, ib, NULL, NULL);
 
     handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));

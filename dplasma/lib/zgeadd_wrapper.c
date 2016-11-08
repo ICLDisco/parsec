@@ -41,12 +41,12 @@ dplasma_ztradd_operator( dague_execution_unit_t *eu,
     tempmm = ((m)==((descB->mt)-1)) ? ((descB->m)-(m*(descB->mb))) : (descB->mb);
     tempnn = ((n)==((descB->nt)-1)) ? ((descB->n)-(n*(descB->nb))) : (descB->nb);
     if (trans == PlasmaNoTrans) {
-        ldam = BLKLDDP( descA, m );
+        ldam = BLKLDD( descA, m );
     }
     else {
-        ldam = BLKLDDP( descA, n );
+        ldam = BLKLDD( descA, n );
     }
-    ldbm = BLKLDDP( descB, m );
+    ldbm = BLKLDD( descB, m );
 
     return dplasma_core_ztradd( uplo, trans, tempmm, tempnn,
                                 alpha, A, ldam, beta, B, ldbm );

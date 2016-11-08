@@ -81,7 +81,7 @@ dplasma_ztrtri_New( PLASMA_enum uplo,
 
     if ( uplo == PlasmaLower ) {
         dague_trtri = (dague_handle_t*)dague_ztrtri_L_new(
-            uplo, diag, (dague_ddesc_t*)A, INFO );
+            uplo, diag, A, INFO );
 
         /* Lower part of A with diagonal part */
         dplasma_add2arena_lower( ((dague_ztrtri_L_handle_t*)dague_trtri)->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA],
@@ -90,7 +90,7 @@ dplasma_ztrtri_New( PLASMA_enum uplo,
                                  dague_datatype_double_complex_t, A->mb, 1 );
     } else {
         dague_trtri = (dague_handle_t*)dague_ztrtri_U_new(
-            uplo, diag, (dague_ddesc_t*)A, INFO );
+            uplo, diag, A, INFO );
 
         /* Lower part of A with diagonal part */
         dplasma_add2arena_upper( ((dague_ztrtri_U_handle_t*)dague_trtri)->arenas[DAGUE_ztrtri_U_UPPER_TILE_ARENA],

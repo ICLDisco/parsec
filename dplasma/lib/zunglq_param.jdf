@@ -46,7 +46,7 @@ BODY
 {
     int tempmm = (m == (descQ->mt-1)) ? (descQ->m - m * descQ->mb) : descQ->mb;
     int tempnn = (n == (descQ->nt-1)) ? (descQ->n - n * descQ->nb) : descQ->nb;
-    int ldqm = BLKLDDP( descQ, m );
+    int ldqm = BLKLDD( descQ, m );
 
     printlog("CORE_zlaset(%d, %d)\n"
              "\t(PlasmaUpperLower, tempmm, tempnn, alpha, (m == n) ? (beta) : (alpha), Q(%d,%d)[%p], ldqm)\n",
@@ -86,8 +86,8 @@ BODY
     int tempnn = (n == (descQ->nt-1)) ? (descQ->n - n * descQ->nb) : descQ->nb;
     int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
     int tempmin = dplasma_imin( tempkm, tempnn );
-    int ldak    = BLKLDDP( descA, k );
-    int ldqm    = BLKLDDP( descQ, m );
+    int ldak    = BLKLDD( descA, k );
+    int ldqm    = BLKLDD( descQ, m );
 
     void *W = dague_private_memory_pop( p_work );
 
@@ -188,8 +188,8 @@ BODY
     int tempmm = ( m == (descQ->mt-1)) ? (descQ->m - m * descQ->mb) : descQ->mb;
     int tempnn = ( n == (descQ->nt-1)) ? (descQ->n - n * descQ->nb) : descQ->nb;
     int tempkm = ( k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldak = BLKLDDP( descA, k );
-    int ldqm = BLKLDDP( descQ, m );
+    int ldak = BLKLDD( descA, k );
+    int ldqm = BLKLDD( descQ, m );
     int ldwork = descTT->nb;
 
     void *W = dague_private_memory_pop( p_work );

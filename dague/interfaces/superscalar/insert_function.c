@@ -510,7 +510,7 @@ dague_dtd_context_wait_on_handle( dague_context_t     *dague,
     /* Now we  can therefore release the extra dependency we had on the handle,
      * and if the handle is complete move on.
      */
-    int remaining = dague_atomic_dec_32b(&dtd_handle->super.nb_tasks);
+    int remaining = dague_atomic_dec_32b( (uint32_t*)&dtd_handle->super.nb_tasks );
     if( 0 == remaining ) {
         if( dague_atomic_cas(&dtd_handle->super.nb_tasks, 0, DAGUE_RUNTIME_RESERVED_NB_TASKS) )
             dague_handle_update_runtime_nbtask((dague_handle_t*)dtd_handle, -1);

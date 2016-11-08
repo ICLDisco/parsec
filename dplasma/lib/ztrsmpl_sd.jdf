@@ -22,9 +22,9 @@ extern "C" %{
 
 %}
 
-descA     [type = "tiled_matrix_desc_t*"]
-descL     [type = "tiled_matrix_desc_t*" aligned=descA]
-dataIP    [type = "dague_ddesc_t *" aligned=descA] /* Unused: Here only to keep alignment with getrf_incpiv object */
+descA     [type = "const tiled_matrix_desc_t*"]
+descL     [type = "const tiled_matrix_desc_t*" aligned=descA]
+dataIP    [type = "const tiled_matrix_desc_t*" aligned=descA] /* Unused: Here only to keep alignment with getrf_incpiv object */
 descB     [type = "tiled_matrix_desc_t*"]
 
 ib        [type = "int" hidden=on default="descL->mb" ]
@@ -69,8 +69,8 @@ BODY
 {
     int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : (descB->nb);
     int tempkm = ((k)==(descA->mt-1)) ? (descA->m-(k*descA->mb)) : (descA->mb);
-    int ldak   = BLKLDDP( descA, k );
-    int ldbk   = BLKLDDP( descB, k );
+    int ldak   = BLKLDD( descA, k );
+    int ldbk   = BLKLDD( descB, k );
     int tempkmin;
 
     printlog("CORE_zgessm(%d, %d)\n"
@@ -154,9 +154,9 @@ BODY
     int tempmm = (m == (descB->mt-1)) ? (descB->m - m * descB->mb) : descB->mb;
     int tempnn = (n == (descB->nt-1)) ? (descB->n - n * descB->nb) : descB->nb;
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldbk   = BLKLDDP(descB, k);
-    int ldbm   = BLKLDDP(descB, m);
-    int ldam   = BLKLDDP(descA, m);
+    int ldbk   = BLKLDD(descB, k);
+    int ldbm   = BLKLDD(descB, m);
+    int ldam   = BLKLDD(descA, m);
 
     printlog("CORE_zssssm(%d, %d, %d)\n"
              "\t(%d, %d, %d, %d, %d, %d, descA(%d,%d)[%p], %d, descA(%d,%d)[%p], %d, \n"

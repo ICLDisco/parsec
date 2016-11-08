@@ -16,8 +16,8 @@ extern "C" %{
  */
 uplo     [type = PLASMA_enum]
 trans    [type = PLASMA_enum]
-mA       [type="tiled_matrix_desc_t*"]
-mB       [type="tiled_matrix_desc_t*"]
+descA    [type="const tiled_matrix_desc_t*"]
+descB    [type="tiled_matrix_desc_t*"]
 operator [type = "tiled_matrix_binary_op_t" ]
 op_args  [type = "void *" ]
 
@@ -25,16 +25,16 @@ plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]
 plasma_notrans [type="PLASMA_enum" hidden=on default=PlasmaNoTrans ]
 
-L_m_limit      [type="int" hidden=on default="(((uplo == plasma_upper) && (trans == plasma_notrans)) || ((uplo == plasma_lower) && (trans != plasma_notrans)) ? 0 : mA->mt-1)" ]
-U_n_limit      [type="int" hidden=on default="(((uplo == plasma_lower) && (trans == plasma_notrans)) || ((uplo == plasma_upper) && (trans != plasma_notrans)) ? 0 : mA->nt-1)" ]
+L_m_limit      [type="int" hidden=on default="(((uplo == plasma_upper) && (trans == plasma_notrans)) || ((uplo == plasma_lower) && (trans != plasma_notrans)) ? 0 : descA->mt-1)" ]
+U_n_limit      [type="int" hidden=on default="(((uplo == plasma_lower) && (trans == plasma_notrans)) || ((uplo == plasma_upper) && (trans != plasma_notrans)) ? 0 : descA->nt-1)" ]
 
 map_l_in_Amn(m, n)   [profile = off]
   m = 1 .. L_m_limit
-  n = 0 .. ( m < mA->nt ? m-1 : mA->nt-1 )
+  n = 0 .. ( m < descA->nt ? m-1 : descA->nt-1 )
 
-  : mA(m, n)
+  : descA(m, n)
 
-  RW A <- mA(m, n)
+  RW A <- descA(m, n)
        -> (trans == plasma_notrans) ? A MAP_L(m, n)
        -> (trans != plasma_notrans) ? A MAP_U(n, m)
 
@@ -46,22 +46,22 @@ END
 
 MAP_L(m, n)  [profile = off]
   // Execution space
-  m = 1 .. ((uplo == plasma_upper) ? 0 : mB->mt-1)
-  n = 0 .. ( m < mB->nt ? m-1 : mB->nt-1 )
+  m = 1 .. ((uplo == plasma_upper) ? 0 : descB->mt-1)
+  n = 0 .. ( m < descB->nt ? m-1 : descB->nt-1 )
 
   // Parallel partitioning
-  : mB(m, n)
+  : descB(m, n)
 
   // Parameters
   READ  A <- (trans == plasma_notrans) ? A map_l_in_Amn(m, n)
           <- (trans != plasma_notrans) ? A map_u_in_Amn(n, m)
-  RW    B <- mB(m, n)
-          -> mB(m, n)
+  RW    B <- descB(m, n)
+          -> descB(m, n)
 
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-    operator( context, mA, mB,
+    operator( context, descA, descB,
               A, B, PlasmaUpperLower, m, n, op_args );
 #endif /* !defined(DAGUE_DRY_RUN) */
 
@@ -71,12 +71,12 @@ BODY
 END
 
 map_u_in_Amn(m, n)  [profile = off]
-  m = 0   .. mA->mt-1
+  m = 0   .. descA->mt-1
   n = m+1 .. U_n_limit
 
-  : mA(m, n)
+  : descA(m, n)
 
-  RW A <- mA(m, n)
+  RW A <- descA(m, n)
        -> (trans == plasma_notrans) ? A MAP_U(m, n)
        -> (trans != plasma_notrans) ? A MAP_L(n, m)
 
@@ -88,23 +88,23 @@ END
 
 MAP_U(m, n)  [profile = off]
   // Execution space
-  m = 0   .. mB->mt-1
-  n = m+1 .. ((uplo == plasma_lower) ? 0 : mB->nt-1)
+  m = 0   .. descB->mt-1
+  n = m+1 .. ((uplo == plasma_lower) ? 0 : descB->nt-1)
 
   // Parallel partitioning
-  : mB(m, n)
+  : descB(m, n)
 
   // Parameters
   READ  A <- (trans == plasma_notrans) ? A map_u_in_Amn(m, n)
           <- (trans != plasma_notrans) ? A map_l_in_Amn(n, m)
-  RW    B <- mB(m, n)
-          -> mB(m, n)
+  RW    B <- descB(m, n)
+          -> descB(m, n)
 
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-    operator( context, mA, mB,
-              A, B, PlasmaUpperLower, B, n, op_args );
+    operator( context, descA, descB,
+              A, B, PlasmaUpperLower, m, n, op_args );
 #endif /* !defined(DAGUE_DRY_RUN) */
 
     printlog("thread %d VP %d map_u( %d, %d )\n",
@@ -113,11 +113,11 @@ BODY
 END
 
 map_diag_in_Akk(k)  [profile = off]
-  k = 0 .. ( mB->mt < mB->nt ? mB->mt-1 : mB->nt-1 )
+  k = 0 .. ( descB->mt < descB->nt ? descB->mt-1 : descB->nt-1 )
 
-  : mA(k, k)
+  : descA(k, k)
 
-  RW A <- mA(k, k)
+  RW A <- descA(k, k)
        -> A MAP_DIAG(k)
 
 BODY
@@ -128,20 +128,20 @@ END
 
 MAP_DIAG(k) [profile = off]
   // Execution space
-  k = 0 .. ( mB->mt < mB->nt ? mB->mt-1 : mB->nt-1 )
+  k = 0 .. ( descB->mt < descB->nt ? descB->mt-1 : descB->nt-1 )
 
   // Parallel partitioning
-  : mB(k, k)
+  : descB(k, k)
 
   // Parameters
   READ  A <- A map_diag_in_Akk(k)
-  RW    B <- mB(k, k)
-          -> mB(k, k)
+  RW    B <- descB(k, k)
+          -> descB(k, k)
 
 BODY
 {
 #if !defined(DAGUE_DRY_RUN)
-    operator( context, mA, mB,
+    operator( context, descA, descB,
               A, B, uplo, k, k, op_args );
 #endif /* !defined(DAGUE_DRY_RUN) */
 

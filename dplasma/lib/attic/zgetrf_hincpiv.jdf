@@ -25,20 +25,20 @@ extern "C" %{
 //#define PRIO_YVES1
 
 #if defined(PRIO_YVES1)
-#define GETPRIO_PANEL( __m, __n )      descA->mt * descA->nt - ((descA->nt - (__n) - 1) * descA->mt + (__m) + 1)
-#define GETPRIO_UPDTE( __m, __n, __k ) descA->mt * descA->nt - ((descA->nt - (__n) - 1) * descA->mt + (__m) + 1)
+#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
+#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((descA.nt - (__n) - 1) * descA.mt + (__m) + 1)
 #elif defined(PRIO_YVES2)
-#define GETPRIO_PANEL( __m, __n )      descA->mt * descA->nt - ((__m) * descA->nt + descA->nt - (__n))
-#define GETPRIO_UPDTE( __m, __n, __k ) descA->mt * descA->nt - ((__m) * descA->nt + descA->nt - (__n))
+#define GETPRIO_PANEL( __m, __n )      descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) descA.mt * descA.nt - ((__m) * descA.nt + descA.nt - (__n))
 #elif defined(PRIO_MATHIEU1)
-#define GETPRIO_PANEL( __m, __n )      (descA->mt + (__n) - (__m) - 1) * descA->nt + (__n)
-#define GETPRIO_UPDTE( __m, __n, __k ) (descA->mt + (__n) - (__m) - 1) * descA->nt + (__n)
+#define GETPRIO_PANEL( __m, __n )      (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
+#define GETPRIO_UPDTE( __m, __n, __k ) (descA.mt + (__n) - (__m) - 1) * descA.nt + (__n)
 #elif defined(PRIO_MATHIEU2)
-#define GETPRIO_PANEL( __m, __n )      ((dplasma_imax(descA->mt, descA->nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
-#define GETPRIO_UPDTE( __m, __n, __k ) ((dplasma_imax(descA->mt, descA->nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_PANEL( __m, __n )      ((dplasma_imax(descA.mt, descA.nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
+#define GETPRIO_UPDTE( __m, __n, __k ) ((dplasma_imax(descA.mt, descA.nt) - dplasma_imax( (__n) - (__m), (__m) - (__n) ) -1 ) * 12 + (__n))
 #elif defined(PRIO_MATYVES)
 #define FORMULE( __x ) ( ( -1. + dplasma_dsqrt( 1. + 4.* (__x) * (__x)) ) * 0.5 )
-#define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA->mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
+#define GETPRIO_PANEL( __m, __k )      (int)( 22. * (__k) + 6. * ( FORMULE( descA.mt ) - FORMULE( (__m) - (__k) + 1. ) ) )
 #define GETPRIO_UPDTE( __m, __n, __k ) (int)( (__m) < (__n) ? GETPRIO_PANEL( (__n), (__n) ) - 22. * ( (__m) - (__k) ) - 6. * ( (__n) - (__m) ) \
                                               :               GETPRIO_PANEL( (__m), (__n) ) - 22. * ( (__n) - (__k) ) )
 #else
@@ -50,7 +50,7 @@ extern "C" %{
 %}
 
 A      [type = "dague_ddesc_t *"]
-descA-> [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)A)"]
+descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)A)"]
 IPIV   [type = "dague_ddesc_t *" aligned=A]
 LT     [type = "dague_ddesc_t *" aligned=A]
 descLT [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)LT)"]
@@ -60,15 +60,15 @@ p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(d
 p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descLT.nb))"]
 INFO   [type = "int*"]
 
-minMN  [type = "int" hidden=on default="( (descA->mt < descA->nt) ? descA->mt : descA->nt )" ]
+minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
 
 /**
  * GETRF kernel
  *
- * There are dplasma_qr_getnbgeqrf( pivfct, k, descA->mt ) getrf applyed at step
+ * There are dplasma_qr_getnbgeqrf( pivfct, k, descA.mt ) getrf applyed at step
  * k on the rows indexed by m.
  * nextm is the first row that will be killed by the row m at step k.
- * nextm = descA->mt if the row m is never used as a killer.
+ * nextm = descA.mt if the row m is never used as a killer.
  *
  */
 zgetrf(k, i)
@@ -76,7 +76,7 @@ zgetrf(k, i)
   k = 0 .. minMN-1
   i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   m      = %{ return qrtree.getm(       &qrtree, k, i); %}
-  nextm  = %{ return qrtree.nextpiv(    &qrtree, k, m, descA->mt); %}
+  nextm  = %{ return qrtree.nextpiv(    &qrtree, k, m, descA.mt); %}
 
   SIMCOST 4
 
@@ -88,26 +88,26 @@ zgetrf(k, i)
 
           -> A zgetrf_typechange(k, i)
 
-          -> ( k == descA->mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
-          -> ( (k < descA->mt-1) & (nextm != descA->mt) ) ?  A1 zttqrt(k, nextm) [type = UPPER_TILE]
-          -> ( (k < descA->mt-1) & (nextm == descA->mt) ) ?  A2 zttqrt(k, m)     [type = UPPER_TILE]
+          -> ( k == descA.mt-1 ) ? A(m, k)                                     [type = UPPER_TILE]
+          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ?  A1 zttqrt(k, nextm) [type = UPPER_TILE]
+          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ?  A2 zttqrt(k, m)     [type = UPPER_TILE]
   RW    P <- IPIV(m, k)                                                        [type = PIVOT]
           -> IPIV(m, k)                                                        [type = PIVOT]
-          -> (k < descA->nt-1) ? P zgessm(k, i, (k+1)..(descA->nt-1))            [type = PIVOT]
+          -> (k < descA.nt-1) ? P zgessm(k, i, (k+1)..(descA.nt-1))            [type = PIVOT]
 
   ; %{ return GETPRIO_PANEL(m, k); %}
 
 BODY
 {
     int iinfo = 0;
-    int tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
-    int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldam   = BLKLDDP( descA, m );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempkn = (k == (descA.nt-1)) ? (descA.n - k * descA.nb) : descA.nb;
+    int ldam   = BLKLDD( descA, m );
 
     printlog("zgetrf_incpiv( k=%d, i=%d, m=%d, nextm=%d)\n"
              "\t( tempmm=%d, tempkn=%d, ib, A(%d,%d)[%p], ldam=%d, IPIV(%d,%d)[%p]) => info = %d\n",
              k, i, m, nextm, tempmm, tempkn, m, k, A, ldam, m, k, P,
-             (iinfo != 0 ? m * descA->mb + iinfo : 0 ));
+             (iinfo != 0 ? m * descA.mb + iinfo : 0 ));
 
 #if !defined(DAGUE_DRY_RUN)
            /* Set local IPIV to 0 before generation
@@ -119,14 +119,14 @@ BODY
                               A /* A(m, k)    */, ldam,
                               P /* IPIV(m, k) */, &iinfo );
 
-           if ( (iinfo != 0) /*&& (k == descA->mt-1)*/ ) {
-               *INFO = k * descA->mb + iinfo; /* Should return if enter here */
+           if ( (iinfo != 0) /*&& (k == descA.mt-1)*/ ) {
+               *INFO = k * descA.mb + iinfo; /* Should return if enter here */
                fprintf(stderr, "\nWarning!!! zgetrf( k=%d, i=%d, m=%d) failed => %d\n", k, i, m, *INFO );
            }
 #endif /* !defined(DAGUE_DRY_RUN) */
 
 #if defined(DAGUE_SIM)
-    if ( descA->mt-1 == k )
+    if ( descA.mt-1 == k )
         ((PLASMA_Complex64_t*)A)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
 }
@@ -146,7 +146,7 @@ zgetrf_typechange(k, i) [profile = off]
   : A(m, k)
 
   RW A <- A zgetrf(k, i)
-       -> ( descA->nt-1 > k ) ? A zgessm(k, i, (k+1)..(descA->nt-1)) [type = LOWER_TILE]
+       -> ( descA.nt-1 > k ) ? A zgessm(k, i, (k+1)..(descA.nt-1)) [type = LOWER_TILE]
        -> A(m, k)                                                  [type = LOWER_TILE]
 BODY
 {
@@ -163,9 +163,9 @@ zgessm(k, i, n)
   /* Execution space */
   k = 0   .. minMN-1
   i = 0   .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  n = k+1 .. descA->nt-1
+  n = k+1 .. descA.nt-1
   m     = %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA->mt); %}
+  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA.mt); %}
 
   SIMCOST 6
 
@@ -177,17 +177,17 @@ zgessm(k, i, n)
 
   RW    C <- ( 0 == k ) ? A(m, n)
           <- ( k >  0 ) ? A2 zttmqr(k-1, m, n)
-          -> ( k == descA->mt-1 ) ? A(m, n)
-          -> ( (k < descA->mt-1) & (nextm != descA->mt) ) ? A1 zttmqr(k, nextm, n)
-          -> ( (k < descA->mt-1) & (nextm == descA->mt) ) ? A2 zttmqr(k, m,     n)
+          -> ( k == descA.mt-1 ) ? A(m, n)
+          -> ( (k < descA.mt-1) & (nextm != descA.mt) ) ? A1 zttmqr(k, nextm, n)
+          -> ( (k < descA.mt-1) & (nextm == descA.mt) ) ? A2 zttmqr(k, m,     n)
 
     ; %{ return GETPRIO_UPDTE(m, n, k); %}
 
 BODY
 {
-    int tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
-    int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
-    int ldam   = BLKLDDP( descA, m );
+    int tempmm = (m == (descA.mt-1)) ? (descA.m - m * descA.mb) : descA.mb;
+    int tempnn = (n == (descA.nt-1)) ? (descA.n - n * descA.nb) : descA.nb;
+    int ldam   = BLKLDD( descA, m );
 
     printlog("zgessm( k=%d, i=%d, n=%d, m=%d, nextm=%d)\n"
               "\t( tempmm=%d, tempnn=%d, tempmm=%d, ib, IPIV(%d,%d)[%p], \n"
@@ -219,7 +219,7 @@ END
 zttqrt(k, m)
   /* Execution space */
   k = 0   .. minMN-1
-  m = k+1 .. descA->mt-1
+  m = k+1 .. descA.mt-1
   p =     %{ return qrtree.currpiv( &qrtree, k, m);    %}
   nextp = %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
   prevp = %{ return qrtree.prevpiv( &qrtree, k, p, m); %}
@@ -232,38 +232,38 @@ zttqrt(k, m)
 
   : A(m, k)
 
-  RW   A1 <- (   prevp == descA->mt ) ? A zgetrf(k, ip ) : A1 zttqrt(k, prevp ) [type = UPPER_TILE]
-          -> (   nextp != descA->mt ) ? A1 zttqrt(k, nextp )                    [type = UPPER_TILE]
-          -> ( ( nextp == descA->mt ) & (p == k) ) ? A zttqrt_out_A1(k)         [type = UPPER_TILE]
-          -> ( ( nextp == descA->mt ) & (p != k) ) ? A2 zttqrt(k, p)            [type = UPPER_TILE]
+  RW   A1 <- (   prevp == descA.mt ) ? A zgetrf(k, ip ) : A1 zttqrt(k, prevp ) [type = UPPER_TILE]
+          -> (   nextp != descA.mt ) ? A1 zttqrt(k, nextp )                    [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p == k) ) ? A zttqrt_out_A1(k)         [type = UPPER_TILE]
+          -> ( ( nextp == descA.mt ) & (p != k) ) ? A2 zttqrt(k, p)            [type = UPPER_TILE]
 
   RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? A(m, k)
           <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, k )
-          <- ( (type != 0) && (prevm == descA->mt ) ) ? A zgetrf(k, im )        [type = UPPER_TILE]
-          <- ( (type != 0) && (prevm != descA->mt ) ) ? A1 zttqrt(k, prevm )    [type = UPPER_TILE]
+          <- ( (type != 0) && (prevm == descA.mt ) ) ? A zgetrf(k, im )        [type = UPPER_TILE]
+          <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttqrt(k, prevm )    [type = UPPER_TILE]
 
           -> (type == 0 ) ? A(m, k)
           -> (type != 0 ) ? A(m, k)                                             [type = UPPER_TILE]
 
-          -> (type == 0) &&  (descA->nt-1 > k) ? V zttmqr(k, m, (k+1)..(descA->nt-1))
-          -> (type != 0) &&  (descA->nt-1 > k) ? V zttmqr(k, m, (k+1)..(descA->nt-1)) [type = UPPER_TILE]
+          -> (type == 0) &&  (descA.nt-1 > k) ? V zttmqr(k, m, (k+1)..(descA.nt-1))
+          -> (type != 0) &&  (descA.nt-1 > k) ? V zttmqr(k, m, (k+1)..(descA.nt-1)) [type = UPPER_TILE]
 
   RW   L  <- LT(m, k)                                                                     [type = SMALL_L]
           -> LT(m, k)                                                                     [type = SMALL_L]
-          -> (descA->nt-1 > k)? L zttmqr(k, m, (k+1)..(descA->nt-1))                        [type = SMALL_L]
+          -> (descA.nt-1 > k)? L zttmqr(k, m, (k+1)..(descA.nt-1))                        [type = SMALL_L]
 
   RW   P  <- IPIV(m,k)                                                                    [type = PIVOT]
           ->  ( type == 0 ) ? IPIV(m,k)                                                   [type = PIVOT]
-          -> (( type == 0 ) && (descA->nt-1 > k) ) ? P zttmqr(k, m, (k+1)..(descA->nt-1))   [type = PIVOT]
+          -> (( type == 0 ) && (descA.nt-1 > k) ) ? P zttmqr(k, m, (k+1)..(descA.nt-1))   [type = PIVOT]
 
  ; %{ return type == DPLASMA_QR_KILLED_BY_TS ? GETPRIO_PANEL(p, k) : GETPRIO_PANEL(m, k); %}
 
 BODY
 {
-    int tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
-    int tempkn = ((k)==((descA->nt)-1)) ? ((descA->n)-(k*(descA->nb))) : (descA->nb);
-    int ldap = BLKLDDP( descA, p );
-    int ldam = BLKLDDP( descA, m );
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int tempkn = ((k)==((descA.nt)-1)) ? ((descA.n)-(k*(descA.nb))) : (descA.nb);
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
 
     printlog("zttqrt( k=%d, m=%d, p=%d, nextp=%d, prevp=%d, prevm=%d, type=%d, ip=%d, im=%d )\n"
              "\t(tempmm=%d, tempkn=%d, ib=%d, descLT.nb=%d,\n"
@@ -286,8 +286,8 @@ BODY
                         P  /* IPIV(m,k) */,
                         p_elem_B, descLT.nb, &iinfo );
 
-            if ( (iinfo != 0) /*&& (m == descA->mt-1)*/ ) {
-                *INFO = k * descA->mb + iinfo; /* Should return if enter here */
+            if ( (iinfo != 0) /*&& (m == descA.mt-1)*/ ) {
+                *INFO = k * descA.mb + iinfo; /* Should return if enter here */
                 fprintf(stderr, "ztstrf(%d, %d) failed => %d\n", m, k, *INFO );
             }
         } else {
@@ -295,7 +295,7 @@ BODY
 
             CORE_zttqrt(
                 tempmm, tempkn, ib,
-                A1 /* A(p, k)  */, descA->mb /*ldap*/,
+                A1 /* A(p, k)  */, descA.mb /*ldap*/,
                 A2 /* A(m, k)  */, ldam,
                 L  /* LT(m, k) */, descLT.mb,
                 p_elem_A, p_elem_B );
@@ -308,14 +308,14 @@ BODY
 
 #if defined(DAGUE_SIM)
     ((PLASMA_Complex64_t*)A2)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
-    if ( ( ( nextp == descA->mt ) & (p == k) ) )
+    if ( ( ( nextp == descA.mt ) & (p == k) ) )
       ((PLASMA_Complex64_t*)A1)[0] = (PLASMA_Complex64_t)(this_task->sim_exec_date);
 #endif
 }
 END
 
 zttqrt_out_A1(k) [profile = off]
-  k = 0..( (descA->mt <= descA->nt) ? descA->mt-2 : descA->nt-1 )
+  k = 0..( (descA.mt <= descA.nt) ? descA.mt-2 : descA.nt-1 )
   prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
   : A(k, k)
@@ -335,14 +335,14 @@ END
  * type1 defines the operations to perfom at next step k+1 on the row m
  *   if type1 == 0, it will be a TS so the tile goes to a TTQRT/TTMQR operation
  *   if type1 != 0, it will be a TT so the tile goes to a GEQRT/UNMQR operation
- * im1 is the index of the killer m at the next step k+1 if its type is !0, descA->mt otherwise
+ * im1 is the index of the killer m at the next step k+1 if its type is !0, descA.mt otherwise
  *
  */
 zttmqr(k, m, n)
   /* Execution space */
   k = 0   .. minMN-1
-  m = k+1 .. descA->mt-1
-  n = k+1 .. descA->nt-1
+  m = k+1 .. descA.mt-1
+  n = k+1 .. descA.nt-1
   p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
   nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
   prevp = %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
@@ -357,15 +357,15 @@ zttmqr(k, m, n)
 
   : A(m, n)
 
-  RW   A1 <- (   prevp == descA->mt ) ? C  zgessm( k, ip, n ) : A1 zttmqr(k, prevp, n )
-          -> (   nextp != descA->mt ) ? A1 zttmqr( k, nextp, n)
-          -> ( ( nextp == descA->mt ) & ( p == k ) ) ? A  zttmqr_out_A1(p, n)
-          -> ( ( nextp == descA->mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
+  RW   A1 <- (   prevp == descA.mt ) ? C  zgessm( k, ip, n ) : A1 zttmqr(k, prevp, n )
+          -> (   nextp != descA.mt ) ? A1 zttmqr( k, nextp, n)
+          -> ( ( nextp == descA.mt ) & ( p == k ) ) ? A  zttmqr_out_A1(p, n)
+          -> ( ( nextp == descA.mt ) & ( p != k ) ) ? A2 zttmqr( k, p, n )
 
   RW   A2 <- ( (type == 0) && (k     == 0        ) ) ? A(m, n)
           <- ( (type == 0) && (k     != 0        ) ) ? A2 zttmqr(k-1, m, n )
-          <- ( (type != 0) && (prevm == descA->mt ) ) ? C zgessm(k, im, n)
-          <- ( (type != 0) && (prevm != descA->mt ) ) ? A1 zttmqr(k, prevm, n )
+          <- ( (type != 0) && (prevm == descA.mt ) ) ? C zgessm(k, im, n)
+          <- ( (type != 0) && (prevm != descA.mt ) ) ? A1 zttmqr(k, prevm, n )
           -> ( (type1 != 0 ) && (n==(k+1)) ) ? A  zgetrf( k+1, im1 )
           -> ( (type1 != 0 ) && (n>  k+1)  ) ? C  zgessm( k+1, im1, n )
           -> ( (type1 == 0 ) && (n==(k+1)) ) ? A2 zttqrt( k+1, m )
@@ -382,17 +382,17 @@ zttmqr(k, m, n)
 
 BODY
 {
-    int tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    int tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
-    int ldap = BLKLDDP( descA, p );
-    int ldam = BLKLDDP( descA, m );
+    int tempnn = ((n)==((descA.nt)-1)) ? ((descA.n)-(n*(descA.nb))) : (descA.nb);
+    int tempmm = ((m)==((descA.mt)-1)) ? ((descA.m)-(m*(descA.mb))) : (descA.mb);
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
 
     printlog("zttmqr( k=%d, m=%d, n=%d, p=%d, nextp=%d, prevp=%d, prevm=%d, type=%d, type1=%d, ip=%d, im=%d, im1=%d)\n"
-             "\t(descA->mb=%d, tempnn=%d, tempmm=%d, tempnn=%d, ib=%d, \n"
+             "\t(descA.mb=%d, tempnn=%d, tempmm=%d, tempnn=%d, ib=%d, \n"
              "\t A(%d,%d)[%p], ldap=%d, A(%d,%d)[%p], ldam = %d,\n"
              "\t LT(%d,%d)[%p], descLT.mb=%d, A(%d,%d)[%p], ldam = %d)\n",
              k, m, n, p, nextp, prevp, prevm, type, type1, ip, im, im1,
-             descA->mb, tempnn, tempmm, tempnn, ib,
+             descA.mb, tempnn, tempmm, tempnn, ib,
              p, n, A1, ldap, m, n, A2, ldam,
              m, k, L, descLT.mb, m, k, V, ldam);
 
@@ -400,7 +400,7 @@ BODY
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_zssssm(
-                descA->mb, tempnn, tempmm, tempnn, descA->nb, ib,
+                descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
                 A1 /* A(p, n)  */, ldap,
                 A2 /* A(m, n)  */, ldam,
                 L  /* LT(m, k) */, descLT.mb,
@@ -411,7 +411,7 @@ BODY
 
             CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                descA->mb, tempnn, tempmm, tempnn, descA->nb, ib,
+                descA.mb, tempnn, tempmm, tempnn, descA.nb, ib,
                 A1 /* A(p, n)  */, ldap,
                 A2 /* A(m, n)  */, ldam,
                 V  /* A(m, k)  */, ldam,
@@ -427,7 +427,7 @@ END
 
 zttmqr_out_A1(k, n) [profile = off]
   k = 0   .. minMN-2
-  n = k+1 .. descA->nt-1
+  n = k+1 .. descA.nt-1
   prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
   : A(k, n)

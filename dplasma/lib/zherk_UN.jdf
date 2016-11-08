@@ -40,9 +40,9 @@ BODY
 {
     int tempnn = (n==(descC->nt-1)) ? (descC->n-(n*descC->nb)) : descC->nb;
     int tempkn = (k==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
-    int ldan = BLKLDDP( descA, n );
+    int ldan = BLKLDD( descA, n );
     double dbeta = (k==0) ? beta : ((double)1.);
-    int ldcn = BLKLDDP( descC, n );
+    int ldcn = BLKLDD( descC, n );
 
     printlog("CORE_zherk(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
@@ -95,10 +95,10 @@ BODY
     int tempmm = ((m)==(descC->mt-1)) ? (descC->m-(m*descC->mb)) : descC->mb;
     int tempkn = (k==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
     dague_complex64_t zalpha = (dague_complex64_t)alpha;
-    int ldan = BLKLDDP( descA, n );
-    int ldam = BLKLDDP( descA, m );
+    int ldan = BLKLDD( descA, n );
+    int ldam = BLKLDD( descA, m );
     dague_complex64_t zbeta = (k==0) ? ((dague_complex64_t)beta) : ((double)1.);
-    int ldcn = BLKLDDP( descC, n );
+    int ldcn = BLKLDD( descC, n );
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",

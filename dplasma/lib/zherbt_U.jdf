@@ -71,7 +71,7 @@ zgelqt(k)
 BODY
 
   int tempkn = ((k+1)==((descA->nt)-1)) ? ((descA->n)-((k+1)*(descA->nb))) : (descA->nb);
-  int ldak = BLKLDDP( descA, k );
+  int ldak = BLKLDD( descA, k );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -118,7 +118,7 @@ zherfb(k)
 BODY
 
   int tempkn = ((k+1)==((descA->nt)-1)) ? ((descA->n)-((k+1)*(descA->nb))) : (descA->nb);
-  int ldak = BLKLDDP( descA, k+1 );
+  int ldak = BLKLDD( descA, k+1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_2 );
 
@@ -169,7 +169,7 @@ BODY
 
   int tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
   int tempkn = ((k+1)==((descA->nt)-1)) ? ((descA->n)-((k+1)*(descA->nb))) : (descA->nb);
-  int ldak = BLKLDDP( descA, k+1 );
+  int ldak = BLKLDD( descA, k+1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
@@ -233,7 +233,7 @@ ztslqt(k,n1)
 BODY
 
   int tempnn = ((n1)==((descA->nt)-1)) ? ((descA->n)-(n1*(descA->nb))) : (descA->nb);
-  int ldak = BLKLDDP( descA, k );
+  int ldak = BLKLDD( descA, k );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -291,8 +291,8 @@ ztsmlq_hetra1(k,n1,i)
 BODY
 
   int tempnn = ((n1)==((descA->nt)-1)) ? ((descA->n)-(n1*(descA->nb))) : (descA->nb);
-  int ldak = BLKLDDP( A, k+1 );
-  int ldai = BLKLDDP( A, i );
+  int ldak = BLKLDD( A, k+1 );
+  int ldai = BLKLDD( A, i );
   int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (descT->nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
@@ -350,8 +350,8 @@ BODY
 
   int tempjj = ((j)==((descA->nt)-1)) ? ((descA->n)-(j*(descA->nb))) : (descA->nb);
   int tempnn = ((n1)==((descA->nt)-1)) ? ((descA->n)-(n1*(descA->nb))) : (descA->nb);
-  int ldak = BLKLDDP( A, k+1 );
-  int ldan = BLKLDDP( A, n1 );
+  int ldak = BLKLDD( A, k+1 );
+  int ldan = BLKLDD( A, n1 );
   int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (descT->nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
@@ -415,8 +415,8 @@ ztsmlq_corner(k,n1)
 BODY
 
   int tempnn = ((n1)==((descA->nt)-1)) ? ((descA->n)-(n1*(descA->nb))) : (descA->nb);
-  int ldak = BLKLDDP( A, k+1 );
-  int ldan = BLKLDDP( A, n1 );
+  int ldak = BLKLDD( A, k+1 );
+  int ldan = BLKLDD( A, n1 );
   int ldwork = descT->nb;
 
   void *p_elem_A = dague_private_memory_pop( pool_3 );

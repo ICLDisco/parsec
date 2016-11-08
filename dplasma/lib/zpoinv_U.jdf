@@ -39,7 +39,7 @@ potrf_zpotrf(k)
 BODY
 {
     int tempkm = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
     int info = 0;
 
 
@@ -74,7 +74,7 @@ potrf_ztrsm(k, m)
 BODY
 {
     int tempmm = (m == (descA->nt-1)) ? (descA->n - m * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
 
 
     printlog("CORE_potrf_ztrsm(%d, %d)\n"
@@ -109,8 +109,8 @@ potrf_zherk(k, m)
 BODY
 {
     int tempmm = (m == (descA->nt-1)) ? (descA->n - m * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
-    int ldam = BLKLDDP( descA, m );
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
 
     printlog("CORE_potrf_zherk(%d, %d)\n"
@@ -155,8 +155,8 @@ BODY [type=CUDA]
 #endif
 
     int tempmm = (m == (descA->nt-1)) ? (descA->n - m * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
-    int ldan = BLKLDDP( descA, n );
+    int ldak = BLKLDD( descA, k );
+    int ldan = BLKLDD( descA, n );
 
     cublasStatus_t status;
     cublasSetKernelStream( dague_body.stream );
@@ -174,8 +174,8 @@ END
 BODY
 {
     int tempmm = (m == (descA->nt-1)) ? (descA->n - m * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
-    int ldan = BLKLDDP( descA, n );
+    int ldak = BLKLDD( descA, k );
+    int ldan = BLKLDD( descA, n );
 
     printlog("CORE_potrf_zgemm(%d, %d, %d)\n"
              "\t(PlasmaConjTrans, PlasmaNoTrans, descA->mb, tempmm, descA->mb, -1, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, 1., A(%d,%d)[%p], descA->mb)\n",
@@ -217,7 +217,7 @@ BODY
 {
     int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
 
 
     printlog("CORE_trtri_ztrsmL(%d, %d)\n"
@@ -265,8 +265,8 @@ BODY [type=CUDA]
 
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
     int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldam = BLKLDDP( descA, m );
-    int ldak = BLKLDDP( descA, k );
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
 
     cublasStatus_t status;
     cublasSetKernelStream( dague_body.stream );
@@ -285,8 +285,8 @@ BODY
 {
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
     int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldam = BLKLDDP( descA, m );
-    int ldak = BLKLDDP( descA, k );
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
 
     printlog("CORE_trtri_zgemm(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, PlasmaNoTrans, descA->mb, tempnn, tempkm, 1., A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1., A(%d,%d)[%p], ldam)\n",
@@ -326,8 +326,8 @@ trtri_ztrsmR(k, m)
 BODY
 {
     int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldak = BLKLDDP( descA, k );
-    int ldam = BLKLDDP( descA, m );
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
 
     printlog("CORE_trtri_ztrsmR(%d, %d)\n"
@@ -361,7 +361,7 @@ trtri_ztrtri(k)
 BODY
 {
     int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
     int info = 0;
 
 
@@ -396,7 +396,7 @@ lauum_zherk(k, m)
 BODY
 {
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldam = BLKLDDP( descA, m );
+    int ldam = BLKLDD( descA, m );
 
 
     printlog("CORE_lauum_zherk(%d, %d)\n"
@@ -441,8 +441,8 @@ BODY [type=CUDA]
 #endif
 
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldam = BLKLDDP( descA, m );
-    int ldan = BLKLDDP( descA, n );
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
 
     cublasStatus_t status;
     cublasSetKernelStream( dague_body.stream );
@@ -460,8 +460,8 @@ END
 BODY
 {
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldam = BLKLDDP( descA, m );
-    int ldan = BLKLDDP( descA, n );
+    int ldam = BLKLDD( descA, m );
+    int ldan = BLKLDD( descA, n );
 
     printlog("CORE_lauum_zgemm(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, PlasmaConjTrans, descA->mb, descA->nb, tempkn, 1., A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldan, 1., A(%d,%d)[%p], ldam)\n",
@@ -500,8 +500,8 @@ lauum_ztrmm(k, m)
 BODY
 {
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
-    int ldam = BLKLDDP( descA, m );
+    int ldak = BLKLDD( descA, k );
+    int ldam = BLKLDD( descA, m );
 
 
     printlog("CORE_lauum_ztrmm(%d, %d)\n"
@@ -535,7 +535,7 @@ lauum_zlauum(k)
 BODY
 {
     int tempkn = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldak = BLKLDDP( descA, k );
+    int ldak = BLKLDD( descA, k );
 
 
     printlog("CORE_lauum_zlauum(%d)\n"

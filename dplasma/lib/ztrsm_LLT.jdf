@@ -19,7 +19,7 @@ uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 diag      [type = "PLASMA_enum"]
 alpha     [type = "dague_complex64_t"]
-descA     [type = "tiled_matrix_desc_t*"]
+descA     [type = "const tiled_matrix_desc_t*"]
 descB     [type = "tiled_matrix_desc_t*"]
 
 
@@ -42,8 +42,8 @@ BODY
     int tempkm = ((k)==(0)) ? (descB->m-((descB->mt-1)*descB->mb)) : descB->mb;
     int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
     dague_complex64_t lalpha = ((k)==(0)) ? (alpha) : (dague_complex64_t)(1.0);
-    int lda = BLKLDDP( descA, (descB->mt-1)-k );
-    int ldb = BLKLDDP( descB, (descB->mt-1)-k );
+    int lda = BLKLDD( descA, (descB->mt-1)-k );
+    int ldb = BLKLDD( descB, (descB->mt-1)-k );
 
 #if !defined(DAGUE_DRY_RUN)
         CORE_ztrsm(side, uplo, trans, diag,
@@ -96,9 +96,9 @@ BODY
 {
     int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
     int tempkm = ((k)==(0)) ? (descB->m-((descB->mt-1)*descB->mb)) : descB->mb;
-    int lda  = BLKLDDP( descA, (descB->mt-1)-k );
-    int ldb  = BLKLDDP( descB, (descB->mt-1)-k );
-    int ldbm = BLKLDDP( descB, (descB->mt-1)-m );
+    int lda  = BLKLDD( descA, (descB->mt-1)-k );
+    int ldb  = BLKLDD( descB, (descB->mt-1)-k );
+    int ldbm = BLKLDD( descB, (descB->mt-1)-m );
     dague_complex64_t lalpha = ((k)==(0)) ? (alpha) : (dague_complex64_t)(1.0);
 
 #if !defined(DAGUE_DRY_RUN)

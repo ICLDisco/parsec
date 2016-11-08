@@ -33,11 +33,11 @@ dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
      * it should be passed as a parameter as in getrf
      */
 
-    handle = dague_ztrsmpl_qrf_new((dague_ddesc_t*)A,
+    handle = dague_ztrsmpl_qrf_new(A,
                                    (dague_ddesc_t*)IPIV,
-                                   (dague_ddesc_t*)TS,
-                                   (dague_ddesc_t*)TT,
-                                   (dague_ddesc_t*)B,
+                                   TS,
+                                   TT,
+                                   B,
                                    lu_tab,
                                    *qrtree, ib,
                                    NULL, NULL);

@@ -45,8 +45,8 @@ BODY
     int tempm = descC->m - k * descC->nb;
     int tempnn = (n == (descC->nt-1)) ? (descC->n - n * descC->nb) : descC->nb;
     int tempkk = (k == (descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
-    int ldv = BLKLDDP( descA, 0 );
-    int ldc = BLKLDDP( descC, 0 );
+    int ldv = BLKLDD( descA, 0 );
+    int ldc = BLKLDD( descC, 0 );
 
     printlog("CORE_zunmqr(%d, %d)\n", k, n);
 
@@ -170,9 +170,9 @@ dplasma_zgeqrfr_unmqr_New( tiled_matrix_desc_t *A,
 {
     dague_handle_t* handle;
 
-    handle = (dague_handle_t*)dague_zgeqrfr_unmqr_new( (dague_ddesc_t*)A,
-                                                       (dague_ddesc_t*)C,
-                                                       (dague_ddesc_t*)T,
+    handle = (dague_handle_t*)dague_zgeqrfr_unmqr_new( A,
+                                                       C,
+                                                       T,
                                                        (dague_memory_pool_t*)p_work );
 
     /* Default type */

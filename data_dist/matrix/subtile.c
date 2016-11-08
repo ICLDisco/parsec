@@ -26,7 +26,7 @@ subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(sdesc->super), tdesc->mtype, matrix_Lapack, 0,
                             tdesc->super.nodes, tdesc->super.myrank,
-                            mb, nb, BLKLDD( *tdesc, mt ), tdesc->nb,
+                            mb, nb, BLKLDD( tdesc, mt ), tdesc->nb,
                             i, j, m, n );
 
     sdesc->super.nb_local_tiles = sdesc->super.lmt * sdesc->super.lnt;

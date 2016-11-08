@@ -267,7 +267,7 @@ int main(int argc, char ** argv)
     for (k = 0; k < minMNT; k++) {
         tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-(k*ddescA.super.mb) : ddescA.super.mb;
         tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-(k*ddescA.super.nb) : ddescA.super.nb;
-        ldak = BLKLDD(ddescA.super, k);
+        ldak = BLKLDD( (tiled_matrix_desc_t*)&ddescA, k);
 
         dague_insert_task(DAGUE_dtd_handle,      call_to_kernel_GE_QRT,            "geqrt",
                              sizeof(int),           &tempkm,                           VALUE,
@@ -303,7 +303,7 @@ int main(int argc, char ** argv)
         }
         for (m = k+1; m < ddescA.super.mt; m++) {
             tempmm = m == ddescA.super.mt-1 ? ddescA.super.m-(m*ddescA.super.mb) : ddescA.super.mb;
-            ldam = BLKLDD(ddescA.super, m);
+            ldam = BLKLDD( (tiled_matrix_desc_t*)&ddescA, m);
 
             dague_insert_task(DAGUE_dtd_handle,      call_to_kernel_TS_QRT,             "tsqrt",
                                  sizeof(PLASMA_enum),   &tempmm,                            VALUE,

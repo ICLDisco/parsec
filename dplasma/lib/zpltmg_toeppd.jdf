@@ -64,7 +64,7 @@ BODY
     int tempmm = (m == descA->mt-1) ? descA->m - m * descA->mb : descA->mb;
     int tempnn = (n == descA->nt-1) ? descA->n - n * descA->nb : descA->nb;
     int tempkm = (k == descA->mt-1) ? descA->m - k * descA->nb : descA->mb;
-    int ldam = BLKLDDP(descA, m);
+    int ldam = BLKLDD(descA, m);
 
 #if !defined(DAGUE_DRY_RUN)
     /* This is the first one */

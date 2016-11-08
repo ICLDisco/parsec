@@ -159,8 +159,7 @@ extern void dague_reduce_row_Destruct( dague_handle_t *o );
 /*
  * Macro to get the block leading dimension
  */
-#define BLKLDD( _desc_, _m_ ) ( (_desc_).storage == matrix_Tile ? (_desc_).mb : (_desc_).llm )
-#define BLKLDDP( _desc_, _m_ ) ( (_desc_)->storage == matrix_Tile ? (_desc_)->mb : (_desc_)->llm )
+#define BLKLDD( _desc_, _m_ ) ( (_desc_)->storage == matrix_Tile ? (_desc_)->mb : (_desc_)->llm )
 #define TILED_MATRIX_KEY( _desc_, _m_, _n_ ) ( ((dague_ddesc_t*)(_desc_))->data_key( ((dague_ddesc_t*)(_desc_)), (_m_), (_n_) ) )
 
 /**

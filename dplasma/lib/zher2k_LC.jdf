@@ -17,8 +17,8 @@ extern "C" %{
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 alpha     [type = "dague_complex64_t"]
-descA     [type = "tiled_matrix_desc_t*"]
-descB     [type = "tiled_matrix_desc_t*"]
+descA     [type = "const tiled_matrix_desc_t*"]
+descB     [type = "const tiled_matrix_desc_t*"]
 beta      [type = "double"]
 descC     [type = "tiled_matrix_desc_t*"]
 
@@ -42,9 +42,9 @@ BODY
 {
     int tempnn = (n == (descC->nt-1)) ? (descC->n - n * descC->nb) : descC->nb;
     int tempkn = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldak = BLKLDDP( descA, k );
-    int ldbk = BLKLDDP( descB, k );
-    int ldcn = BLKLDDP( descC, n );
+    int ldak = BLKLDD( descA, k );
+    int ldbk = BLKLDD( descB, k );
+    int ldcn = BLKLDD( descC, n );
     double dbeta = (k == 0) ? beta : (double)1.;
 
     printlog("CORE_zher2k(%d, %d)\n"
@@ -79,9 +79,9 @@ BODY
     int tempmm = (m == (descC->mt-1)) ? (descC->m - m * descC->mb) : descC->mb;
     int tempnn = (n == (descC->nt-1)) ? (descC->n - n * descC->nb) : descC->nb;
     int tempkn = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldak = BLKLDDP( descA, k );
-    int ldbk = BLKLDDP( descB, k );
-    int ldcm = BLKLDDP( descC, m );
+    int ldak = BLKLDD( descA, k );
+    int ldbk = BLKLDD( descB, k );
+    int ldcm = BLKLDD( descC, m );
     dague_complex64_t zbeta = (k == 0) ? ((dague_complex64_t)beta) : (dague_complex64_t)1.;
 
     printlog("CORE_zgemm_AB(%d, %d, %d)\n"
@@ -119,9 +119,9 @@ BODY
     int tempmm = (m == (descC->mt-1)) ? (descC->m - m * descC->mb) : descC->mb;
     int tempnn = (n == (descC->nt-1)) ? (descC->n - n * descC->nb) : descC->nb;
     int tempkn = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
-    int ldak = BLKLDDP( descA, k );
-    int ldbk = BLKLDDP( descB, k );
-    int ldcm = BLKLDDP( descC, m );
+    int ldak = BLKLDD( descA, k );
+    int ldbk = BLKLDD( descB, k );
+    int ldcm = BLKLDD( descC, m );
 
     printlog("CORE_zgemm_BA(%d, %d, %d)\n"
              "\t(PlasmaConjTrans, PlasmaNoTrans, m=%d, n=%d, k=%d, alpha=(%e,%e), B(%d,%d)[%p], ldb=%d, A(%d,%d)[%p], lda=%d, beta=(%e,%e), C(%d,%d)[%p], ldc=%d)\n",

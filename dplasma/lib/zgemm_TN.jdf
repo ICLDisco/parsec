@@ -25,8 +25,8 @@ transB [type = int]
 alpha  [type = dague_complex64_t]
 beta   [type = dague_complex64_t]
 
-descA  [type = "tiled_matrix_desc_t*"]
-descB  [type = "tiled_matrix_desc_t*"]
+descA  [type = "const tiled_matrix_desc_t*"]
+descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
 
 /**************************************************
@@ -43,7 +43,7 @@ READ A <- descA(k, m)
        -> A GEMM(m, 0, k)
 BODY
 {
-    printlog("rank %u <- A(%d,%d)\n", __dague_handle->super.descA->myrank, k, m);
+    printlog("rank %u <- A(%d,%d)\n", ((dague_ddesc_t*)descA)->myrank, k, m);
 }
 END
 
@@ -61,7 +61,7 @@ READ B <- descB(k, n)
        -> B GEMM(0, n, k)
 BODY
 {
-     printlog("rank %u <- B(%d,%d)\n", __dague_handle->super.descB->myrank, k, n);
+     printlog("rank %u <- B(%d,%d)\n", ((dague_ddesc_t*)descB)->myrank, k, n);
 }
 END
 
@@ -101,9 +101,9 @@ BODY [type=CUDA
     int tempmm = m == descC->mt-1 ? descC->m - m * descC->mb : descC->mb;
     int tempnn = n == descC->nt-1 ? descC->n - n * descC->nb : descC->nb;
     int tempkk = k == descA->mt-1 ? descA->m - k * descA->mb : descA->mb;
-    int ldak = BLKLDDP(descA, k);
-    int ldbk = BLKLDDP(descB, k);
-    int ldcm = BLKLDDP(descC, m);
+    int ldak = BLKLDD(descA, k);
+    int ldbk = BLKLDD(descB, k);
+    int ldcm = BLKLDD(descC, m);
 
     cublasStatus_t status;
     cublasSetKernelStream( dague_body.stream );
@@ -124,9 +124,9 @@ BODY
     int tempmm = m == descC->mt-1 ? descC->m - m * descC->mb : descC->mb;
     int tempnn = n == descC->nt-1 ? descC->n - n * descC->nb : descC->nb;
     int tempkk = k == descA->mt-1 ? descA->m - k * descA->mb : descA->mb;
-    int ldak = BLKLDDP(descA, k);
-    int ldbk = BLKLDDP(descB, k);
-    int ldcm = BLKLDDP(descC, m);
+    int ldak = BLKLDD(descA, k);
+    int ldbk = BLKLDD(descB, k);
+    int ldcm = BLKLDD(descC, m);
 
 #if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(transA, transB,

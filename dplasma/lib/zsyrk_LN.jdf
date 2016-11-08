@@ -17,7 +17,7 @@ extern "C" %{
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 alpha     [type = "dague_complex64_t"]
-descA     [type = "tiled_matrix_desc_t*"]
+descA     [type = "const tiled_matrix_desc_t*"]
 beta      [type = "dague_complex64_t"]
 descC     [type = "tiled_matrix_desc_t*"]
 
@@ -40,9 +40,9 @@ BODY
 {
     int tempnn = (n==(descC->nt-1)) ? (descC->n-(n*descC->nb)) : descC->nb;
     int tempkn = (k==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
-    int ldan = BLKLDDP( descA, n );
+    int ldan = BLKLDD( descA, n );
     dague_complex64_t zbeta = (k==0) ? beta : ((dague_complex64_t)1.);
-    int ldcn = BLKLDDP( descC, n );
+    int ldcn = BLKLDD( descC, n );
 
     printlog("CORE_zsyrk(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, zbeta, C(%d,%d)[%p], ldcn)\n",
@@ -94,10 +94,10 @@ BODY
       int tempmm = ((m)==(descC->mt-1)) ? (descC->m-(m*descC->mb)) : descC->mb;
       int tempnn = (n==(descC->nt-1)) ? (descC->n-(n*descC->nb)) : descC->nb;
       int tempkn = (k==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
-      int ldam = BLKLDDP( descA, m );
-      int ldan = BLKLDDP( descA, n );
+      int ldam = BLKLDD( descA, m );
+      int ldan = BLKLDD( descA, n );
       dague_complex64_t zbeta = (k==0) ? beta : (dague_complex64_t)1.;
-      int ldcm = BLKLDDP( descC, m );
+      int ldcm = BLKLDD( descC, m );
 
       printlog("CORE_zgemm(%d, %d, %d)\n"
                "\t(trans, PlasmaTrans, tempmm, tempnn, tempkn, zalpha, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldan, zbeta, C(%d,%d)[%p], ldcm)\n",

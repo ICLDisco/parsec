@@ -84,7 +84,7 @@ BODY
   int tempkm = ((k)==((desc_A->mt)-1)) ? ((desc_A->m)-(k*(desc_A->mb))) : (desc_A->mb);
   int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = BLKLDDP( desc_A, k );
+  int ldak = BLKLDD( desc_A, k );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -168,7 +168,7 @@ BODY
   int tempkm = ((k)==((desc_A->mt)-1)) ? ((desc_A->m)-(k*(desc_A->mb))) : (desc_A->mb);
   int tempnn = ((n)==((desc_A->nt)-1)) ? ((desc_A->n)-(n*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = BLKLDDP( desc_A, k );
+  int ldak = BLKLDD( desc_A, k );
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
@@ -227,8 +227,8 @@ BODY
   int tempmm = ((m)==((desc_A->mt)-1)) ? ((desc_A->m)-(m*(desc_A->mb))) : (desc_A->mb);
   int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = BLKLDDP( desc_A, k );
-  int ldam = BLKLDDP( desc_A, m );
+  int ldak = BLKLDD( desc_A, k );
+  int ldam = BLKLDD( desc_A, m );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -336,8 +336,8 @@ BODY
   int tempnn = ((n1)==((desc_A->nt)-1)) ? ((desc_A->n)-(n1*(desc_A->nb))) : (desc_A->nb);
   int tempmm = ((m)==((desc_A->mt)-1)) ? ((desc_A->m)-(m*(desc_A->mb))) : (desc_A->mb);
   int ib = DPLASMA_IB;
-  int ldak = BLKLDDP( desc_A, k );
-  int ldam = BLKLDDP( desc_A, m );
+  int ldak = BLKLDD( desc_A, k );
+  int ldam = BLKLDD( desc_A, m );
   int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (desc_T->nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
@@ -390,7 +390,7 @@ BODY
   int tempkm = ((k)==((desc_A->mt)-1)) ? ((desc_A->m)-(k*(desc_A->mb))) : (desc_A->mb);
   int tempkn = ((k+1)==((desc_A->nt)-1)) ? ((desc_A->n)-((k+1)*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = BLKLDDP( desc_A, k );
+  int ldak = BLKLDD( desc_A, k );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -471,8 +471,8 @@ BODY
   int tempmm = ((m1)==((desc_A->mt)-1)) ? ((desc_A->m)-(m1*(desc_A->mb))) : (desc_A->mb);
   int tempkn = ((k+1)==((desc_A->nt)-1)) ? ((desc_A->n)-((k+1)*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = BLKLDDP( desc_A, k );
-  int ldam = BLKLDDP( desc_A, m1 );
+  int ldak = BLKLDD( desc_A, k );
+  int ldam = BLKLDD( desc_A, m1 );
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );
 
@@ -530,7 +530,7 @@ BODY
   int tempkm = ((k)==((desc_A->mt)-1)) ? ((desc_A->m)-(k*(desc_A->mb))) : (desc_A->mb);
   int tempnn = ((n2)==((desc_A->nt)-1)) ? ((desc_A->n)-(n2*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = BLKLDDP( desc_A, k );
+  int ldak = BLKLDD( desc_A, k );
 
   void *p_elem_A = dague_private_memory_pop( pool_0 );
   void *p_elem_B = dague_private_memory_pop( pool_1 );
@@ -636,8 +636,8 @@ BODY
   int tempmm = ((m2)==((desc_A->mt)-1)) ? ((desc_A->m)-(m2*(desc_A->mb))) : (desc_A->mb);
   int tempnn = ((n2)==((desc_A->nt)-1)) ? ((desc_A->n)-(n2*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldam = BLKLDDP( desc_A, m2 );
-  int ldak = BLKLDDP( desc_A, k );
+  int ldam = BLKLDD( desc_A, m2 );
+  int ldak = BLKLDD( desc_A, k );
   int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (desc_T->nb);
 
   void *p_elem_A = dague_private_memory_pop( pool_1 );

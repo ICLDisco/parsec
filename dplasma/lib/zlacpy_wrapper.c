@@ -30,8 +30,8 @@ dplasma_zlacpy_operator( dague_execution_unit_t *eu,
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
-    ldam = BLKLDDP( descA, m );
-    ldbm = BLKLDDP( descB, m );
+    ldam = BLKLDD( descA, m );
+    ldbm = BLKLDD( descB, m );
 
     LAPACKE_zlacpy_work(
         LAPACK_COL_MAJOR, lapack_const( uplo ), tempmm, tempnn, A, ldam, B, ldbm);

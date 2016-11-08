@@ -59,7 +59,7 @@ BODY
 #if !defined(DAGUE_DRY_RUN)
         int tempkm = ((k)==(dataA->mt-1)) ? (dataA->m-(k*dataA->mb)) : (dataA->mb);
         int tempnn = ((n)==(dataA->nt-1)) ? (dataA->n-(n*dataA->nb)) : (dataA->nb);
-        int ldak = BLKLDDP(dataA, k);
+        int ldak = BLKLDD(dataA, k);
 
         if ( dataA->storage == matrix_Tile ) {
             int tempk = k * dataA->mb;

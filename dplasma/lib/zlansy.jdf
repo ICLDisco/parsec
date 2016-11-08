@@ -115,7 +115,7 @@ BODY
 {
     int tempmm = ( m1 == (descA->mt-1) ) ? descA->m - m1 * descA->mb : descA->mb;
     int tempnn = ( n1 == (descA->nt-1) ) ? descA->n - n1 * descA->nb : descA->nb;
-    int ldam = BLKLDDP( descA, m );
+    int ldam = BLKLDD( descA, m );
 
     printlog("thread %d zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",

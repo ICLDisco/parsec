@@ -20,7 +20,7 @@ uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 diag      [type = "PLASMA_enum"]
 alpha     [type = "dague_complex64_t"]
-descA     [type = "tiled_matrix_desc_t*"]
+descA     [type = "const tiled_matrix_desc_t*"]
 descB     [type = "tiled_matrix_desc_t*"]
 
 
@@ -77,8 +77,8 @@ BODY
 {
     int tempmm = (((descB->mt-1)-m)==(descB->mt-1)) ? (descB->m-(((descB->mt-1)-m)*descB->mb)) : descB->mb;
     int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
-    int lda = BLKLDDP( descA, (descB->mt-1)-m );
-    int ldb = BLKLDDP( descB, (descB->mt-1)-m );
+    int lda = BLKLDD( descA, (descB->mt-1)-m );
+    int ldb = BLKLDD( descB, (descB->mt-1)-m );
 
     printlog("CORE_ztrmm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
@@ -113,7 +113,7 @@ BODY
 {
     int tempmm = (((descB->mt-1)-m)==(descB->mt-1)) ? (descB->m-(((descB->mt-1)-m)*descB->mb)) : descB->mb;
     int tempnn = ((n)==(descB->nt-1)) ? (descB->n-(n*descB->nb)) : descB->nb;
-    int ldb = BLKLDDP( descB, (descB->mt-1)-m );
+    int ldb = BLKLDD( descB, (descB->mt-1)-m );
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaNoTrans, tempmm, tempnn, descB->mb, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], descB->mb, 1.000000, B(%d,%d)[%p], ldb)\n",

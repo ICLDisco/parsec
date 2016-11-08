@@ -93,9 +93,9 @@ dplasma_zhemm_New( PLASMA_enum side,
     dague_zhemm_handle_t* handle;
 
     handle = dague_zhemm_new(side, uplo, alpha, beta,
-                             (dague_ddesc_t*)A,
-                             (dague_ddesc_t*)B,
-                             (dague_ddesc_t*)C);
+                             A,
+                             B,
+                             C);
 
     dplasma_add2arena_tile(handle->arenas[DAGUE_zhemm_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(dague_complex64_t),

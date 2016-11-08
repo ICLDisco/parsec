@@ -11,11 +11,14 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-static inline void dplasma_zprint_tile( int m, int n, tiled_matrix_desc_t* descA, dague_complex64_t *M )
+static inline void
+dplasma_zprint_tile( int m, int n,
+                     const tiled_matrix_desc_t* descA,
+                     dague_complex64_t *M )
 {
     int tempmm = ( m == descA->mt-1 ) ? descA->m - m*descA->mb : descA->mb;
     int tempnn = ( n == descA->nt-1 ) ? descA->n - n*descA->nb : descA->nb;
-    int ldam = BLKLDDP( descA, m );
+    int ldam = BLKLDD( descA, m );
 
     int ii, jj;
 

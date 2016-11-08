@@ -31,7 +31,6 @@ static int my_walk_startup(dague_execution_unit_t * eu,
 // These are global variables that are instanciated in the main.c
 tree               [type = "tree_dist_t *"]
 // The only type known to parsec is dague_ddesc_t
-treeDesc           [type = "dague_ddesc_t *" default = "(dague_ddesc_t*)tree"]
 NP                 [type = "int"]
 fakeDesc           [type = "dague_ddesc_t *"]
 on_fct_param       [type = "void*"]
@@ -70,7 +69,7 @@ UP (n, l) [hash_fn = up_hash
 n = 0 .. 31
 l = 0 .. 1<<n
 
-:treeDesc(n, l)
+:tree(n, l)
 
  // The controls (CTL) are used as counters. Each UP task
  // has to receive exactly two controls. But, the parent of leaf nodes
@@ -104,7 +103,7 @@ BODY
     /* The root node has to delete all remaining tasks*/
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
+        int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
         fprintf(stderr, "CALLING UP(%d, %d) on rank %d\n", n, l, rank);
     }
     if( NULL != on_node_up ) {
@@ -138,7 +137,7 @@ DOWN (n, l) [hash_fn = down_hash
   l = 0 .. (1<<n)
   node_exists = 1
 
-:treeDesc(n, l)
+:tree(n, l)
 
 // If the err <= thresh, then the control is send to the parent
 // node either on its left or its right to stop the node creation
@@ -152,13 +151,13 @@ CTL RL      <- (n > 0) ? RL DOWN(n-1, l/2)
 BODY
 {
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
+        int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
         fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
     if( tree_dist_lookup_node(tree, n, l) == -1 ) {
         if( verbose ) {
-            int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
+            int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
             fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);
         }
         this_task->locals.node_exists.value = 0;
@@ -174,17 +173,17 @@ DO_DOWN (n, l) [hash_fn = do_down_hash
   n = 0 .. 31
   l = 0 .. (1<<n)
 
-:treeDesc(n, l)
+:tree(n, l)
 
 CTL RL    <- RL DOWN(n, l)
-READ NODE <- treeDesc(n, l)
+READ NODE <- tree(n, l)
           -> NODE UP(n, l)
 
 BODY
 {
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super.treeDesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeDesc, n, l));
+        int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
         fprintf(stderr, "CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -305,10 +304,10 @@ static int my_walk_startup(dague_execution_unit_t * eu, __dague_walk_DOWN_task_t
   int vpid = 0;
   dague_context_t *context = __dague_handle->super.super.context;
 
-  if (__dague_handle->super.treeDesc->myrank != 0)
+  if ( ((dague_ddesc_t *)__dague_handle->super._g_tree)->myrank != 0)
       return DAGUE_HOOK_RETURN_DONE;
-  if (NULL != ((dague_ddesc_t *) __dague_handle->super.tree)->vpid_of) {
-      vpid = ((dague_ddesc_t *) __dague_handle->super.tree)->vpid_of((dague_ddesc_t *) __dague_handle->super.tree, 0, 0);
+  if (NULL != ((dague_ddesc_t *) __dague_handle->super._g_tree)->vpid_of) {
+      vpid = ((dague_ddesc_t *) __dague_handle->super._g_tree)->vpid_of((dague_ddesc_t *) __dague_handle->super._g_tree, 0, 0);
       (void)vpid;
       assert(context->nb_vp >= vpid);
   }
@@ -322,9 +321,9 @@ static int my_walk_startup(dague_execution_unit_t * eu, __dague_walk_DOWN_task_t
   new_task->locals.l.value = 0;
   new_task->locals.node_exists.value = 1;
 
-  new_task->data.RL.data_repo = NULL;
-  new_task->data.RL.data_in = NULL;
-  new_task->data.RL.data_out = NULL;
+  new_task->data._f_RL.data_repo = NULL;
+  new_task->data._f_RL.data_in = NULL;
+  new_task->data._f_RL.data_out = NULL;
 
   new_task->priority = 1;
 

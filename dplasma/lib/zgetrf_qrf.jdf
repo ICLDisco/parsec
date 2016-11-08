@@ -36,23 +36,23 @@ dplasma_log2(int n)
 
 %}
 
-mA       [type = "tiled_matrix_desc_t*"]
-IPIV     [type = "dague_ddesc_t *" aligned=mA]
-mTS      [type = "tiled_matrix_desc_t*" aligned=mA]
-mTT      [type = "tiled_matrix_desc_t*" aligned=mA]
+descA    [type = "tiled_matrix_desc_t*"]
+IPIV     [type = "dague_ddesc_t *" aligned=descA]
+TS      [type = "tiled_matrix_desc_t*" aligned=descA]
+TT      [type = "tiled_matrix_desc_t*" aligned=descA]
 lu_tab   [type = "int*"]
 qrtree   [type = "dplasma_qrtree_t"]
 ib       [type = "int"]
 criteria [type = "int"]
 alpha    [type = "double"]
 W        [type = "double *"]
-p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(mTS->nb))"]
-p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(mTS->nb))"]
+p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(TS->nb))"]
+p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(TS->nb))"]
 INFO     [type = "int*"]
 
-param_p   [type = int default="((two_dim_block_cyclic_t*)mA)->grid.rows" hidden=on ]
-param_q   [type = int default="((two_dim_block_cyclic_t*)mA)->grid.cols" hidden=on ]
-minMNT    [type = int default="dplasma_imin( mA->mt-1, mA->nt-1 )"    hidden=on ]
+param_p   [type = int default="((two_dim_block_cyclic_t*)descA)->grid.rows" hidden=on ]
+param_q   [type = int default="((two_dim_block_cyclic_t*)descA)->grid.cols" hidden=on ]
+minMNT    [type = int default="dplasma_imin( descA->mt-1, descA->nt-1 )"    hidden=on ]
 nbmaxthrd [type = "int" default="( dplasma_imax( 1, dplasma_imin( vpmap_get_nb_threads_in_vp(0) - 1, 48 ) ) )" hidden=on] /* 48 is the actual limit of the kernel */
 
 getrfdata [type = "CORE_zgetrf_data_t *" hidden = on default = "NULL"]
@@ -67,10 +67,10 @@ getrfdata [type = "CORE_zgetrf_data_t *" hidden = on default = "NULL"]
  *
  *                                   GETRF kernel
  *
- * There are dplasma_qr_getnbgeqrf( pivfct, k, mA->mt ) getrf applyed at step
+ * There are dplasma_qr_getnbgeqrf( pivfct, k, descA->mt ) getrf applyed at step
  * k on the block of rows indexed from m to m + s * param_p with a step of param_p. (1<=s<=param_a)
  * nextm is the first row that will be killed by the row m at step k.
- * nextm = mA->mt if the row m is never used as a killer.
+ * nextm = descA->mt if the row m is never used as a killer.
  *
  ********************************************************************************************/
 
@@ -78,18 +78,18 @@ zgetrf(k)
   /* Execution space */
   k  = 0 .. minMNT
 
-  : mA(k, k)
+  : descA(k, k)
 
   RW    A    <- A selector(k,k,k)
-             -> mA(k, k)
+             -> descA(k, k)
              -> A zgetrf_typechange(k)
-             -> (k < mA->nt-1) ? A  swptrsm_u(k, (k+1)..(mA->nt-1))         [type = LOWER_TILE]
+             -> (k < descA->nt-1) ? A  swptrsm_u(k, (k+1)..(descA->nt-1))         [type = LOWER_TILE]
 
   RW    IP   <- IP selector(k,k,k)                                          [type = PIVOT]
              -> IPIV(k, k)                                                  [type = PIVOT]
-             -> (k < mA->nt-1) ? IP swptrsm_u(k, (k+1)..(mA->nt-1))         [type = PIVOT]
+             -> (k < descA->nt-1) ? IP swptrsm_u(k, (k+1)..(descA->nt-1))         [type = PIVOT]
 
-; mA->nt - k - 1
+; descA->nt - k - 1
 BODY
 {
     /* Nothing (LU factorization already done by lu_facto)*/
@@ -102,12 +102,12 @@ zgetrf_typechange(k) [profile = off]
   /* Execution space */
   k = 0 .. minMNT
 
-  : mA(k, k)
+  : descA(k, k)
 
   RW A <- A zgetrf(k)
-       -> ( k < (mA->mt-1) ) ? A ztrsm_l(k, k+1..mA->mt-1)       [type = UPPER_TILE]
+       -> ( k < (descA->mt-1) ) ? A ztrsm_l(k, k+1..descA->mt-1)       [type = UPPER_TILE]
 
-; mA->nt - k - 1
+; descA->nt - k - 1
 BODY
 {
     /* Nothing */
@@ -125,37 +125,37 @@ END
 swptrsm_u(k, n)
   /* Execution space */
   k = 0   .. minMNT
-  n = k+1 .. mA->nt-1
+  n = k+1 .. descA->nt-1
 
   /* Locality */
-  : mA(k, n)
+  : descA(k, n)
 
   READ  A    <- A  zgetrf(k)                                       [type = LOWER_TILE]
   READ  IP   <- IP zgetrf(k)                                       [type = PIVOT]
   RW    C    <- Ashm selector(k, k, n)
-             -> mA(k, n)
-             -> ( k < (mA->mt-1) ) ? V zgemm(k, (k+1)..(mA->mt-1), n)
+             -> descA(k, n)
+             -> ( k < (descA->mt-1) ) ? V zgemm(k, (k+1)..(descA->mt-1), n)
 
   CTL   ctl  <- ( k > 0 ) ? ctl tile2panel(k-1, n)
 
 /* Priority */
-; mA->nt - n - 1
+; descA->nt - n - 1
 
 BODY
 {
-    int s  = (mA->mt-k+param_p-1) / param_p;
+    int s  = (descA->mt-k+param_p-1) / param_p;
     int ks = k + (s-1)*param_p;
-    int tempkm = (k == (mA->mt-1)) ? (mA->m - k * mA->mb) : mA->mb;
-    int tempnn = (n == (mA->nt-1)) ? (mA->n - n * mA->nb) : mA->nb;
-    int tempm  = (s-1) * mA->mb +
-        (( ks == mA->mt-1 ) ? mA->m - ks * mA->mb : mA->mb);
-    int ldak = BLKLDDP( mA, k);
+    int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : descA->mb;
+    int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
+    int tempm  = (s-1) * descA->mb +
+        (( ks == descA->mt-1 ) ? descA->m - ks * descA->mb : descA->mb);
+    int ldak = BLKLDD( descA, k);
 
     printlog("swptrsm_u( k=%d, n=%d )", k, n );
 
         PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                               mA->mb, mA->nb, mA->mb * mA->nb,
-                                               s*mA->mb, mA->nb, 0, 0,
+                                               descA->mb, descA->nb, descA->mb * descA->nb,
+                                               s*descA->mb, descA->nb, 0, 0,
                                                tempm, tempnn );
         pdescA.mat = (void*)C;
 
@@ -179,23 +179,23 @@ END
 ztrsm_l(k, m)
   /* Execution space */
   k = 0   .. minMNT
-  m = k+1 .. mA->mt-1
+  m = k+1 .. descA->mt-1
 
-  : mA(m, k)
+  : descA(m, k)
 
   READ A  <- A zgetrf_typechange(k)                                     [type = UPPER_TILE]
 
   RW   C  <- A selector(k, m, k)
-          -> mA(m, k)
-          -> ( k < (mA->nt-1) ) ? H zgemm(k, m, (k+1)..(mA->nt-1))
+          -> descA(m, k)
+          -> ( k < (descA->nt-1) ) ? H zgemm(k, m, (k+1)..(descA->nt-1))
 
-; mA->nt - k - 1
+; descA->nt - k - 1
 BODY
 {
-    int tempmm = (m == (mA->mt-1)) ? (mA->m - m * mA->mb) : (mA->mb);
-    int tempkm = (k == (mA->mt-1)) ? (mA->m - k * mA->mb) : (mA->mb);
-    int ldam = BLKLDDP( mA, m );
-    int ldak = BLKLDDP( mA, k );
+    int tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : (descA->mb);
+    int tempkm = (k == (descA->mt-1)) ? (descA->m - k * descA->mb) : (descA->mb);
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
     int type = ((m-k)%(param_p) == 0) ? 0 : 1;
 
     printlog("ztrsm_l( k=%d, m=%d ) [M=%d, N=%d, ldk=%d, ldm=%d, A(%d,%d)]\n",
@@ -223,13 +223,13 @@ END
 zgemm(k, m, n)
   /* Execution space */
   k = 0   .. minMNT
-  m = k+1 .. mA->mt-1
-  n = k+1 .. mA->nt-1
+  m = k+1 .. descA->mt-1
+  n = k+1 .. descA->nt-1
 
   diagdom0 = %{ return ((m-k  )%param_p); %}
   diagdom1 = %{ return ((m-k-1)%param_p); %}
 
-  : mA(m, n)
+  : descA(m, n)
 
   READ H   <- C ztrsm_l(k, m)
   READ V   <- C swptrsm_u(k, n)
@@ -239,19 +239,19 @@ zgemm(k, m, n)
 
   CTL  ctl -> ( (diagdom1 == 0) && (n > (k+1)) ) ? ctl tile2panel(k, n)
 
-; mA->nt - n - 1
+; descA->nt - n - 1
 
 BODY
 {
-    int tempnn = ((n)==((mA->nt)-1)) ? ((mA->n)-(n*(mA->nb))) : (mA->nb);
-    int tempmm = ((m)==((mA->mt)-1)) ? ((mA->m)-(m*(mA->mb))) : (mA->mb);
-    int ldam = BLKLDDP( mA, m );
-    int ldak = BLKLDDP( mA, k );
+    int tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
+    int tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
+    int ldam = BLKLDD( descA, m );
+    int ldak = BLKLDD( descA, k );
 
     printlog("zgemm( k=%d, m=%d, n=%d )\n", k, m, n);
 
     CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
-               tempmm, tempnn, mA->mb,
+               tempmm, tempnn, descA->mb,
                -1., H /*(m, k)*/, ldam,
                     V /*(k, n)*/, ldak,
                1.,  C /*(m, n)*/, ldam );
@@ -268,10 +268,10 @@ END
 /*****************************************************************************************
  * GEQRT kernel
  *
- * There are dplasma_qr_getnbgeqrf( pivfct, k, mA->mt ) geqrt applyed at step
+ * There are dplasma_qr_getnbgeqrf( pivfct, k, descA->mt ) geqrt applyed at step
  * k on the rows indexed by m.
  * nextm is the first row that will be killed by the row m at step k.
- * nextm = mA->mt if the row m is never used as a killer.
+ * nextm = descA->mt if the row m is never used as a killer.
  *
  *****************************************************************************************/
 zgeqrt(k, i)
@@ -279,27 +279,27 @@ zgeqrt(k, i)
   k = 0 .. minMNT
   i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1;         %}
   m      = %{ return qrtree.getm(       &qrtree, k, i);           %}
-  nextm  = %{ return qrtree.nextpiv(    &qrtree, k, m, mA->mt); %}
+  nextm  = %{ return qrtree.nextpiv(    &qrtree, k, m, descA->mt); %}
 
-  : mA(m, k)
+  : descA(m, k)
 
   RW    A <- A selector(k, m, k )
           -> A zgeqrt_typechange(k, i)
-          ->  (k == (mA->mt-1)) ? mA(m, k)                                 [type = UPPER_TILE]
-          -> ((k <  (mA->mt-1)) & (nextm != mA->mt)) ? A1 zttqrt(k, nextm) [type = UPPER_TILE]
-          -> ((k <  (mA->mt-1)) & (nextm == mA->mt)) ? A2 zttqrt(k, m)     [type = UPPER_TILE]
+          ->  (k == (descA->mt-1)) ? descA(m, k)                                 [type = UPPER_TILE]
+          -> ((k <  (descA->mt-1)) & (nextm != descA->mt)) ? A1 zttqrt(k, nextm) [type = UPPER_TILE]
+          -> ((k <  (descA->mt-1)) & (nextm == descA->mt)) ? A2 zttqrt(k, m)     [type = UPPER_TILE]
 
-  RW    T <- mTS(m, k)                                                     [type = LITTLE_T]
-          -> mTS(m, k)                                                     [type = LITTLE_T]
-          -> ((mA->nt-1) > k) ? T zunmqr(k, i, (k+1)..(mA->nt-1))          [type = LITTLE_T]
+  RW    T <- TS(m, k)                                                     [type = LITTLE_T]
+          -> TS(m, k)                                                     [type = LITTLE_T]
+          -> ((descA->nt-1) > k) ? T zunmqr(k, i, (k+1)..(descA->nt-1))          [type = LITTLE_T]
 
-  ; mA->nt - k - 1
+  ; descA->nt - k - 1
 
 BODY
 {
-    int tempmm = (m==(mA->mt-1)) ? (mA->m - m * mA->mb) : mA->mb;
-    int tempkn = (k==(mA->nt-1)) ? (mA->n - k * mA->nb) : mA->nb;
-    int ldam   = BLKLDDP( mA, m );
+    int tempmm = (m==(descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
+    int tempkn = (k==(descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
+    int ldam   = BLKLDD( descA, m );
 
     printlog("zgeqrt( k=%d, i=%d )\n", k, i);
 
@@ -308,14 +308,14 @@ BODY
 
     CORE_zgeqrt(tempmm, tempkn, ib,
                 A /* A(m,k) */, ldam,
-                T /* T(m,k) */, mTS->mb,
+                T /* T(m,k) */, TS->mb,
                 p_elem_A, p_elem_B );
 
     dague_private_memory_push( p_tau, p_elem_A );
     dague_private_memory_push( p_work, p_elem_B );
 
     printlog("CORE_zgeqrt(%d, %d)\n"
-             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], mTS->mb, p_elem_A, p_elem_B)",
+             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], TS->mb, p_elem_A, p_elem_B)",
              k, m, m, k, A, m, k, T);
 }
 END
@@ -327,13 +327,13 @@ zgeqrt_typechange(k, i) [profile = off]
   i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
   m =      %{ return qrtree.getm(       &qrtree, k, i); %}
 
-  : mA(m, k)
+  : descA(m, k)
 
   RW A <- A zgeqrt(k, i)
-       -> ( (mA->nt-1) > k ) ? A zunmqr(k, i, (k+1)..(mA->nt-1)) [type = LOWER_TILE]
-       -> mA(m, k)                                               [type = LOWER_TILE]
+       -> ( (descA->nt-1) > k ) ? A zunmqr(k, i, (k+1)..(descA->nt-1)) [type = LOWER_TILE]
+       -> descA(m, k)                                               [type = LOWER_TILE]
 
-  ; mA->nt - k - 1
+  ; descA->nt - k - 1
 
 BODY
 {
@@ -350,31 +350,31 @@ zunmqr(k, i, n)
   /* Execution space */
   k = 0   .. minMNT
   i = 0   .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  n = k+1 .. mA->nt-1
+  n = k+1 .. descA->nt-1
   m     = %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, mA->mt); %}
+  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, descA->mt); %}
 
-  : mA(m, n)
+  : descA(m, n)
 
   READ  A <- A zgeqrt_typechange(k, i)                              [type = LOWER_TILE]
   READ  T <- T zgeqrt(k, i)                                         [type = LITTLE_T]
 
   RW    C <- A selector(k, m, n)
-          -> (  k == (mA->mt-1) ) ? mA(m, n)
-          -> ( (k <  (mA->mt-1)) & (nextm != mA->mt) ) ? A1 zttmqr(k, nextm, n)
-          -> ( (k <  (mA->mt-1)) & (nextm == mA->mt) ) ? A2 zttmqr(k, m,     n)
+          -> (  k == (descA->mt-1) ) ? descA(m, n)
+          -> ( (k <  (descA->mt-1)) & (nextm != descA->mt) ) ? A1 zttmqr(k, nextm, n)
+          -> ( (k <  (descA->mt-1)) & (nextm == descA->mt) ) ? A2 zttmqr(k, m,     n)
 
-  ; mA->nt - n - 1
+  ; descA->nt - n - 1
 
 BODY
 {
-    int tempmm = (m == (mA->mt-1)) ? (mA->m - m * mA->mb) : mA->mb;
-    int tempnn = (n == (mA->nt-1)) ? (mA->n - n * mA->nb) : mA->nb;
-    int ldam   = BLKLDDP( mA, m );
+    int tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
+    int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
+    int ldam   = BLKLDD( descA, m );
 
     printlog("CORE_zunmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm=%d, tempnn=%d, min(tempmm, tempnn)=%d, ib=%d, \n"
-             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], mTS->mb, A(%d,%d)[%p], ldam, p_elem_A, mTS->nb)",
+             "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], TS->mb, A(%d,%d)[%p], ldam, p_elem_A, TS->nb)",
              tempmm, tempnn, tempnn, ib, k, m, n, m, k, A, m, k, T, m, n, C);
 
     void *p_elem_A = dague_private_memory_pop( p_work );
@@ -383,9 +383,9 @@ BODY
         PlasmaLeft, PlasmaConjTrans,
         tempmm, tempnn, tempmm, ib,
         A /* A(m, k) */, ldam,
-        T /* T(m, k) */, mTS->mb,
+        T /* T(m, k) */, TS->mb,
         C /* A(m, n) */, ldam,
-        p_elem_A, mTS->nb );
+        p_elem_A, TS->nb );
 
     dague_private_memory_push( p_work, p_elem_A );
 }
@@ -407,7 +407,7 @@ END
 zttqrt(k, m)
   /* Execution space */
   k = 0   .. minMNT
-  m = k+1 .. mA->mt-1
+  m = k+1 .. descA->mt-1
 
   p =     %{ return qrtree.currpiv( &qrtree, k, m);    %}
   nextp = %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
@@ -417,38 +417,38 @@ zttqrt(k, m)
   ip    = %{ return qrtree.geti(    &qrtree, k, p );   %}
   im    = %{ return qrtree.geti(    &qrtree, k, m );   %}
 
-  : mA(m, k)
+  : descA(m, k)
 
-  RW   A1 <- (   prevp == mA->mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp ) [type = UPPER_TILE]
-          -> (   nextp != mA->mt ) ? A1 zttqrt(k, nextp )                     [type = UPPER_TILE]
-          -> ( ( nextp == mA->mt ) & (p == k) ) ? A zttqrt_out_A1(k)          [type = UPPER_TILE]
-          -> ( ( nextp == mA->mt ) & (p != k) ) ? A2 zttqrt(k, p)             [type = UPPER_TILE]
+  RW   A1 <- (   prevp == descA->mt ) ? A  zgeqrt(k, ip ) : A1 zttqrt(k, prevp ) [type = UPPER_TILE]
+          -> (   nextp != descA->mt ) ? A1 zttqrt(k, nextp )                     [type = UPPER_TILE]
+          -> ( ( nextp == descA->mt ) & (p == k) ) ? A zttqrt_out_A1(k)          [type = UPPER_TILE]
+          -> ( ( nextp == descA->mt ) & (p != k) ) ? A2 zttqrt(k, p)             [type = UPPER_TILE]
 
   RW   A2 <-   (type == 0)                           ? A selector(k, m, k )
-          <- ( (type != 0) && (prevm == mA->mt ) ) ? A zgeqrt(k, im )         [type = UPPER_TILE]
-          <- ( (type != 0) && (prevm != mA->mt ) ) ? A1 zttqrt(k, prevm )     [type = UPPER_TILE]
+          <- ( (type != 0) && (prevm == descA->mt ) ) ? A zgeqrt(k, im )         [type = UPPER_TILE]
+          <- ( (type != 0) && (prevm != descA->mt ) ) ? A1 zttqrt(k, prevm )     [type = UPPER_TILE]
 
-          -> (type == 0 ) ? mA(m, k)
-          -> (type != 0 ) ? mA(m, k)                                          [type = UPPER_TILE]
+          -> (type == 0 ) ? descA(m, k)
+          -> (type != 0 ) ? descA(m, k)                                          [type = UPPER_TILE]
 
-          -> (type == 0) && ((mA->nt-1) > k) ? V zttmqr(k, m, (k+1)..(mA->nt-1))
-          -> (type != 0) && ((mA->nt-1) > k) ? V zttmqr(k, m, (k+1)..(mA->nt-1)) [type = UPPER_TILE]
+          -> (type == 0) && ((descA->nt-1) > k) ? V zttmqr(k, m, (k+1)..(descA->nt-1))
+          -> (type != 0) && ((descA->nt-1) > k) ? V zttmqr(k, m, (k+1)..(descA->nt-1)) [type = UPPER_TILE]
 
-  RW   T  <- mTT(m, k)                                             [type = LITTLE_T]
-          -> mTT(m, k)                                             [type = LITTLE_T]
-          -> ((mA->nt-1) > k ) ? T zttmqr(k, m, (k+1)..(mA->nt-1)) [type = LITTLE_T]
+  RW   T  <- TT(m, k)                                             [type = LITTLE_T]
+          -> TT(m, k)                                             [type = LITTLE_T]
+          -> ((descA->nt-1) > k ) ? T zttmqr(k, m, (k+1)..(descA->nt-1)) [type = LITTLE_T]
 
- ; mA->nt - k - 1
+ ; descA->nt - k - 1
 
 BODY
 {
-    int tempmm = ((m)==((mA->mt)-1)) ? ((mA->m)-(m*(mA->mb))) : (mA->mb);
-    int tempkn = ((k)==((mA->nt)-1)) ? ((mA->n)-(k*(mA->nb))) : (mA->nb);
-    int ldap = BLKLDDP( mA, p );
-    int ldam = BLKLDDP( mA, m );
+    int tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
+    int tempkn = ((k)==((descA->nt)-1)) ? ((descA->n)-(k*(descA->nb))) : (descA->nb);
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
 
     printlog("zttqrt( k=%d, m=%d ) [ type=%d ]\n"
-             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], mTT->mb, p_elem_A, p_elem_B)",
+             "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], TT->mb, p_elem_A, p_elem_B)",
              k, m, type, p, k, A1, m, k, A2, m, k, T);
 
     void *p_elem_A = dague_private_memory_pop( p_tau  );
@@ -459,14 +459,14 @@ BODY
                 tempmm, tempkn, ib,
                 A1 /* A(p, k) */, ldap,
                 A2 /* A(m, k) */, ldam,
-                T  /* T(m, k) */, mTT->mb,
+                T  /* T(m, k) */, TT->mb,
                 p_elem_A, p_elem_B );
     } else {
         CORE_zttqrt(
                 tempmm, tempkn, ib,
                 A1 /* A(p, k) */, ldap,
                 A2 /* A(m, k) */, ldam,
-                T  /* T(m, k) */, mTT->mb,
+                T  /* T(m, k) */, TT->mb,
                 p_elem_A, p_elem_B );
     }
     dague_private_memory_push( p_tau , p_elem_A );
@@ -475,15 +475,15 @@ BODY
 END
 
 zttqrt_out_A1(k) [profile = off]
-  k = 0..( (mA->mt <= mA->nt) ? mA->mt-2 : mA->nt-1 )
+  k = 0..( (descA->mt <= descA->nt) ? descA->mt-2 : descA->nt-1 )
   prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
-  : mA(k, k)
+  : descA(k, k)
 
   RW A <- A1 zttqrt( k, prevp ) [type = UPPER_TILE]
-       -> mA(k, k)              [type = UPPER_TILE]
+       -> descA(k, k)              [type = UPPER_TILE]
 
-  ; mA->nt - k - 1
+  ; descA->nt - k - 1
 
 BODY
 {
@@ -497,15 +497,15 @@ END
  * type1 defines the operations to perfom at next step k+1 on the row m
  *   if type1 == 0, it will be a TS so the tile goes to a TTQRT/TTMQR operation
  *   if type1 != 0, it will be a TT so the tile goes to a GEQRT/UNMQR operation
- * im1 is the index of the killer m at the next step k+1 if its type is !0, mA->mt otherwise
+ * im1 is the index of the killer m at the next step k+1 if its type is !0, descA->mt otherwise
  *
  **********************************************************************************************/
 
 zttmqr(k, m, n)
   /* Execution space */
   k = 0   .. minMNT
-  m = k+1 .. mA->mt-1
-  n = k+1 .. mA->nt-1
+  m = k+1 .. descA->mt-1
+  n = k+1 .. descA->nt-1
 
   p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
   nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
@@ -519,17 +519,17 @@ zttmqr(k, m, n)
 
   diagdom = %{ return ((m-k-1)%param_p); %}
 
-  : mA(m, n)
+  : descA(m, n)
 
-  RW   A1 <-  (prevp == mA->mt) ? C zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
+  RW   A1 <-  (prevp == descA->mt) ? C zunmqr( k, ip, n ) : A1 zttmqr(k, prevp, n )
 
-          ->  (nextp != mA->mt) ?                A1 zttmqr( k, nextp, n)
-          -> ((nextp == mA->mt) & ( p == k ) ) ? A  zttmqr_out_A1(p, n)
-          -> ((nextp == mA->mt) & ( p != k ) ) ? A2 zttmqr( k, p, n )
+          ->  (nextp != descA->mt) ?                A1 zttmqr( k, nextp, n)
+          -> ((nextp == descA->mt) & ( p == k ) ) ? A  zttmqr_out_A1(p, n)
+          -> ((nextp == descA->mt) & ( p != k ) ) ? A2 zttmqr( k, p, n )
 
   RW   A2 <-  (type == 0 )                         ? A selector(k, m, n )
-          <- ((type != 0 ) && (prevm == mA->mt ) ) ? C  zunmqr(k, im, n)
-          <- ((type != 0 ) && (prevm != mA->mt ) ) ? A1 zttmqr(k, prevm, n )
+          <- ((type != 0 ) && (prevm == descA->mt ) ) ? C  zunmqr(k, im, n)
+          <- ((type != 0 ) && (prevm != descA->mt ) ) ? A1 zttmqr(k, prevm, n )
 
           -> (n == (k+1)) ? A copypanel(k+1, m) : A selector(k+1, m, n)
 
@@ -540,19 +540,19 @@ zttmqr(k, m, n)
 
   CTL  ctl -> ( (diagdom == 0) && (n > (k+1)) ) ? ctl tile2panel(k, n)
 
-; mA->nt - n - 1
+; descA->nt - n - 1
 
 BODY
 {
-    int tempnn = ((n)==((mA->nt)-1)) ? ((mA->n)-(n*(mA->nb))) : (mA->nb);
-    int tempmm = ((m)==((mA->mt)-1)) ? ((mA->m)-(m*(mA->mb))) : (mA->mb);
-    int ldap = BLKLDDP( mA, p );
-    int ldam = BLKLDDP( mA, m );
+    int tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);
+    int tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
+    int ldap = BLKLDD( descA, p );
+    int ldam = BLKLDD( descA, m );
     int ldwork = ib;
 
     printlog("zttmqr( k=%d, m=%d, n=%d ) [ type=%d ]\n"
-             "\t(PlasmaLeft, PlasmaConjTrans, mA->mb, tempnn, tempmm, tempnn, mA->nb, ib, \n"
-             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], mTT->mb, p_elem_A, ldwork)",
+             "\t(PlasmaLeft, PlasmaConjTrans, descA->mb, tempnn, tempmm, tempnn, descA->nb, ib, \n"
+             "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], TT->mb, p_elem_A, ldwork)",
              k, m, n, type, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
     void *p_elem_A = dague_private_memory_pop( p_work );
@@ -560,20 +560,20 @@ BODY
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                mA->mb, tempnn, tempmm, tempnn, mA->nb, ib,
+                descA->mb, tempnn, tempmm, tempnn, descA->nb, ib,
                 A1 /* A(p, n) */, ldap,
                 A2 /* A(m, n) */, ldam,
                 V  /* A(m, k) */, ldam,
-                T  /* T(m, k) */, mTT->mb,
+                T  /* T(m, k) */, TT->mb,
                 p_elem_A, ldwork );
     } else {
         CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
-                mA->mb, tempnn, tempmm, tempnn, mA->nb, ib,
+                descA->mb, tempnn, tempmm, tempnn, descA->nb, ib,
                 A1 /* A(p, n) */, ldap,
                 A2 /* A(m, n) */, ldam,
                 V  /* A(m, k) */, ldam,
-                T  /* T(m, k) */, mTT->mb,
+                T  /* T(m, k) */, TT->mb,
                 p_elem_A, ldwork );
     }
     dague_private_memory_push( p_work, p_elem_A );
@@ -582,15 +582,15 @@ END
 
 zttmqr_out_A1(k, n) [profile = off]
   k = 0   .. minMNT-1
-  n = k+1 .. mA->nt-1
+  n = k+1 .. descA->nt-1
   prevp = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
 
-  : mA(k, n)
+  : descA(k, n)
 
   RW A <- A1 zttmqr( k, prevp, n )
-       -> mA(k, n)
+       -> descA(k, n)
 
-; mA->nt - n - 1
+; descA->nt - n - 1
 
 BODY
 {
@@ -611,23 +611,23 @@ END
 
 tile2panel(k, n) [ profile = off ]
   k = 0   .. minMNT-1
-  n = k+2 .. mA->nt-1
+  n = k+2 .. descA->nt-1
 
   did_lu = %{ return lu_tab[k];   %}
   do_lu  = %{ return lu_tab[k+1]; %}
   q      = %{ return (n-k)%param_q; %}
-  hmax   = %{ return dplasma_log2( dplasma_imin(param_p, mA->mt-k )-1 ); %}
+  hmax   = %{ return dplasma_log2( dplasma_imin(param_p, descA->mt-k )-1 ); %}
 
-  : mA(k+1, n)
+  : descA(k+1, n)
 
   CTL ctl2  <- (q == 0) ? ctl2 setchoice(k+1, 0, hmax)
             <- (q != 0) ? ctl2 setchoice_update(k+1, 0, q)
-  CTL  ctl  <- (did_lu == 1) ? ctl  zgemm(k, k+1..mA->mt-1..param_p, n)
-            <- (did_lu != 1) ? ctl zttmqr(k, k+1..mA->mt-1..param_p, n)
+  CTL  ctl  <- (did_lu == 1) ? ctl  zgemm(k, k+1..descA->mt-1..param_p, n)
+            <- (did_lu != 1) ? ctl zttmqr(k, k+1..descA->mt-1..param_p, n)
             /* Protect step k+1 */
             -> (do_lu == 1) ? ctl swptrsm_u(k+1, n)
 
-; mA->nt - n - 1
+; descA->nt - n - 1
 
 BODY
 {
@@ -644,21 +644,21 @@ END
 
 copypanel(k, m) [ profile = off ]
   k = 0 .. minMNT
-  m = k .. mA->mt-1
+  m = k .. descA->mt-1
 
   did_lu  = %{ return ( k > 0 ) ? lu_tab[k-1] : -1; %}
   diagdom = %{ return (m-k)%param_p; %}
-  s       = %{ return (mA->mt-k+param_p-1) / param_p; %}
+  s       = %{ return (descA->mt-k+param_p-1) / param_p; %}
   nbthrd  = %{ return nbthreads( s ); %}
 
-  : mA(m, k)
+  : descA(m, k)
 
-  RW   A     <- (k == 0) ? mA(m, k)
+  RW   A     <- (k == 0) ? descA(m, k)
              <- (k >  0) && (did_lu == 1) ? C  zgemm( k-1,m,k)
              <- (k >  0) && (did_lu != 1) ? A2 zttmqr(k-1,m,k)
              -> (diagdom != 0) ? A selector(k, m, k)
 
-  RW   B     <- mA(m, k)
+  RW   B     <- descA(m, k)
              -> ((diagdom == 0) && (m == k)) ? A zlufacto(k, 0..nbthrd)
              -> ((diagdom == 0) && (m != k)) ? A selector(k, m, k)
 
@@ -667,13 +667,13 @@ copypanel(k, m) [ profile = off ]
   CTL  ctl   -> (diagdom == 0) ? ctl zlufacto(k, 0..nbthrd)
              -> (diagdom != 0) ? ctl reduce_norm(k, diagdom)
 
-; mA->nt
+; descA->nt
 
 BODY
 {
-    int tempmm = (m==(mA->mt-1)) ? (mA->m - m * mA->mb) : mA->mb;
-    int tempkn = (k==(mA->nt-1)) ? (mA->n - k * mA->nb) : mA->nb;
-    int ldam = BLKLDDP( mA, m );
+    int tempmm = (m==(descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
+    int tempkn = (k==(descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
+    int ldam = BLKLDD( descA, m );
 
     printlog("copypanel( k=%d, m=%d )", k, m );
 
@@ -681,7 +681,7 @@ BODY
         /* The tiles of the first node have to be copied */
         CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
                     A,    ldam,
-                    Acpy, mA->mb);
+                    Acpy, descA->mb);
 
         if ( A != B ) {
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
@@ -712,18 +712,18 @@ BODY
             /*
              * Search the maximal absolute value per column
              */
-            memset( W + mA->nb, 0, mA->nb * sizeof(double));
-            CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempmm, tempkn, A, ldam, W + mA->nb );
+            memset( W + descA->nb, 0, descA->nb * sizeof(double));
+            CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempmm, tempkn, A, ldam, W + descA->nb );
 
             pthread_mutex_lock( &mumps_mutex );
             if ( !mumps_init ) {
-              memcpy( W, W + mA->nb, mA->nb * sizeof(double) );
+              memcpy( W, W + descA->nb, descA->nb * sizeof(double) );
               mumps_init = 1;
             } else {
               int i;
               assert( mumps_init == 1 );
               for(i=0; i<tempkn; i++)
-                W[i] = ( W[mA->nb + i] > W[i] ) ? W[mA->nb + i] : W[i];
+                W[i] = ( W[descA->nb + i] > W[i] ) ? W[descA->nb + i] : W[i];
             }
             pthread_mutex_unlock(&mumps_mutex);
         }
@@ -739,11 +739,11 @@ END
 zlufacto(k, t)
   /* Execution space */
   k  = 0 .. minMNT
-  s  = %{ return (mA->mt-k+param_p-1) / param_p; %}
+  s  = %{ return (descA->mt-k+param_p-1) / param_p; %}
   nbthrd = %{ return nbthreads( s ); %}
   t  = 0 .. nbthrd
 
-  : mA(k, k)
+  : descA(k, k)
 
   RW    A    <- B copypanel(k, k)
              -> (t == 0) ? A selector(k, k, k)
@@ -752,25 +752,25 @@ zlufacto(k, t)
              -> (t == 0) ? IPIV(k, k)                       [type = PIVOT]
              -> (t == 0) ? IP selector(k, k, k)             [type = PIVOT]
 
-  CTL   ctl  <- ctl copypanel(k, k..mA->mt-1..param_p)
+  CTL   ctl  <- ctl copypanel(k, k..descA->mt-1..param_p)
              -> (t == 0) ? ctl reduce_norm(k, 0)
 
-; mA->nt
+; descA->nt
 
 BODY
   {
       /* dague_complex64_t *lA  = (dague_complex64_t*)A; */
       int ks = k + (s-1)*param_p;
-      int tempm = (s-1) * mA->mb +
-          (( ks == mA->mt-1 ) ? mA->m - ks * mA->mb : mA->mb);
-      int tempkn = k == mA->nt-1 ? mA->n-k*mA->nb : mA->nb;
-      int ldak = BLKLDDP( mA, k );
+      int tempm = (s-1) * descA->mb +
+          (( ks == descA->mt-1 ) ? descA->m - ks * descA->mb : descA->mb);
+      int tempkn = k == descA->nt-1 ? descA->n-k*descA->nb : descA->nb;
+      int ldak = BLKLDD( descA, k );
 
       printlog("zlufacto( k=%d, t=%d ) [nbthrd=%d]\n"
                "\t(%d, %d, A(%d,%d)[%p], IP(%d)[%p]) lu_facto",
                k, t, nbthrd, tempm, tempkn, k, k, A, k, IP);
 
-      int tempkm = k == mA->mt-1 ? tempm : mA->mb;
+      int tempkm = k == descA->mt-1 ? tempm : descA->mb;
       int info[3];
 
       /* Set local IP to 0 before generation
@@ -786,16 +786,16 @@ BODY
       if (criteria == MUMPS_CRITERIUM)
       {
           /* Store largest absolut values of each columns */
-          memset( W, 0, mA->nb * sizeof(double));
+          memset( W, 0, descA->nb * sizeof(double));
           CORE_zamax(PlasmaColumnwise, PlasmaUpperLower, tempkn, tempkn, A, ldak, W);
       } else {
           W[0] = 0.;
       }
 
-      if ( mA->storage == matrix_Tile ) {
+      if ( descA->storage == matrix_Tile ) {
           PLASMA_desc pdescA = plasma_desc_init( PlasmaComplexDouble,
-                                                 mA->mb, mA->nb, mA->mb * mA->nb,
-                                                 s*mA->mb, mA->nb, 0, 0,
+                                                 descA->mb, descA->nb, descA->mb * descA->nb,
+                                                 s*descA->mb, descA->nb, 0, 0,
                                                  tempm, tempkn);
           pdescA.mat = A;
           CORE_zgetrf_rectil(
@@ -816,7 +816,7 @@ BODY
       }
 
       if ( (t == 0) && (info[0] != PLASMA_SUCCESS) ) {
-          //*INFO = k * mA->mb + info[0]; /* Should return if enter here */
+          //*INFO = k * descA->mb + info[0]; /* Should return if enter here */
           fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
 
           W[0] = -1.;
@@ -852,19 +852,19 @@ reduce_norm(k, p)
 /*Add the norm of all local tile before sending the information to others processors*/
   k = 0 .. minMNT
 
-  pmax = %{ return dplasma_imin(param_p, mA->mt-k); %}
+  pmax = %{ return dplasma_imin(param_p, descA->mt-k); %}
 
   p = 0 .. pmax-1
 
-  : mA(k+p, k)
+  : descA(k+p, k)
 
   WRITE W1 -> T setchoice(k, p,          0) [type = ReduceVec]
   WRITE W2 -> B setchoice(k, (p+1)%pmax, 0) [type = ReduceVec]
 
   CTL ctl <- (p == 0) ? ctl zlufacto(k, 0)
-          <- (p != 0) ? ctl copypanel(k, k+p..mA->mt-1..param_p)
+          <- (p != 0) ? ctl copypanel(k, k+p..descA->mt-1..param_p)
 
- ; mA->nt
+ ; descA->nt
 
 BODY
 {
@@ -885,7 +885,7 @@ BODY
         else {
             int i, m;
 
-            for(i=0, m=k+p; m<mA->mt; m+=param_p, i++) {
+            for(i=0, m=k+p; m<descA->mt; m+=param_p, i++) {
                 norm1[p] += W[i];
             }
         }
@@ -902,7 +902,7 @@ BODY
         else {
             int i, m;
 
-            for(i=0, m=k+p; m<mA->mt; m+=param_p, i++) {
+            for(i=0, m=k+p; m<descA->mt; m+=param_p, i++) {
                 norm1[p] = (norm1[p] < W[i] ? W[i] : norm1[p]);
             }
         }
@@ -911,17 +911,17 @@ BODY
     }
     else if (criteria == MUMPS_CRITERIUM)
     {
-        int tempkn = (k == (mA->nt-1)) ? (mA->n-k*mA->nb) : mA->nb;
+        int tempkn = (k == (descA->nt-1)) ? (descA->n-k*descA->nb) : descA->nb;
 
-        memset( norm1, 0, 2 * mA->nb * sizeof(double) );
+        memset( norm1, 0, 2 * descA->nb * sizeof(double) );
 
         if (p == 0) {
-            memcpy( norm1 + mA->nb, W, tempkn * sizeof(double) );
+            memcpy( norm1 + descA->nb, W, tempkn * sizeof(double) );
         } else {
             memcpy( norm1,            W, tempkn * sizeof(double) );
         }
 
-        memcpy( norm2, norm1, 2 * mA->nb * sizeof(double) );
+        memcpy( norm2, norm1, 2 * descA->nb * sizeof(double) );
 
         /* Restore mumps_step for future factorization */
         pthread_mutex_lock( &mumps_mutex );
@@ -943,7 +943,7 @@ setchoice(k, p, h)
   /* Execution space */
   k = 0 .. minMNT
 
-  pmax = %{ return dplasma_imin(param_p, mA->mt-k); %}
+  pmax = %{ return dplasma_imin(param_p, descA->mt-k); %}
   hmax = %{ return dplasma_log2( pmax-1 ); %}
 
   p = 0 .. pmax-1
@@ -951,7 +951,7 @@ setchoice(k, p, h)
 
   pui = %{ return 1 << h; %}
 
-  : mA(k+p, k)
+  : descA(k+p, k)
 
         /* Local forward of T */
   RW T <- (h == 0) ? W1 reduce_norm(k, p)                       [type = ReduceVec]
@@ -971,17 +971,17 @@ setchoice(k, p, h)
    * Release local choice
    */
   /* Free selector from this step */
-  CTL  ctl  -> (h == hmax) ? ctl selector(k, k+p..mA->mt-1..param_p, k..mA->nt-1..param_q)
+  CTL  ctl  -> (h == hmax) ? ctl selector(k, k+p..descA->mt-1..param_p, k..descA->nt-1..param_q)
   /* Free tile2panel from previous step */
-  CTL  ctl2 -> (h == hmax) && (p == 0) && (k > 0) ? ctl2 tile2panel(k-1, k+param_q..mA->nt-1..param_q)
+  CTL  ctl2 -> (h == hmax) && (p == 0) && (k > 0) ? ctl2 tile2panel(k-1, k+param_q..descA->nt-1..param_q)
 
-  ; mA->nt
+  ; descA->nt
 
 BODY
 {
     double *norm1 = (double*)T;
     double *norm2 = (double*)B;
-    int tempkn = k == mA->nt-1 ? mA->n-k*mA->nb : mA->nb;
+    int tempkn = k == descA->nt-1 ? descA->n-k*descA->nb : descA->nb;
     int i;
 
     /* TODO: We collect the condition numbers and compute the choice*/
@@ -1011,9 +1011,9 @@ BODY
     {
         /* The received buffer contains the diagonal line */
         if( (pui <= p) && (p < 2*pui) ) {
-            memcpy( norm1 + mA->nb, norm2 + mA->nb, tempkn * sizeof(double) );
+            memcpy( norm1 + descA->nb, norm2 + descA->nb, tempkn * sizeof(double) );
         } else {
-            memcpy( norm2 + mA->nb, norm1 + mA->nb, tempkn * sizeof(double) );
+            memcpy( norm2 + descA->nb, norm1 + descA->nb, tempkn * sizeof(double) );
         }
         for(i=0; i<tempkn; i++) {
             if ( norm1[i] < norm2[i] )
@@ -1035,7 +1035,7 @@ BODY
     if (h == hmax) {
         int cond = 1;
 
-        if ( (( criteria == MUMPS_CRITERIUM ) && (norm1[mA->nb] == -1.)) ||
+        if ( (( criteria == MUMPS_CRITERIUM ) && (norm1[descA->nb] == -1.)) ||
              (( criteria != MUMPS_CRITERIUM ) && (norm1[0] == -1.)) )
         {
             cond = 0;
@@ -1061,13 +1061,13 @@ BODY
         }
         else if (criteria == MUMPS_CRITERIUM)
         {
-            double *normA = norm1 + mA->nb;
+            double *nordescA = norm1 + descA->nb;
 
             cond = 1;
             for(i=0; i<tempkn; i++) {
-                if ((alpha * normA[i]) < norm1[i]) {
+                if ((alpha * nordescA[i]) < norm1[i]) {
                     /* fprintf(stderr, "setchoice( k=%d, p=%d, h=%d ): max(|A_%d|)=%e, A_%d%d=%e\n", */
-                    /*         k, p, h, i, norm1[i], i, i, normA[i]); */
+                    /*         k, p, h, i, norm1[i], i, i, nordescA[i]); */
                     cond = 0;
                     break;
                 }
@@ -1127,7 +1127,7 @@ BODY
                 sum_norm += norm1[i];
             }
 
-            int nb_tiles = mA->mt - k;
+            int nb_tiles = descA->mt - k;
             int nb_tiles_out = nb_tiles - ((nb_tiles + param_p -1)/param_p);
             double moy_norm = sum_norm / nb_tiles_out;
 
@@ -1162,15 +1162,15 @@ setchoice_update(k, p, q)
   /* Execution space */
   k = 0 .. minMNT
 
-  pmax = %{ return dplasma_imin(param_p, mA->mt-k)-1; %}
-  qmax = %{ return dplasma_imin(param_q, mA->nt-k)-1; %}
+  pmax = %{ return dplasma_imin(param_p, descA->mt-k)-1; %}
+  qmax = %{ return dplasma_imin(param_q, descA->nt-k)-1; %}
 
   p = 0 .. pmax
   q = 1 .. qmax
 
   hmax = %{ return dplasma_log2( pmax ); %}
 
-  : mA(k+p, k+q)
+  : descA(k+p, k+q)
 
   READ B <- choice setchoice(k, p, hmax)   [type = CHOICE]
 
@@ -1178,11 +1178,11 @@ setchoice_update(k, p, q)
    * Release local choice
    */
   /* Free selctor from this step */
-  CTL  ctl  -> ctl selector(k, k+p..mA->mt-1..param_p, k+q..mA->nt-1..param_q)
+  CTL  ctl  -> ctl selector(k, k+p..descA->mt-1..param_p, k+q..descA->nt-1..param_q)
   /* Free tile2panel from previous step */
-  CTL  ctl2 -> (p == 0) && (k > 0) ? ctl2 tile2panel(k-1, k+q..mA->nt-1..param_q)
+  CTL  ctl2 -> (p == 0) && (k > 0) ? ctl2 tile2panel(k-1, k+q..descA->nt-1..param_q)
 
-  ; mA->nt
+  ; descA->nt
 
 BODY
 {
@@ -1198,8 +1198,8 @@ END
 selector(k,m,n)
   /* Execution space */
   k = 0 .. minMNT
-  m = k .. mA->mt-1
-  n = k .. mA->nt-1
+  m = k .. descA->mt-1
+  n = k .. descA->nt-1
 
   i      = %{ return qrtree.geti(    &qrtree, k, m );   %}
   type   = %{ return qrtree.gettype( &qrtree, k, m );   %}
@@ -1209,14 +1209,14 @@ selector(k,m,n)
   panel  = %{ return diagdom && (n == k); %}
   p    = %{ return (m-k)%param_p; %}
   q    = %{ return (n-k)%param_q; %}
-  hmax = %{ return dplasma_log2( dplasma_imin(param_p, mA->mt-k)-1 ); %}
+  hmax = %{ return dplasma_log2( dplasma_imin(param_p, descA->mt-k)-1 ); %}
 
-  : mA(m,n)
+  : descA(m,n)
 
   RW   A   <-   ((k == n) && (k == m)) ? A zlufacto(k, 0)
            <-   ((k == n) && (k != m) &&  diagdom) ? B copypanel(k, m)
            <-   ((k == n) && (k != m) && !diagdom) ? A copypanel(k, m)
-           <-   ((k != n) && (k == 0)) ? mA(m, n)
+           <-   ((k != n) && (k == 0)) ? descA(m, n)
            <-   ((k != n) && (k != 0) && (did_lu == 1)) ? C  zgemm( k-1,m,n)
            <-   ((k != n) && (k != 0) && (did_lu != 1)) ? A2 zttmqr(k-1,m,n)
            /* LU */
@@ -1234,16 +1234,16 @@ selector(k,m,n)
            -> ((k == m) && (k == n) && (do_lu == 1) ) ? IP zgetrf(k)   [type = PIVOT]
 
   READ Acpy <- ( panel) ? Acpy copypanel(k, m)
-            <- (!panel) ? mA(m, n) /* unused */  /* TODO: Mathieu should this be NULL? */
+            <- (!panel) ? descA(m, n) /* unused */  /* TODO: Mathieu should this be NULL? */
 
-  RW   Ashm <- mA(m, n)
+  RW   Ashm <- descA(m, n)
             -> ( (do_lu == 1) && (k != n) && (k == m) && diagdom) ? C swptrsm_u(k,n)
             -> ( (do_lu == 1) && (k != n) && (k != m) && diagdom) ? C zgemm(k,m,n)
 
   CTL  ctl  <- (q == 0) ? ctl setchoice(k, p, hmax)
             <- (q != 0) ? ctl setchoice_update(k, p, q)
 
-  ; mA->nt
+  ; descA->nt
 
 BODY
 {
@@ -1252,12 +1252,12 @@ BODY
 
     /* The LU factorization failed, we restore the data to switch back to QR */
     if( (do_lu != 1) && panel) {
-        int tempmm = (m==(mA->mt-1)) ? (mA->m - m * mA->mb) : mA->mb;
-        int tempkn = (k==(mA->nt-1)) ? (mA->n - k * mA->nb) : mA->nb;
-        int ldam = BLKLDDP( mA, m );
+        int tempmm = (m==(descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
+        int tempkn = (k==(descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
+        int ldam = BLKLDD( descA, m );
 
         CORE_zlacpy(PlasmaUpperLower, tempmm, tempkn,
-                    Acpy, mA->mb,
+                    Acpy, descA->mb,
                     A,    ldam);
     }
 
@@ -1265,9 +1265,9 @@ BODY
     if ( (do_lu == 1) && (diagdom) && (n > k) ) {
         /* We update the shm version for swptrsm_u */
         if (A != Ashm) {
-            int tempmm = (m==(mA->mt-1)) ? (mA->m - m * mA->mb) : mA->mb;
-            int tempnn = (n==(mA->nt-1)) ? (mA->n - n * mA->nb) : mA->nb;
-            int ldam = BLKLDDP( mA, m );
+            int tempmm = (m==(descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
+            int tempnn = (n==(descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
+            int ldam = BLKLDD( descA, m );
 
             CORE_zlacpy(PlasmaUpperLower, tempmm, tempnn,
                         A,    ldam,
@@ -1275,7 +1275,7 @@ BODY
         }
     }
 
-    if((m >= mA->mt-param_p) && (n >= mA->nt-param_q)) {
+    if((m >= descA->mt-param_p) && (n >= descA->nt-param_q)) {
         int nb_tasks = 0;
         if (do_lu == 1) {
             /* geqrt + geqrt_typechange + unmqr */
@@ -1290,7 +1290,7 @@ BODY
                     if (zgeqrt_pred(k, geqrt_i, geqrt_m, -1))
                         nb_tasks += 2;
 
-                    for(unmqr_n=k+1; unmqr_n<mA->nt; unmqr_n++) {
+                    for(unmqr_n=k+1; unmqr_n<descA->nt; unmqr_n++) {
                         if (zunmqr_pred(k, geqrt_i, unmqr_n, geqrt_m, -1)) {
                             nb_tasks++;
                         }
@@ -1302,13 +1302,13 @@ BODY
             {
                 int ttqrt_m, ttmqr_n;
 
-                for(ttqrt_m=k+1; ttqrt_m < mA->mt; ttqrt_m++) {
+                for(ttqrt_m=k+1; ttqrt_m < descA->mt; ttqrt_m++) {
 
                     if (zttqrt_pred(k, ttqrt_m, -1, -1, -1, -1, -1, -1, -1)) {
                         nb_tasks++;
                     }
 
-                    for(ttmqr_n=k+1; ttmqr_n<mA->nt; ttmqr_n++) {
+                    for(ttmqr_n=k+1; ttmqr_n<descA->nt; ttmqr_n++) {
                         if (zttmqr_pred(k, ttqrt_m, ttmqr_n, -1, -1, -1, -1,
                                         -1, -1, -1, -1, -1, -1)) {
                             nb_tasks++;
@@ -1326,13 +1326,13 @@ BODY
                         nb_tasks++;
                     }
 
-                    for(ttmqr_n=k+1; ttmqr_n<mA->nt; ttmqr_n++) {
+                    for(ttmqr_n=k+1; ttmqr_n<descA->nt; ttmqr_n++) {
                         if (zttmqr_out_A1_pred(k, ttmqr_n, -1)) {
                             nb_tasks++;
                         }
                     }
                 }
-                if ( mA->mt > mA->nt && k > mA->nt ) {
+                if ( descA->mt > descA->nt && k > descA->nt ) {
                     if (zttqrt_out_A1_pred(k, -1)) {
                         nb_tasks++;
                     }
@@ -1349,18 +1349,18 @@ BODY
                 nb_tasks += 2;
             }
 
-            for(getrf_n=k+1; getrf_n< mA->nt; getrf_n++) {
+            for(getrf_n=k+1; getrf_n< descA->nt; getrf_n++) {
                 if (swptrsm_u_pred(k, getrf_n)) {
                     nb_tasks++;
                 }
             }
 
-            for(getrf_m=k+1; getrf_m< mA->mt; getrf_m++) {
+            for(getrf_m=k+1; getrf_m< descA->mt; getrf_m++) {
                 if (ztrsm_l_pred(k, getrf_m)) {
                     nb_tasks++;
                 }
 
-                for(getrf_n=k+1; getrf_n< mA->nt; getrf_n++) {
+                for(getrf_n=k+1; getrf_n< descA->nt; getrf_n++) {
                     if (zgemm_pred(k, getrf_m, getrf_n, 0, 0)) {
                         nb_tasks++;
                     }

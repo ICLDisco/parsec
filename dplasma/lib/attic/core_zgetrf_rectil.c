@@ -261,7 +261,7 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
     dague_complex64_t *Atop, *Atop2, *U, *L;
     int offset = A->i;
 
-    ldft = BLKLDDP(*A, 0);
+    ldft = BLKLDD(*A, 0);
     Atop  = A(0) + column * ldft;
     Atop2 = Atop    + n1     * ldft;
 
@@ -276,7 +276,7 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
             {
                 it = ip / A->mb;
                 i  = ip % A->mb;
-                ld = BLKLDDP(*A, it);
+                ld = BLKLDD(*A, it);
                 cblas_zswap(n2, Atop2                    + j, ldft,
                                 A( it ) + (column+n1)*ld + i, ld   );
             }
@@ -307,7 +307,7 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
     }
     else
     {
-        ld = BLKLDDP( *A, ft );
+        ld = BLKLDD( *A, ft );
         L  = A( ft ) + column * ld;
         lm = ft == A->mt-1 ? A->m - ft * A->mb : A->mb;
 
@@ -329,7 +329,7 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
     /* Update the other blocks */
     for( it = ft+1; it < lt; it++)
     {
-        ld = BLKLDDP( *A, it );
+        ld = BLKLDD( *A, it );
         L  = A( it ) + column * ld;
         lm = it == A->mt-1 ? A->m - it * A->mb : A->mb;
 
@@ -362,7 +362,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
     double             abstmp1;
     int offset = A->i;
 
-    ldft = BLKLDDP( *A, 0 );
+    ldft = BLKLDD( *A, 0 );
     Atop = A(0) + column * ldft;
 
     if ( width > 1 ) {
@@ -389,7 +389,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
                 {
                     it = ip / A->mb;
                     i  = ip % A->mb;
-                    ld = BLKLDDP(*A, it);
+                    ld = BLKLDD(*A, it);
                     cblas_zswap(n2, Atop2                  + j, ldft,
                                     A(it) + (column+n1)*ld + i, ld   );
                 }
@@ -463,7 +463,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
                 }
             }
 
-            ld = BLKLDDP( *A, ft );
+            ld = BLKLDD( *A, ft );
             L  = A( ft ) + column * ld;
             lm = ft == A->mt-1 ? A->m - ft * A->mb : A->mb;
 
@@ -501,7 +501,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
         /* Update the other blocks */
         for( it = ft+1; it < lt; it++)
         {
-            ld = BLKLDDP( *A, it );
+            ld = BLKLDD( *A, it );
             L  = A( it ) + column * ld;
             lm = it == A->mt-1 ? A->m - it * A->mb : A->mb;
 
@@ -542,7 +542,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
         if (thwin == thidx) { /* the thread that owns the best pivot */
             if ( jp-offset != column+n1 ) /* if there is a need to exchange the pivot */
             {
-                ld = BLKLDDP(*A, max_it);
+                ld = BLKLDD(*A, max_it);
                 Atop2 = A( max_it ) + (column + n1 )* ld + max_i;
                 *Atop2 = tmp2;
             }
@@ -564,7 +564,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
                 {
                     it = ip / A->mb;
                     i  = ip % A->mb;
-                    ld = BLKLDDP(*A, it);
+                    ld = BLKLDD(*A, it);
                     cblas_zswap(n1, Atop + j,                ldft,
                                     A( it ) + column*ld + i, ld  );
                 }
@@ -580,7 +580,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
               tmp2 = Atop[column];
 
             /* First tmp1 */
-            ld = BLKLDDP(*A, ft);
+            ld = BLKLDD(*A, ft);
             Atop2   = A( ft );
             lm      = ft == A->mt-1 ? A->m - ft * A->mb : A->mb;
             max_it  = ft;
@@ -638,7 +638,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
 
                         for( it = ft+1; it < lt; it++)
                         {
-                            ld = BLKLDDP(*A, it);
+                            ld = BLKLDD(*A, it);
                             Atop2 = A( it ) + column * ld;
                             lm = it == A->mt-1 ? A->m - it * A->mb : A->mb;
                             cblas_zscal( lm, CBLAS_SADDR(pivval), Atop2, 1 );
@@ -657,7 +657,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
 
                         for( it = ft+1; it < lt; it++)
                             {
-                                ld = BLKLDDP(*A, it);
+                                ld = BLKLDD(*A, it);
                                 Atop2 = A( it ) + column * ld;
                                 lm = it == A->mt-1 ? A->m - it * A->mb : A->mb;
 
@@ -673,7 +673,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
 
                         for( it = ft; it < lt; it++)
                         {
-                            ld = BLKLDDP(*A, it);
+                            ld = BLKLDD(*A, it);
                             Atop2 = A( it ) + column * ld;
                             lm = it == A->mt-1 ? A->m - it * A->mb : A->mb;
                             cblas_zscal( lm, CBLAS_SADDR(pivval), Atop2, 1 );
@@ -686,7 +686,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
                         int i;
                         for( it = ft; it < lt; it++)
                         {
-                            ld = BLKLDDP(*A, it);
+                            ld = BLKLDD(*A, it);
                             Atop2 = A( it ) + column * ld;
                             lm = it == A->mt-1 ? A->m - it * A->mb : A->mb;
 
