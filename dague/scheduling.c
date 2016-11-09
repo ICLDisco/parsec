@@ -149,9 +149,10 @@ int __dague_execute( dague_execution_unit_t* eu_context,
     /* Try all the incarnations until one agree to execute. */
     do {
 #if defined(DAGUE_DEBUG)
-        dague_debug_verbose(5, dague_debug_output, "Thread %d of VP %d Execute %s[%d]",
-               eu_context->th_id, eu_context->virtual_process->vp_id,
-               tmp, function->incarnations[exec_context->chore_id].type);
+        dague_debug_verbose(5, dague_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
+                            eu_context->th_id, eu_context->virtual_process->vp_id,
+                            tmp, function->incarnations[exec_context->chore_id].type,
+                            exec_context->chore_id);
 #endif
         rc = function->incarnations[exec_context->chore_id].hook( eu_context, exec_context );
         if( DAGUE_HOOK_RETURN_NEXT != rc ) {
