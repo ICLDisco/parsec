@@ -654,7 +654,7 @@ dague_context_t* dague_init( int nb_cores, int* pargc, char** pargv[] )
     slow_option_warning = 1;
 #endif
     if( slow_option_warning && 0 == context->my_rank ) {
-        dague_warning("/!\\ THE PERFORMANCE OF THIS RUN ARE NOT OPTIMAL /!\\.\n");
+        dague_warning("/!\\ DEBUG LEVEL WILL PROBABLY REDUCE THE PERFORMANCE OF THIS RUN /!\\.\n");
         dague_debug_verbose(4, dague_debug_output, "--- compiled with DEBUG_NOISIER, DEBUG_PARANOID, or DOT generation requested.");
     }
 
