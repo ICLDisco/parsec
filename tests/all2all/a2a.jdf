@@ -29,8 +29,8 @@ int64_t always_one(void)
 
 %}
 
-A      [type = "struct tiled_matrix_desc_t*"]
-B      [type = "struct tiled_matrix_desc_t*"]
+descA      [type = "struct tiled_matrix_desc_t*"]
+descB      [type = "struct tiled_matrix_desc_t*"]
 NR
 NT
 
@@ -38,14 +38,14 @@ READER_B(r, t)
 r = 0 .. NR-1
 t = 0 .. NT-1
 
-: B(t, 0)
+: descB(t, 0)
 
-READ B <- (r == 0) ? B(t, 0) : B READER_B(r-1, t) [count = %{ return 1; %}
-                                                   displ = %{ return 0; %}]
-       -> A RECV(r, 0 .. NT-1, t)                 [count = 1
-                                                   displ = 0]
-       -> A FANIN(r, t)                           [count = %{ return always_one(); %}
-                                                   displ = %{ return always_zero(); %}]
+READ B <- (r == 0) ? descB(t, 0) : B READER_B(r-1, t) [count = %{ return 1; %}
+                                                       displ = %{ return 0; %}]
+       -> A RECV(r, 0 .. NT-1, t)                     [count = 1
+                                                       displ = 0]
+       -> A FANIN(r, t)                               [count = %{ return always_one(); %}
+                                                       displ = %{ return always_zero(); %}]
        -> (r != NR-1) ? B READER_B(r+1, t)
 BODY
 END
@@ -54,9 +54,9 @@ FANOUT(r, t)
 r = 0 .. NR-1
 t = 0 .. NT-1
 
-: A(t, 0)
+: descA(t, 0)
 
-READ A <- (r == 0) ? A(t, 0) : A FANOUT(r-1, t)
+READ A <- (r == 0) ? descA(t, 0) : A FANOUT(r-1, t)
        -> A SEND(r, t, 0 .. NT-1)
 BODY
 END
@@ -66,7 +66,7 @@ r = 0 .. NR-1
 t = 0 .. NT-1
 s = 0 .. NT-1
 
-: A(t, 0)
+: descA(t, 0)
 
 READ A <- A FANOUT(r, t)
        -> B RECV(r, s, t)
@@ -78,7 +78,7 @@ r = 0 .. NR-1
 t = 0 .. NT-1
 s = 0 .. NT-1
 
-: B(t, 0)
+: descB(t, 0)
 
 RW   A <- B READER_B(r, t)
 READ B <- A SEND(r, t, s)
@@ -91,7 +91,7 @@ FANIN(r, t)
 r = 0 .. NR-1
 t = 0 .. NT-1
 
-: B(t, 0)
+: descB(t, 0)
 
 RW A  <- B READER_B(r, t)
 CTL T <- T RECV(r, t, 0 .. NT-1)

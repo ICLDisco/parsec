@@ -104,25 +104,25 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LLN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LLT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LUN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_LUT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             }
         }
     } else { /* side == PlasmaRight */
@@ -130,25 +130,25 @@ dplasma_ztrsm_New( PLASMA_enum side,  PLASMA_enum uplo,
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RLN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RLT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RUN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trsm = (dague_handle_t*)dague_ztrsm_RUT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A,
-                    (dague_ddesc_t*)B);
+                    A,
+                    B);
             }
         }
     }

@@ -62,8 +62,8 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
 {
     dague_zlaswp_handle_t *dague_laswp;
 
-    dague_laswp = dague_zlaswp_new( (dague_ddesc_t*)A,
-                                    (dague_ddesc_t*)IPIV,
+    dague_laswp = dague_zlaswp_new( A,
+                                    IPIV,
                                     inc );
 
     /* A */

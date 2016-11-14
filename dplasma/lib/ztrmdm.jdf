@@ -16,24 +16,23 @@ extern int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
 
 %}
 
-desc_A  [type = "tiled_matrix_desc_t"]
-data_A  [type = "dague_ddesc_t *"]
+desc_A  [type = "tiled_matrix_desc_t*"]
 
 ztrmdm(k)
   /* Execution space */
-  k = 0..(desc_A.mt-2)
+  k = 0..(desc_A->mt-2)
 
-  : data_A(k,k)
+  : desc_A(k,k)
 
-  /* A == data_A(k,k) */
+  /* A == desc_A(k,k) */
 
-  RW  A <- data_A(k,k)
-        -> data_A(k,k)
+  RW  A <- desc_A(k,k)
+        -> desc_A(k,k)
 
 BODY
 
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
-  int ldak = desc_A.mb;
+  int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
+  int ldak = desc_A->mb;
 
   printlog("thread %d CORE_ztrmdm(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",

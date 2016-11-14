@@ -97,7 +97,7 @@ static void pins_fini_ptg_to_dtd(dague_context_t *master_context)
 static int pins_handle_complete_callback(dague_handle_t* ptg_handle, void* void_dtd_handle)
 {
     dague_handle_t* dtd_handle = (dague_handle_t*)void_dtd_handle;
-    int remaining = dague_atomic_dec_32b(&dtd_handle->nb_tasks);
+    int remaining = dague_atomic_dec_32b( (uint32_t*)&dtd_handle->nb_tasks );
     if( 0 == remaining ) {
         if( dague_atomic_cas(&dtd_handle->nb_tasks, 0, DAGUE_RUNTIME_RESERVED_NB_TASKS) )
             dague_handle_update_runtime_nbtask((dague_handle_t*)dtd_handle, -1);

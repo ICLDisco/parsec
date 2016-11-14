@@ -122,8 +122,8 @@ dplasma_map2_New( PLASMA_enum uplo,
     }
 
     dague_map2 = dague_map2_new( uplo, trans,
-                                 (dague_ddesc_t*)A,
-                                 (dague_ddesc_t*)B,
+                                 A,
+                                 B,
                                  operator, op_args );
 
     switch( A->mtype ) {
@@ -186,8 +186,8 @@ dplasma_map2_Destruct( dague_handle_t *handle )
 {
     dague_map2_handle_t *omap2 = (dague_map2_handle_t *)handle;
 
-    if ( omap2->op_args ) {
-        free( omap2->op_args );
+    if ( omap2->_g_op_args ) {
+        free( omap2->_g_op_args );
     }
 
     dague_matrix_del2arena( omap2->arenas[DAGUE_map2_DEFAULT_ARENA] );

@@ -129,35 +129,35 @@ dplasma_zunmlq_New( PLASMA_enum side, PLASMA_enum trans,
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
             handle = (dague_handle_t*)dague_zunmlq_LN_new( side, trans,
-                                                           (dague_ddesc_t*)A,
-                                                           (dague_ddesc_t*)C,
-                                                           (dague_ddesc_t*)T,
+                                                           A,
+                                                           C,
+                                                           T,
                                                            NULL);
         } else {
             handle = (dague_handle_t*)dague_zunmlq_LC_new( side, trans,
-                                                           (dague_ddesc_t*)A,
-                                                           (dague_ddesc_t*)C,
-                                                           (dague_ddesc_t*)T,
+                                                           A,
+                                                           C,
+                                                           T,
                                                            NULL);
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
             handle = (dague_handle_t*)dague_zunmlq_RN_new( side, trans,
-                                                           (dague_ddesc_t*)A,
-                                                           (dague_ddesc_t*)C,
-                                                           (dague_ddesc_t*)T,
+                                                           A,
+                                                           C,
+                                                           T,
                                                            NULL);
         } else {
             handle = (dague_handle_t*)dague_zunmlq_RC_new( side, trans,
-                                                           (dague_ddesc_t*)A,
-                                                           (dague_ddesc_t*)C,
-                                                           (dague_ddesc_t*)T,
+                                                           A,
+                                                           C,
+                                                           T,
                                                            NULL);
         }
     }
 
-    ((dague_zunmlq_LC_handle_t*)handle)->pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( ((dague_zunmlq_LC_handle_t*)handle)->pool_0, ib * T->nb * sizeof(dague_complex64_t) );
+    ((dague_zunmlq_LC_handle_t*)handle)->_g_pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( ((dague_zunmlq_LC_handle_t*)handle)->_g_pool_0, ib * T->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( ((dague_zunmlq_LC_handle_t*)handle)->arenas[DAGUE_zunmlq_LC_DEFAULT_ARENA],
@@ -209,8 +209,8 @@ dplasma_zunmlq_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zunmlq->arenas[DAGUE_zunmlq_LC_UPPER_TILE_ARENA] );
     dague_matrix_del2arena( dague_zunmlq->arenas[DAGUE_zunmlq_LC_LITTLE_T_ARENA  ] );
 
-    dague_private_memory_fini( dague_zunmlq->pool_0 );
-    free( dague_zunmlq->pool_0 );
+    dague_private_memory_fini( dague_zunmlq->_g_pool_0 );
+    free( dague_zunmlq->_g_pool_0 );
 
     dague_handle_free(handle);
 }

@@ -68,7 +68,6 @@ extern YYSTYPE yylval;
 typedef void* yyscan_t;
 #endif  /* defined(DAGUE_HAVE_RECENT_LEX) */
 %}
-/*%option debug*/
 /*%option bison-bridge bison-locations*/
 /*%option reentrant*/
 %option noyywrap yylineno
@@ -137,9 +136,9 @@ WO                    { YYLVAL(number) = JDF_FLOW_TYPE_WRITE;
                         ECHO; return DEPENDENCY_TYPE;                      }
 "NEW"                 { ECHO; return DATA_NEW;                             }
 "NULL"                { ECHO; return DATA_NULL;                            }
-"->"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_OUT;
+<*>"->"               { YYLVAL(dep_type) = JDF_DEP_FLOW_OUT;
                         ECHO; return ARROW;                                }
-"<-"                  { YYLVAL(dep_type) = JDF_DEP_FLOW_IN;
+<*>"<-"               { YYLVAL(dep_type) = JDF_DEP_FLOW_IN;
                         ECHO; return ARROW;                                }
 "\["                  { YYLVAL(property) = NULL;
                         YY_PUSH_STATE(properties);

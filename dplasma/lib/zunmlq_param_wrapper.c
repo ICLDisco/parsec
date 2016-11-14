@@ -160,43 +160,43 @@ dplasma_zunmlq_param_New( PLASMA_enum side, PLASMA_enum trans,
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
             handle = (dague_handle_t*)dague_zunmlq_param_LN_new( side, trans,
-                                                                 (dague_ddesc_t*)A,
-                                                                 (dague_ddesc_t*)C,
-                                                                 (dague_ddesc_t*)TS,
-                                                                 (dague_ddesc_t*)TT,
+                                                                 A,
+                                                                 C,
+                                                                 TS,
+                                                                 TT,
                                                                  *qrtree,
                                                                  NULL);
         } else {
             handle = (dague_handle_t*)dague_zunmlq_param_LC_new( side, trans,
-                                                                 (dague_ddesc_t*)A,
-                                                                 (dague_ddesc_t*)C,
-                                                                 (dague_ddesc_t*)TS,
-                                                                 (dague_ddesc_t*)TT,
+                                                                 A,
+                                                                 C,
+                                                                 TS,
+                                                                 TT,
                                                                  *qrtree,
                                                                  NULL);
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
             handle = (dague_handle_t*)dague_zunmlq_param_RN_new( side, trans,
-                                                                 (dague_ddesc_t*)A,
-                                                                 (dague_ddesc_t*)C,
-                                                                 (dague_ddesc_t*)TS,
-                                                                 (dague_ddesc_t*)TT,
+                                                                 A,
+                                                                 C,
+                                                                 TS,
+                                                                 TT,
                                                                  *qrtree,
                                                                  NULL);
         } else {
             handle = (dague_handle_t*)dague_zunmlq_param_RC_new( side, trans,
-                                                                 (dague_ddesc_t*)A,
-                                                                 (dague_ddesc_t*)C,
-                                                                 (dague_ddesc_t*)TS,
-                                                                 (dague_ddesc_t*)TT,
+                                                                 A,
+                                                                 C,
+                                                                 TS,
+                                                                 TT,
                                                                  *qrtree,
                                                                  NULL);
         }
     }
 
-    ((dague_zunmlq_param_LC_handle_t*)handle)->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( ((dague_zunmlq_param_LC_handle_t*)handle)->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+    ((dague_zunmlq_param_LC_handle_t*)handle)->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( ((dague_zunmlq_param_LC_handle_t*)handle)->_g_p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( ((dague_zunmlq_param_LC_handle_t*)handle)->arenas[DAGUE_zunmlq_param_LC_DEFAULT_ARENA],
@@ -255,8 +255,8 @@ dplasma_zunmlq_param_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zunmlq_param->arenas[DAGUE_zunmlq_param_LC_DEFAULT_ARENA   ] );
     dague_matrix_del2arena( dague_zunmlq_param->arenas[DAGUE_zunmlq_param_LC_UPPER_TILE_ARENA] );
 
-    dague_private_memory_fini( dague_zunmlq_param->p_work );
-    free( dague_zunmlq_param->p_work );
+    dague_private_memory_fini( dague_zunmlq_param->_g_p_work );
+    free( dague_zunmlq_param->_g_p_work );
 
     dague_handle_free(handle);
 }

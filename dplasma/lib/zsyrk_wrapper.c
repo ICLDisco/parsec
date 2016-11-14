@@ -91,28 +91,28 @@ dplasma_zsyrk_New( PLASMA_enum uplo,
         if ( trans == PlasmaNoTrans ) {
             handle = (dague_handle_t*)
                 dague_zsyrk_LN_new(uplo, trans,
-                                   alpha, (dague_ddesc_t*)A,
-                                   beta,  (dague_ddesc_t*)C);
+                                   alpha, A,
+                                   beta,  C);
         }
         else {
             handle = (dague_handle_t*)
                 dague_zsyrk_LT_new(uplo, trans,
-                                   alpha, (dague_ddesc_t*)A,
-                                   beta,  (dague_ddesc_t*)C);
+                                   alpha, A,
+                                   beta,  C);
         }
     }
     else {
         if ( trans == PlasmaNoTrans ) {
             handle = (dague_handle_t*)
                 dague_zsyrk_UN_new(uplo, trans,
-                                   alpha, (dague_ddesc_t*)A,
-                                   beta,  (dague_ddesc_t*)C);
+                                   alpha, A,
+                                   beta,  C);
         }
         else {
             handle = (dague_handle_t*)
                 dague_zsyrk_UT_new(uplo, trans,
-                                   alpha, (dague_ddesc_t*)A,
-                                   beta,  (dague_ddesc_t*)C);
+                                   alpha, A,
+                                   beta,  C);
         }
     }
 

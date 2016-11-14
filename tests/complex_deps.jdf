@@ -17,7 +17,7 @@ extern "C" %{
 
 %}
 
-A          [type = "two_dim_block_cyclic_t*"]
+descA      [type = "two_dim_block_cyclic_t*"]
 NI         [type = int]
 NK         [type = int]
 
@@ -26,12 +26,12 @@ FCT1(i, k)
   i = 0 .. NI-1
   k = 0 .. NK-1
 
-: A(i, 0)
+: descA(i, 0)
 
-    READ A <- (0 == k) ? A(i, 0) : A FCT1(i, k-1)
+    READ A <- (0 == k) ? descA(i, 0) : A FCT1(i, k-1)
          -> (NK != k) ? A FCT1(i, k+1)
          -> A FCT5(i, k)                         [displ = BLOCK]
-         RW   B <- (0 == k) ? A(i, 0) : B FCT1(i, k-1)
+         RW   B <- (0 == k) ? descA(i, 0) : B FCT1(i, k-1)
          -> A FCT2(i, k, k .. NK)                [displ = 0]
          -> A FCT3(i, k, k .. NK)                [displ = BLOCK]
          -> A FCT4(i, k)
@@ -46,7 +46,7 @@ FCT2(i, k, j)
   k = 0 .. NK-1
   j = k .. NK
 
-: A(i, 0)
+: descA(i, 0)
 
   READ A <- B FCT1(i, k)
          -> B FCT3(i, j, k)
@@ -60,7 +60,7 @@ FCT3(i, k, j)
   k = 0 .. NK-1
   j = k .. NK
 
-: A(i, 0)
+: descA(i, 0)
 
   READ A <- B FCT1(i, k)
   READ B <- A FCT2(i, j, k)
@@ -72,7 +72,7 @@ FCT4(i, k)
   i = 0 .. NI-1
   k = 0 .. NK-1
 
-: A(i, 0)
+: descA(i, 0)
 
   READ A <- B FCT1(i, k)
 
@@ -84,7 +84,7 @@ FCT5(i, k)
   i = 0 .. NI-1
   k = 0 .. NK-1
 
-: A(i, 0)
+: descA(i, 0)
 
   READ A <- A FCT1(i, k)
 

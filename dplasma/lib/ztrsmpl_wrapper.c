@@ -97,17 +97,17 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
     }
 
     if ( IPIV != NULL ) {
-        dague_trsmpl = dague_ztrsmpl_new((dague_ddesc_t*)A,
-                                         (dague_ddesc_t*)L,
-                                         (dague_ddesc_t*)IPIV,
-                                         (dague_ddesc_t*)B );
+        dague_trsmpl = dague_ztrsmpl_new(A,
+                                         L,
+                                         IPIV,
+                                         B );
     }
     else {
         dague_trsmpl = (dague_ztrsmpl_handle_t*)
-            dague_ztrsmpl_sd_new( (dague_ddesc_t*)A,
-                                  (dague_ddesc_t*)L,
+            dague_ztrsmpl_sd_new( A,
+                                  L,
                                   NULL,
-                                  (dague_ddesc_t*)B );
+                                  B );
     }
 
     /* A */

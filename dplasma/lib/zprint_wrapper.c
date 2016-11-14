@@ -66,7 +66,7 @@ int dplasma_zprint( dague_context_t *dague,
         return -3;
     }
 
-    handle = dague_zprint_new( uplo, (dague_ddesc_t*)A);
+    handle = dague_zprint_new( uplo, A);
 
     if (handle != NULL) {
         /* Default type */
@@ -82,6 +82,5 @@ int dplasma_zprint( dague_context_t *dague,
         DAGUE_INTERNAL_HANDLE_DESTRUCT( handle );
         return 0;
     }
-    else
-        return -101;
+    return -101;
 }

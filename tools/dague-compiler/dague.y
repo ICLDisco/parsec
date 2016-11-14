@@ -177,6 +177,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 %type <expr>expr_simple
 %type <expr>priority
 %type <expr>simulation_cost
+%type <expr>variable
 %type <number>optional_flow_flags
 %type <external_code>prologue
 %type <external_code>epilogue
@@ -203,6 +204,7 @@ static jdf_data_entry_t* jdf_find_or_create_data(jdf_t* jdf, const char* dname)
 
 /* C99 operator precedence: http://en.cppreference.com/w/c/language/operator_precedence */
 %nonassoc RANGE
+%left ARROW
 %left COMMA
 %right ASSIGNMENT
 %right QUESTION_MARK COLON
@@ -513,6 +515,14 @@ optional_flow_flags :
 
 dataflow:       optional_flow_flags VAR dependencies
                 {
+                    for(jdf_global_entry_t* g = current_jdf.globals; g != NULL; g = g->next) {
+                        if( !strcmp(g->name, $2) ) {
+                            jdf_fatal(current_lineno, "Flow %s cannot shadow global variable with the same name (defined line %d)\n",
+                                      $2, JDF_OBJECT_LINENO(g));
+                            YYERROR;
+                        }
+                    }
+
                     jdf_dataflow_t *flow  = new(jdf_dataflow_t);
                     flow->flow_flags      = $1;
                     flow->varname         = $2;
@@ -836,6 +846,24 @@ expr_range: expr_simple RANGE expr_simple
             }
           ;
 
+variable: VAR
+            {
+                 jdf_expr_t *e = new(jdf_expr_t);
+                 e->op = JDF_VAR;
+                 e->jdf_var = strdup($1);
+                 $$ = e;
+                 JDF_OBJECT_LINENO($$) = current_lineno;
+            }
+        | variable ARROW VAR
+            {
+                 char* tmp = NULL;
+                 asprintf(&tmp, "%s->%s", $1->jdf_var, $3);
+                 free($1->jdf_var);
+                 $1->jdf_var = tmp;
+                 $$ = $1;
+            }
+        ;
+
 expr_simple:  expr_simple EQUAL expr_simple
               {
                   jdf_expr_t *e = new(jdf_expr_t);
@@ -1003,13 +1031,9 @@ expr_simple:  expr_simple EQUAL expr_simple
                   $$ = e;
                   JDF_OBJECT_LINENO($$) = current_lineno;
               }
-       |      VAR
+       |      variable
               {
-                  jdf_expr_t *e = new(jdf_expr_t);
-                  e->op = JDF_VAR;
-                  e->jdf_var = strdup($1);
-                  $$ = e;
-                  JDF_OBJECT_LINENO($$) = current_lineno;
+                  $$ = $1;
               }
        |      INT
               {

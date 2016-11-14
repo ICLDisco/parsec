@@ -33,7 +33,7 @@ dague_release_task_to_mempool_update_nbtasks(dague_execution_unit_t *eu,
     (void)eu;
     handle = this_task->dague_handle;
     dague_thread_mempool_free( this_task->super.mempool_owner, this_task );
-    dague_atomic_dec_32b( &handle->nb_tasks );
+    dague_atomic_dec_32b( (uint32_t*)&handle->nb_tasks );
     return DAGUE_HOOK_RETURN_DONE;
 }
 

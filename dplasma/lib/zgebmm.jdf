@@ -25,7 +25,6 @@ extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int tra
 %}
 
 descA  [type = "dague_seg_ddesc_t*"]
-A      [type = "dague_ddesc_t *"]
 U      [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
@@ -42,7 +41,7 @@ GEBMM(i,j)
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i,j)
+  : descA(i,j)
 
   /* Atl: A from Top Left */
   RW  Atl <- A GEBMM_Reader(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
@@ -123,9 +122,9 @@ GEBMM_Reader(i,j)
   i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : A(i,j)
+  : descA(i,j)
 
-READ A <- A(i, j)                                               [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- descA(i, j)                                              [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBMM(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBMM(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBMM(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
@@ -153,13 +152,13 @@ GEBMM_Writer(i,j)
   i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : A(i,j)
+  : descA(i,j)
 
 READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBMM(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBMM(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBMM(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBMM(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-       -> A(i, j)                                               [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> descA(i, j)                                              [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
   /* nothing */

@@ -17,7 +17,7 @@ extern "C" %{
  */
 %}
 
-A          [type = "two_dim_block_cyclic_t*"]
+descA      [type = "two_dim_block_cyclic_t*"]
 NI         [type = int]
 NJ         [type = int]
 NK         [type = int]
@@ -34,10 +34,10 @@ STARTUP(i, j, k)
 
   prio = %{ return pri == 2 ? (int)(random()) : ((NJ*NK*i + NK*j + k)*pri); %}
 
-  : A(i,0)
+  : descA(i,0)
 
-  READ A <- A(i, 0)
-         -> A(i, 0)
+  READ A <- descA(i, 0)
+         -> descA(i, 0)
 
     ; prio
 
@@ -146,7 +146,7 @@ int main( int argc, char** argv )
     handle = dague_startup_new( &descA, ni, nj, nk );
     assert( NULL != handle );
     handle->arenas[DAGUE_startup_DEFAULT_ARENA] = &arena;
-    handle->pri = 0;
+    handle->_g_pri = 0;
     dague_enqueue( dague, (dague_handle_t*)handle );
     dague_context_wait(dague);
 
@@ -156,7 +156,7 @@ int main( int argc, char** argv )
         assert( NULL != handle );
         TIMER_START(time_elapsed);
         handle->arenas[DAGUE_startup_DEFAULT_ARENA] = &arena;
-        handle->pri = priorities[i].prio;
+        handle->_g_pri = priorities[i].prio;
         dague_enqueue( dague, (dague_handle_t*)handle );
         TIMER_STOP(time_elapsed);
         printf("DAG construction [%s] in %ld micro-sec\n",
