@@ -4844,8 +4844,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
             /* Applied only on the Write data, since the number of readers is not atomically increased yet */
             if ((fl->flow_flags & JDF_FLOW_TYPE_READ) &&
                 (fl->flow_flags & JDF_FLOW_TYPE_WRITE) ) {
-               coutput("    if ( NULL != g%s ) {\n"
-                       "      dague_data_transfer_ownership_to_copy( g%s->original, 0 /* device */,\n"
+               coutput("    if ( NULL != _f_%s ) {\n"
+                       "      dague_data_transfer_ownership_to_copy( _f_%s->original, 0 /* device */,\n"
                        "                                           %s);\n"
                        "    }\n",
                        fl->varname,

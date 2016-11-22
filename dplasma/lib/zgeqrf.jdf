@@ -80,15 +80,15 @@ BODY [type=RECURSIVE]
              k, k, k, A, k, k, T);
 
     if (tempkm > smallnb) {
-        subtile_desc_t *small_descA->
-        subtile_desc_t *small_descT->
+        subtile_desc_t *small_descA;
+        subtile_desc_t *small_descT;
         dague_handle_t *dague_zgeqrt;
 
 
-        small_descA->= subtile_desc_create( &(descA->, k, k,
+        small_descA = subtile_desc_create( &(descA), k, k,
                                            dplasma_imin(descA->mb, ldak), smallnb,
                                            0, 0, tempkm, tempkn );
-        small_descT->= subtile_desc_create( &(descT->, k, k,
+        small_descT = subtile_desc_create( &(descT), k, k,
                                            ib, smallnb,
                                            0, 0, ib, tempkn );
 
@@ -96,14 +96,14 @@ BODY [type=RECURSIVE]
         small_descT->mat = T;
 
         /* dague_object */
-        dague_zgeqrt = dplasma_zgeqrfr_geqrt_New( (tiled_matrix_desc_t *)small_descA->
-                                                  (tiled_matrix_desc_t *)small_descT->
+        dague_zgeqrt = dplasma_zgeqrfr_geqrt_New( (tiled_matrix_desc_t *)small_descA,
+                                                  (tiled_matrix_desc_t *)small_descT,
                                                   p_work );
 
         /* recursive call */
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zgeqrt, dplasma_zgeqrfr_geqrt_Destruct,
-                             2, small_descA-> small_descT->);
+                             2, small_descA, small_descT);
 
         return DAGUE_HOOK_RETURN_ASYNC;
     }
@@ -164,19 +164,19 @@ BODY [type=RECURSIVE]
     int ldak = BLKLDD( descA, k );
 
     if (tempkm > smallnb) {
-        subtile_desc_t *small_descA->
-        subtile_desc_t *small_descT->
+        subtile_desc_t *small_descA;
+        subtile_desc_t *small_descT;
         subtile_desc_t *small_descC;
         dague_handle_t *dague_zunmqr_panel;
 
 
-        small_descA->= subtile_desc_create( &(descA->, k, k,
+        small_descA = subtile_desc_create( &(descA), k, k,
                                            dplasma_imin(descA->mb, ldak), smallnb,
                                            0, 0, tempkm, tempkm );
-        small_descC = subtile_desc_create( &(descA->, k, n,
+        small_descC = subtile_desc_create( &(descA), k, n,
                                            dplasma_imin(descA->mb, ldak), smallnb,
                                            0, 0, tempkm, tempnn );
-        small_descT->= subtile_desc_create( &(descT->, k, k,
+        small_descT = subtile_desc_create( &(descT), k, k,
                                            ib, smallnb,
                                            0, 0, ib, tempkm );
 
@@ -185,15 +185,15 @@ BODY [type=RECURSIVE]
         small_descT->mat = T;
 
         /* dague_object */
-        dague_zunmqr_panel = dplasma_zgeqrfr_unmqr_New( (tiled_matrix_desc_t *)small_descA->
-                                                        (tiled_matrix_desc_t *)small_descT->
+        dague_zunmqr_panel = dplasma_zgeqrfr_unmqr_New( (tiled_matrix_desc_t *)small_descA,
+                                                        (tiled_matrix_desc_t *)small_descT,
                                                         (tiled_matrix_desc_t *)small_descC,
                                                         p_work );
 
         /* recursive call */
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_zunmqr_panel, dplasma_zgeqrfr_unmqr_Destruct,
-                             3, small_descA-> small_descC, small_descT->);
+                             3, small_descA, small_descC, small_descT);
 
         return DAGUE_HOOK_RETURN_ASYNC;
     }
@@ -276,19 +276,19 @@ BODY [type=RECURSIVE]
     int ldam = BLKLDD( descA, m );
 
     if (tempmm > smallnb) {
-        subtile_desc_t *small_descA->;
-        subtile_desc_t *small_descA->;
-        subtile_desc_t *small_descT->
+        subtile_desc_t *small_descA1;
+        subtile_desc_t *small_descA2;
+        subtile_desc_t *small_descT;
         dague_handle_t *dague_ztsqrt;
 
 
-        small_descA-> = subtile_desc_create( &(descA->, k, k,
+        small_descA1 = subtile_desc_create( &(descA), k, k,
                                             dplasma_imin(descA->mb, ldak), smallnb,
                                             0, 0, tempkn, tempkn );
-        small_descA-> = subtile_desc_create( &(descA->, m, k,
+        small_descA2 = subtile_desc_create( &(descA), m, k,
                                             dplasma_imin(descA->mb, ldam), smallnb,
                                             0, 0, tempmm, tempkn );
-        small_descT-> = subtile_desc_create( &(descT->, m, k,
+        small_descT = subtile_desc_create( &(descT), m, k,
                                             ib, smallnb,
                                             0, 0, ib, tempkn );
 
@@ -297,15 +297,15 @@ BODY [type=RECURSIVE]
         small_descT->mat  = T;
 
         /* dague_object */
-        dague_ztsqrt = dplasma_zgeqrfr_tsqrt_New((tiled_matrix_desc_t *)small_descA->,
-                                                 (tiled_matrix_desc_t *)small_descA->,
-                                                 (tiled_matrix_desc_t *)small_descT->
+        dague_ztsqrt = dplasma_zgeqrfr_tsqrt_New((tiled_matrix_desc_t *)small_descA1,
+                                                 (tiled_matrix_desc_t *)small_descA2,
+                                                 (tiled_matrix_desc_t *)small_descT,
                                                  p_work, p_tau );
 
         /* recursive call */
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_ztsqrt, dplasma_zgeqrfr_tsqrt_Destruct,
-                             3, small_descA->, small_descA->, small_descT->);
+                             3, small_descA1, small_descA2, small_descT);
 
         return DAGUE_HOOK_RETURN_ASYNC;
     }
@@ -417,42 +417,42 @@ BODY [type=RECURSIVE]
     int ldam = BLKLDD( descA, m );
 
     if (tempmm > smallnb) {
-        subtile_desc_t *small_descA->;
-        subtile_desc_t *small_descA->;
+        subtile_desc_t *small_descA1;
+        subtile_desc_t *small_descA2;
         subtile_desc_t *small_descV;
-        subtile_desc_t *small_descT->
+        subtile_desc_t *small_descT;
         dague_handle_t *dague_ztsmqr;
 
 
-        small_descA-> = subtile_desc_create( &(descA->, k, n,
+        small_descA1 = subtile_desc_create( &(descA), k, n,
                                             dplasma_imin(descA->mb, ldak), smallnb,
                                             0, 0, descA->mb, tempnn );
-        small_descA-> = subtile_desc_create( &(descA->, m, n,
+        small_descA2 = subtile_desc_create( &(descA), m, n,
                                             dplasma_imin(descA->mb, ldam), smallnb,
                                             0, 0, tempmm, tempnn );
-        small_descV  = subtile_desc_create( &(descA->, m, k,
+        small_descV = subtile_desc_create( &(descA), m, k,
                                             dplasma_imin(descA->mb, ldam), smallnb,
                                             0, 0, tempmm, descA->nb );
-        small_descT-> = subtile_desc_create( &(descT->, m, k,
+        small_descT = subtile_desc_create( &(descT), m, k,
                                             ib, smallnb,
                                             0, 0, ib, descA->nb );
 
-        small_descA->->mat = A1;
-        small_descA->->mat = A2;
+        small_descA1->mat = A1;
+        small_descA2->mat = A2;
         small_descV->mat  = V;
         small_descT->mat  = T;
 
         /* dague_object */
-        dague_ztsmqr = dplasma_zgeqrfr_tsmqr_New( (tiled_matrix_desc_t *)small_descA->,
-                                                  (tiled_matrix_desc_t *)small_descA->,
+        dague_ztsmqr = dplasma_zgeqrfr_tsmqr_New( (tiled_matrix_desc_t *)small_descA1,
+                                                  (tiled_matrix_desc_t *)small_descA2,
                                                   (tiled_matrix_desc_t *)small_descV,
-                                                  (tiled_matrix_desc_t *)small_descT->
+                                                  (tiled_matrix_desc_t *)small_descT,
                                                   p_work );
 
         /* recursive call */
         dague_recursivecall( context, (dague_execution_context_t*)this_task,
                              dague_ztsmqr, dplasma_zgeqrfr_tsmqr_Destruct,
-                             4, small_descA->, small_descA->, small_descV, small_descT->);
+                             4, small_descA1, small_descA2, small_descV, small_descT);
 
         return DAGUE_HOOK_RETURN_ASYNC;
     }

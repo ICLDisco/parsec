@@ -209,7 +209,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     } else {
         CORE_zgetrf_reclap_init();
     }
-    handle->nbmaxthrd = dplasma_imin( nbthreads, 48 );
+    handle->_g_nbmaxthrd = dplasma_imin( nbthreads, 48 );
 
 #else
 
