@@ -109,15 +109,15 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
         return NULL;
     }
 
-    handle = dague_zunglq_param_new( (dague_ddesc_t*)A,
-                                     (dague_ddesc_t*)TS,
-                                     (dague_ddesc_t*)TT,
-                                     (dague_ddesc_t*)Q,
+    handle = dague_zunglq_param_new( A,
+                                     TS,
+                                     TT,
+                                     Q,
                                      *qrtree,
                                      NULL );
 
-    handle->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( handle->arenas[DAGUE_zunglq_param_DEFAULT_ARENA],
@@ -176,8 +176,8 @@ dplasma_zunglq_param_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_param_LOWER_TILE_ARENA] );
     dague_matrix_del2arena( dague_zunglq->arenas[DAGUE_zunglq_param_LITTLE_T_ARENA  ] );
 
-    dague_private_memory_fini( dague_zunglq->p_work );
-    free( dague_zunglq->p_work );
+    dague_private_memory_fini( dague_zunglq->_g_p_work );
+    free( dague_zunglq->_g_p_work );
 
     dague_handle_free(handle);
 }

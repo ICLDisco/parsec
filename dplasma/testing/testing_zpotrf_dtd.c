@@ -209,7 +209,7 @@ int main(int argc, char **argv)
     /* Testing Insert Function */
     for(k=0;k<total;k++){
         tempkm = (k == (ddescA.super.mt - 1)) ? ddescA.super.m - k * ddescA.super.mb : ddescA.super.mb;
-        ldak = BLKLDD(ddescA.super, k);
+        ldak = BLKLDD((tiled_matrix_desc_t*)&ddescA, k);
         dague_insert_task(DAGUE_dtd_handle, &call_to_kernel_PO, "Potrf",
                                  sizeof(int),      &uplo,              VALUE,
                                  sizeof(int),      &tempkm,            VALUE,
@@ -219,7 +219,7 @@ int main(int argc, char **argv)
                                  0);
         for(m=k+1;m<total;m++){
             tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
-            ldam = BLKLDD(ddescA.super, m);
+            ldam = BLKLDD((tiled_matrix_desc_t*)&ddescA, m);
             dague_insert_task(DAGUE_dtd_handle, &call_to_kernel_TR, "Trsm",
                                      sizeof(int),      &side,               VALUE,
                                      sizeof(int),      &uplo,               VALUE,
@@ -236,7 +236,7 @@ int main(int argc, char **argv)
         }
         for(m=k+1;m<total;m++){
             tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
-            ldam = BLKLDD(ddescA.super, m);
+            ldam = BLKLDD((tiled_matrix_desc_t*)&ddescA, m);
             dague_insert_task(DAGUE_dtd_handle, &call_to_kernel_HE, "Herk",
                                     sizeof(int),       &uplo,               VALUE,
                                     sizeof(int),       &trans,              VALUE,
@@ -250,7 +250,7 @@ int main(int argc, char **argv)
                                     sizeof(int),       &ldam,               VALUE,
                                     0);
             for(n=k+1;n<m;n++){
-                   ldan = BLKLDD(ddescA.super, n);
+                   ldan = BLKLDD((tiled_matrix_desc_t*)&ddescA, n);
                    dague_insert_task(DAGUE_dtd_handle,  &call_to_kernel_GE, "Gemm",
                                            sizeof(int),        &transA_g,           VALUE,
                                            sizeof(int),        &transB,             VALUE,

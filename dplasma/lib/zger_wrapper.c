@@ -57,9 +57,9 @@ dplasma_zger_internal_New( int trans, dague_complex64_t alpha,
         return NULL /*-1*/;
     }
     zger_handle = dague_zger_new(trans, alpha,
-                                 (dague_ddesc_t*)X,
-                                 (dague_ddesc_t*)Y,
-                                 (dague_ddesc_t*)A);
+                                 X,
+                                 Y,
+                                 A);
 
     dplasma_add2arena_tile( zger_handle->arenas[DAGUE_zger_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),

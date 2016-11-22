@@ -490,47 +490,31 @@ static int remote_dep_bind_thread(dague_context_t* context)
             dague_debug_verbose(4, dague_debug_output, "Communication thread bound to physical core %d",  context->comm_th_core);
 
             /* Check if this core is not used by a computation thread */
-            if( hwloc_bitmap_isset(context->index_core_free_mask, context->comm_th_core) )
+            if( hwloc_bitmap_isset(context->cpuset_free_mask, context->comm_th_core) )
                 do_nano = 0;
         } else {
             /* There is no guarantee the thread doesn't share the core. Let do_nano to 1. */
             dague_warning("Request to bind the communication thread on core %d failed.", context->comm_th_core);
         }
-    } else if( context->comm_th_core == -2 ) {
-        /* Bind to the specified mask */
-        hwloc_cpuset_t free_common_cores;
-
-        /* reduce the mask to unused cores if any */
-        free_common_cores=hwloc_bitmap_alloc();
-        hwloc_bitmap_and(free_common_cores, context->index_core_free_mask, context->comm_th_index_mask);
-
-        if( !hwloc_bitmap_iszero(free_common_cores) ) {
-            hwloc_bitmap_copy(context->comm_th_index_mask, free_common_cores);
-
-            do_nano = 0;
-        }
-        hwloc_bitmap_asprintf(&str, context->comm_th_index_mask);
-        hwloc_bitmap_free(free_common_cores);
-        if( dague_bindthread_mask(context->comm_th_index_mask) >= 0 ) {
-            dague_debug_verbose(4, dague_debug_output, "Communication thread bound on the index mask %s", str);
-        } else {
-            dague_warning("Request to bind the Communication thread on the index mask %s failed.", str);
-            do_nano = 1;
-        }
     } else {
-        /* no binding specified
-         * - bind on available cores if any,
-         * - let float otherwise
+        /* bind the communication thread to any available core (which means described by the
+         * binding scheme but not used by a computational thread), or if no such core exists
+         * as a floating thread on all computational cores.
          */
-
-        if( !hwloc_bitmap_iszero(context->index_core_free_mask) ) {
-            if( dague_bindthread_mask(context->index_core_free_mask) > -1 ){
-                hwloc_bitmap_asprintf(&str, context->index_core_free_mask);
-                dague_debug_verbose(4, dague_debug_output, "Communication thread bound on the cpu mask %s", str);
-                free(str);
+        if( !hwloc_bitmap_iszero(context->cpuset_free_mask) ) {
+            if( dague_bindthread_mask(context->cpuset_free_mask) > -1 ){
+                hwloc_bitmap_asprintf(&str, context->cpuset_free_mask);
                 do_nano = 0;
             }
+        } else {
+            if( dague_bindthread_mask(context->cpuset_allowed_mask) > -1 ){
+                hwloc_bitmap_asprintf(&str, context->cpuset_allowed_mask);
+                do_nano = 1;
+            }
         }
+        dague_debug_verbose(4, dague_debug_output, "Communication thread bound on the cpu mask %s (with%s back-off)",
+                            str, (do_nano ? "" : "out"));
+        free(str);
     }
 #else /* NO DAGUE_HAVE_HWLOC */
     /* If we don't have hwloc, try to bind the thread on the core #nbcore as the

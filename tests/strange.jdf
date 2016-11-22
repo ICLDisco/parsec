@@ -33,9 +33,9 @@ TASK(k)
  m = %{ return k + 1; %}
 
 // Parallel partitioning
-:A(k, 0)
+:descA(k, 0)
 
-RW A <- (0 == k) ? A(k, 0) : A TASK(k-1)
+RW A <- (0 == k) ? descA(k, 0) : A TASK(k-1)
      -> (k%2 == 1) ? A TASK(n) : A TASK(inline_c%{ return k+1; %})
 
 BODY

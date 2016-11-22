@@ -19,7 +19,13 @@
 #define DAGUE_PROFILING_EVENT_RESCHEDULED  (1<<1)
 #define DAGUE_PROFILING_EVENT_COUNTER      (1<<2)
 
-BEGIN_C_DECLS
+/* We are not using the traditional BEGIN_C_DECL in this file
+ * to limit the non-system include files dependencies to a minimum 
+ */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Note about thread safety:
  *  Some functions are thread safe, others are not.
@@ -323,6 +329,8 @@ profiling_thread_save_sinfo(dague_thread_profiling_t * thread,
 #define PROFILING_THREAD_SAVE_sINFO(thread, key, str_value) do {} while(0)
 #endif
 
-END_C_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #endif  /* _DAGUE_profiling_h */

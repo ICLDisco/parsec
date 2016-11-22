@@ -358,7 +358,8 @@ int dague_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
         cpu_index = -1;
         goto free_and_return;
     }
-    dague_debug_verbose(3, dague_debug_output, "Thread bound on core index %i, [HT %i ]", cpu_index, local_ht_index);
+    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "Thread bound on core index %i, [HT %i ]",
+                        cpu_index, local_ht_index);
 
     /* Get the number at Proc level*/
     cpu_index = obj->os_index;
@@ -394,8 +395,8 @@ int dague_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
         return -1;
     }
 
-    dague_hwloc_print_cpuset(9, "Thread binding: cpuset binding [BEFORE]: ", cpuset);
-    dague_hwloc_print_cpuset(4, "Thread binding: cpuset binding [ACTUAL]: ", binding_mask);
+    dague_hwloc_print_cpuset(9, "Thread binding: cpuset binding [LOGICAL ]: ", cpuset);
+    dague_hwloc_print_cpuset(4, "Thread binding: cpuset binding [PHYSICAL]: ", binding_mask);
 
     first_free = hwloc_bitmap_first(binding_mask);
     hwloc_bitmap_free(binding_mask);

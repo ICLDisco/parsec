@@ -120,8 +120,10 @@ static int jdf_sanity_check_expr_bound_before_global(jdf_expr_t *e, jdf_global_e
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
-        dot = strchr(vc, '.');
-        if( NULL != dot )
+        if( NULL != (dot = strchr(vc, '.')) )
+            *dot = '\0';
+        /* also check for -> */
+        if( NULL != (dot = strstr(vc, "->")) )
             *dot = '\0';
         for(g2 = current_jdf.globals; g2 != g1; g2 = g2->next) {
             if( !strcmp( vc, g2->name ) ) {
@@ -258,8 +260,9 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
-        dot = strchr(vc, '.');
-        if( NULL != dot )
+        if( NULL != (dot = strchr(vc, '.')) )
+            *dot = '\0';
+        if( NULL != (dot = strstr(vc, "->")) )
             *dot = '\0';
         for(g = current_jdf.globals; g != NULL; g = g->next) {
             if( !strcmp( vc, g->name ) ) {
@@ -330,8 +333,9 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
     switch( e->op ) {
     case JDF_VAR:
         vc = strdup(e->jdf_var);
-        dot = strchr(vc, '.');
-        if( NULL != dot )
+        if( NULL != (dot = strchr(vc, '.')) )
+            *dot = '\0';
+        if( NULL != (dot = strstr(vc, "->")) )
             *dot = '\0';
         for(g = current_jdf.globals; g != NULL; g = g->next) {
             if( !strcmp( vc, g->name ) ) {

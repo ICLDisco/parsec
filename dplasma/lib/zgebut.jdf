@@ -45,7 +45,6 @@ void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
 %}
 
 descA  [type = "dague_seg_ddesc_t*"]
-A      [type = "dague_ddesc_t *"]
 Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
@@ -62,7 +61,7 @@ GEBUT(i,j)
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i,j)
+  : descA(i,j)
 
   /* Atl: A from Top Left */
   RW  Atl <- A GEBUT_Reader(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
@@ -148,9 +147,9 @@ GEBUT_Reader(i,j)
   i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : A(i,j)
+  : descA(i,j)
 
-READ A <- A(i, j)                                               [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- descA(i, j)                                              [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
@@ -203,13 +202,13 @@ GEBUT_Writer(i,j)
   i = 0 .. mt-1
   j = 0 .. nt-1
 
-  : A(i,j)
+  : descA(i,j)
 
 READ A <- ( (i<mt/2)  && (j<nt/2)  ) ? Atl GEBUT(i,j)           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i<mt/2)  && (j>=nt/2) ) ? Atr GEBUT(i,j-nt/2)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i>=mt/2) && (j<nt/2)  ) ? Abl GEBUT(i-mt/2,j)      [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        <- ( (i>=mt/2) && (j>=nt/2) ) ? Abr GEBUT(i-mt/2,j-nt/2) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-       -> A(i, j)                                               [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+       -> descA(i, j)                                              [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)

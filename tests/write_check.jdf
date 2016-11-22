@@ -97,7 +97,9 @@ int main(int argc, char* argv[])
     }
 
     dague = dague_init(-1, &argc, &argv);
-    assert( NULL != dague );
+    if( NULL == dague ) {
+        exit(-1);
+    }
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                1 /*nodes*/, 0 /*rank*/,

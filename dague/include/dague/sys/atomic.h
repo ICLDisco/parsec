@@ -21,7 +21,13 @@
 #if defined(DAGUE_ATOMIC_USE_XLC_32_BUILTINS)
 #  include "atomic-xlc.h"
 #elif defined(DAGUE_OSX)
+/* Temporary workaround until we integrate C11 atomics */
+#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
+#  pragma clang diagnostic push
+#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
 #  include "atomic-macosx.h"
+#  pragma clang diagnostic pop
+#endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
 #elif defined(DAGUE_ARCH_PPC)
 #  if defined(__bgp__)
 #    include "atomic-ppc-bgp.h"

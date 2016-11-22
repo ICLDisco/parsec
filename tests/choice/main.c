@@ -58,10 +58,14 @@ int main(int argc, char *argv[])
     }
     dargv[j] = NULL;
 
-    if(argc - j < 1) {
+    if(argc - j <= 1) {
         nb = 2;
     } else {
         nb = atoi(argv[1]);
+        if( 0 >= nb ) {
+            printf("Incorrect argument\n");
+            exit(-1);
+        }
     }
 
     cores = 1;
@@ -70,7 +74,9 @@ int main(int argc, char *argv[])
     else
         pargv = &dargv;
     dague = dague_init(cores, &j, pargv);
-
+    if( NULL == dague ) {
+        exit(-1);
+    }
     ddescA = create_and_distribute_data(rank, world, size);
     dague_ddesc_set_key(ddescA, "A");
 

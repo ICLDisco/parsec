@@ -45,7 +45,7 @@ dplasma_zgeqrf_setrecursive( dague_handle_t *handle, int hnb )
     dague_zgeqrf_handle_t *dague_zgeqrf = (dague_zgeqrf_handle_t *)handle;
 
     if (hnb > 0) {
-        dague_zgeqrf->smallnb = hnb;
+        dague_zgeqrf->_g_smallnb = hnb;
     }
 }
 
@@ -129,15 +129,15 @@ dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
     dague_zgeqrf_handle_t* handle;
     int ib = T->mb;
 
-    handle = dague_zgeqrf_new( (dague_ddesc_t*)A,
-                               (dague_ddesc_t*)T,
+    handle = dague_zgeqrf_new( A,
+                               T,
                                ib, NULL, NULL );
 
-    handle->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_tau, T->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_tau, T->nb * sizeof(dague_complex64_t) );
 
-    handle->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_work, ib * T->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_work, ib * T->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( handle->arenas[DAGUE_zgeqrf_DEFAULT_ARENA],
@@ -196,10 +196,10 @@ dplasma_zgeqrf_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zgeqrf->arenas[DAGUE_zgeqrf_UPPER_TILE_ARENA] );
     dague_matrix_del2arena( dague_zgeqrf->arenas[DAGUE_zgeqrf_LITTLE_T_ARENA  ] );
 
-    dague_private_memory_fini( dague_zgeqrf->p_work );
-    dague_private_memory_fini( dague_zgeqrf->p_tau  );
-    free( dague_zgeqrf->p_work );
-    free( dague_zgeqrf->p_tau  );
+    dague_private_memory_fini( dague_zgeqrf->_g_p_work );
+    dague_private_memory_fini( dague_zgeqrf->_g_p_tau  );
+    free( dague_zgeqrf->_g_p_work );
+    free( dague_zgeqrf->_g_p_tau  );
 
     dague_handle_free(handle);
 }

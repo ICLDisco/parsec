@@ -49,7 +49,6 @@ void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
 %}
 
 descA  [type = "dague_seg_ddesc_t*"]
-A      [type = "dague_ddesc_t *"]
 Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
@@ -65,7 +64,7 @@ HEBUT_Diag(i)
   /* Execution space */
   i = 0 .. mt/2-1
 
-  : A(i,i)
+  : descA(i,i)
 
   /* Atl: A from Top Left */
   RW  Atl <- A HEBUT_Reader_TL(i,i) [ type = %{ return segment_to_arena_index(descA, i, i); %}]
@@ -163,7 +162,7 @@ HEBUT_Lower(i,j)
   i = 1 .. mt/2-1
   j = 0 .. i-1
 
-  : A(i,j)
+  : descA(i,j)
 
   /* Atl: A from Top Left */
   RW  Atl <- A HEBUT_Reader_TL(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
@@ -281,9 +280,9 @@ HEBUT_Reader_TL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i,j)
+  : descA(i,j)
 
-READ A <- A(i, j)                                           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+READ A <- descA(i, j)                                          [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 /* Priority */
@@ -335,9 +334,9 @@ HEBUT_Reader_BL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i+mt/2,j)
+  : descA(i+mt/2,j)
 
-READ A <- A(i+mt/2, j)                  [ type = %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
+READ A <- descA(i+mt/2, j)                 [ type = %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
        -> (i>j)  ? Abl HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i==j) ? Abl HEBUT_Diag(i)    [ type = %{ return segment_to_arena_index(descA, i, j); %}]
        -> (i<j)  ? Atr HEBUT_Lower(j,i) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
@@ -391,9 +390,9 @@ HEBUT_Reader_BR(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+mt/2,j+nt/2)
+  : descA(i+mt/2,j+nt/2)
 
-READ A <- A(i+mt/2, j+nt/2)                                 [ type = %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
+READ A <- descA(i+mt/2, j+nt/2)                                [ type = %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
        -> (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i,j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 /* Priority */
@@ -445,10 +444,10 @@ HEBUT_Writer_TL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i,j)
+  : descA(i,j)
 
 RW A <- (i==j) ? Atl HEBUT_Diag(i) : Atl HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i, j)                                            [ type = %{ return segment_to_arena_index(descA, i, j); %}]
+     -> descA(i, j)                                           [ type = %{ return segment_to_arena_index(descA, i, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -496,12 +495,12 @@ HEBUT_Writer_BL(i,j)
   i = 0 .. mt/2-1
   j = 0 .. nt/2-1
 
-  : A(i+mt/2,j)
+  : descA(i+mt/2,j)
 
 RW A <- (i==j) ? Abl HEBUT_Diag(i)     [ type = %{ return segment_to_arena_index(descA, i, j); %}]
      <- (i>j)  ? Abl HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
      <- (i<j)  ? Abl HEBUT_Lower(j, i) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j)                   [ type = %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
+     -> descA(i+mt/2, j)                  [ type = %{ return segment_to_arena_index(descA, i+mt/2, j); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)
@@ -549,10 +548,10 @@ HEBUT_Writer_BR(i,j)
   i = 0 .. mt/2-1
   j = 0 .. i
 
-  : A(i+mt/2,j+nt/2)
+  : descA(i+mt/2,j+nt/2)
 
 RW A <- (i==j) ? Abr HEBUT_Diag(i) : Abr HEBUT_Lower(i, j) [ type = %{ return segment_to_arena_index(descA, i, j); %}]
-     -> A(i+mt/2, j+nt/2)                                  [ type = %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
+     -> descA(i+mt/2, j+nt/2)                                 [ type = %{ return segment_to_arena_index(descA, i+mt/2, j+nt/2); %}]
 
 BODY
 #if defined(DEBUG_BUTTERFLY)

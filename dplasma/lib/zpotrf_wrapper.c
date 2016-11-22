@@ -45,7 +45,7 @@ dplasma_zpotrf_setrecursive( dague_handle_t *handle, int hmb )
     dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)handle;
 
     if (hmb > 0) {
-        dague_zpotrf->smallnb = hmb;
+        dague_zpotrf->_g_smallnb = hmb;
     }
 }
 
@@ -131,15 +131,15 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        handle = (dague_handle_t*)dague_zpotrf_U_new( uplo, (dague_ddesc_t*)A, info);
+        handle = (dague_handle_t*)dague_zpotrf_U_new( uplo, A, info);
     } else {
-        handle = (dague_handle_t*)dague_zpotrf_L_new( uplo, (dague_ddesc_t*)A, info);
+        handle = (dague_handle_t*)dague_zpotrf_L_new( uplo, A, info);
     }
 
     dague_zpotrf = (dague_zpotrf_L_handle_t*)handle;
-    dague_zpotrf->PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
-    if(0 == dague_zpotrf->PRI_CHANGE)
-      dague_zpotrf->PRI_CHANGE = A->nt;
+    dague_zpotrf->_g_PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
+    if(0 == dague_zpotrf->_g_PRI_CHANGE)
+      dague_zpotrf->_g_PRI_CHANGE = A->nt;
     dplasma_add2arena_tile( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(dague_complex64_t),
                             DAGUE_ARENA_ALIGNMENT_SSE,

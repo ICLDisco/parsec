@@ -100,16 +100,16 @@ dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
         return NULL;
     }
 
-    handle = dague_zgeqrf_param_new( (dague_ddesc_t*)A,
-                                     (dague_ddesc_t*)TS,
-                                     (dague_ddesc_t*)TT,
+    handle = dague_zgeqrf_param_new( A,
+                                     TS,
+                                     TT,
                                      *qrtree, ib, NULL, NULL);
 
-    handle->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
-    handle->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_tau, TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_tau, TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( handle->arenas[DAGUE_zgeqrf_param_DEFAULT_ARENA],
@@ -168,10 +168,10 @@ dplasma_zgeqrf_param_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_UPPER_TILE_ARENA] );
     dague_matrix_del2arena( dague_zgeqrf_param->arenas[DAGUE_zgeqrf_param_LITTLE_T_ARENA  ] );
 
-    dague_private_memory_fini( dague_zgeqrf_param->p_work );
-    dague_private_memory_fini( dague_zgeqrf_param->p_tau  );
-    free( dague_zgeqrf_param->p_work );
-    free( dague_zgeqrf_param->p_tau  );
+    dague_private_memory_fini( dague_zgeqrf_param->_g_p_work );
+    dague_private_memory_fini( dague_zgeqrf_param->_g_p_tau  );
+    free( dague_zgeqrf_param->_g_p_work );
+    free( dague_zgeqrf_param->_g_p_tau  );
 
     dague_handle_free(handle);
 }

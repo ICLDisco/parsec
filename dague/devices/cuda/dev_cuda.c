@@ -948,12 +948,13 @@ dague_gpu_data_stage_in( gpu_device_t* gpu_device,
     int transfer_from = -1;
 
     /**
-     * If the data will be accessed in write mode, remove it from any lists
-     * until the task is completed.
+     * If the data will be accessed in write mode, remove it from any GPU data management
+     * lists until the task is completed.
      */
     if( FLOW_ACCESS_WRITE & type ) {
         if (gpu_elem->readers > 0 ) {
-            dague_warning("GPU[%d]:\tWrite access to data with existing readers (Possible anti-dependency, or concurrent accesses), please prevent that with CTL dependencies\n", gpu_device->cuda_index);
+            dague_warning("GPU[%d]:\tWrite access to data with existing readers (Possible anti-dependency, "
+                          "or concurrent accesses), please prevent that with CTL dependencies\n", gpu_device->cuda_index);
             return -86;
         }
         dague_list_item_ring_chop((dague_list_item_t*)gpu_elem);

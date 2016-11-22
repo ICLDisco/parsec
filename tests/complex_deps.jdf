@@ -17,7 +17,7 @@ extern "C" %{
 
 %}
 
-A          [type = "two_dim_block_cyclic_t*"]
+descA      [type = "two_dim_block_cyclic_t*"]
 NI         [type = int]
 NK         [type = int]
 
@@ -26,12 +26,12 @@ FCT1(i, k)
   i = 0 .. NI-1
   k = 0 .. NK-1
 
-: A(i)
+: descA(i, 0)
 
-  READ A <- (0 == k) ? A(i) : A FCT1(i, k-1)
+    READ A <- (0 == k) ? descA(i, 0) : A FCT1(i, k-1)
          -> (NK != k) ? A FCT1(i, k+1)
          -> A FCT5(i, k)                         [displ = BLOCK]
-  RW   B <- (0 == k) ? A(i) : B FCT1(i, k-1)
+         RW   B <- (0 == k) ? descA(i, 0) : B FCT1(i, k-1)
          -> A FCT2(i, k, k .. NK)                [displ = 0]
          -> A FCT3(i, k, k .. NK)                [displ = BLOCK]
          -> A FCT4(i, k)
@@ -46,7 +46,7 @@ FCT2(i, k, j)
   k = 0 .. NK-1
   j = k .. NK
 
-: A(i)
+: descA(i, 0)
 
   READ A <- B FCT1(i, k)
          -> B FCT3(i, j, k)
@@ -60,7 +60,7 @@ FCT3(i, k, j)
   k = 0 .. NK-1
   j = k .. NK
 
-: A(i)
+: descA(i, 0)
 
   READ A <- B FCT1(i, k)
   READ B <- A FCT2(i, j, k)
@@ -72,7 +72,7 @@ FCT4(i, k)
   i = 0 .. NI-1
   k = 0 .. NK-1
 
-: A(i)
+: descA(i, 0)
 
   READ A <- B FCT1(i, k)
 
@@ -84,7 +84,7 @@ FCT5(i, k)
   i = 0 .. NI-1
   k = 0 .. NK-1
 
-: A(i)
+: descA(i, 0)
 
   READ A <- A FCT1(i, k)
 
@@ -114,7 +114,7 @@ int main( int argc, char** argv )
     dague_arena_t arena;
     dague_context_t *dague;
     int ni = NN, nk = NN, verbose = 0, i = 1;
-    int rank = 0, size = 1, mat_size;
+    int rank = 0, size = 1, mat_size, cores = 1;
     long time_elapsed;
 
     while( NULL != argv[i] ) {
@@ -128,6 +128,10 @@ int main( int argc, char** argv )
         }
         if( 0 == strncmp(argv[i], "-v=", 3) ) {
             verbose = strtol(argv[i]+3, NULL, 10);
+            goto move_and_continue;
+        }
+        if( 0 == strncmp(argv[i], "-c=", 3) ) {
+            cores = strtol(argv[i]+3, NULL, 10);
             goto move_and_continue;
         }
         i++;  /* skip this one */
@@ -144,8 +148,10 @@ int main( int argc, char** argv )
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif  /* DISTRIBUTED */
-    dague = dague_init(1, &argc, &argv);
-    assert( NULL != dague );
+    dague = dague_init(cores, &argc, &argv);
+    if( NULL == dague ) {
+        exit(-1);
+    }
 
     /**
      * Build the data and the arena to hold it up.

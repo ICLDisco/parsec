@@ -122,21 +122,21 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
             if ( trans == PlasmaNoTrans ) {
                 dague_trmm = (dague_handle_t*)dague_ztrmm_LLN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trmm = (dague_handle_t*)dague_ztrmm_LLT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trmm = (dague_handle_t*)dague_ztrmm_LUN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trmm = (dague_handle_t*)dague_ztrmm_LUT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             }
         }
     } else { /* side == PlasmaRight */
@@ -144,21 +144,21 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
             if ( trans == PlasmaNoTrans ) {
                 dague_trmm = (dague_handle_t*)dague_ztrmm_RLN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trmm = (dague_handle_t*)dague_ztrmm_RLT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
                 dague_trmm = (dague_handle_t*)dague_ztrmm_RUN_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             } else { /* trans =! PlasmaNoTrans */
                 dague_trmm = (dague_handle_t*)dague_ztrmm_RUT_new(
                     side, uplo, trans, diag, alpha,
-                    (dague_ddesc_t*)A, (dague_ddesc_t*)B);
+                    A, B);
             }
         }
     }

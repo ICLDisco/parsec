@@ -46,7 +46,7 @@ dplasma_zhetrd( dague_context_t* dague,
     dague_private_memory_init( &pool[3], (sizeof(dague_complex64_t)*T->nb*4 *T->nb) ); /* work for the TSMQRLR */
     
     if( PlasmaLower == uplo ) {
-        h2b = dague_zhetrd_h2b_L_new( ib, A, *A, T, *T, &pool[3], &pool[2], &pool[1], &pool[0] );
+        h2b = dague_zhetrd_h2b_L_new( ib, A, T, &pool[3], &pool[2], &pool[1], &pool[0] );
         dplasma_add2arena_rectangle( h2b->arenas[DAGUE_zhetrd_h2b_L_DEFAULT_ARENA],
                                  A->mb*A->nb*sizeof(dague_complex64_t),
                                  DAGUE_ARENA_ALIGNMENT_SSE,

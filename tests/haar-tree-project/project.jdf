@@ -44,7 +44,6 @@ static int my_project_startup(dague_execution_unit_t * eu,
 // These are global variables that are instanciated in the main.c
 treeA               [type = "tree_dist_t *"]
 // The only type known to parsec is dague_ddesc_t
-treeAdesc           [type = "dague_ddesc_t *" default = "(dague_ddesc_t*)treeA"]
 NP                  [type = "int"]
 fakeDesc            [type = "dague_ddesc_t *"]
 thresh              [type = "double"]
@@ -80,7 +79,7 @@ END_PROPAGATE (n, l) [hash_fn = end_propagate_hash
 n = 0 .. 31
 l = 0 .. 1<<n
 
-:treeAdesc(n, l)
+:treeA(n, l)
 
  // The controls (CTL) are used as counters. Each END_PROPAGATE task
  // has to receive exactly two controls. But, the parent of leaf nodes
@@ -111,7 +110,7 @@ BODY
 {
   /* The root node has to delete all remaining tasks*/
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
+        int rank = (((dague_ddesc_t*)treeA)->rank_of((dague_ddesc_t*)treeA, n, l));
         fprintf(stderr, "CALLING END_PROPAGATE(%d, %d) on rank %d\n", n, l, rank);
     }
 }
@@ -124,7 +123,7 @@ CREATE_NODE (n, l) [hash_fn = create_node_hash
   n = 0 .. 31
   l = 0 .. (1<<n)
 
-:treeAdesc(n, l)
+:treeA(n, l)
 
 CTL RL <- RL PROJECT(n, l)
 
@@ -137,7 +136,7 @@ BODY
     double sl, sr;
 
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
+        int rank = (((dague_ddesc_t*)treeA)->rank_of((dague_ddesc_t*)treeA, n, l));
         fprintf(stderr, "CALLING CREATE_NODE(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -147,8 +146,8 @@ BODY
     node->s = 0.5 * (sl + sr);
     node->d = 0.5 * (sl - sr);
     // To tell parsec to keep the reference of these two data, so it shouldn't delete them
-    OBJ_RETAIN(gNODE);
-    tree_dist_insert_data(treeA, gNODE->original, n, l);
+    OBJ_RETAIN(_f_NODE);
+    tree_dist_insert_data(treeA, _f_NODE->original, n, l);
 
 }
 END
@@ -162,7 +161,7 @@ PROJECT (n, l) [hash_fn = project_hash
   l = 0 .. (1<<n)
   larger_than_thresh = 1 // this is used to check if the error is > thresh
 
-:treeAdesc(n, l)
+:treeA(n, l)
 
 CTL RL <- (n!=0) ? RL PROJECT(n-1, l/2)
        -> larger_than_thresh ? RL PROJECT(n+1, (l*2) .. ((l*2)+1))
@@ -177,7 +176,7 @@ BODY
     double d;
 
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super.treeAdesc)->rank_of((dague_ddesc_t*)__dague_handle->super.treeAdesc, n, l));
+        int rank = (((dague_ddesc_t*)treeA)->rank_of((dague_ddesc_t*)treeA, n, l));
         fprintf(stderr, "CALLING PROJECT(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -306,10 +305,10 @@ static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJE
   int vpid = 0;
   dague_context_t *context = __dague_handle->super.super.context;
 
-  if (__dague_handle->super.treeAdesc->myrank != 0)
+  if ( ((dague_ddesc_t *)__dague_handle->super._g_treeA)->myrank != 0)
       return DAGUE_HOOK_RETURN_DONE;
-  if (NULL != ((dague_ddesc_t *) __dague_handle->super.treeA)->vpid_of) {
-      vpid = ((dague_ddesc_t *) __dague_handle->super.treeA)->vpid_of((dague_ddesc_t *) __dague_handle->super.treeA, 0, 0);
+  if (NULL != ((dague_ddesc_t *) __dague_handle->super._g_treeA)->vpid_of) {
+      vpid = ((dague_ddesc_t *) __dague_handle->super._g_treeA)->vpid_of((dague_ddesc_t *) __dague_handle->super._g_treeA, 0, 0);
       assert(context->nb_vp >= vpid);
   }
   new_task = (__dague_project_PROJECT_task_t *) dague_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
@@ -321,9 +320,9 @@ static int my_project_startup(dague_execution_unit_t * eu, __dague_project_PROJE
   new_task->locals.n.value = 0;
   new_task->locals.l.value = 0;
   new_task->locals.larger_than_thresh.value = 1;
-  new_task->data.RL.data_repo = NULL;
-  new_task->data.RL.data_in = NULL;
-  new_task->data.RL.data_out = NULL;
+  new_task->data._f_RL.data_repo = NULL;
+  new_task->data._f_RL.data_in = NULL;
+  new_task->data._f_RL.data_out = NULL;
 
   new_task->priority = 1;
 

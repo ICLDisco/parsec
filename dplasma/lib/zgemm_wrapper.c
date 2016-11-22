@@ -105,17 +105,17 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
         if( PlasmaNoTrans == transB ) {
             dague_zgemm_NN_handle_t* handle;
             handle = dague_zgemm_NN_new(transA, transB, alpha, beta,
-                                        (dague_ddesc_t*)A,
-                                        (dague_ddesc_t*)B,
-                                        (dague_ddesc_t*)C);
+                                        A,
+                                        B,
+                                        C);
             arena = handle->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
             zgemm_handle = (dague_handle_t*)handle;
         } else {
             dague_zgemm_NT_handle_t* handle;
             handle = dague_zgemm_NT_new(transA, transB, alpha, beta,
-                                        (dague_ddesc_t*)A,
-                                        (dague_ddesc_t*)B,
-                                        (dague_ddesc_t*)C);
+                                        A,
+                                        B,
+                                        C);
             arena = handle->arenas[DAGUE_zgemm_NT_DEFAULT_ARENA];
             zgemm_handle = (dague_handle_t*)handle;
         }
@@ -123,17 +123,17 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
         if( PlasmaNoTrans == transB ) {
             dague_zgemm_TN_handle_t* handle;
             handle = dague_zgemm_TN_new(transA, transB, alpha, beta,
-                                        (dague_ddesc_t*)A,
-                                        (dague_ddesc_t*)B,
-                                        (dague_ddesc_t*)C);
+                                        A,
+                                        B,
+                                        C);
             arena = handle->arenas[DAGUE_zgemm_TN_DEFAULT_ARENA];
             zgemm_handle = (dague_handle_t*)handle;
         } else {
             dague_zgemm_TT_handle_t* handle;
             handle = dague_zgemm_TT_new(transA, transB, alpha, beta,
-                                        (dague_ddesc_t*)A,
-                                        (dague_ddesc_t*)B,
-                                        (dague_ddesc_t*)C);
+                                        A,
+                                        B,
+                                        C);
             arena = handle->arenas[DAGUE_zgemm_TT_DEFAULT_ARENA];
             zgemm_handle = (dague_handle_t*)handle;
         }
@@ -326,7 +326,5 @@ dplasma_zgemm( dague_context_t *dague,
         dplasma_zgemm_Destruct( dague_zgemm );
         return 0;
     }
-    else {
-        return -101;
-    }
+    return -101;
 }

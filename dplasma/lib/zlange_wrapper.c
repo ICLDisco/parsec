@@ -145,7 +145,7 @@ dplasma_zlange_New( PLASMA_enum ntype,
     switch( ntype ) {
     case PlasmaOneNorm:
         dague_zlange = (dague_handle_t*)dague_zlange_one_cyclic_new(
-            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
+            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, A, (dague_ddesc_t*)Tdist, result);
         break;
 
     case PlasmaMaxNorm:
@@ -153,7 +153,7 @@ dplasma_zlange_New( PLASMA_enum ntype,
     case PlasmaFrobeniusNorm:
     default:
         dague_zlange = (dague_handle_t*)dague_zlange_frb_cyclic_new(
-            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, (dague_ddesc_t*)A, (dague_ddesc_t*)Tdist, result);
+            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, A, (dague_ddesc_t*)Tdist, result);
     }
 
     /* Set the datatypes */
@@ -196,8 +196,8 @@ dplasma_zlange_Destruct( dague_handle_t *handle )
 {
     dague_zlange_frb_cyclic_handle_t *dague_zlange = (dague_zlange_frb_cyclic_handle_t *)handle;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlange->Tdist) );
-    free( dague_zlange->Tdist );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlange->_g_Tdist) );
+    free( dague_zlange->_g_Tdist );
 
     dague_matrix_del2arena( dague_zlange->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zlange->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA] );

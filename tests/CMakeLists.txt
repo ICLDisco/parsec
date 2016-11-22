@@ -30,6 +30,7 @@ add_Subdirectory(merge_sort)
 add_Subdirectory(profiling)
 add_Subdirectory(interfaces/superscalar)
 add_Subdirectory(jdf/new_null)
+add_Subdirectory(standalone-profiling)
 
 Add_Subdirectory(unit)
 dague_addtest(C operator operator.c)
