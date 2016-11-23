@@ -55,6 +55,8 @@ int dplasma_ztrsmpl( parsec_context_t *parsec, const tiled_matrix_desc_t *A,
                      const tiled_matrix_desc_t *L, const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
 
 /* Lapack */
+int    dplasma_zgebrd_ge2gb(  parsec_context_t *parsec, int ib, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Band );
+int    dplasma_zgebrd_ge2gbx( parsec_context_t *parsec, int ib, dplasma_qrtree_t *qrtre0, dplasma_qrtree_t *qrtree, dplasma_qrtree_t *lqtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS0, tiled_matrix_desc_t *TT0, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Band );
 int    dplasma_zgelqf( parsec_context_t *parsec, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 int    dplasma_zgelqf_param( parsec_context_t *parsec, dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
 int    dplasma_zgelqs( parsec_context_t *parsec, tiled_matrix_desc_t *A, tiled_matrix_desc_t *T, tiled_matrix_desc_t *B );
@@ -152,6 +154,8 @@ parsec_handle_t* dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A, const tiled_m
                                     const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
 
 /* Lapack */
+parsec_handle_t* dplasma_zgebrd_ge2gb_New( int ib, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Band );
+parsec_handle_t* dplasma_zgebrd_ge2gbx_New( int ib, dplasma_qrtree_t *qrtre0, dplasma_qrtree_t *qrtree, dplasma_qrtree_t *lqtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS0, tiled_matrix_desc_t *TT0, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT, tiled_matrix_desc_t *Band );
 parsec_handle_t* dplasma_zgelqf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
 parsec_handle_t* dplasma_zgelqf_param_New(dplasma_qrtree_t *qrtree, tiled_matrix_desc_t *A, tiled_matrix_desc_t *TS, tiled_matrix_desc_t *TT);
 parsec_handle_t* dplasma_zgeqrf_New(tiled_matrix_desc_t *A, tiled_matrix_desc_t *T);
@@ -217,6 +221,8 @@ void dplasma_ztrdsm_Destruct( parsec_handle_t *o );
 void dplasma_ztrsmpl_Destruct( parsec_handle_t *o );
 
 /* Lapack */
+void dplasma_zgebrd_ge2gb_Destruct( parsec_handle_t *o );
+void dplasma_zgebrd_ge2gbx_Destruct( parsec_handle_t *o );
 void dplasma_zgelqf_Destruct( parsec_handle_t *o );
 void dplasma_zgelqf_param_Destruct( parsec_handle_t *o );
 void dplasma_zgeqrf_Destruct( parsec_handle_t *o );
@@ -313,37 +319,5 @@ int dplasma_zheev( parsec_context_t *parsec, const PLASMA_enum jobz, const PLASM
 void dplasma_zhbrdt_Destruct( parsec_handle_t *o );
 void dplasma_zheev_Destruct( parsec_handle_t *o );
 void dplasma_zherbt_Destruct( parsec_handle_t *o );
-
-
-dague_handle_t*
-dplasma_zgebrd_ge2gbx_New( int ib, dplasma_qrtree_t *qrtre0,
-                           dplasma_qrtree_t *qrtree,
-                           dplasma_qrtree_t *lqtree,
-                           tiled_matrix_desc_t *A,
-                           tiled_matrix_desc_t *TS0,
-                           tiled_matrix_desc_t *TT0,
-                           tiled_matrix_desc_t *TS,
-                           tiled_matrix_desc_t *TT,
-                           tiled_matrix_desc_t *Band );
-
-void
-dplasma_zgebrd_ge2gbx_Destruct( dague_handle_t *handle );
-
-int
-dplasma_zgebrd_ge2gbx( dague_context_t *dague,
-                       int ib,
-                       dplasma_qrtree_t *qrtre0,
-                       dplasma_qrtree_t *qrtree,
-                       dplasma_qrtree_t *lqtree,
-                       tiled_matrix_desc_t *A,
-                       tiled_matrix_desc_t *TS0,
-                       tiled_matrix_desc_t *TT0,
-                       tiled_matrix_desc_t *TS,
-                       tiled_matrix_desc_t *TT,
-                       tiled_matrix_desc_t *Band);
-
-dague_handle_t* dplasma_zgebrd_ge2gb_New( int ib, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Band );
-void dplasma_zgebrd_ge2gb_Destruct( dague_handle_t *handle );
-int dplasma_zgebrd_ge2gb( dague_context_t *dague, int ib, tiled_matrix_desc_t *A, tiled_matrix_desc_t *Band);
 
 #endif /* _DPLASMA_Z_H_ */
