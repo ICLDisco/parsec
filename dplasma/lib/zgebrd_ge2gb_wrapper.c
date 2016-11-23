@@ -105,21 +105,16 @@ dplasma_zgebrd_ge2gb_New( dplasma_qrtree_t *qrtre0,
         return NULL;
     }
 
-    handle = dague_zgebrd_ge2gb_new( (dague_ddesc_t*)A,
-                                     (dague_ddesc_t*)TS0,
-                                     (dague_ddesc_t*)TT0,
-                                     (dague_ddesc_t*)TS,
-                                     (dague_ddesc_t*)TT,
-                                     (dague_ddesc_t*)Band,
+    handle = dague_zgebrd_ge2gb_new( A, TS0, TT0, TS, TT, Band,
                                      *qrtre0, *qrtree, *lqtree,
                                      !(qrtre0 == qrtree),
                                      NULL, NULL);
 
-    handle->p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(dague_complex64_t) );
 
-    handle->p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->p_tau, TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
+    dague_private_memory_init( handle->_g_p_tau, TS->nb * sizeof(dague_complex64_t) );
 
     /* Default type */
     dplasma_add2arena_tile( handle->arenas[DAGUE_zgebrd_ge2gb_DEFAULT_ARENA],
@@ -199,10 +194,10 @@ dplasma_zgebrd_ge2gb_Destruct( dague_handle_t *handle )
     dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_LITTLE_T_ARENA      ] );
     dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_BAND_ARENA          ] );
 
-    dague_private_memory_fini( dague_zgebrd_ge2gb->p_work );
-    dague_private_memory_fini( dague_zgebrd_ge2gb->p_tau  );
-    free( dague_zgebrd_ge2gb->p_work );
-    free( dague_zgebrd_ge2gb->p_tau  );
+    dague_private_memory_fini( dague_zgebrd_ge2gb->_g_p_work );
+    dague_private_memory_fini( dague_zgebrd_ge2gb->_g_p_tau  );
+    free( dague_zgebrd_ge2gb->_g_p_work );
+    free( dague_zgebrd_ge2gb->_g_p_tau  );
 
     dague_handle_free(handle);
 }
