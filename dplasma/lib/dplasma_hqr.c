@@ -1862,6 +1862,8 @@ dplasma_hqr_init( dplasma_qrtree_t *qrtree,
     qrtree->mt   = (trans == PlasmaNoTrans) ? A->mt : A->nt;
     qrtree->nt   = (trans == PlasmaNoTrans) ? A->nt : A->mt;
 
+    a = dplasma_imin( a, qrtree->mt );
+
     qrtree->a    = a;
     qrtree->p    = p;
     qrtree->args = NULL;
@@ -1983,4 +1985,790 @@ dplasma_hqr_finalize( dplasma_qrtree_t *qrtree )
 
         free(arg);
     }
+}
+
+
+/*
+ * Common functions
+ */
+static int svd_getnbgeqrf( const dplasma_qrtree_t *qrtree, int k );
+static int svd_getm(       const dplasma_qrtree_t *qrtree, int k, int i   );
+static int svd_geti(       const dplasma_qrtree_t *qrtree, int k, int m   );
+static int svd_gettype(    const dplasma_qrtree_t *qrtree, int k, int m   );
+
+#define svd_getipiv( __qrtree, _k ) ((__qrtree)->llvl->ipiv + ((__qrtree)->llvl->ldd) * (_k) )
+#define svd_geta( __qrtree, _k ) ( (svd_getipiv( (__qrtree), (_k) ))[0] )
+
+/*
+ * Extra parameter:
+ *    gmt - Global number of tiles in a column of the complete distributed matrix
+ * Return:
+ *    The number of geqrt to execute in the panel k
+ */
+static int
+svd_getnbgeqrf( const dplasma_qrtree_t *qrtree,
+                int k )
+{
+    hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
+    int p = qrtree->p;
+    int gmt = qrtree->mt;
+    int a = svd_geta(arg, k);
+    int pa = p * a;
+    int nb_1, nb_2, nb_3;
+    int nb_11, nb_12;
+
+    /* Number of tasks of type 3 */
+    nb_3 = p;
+
+    /* Number of extra tile of type 1 between the tile of type 3 and the first of nb11 */
+    nb_2 = nbextra1_formula;
+
+    /* First multiple of p*a under the diagonal of step 1 */
+    nb_11 = ( (k + p + pa - 1 ) / pa ) * pa;
+
+    /* Last multiple of p*a lower than A->mt */
+    nb_12 = ( gmt / pa ) * pa;
+
+    /* Number of tasks of type 1 between nb_11 and nb_12 */
+    nb_1 = (nb_12 - nb_11) / a;
+
+    /* Add leftover */
+    nb_1 += dplasma_imin( p, gmt - nb_12 );
+
+    return dplasma_imin( nb_1 + nb_2 + nb_3, gmt - k);
+}
+
+/*
+ * Extra parameter:
+ *    i - indice of the geqrt in the continuous space
+ * Return:
+ *    The global indice m of the i th geqrt in the panel k
+ */
+static int
+svd_getm( const dplasma_qrtree_t *qrtree,
+          int k, int i )
+{
+    hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
+    int p = qrtree->p;
+    int a = svd_geta(arg, k);
+
+    int pos1, j, pa = p * a;
+    int nbextra1 = nbextra1_formula;
+    int nb23 = p + nbextra1;
+
+    /* Tile of type 2 or 3 or the 1 between the diagonal and the multiple after the diagonal */
+    if ( i < nb23 )
+        return k+i;
+    /* Tile of type 1 */
+    else {
+        j = i - nb23;
+        pa = p * a;
+        pos1 = ( ( (p + k    ) + pa - 1 ) / pa ) * pa;
+        return pos1 + (j/p) * pa + j%p;
+    }
+}
+
+/*
+ * Extra parameter:
+ *    m - The global indice m of a geqrt in the panel k
+ * Return:
+ *    The index i of the geqrt in the panel k
+ */
+static int
+svd_geti( const dplasma_qrtree_t *qrtree,
+          int k, int m )
+{
+    hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
+    int p = qrtree->p;
+    int a = svd_geta(arg, k);
+
+    int pos1, j, pa = p * a;
+    int nbextra1 = nbextra1_formula;
+    int nb23 = p + nbextra1;
+    int end2 = p + k + nbextra1;
+
+    /* Tile of type 2 or 3 or the 1 between the diagonal and the multiple after the diagonal */
+    if ( m < end2 )
+        return m-k;
+    /* Tile of type 1 */
+    else {
+        pos1 = ( ( (p + k    ) + pa - 1 ) / pa ) * pa;
+        j = m - pos1;
+        return nb23 + (j / pa) * p + j%pa;
+    }
+}
+
+/*
+ * Extra parameter:
+ *      m - The global indice m of the row in the panel k
+ * Return
+ *     -1 - Error
+ *      0 - if m is reduced thanks to a TS kernel
+ *      1 - if m is reduced thanks to the low level tree
+ *      2 - if m is reduced thanks to the bubble tree
+ *      3 - if m is reduced in distributed
+ */
+static int
+svd_gettype( const dplasma_qrtree_t *qrtree,
+             int k, int m )
+{
+    hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
+    int p = qrtree->p;
+    int a = svd_geta(arg, k);
+
+    /* Element to be reduce in distributed */
+    if (m < k + p) {
+        return 3;
+    }
+    /* Lower triangle of the matrix */
+    else {
+        if( (m / p) % a == 0 )
+            return 1;
+        else
+            return 0;
+    }
+}
+
+/****************************************************
+ *          SVD_LOW_ADAPTIV_TREE
+ ***************************************************/
+/* Return the pivot to use for the row m at step k */
+inline static int
+svd_low_adaptiv_currpiv( const hqr_subpiv_t *arg,
+                         int k, int m )
+{
+    int *ipiv = arg->ipiv + (m%arg->p * arg->minMN + k) * arg->ldd;
+    int a = ipiv[0];
+
+    ipiv+=2;
+    return ipiv[ ( m  / arg->p ) / a ];
+}
+
+/* Return the last row which has used the row m as a pivot in step k before the row start */
+inline static int
+svd_low_adaptiv_prevpiv( const hqr_subpiv_t *arg,
+                         int k, int p, int start_pa )
+{
+    int i;
+    int *ipiv = arg->ipiv + (p%arg->p * arg->minMN + k) * arg->ldd;
+    int a = ipiv[0];
+    int ldd = ipiv[1];
+    int p_pa = p / arg->p / a;
+
+    ipiv+=2;
+    for( i=start_pa+1; i<ldd; i++ )
+        if ( ipiv[i] == p_pa )
+            return i;
+    return i;
+}
+
+/* Return the next row which will use the row m as a pivot in step k after it has been used by row start */
+inline static int
+svd_low_adaptiv_nextpiv( const hqr_subpiv_t *arg,
+                         int k, int p, int start_pa )
+{
+    int i;
+    int *ipiv = arg->ipiv + (p%arg->p * arg->minMN + k ) * arg->ldd;
+    int a = ipiv[0];
+    int ldd = ipiv[1];
+    int pa = arg->p * a;
+    int k_a = (k + arg->p - 1 - p%(arg->p)) / arg->p / a;
+    int p_pa = p / pa;
+
+    ipiv+=2;
+    for( i=start_pa-1; i> k_a; i-- )
+        if ( ipiv[i] == p_pa )
+            return i;
+
+    return ldd;
+}
+
+static void
+svd_low_adaptiv_init(hqr_subpiv_t *arg,
+                     int gmt, int gnt, int nbcores, int ratio)
+{
+    int *ipiv;
+    int mt, a, p, pa, maxmt, myrank;
+    int j, k, height, start, end, nT, nZ;
+    int minMN = dplasma_imin(gmt, gnt);
+
+    arg->currpiv = svd_low_adaptiv_currpiv;
+    arg->nextpiv = svd_low_adaptiv_nextpiv;
+    arg->prevpiv = svd_low_adaptiv_prevpiv;
+
+    p = arg->p;
+
+    end = 0;
+
+    /**
+     * Compute the local greedy tree of each column, on each node
+     */
+    maxmt = 1;
+    for(k=0; k<minMN; k++) {
+        /**
+         * The objective is to have at least two columns of TS to reduce per
+         * core, so it must answer the following inequality:
+         * ((gmt-k) / p / a ) * (gnt-k) >= ( ratio * nbcores );
+         * so,
+         * a <= mt * (gnt-k) / (ratio * nbcores )
+         */
+        height = dplasma_iceil( gmt-k, p );
+        a = dplasma_imax( height * (gnt-k) / (ratio * nbcores), 1 );
+
+        /* Now let's make sure all sub-parts are equilibrate */
+        j = dplasma_iceil( height, a );
+        a = dplasma_iceil( gmt-k, j );
+
+        /* Compute max dimension of the tree */
+        mt = dplasma_iceil( gmt, p * a );
+        maxmt = dplasma_imax( mt, maxmt );
+    }
+
+    arg->ldd = maxmt + 2;
+    arg->ipiv = (int*)malloc( arg->ldd * minMN * sizeof(int) * p );
+    ipiv = arg->ipiv;
+
+    memset( ipiv, 0, minMN*sizeof(int)*arg->ldd*p );
+
+    for ( myrank=0; myrank<p; myrank++ ) {
+
+        /**
+         * Compute the local greedy tree of each column, on each node
+         */
+        for(k=0; k<minMN; k++, ipiv += arg->ldd) {
+            /**
+             * The objective is to have at least two columns of TS to reduce per
+             * core, so it must answer the following inequality:
+             * (ldd / a ) * (gnt-k) >= ( ratio * nbcores );
+             * so,
+             * a <= mt * (gnt-k) / (ratio * nbcores )
+             */
+            height = dplasma_iceil( gmt-k, p );
+            a = dplasma_imax( height * (gnt-k) / (ratio * nbcores), 1 );
+
+            /* Now let's make sure all sub-parts are equilibrate */
+            j = dplasma_iceil( height, a );
+            a = dplasma_iceil( gmt-k, j );
+
+            pa = p * a;
+            mt = dplasma_iceil( gmt, pa );
+            ipiv[0] = a;
+            ipiv[1] = mt;
+
+            assert( a  > 0 );
+            assert( mt < arg->ldd-1 );
+
+            /* Number of tiles to factorized in this column on this rank */
+            nT = dplasma_imax( mt - ((k + p - 1 - myrank) / pa), 0 );
+            /* Number of tiles already killed */
+            nZ = 0;
+
+            assert( nT <= mt );
+
+            /* No more computations on this node */
+            if ( nT == 0 ) {
+                continue;
+            }
+
+            while( nZ < (nT-1) ) {
+                height = (nT - nZ) / 2;
+                start = mt - nZ - 1;
+                end = start - height;
+                nZ += height;
+
+                for( j=start; j > end; j-- ) {
+                    ipiv[ j+2 ] = (j - height);
+                }
+            }
+            assert( nZ+1 == nT );
+        }
+    }
+
+#if 0
+    {
+        int m, k;
+        for(m=0; m<mt; m++) {
+            printf("%3d | ", m);
+            for (k=0; k<minMN; k++) {
+                printf( "%3d ", ipiv[k*(arg->ldd) + m] );
+            }
+            printf("\n");
+        }
+    }
+    if (!arg->domino) {
+        int m, k, myrank;
+        for ( myrank=1; myrank<p; myrank++ ) {
+            ipiv += arg->ldd * minMN;
+            printf("-------- rank %d ---------\n", myrank );
+            for(m=0; m<mt; m++) {
+                printf("%3d | ", m);
+                for (k=0; k<minMN; k++) {
+                    int k_a = (k + p - 1 - myrank) / p / a;
+                    if ( m >= k_a )
+                        printf( "%3d ", ipiv[k * arg->ldd + m] );
+                    else
+                        printf( "--- " );
+                }
+                printf("\n");
+            }
+        }
+    }
+#endif
+};
+
+/****************************************************
+ *
+ *   Generic functions currpiv,prevpiv,nextpiv
+ *
+ ***************************************************/
+static int svd_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
+{
+    hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
+    int tmp, tmpk;
+    int lm, rank;
+    int a = svd_geta( arg, k );
+    int p = qrtree->p;
+    int gmt = qrtree->mt;
+
+    lm   = m / p; /* Local index in the distribution over p domains */
+    rank = m % p; /* Staring index in this distribution             */
+
+    /* TS level common to every case */
+    switch( svd_gettype( qrtree, k, m ) )
+    {
+    case 0:
+        tmp = lm / a;
+        /* tmpk = (k + p - 1 - m%p) / p / a;  */
+        tmpk = k / (p * a);
+        return ( tmp == tmpk ) ? k + (m-k)%p : tmp * a * p + rank;
+        break;
+    case 1:
+        tmp = arg->llvl->currpiv(arg->llvl, k, m);
+        /* tmpk = (k + p - 1 - m%p) / p / a; */
+        tmpk = k / (p * a);
+        return ( tmp == tmpk ) ? k + (m-k)%p : tmp * a * p + rank;
+        break;
+    case 2:
+        assert(0);
+        break;
+    case 3:
+        if ( arg->hlvl != NULL )
+            return arg->hlvl->currpiv(arg->hlvl, k, m);
+    default:
+        return gmt;
+    }
+    return -1;
+};
+
+/**
+ *  svd_nextpiv - Computes the next row killed by the row p, after
+ *  it has kill the row start.
+ *
+ * @param[in] k
+ *         Factorization step
+ *
+ * @param[in] pivot
+ *         Line used as killer
+ *
+ * @param[in] start
+ *         Starting point to search the next line killed by p after start
+ *         start must be equal to A.mt to find the first row killed by p.
+ *         if start != A.mt, start must be killed by p
+ *
+ * @return:
+ *   - -1 if start doesn't respect the previous conditions
+ *   -  m, the following row killed by p if it exists, A->mt otherwise
+ */
+static int svd_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
+{
+    hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
+    int tmp, ls, lp, nextp;
+    int rpivot, lstart;
+    int *ipiv = svd_getipiv( arg, k );
+    int a = ipiv[0];
+    int ldd = ipiv[1];
+    int p = qrtree->p;
+    int gmt = qrtree->mt;
+
+    rpivot = pivot % p; /* Staring index in this distribution             */
+
+    /* Local index in the distribution over p domains */
+    lstart = ( start == gmt ) ? ldd * a : start / p;
+
+    myassert( start > pivot && pivot >= k );
+    myassert( start == gmt || pivot == svd_currpiv( qrtree, k, start ) );
+
+    /* TS level common to every case */
+    ls = (start < gmt) ? svd_gettype( qrtree, k, start ) : -1;
+    lp = svd_gettype( qrtree, k, pivot );
+
+    switch( ls )
+        {
+        case DPLASMA_QR_KILLED_BY_DOMINO:
+            assert(0);
+        case -1:
+
+            if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
+                myassert( start == gmt );
+                return gmt;
+            }
+
+        case DPLASMA_QR_KILLED_BY_TS:
+            if ( start == gmt )
+                nextp = pivot + p;
+            else
+                nextp = start + p;
+
+            if ( ( nextp < gmt ) &&
+                 ( nextp < pivot + a*p ) &&
+                 ( (nextp/p)%a != 0 ) )
+                return nextp;
+            start = gmt;
+            lstart = ldd * a;
+
+        case DPLASMA_QR_KILLED_BY_LOCALTREE:
+            /* Get the next pivot for the low level tree */
+            tmp = arg->llvl->nextpiv(arg->llvl, k, pivot, lstart / a );
+
+            if ( (tmp * a * p + rpivot >= gmt)
+                 && (tmp == ldd-1) )
+                tmp = arg->llvl->nextpiv(arg->llvl, k, pivot, tmp);
+
+            if ( tmp != ldd )
+                return tmp * a * p + rpivot;
+
+            /* no next of type 1, we reset start to search the next 2 */
+            start = gmt;
+            lstart = ldd * a;
+
+        case DPLASMA_QR_KILLED_BY_DISTTREE:
+
+            if ( lp < DPLASMA_QR_KILLED_BY_DISTTREE ) {
+                return gmt;
+            }
+
+            if( arg->hlvl != NULL ) {
+                tmp = arg->hlvl->nextpiv( arg->hlvl, k, pivot, start );
+                if ( tmp != gmt )
+                    return tmp;
+            }
+
+        default:
+            return gmt;
+        }
+}
+
+/**
+ *  svd_prevpiv - Computes the previous row killed by the row p, before
+ *  to kill the row start.
+ *
+ * @param[in] k
+ *         Factorization step
+ *
+ * @param[in] pivot
+ *         Line used as killer
+ *
+ * @param[in] start
+ *         Starting point to search the previous line killed by p before start
+ *         start must be killed by p, and start must be greater or equal to p
+ *
+ * @return:
+ *   - -1 if start doesn't respect the previous conditions
+ *   -  m, the previous row killed by p if it exists, A->mt otherwise
+ */
+static int
+svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
+{
+    hqr_args_t *arg = (hqr_args_t*)(qrtree->args);
+    int tmp, ls, lp, nextp;
+    int lpivot, rpivot, lstart;
+    int *ipiv = svd_getipiv( arg, k );
+    int a = ipiv[0];
+    int ldd = ipiv[1];
+    int p = qrtree->p;
+    int gmt = qrtree->mt;
+
+    lpivot = pivot / p; /* Local index in the distribution over p domains */
+    rpivot = pivot % p; /* Staring index in this distribution             */
+    lstart = start / p; /* Local index in the distribution over p domains */
+
+    myassert( start >= pivot && pivot >= k && start < gmt );
+    myassert( start == pivot || pivot == svd_currpiv( qrtree, k, start ) );
+
+    /* TS level common to every case */
+    ls = svd_gettype( qrtree, k, start );
+    lp = svd_gettype( qrtree, k, pivot );
+
+    if ( lp == DPLASMA_QR_KILLED_BY_TS )
+      return gmt;
+
+    myassert( lp >= ls );
+    switch( ls )
+        {
+        case DPLASMA_QR_KILLED_BY_DOMINO:
+            assert(0);
+        case DPLASMA_QR_KILLED_BY_DISTTREE:
+            if( arg->hlvl != NULL ) {
+                tmp = arg->hlvl->prevpiv( arg->hlvl, k, pivot, start );
+                if ( tmp != gmt )
+                    return tmp;
+            }
+
+            start = pivot;
+            lstart = pivot / p;
+
+        case DPLASMA_QR_KILLED_BY_LOCALTREE:
+            tmp = arg->llvl->prevpiv(arg->llvl, k, pivot, lstart / a);
+
+            if ( (tmp * a * p + rpivot >= gmt)
+                 && (tmp == ldd-1) )
+                tmp = arg->llvl->prevpiv(arg->llvl, k, pivot, tmp);
+
+            if ( tmp != ldd )
+                return tmp * a * p + rpivot;
+
+            start = pivot;
+
+        case DPLASMA_QR_KILLED_BY_TS:
+            /* Search for predecessor in TS tree */
+            /* if ( ( start+p < gmt ) &&  */
+            /*      ( (((start+p) / p) % a) != 0 ) ) */
+            /*     return perm[start + p]; */
+
+            if ( start == pivot ) {
+                tmp = lpivot + a - 1 - lpivot%a;
+                nextp = tmp * p + rpivot;
+
+                while( pivot < nextp && nextp >= gmt )
+                    nextp -= p;
+            } else {
+                nextp = start - p; /*(lstart - 1) * p + rpivot;*/
+            }
+            assert(nextp < gmt);
+            if ( pivot < nextp )
+                return nextp;
+
+        default:
+            return gmt;
+        }
+};
+
+/**
+ *******************************************************************************
+ *
+ * @ingroup dplasma
+ *
+ * dplasma_svd_init - Creates the tree structure that will describes the
+ * operation performed during QR/LQ factorization with parameterized QR/LQ
+ * algorithms family.
+ *
+ * Trees available parameters are described below. It is recommended to:
+ *   - set p to the same value than the P-by-Q process grid used to distribute
+ *     the data. (P for QR factorization, Q for LQ factorization).
+ *   - set the low level tree to DPLASMA_GREEDY_TREE.
+ *   - set the high level tree to:
+ *         1) DPLASMA_FLAT_TREE when the problem is square, because it divides
+ *            by two the volume of communication of any other tree.
+ *         2) DPLASMA_FIBONACCI_TREE when the problem is tall and skinny (QR) or
+ *            small and fat (LQ), because it reduces the critical path length.
+ *   - Disable the domino effect when problem is square, to keep high efficiency
+ *     kernel proportion high.
+ *   - Enable the domino effect when problem is tall and skinny (QR) or
+ *     small and fat (LQ) to increase parallelism and reduce critical path length.
+ *   - Round-robin on TS domain (tsrr) option should be disabled. It is
+ *     experimental and is not safe.
+ *
+ * These are the default when a parameter is set to -1;
+ *
+ * See http://www.netlib.org/lapack/lawnspdf/lawn257.pdf
+ *
+ *******************************************************************************
+ *
+ * @param[in,out] qrtree
+ *          On entry, an allocated structure uninitialized.
+ *          On exit, the structure initialized according to the parameter given.
+ *
+ * @param[in] trans
+ *          @arg PlasmaNoTrans:   Structure is initialized for QR factorization.
+ *          @arg PlasmaTrans:     Structure is initialized for LQ factorization.
+ *          @arg PlasmaConjTrans: Structure is initialized for LQ factorization.
+ *
+ * @param[in,out] A
+ *          Descriptor of the distributed matrix A to be factorized, on which
+ *          QR/LQ factorization will be performed.
+ *          The descriptor is untouched and only mt/nt/P parameters are used.
+ *
+ * @param[in] type_llvl
+ *          Defines the tree used to reduce the main tiles of each local domain
+ *          together. The matrix of those tiles has a lower triangular structure
+ *          with a diagonal by step a.
+ *          @arg DPLASMA_FLAT_TREE: A Flat tree is used to reduce the local
+ *          tiles.
+ *          @arg DPLASMA_GREEDY_TREE: A Greedy tree is used to reduce the local
+ *          tiles.
+ *          @arg DPLASMA_FIBONACCI_TREE: A Fibonacci tree is used to reduce the
+ *          local tiles.
+ *          @arg DPLASMA_BINARY_TREE: A Binary tree is used to reduce the local
+ *          tiles.
+ *          @arg -1: The default is used (DPLASMA_GREEDY_TREE)
+ *
+ * @param[in] type_hlvl
+ *          Defines the tree used to reduce the main tiles of each domain. This
+ *          is a band lower diagonal matrix of width p.
+ *          @arg DPLASMA_FLAT_TREE: A Flat tree is used to reduce the tiles.
+ *          @arg DPLASMA_GREEDY_TREE: A Greedy tree is used to reduce the tiles.
+ *          @arg DPLASMA_FIBONACCI_TREE: A Fibonacci tree is used to reduce the
+ *          tiles.
+ *          @arg DPLASMA_BINARY_TREE: A Binary tree is used to reduce the tiles.
+ *          @arg DPLASMA_GREEDY1P_TREE: A Greedy tree is computed for the first
+ *          column and then duplicated on all others.
+ *          @arg -1: The default is used (DPLASMA_FIBONACCI_TREE)
+ *
+ * @param[in] a
+ *          Defines the size of the local domains on which a classic flat TS
+ *          tree is performed. If a==1, then all local tiles are reduced by the
+ *          type_lllvl tree. If a is larger than mt/p, then no local reduction
+ *          tree is performed and type_llvl is ignored.
+ *          If a == -1, it is set to 4 by default.
+ *
+ * @param[in] p
+ *          Defines the number of distributed domains, ie the width of the high
+ *          level reduction tree.  If p == 1, no high level reduction tree is
+ *          used. If p == mt, a and type_llvl are ignored since only high level
+ *          reduction are performed.
+ *          By default, it is recommended to set p to P if trans ==
+ *          PlasmaNoTrans, Q otherwise, where P-by-Q is the process grid used to
+ *          distributed the data. (p > 0)
+ *
+ * @param[in] domino
+ *          Enable/disable the domino effect that connects the high and low
+ *          level reduction trees. Enabling the domino increases the proportion
+ *          of TT (Triangle on top of Triangle) kernels that are less efficient,
+ *          but increase the pipeline effect between independent factorization
+ *          steps, reducin the critical path length.
+ *          If disabled, it keeps the proprotion of more efficient TS (Triangle
+ *          on top of Square) kernels high, but deteriorates the pipeline
+ *          effect, and the critical path length.
+ *          If domino == -1, it is enable when ration between M and N is lower
+ *          than 1/2, and disabled otherwise.
+ *
+ * @param[in] tsrr
+ *          Enable/Disable a round robin selection of the killer in local
+ *          domains reduced by TS kernels. Enabling a round-robin selection of
+ *          the killer allows to take benefit of the good pipelining of the flat
+ *          trees and the high efficient TS kernels, while having other trees on
+ *          top of it to reduce critical path length.
+ *          WARNING: This option is under development and should not be enabled
+ *          due to problem in corner cases.
+ *
+ *******************************************************************************
+ *
+ * @return
+ *          \retval -i if the ith parameters is incorrect.
+ *          \retval 0 on success.
+ *
+ *******************************************************************************
+ *
+ * @sa dplasma_svd_finalize
+ * @sa dplasma_systolic_init
+ * @sa dplasma_zgeqrf_param
+ * @sa dplasma_cgeqrf_param
+ * @sa dplasma_dgeqrf_param
+ * @sa dplasma_sgeqrf_param
+ *
+ ******************************************************************************/
+int
+dplasma_svd_init( dplasma_qrtree_t *qrtree,
+                  PLASMA_enum trans, tiled_matrix_desc_t *A,
+                  int type_hlvl, int p, int nbthread_per_node, int ratio )
+{
+    int low_mt, minMN, a = -1;
+    hqr_args_t *arg;
+
+    if (qrtree == NULL) {
+        dplasma_error("dplasma_svd_init", "illegal value of qrtree");
+        return -1;
+    }
+    if ((trans != PlasmaNoTrans) &&
+        (trans != PlasmaTrans)   &&
+        (trans != PlasmaConjTrans)) {
+        dplasma_error("dplasma_svd_init", "illegal value of trans");
+        return -2;
+    }
+    if (A == NULL) {
+        dplasma_error("dplasma_svd_init", "illegal value of A");
+        return -3;
+    }
+
+    /* Compute parameters */
+    p = dplasma_imax( p, 1 );
+
+    qrtree->getnbgeqrf = svd_getnbgeqrf;
+    qrtree->getm       = svd_getm;
+    qrtree->geti       = svd_geti;
+    qrtree->gettype    = svd_gettype;
+    qrtree->currpiv    = svd_currpiv;
+    qrtree->nextpiv    = svd_nextpiv;
+    qrtree->prevpiv    = svd_prevpiv;
+
+    qrtree->mt   = (trans == PlasmaNoTrans) ? A->mt : A->nt;
+    qrtree->nt   = (trans == PlasmaNoTrans) ? A->nt : A->mt;
+
+    qrtree->a    = a;
+    qrtree->p    = p;
+    qrtree->args = NULL;
+
+    arg = (hqr_args_t*) malloc( sizeof(hqr_args_t) );
+    arg->domino = 0;
+    arg->tsrr = 0;
+    arg->perm = NULL;
+
+    arg->llvl = (hqr_subpiv_t*) malloc( sizeof(hqr_subpiv_t) );
+    arg->hlvl = NULL;
+
+    minMN = dplasma_imin(A->mt, A->nt);
+    low_mt = (qrtree->mt + p - 1) / ( p );
+
+    arg->llvl->minMN  = minMN;
+    arg->llvl->ldd    = low_mt;
+    arg->llvl->a      = a;
+    arg->llvl->p      = p;
+    arg->llvl->domino = 0;
+
+    svd_low_adaptiv_init(arg->llvl, qrtree->mt, qrtree->nt,
+                         nbthread_per_node * (A->super.nodes / p), ratio );
+
+    if ( p > 1 ) {
+        arg->hlvl = (hqr_subpiv_t*) malloc( sizeof(hqr_subpiv_t) );
+
+        arg->llvl->minMN  = minMN;
+        arg->hlvl->ldd    = qrtree->mt;
+        arg->hlvl->a      = a;
+        arg->hlvl->p      = p;
+        arg->hlvl->domino = 0;
+
+        switch( type_hlvl ) {
+        case DPLASMA_FLAT_TREE :
+            hqr_high_flat_init(arg->hlvl);
+            break;
+        case DPLASMA_GREEDY_TREE :
+            hqr_high_greedy_init(arg->hlvl, minMN);
+            break;
+        case DPLASMA_GREEDY1P_TREE :
+            hqr_high_greedy1p_init(arg->hlvl);
+            break;
+        case DPLASMA_BINARY_TREE :
+            hqr_high_binary_init(arg->hlvl);
+            break;
+        case DPLASMA_FIBONACCI_TREE :
+            hqr_high_fibonacci_init(arg->hlvl);
+            break;
+        default:
+            hqr_high_fibonacci_init(arg->hlvl);
+        }
+    }
+
+    qrtree->args = (void*)arg;
+
+    return 0;
 }
