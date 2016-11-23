@@ -24,14 +24,14 @@ descTT   [type = "tiled_matrix_desc_t *" aligned=descA]
 
 descBand [type = "tiled_matrix_desc_t *"]
 
-qrtre0   [type = "dplasma_qrtree_t"]
-qrtree   [type = "dplasma_qrtree_t"]
-lqtree   [type = "dplasma_qrtree_t"]
+qrtre0   [type = "dplasma_qrtree_t *"]
+qrtree   [type = "dplasma_qrtree_t *"]
+lqtree   [type = "dplasma_qrtree_t *"]
 rbidiag  [type = "int" ]
-ib       [type = "int" hidden=on default="( descTS->mb )" ]
+ib       [type = "int" ]
 
-p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS->nb))"]
-p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descTS->nb))"]
+p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descA->nb))"]
+p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descA->nb))"]
 
 KT       [type = "int" hidden=on default="( rbidiag ? descA->nt : 1 )" ]
 NT       [type = "int" hidden=on default="( descA->nt )" ]
@@ -60,9 +60,9 @@ collectT [type = "int" hidden=on default="( (descTS0 != NULL) && (descTT0 != NUL
 geqrf_zgeqrt(k, i)
   /* Execution space */
   k = 0 .. KT-1
-  i = 0 .. %{ return qrtre0.getnbgeqrf( &qrtre0, k ) - 1; %}
-  m      = %{ return qrtre0.getm(       &qrtre0, k, i); %}
-  nextm  = %{ return qrtre0.nextpiv(    &qrtre0, k, m, descA->mt); %}
+  i = 0 .. %{ return qrtre0->getnbgeqrf( qrtre0, k ) - 1; %}
+  m      = %{ return qrtre0->getm(       qrtre0, k, i); %}
+  nextm  = %{ return qrtre0->nextpiv(    qrtre0, k, m, descA->mt); %}
 
   SIMCOST 4
 
@@ -99,8 +99,8 @@ BODY
     void *p_elem_B = dague_private_memory_pop( p_work );
 
     CORE_zgeqrt(tempmm, tempkn, ib,
-                A /* descA(m,k)  */, ldam,
-                T /* descTS0(m,k) */, descTS0->mb,
+                A /* descA(m,k)  */,  ldam,
+                T /* descTS0(m,k) */, ib,
                 p_elem_A, p_elem_B );
 
     dague_private_memory_push( p_tau, p_elem_A );
@@ -118,8 +118,8 @@ END
 geqrf_zgeqrt_typechange(k, i) [profile = off]
   /* Execution space */
   k = 0 .. KT-1
-  i = 0 .. %{ return qrtre0.getnbgeqrf( &qrtre0, k ) - 1; %}
-  m =      %{ return qrtre0.getm(       &qrtre0, k, i); %}
+  i = 0 .. %{ return qrtre0->getnbgeqrf( qrtre0, k ) - 1; %}
+  m =      %{ return qrtre0->getm(       qrtre0, k, i); %}
 
   : descA(m, k)
 
@@ -144,10 +144,10 @@ END
 geqrf_zunmqr(k, i, n)
   /* Execution space */
   k = 0   .. KT-1
-  i = 0   .. %{ return qrtre0.getnbgeqrf( &qrtre0, k ) - 1; %}
+  i = 0   .. %{ return qrtre0->getnbgeqrf( qrtre0, k ) - 1; %}
   n = k+1 .. descA->nt-1
-  m     = %{ return qrtre0.getm(    &qrtre0, k, i); %}
-  nextm = %{ return qrtre0.nextpiv( &qrtre0, k, m, descA->mt); %}
+  m     = %{ return qrtre0->getm(    qrtre0, k, i); %}
+  nextm = %{ return qrtre0->nextpiv( qrtre0, k, m, descA->mt); %}
 
   SIMCOST 6
 
@@ -182,10 +182,10 @@ BODY
     CORE_zunmqr(
         PlasmaLeft, PlasmaConjTrans,
         tempmm, tempnn, tempmm, ib,
-        A /* descA( m, k) */, ldam,
-        T /* descTS0(m, k) */, descTS0->mb,
-        C /* descA( m, n) */, ldam,
-        p_elem_A, descTS0->nb );
+        A /* descA(  m, k) */, ldam,
+        T /* descTS0(m, k) */, ib,
+        C /* descA(  m, n) */, ldam,
+        p_elem_A, descA->nb );
 
     dague_private_memory_push( p_work, p_elem_A );
 #endif /* !defined(DAGUE_DRY_RUN) */
@@ -210,13 +210,13 @@ geqrf_zttqrt(k, m)
   /* Execution space */
   k = 0   .. KT-1
   m = k+1 .. descA->mt-1
-  p =     %{ return qrtre0.currpiv( &qrtre0, k, m);    %}
-  nextp = %{ return qrtre0.nextpiv( &qrtre0, k, p, m); %}
-  prevp = %{ return qrtre0.prevpiv( &qrtre0, k, p, m); %}
-  prevm = %{ return qrtre0.prevpiv( &qrtre0, k, m, m); %}
-  type  = %{ return qrtre0.gettype( &qrtre0, k, m );   %}
-  ip    = %{ return qrtre0.geti(    &qrtre0, k, p );   %}
-  im    = %{ return qrtre0.geti(    &qrtre0, k, m );   %}
+  p =     %{ return qrtre0->currpiv( qrtre0, k, m);    %}
+  nextp = %{ return qrtre0->nextpiv( qrtre0, k, p, m); %}
+  prevp = %{ return qrtre0->prevpiv( qrtre0, k, p, m); %}
+  prevm = %{ return qrtre0->prevpiv( qrtre0, k, m, m); %}
+  type  = %{ return qrtre0->gettype( qrtre0, k, m );   %}
+  ip    = %{ return qrtre0->geti(    qrtre0, k, p );   %}
+  im    = %{ return qrtre0->geti(    qrtre0, k, m );   %}
 
   SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 6 : 2; %}
 
@@ -264,14 +264,14 @@ BODY
             tempmm, tempkn, ib,
             A1 /* descA( p, k) */, ldap,
             A2 /* descA( m, k) */, ldam,
-            T  /* descTT0(m, k) */, descTT0->mb,
+            T  /* descTT0(m, k) */, ib,
             p_elem_A, p_elem_B );
     } else {
         CORE_zttqrt(
             tempmm, tempkn, ib,
             A1 /* descA( p, k) */, ldap,
             A2 /* descA( m, k) */, ldam,
-            T  /* descTT0(m, k) */, descTT0->mb,
+            T  /* descTT0(m, k) */, ib,
             p_elem_A, p_elem_B );
     }
     dague_private_memory_push( p_tau , p_elem_A );
@@ -296,15 +296,15 @@ geqrf_zttmqr(k, m, n)
   k = 0   .. KT-1
   m = k+1 .. descA->mt-1
   n = k+1 .. descA->nt-1
-  p =     %{ return qrtre0.currpiv( &qrtre0, k,   m);    %}
-  nextp = %{ return qrtre0.nextpiv( &qrtre0, k,   p, m); %}
-  prevp = %{ return qrtre0.prevpiv( &qrtre0, k,   p, m); %}
-  prevm = %{ return qrtre0.prevpiv( &qrtre0, k,   m, m); %}
-  type  = %{ return qrtre0.gettype( &qrtre0, k,   m );   %}
-  type1 = %{ return qrtre0.gettype( &qrtre0, k+1, m );   %}
-  ip    = %{ return qrtre0.geti(    &qrtre0, k,   p );   %}
-  im    = %{ return qrtre0.geti(    &qrtre0, k,   m );   %}
-  im1   = %{ return qrtre0.geti(    &qrtre0, k+1, m );   %}
+  p =     %{ return qrtre0->currpiv( qrtre0, k,   m);    %}
+  nextp = %{ return qrtre0->nextpiv( qrtre0, k,   p, m); %}
+  prevp = %{ return qrtre0->prevpiv( qrtre0, k,   p, m); %}
+  prevm = %{ return qrtre0->prevpiv( qrtre0, k,   m, m); %}
+  type  = %{ return qrtre0->gettype( qrtre0, k,   m );   %}
+  type1 = %{ return qrtre0->gettype( qrtre0, k+1, m );   %}
+  ip    = %{ return qrtre0->geti(    qrtre0, k,   p );   %}
+  im    = %{ return qrtre0->geti(    qrtre0, k,   m );   %}
+  im1   = %{ return qrtre0->geti(    qrtre0, k+1, m );   %}
 
   SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
@@ -356,7 +356,7 @@ BODY
             A1 /* descA( p, n) */, ldap,
             A2 /* descA( m, n) */, ldam,
             V  /* descA( m, k) */, ldam,
-            T  /* descTT(m, k) */, descTT0->mb,
+            T  /* descTT(m, k) */, ib,
             p_elem_A, ldwork );
     } else {
         CORE_zttmqr(
@@ -365,7 +365,7 @@ BODY
             A1 /* descA( p, n) */, ldap,
             A2 /* descA( m, n) */, ldam,
             V  /* descA( m, k) */, ldam,
-            T  /* descTT(m, k) */, descTT0->mb,
+            T  /* descTT(m, k) */, ib,
             p_elem_A, ldwork );
     }
     dague_private_memory_push( p_work, p_elem_A );
@@ -385,12 +385,12 @@ END
 collectA(m, n)
 m = 0 .. descA->mt-1
 n = 0 .. descA->nt-1
-typem = %{ return qrtre0.gettype(&qrtre0, n, m); %}
-prevn = %{ return qrtre0.prevpiv(&qrtre0, n, n, n); %}
-prevm = %{ if (m < KT) return qrtre0.prevpiv(&qrtre0, m, m, m); else return -1;%}
-im    = %{ return qrtre0.geti(   &qrtre0, n, m); %}
-typen = %{ if ( n > 0 ) return lqtree.gettype(&lqtree, 1, n); else return -1;%}
-in    = %{ if ( n > 0 ) return lqtree.geti(   &lqtree, 1, n); else return -1;%}
+typem = %{ return qrtre0->gettype(qrtre0, n, m); %}
+prevn = %{ return qrtre0->prevpiv(qrtre0, n, n, n); %}
+prevm = %{ if (m < KT) return qrtre0->prevpiv(qrtre0, m, m, m); else return -1;%}
+im    = %{ return qrtre0->geti(   qrtre0, n, m); %}
+typen = %{ if ( n > 0 ) return lqtree->gettype(lqtree, 1, n); else return -1;%}
+in    = %{ if ( n > 0 ) return lqtree->geti(   lqtree, 1, n); else return -1;%}
 inq   = %{ return rbidiag & (n > 0) & (m >= n); %}
 
     : descA(m, n)
@@ -464,12 +464,12 @@ END
 gebrdR_zgeqrt(k, i)
   /* Execution space */
   k = 1 .. NT-1
-  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m      = %{ return qrtree.getm(       &qrtree, k, i); %}
-  nextm  = %{ return qrtree.nextpiv(    &qrtree, k, m, MT); %}
+  i = 0 .. %{ return qrtree->getnbgeqrf( qrtree, k ) - 1; %}
+  m      = %{ return qrtree->getm(       qrtree, k, i); %}
+  nextm  = %{ return qrtree->nextpiv(    qrtree, k, m, MT); %}
 
-  prevk = %{ return lqtree.prevpiv( &lqtree, k, k, k); %}
-  ik    = %{ return lqtree.geti(    &lqtree, k, k );   %}
+  prevk = %{ return lqtree->prevpiv( lqtree, k, k, k); %}
+  ik    = %{ return lqtree->geti(    lqtree, k, k );   %}
 
   SIMCOST 4
 
@@ -512,7 +512,7 @@ BODY
 
     CORE_zgeqrt(tempmm, tempkn, ib,
                 A /* descA(m,k)  */, ldam,
-                T /* descTS(m,k) */, descTS->mb,
+                T /* descTS(m,k) */, ib,
                 p_elem_A, p_elem_B );
 
     dague_private_memory_push( p_tau, p_elem_A );
@@ -528,8 +528,8 @@ END
 gebrdR_zgeqrt_typechange(k, i) [profile = off]
   /* Execution space */
   k = 1 .. NT-1
-  i = 0 .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
-  m =      %{ return qrtree.getm(       &qrtree, k, i); %}
+  i = 0 .. %{ return qrtree->getnbgeqrf( qrtree, k ) - 1; %}
+  m =      %{ return qrtree->getm(       qrtree, k, i); %}
 
   : descA(m, k)
 
@@ -553,10 +553,10 @@ END
 gebrdR_zunmqr(k, i, n)
   /* Execution space */
   k = 1   .. NT-1
-  i = 0   .. %{ return qrtree.getnbgeqrf( &qrtree, k ) - 1; %}
+  i = 0   .. %{ return qrtree->getnbgeqrf( qrtree, k ) - 1; %}
   n = k+1 .. NT-1
-  m     = %{ return qrtree.getm(    &qrtree, k, i); %}
-  nextm = %{ return qrtree.nextpiv( &qrtree, k, m, MT); %}
+  m     = %{ return qrtree->getm(    qrtree, k, i); %}
+  nextm = %{ return qrtree->nextpiv( qrtree, k, m, MT); %}
 
   SIMCOST 6
 
@@ -593,9 +593,9 @@ BODY
         PlasmaLeft, PlasmaConjTrans,
         tempmm, tempnn, tempmm, ib,
         A /* descA( m, k) */, ldam,
-        T /* descTS(m, k) */, descTS->mb,
+        T /* descTS(m, k) */, ib,
         C /* descA( m, n) */, ldam,
-        p_elem_A, descTS->nb );
+        p_elem_A, descA->nb );
 
     dague_private_memory_push( p_work, p_elem_A );
 #endif /* !defined(DAGUE_DRY_RUN) */
@@ -620,16 +620,16 @@ gebrdR_zttqrt(k, m)
   /* Execution space */
   k = 1   .. NT-1
   m = k+1 .. MT-1
-  p =     %{ return qrtree.currpiv( &qrtree, k, m);    %}
-  nextp = %{ return qrtree.nextpiv( &qrtree, k, p, m); %}
-  prevp = %{ return qrtree.prevpiv( &qrtree, k, p, m); %}
-  prevm = %{ return qrtree.prevpiv( &qrtree, k, m, m); %}
-  type  = %{ return qrtree.gettype( &qrtree, k, m );   %}
-  ip    = %{ return qrtree.geti(    &qrtree, k, p );   %}
-  im    = %{ return qrtree.geti(    &qrtree, k, m );   %}
+  p =     %{ return qrtree->currpiv( qrtree, k, m);    %}
+  nextp = %{ return qrtree->nextpiv( qrtree, k, p, m); %}
+  prevp = %{ return qrtree->prevpiv( qrtree, k, p, m); %}
+  prevm = %{ return qrtree->prevpiv( qrtree, k, m, m); %}
+  type  = %{ return qrtree->gettype( qrtree, k, m );   %}
+  ip    = %{ return qrtree->geti(    qrtree, k, p );   %}
+  im    = %{ return qrtree->geti(    qrtree, k, m );   %}
 
-  prevk = %{ return lqtree.prevpiv( &lqtree, k, k, k); %}
-  ik    = %{ return lqtree.geti(    &lqtree, k, k );   %}
+  prevk = %{ return lqtree->prevpiv( lqtree, k, k, k); %}
+  ik    = %{ return lqtree->geti(    lqtree, k, k );   %}
 
   SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 6 : 2; %}
 
@@ -679,14 +679,14 @@ BODY
             tempmm, tempkn, ib,
             A1 /* descA( p, k) */, ldap,
             A2 /* descA( m, k) */, ldam,
-            T  /* descTT(m, k) */, descTT->mb,
+            T  /* descTT(m, k) */, ib,
             p_elem_A, p_elem_B );
     } else {
         CORE_zttqrt(
             tempmm, tempkn, ib,
             A1 /* descA( p, k) */, ldap,
             A2 /* descA( m, k) */, ldam,
-            T  /* descTT(m, k) */, descTT->mb,
+            T  /* descTT(m, k) */, ib,
             p_elem_A, p_elem_B );
     }
     dague_private_memory_push( p_tau , p_elem_A );
@@ -711,17 +711,17 @@ gebrdR_zttmqr(k, m, n)
   k = 1   .. NT-1
   m = k+1 .. MT-1
   n = k+1 .. NT-1
-  p =     %{ return qrtree.currpiv( &qrtree, k,   m);    %}
-  nextp = %{ return qrtree.nextpiv( &qrtree, k,   p, m); %}
-  prevp = %{ return qrtree.prevpiv( &qrtree, k,   p, m); %}
-  prevm = %{ return qrtree.prevpiv( &qrtree, k,   m, m); %}
-  typem = %{ return qrtree.gettype( &qrtree, k,   m );   %}
-  ip    = %{ return qrtree.geti(    &qrtree, k,   p );   %}
-  im    = %{ return qrtree.geti(    &qrtree, k,   m );   %}
-  im1   = %{ return qrtree.geti(    &qrtree, k+1, m );   %}
+  p =     %{ return qrtree->currpiv( qrtree, k,   m);    %}
+  nextp = %{ return qrtree->nextpiv( qrtree, k,   p, m); %}
+  prevp = %{ return qrtree->prevpiv( qrtree, k,   p, m); %}
+  prevm = %{ return qrtree->prevpiv( qrtree, k,   m, m); %}
+  typem = %{ return qrtree->gettype( qrtree, k,   m );   %}
+  ip    = %{ return qrtree->geti(    qrtree, k,   p );   %}
+  im    = %{ return qrtree->geti(    qrtree, k,   m );   %}
+  im1   = %{ return qrtree->geti(    qrtree, k+1, m );   %}
 
-  typen = %{ return lqtree.gettype( &lqtree, k+1, n );   %}
-  in    = %{ return lqtree.geti(    &lqtree, k+1, n );   %}
+  typen = %{ return lqtree->gettype( lqtree, k+1, n );   %}
+  in    = %{ return lqtree->geti(    lqtree, k+1, n );   %}
 
   SIMCOST %{ return typem == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
@@ -772,7 +772,7 @@ BODY
             A1 /* descA( p, n) */, ldap,
             A2 /* descA( m, n) */, ldam,
             V  /* descA( m, k) */, ldam,
-            T  /* descTT(m, k) */, descTT->mb,
+            T  /* descTT(m, k) */, ib,
             p_elem_A, ldwork );
     } else {
         CORE_zttmqr(
@@ -781,7 +781,7 @@ BODY
             A1 /* descA( p, n) */, ldap,
             A2 /* descA( m, n) */, ldam,
             V  /* descA( m, k) */, ldam,
-            T  /* descTT(m, k) */, descTT->mb,
+            T  /* descTT(m, k) */, ib,
             p_elem_A, ldwork );
     }
     dague_private_memory_push( p_work, p_elem_A );
@@ -800,12 +800,12 @@ END
 gebrdL_zgelqt(k, i)
   /* Execution space */
   k = 1 .. NT-1
-  i = 0 .. %{ return lqtree.getnbgeqrf( &lqtree, k ) - 1; %}
-  n      = %{ return lqtree.getm(       &lqtree, k, i); %}
-  nextn  = %{ return lqtree.nextpiv(    &lqtree, k, n, NT); %}
+  i = 0 .. %{ return lqtree->getnbgeqrf( lqtree, k ) - 1; %}
+  n      = %{ return lqtree->getm(       lqtree, k, i); %}
+  nextn  = %{ return lqtree->nextpiv(    lqtree, k, n, NT); %}
 
-  prevk = %{ return qrtree.prevpiv( &qrtree, k-1, k-1, k-1); %}
-  ik    = %{ return qrtree.geti(    &qrtree, k-1, k-1 );     %}
+  prevk = %{ return qrtree->prevpiv( qrtree, k-1, k-1, k-1); %}
+  ik    = %{ return qrtree->geti(    qrtree, k-1, k-1 );     %}
 
   SIMCOST 4
 
@@ -845,7 +845,7 @@ BODY
 
     CORE_zgelqt(tempkm, tempnn, ib,
                 A /* descA( k, n) */, ldak,
-                T /* descTS(k, n) */, descTS->mb,
+                T /* descTS(k, n) */, ib,
                 p_elem_A, p_elem_B );
 
     dague_private_memory_push( p_tau, p_elem_A );
@@ -863,8 +863,8 @@ END
 gebrdL_zgelqt_typechange(k, i) [profile = off]
   /* Execution space */
   k = 1 .. NT-1
-  i = 0 .. %{ return lqtree.getnbgeqrf( &lqtree, k ) - 1; %}
-  n =      %{ return lqtree.getm(       &lqtree, k, i); %}
+  i = 0 .. %{ return lqtree->getnbgeqrf( lqtree, k ) - 1; %}
+  n =      %{ return lqtree->getm(       lqtree, k, i); %}
 
   : descA(k-1, n)
 
@@ -888,13 +888,13 @@ END
 gebrdL_zunmlq(k, i, m)
   /* Execution space */
   k = 1   .. NT-1
-  i = 0   .. %{ return lqtree.getnbgeqrf( &lqtree, k ) - 1; %}
+  i = 0   .. %{ return lqtree->getnbgeqrf( lqtree, k ) - 1; %}
   m = k   .. MT-1
-  n     = %{ return lqtree.getm(    &lqtree, k, i );     %}
-  nextn = %{ return lqtree.nextpiv( &lqtree, k, n, NT ); %}
+  n     = %{ return lqtree->getm(    lqtree, k, i );     %}
+  nextn = %{ return lqtree->nextpiv( lqtree, k, n, NT ); %}
 
-  typem = %{ return qrtree.gettype( &qrtree, k, m );  %}
-  im    = %{ return qrtree.geti(    &qrtree, k, m );  %}
+  typem = %{ return qrtree->gettype( qrtree, k, m );  %}
+  im    = %{ return qrtree->geti(    qrtree, k, m );  %}
 
   SIMCOST 6
 
@@ -936,9 +936,9 @@ BODY
         PlasmaRight, PlasmaConjTrans,
         tempmm, tempnn, tempnn, ib,
         A /* descA( k, n) */, ldak,
-        T /* descTS(k, n) */, descTS->mb,
+        T /* descTS(k, n) */, ib,
         C /* descA( m, n) */, ldam,
-        p_elem_A, descTS->nb );
+        p_elem_A, descA->nb );
 
     dague_private_memory_push( p_work, p_elem_A );
 #endif /* !defined(DAGUE_DRY_RUN) */
@@ -963,16 +963,16 @@ gebrdL_zttlqt(k, n)
   /* Execution space */
   k = 1   .. NT-1
   n = k+1 .. NT-1
-  p =     %{ return lqtree.currpiv( &lqtree, k, n);    %}
-  nextp = %{ return lqtree.nextpiv( &lqtree, k, p, n); %}
-  prevp = %{ return lqtree.prevpiv( &lqtree, k, p, n); %}
-  prevn = %{ return lqtree.prevpiv( &lqtree, k, n, n); %}
-  type  = %{ return lqtree.gettype( &lqtree, k, n );   %}
-  ip    = %{ return lqtree.geti(    &lqtree, k, p );   %}
-  in    = %{ return lqtree.geti(    &lqtree, k, n );   %}
+  p =     %{ return lqtree->currpiv( lqtree, k, n);    %}
+  nextp = %{ return lqtree->nextpiv( lqtree, k, p, n); %}
+  prevp = %{ return lqtree->prevpiv( lqtree, k, p, n); %}
+  prevn = %{ return lqtree->prevpiv( lqtree, k, n, n); %}
+  type  = %{ return lqtree->gettype( lqtree, k, n );   %}
+  ip    = %{ return lqtree->geti(    lqtree, k, p );   %}
+  in    = %{ return lqtree->geti(    lqtree, k, n );   %}
 
-  prevk = %{ return qrtree.prevpiv( &qrtree, k-1, k-1, k-1); %}
-  ik    = %{ return qrtree.geti(    &qrtree, k-1, k-1 );   %}
+  prevk = %{ return qrtree->prevpiv( qrtree, k-1, k-1, k-1); %}
+  ik    = %{ return qrtree->geti(    qrtree, k-1, k-1 );   %}
 
   SIMCOST %{ return type == DPLASMA_QR_KILLED_BY_TS ? 6 : 2; %}
 
@@ -1022,14 +1022,14 @@ BODY
             tempkm, tempnn, ib,
             A1 /* descA( k, p) */, ldak,
             A2 /* descA( k, n) */, ldak,
-            T  /* descTT(k, n) */, descTT->mb,
+            T  /* descTT(k, n) */, ib,
             p_elem_A, p_elem_B );
     } else {
         CORE_zttlqt(
             tempkm, tempnn, ib,
             A1 /* descA( k, p) */, ldak,
             A2 /* descA( k, n) */, ldak,
-            T  /* descTT(k, n) */, descTT->mb,
+            T  /* descTT(k, n) */, ib,
             p_elem_A, p_elem_B );
     }
     dague_private_memory_push( p_tau , p_elem_A );
@@ -1055,17 +1055,17 @@ gebrdL_zttmlq(k, m, n)
   k = 1   .. NT-1
   m = k   .. MT-1
   n = k+1 .. NT-1
-  p =     %{ return lqtree.currpiv( &lqtree, k,   n );   %}
-  nextp = %{ return lqtree.nextpiv( &lqtree, k,   p, n); %}
-  prevp = %{ return lqtree.prevpiv( &lqtree, k,   p, n); %}
-  prevn = %{ return lqtree.prevpiv( &lqtree, k,   n, n); %}
-  typen = %{ return lqtree.gettype( &lqtree, k,   n );   %}
-  ip    = %{ return lqtree.geti(    &lqtree, k,   p );   %}
-  in    = %{ return lqtree.geti(    &lqtree, k,   n );   %}
-  in1   = %{ return lqtree.geti(    &lqtree, k+1, n );   %}
+  p =     %{ return lqtree->currpiv( lqtree, k,   n );   %}
+  nextp = %{ return lqtree->nextpiv( lqtree, k,   p, n); %}
+  prevp = %{ return lqtree->prevpiv( lqtree, k,   p, n); %}
+  prevn = %{ return lqtree->prevpiv( lqtree, k,   n, n); %}
+  typen = %{ return lqtree->gettype( lqtree, k,   n );   %}
+  ip    = %{ return lqtree->geti(    lqtree, k,   p );   %}
+  in    = %{ return lqtree->geti(    lqtree, k,   n );   %}
+  in1   = %{ return lqtree->geti(    lqtree, k+1, n );   %}
 
-  typem = %{ return qrtree.gettype( &qrtree, k, m );   %}
-  im    = %{ return qrtree.geti(    &qrtree, k, m );   %}
+  typem = %{ return qrtree->gettype( qrtree, k, m );   %}
+  im    = %{ return qrtree->geti(    qrtree, k, m );   %}
 
   SIMCOST %{ return typen == DPLASMA_QR_KILLED_BY_TS ? 12 : 6; %}
 
@@ -1100,7 +1100,7 @@ BODY
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
     int ldak = BLKLDD( descA, lk );
     int ldam = BLKLDD( descA, m );
-    int ldwork = descTT->nb;
+    int ldwork = descA->nb;
     (void)lk;
 
     printlog("thread %d VP %d CORE_zttmlq(%d, %d, %d)\n"
@@ -1118,7 +1118,7 @@ BODY
             A1 /* descA( m, p) */, ldam,
             A2 /* descA( m, n) */, ldam,
             V  /* descA( k, n) */, ldak,
-            T  /* descTT(k, n) */, descTT->mb,
+            T  /* descTT(k, n) */, ib,
             p_elem_A, ldwork );
     } else {
         CORE_zttmlq(
@@ -1127,7 +1127,7 @@ BODY
             A1 /* descA( m, p) */, ldam,
             A2 /* descA( m, n) */, ldam,
             V  /* descA( k, n) */, ldak,
-            T  /* descTT(k, n) */, descTT->mb,
+            T  /* descTT(k, n) */, ib,
             p_elem_A, ldwork );
     }
     dague_private_memory_push( p_work, p_elem_A );
@@ -1145,8 +1145,8 @@ END
  */
 gebrdR_zttqrt_out_A1(k) [profile = off]
   k = 0 .. NT-1
-  prevk = %{ return qrtree.prevpiv( &qrtree, k, k, k ); %}
-  ik    = %{ return qrtree.geti(    &qrtree, k, k ); %}
+  prevk = %{ return qrtree->prevpiv( qrtree, k, k, k ); %}
+  ik    = %{ return qrtree->geti(    qrtree, k, k ); %}
 
   : descBand(0, k)
 
@@ -1179,8 +1179,8 @@ END
 
 gebrdL_zttlqt_out_A1(k) [profile = off]
   k = 1 .. NT-1
-  prevk = %{ if ( NT > 2 ) return lqtree.prevpiv( &lqtree, k, k, k ); else return -1;%}
-  ik    = %{ return lqtree.geti(    &lqtree, k, k ); %}
+  prevk = %{ if ( NT > 2 ) return lqtree->prevpiv( lqtree, k, k, k ); else return -1;%}
+  ik    = %{ return lqtree->geti(    lqtree, k, k ); %}
 
   : descBand(0, k)
 

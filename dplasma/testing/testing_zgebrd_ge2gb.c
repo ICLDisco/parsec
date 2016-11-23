@@ -288,8 +288,8 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
         dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
 
         /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgebrd_ge2gb,
-                                  (rbidiag ? &qrtre0 : &qrtree,
+        PASTE_CODE_ENQUEUE_KERNEL(dague, zgebrd_ge2gbx,
+                                  (IB, rbidiag ? &qrtre0 : &qrtree,
                                    &qrtree, &lqtree,
                                    (tiled_matrix_desc_t*)&ddescA,
                                    rbidiag ? (tiled_matrix_desc_t*)&ddescTS0 : (tiled_matrix_desc_t*)&ddescTS,
@@ -304,7 +304,7 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
         dague_context_wait(dague);
         SYNC_TIME_STOP();
 
-        dplasma_zgebrd_ge2gb_Destruct( DAGUE_zgebrd_ge2gb );
+        dplasma_zgebrd_ge2gbx_Destruct( DAGUE_zgebrd_ge2gbx );
 
         time_avg += sync_time_elapsed;
         gflops = (flops/1.e9)/(sync_time_elapsed);
