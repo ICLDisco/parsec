@@ -314,4 +314,31 @@ void dplasma_zhbrdt_Destruct( parsec_handle_t *o );
 void dplasma_zheev_Destruct( parsec_handle_t *o );
 void dplasma_zherbt_Destruct( parsec_handle_t *o );
 
+
+dague_handle_t*
+dplasma_zgebrd_ge2gb_New( dplasma_qrtree_t *qrtre0,
+                          dplasma_qrtree_t *qrtree,
+                          dplasma_qrtree_t *lqtree,
+                          tiled_matrix_desc_t *A,
+                          tiled_matrix_desc_t *TS0,
+                          tiled_matrix_desc_t *TT0,
+                          tiled_matrix_desc_t *TS,
+                          tiled_matrix_desc_t *TT,
+                          tiled_matrix_desc_t *Band );
+
+void
+dplasma_zgebrd_ge2gb_Destruct( dague_handle_t *handle );
+
+int
+dplasma_zgebrd_ge2gb( dague_context_t *dague,
+                      dplasma_qrtree_t *qrtre0,
+                      dplasma_qrtree_t *qrtree,
+                      dplasma_qrtree_t *lqtree,
+                      tiled_matrix_desc_t *A,
+                      tiled_matrix_desc_t *TS0,
+                      tiled_matrix_desc_t *TT0,
+                      tiled_matrix_desc_t *TS,
+                      tiled_matrix_desc_t *TT,
+                      tiled_matrix_desc_t *Band);
+
 #endif /* _DPLASMA_Z_H_ */

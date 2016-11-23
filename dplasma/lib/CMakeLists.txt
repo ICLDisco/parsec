@@ -75,6 +75,7 @@ set(JDF
   ztrsmpl_sd.jdf
   ztrsmpl_qrf.jdf
   # Other
+  zgebrd_ge2gb.jdf
   zgebmm.jdf
   zgebut.jdf
   zhetrf.jdf
@@ -179,6 +180,7 @@ set(SOURCES
   #
   dplasma_zcheck.c
   #
+  zgebrd_ge2gb_wrapper.c
   zhbrdt_wrapper.c
   zherbt_wrapper.c
   zhetrd_wrapper.c
