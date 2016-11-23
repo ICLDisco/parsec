@@ -95,6 +95,8 @@ subs = {
     ('ssterf','dsterf','ssterf','dsterf'),
     ('ssytrd','dsytrd','chetrd','zhetrd'),
     ('SSYTRD','DSYTRD','CHETRD','ZHETRD'),
+    ('sgebrd','dgebrd','cgebrd','zgebrd'),
+    ('SGEBRD','DGEBRD','CGEBRD','ZGEBRD'),
     ('STILE','DTILE','CTILE','ZTILE'),
     ('stile','dtile','ctile','ztile'),
     ('slag2d','dlag2s','clag2z','zlag2c'),
