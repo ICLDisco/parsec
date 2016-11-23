@@ -140,8 +140,7 @@ dplasma_zlanhe_New( PLASMA_enum norm,
     /* Create the DAG */
     dague_zlanhe = (dague_handle_t*)dague_zlansy_new(
         P, Q, norm, uplo, PlasmaConjTrans,
-        (dague_ddesc_t*)A,
-        (dague_ddesc_t*)Tdist,
+        A, (dague_ddesc_t*)Tdist,
         result);
 
     /* Set the datatypes */
@@ -184,8 +183,8 @@ dplasma_zlanhe_Destruct( dague_handle_t *handle )
 {
     dague_zlansy_handle_t *dague_zlanhe = (dague_zlansy_handle_t *)handle;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlanhe->Tdist) );
-    free( dague_zlanhe->Tdist );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlanhe->_g_Tdist) );
+    free( dague_zlanhe->_g_Tdist );
 
     dague_matrix_del2arena( dague_zlanhe->arenas[DAGUE_zlansy_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zlanhe->arenas[DAGUE_zlansy_COL_ARENA] );

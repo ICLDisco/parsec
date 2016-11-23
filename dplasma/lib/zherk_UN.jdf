@@ -17,9 +17,9 @@ extern "C" %{
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 alpha     [type = "double"]
-descA     [type = "tiled_matrix_desc_t"]
+descA     [type = "const tiled_matrix_desc_t *"]
 beta      [type = "double"]
-descC     [type = "tiled_matrix_desc_t"]
+descC     [type = "tiled_matrix_desc_t *"]
 
 
 zherk(n, k)
