@@ -99,7 +99,7 @@ void print_usage(void)
             "    --qr_a         : Size of TS domain. (specific to xgeqrf_param)\n"
             "    --qr_p         : Size of the high level tree. (specific to xgeqrf_param)\n"
             " -d --domino       : Enable/Disable the domino between upper and lower trees. (specific to xgeqrf_param) (default: 1)\n"
-            " -r --tsrr         : Enable/Disable the round-robin on TS domain. (specific to xgeqrf_param) (default: 1)\n"
+            " -r --tsrr         : Enable/Disable the round-robin on TS domain. (specific to xgeqrf_param) (default: Disabled)\n"
             "    --treel        : Tree used for low level reduction inside nodes. (specific to xgeqrf_param)\n"
             "    --treeh        : Tree used for high level reduction between nodes, only if qr_p > 1. (specific to xgeqrf_param)\n"
             "                      (0: Flat, 1: Greedy, 2: Fibonacci, 3: Binary)\n"
@@ -162,7 +162,7 @@ void print_usage(void)
             parsec_usage();
 }
 
-#define GETOPT_STRING "bc:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
+#define GETOPT_STRING "bc:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:ry:V:a:R:m:"
 
 #if defined(PARSEC_HAVE_GETOPT_LONG)
 static struct option long_options[] =
@@ -220,8 +220,8 @@ static struct option long_options[] =
     {"qr_p",        required_argument,  0, '1'},
     {"d",           required_argument,  0, 'd'},
     {"domino",      required_argument,  0, 'd'},
-    {"r",           required_argument,  0, 'r'},
-    {"tsrr",        required_argument,  0, 'r'},
+    {"r",           no_argument,        0, 'r'},
+    {"tsrr",        no_argument,        0, 'r'},
     {"treel",       required_argument,  0, 'l'},
     {"treeh",       required_argument,  0, 'L'},
 
@@ -342,7 +342,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'm': iparam[IPARAM_MATRIX_INIT]  = atoi(optarg); break;
 
             case 'd': iparam[IPARAM_QR_DOMINO]    = atoi(optarg) ? 1 : 0; break;
-            case 'r': iparam[IPARAM_QR_TSRR]      = atoi(optarg) ? 1 : 0; break;
+            case 'r': iparam[IPARAM_QR_TSRR]      = 1; break;
 
             case 'l': iparam[IPARAM_LOWLVL_TREE]  = atoi(optarg); break;
             case 'L': iparam[IPARAM_HIGHLVL_TREE] = atoi(optarg); break;
