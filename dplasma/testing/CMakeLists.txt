@@ -53,6 +53,8 @@ set(TESTS
   #testing_zgesv.c
   testing_zgesv_incpiv.c
   # Extra testings
+  testing_zgesvd.c
+  testing_zgebrd_ge2gb.c
   testing_zgeqrf_rd.c
   testing_zhebut.c
   testing_zhbrdt.c
