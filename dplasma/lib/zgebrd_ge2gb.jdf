@@ -30,12 +30,14 @@ lqtree   [type = "dplasma_qrtree_t"]
 rbidiag  [type = "int" ]
 ib       [type = "int" hidden=on default="( descTS->mb )" ]
 
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS->nb))"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descTS->nb))"]
+p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS->nb))"]
+p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descTS->nb))"]
 
-KT     [type = "int" hidden=on default="( rbidiag ? descA->nt : 1 )" ]
-NT     [type = "int" hidden=on default="( descA->nt )" ]
-MT     [type = "int" hidden=on default="( rbidiag ? NT : descA->mt)" ]
+KT       [type = "int" hidden=on default="( rbidiag ? descA->nt : 1 )" ]
+NT       [type = "int" hidden=on default="( descA->nt )" ]
+MT       [type = "int" hidden=on default="( rbidiag ? NT : descA->mt)" ]
+
+collectT [type = "int" hidden=on default="( (descTS0 != NULL) && (descTT0 != NULL) && (descTS != NULL) && (descTT != NULL) )" ]
 
 /**
  *********************************************************************
@@ -67,16 +69,16 @@ geqrf_zgeqrt(k, i)
   /* Locality */
   : descA(m, k)
 
-  RW    T <- descTS0(m, k)                                                        [type = LITTLE_T]
-          -> descTS0(m, k)                                                        [type = LITTLE_T]
-          -> (k < descA->nt-1) ? T geqrf_zunmqr(k, i, (k+1)..(descA->nt-1))         [type = LITTLE_T]
+  RW    T <- collectT ? descTS0(m, k) : NEW                                 [type = LITTLE_T]
+          -> collectT ? descTS0(m, k)                                       [type = LITTLE_T]
+          -> (k < descA->nt-1) ? T geqrf_zunmqr(k, i, (k+1)..(descA->nt-1)) [type = LITTLE_T]
 
   RW    A <- (k == 0) ? descA(m, k)
           <- (k >  0) ? A2 geqrf_zttmqr(k-1, m, k )
 
           -> A geqrf_zgeqrt_typechange(k, i)
 
-          -> (k == descA->mt-1) ? A collectA(m, k)                                 [type = UPPER_NON_UNIT]
+          -> (k == descA->mt-1) ? A collectA(m, k)                                  [type = UPPER_NON_UNIT]
           -> (k <  descA->mt-1) & (nextm != descA->mt) ?  A1 geqrf_zttqrt(k, nextm) [type = UPPER_NON_UNIT]
           -> (k <  descA->mt-1) & (nextm == descA->mt) ?  A2 geqrf_zttqrt(k, m)     [type = UPPER_NON_UNIT]
 
@@ -220,25 +222,25 @@ geqrf_zttqrt(k, m)
 
   : descA(m, k)
 
-  RW   A2 <- (type == 0) && (k     == 0       ) ? descA(m, k)                            /* TS case */
-          <- (type == 0) && (k     != 0       ) ? A2 geqrf_zttmqr(k-1, m, k )            /* TS case */
-          <- (type != 0) && (prevm == descA->mt) ? A  geqrf_zgeqrt(k, im )                [type = UPPER_NON_UNIT] /* TT case */
-          <- (type != 0) && (prevm != descA->mt) ? A1 geqrf_zttqrt(k, prevm )             [type = UPPER_NON_UNIT] /* TT case */
+  RW   A2 <- (type == 0) && (k     == 0       ) ? descA(m, k)                              /* TS case */
+          <- (type == 0) && (k     != 0       ) ? A2 geqrf_zttmqr(k-1, m, k )              /* TS case */
+          <- (type != 0) && (prevm == descA->mt) ? A  geqrf_zgeqrt(k, im )                 [type = UPPER_NON_UNIT] /* TT case */
+          <- (type != 0) && (prevm != descA->mt) ? A1 geqrf_zttqrt(k, prevm )              [type = UPPER_NON_UNIT] /* TT case */
 
           -> (type == 0) ? B collectA(m, k)
-          -> (type != 0) ? A collectA(m, k)                                              [type = UPPER_NON_UNIT]
+          -> (type != 0) ? A collectA(m, k)                                                [type = UPPER_NON_UNIT]
 
           -> (type == 0) && (descA->nt-1 > k) ? V geqrf_zttmqr(k, m, (k+1)..(descA->nt-1))
           -> (type != 0) && (descA->nt-1 > k) ? V geqrf_zttmqr(k, m, (k+1)..(descA->nt-1)) [type = UPPER_NON_UNIT]
 
-  RW   T  <- descTT0(m, k)                                                               [type = LITTLE_T]
-          -> descTT0(m, k)                                                               [type = LITTLE_T]
+  RW   T  <- collectT ? descTT0(m, k) : NEW                                                [type = LITTLE_T]
+          -> collectT ? descTT0(m, k)                                                      [type = LITTLE_T]
           -> (descA->nt-1 > k)? T geqrf_zttmqr(k, m, (k+1)..(descA->nt-1))                 [type = LITTLE_T]
 
-  RW   A1 <- (prevp == descA->mt) ? A  geqrf_zgeqrt(k, ip ) : A1 geqrf_zttqrt(k, prevp )  [type = UPPER_NON_UNIT]
-          -> (nextp != descA->mt) ? A1 geqrf_zttqrt(k, nextp )                            [type = UPPER_NON_UNIT]
-          -> (nextp == descA->mt) & (p == k) ? A  collectA(k, k)                          [type = UPPER_NON_UNIT]
-          -> (nextp == descA->mt) & (p != k) ? A2 geqrf_zttqrt(k, p)                      [type = UPPER_NON_UNIT]
+  RW   A1 <- (prevp == descA->mt) ? A  geqrf_zgeqrt(k, ip ) : A1 geqrf_zttqrt(k, prevp )   [type = UPPER_NON_UNIT]
+          -> (nextp != descA->mt) ? A1 geqrf_zttqrt(k, nextp )                             [type = UPPER_NON_UNIT]
+          -> (nextp == descA->mt) & (p == k) ? A  collectA(k, k)                           [type = UPPER_NON_UNIT]
+          -> (nextp == descA->mt) & (p != k) ? A2 geqrf_zttqrt(k, p)                       [type = UPPER_NON_UNIT]
 
 ; ((1+rbidiag)*NT-k)
 
@@ -474,8 +476,8 @@ gebrdR_zgeqrt(k, i)
   /* Locality */
   : descA(m, k)
 
-  RW    T <- descTS(m, k)                                             [type = LITTLE_T]
-          -> descTS(m, k)                                             [type = LITTLE_T]
+  RW    T <- collectT ? descTS(m, k) : NEW                            [type = LITTLE_T]
+          -> collectT ? descTS(m, k)                                  [type = LITTLE_T]
           -> (k < NT-1) ? T gebrdR_zunmqr(k, i, (k+1)..(NT-1))        [type = LITTLE_T]
 
   RW    A <- (k == 0) ? descA(m, k)
@@ -646,8 +648,8 @@ gebrdR_zttqrt(k, m)
           -> (type == 0) && (k < NT-1) ? V gebrdR_zttmqr(k, m, (k+1)..(NT-1))
           -> (type != 0) && (k < NT-1) ? V gebrdR_zttmqr(k, m, (k+1)..(NT-1))          [type = UPPER_NON_UNIT]
 
-  RW   T  <- descTT(m, k)                                                              [type = LITTLE_T]
-          -> descTT(m, k)                                                              [type = LITTLE_T]
+  RW   T  <- collectT ? descTT(m, k) : NEW                                             [type = LITTLE_T]
+          -> collectT ? descTT(m, k)                                                   [type = LITTLE_T]
           -> (k < NT-1)? T gebrdR_zttmqr(k, m, (k+1)..(NT-1))                          [type = LITTLE_T]
 
   RW   A1 <- (prevp == MT) ? A  gebrdR_zgeqrt(k, ip) : A1 gebrdR_zttqrt(k, prevp)      [type = UPPER_NON_UNIT]
@@ -810,8 +812,8 @@ gebrdL_zgelqt(k, i)
   /* Locality */
   : descA(k-1, n)
 
-  RW    T <- descTS(k-1, n)                                           [type = LITTLE_T]
-          -> descTS(k-1, n)                                           [type = LITTLE_T]
+  RW    T <- collectT ? descTS(k-1, n) : NEW                          [type = LITTLE_T]
+          -> collectT ? descTS(k-1, n)                                [type = LITTLE_T]
           -> (k < MT) ? T gebrdL_zunmlq(k, i, k..(MT-1))              [type = LITTLE_T]
 
   RW    A <- (k == 1) ? B collectA(k-1, n)
@@ -988,8 +990,8 @@ gebrdL_zttlqt(k, n)
           -> (type == 0) && (k < MT) ? V gebrdL_zttmlq(k, k..(MT-1), n)
           -> (type != 0) && (k < MT) ? V gebrdL_zttmlq(k, k..(MT-1), n)             [type = LOWER_NON_UNIT]
 
-  RW   T  <- descTT(k-1, n)                                                         [type = LITTLE_T]
-          -> descTT(k-1, n)                                                         [type = LITTLE_T]
+  RW   T  <- collectT ? descTT(k-1, n) : NEW                                        [type = LITTLE_T]
+          -> collectT ? descTT(k-1, n)                                              [type = LITTLE_T]
           -> (k < MT) ? T gebrdL_zttmlq(k, k .. (MT-1), n)                          [type = LITTLE_T]
 
   RW   A1 <- (prevp == NT) ? A  gebrdL_zgelqt(k, ip) : A1 gebrdL_zttlqt(k, prevp)   [type = LOWER_NON_UNIT]
