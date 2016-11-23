@@ -398,9 +398,9 @@ inq   = %{ return rbidiag & (n > 0) & (m >= n); %}
     READ A <- (m == n) & (KT == descA->mt) & (m == KT-1) ? A  geqrf_zgeqrt(n, im)    [type = UPPER_NON_UNIT]
            <- (m == n) & (KT == descA->mt) & (m <  KT-1) ? A1 geqrf_zttqrt(n, prevn) [type = UPPER_NON_UNIT]
            <- (m == n) & (KT != descA->mt) & (m <= KT-1) ? A1 geqrf_zttqrt(n, prevn) [type = UPPER_NON_UNIT]
-           <- (m >  n) & (n <  KT) & (typem != 0) ? A2 geqrf_zttqrt(n, m)           [type = UPPER_NON_UNIT]
+           <- (m >  n) & (n <  KT) & (typem != 0) ? A2 geqrf_zttqrt(n, m)            [type = UPPER_NON_UNIT]
            <- NULL
-           -> (m == 0) & (n == 0) ? A gebrdR_zttqrt_out_A1(0)                       [type = UPPER_NON_UNIT]
+           -> (m == 0) & (n == 0) ? A gebrdR_zttqrt_out_A1(0)                        [type = UPPER_NON_UNIT]
 
     RW   B <- (m >=  n) & (n <  KT) & (typem == 0) ? A2 geqrf_zttqrt(n, m)
            <- (m >=  n) & (n <  KT) & (typem != 0) ? A  geqrf_zgeqrt_typechange(n, im)

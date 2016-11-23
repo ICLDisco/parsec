@@ -191,6 +191,8 @@ dplasma_zlatms( parsec_context_t *parsec,
             dplasma_zunmqr( parsec, PlasmaLeft, PlasmaNoTrans,
                             (tiled_matrix_desc_t*)&Q,
                             (tiled_matrix_desc_t*)&T, A );
+
+            free(subA); free(subQ); free(subT);
         }
         else {
             tiled_matrix_desc_t *subA = tiled_matrix_submatrix( A, 0, 0, m, m );
@@ -215,6 +217,7 @@ dplasma_zlatms( parsec_context_t *parsec,
             dplasma_zunmqr( parsec, PlasmaRight, PlasmaNoTrans,
                             (tiled_matrix_desc_t*)&Q,
                             (tiled_matrix_desc_t*)&T, A );
+            free(subA); free(subQ); free(subT);
         }
     }
     else {
@@ -234,5 +237,11 @@ dplasma_zlatms( parsec_context_t *parsec,
                         (tiled_matrix_desc_t*)&Q,
                         (tiled_matrix_desc_t*)&T, A );
     }
+
+    free(Q.mat);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&Q );
+    free(T.mat);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&T );
+
     return 0;
 }
