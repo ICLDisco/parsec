@@ -128,9 +128,9 @@ dplasma_zher2k_New( PLASMA_enum uplo,
         else {
             handle = (dague_handle_t*)
                 dague_zher2k_LC_new(uplo, trans,
-                                    alpha, (A,
-                                           (B,
-                                    beta,  (C);
+                                    alpha, A,
+                                           B,
+                                    beta,  C);
         }
     }
     else {
