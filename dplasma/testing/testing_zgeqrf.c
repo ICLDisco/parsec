@@ -74,7 +74,7 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zpltmg( parsec, matrix_init, (tiled_matrix_desc_t *)&ddescA, random_seed );
     if( check )
         dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
@@ -107,6 +107,20 @@ int main(int argc, char ** argv)
         dplasma_zgeqrf_Destruct( PARSEC_zgeqrf );
     }
 
+#if defined(DAGUE_SIM)
+    {
+        int largest_simulation_date = dague_getsimulationdate( dague );
+        if ( rank == 0 ) {
+            printf("zgeqrf simulation NP= %d NC= %d P= %d SMB= %d MT= %d NT= %d : %d \n",
+               iparam[IPARAM_NNODES],
+                   iparam[IPARAM_NCORES],
+                   iparam[IPARAM_P],
+                   iparam[IPARAM_SMB],
+                   MT, NT,
+                   largest_simulation_date);
+        }
+    }
+#endif
     if( check ) {
         if (M >= N) {
             if(loud > 2) printf("+++ Generate the Q ...");
