@@ -33,11 +33,11 @@ descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
 Cdist  [type = "dague_ddesc_t *"]
 
-P      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)dataC)->grid.rows"]
-Q      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)dataC)->grid.cols"]
+P      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.rows"]
+Q      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.cols"]
 /* Look ahead on both dimensions */
-lookP  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(&descC)"]
-lookQ  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(&descC)"]
+lookP  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(descC)"]
+lookQ  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(descC)"]
 
 /**************************************************
  *                       READ_A                   *
@@ -135,8 +135,8 @@ k = 0 .. descA->mt-1
 // Parameters
 READ A <- A RING_A(k, m, n%Q)
 READ B <- B RING_B(n, k, m%P)
-RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (descA->mt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
+RW   C <- (k == 0)             ? descC(m, n) : C GEMM( m, n, k-1 )
+       -> (k == (descA->mt-1)) ? descC(m, n) : C GEMM( m, n, k+1 )
 
 CTL ctla -> (k < (descA->mt-lookQ)) ? ctla RING_A(k+lookQ, m, n%Q)
 CTL ctlb -> (k < (descA->mt-lookP)) ? ctlb RING_B(n, k+lookP, m%P)

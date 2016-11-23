@@ -136,8 +136,8 @@ k = 0 .. descA->nt-1
 // Parameters
 READ A <- A RING_A(m, k, n%Q)
 READ B <- B RING_B(n, k, m%P)
-RW   C <- (k == 0)            ? dataC(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (descA->nt-1)) ? dataC(m, n) : C GEMM( m, n, k+1 )
+RW   C <- (k == 0)             ? descC(m, n) : C GEMM( m, n, k-1 )
+       -> (k == (descA->nt-1)) ? descC(m, n) : C GEMM( m, n, k+1 )
 
 CTL ctla -> (k < (descA->nt-lookQ)) ? ctla RING_A(m, k+lookQ, n%Q)
 CTL ctlb -> (k < (descA->nt-lookP)) ? ctlb RING_B(n, k+lookP, m%P)

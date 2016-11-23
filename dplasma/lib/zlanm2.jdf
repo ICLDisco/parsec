@@ -32,16 +32,14 @@ extern "C" %{
 P            [type = "int"]
 Q            [type = "int"]
 Tdist        [type = "dague_ddesc_t *"]
-dataA        [type = "dague_ddesc_t *" aligned=Tdist]
+descA        [type = "const tiled_matrix_desc_t*" aligned=Tdist]
 e            [type = "double *"]
 iter         [type = "int *"]
 
-descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)dataA)" ]
-
-maxiter      [type = "int"    hidden=on default="dplasma_imin(100, descA.n)"]
+maxiter      [type = "int"    hidden=on default="dplasma_imin(100, descA->n)"]
 loop         [type = "int"    hidden=on default="(1)"]
-MT           [type = "int"    hidden=on default="descA.mt"]
-NT           [type = "int"    hidden=on default="descA.nt"]
+MT           [type = "int"    hidden=on default="descA->mt"]
+NT           [type = "int"    hidden=on default="descA->nt"]
 e0           [type = "double" hidden=on default="0."]
 e1           [type = "double" hidden=on default="0."]
 tol          [type = "double" hidden=on default="3.e-1"]
@@ -62,14 +60,14 @@ STEP1(m,n)
     :Tdist(m, n)
 
     // Parameters
-    READ A <- dataA(m, n)
+    READ A <- descA(m, n)
     RW   W <- ( m < (MT-P)) ? W STEP1( m+P, n ) : NEW             [type = DROW]
            -> ( m > (P -1)) ? W STEP1( m-P, n ) : W STEP2( m, n ) [type = DROW]
 
 BODY
 {
-    int tempmm = ( m == (MT-1) ) ? descA.m - m * descA.mb : descA.mb;
-    int tempnn = ( n == (NT-1) ) ? descA.n - n * descA.nb : descA.nb;
+    int tempmm = ( m == (MT-1) ) ? descA->m - m * descA->mb : descA->mb;
+    int tempnn = ( n == (NT-1) ) ? descA->n - n * descA->nb : descA->nb;
     int ldam = BLKLDD( descA, m );
 
     printlog("zlange STEP1(%d, %d)\n"
@@ -108,7 +106,7 @@ STEP2(m, n)
 
 BODY
 {
-    int tempnn = ( n == (NT-1) ) ? descA.n - n * descA.nb : descA.nb;
+    int tempnn = ( n == (NT-1) ) ? descA->n - n * descA->nb : descA->nb;
 
     printlog("zlange STEP2(%d, %d)\n"
              "\t( tempnn=%d, W(%d, %d) + W(%d, %d)\n",
@@ -150,7 +148,7 @@ STEP3(m, n)
 
 BODY
 {
-    int tempnn = ( n == (NT-1) ) ? descA.n - n * descA.nb : descA.nb;
+    int tempnn = ( n == (NT-1) ) ? descA->n - n * descA->nb : descA->nb;
     double *dW = (double*)W;
 
     printlog("zlange STEP3(%d, %d)\n", m, n);
@@ -255,8 +253,8 @@ BODY
         *e = e1;
 
         /* Let's remove the existing tasks */
-        mymt = dplasma_iceil( descA.llm, descA.mb );
-        mynt = dplasma_iceil( descA.lln, descA.nb );
+        mymt = dplasma_iceil( descA->llm, descA->mb );
+        mynt = dplasma_iceil( descA->lln, descA->nb );
         nbtasks +=  mynt * mymt * 2; /* GEMV_*_PARTIAL */
 
         nbtasks += mymt * dplasma_imin( mynt, 1 ); /* GEMV_SX_REDUCE */
@@ -324,7 +322,7 @@ SCALEX(i, m, n)
     CTL newiter <- newiter WRITE_RES(i-1, m, n%Q)
 BODY
 {
-    int tempnn = ( n == (descA.nt-1) ) ? descA.n - n * descA.nb : descA.nb;
+    int tempnn = ( n == (descA->nt-1) ) ? descA->n - n * descA->nb : descA->nb;
     dague_complex64_t scl = (dague_complex64_t)1.0  / (dague_complex64_t)normx;
 
     printlog("scalex(%d, %d, %d)\n", i, m, n);
@@ -372,7 +370,7 @@ k = 0 .. NT-1
 : Tdist(m, k)
 
 // Parameters
-READ  A  <- dataA(m, k)
+READ  A  <- descA(m, k)
 READ  B  <- ZXO SCALEX(i, m%P, k)                               [type = ZROW]
 
 RW    C  <- (k >= (NT-Q)) ? NEW                                 [type = ZCOL]
@@ -383,8 +381,8 @@ RW    C  <- (k >= (NT-Q)) ? NEW                                 [type = ZCOL]
 BODY
 {
     dague_complex64_t zbeta = (k >= (NT-Q)) ? 0. : (dague_complex64_t)1.0;
-    int tempmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
-    int tempkn = ( k == descA.nt-1 ) ? descA.n - k * descA.nb : descA.nb;
+    int tempmm = ( m == descA->mt-1 ) ? descA->m - m * descA->mb : descA->mb;
+    int tempkn = ( k == descA->nt-1 ) ? descA->n - k * descA->nb : descA->nb;
     int ldam = BLKLDD( descA, m );
 
     printlog("gemv_sx_partial(%d, %d, %d)\n", i, m, k);
@@ -421,7 +419,7 @@ RW   W <- C GEMV_SX_PARTIAL(i, m, k)                         [type = ZCOL]
 
 BODY
 {
-    int tempmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
+    int tempmm = ( m == descA->mt-1 ) ? descA->m - m * descA->mb : descA->mb;
 
     printlog("gemv_sx_reduce(%d, %d, %d)\n", i, m, k);
 
@@ -459,7 +457,7 @@ k = 0 .. MT-1
 : Tdist(k, n)
 
 // Parameters
-READ  A <- dataA(k, n)
+READ  A <- descA(k, n)
 READ  B <- W GEMV_SX_REDUCE(i, k, 0)                          [type = ZCOL]
 
 RW    C <- (k >= (MT-P)) ? NEW                                [type = ZROW]
@@ -470,8 +468,8 @@ RW    C <- (k >= (MT-P)) ? NEW                                [type = ZROW]
 BODY
 {
     dague_complex64_t zbeta = (k >= (MT-P)) ? 0. : (dague_complex64_t)1.0;
-    int tempkm = ( k == descA.mt-1 ) ? descA.m - k * descA.mb : descA.mb;
-    int tempnn = ( n == descA.nt-1 ) ? descA.n - n * descA.nb : descA.nb;
+    int tempkm = ( k == descA->mt-1 ) ? descA->m - k * descA->mb : descA->mb;
+    int tempnn = ( n == descA->nt-1 ) ? descA->n - n * descA->nb : descA->nb;
     int ldan = BLKLDD( descA, n );
 
     printlog("gemv_x_partial(%d, %d, %d)\n", i, n, k);
@@ -507,7 +505,7 @@ RW   W <- C GEMV_X_PARTIAL(i, n, k)                               [type = ZROW]
 
 BODY
 {
-    int tempnn = ( n == descA.nt-1 ) ? descA.n - n * descA.nb : descA.nb;
+    int tempnn = ( n == descA->nt-1 ) ? descA->n - n * descA->nb : descA->nb;
 
     printlog("gemv_x_reduce(%d, %d, %d)\n", i, n, k);
 
@@ -543,7 +541,7 @@ NORM_SX_STEP1(i, m)
 
 BODY
 {
-    int tempmm = ( m == descA.mt-1 ) ? descA.m - m * descA.mb : descA.mb;
+    int tempmm = ( m == descA->mt-1 ) ? descA->m - m * descA->mb : descA->mb;
     double *dW = (double*)W;
 
     printlog("norm_sx_step1(%d, %d)\n", i, m);
@@ -629,7 +627,7 @@ NORM_X_STEP1(i, n)
 
 BODY
 {
-    int tempnn = ( n == descA.nt-1 ) ? descA.n - n * descA.nb : descA.nb;
+    int tempnn = ( n == descA->nt-1 ) ? descA->n - n * descA->nb : descA->nb;
     double *dW = (double*)W;
 
     printlog("norm_x_step1(%d, %d)\n", i, n);

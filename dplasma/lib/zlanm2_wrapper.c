@@ -101,7 +101,7 @@ dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
         *info = -1;
     }
     dague_zlanm2 = (dague_handle_t*)dague_zlanm2_new(
-        P, Q, (dague_ddesc_t*)Tdist, (dague_ddesc_t*)A, result, info);
+        P, Q, (dague_ddesc_t*)Tdist, A, result, info);
 
     /* Set the datatypes */
     dplasma_add2arena_tile(((dague_zlanm2_handle_t*)dague_zlanm2)->arenas[DAGUE_zlanm2_DEFAULT_ARENA],
@@ -149,8 +149,8 @@ dplasma_zlanm2_Destruct( dague_handle_t *handle )
 {
     dague_zlanm2_handle_t *dague_zlanm2 = (dague_zlanm2_handle_t *)handle;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlanm2->Tdist) );
-    free( dague_zlanm2->Tdist );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlanm2->_g_Tdist) );
+    free( dague_zlanm2->_g_Tdist );
 
     dague_matrix_del2arena( dague_zlanm2->arenas[DAGUE_zlanm2_DEFAULT_ARENA] );
     dague_matrix_del2arena( dague_zlanm2->arenas[DAGUE_zlanm2_ZCOL_ARENA] );

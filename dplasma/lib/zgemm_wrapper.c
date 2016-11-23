@@ -196,7 +196,7 @@ void
 dplasma_zgemm_Destruct( parsec_handle_t *handle )
 {
     parsec_zgemm_NN_handle_t *zgemm_handle = (parsec_zgemm_NN_handle_t *)handle;
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(zgemm_handle->Cdist) );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(zgemm_handle->_g_Cdist) );
     free( zgemm_handle->Cdist );
 
     parsec_matrix_del2arena( ((parsec_zgemm_NN_handle_t *)handle)->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
