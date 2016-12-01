@@ -156,9 +156,9 @@ typedef struct __dague_temporary_thread_initialization_t {
                                       *   local VP data construction. */
 } __dague_temporary_thread_initialization_t;
 
-static int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
+static int dague_parse_binding_parameter(const char* option, dague_context_t* context,
                                          __dague_temporary_thread_initialization_t* startup);
-static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context);
+static int dague_parse_comm_binding_parameter(const char* option, dague_context_t* context);
 
 static void* __dague_thread_init( __dague_temporary_thread_initialization_t* startup )
 {
@@ -1802,11 +1802,11 @@ void dague_usage(void)
     } while (0)
 #endif  /* defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP) */
 
-int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
+int dague_parse_binding_parameter(const char * option, dague_context_t* context,
                                   __dague_temporary_thread_initialization_t* startup)
 {
 #if defined(DAGUE_HAVE_HWLOC) && defined(DAGUE_HAVE_HWLOC_BITMAP)
-    char *option = optarg, *position, *endptr;
+    char *position, *endptr;
     int i, thr_idx = 0, nb_total_comp_threads = 0, where;
     int nb_real_cores = dague_hwloc_nb_real_cores();
 
@@ -1815,7 +1815,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 
     for(i = 0; i < context->nb_vp; i++)
         nb_total_comp_threads += context->virtual_processes[i]->nb_cores;
-    if( NULL == optarg ) {
+    if( NULL == option ) {
         for( thr_idx = 0; thr_idx < nb_total_comp_threads; ) {
             DAGUE_BIND_THREAD(thr_idx, (thr_idx % nb_real_cores));
         }
@@ -1878,7 +1878,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             /* find the end of the hexa mask and parse it in reverse */
             position = strchr(option, ',');
             if( NULL == position )  /* we reached the end of the string, the last char is the one right in front */
-                position = option + strlen(option);
+                position = (char*)option + strlen(option);
             position--; /** Start with the last character, not the '\0' or the ',' */
             where = 0;
             while( 1 ) {
@@ -1952,7 +1952,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
         }
 
         else {  /* List of cores */
-            where = strtol(option, &option, 10);
+            where = strtol(option, (char**)&option, 10);
             if( !((where < nb_real_cores) && (where > -1)) ) {
                 dague_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)\n",
                               where, nb_real_cores-1);
@@ -1995,7 +1995,7 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 
     return 0;
 #else
-    (void)optarg;
+    (void)option;
     (void)context;
     (void)startup;
     dague_warning("the binding defined by --dague_bind has been ignored (requires a build with HWLOC with bitmap support).");
@@ -2003,12 +2003,11 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
 #endif /* DAGUE_HAVE_HWLOC && DAGUE_HAVE_HWLOC_BITMAP */
 }
 
-static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* context)
+static int dague_parse_comm_binding_parameter(const char* option, dague_context_t* context)
 {
 #if defined(DAGUE_HAVE_HWLOC)
-    char* option = optarg;
     if( option[0]!='\0' ) {
-        int core = atoi(optarg);
+        int core = atoi(option);
         if( (core > -1) && (core < dague_hwloc_nb_real_cores()) )
             context->comm_th_core = core;
         else
@@ -2019,7 +2018,7 @@ static int dague_parse_comm_binding_parameter(void * optarg, dague_context_t* co
     }
     return 0;
 #else
-    (void)optarg; (void)context;
+    (void)option; (void)context;
     dague_warning("The binding defined by --dague_bind_comm has been ignored (requires HWLOC use with bitmap support).");
     return -1;
 #endif  /* DAGUE_HAVE_HWLOC */
