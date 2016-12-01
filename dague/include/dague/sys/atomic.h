@@ -23,10 +23,14 @@
 #elif defined(DAGUE_OSX)
 /* Temporary workaround until we integrate C11 atomics */
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#  if defined(__clang__)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#  endif  /* defined(__clang__) */
 #  include "atomic-macosx.h"
-#  pragma clang diagnostic pop
+#  if defined(__clang__)
+#    pragma clang diagnostic pop
+#  endif  /* defined(__clang__) */
 #endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
 #elif defined(DAGUE_ARCH_PPC)
 #  if defined(__bgp__)
