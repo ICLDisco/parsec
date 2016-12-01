@@ -1893,7 +1893,8 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
                     }
                     where++;
                 }
-                position--;  /* reverse parsing to maintain the natural order of bits */
+                *position = '\0'; /** erase the character that was read */
+                position--;       /** reverse parsing to maintain the natural order of bits */
             }
             goto next_iteration;
         }
