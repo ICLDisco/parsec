@@ -1878,22 +1878,26 @@ int dague_parse_binding_parameter(void * optarg, dague_context_t* context,
             /* find the end of the hexa mask and parse it in reverse */
             position = strchr(option, ',');
             if( NULL == position )  /* we reached the end of the string, the last char is the one right in front */
-                position = option + strlen(option) - 1;
+                position = option + strlen(option);
+            position--; /** Start with the last character, not the '\0' or the ',' */
             where = 0;
-            while( position != option ) {
-                long int mask = strtol(position, &endptr, 16);
-                if( (0 == mask) && (position == endptr) ) {
-                    dague_warning("binding: invalid char (%c) in hexadecimal mask. skip\n", position);
+            while( 1 ) {
+                long int mask;
+                if( *position >= '0' && *position <= '9') mask = *position - '0';
+                else if( *position >= 'a' && *position <= 'f') mask = *position + 10 - 'a';
+                else if( *position >= 'A' && *position <= 'F') mask = *position + 10 - 'A';
+                else {
+                    dague_warning("binding: invalid char (%c) in hexadecimal mask. skip\n", *position);
                     goto next_iteration;
                 }
-                assert( (0 <= mask) && (mask < 16) );  /* must be single hexa digit */
                 for( i = 0; i < 4; i++ ) {
                     if( mask & (1<<i) ) {  /* bit is set */
                         DAGUE_BIND_THREAD(thr_idx, where);
                     }
                     where++;
                 }
-                *position = '\0'; /** erase the character that was read */
+                if( position == option )
+                    break;
                 position--;       /** reverse parsing to maintain the natural order of bits */
             }
             goto next_iteration;
