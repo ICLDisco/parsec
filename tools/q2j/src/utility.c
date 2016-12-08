@@ -3096,7 +3096,7 @@ static char *size_to_pool_name(char *size_str){
     char *pool_name = NULL;
 
     /* See if a pool of this size exists already, and if so return it. */
-    DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
+    DAGUE_LIST_NOLOCK_ITERATOR(&_dague_pool_list, list_item,
                          {
                              var_def_item_t *true_item = (var_def_item_t *)list_item;
                              assert(NULL != true_item->var);
@@ -3114,7 +3114,7 @@ static char *size_to_pool_name(char *size_str){
     var_def_item_t *new_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_item->var = size_str;
     new_item->def = pool_name;
-    dague_ulist_lifo_push( &_dague_pool_list, (dague_list_item_t *)new_item );
+    dague_list_nolock_lifo_push( &_dague_pool_list, (dague_list_item_t *)new_item );
 
     return pool_name;
 }
@@ -3123,7 +3123,7 @@ string_arena_t *create_pool_declarations(){
     string_arena_t *sa = NULL;
 
     sa = string_arena_new(64);
-    DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
+    DAGUE_LIST_NOLOCK_ITERATOR(&_dague_pool_list, list_item,
                          {
                              var_def_item_t *true_item = (var_def_item_t *)list_item;
                              string_arena_add_string(sa, "%s [type = \"dague_memory_pool_t *\" size = \"%s\"]\n",
@@ -3143,7 +3143,7 @@ void jdf_register_pools( jdf_t *jdf )
             prev = prev->next;
     }
 
-    DAGUE_ULIST_ITERATOR(&_dague_pool_list, list_item,
+    DAGUE_LIST_NOLOCK_ITERATOR(&_dague_pool_list, list_item,
                          {
                              var_def_item_t *true_item = (var_def_item_t *)list_item;
                              jdf_global_entry_t *e = q2jmalloc(jdf_global_entry_t, 1);
@@ -3185,7 +3185,7 @@ void jdf_register_pools( jdf_t *jdf )
  */
 static int is_definition_seen(dague_list_t *var_def_list, char *param){
     int i = 0;
-    DAGUE_ULIST_ITERATOR(var_def_list, item,
+    DAGUE_LIST_NOLOCK_ITERATOR(var_def_list, item,
                          {
                              i++;
                              var_def_item_t *true_item = (var_def_item_t *)item;
@@ -3208,7 +3208,7 @@ static void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
     new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_list_item->var = param;
     new_list_item->def = NULL; // we are not using the actual definition, just marking it as seen
-    dague_ulist_lifo_push( var_def_list, (dague_list_item_t *)new_list_item );
+    dague_list_nolock_lifo_push( var_def_list, (dague_list_item_t *)new_list_item );
 
     return;
 }
@@ -3454,7 +3454,7 @@ char *tree_to_body(node_t *node){
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
-    while( NULL != (item = (var_def_item_t *)dague_ulist_lifo_pop(&var_def_list)) ) {
+    while( NULL != (item = (var_def_item_t *)dague_list_nolock_lifo_pop(&var_def_list)) ) {
         free(item);
     }
 

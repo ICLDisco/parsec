@@ -333,17 +333,6 @@ foreach( ITEM ${TMP_LIST})
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ITEM}")
 endforeach()
 
-mark_as_advanced(DAGUE_LIFO_USE_ATOMICS)
-if(NOT DAGUE_HAVE_COMPARE_AND_SWAP_128)
-  option(DAGUE_LIFO_USE_ATOMICS
-         "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation) -- DANGEROUS: no CAS128 -- risk of ABA"
-         OFF)
-else(NOT DAGUE_HAVE_COMPARE_AND_SWAP_128)
-  option(DAGUE_LIFO_USE_ATOMICS
-         "Use the atomic compare and swap base implementation of LIFOs (instead of the spinlock implementation)"
-         ON)
-endif(NOT DAGUE_HAVE_COMPARE_AND_SWAP_128)
-
 find_package(Threads)
 if(Threads_FOUND)
   set(DAGUE_HAVE_PTHREAD true)
