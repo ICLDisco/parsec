@@ -15,14 +15,14 @@
 #include "map.h"
 
 static int
-dplasma_zlascal_operator( dague_execution_unit_t *eu,
+dplasma_zlascal_operator( parsec_execution_unit_t *eu,
                          const tiled_matrix_desc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *args )
 {
-    dague_complex64_t *A     = (dague_complex64_t*)_A;
-    dague_complex64_t  alpha = *((dague_complex64_t*)args);
+    parsec_complex64_t *A     = (parsec_complex64_t*)_A;
+    parsec_complex64_t  alpha = *((parsec_complex64_t*)args);
     int i;
     int tempmm, tempnn, ldam;
     (void)eu;
@@ -94,8 +94,8 @@ dplasma_zlascal_operator( dague_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlascal_Destruct();
  *
  *******************************************************************************
@@ -107,12 +107,12 @@ dplasma_zlascal_operator( dague_execution_unit_t *eu,
  * @sa dplasma_slascal_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zlascal_New( PLASMA_enum uplo,
-                     dague_complex64_t alpha,
+                     parsec_complex64_t alpha,
                      tiled_matrix_desc_t *A )
 {
-    dague_complex64_t *a = (dague_complex64_t*)malloc(sizeof(dague_complex64_t));
+    parsec_complex64_t *a = (parsec_complex64_t*)malloc(sizeof(parsec_complex64_t));
     *a = alpha;
 
     return dplasma_map_New( uplo, A, dplasma_zlascal_operator, (void*)a );
@@ -139,7 +139,7 @@ dplasma_zlascal_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlascal_Destruct( dague_handle_t *handle )
+dplasma_zlascal_Destruct( parsec_handle_t *handle )
 {
     dplasma_map_Destruct(handle);
 }
@@ -159,8 +159,8 @@ dplasma_zlascal_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          Specifies which part of matrix A is set:
@@ -194,12 +194,12 @@ dplasma_zlascal_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zlascal( dague_context_t     *dague,
+dplasma_zlascal( parsec_context_t     *parsec,
                  PLASMA_enum          uplo,
-                 dague_complex64_t    alpha,
+                 parsec_complex64_t    alpha,
                  tiled_matrix_desc_t *A )
 {
-    dague_handle_t *dague_zlascal = NULL;
+    parsec_handle_t *parsec_zlascal = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -210,12 +210,12 @@ dplasma_zlascal( dague_context_t     *dague,
         return -2;
     }
 
-    dague_zlascal = dplasma_zlascal_New(uplo, alpha, A);
+    parsec_zlascal = dplasma_zlascal_New(uplo, alpha, A);
 
-    if ( dague_zlascal != NULL ) {
-        dague_enqueue(dague, (dague_handle_t*)dague_zlascal);
-        dplasma_progress(dague);
-        dplasma_zlascal_Destruct( dague_zlascal );
+    if ( parsec_zlascal != NULL ) {
+        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlascal);
+        dplasma_progress(parsec);
+        dplasma_zlascal_Destruct( parsec_zlascal );
     }
     return 0;
 }

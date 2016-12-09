@@ -4,22 +4,22 @@
  *                         reserved.
  */
 
-#include "dague.h"
+#include "parsec.h"
 #include "a2a_wrapper.h"
 #include "a2a_data.h"
-#if defined(DAGUE_HAVE_STRING_H)
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world, cores;
     int size, repeat;
     tiled_matrix_desc_t *ddescA, *ddescB;
-    dague_handle_t *a2a;
+    parsec_handle_t *a2a;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -31,27 +31,27 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
     cores = 1;
-    dague = dague_init(cores, &argc, &argv);
+    parsec = parsec_init(cores, &argc, &argv);
 
     size = 256;
     repeat = 10;
 
     ddescA = create_and_distribute_data(rank, world, world*size);
-    dague_ddesc_set_key( (dague_ddesc_t*)ddescA, "A");
+    parsec_ddesc_set_key( (parsec_ddesc_t*)ddescA, "A");
     ddescB = create_and_distribute_data(rank, world, world*size);
-    dague_ddesc_set_key( (dague_ddesc_t*)ddescB, "B");
+    parsec_ddesc_set_key( (parsec_ddesc_t*)ddescB, "B");
 
     a2a = a2a_new(ddescA, ddescB, size, repeat);
-    dague_enqueue(dague, a2a);
+    parsec_enqueue(parsec, a2a);
 
-    dague_context_wait(dague);
+    parsec_context_wait(parsec);
 
-    dague_handle_free(a2a);
-    dague_fini(&dague);
+    parsec_handle_free(a2a);
+    parsec_fini(&parsec);
     free_data(ddescA);
     free_data(ddescB);
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 

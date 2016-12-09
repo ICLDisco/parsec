@@ -19,7 +19,7 @@ side      [type = "PLASMA_enum"]
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 diag      [type = "PLASMA_enum"]
-alpha     [type = "dague_complex64_t"]
+alpha     [type = "parsec_complex64_t"]
 descA     [type = "const tiled_matrix_desc_t*"]
 descB     [type = "tiled_matrix_desc_t*"]
 
@@ -82,12 +82,12 @@ BODY
     printlog("CORE_ztrmm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempmm, tempnn, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
              m, n, (descB->mt-1)-m, (descB->mt-1)-m, A, (descB->mt-1)-m, n, B);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
         CORE_ztrmm(side, uplo, trans,
                    diag, tempmm, tempnn,
                    alpha, A /* descA((descB->mt-1)-m,(descB->mt-1)-m) */, lda,
                    B /* descB((descB->mt-1)-m,n) */, ldb );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -119,11 +119,11 @@ BODY
              "\t(trans, PlasmaNoTrans, tempmm, tempnn, descB->mb, alpha, A(%d,%d)[%p], lda, B(%d,%d)[%p], descB->mb, 1.000000, B(%d,%d)[%p], ldb)\n",
              m, n, k, (descB->mt-1)-m, k, A, k, n, B, (descB->mt-1)-m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(trans, PlasmaNoTrans, tempmm, tempnn, descB->mb,
                alpha, A /* descA((descB->mt-1)-m,k) */, lda,
                       B /* descB(k,n) */,              descB->mb,
                1.0,   C /* descB((descB->mt-1)-m,n) */, ldb );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END

@@ -62,8 +62,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlanhe_Destruct();
  *
  *******************************************************************************
@@ -73,7 +73,7 @@
  * @sa dplasma_clanhe_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zlanhe_New( PLASMA_enum norm,
                     PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
@@ -81,7 +81,7 @@ dplasma_zlanhe_New( PLASMA_enum norm,
 {
     int P, Q, mb, nb, elt, m;
     two_dim_block_cyclic_t *Tdist;
-    dague_handle_t *dague_zlanhe = NULL;
+    parsec_handle_t *parsec_zlanhe = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -138,24 +138,24 @@ dplasma_zlanhe_New( PLASMA_enum norm,
     Tdist->super.super.data_of = fake_data_of;
 
     /* Create the DAG */
-    dague_zlanhe = (dague_handle_t*)dague_zlansy_new(
+    parsec_zlanhe = (parsec_handle_t*)parsec_zlansy_new(
         P, Q, norm, uplo, PlasmaConjTrans,
-        A, (dague_ddesc_t*)Tdist,
+        A, (parsec_ddesc_t*)Tdist,
         result);
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((dague_zlansy_handle_t*)dague_zlanhe)->arenas[DAGUE_zlansy_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, A->mb);
-    dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlanhe)->arenas[DAGUE_zlansy_COL_ARENA],
-                                mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_t, mb, nb, -1);
-    dplasma_add2arena_rectangle(((dague_zlansy_handle_t*)dague_zlanhe)->arenas[DAGUE_zlansy_ELT_ARENA],
-                                elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_t, elt, 1, -1);
+    dplasma_add2arena_tile(((parsec_zlansy_handle_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_DEFAULT_ARENA],
+                           A->mb*A->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, A->mb);
+    dplasma_add2arena_rectangle(((parsec_zlansy_handle_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_COL_ARENA],
+                                mb * nb * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_t, mb, nb, -1);
+    dplasma_add2arena_rectangle(((parsec_zlansy_handle_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_ELT_ARENA],
+                                elt * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_t, elt, 1, -1);
 
-    return (dague_handle_t*)dague_zlanhe;
+    return (parsec_handle_t*)parsec_zlanhe;
 }
 
 /**
@@ -179,18 +179,18 @@ dplasma_zlanhe_New( PLASMA_enum norm,
  *
  ******************************************************************************/
 void
-dplasma_zlanhe_Destruct( dague_handle_t *handle )
+dplasma_zlanhe_Destruct( parsec_handle_t *handle )
 {
-    dague_zlansy_handle_t *dague_zlanhe = (dague_zlansy_handle_t *)handle;
+    parsec_zlansy_handle_t *parsec_zlanhe = (parsec_zlansy_handle_t *)handle;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlanhe->_g_Tdist) );
-    free( dague_zlanhe->_g_Tdist );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlanhe->_g_Tdist) );
+    free( parsec_zlanhe->_g_Tdist );
 
-    dague_matrix_del2arena( dague_zlanhe->arenas[DAGUE_zlansy_DEFAULT_ARENA] );
-    dague_matrix_del2arena( dague_zlanhe->arenas[DAGUE_zlansy_COL_ARENA] );
-    dague_matrix_del2arena( dague_zlanhe->arenas[DAGUE_zlansy_ELT_ARENA] );
+    parsec_matrix_del2arena( parsec_zlanhe->arenas[PARSEC_zlansy_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( parsec_zlanhe->arenas[PARSEC_zlansy_COL_ARENA] );
+    parsec_matrix_del2arena( parsec_zlanhe->arenas[PARSEC_zlansy_ELT_ARENA] );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -216,8 +216,8 @@ dplasma_zlanhe_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] norm
  *          = PlasmaMaxNorm: Max norm
@@ -247,13 +247,13 @@ dplasma_zlanhe_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 double
-dplasma_zlanhe( dague_context_t *dague,
+dplasma_zlanhe( parsec_context_t *parsec,
                 PLASMA_enum norm,
                 PLASMA_enum uplo,
                 const tiled_matrix_desc_t *A)
 {
     double result = 0.;
-    dague_handle_t *dague_zlanhe = NULL;
+    parsec_handle_t *parsec_zlanhe = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -273,13 +273,13 @@ dplasma_zlanhe( dague_context_t *dague,
         return -5.;
     }
 
-    dague_zlanhe = dplasma_zlanhe_New(norm, uplo, A, &result);
+    parsec_zlanhe = dplasma_zlanhe_New(norm, uplo, A, &result);
 
-    if ( dague_zlanhe != NULL )
+    if ( parsec_zlanhe != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_zlanhe);
-        dplasma_progress(dague);
-        dplasma_zlanhe_Destruct( dague_zlanhe );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlanhe);
+        dplasma_progress(parsec);
+        dplasma_zlanhe_Destruct( parsec_zlanhe );
     }
 
     return result;

@@ -40,8 +40,8 @@
 #pragma CORE_ztsmqrlr A1 A2 A3 V T
 #pragma CORE_ztsmqr1 A1 A2 V T
 
-#pragma DAGUE_DATA_TYPE_MODIFIER T LITTLE_T
-#pragma DAGUE_DATA_COLOCATED T A
+#pragma PARSEC_DATA_TYPE_MODIFIER T LITTLE_T
+#pragma PARSEC_DATA_COLOCATED T A
 
 void 
 plasma_pzherbt_quark(PLASMA_enum uplo,
@@ -66,8 +66,8 @@ plasma_pzherbt_quark(PLASMA_enum uplo,
 	for (k = 0; k < A.nt - 1; k++) {
 		tempkn = k + 1 == A.nt - 1 ? A.n - (k + 1) * A.nb : A.nb;
 		ldak = BLKLDD(A, k + 1);
-#pragma DAGUE_DATA_ACCESS_MASK A 0b10
-#pragma DAGUE_TASK_START CORE_zgeqrt A:INOUT:UP, T:OUTPUT, W:SCRATCH, Q:SCRATCH
+#pragma PARSEC_DATA_ACCESS_MASK A 0b10
+#pragma PARSEC_TASK_START CORE_zgeqrt A:INOUT:UP, T:OUTPUT, W:SCRATCH, Q:SCRATCH
 
 		QUARK_Insert_Task((plasma->quark), CORE_zgeqrt_quark, (&task_flags),
                         sizeof(int), &(tempkn), VALUE,
@@ -81,7 +81,7 @@ plasma_pzherbt_quark(PLASMA_enum uplo,
                         sizeof(PLASMA_Complex64_t) * ib * T.nb, (NULL), SCRATCH, 0);
 
 		//LEFT and RIGHT on the symmetric diagonal block
-#pragma DAGUE_DATA_ACCESS_MASK A 0b11
+#pragma PARSEC_DATA_ACCESS_MASK A 0b11
 		QUARK_Insert_Task((plasma->quark), CORE_zherfb1_quark, (&task_flags),
                     sizeof(PLASMA_enum), &(PlasmaLower), VALUE,
                     sizeof(int), &(tempkn), VALUE,
@@ -101,7 +101,7 @@ plasma_pzherbt_quark(PLASMA_enum uplo,
 		for (m = k + 2; m < A.mt; m++) {
 			tempmm = m == A.mt - 1 ? A.m - m * A.mb : A.mb;
 			ldam = BLKLDD(A, m);
-#pragma DAGUE_DATA_ACCESS_MASK A 0b01
+#pragma PARSEC_DATA_ACCESS_MASK A 0b01
 			QUARK_Insert_Task((plasma->quark), CORE_zunmqr_quark, (&task_flags),
                 		sizeof(PLASMA_enum), &(PlasmaRight), VALUE,
                 		sizeof(PLASMA_enum), &(PlasmaNoTrans), VALUE,

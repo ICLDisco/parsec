@@ -21,8 +21,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized.
@@ -73,7 +73,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zgesv_incpiv( dague_context_t *dague,
+dplasma_zgesv_incpiv( parsec_context_t *parsec,
                       tiled_matrix_desc_t *A,
                       tiled_matrix_desc_t *L,
                       tiled_matrix_desc_t *IPIV,
@@ -81,24 +81,24 @@ dplasma_zgesv_incpiv( dague_context_t *dague,
 {
     int info;
 
-#ifdef DAGUE_COMPOSITION
-    dague_handle_t *dague_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
-    dague_handle_t *dague_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
-    dague_handle_t *dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+#ifdef PARSEC_COMPOSITION
+    parsec_handle_t *parsec_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
+    parsec_handle_t *parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
+    parsec_handle_t *parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
-    dague_enqueue( dague, dague_zgetrf  );
-    dague_enqueue( dague, dague_ztrsmpl );
-    dague_enqueue( dague, dague_ztrsm   );
+    parsec_enqueue( parsec, parsec_zgetrf  );
+    parsec_enqueue( parsec, parsec_ztrsmpl );
+    parsec_enqueue( parsec, parsec_ztrsm   );
 
-    dplasma_progress( dague );
+    dplasma_progress( parsec );
 
-    dplasma_zgetrf_incpiv_Destruct( dague_zgetrf  );
-    dplasma_ztrsmpl_Destruct( dague_ztrsmpl );
-    dplasma_ztrsm_Destruct( dague_ztrsm   );
+    dplasma_zgetrf_incpiv_Destruct( parsec_zgetrf  );
+    dplasma_ztrsmpl_Destruct( parsec_ztrsmpl );
+    dplasma_ztrsm_Destruct( parsec_ztrsm   );
 #else
-    info = dplasma_zgetrf_incpiv(dague, A, L, IPIV );
+    info = dplasma_zgetrf_incpiv(parsec, A, L, IPIV );
     if( info == 0 ) {
-        dplasma_zgetrs_incpiv(dague, PlasmaNoTrans, A, L, IPIV, B );
+        dplasma_zgetrs_incpiv(parsec, PlasmaNoTrans, A, L, IPIV, B );
     }
 #endif
 

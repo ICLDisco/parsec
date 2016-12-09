@@ -56,7 +56,7 @@ LASWP_laswp(k, n)
 
 BODY
 {
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
         int tempkm = ((k)==(dataA->mt-1)) ? (dataA->m-(k*dataA->mb)) : (dataA->mb);
         int tempnn = ((n)==(dataA->nt-1)) ? (dataA->n-(n*dataA->nb)) : (dataA->nb);
         int ldak = BLKLDD(dataA, k);
@@ -73,7 +73,7 @@ BODY
         } else {
             CORE_zlaswp( tempnn, A, ldak, 1, tempkm, IPIV, inc );
         }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
     printlog("thread %d   CORE_zlaswp(%d, %d)\n"
              "\t(%d, A(%d,%d)[%p], %d, %d, %d, IPIV(%d)[%p], %d)\n",

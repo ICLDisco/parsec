@@ -3,53 +3,53 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dague.h"
-#include "dague/constants.h"
-#include "dague/arena.h"
+#include "parsec.h"
+#include "parsec/constants.h"
+#include "parsec/arena.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(DAGUE_HAVE_MPI)
-int dague_matrix_get_extent( MPI_Datatype dt, MPI_Aint* extent )
+#if defined(PARSEC_HAVE_MPI)
+int parsec_matrix_get_extent( MPI_Datatype dt, MPI_Aint* extent )
 {
     int rc;
-#if defined(DAGUE_HAVE_MPI_20)
+#if defined(PARSEC_HAVE_MPI_20)
     MPI_Aint lb = 0; (void)lb;
     rc = MPI_Type_get_extent(dt, &lb, extent);
 #else
     rc = MPI_Type_extent( dt, extent);
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
-    return (MPI_SUCCESS == rc ? DAGUE_SUCCESS : DAGUE_ERROR);
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+    return (MPI_SUCCESS == rc ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-int dague_matrix_define_contiguous( dague_datatype_t oldtype,
+int parsec_matrix_define_contiguous( parsec_datatype_t oldtype,
                                     unsigned int nb_elem,
                                     int resized,
-                                    dague_datatype_t* newtype )
+                                    parsec_datatype_t* newtype )
 {
     int oldsize, rc;
 
     /* Check if the type is valid and supported by the MPI library */
-    rc = dague_type_size(oldtype, &oldsize);
+    rc = parsec_type_size(oldtype, &oldsize);
     if( 0 == oldsize ) {
-        return DAGUE_NOT_SUPPORTED;
+        return PARSEC_NOT_SUPPORTED;
     }
     /**
      * Define the TILE type.
      */
-    rc = dague_type_create_contiguous(nb_elem, oldtype, newtype);
-    if( DAGUE_SUCCESS != rc ) {
+    rc = parsec_type_create_contiguous(nb_elem, oldtype, newtype);
+    if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
     if( resized >= 0 ) {
         MPI_Datatype tmp = *newtype;
-        rc = dague_type_create_resized(tmp, 0, resized*oldsize, newtype);
-        if( DAGUE_SUCCESS != rc ) {
+        rc = parsec_type_create_resized(tmp, 0, resized*oldsize, newtype);
+        if( PARSEC_SUCCESS != rc ) {
             return rc;
         }
         MPI_Type_free(&tmp);
     }
     MPI_Type_commit(newtype);
-#if defined(DAGUE_HAVE_MPI_20)
+#if defined(PARSEC_HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -58,45 +58,45 @@ int dague_matrix_define_contiguous( dague_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "CONT %s*%4u", oldtype_name, nb_elem);
         MPI_Type_set_name(*newtype, newtype_name);
     }
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
-    return DAGUE_SUCCESS;
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+    return PARSEC_SUCCESS;
 }
 
-int dague_matrix_define_rectangle( dague_datatype_t oldtype,
+int parsec_matrix_define_rectangle( parsec_datatype_t oldtype,
                                    unsigned int mb,
                                    unsigned int nb,
                                    unsigned int ld,
                                    int resized,
-                                   dague_datatype_t* newtype )
+                                   parsec_datatype_t* newtype )
 {
     int oldsize, rc;
 
     if ( mb == ld ) {
-        return dague_matrix_define_contiguous( oldtype, ld*nb, resized, newtype );
+        return parsec_matrix_define_contiguous( oldtype, ld*nb, resized, newtype );
     }
 
     /* Check if the type is valid and supported by the MPI library */
-    dague_type_size(oldtype, &oldsize);
+    parsec_type_size(oldtype, &oldsize);
     if( 0 == oldsize ) {
-        return DAGUE_NOT_SUPPORTED;
+        return PARSEC_NOT_SUPPORTED;
     }
     /**
      * Define the TILE type.
      */
-    rc = dague_type_create_vector( nb, mb, ld, oldtype, newtype );
-    if( DAGUE_SUCCESS != rc ) {
+    rc = parsec_type_create_vector( nb, mb, ld, oldtype, newtype );
+    if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
     if( resized >= 0 ) {
         MPI_Datatype tmp = *newtype;
-        rc = dague_type_create_resized(tmp, 0, resized*oldsize, newtype);
-        if( DAGUE_SUCCESS != rc ) {
+        rc = parsec_type_create_resized(tmp, 0, resized*oldsize, newtype);
+        if( PARSEC_SUCCESS != rc ) {
             return rc;
         }
         MPI_Type_free(&tmp);
     }
     MPI_Type_commit(newtype);
-#if defined(DAGUE_HAVE_MPI_20)
+#if defined(PARSEC_HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -105,16 +105,16 @@ int dague_matrix_define_rectangle( dague_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "RECT %s*%4u*%4u", oldtype_name, mb, nb);
         MPI_Type_set_name(*newtype, newtype_name);
     }
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
-    return DAGUE_SUCCESS;
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+    return PARSEC_SUCCESS;
 }
 
-int dague_matrix_define_triangle( dague_datatype_t oldtype,
+int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
                                   int uplo, int diag,
                                   unsigned int m,
                                   unsigned int n,
                                   unsigned int ld,
-                                  dague_datatype_t* newtype )
+                                  parsec_datatype_t* newtype )
 {
     int *blocklens, *indices, oldsize, rc;
     unsigned int i;
@@ -144,15 +144,15 @@ int dague_matrix_define_triangle( dague_datatype_t oldtype,
         diag = 0;
     }
     else
-        return DAGUE_ERR_BAD_PARAM;
+        return PARSEC_ERR_BAD_PARAM;
 
-    rc = dague_type_create_indexed(nmax, blocklens+diag, indices+diag, oldtype, &tmp );
-    if( DAGUE_SUCCESS != rc ) {
+    rc = parsec_type_create_indexed(nmax, blocklens+diag, indices+diag, oldtype, &tmp );
+    if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
-    dague_type_size(oldtype, &oldsize);
-    dague_type_create_resized( tmp, 0, ld*n*oldsize, newtype );
-#if defined(DAGUE_HAVE_MPI_20)
+    parsec_type_size(oldtype, &oldsize);
+    parsec_type_create_resized( tmp, 0, ld*n*oldsize, newtype );
+#if defined(PARSEC_HAVE_MPI_20)
     {
         char newtype_name[MPI_MAX_OBJECT_NAME], oldtype_name[MPI_MAX_OBJECT_NAME];
         int len;
@@ -161,75 +161,75 @@ int dague_matrix_define_triangle( dague_datatype_t oldtype,
         snprintf(newtype_name, MPI_MAX_OBJECT_NAME, "UPPER %s*%4u*%4u", oldtype_name, m, n);
         MPI_Type_set_name(*newtype, newtype_name);
     }
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
     MPI_Type_commit(newtype);
     MPI_Type_free(&tmp);
     free(blocklens);
     free(indices);
-    return DAGUE_SUCCESS;
+    return PARSEC_SUCCESS;
 }
 
-int dague_matrix_undefine_type(dague_datatype_t* type)
+int parsec_matrix_undefine_type(parsec_datatype_t* type)
 {
-    return (MPI_SUCCESS == MPI_Type_free(type) ? DAGUE_SUCCESS : DAGUE_ERROR);
+    return (MPI_SUCCESS == MPI_Type_free(type) ? PARSEC_SUCCESS : PARSEC_ERROR);
 }
 
-#endif /* defined(DAGUE_HAVE_MPI) */
+#endif /* defined(PARSEC_HAVE_MPI) */
 
-int dague_matrix_add2arena( dague_arena_t *arena, dague_datatype_t oldtype,
+int parsec_matrix_add2arena( parsec_arena_t *arena, parsec_datatype_t oldtype,
                             int uplo, int diag,
                             unsigned int m, unsigned int n, unsigned int ld,
                             size_t alignment, int resized )
 {
-    dague_datatype_t newtype = DAGUE_DATATYPE_NULL;
-    dague_aint_t extent = 0;
+    parsec_datatype_t newtype = PARSEC_DATATYPE_NULL;
+    parsec_aint_t extent = 0;
     int rc;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     switch( uplo ) {
     case matrix_Lower:
     case matrix_Upper:
-        rc = dague_matrix_define_triangle( oldtype, uplo, diag, m, n, ld, &newtype );
+        rc = parsec_matrix_define_triangle( oldtype, uplo, diag, m, n, ld, &newtype );
         break;
     case matrix_UpperLower:
     default:
         if ( m == ld ) {
-            rc = dague_matrix_define_contiguous( oldtype, ld * n, resized, &newtype );
+            rc = parsec_matrix_define_contiguous( oldtype, ld * n, resized, &newtype );
         }
         else {
-            rc = dague_matrix_define_rectangle( oldtype, m, n, ld, resized, &newtype );
+            rc = parsec_matrix_define_rectangle( oldtype, m, n, ld, resized, &newtype );
         }
     }
-    if( DAGUE_SUCCESS != rc ) {
+    if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
 
-    rc = dague_matrix_get_extent(newtype, &extent);
-    if( DAGUE_SUCCESS != rc ) {
+    rc = parsec_matrix_get_extent(newtype, &extent);
+    if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
 #else
     int oldsize = 0;
     (void)uplo; (void)diag; (void)m; (void)resized;
-    dague_type_size( oldtype, &oldsize );
+    parsec_type_size( oldtype, &oldsize );
     extent = oldsize * n * ld;
 #endif
 
-    rc = dague_arena_construct(arena, extent, alignment, newtype);
-    if( DAGUE_SUCCESS != rc ) {
+    rc = parsec_arena_construct(arena, extent, alignment, newtype);
+    if( PARSEC_SUCCESS != rc ) {
         return rc;
     }
 
     return 0;
 }
 
-int dague_matrix_del2arena( dague_arena_t *arena )
+int parsec_matrix_del2arena( parsec_arena_t *arena )
 {
-    int rc = DAGUE_SUCCESS;
+    int rc = PARSEC_SUCCESS;
     (void)arena;
 
-#if defined(DAGUE_HAVE_MPI)
-    dague_matrix_undefine_type( &(arena->opaque_dtt) );
+#if defined(PARSEC_HAVE_MPI)
+    parsec_matrix_undefine_type( &(arena->opaque_dtt) );
 #endif
     return rc;
 }

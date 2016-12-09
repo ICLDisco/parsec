@@ -30,12 +30,12 @@
 struct zpltmg_args_s {
     PLASMA_enum            mtxtype;
     unsigned long long int seed;
-    dague_complex64_t     *W;
+    parsec_complex64_t     *W;
 };
 typedef struct zpltmg_args_s zpltmg_args_t;
 
 static int
-dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
+dplasma_zpltmg_generic_operator( parsec_execution_unit_t *eu,
                                  const tiled_matrix_desc_t *descA,
                                  void *_A,
                                  PLASMA_enum uplo, int m, int n,
@@ -43,7 +43,7 @@ dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
 {
     int tempmm, tempnn, ldam;
     zpltmg_args_t     *args = (zpltmg_args_t*)op_data;
-    dague_complex64_t *A    = (dague_complex64_t*)_A;
+    parsec_complex64_t *A    = (parsec_complex64_t*)_A;
     (void)eu;
     (void)uplo;
 
@@ -74,8 +74,8 @@ dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] mtxtype
  *          Type of matrix to be generated.
@@ -104,25 +104,25 @@ dplasma_zpltmg_generic_operator( dague_execution_unit_t *eu,
  *
  ******************************************************************************/
 static inline int
-dplasma_zpltmg_generic( dague_context_t *dague,
+dplasma_zpltmg_generic( parsec_context_t *parsec,
                         PLASMA_enum mtxtype,
                         tiled_matrix_desc_t *A,
-                        dague_complex64_t *W,
+                        parsec_complex64_t *W,
                         unsigned long long int seed)
 {
-    dague_handle_t *dague_zpltmg = NULL;
+    parsec_handle_t *parsec_zpltmg = NULL;
     zpltmg_args_t *params = (zpltmg_args_t*)malloc(sizeof(zpltmg_args_t));
 
     params->mtxtype = mtxtype;
     params->seed    = seed;
     params->W       = W;
 
-    dague_zpltmg = dplasma_map_New( PlasmaUpperLower, A, dplasma_zpltmg_generic_operator, params );
-    if ( dague_zpltmg != NULL )
+    parsec_zpltmg = dplasma_map_New( PlasmaUpperLower, A, dplasma_zpltmg_generic_operator, params );
+    if ( parsec_zpltmg != NULL )
     {
-        dague_enqueue(dague, (dague_handle_t*)dague_zpltmg);
-        dplasma_progress(dague);
-        dplasma_map_Destruct( dague_zpltmg );
+        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zpltmg);
+        dplasma_progress(parsec);
+        dplasma_map_Destruct( parsec_zpltmg );
         return 0;
     }
     return -101;
@@ -138,8 +138,8 @@ dplasma_zpltmg_generic( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] mtxtype
  *          Type of matrix to be generated.
@@ -165,37 +165,37 @@ dplasma_zpltmg_generic( dague_context_t *dague,
  *
  ******************************************************************************/
 static inline int
-dplasma_zpltmg_genvect( dague_context_t *dague,
+dplasma_zpltmg_genvect( parsec_context_t *parsec,
                         PLASMA_enum mtxtype,
                         tiled_matrix_desc_t *A,
                         unsigned long long int seed )
 {
     size_t vectorsize = 0;
-    dague_handle_t* handle;
+    parsec_handle_t* handle;
 
     switch( mtxtype ) {
     case PlasmaMatrixChebvand:
-        handle = (dague_handle_t*)dague_zpltmg_chebvand_new( seed,
+        handle = (parsec_handle_t*)parsec_zpltmg_chebvand_new( seed,
                                                             A );
-        vectorsize = 2 * A->nb * sizeof(dague_complex64_t);
+        vectorsize = 2 * A->nb * sizeof(parsec_complex64_t);
         break;
 
     case PlasmaMatrixFiedler:
-        handle = (dague_handle_t*)dague_zpltmg_fiedler_new( seed,
+        handle = (parsec_handle_t*)parsec_zpltmg_fiedler_new( seed,
                                                             A );
-        vectorsize = A->mb * sizeof(dague_complex64_t);
+        vectorsize = A->mb * sizeof(parsec_complex64_t);
         break;
 
     case PlasmaMatrixHankel:
-        handle = (dague_handle_t*)dague_zpltmg_hankel_new( seed,
+        handle = (parsec_handle_t*)parsec_zpltmg_hankel_new( seed,
                                                            A );
-        vectorsize = A->mb * sizeof(dague_complex64_t);
+        vectorsize = A->mb * sizeof(parsec_complex64_t);
         break;
 
     case PlasmaMatrixToeppd:
-        handle = (dague_handle_t*)dague_zpltmg_toeppd_new( seed,
+        handle = (parsec_handle_t*)parsec_zpltmg_toeppd_new( seed,
                                                            A );
-        vectorsize = 2 * A->mb * sizeof(dague_complex64_t);
+        vectorsize = 2 * A->mb * sizeof(parsec_complex64_t);
         break;
 
     default:
@@ -203,26 +203,26 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
     }
 
     if (handle != NULL) {
-        dague_zpltmg_hankel_handle_t *handle_zpltmg = (dague_zpltmg_hankel_handle_t*)handle;
+        parsec_zpltmg_hankel_handle_t *handle_zpltmg = (parsec_zpltmg_hankel_handle_t*)handle;
 
         /* Default type */
-        dplasma_add2arena_tile( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA],
-                                A->mb*A->nb*sizeof(dague_complex64_t),
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_complex_t, A->mb );
+        dplasma_add2arena_tile( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA],
+                                A->mb*A->nb*sizeof(parsec_complex64_t),
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_complex_t, A->mb );
 
         /* Vector type */
-        dplasma_add2arena_tile( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA],
+        dplasma_add2arena_tile( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA],
                                 vectorsize,
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_complex_t, A->mb );
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_complex_t, A->mb );
 
-        dague_enqueue(dague, handle);
-        dplasma_progress(dague);
+        parsec_enqueue(parsec, handle);
+        dplasma_progress(parsec);
 
-        dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_DEFAULT_ARENA] );
-        dague_matrix_del2arena( handle_zpltmg->arenas[DAGUE_zpltmg_hankel_VECTOR_ARENA ] );
-        dague_handle_free(handle);
+        parsec_matrix_del2arena( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA] );
+        parsec_matrix_del2arena( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA ] );
+        parsec_handle_free(handle);
         return 0;
     } else {
         return -101;
@@ -238,8 +238,8 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to generate. Any tiled matrix
@@ -262,16 +262,16 @@ dplasma_zpltmg_genvect( dague_context_t *dague,
  *
  ******************************************************************************/
 static inline int
-dplasma_zpltmg_circul( dague_context_t *dague,
+dplasma_zpltmg_circul( parsec_context_t *parsec,
                        tiled_matrix_desc_t *A,
                        unsigned long long int seed )
 {
     int info;
-    dague_complex64_t *V = (dague_complex64_t*) malloc( A->m * sizeof(dague_complex64_t) );
+    parsec_complex64_t *V = (parsec_complex64_t*) malloc( A->m * sizeof(parsec_complex64_t) );
 
     CORE_zplrnt( A->m, 1, V, A->m, A->m, 0, 0, seed );
 
-    info = dplasma_zpltmg_generic(dague, PlasmaMatrixCircul, A, V, seed);
+    info = dplasma_zpltmg_generic(parsec, PlasmaMatrixCircul, A, V, seed);
 
     free(V);
     return info;
@@ -287,8 +287,8 @@ dplasma_zpltmg_circul( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to generate. Any tiled matrix
@@ -308,25 +308,25 @@ dplasma_zpltmg_circul( dague_context_t *dague,
  *
  ******************************************************************************/
 static inline int
-dplasma_zpltmg_condex( dague_context_t *dague,
+dplasma_zpltmg_condex( parsec_context_t *parsec,
                        tiled_matrix_desc_t *A )
 {
     /* gallery('condex', A->m, 4, 100.) */
-    dague_complex64_t theta = 100.;
+    parsec_complex64_t theta = 100.;
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
     two_dim_block_cyclic_t Q;
     two_dim_block_cyclic_init( &Q, matrix_ComplexDouble, matrix_Tile,
                                1, A->super.myrank,
                                A->mb, A->nb, A->mb*A->mt, 3, 0, 0, A->m, 3, twodA->grid.strows, twodA->grid.stcols, 1 );
-    Q.mat = dague_data_allocate((size_t)Q.super.nb_local_tiles *
+    Q.mat = parsec_data_allocate((size_t)Q.super.nb_local_tiles *
                                 (size_t)Q.super.bsiz *
-                                (size_t)dague_datadist_getsizeoftype(Q.super.mtype));
-    dague_ddesc_set_key((dague_ddesc_t*)&Q, "Q");
+                                (size_t)parsec_datadist_getsizeoftype(Q.super.mtype));
+    parsec_ddesc_set_key((parsec_ddesc_t*)&Q, "Q");
 
     if (A->super.myrank == 0) {
-        dague_complex64_t *Qmat;
+        parsec_complex64_t *Qmat;
 
-        Qmat = (dague_complex64_t*)(Q.mat);
+        Qmat = (parsec_complex64_t*)(Q.mat);
 
         /* Initialize the Q matrix */
         CORE_zpltmg_condexq( A->m, A->n, Qmat, Q.super.lm );
@@ -335,7 +335,7 @@ dplasma_zpltmg_condex( dague_context_t *dague,
          * Conversion to tile layout
          */
         {
-            dague_complex64_t *W = (dague_complex64_t*) malloc (A->mb * sizeof(dague_complex64_t) );
+            parsec_complex64_t *W = (parsec_complex64_t*) malloc (A->mb * sizeof(parsec_complex64_t) );
             int *leaders = NULL;
             int i, nleaders;
 
@@ -347,7 +347,7 @@ dplasma_zpltmg_condex( dague_context_t *dague,
             for(i=0; i<nleaders; i++) {
 
                 /* cycle #i belongs to this thread, so shift it */
-                memcpy(W, Qmat + leaders[i*3] * A->mb, A->mb * sizeof(dague_complex64_t) );
+                memcpy(W, Qmat + leaders[i*3] * A->mb, A->mb * sizeof(parsec_complex64_t) );
                 CORE_zshiftw(leaders[i*3], leaders[i*3+1], A->mt, A->nb, A->mb, Qmat, W);
             }
 
@@ -355,13 +355,13 @@ dplasma_zpltmg_condex( dague_context_t *dague,
         }
     }
 
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1. + theta, A );
-    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaConjTrans,
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1. + theta, A );
+    dplasma_zgemm( parsec, PlasmaNoTrans, PlasmaConjTrans,
                    -theta, (tiled_matrix_desc_t*)&Q,
                            (tiled_matrix_desc_t*)&Q,
                    1.,     A );
 
-    dague_data_free(Q.mat);
+    parsec_data_free(Q.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&Q);
     return 0;
 }
@@ -375,8 +375,8 @@ dplasma_zpltmg_condex( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to generate. Any tiled matrix
@@ -399,22 +399,22 @@ dplasma_zpltmg_condex( dague_context_t *dague,
  *
  ******************************************************************************/
 static inline int
-dplasma_zpltmg_house( dague_context_t *dague,
+dplasma_zpltmg_house( parsec_context_t *parsec,
                       tiled_matrix_desc_t *A,
                       unsigned long long int seed )
 {
     /* gallery('house', random, 0 ) */
     vector_two_dim_cyclic_t V;
-    dague_complex64_t *Vmat, tau;
+    parsec_complex64_t *Vmat, tau;
 
     vector_two_dim_cyclic_init( &V, matrix_ComplexDouble, PlasmaVectorDiag,
                                 1, A->super.myrank,
                                 A->mb, A->m, 0, A->m, 1 );
-    V.mat = dague_data_allocate((size_t)V.super.nb_local_tiles *
+    V.mat = parsec_data_allocate((size_t)V.super.nb_local_tiles *
                                 (size_t)V.super.bsiz *
-                                (size_t)dague_datadist_getsizeoftype(V.super.mtype));
-    dague_ddesc_set_key((dague_ddesc_t*)&V, "V");
-    Vmat = (dague_complex64_t*)(V.mat);
+                                (size_t)parsec_datadist_getsizeoftype(V.super.mtype));
+    parsec_ddesc_set_key((parsec_ddesc_t*)&V, "V");
+    Vmat = (parsec_complex64_t*)(V.mat);
 
     /* Initialize Householder vector */
     if (A->super.myrank == 0) {
@@ -423,18 +423,18 @@ dplasma_zpltmg_house( dague_context_t *dague,
         Vmat[0] = 1.;
     }
 
-#if defined(DAGUE_HAVE_MPI)
-    MPI_Bcast( &tau, 1, dague_datatype_double_complex_t, 0, MPI_COMM_WORLD );
+#if defined(PARSEC_HAVE_MPI)
+    MPI_Bcast( &tau, 1, parsec_datatype_double_complex_t, 0, MPI_COMM_WORLD );
 #endif
 
     /* Compute the Householder matrix I - tau v * v' */
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., A);
-    dplasma_zgerc( dague, -tau,
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., A);
+    dplasma_zgerc( parsec, -tau,
                    (tiled_matrix_desc_t*)&V,
                    (tiled_matrix_desc_t*)&V,
                    A );
 
-    dague_data_free(V.mat);
+    parsec_data_free(V.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&V);
 
     return 0;
@@ -449,8 +449,8 @@ dplasma_zpltmg_house( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] mtxtype
  *          See PLASMA_zpltmg() for possible values and information on generated
@@ -478,7 +478,7 @@ dplasma_zpltmg_house( dague_context_t *dague,
  *
  ******************************************************************************/
 int
-dplasma_zpltmg( dague_context_t *dague,
+dplasma_zpltmg( parsec_context_t *parsec,
                 PLASMA_enum mtxtype,
                 tiled_matrix_desc_t *A,
                 unsigned long long int seed)
@@ -486,34 +486,34 @@ dplasma_zpltmg( dague_context_t *dague,
 
     switch( mtxtype ) {
     case PlasmaMatrixCircul:
-        return dplasma_zpltmg_circul(dague, A, seed);
+        return dplasma_zpltmg_circul(parsec, A, seed);
         break;
 
     case PlasmaMatrixChebvand:
-        return dplasma_zpltmg_genvect(dague, mtxtype,
+        return dplasma_zpltmg_genvect(parsec, mtxtype,
                                       A, seed);
         break;
 
     case PlasmaMatrixCondex:
-        return dplasma_zpltmg_condex(dague, A);
+        return dplasma_zpltmg_condex(parsec, A);
         break;
 
     case PlasmaMatrixFiedler:
-        return dplasma_zpltmg_genvect(dague, mtxtype,
+        return dplasma_zpltmg_genvect(parsec, mtxtype,
                                       A, seed);
         break;
 
     case PlasmaMatrixHankel:
-        return dplasma_zpltmg_genvect(dague, mtxtype,
+        return dplasma_zpltmg_genvect(parsec, mtxtype,
                                       A, seed);
         break;
 
     case PlasmaMatrixHouse:
-        return dplasma_zpltmg_house(dague, A, seed);
+        return dplasma_zpltmg_house(parsec, A, seed);
         break;
 
     case PlasmaMatrixToeppd:
-        return dplasma_zpltmg_genvect(dague, mtxtype,
+        return dplasma_zpltmg_genvect(parsec, mtxtype,
                                       A, seed);
         break;
 
@@ -538,7 +538,7 @@ dplasma_zpltmg( dague_context_t *dague,
     case PlasmaMatrixRis:
     case PlasmaMatrixWilkinson:
     case PlasmaMatrixWright:
-        return dplasma_zpltmg_generic(dague, mtxtype, A, NULL, seed);
+        return dplasma_zpltmg_generic(parsec, mtxtype, A, NULL, seed);
         break;
     default:
         return -2;

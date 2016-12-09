@@ -22,7 +22,7 @@ descB     [type = "tiled_matrix_desc_t*"]
 descT     [type = "tiled_matrix_desc_t*"]
 ib        [type = "int" hidden = on default = "descT->mb" ]
 KT        [type = "int" hidden = on default = "dplasma_imin(descA->mt-2, descA->nt-1)" ]
-pool_0    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT->nb"]
+pool_0    [type = "parsec_memory_pool_t *" size = "((sizeof(parsec_complex64_t))*ib)*descT->nb"]
 
 
 zunmqr(k, m)
@@ -52,8 +52,8 @@ BODY
              "\t(side, trans, tempmm, tempkn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT->mb, B(%d,%d)[%p], ldbm, p_elem_A, descT->nb)\n",
              k, m, k, k, A, k, k, T, m, k, C);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( pool_0 );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( pool_0 );
 
     CORE_zunmqr(side, trans,
                 tempmm, tempkn, tempkmin, ib,
@@ -62,8 +62,8 @@ BODY
                 C /* descB(m,k) */, ldbm,
                 p_elem_A, descT->nb );
 
-    dague_private_memory_push( pool_0, p_elem_A );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_0, p_elem_A );
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -133,8 +133,8 @@ BODY
              "\t(side, trans, tempmm, descB->nb, tempmm, tempnn, tempkmin, ib, B(%d,%d)[%p], ldbm, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldan, T(%d,%d)[%p], descT->mb, p_elem_A, ldwork)\n",
              k, n, m, m, k, A1, m, n, A2, n, k, V, n, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( pool_0 );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( pool_0 );
 
     CORE_ztsmqr(side, trans,
                 tempmm, descB->nb, tempmm, tempnn, tempkmin, ib,
@@ -144,8 +144,8 @@ BODY
                 T  /* descT(n,k) */, descT->mb,
                 p_elem_A, ldwork );
 
-    dague_private_memory_push( pool_0, p_elem_A );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_0, p_elem_A );
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

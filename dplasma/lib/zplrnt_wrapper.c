@@ -20,7 +20,7 @@ struct zplrnt_args_s {
 typedef struct zplrnt_args_s zplrnt_args_t;
 
 static int
-dplasma_zplrnt_operator( dague_execution_unit_t *eu,
+dplasma_zplrnt_operator( parsec_execution_unit_t *eu,
                          const tiled_matrix_desc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
@@ -28,7 +28,7 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
 {
     int tempmm, tempnn, ldam;
     zplrnt_args_t     *args = (zplrnt_args_t*)op_data;
-    dague_complex64_t *A    = (dague_complex64_t*)_A;
+    parsec_complex64_t *A    = (parsec_complex64_t*)_A;
     (void)eu;
     (void)uplo;
 
@@ -42,7 +42,7 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
 
     if (args->diagdom && (m == n))
     {
-        dague_complex64_t  alpha;
+        parsec_complex64_t  alpha;
         int maxmn = dplasma_imax( descA->m, descA->n );
         int i;
 
@@ -92,8 +92,8 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zplrnt_Destruct();
  *
  *******************************************************************************
@@ -105,7 +105,7 @@ dplasma_zplrnt_operator( dague_execution_unit_t *eu,
  * @sa dplasma_splrnt_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zplrnt_New( int diagdom,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed)
@@ -139,7 +139,7 @@ dplasma_zplrnt_New( int diagdom,
  *
  ******************************************************************************/
 void
-dplasma_zplrnt_Destruct( dague_handle_t *handle )
+dplasma_zplrnt_Destruct( parsec_handle_t *handle )
 {
     dplasma_map_Destruct(handle);
 }
@@ -155,8 +155,8 @@ dplasma_zplrnt_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] diagdom
  *          Specify if the diagonal is increased by max(M,N) or not to get a
@@ -186,18 +186,18 @@ dplasma_zplrnt_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zplrnt( dague_context_t *dague,
+dplasma_zplrnt( parsec_context_t *parsec,
                 int diagdom,
                 tiled_matrix_desc_t *A,
                 unsigned long long int seed)
 {
-    dague_handle_t *dague_zplrnt = NULL;
+    parsec_handle_t *parsec_zplrnt = NULL;
 
-    dague_zplrnt = dplasma_zplrnt_New(diagdom, A, seed);
+    parsec_zplrnt = dplasma_zplrnt_New(diagdom, A, seed);
 
-    dague_enqueue(dague, (dague_handle_t*)dague_zplrnt);
-    dplasma_progress(dague);
+    parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplrnt);
+    dplasma_progress(parsec);
 
-    dplasma_zplrnt_Destruct( dague_zplrnt );
+    dplasma_zplrnt_Destruct( parsec_zplrnt );
     return 0;
 }

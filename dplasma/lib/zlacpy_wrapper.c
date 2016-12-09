@@ -15,7 +15,7 @@
 #include "map2.h"
 
 static int
-dplasma_zlacpy_operator( dague_execution_unit_t *eu,
+dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
                          const tiled_matrix_desc_t *descA,
                          const tiled_matrix_desc_t *descB,
                          const void *_A, void *_B,
@@ -23,8 +23,8 @@ dplasma_zlacpy_operator( dague_execution_unit_t *eu,
                          void *args )
 {
     int tempmm, tempnn, ldam, ldbm;
-    const dague_complex64_t *A = (const dague_complex64_t*)_A;
-    dague_complex64_t       *B = (dague_complex64_t*)_B;
+    const parsec_complex64_t *A = (const parsec_complex64_t*)_A;
+    parsec_complex64_t       *B = (parsec_complex64_t*)_B;
     (void)eu;
     (void)args;
 
@@ -72,8 +72,8 @@ dplasma_zlacpy_operator( dague_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlacpy_Destruct();
  *
  *******************************************************************************
@@ -85,12 +85,12 @@ dplasma_zlacpy_operator( dague_execution_unit_t *eu,
  * @sa dplasma_slacpy_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zlacpy_New( PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *B)
 {
-    dague_handle_t* handle;
+    parsec_handle_t* handle;
 
     handle = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
                               dplasma_zlacpy_operator, NULL );
@@ -119,7 +119,7 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlacpy_Destruct( dague_handle_t *handle )
+dplasma_zlacpy_Destruct( parsec_handle_t *handle )
 {
     dplasma_map2_Destruct(handle);
 }
@@ -137,8 +137,8 @@ dplasma_zlacpy_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          Specifies which part of matrix A is copied:
@@ -171,12 +171,12 @@ dplasma_zlacpy_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zlacpy( dague_context_t *dague,
+dplasma_zlacpy( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 const tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *B)
 {
-    dague_handle_t *dague_zlacpy = NULL;
+    parsec_handle_t *parsec_zlacpy = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -191,13 +191,13 @@ dplasma_zlacpy( dague_context_t *dague,
         return -3;
     }
 
-    dague_zlacpy = dplasma_zlacpy_New(uplo, A, B);
+    parsec_zlacpy = dplasma_zlacpy_New(uplo, A, B);
 
-    if ( dague_zlacpy != NULL )
+    if ( parsec_zlacpy != NULL )
     {
-        dague_enqueue(dague, (dague_handle_t*)dague_zlacpy);
-        dplasma_progress(dague);
-        dplasma_zlacpy_Destruct( dague_zlacpy );
+        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlacpy);
+        dplasma_progress(parsec);
+        dplasma_zlacpy_Destruct( parsec_zlacpy );
     }
     return 0;
 }

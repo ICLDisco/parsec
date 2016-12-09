@@ -6,21 +6,21 @@
 
 #include "ctlgat_data.h"
 #include "stdarg.h"
-#include "dague/data_distribution.h"
-#include "dague/data_internal.h"
-#include "dague/debug.h"
+#include "parsec/data_distribution.h"
+#include "parsec/data_internal.h"
+#include "parsec/debug.h"
 
 #include <assert.h>
 
 typedef struct {
-    dague_ddesc_t super;
+    parsec_ddesc_t super;
     int   seg;
     int   size;
-    struct dague_data_copy_s* data;
+    struct parsec_data_copy_s* data;
     uint32_t* ptr;
 } my_datatype_t;
 
-static uint32_t rank_of(dague_ddesc_t *desc, ...)
+static uint32_t rank_of(parsec_ddesc_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -35,7 +35,7 @@ static uint32_t rank_of(dague_ddesc_t *desc, ...)
     return k;
 }
 
-static int32_t vpid_of(dague_ddesc_t *desc, ...)
+static int32_t vpid_of(parsec_ddesc_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -50,7 +50,7 @@ static int32_t vpid_of(dague_ddesc_t *desc, ...)
     return 0;
 }
 
-static dague_data_t* data_of(dague_ddesc_t *desc, ...)
+static parsec_data_t* data_of(parsec_ddesc_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -63,14 +63,14 @@ static dague_data_t* data_of(dague_ddesc_t *desc, ...)
     assert( k < dat->size && k >= 0 );
     (void)k;
     if(NULL == dat->data) {
-        dat->data = dague_data_copy_new(NULL, 0);
+        dat->data = parsec_data_copy_new(NULL, 0);
         dat->data->device_private = dat->ptr;
     }
     return (void*)(dat->data);
 }
 
-#if defined(DAGUE_PROF_TRACE)
-static uint32_t data_key(dague_ddesc_t *desc, ...)
+#if defined(PARSEC_PROF_TRACE)
+static uint32_t data_key(parsec_ddesc_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -86,17 +86,17 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
 }
 #endif
 
-dague_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg)
+parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg)
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
-    dague_ddesc_t *d = &(m->super);
+    parsec_ddesc_t *d = &(m->super);
 
     d->myrank = rank;
     d->nodes  = world;
     d->rank_of = rank_of;
     d->data_of = data_of;
     d->vpid_of = vpid_of;
-#if defined(DAGUE_PROF_TRACE)
+#if defined(PARSEC_PROF_TRACE)
     asprintf(&d->key_dim, "(%d)", size);
     d->key_base = strdup("A");
     d->data_key = data_key;
@@ -110,13 +110,13 @@ dague_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg
     return d;
 }
 
-void free_data(dague_ddesc_t *d)
+void free_data(parsec_ddesc_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
     if(NULL != m->data) {
-        DAGUE_DATA_COPY_RELEASE(m->data);
+        PARSEC_DATA_COPY_RELEASE(m->data);
     }
     free(m->ptr);
-    dague_ddesc_destroy(d);
+    parsec_ddesc_destroy(d);
     free(d);
 }

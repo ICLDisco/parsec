@@ -42,8 +42,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlaswp_Destruct();
  *
  *******************************************************************************
@@ -55,30 +55,30 @@
  * @sa dplasma_slaswp_New
  *
  ******************************************************************************/
-dague_handle_t *
+parsec_handle_t *
 dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                    const tiled_matrix_desc_t *IPIV,
                    int inc)
 {
-    dague_zlaswp_handle_t *dague_laswp;
+    parsec_zlaswp_handle_t *parsec_laswp;
 
-    dague_laswp = dague_zlaswp_new( A,
+    parsec_laswp = parsec_zlaswp_new( A,
                                     IPIV,
                                     inc );
 
     /* A */
-    dplasma_add2arena_tile( dague_laswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( parsec_laswp->arenas[PARSEC_zlaswp_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* IPIV */
-    dplasma_add2arena_rectangle( dague_laswp->arenas[DAGUE_zlaswp_PIVOT_ARENA],
+    dplasma_add2arena_rectangle( parsec_laswp->arenas[PARSEC_zlaswp_PIVOT_ARENA],
                                  A->mb*sizeof(int),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_int_t, 1, A->mb, -1 );
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_int_t, 1, A->mb, -1 );
 
-    return (dague_handle_t*)dague_laswp;
+    return (parsec_handle_t*)parsec_laswp;
 }
 
 /**
@@ -102,14 +102,14 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zlaswp_Destruct( dague_handle_t *handle )
+dplasma_zlaswp_Destruct( parsec_handle_t *handle )
 {
-    dague_zlaswp_handle_t *dague_zlaswp = (dague_zlaswp_handle_t *)handle;
+    parsec_zlaswp_handle_t *parsec_zlaswp = (parsec_zlaswp_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zlaswp->arenas[DAGUE_zlaswp_DEFAULT_ARENA] );
-    dague_matrix_del2arena( dague_zlaswp->arenas[DAGUE_zlaswp_PIVOT_ARENA  ] );
+    parsec_matrix_del2arena( parsec_zlaswp->arenas[PARSEC_zlaswp_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( parsec_zlaswp->arenas[PARSEC_zlaswp_PIVOT_ARENA  ] );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -122,8 +122,8 @@ dplasma_zlaswp_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A.
@@ -153,19 +153,19 @@ dplasma_zlaswp_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zlaswp( dague_context_t *dague,
+dplasma_zlaswp( parsec_context_t *parsec,
                 tiled_matrix_desc_t *A,
                 const tiled_matrix_desc_t *IPIV,
                 int inc)
 {
-    dague_handle_t *dague_zlaswp = NULL;
+    parsec_handle_t *parsec_zlaswp = NULL;
 
-    dague_zlaswp = dplasma_zlaswp_New(A, IPIV, inc);
+    parsec_zlaswp = dplasma_zlaswp_New(A, IPIV, inc);
 
-    dague_enqueue( dague, (dague_handle_t*)dague_zlaswp);
-    dplasma_progress(dague);
+    parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlaswp);
+    dplasma_progress(parsec);
 
-    dplasma_zlaswp_Destruct( dague_zlaswp );
+    dplasma_zlaswp_Destruct( parsec_zlaswp );
 
     return 0;
 }

@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
+#include "parsec_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -52,7 +52,7 @@ void print_header(void)
                   "#include <plasma.h>\n"
                   "#include <core_blas.h>\n"
                   "\n"
-                  "#include \"dague.h\"\n"
+                  "#include \"parsec.h\"\n"
                   "#include \"data_distribution.h\"\n"
                   "#include \"data_dist/matrix/precision.h\"\n"
                   "#include \"data_dist/matrix/matrix.h\"\n"
@@ -80,7 +80,7 @@ void print_types_of_formal_parameters(node_t *root){
     do{
         for(sym=scope->symbols; NULL!=sym; sym=sym->next){
             if( !strcmp(sym->var_type, "PLASMA_desc") ){
-                jdfoutput("%s%-5s [type = \"dague_ddesc_t *\"]\n"
+                jdfoutput("%s%-5s [type = \"parsec_ddesc_t *\"]\n"
                           "desc%-5s [type = \"tiled_matrix_desc_t\" hidden=on default=\"*((tiled_matrix_desc_t*)%s%s)\" ]\n",
                           _q2j_data_prefix, sym->var_name,
                           sym->var_name,
@@ -415,7 +415,7 @@ list<char *> print_edges_and_create_pseudotasks(node_t *this_node,
             access = "READ";
         }else if( nb_odeps > 0 ){
             /*
-             * DAGuE does not like write-only variables, so make it RW and make
+             * PaRSEC does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
             access = "RW";

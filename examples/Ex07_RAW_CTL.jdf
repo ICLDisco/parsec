@@ -5,13 +5,13 @@ extern "C" %{
  * Each process broadcast an information to NB/2 tasks, and to a local task that updates the information.
  */
 
-#include <dague.h>
-#include <dague/data_distribution.h>
-#include <dague/datatype.h>
+#include <parsec.h>
+#include <parsec/data_distribution.h>
+#include <parsec/datatype.h>
 
 %}
 
-mydata  [ type="dague_ddesc_t*" ]
+mydata  [ type="parsec_ddesc_t*" ]
 nodes   [ type="int" ]
 rank    [ type="int" ]
 NB      [ type="int" hidden=on default="(6)" ]
@@ -84,7 +84,7 @@ END
 extern "C" %{
 
 static uint32_t
-rank_of(dague_ddesc_t *desc, ...)
+rank_of(parsec_ddesc_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -97,16 +97,16 @@ rank_of(dague_ddesc_t *desc, ...)
 }
 
 static int32_t
-vpid_of(dague_ddesc_t *desc, ...)
+vpid_of(parsec_ddesc_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
-static dague_data_t *ddata_mycounter = NULL;
+static parsec_data_t *ddata_mycounter = NULL;
 
-static dague_data_t *
-data_of(dague_ddesc_t *desc, ...)
+static parsec_data_t *
+data_of(parsec_ddesc_t *desc, ...)
 {
     (void)desc;
     return ddata_mycounter;
@@ -114,13 +114,13 @@ data_of(dague_ddesc_t *desc, ...)
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world;
-    dague_ddesc_t mydata;
-    dague_Ex07_RAW_CTL_handle_t *handle;
+    parsec_ddesc_t mydata;
+    parsec_Ex07_RAW_CTL_handle_t *handle;
     int mycounter;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -132,34 +132,34 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
-    dague = dague_init(-1, &argc, &argv);
+    parsec = parsec_init(-1, &argc, &argv);
 
     mycounter = 300 + rank;
-    ddata_mycounter = dague_data_create(
+    ddata_mycounter = parsec_data_create(
         &ddata_mycounter, &mydata, 0,
         &mycounter, sizeof(int));
 
-    dague_ddesc_init(&mydata, world, rank);
+    parsec_ddesc_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
     mydata.vpid_of = vpid_of;
     mydata.data_of = data_of;
 
-    handle = dague_Ex07_RAW_CTL_new(&mydata, world, rank);
+    handle = parsec_Ex07_RAW_CTL_new(&mydata, world, rank);
 
-    dague_arena_construct(handle->arenas[DAGUE_Ex07_RAW_CTL_DEFAULT_ARENA],
-                          sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
-                          dague_datatype_int_t );
+    parsec_arena_construct(handle->arenas[PARSEC_Ex07_RAW_CTL_DEFAULT_ARENA],
+                          sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                          parsec_datatype_int_t );
 
-    dague_enqueue( dague, (dague_handle_t*)handle );
-    dague_context_wait(dague);
+    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_context_wait(parsec);
 
-    dague_handle_free((dague_handle_t*)handle);
+    parsec_handle_free((parsec_handle_t*)handle);
 
-    dague_data_destroy( ddata_mycounter );
-    dague_ddesc_destroy( &mydata );
+    parsec_data_destroy( ddata_mycounter );
+    parsec_ddesc_destroy( &mydata );
 
-    dague_fini(&dague);
-#if defined(DAGUE_HAVE_MPI)
+    parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
     MPI_Finalize();
 #endif
 

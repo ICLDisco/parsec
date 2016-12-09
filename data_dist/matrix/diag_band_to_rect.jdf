@@ -5,8 +5,8 @@ extern "C" %{
  *                         reserved.
  */
 
-#include "dague_config.h"
-#include "dague/dague_internal.h"
+#include "parsec_config.h"
+#include "parsec/parsec_internal.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
@@ -45,7 +45,7 @@ BODY
     int  BNB = NB+2;
     int  BMB = MB+1;
 
-#ifdef DAGUE_CALL_TRACE
+#ifdef PARSEC_CALL_TRACE
     fprintf(stderr, "convert_diag( %d )\n", k);
 #endif
 
@@ -106,7 +106,7 @@ RO  A <- descA(k,k)
       -> D convert_diag(k)
 
 BODY
-#ifdef DAGUE_CALL_TRACE
+#ifdef PARSEC_CALL_TRACE
     fprintf(stderr, "read_diag( %d )\n", k);
 #endif
     /*nothing*/
@@ -122,7 +122,7 @@ RO  A <- descA(k+1,k)
       -> SD convert_diag(k)
 
 BODY
-#ifdef DAGUE_CALL_TRACE
+#ifdef PARSEC_CALL_TRACE
     fprintf(stderr, "read_subdiag( %d )\n", k);
 #endif
     /*nothing*/

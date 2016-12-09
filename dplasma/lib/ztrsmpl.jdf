@@ -81,12 +81,12 @@ BODY
         tempkmin = (k == descA->nt-1) ? descA->n - k * descA->mb : descA->mb;
     }
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgessm(tempkm, tempnn, tempkmin, ib,
                 IP /* IP(k,k) */,
                 L  /* A(k,k)  */, ldak,
                 B  /* B(k,n)  */, ldbk );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -165,13 +165,13 @@ BODY
              descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
              k, n, B, ldbk, m, n, C, ldbm, m, k, L, descL->mb, m, k, A, ldam, m, k, IP );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zssssm(descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
                 B  /* descB(k,n) */, ldbk,
                 C  /* descB(m,n) */, ldbm,
                 L  /* descL(m,k) */, descL->mb,
                 A  /* descA(m,k) */, ldam,
                 IP /* dataIP(m,k) */ );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END

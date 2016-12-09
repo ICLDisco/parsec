@@ -47,7 +47,7 @@ ntype        [type = "PLASMA_enum"]
 uplo         [type = "PLASMA_enum"]
 diag         [type = "PLASMA_enum"]
 descA        [type = "const tiled_matrix_desc_t*"]
-Tdist        [type = "dague_ddesc_t *"]
+Tdist        [type = "parsec_ddesc_t *"]
 norm         [type = "double *"]
 
 minMNT       [type = "int" hidden=on default="dplasma_imin( descA->mt, descA->nt )" ]
@@ -91,7 +91,7 @@ BODY
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     /*
      * Max norm
      */
@@ -156,7 +156,7 @@ BODY
     default:
         fprintf(stderr, "Unknown norm %d\n", ntype );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -196,7 +196,7 @@ BODY
               "\t( W(%d, %d) || W(%d, %d) )\n",
               m, n, nmax, col, m, n-1, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     switch( ntype ) {
     case PlasmaMaxNorm:
     {
@@ -249,7 +249,7 @@ BODY
     default:
         fprintf(stderr, "Unknown norm %d\n", ntype );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -281,7 +281,7 @@ BODY
 
     printlog( "zlange STEP3(%d, %d)\n", m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     switch( ntype ) {
     case PlasmaMaxNorm:
     {
@@ -328,7 +328,7 @@ BODY
     default:
         fprintf(stderr, "Unknown norm %d\n", ntype );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -357,7 +357,7 @@ BODY
     printlog("thread %d zlange STEP4(%d, %d)\n",
              context->th_id, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     double *dA = (double*)A;
     double *dW = (double*)W;
     if(m > 0) {
@@ -397,7 +397,7 @@ BODY
             fprintf(stderr, "Unknown norm %d\n", ntype );
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -421,7 +421,7 @@ BODY
     printlog("thread %d zlange STORE RESULT(%d, %d)\n",
              context->th_id, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     double *dW = (double*)W;
 
     switch( ntype ) {
@@ -441,6 +441,6 @@ BODY
     default:
         fprintf(stderr, "Unknown norm %d\n", ntype );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END

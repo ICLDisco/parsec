@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#undef DAGUE_HAVE_MPI
+#include "parsec_config.h"
+#undef PARSEC_HAVE_MPI
 
 #include <stdlib.h>
 #include <string.h>
@@ -13,9 +13,9 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
-#include "dague/os-spec-timing.h"
-#include "dague/profiling.h"
-#include "dague/dague_binary_profile.h"
+#include "parsec/os-spec-timing.h"
+#include "parsec/profiling.h"
+#include "parsec/parsec_binary_profile.h"
 #include "dbpreader.h"
 #include "graph.h"
 #include "animation.h"
@@ -28,7 +28,7 @@ static void usage(const char *prg)
 {
     fprintf(stderr,
             "Usage: %s <basename>\n"
-            "  Opens <basename>.[0-9]*.profile to serve as binary profile traces of a DAGuE execution\n"
+            "  Opens <basename>.[0-9]*.profile to serve as binary profile traces of a PaRSEC execution\n"
             "    and <basename>-[0-9]+.dot to serve as a DAG representation of the same execution\n"
             "  and creates <basename>-[0-9]+.png files that represent on the same figure the\n"
             "    evolution of the execution in a Gantt chart and in the DAG\n",

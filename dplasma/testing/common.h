@@ -8,7 +8,7 @@
 #define _TESTSCOMMON_H
 
 /* includes used by the testing_*.c */
-#include "dague_config.h"
+#include "parsec_config.h"
 
 /* system and io */
 #include <stdlib.h>
@@ -19,21 +19,21 @@
 #include <cblas.h>
 #include <lapacke.h>
 #include <core_blas.h>
-/* dague things */
-#include "dague.h"
-#include "dague/profiling.h"
-#include "dague/dague_internal.h"
+/* parsec things */
+#include "parsec.h"
+#include "parsec/profiling.h"
+#include "parsec/parsec_internal.h"
 #include "dplasma.h"
 /* timings */
 #include "common_timing.h"
-#ifdef DAGUE_VTRACE
+#ifdef PARSEC_VTRACE
 #include "vt_user.h"
 #endif
 
 #include "flops.h"
 
 /* these are globals in common.c */
-extern char *DAGUE_SCHED_NAME[];
+extern char *PARSEC_SCHED_NAME[];
 extern int unix_timestamp;
 extern char cwd[];
 
@@ -75,15 +75,15 @@ enum iparam_t {
   IPARAM_SIZEOF
 };
 
-#define DAGUE_SCHEDULER_DEFAULT 0
-#define DAGUE_SCHEDULER_LFQ 1
-#define DAGUE_SCHEDULER_LTQ 2
-#define DAGUE_SCHEDULER_AP  3
-#define DAGUE_SCHEDULER_LHQ 4
-#define DAGUE_SCHEDULER_GD  5
-#define DAGUE_SCHEDULER_PBQ 6
-#define DAGUE_SCHEDULER_IP  7
-#define DAGUE_SCHEDULER_RND 8
+#define PARSEC_SCHEDULER_DEFAULT 0
+#define PARSEC_SCHEDULER_LFQ 1
+#define PARSEC_SCHEDULER_LTQ 2
+#define PARSEC_SCHEDULER_AP  3
+#define PARSEC_SCHEDULER_LHQ 4
+#define PARSEC_SCHEDULER_GD  5
+#define PARSEC_SCHEDULER_PBQ 6
+#define PARSEC_SCHEDULER_IP  7
+#define PARSEC_SCHEDULER_RND 8
 
 void iparam_default_facto(int* iparam);
 void iparam_default_solve(int* iparam);
@@ -144,9 +144,9 @@ typedef double DagDouble_t;
  * globals values
  *******************************/
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 extern MPI_Datatype SYNCHRO;
-#endif  /* DAGUE_HAVE_MPI */
+#endif  /* PARSEC_HAVE_MPI */
 
 extern const int side[2];
 extern const int uplo[2];
@@ -161,8 +161,8 @@ extern const char *normsstr[4];
 
 void print_usage(void);
 
-dague_context_t *setup_dague(int argc, char* argv[], int *iparam);
-void cleanup_dague(dague_context_t* dague, int *iparam);
+parsec_context_t *setup_parsec(int argc, char* argv[], int *iparam);
+void cleanup_parsec(parsec_context_t* parsec, int *iparam);
 
 /**
  * No macro with the name max or min is acceptable as there is
@@ -179,23 +179,23 @@ static inline int min(int a, int b) { return a < b ? a : b; }
     TYPE##_t DDESC;                                                     \
     if(COND) {                                                          \
         TYPE##_init INIT_PARAMS;                                        \
-        DDESC.mat = dague_data_allocate((size_t)DDESC.super.nb_local_tiles * \
+        DDESC.mat = parsec_data_allocate((size_t)DDESC.super.nb_local_tiles * \
                                         (size_t)DDESC.super.bsiz *      \
-                                        (size_t)dague_datadist_getsizeoftype(DDESC.super.mtype)); \
-        dague_ddesc_set_key((dague_ddesc_t*)&DDESC, #DDESC);            \
+                                        (size_t)parsec_datadist_getsizeoftype(DDESC.super.mtype)); \
+        parsec_ddesc_set_key((parsec_ddesc_t*)&DDESC, #DDESC);            \
     }
 
-#define PASTE_CODE_ENQUEUE_KERNEL(DAGUE, KERNEL, PARAMS)                \
+#define PASTE_CODE_ENQUEUE_KERNEL(PARSEC, KERNEL, PARAMS)                \
     SYNC_TIME_START();                                                  \
-    dague_handle_t* DAGUE_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
-    dague_enqueue(DAGUE, DAGUE_##KERNEL);                               \
+    parsec_handle_t* PARSEC_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
+    parsec_enqueue(PARSEC, PARSEC_##KERNEL);                               \
     if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
 
-#define PASTE_CODE_PROGRESS_KERNEL(DAGUE, KERNEL)                       \
+#define PASTE_CODE_PROGRESS_KERNEL(PARSEC, KERNEL)                       \
     SYNC_TIME_START();                                                  \
     TIME_START();                                                       \
-    dague_context_wait(DAGUE);                                          \
+    parsec_context_wait(PARSEC);                                          \
     SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \
                            P, Q, NB, N,                                 \
                            gflops=(flops/1e9)/sync_time_elapsed));      \

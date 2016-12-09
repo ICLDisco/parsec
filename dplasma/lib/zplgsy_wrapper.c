@@ -14,13 +14,13 @@
 #include "map.h"
 
 struct zplgsy_args_s {
-    dague_complex64_t      bump;
+    parsec_complex64_t      bump;
     unsigned long long int seed;
 };
 typedef struct zplgsy_args_s zplgsy_args_t;
 
 static int
-dplasma_zplgsy_operator( dague_execution_unit_t *eu,
+dplasma_zplgsy_operator( parsec_execution_unit_t *eu,
                          const tiled_matrix_desc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
@@ -28,7 +28,7 @@ dplasma_zplgsy_operator( dague_execution_unit_t *eu,
 {
     int tempmm, tempnn, ldam;
     zplgsy_args_t     *args = (zplgsy_args_t*)op_data;
-    dague_complex64_t *A    = (dague_complex64_t*)_A;
+    parsec_complex64_t *A    = (parsec_complex64_t*)_A;
     (void)eu;
     (void)uplo;
 
@@ -79,8 +79,8 @@ dplasma_zplgsy_operator( dague_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zplgsy_Destruct();
  *
  *******************************************************************************
@@ -92,8 +92,8 @@ dplasma_zplgsy_operator( dague_execution_unit_t *eu,
  * @sa dplasma_splgsy_New
 *
  ******************************************************************************/
-dague_handle_t*
-dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo,
+parsec_handle_t*
+dplasma_zplgsy_New( parsec_complex64_t bump, PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed)
 {
@@ -126,7 +126,7 @@ dplasma_zplgsy_New( dague_complex64_t bump, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zplgsy_Destruct( dague_handle_t *handle )
+dplasma_zplgsy_Destruct( parsec_handle_t *handle )
 {
     dplasma_map_Destruct(handle);
 }
@@ -142,8 +142,8 @@ dplasma_zplgsy_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] bump
  *          The value to add to the diagonal to be sure
@@ -179,12 +179,12 @@ dplasma_zplgsy_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zplgsy( dague_context_t *dague,
-                dague_complex64_t bump, PLASMA_enum uplo,
+dplasma_zplgsy( parsec_context_t *parsec,
+                parsec_complex64_t bump, PLASMA_enum uplo,
                 tiled_matrix_desc_t *A,
                 unsigned long long int seed)
 {
-    dague_handle_t *dague_zplgsy = NULL;
+    parsec_handle_t *parsec_zplgsy = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -195,12 +195,12 @@ dplasma_zplgsy( dague_context_t *dague,
         return -3;
     }
 
-    dague_zplgsy = dplasma_zplgsy_New( bump, uplo, A, seed );
+    parsec_zplgsy = dplasma_zplgsy_New( bump, uplo, A, seed );
 
-    if ( dague_zplgsy != NULL ) {
-        dague_enqueue(dague, (dague_handle_t*)dague_zplgsy);
-        dplasma_progress(dague);
-        dplasma_zplgsy_Destruct( dague_zplgsy );
+    if ( parsec_zplgsy != NULL ) {
+        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplgsy);
+        dplasma_progress(parsec);
+        dplasma_zplgsy_Destruct( parsec_zplgsy );
     }
     return 0;
 }

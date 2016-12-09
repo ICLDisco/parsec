@@ -29,8 +29,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of A is referenced;
@@ -61,7 +61,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zposv( dague_context_t *dague,
+dplasma_zposv( parsec_context_t *parsec,
                PLASMA_enum uplo,
                tiled_matrix_desc_t *A,
                tiled_matrix_desc_t *B )
@@ -74,38 +74,38 @@ dplasma_zposv( dague_context_t *dague,
         return -1;
     }
 
-#ifdef DAGUE_COMPOSITION
-    dague_handle_t *dague_ztrsm1 = NULL;
-    dague_handle_t *dague_ztrsm2 = NULL;
-    dague_handle_t *dague_zpotrf = NULL;
+#ifdef PARSEC_COMPOSITION
+    parsec_handle_t *parsec_ztrsm1 = NULL;
+    parsec_handle_t *parsec_ztrsm2 = NULL;
+    parsec_handle_t *parsec_zpotrf = NULL;
 
-    dague_zpotrf = dplasma_zpotrf_New(uplo, A, &info);
+    parsec_zpotrf = dplasma_zpotrf_New(uplo, A, &info);
     if ( uplo == PlasmaUpper ) {
-      dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);
-      dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B);
+      parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);
+      parsec_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B);
     } else {
-      dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B);
-      dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);
+      parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B);
+      parsec_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);
     }
 
-    dague_enqueue( dague, dague_zpotrf );
-    dague_enqueue( dague, dague_ztrsm1 );
-    dague_enqueue( dague, dague_ztrsm2 );
+    parsec_enqueue( parsec, parsec_zpotrf );
+    parsec_enqueue( parsec, parsec_ztrsm1 );
+    parsec_enqueue( parsec, parsec_ztrsm2 );
 
-    dplasma_progress( dague );
+    dplasma_progress( parsec );
 
-    dplasma_zpotrf_Destruct( dague_zpotrf );
-    dplasma_ztrsm_Destruct( dague_ztrsm1 );
-    dplasma_ztrsm_Destruct( dague_ztrsm2 );
+    dplasma_zpotrf_Destruct( parsec_zpotrf );
+    dplasma_ztrsm_Destruct( parsec_ztrsm1 );
+    dplasma_ztrsm_Destruct( parsec_ztrsm2 );
 #else
-    info = dplasma_zpotrf( dague, uplo, A);
+    info = dplasma_zpotrf( parsec, uplo, A);
     if ( info == 0 ) {
       if ( uplo == PlasmaUpper ) {
-        dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B );
-        dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B );
+        dplasma_ztrsm( parsec, PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B );
+        dplasma_ztrsm( parsec, PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B );
       } else {
-        dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B );
-        dplasma_ztrsm( dague, PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B );
+        dplasma_ztrsm( parsec, PlasmaLeft, uplo, PlasmaNoTrans,   PlasmaNonUnit, 1.0, A, B );
+        dplasma_ztrsm( parsec, PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B );
       }
     }
 #endif

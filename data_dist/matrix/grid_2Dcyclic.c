@@ -5,17 +5,17 @@
  */
 
 
-#include "dague_config.h"
-#include "dague.h"
+#include "parsec_config.h"
+#include "parsec.h"
 #include "grid_2Dcyclic.h"
-#include "dague/vpmap.h"
-#include "dague/debug.h"
+#include "parsec/vpmap.h"
+#include "parsec/debug.h"
 
 #include <math.h>
 #include <assert.h>
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
 
 int default_vp_data_dist();
 
@@ -57,7 +57,7 @@ int default_vp_data_dist()
         q++;
         p = pq / q;
     }
-    DAGUE_DEBUG_VERBOSE(20, dague_debug_output,  "Default data distribution between VP defined by \"pxq\" %ix%i", p, q );
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output,  "Default data distribution between VP defined by \"pxq\" %ix%i", p, q );
     return q;
 }
 

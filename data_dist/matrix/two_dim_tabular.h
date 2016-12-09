@@ -6,16 +6,16 @@
 #ifndef __TWODTD_H__
 #define __TWODTD_H__
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
 
 #include "data_dist/matrix/matrix.h"
 
 /*
  * General distribution of data.
  */
-struct dague_data_s;
+struct parsec_data_s;
 
 /*******************************************************************
  * distributed data structure and basic functionalities

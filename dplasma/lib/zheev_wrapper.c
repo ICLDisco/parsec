@@ -47,7 +47,7 @@
  * @sa dplasma_sheev_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
                   tiled_matrix_desc_t* A,
                   tiled_matrix_desc_t* W,  /* Should be removed: internal workspace as T */
@@ -77,9 +77,9 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
     }
 
     if( PlasmaLower == uplo ) {
-        dague_handle_t* zherbt_obj, * zhbrdt_obj;
-        dague_diag_band_to_rect_handle_t* band2rect_obj;
-        dague_handle_t* zheev_compound;
+        parsec_handle_t* zherbt_obj, * zhbrdt_obj;
+        parsec_diag_band_to_rect_handle_t* band2rect_obj;
+        parsec_handle_t* zheev_compound;
         sym_two_dim_block_cyclic_t* As = (sym_two_dim_block_cyclic_t*)A;
         int ib=A->nb/3;
 
@@ -87,23 +87,23 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
         two_dim_block_cyclic_init(T, matrix_ComplexDouble, matrix_Tile,
              A->super.nodes, A->super.myrank, ib, A->nb, A->mt*ib, A->n, 0, 0,
              A->mt*ib, A->n, As->grid.strows, As->grid.strows, As->grid.rows);
-        T->mat = dague_data_allocate((size_t)T->super.nb_local_tiles *
+        T->mat = parsec_data_allocate((size_t)T->super.nb_local_tiles *
                                      (size_t)T->super.bsiz *
-                                     (size_t)dague_datadist_getsizeoftype(T->super.mtype));
-        dague_ddesc_set_key((dague_ddesc_t*)T, "zheev_ddescT");
+                                     (size_t)parsec_datadist_getsizeoftype(T->super.mtype));
+        parsec_ddesc_set_key((parsec_ddesc_t*)T, "zheev_ddescT");
 
-        zherbt_obj = (dague_handle_t*)dplasma_zherbt_New( uplo, ib, A, (tiled_matrix_desc_t*)T );
-        band2rect_obj = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)A, (two_dim_block_cyclic_t*)W,
-                A->mt, A->nt, A->mb, A->nb, sizeof(dague_complex64_t));
-        zhbrdt_obj = (dague_handle_t*)dplasma_zhbrdt_New(W);
-        zheev_compound = dague_compose( zherbt_obj, (dague_handle_t*)band2rect_obj );
-        zheev_compound = dague_compose( zheev_compound, zhbrdt_obj );
+        zherbt_obj = (parsec_handle_t*)dplasma_zherbt_New( uplo, ib, A, (tiled_matrix_desc_t*)T );
+        band2rect_obj = parsec_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)A, (two_dim_block_cyclic_t*)W,
+                A->mt, A->nt, A->mb, A->nb, sizeof(parsec_complex64_t));
+        zhbrdt_obj = (parsec_handle_t*)dplasma_zhbrdt_New(W);
+        zheev_compound = parsec_compose( zherbt_obj, (parsec_handle_t*)band2rect_obj );
+        zheev_compound = parsec_compose( zheev_compound, zhbrdt_obj );
 
-        dague_arena_t* arena = band2rect_obj->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
+        parsec_arena_t* arena = band2rect_obj->arenas[PARSEC_diag_band_to_rect_DEFAULT_ARENA];
         dplasma_add2arena_tile(arena,
-                               A->mb*A->nb*sizeof(dague_complex64_t),
-                               DAGUE_ARENA_ALIGNMENT_SSE,
-                               dague_datatype_double_complex_t, A->mb);
+                               A->mb*A->nb*sizeof(parsec_complex64_t),
+                               PARSEC_ARENA_ALIGNMENT_SSE,
+                               parsec_datatype_double_complex_t, A->mb);
 
         return zheev_compound;
     }
@@ -135,16 +135,16 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zheev_Destruct( dague_handle_t *handle )
+dplasma_zheev_Destruct( parsec_handle_t *handle )
 {
 #if 0
     two_dim_block_cyclic_t* T = ???
-    dague_data_free(T->mat);
+    parsec_data_free(T->mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)T); free(T);
 
-    dague_matrix_del2arena( ((dague_diag_band_to_rect_handle_t *)handle)->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( ((parsec_diag_band_to_rect_handle_t *)handle)->arenas[PARSEC_diag_band_to_rect_DEFAULT_ARENA] );
 #endif
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -156,8 +156,8 @@ dplasma_zheev_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * COPY OF NEW INTERFACE
  *
@@ -175,13 +175,13 @@ dplasma_zheev_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zheev( dague_context_t *dague,
+dplasma_zheev( parsec_context_t *parsec,
                PLASMA_enum jobz, PLASMA_enum uplo,
                tiled_matrix_desc_t* A,
                tiled_matrix_desc_t* W, /* Should be removed */
                tiled_matrix_desc_t* Z )
 {
-    dague_handle_t *dague_zheev = NULL;
+    parsec_handle_t *parsec_zheev = NULL;
     int info = 0;
 
     /* Check input arguments */
@@ -194,13 +194,13 @@ dplasma_zheev( dague_context_t *dague,
         return -2;
     }
 
-    dague_zheev = dplasma_zheev_New( jobz, uplo, A, W, Z, &info );
+    parsec_zheev = dplasma_zheev_New( jobz, uplo, A, W, Z, &info );
 
-    if ( dague_zheev != NULL )
+    if ( parsec_zheev != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_zheev);
-        dplasma_progress(dague);
-        dplasma_zheev_Destruct( dague_zheev );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zheev);
+        dplasma_progress(parsec);
+        dplasma_zheev_Destruct( parsec_zheev );
         return info;
     }
     else {

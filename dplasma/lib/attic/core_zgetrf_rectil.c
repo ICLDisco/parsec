@@ -23,19 +23,19 @@
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
-#define A( _m_ ) (((dague_ddesc_t*)A)->data_of((dague_ddesc_t*)A, (_m_), 0))
+#define A( _m_ ) (((parsec_ddesc_t*)A)->data_of((parsec_ddesc_t*)A, (_m_), 0))
 
-static inline int dague_imin(int a, int b) { return (a <= b) ? a : b; };
+static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };
 
 static inline void
-dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
+dplasmacore_zgetrf_rectil_rec(volatile parsec_complex64_t *amax1buf,
                        const tiled_matrix_desc_t *A, int *IPIV, int *info,
-                       dague_complex64_t *pivot,
+                       parsec_complex64_t *pivot,
                        const int thidx,  const int thcnt,
                        const int column, const int width,
                        const int ft,     const int lt);
 static void
-dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
+dplasmacore_zgetrf_rectil_update(volatile parsec_complex64_t *amax1buf,
                           const tiled_matrix_desc_t *A, int *IPIV,
                           const int column, const int n1,     const int n2,
                           const int thidx,  const int thcnt,
@@ -43,7 +43,7 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
 
 /***************************************************************************//**
  *
- * @ingroup dplasmacore_dague_complex64_t
+ * @ingroup dplasmacore_parsec_complex64_t
  *
  *  dplasmacore_zgetrf_rectil computes a LU factorization of a general M-by-N
  *  matrix A stored in CCRB layout using partial pivoting with row
@@ -105,14 +105,14 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
  *                  to solve a system of equations.
  *
  */
-int dplasmacore_zgetrf_rectil(volatile dague_complex64_t *amax1buf,
+int dplasmacore_zgetrf_rectil(volatile parsec_complex64_t *amax1buf,
                               const tiled_matrix_desc_t *A, int *IPIV, int *info)
 {
     int ft, lt;
     int thidx = info[1];
-    int thcnt = dague_imin( info[2], A->mt );
-    int minMN = dague_imin( A->m, A->n );
-    dague_complex64_t pivot;
+    int thcnt = parsec_imin( info[2], A->mt );
+    int minMN = parsec_imin( A->m, A->n );
+    parsec_complex64_t pivot;
 
     info[0] = 0;
     info[2] = thcnt;
@@ -136,7 +136,7 @@ int dplasmacore_zgetrf_rectil(volatile dague_complex64_t *amax1buf,
     } else {
         ft = r * (q + 1) + (thidx - r) * q;
         lt = ft + q;
-        lt = dague_imin( lt, A->mt );
+        lt = parsec_imin( lt, A->mt );
     }
 
     dplasmacore_zgetrf_rectil_rec( amax1buf, A, IPIV, info, &pivot,
@@ -164,16 +164,16 @@ dplasmacore_zgetrf_rectil_init(void)
 }
 
 static void
-dplasmacore_zamax1_thread(volatile dague_complex64_t *amax1buf,
-                   dague_complex64_t localamx,
+dplasmacore_zamax1_thread(volatile parsec_complex64_t *amax1buf,
+                   parsec_complex64_t localamx,
                    int thidx, int thcnt, int *thwinner,
-                   dague_complex64_t *diagvalue,
-                   dague_complex64_t *globalamx,
+                   parsec_complex64_t *diagvalue,
+                   parsec_complex64_t *globalamx,
                    int pividx, int *ipiv)
 {
     if (thidx == 0) {
         int i, j = 0;
-        dague_complex64_t curval = localamx, tmp;
+        parsec_complex64_t curval = localamx, tmp;
         double curamx = cabs(localamx);
 
         /* make sure everybody filled in their value */
@@ -236,19 +236,19 @@ dplasmacore_zamax1_thread(volatile dague_complex64_t *amax1buf,
 }
 
 static void
-dplasmacore_zbarrier_thread(volatile dague_complex64_t *amax1buf,
+dplasmacore_zbarrier_thread(volatile parsec_complex64_t *amax1buf,
                      const int thidx,
                      const int thcnt)
 {
     int idum1, idum2;
-    dague_complex64_t ddum1 = 0.;
-    dague_complex64_t ddum2 = 0.;
+    parsec_complex64_t ddum1 = 0.;
+    parsec_complex64_t ddum2 = 0.;
     /* it's probably faster to implement a dedicated barrier */
     dplasmacore_zamax1_thread( amax1buf, 1.0, thidx, thcnt, &idum1, &ddum1, &ddum2, 0, &idum2 );
 }
 
 static inline void
-dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
+dplasmacore_zgetrf_rectil_update(volatile parsec_complex64_t *amax1buf,
                           const tiled_matrix_desc_t *A, int *IPIV,
                           const int column, const int n1,     const int n2,
                           const int thidx,  const int thcnt,
@@ -256,9 +256,9 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
 {
     int ld, lm, tmpM;
     int ip, j, it, i, ldft;
-    dague_complex64_t zone  = 1.0;
-    dague_complex64_t mzone = -1.0;
-    dague_complex64_t *Atop, *Atop2, *U, *L;
+    parsec_complex64_t zone  = 1.0;
+    parsec_complex64_t mzone = -1.0;
+    parsec_complex64_t *Atop, *Atop2, *U, *L;
     int offset = A->i;
 
     ldft = BLKLDD(*A, 0);
@@ -295,7 +295,7 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
 
         /* First tile */
         L = Atop + column + n1;
-        tmpM = dague_imin(ldft, A->m) - column - n1;
+        tmpM = parsec_imin(ldft, A->m) - column - n1;
 
         /* Apply the GEMM */
         cblas_zgemm( CblasColMajor, CblasNoTrans, CblasNoTrans,
@@ -343,9 +343,9 @@ dplasmacore_zgetrf_rectil_update(volatile dague_complex64_t *amax1buf,
 }
 
 static void
-dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
+dplasmacore_zgetrf_rectil_rec(volatile parsec_complex64_t *amax1buf,
                               const tiled_matrix_desc_t *A, int *IPIV, int *info,
-                              dague_complex64_t *pivot,
+                              parsec_complex64_t *pivot,
                               const int thidx,  const int thcnt,
                               const int column, const int width,
                               const int ft,     const int lt)
@@ -353,12 +353,12 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
     int ld, jp, n1, n2, lm, tmpM, piv_sf;
     int ip, j, it, i, ldft;
     int max_i, max_it, thwin;
-    dague_complex64_t zone  = 1.0;
-    dague_complex64_t mzone = -1.0;
-    dague_complex64_t tmp1;
-    dague_complex64_t tmp2;
-    dague_complex64_t pivval;
-    dague_complex64_t *Atop, *Atop2, *U, *L;
+    parsec_complex64_t zone  = 1.0;
+    parsec_complex64_t mzone = -1.0;
+    parsec_complex64_t tmp1;
+    parsec_complex64_t tmp2;
+    parsec_complex64_t pivval;
+    parsec_complex64_t *Atop, *Atop2, *U, *L;
     double             abstmp1;
     int offset = A->i;
 
@@ -366,7 +366,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
     Atop = A(0) + column * ldft;
 
     if ( width > 1 ) {
-        /* Assumption: N = dague_imin( M, N ); */
+        /* Assumption: N = parsec_imin( M, N ); */
         n1 = width / 2;
         n2 = width - n1;
 
@@ -420,7 +420,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
             /* First tile */
             {
                 L = Atop + column + n1;
-                tmpM = dague_imin(ldft, A->m) - column - n1;
+                tmpM = parsec_imin(ldft, A->m) - column - n1;
 
                 /* Scale last column of L */
                 if ( piv_sf ) {
@@ -621,7 +621,7 @@ dplasmacore_zgetrf_rectil_rec(volatile dague_complex64_t *amax1buf,
         dplasmacore_zbarrier_thread( amax1buf, thidx, thcnt );
 
         /* If it is the last column, we just scale */
-        if ( column == (dague_imin(A->m, A->n))-1 ) {
+        if ( column == (parsec_imin(A->m, A->n))-1 ) {
 
             pivval = *pivot;
             if ( pivval != 0.0 ) {

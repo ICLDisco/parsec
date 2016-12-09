@@ -53,8 +53,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zpoinv_Destruct();
  *
  *******************************************************************************
@@ -66,13 +66,13 @@
  * @sa dplasma_spoinv_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zpoinv_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
                     int *info )
 {
-    dague_zpoinv_L_handle_t *dague_zpoinv = NULL;
-    dague_handle_t *handle = NULL;
+    parsec_zpoinv_L_handle_t *parsec_zpoinv = NULL;
+    parsec_handle_t *handle = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaUpper) && (uplo != PlasmaLower)) {
@@ -82,29 +82,29 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        handle = (dague_handle_t*)dague_zpoinv_U_new( A /*, info */);
+        handle = (parsec_handle_t*)parsec_zpoinv_U_new( A /*, info */);
 
         /* Upper part of A with diagonal part */
-        /* dplasma_add2arena_upper( ((dague_zpoinv_U_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_U_UPPER_TILE_ARENA], */
-        /*                          A->mb*A->nb*sizeof(dague_complex64_t), */
-        /*                          DAGUE_ARENA_ALIGNMENT_SSE, */
-        /*                          dague_datatype_double_complex_t, A->mb, 1 ); */
+        /* dplasma_add2arena_upper( ((parsec_zpoinv_U_handle_t*)parsec_poinv)->arenas[PARSEC_zpoinv_U_UPPER_TILE_ARENA], */
+        /*                          A->mb*A->nb*sizeof(parsec_complex64_t), */
+        /*                          PARSEC_ARENA_ALIGNMENT_SSE, */
+        /*                          parsec_datatype_double_complex_t, A->mb, 1 ); */
     } else {
-        handle = (dague_handle_t*)dague_zpoinv_L_new( A /*, info */);
+        handle = (parsec_handle_t*)parsec_zpoinv_L_new( A /*, info */);
 
         /* Lower part of A with diagonal part */
-        /* dplasma_add2arena_lower( ((dague_zpoinv_L_handle_t*)dague_poinv)->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA], */
-        /*                          A->mb*A->nb*sizeof(dague_complex64_t), */
-        /*                          DAGUE_ARENA_ALIGNMENT_SSE, */
-        /*                          dague_datatype_double_complex_t, A->mb, 1 ); */
+        /* dplasma_add2arena_lower( ((parsec_zpoinv_L_handle_t*)parsec_poinv)->arenas[PARSEC_zpoinv_L_LOWER_TILE_ARENA], */
+        /*                          A->mb*A->nb*sizeof(parsec_complex64_t), */
+        /*                          PARSEC_ARENA_ALIGNMENT_SSE, */
+        /*                          parsec_datatype_double_complex_t, A->mb, 1 ); */
     }
 
-    dague_zpoinv = (dague_zpoinv_L_handle_t*)handle;
+    parsec_zpoinv = (parsec_zpoinv_L_handle_t*)handle;
 
-    dplasma_add2arena_tile( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( parsec_zpoinv->arenas[PARSEC_zpoinv_L_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     return handle;
 }
@@ -130,13 +130,13 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zpoinv_Destruct( dague_handle_t *handle )
+dplasma_zpoinv_Destruct( parsec_handle_t *handle )
 {
-    dague_zpoinv_L_handle_t *dague_zpoinv = (dague_zpoinv_L_handle_t *)handle;
+    parsec_zpoinv_L_handle_t *parsec_zpoinv = (parsec_zpoinv_L_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_DEFAULT_ARENA   ] );
-    /* dague_matrix_del2arena( dague_zpoinv->arenas[DAGUE_zpoinv_L_LOWER_TILE_ARENA] ); */
-    dague_handle_free(handle);
+    parsec_matrix_del2arena( parsec_zpoinv->arenas[PARSEC_zpoinv_L_DEFAULT_ARENA   ] );
+    /* parsec_matrix_del2arena( parsec_zpoinv->arenas[PARSEC_zpoinv_L_LOWER_TILE_ARENA] ); */
+    parsec_handle_free(handle);
 }
 
 /**
@@ -149,8 +149,8 @@ dplasma_zpoinv_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of A is referenced;
@@ -181,23 +181,23 @@ dplasma_zpoinv_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zpoinv( dague_context_t *dague,
+dplasma_zpoinv( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t *A )
 {
-    dague_handle_t *dague_zpoinv = NULL;
+    parsec_handle_t *parsec_zpoinv = NULL;
     int info = 0, ginfo = 0 ;
 
-    dague_zpoinv = dplasma_zpoinv_New( uplo, A, &info );
+    parsec_zpoinv = dplasma_zpoinv_New( uplo, A, &info );
 
-    if ( dague_zpoinv != NULL )
+    if ( parsec_zpoinv != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_zpoinv);
-        dplasma_progress(dague);
-        dplasma_zpoinv_Destruct( dague_zpoinv );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpoinv);
+        dplasma_progress(parsec);
+        dplasma_zpoinv_Destruct( parsec_zpoinv );
     }
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;
@@ -218,8 +218,8 @@ dplasma_zpoinv( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of A is referenced;
@@ -250,7 +250,7 @@ dplasma_zpoinv( dague_context_t *dague,
  *
  ******************************************************************************/
 int
-dplasma_zpoinv_sync( dague_context_t *dague,
+dplasma_zpoinv_sync( parsec_context_t *parsec,
                      PLASMA_enum uplo,
                      tiled_matrix_desc_t* A )
 {
@@ -261,9 +261,9 @@ dplasma_zpoinv_sync( dague_context_t *dague,
         return -1;
     }
 
-    info = dplasma_zpotrf( dague, uplo, A );
-    info = dplasma_ztrtri( dague, uplo, PlasmaNonUnit, A );
-    dplasma_zlauum( dague, uplo, A );
+    info = dplasma_zpotrf( parsec, uplo, A );
+    info = dplasma_ztrtri( parsec, uplo, PlasmaNonUnit, A );
+    dplasma_zlauum( parsec, uplo, A );
 
     return info;
 }

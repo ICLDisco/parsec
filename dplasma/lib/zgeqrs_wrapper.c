@@ -21,8 +21,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-N factorized with the
@@ -58,7 +58,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zgeqrs( dague_context_t *dague,
+dplasma_zgeqrs( parsec_context_t *parsec,
                 tiled_matrix_desc_t* A,
                 tiled_matrix_desc_t* T,
                 tiled_matrix_desc_t* B )
@@ -83,26 +83,26 @@ dplasma_zgeqrs( dague_context_t *dague,
     subA = tiled_matrix_submatrix( A, 0, 0, A->n, A->n );
     subB = tiled_matrix_submatrix( B, 0, 0, A->n, B->n );
 
-#ifdef DAGUE_COMPOSITION
+#ifdef PARSEC_COMPOSITION
 
-    dague_handle_t *dague_zunmqr = NULL;
-    dague_handle_t *dague_ztrsm  = NULL;
+    parsec_handle_t *parsec_zunmqr = NULL;
+    parsec_handle_t *parsec_ztrsm  = NULL;
 
-    dague_zunmqr = dplasma_zunmqr_New( PlasmaLeft, PlasmaConjTrans, A, T, B );
-    dague_ztrsm  = dplasma_ztrsm_New(  PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
+    parsec_zunmqr = dplasma_zunmqr_New( PlasmaLeft, PlasmaConjTrans, A, T, B );
+    parsec_ztrsm  = dplasma_ztrsm_New(  PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
 
-    dague_enqueue( dague, dague_zunmqr );
-    dague_enqueue( dague, dague_ztrsm );
+    parsec_enqueue( parsec, parsec_zunmqr );
+    parsec_enqueue( parsec, parsec_ztrsm );
 
-    dplasma_progress( dague );
+    dplasma_progress( parsec );
 
-    dplasma_zunmqr_Destruct( dague_zunmqr );
-    dplasma_ztrsm_Destruct( dague_ztrsm );
+    dplasma_zunmqr_Destruct( parsec_zunmqr );
+    dplasma_ztrsm_Destruct( parsec_ztrsm );
 
 #else
 
-    dplasma_zunmqr( dague, PlasmaLeft, PlasmaConjTrans, A, T, B );
-    dplasma_ztrsm(  dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
+    dplasma_zunmqr( parsec, PlasmaLeft, PlasmaConjTrans, A, T, B );
+    dplasma_ztrsm(  parsec, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
 
 #endif
 

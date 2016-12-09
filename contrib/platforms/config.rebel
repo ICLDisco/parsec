@@ -24,9 +24,9 @@ PLASMA_DIR=${PLASMA_DIR:="/workspace/parsec_dep/plasma-installer_2.5.0b1/install
 # Options passed on the command line are appended to this variable
 USER_OPTIONS+=" -DPLASMA_DIR=/workspace/parsec_dep/plasma-installer_2.5.0b1/install" 
 
-USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
-USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
-USER_OPTIONS+=" -DDAGUE_PROF_TRACE=ON"
+USER_OPTIONS+=" -DPARSEC_DIST_WITH_MPI=OFF"
+USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF"
+USER_OPTIONS+=" -DPARSEC_PROF_TRACE=ON"
 USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 
 

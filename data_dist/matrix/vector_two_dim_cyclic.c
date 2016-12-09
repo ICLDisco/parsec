@@ -4,27 +4,27 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#include "dague/dague_internal.h"
-#include "dague/debug.h"
+#include "parsec_config.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/vector_two_dim_cyclic.h"
-#include "dague/vpmap.h"
+#include "parsec/vpmap.h"
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
 
-static uint32_t vector_twoDBC_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t  vector_twoDBC_vpid_of(dague_ddesc_t* ddesc, ...);
-static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t* ddesc, ...);
+static uint32_t vector_twoDBC_rank_of(parsec_ddesc_t* ddesc, ...);
+static int32_t  vector_twoDBC_vpid_of(parsec_ddesc_t* ddesc, ...);
+static parsec_data_t* vector_twoDBC_data_of(parsec_ddesc_t* ddesc, ...);
 
-#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
-static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...);
-#endif /* defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA) */
+#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
+static uint32_t vector_twoDBC_data_key(struct parsec_ddesc_s *desc, ...);
+#endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) */
 
-#if defined(DAGUE_PROF_TRACE)
-static int      vector_twoDBC_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+#if defined(PARSEC_PROF_TRACE)
+static int      vector_twoDBC_key_to_string(struct parsec_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
 static inline int gcd(int a, int b){
@@ -54,7 +54,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
                                  int P )
 {
     int Q;
-    dague_ddesc_t *o = &(Ddesc->super.super);
+    parsec_ddesc_t *o = &(Ddesc->super.super);
 
     /* Initialize the tiled_matrix descriptor */
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile, two_dim_block_cyclic_type,
@@ -63,10 +63,10 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     Ddesc->mat = NULL;  /* No data associated with the vector yet */
 
     if(nodes < P)
-        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
+        parsec_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
     Q = nodes / P;
     if(nodes != P*Q)
-        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
+        parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
 
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
 
@@ -137,18 +137,18 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     o->vpid_of = vector_twoDBC_vpid_of;
     o->data_of = vector_twoDBC_data_of;
 
-#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
+#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
     o->data_key      = vector_twoDBC_data_key;
 #endif
-#if defined(DAGUE_PROF_TRACE)
+#if defined(PARSEC_PROF_TRACE)
     o->key_to_string = vector_twoDBC_key_to_string;
     o->key_dim       = NULL;
     o->key           = NULL;
     asprintf(&(o->key_dim), "(%d)", Ddesc->super.lmt);
 #endif
-    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
+    Ddesc->super.data_map = (parsec_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(parsec_data_t*));
 
-    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "vector_two_dim_cyclic_init: \n"
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "vector_two_dim_cyclic_init: \n"
             "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
             "      nrst = %d, ncst = %d, P = %d, Q = %d",
@@ -167,7 +167,7 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
  * Set of functions with no super-tiles
  *
  */
-static uint32_t vector_twoDBC_rank_of(dague_ddesc_t * desc, ...)
+static uint32_t vector_twoDBC_rank_of(parsec_ddesc_t * desc, ...)
 {
     unsigned int m;
     unsigned int rr = 0;
@@ -197,7 +197,7 @@ static uint32_t vector_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     return res;
 }
 
-static int32_t vector_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
+static int32_t vector_twoDBC_vpid_of(parsec_ddesc_t *desc, ...)
 {
     int m, p, q, pq;
     int local_m = 0;
@@ -241,7 +241,7 @@ static int32_t vector_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
-static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
+static parsec_data_t* vector_twoDBC_data_of(parsec_ddesc_t *desc, ...)
 {
     int m;
     size_t pos;
@@ -268,8 +268,8 @@ static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
     local_m = m / Ddesc->lcm;
     pos = local_m * Ddesc->super.mb;
 
-    pos *= dague_datadist_getsizeoftype(Ddesc->super.mtype);
-    return dague_matrix_create_data(&Ddesc->super,
+    pos *= parsec_datadist_getsizeoftype(Ddesc->super.mtype);
+    return parsec_matrix_create_data(&Ddesc->super,
                                     (char*)Ddesc->mat + pos,
                                     local_m, m);
 }
@@ -277,9 +277,9 @@ static dague_data_t* vector_twoDBC_data_of(dague_ddesc_t *desc, ...)
 /*
  * Common functions
  */
-#if defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA)
-/* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...)
+#if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
+/* return a unique key (unique only for the specified parsec_ddesc) associated to a data */
+static uint32_t vector_twoDBC_data_key(struct parsec_ddesc_s *desc, ...)
 {
     unsigned int m;
     vector_two_dim_cyclic_t * Ddesc;
@@ -296,11 +296,11 @@ static uint32_t vector_twoDBC_data_key(struct dague_ddesc_s *desc, ...)
 
     return m;
 }
-#endif /* defined(DAGUE_PROF_TRACE) || defined(DAGUE_HAVE_CUDA) */
+#endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) */
 
-#if defined(DAGUE_PROF_TRACE)
+#if defined(PARSEC_PROF_TRACE)
 /* return a string meaningful for profiling about data */
-static int  vector_twoDBC_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int  vector_twoDBC_key_to_string(struct parsec_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
     int res;
     (void)desc;
@@ -312,4 +312,4 @@ static int  vector_twoDBC_key_to_string(struct dague_ddesc_s * desc, uint32_t da
     }
     return res;
 }
-#endif /* DAGUE_PROF_TRACE */
+#endif /* PARSEC_PROF_TRACE */

@@ -70,15 +70,15 @@
  *     high level tree to reduce communications.
  *     These lines are defined by (i-k)/p = 0.
  */
-#include "dague.h"
+#include "parsec.h"
 #include "dplasma.h"
 #include "dplasmatypes.h"
 #include "dplasmaaux.h"
 
 #include <math.h>
-#if defined(DAGUE_HAVE_STRING_H)
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
 
 /* static int dplasma_qrtree_getinon0( const qr_piv_t *arg,  */
 /*                                 const int k, int i, int mt ); */

@@ -1,28 +1,28 @@
 extern "C" %{
 #include "tree_dist.h"
-#include "dague/sys/atomic.h"
+#include "parsec/sys/atomic.h"
 
-struct __dague_walk_internal_handle;
-struct __dague_walk_UP_assignment_s;
-struct __dague_walk_DOWN_assignment_s;
-struct __dague_walk_DO_DOWN_assignment_s;
-struct __dague_walk_DOWN_task_s;
+struct __parsec_walk_internal_handle;
+struct __parsec_walk_UP_assignment_s;
+struct __parsec_walk_DOWN_assignment_s;
+struct __parsec_walk_DO_DOWN_assignment_s;
+struct __parsec_walk_DOWN_task_s;
 
-static uint64_t up_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
-                        struct __dague_walk_UP_assignment_s * assignments);
-static uint64_t down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
-                          struct __dague_walk_DOWN_assignment_s * assignments);
-static uint64_t do_down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
-                             struct __dague_walk_DO_DOWN_assignment_s * assignments);
-static uint32_t undetermined_nb_tasks(struct __dague_walk_internal_handle_s *__dague_handle);
+static uint64_t up_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+                        struct __parsec_walk_UP_assignment_s * assignments);
+static uint64_t down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+                          struct __parsec_walk_DOWN_assignment_s * assignments);
+static uint64_t do_down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+                             struct __parsec_walk_DO_DOWN_assignment_s * assignments);
+static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_handle_s *__parsec_handle);
 
-static void               *my_alloc_deps(struct __dague_walk_internal_handle_s *__dague_handle);
-static void                my_free_deps(struct __dague_walk_internal_handle_s *__dague_handle, void *deps);
-static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
-                                        const dague_execution_context_t* restrict exec_context);
+static void               *my_alloc_deps(struct __parsec_walk_internal_handle_s *__parsec_handle);
+static void                my_free_deps(struct __parsec_walk_internal_handle_s *__parsec_handle, void *deps);
+static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
+                                        const parsec_execution_context_t* restrict exec_context);
 
-static int my_walk_startup(dague_execution_unit_t * eu,
-                           struct __dague_walk_DOWN_task_s * this_task);
+static int my_walk_startup(parsec_execution_unit_t * eu,
+                           struct __parsec_walk_DOWN_task_s * this_task);
 #include "walk_utils.h"
 %}
 
@@ -30,9 +30,9 @@ static int my_walk_startup(dague_execution_unit_t * eu,
 
 // These are global variables that are instanciated in the main.c
 tree               [type = "tree_dist_t *"]
-// The only type known to parsec is dague_ddesc_t
+// The only type known to parsec is parsec_ddesc_t
 NP                 [type = "int"]
-fakeDesc           [type = "dague_ddesc_t *"]
+fakeDesc           [type = "parsec_ddesc_t *"]
 on_fct_param       [type = "void*"]
 on_node_down       [type = "walk_fn_t"]
 on_node_up         [type = "walk_fn_t"]
@@ -47,7 +47,7 @@ CTL RL <- RL UP(0, 0)
 
 BODY
 {
-    __dague_handle->super.super.nb_tasks = 0; /** We are now DONE ! **/
+    __parsec_handle->super.super.nb_tasks = 0; /** We are now DONE ! **/
     if( verbose ) {
         fprintf(stderr, "Rank %d in BCAST_UP\n", rank);
     }
@@ -103,7 +103,7 @@ BODY
     /* The root node has to delete all remaining tasks*/
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
+        int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
         fprintf(stderr, "CALLING UP(%d, %d) on rank %d\n", n, l, rank);
     }
     if( NULL != on_node_up ) {
@@ -151,13 +151,13 @@ CTL RL      <- (n > 0) ? RL DOWN(n-1, l/2)
 BODY
 {
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
+        int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
         fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
     if( tree_dist_lookup_node(tree, n, l) == -1 ) {
         if( verbose ) {
-            int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
+            int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
             fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);
         }
         this_task->locals.node_exists.value = 0;
@@ -183,7 +183,7 @@ BODY
 {
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((dague_ddesc_t*)__dague_handle->super._g_tree)->rank_of((dague_ddesc_t*)__dague_handle->super._g_tree, n, l));
+        int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
         fprintf(stderr, "CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -199,38 +199,38 @@ static uint64_t my_simple_tree_hash(int n, int l)
     return (((uint64_t)n) << 32) | ((uint64_t)l);
 }
 
-static uint64_t up_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
-                        struct __dague_walk_UP_assignment_s * assignments)
+static uint64_t up_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+                        struct __parsec_walk_UP_assignment_s * assignments)
 {
-    (void)__dague_handle;
+    (void)__parsec_handle;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
-                          struct __dague_walk_DOWN_assignment_s * assignments)
+static uint64_t down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+                          struct __parsec_walk_DOWN_assignment_s * assignments)
 {
-    (void)__dague_handle;
+    (void)__parsec_handle;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t do_down_hash(const struct __dague_walk_internal_handle_s * __dague_handle,
-                             struct __dague_walk_DO_DOWN_assignment_s * assignments)
+static uint64_t do_down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+                             struct __parsec_walk_DO_DOWN_assignment_s * assignments)
 {
-    (void)__dague_handle;
+    (void)__parsec_handle;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
  
-static uint32_t undetermined_nb_tasks(struct __dague_walk_internal_handle_s *__dague_handle)
+static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_handle_s *__parsec_handle)
 {
-    (void)__dague_handle;
-    return DAGUE_UNDETERMINED_NB_TASKS;
+    (void)__parsec_handle;
+    return PARSEC_UNDETERMINED_NB_TASKS;
 }
 
 typedef struct {
     int n;
     int l;
-    dague_dependency_t dep;
+    parsec_dependency_t dep;
 } simple_hash_entry_t;
 
 typedef struct {
@@ -239,10 +239,10 @@ typedef struct {
     simple_hash_entry_t **buckets;
 } simple_hash_t;
 
-static void               *my_alloc_deps(struct __dague_walk_internal_handle_s *__dague_handle)
+static void               *my_alloc_deps(struct __parsec_walk_internal_handle_s *__parsec_handle)
 {
     simple_hash_t *sh;
-    (void)__dague_handle;
+    (void)__parsec_handle;
     sh = (simple_hash_t*)malloc(sizeof(simple_hash_t));
     sh->size = 6000;
     sh->used = 0;
@@ -250,11 +250,11 @@ static void               *my_alloc_deps(struct __dague_walk_internal_handle_s *
     return (void*)sh;
 }
 
-static void                my_free_deps(struct __dague_walk_internal_handle_s *__dague_handle, void *deps)
+static void                my_free_deps(struct __parsec_walk_internal_handle_s *__parsec_handle, void *deps)
 {
     simple_hash_t *sh;
     int i;
-    (void)__dague_handle;
+    (void)__parsec_handle;
     sh = (simple_hash_t*)deps;
     for(i = 0; i < sh->size; i++)
         if( sh->buckets[i] !=  NULL )
@@ -263,8 +263,8 @@ static void                my_free_deps(struct __dague_walk_internal_handle_s *_
     free(sh);
 }
 
-static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
-                                        const dague_execution_context_t* restrict exec_context)
+static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
+                                        const parsec_execution_context_t* restrict exec_context)
 {
     simple_hash_t *sh;
     simple_hash_entry_t *ne = NULL;
@@ -274,7 +274,7 @@ static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
     n = exec_context->locals[0].value;
     l = exec_context->locals[1].value;
     
-    sh = (simple_hash_t*)dague_handle->dependencies_array[ exec_context->function->function_id ];
+    sh = (simple_hash_t*)parsec_handle->dependencies_array[ exec_context->function->function_id ];
     p = my_simple_tree_hash(n, l) % sh->size;
     for(i = p; i != p-1; i = ((i+1) % sh->size)) {
         if( NULL == sh->buckets[i] ) {
@@ -283,9 +283,9 @@ static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
                 ne = (simple_hash_entry_t*)malloc(sizeof(simple_hash_entry_t));
                 ne->n = n;
                 ne->l = l;
-                ne->dep = (dague_dependency_t)0;
+                ne->dep = (parsec_dependency_t)0;
             }
-            if( dague_atomic_cas(&sh->buckets[i], NULL, ne) )
+            if( parsec_atomic_cas(&sh->buckets[i], NULL, ne) )
                 return &ne->dep;
         }
         if( (sh->buckets[i]->n == n) && (sh->buckets[i]->l == l) ) {
@@ -297,24 +297,24 @@ static dague_dependency_t *my_find_deps(const dague_handle_t *dague_handle,
     exit(1); /** Catastrophic failure */
 }
 
-static int my_walk_startup(dague_execution_unit_t * eu, __dague_walk_DOWN_task_t * this_task)
+static int my_walk_startup(parsec_execution_unit_t * eu, __parsec_walk_DOWN_task_t * this_task)
 {
-  __dague_walk_DOWN_task_t *new_task;
-  __dague_walk_internal_handle_t *__dague_handle = (__dague_walk_internal_handle_t *) this_task->dague_handle;
+  __parsec_walk_DOWN_task_t *new_task;
+  __parsec_walk_internal_handle_t *__parsec_handle = (__parsec_walk_internal_handle_t *) this_task->parsec_handle;
   int vpid = 0;
-  dague_context_t *context = __dague_handle->super.super.context;
+  parsec_context_t *context = __parsec_handle->super.super.context;
 
-  if ( ((dague_ddesc_t *)__dague_handle->super._g_tree)->myrank != 0)
-      return DAGUE_HOOK_RETURN_DONE;
-  if (NULL != ((dague_ddesc_t *) __dague_handle->super._g_tree)->vpid_of) {
-      vpid = ((dague_ddesc_t *) __dague_handle->super._g_tree)->vpid_of((dague_ddesc_t *) __dague_handle->super._g_tree, 0, 0);
+  if ( ((parsec_ddesc_t *)__parsec_handle->super._g_tree)->myrank != 0)
+      return PARSEC_HOOK_RETURN_DONE;
+  if (NULL != ((parsec_ddesc_t *) __parsec_handle->super._g_tree)->vpid_of) {
+      vpid = ((parsec_ddesc_t *) __parsec_handle->super._g_tree)->vpid_of((parsec_ddesc_t *) __parsec_handle->super._g_tree, 0, 0);
       (void)vpid;
       assert(context->nb_vp >= vpid);
   }
-  new_task = (__dague_walk_DOWN_task_t *) dague_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
-  new_task->status = DAGUE_TASK_STATUS_NONE;
-  new_task->dague_handle = this_task->dague_handle;
-  new_task->function = __dague_handle->super.super.functions_array[walk_DOWN.function_id];
+  new_task = (__parsec_walk_DOWN_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
+  new_task->status = PARSEC_TASK_STATUS_NONE;
+  new_task->parsec_handle = this_task->parsec_handle;
+  new_task->function = __parsec_handle->super.super.functions_array[walk_DOWN.function_id];
   new_task->chore_id = 0;
 
   new_task->locals.n.value = 0;
@@ -327,9 +327,9 @@ static int my_walk_startup(dague_execution_unit_t * eu, __dague_walk_DOWN_task_t
 
   new_task->priority = 1;
 
-  DAGUE_LIST_ITEM_SINGLETON(new_task);
-  __dague_schedule(eu, (dague_execution_context_t *)new_task);
-  return DAGUE_HOOK_RETURN_DONE;
+  PARSEC_LIST_ITEM_SINGLETON(new_task);
+  __parsec_schedule(eu, (parsec_execution_context_t *)new_task);
+  return PARSEC_HOOK_RETURN_DONE;
 }
 
 %}

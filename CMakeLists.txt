@@ -1,12 +1,12 @@
 cmake_minimum_required (VERSION 2.8.7)
-project (DAGUE C)
+project (PARSEC C)
 
 include(CMakeDependentOption)
 include(CMakePushCheckState)
 
 # The current version number
-set (DAGUE_VERSION_MAJOR 2)
-set (DAGUE_VERSION_MINOR 0)
+set (PARSEC_VERSION_MAJOR 2)
+set (PARSEC_VERSION_MINOR 0)
 
 # CTest system
 SET(DART_TESTING_TIMEOUT 120)
@@ -45,14 +45,14 @@ endif( SUPPORT_CXX )
 option(BUILD_TOOLS
        "Build the helper tools such as the pre-compilers, profiling manipulation and so on" ON)
 mark_as_advanced(BUILD_TOOLS)
-option(BUILD_DAGUE
-       "Compile the DAGuE framework" ON)
-mark_as_advanced(BUILD_DAGUE)
-if( BUILD_DAGUE )
+option(BUILD_PARSEC
+       "Compile the PaRSEC framework" ON)
+mark_as_advanced(BUILD_PARSEC)
+if( BUILD_PARSEC )
   if( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
-    message(FATAL_ERROR "Building the DAGuE layer requires the DAGuE tools")
+    message(FATAL_ERROR "Building the PaRSEC layer requires the PaRSEC tools")
   endif( NOT BUILD_TOOLS AND NOT CMAKE_CROSSCOMPILING )
-endif( BUILD_DAGUE )
+endif( BUILD_PARSEC )
 
 ### Misc options
 option(BUILD_SHARED_LIBS
@@ -62,110 +62,110 @@ option(BUILD_64bits
 if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "Choose the type of build, options are None, Debug, Release, RelWithDebInfo and MinSizeRel." FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
-option(DAGUE_WANT_HOME_CONFIG_FILES
-       "Should the runtime check for the parameter configuration file in the user home (\$HOME/.dague/mca-params.conf)" ON)
+option(PARSEC_WANT_HOME_CONFIG_FILES
+       "Should the runtime check for the parameter configuration file in the user home (\$HOME/.parsec/mca-params.conf)" ON)
 
-### Dague PP options
-set(DAGUEPP_CFLAGS "--noline" CACHE STRING "Additional daguepp precompiling flags" )
-mark_as_advanced(DAGUEPP_CFLAGS)
+### PaRSEC PP options
+set(PARSECPP_CFLAGS "--noline" CACHE STRING "Additional parsecpp precompiling flags" )
+mark_as_advanced(PARSECPP_CFLAGS)
 
-option(DAGUE_WITH_DEVEL_HEADERS "Install additional header files in include/daguepp to compile generated files from JDF" OFF)
+option(PARSEC_WITH_DEVEL_HEADERS "Install additional header files in include/parsecpp to compile generated files from JDF" OFF)
 
 ## Multicore scheduler parameters
-mark_as_advanced(DAGUE_SCHED_REPORT_STATISTICS)
-option(DAGUE_SCHED_REPORT_STATISTICS
+mark_as_advanced(PARSEC_SCHED_REPORT_STATISTICS)
+option(PARSEC_SCHED_REPORT_STATISTICS
   "Display statistics on the scheduling at the end of the run")
 
-mark_as_advanced(DAGUE_SCHED_DEPS_MASK)
-option(DAGUE_SCHED_DEPS_MASK
+mark_as_advanced(PARSEC_SCHED_DEPS_MASK)
+option(PARSEC_SCHED_DEPS_MASK
   "Use a complete bitmask to track the dependencies, instead of a counter -- increase the debugging features, but limits to a maximum of 30 input dependencies" ON)
 
 ### Distributed engine parameters
-mark_as_advanced(DAGUE_DIST_THREAD DAGUE_DIST_PRIORITIES)
-option(DAGUE_DIST_WITH_MPI
-  "Build DAGuE for distributed memory with MPI backend (conflicts all other backends)" ON)
-if(DAGUE_DIST_WITH_MPI AND 0)
-  message(FATAL_ERROR "DAGUE_DIST_WITH_MPI and DAGUE_DIST_WITH_OTHER are mutually exclusive, please select only one")
+mark_as_advanced(PARSEC_DIST_THREAD PARSEC_DIST_PRIORITIES)
+option(PARSEC_DIST_WITH_MPI
+  "Build PaRSEC for distributed memory with MPI backend (conflicts all other backends)" ON)
+if(PARSEC_DIST_WITH_MPI AND 0)
+  message(FATAL_ERROR "PARSEC_DIST_WITH_MPI and PARSEC_DIST_WITH_OTHER are mutually exclusive, please select only one")
 endif()
-option(DAGUE_DIST_THREAD
+option(PARSEC_DIST_THREAD
   "Use an extra thread to progress the data movements" ON)
-option(DAGUE_DIST_PRIORITIES
+option(PARSEC_DIST_PRIORITIES
   "Favor the communications that unlock the most prioritary tasks" ON)
-option(DAGUE_DIST_COLLECTIVES
+option(PARSEC_DIST_COLLECTIVES
   "Use optimized asynchronous operations where collective communication pattern is detected" ON)
-set   (DAGUE_DIST_EAGER_LIMIT 1 CACHE STRING
+set   (PARSEC_DIST_EAGER_LIMIT 1 CACHE STRING
   "Use the eager protocol (no flow control) for messages smaller than the limit in KB")
-set   (DAGUE_DIST_SHORT_LIMIT 1 CACHE STRING
+set   (PARSEC_DIST_SHORT_LIMIT 1 CACHE STRING
   "Use the short protocol (no flow control) for messages smaller than the limit in KB")
 
 ### GPU engine parameters
-option(DAGUE_GPU_WITH_CUDA
+option(PARSEC_GPU_WITH_CUDA
   "Enable GPU support using CUDA kernels" ON)
-option(DAGUE_GPU_CUDA_ALLOC_PER_TILE
+option(PARSEC_GPU_CUDA_ALLOC_PER_TILE
   "Tile based allocation engine for GPU memory (instead of internal management
   of a complete allocation)" OFF)
-mark_as_advanced(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
-option(DAGUE_GPU_WITH_OPENCL
+mark_as_advanced(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
+option(PARSEC_GPU_WITH_OPENCL
   "Enable GPU support using OpenCL kernels" OFF)
-mark_as_advanced(DAGUE_GPU_WITH_OPENCL) # Hide this as it is not supported yet
-if(DAGUE_GPU_WITH_OPENCL)
+mark_as_advanced(PARSEC_GPU_WITH_OPENCL) # Hide this as it is not supported yet
+if(PARSEC_GPU_WITH_OPENCL)
   message(WARNING "Open CL is not supported yet, ignored.")
 endif()
 
 ### Debug options
 if( "Debug" STREQUAL CMAKE_BUILD_TYPE )
-  set(DAGUE_DEBUG ON)
+  set(PARSEC_DEBUG ON)
 else()
-  set(DAGUE_DEBUG OFF)
+  set(PARSEC_DEBUG OFF)
 endif()
-option(DAGUE_DEBUG_PARANOID
+option(PARSEC_DEBUG_PARANOID
   "Enable extra paranoid checks (may impact performance)." OFF)
-option(DAGUE_DEBUG_NOISIER
+option(PARSEC_DEBUG_NOISIER
   "Enable chatterbox-like verbose debugging (may impact performance)." OFF)
-option(DAGUE_DEBUG_HISTORY
+option(PARSEC_DEBUG_HISTORY
   "Keep a summarized history of critical events in memory that can be dumped in gdb when deadlock occur." OFF)
-option(DAGUE_CALL_TRACE
+option(PARSEC_CALL_TRACE
   "Enable the output of the kernels call trace during execution" OFF)
 
 ### Simulating Options
-option(DAGUE_SIM
+option(PARSEC_SIM
   "Enable the computation of the critical path, through simulation" OFF)
-if( DAGUE_SIM AND DAGUE_DIST_WITH_MPI )
-  message(FATAL_ERROR "DAGUE_SIM cannot be enabled with DAGUE_DIST_WITH_MPI, please select only one")
+if( PARSEC_SIM AND PARSEC_DIST_WITH_MPI )
+  message(FATAL_ERROR "PARSEC_SIM cannot be enabled with PARSEC_DIST_WITH_MPI, please select only one")
 endif()
 
 ### Profiling options
-option(DAGUE_PROF_TRACE
+option(PARSEC_PROF_TRACE
   "Enable the generation of the profiling information during
   execution" OFF)
-option(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET
-  "Enable the profiling of active arena set to track memory usage of dague handles" OFF)
-mark_as_advanced(DAGUE_PROF_TRACE_ACTIVE_ARENA_SET)
+option(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET
+  "Enable the profiling of active arena set to track memory usage of parsec handles" OFF)
+mark_as_advanced(PARSEC_PROF_TRACE_ACTIVE_ARENA_SET)
 option(PARSEC_PROF_TAU
   "Experimental usage of TAU profiling framework" ON)
-option(DAGUE_PROF_RUSAGE_EU
+option(PARSEC_PROF_RUSAGE_EU
   "Print the rusage per execution unit for each progress" OFF)
-option(DAGUE_PROF_TRACE_SCHEDULING_EVENTS
+option(PARSEC_PROF_TRACE_SCHEDULING_EVENTS
   "Enable the tracing of fine-grained scheduling details during execution" OFF)
-mark_as_advanced(DAGUE_PROF_TRACE_SCHEDULING_EVENTS)
-option(DAGUE_PROF_GRAPHER
+mark_as_advanced(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)
+option(PARSEC_PROF_GRAPHER
   "Enable the generation of the dot graph representation during execution" OFF)
-option(DAGUE_PROF_DRY_RUN
+option(PARSEC_PROF_DRY_RUN
   "Disable calls to the actual bodies and do not move the data between nodes; unfold the dependencies only" OFF)
-option(DAGUE_PROF_DRY_BODY
+option(PARSEC_PROF_DRY_BODY
   "Disable calls to the actual bodies; no computation is performed" OFF)
-option(DAGUE_PROF_DRY_DEP
+option(PARSEC_PROF_DRY_DEP
   "Disable calls to the actual data transport; remote dependencies are notified, but no data movement takes place" OFF)
 
 ### Instrumentation Options
 option(PINS_ENABLE
-  "Enable the use of the PaRSEC callback instrumentation system (requires DAGUE_PROF_TRACE)" ON)
-# if( PINS_ENABLE AND NOT DAGUE_PROF_TRACE )
-#  message(WARNING "PINS Instrumentation System requires to enable DAGUE_PROF_TRACE. Forcing profiling system on.")
-#  SET(DAGUE_PROF_TRACE ON CACHE BOOL "Enable the generation of the profiling information during execution" FORCE)
-# endif( PINS_ENABLE AND NOT DAGUE_PROF_TRACE )
+  "Enable the use of the PaRSEC callback instrumentation system (requires PARSEC_PROF_TRACE)" ON)
+# if( PINS_ENABLE AND NOT PARSEC_PROF_TRACE )
+#  message(WARNING "PINS Instrumentation System requires to enable PARSEC_PROF_TRACE. Forcing profiling system on.")
+#  SET(PARSEC_PROF_TRACE ON CACHE BOOL "Enable the generation of the profiling information during execution" FORCE)
+# endif( PINS_ENABLE AND NOT PARSEC_PROF_TRACE )
 SET(CORES_PER_SOCKET 6 CACHE STRING
-  "This is a temporary configuration parameter until dague-hwloc enables dynamic determination of this number.") # default for ig.icl
+  "This is a temporary configuration parameter until parsec-hwloc enables dynamic determination of this number.") # default for ig.icl
 mark_as_advanced(CORES_PER_SOCKET)
 
 # cmake modules setup
@@ -186,26 +186,26 @@ IF( BUILD_TOOLS )
   find_package(BISON)
 ENDIF( BUILD_TOOLS )
   find_package(FLEX)
-  set(DAGUE_HAVE_RECENT_LEX 0)
+  set(PARSEC_HAVE_RECENT_LEX 0)
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
 STRING(REGEX MATCH "(i.86-*)|(athlon-*)|(pentium-*)" _mach_x86 ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_x86)
     MESSAGE(STATUS "Found target for X86")
-    SET(DAGUE_ARCH_X86 1)
+    SET(PARSEC_ARCH_X86 1)
 ENDIF (_mach_x86)
 
 STRING(REGEX MATCH "(x86_64-*)|(X86_64-*)|(AMD64-*)|(amd64-*)" _mach_x86_64 ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_x86_64)
     MESSAGE(STATUS "Found target X86_64")
-    SET(DAGUE_ARCH_X86_64 1)
+    SET(PARSEC_ARCH_X86_64 1)
 ENDIF (_mach_x86_64)
 
 STRING(REGEX MATCH "(ppc-*)|(powerpc-*)" _mach_ppc ${CMAKE_SYSTEM_PROCESSOR})
 IF (_mach_ppc)
     MESSAGE(STATUS "Found target for PPC")
-    SET(DAGUE_ARCH_PPC 1)
+    SET(PARSEC_ARCH_PPC 1)
 ENDIF (_mach_ppc)
 
 #
@@ -255,27 +255,27 @@ IF( NOT _match_xlc )
   if( ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "sparc64fx" )
     SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} " )
   else()
-    CHECK_C_COMPILER_FLAG( "-std=c99" DAGUE_HAVE_STD_C99)
-    IF( DAGUE_HAVE_STD_C99 )
+    CHECK_C_COMPILER_FLAG( "-std=c99" PARSEC_HAVE_STD_C99)
+    IF( PARSEC_HAVE_STD_C99 )
       SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=c99" )
-    ENDIF( DAGUE_HAVE_STD_C99 )
+    ENDIF( PARSEC_HAVE_STD_C99 )
   endif()
 ELSE( NOT _match_xlc )
-  CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" DAGUE_HAVE_STD_C99)
-  IF( DAGUE_HAVE_STD_C99 )
+  CHECK_C_COMPILER_FLAG( "-qlanglvl=extc99" PARSEC_HAVE_STD_C99)
+  IF( PARSEC_HAVE_STD_C99 )
     SET( CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -qlanglvl=extc99" )
-  ENDIF( DAGUE_HAVE_STD_C99 )
+  ENDIF( PARSEC_HAVE_STD_C99 )
 ENDIF( NOT _match_xlc )
 
 # Set warnings for debug builds
-CHECK_C_COMPILER_FLAG( "-Wall" DAGUE_HAVE_WALL )
-IF( DAGUE_HAVE_WALL )
+CHECK_C_COMPILER_FLAG( "-Wall" PARSEC_HAVE_WALL )
+IF( PARSEC_HAVE_WALL )
     set( C_WFLAGS "${C_WFLAGS} -Wall" )
-ENDIF( DAGUE_HAVE_WALL )
-CHECK_C_COMPILER_FLAG( "-Wextra" DAGUE_HAVE_WEXTRA )
-IF( DAGUE_HAVE_WEXTRA )
+ENDIF( PARSEC_HAVE_WALL )
+CHECK_C_COMPILER_FLAG( "-Wextra" PARSEC_HAVE_WEXTRA )
+IF( PARSEC_HAVE_WEXTRA )
     set( C_WFLAGS "${C_WFLAGS} -Wextra" )
-ENDIF( DAGUE_HAVE_WEXTRA )
+ENDIF( PARSEC_HAVE_WEXTRA )
 
 #
 # flags for Intel icc
@@ -283,8 +283,8 @@ ENDIF( DAGUE_HAVE_WEXTRA )
 STRING(REGEX MATCH ".*icc$" _match_icc ${CMAKE_C_COMPILER})
 if(_match_icc)
   # Silence annoying warnings
-  CHECK_C_COMPILER_FLAG( "-wd424" DAGUE_HAVE_WD )
-  IF( DAGUE_HAVE_WD )
+  CHECK_C_COMPILER_FLAG( "-wd424" PARSEC_HAVE_WD )
+  IF( PARSEC_HAVE_WD )
     # 424: checks for duplicate ";"
     # 981: every volatile triggers a "unspecified evaluation order", obnoxious
     #      but might be useful for some debugging sessions.
@@ -293,22 +293,22 @@ if(_match_icc)
     # 1572: cuda compares floats with 0.0f.
     # 11074: obnoxious about not inlining long functions.
     set( C_WFLAGS "${C_WFLAGS} -wd424,981,1419,1572,10237,11074,11076" )
-  ENDIF( DAGUE_HAVE_WD )
+  ENDIF( PARSEC_HAVE_WD )
 else(_match_icc)
-  CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" DAGUE_HAVE_PAR_EQUALITY )
-  IF( DAGUE_HAVE_PAR_EQUALITY )
+  CHECK_C_COMPILER_FLAG( "-Wno-parentheses-equality" PARSEC_HAVE_PAR_EQUALITY )
+  IF( PARSEC_HAVE_PAR_EQUALITY )
         set( C_WFLAGS "${C_WFLAGS} -Wno-parentheses-equality" )
-  ENDIF( DAGUE_HAVE_PAR_EQUALITY )
+  ENDIF( PARSEC_HAVE_PAR_EQUALITY )
 endif(_match_icc)
 
 # add gdb symbols in debug and relwithdebinfo
-CHECK_C_COMPILER_FLAG( "-g3" DAGUE_HAVE_G3 )
-IF( DAGUE_HAVE_G3 )
+CHECK_C_COMPILER_FLAG( "-g3" PARSEC_HAVE_G3 )
+IF( PARSEC_HAVE_G3 )
     set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0 -g3" )
     set( CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -g3" )
 ELSE()
     set( CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -O0" )
-ENDIF( DAGUE_HAVE_G3)
+ENDIF( PARSEC_HAVE_G3)
 # verbose compilation in debug
 set( CMAKE_C_FLAGS_DEBUG "${C_WFLAGS} ${CMAKE_C_FLAGS_DEBUG}" )
 # remove asserts in release
@@ -319,7 +319,7 @@ SET( CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -DNDEBUG" )
 # threads and atomics
 include (cmake_modules/CheckAtomicIntrinsic.cmake)
 if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
-  set( DAGUE_OSX 1 CACHE INTERNAL "Compile on MAC OS X")
+  set( PARSEC_OSX 1 CACHE INTERNAL "Compile on MAC OS X")
 endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
 
 #
@@ -335,45 +335,45 @@ endforeach()
 
 find_package(Threads)
 if(Threads_FOUND)
-  set(DAGUE_HAVE_PTHREAD true)
+  set(PARSEC_HAVE_PTHREAD true)
   list(APPEND EXTRA_LIBS ${CMAKE_THREAD_LIBS_INIT})
 endif(Threads_FOUND)
 
-check_function_exists(sched_setaffinity DAGUE_HAVE_SCHED_SETAFFINITY)
-if(NOT DAGUE_HAVE_SCHED_SETAFFINITY)
-  check_library_exists(rt sched_setaffinity "" DAGUE_HAVE_SCHED_SETAFFINITYRT)
-  if(DAGUE_HAVE_SCHED_SETAFFINITYRT)
+check_function_exists(sched_setaffinity PARSEC_HAVE_SCHED_SETAFFINITY)
+if(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
+  check_library_exists(rt sched_setaffinity "" PARSEC_HAVE_SCHED_SETAFFINITYRT)
+  if(PARSEC_HAVE_SCHED_SETAFFINITYRT)
     list(APPEND EXTRA_LIBS -lrt)
-    set(DAGUE_HAVE_SCHED_SETAFFINITY true)
+    set(PARSEC_HAVE_SCHED_SETAFFINITY true)
   endif()
-endif(NOT DAGUE_HAVE_SCHED_SETAFFINITY)
+endif(NOT PARSEC_HAVE_SCHED_SETAFFINITY)
 
 # timeval, timespec, realtime clocks, etc
 include(CheckStructHasMember)
-check_struct_has_member("struct timespec" tv_nsec time.h DAGUE_HAVE_TIMESPEC_TV_NSEC)
-if( NOT DAGUE_HAVE_TIMESPEC_TV_NSEC )
+check_struct_has_member("struct timespec" tv_nsec time.h PARSEC_HAVE_TIMESPEC_TV_NSEC)
+if( NOT PARSEC_HAVE_TIMESPEC_TV_NSEC )
   CMAKE_PUSH_CHECK_STATE()
   list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
-  check_struct_has_member("struct timespec" tv_nsec time.h DAGUE_HAVE_TIMESPEC_TV_NSEC_GNU)
+  check_struct_has_member("struct timespec" tv_nsec time.h PARSEC_HAVE_TIMESPEC_TV_NSEC_GNU)
   CMAKE_POP_CHECK_STATE()
-  if( DAGUE_HAVE_TIMESPEC_TV_NSEC_GNU )
+  if( PARSEC_HAVE_TIMESPEC_TV_NSEC_GNU )
     add_definitions(-D_GNU_SOURCE)
-    set(DAGUE_HAVE_TIMESPEC_TV_NSEC true)
-  endif( DAGUE_HAVE_TIMESPEC_TV_NSEC_GNU )
-endif( NOT DAGUE_HAVE_TIMESPEC_TV_NSEC )
-check_function_exists(clock_gettime DAGUE_HAVE_CLOCK_GETTIME)
-if( NOT DAGUE_HAVE_CLOCK_GETTIME )
-  check_library_exists(rt clock_gettime "" DAGUE_HAVE_CLOCK_GETTIMERT)
-  if(DAGUE_HAVE_CLOCK_GETTIMERT)
+    set(PARSEC_HAVE_TIMESPEC_TV_NSEC true)
+  endif( PARSEC_HAVE_TIMESPEC_TV_NSEC_GNU )
+endif( NOT PARSEC_HAVE_TIMESPEC_TV_NSEC )
+check_function_exists(clock_gettime PARSEC_HAVE_CLOCK_GETTIME)
+if( NOT PARSEC_HAVE_CLOCK_GETTIME )
+  check_library_exists(rt clock_gettime "" PARSEC_HAVE_CLOCK_GETTIMERT)
+  if(PARSEC_HAVE_CLOCK_GETTIMERT)
     list(APPEND EXTRA_LIBS -lrt)
-    set(DAGUE_HAVE_CLOCK_GETTIME true)
-  endif(DAGUE_HAVE_CLOCK_GETTIMERT)
-endif( NOT DAGUE_HAVE_CLOCK_GETTIME )
+    set(PARSEC_HAVE_CLOCK_GETTIME true)
+  endif(PARSEC_HAVE_CLOCK_GETTIMERT)
+endif( NOT PARSEC_HAVE_CLOCK_GETTIME )
 
 # stdlib, stdio, string, getopt, etc
-check_include_files(stdarg.h DAGUE_HAVE_STDARG_H)
+check_include_files(stdarg.h PARSEC_HAVE_STDARG_H)
 # va_copy is special as it is not required to be a function.
-if (DAGUE_HAVE_STDARG_H)
+if (PARSEC_HAVE_STDARG_H)
   check_c_source_compiles("
       #include <stdarg.h>
       int main(void) {
@@ -381,10 +381,10 @@ if (DAGUE_HAVE_STDARG_H)
           va_copy(a, b);
           return 0;
       }"
-      DAGUE_HAVE_VA_COPY
+      PARSEC_HAVE_VA_COPY
       )
 
-  if (NOT DAGUE_HAVE_VA_COPY)
+  if (NOT PARSEC_HAVE_VA_COPY)
     check_c_source_compiles("
         #include <stdarg.h>
         int main(void) {
@@ -392,38 +392,38 @@ if (DAGUE_HAVE_STDARG_H)
             __va_copy(a, b);
             return 0;
         }"
-        DAGUE_HAVE_UNDERSCORE_VA_COPY
+        PARSEC_HAVE_UNDERSCORE_VA_COPY
         )
-  endif (NOT DAGUE_HAVE_VA_COPY)
-endif (DAGUE_HAVE_STDARG_H)
-check_function_exists(asprintf DAGUE_HAVE_ASPRINTF)
-check_function_exists(vasprintf DAGUE_HAVE_VASPRINTF)
-check_include_files(getopt.h DAGUE_HAVE_GETOPT_H)
-check_include_files(unistd.h DAGUE_HAVE_UNISTD_H)
-check_function_exists(getopt_long DAGUE_HAVE_GETOPT_LONG)
-check_include_files(errno.h DAGUE_HAVE_ERRNO_H)
-check_include_files(stddef.h DAGUE_HAVE_STDDEF_H)
-check_include_files(stdbool.h DAGUE_HAVE_STDBOOL_H)
-check_include_files(ctype.h DAGUE_HAVE_CTYPE_H)
-check_function_exists(getrusage DAGUE_HAVE_GETRUSAGE)
-check_symbol_exists(RUSAGE_THREAD sys/resource.h DAGUE_HAVE_RUSAGE_THREAD)
-if( NOT DAGUE_HAVE_RUSAGE_THREAD )
+  endif (NOT PARSEC_HAVE_VA_COPY)
+endif (PARSEC_HAVE_STDARG_H)
+check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
+check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
+check_include_files(getopt.h PARSEC_HAVE_GETOPT_H)
+check_include_files(unistd.h PARSEC_HAVE_UNISTD_H)
+check_function_exists(getopt_long PARSEC_HAVE_GETOPT_LONG)
+check_include_files(errno.h PARSEC_HAVE_ERRNO_H)
+check_include_files(stddef.h PARSEC_HAVE_STDDEF_H)
+check_include_files(stdbool.h PARSEC_HAVE_STDBOOL_H)
+check_include_files(ctype.h PARSEC_HAVE_CTYPE_H)
+check_function_exists(getrusage PARSEC_HAVE_GETRUSAGE)
+check_symbol_exists(RUSAGE_THREAD sys/resource.h PARSEC_HAVE_RUSAGE_THREAD)
+if( NOT PARSEC_HAVE_RUSAGE_THREAD )
   CMAKE_PUSH_CHECK_STATE()
   list(APPEND CMAKE_REQUIRED_DEFINITIONS "-D_GNU_SOURCE")
-  check_symbol_exists(RUSAGE_THREAD sys/resource.h DAGUE_HAVE_RUSAGE_THREAD_GNU)
+  check_symbol_exists(RUSAGE_THREAD sys/resource.h PARSEC_HAVE_RUSAGE_THREAD_GNU)
   CMAKE_POP_CHECK_STATE()
-  if( DAGUE_HAVE_RUSAGE_THREAD_GNU )
+  if( PARSEC_HAVE_RUSAGE_THREAD_GNU )
     add_definitions(-D_GNU_SOURCE)
-    set(DAGUE_HAVE_RUSAGE_THREAD true)
-  endif( DAGUE_HAVE_RUSAGE_THREAD_GNU )
-endif( NOT DAGUE_HAVE_RUSAGE_THREAD)
-check_include_files(limits.h DAGUE_HAVE_LIMITS_H)
-check_include_files(string.h DAGUE_HAVE_STRING_H)
-check_include_files(libgen.h DAGUE_HAVE_GEN_H)
-check_include_files(complex.h DAGUE_HAVE_COMPLEX_H)
-check_include_files(sys/param.h DAGUE_HAVE_SYS_PARAM_H)
-check_include_files(sys/types.h DAGUE_HAVE_SYS_TYPES_H)
-check_include_files(syslog.h DAGUE_HAVE_SYSLOG_H)
+    set(PARSEC_HAVE_RUSAGE_THREAD true)
+  endif( PARSEC_HAVE_RUSAGE_THREAD_GNU )
+endif( NOT PARSEC_HAVE_RUSAGE_THREAD)
+check_include_files(limits.h PARSEC_HAVE_LIMITS_H)
+check_include_files(string.h PARSEC_HAVE_STRING_H)
+check_include_files(libgen.h PARSEC_HAVE_GEN_H)
+check_include_files(complex.h PARSEC_HAVE_COMPLEX_H)
+check_include_files(sys/param.h PARSEC_HAVE_SYS_PARAM_H)
+check_include_files(sys/types.h PARSEC_HAVE_SYS_TYPES_H)
+check_include_files(syslog.h PARSEC_HAVE_SYSLOG_H)
 
 check_c_source_compiles("
       int main( int argc, char** argv) {
@@ -432,46 +432,46 @@ check_c_source_compiles("
             return -1;
          return 0;
       }
-      " DAGUE_HAVE_BUILTIN_EXPECT)
+      " PARSEC_HAVE_BUILTIN_EXPECT)
 #
 # Find optional packages
 #
-IF( BUILD_DAGUE )
+IF( BUILD_PARSEC )
   # Look for dl library to dynamically load the mca modules and cuda kernels
-  check_function_exists(dlsym DAGUE_HAVE_DL)
-  if( NOT DAGUE_HAVE_DL )
+  check_function_exists(dlsym PARSEC_HAVE_DL)
+  if( NOT PARSEC_HAVE_DL )
     find_library(DL_LIBRARY dl)
     if(DL_LIBRARY)
       CMAKE_PUSH_CHECK_STATE()
       list(APPEND CMAKE_REQUIRED_LIBRARIES ${DL_LIBRARY})
-      check_function_exists(dlsym DAGUE_HAVE_DLDL)
+      check_function_exists(dlsym PARSEC_HAVE_DLDL)
       CMAKE_POP_CHECK_STATE()
-      if(DAGUE_HAVE_DLDL)
+      if(PARSEC_HAVE_DLDL)
         list(APPEND EXTRA_LIBS ${DL_LIBRARY} )
-        set(DAGUE_HAVE_DL true)
-      endif(DAGUE_HAVE_DLDL)
+        set(PARSEC_HAVE_DL true)
+      endif(PARSEC_HAVE_DLDL)
     endif(DL_LIBRARY)
-  endif( NOT DAGUE_HAVE_DL )
+  endif( NOT PARSEC_HAVE_DL )
 
   find_package(HWLOC)
-  set(DAGUE_HAVE_HWLOC ${HWLOC_FOUND})
+  set(PARSEC_HAVE_HWLOC ${HWLOC_FOUND})
   if( HWLOC_FOUND )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
     set (PARSEC_PKG_REQUIRE "hwloc")
    endif (HWLOC_FOUND)
 
-  if (DAGUE_DIST_WITH_MPI)
+  if (PARSEC_DIST_WITH_MPI)
     # Force the detection of the C library
     find_package(MPI)
-    set(DAGUE_HAVE_MPI ${MPI_C_FOUND})
+    set(PARSEC_HAVE_MPI ${MPI_C_FOUND})
     if (MPI_C_FOUND)
       list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
       include_directories( ${MPI_C_INCLUDE_PATH} )
     else (MPI_C_FOUND)
       MESSAGE(ERROR "MPI is required but was not found. Please provide an MPI compiler")
     endif (MPI_C_FOUND)
-  endif (DAGUE_DIST_WITH_MPI)
+  endif (PARSEC_DIST_WITH_MPI)
   #
   # Check to see if support for MPI 2.0 is available
   #
@@ -479,13 +479,13 @@ IF( BUILD_DAGUE )
     CMAKE_PUSH_CHECK_STATE()
     list(APPEND CMAKE_REQUIRED_INCLUDES  "${MPI_C_INCLUDE_PATH}")
     list(APPEND CMAKE_REQUIRED_LIBRARIES "${MPI_C_LIBRARIES}")
-    check_function_exists(MPI_Type_create_resized DAGUE_HAVE_MPI_20)
+    check_function_exists(MPI_Type_create_resized PARSEC_HAVE_MPI_20)
     CMAKE_POP_CHECK_STATE()
   endif (MPI_C_FOUND)
 
-  if( DAGUE_GPU_WITH_CUDA )
+  if( PARSEC_GPU_WITH_CUDA )
     find_package(CUDA QUIET)
-    set(DAGUE_HAVE_CUDA ${CUDA_FOUND})
+    set(PARSEC_HAVE_CUDA ${CUDA_FOUND})
     if (CUDA_FOUND)
       message(STATUS "Found CUDA ${CUDA_VERSION} in ${CUDA_TOOLKIT_ROOT_DIR}")
       if(CUDA_VERSION VERSION_LESS "3.0")
@@ -498,16 +498,16 @@ IF( BUILD_DAGUE )
       list(APPEND CMAKE_REQUIRED_INCLUDES  "${CUDA_INCLUDE_DIRS}")
       list(APPEND CMAKE_REQUIRED_LIBRARIES "${CUDA_LIBRARIES}")
       if(CUDA_VERSION VERSION_LESS "4.0")
-          set(DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
+          set(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS 0)
       else()
-          check_function_exists(cudaDeviceCanAccessPeer DAGUE_HAVE_PEER_DEVICE_MEMORY_ACCESS)
+          check_function_exists(cudaDeviceCanAccessPeer PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
       endif()
       CMAKE_POP_CHECK_STATE()
     endif (CUDA_FOUND)
-  endif( DAGUE_GPU_WITH_CUDA )
+  endif( PARSEC_GPU_WITH_CUDA )
 
   find_package(AYUDAME QUIET)
-  set(DAGUE_HAVE_AYUDAME ${AYUDAME_FOUND})
+  set(PARSEC_HAVE_AYUDAME ${AYUDAME_FOUND})
 #
 # If AYUDAME support is enabled it means we need to deal with weak symbols. On
 # MAC OS X we need to add a special linker flag or the applications will not
@@ -521,7 +521,7 @@ IF( BUILD_DAGUE )
       SET(LOCAL_FORTRAN_LINK_FLAGS "${LOCAL_FORTRAN_LINK_FLAGS} -undefined dynamic_lookup")
     endif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
   endif(AYUDAME_FOUND)
-ENDIF( BUILD_DAGUE )
+ENDIF( BUILD_PARSEC )
 
 #
 # Fortran tricks
@@ -596,19 +596,19 @@ ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 ###
 ##
 #
-set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/dague/include")
+set(PROJECT_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/parsec/include")
 include_directories(BEFORE "${CMAKE_CURRENT_BINARY_DIR}")
 include_directories(BEFORE "${PROJECT_INCLUDE_DIR}")
-STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} DAGUE_COMPILE_INPLACE)
-if(NOT DAGUE_COMPILE_INPLACE)
+STRING(COMPARE EQUAL ${CMAKE_CURRENT_BINARY_DIR} ${CMAKE_CURRENT_SOURCE_DIR} PARSEC_COMPILE_INPLACE)
+if(NOT PARSEC_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/dague/include")
-endif(NOT DAGUE_COMPILE_INPLACE)
+  include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include")
+endif(NOT PARSEC_COMPILE_INPLACE)
 
 #
 # Check if indent is available on the system.
 #
-set(DAGUE_HAVE_INDENT 0)
+set(PARSEC_HAVE_INDENT 0)
 FIND_PROGRAM(INDENT_EXECUTABLE indent DOC "path to the indent executable")
 MARK_AS_ADVANCED(INDENT_EXECUTABLE)
 # K&R (not supported on Mac), so we settle for less
@@ -618,56 +618,56 @@ MARK_AS_ADVANCED(INDENT_EXECUTABLE)
 SET(INDENT_OPTIONS "-nbad -bap -nbc -br -brs -ncdb -ce -cli0 -d0 -di1 -nfc1 -i4 -ip0 -lp -npcs -npsl -nsc -nsob -l120")
 MARK_AS_ADVANCED(INDENT_OPTIONS)
 if(INDENT_EXECUTABLE)
-  set(DAGUE_HAVE_INDENT 1)
+  set(PARSEC_HAVE_INDENT 1)
 endif(INDENT_EXECUTABLE)
 
 #
 # Check if awk is available on the system.
 #
-set(DAGUE_HAVE_AWK 0)
+set(PARSEC_HAVE_AWK 0)
 FIND_PROGRAM(AWK_EXECUTABLE awk DOC "path to the awk executable")
 MARK_AS_ADVANCED(AWK_EXECUTABLE)
 if(AWK_EXECUTABLE)
-  set(DAGUE_HAVE_AWK 1)
+  set(PARSEC_HAVE_AWK 1)
 endif(AWK_EXECUTABLE)
 
 get_property(PARSEC_C_INCLUDES DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
-set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE "List of directories used to compile the daguepp generated code" INTERNAL)
+set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE "List of directories used to compile the parsecpp generated code" INTERNAL)
 mark_as_advanced(PARSEC_C_INCLUDES)
 
 #
 # First go for the tools.
 #
-set(daguepp_EXE "NOT-DEFINED")
+set(parsecpp_EXE "NOT-DEFINED")
 add_subdirectory(tools)
 IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
-  SET(daguepp_EXE native-daguepp)
+  SET(parsecpp_EXE native-parsecpp)
 ELSE(CMAKE_CROSSCOMPILING)
-  SET(daguepp_EXE daguepp)
+  SET(parsecpp_EXE parsecpp)
 ENDIF(CMAKE_CROSSCOMPILING)
 
-add_subdirectory(dague)
+add_subdirectory(parsec)
 add_subdirectory(data_dist)
 
 #
 # Setup targets
 #
-if( BUILD_DAGUE )
+if( BUILD_PARSEC )
 #
-# If we have support for F90 build the DAGuE module
+# If we have support for F90 build the PaRSEC module
 #
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
     include(FortranCInterface)
-    FortranCInterface_HEADER(dague/fortran/f2c_mangle.h
-                             MACRO_NAMESPACE "DAGUE_F2C_"
-                             SYMBOL_NAMESPACE "dague_f2c_"
-                             SYMBOLS my_sub daguef:my_sub)
-    add_subdirectory(dague/fortran)
+    FortranCInterface_HEADER(parsec/fortran/f2c_mangle.h
+                             MACRO_NAMESPACE "PARSEC_F2C_"
+                             SYMBOL_NAMESPACE "parsec_f2c_"
+                             SYMBOLS my_sub parsecf:my_sub)
+    add_subdirectory(parsec/fortran)
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-ENDIF( BUILD_DAGUE )
+ENDIF( BUILD_PARSEC )
 
 #
 # Now continue with compiling the tests.
@@ -681,118 +681,118 @@ add_subdirectory(tests)
 
 # Configuration header
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague_config.h.in"
-  "${PROJECT_INCLUDE_DIR}/dague_config.h")
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec_config.h.in"
+  "${PROJECT_INCLUDE_DIR}/parsec_config.h")
 
 install(FILES
-  ${PROJECT_INCLUDE_DIR}/dague_config.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.h
+  ${PROJECT_INCLUDE_DIR}/parsec_config.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h
   DESTINATION include)
 
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/ayudame.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/constants.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/types.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_config_bottom.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/data_distribution.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/profiling.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/data.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/private_mempool.h
-  DESTINATION include/dague)
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/ayudame.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/constants.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/types.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_config_bottom.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/data_distribution.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/profiling.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
+  DESTINATION include/parsec)
 
 install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/dague/datatype/datatype_mpi.h
-  DESTINATION include/dague/datatype )
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype/datatype_mpi.h
+  DESTINATION include/parsec/datatype )
 
 # Install header files for jdf generated code
-if( DAGUE_WITH_DEVEL_HEADERS )
+if( PARSEC_WITH_DEVEL_HEADERS )
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/arena.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/bindthread.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_binary_profile.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_hwloc.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_internal.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/dague_prof_grapher.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/data_internal.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/datarepo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/debug.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/hbbuffer.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/dague_description_structures.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/execution_unit.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/os-spec-timing.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/maxheap.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mempool.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/remote_dep.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/scheduling.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/output.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/vpmap.h
-    DESTINATION include/dague )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/arena.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/bindthread.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_binary_profile.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_hwloc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_internal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_prof_grapher.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data_internal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datarepo.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/debug.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/hbbuffer.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_description_structures.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_unit.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/os-spec-timing.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/maxheap.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mempool.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/vpmap.h
+    DESTINATION include/parsec )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/mca.h
-    DESTINATION include/dague/mca )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/mca.h
+    DESTINATION include/parsec/mca )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/interfaces/interface.h
-    DESTINATION include/dague/interfaces/ )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/interfaces/interface.h
+    DESTINATION include/parsec/interfaces/ )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_papi_utils.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/mca/pins/pins_tau_utils.h
-    DESTINATION include/dague/mca/pins )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_papi_utils.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins_tau_utils.h
+    DESTINATION include/parsec/mca/pins )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/argv.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/cmd_line.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/dague_environ.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/installdirs.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/keyval_lex.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/keyval_parse.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/mca_param_cmd_line.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/mca_param.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/mca_param_internal.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/os_path.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/output.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/show_help.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/show_help_lex.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/utils/zone_malloc.h
-    DESTINATION include/dague/utils )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/argv.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/cmd_line.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/parsec_environ.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/installdirs.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/keyval_lex.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/keyval_parse.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param_cmd_line.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param_internal.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/os_path.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help_lex.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/zone_malloc.h
+    DESTINATION include/parsec/utils )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/barrier.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dague_object.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dague_value_array.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/dequeue.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/fifo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/hash_table.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/lifo.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/class/list_item.h
-    DESTINATION include/dague/class )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_value_array.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/dequeue.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/hash_table.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/lifo.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/list_item.h
+    DESTINATION include/parsec/class )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-gcc.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-macosx.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc-bgp.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-ppc.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_32.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-x86_64.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic-xlc.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague/sys/atomic.h
-    DESTINATION include/dague/sys )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-gcc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-macosx.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-ppc-bgp.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-ppc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-x86_32.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-x86_64.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-xlc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic.h
+    DESTINATION include/parsec/sys )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/device.h
-    DESTINATION include/dague/devices )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/device.h
+    DESTINATION include/parsec/devices )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/dague/devices/cuda/dev_cuda.h
-    DESTINATION include/dague/devices/cuda )
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/cuda/dev_cuda.h
+    DESTINATION include/parsec/devices/cuda )
 
-endif(DAGUE_WITH_DEVEL_HEADERS)
+endif(PARSEC_WITH_DEVEL_HEADERS)
 
 # Due to the lack of standardization detecting libraries under CMake leads
 # to unconsistents lists of libraries, where some libraries are using full path,
@@ -816,13 +816,13 @@ ENDFOREACH(LIB)
 # pkg-config file
 string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
-  "${PROJECT_INCLUDE_DIR}/dague.pc" @ONLY)
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
+  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/dague/include/dague.pc.in"
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
   "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
 
-install(FILES "${PROJECT_INCLUDE_DIR}/dague.pc"   DESTINATION lib/pkgconfig)
+install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
 install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"  DESTINATION lib/pkgconfig)
 
 # build a CPack driven installer package
@@ -830,8 +830,8 @@ include (InstallRequiredSystemLibraries)
 set(CPACK_GENERATOR "TBZ2")
 set (CPACK_RESOURCE_FILE_LICENSE
      "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
-set (CPACK_PACKAGE_VERSION_MAJOR "${DAGUE_VERSION_MAJOR}")
-set (CPACK_PACKAGE_VERSION_MINOR "${DAGUE_VERSION_MINOR}")
+set (CPACK_PACKAGE_VERSION_MAJOR "${PARSEC_VERSION_MAJOR}")
+set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "gamma")
 include (CPack)
 

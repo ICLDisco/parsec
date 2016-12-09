@@ -13,18 +13,18 @@
  *
  **/
 #include <lapacke.h>
-#include "dague_config.h"
+#include "parsec_config.h"
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
-#if defined(DAGUE_HAVE_STRING_H)
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
-#if defined(DAGUE_HAVE_STDARG_H)
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
+#if defined(PARSEC_HAVE_STDARG_H)
 #include <stdarg.h>
-#endif  /* defined(DAGUE_HAVE_STDARG_H) */
+#endif  /* defined(PARSEC_HAVE_STDARG_H) */
 #include <stdio.h>
-#ifdef DAGUE_HAVE_LIMITS_H
+#ifdef PARSEC_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 
@@ -89,7 +89,7 @@ int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
  *          \retval <0 if -i, the i-th argument had an illegal value
  *
  ******************************************************************************/
-#if defined(PLASMA_DAGUE_HAVE_WEAK)
+#if defined(PLASMA_PARSEC_HAVE_WEAK)
 #pragma weak CORE_ztrmdm = PCORE_ztrmdm
 #define CORE_ztrmdm PCORE_ztrmdm
 #endif

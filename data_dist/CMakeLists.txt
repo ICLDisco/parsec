@@ -1,15 +1,15 @@
 set(sources
   hash_datadist.c)
 
-add_library(dague_distribution ${sources})
+add_library(parsec_distribution ${sources})
 if (MPI_C_FOUND)
-    set_target_properties(dague_distribution PROPERTIES COMPILE_FLAGS
+    set_target_properties(parsec_distribution PROPERTIES COMPILE_FLAGS
                           "${MPI_C_COMPILE_FLAGS}")
 endif(MPI_C_FOUND)
 
-target_link_libraries(dague_distribution dague m)
+target_link_libraries(parsec_distribution parsec m)
 
-install(TARGETS dague_distribution
+install(TARGETS parsec_distribution
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib )
 

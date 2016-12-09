@@ -6,7 +6,7 @@ extern "C" %{
  */
 %}
 
-A        [ type = "dague_ddesc_t *" ]
+A        [ type = "parsec_ddesc_t *" ]
 NT       [ type = "int" ]
 P        [ type = "int" ]
 decision [ type = "int *" ]
@@ -62,7 +62,7 @@ BODY
         printf("Execute TB(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task A not done */
-        dague_atomic_dec_32b(&this_task->dague_handle->nb_tasks);
+        parsec_atomic_dec_32b(&this_task->parsec_handle->nb_tasks);
 }
 END
 
@@ -81,6 +81,6 @@ BODY
         printf("Execute TA(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task B not done */
-        dague_atomic_dec_32b(&this_task->dague_handle->nb_tasks);
+        parsec_atomic_dec_32b(&this_task->parsec_handle->nb_tasks);
 }
 END

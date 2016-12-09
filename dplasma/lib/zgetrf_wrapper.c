@@ -10,7 +10,7 @@
  */
 
 #include "dplasma.h"
-#include "dague/vpmap.h"
+#include "parsec/vpmap.h"
 #include "dplasma/lib/dplasmajdf.h"
 #include "dplasma/lib/dplasmatypes.h"
 
@@ -62,8 +62,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_Destruct();
  *
  *******************************************************************************
@@ -75,12 +75,12 @@
  * @sa dplasma_sgetrf_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgetrf_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *IPIV,
                     int *INFO )
 {
-    dague_zgetrf_handle_t *dague_getrf;
+    parsec_zgetrf_handle_t *parsec_getrf;
     int nbthreads = dplasma_imax( 1, vpmap_get_nb_threads_in_vp(0) - 1 );
 
     if ( (IPIV->mt != 1) || (dplasma_imin(A->nt, A->mt) > IPIV->nt)) {
@@ -88,8 +88,8 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
         return NULL;
     }
 
-    dague_getrf = dague_zgetrf_new( A,
-                                    (dague_ddesc_t*)IPIV,
+    parsec_getrf = parsec_zgetrf_new( A,
+                                    (parsec_ddesc_t*)IPIV,
                                     INFO );
 
 #if defined(CORE_GETRF_270)
@@ -99,32 +99,32 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
     } else {
         CORE_zgetrf_reclap_init();
     }
-    dague_getrf->_g_nbmaxthrd = dplasma_imin( nbthreads, 48 );
+    parsec_getrf->_g_nbmaxthrd = dplasma_imin( nbthreads, 48 );
 
 #else
 
     if ( A->storage == matrix_Tile ) {
-        dague_getrf->_g_getrfdata = CORE_zgetrf_rectil_init(nbthreads);
+        parsec_getrf->_g_getrfdata = CORE_zgetrf_rectil_init(nbthreads);
     } else {
-        dague_getrf->_g_getrfdata = CORE_zgetrf_reclap_init(nbthreads);
+        parsec_getrf->_g_getrfdata = CORE_zgetrf_reclap_init(nbthreads);
     }
-    dague_getrf->_g_nbmaxthrd = nbthreads;
+    parsec_getrf->_g_nbmaxthrd = nbthreads;
 
 #endif
 
     /* A */
-    dplasma_add2arena_tile( dague_getrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( parsec_getrf->arenas[PARSEC_zgetrf_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* IPIV */
-    dplasma_add2arena_rectangle( dague_getrf->arenas[DAGUE_zgetrf_PIVOT_ARENA],
+    dplasma_add2arena_rectangle( parsec_getrf->arenas[PARSEC_zgetrf_PIVOT_ARENA],
                                  A->mb*sizeof(int),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_int_t, 1, A->mb, -1 );
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_int_t, 1, A->mb, -1 );
 
-    return (dague_handle_t*)dague_getrf;
+    return (parsec_handle_t*)parsec_getrf;
 }
 
 /**
@@ -148,17 +148,17 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_Destruct( dague_handle_t *handle )
+dplasma_zgetrf_Destruct( parsec_handle_t *handle )
 {
-    dague_zgetrf_handle_t *dague_zgetrf = (dague_zgetrf_handle_t *)handle;
+    parsec_zgetrf_handle_t *parsec_zgetrf = (parsec_zgetrf_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_DEFAULT_ARENA] );
-    dague_matrix_del2arena( dague_zgetrf->arenas[DAGUE_zgetrf_PIVOT_ARENA  ] );
+    parsec_matrix_del2arena( parsec_zgetrf->arenas[PARSEC_zgetrf_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( parsec_zgetrf->arenas[PARSEC_zgetrf_PIVOT_ARENA  ] );
 
-    if ( dague_zgetrf->_g_getrfdata != NULL )
-        free( dague_zgetrf->_g_getrfdata );
+    if ( parsec_zgetrf->_g_getrfdata != NULL )
+        free( parsec_zgetrf->_g_getrfdata );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -186,8 +186,8 @@ dplasma_zgetrf_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized.
@@ -217,11 +217,11 @@ dplasma_zgetrf_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zgetrf( dague_context_t *dague,
+dplasma_zgetrf( parsec_context_t *parsec,
                 tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *IPIV )
 {
-    dague_handle_t *dague_zgetrf = NULL;
+    parsec_handle_t *parsec_zgetrf = NULL;
 
     int info = 0;
 
@@ -230,12 +230,12 @@ dplasma_zgetrf( dague_context_t *dague,
         return -3;
     }
 
-    dague_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
+    parsec_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
 
-    if ( dague_zgetrf != NULL ) {
-        dague_enqueue( dague, dague_zgetrf );
-        dplasma_progress(dague);
-        dplasma_zgetrf_Destruct( dague_zgetrf );
+    if ( parsec_zgetrf != NULL ) {
+        parsec_enqueue( parsec, parsec_zgetrf );
+        dplasma_progress(parsec);
+        dplasma_zgetrf_Destruct( parsec_zgetrf );
         return info;
     }
     else

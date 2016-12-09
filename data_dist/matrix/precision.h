@@ -9,17 +9,17 @@
 #define _PRECISION_H_
 
 /******************************************************************************
- * Dague Complex numbers
+ * PaRSEC Complex numbers
  **/
 
 #if defined(_MSC_VER) && !defined(__INTEL_COMPILER)
 /* Windows and non-Intel compiler */
 #include <complex>
-typedef std::complex<float>  dague_complex32_t;
-typedef std::complex<double> dague_complex64_t;
+typedef std::complex<float>  parsec_complex32_t;
+typedef std::complex<double> parsec_complex64_t;
 #else
-typedef float  _Complex dague_complex32_t;
-typedef double _Complex dague_complex64_t;
+typedef float  _Complex parsec_complex32_t;
+typedef double _Complex parsec_complex64_t;
 #endif
 
 
@@ -27,41 +27,41 @@ typedef double _Complex dague_complex64_t;
 extern "C" {
 #endif
 
-#if defined(DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED)
+#if defined(PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED)
 
-#if !defined(__cplusplus) && defined(DAGUE_HAVE_COMPLEX_H)
+#if !defined(__cplusplus) && defined(PARSEC_HAVE_COMPLEX_H)
 #include <complex.h>
 #else
 
 /* These declarations will not clash with what C++ provides because the names in C++ are name-mangled. */
 
-extern double cabs     (dague_complex64_t z);
-extern double carg     (dague_complex64_t z);
-extern double creal    (dague_complex64_t z);
-extern double cimag    (dague_complex64_t z);
+extern double cabs     (parsec_complex64_t z);
+extern double carg     (parsec_complex64_t z);
+extern double creal    (parsec_complex64_t z);
+extern double cimag    (parsec_complex64_t z);
 
-extern float  cabsf    (dague_complex32_t z);
-extern float  cargf    (dague_complex32_t z);
-extern float  crealf   (dague_complex32_t z);
-extern float  cimagf   (dague_complex32_t z);
+extern float  cabsf    (parsec_complex32_t z);
+extern float  cargf    (parsec_complex32_t z);
+extern float  crealf   (parsec_complex32_t z);
+extern float  cimagf   (parsec_complex32_t z);
 
-extern dague_complex64_t conj  (dague_complex64_t z);
-extern dague_complex64_t cproj (dague_complex64_t z);
-extern dague_complex64_t csqrt (dague_complex64_t z);
-extern dague_complex64_t cexp  (dague_complex64_t z);
-extern dague_complex64_t clog  (dague_complex64_t z);
-extern dague_complex64_t cpow  (dague_complex64_t z, dague_complex64_t w);
+extern parsec_complex64_t conj  (parsec_complex64_t z);
+extern parsec_complex64_t cproj (parsec_complex64_t z);
+extern parsec_complex64_t csqrt (parsec_complex64_t z);
+extern parsec_complex64_t cexp  (parsec_complex64_t z);
+extern parsec_complex64_t clog  (parsec_complex64_t z);
+extern parsec_complex64_t cpow  (parsec_complex64_t z, parsec_complex64_t w);
 
-extern dague_complex32_t conjf (dague_complex32_t z);
-extern dague_complex32_t cprojf(dague_complex32_t z);
-extern dague_complex32_t csqrtf(dague_complex32_t z);
-extern dague_complex32_t cexpf (dague_complex32_t z);
-extern dague_complex32_t clogf (dague_complex32_t z);
-extern dague_complex32_t cpowf (dague_complex32_t z, dague_complex32_t w);
+extern parsec_complex32_t conjf (parsec_complex32_t z);
+extern parsec_complex32_t cprojf(parsec_complex32_t z);
+extern parsec_complex32_t csqrtf(parsec_complex32_t z);
+extern parsec_complex32_t cexpf (parsec_complex32_t z);
+extern parsec_complex32_t clogf (parsec_complex32_t z);
+extern parsec_complex32_t cpowf (parsec_complex32_t z, parsec_complex32_t w);
 
-#endif /* DAGUE_HAS_COMPLEX_H */
+#endif /* PARSEC_HAS_COMPLEX_H */
 
-#endif /* defined(DAGUE_INTERNAL_H_HAS_BEEN_INCLUDED) */
+#endif /* defined(PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED) */
 
 #ifdef __cplusplus
 }

@@ -21,8 +21,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or
@@ -62,7 +62,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zgetrs(dague_context_t *dague,
+dplasma_zgetrs(parsec_context_t *parsec,
                PLASMA_enum trans,
                tiled_matrix_desc_t *A,
                tiled_matrix_desc_t *IPIV,
@@ -76,55 +76,55 @@ dplasma_zgetrs(dague_context_t *dague,
         return -1;
     }
 
-#ifdef DAGUE_COMPOSITION
-    dague_handle_t *dague_zlaswp = NULL;
-    dague_handle_t *dague_ztrsm1 = NULL;
-    dague_handle_t *dague_ztrsm2 = NULL;
+#ifdef PARSEC_COMPOSITION
+    parsec_handle_t *parsec_zlaswp = NULL;
+    parsec_handle_t *parsec_ztrsm1 = NULL;
+    parsec_handle_t *parsec_ztrsm2 = NULL;
 
     if ( trans == PlasmaNoTrans )
     {
-        dague_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
-        dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
-        dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+        parsec_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
+        parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
+        parsec_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
-        dague_enqueue( dague, dague_zlaswp );
-        dague_enqueue( dague, dague_ztrsm1 );
-        dague_enqueue( dague, dague_ztrsm2 );
+        parsec_enqueue( parsec, parsec_zlaswp );
+        parsec_enqueue( parsec, parsec_ztrsm1 );
+        parsec_enqueue( parsec, parsec_ztrsm2 );
 
-        dplasma_progress( dague );
+        dplasma_progress( parsec );
 
-        dplasma_ztrsm_Destruct( dague_zlaswp );
-        dplasma_ztrsm_Destruct( dague_ztrsm1 );
-        dplasma_ztrsm_Destruct( dague_ztrsm2 );
+        dplasma_ztrsm_Destruct( parsec_zlaswp );
+        dplasma_ztrsm_Destruct( parsec_ztrsm1 );
+        dplasma_ztrsm_Destruct( parsec_ztrsm2 );
     }
     else
     {
-        dague_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, trans, PlasmaNonUnit, 1.0, A, B);
-        dague_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, trans, PlasmaUnit, 1.0, A, B);
-        dague_zlaswp = dplasma_zlaswp_New(B, IPIV, -1);
+        parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, trans, PlasmaNonUnit, 1.0, A, B);
+        parsec_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, trans, PlasmaUnit, 1.0, A, B);
+        parsec_zlaswp = dplasma_zlaswp_New(B, IPIV, -1);
 
-        dague_enqueue( dague, dague_ztrsm1 );
-        dague_enqueue( dague, dague_ztrsm2 );
-        dague_enqueue( dague, dague_zlaswp );
+        parsec_enqueue( parsec, parsec_ztrsm1 );
+        parsec_enqueue( parsec, parsec_ztrsm2 );
+        parsec_enqueue( parsec, parsec_zlaswp );
 
-        dplasma_progress( dague );
+        dplasma_progress( parsec );
 
-        dplasma_ztrsm_Destruct( dague_ztrsm1 );
-        dplasma_ztrsm_Destruct( dague_ztrsm2 );
-        dplasma_ztrsm_Destruct( dague_zlaswp );
+        dplasma_ztrsm_Destruct( parsec_ztrsm1 );
+        dplasma_ztrsm_Destruct( parsec_ztrsm2 );
+        dplasma_ztrsm_Destruct( parsec_zlaswp );
     }
 #else
     if ( trans == PlasmaNoTrans )
     {
-        dplasma_zlaswp(dague, B, IPIV, 1);
-        dplasma_ztrsm( dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,    1.0, A, B);
-        dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+        dplasma_zlaswp(parsec, B, IPIV, 1);
+        dplasma_ztrsm( parsec, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit,    1.0, A, B);
+        dplasma_ztrsm( parsec, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
     }
     else
     {
-        dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, trans, PlasmaNonUnit, 1.0, A, B);
-        dplasma_ztrsm( dague, PlasmaLeft, PlasmaLower, trans, PlasmaUnit,    1.0, A, B);
-        dplasma_zlaswp(dague, B, IPIV, -1);
+        dplasma_ztrsm( parsec, PlasmaLeft, PlasmaUpper, trans, PlasmaNonUnit, 1.0, A, B);
+        dplasma_ztrsm( parsec, PlasmaLeft, PlasmaLower, trans, PlasmaUnit,    1.0, A, B);
+        dplasma_zlaswp(parsec, B, IPIV, -1);
     }
 #endif
     return 0;

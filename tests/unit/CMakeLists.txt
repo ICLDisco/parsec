@@ -1,4 +1,4 @@
 
-dague_addtest(C lifo lifo.c)
-dague_addtest(C list list.c)
+parsec_addtest(C lifo lifo.c)
+parsec_addtest(C list list.c)
 

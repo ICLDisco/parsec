@@ -4,25 +4,25 @@
  *                         reserved.
  */
 
-#include "dague.h"
+#include "parsec.h"
 #include "rtt_wrapper.h"
 #include "rtt_data.h"
-#if defined(DAGUE_HAVE_STRING_H)
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
-#if defined(DAGUE_HAVE_MPI)
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-#endif  /* defined(DAGUE_HAVE_MPI) */
+#endif  /* defined(PARSEC_HAVE_MPI) */
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world, cores;
     int size, nb;
-    dague_ddesc_t *ddescA;
-    dague_handle_t *rtt;
+    parsec_ddesc_t *ddescA;
+    parsec_handle_t *rtt;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -34,26 +34,26 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
     cores = 1;
-    dague = dague_init(cores, &argc, &argv);
+    parsec = parsec_init(cores, &argc, &argv);
 
     size = 256;
     nb   = 4 * world;
 
     ddescA = create_and_distribute_data(rank, world, size, 1);
-    dague_ddesc_set_key(ddescA, "A");
+    parsec_ddesc_set_key(ddescA, "A");
 
     rtt = rtt_new(ddescA, size, nb);
-    dague_enqueue(dague, rtt);
+    parsec_enqueue(parsec, rtt);
 
-    dague_context_wait(dague);
+    parsec_context_wait(parsec);
 
-    dague_handle_free((dague_handle_t*)rtt);
+    parsec_handle_free((parsec_handle_t*)rtt);
 
     free_data(ddescA);
 
-    dague_fini(&dague);
+    parsec_fini(&parsec);
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 

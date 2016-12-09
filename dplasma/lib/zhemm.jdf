@@ -19,8 +19,8 @@ extern "C" %{
  */
 side   [type = PLASMA_enum]
 uplo   [type = PLASMA_enum]
-alpha  [type = dague_complex64_t]
-beta   [type = dague_complex64_t]
+alpha  [type = parsec_complex64_t]
+beta   [type = parsec_complex64_t]
 
 descA  [type = "const tiled_matrix_desc_t*"]
 descB  [type = "const tiled_matrix_desc_t*"]
@@ -94,12 +94,12 @@ RW    C <- ( k == 0 ) ? descC(m, n) : C HEMM( m, n, k-1 )
         -> ( ( (side == plasma_left) && (k == descC->mt-1) ) || ( (side == plasma_right) && (k == descC->nt-1) ) ) ? descC( m, n ) : C HEMM(m, n, k+1)
 BODY
 {
-    dague_complex64_t zbeta = (k == 0) ? beta : (dague_complex64_t)1.0;
+    parsec_complex64_t zbeta = (k == 0) ? beta : (parsec_complex64_t)1.0;
     int tempmm = ( m == descC->mt-1 ) ? descC->m - m * descC->mb : descC->mb;
     int tempnn = ( n == descC->nt-1 ) ? descC->n - n * descC->nb : descC->nb;
     int ldcm   = BLKLDD( descC, m );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if (side == PlasmaLeft && k == m) {
         int ldam = BLKLDD( descA, m );
         int ldbk = BLKLDD( descB, k );
@@ -139,7 +139,7 @@ BODY
             B, ldb,
             zbeta, C, ldcm); /* ldc * Y */
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
     printlog("hemm( %d, %d, %d )\n", m, n, k);
 }

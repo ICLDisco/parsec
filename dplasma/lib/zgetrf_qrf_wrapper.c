@@ -11,10 +11,10 @@
 
 #include "dplasma.h"
 #include <math.h>
-#include "dague/vpmap.h"
+#include "parsec/vpmap.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmajdf.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #include "zgetrf_qrf.h"
@@ -141,8 +141,8 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_qrf_Destruct();
  *
  *******************************************************************************
@@ -154,7 +154,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  * @sa dplasma_sgetrf_qrf_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                         tiled_matrix_desc_t *A,
                         tiled_matrix_desc_t *IPIV,
@@ -163,7 +163,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                         int criteria, double alpha, int* lu_tab,
                         int* INFO)
 {
-    dague_zgetrf_qrf_handle_t* handle;
+    parsec_zgetrf_qrf_handle_t* handle;
     int ib = TS->mb;
     size_t sizeW = 1;
     size_t sizeReduceVec = 1;
@@ -193,8 +193,8 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
         dplasma_genrandom_lutab(lu_tab, 0, minMNT-1, nb_lu, 0);
     }
 
-    handle = dague_zgetrf_qrf_new( A,
-                                   (dague_ddesc_t*)IPIV,
+    handle = parsec_zgetrf_qrf_new( A,
+                                   (parsec_ddesc_t*)IPIV,
                                    TS,
                                    TT,
                                    lu_tab, *qrtree,
@@ -224,53 +224,53 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
 
     handle->_g_W = (double*)malloc(sizeW * sizeof(double));
 
-    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(parsec_complex64_t) );
 
-    handle->_g_p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->_g_p_tau, TS->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_tau = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( handle->_g_p_tau, TS->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[DAGUE_zgetrf_qrf_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( handle->arenas[PARSEC_zgetrf_qrf_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( handle->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 0 );
+    dplasma_add2arena_lower( handle->arenas[PARSEC_zgetrf_qrf_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* IPIV */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA],
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_PIVOT_ARENA],
                                  A->mb*sizeof(int),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_int_t, A->mb, 1, -1 );
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_int_t, A->mb, 1, -1 );
 
     /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( handle->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 1 );
+    dplasma_add2arena_upper( handle->arenas[PARSEC_zgetrf_qrf_UPPER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA],
-                                 TS->mb*TS->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, TS->mb, TS->nb, -1);
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_LITTLE_T_ARENA],
+                                 TS->mb*TS->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, TS->mb, TS->nb, -1);
 
     /* ReduceVec */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgetrf_qrf_ReduceVec_ARENA],
-                                 sizeReduceVec * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_t, sizeReduceVec, 1, -1);
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_ReduceVec_ARENA],
+                                 sizeReduceVec * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_t, sizeReduceVec, 1, -1);
 
     /* Choice */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgetrf_qrf_CHOICE_ARENA],
-                                 sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_int_t, 1, 1, -1);
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_CHOICE_ARENA],
+                                 sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_int_t, 1, 1, -1);
 
-    return (dague_handle_t*)handle;
+    return (parsec_handle_t*)handle;
 }
 
 /**
@@ -294,28 +294,28 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_qrf_Destruct( dague_handle_t *handle )
+dplasma_zgetrf_qrf_Destruct( parsec_handle_t *handle )
 {
-    dague_zgetrf_qrf_handle_t *dague_zgetrf_qrf = (dague_zgetrf_qrf_handle_t *)handle;
+    parsec_zgetrf_qrf_handle_t *parsec_zgetrf_qrf = (parsec_zgetrf_qrf_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_DEFAULT_ARENA   ] );
-    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LOWER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_PIVOT_ARENA     ] );
-    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_UPPER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_LITTLE_T_ARENA  ] );
-    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_ReduceVec_ARENA ] );
-    dague_matrix_del2arena( dague_zgetrf_qrf->arenas[DAGUE_zgetrf_qrf_CHOICE_ARENA    ] );
+    parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_DEFAULT_ARENA   ] );
+    parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_LOWER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_PIVOT_ARENA     ] );
+    parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_UPPER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_LITTLE_T_ARENA  ] );
+    parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_ReduceVec_ARENA ] );
+    parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_CHOICE_ARENA    ] );
 
-    dague_private_memory_fini( dague_zgetrf_qrf->_g_p_work );
-    dague_private_memory_fini( dague_zgetrf_qrf->_g_p_tau  );
+    parsec_private_memory_fini( parsec_zgetrf_qrf->_g_p_work );
+    parsec_private_memory_fini( parsec_zgetrf_qrf->_g_p_tau  );
 
-    if ( dague_zgetrf_qrf->_g_getrfdata != NULL )
-        free( dague_zgetrf_qrf->_g_getrfdata );
-    free( dague_zgetrf_qrf->_g_W );
-    free( dague_zgetrf_qrf->_g_p_work );
-    free( dague_zgetrf_qrf->_g_p_tau  );
+    if ( parsec_zgetrf_qrf->_g_getrfdata != NULL )
+        free( parsec_zgetrf_qrf->_g_getrfdata );
+    free( parsec_zgetrf_qrf->_g_W );
+    free( parsec_zgetrf_qrf->_g_p_work );
+    free( parsec_zgetrf_qrf->_g_p_tau  );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -351,8 +351,8 @@ dplasma_zgetrf_qrf_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] qrtree
  *          The structure that describes the trees used to perform the
@@ -428,7 +428,7 @@ dplasma_zgetrf_qrf_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zgetrf_qrf( dague_context_t *dague,
+dplasma_zgetrf_qrf( parsec_context_t *parsec,
                     dplasma_qrtree_t *qrtree,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *IPIV,
@@ -437,13 +437,13 @@ dplasma_zgetrf_qrf( dague_context_t *dague,
                     int criteria, double alpha, int* lu_tab,
                     int* INFO )
 {
-    dague_handle_t *dague_zgetrf_qrf = NULL;
+    parsec_handle_t *parsec_zgetrf_qrf = NULL;
 
-    dague_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrtree, A, IPIV, TS, TT, criteria, alpha, lu_tab, INFO);
+    parsec_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrtree, A, IPIV, TS, TT, criteria, alpha, lu_tab, INFO);
 
-    dague_enqueue(dague, (dague_handle_t*)dague_zgetrf_qrf);
-    dplasma_progress(dague);
+    parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgetrf_qrf);
+    dplasma_progress(parsec);
 
-    dplasma_zgetrf_qrf_Destruct( dague_zgetrf_qrf );
+    dplasma_zgetrf_qrf_Destruct( parsec_zgetrf_qrf );
     return 0;
 }

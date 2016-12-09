@@ -18,7 +18,7 @@ extern "C" %{
 #endif
 
 #define getIPIV(__ptr) ((int*)(__ptr))
-#define getL(__ptr)    ((dague_complex64_t*)(__ptr) + descL->nb)
+#define getL(__ptr)    ((parsec_complex64_t*)(__ptr) + descL->nb)
 
 %}
 
@@ -84,12 +84,12 @@ BODY
         tempkmin = (k == descA->nt-1) ? descA->n - k * descA->mb : descA->mb;
     }
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgessm(tempkm, tempnn, tempkmin, ib,
                 IP /* IP(k,k) */,
                 L  /* A(k,k)  */, ldak,
                 B  /* B(k,n)  */, ldbk );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -165,13 +165,13 @@ BODY
              descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
              k, n, B, ldbk, m, n, C, ldbm, m, k, getL(L), descL->mb, m, k, A, ldam, m, k, getIPIV(L) );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zssssm(descB->mb, tempnn, tempmm, tempnn, tempkn, ib,
                 B          /* descB(k,n) */, ldbk,
                 C          /* descB(m,n) */, ldbm,
                 getL(L)    /* descL(m,k) */, descL->mb,
                 A          /* descA(m,k) */, ldam,
                 getIPIV(L) /* dataIP(m,k) */ );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END

@@ -18,7 +18,7 @@ side      [type = "PLASMA_enum"]
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
 diag      [type = "PLASMA_enum"]
-alpha     [type = "dague_complex64_t"]
+alpha     [type = "parsec_complex64_t"]
 descA     [type = "const tiled_matrix_desc_t*"]
 descB     [type = "tiled_matrix_desc_t*"]
 
@@ -41,16 +41,16 @@ BODY
 {
     int tempmm = ((m)==(descB->mt-1)) ? (descB->m-(m*descB->mb)) : descB->mb;
     int tempkn = ((k)==(0)) ? (descB->n-((descB->nt-1)*descB->nb)) : descB->nb;
-    dague_complex64_t lalpha = (k==0) ? alpha : (dague_complex64_t)1.0;
+    parsec_complex64_t lalpha = (k==0) ? alpha : (parsec_complex64_t)1.0;
     int lda = BLKLDD( descA, (descB->nt-1)-k );
     int ldb = BLKLDD( descB, m );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
         CORE_ztrsm(side, uplo, trans, diag,
                    tempmm, tempkn, lalpha,
                    A /* descA((descB->nt-1)-k,(descB->nt-1)-k) */, lda,
                    B /* descB(m,(descB->nt-1)-k) */, ldb );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
     printlog("CORE_ztrsm(%d, %d)\n"
              "\t(side, uplo, trans, diag, tempmm, tempkn, lalpha, descA(%d,%d)[%p], lda, descB(%d,%d)[%p], ldb)\n",
@@ -96,15 +96,15 @@ BODY
     int tempkn = ((k)==(0)) ? (descB->n-((descB->nt-1)*descB->nb)) : descB->nb;
     int ldb = BLKLDD( descB, m );
     int lda = BLKLDD( descA, (descB->nt-1)-k );
-    dague_complex64_t lalpha = (k==0) ? alpha : (dague_complex64_t)1.0;
+    parsec_complex64_t lalpha = (k==0) ? alpha : (parsec_complex64_t)1.0;
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                    tempmm, descB->nb, tempkn,
                    -1.0,   C /* descB(m,             (descB->nt-1)-k) */, ldb,
                            D /* descA((descB->nt-1)-k,(descB->nt-1)-n) */, lda,
                    lalpha, E /* descB(m,             (descB->nt-1)-n) */, ldb );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, descB->nb, tempkn, mzone, descB(%d,%d)[%p], ldb, descA(%d,%d)[%p], lda, lalpha, descB(%d,%d)[%p], ldb)\n",

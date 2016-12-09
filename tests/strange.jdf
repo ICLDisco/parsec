@@ -52,8 +52,8 @@ static two_dim_block_cyclic_t descA;
 
 int main(int argc, char* argv[] )
 {
-    dague_context_t *dague;
-    dague_strange_handle_t* handle;
+    parsec_context_t *parsec;
+    parsec_strange_handle_t* handle;
     int i = 0, n = 1, val = 0;
 
     while( NULL != argv[i] ) {
@@ -68,39 +68,39 @@ int main(int argc, char* argv[] )
         argc -= 1;
     }
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
     }
 #endif
 
-    dague = dague_init(-1, &argc, &argv);
-    assert( NULL != dague );
+    parsec = parsec_init(-1, &argc, &argv);
+    assert( NULL != parsec );
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                1 /*nodes*/, 0 /*rank*/,
                                1, 1, n, 1,
                                0, 0, n, 1, 1, 1, 1);
-    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
-                                     dague_datadist_getsizeoftype(TYPE) );
+                                     parsec_datadist_getsizeoftype(TYPE) );
 
-    handle = dague_strange_new( (dague_ddesc_t*)&descA, n, &val, 2.5 );
+    handle = parsec_strange_new( (parsec_ddesc_t*)&descA, n, &val, 2.5 );
     assert( NULL != handle );
 
-    dague_arena_construct( handle->arenas[DAGUE_strange_DEFAULT_ARENA],
-                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_construct( handle->arenas[PARSEC_strange_DEFAULT_ARENA],
+                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
-    dague_enqueue( dague, (dague_handle_t*)handle );
-    dague_context_wait(dague);
+    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_context_wait(parsec);
 
     free(descA.mat);
-    dague_fini( &dague);
+    parsec_fini( &parsec);
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 

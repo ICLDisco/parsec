@@ -13,20 +13,20 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 #if defined(CHECK_B)
-static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
+static int check_solution( parsec_context_t *parsec, int loud, PLASMA_enum uplo,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 #endif
 
-static int check_inverse( dague_context_t *dague, int loud, PLASMA_enum uplo,
+static int check_inverse( parsec_context_t *parsec, int loud, PLASMA_enum uplo,
                           tiled_matrix_desc_t *ddescA,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI );
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     int ret = 0;
     int uplo = PlasmaLower;
@@ -37,8 +37,8 @@ int main(int argc, char ** argv)
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZHETRF, ((DagDouble_t)N));
 
@@ -82,25 +82,25 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplghe( dague, (double)(0), uplo,
+    dplasma_zplghe( parsec, (double)(0), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 1358);
 
     if( check ){
-        dplasma_zlacpy( dague, uplo,
+        dplasma_zlacpy( parsec, uplo,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0);
 
 #if defined(CHECK_B)
-        dplasma_zplrnt( dague, 0,
+        dplasma_zplrnt( parsec, 0,
                         (tiled_matrix_desc_t *)&ddescB, 3872);
 
-        dplasma_zlacpy( dague, PlasmaUpperLower,
+        dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,
                         (tiled_matrix_desc_t *)&ddescX);
 #endif
         if (check_inv) {
-            dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
-            dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
+            dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
+            dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
         }
     }
     if(loud > 2) printf("Done\n");
@@ -110,7 +110,7 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
     if (loud) TIME_START();
 
-    ret = dplasma_zhebut(dague, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
+    ret = dplasma_zhebut(parsec, (tiled_matrix_desc_t *)&ddescA, &U_but_vec, butterfly_level);
     if( ret < 0 )
         return ret;
 
@@ -123,7 +123,7 @@ int main(int argc, char ** argv)
 
     if(loud > 2) printf("+++ Computing Factorization ... \n");
     SYNC_TIME_START();
-    dplasma_zhetrf(dague, (tiled_matrix_desc_t *)&ddescA);
+    dplasma_zhetrf(parsec, (tiled_matrix_desc_t *)&ddescA);
 
     SYNC_TIME_PRINT(rank, ("zhetrf computation N= %d NB= %d : %f gflops\n", N, NB,
                            (gflops = (flops/1e9)/(sync_time_elapsed))));
@@ -143,51 +143,51 @@ int main(int argc, char ** argv)
     if(check) {
 
 #if defined(CHECK_B)
-        dplasma_zhetrs(dague, uplo,
+        dplasma_zhetrs(parsec, uplo,
                        (tiled_matrix_desc_t *)&ddescA,
                        (tiled_matrix_desc_t *)&ddescX,
                        U_but_vec, butterfly_level);
 
         /* Check the solution */
-        ret |= check_solution( dague, (rank == 0) ? loud : 0, uplo,
+        ret |= check_solution( parsec, (rank == 0) ? loud : 0, uplo,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
 
-        dague_data_free(ddescB.mat);
+        parsec_data_free(ddescB.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
 
-        dague_data_free(ddescX.mat);
+        parsec_data_free(ddescX.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX);
 #endif
 
         if (check_inv) {
 
             fprintf(stderr, "Start hetrs\n");
-            dplasma_zhetrs(dague, uplo,
+            dplasma_zhetrs(parsec, uplo,
                            (tiled_matrix_desc_t *)&ddescA,
                            (tiled_matrix_desc_t *)&ddescInvA,
                            U_but_vec, butterfly_level);
 
             fprintf(stderr, "Start check_inv\n");
             /* Check the solution against the inverse */
-            ret |= check_inverse(dague, (rank == 0) ? loud : 0, uplo,
+            ret |= check_inverse(parsec, (rank == 0) ? loud : 0, uplo,
                                  (tiled_matrix_desc_t *)&ddescA0,
                                  (tiled_matrix_desc_t *)&ddescInvA,
                                  (tiled_matrix_desc_t *)&ddescI);
 
-            dague_data_free(ddescInvA.mat);
+            parsec_data_free(ddescInvA.mat);
             tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescInvA);
 
-            dague_data_free(ddescI.mat);
+            parsec_data_free(ddescI.mat);
             tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescI);
         }
     }
 
-    dague_data_free(ddescA.mat);
+    parsec_data_free(ddescA.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }
@@ -196,7 +196,7 @@ int main(int argc, char ** argv)
 /*
  * This function destroys B
  */
-static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
+static int check_solution( parsec_context_t *parsec, int loud, PLASMA_enum uplo,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX )
@@ -209,14 +209,14 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
     int N = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
+    Anorm = dplasma_zlanhe(parsec, PlasmaInfNorm, uplo, ddescA);
+    Bnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescX);
 
     /* Compute A*x */
-    dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, ddescA, ddescX, 1.0, ddescB);
+    dplasma_zhemm( parsec, PlasmaLeft, uplo, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Rnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;
 
@@ -243,7 +243,7 @@ static int check_solution( dague_context_t *dague, int loud, PLASMA_enum uplo,
 }
 #endif
 
-static int check_inverse( dague_context_t *dague, int loud, PLASMA_enum uplo,
+static int check_inverse( parsec_context_t *parsec, int loud, PLASMA_enum uplo,
                           tiled_matrix_desc_t *ddescA,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI )
@@ -255,13 +255,13 @@ static int check_inverse( dague_context_t *dague, int loud, PLASMA_enum uplo,
     int m = ddescA->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm    = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, ddescA);
-    InvAnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescInvA);
+    Anorm    = dplasma_zlanhe(parsec, PlasmaInfNorm, uplo, ddescA);
+    InvAnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescInvA);
 
     /* Compute I - A*A^{-1} */
-    dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, ddescA, ddescInvA, 1.0, ddescI);
+    dplasma_zhemm( parsec, PlasmaLeft, uplo, -1.0, ddescA, ddescInvA, 1.0, ddescI);
 
-    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescI);
+    Rnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescI);
 
     result = Rnorm / ( ( Anorm * InvAnorm ) * m * eps ) ;
 

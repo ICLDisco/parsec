@@ -45,8 +45,8 @@ generatejdf()
     $q2j -phony_tasks -shmem -anti $dstcpp > $dstjdf
 
     echo "   Postprocessing"
-    # Replace PLASMA_Complex64_t by Dague
-    sed -i 's/PLASMA_Complex/dague_complex/g' $dstjdf
+    # Replace PLASMA_Complex64_t by PaRSEC
+    sed -i 's/PLASMA_Complex/parsec_complex/g' $dstjdf
 
     # Convert desc_X to desc
     # sed -i 's/desc_\([A-Z0-9]*[ .,]\)/desc\1/g' $dstjdf

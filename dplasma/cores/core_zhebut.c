@@ -8,7 +8,7 @@
  */
 #include <math.h>
 #include <stdlib.h>
-#include "dague.h"
+#include "parsec.h"
 //#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <core_blas.h>
 #include <cblas.h>

@@ -6,12 +6,12 @@
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/subtile.h"
 
-static uint32_t      subtile_rank_of(dague_ddesc_t* ddesc, ...);
-static int32_t       subtile_vpid_of(dague_ddesc_t* ddesc, ...);
-static dague_data_t* subtile_data_of(dague_ddesc_t* ddesc, ...);
-static uint32_t      subtile_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
-static int32_t       subtile_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
-static dague_data_t* subtile_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static uint32_t      subtile_rank_of(parsec_ddesc_t* ddesc, ...);
+static int32_t       subtile_vpid_of(parsec_ddesc_t* ddesc, ...);
+static parsec_data_t* subtile_data_of(parsec_ddesc_t* ddesc, ...);
+static uint32_t      subtile_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static int32_t       subtile_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static parsec_data_t* subtile_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
 
 subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
                                      int mt, int nt,   /* Tile in tdesc */
@@ -20,7 +20,7 @@ subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
                                      int m,  int n)    /* Submatrix size (the one concerned by the computation) */
 {
     subtile_desc_t *sdesc = malloc( sizeof(subtile_desc_t) );
-    dague_ddesc_t *o = &(sdesc->super.super);
+    parsec_ddesc_t *o = &(sdesc->super.super);
     (void)mt; (void)nt;
 
     /* Initialize the tiled_matrix descriptor */
@@ -30,10 +30,10 @@ subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
                             i, j, m, n );
 
     sdesc->super.nb_local_tiles = sdesc->super.lmt * sdesc->super.lnt;
-    sdesc->super.data_map = (dague_data_t**)calloc(sdesc->super.nb_local_tiles, sizeof(dague_data_t*));
+    sdesc->super.data_map = (parsec_data_t**)calloc(sdesc->super.nb_local_tiles, sizeof(parsec_data_t*));
 
     sdesc->mat = NULL;  /* No data associated with the matrix yet */
-    //sdesc->mat  = tdesc->super.data_of( (dague_ddesc_t*)tdesc, mt, nt );
+    //sdesc->mat  = tdesc->super.data_of( (parsec_ddesc_t*)tdesc, mt, nt );
     sdesc->vpid = 0;
 
     /* set the methods */
@@ -51,7 +51,7 @@ subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
     return sdesc;
 }
 
-static inline void subtile_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t key, int *m, int *n)
+static inline void subtile_key_to_coordinates(parsec_ddesc_t *desc, parsec_data_key_t key, int *m, int *n)
 {
     int _m, _n;
     tiled_matrix_desc_t *tdesc;
@@ -69,29 +69,29 @@ static inline void subtile_key_to_coordinates(dague_ddesc_t *desc, dague_data_ke
  * Set of functions with no super-tiles
  *
  */
-static uint32_t subtile_rank_of(dague_ddesc_t * desc, ...)
+static uint32_t subtile_rank_of(parsec_ddesc_t * desc, ...)
 {
     return desc->myrank;
 }
 
-static uint32_t subtile_rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static uint32_t subtile_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     (void)key;
     return desc->myrank;
 }
 
-static int32_t subtile_vpid_of(dague_ddesc_t *desc, ...)
+static int32_t subtile_vpid_of(parsec_ddesc_t *desc, ...)
 {
     return ((subtile_desc_t*)desc)->vpid;
 }
 
-static int32_t subtile_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static int32_t subtile_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     (void)key;
     return ((subtile_desc_t*)desc)->vpid;
 }
 
-static dague_data_t* subtile_data_of(dague_ddesc_t *desc, ...)
+static parsec_data_t* subtile_data_of(parsec_ddesc_t *desc, ...)
 {
     int m, n, position;
     size_t pos;
@@ -113,14 +113,14 @@ static dague_data_t* subtile_data_of(dague_ddesc_t *desc, ...)
 
     pos = (n * sdesc->super.nb) * sdesc->super.lm
         +  m * sdesc->super.mb;
-    pos *= dague_datadist_getsizeoftype(sdesc->super.mtype);
+    pos *= parsec_datadist_getsizeoftype(sdesc->super.mtype);
 
-    return dague_matrix_create_data( &sdesc->super,
+    return parsec_matrix_create_data( &sdesc->super,
                                      (char*)sdesc->mat + pos,
                                      position, position );
 }
 
-static dague_data_t* subtile_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static parsec_data_t* subtile_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     int m, n;
     subtile_key_to_coordinates(desc, key, &m, &n);

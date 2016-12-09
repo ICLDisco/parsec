@@ -17,15 +17,15 @@ extern "C" %{
 %}
 
 descA   [type = "tiled_matrix_desc_t*"]
-IPIV    [type = "dague_ddesc_t*"       aligned=descA]
+IPIV    [type = "parsec_ddesc_t*"       aligned=descA]
 TS      [type = "tiled_matrix_desc_t*" aligned=descA]
 TT      [type = "tiled_matrix_desc_t*" aligned=descA]
 descB   [type = "tiled_matrix_desc_t*" aligned=descA]
 lu_tab  [type = "int*"]
 qrtree  [type = "dplasma_qrtree_t"]
 ib      [type = "int"]
-p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(TS->nb))"]
-p_tau   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(TS->nb))"]
+p_work  [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(TS->nb))"]
+p_tau   [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(TS->nb))"]
 
 param_p [type = int default="((two_dim_block_cyclic_t*)descA)->grid.rows" hidden=on ]
 param_q [type = int default="((two_dim_block_cyclic_t*)descA)->grid.cols" hidden=on ]
@@ -85,7 +85,7 @@ BODY
 
     printlog("swptrsm_u(k=%d, n=%d)", k, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
 
         PLASMA_desc pdescB = plasma_desc_init( PlasmaComplexDouble,
                                                descB->mb, descB->nb, descB->mb * descB->nb,
@@ -105,7 +105,7 @@ BODY
             tempkm, tempnn,
             1., A /*A(k, k)*/, ldak,
                 C /*B(k, n)*/, ldbk);
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -167,13 +167,13 @@ BODY
 
     printlog("zgemm( k=%d, m=%d, n=%d)\n", k, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
         CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                    tempmm, tempnn, tempkn,
                    -1., H /*(m, k)*/, ldam,
                         V /*(k, n)*/, ldbk,
                    1.,  C /*(m, n)*/, ldbm );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -233,8 +233,8 @@ BODY
              "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], TS->mb, A(%d,%d)[%p], ldam, p_elem_A, TS->nb)",
              k, m, n, m, k, A, m, k, T, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
-        void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+        void *p_elem_B = parsec_private_memory_pop( p_work );
 
         int tempAmm = ( m == descA->mt-1 ) ? descA->m - m * descA->mb : descA->mb;
         int tempAkn = ( k == descA->nt-1 ) ? descA->n - k * descA->nb : descA->nb;
@@ -252,8 +252,8 @@ BODY
             C /* B(m, n) */, ldbm,
             p_elem_B, TS->nb );
 
-        dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+        parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -342,8 +342,8 @@ BODY
     int ldbm = BLKLDD( descB, m );
     int ldwork = ib;
 
-#if !defined(DAGUE_DRY_RUN)
-        void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+        void *p_elem_B = parsec_private_memory_pop( p_work );
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_ztsmqr(
@@ -364,9 +364,9 @@ BODY
                 T  /* T(m, k) */, TT->mb,
                 p_elem_B, ldwork );
         }
-        dague_private_memory_push( p_work, p_elem_B );
+        parsec_private_memory_push( p_work, p_elem_B );
 
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
     printlog("CORE_zttmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA->mb, tempnn, tempmm, tempnn, descA->nb, ib, \n"
@@ -584,7 +584,7 @@ BODY
             }
         }
     }
-    dague_atomic_add_32b( &this_task->dague_handle->nb_tasks, -nb_tasks );
+    parsec_atomic_add_32b( &this_task->parsec_handle->nb_tasks, -nb_tasks );
 
 }
 END

@@ -4,35 +4,35 @@
  *                         reserved.
  *
  */
-#include "dague_config.h"
-#include "dague.h"
-#include "dague/execution_unit.h"
-#include "dague/utils/mca_param.h"
+#include "parsec_config.h"
+#include "parsec.h"
+#include "parsec/execution_unit.h"
+#include "parsec/utils/mca_param.h"
 
 #include "common.h"
 #include "common_timing.h"
 
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef DAGUE_HAVE_UNISTD_H
+#ifdef PARSEC_HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#ifdef DAGUE_HAVE_LIMITS_H
+#ifdef PARSEC_HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#if defined(DAGUE_HAVE_GETOPT_H)
+#if defined(PARSEC_HAVE_GETOPT_H)
 #include <getopt.h>
-#endif  /* defined(DAGUE_HAVE_GETOPT_H) */
-#ifdef DAGUE_HAVE_MPI
+#endif  /* defined(PARSEC_HAVE_GETOPT_H) */
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
 #endif
-#if defined(DAGUE_HAVE_CUDA)
-#include <dague/devices/cuda/dev_cuda.h>
+#if defined(PARSEC_HAVE_CUDA)
+#include <parsec/devices/cuda/dev_cuda.h>
 #endif
 
-#include "dague/vpmap.h"
+#include "parsec/vpmap.h"
 
-char *DAGUE_SCHED_NAME[] = {
+char *PARSEC_SCHED_NAME[] = {
     "", /* default */
     "lfq",
     "ltq",
@@ -47,9 +47,9 @@ char *DAGUE_SCHED_NAME[] = {
 /*******************************
  * globals and argv set values *
  *******************************/
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 MPI_Datatype SYNCHRO = MPI_BYTE;
-#endif  /* DAGUE_HAVE_MPI */
+#endif  /* PARSEC_HAVE_MPI */
 
 const int   side[2]  = { PlasmaLeft,    PlasmaRight };
 const int   uplo[2]  = { PlasmaUpper,   PlasmaLower };
@@ -159,12 +159,12 @@ void print_usage(void)
             "ENVIRONMENT\n"
             "  [SDCZ]<FUNCTION> : defines the priority limit of a given function for a given precision\n"
             "\n");
-            dague_usage();
+            parsec_usage();
 }
 
 #define GETOPT_STRING "bc:o:g::p:P:q:Q:N:M:K:A:B:C:i:t:T:s:S:xXv::hd:r:y:V:a:R:m:"
 
-#if defined(DAGUE_HAVE_GETOPT_LONG)
+#if defined(PARSEC_HAVE_GETOPT_LONG)
 static struct option long_options[] =
 {
     /* PaRSEC specific options */
@@ -247,7 +247,7 @@ static struct option long_options[] =
     {"h",           no_argument,        0, 'h'},
     {0, 0, 0, 0}
 };
-#endif  /* defined(DAGUE_HAVE_GETOPT_LONG) */
+#endif  /* defined(PARSEC_HAVE_GETOPT_LONG) */
 
 static void parse_arguments(int *_argc, char*** _argv, int* iparam)
 {
@@ -264,13 +264,13 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     iparam[IPARAM_MATRIX_INIT] = PlasmaMatrixRandom;
 
     do {
-#if defined(DAGUE_HAVE_GETOPT_LONG)
+#if defined(PARSEC_HAVE_GETOPT_LONG)
         c = getopt_long_only(argc, argv, "",
                         long_options, &opt);
 #else
         c = getopt(argc, argv, GETOPT_STRING);
         (void) opt;
-#endif  /* defined(DAGUE_HAVE_GETOPT_LONG) */
+#endif  /* defined(PARSEC_HAVE_GETOPT_LONG) */
 
         // printf("%c: %s = %s\n", c, long_options[opt].name, optarg);
         switch(c)
@@ -278,27 +278,27 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case 'c': iparam[IPARAM_NCORES] = atoi(optarg); break;
             case 'o':
                 if( !strcmp(optarg, "LFQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_LFQ;
                 else if( !strcmp(optarg, "LTQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LTQ;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_LTQ;
                 else if( !strcmp(optarg, "AP") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_AP;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_AP;
                 else if( !strcmp(optarg, "LHQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LHQ;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_LHQ;
                 else if( !strcmp(optarg, "GD") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_GD;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_GD;
                 else if( !strcmp(optarg, "PBQ") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_PBQ;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_PBQ;
                 else if( !strcmp(optarg, "IP") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_IP;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_IP;
                 else if( !strcmp(optarg, "RND") )
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_RND;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_RND;
                 else {
                     fprintf(stderr, "#!!!!! malformed scheduler value %s (accepted: LFQ LTQ PBQ AP GD RND LHQ IP). Reverting to default LFQ\n",
                             optarg);
-                    iparam[IPARAM_SCHEDULER] = DAGUE_SCHEDULER_LFQ;
+                    iparam[IPARAM_SCHEDULER] = PARSEC_SCHEDULER_LFQ;
                 }
-                dague_setenv_mca_param( "mca_sched", DAGUE_SCHED_NAME[iparam[IPARAM_SCHEDULER]], &environ );
+                parsec_setenv_mca_param( "mca_sched", PARSEC_SCHED_NAME[iparam[IPARAM_SCHEDULER]], &environ );
                 break;
 
             case 'g':
@@ -310,7 +310,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 else        iparam[IPARAM_NGPUS] = INT_MAX;
 
                 rc = asprintf(&value, "%d", iparam[IPARAM_NGPUS]);
-                dague_setenv_mca_param( "device_cuda_enabled", value, &environ );
+                parsec_setenv_mca_param( "device_cuda_enabled", value, &environ );
                 free(value);
                 break;
 
@@ -379,22 +379,22 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             case '?': /* getopt_long already printed an error message. */
                 exit(1);
             default:
-                break; /* Assume anything else is dague/mpi stuff */
+                break; /* Assume anything else is parsec/mpi stuff */
         }
     } while(-1 != c);
 
     if( NULL != add_dot ) {
-        int i, has_dashdash = 0, has_daguedot = 0;
+        int i, has_dashdash = 0, has_parsecdot = 0;
         for(i = 1; i < argc; i++) {
             if( !strcmp( argv[i], "--") ) {
                 has_dashdash = 1;
             }
-            if( has_dashdash && !strncmp( argv[i], "--dague_dot", 11 ) ) {
-                has_daguedot = 1;
+            if( has_dashdash && !strncmp( argv[i], "--parsec_dot", 11 ) ) {
+                has_parsecdot = 1;
                 break;
             }
         }
-        if( !has_daguedot ) {
+        if( !has_parsecdot ) {
             char **tmp;
             int  tmpc;
             if( !has_dashdash ) {
@@ -408,7 +408,7 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
             for(i = 0; i < (*_argc);i++)
                 tmp[i] = (*_argv)[i];
 
-            rc = asprintf( &tmp[ tmpc - 1 ], "--dague_dot=%s", add_dot );
+            rc = asprintf( &tmp[ tmpc - 1 ], "--parsec_dot=%s", add_dot );
             tmp[ tmpc     ] = NULL;
 
             *_argc = tmpc;
@@ -421,10 +421,10 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
     if(iparam[IPARAM_NGPUS] < 0) iparam[IPARAM_NGPUS] = 0;
     if(iparam[IPARAM_NGPUS] > 0) {
         if (iparam[IPARAM_VERBOSE] > 3) {
-            dague_setenv_mca_param( "device_show_capabilities", "1", &environ );
+            parsec_setenv_mca_param( "device_show_capabilities", "1", &environ );
         }
         if (iparam[IPARAM_VERBOSE] > 2) {
-            dague_setenv_mca_param( "device_show_statistics", "1", &environ );
+            parsec_setenv_mca_param( "device_show_statistics", "1", &environ );
         }
     }
 
@@ -603,20 +603,20 @@ void iparam_default_gemm(int* iparam)
     iparam[IPARAM_LDC] = -'m';
 }
 
-#ifdef DAGUE_PROF_TRACE
+#ifdef PARSEC_PROF_TRACE
 static char* argvzero;
 char cwd[1024];
 int unix_timestamp;
 #endif
 
-dague_context_t* setup_dague(int argc, char **argv, int *iparam)
+parsec_context_t* setup_parsec(int argc, char **argv, int *iparam)
 {
-#ifdef DAGUE_PROF_TRACE
+#ifdef PARSEC_PROF_TRACE
     argvzero = argv[0];
     unix_timestamp = time(NULL);
     getcwd(cwd, sizeof(cwd));
 #endif
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -634,18 +634,18 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     TIME_START();
 
     /* Once we got out arguments, we should pass whatever is left down */
-    int dague_argc, idx;
-    char** dague_argv = (char**)calloc(argc, sizeof(char*));
-    dague_argv[0] = argv[0];  /* the app name */
-    for( idx = dague_argc = 1;
+    int parsec_argc, idx;
+    char** parsec_argv = (char**)calloc(argc, sizeof(char*));
+    parsec_argv[0] = argv[0];  /* the app name */
+    for( idx = parsec_argc = 1;
          (idx < argc) && (0 != strcmp(argv[idx], "--")); idx++);
     if( idx != argc ) {
-        for( dague_argc = 1, idx++; idx < argc;
-             dague_argv[dague_argc] = argv[idx], dague_argc++, idx++);
+        for( parsec_argc = 1, idx++; idx < argc;
+             parsec_argv[parsec_argc] = argv[idx], parsec_argc++, idx++);
     }
-    dague_context_t* ctx = dague_init(iparam[IPARAM_NCORES],
-                                      &dague_argc, &dague_argv);
-    free(dague_argv);
+    parsec_context_t* ctx = parsec_init(iparam[IPARAM_NCORES],
+                                      &parsec_argc, &parsec_argv);
+    free(parsec_argv);
     if( NULL == ctx ) {
         /* Failed to correctly initialize. In a correct scenario report
          * upstream, but in this particular case bail out.
@@ -654,7 +654,7 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     }
 
     /* If the number of cores has not been defined as a parameter earlier
-     update it with the default parameter computed in dague_init. */
+     update it with the default parameter computed in parsec_init. */
     if(iparam[IPARAM_NCORES] <= 0)
     {
         int p, nb_total_comp_threads = 0;
@@ -665,15 +665,15 @@ dague_context_t* setup_dague(int argc, char **argv, int *iparam)
     }
     print_arguments(iparam);
 
-    if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("DAGuE initialized\n"));
+    if(verbose > 2) TIME_PRINT(iparam[IPARAM_RANK], ("PaRSEC initialized\n"));
     return ctx;
 }
 
-void cleanup_dague(dague_context_t* dague, int *iparam)
+void cleanup_parsec(parsec_context_t* parsec, int *iparam)
 {
-    dague_fini(&dague);
+    parsec_fini(&parsec);
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
     (void)iparam;

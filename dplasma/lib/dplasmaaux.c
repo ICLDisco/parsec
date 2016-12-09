@@ -9,9 +9,9 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 
-#if defined(DAGUE_HAVE_STRING_H)
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
 
 #include "dplasmaaux.h"
 

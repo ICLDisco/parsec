@@ -1,14 +1,14 @@
 #ifndef _tree_dist_h
 #define _tree_dist_h
 
-#include "dague_config.h"
+#include "parsec_config.h"
 
 #include <stdarg.h>
 #include <assert.h>
 #include <pthread.h>
 
-#include "dague/data_distribution.h"
-#include "dague/data_internal.h"
+#include "parsec/data_distribution.h"
+#include "parsec/data_internal.h"
 
 typedef struct tree_dist_s tree_dist_t;
 typedef struct node_s      node_t;
@@ -22,7 +22,7 @@ struct node_s {
 
 void tree_copy_node(tree_dist_t *dst_tree, int dst_nid, node_t *src);
 void tree_dist_insert_node(tree_dist_t *tree, node_t *node, int l, int n);
-void tree_dist_insert_data(tree_dist_t *tree, dague_data_t *data, int l, int n);
+void tree_dist_insert_data(tree_dist_t *tree, parsec_data_t *data, int l, int n);
 tree_dist_t *tree_dist_create_empty(int myrank, int nodes);
 int tree_dist_lookup_node(tree_dist_t *tree, int n, int l);
 
@@ -41,7 +41,7 @@ struct tree_dist_node_s {
      *  handle collisions on the hash buckets. */
     int n, l;
 
-    dague_data_t *data;
+    parsec_data_t *data;
     int rank, vpid;
 };
 
@@ -54,7 +54,7 @@ typedef struct tree_buffer_s {
 } tree_buffer_t;
 
 struct tree_dist_s {
-    dague_ddesc_t super;
+    parsec_ddesc_t super;
 
     /** Actual memory in which the node_t elements reside */
     pthread_mutex_t     buffer_lock;

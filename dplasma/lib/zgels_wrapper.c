@@ -43,8 +43,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] trans
  *          @arg PlasmaNoTrans:   the linear system involves A;
@@ -101,7 +101,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zgels( dague_context_t *dague,
+dplasma_zgels( parsec_context_t *parsec,
                PLASMA_enum trans,
                tiled_matrix_desc_t* A,
                tiled_matrix_desc_t* T,
@@ -129,17 +129,17 @@ dplasma_zgels( dague_context_t *dague,
         /*
          * Compute QR factorization of A
          */
-        dplasma_zgeqrf( dague, A, T );
+        dplasma_zgeqrf( parsec, A, T );
 
         if ( trans == PlasmaNoTrans ) {
             /*
              * Least-Squares Problem min || A * X - B ||
              */
-            dplasma_zunmqr( dague, PlasmaLeft, PlasmaConjTrans, A, T, B );
+            dplasma_zunmqr( parsec, PlasmaLeft, PlasmaConjTrans, A, T, B );
 
             subA = tiled_matrix_submatrix( A, 0, 0, A->n, A->n );
             subB = tiled_matrix_submatrix( B, 0, 0, A->n, B->n );
-            info = dplasma_ztrsm(  dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
+            info = dplasma_ztrsm(  parsec, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
         }
         else {
             /*
@@ -147,7 +147,7 @@ dplasma_zgels( dague_context_t *dague,
              */
             subA = tiled_matrix_submatrix( A, 0, 0, A->n, A->n );
             subB = tiled_matrix_submatrix( B, 0, 0, A->n, B->n );
-            info = dplasma_ztrsm(  dague, PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit, 1.0, subA, subB );
+            info = dplasma_ztrsm(  parsec, PlasmaLeft, PlasmaUpper, PlasmaConjTrans, PlasmaNonUnit, 1.0, subA, subB );
 
             if (info != 0) {
                 free(subA);
@@ -158,17 +158,17 @@ dplasma_zgels( dague_context_t *dague,
             if ( A->m > A->n ) {
                 free(subB);
                 subB = tiled_matrix_submatrix( B, A->n, 0, A->m-A->n, B->n );
-                dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., subB );
+                dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., subB );
             }
 
-            dplasma_zunmqr( dague, PlasmaLeft, PlasmaNoTrans, A, T, B );
+            dplasma_zunmqr( parsec, PlasmaLeft, PlasmaNoTrans, A, T, B );
         }
     }
     else {
         /*
          * Compute LQ factorization of A
          */
-        dplasma_zgelqf( dague, A, T );
+        dplasma_zgelqf( parsec, A, T );
 
         if ( trans == PlasmaNoTrans ) {
             /*
@@ -176,7 +176,7 @@ dplasma_zgels( dague_context_t *dague,
              */
             subA = tiled_matrix_submatrix( A, 0, 0, A->m, A->m );
             subB = tiled_matrix_submatrix( B, 0, 0, A->m, B->n );
-            info = dplasma_ztrsm(  dague, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
+            info = dplasma_ztrsm(  parsec, PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
 
             if (info != 0) {
                 free(subA);
@@ -187,20 +187,20 @@ dplasma_zgels( dague_context_t *dague,
             if ( A->n > A->m ) {
                 free(subB);
                 subB = tiled_matrix_submatrix( B, A->m, 0, A->n-A->m, B->n );
-                dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., subB );
+                dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., subB );
             }
 
-            dplasma_zunmlq( dague, PlasmaLeft, PlasmaConjTrans, A, T, B );
+            dplasma_zunmlq( parsec, PlasmaLeft, PlasmaConjTrans, A, T, B );
         }
         else {
             /*
              * Overdetermined system min || A**H * X - B ||
              */
-            dplasma_zunmlq( dague, PlasmaLeft, PlasmaNoTrans, A, T, B );
+            dplasma_zunmlq( parsec, PlasmaLeft, PlasmaNoTrans, A, T, B );
 
             subA = tiled_matrix_submatrix( A, 0, 0, A->m, A->m );
             subB = tiled_matrix_submatrix( B, 0, 0, A->m, B->n );
-            info = dplasma_ztrsm(  dague, PlasmaLeft, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, 1.0, subA, subB );
+            info = dplasma_ztrsm(  parsec, PlasmaLeft, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, 1.0, subA, subB );
         }
     }
 

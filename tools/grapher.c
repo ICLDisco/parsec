@@ -3,17 +3,17 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dague_config.h"
+#include "parsec_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <stdarg.h>
 
-#include "dague.h"
-#include "dague/data_distribution.h"
+#include "parsec.h"
+#include "parsec/data_distribution.h"
 
-static uint32_t pseudo_rank_of(struct dague_ddesc *mat, ...)
+static uint32_t pseudo_rank_of(struct parsec_ddesc *mat, ...)
 {
     va_list ap;
     va_start(ap, mat);
@@ -21,7 +21,7 @@ static uint32_t pseudo_rank_of(struct dague_ddesc *mat, ...)
     return 0;
 }
 
-static void *pseudo_data_of(struct dague_ddesc *mat, ...)
+static void *pseudo_data_of(struct parsec_ddesc *mat, ...)
 {
     va_list ap;
     va_start(ap, mat);
@@ -29,7 +29,7 @@ static void *pseudo_data_of(struct dague_ddesc *mat, ...)
     return NULL;
 }
 
-static dague_ddesc_t pseudo_desc = {
+static parsec_ddesc_t pseudo_desc = {
     .myrank = 0,
     .cores = 1,
     .nodes = 1,
@@ -39,7 +39,7 @@ static dague_ddesc_t pseudo_desc = {
 
 typedef struct {
     const char *command_name;
-    dague_handle_t *(*create_function)(int argc, char **argv);
+    parsec_handle_t *(*create_function)(int argc, char **argv);
 } create_function_t;
 
 #define TEST_SET(fname, vname) do {                                     \
@@ -119,9 +119,9 @@ static edge_list_t *lookup_create_edge(const vertex_list_t *from, const vertex_l
     return e;
 }
 
-static dague_ontask_iterate_t ontask_function(struct dague_execution_unit *eu, 
-                                              dague_execution_context_t *newcontext, 
-                                              dague_execution_context_t *oldcontext, 
+static parsec_ontask_iterate_t ontask_function(struct parsec_execution_unit *eu, 
+                                              parsec_execution_context_t *newcontext, 
+                                              parsec_execution_context_t *oldcontext, 
                                               int flow_index, int outdep_index, 
                                               int rank_src, int rank_dst,
                                               void *param)
@@ -138,8 +138,8 @@ static dague_ontask_iterate_t ontask_function(struct dague_execution_unit *eu,
     (void)rank_dst;
     (void)param;
 
-    dague_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, oldcontext);
-    dague_snprintf_execution_context(tostr, MAX_TASK_STRLEN, newcontext);
+    parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, oldcontext);
+    parsec_snprintf_execution_context(tostr, MAX_TASK_STRLEN, newcontext);
     
     from = lookup_create_vertex(fromstr);
     to = lookup_create_vertex(tostr);
@@ -147,7 +147,7 @@ static dague_ontask_iterate_t ontask_function(struct dague_execution_unit *eu,
 
     newcontext->function->iterate_successors(eu, newcontext, ontask_function, NULL);
 
-    return DAGUE_ITERATE_CONTINUE;
+    return PARSEC_ITERATE_CONTINUE;
 }
 
 static int dump_graph(const char *filename)
@@ -179,13 +179,13 @@ static int dump_graph(const char *filename)
 int main(int argc, char *argv[])
 {
     int i;
-    dague_handle_t *o;
-    dague_execution_context_t *startup;
-    dague_list_item_t *s;
-    dague_context_t *dague;
+    parsec_handle_t *o;
+    parsec_execution_context_t *startup;
+    parsec_list_item_t *s;
+    parsec_context_t *parsec;
 
     o = NULL;
-    dague = dague_init( 1, &argc, &argv, 1 );
+    parsec = parsec_init( 1, &argc, &argv, 1 );
     for(i = 0; i < NB_CREATE_FUNCTIONS; i++) {
         if( !strcmp( create_functions[i].command_name, argv[1]) ) {
             o = create_functions[i].create_function(argc-2, argv+2);
@@ -204,20 +204,20 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    o->startup_hook( dague->execution_units[0], o, &startup );
-    s = (dague_list_item_t*)startup;
+    o->startup_hook( parsec->execution_units[0], o, &startup );
+    s = (parsec_list_item_t*)startup;
     do {
         char fromstr[MAX_TASK_STRLEN];
-        dague_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, (dague_execution_context_t*)s);
+        parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, (parsec_execution_context_t*)s);
         lookup_create_vertex(fromstr);
-        s = (dague_list_item_t*)s->list_next;
-    } while( s != (dague_list_item_t*)startup );
+        s = (parsec_list_item_t*)s->list_next;
+    } while( s != (parsec_list_item_t*)startup );
 
-    s = (dague_list_item_t*)startup;
+    s = (parsec_list_item_t*)startup;
     do {
-        ((dague_execution_context_t*)s)->function->iterate_successors(dague->execution_units[0], (dague_execution_context_t*)s, ontask_function, NULL);
-        s = (dague_list_item_t*)s->list_next;
-    } while( s!= (dague_list_item_t*)startup );
+        ((parsec_execution_context_t*)s)->function->iterate_successors(parsec->execution_units[0], (parsec_execution_context_t*)s, ontask_function, NULL);
+        s = (parsec_list_item_t*)s->list_next;
+    } while( s!= (parsec_list_item_t*)startup );
 
     dump_graph("grapher.dot");
 

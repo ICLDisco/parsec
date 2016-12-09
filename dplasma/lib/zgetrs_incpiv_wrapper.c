@@ -21,8 +21,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] trans
  *          Specifies whether the matrix A is transposed, not transposed or
@@ -81,7 +81,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zgetrs_incpiv(dague_context_t *dague,
+dplasma_zgetrs_incpiv(parsec_context_t *parsec,
                       PLASMA_enum trans,
                       tiled_matrix_desc_t *A,
                       tiled_matrix_desc_t *L,
@@ -94,23 +94,23 @@ dplasma_zgetrs_incpiv(dague_context_t *dague,
         return -1;
     }
 
-#ifdef DAGUE_COMPOSITION
-    dague_handle_t *dague_ztrsmpl = NULL;
-    dague_handle_t *dague_ztrsm   = NULL;
+#ifdef PARSEC_COMPOSITION
+    parsec_handle_t *parsec_ztrsmpl = NULL;
+    parsec_handle_t *parsec_ztrsm   = NULL;
 
-    dague_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
-    dague_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
+    parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
-    dague_enqueue( dague, dague_ztrsmpl );
-    dague_enqueue( dague, dague_ztrsm   );
+    parsec_enqueue( parsec, parsec_ztrsmpl );
+    parsec_enqueue( parsec, parsec_ztrsm   );
 
-    dplasma_progress( dague );
+    dplasma_progress( parsec );
 
-    dplasma_ztrsm_Destruct( dague_ztrsmpl );
-    dplasma_ztrsm_Destruct( dague_ztrsm   );
+    dplasma_ztrsm_Destruct( parsec_ztrsmpl );
+    dplasma_ztrsm_Destruct( parsec_ztrsm   );
 #else
-    dplasma_ztrsmpl(dague, A, L, IPIV, B );
-    dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B );
+    dplasma_ztrsmpl(parsec, A, L, IPIV, B );
+    dplasma_ztrsm( parsec, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B );
 #endif
     return 0;
 }

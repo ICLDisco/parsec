@@ -27,15 +27,15 @@ tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int mb, int
                               1, 1,
                               world);
 
-    m->mat = dague_data_allocate((size_t)m->super.nb_local_tiles *
+    m->mat = parsec_data_allocate((size_t)m->super.nb_local_tiles *
                                 (size_t)m->super.bsiz *
-                                (size_t)dague_datadist_getsizeoftype(m->super.mtype));
+                                (size_t)parsec_datadist_getsizeoftype(m->super.mtype));
 
     return (tiled_matrix_desc_t*)m;
 }
 
 void free_data(tiled_matrix_desc_t *d)
 {
-    dague_ddesc_destroy(&d->super);
+    parsec_ddesc_destroy(&d->super);
     free(d);
 }

@@ -12,9 +12,9 @@
 #include <assert.h>
 
 #include "dplasma/lib/butterfly_map.h"
-#include "dague/data_internal.h"
+#include "parsec/data_internal.h"
 
-seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){
+seg_info_t parsec_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, int ib, int jb){
     int am, an, bm, bn, cm, cn, dm, dn, em, en, fm, fn;
     int mb, width, height, block_count;
     int cstartn, cendn, cstartm, cendm;
@@ -182,7 +182,7 @@ seg_info_t dague_rbt_calculate_constants(const tiled_matrix_desc_t *A, int L, in
     return seg;
 }
 
-void segment_to_tile(const dague_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
+void segment_to_tile(const parsec_seg_ddesc_t *seg_ddesc, int m, int n, int *m_tile, int *n_tile, uintptr_t *offset){
     seg_info_t seg;
     int mb, nb;
     int abs_m=0, abs_n=0;
@@ -363,7 +363,7 @@ int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, un
     return success;
 }
 
-int segment_to_arena_index(const dague_seg_ddesc_t* but_ddesc, int m, int n){
+int segment_to_arena_index(const parsec_seg_ddesc_t* but_ddesc, int m, int n){
     /* if using named types in the JDF or the default type, then you need to
      * offset the following value by the number of named+default types used
      */

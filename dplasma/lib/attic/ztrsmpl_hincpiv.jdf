@@ -11,7 +11,7 @@ extern "C" %{
  */
 #define PRECISION_z
 
-#include "dague.h"
+#include "parsec.h"
 #include <math.h>
 #include <core_blas.h>
 #include <core_blas.h>
@@ -24,17 +24,17 @@ extern "C" %{
 
 %}
 
-A      [type = "dague_ddesc_t *"]
+A      [type = "parsec_ddesc_t *"]
 descA  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)A)"]
-IPIV   [type = "dague_ddesc_t *" aligned=A]
-B      [type = "dague_ddesc_t *"]
+IPIV   [type = "parsec_ddesc_t *" aligned=A]
+B      [type = "parsec_ddesc_t *"]
 descB  [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)B)"]
-LT     [type = "dague_ddesc_t *" aligned=A]
+LT     [type = "parsec_ddesc_t *" aligned=A]
 descLT [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)LT)"]
 qrtree [type = "dplasma_qrtree_t"]
 ib     [type = "int"]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descLT.nb))"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descLT.nb))"]
+p_work [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descLT.nb))"]
+p_tau  [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descLT.nb))"]
 INFO   [type = "int*"]
 
 minMN  [type = "int" hidden=on default="( (descA.mt < descA.nt) ? descA.mt : descA.nt )" ]
@@ -81,12 +81,12 @@ BODY
              context->th_id, context->virtual_process->vp_id, k, i, n, m, nextm,
              tempmmB, tempnnB, tempk, m, k, P, m, k, A, ldam, m, n, C, ldbm);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
            CORE_zgessm(tempmmB, tempnnB, tempk, ib,
                        P /* IPIV(m,k) */,
                        A /* A(m,k)    */, ldam,
                        C /* B(m,n)    */, ldbm );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -177,7 +177,7 @@ BODY
              p, n, A1, ldbp, m, n, A2, ldbm,
              m, k, L, descLT.mb, m, k, V, ldam);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
 
         if ( type == DPLASMA_QR_KILLED_BY_TS ) {
             CORE_zssssm(
@@ -188,7 +188,7 @@ BODY
                 V  /* A(m, k)  */, ldam,
                 P  /* IPIV(m,k)*/ );
         } else {
-            void *p_elem_A = dague_private_memory_pop( p_work );
+            void *p_elem_A = parsec_private_memory_pop( p_work );
 
             CORE_zttmqr(
                 PlasmaLeft, PlasmaConjTrans,
@@ -199,10 +199,10 @@ BODY
                 L  /* LT(m, k) */, descLT.mb,
                 p_elem_A, ib );
 
-            dague_private_memory_push( p_work, p_elem_A );
+            parsec_private_memory_push( p_work, p_elem_A );
         }
 
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

@@ -26,7 +26,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#define my_rank_of(m, n) (((dague_ddesc_t*)(descA))->rank_of((dague_ddesc_t*)descA, m, n))
+#define my_rank_of(m, n) (((parsec_ddesc_t*)(descA))->rank_of((parsec_ddesc_t*)descA, m, n))
 %}
 
 /* Globals
@@ -38,7 +38,7 @@ ntype        [type = "PLASMA_enum"]
 uplo         [type = "PLASMA_enum"]
 trans        [type = "PLASMA_enum"]
 descA        [type = "const tiled_matrix_desc_t*"]
-Tdist        [type = "dague_ddesc_t *"]
+Tdist        [type = "parsec_ddesc_t *"]
 norm         [type = "double *"]
 
 
@@ -121,7 +121,7 @@ BODY
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     double *dW = (double*)W;
 
     /*
@@ -193,7 +193,7 @@ BODY
             }
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -241,7 +241,7 @@ BODY
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
              context->th_id, m, n, tempmm, m, n-1, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     double *dA = (double*)A;
     double *dW = (double*)W;
 
@@ -278,7 +278,7 @@ BODY
             cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -310,7 +310,7 @@ BODY
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
              context->th_id, m, n, tempmm, m, n-1, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if(n > 0)
     {
         double *dA = (double*)A;
@@ -333,7 +333,7 @@ BODY
             cblas_daxpy( tempmm, 1., dA, 1, dW, 1);
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -365,7 +365,7 @@ BODY
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     double *dA = (double*)A;
     double *dW = (double*)W;
 
@@ -401,7 +401,7 @@ BODY
             *dW = maxval;
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

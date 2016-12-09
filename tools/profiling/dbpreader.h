@@ -7,7 +7,7 @@
 #ifndef _dbpreader_h_
 #define _dbpreader_h_
 
-#include "dague_config.h"
+#include "parsec_config.h"
 
 /* Basic Key-Value Info interface */
 

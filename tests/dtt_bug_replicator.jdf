@@ -27,7 +27,7 @@ void dump_double_array(char* msg, double* mat, int i, int j, int nb, int mb, int
 /**
  * Globals
  */
-dataA      [type = "dague_ddesc_t *"]
+dataA      [type = "parsec_ddesc_t *"]
 descA      [type = "tiled_matrix_desc_t" hidden = on default = "*((tiled_matrix_desc_t*)dataA)"]
 procpid    [type = "int" hidden = on default = 0]
 

@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#undef DAGUE_HAVE_MPI
+#include "parsec_config.h"
+#undef PARSEC_HAVE_MPI
 
 #include <stdlib.h>
 #include <string.h>
@@ -13,16 +13,16 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
-#include "dague/os-spec-timing.h"
-#include "dague/profiling.h"
-#include "dague/dague_binary_profile.h"
+#include "parsec/os-spec-timing.h"
+#include "parsec/profiling.h"
+#include "parsec/parsec_binary_profile.h"
 #include "dbpreader.h"
 
 #ifdef DEBUG
 #undef DEBUG
 #endif
 
-#if defined(DAGUE_DEBUG_NOISIER)
+#if defined(PARSEC_DEBUG_NOISIER)
 #define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)
@@ -84,10 +84,10 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                             dbp_event_get_handle_id(e), dbp_event_get_event_id( e ),
                             start, end);
 
-                    if( dbp_event_get_flags( e ) & DAGUE_PROFILING_EVENT_HAS_INFO ) {
+                    if( dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
                         /** TODO fprintf(tracefile, "       <INFO><![CDATA[%s]]></INFO>\n", infostr); */
                     }
-                    if( dbp_event_get_flags( g ) & DAGUE_PROFILING_EVENT_HAS_INFO ) {
+                    if( dbp_event_get_flags( g ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {
                         /** TODO fprintf(tracefile, "       <INFO ATEND=\"true\"><![CDATA[%s]]></INFO>\n", infostr); */
                     }
                     fprintf(tracefile, "                  </EVENT>\n");

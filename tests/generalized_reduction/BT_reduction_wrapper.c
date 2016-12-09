@@ -4,11 +4,11 @@
  *                         reserved.
  */
 
-#include "dague.h"
-#include "dague/data_distribution.h"
-#include "dague/arena.h"
+#include "parsec.h"
+#include "parsec/data_distribution.h"
+#include "parsec/arena.h"
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
@@ -22,42 +22,42 @@ static MPI_Datatype block;
  * @param [IN] nb   tile size
  * @param [IN] nt   number of tiles
  *
- * @return the dague object to schedule.
+ * @return the parsec object to schedule.
  */
-dague_handle_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
+parsec_handle_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
 {
-    dague_BT_reduction_handle_t *o = NULL;
+    parsec_BT_reduction_handle_t *o = NULL;
 
-    o = dague_BT_reduction_new(A, nb, nt);
+    o = parsec_BT_reduction_new(A, nb, nt);
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         MPI_Aint extent;
         MPI_Type_contiguous(nb, MPI_INT, &block);
         MPI_Type_commit(&block);
-#if defined(DAGUE_HAVE_MPI_20)
+#if defined(PARSEC_HAVE_MPI_20)
         MPI_Aint lb = 0;
         MPI_Type_get_extent(block, &lb, &extent);
 #else
         MPI_Type_extent(block, &extent);
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
-        dague_arena_construct(o->arenas[DAGUE_BT_reduction_DEFAULT_ARENA],
-                              extent, DAGUE_ARENA_ALIGNMENT_SSE,
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+        parsec_arena_construct(o->arenas[PARSEC_BT_reduction_DEFAULT_ARENA],
+                              extent, PARSEC_ARENA_ALIGNMENT_SSE,
                               block);
     }
 #endif
 
-    return (dague_handle_t*)o;
+    return (parsec_handle_t*)o;
 }
 
 /**
- * @param [INOUT] o the dague object to destroy
+ * @param [INOUT] o the parsec object to destroy
  */
-void BT_reduction_destroy(dague_handle_t *o)
+void BT_reduction_destroy(parsec_handle_t *o)
 {
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
 }

@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsymm_New - Generates the dague handle to compute the following
+ *  dplasma_zsymm_New - Generates the parsec handle to compute the following
  *  operation.  WARNING: The computations are not done by this call.
  *
  *     \f[ C = \alpha \times A \times B + \beta \times C \f]
@@ -70,8 +70,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zsymm_Destruct();
  *
  *******************************************************************************
@@ -83,28 +83,28 @@
  * @sa dplasma_ssymm_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zsymm_New( PLASMA_enum side,
                    PLASMA_enum uplo,
-                   dague_complex64_t alpha,
+                   parsec_complex64_t alpha,
                    const tiled_matrix_desc_t* A,
                    const tiled_matrix_desc_t* B,
-                   dague_complex64_t beta,
+                   parsec_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
-    dague_zsymm_handle_t* handle;
+    parsec_zsymm_handle_t* handle;
 
-    handle = dague_zsymm_new(side, uplo, alpha, beta,
+    handle = parsec_zsymm_new(side, uplo, alpha, beta,
                              A,
                              B,
                              C);
 
-    dplasma_add2arena_tile(handle->arenas[DAGUE_zsymm_DEFAULT_ARENA],
-                           C->mb*C->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, C->mb);
+    dplasma_add2arena_tile(handle->arenas[PARSEC_zsymm_DEFAULT_ARENA],
+                           C->mb*C->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, C->mb);
 
-    return (dague_handle_t*)handle;
+    return (parsec_handle_t*)handle;
 }
 
 /**
@@ -128,11 +128,11 @@ dplasma_zsymm_New( PLASMA_enum side,
  *
  ******************************************************************************/
 void
-dplasma_zsymm_Destruct( dague_handle_t *handle )
+dplasma_zsymm_Destruct( parsec_handle_t *handle )
 {
-    dague_zsymm_handle_t *zsymm_handle = (dague_zsymm_handle_t*)handle;
-    dague_matrix_del2arena( zsymm_handle->arenas[DAGUE_zsymm_DEFAULT_ARENA] );
-    dague_handle_free(handle);
+    parsec_zsymm_handle_t *zsymm_handle = (parsec_zsymm_handle_t*)handle;
+    parsec_matrix_del2arena( zsymm_handle->arenas[PARSEC_zsymm_DEFAULT_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -153,8 +153,8 @@ dplasma_zsymm_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] side
  *          Specifies whether the symmetric matrix A appears on the
@@ -205,16 +205,16 @@ dplasma_zsymm_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zsymm( dague_context_t *dague,
+dplasma_zsymm( parsec_context_t *parsec,
                PLASMA_enum side,
                PLASMA_enum uplo,
-               dague_complex64_t alpha,
+               parsec_complex64_t alpha,
                const tiled_matrix_desc_t *A,
                const tiled_matrix_desc_t *B,
-               dague_complex64_t beta,
+               parsec_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
-    dague_handle_t *dague_zsymm = NULL;
+    parsec_handle_t *parsec_zsymm = NULL;
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
@@ -239,15 +239,15 @@ dplasma_zsymm( dague_context_t *dague,
         return -6;
     }
 
-    dague_zsymm = dplasma_zsymm_New(side, uplo,
+    parsec_zsymm = dplasma_zsymm_New(side, uplo,
                                     alpha, A, B,
                                     beta, C);
 
-    if ( dague_zsymm != NULL )
+    if ( parsec_zsymm != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_zsymm);
-        dplasma_progress(dague);
-        dplasma_zsymm_Destruct( dague_zsymm );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zsymm);
+        dplasma_progress(parsec);
+        dplasma_zsymm_Destruct( parsec_zsymm );
     }
     return 0;
 }

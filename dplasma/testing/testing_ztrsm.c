@@ -10,19 +10,19 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int check_solution( dague_context_t *dague, int loud,
+static int check_solution( parsec_context_t *parsec, int loud,
                            int M, int N,
                            tiled_matrix_desc_t *ddescC,
                            tiled_matrix_desc_t *ddescCfinal );
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     int ret = 0;
     int Aseed = 3872;
     int Cseed = 2873;
-    dague_complex64_t alpha = 0.98;
+    parsec_complex64_t alpha = 0.98;
     tiled_matrix_desc_t *ddescA;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
@@ -32,11 +32,11 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
     iparam_default_ibnbmb(iparam, 0, 200, 200);
-#if defined(DAGUE_HAVE_CUDA) && defined(PRECISION_s) && 0
+#if defined(PARSEC_HAVE_CUDA) && defined(PRECISION_s) && 0
     iparam[IPARAM_NGPUS] = 0;
 #endif
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     /* initializing matrix structure */
     int Am = dplasma_imax(M, N);
@@ -58,14 +58,14 @@ int main(int argc, char ** argv)
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     /* Generate matrix A with diagonal dominance to keep stability during computation */
-    dplasma_zplrnt( dague, 1, (tiled_matrix_desc_t *)&ddescA0, Aseed);
+    dplasma_zplrnt( parsec, 1, (tiled_matrix_desc_t *)&ddescA0, Aseed);
     /* Scale down the full matrix to keep stability in diag = PlasmaUnit case */
-    dplasma_zlascal( dague, PlasmaUpperLower,
-                     1. / (dague_complex64_t)Am,
+    dplasma_zlascal( parsec, PlasmaUpperLower,
+                     1. / (parsec_complex64_t)Am,
                      (tiled_matrix_desc_t *)&ddescA0 );
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
     if (check)
-        dplasma_zlacpy( dague, PlasmaUpperLower,
+        dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescC, (tiled_matrix_desc_t *)&ddescC0 );
     if(loud > 2) printf("Done\n");
 
@@ -84,20 +84,20 @@ int main(int argc, char ** argv)
         }
 
         /* Compute b = 1/alpha * A * x */
-        dplasma_ztrmm(dague, side, uplo, trans, diag, 1. / alpha,
+        dplasma_ztrmm(parsec, side, uplo, trans, diag, 1. / alpha,
                       ddescA, (tiled_matrix_desc_t *)&ddescC);
 
         PASTE_CODE_FLOPS(FLOPS_ZTRSM, (side, (DagDouble_t)M, (DagDouble_t)N));
 
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, ztrsm,
+        /* Create PaRSEC */
+        PASTE_CODE_ENQUEUE_KERNEL(parsec, ztrsm,
                                   (side, uplo, trans, diag, alpha,
                                    ddescA, (tiled_matrix_desc_t *)&ddescC));
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, ztrsm);
+        PASTE_CODE_PROGRESS_KERNEL(parsec, ztrsm);
 
-        dplasma_ztrsm_Destruct( DAGUE_ztrsm );
+        dplasma_ztrsm_Destruct( PARSEC_ztrsm );
         free(ddescA);
     }
     else
@@ -129,21 +129,21 @@ int main(int argc, char ** argv)
 
                         /* matrix generation */
                         printf("Generate matrices ... ");
-                        dplasma_zlacpy( dague, PlasmaUpperLower,
+                        dplasma_zlacpy( parsec, PlasmaUpperLower,
                                         (tiled_matrix_desc_t *)&ddescC0,
                                         (tiled_matrix_desc_t *)&ddescC );
-                        dplasma_ztrmm(dague, side[s], uplo[u], trans[t], diag[d], 1./alpha,
+                        dplasma_ztrmm(parsec, side[s], uplo[u], trans[t], diag[d], 1./alpha,
                                       ddescA, (tiled_matrix_desc_t *)&ddescC);
                         printf("Done\n");
 
                         /* Compute */
                         printf("Compute ... ... ");
-                        dplasma_ztrsm(dague, side[s], uplo[u], trans[t], diag[d], alpha,
+                        dplasma_ztrsm(parsec, side[s], uplo[u], trans[t], diag[d], alpha,
                                       ddescA, (tiled_matrix_desc_t *)&ddescC);
                         printf("Done\n");
 
                         /* Check the solution */
-                        info_solution = check_solution(dague, rank == 0 ? loud : 0, M, N,
+                        info_solution = check_solution(parsec, rank == 0 ? loud : 0, M, N,
                                                        (tiled_matrix_desc_t*)&ddescC0,
                                                        (tiled_matrix_desc_t*)&ddescC);
                         if ( rank == 0 ) {
@@ -166,16 +166,16 @@ int main(int argc, char ** argv)
             }
             free(ddescA);
         }
-        dague_data_free(ddescC0.mat);
+        parsec_data_free(ddescC0.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC0);
     }
 
-    dague_data_free(ddescA0.mat);
+    parsec_data_free(ddescA0.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
-    dague_data_free(ddescC.mat);
+    parsec_data_free(ddescC.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }
@@ -188,7 +188,7 @@ int main(int argc, char ** argv)
 /*------------------------------------------------------------------------
  *  Check the accuracy of the solution
  */
-static int check_solution( dague_context_t *dague, int loud,
+static int check_solution( parsec_context_t *parsec, int loud,
                            int M, int N,
                            tiled_matrix_desc_t *ddescC,
                            tiled_matrix_desc_t *ddescCfinal )
@@ -199,14 +199,14 @@ static int check_solution( dague_context_t *dague, int loud,
 
     eps = LAPACKE_dlamch_work('e');
 
-    Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, ddescC );
-    Cdplasmanorm = dplasma_zlange( dague, PlasmaInfNorm, ddescCfinal );
+    Cinitnorm    = dplasma_zlange( parsec, PlasmaInfNorm, ddescC );
+    Cdplasmanorm = dplasma_zlange( parsec, PlasmaInfNorm, ddescCfinal );
 
-    dplasma_zgeadd( dague, PlasmaNoTrans,
+    dplasma_zgeadd( parsec, PlasmaNoTrans,
                     -1.0, (tiled_matrix_desc_t*)ddescC,
                      1.0, (tiled_matrix_desc_t*)ddescCfinal );
 
-    Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, ddescCfinal );
+    Rnorm = dplasma_zlange( parsec, PlasmaMaxNorm, ddescCfinal );
 
     result = Rnorm / (Cinitnorm * eps * dplasma_imax(M, N));
 

@@ -2,11 +2,11 @@
 echo "## Defaults for KRAKEN machine at NICS (Cray XT5)"
 
 if [ "debug" = "$1" ]; then 
-    INSTALL_PREFIX=/lustre/scratch/$USER/dague-debug-`date +%y%m%d.%s`
+    INSTALL_PREFIX=/lustre/scratch/$USER/parsec-debug-`date +%y%m%d.%s`
 else
-    INSTALL_PREFIX=/lustre/scratch/$USER/dague-`date +%y%m%d.%s`
+    INSTALL_PREFIX=/lustre/scratch/$USER/parsec-`date +%y%m%d.%s`
 fi
-USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF" #remove for XK6/7
+USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF" #remove for XK6/7
 
 
 

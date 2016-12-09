@@ -4,11 +4,11 @@
  *                         reserved.
  */
 
-#include "dague.h"
+#include "parsec.h"
 #include <stdio.h>
 
-#include "dague/data_distribution.h"
-#include "dague/arena.h"
+#include "parsec/data_distribution.h"
+#include "parsec/arena.h"
 
 #include "ep.h"
 #include "ep_wrapper.h"
@@ -18,42 +18,42 @@
  * @param [IN] nt    number of tasks at a given level
  * @param [IN] level number of levels
  *
- * @return the dague object to schedule.
+ * @return the parsec object to schedule.
  */
-dague_handle_t *ep_new(dague_ddesc_t *A, int nt, int level)
+parsec_handle_t *ep_new(parsec_ddesc_t *A, int nt, int level)
 {
-    dague_ep_handle_t *o = NULL;
+    parsec_ep_handle_t *o = NULL;
 
     if( nt <= 0 || level <= 0 ) {
         fprintf(stderr, "To work, EP must have at least one task to run per level\n");
-        return (dague_handle_t*)o;
+        return (parsec_handle_t*)o;
     }
 
-    o = dague_ep_new(nt, level, A);
+    o = parsec_ep_new(nt, level, A);
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         MPI_Aint extent;
-#if defined(DAGUE_HAVE_MPI_20)
+#if defined(PARSEC_HAVE_MPI_20)
         MPI_Aint lb = 0; 
         MPI_Type_get_extent(MPI_BYTE, &lb, &extent);
 #else
         MPI_Type_extent(MPI_BYTE, &extent);
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
-        dague_arena_construct(o->arenas[DAGUE_ep_DEFAULT_ARENA],
-                              extent, DAGUE_ARENA_ALIGNMENT_SSE,
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+        parsec_arena_construct(o->arenas[PARSEC_ep_DEFAULT_ARENA],
+                              extent, PARSEC_ARENA_ALIGNMENT_SSE,
                               MPI_BYTE);
     }
 #endif
 
-    return (dague_handle_t*)o;
+    return (parsec_handle_t*)o;
 }
 
 /**
- * @param [INOUT] o the dague object to destroy
+ * @param [INOUT] o the parsec object to destroy
  */
-void ep_destroy(dague_handle_t *o)
+void ep_destroy(parsec_handle_t *o)
 {
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
 }

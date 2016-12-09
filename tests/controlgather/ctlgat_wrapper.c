@@ -4,11 +4,11 @@
  *                         reserved.
  */
 
-#include "dague.h"
-#include "dague/data_distribution.h"
-#include "dague/arena.h"
+#include "parsec.h"
+#include "parsec/data_distribution.h"
+#include "parsec/arena.h"
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
@@ -22,13 +22,13 @@ static MPI_Datatype block;
  * @param [IN] size size of each local data element
  * @param [IN] nb   number of iterations
  *
- * @return the dague object to schedule.
+ * @return the parsec object to schedule.
  */
-dague_handle_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
+parsec_handle_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb)
 {
     int worldsize;
-    dague_ctlgat_handle_t *o = NULL;
-#if defined(DAGUE_HAVE_MPI)
+    parsec_ctlgat_handle_t *o = NULL;
+#if defined(PARSEC_HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 #else
     worldsize = 1;
@@ -36,39 +36,39 @@ dague_handle_t *ctlgat_new(dague_ddesc_t *A, int size, int nb)
     
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CTLGAT must do at least one round time trip of at least one byte\n");
-        return (dague_handle_t*)o;
+        return (parsec_handle_t*)o;
     }
 
-    o = dague_ctlgat_new(A, nb, worldsize);
+    o = parsec_ctlgat_new(A, nb, worldsize);
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         MPI_Aint extent;
     	MPI_Type_contiguous(size, MPI_INT, &block);
         MPI_Type_commit(&block);
-#if defined(DAGUE_HAVE_MPI_20)
+#if defined(PARSEC_HAVE_MPI_20)
         MPI_Aint lb = 0; 
         MPI_Type_get_extent(block, &lb, &extent);
 #else
         MPI_Type_extent(block, &extent);
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
-        dague_arena_construct(o->arenas[DAGUE_ctlgat_DEFAULT_ARENA],
-                              extent, DAGUE_ARENA_ALIGNMENT_SSE,
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+        parsec_arena_construct(o->arenas[PARSEC_ctlgat_DEFAULT_ARENA],
+                              extent, PARSEC_ARENA_ALIGNMENT_SSE,
                               block);
     }
 #endif
 
-    return (dague_handle_t*)o;
+    return (parsec_handle_t*)o;
 }
 
 /**
- * @param [INOUT] o the dague object to destroy
+ * @param [INOUT] o the parsec object to destroy
  */
-void ctlgat_destroy(dague_handle_t *o)
+void ctlgat_destroy(parsec_handle_t *o)
 {
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
 }

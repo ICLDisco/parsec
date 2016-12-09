@@ -1,0 +1,8 @@
+The syntax of JDF* and the JDF syntax are the same.
+It is possible to add a BODY CUDA after the END of the BODY.
+The resulting C code has to be compiled with both StarPU and PaRSEC.
+For more information, please check the cholesky example or
+contact vincent.cohen.addad@ens-lyon.org
+
+Replace the parsec-compiler directory (in the tools directory) 
+to enable this feature.

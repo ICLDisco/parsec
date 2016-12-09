@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
+#include "parsec_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -231,12 +231,12 @@ char *dump_data(string_arena_t *sa, node_t *n)
 
 bool is_phony_Entry_task(node_t *task){
     char *name = task->function->fname;
-    return (strstr(name, "DAGUE_IN_") == name);
+    return (strstr(name, "PARSEC_IN_") == name);
 }
 
 bool is_phony_Exit_task(node_t *task){
     char *name = task->function->fname;
-    return (strstr(name, "DAGUE_OUT_") == name);
+    return (strstr(name, "PARSEC_OUT_") == name);
 }
 
 static void declare_globals_in_tree(node_t *node, set <char *> ind_names){
@@ -1927,7 +1927,7 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
             }else{
                 is_lb_simple = true;
                 is_lb_C = true;
-                rc = asprintf(&lb, "dague_imax((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
+                rc = asprintf(&lb, "parsec_imax((%s),(%s))",strdup(lb),expr_tree_to_str(rslt_exp));
             }
         }else{ // else upper bound
             bounds_found++;
@@ -1937,7 +1937,7 @@ const char *do_find_bounds_of_var(expr_t *exp, const char *var_name, set<const c
             }else{
                 is_ub_simple = true;
                 is_ub_C = true;
-                rc = asprintf(&ub, "dague_imin((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
+                rc = asprintf(&ub, "parsec_imin((%s),(%s))",strdup(ub),expr_tree_to_str(rslt_exp));
             }
         }
 
@@ -5079,7 +5079,7 @@ bool need_pseudotask(node_t *ref1, node_t *ref2){
     free(refr_mtrx);
 
     if( need_ptask && _q2j_add_phony_tasks ){
-        fprintf(stderr,"WARNING: Both phony tasks (e.g. DAGUE_IN_A) and pseudo-tasks (e.g. zunmqr_in_data_T1) are being generated.");
+        fprintf(stderr,"WARNING: Both phony tasks (e.g. PARSEC_IN_A) and pseudo-tasks (e.g. zunmqr_in_data_T1) are being generated.");
     }
 
     return need_ptask;

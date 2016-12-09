@@ -6,10 +6,10 @@ include_directories(${include_dir})
 
 if(CMAKE_Fortran_COMPILER_WORKS)
   if(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
-    dague_addtest(Fortran generate_f "generate_f.F90")
-    target_link_libraries(generate_f daguef dague_profilef)
+    parsec_addtest(Fortran generate_f "generate_f.F90")
+    target_link_libraries(generate_f parsecf parsec_profilef)
     SET_TARGET_PROPERTIES(generate_f PROPERTIES LINKER_LANGUAGE Fortran)
-    SET_TARGET_PROPERTIES(generate_f PROPERTIES COMPILE_FLAGS "-I${PROJECT_BINARY_DIR}/dague/fortran")
+    SET_TARGET_PROPERTIES(generate_f PROPERTIES COMPILE_FLAGS "-I${PROJECT_BINARY_DIR}/parsec/fortran")
   endif(CMAKE_Fortran_COMPILER_SUPPORTS_F90)
 endif(CMAKE_Fortran_COMPILER_WORKS)
 

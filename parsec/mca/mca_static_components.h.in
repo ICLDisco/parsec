@@ -1,0 +1,54 @@
+#ifndef _MCA_STATIC_COMPNENTS_H
+#define _MCA_STATIC_COMPNENTS_H
+
+#ifndef MCA_REPOSITORY_C
+#error This file must be included once only, and by mca_repository.c only
+#endif
+
+#include "parsec_config.h"
+#include "parsec/mca/mca.h"
+#include "parsec/utils/mca_param.h"
+#include <assert.h>
+
+#define MCA_NB_STATIC_COMPONENTS ${MCA_NB_STATIC_COMPONENTS}
+${MCA_STATIC_COMPONENTS_PROTOTYPES}
+
+static mca_base_component_t *mca_static_components[MCA_NB_STATIC_COMPONENTS+1] = { NULL, };
+
+static int add_static_component(mca_base_component_t *c, int p)
+{
+    if( NULL == c )
+        return p;
+    assert( p < MCA_NB_STATIC_COMPONENTS );    mca_static_components[p] = c;
+    mca_static_components[p+1] = NULL;
+    return p+1;
+}
+
+static void register_base_component(const char *cname)
+{
+    char *help, *ignored;
+    int rc;
+
+    rc = asprintf(&help, "Limit the list of allowed modules for component %s", cname);
+    parsec_mca_param_reg_string_name("mca", cname,
+                                    help,
+                                    false, false, NULL,
+                                    &ignored);
+    (void)ignored;
+    (void)rc;
+    free(help);
+}
+
+static void mca_static_components_init(void)
+{
+    static int mca_static_components_inited = 0;
+    int p = 0;
+    if (mca_static_components_inited) {
+        return;
+    }
+    mca_static_components_inited = 1;
+
+    ${MCA_STATIC_COMPONENTS_ACCESSORS}
+}
+
+#endif /* _MCA_STATIC_COMPNENTS_H */

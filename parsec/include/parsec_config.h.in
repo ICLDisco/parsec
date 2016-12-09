@@ -1,0 +1,140 @@
+#ifndef PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
+#define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
+
+#define PARSEC_VERSION_MAJOR @PARSEC_VERSION_MAJOR@
+#define PARSEC_VERSION_MINOR @PARSEC_VERSION_MINOR@
+
+/* Scheduling engine */
+#cmakedefine PARSEC_SCHED_DEPS_MASK
+#cmakedefine PARSEC_SCHED_REPORT_STATISTICS
+
+/* Communication engine */
+#cmakedefine PARSEC_DIST_WITH_MPI
+#cmakedefine PARSEC_DIST_THREAD
+#cmakedefine PARSEC_DIST_PRIORITIES
+#cmakedefine PARSEC_DIST_COLLECTIVES
+#define PARSEC_DIST_EAGER_LIMIT @PARSEC_DIST_EAGER_LIMIT@
+#define PARSEC_DIST_SHORT_LIMIT @PARSEC_DIST_SHORT_LIMIT@
+
+/* GPU Support */
+#cmakedefine PARSEC_GPU_WITH_CUDA
+#cmakedefine PARSEC_GPU_CUDA_ALLOC_PER_TILE
+#cmakedefine PARSEC_GPU_WITH_OPENCL
+#cmakedefine PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS
+
+/* debug */
+#cmakedefine PARSEC_DEBUG
+#cmakedefine PARSEC_DEBUG_PARANOID
+#cmakedefine PARSEC_DEBUG_NOISIER
+#cmakedefine PARSEC_DEBUG_HISTORY
+#cmakedefine PARSEC_CALL_TRACE
+
+/* profiling */
+#cmakedefine PARSEC_PROF_TRACE
+#cmakedefine PARSEC_PROF_STATS
+#cmakedefine PARSEC_PROF_RUSAGE_EU
+#cmakedefine PARSEC_PROF_TRACE_SCHEDULING_EVENTS
+#cmakedefine PARSEC_PROF_TRACE_ACTIVE_ARENA_SET
+#cmakedefine PARSEC_PROF_GRAPHER
+#cmakedefine PARSEC_PROF_DRY_RUN
+#cmakedefine PARSEC_PROF_DRY_BODY
+#cmakedefine PARSEC_PROF_DRY_DEP
+
+/* Instrumenting (PINS) */
+#cmakedefine PINS_ENABLE
+#cmakedefine CORES_PER_SOCKET @CORES_PER_SOCKET@
+
+/* Simulating */
+#cmakedefine PARSEC_SIM
+
+/* system */
+#cmakedefine PARSEC_HAVE_PTHREAD
+#cmakedefine PARSEC_HAVE_SCHED_SETAFFINITY
+#cmakedefine PARSEC_HAVE_CLOCK_GETTIME
+#cmakedefine PARSEC_ATOMIC_USE_GCC_32_BUILTINS
+#cmakedefine PARSEC_ATOMIC_USE_GCC_64_BUILTINS
+#cmakedefine PARSEC_ATOMIC_USE_GCC_128_BUILTINS
+#cmakedefine PARSEC_ATOMIC_USE_XLC_32_BUILTINS
+#cmakedefine PARSEC_ATOMIC_USE_XLC_64_BUILTINS
+#cmakedefine PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS
+#cmakedefine PARSEC_ATOMIC_USE_MIPOSPRO_64_BUILTINS
+#cmakedefine PARSEC_ATOMIC_USE_SUN_32
+#cmakedefine PARSEC_ATOMIC_USE_SUN_64
+#cmakedefine PARSEC_HAVE_ASPRINTF
+#cmakedefine PARSEC_HAVE_VASPRINTF
+#cmakedefine PARSEC_HAVE_STDARG_H
+#cmakedefine PARSEC_HAVE_UNISTD_H
+#cmakedefine PARSEC_HAVE_SYS_PARAM_H
+#cmakedefine PARSEC_HAVE_SYS_TYPES_H
+#cmakedefine PARSEC_HAVE_SYSLOG_H
+#cmakedefine PARSEC_HAVE_VA_COPY
+#cmakedefine PARSEC_HAVE_UNDERSCORE_VA_COPY
+#cmakedefine PARSEC_HAVE_GETOPT_LONG
+#cmakedefine PARSEC_HAVE_GETRUSAGE
+#cmakedefine PARSEC_HAVE_RUSAGE_THREAD
+#cmakedefine PARSEC_HAVE_GETOPT_H
+#cmakedefine PARSEC_HAVE_ERRNO_H
+#cmakedefine PARSEC_HAVE_STDDEF_H
+#cmakedefine PARSEC_HAVE_STDBOOL_H
+#cmakedefine PARSEC_HAVE_CTYPE_H
+#cmakedefine PARSEC_HAVE_LIMITS_H
+#cmakedefine PARSEC_HAVE_STRING_H
+#cmakedefine PARSEC_HAVE_GEN_H
+#cmakedefine PARSEC_HAVE_COMPLEX_H
+#cmakedefine PARSEC_ARCH_X86
+#cmakedefine PARSEC_ARCH_X86_64
+#cmakedefine PARSEC_ARCH_PPC
+#cmakedefine PARSEC_OSX
+#cmakedefine PARSEC_HAVE_BUILTIN_EXPECT
+
+#cmakedefine PARSEC_HAVE_ATTRIBUTE_VISIBILITY
+#cmakedefine PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE
+
+/* Configuration parameters */
+#cmakedefine PARSEC_WANT_HOME_CONFIG_FILES
+
+/* Compiler and flags used to compile PaRSEC generated sources */
+#define CMAKE_PARSEC_C_COMPILER   "@CMAKE_C_COMPILER@"
+#define CMAKE_PARSEC_C_FLAGS      "@CMAKE_C_FLAGS@"
+#define CMAKE_PARSEC_C_INCLUDES   "@PARSEC_C_INCLUDES@"
+
+/* Optional packages */
+#cmakedefine PARSEC_HAVE_HWLOC
+#cmakedefine PARSEC_HAVE_HWLOC_BITMAP
+#cmakedefine PARSEC_HAVE_HWLOC_PARENT_MEMBER
+#cmakedefine PARSEC_HAVE_HWLOC_CACHE_ATTR
+#cmakedefine PARSEC_HAVE_HWLOC_OBJ_PU
+
+#cmakedefine PARSEC_HAVE_PAPI
+#cmakedefine PARSEC_HAVE_CUDA
+#cmakedefine PARSEC_HAVE_OPENCL
+#cmakedefine PARSEC_HAVE_MPI
+#cmakedefine PARSEC_HAVE_MPI_20
+
+#cmakedefine PARSEC_HAVE_AYUDAME
+
+#cmakedefine PARSEC_HAVE_RECENT_LEX
+
+#cmakedefine PARSEC_HAVE_INDENT
+#define PARSEC_INDENT_PREFIX "@INDENT_EXECUTABLE@"
+#define PARSEC_INDENT_OPTIONS "@INDENT_OPTIONS@"
+#define PARSEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
+
+#cmakedefine PARSEC_HAVE_AWK
+#define PARSEC_AWK_PREFIX "@AWK_EXECUTABLE@"
+
+/* Default PATH to look for the CUDA .so files */
+#define PARSEC_LIB_CUDA_PREFIX ".;@CUDA_cublas_LIBRARY@;@CMAKE_BINARY_DIR@/dplasma/cores"
+
+#if !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif  /* !defined(_GNU_SOURCE) */
+
+#ifdef PARSEC_ARCH_PPC
+#define inline __inline__
+#define restrict
+#endif
+
+#include "parsec/parsec_config_bottom.h"
+
+#endif  /*PARSEC_CONFIG_H_HAS_BEEN_INCLUDED */

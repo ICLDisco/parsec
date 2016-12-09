@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#undef DAGUE_HAVE_MPI
+#include "parsec_config.h"
+#undef PARSEC_HAVE_MPI
 
 #include <stdlib.h>
 #include <string.h>
@@ -13,8 +13,8 @@
 #include <inttypes.h>
 #include <stdarg.h>
 
-#include "dague/profiling.h"
-#include "dague/dague_binary_profile.h"
+#include "parsec/profiling.h"
+#include "parsec/parsec_binary_profile.h"
 #include "dbpreader.h"
 
 int main(int argc, char *argv[])

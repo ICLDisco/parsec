@@ -12,71 +12,71 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 
 #include "zherbt_L.h"
 
-dague_handle_t *
+parsec_handle_t *
 dplasma_zherbt_New( PLASMA_enum uplo, int IB,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T)
 {
-    dague_zherbt_L_handle_t *dague_zherbt = NULL;
-    dague_memory_pool_t *pool[4];
+    parsec_zherbt_L_handle_t *parsec_zherbt = NULL;
+    parsec_memory_pool_t *pool[4];
 
     if( PlasmaLower != uplo ) {
         dplasma_error("dplasma_zherbt_New", "illegal value of uplo");
         return NULL;
     }
 
-    pool[0] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* tau */
-    dague_private_memory_init( pool[0], (sizeof(dague_complex64_t)*T->nb) );
+    pool[0] = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));  /* tau */
+    parsec_private_memory_init( pool[0], (sizeof(parsec_complex64_t)*T->nb) );
 
-    pool[1] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work */
-    dague_private_memory_init( pool[1], (sizeof(dague_complex64_t)*T->nb*IB) );
+    pool[1] = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));  /* work */
+    parsec_private_memory_init( pool[1], (sizeof(parsec_complex64_t)*T->nb*IB) );
 
-    pool[2] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work for HERFB1 */
-    dague_private_memory_init( pool[2], (sizeof(dague_complex64_t)*T->nb*2 *T->nb) );
+    pool[2] = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));  /* work for HERFB1 */
+    parsec_private_memory_init( pool[2], (sizeof(parsec_complex64_t)*T->nb*2 *T->nb) );
 
-    pool[3] = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));  /* work for the TSMQRLR */
-    dague_private_memory_init( pool[3], (sizeof(dague_complex64_t)*T->nb*4 *T->nb) );
+    pool[3] = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));  /* work for the TSMQRLR */
+    parsec_private_memory_init( pool[3], (sizeof(parsec_complex64_t)*T->nb*4 *T->nb) );
 
     if( PlasmaLower == uplo ) {
-        dague_zherbt = dague_zherbt_L_new(uplo, IB,
+        parsec_zherbt = parsec_zherbt_L_new(uplo, IB,
                                           A,
                                           T,
                                           pool[3], pool[2], pool[1], pool[0]);
-        dplasma_add2arena_rectangle( dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA],
-                                     A->mb*A->nb*sizeof(dague_complex64_t),
-                                     DAGUE_ARENA_ALIGNMENT_SSE,
-                                     dague_datatype_double_complex_t, A->mb, A->nb, -1);
-        dplasma_add2arena_rectangle( dague_zherbt->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA],
-                                     T->mb*T->nb*sizeof(dague_complex64_t),
-                                     DAGUE_ARENA_ALIGNMENT_SSE,
-                                     dague_datatype_double_complex_t, T->mb, T->nb, -1);
+        dplasma_add2arena_rectangle( parsec_zherbt->arenas[PARSEC_zherbt_L_DEFAULT_ARENA],
+                                     A->mb*A->nb*sizeof(parsec_complex64_t),
+                                     PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_double_complex_t, A->mb, A->nb, -1);
+        dplasma_add2arena_rectangle( parsec_zherbt->arenas[PARSEC_zherbt_L_LITTLE_T_ARENA],
+                                     T->mb*T->nb*sizeof(parsec_complex64_t),
+                                     PARSEC_ARENA_ALIGNMENT_SSE,
+                                     parsec_datatype_double_complex_t, T->mb, T->nb, -1);
     }
 
-    return (dague_handle_t*)dague_zherbt;
+    return (parsec_handle_t*)parsec_zherbt;
 }
 
-void dplasma_zherbt_Destruct( dague_handle_t *handle )
+void dplasma_zherbt_Destruct( parsec_handle_t *handle )
 {
-    dague_zherbt_L_handle_t *dague_zherbt = (dague_zherbt_L_handle_t *)handle;
+    parsec_zherbt_L_handle_t *parsec_zherbt = (parsec_zherbt_L_handle_t *)handle;
 
-    if( PlasmaLower == dague_zherbt->_g_uplo ) {
+    if( PlasmaLower == parsec_zherbt->_g_uplo ) {
 
-        dague_matrix_del2arena( dague_zherbt->arenas[DAGUE_zherbt_L_DEFAULT_ARENA   ] );
-        dague_matrix_del2arena( dague_zherbt->arenas[DAGUE_zherbt_L_LITTLE_T_ARENA  ] );
+        parsec_matrix_del2arena( parsec_zherbt->arenas[PARSEC_zherbt_L_DEFAULT_ARENA   ] );
+        parsec_matrix_del2arena( parsec_zherbt->arenas[PARSEC_zherbt_L_LITTLE_T_ARENA  ] );
 
-        dague_private_memory_fini( dague_zherbt->_g_pool_0 );
-        free( dague_zherbt->_g_pool_0 );
-        dague_private_memory_fini( dague_zherbt->_g_pool_1 );
-        free( dague_zherbt->_g_pool_1 );
-        dague_private_memory_fini( dague_zherbt->_g_pool_2 );
-        free( dague_zherbt->_g_pool_2 );
-        dague_private_memory_fini( dague_zherbt->_g_pool_3 );
-        free( dague_zherbt->_g_pool_3 );
+        parsec_private_memory_fini( parsec_zherbt->_g_pool_0 );
+        free( parsec_zherbt->_g_pool_0 );
+        parsec_private_memory_fini( parsec_zherbt->_g_pool_1 );
+        free( parsec_zherbt->_g_pool_1 );
+        parsec_private_memory_fini( parsec_zherbt->_g_pool_2 );
+        free( parsec_zherbt->_g_pool_2 );
+        parsec_private_memory_fini( parsec_zherbt->_g_pool_3 );
+        free( parsec_zherbt->_g_pool_3 );
 
-        dague_handle_free(handle);
+        parsec_handle_free(handle);
     }
 }

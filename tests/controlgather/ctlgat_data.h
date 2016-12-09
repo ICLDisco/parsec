@@ -7,10 +7,10 @@
 #ifndef ctlgat_data_h
 #define ctlgat_data_h
 
-#include "dague.h"
-#include "dague/data_distribution.h"
+#include "parsec.h"
+#include "parsec/data_distribution.h"
 
-dague_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg);
-void free_data(dague_ddesc_t *d);
+parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg);
+void free_data(parsec_ddesc_t *d);
 
 #endif

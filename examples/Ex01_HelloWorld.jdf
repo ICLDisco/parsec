@@ -3,16 +3,16 @@ extern "C" %{
 /**
  * This second example shows how to create a simple jdf that has only one single task.
  *    JDF syntax
- *    dague_JDFNAME_New()
- *    dague_enqueue()
- *    dague_ddesc_init()
+ *    parsec_JDFNAME_New()
+ *    parsec_enqueue()
+ *    parsec_ddesc_init()
  *
  * Can play with the HelloWorld bounds to show embarissingly parallel algorithm.
  */
 
-#include <dague.h>
-#include <dague/data_distribution.h>
-#include <dague/datatype.h>
+#include <parsec.h>
+#include <parsec/data_distribution.h>
+#include <parsec/datatype.h>
 
 %}
 
@@ -57,14 +57,14 @@ END
 extern "C" %{
 
 static uint32_t
-rank_of(dague_ddesc_t *desc, ...)
+rank_of(parsec_ddesc_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
 static int32_t
-vpid_of(dague_ddesc_t *desc, ...)
+vpid_of(parsec_ddesc_t *desc, ...)
 {
     (void)desc;
     return 0;
@@ -72,12 +72,12 @@ vpid_of(dague_ddesc_t *desc, ...)
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world;
-    dague_ddesc_t taskdist;
-    dague_handle_t *handle;
+    parsec_ddesc_t taskdist;
+    parsec_handle_t *handle;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -89,41 +89,41 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
-    dague = dague_init(-1, &argc, &argv);
+    parsec = parsec_init(-1, &argc, &argv);
 
     /**
      * See Ex03_ChainMPI.jdf for explanation
      */
-    dague_ddesc_init(&taskdist, world, rank);
+    parsec_ddesc_init(&taskdist, world, rank);
     taskdist.rank_of = rank_of;
     taskdist.vpid_of = vpid_of;
 
     /**
      * Let's create the handle that contains the description of the algorithm to
      * run.
-     * The prototype of the dague_Ex01_HelloWorld_new() is automatically
+     * The prototype of the parsec_Ex01_HelloWorld_new() is automatically
      * generated and included in the generated .h file Ex01_HelloWorld.h
      */
-    handle = (dague_handle_t*)dague_Ex01_HelloWorld_new(&taskdist);
+    handle = (parsec_handle_t*)parsec_Ex01_HelloWorld_new(&taskdist);
 
     /**
      * Let's submit this handle to the runtime and wait for the completion
      */
-    dague_enqueue( dague, handle );
-    dague_context_wait(dague);
+    parsec_enqueue( parsec, handle );
+    parsec_context_wait(parsec);
 
     /**
      * Let's cleanup the handle.
      */
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 
     /**
      * See Ex03_ChainMPI.jdf for explanation
      */
-    dague_ddesc_destroy(&taskdist);
+    parsec_ddesc_destroy(&taskdist);
 
-    dague_fini(&dague);
-#if defined(DAGUE_HAVE_MPI)
+    parsec_fini(&parsec);
+#if defined(PARSEC_HAVE_MPI)
     MPI_Finalize();
 #endif
 

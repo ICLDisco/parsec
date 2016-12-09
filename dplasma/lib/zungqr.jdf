@@ -18,7 +18,7 @@ extern "C" %{
 descA     [type = "tiled_matrix_desc_t*"]
 descT     [type = "tiled_matrix_desc_t*"]
 descQ     [type = "tiled_matrix_desc_t*"]
-p_work    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT->nb"]
+p_work    [type = "parsec_memory_pool_t *" size = "((sizeof(parsec_complex64_t))*ib)*descT->nb"]
 
 ib        [type = "int" hidden = on default = "descT->mb" ]
 KT        [type = "int" hidden = on default = "descA->nt-1" ]
@@ -49,11 +49,11 @@ BODY
              "\t(PlasmaUpperLower, tempmm, tempnn, alpha, (m == n) ? (beta) : (alpha), Q(%d,%d)[%p], ldqm)\n",
              m, n, m, n, A);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zlaset(PlasmaUpperLower, tempmm, tempnn,
                 0., (m == n) ? 1.: 0.,
                 A /* descQ->m,n) */, ldqm );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -83,8 +83,8 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldqk = BLKLDD( descQ, k );
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_zunmqr(PlasmaLeft, PlasmaNoTrans,
                 tempkm, tempnn, tempkmin, ib,
@@ -93,8 +93,8 @@ BODY
                 C /* descQ->k, n) */, ldqk,
                 p_elem_A, descT->nb );
 
-    dague_private_memory_push( p_work, p_elem_A );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -168,8 +168,8 @@ BODY
              "\t(side, trans, descQ->mb, tempnn, tempmm, tempnn, tempkmin, ib, Q(%d,%d)[%p], ldbk, Q(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT->mb, p_elem_A, ldwork)\n",
              k, m, n, k, n, A1, m, n, A2, m, k, V, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_ztsmqr(PlasmaLeft, PlasmaNoTrans,
                 descQ->mb, tempnn, tempmm, tempnn, tempkmin, ib,
@@ -179,8 +179,8 @@ BODY
                 T  /* descT->m, k) */, descT->mb,
                 p_elem_A, ib );
 
-    dague_private_memory_push( p_work, p_elem_A );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

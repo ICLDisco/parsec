@@ -18,8 +18,8 @@ set(DEPS        "${CMAKE_CURRENT_SOURCE_DIR}/pbt2ptt.pyx"
                 "${CMAKE_CURRENT_SOURCE_DIR}/setup.py.in"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.c"
                 "${CMAKE_CURRENT_SOURCE_DIR}/../dbpreader.h"
-                "${CMAKE_CURRENT_SOURCE_DIR}/../../../dague/dague_binary_profile.h"
-                dague-base)
+                "${CMAKE_CURRENT_SOURCE_DIR}/../../../parsec/parsec_binary_profile.h"
+                parsec-base)
 set(OUTPUT      "${CMAKE_CURRENT_BINARY_DIR}/pbt2ptt.c")
 
 #

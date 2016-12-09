@@ -14,7 +14,7 @@
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int u, t1, t2;
@@ -25,12 +25,12 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(DAGUE_HAVE_CUDA)
+#if defined(PARSEC_HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     /* initializing matrix structure */
@@ -56,7 +56,7 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
+    dplasma_zplghe( parsec, (double)(N), PlasmaUpperLower,
                     (tiled_matrix_desc_t *)&ddescA0, 3872);
     if(loud > 2) printf("Done\n");
 
@@ -79,16 +79,16 @@ int main(int argc, char ** argv)
             printf("***************************************************\n");
         }
         /* Create A and X */
-        dplasma_zlacpy( dague, uplo[u],
+        dplasma_zlacpy( parsec, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-        dplasma_zplrnt( dague, 0,
+        dplasma_zplrnt( parsec, 0,
                         (tiled_matrix_desc_t *)&ddescB, 2354);
-        dplasma_zlacpy( dague, PlasmaUpperLower,
+        dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,  (tiled_matrix_desc_t *)&ddescX );
 
         /* Compute */
         if ( loud > 2 ) printf("Compute ... ... ");
-        info = dplasma_zposv(dague, uplo[u],
+        info = dplasma_zposv(parsec, uplo[u],
                              (tiled_matrix_desc_t *)&ddescA,
                              (tiled_matrix_desc_t *)&ddescX );
         if ( loud > 2 ) printf("Done\n");
@@ -96,11 +96,11 @@ int main(int argc, char ** argv)
 
         /* Check the factorization */
         if ( info == 0 ) {
-            info_facto = check_zpotrf( dague, (rank == 0) ? loud : 0, uplo[u],
+            info_facto = check_zpotrf( parsec, (rank == 0) ? loud : 0, uplo[u],
                                        (tiled_matrix_desc_t *)&ddescA,
                                        (tiled_matrix_desc_t *)&ddescA0);
 
-            info_solve = check_zaxmb( dague, (rank == 0) ? loud : 0, uplo[u],
+            info_solve = check_zaxmb( parsec, (rank == 0) ? loud : 0, uplo[u],
                                       (tiled_matrix_desc_t *)&ddescA0,
                                       (tiled_matrix_desc_t *)&ddescB,
                                       (tiled_matrix_desc_t *)&ddescX);
@@ -124,19 +124,19 @@ int main(int argc, char ** argv)
         }
 
         /* Create A and X */
-        dplasma_zlacpy( dague, uplo[u],
+        dplasma_zlacpy( parsec, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-        dplasma_zplrnt( dague, 0,
+        dplasma_zplrnt( parsec, 0,
                         (tiled_matrix_desc_t *)&ddescB, 2354);
-        dplasma_zlacpy( dague, PlasmaUpperLower,
+        dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,  (tiled_matrix_desc_t *)&ddescX );
 
         /* Compute */
         if ( loud > 2 ) printf("Compute ... ... ");
-        info = dplasma_zpotrf(dague, uplo[u],
+        info = dplasma_zpotrf(parsec, uplo[u],
                               (tiled_matrix_desc_t *)&ddescA );
         if ( info == 0 ) {
-            dplasma_zpotrs(dague, uplo[u],
+            dplasma_zpotrs(parsec, uplo[u],
                            (tiled_matrix_desc_t *)&ddescA,
                            (tiled_matrix_desc_t *)&ddescX );
         }
@@ -145,11 +145,11 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-            info_facto = check_zpotrf( dague, (rank == 0) ? loud : 0, uplo[u],
+            info_facto = check_zpotrf( parsec, (rank == 0) ? loud : 0, uplo[u],
                                        (tiled_matrix_desc_t *)&ddescA,
                                        (tiled_matrix_desc_t *)&ddescA0 );
 
-            info_solve = check_zaxmb( dague, (rank == 0) ? loud : 0, uplo[u],
+            info_solve = check_zaxmb( parsec, (rank == 0) ? loud : 0, uplo[u],
                                       (tiled_matrix_desc_t *)&ddescA0,
                                       (tiled_matrix_desc_t *)&ddescB,
                                       (tiled_matrix_desc_t *)&ddescX );
@@ -173,21 +173,21 @@ int main(int argc, char ** argv)
         }
 
         /* Create A and X */
-        dplasma_zlacpy( dague, uplo[u],
+        dplasma_zlacpy( parsec, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
-        dplasma_zplrnt( dague, 0,
+        dplasma_zplrnt( parsec, 0,
                         (tiled_matrix_desc_t *)&ddescB, 2354);
-        dplasma_zlacpy( dague, PlasmaUpperLower,
+        dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,  (tiled_matrix_desc_t *)&ddescX );
 
         /* Compute */
         if ( loud > 2 ) printf("Compute ... ... ");
-        info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
+        info = dplasma_zpotrf(parsec, uplo[u], (tiled_matrix_desc_t *)&ddescA );
         if ( info == 0 ) {
-            dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t1, PlasmaNonUnit, 1.0,
+            dplasma_ztrsm(parsec, PlasmaLeft, uplo[u], t1, PlasmaNonUnit, 1.0,
                           (tiled_matrix_desc_t *)&ddescA,
                           (tiled_matrix_desc_t *)&ddescX);
-            dplasma_ztrsm(dague, PlasmaLeft, uplo[u], t2, PlasmaNonUnit, 1.0,
+            dplasma_ztrsm(parsec, PlasmaLeft, uplo[u], t2, PlasmaNonUnit, 1.0,
                           (tiled_matrix_desc_t *)&ddescA,
                           (tiled_matrix_desc_t *)&ddescX);
         }
@@ -196,11 +196,11 @@ int main(int argc, char ** argv)
 
         /* Check the solution */
         if ( info == 0 ) {
-            info_facto = check_zpotrf( dague, (rank == 0) ? loud : 0, uplo[u],
+            info_facto = check_zpotrf( parsec, (rank == 0) ? loud : 0, uplo[u],
                                        (tiled_matrix_desc_t *)&ddescA,
                                        (tiled_matrix_desc_t *)&ddescA0 );
 
-            info_solve = check_zaxmb( dague, (rank == 0) ? loud : 0, uplo[u],
+            info_solve = check_zaxmb( parsec, (rank == 0) ? loud : 0, uplo[u],
                                       (tiled_matrix_desc_t *)&ddescA0,
                                       (tiled_matrix_desc_t *)&ddescB,
                                       (tiled_matrix_desc_t *)&ddescX );
@@ -225,22 +225,22 @@ int main(int argc, char ** argv)
         }
 
         /* Create A and X */
-        dplasma_zlacpy( dague, uplo[u],
+        dplasma_zlacpy( parsec, uplo[u],
                         (tiled_matrix_desc_t *)&ddescA0, (tiled_matrix_desc_t *)&ddescA );
 
         /* Compute */
         if ( loud > 2 ) printf("Compute ... ... ");
-        info = dplasma_zpotrf(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
+        info = dplasma_zpotrf(parsec, uplo[u], (tiled_matrix_desc_t *)&ddescA );
 
         if ( info == 0 ) {
-            info = dplasma_zpotri(dague, uplo[u], (tiled_matrix_desc_t *)&ddescA );
+            info = dplasma_zpotri(parsec, uplo[u], (tiled_matrix_desc_t *)&ddescA );
         }
         if ( loud > 2 ) printf("Done\n");
         if ( info != 0 ) printf("%d: Info = %d\n", rank, info);
 
         /* Check the solution */
         if ( info == 0 ) {
-            info_solve = check_zpoinv( dague, (rank == 0) ? loud : 0, uplo[u],
+            info_solve = check_zpoinv( parsec, (rank == 0) ? loud : 0, uplo[u],
                                        (tiled_matrix_desc_t *)&ddescA0,
                                        (tiled_matrix_desc_t *)&ddescA);
         }
@@ -256,18 +256,18 @@ int main(int argc, char ** argv)
             printf("***************************************************\n");
         }
 
-        dague_data_free(ddescA.mat);
+        parsec_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     }
 
-    dague_data_free(ddescA0.mat);
+    parsec_data_free(ddescA0.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
-    dague_data_free(ddescB.mat);
+    parsec_data_free(ddescB.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
-    dague_data_free(ddescX.mat);
+    parsec_data_free(ddescX.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }

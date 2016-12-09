@@ -21,7 +21,7 @@ descA2 [type = "tiled_matrix_desc_t*" aligned=descA1]
 descV  [type = "tiled_matrix_desc_t*" aligned=descA1]
 descT  [type = "tiled_matrix_desc_t*" aligned=descA1]
 
-p_work [type = "dague_memory_pool_t *"]
+p_work [type = "parsec_memory_pool_t *"]
 
 ib     [type = "int" hidden=on default = "descT->mb" ]
 
@@ -43,7 +43,7 @@ ztsmqr_ztsmqr(k, n)
 
 BODY
 {
-    dague_complex64_t *lA1 = ((dague_complex64_t*)A1) + k * descA1->nb;
+    parsec_complex64_t *lA1 = ((parsec_complex64_t*)A1) + k * descA1->nb;
 
     int tempm  = descA1->m - k * descA1->nb;
     int tempnn = (n == (descA2->nt-1)) ? (descA2->n - n * descA2->nb) : descA2->nb;
@@ -54,8 +54,8 @@ BODY
 
     printlog("CORE_ztsmqr(%d, %d)\n", k, n);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_W = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_W = parsec_private_memory_pop( p_work );
 
     CORE_ztsmqr(
         PlasmaLeft, PlasmaConjTrans,
@@ -66,9 +66,9 @@ BODY
         T,   descT->mb,
         p_elem_W, descT->mb);
 
-    dague_private_memory_push( p_work, p_elem_W );
+    parsec_private_memory_push( p_work, p_elem_W );
 
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -95,7 +95,7 @@ extern "C" %{
  *
  * @ingroup dplasma_Complex64_t
  *
- *  dplasma_zgeqrfr_tsmqr_New - Generates the dague handle that overwrites the general
+ *  dplasma_zgeqrfr_tsmqr_New - Generates the parsec handle that overwrites the general
  *  M-by-N matrix C with
  *
  *                  SIDE = 'L'     SIDE = 'R'
@@ -146,7 +146,7 @@ extern "C" %{
  *******************************************************************************
  *
  * @return
- *          \retval The dague handle which describes the operation to perform
+ *          \retval The parsec handle which describes the operation to perform
  *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
@@ -154,31 +154,31 @@ extern "C" %{
  * @sa dplasma_zgeqrfr_tsmqr_Destruct
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
                            tiled_matrix_desc_t *A2,
                            tiled_matrix_desc_t *V,
                            tiled_matrix_desc_t *T,
                            void *work )
 {
-    dague_handle_t* handle;
+    parsec_handle_t* handle;
 
-    handle = (dague_handle_t*)dague_zgeqrfr_tsmqr_new( A1,
+    handle = (parsec_handle_t*)parsec_zgeqrfr_tsmqr_new( A1,
                                                        A2,
                                                        V,
                                                        T,
-                                                       (dague_memory_pool_t*)work );
+                                                       (parsec_memory_pool_t*)work );
     /* Default type */
-    dplasma_add2arena_rectangle( ((dague_zgeqrfr_tsmqr_handle_t*)handle)->arenas[DAGUE_zgeqrfr_tsmqr_DEFAULT_ARENA],
-                            A1->mb*A1->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A1->mb , A1->nb, -1);
+    dplasma_add2arena_rectangle( ((parsec_zgeqrfr_tsmqr_handle_t*)handle)->arenas[PARSEC_zgeqrfr_tsmqr_DEFAULT_ARENA],
+                            A1->mb*A1->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A1->mb , A1->nb, -1);
 
     /* Little T */
-    dplasma_add2arena_rectangle( ((dague_zgeqrfr_tsmqr_handle_t*)handle)->arenas[DAGUE_zgeqrfr_tsmqr_LITTLE_T_ARENA],
-                                 T->mb*T->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
+    dplasma_add2arena_rectangle( ((parsec_zgeqrfr_tsmqr_handle_t*)handle)->arenas[PARSEC_zgeqrfr_tsmqr_LITTLE_T_ARENA],
+                                 T->mb*T->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
     return handle;
 }
@@ -204,12 +204,12 @@ dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
  *
  ******************************************************************************/
 void
-dplasma_zgeqrfr_tsmqr_Destruct( dague_handle_t *handle )
+dplasma_zgeqrfr_tsmqr_Destruct( parsec_handle_t *handle )
 {
-    dague_zgeqrfr_tsmqr_handle_t *dague_zgeqrfr_tsmqr = (dague_zgeqrfr_tsmqr_handle_t *)handle;
+    parsec_zgeqrfr_tsmqr_handle_t *parsec_zgeqrfr_tsmqr = (parsec_zgeqrfr_tsmqr_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zgeqrfr_tsmqr->arenas[DAGUE_zgeqrfr_tsmqr_DEFAULT_ARENA ] );
-    dague_matrix_del2arena( dague_zgeqrfr_tsmqr->arenas[DAGUE_zgeqrfr_tsmqr_LITTLE_T_ARENA] );
+    parsec_matrix_del2arena( parsec_zgeqrfr_tsmqr->arenas[PARSEC_zgeqrfr_tsmqr_DEFAULT_ARENA ] );
+    parsec_matrix_del2arena( parsec_zgeqrfr_tsmqr->arenas[PARSEC_zgeqrfr_tsmqr_LITTLE_T_ARENA] );
 
     handle->destructor(handle);
 }

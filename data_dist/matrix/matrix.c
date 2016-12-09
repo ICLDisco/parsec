@@ -7,47 +7,47 @@
  *distributed matrix generation
  ************************************************************/
 
-#include "dague_config.h"
-#include "dague/dague_internal.h"
-#include "dague/debug.h"
-#include "dague/data.h"
-#include "dague/data_distribution.h"
+#include "parsec_config.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/debug.h"
+#include "parsec/data.h"
+#include "parsec/data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "matrix.h"
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif
 
-static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...);
+static uint32_t tiled_matrix_data_key(struct parsec_ddesc_s *desc, ...);
 
-#if defined(DAGUE_PROF_TRACE)
-static int      tiled_matrix_key_to_string(struct dague_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+#if defined(PARSEC_PROF_TRACE)
+static int      tiled_matrix_key_to_string(struct parsec_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
-dague_data_t*
-dague_matrix_create_data(tiled_matrix_desc_t* matrix,
+parsec_data_t*
+parsec_matrix_create_data(tiled_matrix_desc_t* matrix,
                          void* ptr,
                          int pos,
-                         dague_data_key_t key)
+                         parsec_data_key_t key)
 {
     assert( pos <= matrix->nb_local_tiles );
-    return dague_data_create( matrix->data_map + pos,
+    return parsec_data_create( matrix->data_map + pos,
                               &(matrix->super), key, ptr,
-                              matrix->bsiz * dague_datadist_getsizeoftype(matrix->mtype) );
+                              matrix->bsiz * parsec_datadist_getsizeoftype(matrix->mtype) );
 }
 
 void
-dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
+parsec_matrix_destroy_data( tiled_matrix_desc_t* matrix )
 {
     if ( matrix->data_map != NULL ) {
-        dague_data_t **data = matrix->data_map;
+        parsec_data_t **data = matrix->data_map;
         int i;
 
         for(i=0; i<matrix->nb_local_tiles; i++, data++)
         {
-            dague_data_destroy( *data );
+            parsec_data_destroy( *data );
         }
 
         free( matrix->data_map );
@@ -56,10 +56,10 @@ dague_matrix_destroy_data( tiled_matrix_desc_t* matrix )
     return;
 }
 
-dague_data_t*
-fake_data_of(dague_ddesc_t *mat, ...)
+parsec_data_t*
+fake_data_of(parsec_ddesc_t *mat, ...)
 {
-    return dague_matrix_create_data( (tiled_matrix_desc_t*)mat, NULL,
+    return parsec_matrix_create_data( (tiled_matrix_desc_t*)mat, NULL,
                                      0, 0 );
 }
 
@@ -75,10 +75,10 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
                              int i,  int j,
                              int m,  int n)
 {
-    dague_ddesc_t *o = (dague_ddesc_t*)tdesc;
+    parsec_ddesc_t *o = (parsec_ddesc_t*)tdesc;
 
     /* Super setup */
-    dague_ddesc_init( o, nodes, myrank );
+    parsec_ddesc_init( o, nodes, myrank );
 
     /* Change the common data_key */
     o->data_key = tiled_matrix_data_key;
@@ -134,7 +134,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->nt = (j+n-1)/nb - j/nb + 1;
 
     /* finish to update the main object properties */
-#if defined(DAGUE_PROF_TRACE)
+#if defined(PARSEC_PROF_TRACE)
     o->key_to_string = tiled_matrix_key_to_string;
     asprintf(&(o->key_dim), "(%d, %d)", tdesc->lmt, tdesc->lnt);
 #endif
@@ -143,8 +143,8 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 void
 tiled_matrix_desc_destroy( tiled_matrix_desc_t *tdesc )
 {
-    dague_matrix_destroy_data( tdesc );
-    dague_ddesc_destroy( (dague_ddesc_t*)tdesc );
+    parsec_matrix_destroy_data( tdesc );
+    parsec_ddesc_destroy( (parsec_ddesc_t*)tdesc );
 }
 
 
@@ -159,19 +159,19 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     nb = tdesc->nb;
 
     if ( (i < 0) || ( (i%mb) != 0 ) ) {
-        dague_warning("Invalid value of i");
+        parsec_warning("Invalid value of i");
         return NULL;
     }
     if ( (j < 0) || ( (j%nb) != 0 ) ) {
-        dague_warning("Invalid value of j");
+        parsec_warning("Invalid value of j");
         return NULL;
     }
     if ( (m < 0) || ((m+i) > tdesc->lm) ) {
-        dague_warning("Invalid value of m");
+        parsec_warning("Invalid value of m");
         return NULL;
     }
     if ( (n < 0) || ((n+j) > tdesc->ln) ) {
-        dague_warning("Invalid value of n");
+        parsec_warning("Invalid value of n");
         return NULL;
     }
 
@@ -183,7 +183,7 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
         newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
     } else {
-        dague_warning("Type not completely defined");
+        parsec_warning("Type not completely defined");
         return NULL;
     }
 
@@ -198,8 +198,8 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     return newdesc;
 }
 
-/* return a unique key (unique only for the specified dague_ddesc) associated to a data */
-static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...)
+/* return a unique key (unique only for the specified parsec_ddesc) associated to a data */
+static uint32_t tiled_matrix_data_key(struct parsec_ddesc_s *desc, ...)
 {
     tiled_matrix_desc_t * Ddesc;
     unsigned int m, n;
@@ -219,8 +219,8 @@ static uint32_t tiled_matrix_data_key(struct dague_ddesc_s *desc, ...)
     return ((n * Ddesc->lmt) + m);
 }
 
-#if defined(DAGUE_PROF_TRACE)
-static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+#if defined(PARSEC_PROF_TRACE)
+static int  tiled_matrix_key_to_string(struct parsec_ddesc_s *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 /* return a string meaningful for profiling about data */
 {
     tiled_matrix_desc_t * Ddesc;
@@ -232,11 +232,11 @@ static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t data
     res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
     if (res < 0)
     {
-        dague_warning("Wrong key_to_string for tile (%u, %u) key: %u", m, n, datakey);
+        parsec_warning("Wrong key_to_string for tile (%u, %u) key: %u", m, n, datakey);
     }
     return res;
 }
-#endif /* DAGUE_PROF_TRACE */
+#endif /* PARSEC_PROF_TRACE */
 
 /*
  * Writes the data into the file filename
@@ -244,17 +244,17 @@ static int  tiled_matrix_key_to_string(struct dague_ddesc_s *desc, uint32_t data
  */
 int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
 {
-    dague_ddesc_t *ddesc = &(tdesc->super);
-    dague_data_t* data;
+    parsec_ddesc_t *ddesc = &(tdesc->super);
+    parsec_data_t* data;
     FILE *tmpf;
     char *buf;
     int i, j, k;
     uint32_t myrank = tdesc->super.myrank;
-    int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
+    int eltsize =  parsec_datadist_getsizeoftype( tdesc->mtype );
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        dague_warning("The file %s cannot be open", filename);
+        parsec_warning("The file %s cannot be open", filename);
         return -1;
     }
 
@@ -263,7 +263,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = dague_data_get_ptr(data, 0);
+                    buf = parsec_data_get_ptr(data, 0);
                     fwrite(buf, eltsize, tdesc->bsiz, tmpf );
                 }
             }
@@ -272,7 +272,7 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = dague_data_get_ptr(data, 0);
+                    buf = parsec_data_get_ptr(data, 0);
                     for (k=0; k<tdesc->nb; k++) {
                         fwrite(buf, eltsize, tdesc->mb, tmpf );
                         buf += eltsize * tdesc->lm;
@@ -292,17 +292,17 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
  */
 int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
 {
-    dague_ddesc_t *ddesc = &(tdesc->super);
-    dague_data_t* data;
+    parsec_ddesc_t *ddesc = &(tdesc->super);
+    parsec_data_t* data;
     FILE *tmpf;
     char *buf;
     int i, j, k, ret;
     uint32_t myrank = tdesc->super.myrank;
-    int eltsize =  dague_datadist_getsizeoftype( tdesc->mtype );
+    int eltsize =  parsec_datadist_getsizeoftype( tdesc->mtype );
 
     tmpf = fopen(filename, "w");
     if(NULL == tmpf) {
-        dague_warning("The file %s cannot be open", filename);
+        parsec_warning("The file %s cannot be open", filename);
         return -1;
     }
 
@@ -311,10 +311,10 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = dague_data_get_ptr(data, 0);
+                    buf = parsec_data_get_ptr(data, 0);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
-                        dague_warning("The read on tile(%d, %d) read %d elements instead of %d",
+                        parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                 i, j, ret, tdesc->bsiz);
                         return -1;
                     }
@@ -325,11 +325,11 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
             for ( j = 0 ; j< tdesc->nt ; j++) {
                 if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
                     data = ddesc->data_of( ddesc, i, j );
-                    buf = dague_data_get_ptr(data, 0);
+                    buf = parsec_data_get_ptr(data, 0);
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );
                         if ( ret !=  tdesc->mb ) {
-                            dague_warning("The read on tile(%d, %d) read %d elements instead of %d",
+                            parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                     i, j, ret, tdesc->mb);
                             return -1;
                         }

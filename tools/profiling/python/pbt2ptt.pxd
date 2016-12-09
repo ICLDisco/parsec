@@ -1,7 +1,7 @@
 # pbt2ptt python definition file
 
-cdef extern from "dague/dague_binary_profile.h":
-   ctypedef struct dague_thread_profiling_t:
+cdef extern from "parsec/parsec_binary_profile.h":
+   ctypedef struct parsec_thread_profiling_t:
       pass
 
    int KEY_IS_START(int key)

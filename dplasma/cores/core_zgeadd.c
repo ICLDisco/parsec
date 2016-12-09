@@ -20,7 +20,7 @@
 /**
  ******************************************************************************
  *
- * @ingroup dague_complex64
+ * @ingroup parsec_complex64
  *
  *  dplasma_core_zgeadd adds to matrices together as in PBLAS pzgeadd.
  *
@@ -68,12 +68,12 @@
  *
  ******************************************************************************/
 int dplasma_core_zgeadd(PLASMA_enum trans, int M, int N,
-                              dague_complex64_t  alpha,
-                        const dague_complex64_t *A, int LDA,
-                              dague_complex64_t  beta,
-                              dague_complex64_t *B, int LDB)
+                              parsec_complex64_t  alpha,
+                        const parsec_complex64_t *A, int LDA,
+                              parsec_complex64_t  beta,
+                              parsec_complex64_t *B, int LDB)
 {
-    static dague_complex64_t zone = (dague_complex64_t)1.;
+    static parsec_complex64_t zone = (parsec_complex64_t)1.;
     int j;
 
     if ((trans != PlasmaNoTrans) &&

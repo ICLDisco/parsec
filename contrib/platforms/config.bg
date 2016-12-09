@@ -11,7 +11,7 @@ USER_OPTIONS="$* "
 SAVE_LDFLAGS=$LDFLAGS
 
 #
-# This file is for a cross-compilation. DAGuE will be compiled
+# This file is for a cross-compilation. PaRSEC will be compiled
 # on the head node, using the BG/P toolchain. All dependencies
 # (including PLASMA) have to be compiled for the expected target
 # architecture.
@@ -38,10 +38,10 @@ FC=${FC:="xlf_r"}
 LDFLAGS="${LDFLAGS} -lnuma"
 export CC CXX FC LDFLAGS
  
-MPI="-DDAGUE_DIST_WITH_MPI=OFF"
-CUDA="-DDAGUE_GPU_WITH_CUDA=OFF"
+MPI="-DPARSEC_DIST_WITH_MPI=OFF"
+CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
 HWLOC="-DHWLOC_DIR=/home/bosilca/opt/"
-OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_DAGUE=ON -DBUILD_DPLASMA=OFF"
+OPTS="-DBUILD_TESTING=OFF -DBUILD_TOOLS=ON -DBUILD_PARSEC=ON -DBUILD_DPLASMA=OFF"
 
 cmake -G "Unix Makefiles" ${MPI} ${CUDA} ${OPTS} ${HWLOC} ${USER_OPTIONS} ../${LOCATION}
 #
@@ -79,10 +79,10 @@ FC=mpixlf77_r
 #CFLAGS="-I/bgsys/drivers/ppcfloor/arch/include"
 LDFLAGS="${SAVE_LDFLAGS} -L/opt/ibmcmp/xlf/bg/11.1/bglib/ -qsmp=omp"
 
-MPI="-DDAGUE_DIST_WITH_MPI=ON"
+MPI="-DPARSEC_DIST_WITH_MPI=ON"
 PLASMA="-DPLASMA_DIR=/home/bosilca/opt/bluegene/"
 HWLOC="-DHWLOC_DIR=/home/bosilca/opt/bluegene"
-CUDA="-DDAGUE_GPU_WITH_CUDA=OFF"
+CUDA="-DPARSEC_GPU_WITH_CUDA=OFF"
 OPTS="-DBUILD_64bits=OFF -DBUILD_TOOLS=OFF"
 
 # Done with variable allocation, do the thing with Cmake

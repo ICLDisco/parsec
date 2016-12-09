@@ -21,7 +21,7 @@ descA     [type = "tiled_matrix_desc_t*"]
 descB     [type = "tiled_matrix_desc_t*"]
 descT     [type = "tiled_matrix_desc_t*"]
 ib        [type = "int" hidden = on default = "descT->mb" ]
-pool_0    [type = "dague_memory_pool_t *" size = "((sizeof(dague_complex64_t))*ib)*descT->nb"]
+pool_0    [type = "parsec_memory_pool_t *" size = "((sizeof(parsec_complex64_t))*ib)*descT->nb"]
 
 
 zunmlq(k, n)
@@ -51,8 +51,8 @@ BODY
              "\t(side, trans, tempkm, tempnn, tempkmin, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT->mb, B(%d,%d)[%p], ldbk, p_elem_A, descT->nb)\n",
              k, n, k, k, A, k, k, T, k, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( pool_0 );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( pool_0 );
 
     CORE_zunmlq(side, trans,
                 tempkm, tempnn, tempkmin, ib,
@@ -61,8 +61,8 @@ BODY
                 C /* descB->k,n) */, ldbk,
                 p_elem_A, descT->nb );
 
-    dague_private_memory_push( pool_0, p_elem_A );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_0, p_elem_A );
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -133,8 +133,8 @@ BODY
              "\t(side, trans, descB->mb, tempnn, tempmm, tempnn, tempkmin, ib, B(%d,%d)[%p], ldbk, B(%d,%d)[%p], ldbm, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT->mb, p_elem_A, ldwork)\n",
              k, m, n, k, n, A1, m, n, A2, m, k, V, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( pool_0 );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( pool_0 );
 
     CORE_ztsmlq(side, trans,
                 descB->mb, tempnn, tempmm, tempnn, tempkmin, ib,
@@ -144,8 +144,8 @@ BODY
                 T  /* descT->k, m) */, descT->mb,
                 p_elem_A, ldwork );
 
-    dague_private_memory_push( pool_0, p_elem_A );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_0, p_elem_A );
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

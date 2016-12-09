@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
+#include "parsec_config.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -170,7 +170,7 @@ void jdf_register_globals(jdf_t *jdf, node_t *root)
 
                 e->next       = e2;
                 e->name       = strdup(string_arena_get_string(sa));
-                e->properties = jdf_create_properties_list( "type", JDF_STRING, "dague_ddesc_t *", e->properties);
+                e->properties = jdf_create_properties_list( "type", JDF_STRING, "parsec_ddesc_t *", e->properties);
                 e->expression = NULL;
                 JDF_OBJECT_SET(e, NULL, 0, NULL);
 
@@ -916,7 +916,7 @@ void jdf_register_dependencies_and_pseudotasks(jdf_function_entry_t       *this_
             dataflow->flow_flags = JDF_FLOW_TYPE_READ;
         }else if( nb_odeps > 0 ){
             /*
-             * DAGuE does not like write-only variables, so make it RW and make
+             * PaRSEC does not like write-only variables, so make it RW and make
              * it read from the data matrix tile that corresponds to this variable.
              */
             dataflow->flow_flags = JDF_FLOW_TYPE_READ | JDF_FLOW_TYPE_WRITE;

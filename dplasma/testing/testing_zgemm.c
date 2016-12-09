@@ -10,16 +10,16 @@
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-static int check_solution( dague_context_t *dague, int loud,
+static int check_solution( parsec_context_t *parsec, int loud,
                            PLASMA_enum transA, PLASMA_enum transB,
-                           dague_complex64_t alpha, int Am, int An, int Aseed,
+                           parsec_complex64_t alpha, int Am, int An, int Aseed,
                                                     int Bm, int Bn, int Bseed,
-                           dague_complex64_t beta,  int M,  int N,  int Cseed,
+                           parsec_complex64_t beta,  int M,  int N,  int Cseed,
                            two_dim_block_cyclic_t *ddescCfinal );
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     int info_solution = 0;
     int Aseed = 3872;
@@ -27,8 +27,8 @@ int main(int argc, char ** argv)
     int Cseed = 2873;
     int tA = PlasmaNoTrans;
     int tB = PlasmaNoTrans;
-    dague_complex64_t alpha =  0.51;
-    dague_complex64_t beta  = -0.42;
+    parsec_complex64_t alpha =  0.51;
+    parsec_complex64_t beta  = -0.42;
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
     alpha -= I * 0.32;
@@ -38,11 +38,11 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_gemm(iparam);
     iparam_default_ibnbmb(iparam, 0, 200, 200);
-#if defined(DAGUE_HAVE_CUDA) && 1
+#if defined(PARSEC_HAVE_CUDA) && 1
     iparam[IPARAM_NGPUS] = 0;
 #endif
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     PASTE_CODE_FLOPS(FLOPS_ZGEMM, ((DagDouble_t)M,(DagDouble_t)N,(DagDouble_t)K));
@@ -70,13 +70,13 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
         if(loud > 2) printf("Done\n");
 
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgemm,
+        /* Create PaRSEC */
+        PASTE_CODE_ENQUEUE_KERNEL(parsec, zgemm,
                                   (tA, tB, alpha,
                                    (tiled_matrix_desc_t *)&ddescA,
                                    (tiled_matrix_desc_t *)&ddescB,
@@ -84,13 +84,13 @@ int main(int argc, char ** argv)
                                    (tiled_matrix_desc_t *)&ddescC));
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgemm);
+        PASTE_CODE_PROGRESS_KERNEL(parsec, zgemm);
 
-        dplasma_zgemm_Destruct( DAGUE_zgemm );
+        dplasma_zgemm_Destruct( PARSEC_zgemm );
 
-        dague_data_free(ddescA.mat);
+        parsec_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-        dague_data_free(ddescB.mat);
+        parsec_data_free(ddescB.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
     }
     else {
@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
                                    nodes, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
         for(tA=0; tA<3; tA++) {
@@ -128,8 +128,8 @@ int main(int argc, char ** argv)
                                            nodes, rank, MB, NB, LDB, LDB, 0, 0,
                                            Bm, Bn, SMB, SNB, P));
 
-                dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
-                dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
+                dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
+                dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
 
                 if ( rank == 0 ) {
                     printf("***************************************************\n");
@@ -139,27 +139,27 @@ int main(int argc, char ** argv)
 
                 /* matrix generation */
                 if(loud) printf("Generate matrices ... ");
-                dplasma_zlacpy( dague, PlasmaUpperLower,
+                dplasma_zlacpy( parsec, PlasmaUpperLower,
                                 (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
                 if(loud) printf("Done\n");
 
-                /* Create GEMM DAGuE */
+                /* Create GEMM PaRSEC */
                 if(loud) printf("Compute ... ... ");
-                dplasma_zgemm(dague, trans[tA], trans[tB],
-                              (dague_complex64_t)alpha,
+                dplasma_zgemm(parsec, trans[tA], trans[tB],
+                              (parsec_complex64_t)alpha,
                               (tiled_matrix_desc_t *)&ddescA,
                               (tiled_matrix_desc_t *)&ddescB,
-                              (dague_complex64_t)beta,
+                              (parsec_complex64_t)beta,
                               (tiled_matrix_desc_t *)&ddescC);
                 if(loud) printf("Done\n");
 
-                dague_data_free(ddescA.mat);
+                parsec_data_free(ddescA.mat);
                 tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-                dague_data_free(ddescB.mat);
+                parsec_data_free(ddescB.mat);
                 tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
 
                 /* Check the solution */
-                info_solution = check_solution( dague, (rank == 0) ? loud : 0,
+                info_solution = check_solution( parsec, (rank == 0) ? loud : 0,
                                                 trans[tA], trans[tB],
                                                 alpha, Am, An, Aseed,
                                                        Bm, Bn, Bseed,
@@ -182,14 +182,14 @@ int main(int argc, char ** argv)
             }
         }
 #endif
-        dague_data_free(ddescC2.mat);
+        parsec_data_free(ddescC2.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC2);
     }
 
-    dague_data_free(ddescC.mat);
+    parsec_data_free(ddescC.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return info_solution;
 }
@@ -201,11 +201,11 @@ int main(int argc, char ** argv)
 /*------------------------------------------------------------------------
  *  Check the accuracy of the solution
  */
-static int check_solution( dague_context_t *dague, int loud,
+static int check_solution( parsec_context_t *parsec, int loud,
                            PLASMA_enum transA, PLASMA_enum transB,
-                           dague_complex64_t alpha, int Am, int An, int Aseed,
+                           parsec_complex64_t alpha, int Am, int An, int Aseed,
                                                     int Bm, int Bn, int Bseed,
-                           dague_complex64_t beta,  int M,  int N,  int Cseed,
+                           parsec_complex64_t beta,  int M,  int N,  int Cseed,
                            two_dim_block_cyclic_t *ddescCfinal )
 {
     int info_solution = 1;
@@ -234,14 +234,14 @@ static int check_solution( dague_context_t *dague, int loud,
                                1, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, Aseed );
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, Bseed );
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed );
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed );
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
 
-    Anorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
-    Bnorm        = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB );
-    Cinitnorm    = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
-    Cdplasmanorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)ddescCfinal );
+    Anorm        = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
+    Bnorm        = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB );
+    Cinitnorm    = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
+    Cdplasmanorm = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)ddescCfinal );
 
     if ( rank == 0 ) {
         cblas_zgemm(CblasColMajor,
@@ -252,12 +252,12 @@ static int check_solution( dague_context_t *dague, int loud,
                     CBLAS_SADDR(beta),  ddescC.mat, LDC );
     }
 
-    Clapacknorm = dplasma_zlange( dague, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
+    Clapacknorm = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
 
-    dplasma_zgeadd( dague, PlasmaNoTrans, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
+    dplasma_zgeadd( parsec, PlasmaNoTrans, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
                                            1.0, (tiled_matrix_desc_t*)&ddescC );
 
-    Rnorm = dplasma_zlange( dague, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC);
+    Rnorm = dplasma_zlange( parsec, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC);
 
     if ( rank == 0 ) {
         if ( loud > 2 ) {
@@ -276,15 +276,15 @@ static int check_solution( dague_context_t *dague, int loud,
         }
     }
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Bcast(&info_solution, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
-    dague_data_free(ddescA.mat);
+    parsec_data_free(ddescA.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    dague_data_free(ddescB.mat);
+    parsec_data_free(ddescB.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
-    dague_data_free(ddescC.mat);
+    parsec_data_free(ddescC.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
 
     return info_solution;

@@ -8,7 +8,7 @@ extern "C" %{
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 %}
 
-A          [type = "dague_ddesc_t*"]
+A          [type = "parsec_ddesc_t*"]
 NT         [type = int]
 BLOCK      [type = int]
 
@@ -69,11 +69,11 @@ static two_dim_block_cyclic_t descA;
 
 int main(int argc, char* argv[])
 {
-    dague_write_check_handle_t* handle;
-    dague_context_t *dague;
+    parsec_write_check_handle_t* handle;
+    parsec_context_t *parsec;
     int i = 0, block = 10, n = 1000;
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     {
         int provided;
         MPI_Init_thread(NULL, NULL, MPI_THREAD_SERIALIZED, &provided);
@@ -96,8 +96,8 @@ int main(int argc, char* argv[])
         argc -= 1;
     }
 
-    dague = dague_init(-1, &argc, &argv);
-    if( NULL == dague ) {
+    parsec = parsec_init(-1, &argc, &argv);
+    if( NULL == parsec ) {
         exit(-1);
     }
 
@@ -105,23 +105,23 @@ int main(int argc, char* argv[])
                                1 /*nodes*/, 0 /*rank*/,
                                block, 1, n, 1,
                                0, 0, n, n, 1, 1, 1);
-    descA.mat = dague_data_allocate( n * dague_datadist_getsizeoftype(TYPE) );
+    descA.mat = parsec_data_allocate( n * parsec_datadist_getsizeoftype(TYPE) );
     for( int i = 0; i < n; ((int*)descA.mat)[i++] = 1);
 
     /**
      * The original data is consistently initialized to 1. Upon completion it should
      * start with 2 and increase monotonically.
      */
-    handle = dague_write_check_new( (dague_ddesc_t*)&descA, (n / block) - 1, block );
+    handle = parsec_write_check_new( (parsec_ddesc_t*)&descA, (n / block) - 1, block );
     assert( NULL != handle );
 
-    dague_arena_construct( handle->arenas[DAGUE_write_check_DEFAULT_ARENA],
-                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_construct( handle->arenas[PARSEC_write_check_DEFAULT_ARENA],
+                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
-    dague_enqueue( dague, (dague_handle_t*)handle );
-    dague_context_wait(dague);
+    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_context_wait(parsec);
 
     for( int i = 0; i < n; i++ ) {
         if( (2+i) != ((int*)descA.mat)[i] )
@@ -131,7 +131,7 @@ int main(int argc, char* argv[])
 
     free(descA.mat);
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
     return 0;

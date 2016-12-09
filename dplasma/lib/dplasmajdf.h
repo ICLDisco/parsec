@@ -3,7 +3,7 @@
 
 #include <core_blas.h>
 #include "dplasma.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 
 /* Check for LU recursive kernel version */
 #if (PLASMA_VERSION_MAJOR < 2) || ((PLASMA_VERSION_MAJOR == 2) && (PLASMA_VERSION_MINOR < 8))
@@ -20,7 +20,7 @@ typedef void * CORE_sgetrf_data_t;
 
 #define plasma_const( x )  plasma_lapack_constants[x]
 
-#ifdef DAGUE_CALL_TRACE
+#ifdef PARSEC_CALL_TRACE
 #   include <stdlib.h>
 #   include <stdio.h>
 #   define printlog(str, ...) fprintf(stderr, "thread %d VP %d " str "\n", \
@@ -34,21 +34,21 @@ typedef void * CORE_sgetrf_data_t;
 #   define OUTPUT(ARG)
 #endif
 
-#ifdef DAGUE_DRY_RUN
+#ifdef PARSEC_DRY_RUN
 #define DRYRUN( body )
 #else
 #define DRYRUN( body ) body
 #endif
 
-#ifndef DAGUE_HAVE_MPI
+#ifndef PARSEC_HAVE_MPI
 #define TEMP_TYPE MPITYPE
 #undef MPITYPE
-#define MPITYPE ((dague_datatype_t)QUOTEME(TEMP_TYPE))
+#define MPITYPE ((parsec_datatype_t)QUOTEME(TEMP_TYPE))
 #undef TEMP_TYPE
-#endif  /* DAGUE_HAVE_MPI */
+#endif  /* PARSEC_HAVE_MPI */
 
 
-#if defined(DAGUE_HAVE_CUDA)
+#if defined(PARSEC_HAVE_CUDA)
 #include <cublas.h>
 
 typedef void (*cublas_zgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
@@ -67,7 +67,7 @@ typedef void (*cublas_sgemm_t) ( char TRANSA, char TRANSB, int m, int n, int k,
                                  float alpha, float *d_A, int lda,
                                               float *d_B, int ldb,
                                  float beta,  float *d_C, int ldc );
-#endif  /* defined(DAGUE_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_CUDA) */
 
 #endif /* _DPLASMAJDF_H_ */
 

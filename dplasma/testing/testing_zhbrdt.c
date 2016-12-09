@@ -10,7 +10,7 @@
 #include "common.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dague/data_internal.h"
+#include "parsec/data_internal.h"
 
 /* Including the bulge chassing */
 #define FADDS_ZHBRDT(__n) (-1)
@@ -18,17 +18,17 @@
 
 int main(int argc, char *argv[])
 {
-    dague_context_t *dague;
+    parsec_context_t *parsec;
     int iparam[IPARAM_SIZEOF];
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 48, 144, 144);
-#if defined(DAGUE_HAVE_CUDA) && defined(PRECISION_s)
+#if defined(PARSEC_HAVE_CUDA) && defined(PRECISION_s)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
-    dague = setup_dague(argc, argv, iparam);
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     if(P != 1)
         fprintf(stderr, "!!! This algorithm works on a band 1D matrix. The value of P=%d has been overriden, the actual grid is %dx%d\n", P, 1, nodes);
@@ -47,24 +47,24 @@ int main(int argc, char *argv[])
                                                       nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                                                       MB+1, (NB+2)*NT, 1, SNB, 1 /* 1D cyclic */ ));
 
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
 
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt,
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zhbrdt,
                               ((tiled_matrix_desc_t*)&ddescA));
 
-    PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt);
+    PASTE_CODE_PROGRESS_KERNEL(parsec, zhbrdt);
 
     if( check ) {
         printf( "No check implemented yet.\n" );
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
         /* Regenerate A, distributed so that the random generators are doing
          * the same things */
         PASTE_CODE_ALLOCATE_MATRIX(ddescAcpy, 1,
                                    two_dim_block_cyclic, (&ddescAcpy, matrix_ComplexDouble, matrix_Tile,
                                                           nodes, rank, MB+1, NB+2, MB+1, (NB+2)*NT,
                                                           0, 0, MB+1, (NB+2)*NT, 1, SNB, 1));
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescAcpy, 3872);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescAcpy, 3872);
 
         /* Gather Acpy on rank 0 */
         PASTE_CODE_ALLOCATE_MATRIX(ddescLAcpy, 1,
@@ -83,8 +83,8 @@ int main(int argc, char *argv[])
                 int rsrc = ddescA.super.super.rank_of(0,t);
                 if(rsrc == 0)
                 {
-                    PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t), 0));
-                    PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
+                    PLASMA_Complex64_t* datain = parsec_data_copy_get_ptr(parsec_data_get_copy(ddescA.super.super.data_of(0,t), 0));
+                    PLASMA_Complex64_t* dataout = parsec_data_copy_get_ptr(parsec_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
                     for(int n = 0; n < NB; n++) for(int m = 0; m < 2; m++)
                                                 {
                                                     dataout[m+n*2] = datain[m+n*(MB+1)];
@@ -92,32 +92,32 @@ int main(int argc, char *argv[])
                 }
                 else
                 {
-                    PLASMA_Complex64_t* dataout = dague_data_copy_get_ptr(dague_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
-                    MPI_Recv(dataout, 2*NB, dague_datatype_double_complex_t, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    PLASMA_Complex64_t* dataout = parsec_data_copy_get_ptr(parsec_data_get_copy(ddescLA.super.super.data_of(0,t), 0));
+                    MPI_Recv(dataout, 2*NB, parsec_datatype_double_complex_t, rsrc, t, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
                 }
             }
         }
         else
         {
             MPI_Datatype bidiagband_dtt;
-            MPI_Type_vector(NB, 2, MB+1, dague_datatype_double_complex_t, &bidiagband_dtt);
+            MPI_Type_vector(NB, 2, MB+1, parsec_datatype_double_complex_t, &bidiagband_dtt);
 
             for(int t = 0; t < NT; t++) {
                 if(ddescA.super.super.rank_of(0,t) == (uint32_t)rank)
                 {
-                    PLASMA_Complex64_t* datain = dague_data_copy_get_ptr(dague_data_get_copy(ddescA.super.super.data_of(0,t), 0));
+                    PLASMA_Complex64_t* datain = parsec_data_copy_get_ptr(parsec_data_get_copy(ddescA.super.super.data_of(0,t), 0));
                     MPI_Send(datain, 1, bidiagband_dtt, 0, t, MPI_COMM_WORLD);
                 }
             }
         }
-#endif  /* defined(DAGUE_HAVE_MPI) */
+#endif  /* defined(PARSEC_HAVE_MPI) */
     }
-    dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
+    dplasma_zhbrdt_Destruct( PARSEC_zhbrdt );
 
-    dague_data_free(ddescA.mat);
+    parsec_data_free(ddescA.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return EXIT_SUCCESS;
 }

@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlauum_New - Generates dague handle to compute the product U * U' or
+ *  dplasma_zlauum_New - Generates parsec handle to compute the product U * U' or
  *  L' * L, where the triangular factor U or L is stored in the upper or lower
  *  triangular part of the array A.
  *
@@ -52,8 +52,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlauum_Destruct();
  *
  *******************************************************************************
@@ -65,38 +65,38 @@
  * @sa dplasma_slauum_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zlauum_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *A )
 {
-    dague_handle_t *dague_lauum = NULL;
+    parsec_handle_t *parsec_lauum = NULL;
 
     if ( uplo == PlasmaLower ) {
-        dague_lauum = (dague_handle_t*)dague_zlauum_L_new(
+        parsec_lauum = (parsec_handle_t*)parsec_zlauum_L_new(
             uplo, A );
 
         /* Lower part of A with diagonal part */
-        dplasma_add2arena_lower( ((dague_zlauum_L_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA],
-                                 A->mb*A->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, A->mb, 1 );
+        dplasma_add2arena_lower( ((parsec_zlauum_L_handle_t*)parsec_lauum)->arenas[PARSEC_zlauum_L_LOWER_TILE_ARENA],
+                                 A->mb*A->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, A->mb, 1 );
     } else {
-        dague_lauum = (dague_handle_t*)dague_zlauum_U_new(
+        parsec_lauum = (parsec_handle_t*)parsec_zlauum_U_new(
             uplo, A );
 
         /* Upper part of A with diagonal part */
-        dplasma_add2arena_upper( ((dague_zlauum_U_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_U_UPPER_TILE_ARENA],
-                                 A->mb*A->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, A->mb, 1 );
+        dplasma_add2arena_upper( ((parsec_zlauum_U_handle_t*)parsec_lauum)->arenas[PARSEC_zlauum_U_UPPER_TILE_ARENA],
+                                 A->mb*A->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, A->mb, 1 );
     }
 
-    dplasma_add2arena_tile(((dague_zlauum_L_handle_t*)dague_lauum)->arenas[DAGUE_zlauum_L_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, A->mb);
+    dplasma_add2arena_tile(((parsec_zlauum_L_handle_t*)parsec_lauum)->arenas[PARSEC_zlauum_L_DEFAULT_ARENA],
+                           A->mb*A->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, A->mb);
 
-    return dague_lauum;
+    return parsec_lauum;
 }
 
 /**
@@ -120,13 +120,13 @@ dplasma_zlauum_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlauum_Destruct( dague_handle_t *handle )
+dplasma_zlauum_Destruct( parsec_handle_t *handle )
 {
-    dague_zlauum_L_handle_t *olauum = (dague_zlauum_L_handle_t *)handle;
+    parsec_zlauum_L_handle_t *olauum = (parsec_zlauum_L_handle_t *)handle;
 
-    dague_matrix_del2arena( olauum->arenas[DAGUE_zlauum_L_DEFAULT_ARENA   ] );
-    dague_matrix_del2arena( olauum->arenas[DAGUE_zlauum_L_LOWER_TILE_ARENA] );
-    dague_handle_free(handle);
+    parsec_matrix_del2arena( olauum->arenas[PARSEC_zlauum_L_DEFAULT_ARENA   ] );
+    parsec_matrix_del2arena( olauum->arenas[PARSEC_zlauum_L_LOWER_TILE_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -145,8 +145,8 @@ dplasma_zlauum_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          Specifies whether the matrix A is upper triangular or lower
@@ -180,11 +180,11 @@ dplasma_zlauum_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zlauum( dague_context_t *dague,
+dplasma_zlauum( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t *A )
 {
-    dague_handle_t *dague_zlauum = NULL;
+    parsec_handle_t *parsec_zlauum = NULL;
 
     /* Check input arguments */
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {
@@ -197,13 +197,13 @@ dplasma_zlauum( dague_context_t *dague,
         return -6;
     }
 
-    dague_zlauum = dplasma_zlauum_New(uplo, A);
+    parsec_zlauum = dplasma_zlauum_New(uplo, A);
 
-    if ( dague_zlauum != NULL )
+    if ( parsec_zlauum != NULL )
     {
-        dague_enqueue( dague, dague_zlauum );
-        dplasma_progress( dague );
-        dplasma_zlauum_Destruct( dague_zlauum );
+        parsec_enqueue( parsec, parsec_zlauum );
+        dplasma_progress( parsec );
+        dplasma_zlauum_Destruct( parsec_zlauum );
         return 0;
     }
     else {

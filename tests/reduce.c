@@ -4,16 +4,16 @@
  *                         reserved.
  */
 
-#include "dague.h"
-#include "dague/execution_unit.h"
-#include "dague/arena.h"
+#include "parsec.h"
+#include "parsec/execution_unit.h"
+#include "parsec/arena.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dague/datatype.h"
+#include "parsec/datatype.h"
 #include <math.h>
 #include "data_dist/matrix/reduce.h"
 
 #if 0
-static int dague_operator_print_id( struct dague_execution_unit *eu, void* data, void* op_data, ... )
+static int parsec_operator_print_id( struct parsec_execution_unit *eu, void* data, void* op_data, ... )
 {
     va_list ap;
     int k, n;
@@ -30,15 +30,15 @@ static int dague_operator_print_id( struct dague_execution_unit *eu, void* data,
 
 int main( int argc, char* argv[] )
 {
-    dague_context_t* dague;
-    dague_handle_t* object;
+    parsec_context_t* parsec;
+    parsec_handle_t* object;
     two_dim_block_cyclic_t ddescA;
     int cores = 2, world = 1, rank = 0;
     int nb = 100, ln = 900;
     int rows = 1;
-    dague_datatype_t newtype;
+    parsec_datatype_t newtype;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -47,40 +47,40 @@ int main( int argc, char* argv[] )
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
 
-    dague = dague_init(cores, &argc, &argv);
+    parsec = parsec_init(cores, &argc, &argv);
 
     two_dim_block_cyclic_init( &ddescA, matrix_RealFloat, matrix_Tile,
                                world, rank, nb, 1, ln, 1, 0, 0, ln, 1, 1, 1, rows );
-    ddescA.mat = dague_data_allocate((size_t)ddescA.super.nb_local_tiles *
+    ddescA.mat = parsec_data_allocate((size_t)ddescA.super.nb_local_tiles *
                                      (size_t)ddescA.super.bsiz *
-                                     (size_t)dague_datadist_getsizeoftype(ddescA.super.mtype));
+                                     (size_t)parsec_datadist_getsizeoftype(ddescA.super.mtype));
 
-    dague_ddesc_set_key(&ddescA.super.super, "A");
+    parsec_ddesc_set_key(&ddescA.super.super, "A");
 
-    object = (dague_handle_t*)dague_reduce_new((tiled_matrix_desc_t*)&ddescA,
+    object = (parsec_handle_t*)parsec_reduce_new((tiled_matrix_desc_t*)&ddescA,
                                                (tiled_matrix_desc_t*)&ddescA,
                                                NULL);
     /* Prepare the arena for the reduction */
-    dague_type_create_contiguous(nb, dague_datatype_float_t, &newtype);
-#if defined(DAGUE_HAVE_MPI)
+    parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);
+#if defined(PARSEC_HAVE_MPI)
     MPI_Type_commit(&newtype);
-#endif  /* defined(DAGUE_HAVE_MPI) */
-    dague_arena_construct(((dague_reduce_handle_t*)object)->arenas[DAGUE_reduce_DEFAULT_ARENA],
+#endif  /* defined(PARSEC_HAVE_MPI) */
+    parsec_arena_construct(((parsec_reduce_handle_t*)object)->arenas[PARSEC_reduce_DEFAULT_ARENA],
                           nb*sizeof(float),
-                          DAGUE_ARENA_ALIGNMENT_SSE,
+                          PARSEC_ARENA_ALIGNMENT_SSE,
                           newtype);
 
-    dague_enqueue(dague, (dague_handle_t*)object);
+    parsec_enqueue(parsec, (parsec_handle_t*)object);
 
-    dague_context_wait(dague);
+    parsec_context_wait(parsec);
 
-    dague_map_operator_Destruct( object );
+    parsec_map_operator_Destruct( object );
 
-    dague_fini(&dague);
+    parsec_fini(&parsec);
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Finalize();
-#endif  /* defined(DAGUE_HAVE_MPI) */
+#endif  /* defined(PARSEC_HAVE_MPI) */
 
     return 0;
 }
