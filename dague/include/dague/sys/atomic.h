@@ -23,10 +23,14 @@
 #elif defined(DAGUE_OSX)
 /* Temporary workaround until we integrate C11 atomics */
 #if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12
-#  pragma clang diagnostic push
-#  pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#  if defined(__clang__)
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wdeprecated-declarations"
+#  endif  /* defined(__clang__) */
 #  include "atomic-macosx.h"
-#  pragma clang diagnostic pop
+#  if defined(__clang__)
+#    pragma clang diagnostic pop
+#  endif  /* defined(__clang__) */
 #endif  /* MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 */
 #elif defined(DAGUE_ARCH_PPC)
 #  if defined(__bgp__)
@@ -45,6 +49,13 @@
 #endif
 
 #include <assert.h>
+
+#if !defined(DAGUE_ATOMIC_HAS_WMB)
+#define dague_atomic_wmb    dague_mfence
+#endif  /* !defined(DAGUE_ATOMIC_HAS_WMB) */
+#if !defined(DAGUE_ATOMIC_HAS_RMB)
+#define dague_atomic_rmb    dague_mfence
+#endif  /* !defined(DAGUE_ATOMIC_HAS_RMB) */
 
 static inline int dague_atomic_cas_xxb( volatile void* location,
                                         uint64_t old_value,
@@ -82,6 +93,7 @@ static inline uint64_t dague_atomic_bor_xxb( volatile void* location,
     dague_atomic_cas_xxb((volatile void*)(LOCATION),                   \
                          (uint64_t)(OLD_VALUE), (uint64_t)(NEW_VALUE), \
                          sizeof(*(LOCATION)))
+
 
 #define dague_atomic_set_mask(LOCATION, MASK) dague_atomic_bor((LOCATION), (MASK))
 #define dague_atomic_clear_mask(LOCATION, MASK)  dague_atomic_band((LOCATION), ~(MASK))

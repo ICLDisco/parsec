@@ -17,10 +17,8 @@ typedef struct dague_list_item_s {
     volatile struct dague_list_item_s* list_next;
     /* This field is __very__ special and should be handled with extreme
      * care. It is used to avoid the ABA problem when atomic operations
-     * are in use. It can deal with 2^DAGUE_LIFO_ALIGNMENT_BITS pops,
-     * before running into the ABA. In all other cases, it is used to
-     * separate the two volatile members of the struct to avoid
-     * cacheline false sharing
+     * are in use and we do not have support for 128 bits atomics.
+     * Technically we only need an int32_t (but we need to be cache aligned).
      */
     uint64_t aba_key;
     volatile struct dague_list_item_s* list_prev;

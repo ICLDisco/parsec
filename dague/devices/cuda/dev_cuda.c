@@ -691,10 +691,10 @@ dague_cuda_memory_reserve( gpu_device_t* gpu_device,
         DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                             "Retain and insert CUDA copy %p [ref_count %d] in LRU",
                             gpu_elem, gpu_elem->super.obj_reference_count);
-        dague_ulist_fifo_push( &gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
+        dague_list_nolock_fifo_push( &gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem );
         cudaMemGetInfo( &free_mem, &total_mem );
     }
-    if( 0 == mem_elem_per_gpu && dague_ulist_is_empty( &gpu_device->gpu_mem_lru ) ) {
+    if( 0 == mem_elem_per_gpu && dague_list_nolock_is_empty( &gpu_device->gpu_mem_lru ) ) {
         dague_warning("GPU:\tRank %d Cannot allocate memory on GPU %d. Skip it!",
                       gpu_device->super.context->my_rank, gpu_device->cuda_index);
     }
@@ -734,7 +734,7 @@ static void dague_cuda_memory_release_list(gpu_device_t* gpu_device,
 {
     dague_list_item_t* item;
 
-    while(NULL != (item = dague_ulist_fifo_pop(list)) ) {
+    while(NULL != (item = dague_list_nolock_fifo_pop(list)) ) {
         dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
         dague_data_t* original = gpu_copy->original;
 
@@ -849,7 +849,7 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
           find_another_data:
             /* Look for a data_copy to free */
-            lru_gpu_elem = (dague_gpu_data_copy_t*)dague_ulist_fifo_pop(&gpu_device->gpu_mem_lru);
+            lru_gpu_elem = (dague_gpu_data_copy_t*)dague_list_nolock_fifo_pop(&gpu_device->gpu_mem_lru);
             if( NULL == lru_gpu_elem ) {
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
                  * the LRU (in order to be reused asap) and return without scheduling the task.
@@ -859,7 +859,7 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                               this_task->function->nb_flows);
                 for( j = 0; j < i; j++ ) {
                     if( NULL != temp_loc[j] ) {
-                        dague_ulist_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[j]);
+                        dague_list_nolock_lifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)temp_loc[j]);
                     }
                 }
 #if !defined(DAGUE_GPU_CUDA_ALLOC_PER_TILE)
@@ -922,7 +922,7 @@ dague_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
         DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                             "Retain and insert CUDA copy %p [ref_count %d] in LRU",
                             gpu_elem, gpu_elem->super.super.obj_reference_count);
-        dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
+        dague_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_elem);
     }
     return 0;
 }
@@ -1251,7 +1251,7 @@ int dague_gpu_W2R_task_fini(gpu_device_t *gpu_device,
         DAGUE_DEBUG_VERBOSE(10, dague_cuda_output_stream,
                             "Mirror on CPU and move CUDA copy %p [ref_count %d] in LRU",
                             gpu_copy, gpu_copy->super.super.obj_reference_count);
-        dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+        dague_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
         gpu_copy->readers--;
         assert(gpu_copy->readers >= 0);
     }
@@ -1326,12 +1326,12 @@ int dague_gpu_get_best_device( dague_execution_context_t* this_task, double rati
 static inline dague_list_item_t* dague_fifo_push_ordered( dague_list_t* fifo,
                                                           dague_list_item_t* elem )
 {
-    dague_ulist_push_sorted(fifo, elem, dague_execution_context_priority_comparator);
+    dague_list_nolock_push_sorted(fifo, elem, dague_execution_context_priority_comparator);
     return elem;
 }
 #define DAGUE_FIFO_PUSH  dague_fifo_push_ordered
 #else
-#define DAGUE_FIFO_PUSH  dague_ulist_fifo_push
+#define DAGUE_FIFO_PUSH  dague_list_nolock_fifo_push
 #endif
 
 static inline int
@@ -1353,7 +1353,7 @@ progress_stream( gpu_device_t* gpu_device,
   grab_a_task:
     if( NULL == exec_stream->tasks[exec_stream->start] ) {
         /* get the best task */
-        task = (dague_gpu_context_t*)dague_ulist_fifo_pop(exec_stream->fifo_pending);
+        task = (dague_gpu_context_t*)dague_list_nolock_fifo_pop(exec_stream->fifo_pending);
     }
     if( NULL == task ) {
         /* No more room on the event list or no tasks. Keep moving */
@@ -1529,10 +1529,10 @@ void dump_GPU_state(gpu_device_t* gpu_device)
     for( i = 0; i < gpu_device->max_exec_streams; i++ ) {
         dump_exec_stream(&gpu_device->exec_stream[i]);
     }
-    if( !dague_ulist_is_empty(&gpu_device->gpu_mem_lru) ) {
+    if( !dague_list_nolock_is_empty(&gpu_device->gpu_mem_lru) ) {
         dague_output(dague_cuda_output_stream, "#\n# LRU list\n#\n");
         i = 0;
-        DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_lru, item,
+        DAGUE_LIST_NOLOCK_ITERATOR(&gpu_device->gpu_mem_lru, item,
                              {
                                  dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
                                  dague_output(dague_cuda_output_stream, "  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
@@ -1540,10 +1540,10 @@ void dump_GPU_state(gpu_device_t* gpu_device)
                                  i++;
                              });
     };
-    if( !dague_ulist_is_empty(&gpu_device->gpu_mem_owned_lru) ) {
+    if( !dague_list_nolock_is_empty(&gpu_device->gpu_mem_owned_lru) ) {
         dague_output(dague_cuda_output_stream, "#\n# Owned LRU list\n#\n");
         i = 0;
-        DAGUE_ULIST_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
+        DAGUE_LIST_NOLOCK_ITERATOR(&gpu_device->gpu_mem_owned_lru, item,
                              {
                                  dague_gpu_data_copy_t* gpu_copy = (dague_gpu_data_copy_t*)item;
                                  dague_output(dague_cuda_output_stream, "  %d. elem %p GPU mem %p\n", i, gpu_copy, gpu_copy->device_private);
@@ -1692,7 +1692,7 @@ dague_gpu_kernel_pop( gpu_device_t            *gpu_device,
                 !(flow->flow_flags & FLOW_ACCESS_WRITE) ) {
                 dague_list_item_ring_chop((dague_list_item_t*)gpu_copy);
                 DAGUE_LIST_ITEM_SINGLETON(gpu_copy); /* TODO: singleton instead? */
-                dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+                dague_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
                 continue;  /* done with this element, go for the next one */
             }
         }
@@ -1813,12 +1813,12 @@ dague_gpu_kernel_epilog( gpu_device_t        *gpu_device,
         this_task->data[i].data_out = cpu_copy;
 
         if( gpu_task->pushout[i] ) {
-            dague_ulist_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
+            dague_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (dague_list_item_t*)gpu_copy);
             DAGUE_DEBUG_VERBOSE(20, dague_cuda_output_stream,
                                 "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
                                 gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
         } else {
-            dague_ulist_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
+            dague_list_nolock_fifo_push(&gpu_device->gpu_mem_owned_lru, (dague_list_item_t*)gpu_copy);
         }
     }
     return 0;

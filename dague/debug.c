@@ -41,10 +41,9 @@ void dague_debug_init(void) {
 #if defined(DISTRIBUTED) && defined(DAGUE_HAVE_MPI)
     int is_mpi_up;
     MPI_Initialized(&is_mpi_up);
-    if( 0 == is_mpi_up ) {
-        return ;
+    if( is_mpi_up ) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
     }
-    MPI_Comm_rank(MPI_COMM_WORLD, &dague_debug_rank);
 #endif
     gethostname(dague_debug_hostname, sizeof(dague_debug_hostname));
 

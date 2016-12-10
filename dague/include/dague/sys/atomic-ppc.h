@@ -4,14 +4,33 @@
  *                         reserved.
  */
 
+
+/**
+ * Based on shared Internet knowledge and the Power7 optimization book.
+ * http://www.redbooks.ibm.com/redbooks/pdfs/sg248079.pdf
+ */
 #ifndef __PPC
 #warning This file is only for PowerPC
 #endif  /* __ PPC */
 
+#ifdef __xlC__
+/* work-around bizzare xlc bug in which it sign-extends
+   a pointer to a 32-bit signed integer */
+#define DAGUE_ASM_ADDR(a) ((uintptr_t)a)
+#else
+#define DAGUE_ASM_ADDR(a) (a)
+#endif
+
 static inline void dague_mfence( void )
 {
-    __asm__ __volatile__ ("lwsync\n\t":::"memory");
+    __asm__ __volatile__ ("sync\n\t":::"memory");
 }
+
+#define DAGUE_ATOMIC_HAS_RMB
+#define RMB() __asm__ __volatile__ ("lwsync" : : : "memory")
+
+#define DAGUE_ATOMIC_HAS_WMB
+#define WMB() __asm__ __volatile__ ("eieio" : : : "memory")
 
 static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                           uint32_t mask )
@@ -25,7 +44,7 @@ static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                         "     stwcx.  %1,  0, %3   \n\t"
                         "     bne-    1b           \n\t"
                         : "=&r" (old), "=&r" (t)
-                        : "r" (mask), "r" (location)
+                        : "r" (mask), "r" DAGUE_ASM_ADDR(location)
                         : "cc", "memory");
 
    return t;
@@ -46,7 +65,7 @@ static inline int dague_atomic_band_32b( volatile uint32_t* location,
                         "     stwcx.  %1,  0, %3   \n\t"
                         "     bne-    1b           \n\t"
                         : "=&r" (old), "=&r" (t)
-                        : "r" (mask), "r" (location)
+                        : "r" (mask), "r" DAGUE_ASM_ADDR(location)
                         : "cc", "memory");
 
    return t;
@@ -70,7 +89,7 @@ static inline int dague_atomic_cas_32b( volatile uint32_t* location,
                          "   bne-    1b         \n\t"
                          "2:"
                          : "=&r" (ret), "=m" (*location)
-                         : "r" (location), "r" (old_value), "r" (new_value), "m" (*location)
+                         : "r" DAGUE_ASM_ADDR(location), "r" (old_value), "r" (new_value), "m" (*location)
                          : "cr0", "memory");
 
    return (ret == old_value);
@@ -94,7 +113,7 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
                          "   bne-    1b         \n\t"
                          "2:"
                          : "=&r" (ret), "=m" (*location)
-                         : "r" (location), "r" (old_value), "r" (new_value), "m" (*location)
+                         : "r" (location), "r" DAGUE_ASM_ADDR(old_value), "r" (new_value), "m" (*location)
                          : "cr0", "memory");
 
    return (ret == old_value);
@@ -102,6 +121,61 @@ static inline int dague_atomic_cas_64b( volatile uint64_t* location,
    return __compare_and_swaplp((volatile long*)location, (long*)&old_value, (long)new_value);
 #endif  /* !defined(__IBMC__) */
 }
+
+#define DAGUE_HAVE_ATOMIC_LLSC_PTR
+static inline int32_t dague_atomic_ll_32b(volatile int32_t *location)
+{
+   int32_t ret;
+
+   __asm__ __volatile__ ("lwarx   %0, 0, %1  \n\t"
+                         : "=&r" (ret)
+                         : "r" (location)
+                         :);
+   return ret;
+}
+
+static inline int64_t dague_atomic_ll_64b(volatile int64_t *location)
+{
+   int64_t ret;
+
+   __asm__ __volatile__ ("ldarx   %0, 0, %1  \n\t"
+                         : "=&r" (ret)
+                         : "r" (location)
+                         :);
+   return ret;
+}
+#define dague_atomic_ll_ptr dague_atomic_ll_64b
+
+static inline int dague_atomic_sc_32b(volatile int32_t *location, int32_t newval)
+{
+    int32_t ret, foo;
+
+    __asm__ __volatile__ ("   stwcx.  %4, 0, %3  \n\t"
+                          "   li      %0,0       \n\t"
+                          "   bne-    1f         \n\t"
+                          "   ori     %0,%0,1    \n\t"
+                          "1:"
+                          : "=r" (ret), "=m" (*location), "=r" (foo)
+                          : "r" (location), "r" (newval)
+                          : "cc", "memory");
+    return ret;
+}
+
+static inline int dague_atomic_sc_64b(volatile int64_t *location, int64_t newval)
+{
+    int32_t ret, foo;
+
+    __asm__ __volatile__ ("   stdcx.  %4, 0, %3  \n\t"
+                          "   li      %0,0       \n\t"
+                          "   bne-    1f         \n\t"
+                          "   ori     %0,%0,1    \n\t"
+                          "1:"
+                          : "=r" (ret), "=m" (*location), "=r" (foo)
+                          : "r" (location), "r" (newval)
+                          : "cc", "memory");
+    return ret;
+}
+#define dague_atomic_sc_ptr dague_atomic_sc_64b
 
 #define DAGUE_ATOMIC_HAS_ATOMIC_INC_32B
 static inline uint32_t dague_atomic_inc_32b( volatile uint32_t *location )
@@ -152,13 +226,13 @@ static inline uint32_t dague_atomic_add_32b( volatile int32_t *location, int32_t
    int32_t t;
 
    __asm__ __volatile__(
-                        "1:   lwarx   %0, 0, %1    \n\t"
-                        "     addic   %0, %0,%2    \n\t"
-                        "     stwcx.  %0, 0, %1    \n\t"
+                        "1:   lwarx   %0, 0, %3    \n\t"
+                        "     add     %0, %2, %0   \n\t"
+                        "     stwcx.  %0, 0, %3    \n\t"
                         "     bne-    1b           \n\t"
-                        : "=&r" (t)
-                        : "r" (location), "r" (i)
-                        : "cc", "memory");
+                        : "=&r" (t), "=m" (*location)
+                        : "r" (i), "r" DAGUE_ASM_ADDR(location), "m" (*location)
+                        : "cc");
 
    return t;
 #else
@@ -173,13 +247,13 @@ static inline uint32_t dague_atomic_sub_32b( volatile int32_t *location, int32_t
    int32_t t;
 
    __asm__ __volatile__(
-                        "1:   lwarx   %0, 0,%1     \n\t"
-                        "     subf    %0,%0,%2     \n\t"
-                        "     stwcx.  %0,0,%1      \n\t"
+                        "1:   lwarx   %0,0,%3      \n\t"
+                        "     subf    %0,%2,%0     \n\t"
+                        "     stwcx.  %0,0,%3      \n\t"
                         "     bne-    1b           \n\t"
-                        : "=&r" (t)
-                        : "r" (location), "r" (i)
-                        : "cc", "memory");
+                        : "=&r" (t), "=m" (*location)
+                        : "r" (i), "r" DAGUE_ASM_ADDR(location),
+                        : "cc");
 
    return t;
 #else

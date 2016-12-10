@@ -9,6 +9,9 @@
 
 #include "dague_config.h"
 #include "dague/class/list_item.h"
+#if defined(DAGUE_HAVE_ATOMIC_LLSC_PTR)
+#include <time.h>
+#endif  /* defined(DAGUE_HAVE_ATOMIC_LLSC_PTR) */
 
 typedef struct dague_lifo_s dague_lifo_t;
 DAGUE_DECLSPEC OBJ_CLASS_DECLARATION(dague_lifo_t);
@@ -17,19 +20,16 @@ static inline int
 dague_lifo_is_empty( dague_lifo_t* lifo );
 static inline int
 dague_lifo_nolock_is_empty( dague_lifo_t* lifo);
-#define dague_ulifo_is_empty(lifo) dague_lifo_nolock_is_empty(lifo);
 
 static inline void
 dague_lifo_push(dague_lifo_t* lifo, dague_list_item_t* item);
 static inline void
 dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item);
-#define dague_ulifo_push(lifo, item) dague_lifo_nolock_push(lifo, item)
 
 static inline void
 dague_lifo_chain(dague_lifo_t* lifo, dague_list_item_t* items);
 static inline void
 dague_lifo_nolock_chain(dague_lifo_t* lifo, dague_list_item_t* items);
-#define dague_ulifo_chain(lifo, items) dague_lifo_nolock_chain(lifo, items)
 
 static inline dague_list_item_t*
 dague_lifo_pop(dague_lifo_t* lifo);
@@ -37,8 +37,6 @@ static inline dague_list_item_t*
 dague_lifo_try_pop(dague_lifo_t* lifo);
 static inline dague_list_item_t*
 dague_lifo_nolock_pop(dague_lifo_t* lifo);
-#define dague_ulifo_pop(lifo) dague_lifo_nolock_pop(lifo)
-
 
 /***********************************************************************
  * Interface is defined. Everything else is private thereafter */
@@ -57,54 +55,56 @@ dague_lifo_nolock_pop(dague_lifo_t* lifo);
                                             ( sizeof(void*) ) :         \
                                             ( (uintptr_t)1 << DAGUE_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 
-#ifdef DAGUE_LIFO_USE_ATOMICS
-
 #include <stdlib.h>
 #include <dague/sys/atomic.h>
 
+/**
+ * This code is imported from Open MPI.
+ */
+/**
+ * Counted pointer to avoid the ABA problem.
+ */
+typedef union dague_counted_pointer_u {
+    struct {
+        /** update counter used when cmpset_128 is available */
+        uint64_t counter;
+        /** list item pointer */
+        dague_list_item_t *item;
+    } data;
 #if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
-typedef __uint128_t dague_lifo_head_t;
-#define __dague_lifo_cas dague_atomic_cas_128b
-#else
-#warning "64bit CAS in LIFO has been known susceptible to ABA"
-typedef dague_list_item_t* dague_lifo_head_t;
-#define __dague_lifo_cas dague_atomic_cas
-#endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
+    /** used for atomics when there is a cmpset that can operate on
+     * two 64-bit values */
+    __uint128_t value;
+#endif  /* defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B) */
+} dague_counted_pointer_t;
 
 struct dague_lifo_s {
-    dague_object_t     super;
-    uint8_t            alignment;
-    dague_list_item_t *lifo_ghost;
-    dague_lifo_head_t  lifo_head;
+    dague_object_t           super;
+    uint8_t                  alignment;
+    dague_list_item_t       *lifo_ghost;
+    dague_counted_pointer_t  lifo_head;
 };
-
-#if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
-#define DAGUE_LIFO_HKEY(LIFO, h, c)      ((((dague_lifo_head_t)((uintptr_t)c))<<64) + \
-                                           ((dague_lifo_head_t)(uintptr_t)h))
-#define DAGUE_LIFO_KHEAD(LIFO, k)        ((dague_list_item_t*)(uintptr_t)(k))
-#define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(uintptr_t)(k>>64))
-#else
-#define DAGUE_LIFO_CNTMASK(LIFO)         (DAGUE_LIFO_ALIGNMENT(LIFO)-1)
-#define DAGUE_LIFO_PTRMASK(LIFO)         (~(DAGUE_LIFO_CNTMASK(LIFO)))
-#define DAGUE_LIFO_CNT(LIFO, v)          ((uintptr_t)((uintptr_t)(v) & DAGUE_LIFO_CNTMASK(LIFO)))
-#define DAGUE_LIFO_PTR(LIFO, v)          ((dague_list_item_t *)((uintptr_t)(v) & DAGUE_LIFO_PTRMASK(LIFO)))
-#define DAGUE_LIFO_VAL(LIFO, p, c)       ((dague_list_item_t *)(((uintptr_t)DAGUE_LIFO_PTR(LIFO, p)) | DAGUE_LIFO_CNT(LIFO, c)))
-#define DAGUE_LIFO_HKEY(LIFO, h, n)      DAGUE_LIFO_VAL(LIFO, h, DAGUE_LIFO_CNT(LIFO, h)+(uint64_t)1)
-#define DAGUE_LIFO_KHEAD(LIFO, k)        DAGUE_LIFO_PTR(LIFO, k)
-#define DAGUE_LIFO_KCNT(LIFO, k)         ((dague_list_item_t*)(DAGUE_LIFO_CNT(LIFO, k)))
-
-#endif /*defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)*/
 
 /* The ghost pointer will never change. The head will change via an
  * atomic compare-and-swap. On most architectures the reading of a
  * pointer is an atomic operation so we don't have to protect it. */
 static inline int dague_lifo_is_empty( dague_lifo_t* lifo )
 {
-    return ( (DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head) == lifo->lifo_ghost) ? 1 : 0);
+    return ((dague_list_item_t *)lifo->lifo_head.data.item == lifo->lifo_ghost);
 }
-static inline int dague_lifo_nolock_is_empty( dague_lifo_t* lifo )
+#define dague_lifo_nolock_is_empty dague_lifo_is_empty
+
+#if defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)
+/* Add one element to the FIFO. We will return the last head of the list
+ * to allow the upper level to detect if this element is the first one in the
+ * list (if the list was empty before this operation).
+ */
+static inline int
+dague_update_counted_pointer(volatile dague_counted_pointer_t *addr, dague_counted_pointer_t old,
+                             dague_list_item_t *item)
 {
-    return dague_lifo_is_empty(lifo);
+    dague_counted_pointer_t elem = {.data = {.item = item, .counter = old.data.counter + 1}};
+    return dague_atomic_cas_128b(&addr->value, old.value, elem.value);
 }
 
 static inline void dague_lifo_push( dague_lifo_t* lifo,
@@ -116,17 +116,277 @@ static inline void dague_lifo_push( dague_lifo_t* lifo,
     DAGUE_ITEM_ATTACH(lifo, item);
 
     do {
-        dague_lifo_head_t ohead = lifo->lifo_head;
-        dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, item, DAGUE_LIFO_KCNT(lifo, ohead)+(uint64_t)1);
-        item->list_next = DAGUE_LIFO_KHEAD(lifo, ohead);
-        if( __dague_lifo_cas(&(lifo->lifo_head),
-                             ohead,
-                             nhead) ) {
+        dague_list_item_t *next = (dague_list_item_t *) lifo->lifo_head.data.item;
+
+        item->list_next = next;
+        dague_atomic_wmb ();
+
+        /* to protect against ABA issues it is sufficient to only update the counter in pop */
+        if (dague_atomic_cas_64b((uint64_t*)&lifo->lifo_head.data.item, (uint64_t)next, (uint64_t)item)) {
             return;
         }
         /* DO some kind of pause to release the bus */
-    } while( 1 );
+    } while (1);
 }
+static inline void dague_lifo_chain( dague_lifo_t* lifo,
+                                     dague_list_item_t* ring)
+{
+#if defined(DAGUE_DEBUG_PARANOID)
+    assert( (uintptr_t)ring % DAGUE_LIFO_ALIGNMENT(lifo) == 0 );
+#endif
+    DAGUE_ITEMS_ATTACH(lifo, ring);
+
+    dague_list_item_t* tail = (dague_list_item_t*)ring->list_prev;
+
+    do {
+        dague_list_item_t *next = (dague_list_item_t *) lifo->lifo_head.data.item;
+
+        tail->list_next = next;
+        dague_atomic_wmb ();
+
+        /* to protect against ABA issues it is sufficient to only update the counter in pop */
+        if (dague_atomic_cas_64b((uint64_t*)&lifo->lifo_head.data.item, (uint64_t)next, (uint64_t)ring)) {
+            return;
+        }
+        /* DO some kind of pause to release the bus */
+    } while (1);
+}
+
+static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
+{
+    dague_list_item_t *item;
+
+    do {
+        dague_counted_pointer_t old_head;
+
+        old_head.data.counter = lifo->lifo_head.data.counter;
+        dague_atomic_rmb ();
+        item = old_head.data.item = lifo->lifo_head.data.item;
+
+        if (item == lifo->lifo_ghost) {
+            return NULL;
+        }
+
+        if (dague_update_counted_pointer (&lifo->lifo_head, old_head,
+                                         (dague_list_item_t *) item->list_next)) {
+            dague_atomic_wmb ();
+            item->list_next = NULL;
+            return item;
+        }
+    } while (1);
+}
+
+static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
+{
+    dague_counted_pointer_t old_head;
+    dague_list_item_t *item;
+
+    old_head.data.counter = lifo->lifo_head.data.counter;
+    dague_atomic_rmb();
+    item = old_head.data.item = lifo->lifo_head.data.item;
+
+    if (item == lifo->lifo_ghost) {
+        return NULL;
+    }
+
+    if (dague_update_counted_pointer (&lifo->lifo_head, old_head,
+                                     (dague_list_item_t *) item->list_next)) {
+        dague_atomic_wmb();
+        item->list_next = NULL;
+        return item;
+    }
+    return NULL;
+}
+
+#else  /* !defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B) */
+
+/* Add one element to the LIFO. We will return the last head of the list
+ * to allow the upper level to detect if this element is the first one in the
+ * list (if the list was empty before this operation).
+ */
+static inline void dague_lifo_push(dague_lifo_t *lifo,
+                                   dague_list_item_t *item)
+{
+    /* item free acts as a mini lock to avoid ABA problems */
+    item->aba_key = 1;
+     do {
+        dague_list_item_t *next = (dague_list_item_t *) lifo->lifo_head.data.item;
+        item->list_next = next;
+        dague_atomic_wmb();
+         if( dague_atomic_cas(&lifo->lifo_head.data.item, next, item) ) {
+            dague_atomic_wmb();
+            /* now safe to pop this item */
+            item->aba_key = 0;
+            return;
+        }
+        /* DO some kind of pause to release the bus */
+    } while (1);
+}
+
+static inline void dague_lifo_chain( dague_lifo_t* lifo,
+                                     dague_list_item_t* ring)
+{
+#if defined(DAGUE_DEBUG_PARANOID)
+    assert( (uintptr_t)ring % DAGUE_LIFO_ALIGNMENT(lifo) == 0 );
+#endif
+    DAGUE_ITEMS_ATTACH(lifo, ring);
+
+    /* item free acts as a mini lock to avoid ABA problems */
+    ring->aba_key = 1;
+    dague_list_item_t* tail = (dague_list_item_t*)ring->list_prev;
+
+     do {
+        dague_list_item_t *next = (dague_list_item_t *) lifo->lifo_head.data.item;
+        tail->list_next = next;
+        dague_atomic_wmb();
+         if( dague_atomic_cas(&lifo->lifo_head.data.item, next, ring) ) {
+            dague_atomic_wmb();
+            /* now safe to pop this item */
+            ring->aba_key = 0;
+            return;
+        }
+        /* DO some kind of pause to release the bus */
+    } while (1);
+}
+
+#if defined(DAGUE_HAVE_ATOMIC_LLSC_PTR)
+
+static inline void _dague_lifo_release_cpu (void)
+{
+    /* there are many ways to cause the current thread to be suspended. This one
+     * should work well in most cases. Another approach would be to use poll (NULL, 0, ) but
+     * the interval will be forced to be in ms (instead of ns or us). Note that there
+     * is a performance improvement for the lifo test when this call is made on detection
+     * of contention but it may not translate into actually MPI or application performance
+     * improvements. */
+    static struct timespec interval = { .tv_sec = 0, .tv_nsec = 100 };
+    nanosleep (&interval, NULL);
+}
+
+/* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
+ * is empty so we return NULL.
+ */
+static inline dague_list_item_t *dague_lifo_pop(dague_lifo_t* lifo)
+{
+    dague_list_item_t *item, *next;
+    int attempt = 0;
+
+    do {
+        if (++attempt == 5) {
+            /* deliberatly suspend this thread to allow other threads to run. this should
+             * only occur during periods of contention on the lifo. */
+            _dague_lifo_release_cpu ();
+            attempt = 0;
+        }
+
+        item = (dague_list_item_t *) dague_atomic_ll_ptr((long*)&(lifo->lifo_head.data.item));
+        if (lifo->lifo_ghost == item) {
+            return NULL;
+        }
+
+        next = (dague_list_item_t *) item->list_next;
+    } while (!dague_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)next));
+
+    dague_atomic_wmb();
+
+    item->list_next = NULL;
+    return item;
+}
+
+static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
+{
+    dague_list_item_t *item, *next;
+    int attempt = 0;
+
+    item = (dague_list_item_t *) dague_atomic_ll_ptr((long*)&lifo->lifo_head.data.item);
+    if (lifo->lifo_ghost == item) {
+        return NULL;
+    }
+
+    next = (dague_list_item_t *) item->list_next;
+    if( !dague_atomic_sc_ptr((long*)&lifo->lifo_head.data.item, (intptr_t)next) )
+        return NULL;
+
+    dague_atomic_wmb();
+
+    item->list_next = NULL;
+    return item;
+}
+#else
+
+/* Retrieve one element from the LIFO. If we reach the ghost element then the LIFO
+ * is empty so we return NULL.
+ */
+static inline dague_list_item_t *dague_lifo_pop(dague_lifo_t* lifo)
+{
+    dague_list_item_t *item;
+    while ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
+        /* ensure it is safe to pop the head */
+        if (dague_atomic_cas((volatile int32_t *) &item->aba_key, 0, 1)) {
+            continue;
+        }
+
+        dague_atomic_wmb ();
+
+        /* try to swap out the head pointer */
+        if( dague_atomic_cas(&lifo->lifo_head.data.item, item,
+                                   (void *) item->list_next) ) {
+            break;
+        }
+
+        /* NTH: don't need another atomic here */
+        item->aba_key = 0;
+
+        /* Do some kind of pause to release the bus */
+    }
+
+    if (item == lifo->lifo_ghost) {
+        return NULL;
+    }
+
+    dague_atomic_wmb ();
+
+    item->list_next = NULL;
+    return item;
+}
+
+static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
+{
+    dague_list_item_t *item;
+    if( (item = lifo->lifo_head.data.item) != lifo->lifo_ghost ) {
+        /* ensure it is safe to pop the head */
+        if (dague_atomic_cas((volatile int32_t *) &item->aba_key, 0, 1)) {
+            return NULL;
+        }
+
+        dague_atomic_wmb ();
+
+        /* try to swap out the head pointer */
+        if( dague_atomic_cas(&lifo->lifo_head.data.item, item,
+                                   (void *) item->list_next) ) {
+            return NULL;
+        }
+
+        /* NTH: don't need another atomic here */
+        item->aba_key = 0;
+
+        /* Do some kind of pause to release the bus */
+    }
+
+    if (item == lifo->lifo_ghost) {
+        return NULL;
+    }
+
+    dague_atomic_wmb ();
+
+    item->list_next = NULL;
+    return item;
+}
+#endif /* defined(DAGUE_HAVE_ATOMIC_LLSC_PTR) */
+
+
+#endif  /* defined(DAGUE_ATOMIC_HAS_ATOMIC_CAS_128B)) */
+
 static inline void dague_lifo_nolock_push( dague_lifo_t* lifo,
                                            dague_list_item_t* item )
 {
@@ -135,33 +395,10 @@ static inline void dague_lifo_nolock_push( dague_lifo_t* lifo,
 #endif
     DAGUE_ITEM_ATTACH(lifo, item);
 
-    item->list_next = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
-    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, item, 0);
+    item->list_next = lifo->lifo_head.data.item;
+    lifo->lifo_head.data.item = item;
 }
 
-static inline void dague_lifo_chain( dague_lifo_t* lifo,
-                                     dague_list_item_t* items )
-{
-#if defined(DAGUE_DEBUG_PARANOID)
-    assert( (uintptr_t)items % DAGUE_LIFO_ALIGNMENT(lifo) == 0 );
-#endif
-    DAGUE_ITEMS_ATTACH(lifo, items);
-
-    dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
-
-    do {
-        dague_lifo_head_t ohead = lifo->lifo_head;
-        tail->list_next = DAGUE_LIFO_KHEAD(lifo, ohead);
-        dague_lifo_head_t nhead = DAGUE_LIFO_HKEY(lifo, items, DAGUE_LIFO_KCNT(lifo, ohead)+(uint64_t)1);
-
-        if( __dague_lifo_cas(&(lifo->lifo_head),
-                             ohead,
-                             nhead) ) {
-            return;
-        }
-        /* DO some kind of pause to release the bus */
-    } while( 1 );
-}
 static inline void dague_lifo_nolock_chain( dague_lifo_t* lifo,
                                             dague_list_item_t* items )
 {
@@ -172,119 +409,17 @@ static inline void dague_lifo_nolock_chain( dague_lifo_t* lifo,
 
     dague_list_item_t* tail = (dague_list_item_t*)items->list_prev;
 
-    tail->list_next = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
-    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, items, 0);
-}
-
-static inline dague_list_item_t* dague_lifo_pop( dague_lifo_t* lifo )
-{
-    dague_list_item_t *item, *nitem;
-    dague_lifo_head_t ohead, nhead;
-
-    ohead = lifo->lifo_head;
-    item = DAGUE_LIFO_KHEAD(lifo, ohead);
-    nitem = DAGUE_LIST_ITEM_NEXT(item);
-    while(item != lifo->lifo_ghost) {
-        nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead));
-        /* if item changed (nitem possibly invalid), ohead is not current anymore
-         * and nhead is discarded */
-        if( __dague_lifo_cas(&(lifo->lifo_head),
-                             ohead,
-                             nhead ) )
-            break;
-        ohead = lifo->lifo_head;
-        item = DAGUE_LIFO_KHEAD(lifo, ohead);
-        nitem = DAGUE_LIST_ITEM_NEXT(item);
-        /* Do some kind of pause to release the bus */
-    }
-    if( item == lifo->lifo_ghost ) return NULL;
-    DAGUE_ITEM_DETACH(item);
-    return item;
-}
-
-static inline dague_list_item_t* dague_lifo_try_pop( dague_lifo_t* lifo )
-{
-     dague_list_item_t *item, *nitem;
-     dague_lifo_head_t ohead, nhead;
-
-     ohead = lifo->lifo_head;
-     item = DAGUE_LIFO_KHEAD(lifo, ohead);
-     nitem = DAGUE_LIST_ITEM_NEXT(item);
-
-     if( item == lifo->lifo_ghost )
-         return NULL;
-
-     nhead = DAGUE_LIFO_HKEY(lifo, nitem, DAGUE_LIFO_KCNT(lifo, ohead));
-     /* if item changed, ohead is not current anymore and nhead is discarded */
-     if( __dague_lifo_cas(&(lifo->lifo_head),
-                          ohead,
-                          nhead ) ) {
-         DAGUE_ITEM_DETACH(item);
-         return item;
-     }
-     return NULL;
+    tail->list_next = lifo->lifo_head.data.item;
+    lifo->lifo_head.data.item = items;
 }
 
 static inline dague_list_item_t* dague_lifo_nolock_pop( dague_lifo_t* lifo )
 {
-    dague_list_item_t* item = DAGUE_LIFO_KHEAD(lifo, lifo->lifo_head);
-    lifo->lifo_head = DAGUE_LIFO_HKEY(lifo, item->list_next, 0);
+    dague_list_item_t* item = lifo->lifo_head.data.item;
+    lifo->lifo_head.data.item = (dague_list_item_t*)item->list_next;
     DAGUE_ITEM_DETACH(item);
     return item;
 }
-
-#else
-
-#include "list.h"
-
-struct dague_lifo_s {
-    dague_list_t list;
-    uint8_t      alignment;
-};
-
-static inline int
-dague_lifo_is_empty( dague_lifo_t* lifo ) {
-    return dague_list_is_empty((dague_list_t*)lifo);
-}
-
-static inline int
-dague_lifo_nolock_is_empty( dague_lifo_t* lifo)
-{
-    return dague_list_nolock_is_empty((dague_list_t*)lifo);
-}
-
-static inline void
-dague_lifo_push(dague_lifo_t* lifo, dague_list_item_t* item) {
-    dague_list_push_front((dague_list_t*)lifo, item);
-}
-static inline void
-dague_lifo_nolock_push(dague_lifo_t* lifo, dague_list_item_t* item) {
-    dague_list_nolock_push_front((dague_list_t*)lifo, item);
-}
-
-static inline void
-dague_lifo_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
-    dague_list_chain_front((dague_list_t*)lifo, items);
-}
-static inline void
-dague_lifo_nolock_chain(dague_lifo_t* lifo, dague_list_item_t* items) {
-    dague_list_nolock_chain_front((dague_list_t*)lifo, items);
-}
-
-static inline dague_list_item_t*
-dague_lifo_pop(dague_lifo_t* lifo) {
-    return dague_list_pop_front((dague_list_t*)lifo);
-}
-static inline dague_list_item_t*
-dague_lifo_try_pop(dague_lifo_t* lifo) {
-    return dague_list_try_pop_front((dague_list_t*)lifo);
-}
-static inline dague_list_item_t*
-dague_lifo_nolock_pop(dague_lifo_t* lifo) {
-    return dague_list_nolock_pop_front((dague_list_t*)lifo);
-}
-
-#endif /* LIFO_USE_ATOMICS */
 
 /*
  * http://stackoverflow.com/questions/10528280/why-is-the-below-code-giving-dereferencing-type-punned-pointer-will-break-stric

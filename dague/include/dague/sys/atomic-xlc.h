@@ -4,10 +4,11 @@
  *                         reserved.
  */
 
-static inline void dague_mfence( void )
-{
-    __sync();
-}
+#define dague_mfence     __sync
+#define DAGUE_ATOMIC_HAS_RMB
+#define RMB              __lwsync
+#define DAGUE_ATOMIC_HAS_WMB
+#define WMB()            __eieio
 
 static inline int dague_atomic_bor_32b( volatile uint32_t* location,
                                         uint32_t value )
@@ -30,6 +31,17 @@ static inline int dague_atomic_cas_32b( volatile uint32_t* location,
     int32_t old = (int32_t)old_value;
     return __compare_and_swap( (volatile int*)location, &old, new_value );
 }
+
+/**
+ * Use the XLC intrinsics directly.
+ */
+#define DAGUE_HAVE_ATOMIC_LLSC_PTR
+#define dague_atomic_ll_64b __ldarx
+#define dague_atomic_sc_64b __stdcx
+#define dague_atomic_ll_32b __lwarx
+#define dague_atomic_sc_32b __stwcx
+#define dague_atomic_ll_ptr dague_atomic_ll_64b
+#define dague_atomic_sc_ptr dague_atomic_sc_64b
 
 #if defined(DAGUE_ATOMIC_USE_XLC_64_BUILTINS)
 static inline int dague_atomic_cas_64b( volatile uint64_t* location,
