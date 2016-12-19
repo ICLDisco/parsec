@@ -14,7 +14,7 @@
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
     int info = 0;
@@ -23,12 +23,12 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
-#if defined(DAGUE_HAVE_CUDA)
+#if defined(PARSEC_HAVE_CUDA)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
     flops += FLOPS_ZPOTRI((DagDouble_t)N);
@@ -45,19 +45,19 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
-    dplasma_zplghe( dague, (double)(N), uplo,
+    dplasma_zplghe( parsec, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
     if (async) {
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zpoinv,
+        PASTE_CODE_ENQUEUE_KERNEL(parsec, zpoinv,
                                   (uplo, (tiled_matrix_desc_t*)&ddescA, &info));
-        PASTE_CODE_PROGRESS_KERNEL(dague, zpoinv);
-        dplasma_zpoinv_Destruct( DAGUE_zpoinv );
+        PASTE_CODE_PROGRESS_KERNEL(parsec, zpoinv);
+        dplasma_zpoinv_Destruct( PARSEC_zpoinv );
     }
     else {
         SYNC_TIME_START();
-        info = dplasma_zpoinv_sync( dague, uplo, (tiled_matrix_desc_t*)&ddescA );
+        info = dplasma_zpoinv_sync( parsec, uplo, (tiled_matrix_desc_t*)&ddescA );
         SYNC_TIME_PRINT(rank, ("zpoinv\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                                P, Q, NB, N,
                                gflops=(flops/1e9)/sync_time_elapsed));
@@ -72,10 +72,10 @@ int main(int argc, char ** argv)
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
             two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile, nodes, rank,
                                    MB, NB, LDA, N, 0, 0, N, N, 1, 1, P));
-        dplasma_zplghe( dague, (double)(N), PlasmaUpperLower,
+        dplasma_zplghe( parsec, (double)(N), PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA0, random_seed);
 
-        ret |= check_zpoinv( dague, (rank == 0) ? loud : 0, uplo,
+        ret |= check_zpoinv( parsec, (rank == 0) ? loud : 0, uplo,
                              (tiled_matrix_desc_t *)&ddescA0,
                              (tiled_matrix_desc_t *)&ddescA );
 
@@ -88,13 +88,13 @@ int main(int argc, char ** argv)
         }
 
         /* Cleanup */
-        dague_data_free(ddescA0.mat); ddescA0.mat = NULL;
+        parsec_data_free(ddescA0.mat); ddescA0.mat = NULL;
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0 );
     }
 
-    dague_data_free(ddescA.mat); ddescA.mat = NULL;
+    parsec_data_free(ddescA.mat); ddescA.mat = NULL;
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
     return ret;
 }

@@ -8,9 +8,9 @@ set(generated_files "")
 set(generated_jdf "")
 
 
-SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf PROPERTY ADDITIONAL_DAGUEPP_CFLAGS "--Wremoteref")
-SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf PROPERTY ADDITIONAL_DAGUEPP_CFLAGS "--Wremoteref")
-SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf PROPERTY ADDITIONAL_DAGUEPP_CFLAGS "--Wremoteref")
+SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
+SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
+SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
 jdf_rules(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf")
 
 set( precision_files
@@ -23,9 +23,9 @@ precisions_rules_py(generated_files
 
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
-if(NOT DAGUE_COMPILE_INPLACE)
+if(NOT PARSEC_COMPILE_INPLACE)
   include_directories(BEFORE "${CMAKE_CURRENT_SOURCE_DIR}")
-endif(NOT DAGUE_COMPILE_INPLACE)
+endif(NOT PARSEC_COMPILE_INPLACE)
 
 set(sources
         matrix.c
@@ -41,7 +41,7 @@ set(sources
         ${generated_files}
         ${generated_jdf}
 )
-if( NOT DAGUE_HAVE_COMPLEX_H )
+if( NOT PARSEC_HAVE_COMPLEX_H )
   list(APPEND sources precision.c)
 endif()
 
@@ -49,21 +49,21 @@ if (MPI_C_FOUND)
     LIST(APPEND sources scalapack_convert.c)
 endif(MPI_C_FOUND)
 
-add_library(dague_distribution_matrix
+add_library(parsec_distribution_matrix
             ${sources})
 if (MPI_C_FOUND)
-    set_target_properties(dague_distribution_matrix PROPERTIES COMPILE_FLAGS
+    set_target_properties(parsec_distribution_matrix PROPERTIES COMPILE_FLAGS
                           "${MPI_C_COMPILE_FLAGS}")
-    set_target_properties(dague_distribution_matrix PROPERTIES LINK_FLAGS
+    set_target_properties(parsec_distribution_matrix PROPERTIES LINK_FLAGS
                           "${MPI_C_LINK_FLAGS}")
 endif(MPI_C_FOUND)
 
-target_link_libraries(dague_distribution_matrix
-  dague_distribution
+target_link_libraries(parsec_distribution_matrix
+  parsec_distribution
   ${MPI_C_LIBRARIES}
 )
 
-install(TARGETS dague_distribution_matrix
+install(TARGETS parsec_distribution_matrix
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib)
 

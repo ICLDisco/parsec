@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dague.h"
-#include "dague/data_distribution.h"
+#include "parsec.h"
+#include "parsec/data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "touch.h"
 
@@ -13,29 +13,29 @@
 #define N     100
 
 extern int touch_finalize(void);
-extern dague_handle_t* touch_initialize(int block, int n);
+extern parsec_handle_t* touch_initialize(int block, int n);
 
 int main( int argc, char** argv )
 {
-    dague_context_t* dague;
-    dague_handle_t* handle;
+    parsec_context_t* parsec;
+    parsec_handle_t* handle;
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Init(NULL, NULL);
 #endif
-    dague = dague_init(1, &argc, &argv);
-    if( NULL != dague ) {
+    parsec = parsec_init(1, &argc, &argv);
+    if( NULL != parsec ) {
         handle = touch_initialize(BLOCK, N);
 
-        dague_enqueue( dague, handle );
+        parsec_enqueue( parsec, handle );
 
-        dague_context_wait(dague);
+        parsec_context_wait(parsec);
 
-        dague_fini( &dague);
+        parsec_fini( &parsec);
 
         touch_finalize();
     }
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
     return 0;

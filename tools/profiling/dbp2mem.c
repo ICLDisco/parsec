@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#undef DAGUE_HAVE_MPI
+#include "parsec_config.h"
+#undef PARSEC_HAVE_MPI
 
 #include <stdlib.h>
 #include <string.h>
@@ -14,8 +14,8 @@
 #include <stdarg.h>
 #include <errno.h>
 
-#include "dague/profiling.h"
-#include "dague/dague_binary_profile.h"
+#include "parsec/profiling.h"
+#include "parsec/parsec_binary_profile.h"
 #include "dbpreader.h"
 
 typedef struct memalloc_event_s {
@@ -69,7 +69,7 @@ static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dic
         m->ptr = dbp_event_get_event_id(e);
 
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
-            if( (dbp_event_get_flags( e ) & DAGUE_PROFILING_EVENT_HAS_INFO) &&
+            if( (dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO) &&
                 (dbp_event_info_len(e, dbp) == sizeof(size_t)) ) {
                 info = dbp_event_get_info(e);
                 m->size = *info;
@@ -81,7 +81,7 @@ static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dic
                     insert_event(m);
                 }
             } else {
-                if( !(dbp_event_get_flags( e ) & DAGUE_PROFILING_EVENT_HAS_INFO) ) {
+                if( !(dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO) ) {
                     fprintf(stderr, "Event has no size information. Cannot trace this event!\n");
                 } else {
                     fprintf(stderr, "Event has an information of size %d, not %lu. Cannot trace this event!\n",

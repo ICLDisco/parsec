@@ -65,8 +65,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zsyrk_Destruct();
  *
  *******************************************************************************
@@ -77,49 +77,49 @@
  * @sa dplasma_ssyrk_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zsyrk_New( PLASMA_enum uplo,
                    PLASMA_enum trans,
-                   dague_complex64_t alpha,
+                   parsec_complex64_t alpha,
                    const tiled_matrix_desc_t* A,
-                   dague_complex64_t beta,
+                   parsec_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
-    dague_handle_t* handle;
+    parsec_handle_t* handle;
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            handle = (dague_handle_t*)
-                dague_zsyrk_LN_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zsyrk_LN_new(uplo, trans,
                                    alpha, A,
                                    beta,  C);
         }
         else {
-            handle = (dague_handle_t*)
-                dague_zsyrk_LT_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zsyrk_LT_new(uplo, trans,
                                    alpha, A,
                                    beta,  C);
         }
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            handle = (dague_handle_t*)
-                dague_zsyrk_UN_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zsyrk_UN_new(uplo, trans,
                                    alpha, A,
                                    beta,  C);
         }
         else {
-            handle = (dague_handle_t*)
-                dague_zsyrk_UT_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zsyrk_UT_new(uplo, trans,
                                    alpha, A,
                                    beta,  C);
         }
     }
 
-    dplasma_add2arena_tile(((dague_zsyrk_LN_handle_t*)handle)->arenas[DAGUE_zsyrk_LN_DEFAULT_ARENA],
-                           C->mb*C->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, C->mb);
+    dplasma_add2arena_tile(((parsec_zsyrk_LN_handle_t*)handle)->arenas[PARSEC_zsyrk_LN_DEFAULT_ARENA],
+                           C->mb*C->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, C->mb);
 
     return handle;
 }
@@ -145,11 +145,11 @@ dplasma_zsyrk_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zsyrk_Destruct( dague_handle_t *handle )
+dplasma_zsyrk_Destruct( parsec_handle_t *handle )
 {
-    dague_zsyrk_LN_handle_t *zsyrk_handle = (dague_zsyrk_LN_handle_t*)handle;
-    dague_matrix_del2arena( zsyrk_handle->arenas[DAGUE_zsyrk_LN_DEFAULT_ARENA] );
-    dague_handle_free(handle);
+    parsec_zsyrk_LN_handle_t *zsyrk_handle = (parsec_zsyrk_LN_handle_t*)handle;
+    parsec_matrix_del2arena( zsyrk_handle->arenas[PARSEC_zsyrk_LN_DEFAULT_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -171,8 +171,8 @@ dplasma_zsyrk_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of C is stored;
@@ -214,15 +214,15 @@ dplasma_zsyrk_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zsyrk( dague_context_t *dague,
+dplasma_zsyrk( parsec_context_t *parsec,
                PLASMA_enum uplo,
                PLASMA_enum trans,
-               dague_complex64_t alpha,
+               parsec_complex64_t alpha,
                const tiled_matrix_desc_t *A,
-               dague_complex64_t beta,
+               parsec_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
-    dague_handle_t *dague_zsyrk = NULL;
+    parsec_handle_t *parsec_zsyrk = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
@@ -243,15 +243,15 @@ dplasma_zsyrk( dague_context_t *dague,
         return -4;
     }
 
-    dague_zsyrk = dplasma_zsyrk_New(uplo, trans,
+    parsec_zsyrk = dplasma_zsyrk_New(uplo, trans,
                                     alpha, A,
                                     beta, C);
 
-    if ( dague_zsyrk != NULL )
+    if ( parsec_zsyrk != NULL )
     {
-        dague_enqueue( dague, dague_zsyrk);
-        dplasma_progress(dague);
-        dplasma_zsyrk_Destruct( dague_zsyrk );
+        parsec_enqueue( parsec, parsec_zsyrk);
+        dplasma_progress(parsec);
+        dplasma_zsyrk_Destruct( parsec_zsyrk );
     }
     return 0;
 }

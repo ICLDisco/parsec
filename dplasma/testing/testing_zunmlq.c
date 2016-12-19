@@ -12,7 +12,7 @@
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     double Cnorm, Rnorm, result;
     double threshold = 10.;
     double eps = LAPACKE_dlamch_work('e');
@@ -28,8 +28,8 @@ int main(int argc, char ** argv)
     iparam[IPARAM_SNB] = 4;
     iparam[IPARAM_LDA] = -'m';
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     if (N < K) {
@@ -56,18 +56,18 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
     if(loud > 3) printf("Done\n");
 
     if(loud > 3) printf("+++ Factorize A ... ");
-    dplasma_zgelqf(dague,
+    dplasma_zgelqf(parsec,
                    (tiled_matrix_desc_t*)&ddescA,
                    (tiled_matrix_desc_t*)&ddescT);
     if(loud > 3) printf("Done\n");
 
     if(loud > 3) printf("+++ Generate Q ... ");
-    dplasma_zunglq( dague,
+    dplasma_zunglq( parsec,
                     (tiled_matrix_desc_t *)&ddescA,
                     (tiled_matrix_desc_t *)&ddescT,
                     (tiled_matrix_desc_t *)&ddescQ);
@@ -88,8 +88,8 @@ int main(int argc, char ** argv)
                                    nodes, rank, MB, NB, LDC, Cn, 0, 0,
                                    Cm, Cn, SMB, SNB, P));
 
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescC0, 2354);
-        Cnorm = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC0);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC0, 2354);
+        Cnorm = dplasma_zlange(parsec, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC0);
 
         if (Cnorm == 0.)
             Cnorm = 1.;
@@ -99,28 +99,28 @@ int main(int argc, char ** argv)
             if (t==1) t++;
 #endif
 
-            dplasma_zlacpy( dague, PlasmaUpperLower,
+            dplasma_zlacpy( parsec, PlasmaUpperLower,
                             (tiled_matrix_desc_t *)&ddescC0,
                             (tiled_matrix_desc_t *)&ddescC);
 
-            dplasma_zunmlq( dague, side[s], trans[t],
+            dplasma_zunmlq( parsec, side[s], trans[t],
                             (tiled_matrix_desc_t *)&ddescA,
                             (tiled_matrix_desc_t *)&ddescT,
                             (tiled_matrix_desc_t *)&ddescC);
 
             if (side[s] == PlasmaLeft ) {
-                dplasma_zgemm( dague, trans[t], PlasmaNoTrans,
+                dplasma_zgemm( parsec, trans[t], PlasmaNoTrans,
                                -1., (tiled_matrix_desc_t *)&ddescQ,
                                     (tiled_matrix_desc_t *)&ddescC0,
                                1.,  (tiled_matrix_desc_t *)&ddescC);
             } else {
-                dplasma_zgemm( dague, PlasmaNoTrans, trans[t],
+                dplasma_zgemm( parsec, PlasmaNoTrans, trans[t],
                                -1., (tiled_matrix_desc_t *)&ddescC0,
                                     (tiled_matrix_desc_t *)&ddescQ,
                                1.,  (tiled_matrix_desc_t *)&ddescC);
             }
 
-            Rnorm = dplasma_zlange(dague, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC);
+            Rnorm = dplasma_zlange(parsec, PlasmaOneNorm, (tiled_matrix_desc_t *)&ddescC);
             result = Rnorm / ((double)N * Cnorm * eps);
 
             if (loud && rank == 0) {
@@ -143,20 +143,20 @@ int main(int argc, char ** argv)
             }
         }
 
-        dague_data_free(ddescC0.mat);
+        parsec_data_free(ddescC0.mat);
         tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescC0);
-        dague_data_free(ddescC.mat);
+        parsec_data_free(ddescC.mat);
         tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescC);
     }
 
-    dague_data_free(ddescA.mat);
+    parsec_data_free(ddescA.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescA);
-    dague_data_free(ddescT.mat);
+    parsec_data_free(ddescT.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescT);
-    dague_data_free(ddescQ.mat);
+    parsec_data_free(ddescQ.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&ddescQ);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }

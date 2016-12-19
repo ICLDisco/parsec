@@ -6,11 +6,11 @@
 #ifndef __GRID_2DCYCLIC_H__
 #define __GRID_2DCYCLIC_H__
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
 
-#include "dague_config.h"
+#include "parsec_config.h"
 
 BEGIN_C_DECLS
 

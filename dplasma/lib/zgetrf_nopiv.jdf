@@ -13,9 +13,9 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(DAGUE_HAVE_CUDA)
+#if defined(PARSEC_HAVE_CUDA)
 #include <cublas.h>
-#endif  /* defined(DAGUE_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_CUDA) */
 
 %}
 
@@ -46,7 +46,7 @@ BODY
              "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, sequence, request, descA->mb*k)\n",
              k, k, k, A);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     {
         int iinfo = 0;
         iinfo = CORE_zgetrf_nopiv(tempkm, tempkn, ib,
@@ -57,7 +57,7 @@ BODY
             fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
         }
     }
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -86,13 +86,13 @@ BODY
              "\t(PlasmaRight, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, tempmm, tempkn, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
              k, m, k, k, A, m, k, B);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_ztrsm(PlasmaRight, PlasmaUpper,
                PlasmaNoTrans, PlasmaNonUnit,
                tempmm, tempkn,
                1., A /* descA(k,k) */, ldak,
                    B /* descA(m,k) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -121,12 +121,12 @@ BODY
              "\t(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, tempkm, tempnn, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
              k, n, k, k, A, k, n, B);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_ztrsm(PlasmaLeft, PlasmaLower, PlasmaNoTrans,
                PlasmaUnit, tempkm, tempnn,
                1., A /* descA(k,k) */, ldak,
                    B /* descA(k,n) */, ldak );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -170,14 +170,14 @@ BODY [type=CUDA
                  "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA->mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
                  k, n, m, m, k, A, k, n, B, m, n, C);
 
-    cublasSetKernelStream( dague_body.stream );
-    dague_body.dyld_fn( 'N', 'N',
+    cublasSetKernelStream( parsec_body.stream );
+    parsec_body.dyld_fn( 'N', 'N',
              tempmm, tempnn, descA->mb,
              mzone, (cuDoubleComplex*)A, ldam,
                     (cuDoubleComplex*)B, ldak,
              zone,  (cuDoubleComplex*)C, ldam );
     status = cublasGetError();
-    DAGUE_CUDA_CHECK_ERROR( "cublasZgemm ", status,
+    PARSEC_CUDA_CHECK_ERROR( "cublasZgemm ", status,
                             {return -1;} );
 }
 END
@@ -193,13 +193,13 @@ BODY
              "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, descA->mb, -1, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
              k, n, m, m, k, A, k, n, B, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                tempmm, tempnn, descA->mb,
                -1., A /* descA(m,k) */, ldam,
                     B /* descA(k,n) */, ldak,
                 1., C /* descA(m,n) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

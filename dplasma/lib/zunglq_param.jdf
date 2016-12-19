@@ -25,7 +25,7 @@ ib     [type = "int" hidden=on default="descTT->mb" ]
 KT     [type = "int" hidden = on default = "descA->mt-1" ]
 KT2    [type = "int" hidden = on default = "dplasma_imin( KT, descQ->nt-2 )" ]
 
-p_work [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descTT->nb)"]
+p_work [type = "parsec_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*ib)*(descTT->nb)"]
 
 zlaset(m, n) [profile = off]
   /* Execution Space */
@@ -52,11 +52,11 @@ BODY
              "\t(PlasmaUpperLower, tempmm, tempnn, alpha, (m == n) ? (beta) : (alpha), Q(%d,%d)[%p], ldqm)\n",
              m, n, m, n, A);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zlaset(PlasmaUpperLower, tempmm, tempnn,
                 0., (m == n) ? 1.: 0.,
                 A /* descQ(m,n) */, ldqm );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -89,7 +89,7 @@ BODY
     int ldak    = BLKLDD( descA, k );
     int ldqm    = BLKLDD( descQ, m );
 
-    void *W = dague_private_memory_pop( p_work );
+    void *W = parsec_private_memory_pop( p_work );
 
     printlog("CORE_zunmlq(%d, %d, %d) [%d, %d]\n"
              "\t(side=%s, trans=%s, M=%d, N=%d, K=%d, ib=%d,\n"
@@ -97,7 +97,7 @@ BODY
              k, i, m, n, nextn, plasma_const( PlasmaRight ), plasma_const( PlasmaNoTrans ), tempmm, tempnn, tempmin, ib,
              k, n, A, ldak, k, n, T, descTT->mb, m, n, C, ldqm, W, descTT->nb );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zunmlq(
         PlasmaRight, PlasmaNoTrans,
         tempmm, tempnn, tempmin, ib,
@@ -105,9 +105,9 @@ BODY
         T /* T(k, n) */, descTT->mb,
         C /* B(m, n) */, ldqm,
         W, descTT->nb );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
-    dague_private_memory_push( p_work, W );
+    parsec_private_memory_push( p_work, W );
 }
 END
 
@@ -192,7 +192,7 @@ BODY
     int ldqm = BLKLDD( descQ, m );
     int ldwork = descTT->nb;
 
-    void *W = dague_private_memory_pop( p_work );
+    void *W = parsec_private_memory_pop( p_work );
 
     printlog("CORE_ztsmlq(%d, %d, %d)\n"
              "\t(side=%s, trans=%s, M1=%d, N1=%d, M2=%d, N2=%d, K=%d, ib=%d,\n"
@@ -201,7 +201,7 @@ BODY
              tempmm, descQ->nb, tempmm, tempnn, tempkm, ib,
              m, p, A1, ldqm, m, n, A2, ldqm, k, n, V, ldak, k, n, T, descTT->mb, W, ldwork );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmlq(
             PlasmaRight, PlasmaNoTrans,
@@ -221,9 +221,9 @@ BODY
             T  /* T(k, n) */, descTT->mb,
             W, ldwork );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
-    dague_private_memory_push( p_work, W );
+    parsec_private_memory_push( p_work, W );
 }
 END
 

@@ -12,7 +12,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 #include "dplasma/lib/butterfly_map.h"
 
 /*
@@ -48,14 +48,14 @@ void BFT_zQBR( int mb, int nb, int mb_tile, int i_seg, int j_seg, int lvl, int N
           PLASMA_Complex64_t *C, PLASMA_Complex64_t *Ubefore, PLASMA_Complex64_t *Uafter, int is_transpose, int is_diagonal );
 %}
 
-descA  [type = "dague_seg_ddesc_t*"]
+descA  [type = "parsec_seg_ddesc_t*"]
 Ubef   [type = "PLASMA_Complex64_t *"]
 Uaft   [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
+pool_0 [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
 
-%option DAGUE_ARENA_STRUT = 36
+%option PARSEC_ARENA_STRUT = 36
 
 /*
  *
@@ -104,9 +104,9 @@ BODY
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
   N = descA->A_org->lm;
 
-  p_elem_tl = dague_private_memory_pop( pool_0 );
-  p_elem_bl = dague_private_memory_pop( pool_0 );
-  p_elem_br = dague_private_memory_pop( pool_0 );
+  p_elem_tl = parsec_private_memory_pop( pool_0 );
+  p_elem_bl = parsec_private_memory_pop( pool_0 );
+  p_elem_br = parsec_private_memory_pop( pool_0 );
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("=> HEBUT_Diag(%d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, i_tile, j_tile, off_in_tile, i_seg, j_seg);
@@ -146,9 +146,9 @@ BODY
       }
   }
 
-  dague_private_memory_push( pool_0, p_elem_tl );
-  dague_private_memory_push( pool_0, p_elem_bl );
-  dague_private_memory_push( pool_0, p_elem_br );
+  parsec_private_memory_push( pool_0, p_elem_tl );
+  parsec_private_memory_push( pool_0, p_elem_bl );
+  parsec_private_memory_push( pool_0, p_elem_br );
 
 END
 
@@ -219,10 +219,10 @@ BODY
   j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
   N = descA->A_org->lm;
 
-  p_elem_tl = dague_private_memory_pop( pool_0 );
-  p_elem_bl = dague_private_memory_pop( pool_0 );
-  p_elem_tr = dague_private_memory_pop( pool_0 );
-  p_elem_br = dague_private_memory_pop( pool_0 );
+  p_elem_tl = parsec_private_memory_pop( pool_0 );
+  p_elem_bl = parsec_private_memory_pop( pool_0 );
+  p_elem_tr = parsec_private_memory_pop( pool_0 );
+  p_elem_br = parsec_private_memory_pop( pool_0 );
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("=> HEBUT_Lower(%d, %d): i_tile:%d, j_tile:%d, off_in_tile:%lu, i_seg:%lu, j_seg:%lu\n", i, j, i_tile, j_tile, off_in_tile, i_seg, j_seg);
@@ -264,10 +264,10 @@ BODY
   }
 
 
-  dague_private_memory_push( pool_0, p_elem_tl );
-  dague_private_memory_push( pool_0, p_elem_bl );
-  dague_private_memory_push( pool_0, p_elem_tr );
-  dague_private_memory_push( pool_0, p_elem_br );
+  parsec_private_memory_push( pool_0, p_elem_tl );
+  parsec_private_memory_push( pool_0, p_elem_bl );
+  parsec_private_memory_push( pool_0, p_elem_tr );
+  parsec_private_memory_push( pool_0, p_elem_br );
 
 END
 

@@ -12,7 +12,7 @@
 #include <math.h>
 #include <cblas.h>
 #include <lapacke.h>
-#include "dague.h"
+#include "parsec.h"
 #include "data_dist/matrix/precision.h"
 #include "data_dist/matrix/matrix.h"
 #include <core_blas.h>

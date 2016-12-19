@@ -1672,7 +1672,7 @@ PERL_PATH              = /usr/bin/perl
 # If the CLASS_DIAGRAMS tag is set to YES (the default) Doxygen will
 # generate a inheritance diagram (in HTML, RTF and LaTeX) for classes with base
 # or super classes. Setting the tag to NO turns the diagrams off. Note that
-# this option also works with DAGUE_HAVE_DOT disabled, but it is recommended to
+# this option also works with PARSEC_HAVE_DOT disabled, but it is recommended to
 # install and use dot, since it yields more powerful graphs.
 
 CLASS_DIAGRAMS         = YES
@@ -1692,12 +1692,12 @@ MSCGEN_PATH            =
 
 HIDE_UNDOC_RELATIONS   = YES
 
-# If you set the DAGUE_HAVE_DOT tag to YES then doxygen will assume the dot tool is
+# If you set the PARSEC_HAVE_DOT tag to YES then doxygen will assume the dot tool is
 # available from the path. This tool is part of Graphviz, a graph visualization
 # toolkit from AT&T and Lucent Bell Labs. The other options in this section
 # have no effect if this option is set to NO (the default)
 
-DAGUE_HAVE_DOT               = YES
+PARSEC_HAVE_DOT               = YES
 
 # The DOT_NUM_THREADS specifies the number of dot invocations doxygen is
 # allowed to run in parallel. When set to 0 (the default) doxygen will
@@ -1727,21 +1727,21 @@ DOT_FONTSIZE           = 10
 
 DOT_FONTPATH           =
 
-# If the CLASS_GRAPH and DAGUE_HAVE_DOT tags are set to YES then doxygen
+# If the CLASS_GRAPH and PARSEC_HAVE_DOT tags are set to YES then doxygen
 # will generate a graph for each documented class showing the direct and
 # indirect inheritance relations. Setting this tag to YES will force the
 # CLASS_DIAGRAMS tag to NO.
 
 CLASS_GRAPH            = YES
 
-# If the COLLABORATION_GRAPH and DAGUE_HAVE_DOT tags are set to YES then doxygen
+# If the COLLABORATION_GRAPH and PARSEC_HAVE_DOT tags are set to YES then doxygen
 # will generate a graph for each documented class showing the direct and
 # indirect implementation dependencies (inheritance, containment, and
 # class references variables) of the class with other documented classes.
 
 COLLABORATION_GRAPH    = YES
 
-# If the GROUP_GRAPHS and DAGUE_HAVE_DOT tags are set to YES then doxygen
+# If the GROUP_GRAPHS and PARSEC_HAVE_DOT tags are set to YES then doxygen
 # will generate a graph for groups, showing the direct groups dependencies
 
 GROUP_GRAPHS           = YES
@@ -1766,7 +1766,7 @@ UML_LIMIT_NUM_FIELDS   = 10
 
 TEMPLATE_RELATIONS     = NO
 
-# If the ENABLE_PREPROCESSING, SEARCH_INCLUDES, INCLUDE_GRAPH, and DAGUE_HAVE_DOT
+# If the ENABLE_PREPROCESSING, SEARCH_INCLUDES, INCLUDE_GRAPH, and PARSEC_HAVE_DOT
 # tags are set to YES then doxygen will generate a graph for each documented
 # file showing the direct and indirect include dependencies of the file with
 # other documented files.
@@ -1774,13 +1774,13 @@ TEMPLATE_RELATIONS     = NO
 INCLUDE_GRAPH          = YES
 
 # If the ENABLE_PREPROCESSING, SEARCH_INCLUDES, INCLUDED_BY_GRAPH, and
-# DAGUE_HAVE_DOT tags are set to YES then doxygen will generate a graph for each
+# PARSEC_HAVE_DOT tags are set to YES then doxygen will generate a graph for each
 # documented header file showing the documented files that directly or
 # indirectly include this file.
 
 INCLUDED_BY_GRAPH      = YES
 
-# If the CALL_GRAPH and DAGUE_HAVE_DOT options are set to YES then
+# If the CALL_GRAPH and PARSEC_HAVE_DOT options are set to YES then
 # doxygen will generate a call dependency graph for every global function
 # or class method. Note that enabling this option will significantly increase
 # the time of a run. So in most cases it will be better to enable call graphs
@@ -1788,7 +1788,7 @@ INCLUDED_BY_GRAPH      = YES
 
 CALL_GRAPH             = YES
 
-# If the CALLER_GRAPH and DAGUE_HAVE_DOT tags are set to YES then
+# If the CALLER_GRAPH and PARSEC_HAVE_DOT tags are set to YES then
 # doxygen will generate a caller dependency graph for every global function
 # or class method. Note that enabling this option will significantly increase
 # the time of a run. So in most cases it will be better to enable caller
@@ -1796,12 +1796,12 @@ CALL_GRAPH             = YES
 
 CALLER_GRAPH           = YES
 
-# If the GRAPHICAL_HIERARCHY and DAGUE_HAVE_DOT tags are set to YES then doxygen
+# If the GRAPHICAL_HIERARCHY and PARSEC_HAVE_DOT tags are set to YES then doxygen
 # will generate a graphical hierarchy of all classes instead of a textual one.
 
 GRAPHICAL_HIERARCHY    = YES
 
-# If the DIRECTORY_GRAPH and DAGUE_HAVE_DOT tags are set to YES
+# If the DIRECTORY_GRAPH and PARSEC_HAVE_DOT tags are set to YES
 # then doxygen will show the dependencies a directory has on other directories
 # in a graphical way. The dependency relations are determined by the #include
 # relations between the files in the directories.

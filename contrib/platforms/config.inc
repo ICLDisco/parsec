@@ -3,12 +3,12 @@
 # Parse command line arguments
 if [ "$1" = "debug" ]; then 
     shift
-    DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DDAGUE_DEBUG_HISTORY=ON -DDAGUE_DEBUG_PARANOID=ON -DDAGUE_DEBUG_NOISIER=ON"
+    DEBUG="-DDPLASMA_PRECISIONS=s -DCMAKE_BUILD_TYPE=Debug -DPARSEC_DEBUG_HISTORY=ON -DPARSEC_DEBUG_PARANOID=ON -DPARSEC_DEBUG_NOISIER=ON"
 fi
 
 if [ "$1" = "profile" ]; then
     shift
-    PROFILE="-DDAGUE_PROF_TRACE=ON"
+    PROFILE="-DPARSEC_PROF_TRACE=ON"
 fi
 
 function dirname_bin {
@@ -46,7 +46,7 @@ if [ -n "$INSTALL_PREFIX" ]; then
     USER_OPTIONS+=" -DCMAKE_INSTALL_PREFIX=$INSTALL_PREFIX"
 fi
 
-if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
+if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
     MPI=""
   # Detect MPI C compiler
     if [ -x $MPI_DIR/bin/mpicc ]; then
@@ -75,7 +75,7 @@ if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_DIST_WITH_MPI=OFF.*") 
 fi
 
 # Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
-if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_WITH_HWLOC=OFF.*") -eq 0 ]; then
+if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_WITH_HWLOC=OFF.*") -eq 0 ]; then
     HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
 fi
 
@@ -83,11 +83,11 @@ if [ -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.so" ]; then
     GTG="-DGTG_DIR=${GTG_DIR}"
 fi
 
-if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then
+if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then
     CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR} -DCUDA_HOST_COMPILER=$(which ${CC})"
 fi
 
-if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then
+if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_Q2J=OFF.*") -eq 0 ]; then
     Q2J="-DOMEGA_DIR=${OMEGA_DIR}"
 fi
 

@@ -76,8 +76,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_map2_Destruct();
  *
  *******************************************************************************
@@ -86,7 +86,7 @@
  * @sa dplasma_map2_Destruct
  *
  ******************************************************************************/
-dague_handle_t *
+parsec_handle_t *
 dplasma_map2_New( PLASMA_enum uplo,
                   PLASMA_enum trans,
                   const tiled_matrix_desc_t *A,
@@ -94,7 +94,7 @@ dplasma_map2_New( PLASMA_enum uplo,
                   tiled_matrix_binary_op_t operator,
                   void *op_args)
 {
-    dague_map2_handle_t *dague_map2 = NULL;
+    parsec_map2_handle_t *parsec_map2 = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -121,44 +121,44 @@ dplasma_map2_New( PLASMA_enum uplo,
         return NULL;
     }
 
-    dague_map2 = dague_map2_new( uplo, trans,
+    parsec_map2 = parsec_map2_new( uplo, trans,
                                  A,
                                  B,
                                  operator, op_args );
 
     switch( A->mtype ) {
     case matrix_ComplexDouble :
-        dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
-                                A->mb*A->nb*sizeof(dague_complex64_t),
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_complex_t, A->mb);
+        dplasma_add2arena_tile( parsec_map2->arenas[PARSEC_map2_DEFAULT_ARENA],
+                                A->mb*A->nb*sizeof(parsec_complex64_t),
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_complex_t, A->mb);
         break;
     case matrix_ComplexFloat  :
-        dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
-                                A->mb*A->nb*sizeof(dague_complex32_t),
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_complex_t, A->mb);
+        dplasma_add2arena_tile( parsec_map2->arenas[PARSEC_map2_DEFAULT_ARENA],
+                                A->mb*A->nb*sizeof(parsec_complex32_t),
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_complex_t, A->mb);
         break;
     case matrix_RealDouble    :
-        dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
+        dplasma_add2arena_tile( parsec_map2->arenas[PARSEC_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(double),
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_t, A->mb);
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_t, A->mb);
         break;
     case matrix_RealFloat     :
-        dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
+        dplasma_add2arena_tile( parsec_map2->arenas[PARSEC_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(float),
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_float_t, A->mb);
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_float_t, A->mb);
         break;
     case matrix_Integer       :
     default:
-        dplasma_add2arena_tile( dague_map2->arenas[DAGUE_map2_DEFAULT_ARENA],
+        dplasma_add2arena_tile( parsec_map2->arenas[PARSEC_map2_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(int),
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_int_t, A->mb);
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_int_t, A->mb);
     }
-    return (dague_handle_t*)dague_map2;
+    return (parsec_handle_t*)parsec_map2;
 }
 
 /**
@@ -182,17 +182,17 @@ dplasma_map2_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_map2_Destruct( dague_handle_t *handle )
+dplasma_map2_Destruct( parsec_handle_t *handle )
 {
-    dague_map2_handle_t *omap2 = (dague_map2_handle_t *)handle;
+    parsec_map2_handle_t *omap2 = (parsec_map2_handle_t *)handle;
 
     if ( omap2->_g_op_args ) {
         free( omap2->_g_op_args );
     }
 
-    dague_matrix_del2arena( omap2->arenas[DAGUE_map2_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( omap2->arenas[PARSEC_map2_DEFAULT_ARENA] );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -217,8 +217,8 @@ dplasma_map2_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          Specifies on which part of matrices A and B, the operator must be
@@ -262,7 +262,7 @@ dplasma_map2_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_map2( dague_context_t *dague,
+dplasma_map2( parsec_context_t *parsec,
               PLASMA_enum uplo,
               PLASMA_enum trans,
               const tiled_matrix_desc_t *A,
@@ -270,7 +270,7 @@ dplasma_map2( dague_context_t *dague,
               tiled_matrix_binary_op_t operator,
               void *op_args)
 {
-    dague_handle_t *dague_map2 = NULL;
+    parsec_handle_t *parsec_map2 = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -280,13 +280,13 @@ dplasma_map2( dague_context_t *dague,
         return -2;
     }
 
-    dague_map2 = dplasma_map2_New( uplo, trans, A, B, operator, op_args );
+    parsec_map2 = dplasma_map2_New( uplo, trans, A, B, operator, op_args );
 
-    if ( dague_map2 != NULL )
+    if ( parsec_map2 != NULL )
     {
-        dague_enqueue( dague, dague_map2 );
-        dplasma_progress( dague );
-        dplasma_map2_Destruct( dague_map2 );
+        parsec_enqueue( parsec, parsec_map2 );
+        dplasma_progress( parsec );
+        dplasma_map2_Destruct( parsec_map2 );
     }
 
     return 0;

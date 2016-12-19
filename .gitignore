@@ -21,16 +21,16 @@ ImportExecutables.cmake
 CTestTestfile.cmake
 
 # Other temporary files
-dague/include/dague.pc
-dague/include/dague_config.h
-dague/include/dplasma.pc
-dague/include/parsec.pc
-dague/mca/mca_static_components.h
+parsec/include/parsec.pc
+parsec/include/parsec_config.h
+parsec/include/dplasma.pc
+parsec/include/parsec.pc
+parsec/mca/mca_static_components.h
 
 # And all Makefiles
 ^Makefile$
-dague/Makefile
-dague/fortran/Makefile
+parsec/Makefile
+parsec/fortran/Makefile
 data_dist/Makefile
 data_dist/matrix/Makefile
 docs/Makefile
@@ -53,7 +53,7 @@ tests/profiling/Makefile
 tests/scheduling/Makefile
 tests/unit/Makefile
 tools/Makefile
-tools/dague-compiler/Makefile
+tools/parsec-compiler/Makefile
 tools/profiling/Makefile
 tools/profiling/python/Makefile
 tools/q2j/Makefile

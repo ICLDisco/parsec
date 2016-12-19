@@ -10,7 +10,7 @@ build/*
 .*\.tab\.c$
 .*\.tab\.h$
 .*\.profile$
-dague.pc$
+parsec.pc$
 lex\.yy\.c
 CMakeCache.txt$
 CMakeScripts$
@@ -29,7 +29,7 @@ ImportExecutables\.c$
 Testing/
 config$
 
-include/dague_config.h$
+include/parsec_config.h$
 
 data_dist/matrix/[sdc]matrix\.c$
 data_dist/matrix/[sdc]twoDBC\.c$
@@ -387,9 +387,9 @@ tests/unit/list$
 
 tools/cscalapack/t?sca[sdcz]ge[tq]rf$
 tools/cscalapack/t?sca[sdcz]potrf$
-tools/dague-compiler/dague\.l\.c$
-tools/dague-compiler/dague\.y\.[ch]$
-tools/dague-compiler/daguepp
+tools/parsec-compiler/parsec\.l\.c$
+tools/parsec-compiler/parsec\.y\.[ch]$
+tools/parsec-compiler/parsecpp
 tools/gpu/sgemmN-api/sgemmN
 tools/gpu/sgemmN-api/sgemmN-.*\.cubin
 tools/grapher

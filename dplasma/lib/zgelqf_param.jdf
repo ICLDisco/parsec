@@ -23,8 +23,8 @@ descTS [type = "tiled_matrix_desc_t*" aligned=descA]
 descTT [type = "tiled_matrix_desc_t*" aligned=descA]
 lqtree [type = "dplasma_qrtree_t"]
 ib     [type = "int"]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTT->nb))"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descTT->nb))"]
+p_work [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTT->nb))"]
+p_tau  [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descTT->nb))"]
 
 minMN  [type = "int" hidden=on default="( (descA->mt < descA->nt) ? descA->mt : descA->nt )" ]
 
@@ -74,18 +74,18 @@ BODY
              "\t(tempkm, tempnn, ib, dataA(%d,%d)[%p], ldam, dataTS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, n, k, n, A, k, n, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     CORE_zgelqt(tempkm, tempnn, ib,
                 A /* descA( k, n) */, ldak,
                 T /* descTS(k, n) */, descTT->mb,
                 p_elem_A, p_elem_B );
 
-    dague_private_memory_push( p_tau, p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -152,8 +152,8 @@ BODY
              "\t dataA(%d,%d)[%p], ldam, dataTS(%d,%d)[%p], descTT->mb, dataA(%d,%d)[%p], ldam, p_elem_A, descTT->nb)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, k, n, A, k, n, T, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_zunmlq(
         PlasmaRight, PlasmaConjTrans,
@@ -163,8 +163,8 @@ BODY
         C /* descA( m, n) */, ldam,
         p_elem_A, descTT->nb );
 
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -229,9 +229,9 @@ BODY
              "\t(tempkm, tempnn, ib, dataA(%d,%d)[%p], A.mb, dataA(%d,%d)[%p], ldam, dataTT(%d,%d)[%p], descTT->mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, n, k, p, A1, k, n, A2, k, n, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztslqt(
@@ -248,9 +248,9 @@ BODY
             T  /* descTT(k, n) */, descTT->mb,
             p_elem_A, p_elem_B );
     }
-    dague_private_memory_push( p_tau , p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau , p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -333,8 +333,8 @@ BODY
              "\t dataA(%d,%d)[%p], A.mb, dataA(%d,%d)[%p], ldam, dataA(%d,%d)[%p], ldam, dataTT(%d,%d)[%p], descTT->mb, p_elem_A, ldwork)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, k, n, V, k, n, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmlq(
@@ -355,8 +355,8 @@ BODY
             T  /* descTT(k, n) */, descTT->mb,
             p_elem_A, ldwork );
     }
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

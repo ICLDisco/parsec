@@ -12,7 +12,7 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 
 #include "zungqr.h"
 
@@ -21,7 +21,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zungqr_New - Generates the dague handle that computes the generation
+ *  dplasma_zungqr_New - Generates the parsec handle that computes the generation
  *  of an M-by-N matrix Q with orthonormal columns, which is defined as the
  *  first N columns of a product of K elementary reflectors of order M
  *
@@ -56,7 +56,7 @@
  *******************************************************************************
  *
  * @return
- *          \retval The dague handle which describes the operation to perform
+ *          \retval The parsec handle which describes the operation to perform
  *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
@@ -69,12 +69,12 @@
  * @sa dplasma_zgeqrf_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zungqr_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *Q )
 {
-    dague_zungqr_handle_t* handle;
+    parsec_zungqr_handle_t* handle;
     int ib = T->mb;
 
     if ( Q->n > Q->m ) {
@@ -90,33 +90,33 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
         return NULL;
     }
 
-    handle = dague_zungqr_new( A,
+    handle = parsec_zungqr_new( A,
                                T,
                                Q,
                                NULL );
 
-    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->_g_p_work, ib * T->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( handle->_g_p_work, ib * T->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[DAGUE_zungqr_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( handle->arenas[PARSEC_zungqr_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( handle->arenas[DAGUE_zungqr_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 0 );
+    dplasma_add2arena_lower( handle->arenas[PARSEC_zungqr_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zungqr_LITTLE_T_ARENA],
-                                 T->mb*T->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zungqr_LITTLE_T_ARENA],
+                                 T->mb*T->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return (dague_handle_t*)handle;
+    return (parsec_handle_t*)handle;
 }
 
 /**
@@ -140,18 +140,18 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zungqr_Destruct( dague_handle_t *handle )
+dplasma_zungqr_Destruct( parsec_handle_t *handle )
 {
-    dague_zungqr_handle_t *dague_zungqr = (dague_zungqr_handle_t *)handle;
+    parsec_zungqr_handle_t *parsec_zungqr = (parsec_zungqr_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zungqr->arenas[DAGUE_zungqr_DEFAULT_ARENA   ] );
-    dague_matrix_del2arena( dague_zungqr->arenas[DAGUE_zungqr_LOWER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zungqr->arenas[DAGUE_zungqr_LITTLE_T_ARENA  ] );
+    parsec_matrix_del2arena( parsec_zungqr->arenas[PARSEC_zungqr_DEFAULT_ARENA   ] );
+    parsec_matrix_del2arena( parsec_zungqr->arenas[PARSEC_zungqr_LOWER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zungqr->arenas[PARSEC_zungqr_LITTLE_T_ARENA  ] );
 
-    dague_private_memory_fini( dague_zungqr->_g_p_work );
-    free( dague_zungqr->_g_p_work );
+    parsec_private_memory_fini( parsec_zungqr->_g_p_work );
+    free( parsec_zungqr->_g_p_work );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -169,8 +169,8 @@ dplasma_zungqr_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] A
  *          Descriptor of the matrix A of size M-by-K factorized with the
@@ -209,14 +209,14 @@ dplasma_zungqr_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zungqr( dague_context_t *dague,
+dplasma_zungqr( parsec_context_t *parsec,
                 tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *T,
                 tiled_matrix_desc_t *Q )
 {
-    dague_handle_t *dague_zungqr;
+    parsec_handle_t *parsec_zungqr;
 
-    if (dague == NULL) {
+    if (parsec == NULL) {
         dplasma_error("dplasma_zungqr", "dplasma not initialized");
         return -1;
     }
@@ -236,12 +236,12 @@ dplasma_zungqr( dague_context_t *dague,
     if (dplasma_imin(Q->m, dplasma_imin(Q->n, A->n)) == 0)
         return 0;
 
-    dague_zungqr = dplasma_zungqr_New(A, T, Q);
+    parsec_zungqr = dplasma_zungqr_New(A, T, Q);
 
-    if ( dague_zungqr != NULL ){
-        dague_enqueue(dague, dague_zungqr);
-        dplasma_progress(dague);
-        dplasma_zungqr_Destruct( dague_zungqr );
+    if ( parsec_zungqr != NULL ){
+        parsec_enqueue(parsec, parsec_zungqr);
+        dplasma_progress(parsec);
+        dplasma_zungqr_Destruct( parsec_zungqr );
     }
     return 0;
 }

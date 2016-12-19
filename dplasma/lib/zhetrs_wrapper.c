@@ -14,9 +14,9 @@
 #define HIGH_TO_LOW 0
 #define LOW_TO_HIGH 1
 
-static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level, int trans, int order, int *info){
+static void multilevel_zgebmm(parsec_context_t *parsec, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level, int trans, int order, int *info){
     int cur_level, L;
-    dague_handle_t **op;
+    parsec_handle_t **op;
 
     for( L=0; L <= level; L++ ){
         int i_block, j_block, block_count;
@@ -33,16 +33,16 @@ static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PL
         fflush(stdout);
 #endif
 
-        op = (dague_handle_t **)calloc( block_count*block_count, sizeof(dague_handle_t *));
+        op = (parsec_handle_t **)calloc( block_count*block_count, sizeof(parsec_handle_t *));
 
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){
                 op[i_block*block_count+j_block] = dplasma_zgebmm_New( B, U_but_vec, i_block, j_block, cur_level, trans, info);
-                dague_enqueue(dague, op[i_block*block_count+j_block]);
+                parsec_enqueue(parsec, op[i_block*block_count+j_block]);
             }
         }
 
-        dplasma_progress(dague);
+        dplasma_progress(parsec);
 
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){
@@ -55,7 +55,7 @@ static void multilevel_zgebmm(dague_context_t *dague, tiled_matrix_desc_t* B, PL
 }
 
 int
-dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level)
+dplasma_zhetrs(parsec_context_t *parsec, int uplo, const tiled_matrix_desc_t* A, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level)
 {
     int info;
 #if defined(DEBUG_BUTTERFLY)
@@ -72,14 +72,14 @@ dplasma_zhetrs(dague_context_t *dague, int uplo, const tiled_matrix_desc_t* A, t
     }
 #endif
     // B = U_but_vec^T * B 
-    multilevel_zgebmm(dague, B, U_but_vec, level, PlasmaConjTrans, HIGH_TO_LOW, &info);
+    multilevel_zgebmm(parsec, B, U_but_vec, level, PlasmaConjTrans, HIGH_TO_LOW, &info);
 
-    dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaConjTrans : PlasmaNoTrans, PlasmaUnit, 1.0, A, B );
-    dplasma_ztrdsm( dague, A, B );
-    dplasma_ztrsm( dague, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaNoTrans : PlasmaConjTrans, PlasmaUnit, 1.0, A, B );
+    dplasma_ztrsm( parsec, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaConjTrans : PlasmaNoTrans, PlasmaUnit, 1.0, A, B );
+    dplasma_ztrdsm( parsec, A, B );
+    dplasma_ztrsm( parsec, PlasmaLeft, uplo, (uplo == PlasmaUpper) ? PlasmaNoTrans : PlasmaConjTrans, PlasmaUnit, 1.0, A, B );
 
     // X = U_but_vec * X  (here X is B)
-    multilevel_zgebmm(dague, B, U_but_vec, level, PlasmaNoTrans, LOW_TO_HIGH, &info);
+    multilevel_zgebmm(parsec, B, U_but_vec, level, PlasmaNoTrans, LOW_TO_HIGH, &info);
 
     return 0;
 }

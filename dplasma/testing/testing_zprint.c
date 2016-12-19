@@ -14,7 +14,7 @@
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
     int i, info, ret = 0;
@@ -23,8 +23,8 @@ int main(int argc, char ** argv)
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 0, 180, 180);
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     /* initializing matrix structure */
@@ -45,30 +45,30 @@ int main(int argc, char ** argv)
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    ret |= dplasma_zplghe( dague, (double)(N), uplo,
+    ret |= dplasma_zplghe( parsec, (double)(N), uplo,
                     (tiled_matrix_desc_t *)&ddescA, 3872);
-    ret |= dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, 2354);
+    ret |= dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, 2354);
     if(loud > 2) printf("Done\n");
 
-    ret |= dplasma_zprint( dague, uplo,             (tiled_matrix_desc_t *)&ddescA );
-    ret |= dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
+    ret |= dplasma_zprint( parsec, uplo,             (tiled_matrix_desc_t *)&ddescA );
+    ret |= dplasma_zprint( parsec, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
 
     for(i=0; i<43; i++) {
         if ( rank == 0 ) {
             fprintf(stdout, "====== Generate Test Matrix %d ======\n", i);
             fflush(stdout);
         }
-        info = dplasma_zpltmg( dague, i, (tiled_matrix_desc_t *)&ddescB, 5373 );
+        info = dplasma_zpltmg( parsec, i, (tiled_matrix_desc_t *)&ddescB, 5373 );
         if (info == 0)
-            ret |= dplasma_zprint( dague, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
+            ret |= dplasma_zprint( parsec, PlasmaUpperLower, (tiled_matrix_desc_t *)&ddescB );
     }
 
-    dague_data_free(ddescB.mat);
+    parsec_data_free(ddescB.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB );
-    dague_data_free(ddescA.mat);
+    parsec_data_free(ddescA.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }

@@ -4,11 +4,11 @@ extern "C" %{
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dague/data_distribution.h"
+#include "parsec/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
-#include "dague/data.h"
-#include "dague/utils/mca_param.h"
-#include "dague/arena.h"
+#include "parsec/data.h"
+#include "parsec/utils/mca_param.h"
+#include "parsec/arena.h"
 #include <stdlib.h>
 
 #define SWAP(_x, _y) {int t = _x; _x = _y; _y = t;}
@@ -183,11 +183,11 @@ int global_to_local_index(int N, int idx){
     return 0;
 }
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #define MY_TYPE MPI_INT
 #else
 #define MY_TYPE NULL
-#endif  /* defined(DAGUE_HAVE_MPI) */
+#endif  /* defined(PARSEC_HAVE_MPI) */
 %}
 
 dataA      [type = "struct tiled_matrix_desc_t *"]
@@ -375,7 +375,7 @@ BODY
   int jc;
   int *Cptr = (int *)C;
 
-  if( 0==((__dague_handle->super.super.context)->my_rank) ){
+  if( 0==((__parsec_handle->super.super.context)->my_rank) ){
       for(jc=0; jc<NT*NB; jc++){
           printf("%d\n",Cptr[jc]);
       }

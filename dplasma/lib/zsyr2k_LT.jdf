@@ -16,10 +16,10 @@ extern "C" %{
 
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
-alpha     [type = "dague_complex64_t"]
+alpha     [type = "parsec_complex64_t"]
 descA     [type = "const tiled_matrix_desc_t*"]
 descB     [type = "const tiled_matrix_desc_t*"]
-beta      [type = "dague_complex64_t"]
+beta      [type = "parsec_complex64_t"]
 descC     [type = "tiled_matrix_desc_t*"]
 
 
@@ -45,17 +45,17 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldbk = BLKLDD( descB, k );
     int ldcn = BLKLDD( descC, n );
-    dague_complex64_t zbeta = (k == 0) ? beta : (dague_complex64_t)1.;
+    parsec_complex64_t zbeta = (k == 0) ? beta : (parsec_complex64_t)1.;
 
     printlog("CORE_zsyr2k(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, B(%d,%d)[%p], ldbn, dbeta, C(%d,%d)[%p], ldcn)\n",
              n, k, k, n, A, k, n, B, n, n, C);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zsyr2k(uplo, trans, tempnn, tempkn,
                 alpha, A /* descA(k,n) */, ldak,
                        B /* descB(k,n) */, ldbk,
                 zbeta, C /* descC(n,n) */, ldcn );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -82,20 +82,20 @@ BODY
     int ldak = BLKLDD( descA, k );
     int ldbk = BLKLDD( descB, k );
     int ldcm = BLKLDD( descC, m );
-    dague_complex64_t zbeta = (k == 0) ? beta : (dague_complex64_t)1.;
+    parsec_complex64_t zbeta = (k == 0) ? beta : (parsec_complex64_t)1.;
 
     printlog("CORE_zgemm_AB(%d, %d, %d)\n"
              "\t(PlasmaTrans, PlasmaNoTrans, m=%d, n=%d, k=%d, alpha=(%e,%e), A(%d,%d)[%p], lda=%d, B(%d,%d)[%p], ldb=%d, beta=(%e,%e), C(%d,%d)[%p], ldc=%d)\n",
              m, n, k, tempmm, tempnn, tempkn,
              creal(alpha), cimag(alpha), k, m, A, ldak, k, n, B, ldbk,
              creal(zbeta), cimag(zbeta), m, n, C, ldcm);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaTrans, PlasmaNoTrans,
                tempmm, tempnn, tempkn,
                alpha, A /* descA(k,m) */, ldak,
                       B /* descB(k,n) */, ldbk,
                zbeta, C /* descC(m,n) */, ldcm );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -129,13 +129,13 @@ BODY
              creal(alpha), cimag(alpha), k, m, A, ldbk, k, n, B, ldak,
              creal(1.),    cimag(1.),    m, n, C, ldcm);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaTrans, PlasmaNoTrans,
                tempmm, tempnn, tempkn,
                alpha, A /* descB(m,k) */, ldbk,
                       B /* descA(n,k) */, ldak,
                1.,    C /* descC(m,n) */, ldcm );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

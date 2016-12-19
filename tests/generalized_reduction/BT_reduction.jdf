@@ -4,11 +4,11 @@ extern "C" %{
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "dague/data_distribution.h"
+#include "parsec/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
-#include "dague/data.h"
-#include "dague/utils/mca_param.h"
-#include "dague/arena.h"
+#include "parsec/data.h"
+#include "parsec/utils/mca_param.h"
+#include "parsec/arena.h"
 
 #define RED_OP(_A, _B) (_A + _B)
 #define TYPE(_X) INT(_X)
@@ -180,7 +180,7 @@ BODY
       }
   }
 
-  if( 1==i && 0==((__dague_handle->super.super.context)->my_rank) ) printf("%d\n", *TYPE(C)); 
+  if( 1==i && 0==((__parsec_handle->super.super.context)->my_rank) ) printf("%d\n", *TYPE(C)); 
 
 END
 

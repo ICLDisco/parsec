@@ -11,7 +11,7 @@ extern "C" %{
  */
 #define PRECISION_z
 
-#include "dague.h"
+#include "parsec.h"
 #include <core_blas.h>
 #include <core_blas.h>
 
@@ -24,13 +24,13 @@ extern "C" %{
 %}
 
 desc_A [type = "tiled_matrix_desc_t *"]
-A      [type = "dague_ddesc_t *"]
+A      [type = "parsec_ddesc_t *"]
 desc_T [type = "tiled_matrix_desc_t *"]
-T      [type = "dague_ddesc_t *"
+T      [type = "parsec_ddesc_t *"
         aligned = A]
 DPLASMA_IB
-pool_1 [type = "dague_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*DPLASMA_IB)*(desc_T.nb)"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*(desc_T.nb)"]
+pool_1 [type = "parsec_memory_pool_t *" size = "((sizeof(PLASMA_Complex64_t))*DPLASMA_IB)*(desc_T.nb)"]
+pool_0 [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*(desc_T.nb)"]
 
 minnt1mt2 [type = int
            hidden = on
@@ -86,15 +86,15 @@ BODY
   int ib = DPLASMA_IB;
   int ldak = BLKLDD( desc_A, k );
 
-  void *p_elem_A = dague_private_memory_pop( pool_0 );
-  void *p_elem_B = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_0 );
+  void *p_elem_B = parsec_private_memory_pop( pool_1 );
 
   CORE_zgeqrt(tempkm, tempkn, ib, 
         A /* A(k,k) */, ldak, B /* T(k,k) */, 
         desc_T->mb, p_elem_A, p_elem_B );
 
-  dague_private_memory_push( pool_0, p_elem_A );
-  dague_private_memory_push( pool_1, p_elem_B );
+  parsec_private_memory_push( pool_0, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_B );
 
   printlog("CORE_zgeqrt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
   k, k, k, A, k, k, B);
@@ -170,7 +170,7 @@ BODY
   int ib = DPLASMA_IB;
   int ldak = BLKLDD( desc_A, k );
 
-  void *p_elem_A = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_1 );
 
   CORE_zunmqr(PlasmaLeft, PlasmaConjTrans, tempkm, 
         tempnn, tempkm, ib, 
@@ -178,7 +178,7 @@ BODY
         desc_T->mb, E /* A(k,n) */, ldak, 
         p_elem_A, desc_T->nb );
 
-  dague_private_memory_push( pool_1, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_A );
 
   printlog("CORE_zunmqr(%d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldak, p_elem_A, desc_T->nb)\n",
   k, n, k, k, C, k, k, D, k, n, E);
@@ -230,16 +230,16 @@ BODY
   int ldak = BLKLDD( desc_A, k );
   int ldam = BLKLDD( desc_A, m );
 
-  void *p_elem_A = dague_private_memory_pop( pool_0 );
-  void *p_elem_B = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_0 );
+  void *p_elem_B = parsec_private_memory_pop( pool_1 );
 
   CORE_ztsqrt(tempmm, tempkn, ib, 
         F /* A(k,k) */, ldak, G /* A(m,k) */, 
         ldam, H /* T(m,k) */, desc_T->mb, 
         p_elem_A, p_elem_B );
 
-  dague_private_memory_push( pool_0, p_elem_A );
-  dague_private_memory_push( pool_1, p_elem_B );
+  parsec_private_memory_push( pool_0, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_B );
 
   printlog("CORE_ztsqrt(%d, %d)\n\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
   k, m, k, k, F, m, k, G, m, k, H);
@@ -340,7 +340,7 @@ BODY
   int ldam = BLKLDD( desc_A, m );
   int ldwork = ((PlasmaLeft)==(PlasmaLeft)) ? (ib) : (desc_T->nb);
 
-  void *p_elem_A = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_1 );
 
   CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans, desc_A->mb, 
         tempnn, tempmm, tempnn, 
@@ -349,7 +349,7 @@ BODY
         L /* A(m,k) */, ldam, M /* T(m,k) */, 
         desc_T->mb, p_elem_A, ldwork );
 
-  dague_private_memory_push( pool_1, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_A );
 
   printlog("CORE_ztsmqr(%d, %d, %d)\n\t(PlasmaLeft, PlasmaConjTrans, desc_A->mb, tempnn, tempmm, tempnn, desc_A->nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
   k, m, n1, k, n1, J, m, n1, K, m, k, L, m, k, M);
@@ -392,15 +392,15 @@ BODY
   int ib = DPLASMA_IB;
   int ldak = BLKLDD( desc_A, k );
 
-  void *p_elem_A = dague_private_memory_pop( pool_0 );
-  void *p_elem_B = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_0 );
+  void *p_elem_B = parsec_private_memory_pop( pool_1 );
 
   CORE_zgelqt(tempkm, tempkn, ib, 
         N /* A(k,k+1) */, ldak, O /* T(k,k+1) */, 
         desc_T->mb, p_elem_A, p_elem_B );
 
-  dague_private_memory_push( pool_0, p_elem_A );
-  dague_private_memory_push( pool_1, p_elem_B );
+  parsec_private_memory_push( pool_0, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_B );
 
   printlog("CORE_zgelqt(%d)\n\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
   k, k, k+1, N, k, k+1, O);
@@ -474,7 +474,7 @@ BODY
   int ldak = BLKLDD( desc_A, k );
   int ldam = BLKLDD( desc_A, m1 );
 
-  void *p_elem_A = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_1 );
 
   CORE_zunmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
         tempkn, tempkn, ib, 
@@ -482,7 +482,7 @@ BODY
         desc_T->mb, R /* A(m1,k+1) */, ldam, 
         p_elem_A, desc_T->nb );
 
-  dague_private_memory_push( pool_1, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_A );
 
   printlog("CORE_zunmlq(%d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, tempkn, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, A(%d,%d)[%p], ldam, p_elem_A, desc_T->nb)\n",
   k, m1, k, k+1, P, k, k+1, Q, m1, k+1, R);
@@ -532,16 +532,16 @@ BODY
   int ib = DPLASMA_IB;
   int ldak = BLKLDD( desc_A, k );
 
-  void *p_elem_A = dague_private_memory_pop( pool_0 );
-  void *p_elem_B = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_0 );
+  void *p_elem_B = parsec_private_memory_pop( pool_1 );
 
   CORE_ztslqt(tempkm, tempnn, ib, 
         S /* A(k,k+1) */, ldak, T /* A(k,n2) */, 
         ldak, U /* T(k,n2) */, desc_T->mb, 
         p_elem_A, p_elem_B );
 
-  dague_private_memory_push( pool_0, p_elem_A );
-  dague_private_memory_push( pool_1, p_elem_B );
+  parsec_private_memory_push( pool_0, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_B );
 
   printlog("CORE_ztslqt(%d, %d)\n\t(tempkm, tempnn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, p_elem_B)\n",
   k, n2, k, k+1, S, k, n2, T, k, n2, U);
@@ -640,7 +640,7 @@ BODY
   int ldak = BLKLDD( desc_A, k );
   int ldwork = ((PlasmaRight)==(PlasmaLeft)) ? (ib) : (desc_T->nb);
 
-  void *p_elem_A = dague_private_memory_pop( pool_1 );
+  void *p_elem_A = parsec_private_memory_pop( pool_1 );
 
   CORE_ztsmlq(PlasmaRight, PlasmaConjTrans, tempmm, 
         desc_A->nb, tempmm, tempnn, 
@@ -649,7 +649,7 @@ BODY
         X /* A(k,n2) */, ldak, Y /* T(k,n2) */, 
         desc_T->mb, p_elem_A, ldwork );
 
-  dague_private_memory_push( pool_1, p_elem_A );
+  parsec_private_memory_push( pool_1, p_elem_A );
 
   printlog("CORE_ztsmlq(%d, %d, %d)\n\t(PlasmaRight, PlasmaConjTrans, tempmm, desc_A->nb, tempmm, tempnn, desc_A->mb, ib, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, T(%d,%d)[%p], desc_T->mb, p_elem_A, ldwork)\n",
   k, n2, m2, m2, k+1, V, m2, n2, W, k, n2, X, k, n2, Y);

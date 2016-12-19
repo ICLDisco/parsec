@@ -4,23 +4,23 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#include "dague/dague_internal.h"
-#include "dague/debug.h"
+#include "parsec_config.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/debug.h"
 
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef DAGUE_HAVE_STRING_H
+#ifdef PARSEC_HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef DAGUE_HAVE_LIMITS_H
+#ifdef PARSEC_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #include <assert.h>
-#ifdef DAGUE_HAVE_ERRNO_H
+#ifdef PARSEC_HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef DAGUE_HAVE_STDARG_H
+#ifdef PARSEC_HAVE_STDARG_H
 #include <stdarg.h>
 #endif
 #include <stdint.h>
@@ -30,30 +30,30 @@
 #include <assert.h>
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
-#include "dague/devices/device.h"
-#include "dague/vpmap.h"
-#include "dague/data.h"
+#include "parsec/devices/device.h"
+#include "parsec/vpmap.h"
+#include "parsec/data.h"
 
 #if !defined(UINT_MAX)
 #define UINT_MAX (~0UL)
 #endif
 
-static int sym_twoDBC_memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+static int sym_twoDBC_memory_register(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
     return device->device_memory_register(device, desc,
                                           sym_twodbc->mat,
                                           ((size_t)sym_twodbc->super.nb_local_tiles * (size_t)sym_twodbc->super.bsiz *
-                                           (size_t)dague_datadist_getsizeoftype(sym_twodbc->super.mtype)));
+                                           (size_t)parsec_datadist_getsizeoftype(sym_twodbc->super.mtype)));
 }
 
-static int sym_twoDBC_memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+static int sym_twoDBC_memory_unregister(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
     return device->device_memory_unregister(device, desc, sym_twodbc->mat);
 }
 
-static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
+static uint32_t sym_twoDBC_rank_of(parsec_ddesc_t * desc, ...)
 {
     int cr, m, n;
     int rr;
@@ -94,7 +94,7 @@ static uint32_t sym_twoDBC_rank_of(dague_ddesc_t * desc, ...)
     return res;
 }
 
-static void sym_twoDBC_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t key, int *m, int *n)
+static void sym_twoDBC_key_to_coordinates(parsec_ddesc_t *desc, parsec_data_key_t key, int *m, int *n)
 {
     int _m, _n;
     tiled_matrix_desc_t * Ddesc;
@@ -107,14 +107,14 @@ static void sym_twoDBC_key_to_coordinates(dague_ddesc_t *desc, dague_data_key_t 
     *n = _n - Ddesc->j / Ddesc->nb;
 }
 
-static uint32_t sym_twoDBC_rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static uint32_t sym_twoDBC_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     int m, n;
     sym_twoDBC_key_to_coordinates(desc, key, &m, &n);
     return sym_twoDBC_rank_of(desc, m, n);
 }
 
-static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
+static parsec_data_t* sym_twoDBC_data_of(parsec_ddesc_t *desc, ...)
 {
     int m, n;
     sym_two_dim_block_cyclic_t * Ddesc;
@@ -145,19 +145,19 @@ static dague_data_t* sym_twoDBC_data_of(dague_ddesc_t *desc, ...)
 
     pos = sym_twoDBC_coordinates_to_position(Ddesc, m, n);
 
-    return dague_matrix_create_data( &Ddesc->super,
-                                     (char*)Ddesc->mat + pos * Ddesc->super.bsiz * dague_datadist_getsizeoftype(Ddesc->super.mtype),
+    return parsec_matrix_create_data( &Ddesc->super,
+                                     (char*)Ddesc->mat + pos * Ddesc->super.bsiz * parsec_datadist_getsizeoftype(Ddesc->super.mtype),
                                      pos, (n * Ddesc->super.lmt) + m );
 }
 
-static dague_data_t* sym_twoDBC_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static parsec_data_t* sym_twoDBC_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     int m, n;
     sym_twoDBC_key_to_coordinates(desc, key, &m, &n);
     return sym_twoDBC_data_of(desc, m, n);
 }
 
-static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
+static int32_t sym_twoDBC_vpid_of(parsec_ddesc_t *desc, ...)
 {
     int m, n, p, q, pq;
     int local_m, local_n;
@@ -207,7 +207,7 @@ static int32_t sym_twoDBC_vpid_of(dague_ddesc_t *desc, ...)
     return vpid;
 }
 
-static int32_t sym_twoDBC_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static int32_t sym_twoDBC_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     int m, n;
     sym_twoDBC_key_to_coordinates(desc, key, &m, &n);
@@ -226,7 +226,7 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     int nb_elem, total;
     int Q;
     /* Initialize the tiled_matrix descriptor */
-    dague_ddesc_t *o = &(Ddesc->super.super);
+    parsec_ddesc_t *o = &(Ddesc->super.super);
 
     tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile,
                             sym_two_dim_block_cyclic_type,
@@ -245,10 +245,10 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     o->unregister_memory = sym_twoDBC_memory_unregister;
 
     if(nodes < P)
-        dague_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
+        parsec_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
     Q = nodes / P;
     if(nodes != P*Q)
-        dague_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
+        parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
 
     /* Extra parameters */
@@ -291,5 +291,5 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     }
 
     Ddesc->super.nb_local_tiles = total;
-    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
+    Ddesc->super.data_map = (parsec_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }

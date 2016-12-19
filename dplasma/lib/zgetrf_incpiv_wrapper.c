@@ -11,7 +11,7 @@
 
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 
 #include "zgetrf_incpiv.h"
 #include "zgetrf_incpiv_sd.h"
@@ -80,8 +80,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_incpiv_Destruct();
  *
  *******************************************************************************
@@ -93,13 +93,13 @@
  * @sa dplasma_sgetrf_incpiv_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
                            tiled_matrix_desc_t *L,
                            tiled_matrix_desc_t *IPIV,
                            int *INFO )
 {
-    dague_zgetrf_incpiv_handle_t *dague_getrf_incpiv;
+    parsec_zgetrf_incpiv_handle_t *parsec_getrf_incpiv;
     int ib;
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
@@ -113,52 +113,52 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
 
     if ( IPIV != NULL ) {
         ib = L->mb;
-        dague_getrf_incpiv = dague_zgetrf_incpiv_new( A,
+        parsec_getrf_incpiv = parsec_zgetrf_incpiv_new( A,
                                                       L,
-                                                      (dague_ddesc_t*)IPIV,
+                                                      (parsec_ddesc_t*)IPIV,
                                                       INFO, NULL);
     } else {
         ib = L->mb - 1;
-        dague_getrf_incpiv = (dague_zgetrf_incpiv_handle_t*)
-            dague_zgetrf_incpiv_sd_new( A,
+        parsec_getrf_incpiv = (parsec_zgetrf_incpiv_handle_t*)
+            parsec_zgetrf_incpiv_sd_new( A,
                                         L,
                                         NULL, INFO, NULL);
     }
 
-    dague_getrf_incpiv->_g_work_pool = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( dague_getrf_incpiv->_g_work_pool, ib * L->nb * sizeof(dague_complex64_t) );
+    parsec_getrf_incpiv->_g_work_pool = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( parsec_getrf_incpiv->_g_work_pool, ib * L->nb * sizeof(parsec_complex64_t) );
 
     /* A */
-    dplasma_add2arena_tile( dague_getrf_incpiv->arenas[DAGUE_zgetrf_incpiv_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( parsec_getrf_incpiv->arenas[PARSEC_zgetrf_incpiv_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* Lower part of A without diagonal part */
-    dplasma_add2arena_lower( dague_getrf_incpiv->arenas[DAGUE_zgetrf_incpiv_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 0 );
+    dplasma_add2arena_lower( parsec_getrf_incpiv->arenas[PARSEC_zgetrf_incpiv_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Upper part of A with diagonal part */
-    dplasma_add2arena_upper( dague_getrf_incpiv->arenas[DAGUE_zgetrf_incpiv_UPPER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 1 );
+    dplasma_add2arena_upper( parsec_getrf_incpiv->arenas[PARSEC_zgetrf_incpiv_UPPER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* IPIV */
-    dplasma_add2arena_rectangle( dague_getrf_incpiv->arenas[DAGUE_zgetrf_incpiv_PIVOT_ARENA],
+    dplasma_add2arena_rectangle( parsec_getrf_incpiv->arenas[PARSEC_zgetrf_incpiv_PIVOT_ARENA],
                                  A->mb*sizeof(int),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_int_t, A->mb, 1, -1 );
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_int_t, A->mb, 1, -1 );
 
     /* L */
-    dplasma_add2arena_rectangle( dague_getrf_incpiv->arenas[DAGUE_zgetrf_incpiv_SMALL_L_ARENA],
-                                 L->mb*L->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, L->mb, L->nb, -1);
+    dplasma_add2arena_rectangle( parsec_getrf_incpiv->arenas[PARSEC_zgetrf_incpiv_SMALL_L_ARENA],
+                                 L->mb*L->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, L->mb, L->nb, -1);
 
-    return (dague_handle_t*)dague_getrf_incpiv;
+    return (parsec_handle_t*)parsec_getrf_incpiv;
 }
 
 /**
@@ -182,20 +182,20 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_incpiv_Destruct( dague_handle_t *handle )
+dplasma_zgetrf_incpiv_Destruct( parsec_handle_t *handle )
 {
-    dague_zgetrf_incpiv_handle_t *dague_zgetrf_incpiv = (dague_zgetrf_incpiv_handle_t *)handle;
+    parsec_zgetrf_incpiv_handle_t *parsec_zgetrf_incpiv = (parsec_zgetrf_incpiv_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_DEFAULT_ARENA   ] );
-    dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_UPPER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_LOWER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_SMALL_L_ARENA   ] );
-    dague_matrix_del2arena( dague_zgetrf_incpiv->arenas[DAGUE_zgetrf_incpiv_PIVOT_ARENA     ] );
+    parsec_matrix_del2arena( parsec_zgetrf_incpiv->arenas[PARSEC_zgetrf_incpiv_DEFAULT_ARENA   ] );
+    parsec_matrix_del2arena( parsec_zgetrf_incpiv->arenas[PARSEC_zgetrf_incpiv_UPPER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zgetrf_incpiv->arenas[PARSEC_zgetrf_incpiv_LOWER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zgetrf_incpiv->arenas[PARSEC_zgetrf_incpiv_SMALL_L_ARENA   ] );
+    parsec_matrix_del2arena( parsec_zgetrf_incpiv->arenas[PARSEC_zgetrf_incpiv_PIVOT_ARENA     ] );
 
-    dague_private_memory_fini( dague_zgetrf_incpiv->_g_work_pool );
-    free( dague_zgetrf_incpiv->_g_work_pool );
+    parsec_private_memory_fini( parsec_zgetrf_incpiv->_g_work_pool );
+    free( parsec_zgetrf_incpiv->_g_work_pool );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -223,8 +223,8 @@ dplasma_zgetrf_incpiv_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized.
@@ -272,12 +272,12 @@ dplasma_zgetrf_incpiv_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zgetrf_incpiv( dague_context_t *dague,
+dplasma_zgetrf_incpiv( parsec_context_t *parsec,
                        tiled_matrix_desc_t *A,
                        tiled_matrix_desc_t *L,
                        tiled_matrix_desc_t *IPIV )
 {
-    dague_handle_t *dague_zgetrf_incpiv = NULL;
+    parsec_handle_t *parsec_zgetrf_incpiv = NULL;
     int info = 0;
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
@@ -289,12 +289,12 @@ dplasma_zgetrf_incpiv( dague_context_t *dague,
         return -4;
     }
 
-    dague_zgetrf_incpiv = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
+    parsec_zgetrf_incpiv = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
 
-    if ( dague_zgetrf_incpiv != NULL ) {
-        dague_enqueue( dague, dague_zgetrf_incpiv );
-        dplasma_progress(dague);
-        dplasma_zgetrf_incpiv_Destruct( dague_zgetrf_incpiv );
+    if ( parsec_zgetrf_incpiv != NULL ) {
+        parsec_enqueue( parsec, parsec_zgetrf_incpiv );
+        dplasma_progress(parsec);
+        dplasma_zgetrf_incpiv_Destruct( parsec_zgetrf_incpiv );
         return info;
     }
     else

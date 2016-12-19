@@ -5,32 +5,32 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#include "dague/dague_internal.h"
-#include "dague/debug.h"
+#include "parsec_config.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/debug.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_tabular.h"
-#include "dague/vpmap.h"
-#include "dague.h"
-#include "dague/data.h"
+#include "parsec/vpmap.h"
+#include "parsec.h"
+#include "parsec/data.h"
 
 #include <math.h>
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
 
-static uint32_t      twoDTD_rank_of(    dague_ddesc_t* ddesc, ... );
-static uint32_t      twoDTD_rank_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
-static int32_t       twoDTD_vpid_of(    dague_ddesc_t* ddesc, ... );
-static int32_t       twoDTD_vpid_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
-static dague_data_t* twoDTD_data_of(    dague_ddesc_t* ddesc, ... );
-static dague_data_t* twoDTD_data_of_key(dague_ddesc_t* ddesc, dague_data_key_t key);
+static uint32_t      twoDTD_rank_of(    parsec_ddesc_t* ddesc, ... );
+static uint32_t      twoDTD_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static int32_t       twoDTD_vpid_of(    parsec_ddesc_t* ddesc, ... );
+static int32_t       twoDTD_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static parsec_data_t* twoDTD_data_of(    parsec_ddesc_t* ddesc, ... );
+static parsec_data_t* twoDTD_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
 
 /*
  * Tiles are stored in column major order
  */
-static uint32_t twoDTD_rank_of(dague_ddesc_t * desc, ...)
+static uint32_t twoDTD_rank_of(parsec_ddesc_t * desc, ...)
 {
     int m, n, res;
     va_list ap;
@@ -52,14 +52,14 @@ static uint32_t twoDTD_rank_of(dague_ddesc_t * desc, ...)
     return Ddesc->tiles_table->elems[res].rank;
 }
 
-static uint32_t twoDTD_rank_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
+static uint32_t twoDTD_rank_of_key(parsec_ddesc_t *ddesc, parsec_data_key_t key)
 {
-    assert( key < (dague_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
+    assert( key < (parsec_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
 
     return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].rank;
 }
 
-static int32_t twoDTD_vpid_of(dague_ddesc_t * desc, ...)
+static int32_t twoDTD_vpid_of(parsec_ddesc_t * desc, ...)
 {
     int m, n, res;
     va_list ap;
@@ -81,15 +81,15 @@ static int32_t twoDTD_vpid_of(dague_ddesc_t * desc, ...)
     return Ddesc->tiles_table->elems[res].vpid;
 }
 
-static int32_t twoDTD_vpid_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
+static int32_t twoDTD_vpid_of_key(parsec_ddesc_t *ddesc, parsec_data_key_t key)
 {
-    assert( key < (dague_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
+    assert( key < (parsec_data_key_t)(((two_dim_tabular_t*)ddesc)->tiles_table->nbelem) );
 
     return ((two_dim_tabular_t*)ddesc)->tiles_table->elems[key].vpid;
 }
 
 
-static dague_data_t* twoDTD_data_of(dague_ddesc_t* ddesc, ...)
+static parsec_data_t* twoDTD_data_of(parsec_ddesc_t* ddesc, ...)
 {
     int m, n, res;
     va_list ap;
@@ -111,17 +111,17 @@ static dague_data_t* twoDTD_data_of(dague_ddesc_t* ddesc, ...)
     elem = &(Ddesc->tiles_table->elems[res]);
     assert(elem->pos >= 0);
 
-    return dague_matrix_create_data( &Ddesc->super, elem->data, elem->pos, res );
+    return parsec_matrix_create_data( &Ddesc->super, elem->data, elem->pos, res );
 }
 
-static dague_data_t* twoDTD_data_of_key(dague_ddesc_t *ddesc, dague_data_key_t key)
+static parsec_data_t* twoDTD_data_of_key(parsec_ddesc_t *ddesc, parsec_data_key_t key)
 {
     two_dim_tabular_t       *tddesc = (two_dim_tabular_t*)ddesc;
     two_dim_td_table_elem_t *elem;
-    assert( key < (dague_data_key_t)( tddesc->tiles_table->nbelem ) );
+    assert( key < (parsec_data_key_t)( tddesc->tiles_table->nbelem ) );
 
     elem = &(tddesc->tiles_table->elems[key]);
-    return dague_matrix_create_data( &tddesc->super, elem->data, elem->pos, key );
+    return parsec_matrix_create_data( &tddesc->super, elem->data, elem->pos, key );
 }
 
 void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
@@ -164,7 +164,7 @@ void two_dim_tabular_destroy(two_dim_tabular_t *tddesc)
         i++, elem++)
     {
         if( elem->data != NULL ) {
-            dague_data_free(elem->data);
+            parsec_data_free(elem->data);
             elem->data = NULL;
         }
     }
@@ -186,8 +186,8 @@ void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *tab
         if( table->elems[i].rank == Ddesc->super.super.myrank )
         {
             table->elems[i].pos  = Ddesc->super.nb_local_tiles;
-            table->elems[i].data = dague_data_allocate( (size_t)Ddesc->super.bsiz *
-                                                        (size_t)dague_datadist_getsizeoftype(Ddesc->super.mtype) );
+            table->elems[i].data = parsec_data_allocate( (size_t)Ddesc->super.bsiz *
+                                                        (size_t)parsec_datadist_getsizeoftype(Ddesc->super.mtype) );
             Ddesc->super.nb_local_tiles++;
         }
         else {
@@ -197,7 +197,7 @@ void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *tab
         }
     }
 
-    Ddesc->super.data_map = (dague_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(dague_data_t*));
+    Ddesc->super.data_map = (parsec_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }
 
 void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,

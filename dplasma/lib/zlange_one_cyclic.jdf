@@ -37,7 +37,7 @@ ntype        [type = "PLASMA_enum"]
 uplo         [type = "PLASMA_enum"]
 diag         [type = "PLASMA_enum"]
 descA        [type = "const tiled_matrix_desc_t*"]
-Tdist        [type = "dague_ddesc_t *"]
+Tdist        [type = "parsec_ddesc_t *"]
 norm         [type = "double *"]
 
 minMNT       [type = "int" hidden=on default="dplasma_imin( descA->mt, descA->nt )" ]
@@ -83,7 +83,7 @@ BODY
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
              context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if( m > (mmax-P)) {
         memset( W, 0, descA->nb * sizeof(double) );
     }
@@ -98,7 +98,7 @@ BODY
                     tempmm, tempnn,
                     A, ldam, W);
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -137,7 +137,7 @@ BODY
              "\t( tempnn=%d, W(%d, %d) + W(%d, %d)\n",
              context->th_id, m, n, tempnn, m-1, n, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if( row > mmax) {
         memset( W, 0, descA->nb * sizeof(double) );
     }
@@ -145,7 +145,7 @@ BODY
     {
         cblas_daxpy( tempnn, 1., A, 1, W, 1);
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -178,7 +178,7 @@ BODY
     printlog("thread %d zlange STEP3(%d, %d)\n",
              context->th_id, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     double *dA = (double*)A;
     double *dW = (double*)W;
     double maxval = 0;
@@ -192,7 +192,7 @@ BODY
     } else {
         *dW = maxval;
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -221,7 +221,7 @@ BODY
     printlog("thread %d zlange STEP4(%d, %d)\n",
              context->th_id, m, n);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     double *dA = (double*)A;
     double *dW = (double*)W;
     if(n > (NT-1)) {
@@ -230,7 +230,7 @@ BODY
     if(n > 0) {
         *dW = ( *dA > *dW ) ? *dA : *dW;
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

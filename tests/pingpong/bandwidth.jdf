@@ -1,6 +1,6 @@
 extern "C" %{
-#include "dague/data_distribution.h"
-#include "dague/utils/mca_param.h"
+#include "parsec/data_distribution.h"
+#include "parsec/utils/mca_param.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -9,10 +9,10 @@ extern "C" %{
 #include "bandwidth.h"
 
 typedef struct {
-    dague_ddesc_t  super;
+    parsec_ddesc_t  super;
     int            frags;
     int            size;
-    dague_data_t **data;
+    parsec_data_t **data;
     uint8_t       *ptr;
 } my_datatype_t;
 
@@ -21,7 +21,7 @@ typedef struct {
  * array is available on each node.
  */
 static inline uint32_t
-rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     my_datatype_t *array = (my_datatype_t*)desc;
     int f = (int)key; (void)f;
@@ -31,7 +31,7 @@ rank_of_key(dague_ddesc_t *desc, dague_data_key_t key)
 }
 
 static uint32_t
-rank_of(dague_ddesc_t *desc, ...)
+rank_of(parsec_ddesc_t *desc, ...)
 {
     va_list ap;
     int f;
@@ -44,7 +44,7 @@ rank_of(dague_ddesc_t *desc, ...)
 }
 
 static inline int32_t
-vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     my_datatype_t *array = (my_datatype_t*)desc;
     int f = (key);
@@ -55,7 +55,7 @@ vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
 }
 
 static int32_t
-vpid_of(dague_ddesc_t *desc, ...)
+vpid_of(parsec_ddesc_t *desc, ...)
 {
     va_list ap;
     int f;
@@ -67,7 +67,7 @@ vpid_of(dague_ddesc_t *desc, ...)
     return vpid_of_key(desc, f);
 }
 
-static inline dague_data_t* data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static inline parsec_data_t* data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     my_datatype_t *array = (my_datatype_t*)desc;
     int f = (int)key;
@@ -75,20 +75,20 @@ static inline dague_data_t* data_of_key(dague_ddesc_t *desc, dague_data_key_t ke
     assert( (f < array->size) && (f >= 0) );
     (void)f;
     if(NULL == array->data[f]) {
-        dague_data_t      *data;
-        dague_data_copy_t *copy;
+        parsec_data_t      *data;
+        parsec_data_copy_t *copy;
 
-        array->data[f] = data = dague_data_new();
+        array->data[f] = data = parsec_data_new();
         data->key = f;
         data->nb_elts = array->size;
 
-        copy = dague_data_copy_new(array->data[f], 0 /* main memory */);
+        copy = parsec_data_copy_new(array->data[f], 0 /* main memory */);
         copy->device_private = array->ptr + f * array->size;
     }
     return (void*)(array->data[f]);
 }
 
-static dague_data_t* data_of(dague_ddesc_t *desc, ...)
+static parsec_data_t* data_of(parsec_ddesc_t *desc, ...)
 {
     va_list ap;
     int f;
@@ -100,7 +100,7 @@ static dague_data_t* data_of(dague_ddesc_t *desc, ...)
     return data_of_key(desc, f);
 }
 
-static uint32_t data_key(dague_ddesc_t *desc, ...)
+static uint32_t data_key(parsec_ddesc_t *desc, ...)
 {
     my_datatype_t *dat = (my_datatype_t*)desc;
     va_list ap;
@@ -116,7 +116,7 @@ static uint32_t data_key(dague_ddesc_t *desc, ...)
 }
 
 static int
-memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
+memory_register(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     my_datatype_t* m = (my_datatype_t*)desc;
     return device->device_memory_register(device,
@@ -126,17 +126,17 @@ memory_register(dague_ddesc_t* desc, struct dague_device_s* device)
 }
 
 static int
-memory_unregister(dague_ddesc_t* desc, struct dague_device_s* device)
+memory_unregister(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     my_datatype_t* m = (my_datatype_t*)desc;
     return device->device_memory_unregister(device, desc, m->ptr);
 }
 
-static dague_ddesc_t*
+static parsec_ddesc_t*
 create_and_distribute_data(int rank, int world, int frags, int size)
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
-    dague_ddesc_t *d = &(m->super);
+    parsec_ddesc_t *d = &(m->super);
 
     d->myrank = rank;
     d->nodes  = world;
@@ -150,30 +150,30 @@ create_and_distribute_data(int rank, int world, int frags, int size)
     d->register_memory   = memory_register;
     d->unregister_memory = memory_unregister;
 
-#if defined(DAGUE_PROF_TRACE)
+#if defined(PARSEC_PROF_TRACE)
     asprintf(&d->key_dim, "(%d)", size);
-#endif  /* defined(DAGUE_PROF_TRACE) */
+#endif  /* defined(PARSEC_PROF_TRACE) */
     d->key_base = strdup("A");
     d->data_key = data_key;
 
     m->frags = frags;
     m->size  = size;
-    m->data  = (dague_data_t**)calloc(frags, sizeof(dague_data_t*));
+    m->data  = (parsec_data_t**)calloc(frags, sizeof(parsec_data_t*));
     m->ptr   = (uint8_t*)calloc(frags * size, sizeof(uint8_t));
 
     return d;
 }
 
 static void
-free_data(dague_ddesc_t *d)
+free_data(parsec_ddesc_t *d)
 {
     my_datatype_t *array = (my_datatype_t*)d;
     if(NULL != array->data) {
-        /* TODO: free each dague_data_t element */
+        /* TODO: free each parsec_data_t element */
         free(array->data); array->data = NULL;
     }
     free(array->ptr); array->ptr = NULL;
-    dague_ddesc_destroy(d);
+    parsec_ddesc_destroy(d);
     free(d);
 }
 
@@ -184,12 +184,12 @@ free_data(dague_ddesc_t *d)
  * @param [IN] size  size of each local data element
  * @param [IN] ws    the size of the group (1 by now)
  *
- * @return the dague object to schedule.
+ * @return the parsec object to schedule.
  */
-static dague_handle_t*
-bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
+static parsec_handle_t*
+bandwidth_new(parsec_ddesc_t *A, int loops, int frags, int size, int ws)
 {
-    dague_bandwidth_handle_t *o = NULL;
+    parsec_bandwidth_handle_t *o = NULL;
 
     if( (loops < 1) || (frags < 1) ) {
         fprintf(stderr, "To work, this test needs at lest 1 loop \n"
@@ -202,23 +202,23 @@ bandwidth_new(dague_ddesc_t *A, int loops, int frags, int size, int ws)
         return NULL;
     }
 
-    o = dague_bandwidth_new(A, loops, frags, ws);
+    o = parsec_bandwidth_new(A, loops, frags, ws);
 
-    dague_arena_construct(((dague_bandwidth_handle_t*)o)->arenas[DAGUE_bandwidth_DEFAULT_ARENA],
-                          size*sizeof(uint8_t), DAGUE_ARENA_ALIGNMENT_SSE, DAGUE_DATATYPE_NULL);
+    parsec_arena_construct(((parsec_bandwidth_handle_t*)o)->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
+                          size*sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE, PARSEC_DATATYPE_NULL);
 
-    return (dague_handle_t*)o;
+    return (parsec_handle_t*)o;
 }
 
 /**
- * @param [INOUT] o the dague object to destroy
+ * @param [INOUT] o the parsec object to destroy
  */
 static void
-bandwidth_destroy(dague_handle_t* handle)
+bandwidth_destroy(parsec_handle_t* handle)
 {
-    dague_bandwidth_handle_t * bw_handle = (dague_bandwidth_handle_t*)handle;
-    bw_handle->arenas[DAGUE_bandwidth_DEFAULT_ARENA] = NULL;
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(bw_handle);
+    parsec_bandwidth_handle_t * bw_handle = (parsec_bandwidth_handle_t*)handle;
+    bw_handle->arenas[PARSEC_bandwidth_DEFAULT_ARENA] = NULL;
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(bw_handle);
 }
 
 %}
@@ -279,11 +279,11 @@ extern "C" %{
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world, cores, ngpus = 0;
     int i, size, loops, frags;
-    dague_ddesc_t *ddescA;
-    dague_handle_t *bw_test;
+    parsec_ddesc_t *ddescA;
+    parsec_handle_t *bw_test;
     struct timeval tstart, tend;
     double t, bw;
 
@@ -314,27 +314,27 @@ int main(int argc, char *argv[])
         }
     }
     ddescA = create_and_distribute_data(rank, world, frags, size);
-    dague_ddesc_set_key(ddescA, "A");
+    parsec_ddesc_set_key(ddescA, "A");
 
     /* if the use of GPUs is specified on the command line updated the environment
      * prior to the runtime initialization.
      */
     if(ngpus > 0) {
         char *param, value[128];
-        param = dague_mca_param_env_var("device_cuda_enabled");
+        param = parsec_mca_param_env_var("device_cuda_enabled");
         snprintf(value, 128, "%d", ngpus);
         setenv(param, value, 1);
         free(param);
     }
 
-    dague = dague_init(cores, &argc, &argv);
+    parsec = parsec_init(cores, &argc, &argv);
 
     for(i = 0; i < 2; i++) {
         bw_test = bandwidth_new(ddescA, loops, frags, size, world);
 
         gettimeofday(&tstart, NULL);
-        dague_enqueue(dague, bw_test);
-        dague_context_wait(dague);
+        parsec_enqueue(parsec, bw_test);
+        parsec_context_wait(parsec);
         gettimeofday(&tend, NULL);
 
         if( 0 != i ) {
@@ -348,7 +348,7 @@ int main(int argc, char *argv[])
 
     free_data(ddescA);
 
-    dague_fini(&dague);
+    parsec_fini(&parsec);
 
     return 0;
 }

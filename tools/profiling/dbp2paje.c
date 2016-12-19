@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#undef DAGUE_HAVE_MPI
+#include "parsec_config.h"
+#undef PARSEC_HAVE_MPI
 
 #include <stdlib.h>
 #include <string.h>
@@ -18,15 +18,15 @@
 #include <unistd.h>
 #include <getopt.h>
 
-#include "dague/profiling.h"
-#include "dague/dague_binary_profile.h"
+#include "parsec/profiling.h"
+#include "parsec/parsec_binary_profile.h"
 #include "dbpreader.h"
 
 #ifdef DEBUG
 #undef DEBUG
 #endif
 
-#if defined(DAGUE_DEBUG_NOISIER)
+#if defined(PARSEC_DEBUG_NOISIER)
 #define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)
@@ -64,7 +64,7 @@ static void parse_arguments_error(char *message)
     fprintf(stderr,
             "dbp2paje error: %s\n"
             " Usage: dbp2paje [options] profile0 profile1 profile2 ...\n"
-            "   where profile0 to profilen are DAGuE Binary Profile files corresponding to a single run\n"
+            "   where profile0 to profilen are PaRSEC Binary Profile files corresponding to a single run\n"
             "   and options consists of the following:\n"
             "\n"
             " General Options\n"
@@ -180,7 +180,7 @@ static struct timeval start_run;
 static struct timeval last_display;
 
 typedef struct {
-    dague_list_item_t super;
+    parsec_list_item_t super;
     uint64_t        event_id;
     uint64_t        start;
     uint64_t        end;
@@ -457,7 +457,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
     }
 
     /* Check if this is a GPU/stream couple */
-    if ( sscanf( identifier, DAGUE_PROFILE_STREAM_STR, &parent_id, &son_id ) == 2 )
+    if ( sscanf( identifier, PARSEC_PROFILE_STREAM_STR, &parent_id, &son_id ) == 2 )
     {
         char *gpu_name, *stream_name;
 
@@ -486,7 +486,7 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
 
         free(gpu_name); free(stream_name);
     }
-    else if ( sscanf( identifier, DAGUE_PROFILE_THREAD_STR, &son_id, &parent_id, binding_info ) == 3 )
+    else if ( sscanf( identifier, PARSEC_PROFILE_THREAD_STR, &son_id, &parent_id, binding_info ) == 3 )
     {
         char *vp_name, *thrd_name;
 
@@ -516,16 +516,16 @@ static char *registerThreadContainerIdentifier( const char *mpi_alias, dbp_threa
 }
 
 
-static int merge_event( dague_list_t *list, consolidated_event_t *cev )
+static int merge_event( parsec_list_t *list, consolidated_event_t *cev )
 {
-    dague_list_item_t *it;
+    parsec_list_item_t *it;
     consolidated_event_t *lev, *next;
     int broken = 0;
 
     next = NULL;
-    for( it = DAGUE_LIST_ITERATOR_LAST(list);
-         it != DAGUE_LIST_ITERATOR_BEGIN(list);
-         it = DAGUE_LIST_ITERATOR_PREV(it) ) {
+    for( it = PARSEC_LIST_ITERATOR_LAST(list);
+         it != PARSEC_LIST_ITERATOR_BEGIN(list);
+         it = PARSEC_LIST_ITERATOR_PREV(it) ) {
         lev = (consolidated_event_t*)it;
         if( cev->start >= lev->start ) {
             if( ((cev->start < lev->end) ||
@@ -533,9 +533,9 @@ static int merge_event( dague_list_t *list, consolidated_event_t *cev )
                 (cev->start_thread == cev->end_thread) ) {
                 broken = 1;
             }
-            dague_list_nolock_add_after( list,
+            parsec_list_nolock_add_after( list,
                                          it,
-                                         (dague_list_item_t*)cev );
+                                         (parsec_list_item_t*)cev );
             return broken;
         }
         next = lev;
@@ -544,23 +544,23 @@ static int merge_event( dague_list_t *list, consolidated_event_t *cev )
         (cev->start_thread == cev->end_thread) ) {
         broken = 1;
     }
-    dague_list_nolock_push_front( list, (dague_list_item_t*)cev );
+    parsec_list_nolock_push_front( list, (parsec_list_item_t*)cev );
     return broken;
 }
 
-static uint64_t *step_height(dague_list_t *list, int *level)
+static uint64_t *step_height(parsec_list_t *list, int *level)
 {
-    dague_list_item_t *e;
+    parsec_list_item_t *e;
     consolidated_event_t *cev;
     int s, nb_steps = 0;
     static int allocated_dates = 0;
     static uint64_t *dates = NULL;
 
-    e = DAGUE_LIST_ITERATOR_FIRST(list);
+    e = PARSEC_LIST_ITERATOR_FIRST(list);
     cev = (consolidated_event_t*)e;
 
-    for( ; e != DAGUE_LIST_ITERATOR_END(list);
-         e = DAGUE_LIST_ITERATOR_NEXT(e) ) {
+    for( ; e != PARSEC_LIST_ITERATOR_END(list);
+         e = PARSEC_LIST_ITERATOR_NEXT(e) ) {
         cev = (consolidated_event_t*)e;
 
         if( cev->start_thread == cev->end_thread ||
@@ -586,7 +586,7 @@ static uint64_t *step_height(dague_list_t *list, int *level)
     return dates;
 }
 
-static int dump_one_event( dague_list_t *consolidated_events,
+static int dump_one_event( parsec_list_t *consolidated_events,
                            const dbp_multifile_reader_t *dbp,
                            const dbp_event_iterator_t *istart, const dbp_event_t *estart,
                            const dbp_event_iterator_t *iend,   const dbp_event_t *eend )
@@ -602,7 +602,7 @@ static int dump_one_event( dague_list_t *consolidated_events,
     cev = (consolidated_event_t*)malloc(sizeof(consolidated_event_t) +
                                         dbp_event_info_len(estart, dbp) +
                                         dbp_event_info_len(eend,   dbp) );
-    OBJ_CONSTRUCT(cev, dague_list_item_t);
+    OBJ_CONSTRUCT(cev, parsec_list_item_t);
 
     cev->event_id  = dbp_event_get_event_id(  estart );
     cev->handle_id = dbp_event_get_handle_id( estart );
@@ -632,7 +632,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     int s;
     char keyid[64];
     dbp_event_iterator_t *pit, *nit;
-    dague_list_t consolidated_events;
+    parsec_list_t consolidated_events;
     consolidated_event_t *cev;
     static int linkuid = 0;
     char linkid[64];
@@ -644,7 +644,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     int nb_steps;
 
     pit = dbp_iterator_new_from_thread( th );
-    OBJ_CONSTRUCT( &consolidated_events, dague_list_t );
+    OBJ_CONSTRUCT( &consolidated_events, parsec_list_t );
     while( (e = dbp_iterator_current(pit)) != NULL ) {
         if( KEY_IS_START( dbp_event_get_key(e) ) ) {
 
@@ -668,7 +668,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
 
                     /* Add the arrow to the rescheduled event */
                     if (USERFLAGS.split_events_link &&
-                        ( dbp_event_get_flags(g) & DAGUE_PROFILING_EVENT_RESCHEDULED ))
+                        ( dbp_event_get_flags(g) & PARSEC_PROFILING_EVENT_RESCHEDULED ))
                     {
                         dbp_event_iterator_t *nit2;
                         /* Search for next starting event on another device */
@@ -699,7 +699,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                 nit = dbp_iterator_find_matching_event_all_threads(pit, 0);
 
                 g = dbp_iterator_current(nit);
-                if ( dbp_event_get_flags(g) & DAGUE_PROFILING_EVENT_RESCHEDULED ) {
+                if ( dbp_event_get_flags(g) & PARSEC_PROFILING_EVENT_RESCHEDULED ) {
                     nit2 = nit;
                     nit = dbp_iterator_find_matching_event_all_threads(nit2, 0);
                     assert(nit != nit2);
@@ -740,7 +740,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
         addContainer(0.00000, cont_step_name, "CT_ST", cont_thread_name, USERFLAGS.name_all_containers ? cont_step_name : " ", "");
     }
 
-    while( NULL != (cev = (consolidated_event_t*)dague_list_nolock_pop_front( &consolidated_events ) ) ) {
+    while( NULL != (cev = (consolidated_event_t*)parsec_list_nolock_pop_front( &consolidated_events ) ) ) {
         sprintf(keyid, "K-%d", cev->key);
 
         if( (cev->start_thread == cev->end_thread) ||
@@ -774,7 +774,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
     return 0;
 }
 
-static int dague_profiling_dump_paje( const char* filename, const dbp_multifile_reader_t *dbp )
+static int parsec_profiling_dump_paje( const char* filename, const dbp_multifile_reader_t *dbp )
 {
     int i, t, ifd;
     dbp_dictionary_t *dico;
@@ -907,7 +907,7 @@ int main(int argc, char *argv[])
             stat_columns[0] = l;
     }
 
-    dague_profiling_dump_paje( USERFLAGS.outfile, dbp );
+    parsec_profiling_dump_paje( USERFLAGS.outfile, dbp );
 
     progress_bar_end();
 

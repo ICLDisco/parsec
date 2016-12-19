@@ -25,9 +25,9 @@ else
     PLASMA_DIR=${PLASMA_DIR:="/nics/d/home/smoreaud/libs/plasma"}
 fi
 
-#USER_OPTIONS+=" -DDAGUE_DIST_WITH_MPI=OFF"
-USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF"
-USER_OPTIONS+=" -DDAGUE_Q2J=OFF"
+#USER_OPTIONS+=" -DPARSEC_DIST_WITH_MPI=OFF"
+USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF"
+USER_OPTIONS+=" -DPARSEC_Q2J=OFF"
 USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
 
 
@@ -36,23 +36,23 @@ USER_OPTIONS+=" -DDPLASMA_PRECISIONS=s;d;c;z"
 #####
 ## Cmake does not have a clean interface for FindXXX moducles, everyone has a different flavor. Reconciliation.
 
-if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
+if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_DIST_WITH_MPI=OFF.*") -eq 0 ]; then
     MPI="-DMPI_C_COMPILER=${MPI_DIR}/bin/icc -DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpic++ -DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90"
     echo $MPI
 # Make sure to always set all three compilers at the same time. The name of the wrapper may vary on your system
 fi
 
-if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_WITH_HWLOC=OFF.*") -eq 0 ]; then
+if [ -n "$HWLOC_DIR" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_WITH_HWLOC=OFF.*") -eq 0 ]; then
     echo "With HWLOC"
     HWLOC="-DHWLOC_DIR=${HWLOC_DIR}"
 fi
 
-if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
+if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then 
     export CUDA_BIN_PATH=${CUDA_DIR}
 fi
 
-if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*DAGUE_Q2J=OFF.*") -eq 0 ]; then 
-    Q2J="-DDAGUE_OMEGA_DIR=${OMEGA_DIR}"
+if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_Q2J=OFF.*") -eq 0 ]; then 
+    Q2J="-DPARSEC_OMEGA_DIR=${OMEGA_DIR}"
 fi
 
 if [ "${PLASMA_DIR}" ]; then
@@ -63,7 +63,7 @@ fi
 
 if [ "x${USER}" = "xsmoreaud" ]; then
   unset CUDA_DIR
-  USER_OPTIONS+=" -DDAGUE_GPU_WITH_CUDA=OFF "
+  USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=OFF "
   
   USER_OPTIONS+="-DPINS_ENABLE=ON " 
   PAPI_DIR=${PAPI_DIR:="/sw/analysis/papi/4.2.1/sles11.1_gnu4.6.3/"}

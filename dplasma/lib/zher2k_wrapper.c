@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zher2k_New - Generates the dague handle to performs one of the
+ *  dplasma_zher2k_New - Generates the parsec handle to performs one of the
  *  hermitian rank 2k operations
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
@@ -71,8 +71,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zher2k_Destruct();
  *
  *******************************************************************************
@@ -82,16 +82,16 @@
  * @sa dplasma_cher2k_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zher2k_New( PLASMA_enum uplo,
                     PLASMA_enum trans,
-                    dague_complex64_t alpha,
+                    parsec_complex64_t alpha,
                     const tiled_matrix_desc_t* A,
                     const tiled_matrix_desc_t* B,
                     double beta,
                     tiled_matrix_desc_t* C)
 {
-    dague_handle_t* handle;
+    parsec_handle_t* handle;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
@@ -119,15 +119,15 @@ dplasma_zher2k_New( PLASMA_enum uplo,
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            handle = (dague_handle_t*)
-                dague_zher2k_LN_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zher2k_LN_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
         }
         else {
-            handle = (dague_handle_t*)
-                dague_zher2k_LC_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zher2k_LC_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
@@ -135,25 +135,25 @@ dplasma_zher2k_New( PLASMA_enum uplo,
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            handle = (dague_handle_t*)
-                dague_zher2k_UN_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zher2k_UN_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
         }
         else {
-            handle = (dague_handle_t*)
-                dague_zher2k_UC_new(uplo, trans,
+            handle = (parsec_handle_t*)
+                parsec_zher2k_UC_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
         }
     }
 
-    dplasma_add2arena_tile(((dague_zher2k_LN_handle_t*)handle)->arenas[DAGUE_zher2k_LN_DEFAULT_ARENA],
-                           C->mb*C->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, C->mb);
+    dplasma_add2arena_tile(((parsec_zher2k_LN_handle_t*)handle)->arenas[PARSEC_zher2k_LN_DEFAULT_ARENA],
+                           C->mb*C->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, C->mb);
 
     return handle;
 }
@@ -177,11 +177,11 @@ dplasma_zher2k_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zher2k_Destruct( dague_handle_t *handle )
+dplasma_zher2k_Destruct( parsec_handle_t *handle )
 {
-    dague_zher2k_LN_handle_t *zher2k_handle = (dague_zher2k_LN_handle_t*)handle;
-    dague_matrix_del2arena( zher2k_handle->arenas[DAGUE_zher2k_LN_DEFAULT_ARENA] );
-    dague_handle_free(handle);
+    parsec_zher2k_LN_handle_t *zher2k_handle = (parsec_zher2k_LN_handle_t*)handle;
+    parsec_matrix_del2arena( zher2k_handle->arenas[PARSEC_zher2k_LN_DEFAULT_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -205,8 +205,8 @@ dplasma_zher2k_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of C is stored;
@@ -248,16 +248,16 @@ dplasma_zher2k_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zher2k( dague_context_t *dague,
+dplasma_zher2k( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 PLASMA_enum trans,
-                dague_complex64_t alpha,
+                parsec_complex64_t alpha,
                 const tiled_matrix_desc_t *A,
                 const tiled_matrix_desc_t *B,
                 double beta,
                 tiled_matrix_desc_t *C)
 {
-    dague_handle_t *dague_zher2k = NULL;
+    parsec_handle_t *parsec_zher2k = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
@@ -283,15 +283,15 @@ dplasma_zher2k( dague_context_t *dague,
         return -6;
     }
 
-    dague_zher2k = dplasma_zher2k_New(uplo, trans,
+    parsec_zher2k = dplasma_zher2k_New(uplo, trans,
                                       alpha, A, B,
                                       beta, C);
 
-    if ( dague_zher2k != NULL )
+    if ( parsec_zher2k != NULL )
     {
-        dague_enqueue( dague, dague_zher2k);
-        dplasma_progress(dague);
-        dplasma_zher2k_Destruct( dague_zher2k );
+        parsec_enqueue( parsec, parsec_zher2k);
+        dplasma_progress(parsec);
+        dplasma_zher2k_Destruct( parsec_zher2k );
     }
     return 0;
 }

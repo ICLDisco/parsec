@@ -9,16 +9,16 @@
 
 #include "common.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dague/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/interfaces/superscalar/insert_function_internal.h"
 
 int
-call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_GE_TRF_INC(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m;
     int *n;
     int *ib;
-    dague_complex64_t *A;
+    parsec_complex64_t *A;
     int *lda;
     int *IPIV;
     PLASMA_bool *check_info;
@@ -26,7 +26,7 @@ call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_conte
 
     int info;
 
-    dague_dtd_unpack_args(this_task,
+    parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &m,
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &ib,
@@ -41,11 +41,11 @@ call_to_kernel_GE_TRF_INC(dague_execution_unit_t *context, dague_execution_conte
     if (info != 0 && check_info)
         printf("Getrf_incpiv something is wrong\n");
 
-    return 0; /* supposed to return this DAGUE_HOOK_RETURN_DONE; */
+    return 0; /* supposed to return this PARSEC_HOOK_RETURN_DONE; */
 }
 
 int
-call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_GE_SSM(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m;
@@ -53,14 +53,14 @@ call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t
     int *k;
     int *ib;
     int *IPIV;
-    dague_complex64_t *L;
+    parsec_complex64_t *L;
     int *ldl;
-    dague_complex64_t *D;
+    parsec_complex64_t *D;
     int *ldd;
-    dague_complex64_t *A;
+    parsec_complex64_t *A;
     int *lda;
 
-    dague_dtd_unpack_args(this_task,
+    parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &m,
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &k,
@@ -80,28 +80,28 @@ call_to_kernel_GE_SSM(dague_execution_unit_t *context, dague_execution_context_t
 }
 
 int
-call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_TS_TRF(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m;
     int *n;
     int *ib;
     int *nb;
-    dague_complex64_t *U;
+    parsec_complex64_t *U;
     int *ldu;
-    dague_complex64_t *A;
+    parsec_complex64_t *A;
     int *lda;
-    dague_complex64_t *L;
+    parsec_complex64_t *L;
     int *ldl;
     int *IPIV;
-    dague_complex64_t *WORK;
+    parsec_complex64_t *WORK;
     int *ldwork;
     PLASMA_bool *check_info;
     int *iinfo;
 
     int info;
 
-    dague_dtd_unpack_args(this_task,
+    parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &m,
                           UNPACK_VALUE, &n,
                           UNPACK_VALUE, &ib,
@@ -128,7 +128,7 @@ call_to_kernel_TS_TRF(dague_execution_unit_t *context, dague_execution_context_t
 }
 
 int
-call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t * this_task)
+call_to_kernel_SS_SSM(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m1;
@@ -137,17 +137,17 @@ call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t
     int *n2;
     int *k;
     int *ib;
-    dague_complex64_t *A1;
+    parsec_complex64_t *A1;
     int *lda1;
-    dague_complex64_t *A2;
+    parsec_complex64_t *A2;
     int *lda2;
-    dague_complex64_t *L1;
+    parsec_complex64_t *L1;
     int *ldl1;
-    dague_complex64_t *L2;
+    parsec_complex64_t *L2;
     int *ldl2;
     int *IPIV;
 
-    dague_dtd_unpack_args(this_task,
+    parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &m1,
                           UNPACK_VALUE, &n1,
                           UNPACK_VALUE, &m2,
@@ -170,19 +170,19 @@ call_to_kernel_SS_SSM(dague_execution_unit_t *context, dague_execution_context_t
     return 0;
 }
 
-static int check_solution( dague_context_t *dague, int loud,
+static int check_solution( parsec_context_t *parsec, int loud,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX );
 
-static int check_inverse( dague_context_t *dague, int loud,
+static int check_inverse( parsec_context_t *parsec, int loud,
                           tiled_matrix_desc_t *ddescA,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI );
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     int info = 0;
     int ret = 0;
@@ -194,8 +194,8 @@ int main(int argc, char ** argv)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZGETRF, ((DagDouble_t)M,(DagDouble_t)N));
 
@@ -242,23 +242,23 @@ int main(int argc, char ** argv)
                                                       nodes, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
 
-    dague_dtd_init();
+    parsec_dtd_init();
 
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
-    dplasma_zpltmg( dague, matrix_init, (tiled_matrix_desc_t *)&ddescA, random_seed );
+    dplasma_zpltmg( parsec, matrix_init, (tiled_matrix_desc_t *)&ddescA, random_seed );
     if ( check ) {
-        dplasma_zlacpy( dague, PlasmaUpperLower,
+        dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescA,
                         (tiled_matrix_desc_t *)&ddescA0 );
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescB, random_seed + 1 );
-        dplasma_zlacpy( dague, PlasmaUpperLower,
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, random_seed + 1 );
+        dplasma_zlacpy( parsec, PlasmaUpperLower,
                         (tiled_matrix_desc_t *)&ddescB,
                         (tiled_matrix_desc_t *)&ddescX );
     }
     if ( check_inv ) {
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
+        dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescI);
+        dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&ddescInvA);
     }
     if(loud > 2) printf("Done\n");
 
@@ -277,12 +277,12 @@ int main(int argc, char ** argv)
 
     SYNC_TIME_START();
 
-    dague_dtd_handle_t* DAGUE_dtd_handle = dague_dtd_handle_new (dague);
-    dague_handle_t* DAGUE_zgetrf_inc_dtd = (dague_handle_t *) DAGUE_dtd_handle;
+    parsec_dtd_handle_t* PARSEC_dtd_handle = parsec_dtd_handle_new (parsec);
+    parsec_handle_t* PARSEC_zgetrf_inc_dtd = (parsec_handle_t *) PARSEC_dtd_handle;
 
-    dague_enqueue(dague, (dague_handle_t*) DAGUE_dtd_handle);
+    parsec_enqueue(parsec, (parsec_handle_t*) PARSEC_dtd_handle);
 #if defined (OVERLAP)
-    dague_context_start(dague);
+    parsec_context_start(parsec);
 #endif
 
     /* Testing insert task function */
@@ -293,13 +293,13 @@ int main(int argc, char ** argv)
         check_info = k == ddescA.super.mt-1;
         iinfo = (ddescA.super.nb)*k;
 
-        dague_insert_task(DAGUE_dtd_handle,      call_to_kernel_GE_TRF_INC,               "getrf_inc",
+        parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_GE_TRF_INC,               "getrf_inc",
                              sizeof(int),           &tempkm,                           VALUE,
                              sizeof(int),           &tempkn,                           VALUE,
                              sizeof(int),           &ib,                               VALUE,
-                             PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, k),     INOUT | REGION_FULL,
+                             PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, k),     INOUT | REGION_FULL,
                              sizeof(int),           &ldak,                             VALUE,
-                             PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, IPIV, k, k),  OUTPUT | REGION_FULL,
+                             PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, k, k),  OUTPUT | REGION_FULL,
                              sizeof(PLASMA_bool),           &check_info,               VALUE,
                              sizeof(int),           &iinfo,                            VALUE,
                              0);
@@ -308,17 +308,17 @@ int main(int argc, char ** argv)
             tempnn = n == ddescA.super.nt-1 ? (ddescA.super.n)-n*(ddescA.super.nb) : ddescA.super.nb;
             ldl = ddescL.super.mb;
 
-            dague_insert_task(DAGUE_dtd_handle,      call_to_kernel_GE_SSM,               "gessm",
+            parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_GE_SSM,               "gessm",
                                  sizeof(int),           &tempkm,                           VALUE,
                                  sizeof(int),           &tempnn,                           VALUE,
                                  sizeof(int),           &tempkm,                           VALUE,
                                  sizeof(int),           &ib,                               VALUE,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, IPIV, k, k),    INPUT | REGION_FULL,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, L, k, k),       INPUT | REGION_FULL,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, k, k),    INPUT | REGION_FULL,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, L, k, k),       INPUT | REGION_FULL,
                                  sizeof(int),           &ldl,                              VALUE,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, k),       INPUT | REGION_FULL,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, k),       INPUT | REGION_FULL,
                                  sizeof(int),           &ldak,                             VALUE,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, n),       INOUT | REGION_FULL,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, n),       INOUT | REGION_FULL,
                                  sizeof(int),           &ldak,                             VALUE,
                                  0);
         }
@@ -330,19 +330,19 @@ int main(int argc, char ** argv)
             check_info = m == ddescA.super.mt-1;
             iinfo = (ddescA.super.nb)*k;
 
-            dague_insert_task(DAGUE_dtd_handle,      call_to_kernel_TS_TRF,               "tstrf",
+            parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_TS_TRF,               "tstrf",
                                  sizeof(int),           &tempmm,                           VALUE,
                                  sizeof(int),           &tempkn,                           VALUE,
                                  sizeof(int),           &ib,                               VALUE,
                                  sizeof(int),           &nb,                               VALUE,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, k),     INOUT | REGION_FULL,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, k),     INOUT | REGION_FULL,
                                  sizeof(int),           &ldak,                             VALUE,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, k),     INOUT | REGION_FULL,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, m, k),     INOUT | REGION_FULL,
                                  sizeof(int),           &ldam,                             VALUE,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, L, m, k),     OUTPUT | REGION_FULL,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, L, m, k),     OUTPUT | REGION_FULL,
                                  sizeof(int),           &ldl,                              VALUE,
-                                 PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, IPIV, m, k),  OUTPUT | REGION_FULL,
-                                 sizeof(dague_complex64_t)*ib*nb,    NULL,                      SCRATCH,
+                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, m, k),  OUTPUT | REGION_FULL,
+                                 sizeof(parsec_complex64_t)*ib*nb,    NULL,                      SCRATCH,
                                  sizeof(int),           &nb,                               VALUE,
                                  sizeof(PLASMA_bool),           &check_info,               VALUE,
                                  sizeof(int),           &iinfo,                            VALUE,
@@ -352,37 +352,37 @@ int main(int argc, char ** argv)
                 anb = ddescA.super.nb;
                 ldl = ddescL.super.mb;
 
-                dague_insert_task(DAGUE_dtd_handle,      call_to_kernel_SS_SSM,               "ssssm",
+                parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_SS_SSM,               "ssssm",
                                      sizeof(int),           &anb,                               VALUE,
                                      sizeof(int),           &tempnn,                            VALUE,
                                      sizeof(int),           &tempmm,                            VALUE,
                                      sizeof(int),           &tempnn,                            VALUE,
                                      sizeof(int),           &anb,                               VALUE,
                                      sizeof(int),           &ib,                                VALUE,
-                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, k, n),     INOUT | REGION_FULL,
+                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, n),     INOUT | REGION_FULL,
                                      sizeof(int),           &ldak,                              VALUE,
-                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, n),     INOUT | REGION_FULL,
+                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, m, n),     INOUT | REGION_FULL,
                                      sizeof(int),           &ldam,                              VALUE,
-                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, L, m, k),     INPUT | REGION_FULL,
+                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, L, m, k),     INPUT | REGION_FULL,
                                      sizeof(int),           &ldl,                               VALUE,
-                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, A, m, k),     INPUT | REGION_FULL,
+                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, m, k),     INPUT | REGION_FULL,
                                      sizeof(int),           &ldam,                              VALUE,
-                                     PASSED_BY_REF,         TILE_OF(DAGUE_dtd_handle, IPIV, m, k),  INPUT | REGION_FULL,
+                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, m, k),  INPUT | REGION_FULL,
                                      0);
             }
         }
     }
 
-    dague_dtd_handle_wait( dague, DAGUE_dtd_handle );
-    dague_dtd_context_wait_on_handle( dague, DAGUE_dtd_handle );
+    parsec_dtd_handle_wait( parsec, PARSEC_dtd_handle );
+    parsec_dtd_context_wait_on_handle( parsec, PARSEC_dtd_handle );
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(DAGUE_zgetrf_inc_dtd);
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(PARSEC_zgetrf_inc_dtd);
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
 
-    dague_dtd_fini();
+    parsec_dtd_fini();
 
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
@@ -392,14 +392,14 @@ int main(int argc, char ** argv)
         /*
          * First check with a right hand side
          */
-        dplasma_zgetrs_incpiv( dague, PlasmaNoTrans,
+        dplasma_zgetrs_incpiv( parsec, PlasmaNoTrans,
                                (tiled_matrix_desc_t *)&ddescA,
                                (tiled_matrix_desc_t *)&ddescL,
                                (tiled_matrix_desc_t *)&ddescIPIV,
                                (tiled_matrix_desc_t *)&ddescX );
 
         /* Check the solution */
-        ret |= check_solution( dague, (rank == 0) ? loud : 0,
+        ret |= check_solution( parsec, (rank == 0) ? loud : 0,
                                (tiled_matrix_desc_t *)&ddescA0,
                                (tiled_matrix_desc_t *)&ddescB,
                                (tiled_matrix_desc_t *)&ddescX);
@@ -408,14 +408,14 @@ int main(int argc, char ** argv)
          * Second check with inverse
          */
         if ( check_inv ) {
-            dplasma_zgetrs_incpiv( dague, PlasmaNoTrans,
+            dplasma_zgetrs_incpiv( parsec, PlasmaNoTrans,
                                    (tiled_matrix_desc_t *)&ddescA,
                                    (tiled_matrix_desc_t *)&ddescL,
                                    (tiled_matrix_desc_t *)&ddescIPIV,
                                    (tiled_matrix_desc_t *)&ddescInvA );
 
             /* Check the solution */
-            ret |= check_inverse(dague, (rank == 0) ? loud : 0,
+            ret |= check_inverse(parsec, (rank == 0) ? loud : 0,
                                  (tiled_matrix_desc_t *)&ddescA0,
                                  (tiled_matrix_desc_t *)&ddescInvA,
                                  (tiled_matrix_desc_t *)&ddescI);
@@ -423,33 +423,33 @@ int main(int argc, char ** argv)
     }
 
     if ( check ) {
-        dague_data_free(ddescA0.mat);
+        parsec_data_free(ddescA0.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
-        dague_data_free(ddescB.mat);
+        parsec_data_free(ddescB.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
-        dague_data_free(ddescX.mat);
+        parsec_data_free(ddescX.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX);
         if ( check_inv ) {
-            dague_data_free(ddescInvA.mat);
+            parsec_data_free(ddescInvA.mat);
             tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescInvA);
-            dague_data_free(ddescI.mat);
+            parsec_data_free(ddescI.mat);
             tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescI);
         }
     }
 
-    dague_data_free(ddescA.mat);
+    parsec_data_free(ddescA.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    dague_data_free(ddescL.mat);
+    parsec_data_free(ddescL.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescL);
-    dague_data_free(ddescIPIV.mat);
+    parsec_data_free(ddescIPIV.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescIPIV);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }
 
-static int check_solution( dague_context_t *dague, int loud,
+static int check_solution( parsec_context_t *parsec, int loud,
                            tiled_matrix_desc_t *ddescA,
                            tiled_matrix_desc_t *ddescB,
                            tiled_matrix_desc_t *ddescX )
@@ -462,14 +462,14 @@ static int check_solution( dague_context_t *dague, int loud,
     int m = ddescB->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlange(dague, PlasmaInfNorm, ddescA);
-    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
-    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescX);
+    Anorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescA);
+    Bnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescB);
+    Xnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescX);
 
     /* Compute b - A*x */
-    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
+    dplasma_zgemm( parsec, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescX, 1.0, ddescB);
 
-    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescB);
+    Rnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescB);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * m * eps ) ;
 
@@ -494,7 +494,7 @@ static int check_solution( dague_context_t *dague, int loud,
     return info_solution;
 }
 
-static int check_inverse( dague_context_t *dague, int loud,
+static int check_inverse( parsec_context_t *parsec, int loud,
                           tiled_matrix_desc_t *ddescA,
                           tiled_matrix_desc_t *ddescInvA,
                           tiled_matrix_desc_t *ddescI )
@@ -506,13 +506,13 @@ static int check_inverse( dague_context_t *dague, int loud,
     int m = ddescA->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm    = dplasma_zlange(dague, PlasmaInfNorm, ddescA   );
-    InvAnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescInvA);
+    Anorm    = dplasma_zlange(parsec, PlasmaInfNorm, ddescA   );
+    InvAnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescInvA);
 
     /* Compute I - A*A^{-1} */
-    dplasma_zgemm( dague, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescInvA, 1.0, ddescI);
+    dplasma_zgemm( parsec, PlasmaNoTrans, PlasmaNoTrans, -1.0, ddescA, ddescInvA, 1.0, ddescI);
 
-    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, ddescI);
+    Rnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescI);
 
     result = Rnorm / ( ( Anorm * InvAnorm ) * m * eps ) ;
 

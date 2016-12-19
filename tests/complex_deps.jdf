@@ -109,10 +109,10 @@ extern "C" %{
 
 int main( int argc, char** argv )
 {
-    dague_complex_deps_handle_t* handle;
+    parsec_complex_deps_handle_t* handle;
     two_dim_block_cyclic_t descA;
-    dague_arena_t arena;
-    dague_context_t *dague;
+    parsec_arena_t arena;
+    parsec_context_t *parsec;
     int ni = NN, nk = NN, verbose = 0, i = 1;
     int rank = 0, size = 1, mat_size, cores = 1;
     long time_elapsed;
@@ -148,8 +148,8 @@ int main( int argc, char** argv )
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif  /* DISTRIBUTED */
-    dague = dague_init(cores, &argc, &argv);
-    if( NULL == dague ) {
+    parsec = parsec_init(cores, &argc, &argv);
+    if( NULL == parsec ) {
         exit(-1);
     }
 
@@ -161,27 +161,27 @@ int main( int argc, char** argv )
                                size /*nodes*/, rank /*rank*/,
                                2*BLOCK, 1, mat_size, 1,
                                0, 0, mat_size, 1, 1, 1, 1);
-    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
-                                     dague_datadist_getsizeoftype(TYPE) );
-    dague_arena_construct( &arena,
-                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+                                     parsec_datadist_getsizeoftype(TYPE) );
+    parsec_arena_construct( &arena,
+                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
     /* Heat up the engine: small tasks */
-    handle = dague_complex_deps_new( &descA, ni, nk );
+    handle = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != handle );
-    handle->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    dague_enqueue( dague, (dague_handle_t*)handle );
-    dague_context_wait(dague);
+    handle->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
+    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_context_wait(parsec);
 
     /* No priority */
-    handle = dague_complex_deps_new( &descA, ni, nk );
+    handle = parsec_complex_deps_new( &descA, ni, nk );
     assert( NULL != handle );
     TIMER_START(time_elapsed);
-    handle->arenas[DAGUE_complex_deps_DEFAULT_ARENA] = &arena;
-    dague_enqueue( dague, (dague_handle_t*)handle );
+    handle->arenas[PARSEC_complex_deps_DEFAULT_ARENA] = &arena;
+    parsec_enqueue( parsec, (parsec_handle_t*)handle );
     TIMER_STOP(time_elapsed);
     printf("DAG construction in %ld micro-sec\n", time_elapsed);
     if( verbose >= 5 ) {
@@ -192,13 +192,13 @@ int main( int argc, char** argv )
                (double)time_elapsed);
     }
     TIMER_START(time_elapsed);
-    dague_context_wait(dague);
+    parsec_context_wait(parsec);
     TIMER_STOP(time_elapsed);
     printf("DAG execution in %ld micro-sec\n", time_elapsed);
 
     free(descA.mat);
 
-    dague_fini( &dague);
+    parsec_fini( &parsec);
 
     return 0;
 }

@@ -12,7 +12,7 @@
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     dplasma_qrtree_t qrtree;
     int rc, ret = 0;
     int iparam[IPARAM_SIZEOF];
@@ -24,8 +24,8 @@ int main(int argc, char ** argv)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     if (check) {
@@ -158,7 +158,7 @@ int main(int argc, char ** argv)
             }
         }
 
-        dague_data_free(ddescA.mat);
+        parsec_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
 
     } else {
@@ -208,11 +208,11 @@ int main(int argc, char ** argv)
 
         free(dot_filename);
 
-        dague_data_free(ddescA.mat);
+        parsec_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     }
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     if ( ret == 0 )
       return EXIT_SUCCESS;

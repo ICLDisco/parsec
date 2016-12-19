@@ -29,7 +29,7 @@ qrtree    [type = "dplasma_qrtree_t"]
 ib      [type = "int" hidden = on default = "descTS->mb" ]
 KT      [type = "int" hidden = on default = "descA->nt-1" ]
 KT2     [type = "int" hidden = on default = "dplasma_imin( KT, descA->mt-2 )" ]
-p_work  [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS->nb))"]
+p_work  [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descTS->nb))"]
 
 zunmqr(k, i, m)
   /* Execution space */
@@ -60,7 +60,7 @@ BODY
     int ldap    = BLKLDD( descA, p );
     int ldbm    = BLKLDD( descB, m );
 
-    void *W = dague_private_memory_pop( p_work );
+    void *W = parsec_private_memory_pop( p_work );
 
     printlog("CORE_zunmqr(%d, %d, %d) [%d, %d]\n"
              "\t(side=%s, trans=%s, M=%d, N=%d, K=%d, ib=%d,\n"
@@ -68,7 +68,7 @@ BODY
              k, i, m, p, nextp, plasma_const( side ), plasma_const( trans ), tempmm, temppn, tempmin, ib,
              p, k, A, ldap, p, k, T, descTS->mb, m, p, C, ldbm, W, descTS->nb );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zunmqr(
         side, trans,
         tempmm, temppn, tempmin, ib,
@@ -76,9 +76,9 @@ BODY
         T /* T(p, k) */, descTS->mb,
         C /* B(m, p) */, ldbm,
         W, descTS->nb );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
-    dague_private_memory_push( p_work, W );
+    parsec_private_memory_push( p_work, W );
 }
 END
 
@@ -150,7 +150,7 @@ BODY
     int ldbm = BLKLDD( descB, m );
     int ldwork = descTS->nb;
 
-    void *W = dague_private_memory_pop( p_work );
+    void *W = parsec_private_memory_pop( p_work );
 
     printlog("CORE_ztsmqr(%d, %d, %d)\n"
              "\t(side=%s, trans=%s, M1=%d, N1=%d, M2=%d, N2=%d, K=%d, ib=%d,\n"
@@ -159,7 +159,7 @@ BODY
              tempmm, descB->nb, tempmm, tempnn, tempkn, ib,
              m, p, A1, ldbm, m, n, A2, ldbm, n, k, V, ldan, n, k, T, descTS->mb, W, ldwork );
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmqr(
             side, trans,
@@ -179,9 +179,9 @@ BODY
             T  /* T(n, k) */, descTT->mb,
             W, ldwork );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
-    dague_private_memory_push( p_work, W );
+    parsec_private_memory_push( p_work, W );
 }
 END
 

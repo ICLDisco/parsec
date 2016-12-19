@@ -23,7 +23,7 @@ static int check_solution(int N, double *E1, double *E2, double eps);
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
     int j;
@@ -32,8 +32,8 @@ int main(int argc, char *argv[])
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 40, 120, 120);
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS_COUNT(FADDS_ZHEEV, FMULS_ZHEEV, ((DagDouble_t)N));
 
@@ -51,22 +51,22 @@ int main(int argc, char *argv[])
                                MT*IB, N, SMB, SMB, P));
 
     /* Fill A with randomness */
-    dplasma_zplghe( dague, (double)N, uplo,
+    dplasma_zplghe( parsec, (double)N, uplo,
                     (tiled_matrix_desc_t *)&ddescA, 3872);
 #ifdef PRINTF_HEAVY
     printf("########### A (initial, tile storage)\n");
-    dplasma_zprint( dague, uplo, (tiled_matrix_desc_t *)&ddescA );
+    dplasma_zprint( parsec, uplo, (tiled_matrix_desc_t *)&ddescA );
 #endif
 
     /* Step 1 - Reduction A to band matrix */
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zherbt,
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zherbt,
                               (uplo, IB,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescT));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zherbt);
+    PASTE_CODE_PROGRESS_KERNEL(parsec, zherbt);
 #ifdef PRINTF_HEAVY
     printf("########### A (reduced to band form)\n");
-    dplasma_zprint( dague, uplo, &ddescA);
+    dplasma_zprint( parsec, uplo, &ddescA);
 #endif
 
 goto fin;
@@ -77,24 +77,24 @@ goto fin;
                                nodes, rank, MB+1, NB+2, MB+1, (NB+2)*(NT+1), 0, 0,
                                MB+1, (NB+2)*(NT+1), 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
-    dague_diag_band_to_rect_handle_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
-                                                                                            MT, NT, MB, NB, sizeof(dague_complex64_t));
-    dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
+    parsec_diag_band_to_rect_handle_t* PARSEC_diag_band_to_rect = parsec_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
+                                                                                            MT, NT, MB, NB, sizeof(parsec_complex64_t));
+    parsec_arena_t* arena = PARSEC_diag_band_to_rect->arenas[PARSEC_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
-                           MB*NB*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, MB);
-    dague_enqueue(dague, (dague_handle_t*)DAGUE_diag_band_to_rect);
-    dague_context_wait(dague);
+                           MB*NB*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, MB);
+    parsec_enqueue(parsec, (parsec_handle_t*)PARSEC_diag_band_to_rect);
+    parsec_context_wait(parsec);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 #ifdef PRINTF_HEAVY
     printf("########### BAND (converted from A)\n");
-    dplasma_zprint(dague, PlasmaUpperLower, &ddescBAND);
+    dplasma_zprint(parsec, PlasmaUpperLower, &ddescBAND);
 #endif
 
     /* Step 3 - Reduce band to bi-diag form */
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zhbrdt, ((tiled_matrix_desc_t*)&ddescBAND));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zhbrdt);
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zhbrdt, ((tiled_matrix_desc_t*)&ddescBAND));
+    PASTE_CODE_PROGRESS_KERNEL(parsec, zhbrdt);
 
     if( check ) {
         PLASMA_Complex64_t *A0  = (PLASMA_Complex64_t *)malloc(LDA*N*sizeof(PLASMA_Complex64_t));
@@ -119,7 +119,7 @@ goto fin;
                                                               1, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                                                               MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
 #endif
-            dplasma_zlacpy(dague, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
+            dplasma_zlacpy(parsec, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
             band = ddescW.mat;
         }
         else {
@@ -169,19 +169,19 @@ goto fin;
                                                           1, rank, MB, NB, LDA, N, 0, 0,
                                                           N, N, 1, 1, 1));
         /* Fill A0 again */
-        dplasma_zlaset( dague, PlasmaUpperLower, 0.0, 0.0, &ddescA0t.super);
-        dplasma_zplghe( dague, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0t, 3872);
+        dplasma_zlaset( parsec, PlasmaUpperLower, 0.0, 0.0, &ddescA0t.super);
+        dplasma_zplghe( parsec, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0t, 3872);
         /* Convert into Lapack format */
         PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
                                    two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
                                                           1, rank, MB, NB, LDA, N, 0, 0,
                                                           N, N, 1, 1, 1));
-        dplasma_zlacpy( dague, uplo, &ddescA0t.super, &ddescA0.super);
-        dague_data_free(ddescA0t.mat);
+        dplasma_zlacpy( parsec, uplo, &ddescA0t.super, &ddescA0.super);
+        parsec_data_free(ddescA0t.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0t);
 #ifdef PRINTF_HEAVY
         printf("########### A0 (initial, lapack storage)\n");
-        dplasma_zprint( dague, uplo, &ddescA0 );
+        dplasma_zprint( parsec, uplo, &ddescA0 );
 #endif
         if( 0 == rank ) {
             A0 = ddescA0.mat;
@@ -194,9 +194,9 @@ goto fin;
         }
 #ifdef PRINTF_HEAVY
         printf("########### A0 (after LAPACK direct eignesolver)\n");
-        dplasma_zprint( dague, uplo, &ddescA0 );
+        dplasma_zprint( parsec, uplo, &ddescA0 );
 #endif
-        dague_data_free(ddescA0.mat);
+        parsec_data_free(ddescA0.mat);
         tiled_matrix_desc_destroy( &ddescA0.super );
         if( 0 == rank ) {
 #ifdef PRINTF_HEAVY
@@ -237,18 +237,18 @@ goto fin;
         free(W0); free(D); free(E);
     }
 
-    dplasma_zherbt_Destruct( DAGUE_zherbt );
-    DAGUE_INTERNAL_HANDLE_DESTRUCT( DAGUE_diag_band_to_rect );
-    dplasma_zhbrdt_Destruct( DAGUE_zhbrdt );
+    dplasma_zherbt_Destruct( PARSEC_zherbt );
+    PARSEC_INTERNAL_HANDLE_DESTRUCT( PARSEC_diag_band_to_rect );
+    dplasma_zhbrdt_Destruct( PARSEC_zhbrdt );
 
-    dague_data_free(ddescBAND.mat);
-    dague_data_free(ddescA.mat);
-    dague_data_free(ddescT.mat);
+    parsec_data_free(ddescBAND.mat);
+    parsec_data_free(ddescA.mat);
+    parsec_data_free(ddescT.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescBAND);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
 fin:
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return EXIT_SUCCESS;
 }

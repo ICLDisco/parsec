@@ -25,8 +25,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          Specifies which part of the matrix is printed
@@ -51,11 +51,11 @@
  * @sa dplasma_sprint
  *
  ******************************************************************************/
-int dplasma_zprint( dague_context_t *dague,
+int dplasma_zprint( parsec_context_t *parsec,
                     PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A)
 {
-    dague_zprint_handle_t* handle;
+    parsec_zprint_handle_t* handle;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -66,20 +66,20 @@ int dplasma_zprint( dague_context_t *dague,
         return -3;
     }
 
-    handle = dague_zprint_new( uplo, A);
+    handle = parsec_zprint_new( uplo, A);
 
     if (handle != NULL) {
         /* Default type */
-        dplasma_add2arena_tile( handle->arenas[DAGUE_zprint_DEFAULT_ARENA],
-                                A->mb*A->nb*sizeof(dague_complex64_t),
-                                DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_complex_t, A->mb );
+        dplasma_add2arena_tile( handle->arenas[PARSEC_zprint_DEFAULT_ARENA],
+                                A->mb*A->nb*sizeof(parsec_complex64_t),
+                                PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_complex_t, A->mb );
 
-        dague_enqueue(dague, (dague_handle_t*)handle);
-        dplasma_progress(dague);
+        parsec_enqueue(parsec, (parsec_handle_t*)handle);
+        dplasma_progress(parsec);
 
-        dague_matrix_del2arena( handle->arenas[DAGUE_zprint_DEFAULT_ARENA] );
-        DAGUE_INTERNAL_HANDLE_DESTRUCT( handle );
+        parsec_matrix_del2arena( handle->arenas[PARSEC_zprint_DEFAULT_ARENA] );
+        PARSEC_INTERNAL_HANDLE_DESTRUCT( handle );
         return 0;
     }
     return -101;

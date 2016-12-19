@@ -11,7 +11,7 @@
 
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 
 #include "zgeqrf.h"
 
@@ -40,12 +40,12 @@
  *
  ******************************************************************************/
 void
-dplasma_zgeqrf_setrecursive( dague_handle_t *handle, int hnb )
+dplasma_zgeqrf_setrecursive( parsec_handle_t *handle, int hnb )
 {
-    dague_zgeqrf_handle_t *dague_zgeqrf = (dague_zgeqrf_handle_t *)handle;
+    parsec_zgeqrf_handle_t *parsec_zgeqrf = (parsec_zgeqrf_handle_t *)handle;
 
     if (hnb > 0) {
-        dague_zgeqrf->_g_smallnb = hnb;
+        parsec_zgeqrf->_g_smallnb = hnb;
     }
 }
 
@@ -109,8 +109,8 @@ dplasma_zgeqrf_setrecursive( dague_handle_t *handle, int hnb )
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgeqrf_Destruct();
  *
  *******************************************************************************
@@ -122,48 +122,48 @@ dplasma_zgeqrf_setrecursive( dague_handle_t *handle, int hnb )
  * @sa dplasma_sgeqrf_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T )
 {
-    dague_zgeqrf_handle_t* handle;
+    parsec_zgeqrf_handle_t* handle;
     int ib = T->mb;
 
-    handle = dague_zgeqrf_new( A,
+    handle = parsec_zgeqrf_new( A,
                                T,
                                ib, NULL, NULL );
 
-    handle->_g_p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->_g_p_tau, T->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_tau = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( handle->_g_p_tau, T->nb * sizeof(parsec_complex64_t) );
 
-    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->_g_p_work, ib * T->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( handle->_g_p_work, ib * T->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[DAGUE_zgeqrf_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( handle->arenas[PARSEC_zgeqrf_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( handle->arenas[DAGUE_zgeqrf_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 0 );
+    dplasma_add2arena_lower( handle->arenas[PARSEC_zgeqrf_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( handle->arenas[DAGUE_zgeqrf_UPPER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 1 );
+    dplasma_add2arena_upper( handle->arenas[PARSEC_zgeqrf_UPPER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgeqrf_LITTLE_T_ARENA],
-                                 T->mb*T->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgeqrf_LITTLE_T_ARENA],
+                                 T->mb*T->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return (dague_handle_t*)handle;
+    return (parsec_handle_t*)handle;
 }
 
 /**
@@ -187,21 +187,21 @@ dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgeqrf_Destruct( dague_handle_t *handle )
+dplasma_zgeqrf_Destruct( parsec_handle_t *handle )
 {
-    dague_zgeqrf_handle_t *dague_zgeqrf = (dague_zgeqrf_handle_t *)handle;
+    parsec_zgeqrf_handle_t *parsec_zgeqrf = (parsec_zgeqrf_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zgeqrf->arenas[DAGUE_zgeqrf_DEFAULT_ARENA   ] );
-    dague_matrix_del2arena( dague_zgeqrf->arenas[DAGUE_zgeqrf_LOWER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zgeqrf->arenas[DAGUE_zgeqrf_UPPER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zgeqrf->arenas[DAGUE_zgeqrf_LITTLE_T_ARENA  ] );
+    parsec_matrix_del2arena( parsec_zgeqrf->arenas[PARSEC_zgeqrf_DEFAULT_ARENA   ] );
+    parsec_matrix_del2arena( parsec_zgeqrf->arenas[PARSEC_zgeqrf_LOWER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zgeqrf->arenas[PARSEC_zgeqrf_UPPER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zgeqrf->arenas[PARSEC_zgeqrf_LITTLE_T_ARENA  ] );
 
-    dague_private_memory_fini( dague_zgeqrf->_g_p_work );
-    dague_private_memory_fini( dague_zgeqrf->_g_p_tau  );
-    free( dague_zgeqrf->_g_p_work );
-    free( dague_zgeqrf->_g_p_tau  );
+    parsec_private_memory_fini( parsec_zgeqrf->_g_p_work );
+    parsec_private_memory_fini( parsec_zgeqrf->_g_p_tau  );
+    free( parsec_zgeqrf->_g_p_work );
+    free( parsec_zgeqrf->_g_p_tau  );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 
@@ -233,8 +233,8 @@ dplasma_zgeqrf_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized.
@@ -268,23 +268,23 @@ dplasma_zgeqrf_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zgeqrf( dague_context_t *dague,
+dplasma_zgeqrf( parsec_context_t *parsec,
                 tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *T )
 {
-    dague_handle_t *dague_zgeqrf = NULL;
+    parsec_handle_t *parsec_zgeqrf = NULL;
 
     if ( (A->mt != T->mt) || (A->nt != T->nt) ) {
         dplasma_error("dplasma_zgeqrf", "T doesn't have the same number of tiles as A");
         return -101;
     }
 
-    dague_zgeqrf = dplasma_zgeqrf_New(A, T);
+    parsec_zgeqrf = dplasma_zgeqrf_New(A, T);
 
-    if ( dague_zgeqrf != NULL ) {
-        dague_enqueue(dague, (dague_handle_t*)dague_zgeqrf);
-        dplasma_progress(dague);
-        dplasma_zgeqrf_Destruct( dague_zgeqrf );
+    if ( parsec_zgeqrf != NULL ) {
+        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgeqrf);
+        dplasma_progress(parsec);
+        dplasma_zgeqrf_Destruct( parsec_zgeqrf );
     }
 
     return 0;
@@ -318,8 +318,8 @@ dplasma_zgeqrf( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized.
@@ -358,25 +358,25 @@ dplasma_zgeqrf( dague_context_t *dague,
  *
  ******************************************************************************/
 int
-dplasma_zgeqrf_rec( dague_context_t *dague,
+dplasma_zgeqrf_rec( parsec_context_t *parsec,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T, int hnb )
 {
-    dague_handle_t *dague_zgeqrf = NULL;
+    parsec_handle_t *parsec_zgeqrf = NULL;
 
     if ( (A->mt != T->mt) || (A->nt != T->nt) ) {
         dplasma_error("dplasma_zgeqrf", "T doesn't have the same number of tiles as A");
         return -101;
     }
 
-    dague_zgeqrf = dplasma_zgeqrf_New(A, T);
+    parsec_zgeqrf = dplasma_zgeqrf_New(A, T);
 
-    if ( dague_zgeqrf != NULL ) {
-        dague_enqueue(dague, (dague_handle_t*)dague_zgeqrf);
-        dplasma_zgeqrf_setrecursive( (dague_handle_t*)dague_zgeqrf, hnb );
-        dplasma_progress(dague);
-        dplasma_zgeqrf_Destruct( dague_zgeqrf );
-        dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+    if ( parsec_zgeqrf != NULL ) {
+        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgeqrf);
+        dplasma_zgeqrf_setrecursive( (parsec_handle_t*)parsec_zgeqrf, hnb );
+        dplasma_progress(parsec);
+        dplasma_zgeqrf_Destruct( parsec_zgeqrf );
+        parsec_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }
 
     return 0;

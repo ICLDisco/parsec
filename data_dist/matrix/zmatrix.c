@@ -21,11 +21,11 @@
 #include <string.h>
 #include <math.h>
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
 #endif
 
-#include "dague/data_distribution.h"
+#include "parsec/data_distribution.h"
 #include "matrix.h"
 
 #define COMPLEX
@@ -72,8 +72,8 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
 {
     int i, j, first_row, first_col;
     int nb = Ddesc->nb;
-    dague_complex64_t mn_max = (dague_complex64_t) max(Ddesc->n, Ddesc->m);
-    dague_complex64_t *x = (dague_complex64_t*) position;
+    parsec_complex64_t mn_max = (parsec_complex64_t) max(Ddesc->n, Ddesc->m);
+    parsec_complex64_t *x = (parsec_complex64_t*) position;
     unsigned long long int ran;
     int nbgen = 1;
 #ifdef COMPLEX
@@ -84,7 +84,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
     first_row = row * nb;
     first_col = col * nb;
 
-    memset( position, 0, nb*nb*sizeof(dague_complex64_t) );
+    memset( position, 0, nb*nb*sizeof(parsec_complex64_t) );
 
     if ( row == col ) { /* Diagonal */
         for (j = 0; j < nb; ++j) {
@@ -109,7 +109,7 @@ void matrix_ztile_cholesky(tiled_matrix_desc_t * Ddesc, void * position,
             x += (nb - i);
         }
 
-        x = (dague_complex64_t*)position;
+        x = (parsec_complex64_t*)position;
         for (j = 0; j < nb; ++j) {
             if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
                 break;
@@ -180,14 +180,14 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
     int i, j, first_row, first_col;
     int mb = Ddesc->mb;
     int nb = Ddesc->nb;
-    dague_complex64_t *x = (dague_complex64_t*)position;
+    parsec_complex64_t *x = (parsec_complex64_t*)position;
     unsigned long long int ran;
 
     /* These are global values of first row and column of the tile counting from 0 */
     first_row = row * mb;
     first_col = col * nb;
 
-    memset( position, 0, mb*nb*sizeof(dague_complex64_t) );
+    memset( position, 0, mb*nb*sizeof(parsec_complex64_t) );
 
     for (j = 0; j < nb; ++j) {
         if( (first_col + j) >= Ddesc->n ) /* padding for columns  */
@@ -216,7 +216,7 @@ void matrix_ztile(tiled_matrix_desc_t * Ddesc, void * position,
     }
 }
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 
 //#include <lapack.h>
 
@@ -236,10 +236,10 @@ static double lamch(void)
 void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
 {
     MPI_Status status;
-    dague_complex64_t * bufferA = NULL;
-    dague_complex64_t * bufferB = NULL;
-    dague_complex64_t * tmpA = malloc(a->bsiz * sizeof(dague_complex64_t));
-    dague_complex64_t * tmpB = malloc(a->bsiz * sizeof(dague_complex64_t));
+    parsec_complex64_t * bufferA = NULL;
+    parsec_complex64_t * bufferB = NULL;
+    parsec_complex64_t * tmpA = malloc(a->bsiz * sizeof(parsec_complex64_t));
+    parsec_complex64_t * tmpB = malloc(a->bsiz * sizeof(parsec_complex64_t));
 
     int i,j;
     int k;
@@ -259,13 +259,13 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
     for(i = 0 ; i < a->lmt ; i++)
         for(j = 0 ; j < a->lnt ; j++)
             {
-                rankA = a->super.rank_of((dague_ddesc_t *) a, i, j );
-                rankB = b->super.rank_of((dague_ddesc_t *) b, i, j );
+                rankA = a->super.rank_of((parsec_ddesc_t *) a, i, j );
+                rankB = b->super.rank_of((parsec_ddesc_t *) b, i, j );
                 if (a->super.myrank == 0)
                     {
                         if ( rankA == 0)
                             {
-                                bufferA = a->super.data_of((dague_ddesc_t *) a, i, j );
+                                bufferA = a->super.data_of((parsec_ddesc_t *) a, i, j );
                             }
                         else
                             {
@@ -277,7 +277,7 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                             }
                         if ( rankB == 0)
                             {
-                                bufferB = b->super.data_of((dague_ddesc_t *) b, i, j );
+                                bufferB = b->super.data_of((parsec_ddesc_t *) b, i, j );
                             }
                         else
                             {
@@ -311,11 +311,11 @@ void matrix_zcompare_dist_data(tiled_matrix_desc_t * a, tiled_matrix_desc_t * b)
                         
                         if ( rankA == a->super.myrank)
                             {
-                                MPI_Send(a->super.data_of((dague_ddesc_t *) a, i, j ), a->bsiz, MPI_DOUBLE_COMPLEX, 0, 0, MPI_COMM_WORLD);
+                                MPI_Send(a->super.data_of((parsec_ddesc_t *) a, i, j ), a->bsiz, MPI_DOUBLE_COMPLEX, 0, 0, MPI_COMM_WORLD);
                             }
                         if ( rankB == b->super.myrank)
                             {
-                                MPI_Send(b->super.data_of((dague_ddesc_t *) b, i, j ), b->bsiz, MPI_DOUBLE_COMPLEX, 0, 0, MPI_COMM_WORLD);                                                    
+                                MPI_Send(b->super.data_of((parsec_ddesc_t *) b, i, j ), b->bsiz, MPI_DOUBLE_COMPLEX, 0, 0, MPI_COMM_WORLD);                                                    
                             }
                     }
             }

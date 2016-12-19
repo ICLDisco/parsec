@@ -27,7 +27,7 @@ USER_OPTIONS+=""
 
 if [ "x${USER}" = "xsmoreaud" ]; then
   unset CUDA_DIR
-  USER_OPTIONS+="-DDAGUE_GPU_WITH_CUDA=OFF "
+  USER_OPTIONS+="-DPARSEC_GPU_WITH_CUDA=OFF "
 
   PAPI_DIR=${PAPI_DIR:="/mnt/scratch/sw/papi-5.0.1"}
   USER_OPTIONS+="-DPINS_ENABLE=ON "
@@ -35,7 +35,7 @@ if [ "x${USER}" = "xsmoreaud" ]; then
 fi
 
 if [ "x${USER}" = "xwwu12" ]; then
-  USER_OPTIONS+="-DDAGUE_DIST_WITH_MPI=OFF"
+  USER_OPTIONS+="-DPARSEC_DIST_WITH_MPI=OFF"
 fi
 
 . $(dirname $0)/config.inc

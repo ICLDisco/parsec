@@ -7,10 +7,10 @@
 #ifndef schedmicro_data_h
 #define schedmicro_data_h
 
-#include "dague.h"
-#include "dague/types.h"
+#include "parsec.h"
+#include "parsec/types.h"
 
-dague_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg);
-void free_data(dague_ddesc_t *d);
+parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg);
+void free_data(parsec_ddesc_t *d);
 
 #endif

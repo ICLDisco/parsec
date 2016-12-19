@@ -188,7 +188,7 @@ static int check_solution(int, double*, double*, double);
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     PLASMA_desc *plasmaDescA;
     PLASMA_desc *plasmaDescT;
@@ -196,12 +196,12 @@ int main(int argc, char ** argv)
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
     iparam_default_ibnbmb(iparam, 48, 144, 144);
-#if defined(DAGUE_HAVE_CUDA) && defined(PRECISION_s)
+#if defined(PARSEC_HAVE_CUDA) && defined(PRECISION_s)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize PaRSEC */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam)
     //PASTE_CODE_FLOPS_COUNT(FADDS_ZHERBT, FMULS_ZHERBT, ((DagDouble_t)N))
 
@@ -229,57 +229,57 @@ int main(int argc, char ** argv)
          ddescT.super.lm, ddescT.super.ln, ddescT.super.i, ddescT.super.j,
          ddescT.super.m, ddescT.super.n);
 
-    dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
 
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgerbb,
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zgerbb,
          (IB, *plasmaDescA, (tiled_matrix_desc_t*)&ddescA, *plasmaDescT, (tiled_matrix_desc_t*)&ddescT));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgerbb);
+    PASTE_CODE_PROGRESS_KERNEL(parsec, zgerbb);
 
     SYNC_TIME_START();
-    dague_diag_band_to_rect_handle_t* DAGUE_diag_band_to_rect = dague_diag_band_to_rect_new((two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
+    parsec_diag_band_to_rect_handle_t* PARSEC_diag_band_to_rect = parsec_diag_band_to_rect_new((two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
             MT, NT, MB, NB, sizeof(matrix_ComplexDouble));
-    dague_arena_t* arena = DAGUE_diag_band_to_rect->arenas[DAGUE_diag_band_to_rect_DEFAULT_ARENA];
+    parsec_arena_t* arena = PARSEC_diag_band_to_rect->arenas[PARSEC_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
-        MB*NB*sizeof(dague_complex64_t),
-        DAGUE_ARENA_ALIGNMENT_SSE,
+        MB*NB*sizeof(parsec_complex64_t),
+        PARSEC_ARENA_ALIGNMENT_SSE,
         MPI_DOUBLE_COMPLEX, MB);
-    dague_enqueue(dague, (dague_handle_t*)DAGUE_diag_band_to_rect);
-    dague_context_wait(dague);
+    parsec_enqueue(parsec, (parsec_handle_t*)PARSEC_diag_band_to_rect);
+    parsec_context_wait(parsec);
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgbrdb, ((tiled_matrix_desc_t*)&ddescBAND));
-    PASTE_CODE_PROGRESS_KERNEL(dague, zgbrdb)
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zgbrdb, ((tiled_matrix_desc_t*)&ddescBAND));
+    PASTE_CODE_PROGRESS_KERNEL(parsec, zgbrdb)
 
 
     if(!check)
     {
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
-        dplasma_zlaset( dague, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
         if(loud > 2) printf("Done\n");
 
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgeqrf,
+        /* Create PaRSEC */
+        PASTE_CODE_ENQUEUE_KERNEL(parsec, zgeqrf,
                                   ((tiled_matrix_desc_t*)&ddescA,
                                    (tiled_matrix_desc_t*)&ddescT))
 
         /* lets rock! */
-        PASTE_CODE_PROGRESS_KERNEL(dague, zgeqrf)
+        PASTE_CODE_PROGRESS_KERNEL(parsec, zgeqrf)
     }
 
-    dplasma_zgerbb_Destruct( DAGUE_zgerbb );
-    dague_diag_band_to_rect_destroy( DAGUE_diag_band_to_rect );
-    dplasma_zgbrdb_Destruct( DAGUE_zgbrdb );
+    dplasma_zgerbb_Destruct( PARSEC_zgerbb );
+    parsec_diag_band_to_rect_destroy( PARSEC_diag_band_to_rect );
+    dplasma_zgbrdb_Destruct( PARSEC_zgbrdb );
 
-    dague_data_free(ddescBAND.mat);
-    dague_data_free(ddescA.mat);
-    dague_data_free(ddescT.mat);
+    parsec_data_free(ddescBAND.mat);
+    parsec_data_free(ddescA.mat);
+    parsec_data_free(ddescT.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescBAND);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return EXIT_SUCCESS;
 }

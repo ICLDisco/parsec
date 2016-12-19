@@ -13,22 +13,22 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(DAGUE_HAVE_RECURSIVE)
+#if defined(PARSEC_HAVE_RECURSIVE)
 #include "data_dist/matrix/subtile.h"
-#include "dague/recursive.h"
+#include "parsec/recursive.h"
 #endif
 
-#if defined(DAGUE_HAVE_CUDA)
+#if defined(PARSEC_HAVE_CUDA)
 #include "dplasma/cores/dplasma_zcores.h"
-#endif  /* defined(DAGUE_HAVE_CUDA) */
+#endif  /* defined(PARSEC_HAVE_CUDA) */
 
 %}
 
 descA  [type = "tiled_matrix_desc_t*"]
 descT  [type = "tiled_matrix_desc_t*" aligned=descA]
 ib     [type = "int"]
-p_work [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)*ib*descT->nb)"]
-p_tau  [type = "dague_memory_pool_t *" size = "(sizeof(dague_complex64_t)   *descT->nb)"]
+p_work [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)*ib*descT->nb)"]
+p_tau  [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)   *descT->nb)"]
 
 smallnb [type = "int" hidden = on default = "descA->nb" ]
 
@@ -82,7 +82,7 @@ BODY [type=RECURSIVE]
     if (tempkm > smallnb) {
         subtile_desc_t *small_descA;
         subtile_desc_t *small_descT;
-        dague_handle_t *dague_zgeqrt;
+        parsec_handle_t *parsec_zgeqrt;
 
 
         small_descA = subtile_desc_create( &(descA), k, k,
@@ -95,20 +95,20 @@ BODY [type=RECURSIVE]
         small_descA->mat = A;
         small_descT->mat = T;
 
-        /* dague_object */
-        dague_zgeqrt = dplasma_zgeqrfr_geqrt_New( (tiled_matrix_desc_t *)small_descA,
+        /* parsec_object */
+        parsec_zgeqrt = dplasma_zgeqrfr_geqrt_New( (tiled_matrix_desc_t *)small_descA,
                                                   (tiled_matrix_desc_t *)small_descT,
                                                   p_work );
 
         /* recursive call */
-        dague_recursivecall( context, (dague_execution_context_t*)this_task,
-                             dague_zgeqrt, dplasma_zgeqrfr_geqrt_Destruct,
+        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+                             parsec_zgeqrt, dplasma_zgeqrfr_geqrt_Destruct,
                              2, small_descA, small_descT);
 
-        return DAGUE_HOOK_RETURN_ASYNC;
+        return PARSEC_HOOK_RETURN_ASYNC;
     }
     else
-        return DAGUE_HOOK_RETURN_NEXT;
+        return PARSEC_HOOK_RETURN_NEXT;
 }
 END
 
@@ -123,20 +123,20 @@ BODY
              "\t(tempkm, tempkn, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT->mb, p_elem_A, p_elem_B)\n",
              k, k, k, A, k, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
 
-    void *p_elem_A = dague_private_memory_pop( p_tau );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+    void *p_elem_A = parsec_private_memory_pop( p_tau );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     CORE_zgeqrt(tempkm, tempkn, ib,
                 A /* descA(k,k) */, ldak,
                 T /* descT(k,k) */, descT->mb,
                 p_elem_A, p_elem_B );
 
-    dague_private_memory_push( p_tau,  p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
+    parsec_private_memory_push( p_tau,  p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
 
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -167,7 +167,7 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descA;
         subtile_desc_t *small_descT;
         subtile_desc_t *small_descC;
-        dague_handle_t *dague_zunmqr_panel;
+        parsec_handle_t *parsec_zunmqr_panel;
 
 
         small_descA = subtile_desc_create( &(descA), k, k,
@@ -184,21 +184,21 @@ BODY [type=RECURSIVE]
         small_descC->mat = C;
         small_descT->mat = T;
 
-        /* dague_object */
-        dague_zunmqr_panel = dplasma_zgeqrfr_unmqr_New( (tiled_matrix_desc_t *)small_descA,
+        /* parsec_object */
+        parsec_zunmqr_panel = dplasma_zgeqrfr_unmqr_New( (tiled_matrix_desc_t *)small_descA,
                                                         (tiled_matrix_desc_t *)small_descT,
                                                         (tiled_matrix_desc_t *)small_descC,
                                                         p_work );
 
         /* recursive call */
-        dague_recursivecall( context, (dague_execution_context_t*)this_task,
-                             dague_zunmqr_panel, dplasma_zgeqrfr_unmqr_Destruct,
+        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+                             parsec_zunmqr_panel, dplasma_zgeqrfr_unmqr_Destruct,
                              3, small_descA, small_descC, small_descT);
 
-        return DAGUE_HOOK_RETURN_ASYNC;
+        return PARSEC_HOOK_RETURN_ASYNC;
     }
     else
-        return DAGUE_HOOK_RETURN_NEXT;
+        return PARSEC_HOOK_RETURN_NEXT;
 }
 END
 
@@ -213,9 +213,9 @@ BODY
              "\t(PlasmaLeft, PlasmaConjTrans, tempkm, tempnn, tempkm, ib, A(%d,%d)[%p], ldak, T(%d,%d)[%p], descT->mb, A(%d,%d)[%p], ldak, p_elem_A, descT->nb)\n",
              k, n, k, k, A, k, k, T, k, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
 
-    void *p_elem_A = dague_private_memory_pop( p_work );
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_zunmqr(PlasmaLeft, PlasmaConjTrans,
                 tempkm, tempnn, tempkm, ib,
@@ -224,9 +224,9 @@ BODY
                 C /* descA(k,n) */, ldak,
                 p_elem_A, descT->nb );
 
-    dague_private_memory_push( p_work, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_A );
 
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -279,7 +279,7 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descA1;
         subtile_desc_t *small_descA2;
         subtile_desc_t *small_descT;
-        dague_handle_t *dague_ztsqrt;
+        parsec_handle_t *parsec_ztsqrt;
 
 
         small_descA1 = subtile_desc_create( &(descA), k, k,
@@ -296,21 +296,21 @@ BODY [type=RECURSIVE]
         small_descA->->mat = A2;
         small_descT->mat  = T;
 
-        /* dague_object */
-        dague_ztsqrt = dplasma_zgeqrfr_tsqrt_New((tiled_matrix_desc_t *)small_descA1,
+        /* parsec_object */
+        parsec_ztsqrt = dplasma_zgeqrfr_tsqrt_New((tiled_matrix_desc_t *)small_descA1,
                                                  (tiled_matrix_desc_t *)small_descA2,
                                                  (tiled_matrix_desc_t *)small_descT,
                                                  p_work, p_tau );
 
         /* recursive call */
-        dague_recursivecall( context, (dague_execution_context_t*)this_task,
-                             dague_ztsqrt, dplasma_zgeqrfr_tsqrt_Destruct,
+        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+                             parsec_ztsqrt, dplasma_zgeqrfr_tsqrt_Destruct,
                              3, small_descA1, small_descA2, small_descT);
 
-        return DAGUE_HOOK_RETURN_ASYNC;
+        return PARSEC_HOOK_RETURN_ASYNC;
     }
     else
-        return DAGUE_HOOK_RETURN_NEXT;
+        return PARSEC_HOOK_RETURN_NEXT;
 }
 END
 
@@ -326,10 +326,10 @@ BODY
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT->mb, p_elem_A, p_elem_B)\n",
              k, m, k, k, T, m, k, A1, m, k, A2);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
 
-    void *p_elem_A = dague_private_memory_pop( p_tau );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+    void *p_elem_A = parsec_private_memory_pop( p_tau );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     CORE_ztsqrt(tempmm, tempkn, ib,
                 A1 /* descA(k,k) */, ldak,
@@ -337,10 +337,10 @@ BODY
                 T  /* descT(m,k) */, descT->mb,
                 p_elem_A, p_elem_B );
 
-    dague_private_memory_push( p_tau,  p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
+    parsec_private_memory_push( p_tau,  p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
 
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -388,14 +388,14 @@ ztsmqr(k,m,n)
 
 BODY [type=CUDA device=%{ return n; %}]
 {
-    dague_complex64_t *WORK, *WORKC;
+    parsec_complex64_t *WORK, *WORKC;
     int tempmm = ((m)==(descA->mt-1)) ? (descA->m-(m*descA->mb)) : descA->mb;
     int tempnn = ((n)==(descA->nt-1)) ? (descA->n-(n*descA->nb)) : descA->nb;
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
-    WORK  = dague_gpu_pop_workspace(gpu_device, gpu_stream, descA->nb * ib * sizeof(dague_complex64_t));
-    WORKC = dague_gpu_pop_workspace(gpu_device, gpu_stream, descA->mb * ib * sizeof(dague_complex64_t));
+    WORK  = parsec_gpu_pop_workspace(gpu_device, gpu_stream, descA->nb * ib * sizeof(parsec_complex64_t));
+    WORKC = parsec_gpu_pop_workspace(gpu_device, gpu_stream, descA->mb * ib * sizeof(parsec_complex64_t));
 
     dplasma_cuda_ztsmqr( PlasmaLeft, PlasmaConjTrans,
                          descA->mb, tempnn, tempmm, tempnn, descA->nb, ib,
@@ -405,7 +405,7 @@ BODY [type=CUDA device=%{ return n; %}]
                          T  /* descT(m,k) */, descT->mb,
                          WORK,  ib,
                          WORKC, descA->mb,
-                         dague_body.stream );
+                         parsec_body.stream );
 }
 END
 
@@ -421,7 +421,7 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descA2;
         subtile_desc_t *small_descV;
         subtile_desc_t *small_descT;
-        dague_handle_t *dague_ztsmqr;
+        parsec_handle_t *parsec_ztsmqr;
 
 
         small_descA1 = subtile_desc_create( &(descA), k, n,
@@ -442,22 +442,22 @@ BODY [type=RECURSIVE]
         small_descV->mat  = V;
         small_descT->mat  = T;
 
-        /* dague_object */
-        dague_ztsmqr = dplasma_zgeqrfr_tsmqr_New( (tiled_matrix_desc_t *)small_descA1,
+        /* parsec_object */
+        parsec_ztsmqr = dplasma_zgeqrfr_tsmqr_New( (tiled_matrix_desc_t *)small_descA1,
                                                   (tiled_matrix_desc_t *)small_descA2,
                                                   (tiled_matrix_desc_t *)small_descV,
                                                   (tiled_matrix_desc_t *)small_descT,
                                                   p_work );
 
         /* recursive call */
-        dague_recursivecall( context, (dague_execution_context_t*)this_task,
-                             dague_ztsmqr, dplasma_zgeqrfr_tsmqr_Destruct,
+        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+                             parsec_ztsmqr, dplasma_zgeqrfr_tsmqr_Destruct,
                              4, small_descA1, small_descA2, small_descV, small_descT);
 
-        return DAGUE_HOOK_RETURN_ASYNC;
+        return PARSEC_HOOK_RETURN_ASYNC;
     }
     else
-        return DAGUE_HOOK_RETURN_NEXT;
+        return PARSEC_HOOK_RETURN_NEXT;
 }
 END
 
@@ -474,8 +474,8 @@ BODY
              "\t(PlasmaLeft, PlasmaConjTrans, descA->mb, tempnn, tempmm, tempnn, descA->nb, ib, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], descT->mb, p_elem_A, ldwork)\n",
              k, m, n, k, n, A1, m, n, A2, m, k, V, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_ztsmqr(PlasmaLeft, PlasmaConjTrans,
                 descA->mb, tempnn, tempmm, tempnn, descA->nb, ib,
@@ -485,8 +485,8 @@ BODY
                 T  /* descT(m,k) */, descT->mb,
                 p_elem_A, ldwork );
 
-    dague_private_memory_push( p_work, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_A );
 
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END

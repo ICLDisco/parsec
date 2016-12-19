@@ -51,25 +51,25 @@ extern "C" %{
 #define TYPE  matrix_RealFloat
 static two_dim_block_cyclic_t descA;
 
-dague_handle_t* touch_initialize(int block, int n)
+parsec_handle_t* touch_initialize(int block, int n)
 {
-    dague_touch_handle_t* handle;
+    parsec_touch_handle_t* handle;
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                1 /*nodes*/, 0 /*rank*/,
                                block, block, n, n,
                                0, 0, n, n, 1, 1, 1);
-    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
-                                     dague_datadist_getsizeoftype(TYPE) );
+                                     parsec_datadist_getsizeoftype(TYPE) );
 
-    handle = dague_touch_new( &descA, ((n + block - 1) / block) - 1 );
+    handle = parsec_touch_new( &descA, ((n + block - 1) / block) - 1 );
     assert( NULL != handle );
 
-    dague_arena_construct( handle->arenas[DAGUE_touch_DEFAULT_ARENA],
-                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           DAGUE_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_construct( handle->arenas[PARSEC_touch_DEFAULT_ARENA],
+                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
     return &handle->super;
 }

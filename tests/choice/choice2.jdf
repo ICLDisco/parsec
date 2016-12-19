@@ -2,10 +2,10 @@ extern "C" %{
 #define idecision(k)  (*((int32_t*)decision(k)))
 %}
 
-A        [ type = "dague_ddesc_t *" ]
+A        [ type = "parsec_ddesc_t *" ]
 NT       [ type = "int" ]
 P        [ type = "int" ]
-decision [ type = "dague_ddesc_t *" ]
+decision [ type = "parsec_ddesc_t *" ]
 
 GenChoice(k)
 
@@ -140,7 +140,7 @@ BODY
 {
     fprintf(stderr, "Execute TA(%d, %d)\n", k, m);
     /* Decrease counter for the task B not done */
-    dague_object_dec_nbtask( this_task->dague_object, 1 );
+    parsec_object_dec_nbtask( this_task->parsec_object, 1 );
 }
 END
 
@@ -161,6 +161,6 @@ BODY
 {
     fprintf(stderr, "Execute TB(%d, %d)\n", k, m);
     /* Decrease counter for the task A not done */
-    dague_object_dec_nbtask( this_task->dague_object, 1 );
+    parsec_object_dec_nbtask( this_task->parsec_object, 1 );
 }
 END

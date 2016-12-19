@@ -7,41 +7,41 @@
 #ifndef HASH_DATATIST_H
 #define HASH_DATATIST_H
 
-#include "dague_config.h"
+#include "parsec_config.h"
 
 #include <stdarg.h>
 #include <assert.h>
 
-#include "dague/data_distribution.h"
-#include "dague/data_internal.h"
+#include "parsec/data_distribution.h"
+#include "parsec/data_internal.h"
 
-typedef struct dague_hash_datadist_entry_s {
+typedef struct parsec_hash_datadist_entry_s {
     uint32_t      key;  /**< Unique key */
-    dague_data_t *data; /**< pointer to data meta information (if allocated) */
+    parsec_data_t *data; /**< pointer to data meta information (if allocated) */
     /* User's parameters */
     void         *actual_data;
     int           rank;
     int           vpid;
     uint32_t      size;
-    struct dague_hash_datadist_entry_s *next; /**< Next entry with the same hash */
-} dague_hash_datadist_entry_t;
+    struct parsec_hash_datadist_entry_s *next; /**< Next entry with the same hash */
+} parsec_hash_datadist_entry_t;
 
-typedef struct dague_hash_datadist_s {
-    dague_ddesc_t super;
+typedef struct parsec_hash_datadist_s {
+    parsec_ddesc_t super;
     uint32_t hash_size;
-    dague_hash_datadist_entry_t **hash;
-} dague_hash_datadist_t;
+    parsec_hash_datadist_entry_t **hash;
+} parsec_hash_datadist_t;
 
 /**
  * @FILE Interface for a hash-based PaRSEC data distribution.
  *
  * Usage:
- *  - Create the hash-based structure with dague_hash_datadist_create
- *  - Add each data element one after the other using dague_hash_datadist_set_data
+ *  - Create the hash-based structure with parsec_hash_datadist_create
+ *  - Add each data element one after the other using parsec_hash_datadist_set_data
  *    Each MPI rank must add each key at least with the rank. 
  *    data pointer and vpid must be defined only for the local node.
  *  - PaRSEC uses the data distribution
- *  - Destroy the structure with dague_hash_datadist_destroy
+ *  - Destroy the structure with parsec_hash_datadist_destroy
  */
 
 /**
@@ -50,12 +50,12 @@ typedef struct dague_hash_datadist_s {
  *
  * @RETURN the newly hash datadist (empty)
  */
-dague_hash_datadist_t *dague_hash_datadist_create(int np, int myrank);
+parsec_hash_datadist_t *parsec_hash_datadist_create(int np, int myrank);
 
 /**
  * @PARAM [IN] d: the datadist to destroy
  */
-void dague_hash_datadist_destroy(dague_hash_datadist_t *d);
+void parsec_hash_datadist_destroy(parsec_hash_datadist_t *d);
 
 /**
  * @PARAM [INOUT] d: hash datadist on which we are adding a new data element
@@ -66,6 +66,6 @@ void dague_hash_datadist_destroy(dague_hash_datadist_t *d);
  * @PARAM [IN] rank: the rank that hosts this data
  * @PARAM [IN] size: the size in bytes of this data element
  */
-void dague_hash_datadist_set_data(dague_hash_datadist_t *d, void *actual_data, uint32_t key, int vpid, int rank, uint32_t size);
+void parsec_hash_datadist_set_data(parsec_hash_datadist_t *d, void *actual_data, uint32_t key, int vpid, int rank, uint32_t size);
 
 #endif /* HASH_DATATIST_H */

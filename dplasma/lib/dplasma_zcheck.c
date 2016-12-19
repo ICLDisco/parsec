@@ -32,8 +32,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] loud
  *          The level of verbosity required.
@@ -61,7 +61,7 @@
  *          \retval 0, if the result is correct
  *
  ******************************************************************************/
-int check_zpotrf( dague_context_t *dague, int loud,
+int check_zpotrf( parsec_context_t *parsec, int loud,
                   PLASMA_enum uplo,
                   tiled_matrix_desc_t *A,
                   tiled_matrix_desc_t *A0 )
@@ -82,24 +82,24 @@ int check_zpotrf( dague_context_t *dague, int loud,
                               A->mb, A->nb, M, N, 0, 0,
                               M, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows);
 
-    LLt.mat = dague_data_allocate((size_t)LLt.super.nb_local_tiles *
+    LLt.mat = parsec_data_allocate((size_t)LLt.super.nb_local_tiles *
                                   (size_t)LLt.super.bsiz *
-                                  (size_t)dague_datadist_getsizeoftype(LLt.super.mtype));
+                                  (size_t)parsec_datadist_getsizeoftype(LLt.super.mtype));
 
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 0.,(tiled_matrix_desc_t *)&LLt );
-    dplasma_zlacpy( dague, uplo, A, (tiled_matrix_desc_t *)&LLt );
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0.,(tiled_matrix_desc_t *)&LLt );
+    dplasma_zlacpy( parsec, uplo, A, (tiled_matrix_desc_t *)&LLt );
 
     /* Compute LL' or U'U  */
     side = (uplo == PlasmaUpper ) ? PlasmaLeft : PlasmaRight;
-    dplasma_ztrmm( dague, side, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0,
+    dplasma_ztrmm( parsec, side, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0,
                    A, (tiled_matrix_desc_t*)&LLt);
 
     /* compute LL' - A or U'U - A */
-    dplasma_ztradd( dague, uplo, PlasmaNoTrans,
+    dplasma_ztradd( parsec, uplo, PlasmaNoTrans,
                     -1.0, A0, 1., (tiled_matrix_desc_t*)&LLt);
 
-    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, A0);
-    Rnorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo,
+    Anorm = dplasma_zlanhe(parsec, PlasmaInfNorm, uplo, A0);
+    Rnorm = dplasma_zlanhe(parsec, PlasmaInfNorm, uplo,
                            (tiled_matrix_desc_t*)&LLt);
 
     result = Rnorm / ( Anorm * N * eps ) ;
@@ -127,7 +127,7 @@ int check_zpotrf( dague_context_t *dague, int loud,
         info_factorization = 0;
     }
 
-    dague_data_free(LLt.mat); LLt.mat = NULL;
+    parsec_data_free(LLt.mat); LLt.mat = NULL;
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&LLt);
 
     return info_factorization;
@@ -147,8 +147,8 @@ int check_zpotrf( dague_context_t *dague, int loud,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] loud
  *          The level of verbosity required.
@@ -177,7 +177,7 @@ int check_zpotrf( dague_context_t *dague, int loud,
  *          \retval 0, if the result is correct
  *
  ******************************************************************************/
-int check_zaxmb( dague_context_t *dague, int loud,
+int check_zaxmb( parsec_context_t *parsec, int loud,
                  PLASMA_enum uplo,
                  tiled_matrix_desc_t *A,
                  tiled_matrix_desc_t *b,
@@ -191,14 +191,14 @@ int check_zaxmb( dague_context_t *dague, int loud,
     int N = b->m;
     double eps = LAPACKE_dlamch_work('e');
 
-    Anorm = dplasma_zlanhe(dague, PlasmaInfNorm, uplo, A);
-    Bnorm = dplasma_zlange(dague, PlasmaInfNorm, b);
-    Xnorm = dplasma_zlange(dague, PlasmaInfNorm, x);
+    Anorm = dplasma_zlanhe(parsec, PlasmaInfNorm, uplo, A);
+    Bnorm = dplasma_zlange(parsec, PlasmaInfNorm, b);
+    Xnorm = dplasma_zlange(parsec, PlasmaInfNorm, x);
 
     /* Compute b - A*x */
-    dplasma_zhemm( dague, PlasmaLeft, uplo, -1.0, A, x, 1.0, b);
+    dplasma_zhemm( parsec, PlasmaLeft, uplo, -1.0, A, x, 1.0, b);
 
-    Rnorm = dplasma_zlange(dague, PlasmaInfNorm, b);
+    Rnorm = dplasma_zlange(parsec, PlasmaInfNorm, b);
 
     result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * N * eps ) ;
 
@@ -238,8 +238,8 @@ int check_zaxmb( dague_context_t *dague, int loud,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] loud
  *          The level of verbosity required.
@@ -262,7 +262,7 @@ int check_zaxmb( dague_context_t *dague, int loud,
  *          \retval 0, if the result is correct
  *
  ******************************************************************************/
-int check_zpoinv( dague_context_t *dague, int loud,
+int check_zpoinv( parsec_context_t *parsec, int loud,
                   PLASMA_enum uplo,
                   tiled_matrix_desc_t *A,
                   tiled_matrix_desc_t *Ainv )
@@ -280,20 +280,20 @@ int check_zpoinv( dague_context_t *dague, int loud,
                                A->mb, A->nb, A->n, A->n, 0, 0,
                                A->n, A->n, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows);
 
-    Id.mat = dague_data_allocate((size_t)Id.super.nb_local_tiles *
+    Id.mat = parsec_data_allocate((size_t)Id.super.nb_local_tiles *
                                   (size_t)Id.super.bsiz *
-                                  (size_t)dague_datadist_getsizeoftype(Id.super.mtype));
+                                  (size_t)parsec_datadist_getsizeoftype(Id.super.mtype));
 
-    dplasma_zlaset( dague, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
 
     /* Id - A^-1 * A */
-    dplasma_zhemm(dague, PlasmaLeft, uplo,
+    dplasma_zhemm(parsec, PlasmaLeft, uplo,
                   -1., Ainv, A,
                   1., (tiled_matrix_desc_t *)&Id );
 
-    Anorm    = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, A );
-    Ainvnorm = dplasma_zlanhe( dague, PlasmaOneNorm, uplo, Ainv );
-    Rnorm    = dplasma_zlange( dague, PlasmaOneNorm, (tiled_matrix_desc_t*)&Id );
+    Anorm    = dplasma_zlanhe( parsec, PlasmaOneNorm, uplo, A );
+    Ainvnorm = dplasma_zlanhe( parsec, PlasmaOneNorm, uplo, Ainv );
+    Rnorm    = dplasma_zlange( parsec, PlasmaOneNorm, (tiled_matrix_desc_t*)&Id );
 
     result = Rnorm / ( (Anorm*Ainvnorm)*A->n*eps );
     if ( loud > 2 ) {
@@ -308,7 +308,7 @@ int check_zpoinv( dague_context_t *dague, int loud,
         info_solution = 0;
     }
 
-    dague_data_free(Id.mat);
+    parsec_data_free(Id.mat);
     tiled_matrix_desc_destroy((tiled_matrix_desc_t*)&Id);
 
     return info_solution;

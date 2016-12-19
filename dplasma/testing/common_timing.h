@@ -1,14 +1,14 @@
 #ifndef TIMING_H
 #define TIMING_H
 
-#include "dague_config.h"
+#include "parsec_config.h"
 #include <stdio.h>
 #include <sys/time.h>
 
 extern double time_elapsed;
 extern double sync_time_elapsed;
 
-#if defined( DAGUE_HAVE_MPI)
+#if defined( PARSEC_HAVE_MPI)
 # define get_cur_time() MPI_Wtime()
 #else
 static inline double get_cur_time(void)
@@ -22,11 +22,11 @@ static inline double get_cur_time(void)
 }
 #endif
 
-#if defined(DAGUE_PROF_TRACE)
-#define DAGUE_PROFILING_START() dague_profiling_start()
+#if defined(PARSEC_PROF_TRACE)
+#define PARSEC_PROFILING_START() parsec_profiling_start()
 #else
-#define DAGUE_PROFILING_START()
-#endif  /* defined(DAGUE_PROF_TRACE) */
+#define PARSEC_PROFILING_START()
+#endif  /* defined(PARSEC_PROF_TRACE) */
 
 #define TIME_START() do { time_elapsed = get_cur_time(); } while(0)
 #define TIME_STOP() do { time_elapsed = get_cur_time() - time_elapsed; } while(0)
@@ -36,10 +36,10 @@ static inline double get_cur_time(void)
   printf print; \
 } while(0)
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 # define SYNC_TIME_START() do {                 \
         MPI_Barrier(MPI_COMM_WORLD);            \
-        DAGUE_PROFILING_START();                \
+        PARSEC_PROFILING_START();                \
         sync_time_elapsed = get_cur_time();     \
     } while(0)
 # define SYNC_TIME_STOP() do {                                  \

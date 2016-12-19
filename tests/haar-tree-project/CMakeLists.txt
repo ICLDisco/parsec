@@ -5,7 +5,7 @@ jdf_rules(project_generated "${CMAKE_CURRENT_SOURCE_DIR}/project.jdf;${CMAKE_CUR
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
-dague_addtest(C project "main.c;${project_generated};tree_dist.c")
+parsec_addtest(C project "main.c;${project_generated};tree_dist.c")
 
 add_test(shm_haar_tree "./project" "-x")
 if( MPI_C_FOUND )

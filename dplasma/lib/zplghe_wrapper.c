@@ -20,7 +20,7 @@ struct zplghe_args_s {
 typedef struct zplghe_args_s zplghe_args_t;
 
 static int
-dplasma_zplghe_operator( dague_execution_unit_t *eu,
+dplasma_zplghe_operator( parsec_execution_unit_t *eu,
                          const tiled_matrix_desc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
@@ -28,7 +28,7 @@ dplasma_zplghe_operator( dague_execution_unit_t *eu,
 {
     int tempmm, tempnn, ldam;
     zplghe_args_t     *args = (zplghe_args_t*)op_data;
-    dague_complex64_t *A    = (dague_complex64_t*)_A;
+    parsec_complex64_t *A    = (parsec_complex64_t*)_A;
     (void)eu;
     (void)uplo;
 
@@ -79,8 +79,8 @@ dplasma_zplghe_operator( dague_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zplghe_Destruct();
  *
  *******************************************************************************
@@ -90,7 +90,7 @@ dplasma_zplghe_operator( dague_execution_unit_t *eu,
  * @sa dplasma_cplghe_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zplghe_New( double bump, PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed)
@@ -124,7 +124,7 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zplghe_Destruct( dague_handle_t *handle )
+dplasma_zplghe_Destruct( parsec_handle_t *handle )
 {
     dplasma_map_Destruct(handle);
 }
@@ -140,8 +140,8 @@ dplasma_zplghe_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] bump
  *          The value to add to the diagonal to be sure
@@ -175,12 +175,12 @@ dplasma_zplghe_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zplghe( dague_context_t *dague,
+dplasma_zplghe( parsec_context_t *parsec,
                 double bump, PLASMA_enum uplo,
                 tiled_matrix_desc_t *A,
                 unsigned long long int seed)
 {
-    dague_handle_t *dague_zplghe = NULL;
+    parsec_handle_t *parsec_zplghe = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -191,12 +191,12 @@ dplasma_zplghe( dague_context_t *dague,
         return -3;
     }
 
-    dague_zplghe = dplasma_zplghe_New( bump, uplo, A, seed );
+    parsec_zplghe = dplasma_zplghe_New( bump, uplo, A, seed );
 
-    if ( dague_zplghe != NULL ) {
-        dague_enqueue(dague, (dague_handle_t*)dague_zplghe);
-        dplasma_progress(dague);
-        dplasma_zplghe_Destruct( dague_zplghe );
+    if ( parsec_zplghe != NULL ) {
+        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplghe);
+        dplasma_progress(parsec);
+        dplasma_zplghe_Destruct( parsec_zplghe );
     }
     return 0;
 }

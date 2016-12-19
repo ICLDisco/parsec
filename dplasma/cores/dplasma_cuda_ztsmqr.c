@@ -27,12 +27,12 @@ dplasma_cuda_zparfb(PLASMA_enum side, PLASMA_enum trans,
                     int M1, int N1,
                     int M2, int N2,
                     int K, int L,
-                    dague_complex64_t *A1, int LDA1,
-                    dague_complex64_t *A2, int LDA2,
-                    const dague_complex64_t *V, int LDV,
-                    const dague_complex64_t *T, int LDT,
-                    dague_complex64_t *WORK, int LDWORK,
-                    dague_complex64_t *WORKC, int LDWORKC,
+                    parsec_complex64_t *A1, int LDA1,
+                    parsec_complex64_t *A2, int LDA2,
+                    const parsec_complex64_t *V, int LDV,
+                    const parsec_complex64_t *T, int LDT,
+                    parsec_complex64_t *WORK, int LDWORK,
+                    parsec_complex64_t *WORKC, int LDWORKC,
                     cudaStream_t stream)
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
@@ -172,15 +172,15 @@ dplasma_cuda_zparfb(PLASMA_enum side, PLASMA_enum trans,
              *
              */
             fprintf(stderr, "Not implemented (Column or Rowwise / Forward / Right)");
-            return DAGUE_NOT_SUPPORTED;
+            return PARSEC_NOT_SUPPORTED;
         }
     }
     else {
         fprintf(stderr, "Not implemented (Backward / Left or Right)");
-        return DAGUE_NOT_SUPPORTED;
+        return PARSEC_NOT_SUPPORTED;
     }
 
-    return DAGUE_SUCCESS;
+    return PARSEC_SUCCESS;
 }
 
 int
@@ -188,12 +188,12 @@ dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
                      int M1, int N1,
                      int M2, int N2,
                      int K, int IB,
-                     dague_complex64_t *A1, int LDA1,
-                     dague_complex64_t *A2, int LDA2,
-                     const dague_complex64_t *V, int LDV,
-                     const dague_complex64_t *T, int LDT,
-                     dague_complex64_t *WORK, int LDWORK,
-                     dague_complex64_t *WORKC, int LDWORKC,
+                     parsec_complex64_t *A1, int LDA1,
+                     parsec_complex64_t *A2, int LDA2,
+                     const parsec_complex64_t *V, int LDV,
+                     const parsec_complex64_t *T, int LDT,
+                     parsec_complex64_t *WORK, int LDWORK,
+                     parsec_complex64_t *WORKC, int LDWORKC,
                      cudaStream_t stream)
 {
     int i, i1, i3;
@@ -262,7 +262,7 @@ dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
 
     /* Quick return */
     if ((M1 == 0) || (N1 == 0) || (M2 == 0) || (N2 == 0) || (K == 0) || (IB == 0))
-        return DAGUE_SUCCESS;
+        return PARSEC_SUCCESS;
 
     if (((side == PlasmaLeft)  && (trans != PlasmaNoTrans))
         || ((side == PlasmaRight) && (trans == PlasmaNoTrans))) {
@@ -302,5 +302,5 @@ dplasma_cuda_ztsmqr( PLASMA_enum side, PLASMA_enum trans,
                              T + LDT*i, LDT,
                              WORK, LDWORK, WORKC, LDWORKC, stream );
     }
-    return DAGUE_SUCCESS;
+    return PARSEC_SUCCESS;
 }

@@ -6,11 +6,11 @@
 #ifndef __VECTOR_TWO_DIM_CYCLIC_H__
 #define __VECTOR_TWO_DIM_CYCLIC_H__
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
 
-#include "dague_config.h"
+#include "parsec_config.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/grid_2Dcyclic.h"
 

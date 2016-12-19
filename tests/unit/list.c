@@ -1,4 +1,4 @@
-#include "dague_config.h"
+#include "parsec_config.h"
 #undef NDEBUG
 #include <pthread.h>
 #include <stdarg.h>
@@ -9,12 +9,12 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif
-#include "dague/class/list.h"
-#include "dague/os-spec-timing.h"
-#include "dague/bindthread.h"
+#include "parsec/class/list.h"
+#include "parsec/os-spec-timing.h"
+#include "parsec/bindthread.h"
 
 static unsigned int NBELT = 8192;
 static unsigned int NBTIMES = 1000000;
@@ -28,11 +28,11 @@ static void fatal(const char *format, ...)
     raise(SIGABRT);
 }
 
-static dague_list_t l1;
-static dague_list_t l2;
+static parsec_list_t l1;
+static parsec_list_t l2;
 
 typedef struct {
-    dague_list_item_t list;
+    parsec_list_item_t list;
     unsigned int base;
     unsigned int nbelt;
     unsigned int elts[1];
@@ -46,7 +46,7 @@ static elt_t *create_elem(int base)
 
     r = rand() % 1024;
     elt = (elt_t*)malloc(r * sizeof(unsigned int) + sizeof(elt_t));
-    OBJ_CONSTRUCT(&elt->list, dague_list_item_t);
+    OBJ_CONSTRUCT(&elt->list, parsec_list_item_t);
     elt->base = base;
     elt->nbelt = r;
     for(j = 0; j < r; j++)
@@ -62,8 +62,8 @@ static void check_elt(elt_t *elt)
             fatal(" ! Error: element number %u of elt with base %u is corrupt\n", j, elt->base);
 }
 
-static void check_lifo_translate_outoforder(dague_list_t *l1,
-                                    dague_list_t *l2,
+static void check_lifo_translate_outoforder(parsec_list_t *l1,
+                                    parsec_list_t *l2,
                                     const char *l1name,
                                     const char *l2name)
 {
@@ -80,11 +80,11 @@ static void check_lifo_translate_outoforder(dague_list_t *l1,
         memset(seen, 0, NBELT);
 
     for(e = 0; e < NBELT; e++) {
-        elt = (elt_t *)dague_list_lifo_pop( l1 );
+        elt = (elt_t *)parsec_list_lifo_pop( l1 );
         if( NULL == elt )
             fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, l1name, NBELT);
         check_elt( elt );
-        dague_list_lifo_push( l2, (dague_list_item_t *)elt );
+        parsec_list_lifo_push( l2, (parsec_list_item_t *)elt );
         if( elt->base >= NBELT )
             fatal(" ! Error: base of the element %u of %s is outside boundaries\n", e, l1name);
         if( seen[elt->base] == 1 )
@@ -92,13 +92,13 @@ static void check_lifo_translate_outoforder(dague_list_t *l1,
         seen[elt->base] = 1;
     }
     /* No need to check that seen[e] == 1 for all e: this is captured by if (NULL == elt) */
-    if( (elt = (elt_t*)dague_list_lifo_pop( l1 )) != NULL )
+    if( (elt = (elt_t*)parsec_list_lifo_pop( l1 )) != NULL )
         fatal(" ! Error: unexpected element of base %u in %s: it should be empty\n",
               elt->base, l1name);
 }
 
-static void check_lifo_translate_inorder(dague_list_t *l1,
-                                        dague_list_t *l2,
+static void check_lifo_translate_inorder(parsec_list_t *l1,
+                                        parsec_list_t *l2,
                                     const char *l1name,
                                     const char *l2name)
 {
@@ -107,32 +107,32 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
     printf(" - pop them from %s, check they are ok, and push them back in %s\n",
            l1name, l2name);
 
-    elt = (elt_t *)dague_list_nolock_lifo_pop( l1 );
+    elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
     if( NULL == elt )
         fatal(" ! Error: expecting a full list in %s, got an empty one...\n", l1name);
     if( elt->base == 0 ) {
         check_elt( elt );
-        dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
+        parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
         for(e = 1; e < NBELT; e++) {
-            elt = (elt_t *)dague_list_nolock_lifo_pop( l1 );
+            elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
             if( NULL == elt )
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, l1name);
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
+            parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
         }
     } else if( elt->base == NBELT-1 ) {
         check_elt( elt );
-        dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
+        parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
         for(e = NBELT-2; ; e--) {
-            elt = (elt_t *)dague_list_nolock_lifo_pop( l1 );
+            elt = (elt_t *)parsec_list_nolock_lifo_pop( l1 );
             if( NULL == elt )
                 fatal(" ! Error: element number %u was not found at its position in %s\n", e, l1name);
             if( elt->base != e )
                 fatal(" ! Error: element number %u has its base corrupt\n", e);
             check_elt( elt );
-            dague_list_nolock_lifo_push( l2, (dague_list_item_t *)elt );
+            parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
             if( 0 == e )
                 break;
         }
@@ -143,7 +143,7 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
 
 #if 0
     /* usefull code snippet */
-    DAGUE_LIST_ITERATOR(l2, item, {
+    PARSEC_LIST_ITERATOR(l2, item, {
         printf(" %04d ", ((elt_t*)item)->base);
     });
     printf("\n");
@@ -151,38 +151,38 @@ static void check_lifo_translate_inorder(dague_list_t *l1,
 
 #define elt_comparator offsetof(elt_t, base)
 
-static void check_list_sort(dague_list_t* l1, dague_list_t* l2)
+static void check_list_sort(parsec_list_t* l1, parsec_list_t* l2)
 {
     printf(" - sort empty list l2\n");
-    dague_list_nolock_sort(l2, elt_comparator);
+    parsec_list_nolock_sort(l2, elt_comparator);
 
     printf(" - sort already sorted list l1, check it is in order\n");
-    dague_list_nolock_sort(l1, elt_comparator);
+    parsec_list_nolock_sort(l1, elt_comparator);
     check_lifo_translate_inorder(l1,l2,"l1","l2");
 
     printf(" - sort reverse sorted list l2, check it is in order\n");
-    dague_list_nolock_sort(l2, elt_comparator);
+    parsec_list_nolock_sort(l2, elt_comparator);
     check_lifo_translate_inorder(l2,l1,"l2","l1");
 
     printf(" - randomize list l1 into l2, sort l2, check it is in order\n");
     elt_t* e;
-    while(NULL != (e = (elt_t*)dague_list_nolock_fifo_pop(l1)))
+    while(NULL != (e = (elt_t*)parsec_list_nolock_fifo_pop(l1)))
     {
         int choice = rand()%3; /* do not care for true random*/
         switch(choice)
         {
             case 0:
-                dague_list_nolock_fifo_push(l1, &e->list); /* return in l1, for later */
+                parsec_list_nolock_fifo_push(l1, &e->list); /* return in l1, for later */
                 break;
             case 1:
-                dague_list_nolock_push_front(l2, &e->list);
+                parsec_list_nolock_push_front(l2, &e->list);
                 break;
             case 2:
-                dague_list_nolock_push_back(l2, &e->list);
+                parsec_list_nolock_push_back(l2, &e->list);
                 break;
         }
     }
-    dague_list_sort(l2, elt_comparator);
+    parsec_list_sort(l2, elt_comparator);
     check_lifo_translate_inorder(l2,l1,"l2","l1");
 }
 
@@ -193,9 +193,9 @@ static unsigned int    heavy_synchro = 0;
 static void *lifo_translate_elements_random(void *params)
 {
     unsigned int i;
-    dague_list_item_t *e;
+    parsec_list_item_t *e;
     uint64_t *p = (uint64_t*)params;
-    dague_time_t start, end;
+    parsec_time_t start, end;
 
     pthread_mutex_lock(&heavy_synchro_lock);
     while( heavy_synchro == 0 ) {
@@ -207,15 +207,15 @@ static void *lifo_translate_elements_random(void *params)
     start = take_time();
     while( i < heavy_synchro ) {
         if( rand() % 2 == 0 ) {
-            e = dague_list_lifo_pop( &l1 );
+            e = parsec_list_lifo_pop( &l1 );
             if(NULL != e) {
-                dague_list_lifo_push(&l2, e);
+                parsec_list_lifo_push(&l2, e);
                 i++;
             }
         } else {
-            e = dague_list_lifo_pop( &l2 );
+            e = parsec_list_lifo_pop( &l2 );
             if(NULL != e) {
-                dague_list_lifo_push(&l1, e);
+                parsec_list_lifo_push(&l1, e);
                 i++;
             }
         }
@@ -258,7 +258,7 @@ int main(int argc, char *argv[])
     min_time = 0;
     max_time = 0xffffffff;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -296,15 +296,15 @@ int main(int argc, char *argv[])
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
-    OBJ_CONSTRUCT( &l1, dague_list_t );
-    OBJ_CONSTRUCT( &l2, dague_list_t );
+    OBJ_CONSTRUCT( &l1, parsec_list_t );
+    OBJ_CONSTRUCT( &l2, parsec_list_t );
 
     printf("Sequential test.\n");
 
     printf(" - create %u random elements and push them in l1\n", NBELT);
     for(e = 0; e < NBELT; e++) {
         elt = create_elem(e);
-        dague_list_nolock_lifo_push( &l1, (dague_list_item_t *)elt );
+        parsec_list_nolock_lifo_push( &l1, (parsec_list_item_t *)elt );
     }
 
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
@@ -351,8 +351,8 @@ int main(int argc, char *argv[])
     printf(" - move all elements to l1\n");
     p = NULL;
     ch = 0;
-    while( !dague_list_nolock_is_empty( &l2 ) ) {
-        elt = (elt_t*)dague_list_nolock_lifo_pop( &l2 );
+    while( !parsec_list_nolock_is_empty( &l2 ) ) {
+        elt = (elt_t*)parsec_list_nolock_lifo_pop( &l2 );
         if( elt == NULL )
             fatal(" ! Error: list l2 is supposed to be non empty, but it is!\n");
         if( elt == p )
@@ -360,7 +360,7 @@ int main(int argc, char *argv[])
                   ch);
         ch++;
         p = elt;
-        dague_list_nolock_lifo_push( &l1, (dague_list_item_t*)elt );
+        parsec_list_nolock_lifo_push( &l1, (parsec_list_item_t*)elt );
     }
 
     check_lifo_translate_outoforder(&l1, &l2, "l1", "l2");
@@ -368,13 +368,13 @@ int main(int argc, char *argv[])
 
 
     printf(" - pop all elements from l1, and free them\n");
-    while( !dague_list_nolock_is_empty( &l1 ) ) {
-        elt = (elt_t*)dague_list_lifo_pop( &l1 );
+    while( !parsec_list_nolock_is_empty( &l1 ) ) {
+        elt = (elt_t*)parsec_list_lifo_pop( &l1 );
         free(elt);
     }
     printf(" - pop all elements from l2, and free them\n");
-    while( !dague_list_nolock_is_empty( &l2 ) ) {
-        elt = (elt_t*)dague_list_lifo_pop( &l2 );
+    while( !parsec_list_nolock_is_empty( &l2 ) ) {
+        elt = (elt_t*)parsec_list_lifo_pop( &l2 );
         free(elt);
     }
 
@@ -382,7 +382,7 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Finalized(&ch);
 #endif
     return 0;

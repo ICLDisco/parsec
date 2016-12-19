@@ -15,9 +15,9 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 #include "dplasma/cores/dplasma_zcores.h"
-#include "dague/vpmap.h"
+#include "parsec/vpmap.h"
 
 static pthread_mutex_t mumps_mutex = PTHREAD_MUTEX_INITIALIZER;
 static int mumps_init = 0;
@@ -37,7 +37,7 @@ dplasma_log2(int n)
 %}
 
 descA    [type = "tiled_matrix_desc_t*"]
-IPIV     [type = "dague_ddesc_t *" aligned=descA]
+IPIV     [type = "parsec_ddesc_t *" aligned=descA]
 TS      [type = "tiled_matrix_desc_t*" aligned=descA]
 TT      [type = "tiled_matrix_desc_t*" aligned=descA]
 lu_tab   [type = "int*"]
@@ -46,8 +46,8 @@ ib       [type = "int"]
 criteria [type = "int"]
 alpha    [type = "double"]
 W        [type = "double *"]
-p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(TS->nb))"]
-p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(TS->nb))"]
+p_work   [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(TS->nb))"]
+p_tau    [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(TS->nb))"]
 INFO     [type = "int*"]
 
 param_p   [type = int default="((two_dim_block_cyclic_t*)descA)->grid.rows" hidden=on ]
@@ -303,16 +303,16 @@ BODY
 
     printlog("zgeqrt( k=%d, i=%d )\n", k, i);
 
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     CORE_zgeqrt(tempmm, tempkn, ib,
                 A /* A(m,k) */, ldam,
                 T /* T(m,k) */, TS->mb,
                 p_elem_A, p_elem_B );
 
-    dague_private_memory_push( p_tau, p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
+    parsec_private_memory_push( p_tau, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
 
     printlog("CORE_zgeqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], ldam, T(%d,%d)[%p], TS->mb, p_elem_A, p_elem_B)",
@@ -377,7 +377,7 @@ BODY
              "\t A(%d,%d)[%p], ldam, T(%d,%d)[%p], TS->mb, A(%d,%d)[%p], ldam, p_elem_A, TS->nb)",
              tempmm, tempnn, tempnn, ib, k, m, n, m, k, A, m, k, T, m, n, C);
 
-    void *p_elem_A = dague_private_memory_pop( p_work );
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_zunmqr(
         PlasmaLeft, PlasmaConjTrans,
@@ -387,7 +387,7 @@ BODY
         C /* A(m, n) */, ldam,
         p_elem_A, TS->nb );
 
-    dague_private_memory_push( p_work, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_A );
 }
 END
 
@@ -451,8 +451,8 @@ BODY
              "\t(tempmm, tempkn, ib, A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, T(%d,%d)[%p], TT->mb, p_elem_A, p_elem_B)",
              k, m, type, p, k, A1, m, k, A2, m, k, T);
 
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsqrt(
@@ -469,8 +469,8 @@ BODY
                 T  /* T(m, k) */, TT->mb,
                 p_elem_A, p_elem_B );
     }
-    dague_private_memory_push( p_tau , p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
+    parsec_private_memory_push( p_tau , p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
 }
 END
 
@@ -555,7 +555,7 @@ BODY
              "\t A(%d,%d)[%p], A.mb, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldam, T(%d,%d)[%p], TT->mb, p_elem_A, ldwork)",
              k, m, n, type, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
-    void *p_elem_A = dague_private_memory_pop( p_work );
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmqr(
@@ -576,7 +576,7 @@ BODY
                 T  /* T(m, k) */, TT->mb,
                 p_elem_A, ldwork );
     }
-    dague_private_memory_push( p_work, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_A );
 }
 END
 
@@ -759,7 +759,7 @@ zlufacto(k, t)
 
 BODY
   {
-      /* dague_complex64_t *lA  = (dague_complex64_t*)A; */
+      /* parsec_complex64_t *lA  = (parsec_complex64_t*)A; */
       int ks = k + (s-1)*param_p;
       int tempm = (s-1) * descA->mb +
           (( ks == descA->mt-1 ) ? descA->m - ks * descA->mb : descA->mb);
@@ -1368,7 +1368,7 @@ BODY
             }
         }
 
-        dague_atomic_add_32b( &this_task->dague_handle->nb_tasks, -nb_tasks );
+        parsec_atomic_add_32b( &this_task->parsec_handle->nb_tasks, -nb_tasks );
     }
 }
 END

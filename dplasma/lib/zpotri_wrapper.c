@@ -22,8 +22,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of A is referenced;
@@ -51,7 +51,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zpotri( dague_context_t *dague,
+dplasma_zpotri( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t* A )
 {
@@ -62,23 +62,23 @@ dplasma_zpotri( dague_context_t *dague,
         return -1;
     }
 
-#ifdef DAGUE_COMPOSITION
-    dague_handle_t *dague_ztrtri = NULL;
-    dague_handle_t *dague_zlauum = NULL;
+#ifdef PARSEC_COMPOSITION
+    parsec_handle_t *parsec_ztrtri = NULL;
+    parsec_handle_t *parsec_zlauum = NULL;
 
-    dague_ztrtri = dplasma_ztrtri_New(uplo, PlasmaNonUnit, A, &info );
-    dague_zlauum = dplasma_zlauum_New(uplo, A );
+    parsec_ztrtri = dplasma_ztrtri_New(uplo, PlasmaNonUnit, A, &info );
+    parsec_zlauum = dplasma_zlauum_New(uplo, A );
 
-    dague_enqueue( dague, dague_ztrtri );
-    dague_enqueue( dague, dague_zlauum );
+    parsec_enqueue( parsec, parsec_ztrtri );
+    parsec_enqueue( parsec, parsec_zlauum );
 
-    dplasma_progress( dague );
+    dplasma_progress( parsec );
 
-    dplasma_ztrtri_Destruct( dague_ztrtri );
-    dplasma_zlauum_Destruct( dague_zlauum );
+    dplasma_ztrtri_Destruct( parsec_ztrtri );
+    dplasma_zlauum_Destruct( parsec_zlauum );
 #else
-    info = dplasma_ztrtri( dague, uplo, PlasmaNonUnit, A );
-    dplasma_zlauum( dague, uplo, A );
+    info = dplasma_ztrtri( parsec, uplo, PlasmaNonUnit, A );
+    dplasma_zlauum( parsec, uplo, A );
 #endif
     return info;
 }

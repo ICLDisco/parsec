@@ -16,7 +16,7 @@ extern "C" %{
 
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
-alpha     [type = "dague_complex64_t"]
+alpha     [type = "parsec_complex64_t"]
 descA     [type = "const tiled_matrix_desc_t*"]
 descB     [type = "const tiled_matrix_desc_t*"]
 beta      [type = "double"]
@@ -50,12 +50,12 @@ BODY
     printlog("CORE_zher2k(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, B(%d,%d)[%p], ldbn, dbeta, C(%d,%d)[%p], ldcn)\n",
              n, k, n, k, A, n, k, B, n, n, C);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zher2k(uplo, trans, tempnn, tempkn,
                 alpha, A /* descA(n,k) */, ldan,
                        B /* descB(n,k) */, ldbn,
                 dbeta, C /* descC(n,n) */, ldcn );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -82,20 +82,20 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldbn = BLKLDD( descB, n );
     int ldcm = BLKLDD( descC, m );
-    dague_complex64_t zbeta = (k == 0) ? ((dague_complex64_t)beta) : (dague_complex64_t)1.;
+    parsec_complex64_t zbeta = (k == 0) ? ((parsec_complex64_t)beta) : (parsec_complex64_t)1.;
 
     printlog("CORE_zgemm_AB(%d, %d, %d)\n"
              "\t(PlasmaNoTrans, PlasmaConjTrans, m=%d, n=%d, k=%d, alpha=(%e,%e), A(%d,%d)[%p], lda=%d, B(%d,%d)[%p], ldb=%d, beta=(%e,%e), C(%d,%d)[%p], ldc=%d)\n",
              m, n, k, tempmm, tempnn, tempkn,
              creal(alpha), cimag(alpha), m, k, A, ldam, n, k, B, ldbn,
              creal(zbeta), cimag(zbeta), m, n, C, ldcm);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
                tempmm, tempnn, tempkn,
                alpha, A /* descA(m,k) */, ldam,
                       B /* descB(n,k) */, ldbn,
                zbeta, C /* descC(m,n) */, ldcm );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -129,13 +129,13 @@ BODY
              creal(alpha), cimag(alpha), m, k, A, ldbm, n, k, B, ldan,
              creal(1.),    cimag(1.),    m, n, C, ldcm);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
                tempmm, tempnn, tempkn,
                conj(alpha), A /* descB(m,k) */, ldbm,
                             B /* descA(n,k) */, ldan,
                1.,          C /* descC(m,n) */, ldcm );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

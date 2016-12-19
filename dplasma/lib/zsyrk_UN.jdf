@@ -16,9 +16,9 @@ extern "C" %{
 
 uplo      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
-alpha     [type = "dague_complex64_t"]
+alpha     [type = "parsec_complex64_t"]
 descA     [type = "const tiled_matrix_desc_t*"]
-beta      [type = "dague_complex64_t"]
+beta      [type = "parsec_complex64_t"]
 descC     [type = "tiled_matrix_desc_t*"]
 
 
@@ -41,17 +41,17 @@ BODY
     int tempnn = (n==(descC->nt-1)) ? (descC->n-(n*descC->nb)) : descC->nb;
     int tempkn = (k==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
     int ldan = BLKLDD( descA, n );
-    dague_complex64_t zbeta = (k==0) ? beta : ((dague_complex64_t)1.);
+    parsec_complex64_t zbeta = (k==0) ? beta : ((parsec_complex64_t)1.);
     int ldcn = BLKLDD( descC, n );
 
     printlog("CORE_zsyrk(%d, %d)\n"
              "\t(uplo, trans, tempnn=%d, tempkn=%d, alpha, A(%d,%d)[%p], ldan=%d, zbeta, C(%d,%d)[%p], ldcn=%d)\n",
              n, k, tempnn, tempkn, n, k, A, ldan, n, n, C, ldcn );
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zsyrk(uplo, trans, tempnn, tempkn,
                alpha, A /* descA(n,k) */, ldan,
                zbeta, C /* descC(n,n) */, ldcn );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -95,19 +95,19 @@ BODY
     int tempkn = (k==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
     int ldan = BLKLDD( descA, n );
     int ldam = BLKLDD( descA, m );
-    dague_complex64_t zbeta = (k==0) ? beta : (dague_complex64_t)1.;
+    parsec_complex64_t zbeta = (k==0) ? beta : (parsec_complex64_t)1.;
     int ldcn = BLKLDD( descC, n );
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
              n, m, k, n, k, A, m, k, B, n, m, C);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(trans, PlasmaTrans, tempnn,
                tempmm, tempkn, alpha,
                A /* descA(n,k) */, ldan, B /* descA(m,k) */,
                ldam, zbeta, C /* descC(n,m) */,
                ldcn );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

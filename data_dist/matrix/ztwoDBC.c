@@ -8,28 +8,28 @@
  */
 
 #include <stdint.h>
-#include "dague_config.h"
+#include "parsec_config.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dague/data_internal.h"
+#include "parsec/data_internal.h"
 
-int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, dague_complex64_t* A, int lda)
+int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, parsec_complex64_t* A, int lda)
 {
     int i, j, il, jl, x, y;
     int imax, jmax;
-    dague_complex64_t *bdl, *f77;
+    parsec_complex64_t *bdl, *f77;
     int64_t dec;
-    dague_data_t* data;
+    parsec_data_t* data;
 
     /* check which tiles to generate */
     for ( j = 0 ; j < Mdesc->super.nt ; j++)
         for ( i = 0 ; i < Mdesc->super.mt ; i++) {
             if( Mdesc->super.super.myrank ==
-                Mdesc->super.super.rank_of((dague_ddesc_t *)Mdesc, i, j ) ) {
+                Mdesc->super.super.rank_of((parsec_ddesc_t *)Mdesc, i, j ) ) {
                 il = i / ( Mdesc->grid.strows * Mdesc->grid.rows ) +  (i % ( Mdesc->grid.strows * Mdesc->grid.rows )) - ( Mdesc->grid.strows * Mdesc->grid.rrank );
                 jl = j / ( Mdesc->grid.stcols * Mdesc->grid.cols ) +  (j % ( Mdesc->grid.stcols * Mdesc->grid.cols )) - ( Mdesc->grid.stcols * Mdesc->grid.crank );
                 dec = ((int64_t)(Mdesc->super.nb)*(int64_t)lda*(int64_t)(jl)) + (int64_t)((Mdesc->super.mb)*(il));
-                data = Mdesc->super.super.data_of((dague_ddesc_t *)Mdesc, i, j );
-                bdl = DAGUE_DATA_COPY_GET_PTR(data->device_copies[0]);
+                data = Mdesc->super.super.data_of((parsec_ddesc_t *)Mdesc, i, j );
+                bdl = PARSEC_DATA_COPY_GET_PTR(data->device_copies[0]);
                 f77 = &A[ dec ];
 
                 imax = ( i == Mdesc->super.mt-1 ) ? Mdesc->super.m - i * Mdesc->super.mb : Mdesc->super.mb ;

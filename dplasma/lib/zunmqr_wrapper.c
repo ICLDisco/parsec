@@ -12,7 +12,7 @@
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 
 #include "zunmqr_LN.h"
 #include "zunmqr_LC.h"
@@ -24,7 +24,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zunmqr_New - Generates the dague handle that overwrites the general
+ *  dplasma_zunmqr_New - Generates the parsec handle that overwrites the general
  *  M-by-N matrix C with
  *
  *                  SIDE = 'L'     SIDE = 'R'
@@ -75,7 +75,7 @@
  *******************************************************************************
  *
  * @return
- *          \retval The dague handle which describes the operation to perform
+ *          \retval The parsec handle which describes the operation to perform
  *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
@@ -88,13 +88,13 @@
  * @sa dplasma_zgeqrf_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T,
                     tiled_matrix_desc_t *C )
 {
-    dague_handle_t* handle;
+    parsec_handle_t* handle;
     int Am, ib = T->mb;
 
     /* if ( !dplasma_check_desc(A) ) { */
@@ -141,13 +141,13 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
 
     if ( side == PlasmaLeft ) {
         if ( trans == PlasmaNoTrans ) {
-            handle = (dague_handle_t*)dague_zunmqr_LN_new( side, trans,
+            handle = (parsec_handle_t*)parsec_zunmqr_LN_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
                                                            NULL);
         } else {
-            handle = (dague_handle_t*)dague_zunmqr_LC_new( side, trans,
+            handle = (parsec_handle_t*)parsec_zunmqr_LC_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
@@ -155,13 +155,13 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
         }
     } else {
         if ( trans == PlasmaNoTrans ) {
-            handle = (dague_handle_t*)dague_zunmqr_RN_new( side, trans,
+            handle = (parsec_handle_t*)parsec_zunmqr_RN_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
                                                            NULL);
         } else {
-            handle = (dague_handle_t*)dague_zunmqr_RC_new( side, trans,
+            handle = (parsec_handle_t*)parsec_zunmqr_RC_new( side, trans,
                                                            A,
                                                            C,
                                                            T,
@@ -169,26 +169,26 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
         }
     }
 
-    ((dague_zunmqr_LC_handle_t*)handle)->_g_pool_0 = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( ((dague_zunmqr_LC_handle_t*)handle)->_g_pool_0, ib * T->nb * sizeof(dague_complex64_t) );
+    ((parsec_zunmqr_LC_handle_t*)handle)->_g_pool_0 = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( ((parsec_zunmqr_LC_handle_t*)handle)->_g_pool_0, ib * T->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( ((dague_zunmqr_LC_handle_t*)handle)->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( ((parsec_zunmqr_LC_handle_t*)handle)->arenas[PARSEC_zunmqr_LC_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( ((dague_zunmqr_LC_handle_t*)handle)->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA],
-                             A->mb*A->nb*sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 0 );
+    dplasma_add2arena_lower( ((parsec_zunmqr_LC_handle_t*)handle)->arenas[PARSEC_zunmqr_LC_LOWER_TILE_ARENA],
+                             A->mb*A->nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( ((dague_zunmqr_LC_handle_t*)handle)->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA],
-                                 T->mb*T->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, T->mb, T->nb, -1);
+    dplasma_add2arena_rectangle( ((parsec_zunmqr_LC_handle_t*)handle)->arenas[PARSEC_zunmqr_LC_LITTLE_T_ARENA],
+                                 T->mb*T->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
     return handle;
 }
@@ -214,18 +214,18 @@ dplasma_zunmqr_New( PLASMA_enum side, PLASMA_enum trans,
  *
  ******************************************************************************/
 void
-dplasma_zunmqr_Destruct( dague_handle_t *handle )
+dplasma_zunmqr_Destruct( parsec_handle_t *handle )
 {
-    dague_zunmqr_LC_handle_t *dague_zunmqr = (dague_zunmqr_LC_handle_t *)handle;
+    parsec_zunmqr_LC_handle_t *parsec_zunmqr = (parsec_zunmqr_LC_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zunmqr->arenas[DAGUE_zunmqr_LC_DEFAULT_ARENA   ] );
-    dague_matrix_del2arena( dague_zunmqr->arenas[DAGUE_zunmqr_LC_LOWER_TILE_ARENA] );
-    dague_matrix_del2arena( dague_zunmqr->arenas[DAGUE_zunmqr_LC_LITTLE_T_ARENA  ] );
+    parsec_matrix_del2arena( parsec_zunmqr->arenas[PARSEC_zunmqr_LC_DEFAULT_ARENA   ] );
+    parsec_matrix_del2arena( parsec_zunmqr->arenas[PARSEC_zunmqr_LC_LOWER_TILE_ARENA] );
+    parsec_matrix_del2arena( parsec_zunmqr->arenas[PARSEC_zunmqr_LC_LITTLE_T_ARENA  ] );
 
-    dague_private_memory_fini( dague_zunmqr->_g_pool_0 );
-    free( dague_zunmqr->_g_pool_0 );
+    parsec_private_memory_fini( parsec_zunmqr->_g_pool_0 );
+    free( parsec_zunmqr->_g_pool_0 );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -249,8 +249,8 @@ dplasma_zunmqr_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] side
  *          @arg PlasmaLeft:  apply Q or Q**H from the left;
@@ -298,16 +298,16 @@ dplasma_zunmqr_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zunmqr( dague_context_t *dague,
+dplasma_zunmqr( parsec_context_t *parsec,
                 PLASMA_enum side, PLASMA_enum trans,
                 tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *T,
                 tiled_matrix_desc_t *C )
 {
-    dague_handle_t *dague_zunmqr = NULL;
+    parsec_handle_t *parsec_zunmqr = NULL;
     int Am;
 
-    if (dague == NULL) {
+    if (parsec == NULL) {
         dplasma_error("dplasma_zunmqr", "dplasma not initialized");
         return -1;
     }
@@ -344,12 +344,12 @@ dplasma_zunmqr( dague_context_t *dague,
     if (dplasma_imin(C->m, dplasma_imin(C->n, A->n)) == 0)
         return 0;
 
-    dague_zunmqr = dplasma_zunmqr_New(side, trans, A, T, C);
+    parsec_zunmqr = dplasma_zunmqr_New(side, trans, A, T, C);
 
-    if ( dague_zunmqr != NULL ){
-        dague_enqueue(dague, dague_zunmqr);
-        dplasma_progress(dague);
-        dplasma_zunmqr_Destruct( dague_zunmqr );
+    if ( parsec_zunmqr != NULL ){
+        parsec_enqueue(parsec, parsec_zunmqr);
+        dplasma_progress(parsec);
+        dplasma_zunmqr_Destruct( parsec_zunmqr );
     }
     return 0;
 }

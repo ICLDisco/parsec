@@ -18,7 +18,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrdsm_New - Generates dague handle to compute triangular solve
+ *  dplasma_ztrdsm_New - Generates parsec handle to compute triangular solve
  *     op( A ) * X = B or X * op( A ) = B
  *  WARNING: The computations are not done by this call.
  *
@@ -32,8 +32,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrdsm_Destruct();
  *
  *******************************************************************************
@@ -45,19 +45,19 @@
  * @sa dplasma_strdsm_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
 {
-    dague_handle_t *dague_trdsm = NULL; 
+    parsec_handle_t *parsec_trdsm = NULL; 
 
-    dague_trdsm = (dague_handle_t*)dague_ztrdsm_new( A, B );
+    parsec_trdsm = (parsec_handle_t*)parsec_ztrdsm_new( A, B );
 
-    dplasma_add2arena_tile(((dague_ztrdsm_handle_t*)dague_trdsm)->arenas[DAGUE_ztrdsm_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, A->mb);
+    dplasma_add2arena_tile(((parsec_ztrdsm_handle_t*)parsec_trdsm)->arenas[PARSEC_ztrdsm_DEFAULT_ARENA],
+                           A->mb*A->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, A->mb);
 
-    return dague_trdsm;
+    return parsec_trdsm;
 }
 
 /**
@@ -81,11 +81,11 @@ dplasma_ztrdsm_New(const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B )
  *
  ******************************************************************************/
 void
-dplasma_ztrdsm_Destruct( dague_handle_t *handle )
+dplasma_ztrdsm_Destruct( parsec_handle_t *handle )
 {
-    dague_ztrdsm_handle_t *otrdsm = (dague_ztrdsm_handle_t *)handle;
-    dague_matrix_del2arena( otrdsm->arenas[DAGUE_ztrdsm_DEFAULT_ARENA] );
-    dague_handle_free(handle);
+    parsec_ztrdsm_handle_t *otrdsm = (parsec_ztrdsm_handle_t *)handle;
+    parsec_matrix_del2arena( otrdsm->arenas[PARSEC_ztrdsm_DEFAULT_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -97,8 +97,8 @@ dplasma_ztrdsm_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] A
  *
@@ -120,19 +120,19 @@ dplasma_ztrdsm_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_ztrdsm( dague_context_t *dague,
+dplasma_ztrdsm( parsec_context_t *parsec,
                 const tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *B)
 {
-    dague_handle_t *dague_ztrdsm = NULL;
+    parsec_handle_t *parsec_ztrdsm = NULL;
 
-    dague_ztrdsm = dplasma_ztrdsm_New(A, B);
+    parsec_ztrdsm = dplasma_ztrdsm_New(A, B);
 
-    if ( dague_ztrdsm != NULL ) {
-        dague_enqueue( dague, dague_ztrdsm );
-        dplasma_progress( dague );
+    if ( parsec_ztrdsm != NULL ) {
+        parsec_enqueue( parsec, parsec_ztrdsm );
+        dplasma_progress( parsec );
 
-        dplasma_ztrdsm_Destruct( dague_ztrdsm );
+        dplasma_ztrdsm_Destruct( parsec_ztrdsm );
     }
 
     return 0;

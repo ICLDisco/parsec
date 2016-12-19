@@ -1,7 +1,7 @@
-#include <dague.h>
+#include <parsec.h>
 #include <data_dist/matrix/matrix.h>
 #include <data_dist/matrix/two_dim_rectangle_cyclic.h>
-#include <dague/arena.h>
+#include <parsec/arena.h>
 
 #include "tree_dist.h"
 #include "project.h"
@@ -40,7 +40,7 @@ static void cksum_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
     do {
         ov = *cksum;
         nv = ov ^ up;
-    } while(!dague_atomic_cas(cksum, ov, nv));
+    } while(!parsec_atomic_cas(cksum, ov, nv));
     (void)tree;
 }
 
@@ -62,7 +62,7 @@ static void rs_add(redim_string_t *rs, const char *format, ...)
     sz = vsnprintf(NULL, 0, format, ap) + 1;
     va_end(ap);
 
-    my_pos = dague_atomic_add_32b(&rs->cur_pos, sz) - sz;
+    my_pos = parsec_atomic_add_32b(&rs->cur_pos, sz) - sz;
     assert(my_pos>=0);
     for(;;) {
         if( my_pos + sz < rs->size ) {
@@ -135,13 +135,13 @@ static void print_link_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world;
     tree_dist_t *treeA;
     two_dim_block_cyclic_t fakeDesc;
-    dague_project_handle_t *project;
-    dague_walk_handle_t *walker;
-    dague_arena_t arena;
+    parsec_project_handle_t *project;
+    parsec_walk_handle_t *walker;
+    parsec_arena_t arena;
     int do_checks = 0, be_verbose = 0;
     int pargc = 0, i, dashdash = -1;
     char **pargv;
@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
     uint64_t cksum = 0;
     redim_string_t *rs;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -178,7 +178,7 @@ int main(int argc, char *argv[])
     } else {
         pargv[0] = NULL;
     }
-    dague = dague_init(-1, &pargc, &pargv);
+    parsec = parsec_init(-1, &pargc, &pargv);
 
 
     while ((ch = getopt(argc, argv, "xvd:")) != -1) {
@@ -220,29 +220,29 @@ int main(int argc, char *argv[])
     two_dim_block_cyclic_init(&fakeDesc, matrix_RealFloat, matrix_Tile,
                               world, rank, 1, 1, world, world, 0, 0, world, world, 1, 1, 1);
 
-    dague_arena_construct( &arena,
-                           2 * dague_datadist_getsizeoftype(matrix_RealFloat),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_float_t
+    parsec_arena_construct( &arena,
+                           2 * parsec_datadist_getsizeoftype(matrix_RealFloat),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_float_t
                          );
-    project = dague_project_new(treeA, world, (dague_ddesc_t*)&fakeDesc, 1e-3, be_verbose);
-    project->arenas[DAGUE_project_DEFAULT_ARENA] = &arena;
-    dague_enqueue(dague, &project->super);
-    dague_context_wait(dague);
+    project = parsec_project_new(treeA, world, (parsec_ddesc_t*)&fakeDesc, 1e-3, be_verbose);
+    project->arenas[PARSEC_project_DEFAULT_ARENA] = &arena;
+    parsec_enqueue(parsec, &project->super);
+    parsec_context_wait(parsec);
 
     if( do_checks ) {
-        walker = dague_walk_new(treeA, world, (dague_ddesc_t*)&fakeDesc,
+        walker = parsec_walk_new(treeA, world, (parsec_ddesc_t*)&fakeDesc,
                                 &cksum, cksum_node_fn, NULL,
                                 be_verbose);
     } else {
         rs = rs_new();
-        walker = dague_walk_new(treeA, world, (dague_ddesc_t*)&fakeDesc,
+        walker = parsec_walk_new(treeA, world, (parsec_ddesc_t*)&fakeDesc,
                                 rs, print_node_fn, print_link_fn,
                                 be_verbose);
     }
-    walker->arenas[DAGUE_walk_DEFAULT_ARENA] = &arena;
-    dague_enqueue(dague, &walker->super);
-    dague_context_wait(dague);
+    walker->arenas[PARSEC_walk_DEFAULT_ARENA] = &arena;
+    parsec_enqueue(parsec, &walker->super);
+    parsec_context_wait(parsec);
 
     ret = 0;
 #if defined(HAVE_MPI)
@@ -282,14 +282,14 @@ int main(int argc, char *argv[])
     }
 #endif  /* defined(HAVE_MPI) */
 
-    project->arenas[DAGUE_project_DEFAULT_ARENA] = NULL;
-    dague_handle_free(&project->super);
-    walker->arenas[DAGUE_walk_DEFAULT_ARENA] = NULL;
-    dague_handle_free(&walker->super);
+    project->arenas[PARSEC_project_DEFAULT_ARENA] = NULL;
+    parsec_handle_free(&project->super);
+    walker->arenas[PARSEC_walk_DEFAULT_ARENA] = NULL;
+    parsec_handle_free(&walker->super);
 
-    dague_fini(&dague);
+    parsec_fini(&parsec);
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 

@@ -11,7 +11,7 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dague/vpmap.h"
+#include "parsec/vpmap.h"
 
 #define nbthreads( __k ) (dplasma_imin( ((descA->mt - (__k)) + 3 )/  4, nbmaxthrd) - 1)
 
@@ -19,7 +19,7 @@ extern "C" %{
 
 /** Globals */
 descA     [type = "tiled_matrix_desc_t*"]
-dataIP    [type = "dague_ddesc_t *"]
+dataIP    [type = "parsec_ddesc_t *"]
 INFO      [type = "int*"]
 
 nbmaxthrd [type = "int" hidden=on default="( dplasma_imax( 1, dplasma_imin( vpmap_get_nb_threads_in_vp(0) - 1, 48 ) ) )" ] /* 48 is the actual limit of the kernel */
@@ -123,7 +123,7 @@ BODY
              "\t(%d, %d, dataA(%d,%d)[%p], %d, dataIP(%d)[%p])",
              k, tempm, tempkn, k, k, A, ldak, k, IPIV);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     int tempkm = k == descA->mt-1 ? tempm : descA->mb;
     int nbthrd = nbthreads( k );
     int info[3];
@@ -163,7 +163,7 @@ BODY
         *INFO = tempk + info[0]; /* Should return if enter here */
         fprintf(stderr, "zgetrf(%d) failed => %d\n", k, *INFO );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -203,7 +203,7 @@ BODY
              "\t(%d, %d, dataA(%d,%d)[%p], B(%d,%d)[%p])",
              k, n, tempkm, tempnn, k, k, A, k, n, B);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if ( descA->storage == matrix_Tile ) {
         int tempk = k * descA->mb;
         int tempm = descA->m - tempk;
@@ -223,7 +223,7 @@ BODY
         tempkm, tempnn,
         1., A /*(k, k)*/, ldak,
             B /*(k, n)*/, ldak);
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -284,13 +284,13 @@ BODY
              "\t(%d, %d, %d, dataA(%d,%d)[%p], %d, B(%d,%d)[%p], %d, C(%d,%d)[%p], %d)",
              k, m, n, tempmm, tempnn, descA->mb, k, k, A, ldam, k, k, B, ldak, k, n, C, ldam);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                tempmm, tempnn, descA->mb,
                -1., A /*(m, k)*/, ldam,
                     B /*(k, n)*/, ldak,
                1.,  C /*(m, n)*/, ldam );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -330,7 +330,7 @@ BODY
              "\t(%d, dataA(%d,%d)[%p], %d, dataIP(%d)[%p])",
              k, n, descA->nb, k, n, A, ldak, k, IPIV);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     if ( descA->storage == matrix_Tile ) {
         int tempk  = k * descA->mb;
         int tempm  = descA->m - tempk;
@@ -343,6 +343,6 @@ BODY
     } else {
         CORE_zlaswp( descA->nb, A/*(k, n)*/, ldak, 1, tempmin, IPIV, 1 );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END

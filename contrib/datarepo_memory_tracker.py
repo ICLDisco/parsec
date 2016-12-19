@@ -8,9 +8,9 @@ if len(sys.argv) == 1:
     sys.exit(1)
 sys.argv.pop(0)
 
-alloc_re = re.compile(r"\[D\^DAGuE *([0-9]+)\]:.*entry (0x[0-9a-f]+/[0-9]+) of.*has been allocated.*")
-notfree_re = re.compile(r"\[D\^DAGuE *([0-9]+)\]:.*entry (0x[0-9a-f]+/[0-9]+) of.*: not freeing it at.*")
-free_re = re.compile(r"\[D\^DAGuE *([0-9]+)\]:.*entry (0x[0-9a-f]+/[0-9]+) of.*: freeing it at.*")
+alloc_re = re.compile(r"\[D\^PaRSEC *([0-9]+)\]:.*entry (0x[0-9a-f]+/[0-9]+) of.*has been allocated.*")
+notfree_re = re.compile(r"\[D\^PaRSEC *([0-9]+)\]:.*entry (0x[0-9a-f]+/[0-9]+) of.*: not freeing it at.*")
+free_re = re.compile(r"\[D\^PaRSEC *([0-9]+)\]:.*entry (0x[0-9a-f]+/[0-9]+) of.*: freeing it at.*")
 
 allocations = {}
 history = {}

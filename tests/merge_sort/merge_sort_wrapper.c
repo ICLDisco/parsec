@@ -4,11 +4,11 @@
  *                         reserved.
  */
 
-#include "dague.h"
-#include "dague/data_distribution.h"
-#include "dague/arena.h"
+#include "parsec.h"
+#include "parsec/data_distribution.h"
+#include "parsec/arena.h"
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
@@ -22,35 +22,35 @@ static MPI_Datatype block;
  * @param [IN] nb   tile size
  * @param [IN] nt   number of tiles
  *
- * @return the dague object to schedule.
+ * @return the parsec object to schedule.
  */
-dague_handle_t *merge_sort_new(tiled_matrix_desc_t *A, int nb, int nt)
+parsec_handle_t *merge_sort_new(tiled_matrix_desc_t *A, int nb, int nt)
 {
-    dague_merge_sort_handle_t *o = NULL;
+    parsec_merge_sort_handle_t *o = NULL;
 
-    o = dague_merge_sort_new(A, nb, nt);
+    o = parsec_merge_sort_new(A, nb, nt);
 
-#if defined(DAGUE_HAVE_MPI)
-    dague_arena_construct(o->arenas[DAGUE_merge_sort_DEFAULT_ARENA],
-                          nb*sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
+#if defined(PARSEC_HAVE_MPI)
+    parsec_arena_construct(o->arenas[PARSEC_merge_sort_DEFAULT_ARENA],
+                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                           MPI_INT);
 #else
-    dague_arena_construct(o->arenas[DAGUE_merge_sort_DEFAULT_ARENA],
-                          nb*sizeof(int), DAGUE_ARENA_ALIGNMENT_SSE,
-                          DAGUE_DATATYPE_NULL);
+    parsec_arena_construct(o->arenas[PARSEC_merge_sort_DEFAULT_ARENA],
+                          nb*sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                          PARSEC_DATATYPE_NULL);
 #endif
 
-    return (dague_handle_t*)o;
+    return (parsec_handle_t*)o;
 }
 
 /**
- * @param [INOUT] o the dague object to destroy
+ * @param [INOUT] o the parsec object to destroy
  */
-void merge_sort_destroy(dague_handle_t *o)
+void merge_sort_destroy(parsec_handle_t *o)
 {
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
 }

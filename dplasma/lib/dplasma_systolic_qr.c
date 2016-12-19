@@ -10,14 +10,14 @@
  * used in the Xgeqrf_param.jdf file.
  *
  */
-#include "dague.h"
+#include "parsec.h"
 #include "dplasma.h"
 #include "dplasma_qr_param.h"
 
 #include <math.h>
-#if defined(DAGUE_HAVE_STRING_H)
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
 
 #define PRINT_PIVGEN 0
 #ifdef PRINT_PIVGEN

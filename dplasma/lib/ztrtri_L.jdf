@@ -53,12 +53,12 @@ BODY
              "\t(PlasmaRight, uplo, PlasmaNoTrans, diag, tempmm, tempkn, -1, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
              k, m, k, k, A, m, k, B);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_ztrsm(PlasmaRight, uplo, PlasmaNoTrans, diag,
                tempmm, tempkn,
                -1.0, A /* descA(k,k) */, ldak,
                      B /* descA(m,k) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -106,13 +106,13 @@ BODY
              "\t(PlasmaNoTrans, PlasmaNoTrans, tempmm, tempnn, tempkn, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak, 1.000000, A(%d,%d)[%p], ldam)\n",
              k, m, n, m, k, A, k, n, B, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaNoTrans,
                tempmm, tempnn, tempkn,
                1.0, A /* descA(m,k) */, ldam,
                     B /* descA(k,n) */, ldak,
                1.0, C /* descA(m,n) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -147,12 +147,12 @@ BODY
              "\t(PlasmaLeft, uplo, PlasmaNoTrans, diag, tempkn, descA->mb, 1.000000, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldak)\n",
              k, n, k, k, A, k, n, B);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_ztrsm(PlasmaLeft, uplo, PlasmaNoTrans, diag,
                tempkn, descA->mb,
                1.0, A /* descA(k,k) */, ldak,
                     B /* descA(k,n) */, ldak );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -196,7 +196,7 @@ BODY
              "\t(uplo, diag, tempkn, A(%d,%d)[%p], ldan, sequence, request, descA->nb*k)\n",
              k, k, k, A);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_ztrtri(uplo, diag, tempkn,
                 A /* descA(k,k) */, ldak, &info );
 
@@ -204,7 +204,7 @@ BODY
         *INFO = k*descA->mb + info; /* Should return if enter here */
         fprintf(stderr, "ztrtri(%d) failed => %d\n", k, *INFO );
     }
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 
 }
 END

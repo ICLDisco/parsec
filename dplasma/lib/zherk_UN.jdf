@@ -47,12 +47,12 @@ BODY
     printlog("CORE_zherk(%d, %d)\n"
              "\t(uplo, trans, tempnn, tempkn, alpha, A(%d,%d)[%p], ldan, dbeta, C(%d,%d)[%p], ldcn)\n",
              n, k, n, k, A, n, n, C);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zherk(uplo, trans, tempnn,
                tempkn, alpha, A /* descA(n,k) */,
                ldan, dbeta, C /* descC(n,n) */,
                ldcn );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -94,22 +94,22 @@ BODY
     int tempnn = (n==(descC->nt-1)) ? (descC->n-(n*descC->nb)) : descC->nb;
     int tempmm = ((m)==(descC->mt-1)) ? (descC->m-(m*descC->mb)) : descC->mb;
     int tempkn = (k==(descA->nt-1)) ? (descA->n-(k*descA->nb)) : descA->nb;
-    dague_complex64_t zalpha = (dague_complex64_t)alpha;
+    parsec_complex64_t zalpha = (parsec_complex64_t)alpha;
     int ldan = BLKLDD( descA, n );
     int ldam = BLKLDD( descA, m );
-    dague_complex64_t zbeta = (k==0) ? ((dague_complex64_t)beta) : ((double)1.);
+    parsec_complex64_t zbeta = (k==0) ? ((parsec_complex64_t)beta) : ((double)1.);
     int ldcn = BLKLDD( descC, n );
 
     printlog("CORE_zgemm(%d, %d, %d)\n"
              "\t(trans, PlasmaConjTrans, tempnn, tempmm, tempkn, zalpha, A(%d,%d)[%p], ldan, A(%d,%d)[%p], ldam, zbeta, C(%d,%d)[%p], ldcn)\n",
              n, m, k, n, k, A, m, k, B, n, m, C);
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(trans, PlasmaConjTrans, tempnn,
                tempmm, tempkn, zalpha,
                A /* descA(n,k) */, ldan, B /* descA(m,k) */,
                ldam, zbeta, C /* descC(n,m) */,
                ldcn );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 

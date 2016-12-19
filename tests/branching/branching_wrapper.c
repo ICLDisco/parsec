@@ -4,11 +4,11 @@
  *                         reserved.
  */
 
-#include "dague.h"
-#include "dague/data_distribution.h"
-#include "dague/arena.h"
+#include "parsec.h"
+#include "parsec/data_distribution.h"
+#include "parsec/arena.h"
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 static MPI_Datatype block;
 #endif
@@ -22,40 +22,40 @@ static MPI_Datatype block;
  * @param [IN] size size of each local data element
  * @param [IN] nb   number of iterations
  *
- * @return the dague object to schedule.
+ * @return the parsec object to schedule.
  */
-dague_handle_t *branching_new(dague_ddesc_t *A, int size, int nb)
+parsec_handle_t *branching_new(parsec_ddesc_t *A, int size, int nb)
 {
-    dague_branching_handle_t *o = NULL;
+    parsec_branching_handle_t *o = NULL;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, BRANCHING nb and size must be > 0\n");
-        return (dague_handle_t*)o;
+        return (parsec_handle_t*)o;
     }
 
-    o = dague_branching_new(A, nb);
+    o = parsec_branching_new(A, nb);
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         MPI_Type_vector(1, size, size, MPI_BYTE, &block);
         MPI_Type_commit(&block);
-        dague_arena_construct(o->arenas[DAGUE_branching_DEFAULT_ARENA],
+        parsec_arena_construct(o->arenas[PARSEC_branching_DEFAULT_ARENA],
                               size * sizeof(char), size * sizeof(char), 
                               block);
     }
 #endif
 
-    return (dague_handle_t*)o;
+    return (parsec_handle_t*)o;
 }
 
 /**
- * @param [INOUT] o the dague object to destroy
+ * @param [INOUT] o the parsec object to destroy
  */
-void branching_destroy(dague_handle_t *o)
+void branching_destroy(parsec_handle_t *o)
 {
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
 }

@@ -7,7 +7,7 @@
 
 #ifndef _DA_UTILITY_H_
 #define _DA_UTILITY_H_
-#include "dague_config.h"
+#include "parsec_config.h"
 #include <stdlib.h>
 #include <stdarg.h>
 #include "node_struct.h"

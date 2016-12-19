@@ -21,7 +21,7 @@ sub printHeader {
     print OUTFILE " * \@precisions normal z -> c d s\n";
     print OUTFILE " *\n";
     print OUTFILE " **/\n";
-    print OUTFILE "#include \"dague.h\"\n";
+    print OUTFILE "#include \"parsec.h\"\n";
     print OUTFILE "#include <plasma.h>\n";
     print OUTFILE "#include \"dplasma.h\"\n";
     print OUTFILE "#include \"dplasmaf77.h\"\n";
@@ -74,8 +74,8 @@ sub ParseCore {
 
         print "Input:\n$fullline\n";
 
-        # Remove the "dague_context_t *dague"
-        $fullline =~ s/dague_context_t \*dague, //g;
+        # Remove the "parsec_context_t *parsec"
+        $fullline =~ s/parsec_context_t \*parsec, //g;
 
         # Get the type return by the function
         my $rettype = $fullline;
@@ -91,7 +91,7 @@ sub ParseCore {
         $param =~ s/([\s(])(\w*[,)])/\1*\2/g; #Remove types
 
         my $call = "dplasma_z${funcname}${param};";
-        $call =~ s/\(/( daguef77_context, /;
+        $call =~ s/\(/( parsecf77_context, /;
 
         $fullline =~ s/(\**)([a-zA-Z0-9_]*[,)])/\1*\2/g;
         $fullline =~ s/;//;
@@ -111,7 +111,7 @@ sub ParseCore {
         $define .= "#define dplasmaf77_z${funcname}    DPLASMA_ZF77NAME( ${funcname}, ".uc($funcname)." )\n";
         $functions .= $fullline."\n"
             ."{\n"
-            ."    extern dague_context_t *daguef77_context;\n"
+            ."    extern parsec_context_t *parsecf77_context;\n"
             ."    ".$call."\n"
             ."}\n\n";
 

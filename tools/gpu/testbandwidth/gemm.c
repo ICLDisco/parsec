@@ -5,12 +5,12 @@
 #include <errno.h>
 #include <string.h>
 
-#if defined(DAGUE_HAVE_SCHED_SETAFFINITY) && defined (__USE_GNU) || 1
+#if defined(PARSEC_HAVE_SCHED_SETAFFINITY) && defined (__USE_GNU) || 1
 #include <linux/unistd.h>
 #define gettid() syscall(__NR_gettid)
 #else
 #warning Not using sched_setaffinity
-#endif  /* DAGUE_HAVE_SCHED_SETAFFINITY */
+#endif  /* PARSEC_HAVE_SCHED_SETAFFINITY */
 
 #include <sched.h>
 
@@ -62,7 +62,7 @@ static void *thread_loop(void *_proc)
     B = init_matrix();
     C = init_matrix();
 
-#if defined(DAGUE_HAVE_SCHED_SETAFFINITY) && defined (__USE_GNU)
+#if defined(PARSEC_HAVE_SCHED_SETAFFINITY) && defined (__USE_GNU)
     {
         cpu_set_t cpuset;
 
@@ -73,7 +73,7 @@ static void *thread_loop(void *_proc)
             printf( "Unable to set the thread affinity (%s)\n", strerror(errno) );
         }
     }
-#endif  /* DAGUE_HAVE_SCHED_SETAFFINITY */
+#endif  /* PARSEC_HAVE_SCHED_SETAFFINITY */
 
     if( proc == 0 ) {
         for(i = 0; i < 100; i++) {

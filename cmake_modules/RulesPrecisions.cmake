@@ -1,5 +1,5 @@
 #
-# DAGuE Internal: generation of various floating point precision files from a template.
+# PaRSEC Internal: generation of various floating point precision files from a template.
 #
 
 set(GENDEPENDENCIES  ${CMAKE_SOURCE_DIR}/tools/precision_generator/genDependencies.py)
@@ -72,9 +72,9 @@ macro(precisions_rules_py)
 
       # Force the copy of the original files in the binary_dir
       # for VPATH compilation
-      if( NOT DAGUE_COMPILE_INPLACE )
+      if( NOT PARSEC_COMPILE_INPLACE )
         set(generate_out 1)
-      else( NOT DAGUE_COMPILE_INPLACE )
+      else( NOT PARSEC_COMPILE_INPLACE )
         string(COMPARE NOTEQUAL "${_dependency_OUTPUT}" "${_dependency_INPUT}" generate_out )
       endif()
 

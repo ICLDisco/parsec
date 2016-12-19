@@ -21,8 +21,8 @@
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] qrtree
  *          The structure that describes the trees used to perform the
@@ -71,7 +71,7 @@
  *
  ******************************************************************************/
 int
-dplasma_zgeqrs_param(dague_context_t *dague,
+dplasma_zgeqrs_param(parsec_context_t *parsec,
                      dplasma_qrtree_t *qrtree,
                      tiled_matrix_desc_t* A,
                      tiled_matrix_desc_t* TS,
@@ -102,8 +102,8 @@ dplasma_zgeqrs_param(dague_context_t *dague,
     subA = tiled_matrix_submatrix( A, 0, 0, A->n, A->n );
     subB = tiled_matrix_submatrix( B, 0, 0, A->n, B->n );
 
-    dplasma_zunmqr_param( dague, PlasmaLeft, PlasmaConjTrans, qrtree, A, TS, TT, B );
-    dplasma_ztrsm( dague, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
+    dplasma_zunmqr_param( parsec, PlasmaLeft, PlasmaConjTrans, qrtree, A, TS, TT, B );
+    dplasma_ztrsm( parsec, PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
 
     free(subA);
     free(subB);

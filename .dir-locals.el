@@ -1,4 +1,4 @@
-;; C style for Emacs, to assist in following DAGuE coding conventions (originally from PETSc project)
+;; C style for Emacs, to assist in following PaRSEC coding conventions (originally from PETSc project)
 ((nil . ((indent-tabs-mode         . nil)
          (tab-width                . 8)
          (show-trailing-whitespace . t)))

@@ -6,7 +6,7 @@
 
 #include <precision.h>
 
-#ifndef DAGUE_HAVE_COMPLEX_H
+#ifndef PARSEC_HAVE_COMPLEX_H
 
 #include <math.h>
 
@@ -44,20 +44,20 @@ double cabs(double _Complex z)
     return fabs(x) * sqrt(1.0f + y / x);
 }
 
-double cimag(dague_complex64_t z)
+double cimag(parsec_complex64_t z)
 {
     return ((double *)&z)[1];
 }
 
-double creal(dague_complex64_t z)
+double creal(parsec_complex64_t z)
 {
     return ((double *)&z)[0];
 }
 
-dague_complex64_t conj(dague_complex64_t z)
+parsec_complex64_t conj(parsec_complex64_t z)
 {
     double *zp, *vp;
-    dague_complex64_t v;
+    parsec_complex64_t v;
 
     zp = (double *)&z;
     vp = (double *)&v;
@@ -66,4 +66,4 @@ dague_complex64_t conj(dague_complex64_t z)
     return v;
 }
 
-#endif /* DAGUE_HAS_COMPLEX */
+#endif /* PARSEC_HAS_COMPLEX */

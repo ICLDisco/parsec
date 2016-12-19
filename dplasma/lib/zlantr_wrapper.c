@@ -65,8 +65,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlantr_Destruct();
  *
  *******************************************************************************
@@ -78,14 +78,14 @@
  * @sa dplasma_slantr_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
                     const tiled_matrix_desc_t *A,
                     double *result )
 {
     int P, Q, m, n, mb, nb, elt;
     two_dim_block_cyclic_t *Tdist;
-    dague_handle_t *dague_zlantr = NULL;
+    parsec_handle_t *parsec_zlantr = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -152,31 +152,31 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
     /* Create the DAG */
     switch( norm ) {
     case PlasmaOneNorm:
-        dague_zlantr = (dague_handle_t*)dague_zlange_one_cyclic_new(
-            P, Q, norm, uplo, diag, A, (dague_ddesc_t*)Tdist, result);
+        parsec_zlantr = (parsec_handle_t*)parsec_zlange_one_cyclic_new(
+            P, Q, norm, uplo, diag, A, (parsec_ddesc_t*)Tdist, result);
         break;
 
     case PlasmaMaxNorm:
     case PlasmaInfNorm:
     case PlasmaFrobeniusNorm:
     default:
-        dague_zlantr = (dague_handle_t*)dague_zlange_frb_cyclic_new(
-            P, Q, norm, uplo, diag, A, (dague_ddesc_t*)Tdist, result);
+        parsec_zlantr = (parsec_handle_t*)parsec_zlange_frb_cyclic_new(
+            P, Q, norm, uplo, diag, A, (parsec_ddesc_t*)Tdist, result);
     }
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((dague_zlange_frb_cyclic_handle_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, A->mb);
-    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_handle_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA],
-                                mb * nb * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_t, mb, nb, -1);
-    dplasma_add2arena_rectangle(((dague_zlange_frb_cyclic_handle_t*)dague_zlantr)->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA],
-                                elt * sizeof(double), DAGUE_ARENA_ALIGNMENT_SSE,
-                                dague_datatype_double_t, elt, 1, -1);
+    dplasma_add2arena_tile(((parsec_zlange_frb_cyclic_handle_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_DEFAULT_ARENA],
+                           A->mb*A->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, A->mb);
+    dplasma_add2arena_rectangle(((parsec_zlange_frb_cyclic_handle_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_COL_ARENA],
+                                mb * nb * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_t, mb, nb, -1);
+    dplasma_add2arena_rectangle(((parsec_zlange_frb_cyclic_handle_t*)parsec_zlantr)->arenas[PARSEC_zlange_frb_cyclic_ELT_ARENA],
+                                elt * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
+                                parsec_datatype_double_t, elt, 1, -1);
 
-    return (dague_handle_t*)dague_zlantr;
+    return (parsec_handle_t*)parsec_zlantr;
 }
 
 /**
@@ -200,18 +200,18 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
  *
  ******************************************************************************/
 void
-dplasma_zlantr_Destruct( dague_handle_t *handle )
+dplasma_zlantr_Destruct( parsec_handle_t *handle )
 {
-    dague_zlange_frb_cyclic_handle_t *dague_zlantr = (dague_zlange_frb_cyclic_handle_t *)handle;
+    parsec_zlange_frb_cyclic_handle_t *parsec_zlantr = (parsec_zlange_frb_cyclic_handle_t *)handle;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(dague_zlantr->_g_Tdist) );
-    free( dague_zlantr->_g_Tdist );
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlantr->_g_Tdist) );
+    free( parsec_zlantr->_g_Tdist );
 
-    dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_DEFAULT_ARENA] );
-    dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_COL_ARENA] );
-    dague_matrix_del2arena( dague_zlantr->arenas[DAGUE_zlange_frb_cyclic_ELT_ARENA] );
+    parsec_matrix_del2arena( parsec_zlantr->arenas[PARSEC_zlange_frb_cyclic_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( parsec_zlantr->arenas[PARSEC_zlange_frb_cyclic_COL_ARENA] );
+    parsec_matrix_del2arena( parsec_zlantr->arenas[PARSEC_zlange_frb_cyclic_ELT_ARENA] );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -237,8 +237,8 @@ dplasma_zlantr_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] norm
  *          = PlasmaMaxNorm: Max norm
@@ -273,12 +273,12 @@ dplasma_zlantr_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 double
-dplasma_zlantr( dague_context_t *dague,
+dplasma_zlantr( parsec_context_t *parsec,
                 PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
                 const tiled_matrix_desc_t *A)
 {
     double result = 0.;
-    dague_handle_t *dague_zlantr = NULL;
+    parsec_handle_t *parsec_zlantr = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -290,13 +290,13 @@ dplasma_zlantr( dague_context_t *dague,
         return -3.;
     }
 
-    dague_zlantr = dplasma_zlantr_New(norm, uplo, diag, A, &result);
+    parsec_zlantr = dplasma_zlantr_New(norm, uplo, diag, A, &result);
 
-    if ( dague_zlantr != NULL )
+    if ( parsec_zlantr != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_zlantr);
-        dplasma_progress(dague);
-        dplasma_zlantr_Destruct( dague_zlantr );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlantr);
+        dplasma_progress(parsec);
+        dplasma_zlantr_Destruct( parsec_zlantr );
     }
 
     return result;

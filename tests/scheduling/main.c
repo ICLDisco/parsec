@@ -4,17 +4,17 @@
  *                         reserved.
  */
 
-#include "dague.h"
+#include "parsec.h"
 #include "ep_wrapper.h"
 #include "schedmicro_data.h"
-#include "dague/os-spec-timing.h"
-#if defined(DAGUE_HAVE_STRING_H)
+#include "parsec/os-spec-timing.h"
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
 #include <math.h>
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-#endif  /* defined(DAGUE_HAVE_MPI) */
+#endif  /* defined(PARSEC_HAVE_MPI) */
 
 #define MAXNT   16384
 #define MAXLEVEL 1024
@@ -28,15 +28,15 @@ double stdev(double sum, double sumsqr, double n)
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world;
     int nt, level, try;
-    dague_ddesc_t *ddescA;
-    dague_handle_t *ep;
-    dague_time_t start, end;
+    parsec_ddesc_t *ddescA;
+    parsec_handle_t *ep;
+    parsec_time_t start, end;
     double sum, sumsqr, val;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -47,8 +47,8 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
-    dague = dague_init(0, &argc, &argv);
-    if( NULL == dague ) {
+    parsec = parsec_init(0, &argc, &argv);
+    if( NULL == parsec ) {
         exit(-1);
     }
     printf("#All measured values are times. Times are expressed in " TIMER_UNIT "\n");
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
     level   = 4 * world;
 
     ddescA = create_and_distribute_data(rank, world, MAXNT, 1);
-    dague_ddesc_set_key(ddescA, "A");
+    parsec_ddesc_set_key(ddescA, "A");
 
     printf("#Embarrasingly Parallel Empty Tasks\n");
     printf("#Level\tNumber of tasks (per level)\tAvg\tStdev\n");
@@ -72,10 +72,10 @@ int main(int argc, char *argv[])
                 }
 
                 ep = ep_new(ddescA, nt, level);
-                dague_enqueue(dague, ep);
+                parsec_enqueue(parsec, ep);
 
                 start = take_time();
-                dague_context_wait(dague);
+                parsec_context_wait(parsec);
                 end = take_time();
 
                 ep_destroy(ep);
@@ -94,8 +94,8 @@ int main(int argc, char *argv[])
 
     free_data(ddescA);
 
-    dague_fini(&dague);
-#ifdef DAGUE_HAVE_MPI
+    parsec_fini(&parsec);
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 

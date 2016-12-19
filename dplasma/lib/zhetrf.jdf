@@ -11,7 +11,7 @@ extern "C" %{
  */
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 
 extern int CORE_zgemdm(int transA, int transB,
                 int M, int N, int K,
@@ -44,10 +44,10 @@ extern int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
 
 uplo       [type = "int"]
 desc_A     [type = "tiled_matrix_desc_t"]
-data_A     [type = "dague_ddesc_t *"]
+data_A     [type = "parsec_ddesc_t *"]
 DPLASMA_IB [type = "int"]
-pool_1     [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*lwork"]
-pool_0     [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*ldwork"]
+pool_1     [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*lwork"]
+pool_0     [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*ldwork"]
 INFO       [type = "int*"]
 
 
@@ -82,9 +82,9 @@ BODY
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
   context->th_id, k, tempkn, ib, k, k, A, ldak, ldwork);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     int info = 0;
-    void *p_elem_A = dague_private_memory_pop( pool_0 );
+    void *p_elem_A = parsec_private_memory_pop( pool_0 );
     CORE_zhetrf2_nopiv(PlasmaLower, tempkn, ib,
         A /* data_A(k,k) */, ldak, p_elem_A,
         ldwork, &info );
@@ -94,8 +94,8 @@ BODY
     assert( 0 == info );
 
 
-    dague_private_memory_push( pool_0, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_0, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 END
 
@@ -124,9 +124,9 @@ BODY
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
   context->th_id, k, tempkn, ib, k, k, B, ldak, ldwork);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     int info = 0;
-    void *p_elem_A = dague_private_memory_pop( pool_0 );
+    void *p_elem_A = parsec_private_memory_pop( pool_0 );
 
     CORE_zhetrf_nopiv(PlasmaLower, tempkn, ib,
         B /* data_A(k,k) */, ldak, p_elem_A,
@@ -137,8 +137,8 @@ BODY
     assert( 0 == info );
 
 
-    dague_private_memory_push( pool_0, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_0, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 END
 
@@ -179,13 +179,13 @@ BODY
            "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
   context->th_id, k, m, k, k, C, m, k, D);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
 
     CORE_ztrsm(PlasmaRight, PlasmaLower, PlasmaConjTrans,
         PlasmaNonUnit, tempmm, tempkn,
         zone, C /* data_A(k,k) */, ldak,
         D /* data_A(m,k) */, ldam );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 END
 
@@ -226,8 +226,8 @@ BODY
            "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
   context->th_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( pool_1 );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( pool_1 );
 
     CORE_zhedrk(PlasmaLower, PlasmaNoTrans, tempmm,
         tempkn, ib, -1.000000,
@@ -235,8 +235,8 @@ BODY
         F /* data_A(m1,m1) */, ldam, G /* data_A(k,k) */,
         ldak+1, p_elem_A, lwork );
 
-    dague_private_memory_push( pool_1, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_1, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 END
 
@@ -299,8 +299,8 @@ BODY
            "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A.mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
   context->th_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( pool_1 );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( pool_1 );
 
     CORE_zgemdm(PlasmaNoTrans, PlasmaConjTrans, tempmm,
         tempnn, tempkn, mzone,
@@ -308,8 +308,8 @@ BODY
         desc_A.mb, zone, M /* data_A(m1,n) */,
         ldam, N, ldak+1, p_elem_A, lwork );
 
-    dague_private_memory_push( pool_1, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( pool_1, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 END
 
@@ -336,10 +336,10 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->th_id, k1, k1, k1, O);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
 
     CORE_ztrmdm(PlasmaLower, tempkn, O /* data_A(k1,k1) */, ldak );
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 END
 

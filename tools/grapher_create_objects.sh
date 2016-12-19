@@ -18,7 +18,7 @@ globals() {
 }
 
 matrices() {
-    awk -v FS='[ |;|\*]+' 'BEGIN {dump=0} $6=="data" {dump=1} $2=="dague_ddesc_t" && dump==1 { print $3}' $1
+    awk -v FS='[ |;|\*]+' 'BEGIN {dump=0} $6=="data" {dump=1} $2=="parsec_ddesc_t" && dump==1 { print $3}' $1
 }
 
 onefile() {
@@ -29,7 +29,7 @@ onefile() {
     
     /bin/echo "#include \"dplasma/lib/$BASEFILE\""
     cat<<EOF
-static dague_handle_t *${BASE}_create(int argc, char **argv)
+static parsec_handle_t *${BASE}_create(int argc, char **argv)
 {
 EOF
     
@@ -38,7 +38,7 @@ EOF
     done
     
     cat <<EOF
-  dague_handle_t *ret;
+  parsec_handle_t *ret;
   int allset = 1;
   int i;
   for(i = 0; i < argc; i+= 2) {
@@ -60,7 +60,7 @@ EOF
     return NULL;
 
 EOF
-    /bin/echo -n "  ret = (dague_handle_t*)dague_${BASE}_new"
+    /bin/echo -n "  ret = (parsec_handle_t*)parsec_${BASE}_new"
     
     V="("
     for m in $MAT; do

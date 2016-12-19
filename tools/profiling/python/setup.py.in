@@ -27,9 +27,9 @@ if c_compiler.endswith('icc'):
 # below.
 extra_compile_args.extend(['-fno-stack-protector'])
 
-# libs = ['irc', 'imf', 'dague-base']
-libs = ['dague-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
-lib_dirs = (['@PROJECT_BINARY_DIR@/dague']) # +
+# libs = ['irc', 'imf', 'parsec-base']
+libs = ['parsec-base'] #+ '@CMAKE_C_IMPLICIT_LINK_LIBRARIES@'.split(';')
+lib_dirs = (['@PROJECT_BINARY_DIR@/parsec']) # +
 #            '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';') )
 run_dirs = [] # '@CMAKE_C_IMPLICIT_LINK_DIRECTORIES@'.split(';')
 package_dir='@CMAKE_CURRENT_BINARY_DIR@'
@@ -41,16 +41,16 @@ if 'Debug' == build_type:
 
 extensions = [Extension('pbt2ptt', ['@CMAKE_CURRENT_SOURCE_DIR@/pbt2ptt.pyx',
                                     '@CMAKE_CURRENT_SOURCE_DIR@/../dbpreader.c'],
-                         include_dirs=['@PROJECT_SOURCE_DIR@/dague/include',
+                         include_dirs=['@PROJECT_SOURCE_DIR@/parsec/include',
                                        '@PROJECT_SOURCE_DIR@',
-                                       '@PROJECT_BINARY_DIR@/dague/include',
+                                       '@PROJECT_BINARY_DIR@/parsec/include',
                                        '@PROJECT_BINARY_DIR@',
                                        '@CMAKE_CURRENT_SOURCE_DIR@/../'],
                          depends=['setup.py.in',
                                   'pbt2ptt.pxd',
                                   '@CMAKE_CURRENT_BINARY_DIR@/../dbpreader.h',
-                                  '@PROJECT_SOURCE_DIR@/dague/dague_binary_profiling.h',
-                                  '@PROJECT_SOURCE_DIR@/include/dague/os-spec-timing.h'],
+                                  '@PROJECT_SOURCE_DIR@/parsec/parsec_binary_profiling.h',
+                                  '@PROJECT_SOURCE_DIR@/include/parsec/os-spec-timing.h'],
                          library_dirs=lib_dirs,
                          runtime_library_dirs=run_dirs,
                          libraries=libs,

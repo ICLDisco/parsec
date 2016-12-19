@@ -1,6 +1,6 @@
 extern "C" %{
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #define MY_RANK(r) int r; MPI_Comm_rank(MPI_COMM_WORLD, &r)
 #else
@@ -8,7 +8,7 @@ extern "C" %{
 #endif
 %}
 
-A          [type = "dague_ddesc_t*"]
+A          [type = "parsec_ddesc_t*"]
 NT
 WS
 

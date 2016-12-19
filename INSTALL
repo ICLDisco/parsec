@@ -101,24 +101,24 @@ Hopefully, once the expected arguments are provided the output will look similar
 -- Found target for X86
 -- Performing Test C_M32or64
 -- Performing Test C_M32or64 - Failed
--- Performing Test DAGUE_HAVE_STD_C99
--- Performing Test DAGUE_HAVE_STD_C99 - Failed
--- Performing Test DAGUE_HAVE_WALL
--- Performing Test DAGUE_HAVE_WALL - Failed
--- Performing Test DAGUE_HAVE_WEXTRA
--- Performing Test DAGUE_HAVE_WEXTRA - Failed
--- Performing Test DAGUE_HAVE_WD
--- Performing Test DAGUE_HAVE_WD - Failed
--- Performing Test DAGUE_HAVE_G3
--- Performing Test DAGUE_HAVE_G3 - Failed
--- Performing Test DAGUE_ATOMIC_USE_GCC_32_BUILTINS
--- Performing Test DAGUE_ATOMIC_USE_GCC_32_BUILTINS - Failed
--- Performing Test DAGUE_ATOMIC_USE_XLC_32_BUILTINS
--- Performing Test DAGUE_ATOMIC_USE_XLC_32_BUILTINS - Failed
--- Performing Test DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS
--- Performing Test DAGUE_ATOMIC_USE_MIPOSPRO_32_BUILTINS - Failed
--- Performing Test DAGUE_ATOMIC_USE_SUN_32
--- Performing Test DAGUE_ATOMIC_USE_SUN_32 - Failed
+-- Performing Test PARSEC_HAVE_STD_C99
+-- Performing Test PARSEC_HAVE_STD_C99 - Failed
+-- Performing Test PARSEC_HAVE_WALL
+-- Performing Test PARSEC_HAVE_WALL - Failed
+-- Performing Test PARSEC_HAVE_WEXTRA
+-- Performing Test PARSEC_HAVE_WEXTRA - Failed
+-- Performing Test PARSEC_HAVE_WD
+-- Performing Test PARSEC_HAVE_WD - Failed
+-- Performing Test PARSEC_HAVE_G3
+-- Performing Test PARSEC_HAVE_G3 - Failed
+-- Performing Test PARSEC_ATOMIC_USE_GCC_32_BUILTINS
+-- Performing Test PARSEC_ATOMIC_USE_GCC_32_BUILTINS - Failed
+-- Performing Test PARSEC_ATOMIC_USE_XLC_32_BUILTINS
+-- Performing Test PARSEC_ATOMIC_USE_XLC_32_BUILTINS - Failed
+-- Performing Test PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS
+-- Performing Test PARSEC_ATOMIC_USE_MIPOSPRO_32_BUILTINS - Failed
+-- Performing Test PARSEC_ATOMIC_USE_SUN_32
+-- Performing Test PARSEC_ATOMIC_USE_SUN_32 - Failed
 -- Looking for OSAtomicCompareAndSwap32
 -- Looking for OSAtomicCompareAndSwap32 - not found
 -- Looking for OSAtomicCompareAndSwap64
@@ -128,8 +128,8 @@ Hopefully, once the expected arguments are provided the output will look similar
 -- Could NOT find Threads (missing:  Threads_FOUND)
 -- Looking for sched_setaffinity
 -- Looking for sched_setaffinity - not found
--- Performing Test DAGUE_HAVE_TIMESPEC_TV_NSEC
--- Performing Test DAGUE_HAVE_TIMESPEC_TV_NSEC - Failed
+-- Performing Test PARSEC_HAVE_TIMESPEC_TV_NSEC
+-- Performing Test PARSEC_HAVE_TIMESPEC_TV_NSEC - Failed
 -- Looking for clock_gettime in rt
 -- Looking for clock_gettime in rt - not found
 -- Looking for include file stdarg.h
@@ -157,12 +157,12 @@ Hopefully, once the expected arguments are provided the output will look similar
 -- Looking for include file complex.h
 -- Looking for include file complex.h - not found.
 -- Found HWLOC: /opt/lib/libhwloc.dylib
--- Performing Test DAGUE_HAVE_HWLOC_PARENT_MEMBER
--- Performing Test DAGUE_HAVE_HWLOC_PARENT_MEMBER - Failed
--- Performing Test DAGUE_HAVE_HWLOC_CACHE_ATTR
--- Performing Test DAGUE_HAVE_HWLOC_CACHE_ATTR - Failed
--- Performing Test DAGUE_HAVE_HWLOC_OBJ_PU
--- Performing Test DAGUE_HAVE_HWLOC_OBJ_PU - Failed
+-- Performing Test PARSEC_HAVE_HWLOC_PARENT_MEMBER
+-- Performing Test PARSEC_HAVE_HWLOC_PARENT_MEMBER - Failed
+-- Performing Test PARSEC_HAVE_HWLOC_CACHE_ATTR
+-- Performing Test PARSEC_HAVE_HWLOC_CACHE_ATTR - Failed
+-- Performing Test PARSEC_HAVE_HWLOC_OBJ_PU
+-- Performing Test PARSEC_HAVE_HWLOC_OBJ_PU - Failed
 -- Looking for hwloc_bitmap_free in /opt/lib/libhwloc.dylib
 -- Looking for hwloc_bitmap_free in /opt/lib/libhwloc.dylib - not found
 -- Found MPI_C: /opt/trunk/debug/lib/libmpi.dylib;/usr/lib/libm.dylib
@@ -183,8 +183,8 @@ Hopefully, once the expected arguments are provided the output will look similar
 -- Looking for gdImageGif in /opt/local/lib/libgd.dylib - not found
 -- Found OMEGA: /tools/Omega/binary/include/omega
 -- Found PythonInterp: /opt/local/bin/python (found version "2.7.3")
--- Generate precision dependencies in dplasma/dague.public/data_dist/matrix
--- Generate precision dependencies in dplasma/dague.public/data_dist/matrix - Done
+-- Generate precision dependencies in dplasma/parsec.public/data_dist/matrix
+-- Generate precision dependencies in dplasma/parsec.public/data_dist/matrix - Done
 -- Found PkgConfig: /opt/local/bin/pkg-config (found version "0.27.1")
 -- checking for one of the modules 'plasma'
 -- Performing Test PLASMA_C_COMPILE_SUCCESS
@@ -196,21 +196,21 @@ Hopefully, once the expected arguments are provided the output will look similar
     PLASMA_LDFLAGS      = [-framework veclib -L/opt/PLASMA/plasma-svn/lib -lplasma -lcoreblas -lquark -llapacke -ltmg -lpthread -lm -lplasma]
     PLASMA_INCLUDE_DIRS = [/opt/PLASMA/plasma-svn/include]
     PLASMA_LIBRARY_DIRS = [/opt/PLASMA/plasma-svn/lib]
--- Generate precision dependencies in dplasma/dague.public/dplasma/include
--- Generate precision dependencies in dplasma/dague.public/dplasma/include - Done
--- Generate precision dependencies in dplasma/dague.public/dplasma/cores
--- Generate precision dependencies in dplasma/dague.public/dplasma/cores - Done
--- Generate precision dependencies in dplasma/dague.public/dplasma/cores
--- Generate precision dependencies in dplasma/dague.public/dplasma/cores - Done
--- Generate precision dependencies in dplasma/dague.public/dplasma/lib
--- Generate precision dependencies in dplasma/dague.public/dplasma/lib - Done
--- Generate precision dependencies in dplasma/dague.public/dplasma/lib
--- Generate precision dependencies in dplasma/dague.public/dplasma/lib - Done
--- Generate precision dependencies in dplasma/dague.public/dplasma/testing
--- Generate precision dependencies in dplasma/dague.public/dplasma/testing - Done
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/include
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/include - Done
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/cores
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/cores - Done
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/cores
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/cores - Done
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/lib
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/lib - Done
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/lib
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/lib - Done
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/testing
+-- Generate precision dependencies in dplasma/parsec.public/dplasma/testing - Done
 -- Configuring done
 -- Generating done
--- Build files have been written to: dplasma/dague.public/build
+-- Build files have been written to: dplasma/parsec.public/build
 
 If this is done, congratulations, DPLASMA is configured and you're ready for
 building and testing the system.
@@ -269,12 +269,12 @@ ccmake .
 choose the compilation parameters. Navigate with the arrows to the parameter you
 want to change and hit enter to edit. Recommended parameters are:
 
-DAGUE_DEBUG OFF (and all other DAGUE_DEBUG options)
-DAGUE_DIST_COLLECTIVES ON
-DAGUE_DIST_WITH_MPI ON
-DAGUE_GPU_WITH_CUDA ON
-DAGUE_OMEGA_DIR OFF
-DAGUE_PROF_* OFF (all DAGUE_PROF_ flags off)
+PARSEC_DEBUG OFF (and all other PARSEC_DEBUG options)
+PARSEC_DIST_COLLECTIVES ON
+PARSEC_DIST_WITH_MPI ON
+PARSEC_GPU_WITH_CUDA ON
+PARSEC_OMEGA_DIR OFF
+PARSEC_PROF_* OFF (all PARSEC_PROF_ flags off)
 DPLASMA_CALL_TRACE OFF
 DPLASMA_GPU_WITH_MAGMA OFF
 

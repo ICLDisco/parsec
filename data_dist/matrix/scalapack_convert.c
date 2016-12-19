@@ -4,21 +4,21 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#include "dague/dague_internal.h"
+#include "parsec_config.h"
+#include "parsec/parsec_internal.h"
 #include "scalapack_convert.h"
-#include "dague/data_distribution.h"
+#include "parsec/data_distribution.h"
 #include "matrix.h"
-#include "dague/debug.h"
+#include "parsec/debug.h"
 
-#ifdef DAGUE_HAVE_STRING_H
+#ifdef PARSEC_HAVE_STRING_H
 #include <string.h>
 #endif
-#ifdef DAGUE_HAVE_LIMITS_H
+#ifdef PARSEC_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 #include <stdio.h>
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 #include <mpi.h>
 #endif
 
@@ -41,7 +41,7 @@
  * desc(7) = ICSRC : (global) An input integer which indicates the processor grid column over which the first column of the array being described is distributed.
  * desc(8) = LLD   : (local)  An input integer indicating the leading dimension of the local array which is to be used for storing the local blocks of the array being described.
  *
- * DAGuE  allocate_scalapack_matrix will set desc (from tiled_matrix_desc_t) to:
+ * PaRSEC  allocate_scalapack_matrix will set desc (from tiled_matrix_desc_t) to:
  * desc(0) = 1     : 1
  * desc(1) = ICTXT : 0  as BLACS is not initialized yet. // side note: blacs context handles the process grid info
  * desc(2) = M     : m
@@ -100,10 +100,10 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
             clength = clength - ((Ddesc->nt * Ddesc->nb) - Ddesc->n);
         }
 
-    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "allocate scalapack matrix: process %u(%d,%d) handles %d x %d blocks, for a total of %d x %d elements (matrix size is %d by %d)",
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "allocate scalapack matrix: process %u(%d,%d) handles %d x %d blocks, for a total of %d x %d elements (matrix size is %d by %d)",
            Ddesc->super.myrank, rr, cr, nb_elem_r, nb_elem_c, rlength, clength, Ddesc->m, Ddesc->n);
     
-    smat =  dague_data_allocate(rlength * clength * dague_datadist_getsizeoftype(Ddesc->mtype));
+    smat =  parsec_data_allocate(rlength * clength * parsec_datadist_getsizeoftype(Ddesc->mtype));
 
     sca_desc[0] = 1;
     sca_desc[1] = 0;
@@ -115,16 +115,16 @@ void * allocate_scalapack_matrix(tiled_matrix_desc_t * Ddesc, int * sca_desc,  i
     sca_desc[7] = 0;
     sca_desc[8] = rlength;
 
-    DAGUE_DEBUG_VERBOSE(20, dague_debug_output, "allocate scalapack matrix: scalapack descriptor: [(dense == 1) %d, (ICTX) %d, (M) %d, (N) %d, (MB) %d, (NB) %d,(IRSRC) %d, (ICSRC) %d, (LLD) %d ]\n ",
+    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "allocate scalapack matrix: scalapack descriptor: [(dense == 1) %d, (ICTX) %d, (M) %d, (N) %d, (MB) %d, (NB) %d,(IRSRC) %d, (ICSRC) %d, (LLD) %d ]\n ",
            sca_desc[0], sca_desc[1], sca_desc[2], sca_desc[3], sca_desc[4], sca_desc[5], sca_desc[6], sca_desc[7], sca_desc[8]);
 
-    memset(smat, 0 , rlength * clength * dague_datadist_getsizeoftype(Ddesc->mtype));
+    memset(smat, 0 , rlength * clength * parsec_datadist_getsizeoftype(Ddesc->mtype));
     return smat;    
 }
 
 int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * Ddesc, int * sca_desc, void * sca_mat, int process_grid_rows)
 {
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     int length, size;
 #endif
 
@@ -133,7 +133,7 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
     info->sca_mat = sca_mat;
     info->process_grid_rows = process_grid_rows;
     
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     /* mpi type creation*/
     /* type for full blocks */
     MPI_Type_vector(info->Ddesc->nb, info->Ddesc->mb, sca_desc[8],
@@ -161,52 +161,52 @@ int tiles_to_scalapack_info_init(scalapack_info_t * info, tiled_matrix_desc_t * 
 
 
     /* type for full tiles */
-    MPI_Type_contiguous(info->Ddesc->bsiz, MPI_DOUBLE, &(info->MPI_Dague_full_block));
-    MPI_Type_commit (&(info->MPI_Dague_full_block));
+    MPI_Type_contiguous(info->Ddesc->bsiz, MPI_DOUBLE, &(info->MPI_PaRSEC_full_block));
+    MPI_Type_commit (&(info->MPI_PaRSEC_full_block));
 
     /* type for last row of tiles */
     length = info->Ddesc->mt*info->Ddesc->mb != info->Ddesc->m ? info->Ddesc->m - ((info->Ddesc->mt - 1)*info->Ddesc->mb ) : info->Ddesc->mb;
 
     MPI_Type_vector(info->Ddesc->nb, length, info->Ddesc->mb,
-                    MPI_DOUBLE, &(info->MPI_Dague_last_row));
-    MPI_Type_commit (&(info->MPI_Dague_last_row));
+                    MPI_DOUBLE, &(info->MPI_PaRSEC_last_row));
+    MPI_Type_commit (&(info->MPI_PaRSEC_last_row));
 
 
     /* type for last column of tiles */
     length = info->Ddesc->nt*info->Ddesc->nb != info->Ddesc->n ? info->Ddesc->n - ((info->Ddesc->nt - 1)*info->Ddesc->nb) : info->Ddesc->nb;
-    MPI_Type_contiguous(length * info->Ddesc->mb, MPI_DOUBLE, &(info->MPI_Dague_last_col));
-    MPI_Type_commit (&(info->MPI_Dague_last_col));
+    MPI_Type_contiguous(length * info->Ddesc->mb, MPI_DOUBLE, &(info->MPI_PaRSEC_last_col));
+    MPI_Type_commit (&(info->MPI_PaRSEC_last_col));
 
     /* type for last tile */
     length = info->Ddesc->mt*info->Ddesc->mb != info->Ddesc->m ? info->Ddesc->m - ((info->Ddesc->mt - 1)*info->Ddesc->mb ) : info->Ddesc->mb;
     size = info->Ddesc->nt*info->Ddesc->nb != info->Ddesc->n ? info->Ddesc->n - ((info->Ddesc->nt - 1)*info->Ddesc->nb) : info->Ddesc->nb;
-    MPI_Type_vector(size, length, info->Ddesc->mb, MPI_DOUBLE, &(info->MPI_Dague_last_block));
-    MPI_Type_commit (&(info->MPI_Dague_last_block));
+    MPI_Type_vector(size, length, info->Ddesc->mb, MPI_DOUBLE, &(info->MPI_PaRSEC_last_block));
+    MPI_Type_commit (&(info->MPI_PaRSEC_last_block));
 
     /* MPI_Type_vector(count, blocklength, stride, MPI_DOUBLE, &(info->MPI_Sca_last_block)); */
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
     return 0;
 }
 
 void tiles_to_scalapack_info_destroy(scalapack_info_t * info)
 {
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Type_free(&(info->MPI_Sca_full_block));
     MPI_Type_free(&(info->MPI_Sca_last_row));
     MPI_Type_free(&(info->MPI_Sca_last_col));
     MPI_Type_free(&(info->MPI_Sca_last_block));
-    MPI_Type_free(&(info->MPI_Dague_full_block));
-    MPI_Type_free(&(info->MPI_Dague_last_row));
-    MPI_Type_free(&(info->MPI_Dague_last_col));
-    MPI_Type_free(&(info->MPI_Dague_last_block));
+    MPI_Type_free(&(info->MPI_PaRSEC_full_block));
+    MPI_Type_free(&(info->MPI_PaRSEC_last_row));
+    MPI_Type_free(&(info->MPI_PaRSEC_last_col));
+    MPI_Type_free(&(info->MPI_PaRSEC_last_block));
 #else
     (void)info;
-#endif /* DAGUE_HAVE_MPI */
+#endif /* PARSEC_HAVE_MPI */
     return;
 }
 
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
 /* to compute which process will get this tile as a scalapack block */
 static int twoDBC_get_rank(tiled_matrix_desc_t * Ddesc, int process_grid_rows, int row, int col)
 {
@@ -232,7 +232,7 @@ void tile_to_block_double(scalapack_info_t * info, int row, int col)
     int il, jl, max_mb, max_nb;
     MPI_Status status;
          
-    src = info->Ddesc->super.rank_of((dague_ddesc_t *)(info->Ddesc), row, col);
+    src = info->Ddesc->super.rank_of((parsec_ddesc_t *)(info->Ddesc), row, col);
     dest = twoDBC_get_rank( info->Ddesc, info->process_grid_rows, row, col);
     dec = -1;
 
@@ -253,7 +253,7 @@ void tile_to_block_double(scalapack_info_t * info, int row, int col)
             jl = col / GRIDcols;
             dec = (info->Ddesc->nb * (int)info->sca_desc[8] * jl) + (info->Ddesc->mb * il);
                     
-            bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
+            bdl = (double *)info->Ddesc->super.data_of((parsec_ddesc_t *)info->Ddesc, row, col);
             lapack = (double*) &(((double*)(info->sca_mat))[ dec ]);
                     
             for (y = 0; y < max_nb; y++)
@@ -263,17 +263,17 @@ void tile_to_block_double(scalapack_info_t * info, int row, int col)
     }
     else if ( src == info->Ddesc->super.myrank ) {  /* process have the tile to send */
         printf("weird\n");
-        bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
+        bdl = (double *)info->Ddesc->super.data_of((parsec_ddesc_t *)info->Ddesc, row, col);
         if (row + 1 == info->Ddesc->mt) {
             if( col + 1 == info->Ddesc->nt) {
-                MPI_Send(bdl, 1, info->MPI_Dague_last_block, dest, 0, MPI_COMM_WORLD );
+                MPI_Send(bdl, 1, info->MPI_PaRSEC_last_block, dest, 0, MPI_COMM_WORLD );
             } else {
-                MPI_Send(bdl, 1, info->MPI_Dague_last_row, dest, 0, MPI_COMM_WORLD );
+                MPI_Send(bdl, 1, info->MPI_PaRSEC_last_row, dest, 0, MPI_COMM_WORLD );
             }
         } else if (col + 1 == info->Ddesc->nt) {
-            MPI_Send(bdl, 1, info->MPI_Dague_last_col, dest, 0, MPI_COMM_WORLD );
+            MPI_Send(bdl, 1, info->MPI_PaRSEC_last_col, dest, 0, MPI_COMM_WORLD );
         } else {
-            MPI_Send(bdl, 1, info->MPI_Dague_full_block, dest, 0, MPI_COMM_WORLD );
+            MPI_Send(bdl, 1, info->MPI_PaRSEC_full_block, dest, 0, MPI_COMM_WORLD );
         }
     } else if (dest == info->Ddesc->super.myrank) {  /* process have to receive the block */
         GRIDrows = info->process_grid_rows;
@@ -306,14 +306,14 @@ int tiles_to_scalapack(scalapack_info_t * info)
     return 0;
 }
 
-#else /* ! DAGUE_HAVE_MPI */
+#else /* ! PARSEC_HAVE_MPI */
 
 void tile_to_block_double(scalapack_info_t * info, int row, int col)
 {
     int x, y, dec;
     double *bdl, *lapack;
 
-    bdl = (double *)info->Ddesc->super.data_of((dague_ddesc_t *)info->Ddesc, row, col);
+    bdl = (double *)info->Ddesc->super.data_of((parsec_ddesc_t *)info->Ddesc, row, col);
     dec = ((info->Ddesc->nb)*(info->Ddesc->m)*col) + ((info->Ddesc->mb)*row);
     lapack = (double*)&(((double*)(info->sca_mat))[ dec ]);
     
@@ -346,12 +346,12 @@ int tiles_to_scalapack(tiled_matrix_desc_t * Ddesc, int * desc, void * sca_mat, 
         for ( i = 0 ; i < Ddesc->super.lmt ; i++)
         {
 	    if( Ddesc->super.super.myrank ==
-		Ddesc->super.super.rank_of((dague_ddesc_t *)Ddesc, i, j ) )
+		Ddesc->super.super.rank_of((parsec_ddesc_t *)Ddesc, i, j ) )
                 {
                     il = i / ( Ddesc->grid.strows * Ddesc->grid.rows ) +  (i % ( Ddesc->grid.strows * Ddesc->grid.rows )) - ( Ddesc->grid.strows * Ddesc->grid.rrank );
                     jl = j / ( Ddesc->grid.stcols * Ddesc->grid.cols ) +  (j % ( Ddesc->grid.stcols * Ddesc->grid.cols )) - ( Ddesc->grid.stcols * Ddesc->grid.crank );
                     dec = ((int64_t)(Ddesc->super.nb)*(int64_t)(Ddesc->lm)*(int64_t)(jl)) + (int64_t)((Ddesc->super.mb)*(il));
-                    bdl = Ddesc->super.super.data_of((dague_ddesc_t *)Ddesc, i, j );
+                    bdl = Ddesc->super.super.data_of((parsec_ddesc_t *)Ddesc, i, j );
                     lapack = &sca_mat[ dec ];
                     
                     for (y = 0; y < (Ddesc->super.nb); y++)

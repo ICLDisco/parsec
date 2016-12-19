@@ -1,7 +1,7 @@
 #include "tree_dist.h"
-#include <dague/devices/device.h>
-#include <dague/data.h>
-#include <dague/vpmap.h>
+#include <parsec/devices/device.h>
+#include <parsec/data.h>
+#include <parsec/vpmap.h>
 
 /***********************************************************************************************
  * Internals
@@ -71,7 +71,7 @@ static int tree_lookup_or_allocate_node(tree_dist_t *tree, int n, int l)
                 node->l = l;
                 node->data = NULL;
             }
-            if( dague_atomic_cas(&tree->nodes[i], NULL, node) ) {
+            if( parsec_atomic_cas(&tree->nodes[i], NULL, node) ) {
                 pthread_rwlock_unlock( &tree->resize_lock );
                 return i;
             }
@@ -117,7 +117,7 @@ static int tree_lookup_or_allocate_node(tree_dist_t *tree, int n, int l)
  * parsec data distribution interface
  ***********************************************************************************************/
 
-static dague_data_key_t tree_dist_data_key(dague_ddesc_t *desc, ...)
+static parsec_data_key_t tree_dist_data_key(parsec_ddesc_t *desc, ...)
 {
     va_list ap;
     int n, l;
@@ -130,7 +130,7 @@ static dague_data_key_t tree_dist_data_key(dague_ddesc_t *desc, ...)
     return nid;
 }
 
-static uint32_t tree_dist_rank_of_key(dague_ddesc_t *desc, dague_data_key_t k)
+static uint32_t tree_dist_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t k)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     assert(k < tree->allocated_nodes);
@@ -138,7 +138,7 @@ static uint32_t tree_dist_rank_of_key(dague_ddesc_t *desc, dague_data_key_t k)
     return tree->nodes[k]->n % tree->super.nodes;
 }
 
-static uint32_t tree_dist_rank_of(dague_ddesc_t *desc, ...)
+static uint32_t tree_dist_rank_of(parsec_ddesc_t *desc, ...)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     va_list ap;
@@ -151,7 +151,7 @@ static uint32_t tree_dist_rank_of(dague_ddesc_t *desc, ...)
     return n % tree->super.nodes;
 }
 
-static dague_data_t* tree_dist_data_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static parsec_data_t* tree_dist_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     void *pos;
@@ -174,12 +174,12 @@ static dague_data_t* tree_dist_data_of_key(dague_ddesc_t *desc, dague_data_key_t
             tree->buffers->buffer_use += sizeof(node_t);
             pthread_mutex_unlock(&tree->buffer_lock);
         }
-        dague_data_create(&tree->nodes[key]->data, desc, key, pos, sizeof(node_t));
+        parsec_data_create(&tree->nodes[key]->data, desc, key, pos, sizeof(node_t));
     }
     return tree->nodes[key]->data;
 }
 
-static dague_data_t* tree_dist_data_of(dague_ddesc_t *desc, ...)
+static parsec_data_t* tree_dist_data_of(parsec_ddesc_t *desc, ...)
 {
     va_list ap;
     int n, l;
@@ -192,7 +192,7 @@ static dague_data_t* tree_dist_data_of(dague_ddesc_t *desc, ...)
     return tree_dist_data_of_key(desc, nid);
 }
 
-static int32_t tree_dist_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
+static int32_t tree_dist_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     assert(key < tree->allocated_nodes);
@@ -200,7 +200,7 @@ static int32_t tree_dist_vpid_of_key(dague_ddesc_t *desc, dague_data_key_t key)
     return tree->nodes[key]->n % vpmap_get_nb_vp();
 }
 
-static int32_t tree_dist_vpid_of(dague_ddesc_t *desc, ...)
+static int32_t tree_dist_vpid_of(parsec_ddesc_t *desc, ...)
 {
     va_list ap;
     int n, l;
@@ -212,7 +212,7 @@ static int32_t tree_dist_vpid_of(dague_ddesc_t *desc, ...)
     return n % vpmap_get_nb_vp();
 }
 
-static int tree_dist_register_memory(dague_ddesc_t* desc, struct dague_device_s* device)
+static int tree_dist_register_memory(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     return device->device_memory_register(device, desc,
@@ -220,18 +220,18 @@ static int tree_dist_register_memory(dague_ddesc_t* desc, struct dague_device_s*
                                           tree->buffers->buffer_use);
 }
 
-static int tree_dist_unregister_memory(dague_ddesc_t* desc, struct dague_device_s* device)
+static int tree_dist_unregister_memory(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     tree_dist_t *tree = (tree_dist_t*)desc;
     return device->device_memory_unregister(device, desc, tree->buffers->buffer);
 }
 
-#ifdef DAGUE_PROF_TRACE
-static int tree_dist_key_to_string(dague_ddesc_t *desc, dague_data_key_t key, char * buffer, uint32_t buffer_size)
+#ifdef PARSEC_PROF_TRACE
+static int tree_dist_key_to_string(parsec_ddesc_t *desc, parsec_data_key_t key, char * buffer, uint32_t buffer_size)
 {
     if( buffer_size > 0 )
         buffer[0] = '\0';
-    return DAGUE_SUCCESS;
+    return PARSEC_SUCCESS;
 }
 #endif
 
@@ -248,7 +248,7 @@ void tree_dist_insert_node(tree_dist_t *tree, node_t *node, int n, int l)
     tree_copy_node(tree, nid, node);
 }
 
-void tree_dist_insert_data(tree_dist_t *tree, dague_data_t *data, int n, int l)
+void tree_dist_insert_data(tree_dist_t *tree, parsec_data_t *data, int n, int l)
 {
     int nid;
     nid = tree_lookup_or_allocate_node(tree, n, l);
@@ -260,15 +260,15 @@ void tree_dist_insert_data(tree_dist_t *tree, dague_data_t *data, int n, int l)
 
 void tree_copy_node(tree_dist_t *tree, int nid, node_t *src)
 {
-    dague_data_copy_t *data_copy;
+    parsec_data_copy_t *data_copy;
     node_t *dst;
     assert(nid < (int)tree->allocated_nodes);
     assert(tree->nodes[nid] != NULL);
     if( tree->nodes[nid]->data == NULL ) {
         (void)tree_dist_data_of_key(&tree->super, nid);
     }
-    data_copy = dague_data_get_copy(tree->nodes[nid]->data, 0);
-    dst = (node_t*)dague_data_copy_get_ptr(data_copy);
+    data_copy = parsec_data_get_copy(tree->nodes[nid]->data, 0);
+    dst = (node_t*)parsec_data_copy_get_ptr(data_copy);
     memcpy(dst, src, sizeof(node_t));
 }
 
@@ -298,15 +298,15 @@ static int walk_tree_rec(tree_walker_node_fn_t *node_fn,
     int nid;
     double s = 0.0, d = 0.0;
     node_t *node;
-    dague_data_copy_t *data_copy;
+    parsec_data_copy_t *data_copy;
     if( tree->super.nodes > 1 ) {
         fprintf(stderr, "tree_dist does not implement distributed tree walking yet.\n");
         return 0;
     }
     if( tree_lookup_node(tree, n, l, &nid) ) {
-        data_copy = dague_data_get_copy(tree->nodes[nid]->data, 0);
+        data_copy = parsec_data_get_copy(tree->nodes[nid]->data, 0);
         if( NULL != data_copy ) {
-            node = (node_t*)dague_data_copy_get_ptr(data_copy);
+            node = (node_t*)parsec_data_copy_get_ptr(data_copy);
             s = node->s;
             d = node->d;
         }
@@ -360,8 +360,8 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     tree_dist_t *res;
     res = (tree_dist_t*)malloc(sizeof(tree_dist_t));
 
-    /** Let's take care of the DAGUE data distribution interface first */
-    dague_ddesc_init(&res->super, nodes, myrank);
+    /** Let's take care of the PARSEC data distribution interface first */
+    parsec_ddesc_init(&res->super, nodes, myrank);
     res->super.data_key = tree_dist_data_key;
     res->super.rank_of  = tree_dist_rank_of;
     res->super.rank_of_key = tree_dist_rank_of_key;
@@ -373,7 +373,7 @@ tree_dist_t *tree_dist_create_empty(int myrank, int nodes)
     res->super.unregister_memory = tree_dist_unregister_memory;
     res->super.memory_registration_status = MEMORY_STATUS_UNREGISTERED;
     res->super.key_base = NULL;
-#ifdef DAGUE_PROF_TRACE
+#ifdef PARSEC_PROF_TRACE
     res->super.key_to_string = tree_dist_key_to_string;
     res->super.key_dim = "";
     res->super.key     = "";

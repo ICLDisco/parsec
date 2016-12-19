@@ -12,7 +12,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#include "dague/private_mempool.h"
+#include "parsec/private_mempool.h"
 #include "dplasma/lib/butterfly_map.h"
 
 extern void RBMM_zTOP( int mb, int nb, int lda, int off, int lvl, int N, int trans,
@@ -24,14 +24,14 @@ extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int tra
 
 %}
 
-descA  [type = "dague_seg_ddesc_t*"]
+descA  [type = "parsec_seg_ddesc_t*"]
 U      [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]
 trans  [type = "int"]
-pool_0 [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
+pool_0 [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*descA->A_org.mb*descA->A_org.nb)"]
 
-%option DAGUE_ARENA_STRUT = 36
+%option PARSEC_ARENA_STRUT = 36
 
 /*
  *
@@ -84,10 +84,10 @@ BODY
   N = descA->A_org->lm;
   lvl = descA->level;
 
-  p_elem_tl = dague_private_memory_pop( pool_0 );
-  p_elem_bl = dague_private_memory_pop( pool_0 );
-  p_elem_tr = dague_private_memory_pop( pool_0 );
-  p_elem_br = dague_private_memory_pop( pool_0 );
+  p_elem_tl = parsec_private_memory_pop( pool_0 );
+  p_elem_bl = parsec_private_memory_pop( pool_0 );
+  p_elem_tr = parsec_private_memory_pop( pool_0 );
+  p_elem_br = parsec_private_memory_pop( pool_0 );
 
 #if defined(DEBUG_BUTTERFLY)
 but_debug ("-- GEBMM\n");
@@ -106,10 +106,10 @@ but_debug ("-- GEBMM\n");
       memcpy((void *)((uintptr_t)Abr+off), (void *)((uintptr_t)p_elem_br+off), sz);
   }
 
-  dague_private_memory_push( pool_0, p_elem_tl );
-  dague_private_memory_push( pool_0, p_elem_bl );
-  dague_private_memory_push( pool_0, p_elem_tr );
-  dague_private_memory_push( pool_0, p_elem_br );
+  parsec_private_memory_push( pool_0, p_elem_tl );
+  parsec_private_memory_push( pool_0, p_elem_bl );
+  parsec_private_memory_push( pool_0, p_elem_tr );
+  parsec_private_memory_push( pool_0, p_elem_br );
 
 END
 

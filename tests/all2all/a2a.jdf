@@ -8,12 +8,12 @@ extern "C" %{
  *
  */
 
-#include "dague/data_distribution.h"
+#include "parsec/data_distribution.h"
 #include "data_dist/matrix/matrix.h"
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-static dague_datatype_t block;
+static parsec_datatype_t block;
 #endif
 #include <stdio.h>
 
@@ -106,15 +106,15 @@ extern "C" %{
  * @param [IN] size size of each local data element
  * @param [IN] nb   number of iterations
  *
- * @return the dague handle to schedule.
+ * @return the parsec handle to schedule.
  */
-dague_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size, int repeat)
+parsec_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size, int repeat)
 {
     int worldsize;
-    dague_a2a_handle_t *o = NULL;
+    parsec_a2a_handle_t *o = NULL;
     (void)size;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 #else
     worldsize = 1;
@@ -122,41 +122,41 @@ dague_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size
 
     if( repeat <= 0 ) {
         fprintf(stderr, "To work, A2A must do at least one exchange of at least one byte\n");
-        return (dague_handle_t*)o;
+        return (parsec_handle_t*)o;
     }
 
-    o = dague_a2a_new(A, B, repeat, worldsize);
+    o = parsec_a2a_new(A, B, repeat, worldsize);
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         MPI_Aint extent;
         MPI_Type_contiguous(size, MPI_INT, &block);
         MPI_Type_commit(&block);
-#if defined(DAGUE_HAVE_MPI_20)
+#if defined(PARSEC_HAVE_MPI_20)
         MPI_Aint lb = 0;
         MPI_Type_get_extent(block, &lb, &extent);
 #else
         MPI_Type_extent(block, &extent);
-#endif  /* defined(DAGUE_HAVE_MPI_20) */
-        dague_arena_construct(o->arenas[DAGUE_a2a_DEFAULT_ARENA],
-                              extent, DAGUE_ARENA_ALIGNMENT_SSE,
+#endif  /* defined(PARSEC_HAVE_MPI_20) */
+        parsec_arena_construct(o->arenas[PARSEC_a2a_DEFAULT_ARENA],
+                              extent, PARSEC_ARENA_ALIGNMENT_SSE,
                               block);
     }
 #endif
 
-    return (dague_handle_t*)o;
+    return (parsec_handle_t*)o;
 }
 
 /**
- * @param [INOUT] o the dague handle to destroy
+ * @param [INOUT] o the parsec handle to destroy
  */
-void a2a_destroy(dague_handle_t *o)
+void a2a_destroy(parsec_handle_t *o)
 {
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    DAGUE_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
 }
 
 %}

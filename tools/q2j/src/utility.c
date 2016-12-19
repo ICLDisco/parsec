@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
-#include "dague/class/list.h"
+#include "parsec_config.h"
+#include "parsec/class/list.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,7 +51,7 @@ extern int   _q2j_check_unknown_functions;
 extern FILE *_q2j_output;
 extern jdf_t _q2j_jdf;
 
-static dague_list_t _dague_pool_list;
+static parsec_list_t _parsec_pool_list;
 static var_t *var_head=NULL;
 static int _ind_depth=0;
 static int _task_count=0;
@@ -78,7 +78,7 @@ struct matrix_variable{
 };
 
 typedef struct var_def_item {
-    dague_list_item_t super;
+    parsec_list_item_t super;
     char *var;
     char *def;
 } var_def_item_t;
@@ -96,8 +96,8 @@ static int isArrayLocal(node_t *task_node, int index);
 static int isArrayOut(node_t *task_node, int index);
 static int isArrayIn(node_t *task_node, int index);
 static matrix_variable_t *find_all_matrices(node_t *node);
-static int is_definition_seen(dague_list_t *var_def_list, char *param);
-static void mark_definition_as_seen(dague_list_t *var_def_list, char *param);
+static int is_definition_seen(parsec_list_t *var_def_list, char *param);
+static void mark_definition_as_seen(parsec_list_t *var_def_list, char *param);
 static int is_acceptable_econd(node_t *node, char *ivar);
 static int is_id_or_mul(node_t *node, char *ivar);
 static int is_decrementing(node_t *node);
@@ -560,7 +560,7 @@ static void record_uses_defs_and_pools(node_t *node, int mult_kernel_occ){
     static int pool_initialized = 0;
 
     if ( !pool_initialized ) {
-        OBJ_CONSTRUCT(&_dague_pool_list, dague_list_t);
+        OBJ_CONSTRUCT(&_parsec_pool_list, parsec_list_t);
         pool_initialized++;
     }
 
@@ -906,10 +906,10 @@ node_t *get_locality(node_t *task_node){
  */
 static inline int kernel_exists(char *task_name){
     static int kernel_count_initialized = 0;
-    static dague_list_t kernel_name_list;
+    static parsec_list_t kernel_name_list;
 
     if ( !kernel_count_initialized ) {
-        OBJ_CONSTRUCT(&kernel_name_list, dague_list_t);
+        OBJ_CONSTRUCT(&kernel_name_list, parsec_list_t);
         kernel_count_initialized = 1;
     }
 
@@ -1141,23 +1141,23 @@ static void add_phony_INOUT_task_loops(matrix_variable_t *list, node_t *node, in
             phony_var = DA_create_ID("phony");
 
             // Create a variable to hold the task name in QUARK specific format.
-            // WARNING: The string prefices DAGUE_IN_ and DAGUE_OUT_ are also used in
+            // WARNING: The string prefices PARSEC_IN_ and PARSEC_OUT_ are also used in
             // omega_interface.c:is_phony_Entry_task() and
             // omega_interface.c:is_phony_Exit_task()
             // so don't change them without changing them there as well.
             if( TASK_IN == task_type ){
                 //FIXME: replace asprintf() with more portable code.
-                rc = asprintf(&(tmp_str), "CORE_DAGUE_IN_%s_quark", curr_matrix);
+                rc = asprintf(&(tmp_str), "CORE_PARSEC_IN_%s_quark", curr_matrix);
             }else if( TASK_OUT == task_type ){
-                rc = asprintf(&(tmp_str), "CORE_DAGUE_OUT_%s_quark", curr_matrix);
+                rc = asprintf(&(tmp_str), "CORE_PARSEC_OUT_%s_quark", curr_matrix);
             }else{
                 assert(0);
             }
         }else if( Q2J_ANN_GENER == _q2j_annot_API ){
             if( TASK_IN == task_type ){
-                rc = asprintf(&(tmp_str), "DAGUE_IN_%s", curr_matrix);
+                rc = asprintf(&(tmp_str), "PARSEC_IN_%s", curr_matrix);
             }else if( TASK_OUT == task_type ){
-                rc = asprintf(&(tmp_str), "DAGUE_OUT_%s", curr_matrix);
+                rc = asprintf(&(tmp_str), "PARSEC_OUT_%s", curr_matrix);
             }else{
                 assert(0);
             }
@@ -1377,7 +1377,7 @@ void rename_induction_variables(node_t *node){
 }
 
 /*
- * The following is a necessary optimization only because DAGUE does not (currently)
+ * The following is a necessary optimization only because PARSEC does not (currently)
  * support tiles that do not originite in user's memory, and therefore there cannot
  * be a tile that is only OUTPUT without being IN (and therefore without being read
  * from a preallocated memory region).
@@ -3085,7 +3085,7 @@ static char *int_to_str(int num){
 
 /*
  * size_to_pool_name() maintains a map between buffer sizes and memory pools.
- * Since DAGuE does not have a predefind map, or hash-table, we use a linked list where we
+ * Since PaRSEC does not have a predefind map, or hash-table, we use a linked list where we
  * store the different sizes and the pools they map to and traverse it every time we do
  * a lookup. Given that in reallity the size of this list is not expected to exceed 4 or 5
  * elements, it doesn't really matter.  Also, we use the "var_def_item_t" structure, just to
@@ -3096,7 +3096,7 @@ static char *size_to_pool_name(char *size_str){
     char *pool_name = NULL;
 
     /* See if a pool of this size exists already, and if so return it. */
-    DAGUE_LIST_NOLOCK_ITERATOR(&_dague_pool_list, list_item,
+    PARSEC_LIST_NOLOCK_ITERATOR(&_parsec_pool_list, list_item,
                          {
                              var_def_item_t *true_item = (var_def_item_t *)list_item;
                              assert(NULL != true_item->var);
@@ -3114,7 +3114,7 @@ static char *size_to_pool_name(char *size_str){
     var_def_item_t *new_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_item->var = size_str;
     new_item->def = pool_name;
-    dague_list_nolock_lifo_push( &_dague_pool_list, (dague_list_item_t *)new_item );
+    parsec_list_nolock_lifo_push( &_parsec_pool_list, (parsec_list_item_t *)new_item );
 
     return pool_name;
 }
@@ -3123,10 +3123,10 @@ string_arena_t *create_pool_declarations(){
     string_arena_t *sa = NULL;
 
     sa = string_arena_new(64);
-    DAGUE_LIST_NOLOCK_ITERATOR(&_dague_pool_list, list_item,
+    PARSEC_LIST_NOLOCK_ITERATOR(&_parsec_pool_list, list_item,
                          {
                              var_def_item_t *true_item = (var_def_item_t *)list_item;
-                             string_arena_add_string(sa, "%s [type = \"dague_memory_pool_t *\" size = \"%s\"]\n",
+                             string_arena_add_string(sa, "%s [type = \"parsec_memory_pool_t *\" size = \"%s\"]\n",
                                                      true_item->def,
                                                      true_item->var);
                          });
@@ -3143,7 +3143,7 @@ void jdf_register_pools( jdf_t *jdf )
             prev = prev->next;
     }
 
-    DAGUE_LIST_NOLOCK_ITERATOR(&_dague_pool_list, list_item,
+    PARSEC_LIST_NOLOCK_ITERATOR(&_parsec_pool_list, list_item,
                          {
                              var_def_item_t *true_item = (var_def_item_t *)list_item;
                              jdf_global_entry_t *e = q2jmalloc(jdf_global_entry_t, 1);
@@ -3159,7 +3159,7 @@ void jdf_register_pools( jdf_t *jdf )
                              e->properties[0].properties = NULL;
                              JDF_OBJECT_SET(&(e->properties[0]), NULL, 0, NULL);
                              e->properties[0].expr->op      = JDF_STRING;
-                             e->properties[0].expr->jdf_var = strdup("dague_memory_pool_t *");
+                             e->properties[0].expr->jdf_var = strdup("parsec_memory_pool_t *");
 
                              e->properties[1].next       = NULL;
                              e->properties[1].name       = strdup("size");
@@ -3183,9 +3183,9 @@ void jdf_register_pools( jdf_t *jdf )
  * Traverse the list of variable definitions to see if we have stored a definition for a given variable.
  * Return the value one if "param" is in the list and the value zero if it is not.
  */
-static int is_definition_seen(dague_list_t *var_def_list, char *param){
+static int is_definition_seen(parsec_list_t *var_def_list, char *param){
     int i = 0;
-    DAGUE_LIST_NOLOCK_ITERATOR(var_def_list, item,
+    PARSEC_LIST_NOLOCK_ITERATOR(var_def_list, item,
                          {
                              i++;
                              var_def_item_t *true_item = (var_def_item_t *)item;
@@ -3202,13 +3202,13 @@ static int is_definition_seen(dague_list_t *var_def_list, char *param){
  * Add in the list of variable definitions an entry for the given parameter (the definition
  * itself is unnecessary, as we are using this list as a bitmask, in is_definition_seen().)
  */
-static void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
+static void mark_definition_as_seen(parsec_list_t *var_def_list, char *param){
     var_def_item_t *new_list_item;
 
     new_list_item = (var_def_item_t *)calloc(1, sizeof(var_def_item_t));
     new_list_item->var = param;
     new_list_item->def = NULL; // we are not using the actual definition, just marking it as seen
-    dague_list_nolock_lifo_push( var_def_list, (dague_list_item_t *)new_list_item );
+    parsec_list_nolock_lifo_push( var_def_list, (parsec_list_item_t *)new_list_item );
 
     return;
 }
@@ -3216,10 +3216,10 @@ static void mark_definition_as_seen(dague_list_t *var_def_list, char *param){
 /*
  * Traverse the tree containing the code and generate up to five strings.
  * prefix     : The variable declarations (and maybe initializations)
- * pool_pop   : The calls to dague_private_memory_pop() for SCRATCH parameters
+ * pool_pop   : The calls to parsec_private_memory_pop() for SCRATCH parameters
  * kernel_call: The actual call to the kernel
  * printStr   : The call to printlog()
- * pool_push  : The calls to dague_private_memory_push() for SCRATCH parameters
+ * pool_push  : The calls to parsec_private_memory_push() for SCRATCH parameters
  * result     : The concatenation of all the above strings that will be returned
  *
  * The function returns one string containing these five strings concatenated.
@@ -3240,8 +3240,8 @@ char *tree_to_body(node_t *node){
         return(str);
     }
 
-    dague_list_t var_def_list;
-    OBJ_CONSTRUCT(&var_def_list, dague_list_t);
+    parsec_list_t var_def_list;
+    OBJ_CONSTRUCT(&var_def_list, parsec_list_t);
 
     assert( FCALL == node->type );
     assert( (Q2J_ANN_QUARK == _q2j_annot_API) || (Q2J_ANN_GENER == _q2j_annot_API) );
@@ -3389,8 +3389,8 @@ char *tree_to_body(node_t *node){
             id = numToSymName(pool_buf_count, NULL);
             param = append_to_string( param, id, "p_elem_%s", 7+strlen(id));
             pool_pop = append_to_string( pool_pop, param, "  void *%s = ", 16+strlen(param));
-            pool_pop = append_to_string( pool_pop, pool_name, "dague_private_memory_pop( %s );\n", 31+strlen(pool_name));
-            pool_push = append_to_string( pool_push, pool_name, "  dague_private_memory_push( %s", 35+strlen(pool_name));
+            pool_pop = append_to_string( pool_pop, pool_name, "parsec_private_memory_pop( %s );\n", 31+strlen(pool_name));
+            pool_push = append_to_string( pool_push, pool_name, "  parsec_private_memory_push( %s", 35+strlen(pool_name));
             pool_push = append_to_string( pool_push, param, ", %s );\n", 6+strlen(param));
 
             kernel_call = append_to_string( kernel_call, param, NULL, 0);
@@ -3444,17 +3444,17 @@ char *tree_to_body(node_t *node){
     // Form the result by concatenating the strings we created in the right order.
     result = append_to_string(result, prefix, NULL, 0);
     result = append_to_string(result, printStr, "\n%s", 1+strlen(printStr));
-    result = append_to_string(result, "\n#if !defined(DAGUE_DRY_RUN)\n", NULL, 0);
+    result = append_to_string(result, "\n#if !defined(PARSEC_DRY_RUN)\n", NULL, 0);
     if( NULL != pool_pop )
         result = append_to_string(result, pool_pop, "%s", strlen(pool_pop) );
     result = append_to_string(result, kernel_call, "\n%s", 1+strlen(kernel_call) );
     if( NULL != pool_push )
         result = append_to_string(result, pool_push, "\n\n%s", 2+strlen(pool_push) );
-    result = append_to_string(result, "\n#endif  /* !defined(DAGUE_DRY_RUN) */\n", NULL, 0); // close the DRYRUN
+    result = append_to_string(result, "\n#endif  /* !defined(PARSEC_DRY_RUN) */\n", NULL, 0); // close the DRYRUN
 
     // clean up the list of variables and their definitions
     var_def_item_t *item;
-    while( NULL != (item = (var_def_item_t *)dague_list_nolock_lifo_pop(&var_def_list)) ) {
+    while( NULL != (item = (var_def_item_t *)parsec_list_nolock_lifo_pop(&var_def_list)) ) {
         free(item);
     }
 

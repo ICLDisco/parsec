@@ -70,8 +70,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgemm_Destruct();
  *
  *******************************************************************************
@@ -83,13 +83,13 @@
  * @sa dplasma_sgemm_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
-                   dague_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
-                   dague_complex64_t beta,  tiled_matrix_desc_t* C)
+                   parsec_complex64_t alpha, const tiled_matrix_desc_t* A, const tiled_matrix_desc_t* B,
+                   parsec_complex64_t beta,  tiled_matrix_desc_t* C)
 {
-    dague_handle_t* zgemm_handle;
-    dague_arena_t* arena;
+    parsec_handle_t* zgemm_handle;
+    parsec_arena_t* arena;
 
     /* Check input arguments */
     if ((transA != PlasmaNoTrans) && (transA != PlasmaTrans) && (transA != PlasmaConjTrans)) {
@@ -103,46 +103,46 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 
     if( PlasmaNoTrans == transA ) {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_NN_handle_t* handle;
-            handle = dague_zgemm_NN_new(transA, transB, alpha, beta,
+            parsec_zgemm_NN_handle_t* handle;
+            handle = parsec_zgemm_NN_new(transA, transB, alpha, beta,
                                         A,
                                         B,
                                         C);
-            arena = handle->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA];
-            zgemm_handle = (dague_handle_t*)handle;
+            arena = handle->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
+            zgemm_handle = (parsec_handle_t*)handle;
         } else {
-            dague_zgemm_NT_handle_t* handle;
-            handle = dague_zgemm_NT_new(transA, transB, alpha, beta,
+            parsec_zgemm_NT_handle_t* handle;
+            handle = parsec_zgemm_NT_new(transA, transB, alpha, beta,
                                         A,
                                         B,
                                         C);
-            arena = handle->arenas[DAGUE_zgemm_NT_DEFAULT_ARENA];
-            zgemm_handle = (dague_handle_t*)handle;
+            arena = handle->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
+            zgemm_handle = (parsec_handle_t*)handle;
         }
     } else {
         if( PlasmaNoTrans == transB ) {
-            dague_zgemm_TN_handle_t* handle;
-            handle = dague_zgemm_TN_new(transA, transB, alpha, beta,
+            parsec_zgemm_TN_handle_t* handle;
+            handle = parsec_zgemm_TN_new(transA, transB, alpha, beta,
                                         A,
                                         B,
                                         C);
-            arena = handle->arenas[DAGUE_zgemm_TN_DEFAULT_ARENA];
-            zgemm_handle = (dague_handle_t*)handle;
+            arena = handle->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
+            zgemm_handle = (parsec_handle_t*)handle;
         } else {
-            dague_zgemm_TT_handle_t* handle;
-            handle = dague_zgemm_TT_new(transA, transB, alpha, beta,
+            parsec_zgemm_TT_handle_t* handle;
+            handle = parsec_zgemm_TT_new(transA, transB, alpha, beta,
                                         A,
                                         B,
                                         C);
-            arena = handle->arenas[DAGUE_zgemm_TT_DEFAULT_ARENA];
-            zgemm_handle = (dague_handle_t*)handle;
+            arena = handle->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
+            zgemm_handle = (parsec_handle_t*)handle;
         }
     }
 
     dplasma_add2arena_tile(arena,
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, A->mb);
+                           A->mb*A->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, A->mb);
 
     return zgemm_handle;
 }
@@ -168,10 +168,10 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
  *
  ******************************************************************************/
 void
-dplasma_zgemm_Destruct( dague_handle_t *handle )
+dplasma_zgemm_Destruct( parsec_handle_t *handle )
 {
-    dague_matrix_del2arena( ((dague_zgemm_NN_handle_t *)handle)->arenas[DAGUE_zgemm_NN_DEFAULT_ARENA] );
-    dague_handle_free(handle);
+    parsec_matrix_del2arena( ((parsec_zgemm_NN_handle_t *)handle)->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -192,8 +192,8 @@ dplasma_zgemm_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] transA
  *          Specifies whether the matrix A is transposed, not transposed or conjugate transposed:
@@ -240,13 +240,13 @@ dplasma_zgemm_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zgemm( dague_context_t *dague,
+dplasma_zgemm( parsec_context_t *parsec,
                PLASMA_enum transA, PLASMA_enum transB,
-               dague_complex64_t alpha, const tiled_matrix_desc_t *A,
+               parsec_complex64_t alpha, const tiled_matrix_desc_t *A,
                                         const tiled_matrix_desc_t *B,
-               dague_complex64_t beta,        tiled_matrix_desc_t *C)
+               parsec_complex64_t beta,        tiled_matrix_desc_t *C)
 {
-    dague_handle_t *dague_zgemm = NULL;
+    parsec_handle_t *parsec_zgemm = NULL;
     int M, N, K;
     int Am, An, Ai, Aj, Amb, Anb;
     int Bm, Bn, Bi, Bj, Bmb, Bnb;
@@ -315,15 +315,15 @@ dplasma_zgemm( dague_context_t *dague,
         ((alpha == (PLASMA_Complex64_t)0.0 || K == 0) && beta == (PLASMA_Complex64_t)1.0))
         return 0;
 
-    dague_zgemm = dplasma_zgemm_New(transA, transB,
+    parsec_zgemm = dplasma_zgemm_New(transA, transB,
                                     alpha, A, B,
                                     beta, C);
 
-    if ( dague_zgemm != NULL )
+    if ( parsec_zgemm != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_zgemm);
-        dplasma_progress(dague);
-        dplasma_zgemm_Destruct( dague_zgemm );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zgemm);
+        dplasma_progress(parsec);
+        dplasma_zgemm_Destruct( parsec_zgemm );
         return 0;
     }
     return -101;

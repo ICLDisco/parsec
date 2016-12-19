@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "dague_config.h"
+#include "parsec_config.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -17,15 +17,15 @@
 #include <fcntl.h>
 #include <stdarg.h>
 
-#include "dague/profiling.h"
-#include "dague/dague_binary_profile.h"
+#include "parsec/profiling.h"
+#include "parsec/parsec_binary_profile.h"
 #include "dbpreader.h"
 
 #ifdef DEBUG
 #undef DEBUG
 #endif
 
-#if defined(DAGUE_DEBUG_NOISIER)
+#if defined(PARSEC_DEBUG_NOISIER)
 #define DEBUG(...) output(__VA_ARGS__)
 #else
 #define DEBUG(toto) do {} while(0)
@@ -79,7 +79,7 @@ struct dbp_file {
 };
 
 struct dbp_event {
-    dague_profiling_output_t *native;
+    parsec_profiling_output_t *native;
 };
 
 void dbp_file_print(dbp_file_t * file) {
@@ -128,7 +128,7 @@ void *dbp_event_get_info(const dbp_event_t *e)
 
 int dbp_event_info_len(const dbp_event_t *e, const dbp_multifile_reader_t *dbp)
 {
-    if( e->native->event.flags & DAGUE_PROFILING_EVENT_HAS_INFO ) {
+    if( e->native->event.flags & PARSEC_PROFILING_EVENT_HAS_INFO ) {
         return dbp_dictionary_keylen(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e))));
     }
     return 0;
@@ -137,7 +137,7 @@ int dbp_event_info_len(const dbp_event_t *e, const dbp_multifile_reader_t *dbp)
 struct dbp_event_iterator {
     const dbp_thread_t              *thread;
     dbp_event_t                      current_event;
-    dague_profiling_buffer_t        *current_events_buffer;
+    parsec_profiling_buffer_t        *current_events_buffer;
     int64_t                          current_event_position;
     int64_t                          current_event_index;
     int64_t                          current_buffer_position;
@@ -180,7 +180,7 @@ int dbp_dictionary_keylen(const dbp_dictionary_t *dico)
 }
 
 struct dbp_multifile_reader {
-    dague_profiling_binary_file_header_t header;
+    parsec_profiling_binary_file_header_t header;
     int nb_files;
     int dico_size;
     int worldsize;
@@ -198,18 +198,18 @@ dbp_dictionary_t *dbp_reader_get_dictionary(const dbp_multifile_reader_t *dbp, i
 }
 
 #define DBP_EVENT_LENGTH(dbp_event, dbp_main_object)                    \
-    (sizeof(dague_profiling_output_base_event_t) +                      \
+    (sizeof(parsec_profiling_output_base_event_t) +                      \
      (EVENT_HAS_INFO((dbp_event)->native) ?                             \
       (dbp_main_object)->dico_keys[BASE_KEY((dbp_event)->native->event.key)].keylen : 0))
 
 struct dbp_thread {
-    const dague_thread_profiling_t  *profile;
+    const parsec_thread_profiling_t  *profile;
     dbp_file_t                      *file;
     int                              nb_infos;
     dbp_info_t                      *infos;
 };
 
-static void release_events_buffer(dague_profiling_buffer_t *buffer)
+static void release_events_buffer(parsec_profiling_buffer_t *buffer)
 {
     if( NULL == buffer )
         return;
@@ -219,9 +219,9 @@ static void release_events_buffer(dague_profiling_buffer_t *buffer)
     }
 }
 
-static dague_profiling_buffer_t *refer_events_buffer( int fd, int64_t offset )
+static parsec_profiling_buffer_t *refer_events_buffer( int fd, int64_t offset )
 {
-    dague_profiling_buffer_t *res;
+    parsec_profiling_buffer_t *res;
     res = mmap(NULL, event_buffer_size, PROT_READ, MAP_SHARED, fd, offset);
     if( MAP_FAILED == res )
         return NULL;
@@ -283,7 +283,7 @@ const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
     it->current_buffer_position = it->thread->profile->first_events_buffer_offset;
     it->current_event_position = 0;
     if( it->current_events_buffer != NULL )
-        it->current_event.native = (dague_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
+        it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
     else
         it->current_event.native = NULL;
     return dbp_iterator_current(it);
@@ -292,7 +292,7 @@ const dbp_event_t *dbp_iterator_first(dbp_event_iterator_t *it)
 const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
 {
     size_t elen;
-    dague_profiling_output_t *current;
+    parsec_profiling_output_t *current;
     off_t next_off;
 
     current = it->current_event.native;
@@ -312,11 +312,11 @@ const dbp_event_t *dbp_iterator_next(dbp_event_iterator_t *it)
             it->current_event.native = NULL;
             return NULL;
         } else {
-            it->current_event.native = (dague_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
+            it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
         }
     } else {
         it->current_event_position += elen;
-        it->current_event.native = (dague_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
+        it->current_event.native = (parsec_profiling_output_t*)&(it->current_events_buffer->buffer[it->current_event_position]);
         it->current_event_index++;
     }
     assert( it->current_event_position <= event_avail_space );
@@ -502,10 +502,10 @@ void dbp_reader_close_files(dbp_multifile_reader_t *dbp)
     (void)dbp;
 }
 
-static void read_infos(dbp_file_t *dbp, dague_profiling_binary_file_header_t *head)
+static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *head)
 {
-    dague_profiling_buffer_t *info, *next;
-    dague_profiling_info_buffer_t *ib;
+    parsec_profiling_buffer_t *info, *next;
+    parsec_profiling_info_buffer_t *ib;
     dbp_info_t *id;
     char *value;
     int nb, nbthis, pos, vpos, tr, vs;
@@ -535,7 +535,7 @@ static void read_infos(dbp_file_t *dbp, dague_profiling_binary_file_header_t *he
     while( nb < dbp->nb_infos ) {
         assert( PROFILING_BUFFER_TYPE_GLOBAL_INFO == info->buffer_type );
 
-        ib = (dague_profiling_info_buffer_t*)&info->buffer[pos];
+        ib = (parsec_profiling_info_buffer_t*)&info->buffer[pos];
         id = (dbp_info_t *)malloc(sizeof(dbp_info_t));
         id->key = (char*)malloc(ib->info_size+1);
         id->value = (char*)malloc(ib->value_size+1);
@@ -544,7 +544,7 @@ static void read_infos(dbp_file_t *dbp, dague_profiling_binary_file_header_t *he
 
         nbthis++;
 
-        pos += sizeof(dague_profiling_info_buffer_t) + ib->info_size - 1;
+        pos += sizeof(parsec_profiling_info_buffer_t) + ib->info_size - 1;
 
         value = ib->info_and_value + ib->info_size;
         vpos = 0;
@@ -597,10 +597,10 @@ static void read_infos(dbp_file_t *dbp, dague_profiling_binary_file_header_t *he
     release_events_buffer( info );
 }
 
-static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
+static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const parsec_profiling_binary_file_header_t *head)
 {
-    dague_profiling_buffer_t *dico, *next;
-    dague_profiling_key_buffer_t *a;
+    parsec_profiling_buffer_t *dico, *next;
+    parsec_profiling_key_buffer_t *a;
     int nb, nbthis, pos;
 
     dbp->dico_size = 0;
@@ -620,7 +620,7 @@ static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const dague_prof
     nbthis = dico->this_buffer.nb_dictionary_entries;
     pos = 0;
     while( nb > 0 ) {
-        a = (dague_profiling_key_buffer_t*)&dico->buffer[pos];
+        a = (parsec_profiling_key_buffer_t*)&dico->buffer[pos];
 
         dbp->dico_keys[ dbp->dico_size - nb ].name = malloc( 64 );
         strncpy(dbp->dico_keys[ dbp->dico_size - nb ].name, a->name, 64);
@@ -634,7 +634,7 @@ static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const dague_prof
         dbp->dico_keys[ dbp->dico_size - nb ].convertor[a->keyinfo_convertor_length] = '\0';
         dbp->dico_keys[ dbp->dico_size - nb ].keylen = a->keyinfo_length;
 
-        pos += a->keyinfo_convertor_length - 1 + sizeof(dague_profiling_key_buffer_t);
+        pos += a->keyinfo_convertor_length - 1 + sizeof(parsec_profiling_key_buffer_t);
         nb--;
         nbthis--;
 
@@ -656,10 +656,10 @@ static int read_dictionary(dbp_multifile_reader_t *dbp, int fd, const dague_prof
     return 0;
 }
 
-static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const dague_profiling_binary_file_header_t *head)
+static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const parsec_profiling_binary_file_header_t *head)
 {
-    dague_profiling_buffer_t *dico, *next;
-    dague_profiling_key_buffer_t *a;
+    parsec_profiling_buffer_t *dico, *next;
+    parsec_profiling_key_buffer_t *a;
     int nb, nbthis, pos;
 
     /* Dictionaries match: take the first in memory */
@@ -680,7 +680,7 @@ static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const dag
     nbthis = dico->this_buffer.nb_dictionary_entries;
     pos = 0;
     while( nb > 0 ) {
-        a = (dague_profiling_key_buffer_t*)&dico->buffer[pos];
+        a = (parsec_profiling_key_buffer_t*)&dico->buffer[pos];
 
         if( strncmp(dbp->dico_keys[ dbp->dico_size - nb ].name, a->name, 64) ) {
             fprintf(stderr, "Dictionary entry %d has a name of %s in the reference dictionary, and %s in the new file dictionary.\n",
@@ -715,7 +715,7 @@ static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const dag
             goto error;
         }
 
-        pos += a->keyinfo_convertor_length - 1 + sizeof(dague_profiling_key_buffer_t);
+        pos += a->keyinfo_convertor_length - 1 + sizeof(parsec_profiling_key_buffer_t);
         nb--;
         nbthis--;
 
@@ -740,19 +740,19 @@ static int check_dictionary(const dbp_multifile_reader_t *dbp, int fd, const dag
     return -1;
 }
 
-static size_t read_thread_infos(dague_thread_profiling_t * res,
+static size_t read_thread_infos(parsec_thread_profiling_t * res,
                                 dbp_thread_t *th,
                                 int nb_infos, const char *br)
 {
-    dague_profiling_info_buffer_t *ib;
+    parsec_profiling_info_buffer_t *ib;
     dbp_info_t *nfo;
     int i, pos = 0;
     pos = 0;
     res->infos = NULL;
     th->infos = (dbp_info_t *)calloc(nb_infos, sizeof(dbp_info_t));
     for(i = 0; i < nb_infos; i++) {
-        ib = (dague_profiling_info_buffer_t*)(&br[pos]);
-        pos += ib->info_size + ib->value_size + sizeof(dague_profiling_info_buffer_t) - 1;
+        ib = (parsec_profiling_info_buffer_t*)(&br[pos]);
+        pos += ib->info_size + ib->value_size + sizeof(parsec_profiling_info_buffer_t) - 1;
         nfo = (dbp_info_t*)&th->infos[i];
         nfo->key = (char*)malloc(ib->info_size+1);
         memcpy(nfo->key, ib->info_and_value, ib->info_size);
@@ -765,11 +765,11 @@ static size_t read_thread_infos(dague_thread_profiling_t * res,
     return pos;
 }
 
-static int read_threads(dbp_file_t *dbp, const dague_profiling_binary_file_header_t *head)
+static int read_threads(dbp_file_t *dbp, const parsec_profiling_binary_file_header_t *head)
 {
-    dague_thread_profiling_t *res;
-    dague_profiling_thread_buffer_t *br;
-    dague_profiling_buffer_t *b, *next;
+    parsec_thread_profiling_t *res;
+    parsec_profiling_thread_buffer_t *br;
+    parsec_profiling_buffer_t *b, *next;
     int nb, nbthis, pos;
 
     dbp->nb_threads = head->nb_threads;
@@ -783,8 +783,8 @@ static int read_threads(dbp_file_t *dbp, const dague_profiling_binary_file_heade
         assert(PROFILING_BUFFER_TYPE_THREAD == b->buffer_type);
         assert(nbthis > 0);
 
-        br = (dague_profiling_thread_buffer_t*)&(b->buffer[pos]);
-        res = (dague_thread_profiling_t*)malloc( sizeof(dague_thread_profiling_t) );
+        br = (parsec_profiling_thread_buffer_t*)&(b->buffer[pos]);
+        res = (parsec_thread_profiling_t*)malloc( sizeof(parsec_thread_profiling_t) );
         res->next_event_position = -1; /* No need for a next event position */
         res->nb_events = br->nb_events;
         res->hr_id = (char*)malloc(128);
@@ -792,12 +792,12 @@ static int read_threads(dbp_file_t *dbp, const dague_profiling_binary_file_heade
         res->first_events_buffer_offset = br->first_events_buffer_offset;
         res->current_events_buffer = refer_events_buffer(dbp->fd, br->first_events_buffer_offset);
 
-        OBJ_CONSTRUCT( res, dague_list_item_t );
+        OBJ_CONSTRUCT( res, parsec_list_item_t );
 
         dbp->threads[head->nb_threads - nb].file = dbp;
         dbp->threads[head->nb_threads - nb].profile = res;
 
-        pos += sizeof(dague_profiling_thread_buffer_t) - sizeof(dague_profiling_info_buffer_t);
+        pos += sizeof(parsec_profiling_thread_buffer_t) - sizeof(parsec_profiling_info_buffer_t);
         pos += read_thread_infos( res, &dbp->threads[head->nb_threads-nb],
                                   br->nb_infos, (char*)br->infos );
 
@@ -831,8 +831,8 @@ static int read_threads(dbp_file_t *dbp, const dague_profiling_binary_file_heade
 static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
 {
     int fd, i, p, n;
-    dague_profiling_buffer_t dummy_events_buffer;
-    dague_profiling_binary_file_header_t head;
+    parsec_profiling_buffer_t dummy_events_buffer;
+    parsec_profiling_binary_file_header_t head;
     dbp_multifile_reader_t *dbp;
 
     dbp = (dbp_multifile_reader_t*)malloc(sizeof(dbp_multifile_reader_t));
@@ -856,17 +856,17 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
         dbp->files[n].fd = fd;
         dbp->files[n].nb_infos = 0;
 
-        if( (p = read( fd, &head, sizeof(dague_profiling_binary_file_header_t) )) != sizeof(dague_profiling_binary_file_header_t) ) {
+        if( (p = read( fd, &head, sizeof(parsec_profiling_binary_file_header_t) )) != sizeof(parsec_profiling_binary_file_header_t) ) {
             fprintf(stderr, "read %d bytes\n", p);
-            fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
+            fprintf(stderr, "File %s does not seem to be a correct PARSEC Binary Profile, ignored\n",
                     filenames[i]);
             dbp->files[n].error = -TOO_SMALL;
             goto close_and_continue;
         }
 
-        if( strncmp( head.magick, DAGUE_PROFILING_MAGICK, 24 ) ) {
-            fprintf(stderr, "read %d bytes found '%s', expected '%s'\n", p, head.magick, DAGUE_PROFILING_MAGICK);
-            fprintf(stderr, "File %s does not seem to be a correct DAGUE Binary Profile, ignored\n",
+        if( strncmp( head.magick, PARSEC_PROFILING_MAGICK, 24 ) ) {
+            fprintf(stderr, "read %d bytes found '%s', expected '%s'\n", p, head.magick, PARSEC_PROFILING_MAGICK);
+            fprintf(stderr, "File %s does not seem to be a correct PARSEC Binary Profile, ignored\n",
                     filenames[i]);
             dbp->files[n].error = -NO_MAGICK;
             goto close_and_continue;
@@ -878,7 +878,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
             goto close_and_continue;
         }
         if( n > 0 ) {
-            if( memcmp(&head, &dbp->header, sizeof(dague_profiling_binary_file_header_t)) ) {
+            if( memcmp(&head, &dbp->header, sizeof(parsec_profiling_binary_file_header_t)) ) {
                 if( strncmp(head.hr_id, dbp->files[0].hr_id, 128) ) {
                     fprintf(stderr, "The profile in file %s has unique id %s, which is not compatible with id %s of file %s. File ignored.\n",
                             dbp->files[n].filename, head.hr_id,
@@ -920,7 +920,7 @@ static dbp_multifile_reader_t *open_files(int nbfiles, char **filenames)
                 goto close_and_continue;
             }
             dbp->worldsize = head.worldsize;
-            memcpy(&dbp->header, &head, sizeof(dague_profiling_binary_file_header_t));
+            memcpy(&dbp->header, &head, sizeof(parsec_profiling_binary_file_header_t));
         }
 
         dbp->files[n].hr_id = strdup(head.hr_id);

@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrtri_New - Generates dague handle to compute the inverse of an
+ *  dplasma_ztrtri_New - Generates parsec handle to compute the inverse of an
  *  upper or lower triangular matrix A.
  *
  *  WARNING: The computations are not done by this call.
@@ -58,8 +58,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrtri_Destruct();
  *
  *******************************************************************************
@@ -71,40 +71,40 @@
  * @sa dplasma_strtri_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_ztrtri_New( PLASMA_enum uplo,
                     PLASMA_enum diag,
                     tiled_matrix_desc_t *A,
                     int *INFO )
 {
-    dague_handle_t *dague_trtri = NULL;
+    parsec_handle_t *parsec_trtri = NULL;
 
     if ( uplo == PlasmaLower ) {
-        dague_trtri = (dague_handle_t*)dague_ztrtri_L_new(
+        parsec_trtri = (parsec_handle_t*)parsec_ztrtri_L_new(
             uplo, diag, A, INFO );
 
         /* Lower part of A with diagonal part */
-        dplasma_add2arena_lower( ((dague_ztrtri_L_handle_t*)dague_trtri)->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA],
-                                 A->mb*A->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, A->mb, 1 );
+        dplasma_add2arena_lower( ((parsec_ztrtri_L_handle_t*)parsec_trtri)->arenas[PARSEC_ztrtri_L_LOWER_TILE_ARENA],
+                                 A->mb*A->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, A->mb, 1 );
     } else {
-        dague_trtri = (dague_handle_t*)dague_ztrtri_U_new(
+        parsec_trtri = (parsec_handle_t*)parsec_ztrtri_U_new(
             uplo, diag, A, INFO );
 
         /* Lower part of A with diagonal part */
-        dplasma_add2arena_upper( ((dague_ztrtri_U_handle_t*)dague_trtri)->arenas[DAGUE_ztrtri_U_UPPER_TILE_ARENA],
-                                 A->mb*A->nb*sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, A->mb, 1 );
+        dplasma_add2arena_upper( ((parsec_ztrtri_U_handle_t*)parsec_trtri)->arenas[PARSEC_ztrtri_U_UPPER_TILE_ARENA],
+                                 A->mb*A->nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, A->mb, 1 );
     }
 
-    dplasma_add2arena_tile(((dague_ztrtri_L_handle_t*)dague_trtri)->arenas[DAGUE_ztrtri_L_DEFAULT_ARENA],
-                           A->mb*A->nb*sizeof(dague_complex64_t),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
-                           dague_datatype_double_complex_t, A->mb);
+    dplasma_add2arena_tile(((parsec_ztrtri_L_handle_t*)parsec_trtri)->arenas[PARSEC_ztrtri_L_DEFAULT_ARENA],
+                           A->mb*A->nb*sizeof(parsec_complex64_t),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_double_complex_t, A->mb);
 
-    return dague_trtri;
+    return parsec_trtri;
 }
 
 /**
@@ -128,13 +128,13 @@ dplasma_ztrtri_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_ztrtri_Destruct( dague_handle_t *handle )
+dplasma_ztrtri_Destruct( parsec_handle_t *handle )
 {
-    dague_ztrtri_L_handle_t *otrtri = (dague_ztrtri_L_handle_t *)handle;
+    parsec_ztrtri_L_handle_t *otrtri = (parsec_ztrtri_L_handle_t *)handle;
 
-    dague_matrix_del2arena( otrtri->arenas[DAGUE_ztrtri_L_DEFAULT_ARENA   ] );
-    dague_matrix_del2arena( otrtri->arenas[DAGUE_ztrtri_L_LOWER_TILE_ARENA] );
-    dague_handle_free(handle);
+    parsec_matrix_del2arena( otrtri->arenas[PARSEC_ztrtri_L_DEFAULT_ARENA   ] );
+    parsec_matrix_del2arena( otrtri->arenas[PARSEC_ztrtri_L_LOWER_TILE_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -147,8 +147,8 @@ dplasma_ztrtri_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          Specifies whether the matrix A is upper triangular or lower
@@ -191,12 +191,12 @@ dplasma_ztrtri_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_ztrtri( dague_context_t *dague,
+dplasma_ztrtri( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 PLASMA_enum diag,
                 tiled_matrix_desc_t *A )
 {
-    dague_handle_t *dague_ztrtri = NULL;
+    parsec_handle_t *parsec_ztrtri = NULL;
     int info = 0;
 
     /* Check input arguments */
@@ -214,13 +214,13 @@ dplasma_ztrtri( dague_context_t *dague,
         return -6;
     }
 
-    dague_ztrtri = dplasma_ztrtri_New(uplo, diag, A, &info);
+    parsec_ztrtri = dplasma_ztrtri_New(uplo, diag, A, &info);
 
-    if ( dague_ztrtri != NULL )
+    if ( parsec_ztrtri != NULL )
     {
-        dague_enqueue( dague, dague_ztrtri );
-        dplasma_progress( dague );
-        dplasma_ztrtri_Destruct( dague_ztrtri );
+        parsec_enqueue( parsec, parsec_ztrtri );
+        dplasma_progress( parsec );
+        dplasma_ztrtri_Destruct( parsec_ztrtri );
         return info;
     }
     else {

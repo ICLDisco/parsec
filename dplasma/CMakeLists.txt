@@ -17,7 +17,7 @@ option(DPLASMA_WITH_RECURSIVE
   "Enable recursive kernels to be called when available" OFF)
 if(DPLASMA_WITH_RECURSIVE)
   # TODO: This will need to be added to the futur dplasma_config.h.in
-  add_definitions(-DDAGUE_HAVE_RECURSIVE)
+  add_definitions(-DPARSEC_HAVE_RECURSIVE)
 endif()
 
 if(NOT DPLASMA_PRECISIONS)
@@ -30,9 +30,9 @@ IF( NOT BUILD_DPLASMA )
   RETURN()
 ENDIF( NOT BUILD_DPLASMA )
 
-if( BUILD_DPLASMA AND NOT BUILD_DAGUE )
-  message(FATAL_ERROR "Building the DPLASMA layer requires the DAGuE framework")
-endif( BUILD_DPLASMA AND NOT BUILD_DAGUE )
+if( BUILD_DPLASMA AND NOT BUILD_PARSEC )
+  message(FATAL_ERROR "Building the DPLASMA layer requires the PaRSEC framework")
+endif( BUILD_DPLASMA AND NOT BUILD_PARSEC )
 
 #
 # Find packages to decide if we compile DPLASMA support or not
@@ -47,7 +47,7 @@ if( PLASMA_SRC )
    list(APPEND COREBLAS_INCLUDE_DIRS ${PLASMA_SRC})
 endif( PLASMA_SRC )
 
-mark_as_advanced( DAGUE_GPU_WITH_MAGMA )
+mark_as_advanced( PARSEC_GPU_WITH_MAGMA )
 if( DPLASMA_GPU_WITH_MAGMA )
   find_package(MAGMA)
   if( MAGMA_FOUND )

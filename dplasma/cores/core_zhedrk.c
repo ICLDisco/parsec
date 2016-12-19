@@ -14,18 +14,18 @@
  *
  **/
 #include <lapacke.h>
-#include "dague_config.h"
+#include "parsec_config.h"
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 
-#if defined(DAGUE_HAVE_STRING_H)
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
-#if defined(DAGUE_HAVE_STDARG_H)
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
+#if defined(PARSEC_HAVE_STDARG_H)
 #include <stdarg.h>
-#endif  /* defined(DAGUE_HAVE_STDARG_H) */
+#endif  /* defined(PARSEC_HAVE_STDARG_H) */
 #include <stdio.h>
-#ifdef DAGUE_HAVE_LIMITS_H
+#ifdef PARSEC_HAVE_LIMITS_H
 #include <limits.h>
 #endif
 
@@ -157,7 +157,7 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
  *
  ******************************************************************************/
 
-#if defined(PLASMA_DAGUE_HAVE_WEAK)
+#if defined(PLASMA_PARSEC_HAVE_WEAK)
 #pragma weak CORE_zhedr2 = PCORE_zhedr2
 #define CORE_zhedr2 PCORE_zhedr2
 #endif
@@ -296,7 +296,7 @@ int CORE_zhedr2(PLASMA_enum uplo, PLASMA_enum trans,
     return 0;
 }
 
-#if defined(PLASMA_DAGUE_HAVE_WEAK)
+#if defined(PLASMA_PARSEC_HAVE_WEAK)
 #pragma weak CORE_zhedrk = PCORE_zhedrk
 #define CORE_zhedrk PCORE_zhedrk
 #endif

@@ -16,7 +16,7 @@ extern "C" %{
 #define TYPE  matrix_RealFloat
 
 #include "multichain.h"
-static dague_multichain_handle_t* handle;
+static parsec_multichain_handle_t* handle;
 static int verbose = 0;
 %}
 
@@ -74,8 +74,8 @@ extern "C" %{
 int main(int argc, char* argv[])
 {
     two_dim_block_cyclic_t descA, descB;
-    dague_arena_t arena;
-    dague_context_t *dague;
+    parsec_arena_t arena;
+    parsec_context_t *parsec;
     int ni = NN, nj = NN, loops = 5, i = 1;
     int rank = 0, size = 1, mat_size;
     long time_elapsed;
@@ -119,8 +119,8 @@ int main(int argc, char* argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif  /* DISTRIBUTED */
-    dague = dague_init(2, &argc, &argv);
-    assert( NULL != dague );
+    parsec = parsec_init(2, &argc, &argv);
+    assert( NULL != parsec );
 
     /**
      * Build the data and the arena to hold it up.
@@ -130,19 +130,19 @@ int main(int argc, char* argv[])
                                size /*nodes*/, rank /*rank*/,
                                2*BLOCK, 1, mat_size, 1,
                                0, 0, mat_size, 1, 1, 1, 1);
-    descA.mat = dague_data_allocate( descA.super.nb_local_tiles *
+    descA.mat = parsec_data_allocate( descA.super.nb_local_tiles *
                                      descA.super.bsiz *
-                                     dague_datadist_getsizeoftype(TYPE) );
+                                     parsec_datadist_getsizeoftype(TYPE) );
     two_dim_block_cyclic_init( &descB, TYPE, matrix_Tile,
                                size /*nodes*/, rank /*rank*/,
                                2*BLOCK, 1, mat_size, 1,
                                0, 0, mat_size, 1, 1, 1, 1);
-    descB.mat = dague_data_allocate( descB.super.nb_local_tiles *
+    descB.mat = parsec_data_allocate( descB.super.nb_local_tiles *
                                      descB.super.bsiz *
-                                     dague_datadist_getsizeoftype(TYPE) );
-    dague_arena_construct( &arena,
-                           descA.super.mb * descA.super.nb * dague_datadist_getsizeoftype(TYPE),
-                           DAGUE_ARENA_ALIGNMENT_SSE,
+                                     parsec_datadist_getsizeoftype(TYPE) );
+    parsec_arena_construct( &arena,
+                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                           PARSEC_ARENA_ALIGNMENT_SSE,
 #ifdef DISTRIBUTED
                            MPI_FLOAT
 #else
@@ -153,16 +153,16 @@ int main(int argc, char* argv[])
     for( ; loops > 0; loops-- ) {
 
         printf("\n\n\n%d iterations remaining\n\n\n", loops);
-        handle = dague_multichain_new( &descA, &descB, ni, nj );
+        handle = parsec_multichain_new( &descA, &descB, ni, nj );
         assert( NULL != handle );
         TIMER_START(time_elapsed);
-        handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
-        dague_enqueue( dague, (dague_handle_t*)handle );
+        handle->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+        parsec_enqueue( parsec, (parsec_handle_t*)handle );
         TIMER_STOP(time_elapsed);
         printf("DAG construction in %ld micro-sec\n", time_elapsed);
 
         TIMER_START(time_elapsed);
-        dague_context_wait(dague);
+        parsec_context_wait(parsec);
         TIMER_STOP(time_elapsed);
         printf("DAG execution in %ld micro-sec\n", time_elapsed);
         if( verbose >= 5 ) {
@@ -174,29 +174,29 @@ int main(int argc, char* argv[])
         }
 
         /**
-         * Validate the dague_context_start / dague_context_wait functionality.
+         * Validate the parsec_context_start / parsec_context_wait functionality.
          */
-        printf("\n\nChecking the dague_context_start / dague_context_wait (sleep 5)\n\n");
-        handle = dague_multichain_new( &descA, &descB, ni, nj );
+        printf("\n\nChecking the parsec_context_start / parsec_context_wait (sleep 5)\n\n");
+        handle = parsec_multichain_new( &descA, &descB, ni, nj );
         assert( NULL != handle );
 
         TIMER_START(time_elapsed);
-        handle->arenas[DAGUE_multichain_DEFAULT_ARENA] = &arena;
-        dague_enqueue( dague, (dague_handle_t*)handle );
+        handle->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+        parsec_enqueue( parsec, (parsec_handle_t*)handle );
         TIMER_STOP(time_elapsed);
 
-        dague_context_start(dague);
+        parsec_context_start(parsec);
         sleep(5);
         printf("Main thread going for the wait (remaining tasks %d)\n", handle->super.nb_tasks);
         /* By now most of the tasks should be completed */
         TIMER_START(time_elapsed);
-        dague_context_wait(dague);
+        parsec_context_wait(parsec);
         TIMER_STOP(time_elapsed);
         printf("DAG execution in %ld micro-sec\n", time_elapsed);
     }
     free(descA.mat);
 
-    dague_fini( &dague);
+    parsec_fini( &parsec);
 
     return 0;
 }

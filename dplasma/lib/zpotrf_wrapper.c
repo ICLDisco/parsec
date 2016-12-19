@@ -40,12 +40,12 @@
  *
  ******************************************************************************/
 void
-dplasma_zpotrf_setrecursive( dague_handle_t *handle, int hmb )
+dplasma_zpotrf_setrecursive( parsec_handle_t *handle, int hmb )
 {
-    dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)handle;
+    parsec_zpotrf_L_handle_t *parsec_zpotrf = (parsec_zpotrf_L_handle_t *)handle;
 
     if (hmb > 0) {
-        dague_zpotrf->_g_smallnb = hmb;
+        parsec_zpotrf->_g_smallnb = hmb;
     }
 }
 
@@ -102,8 +102,8 @@ dplasma_zpotrf_setrecursive( dague_handle_t *handle, int hmb )
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zpotrf_Destruct();
  *
  *******************************************************************************
@@ -115,13 +115,13 @@ dplasma_zpotrf_setrecursive( dague_handle_t *handle, int hmb )
  * @sa dplasma_spotrf_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zpotrf_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
                     int *info )
 {
-    dague_zpotrf_L_handle_t *dague_zpotrf = NULL;
-    dague_handle_t *handle = NULL;
+    parsec_zpotrf_L_handle_t *parsec_zpotrf = NULL;
+    parsec_handle_t *handle = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaUpper) && (uplo != PlasmaLower)) {
@@ -131,19 +131,19 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        handle = (dague_handle_t*)dague_zpotrf_U_new( uplo, A, info);
+        handle = (parsec_handle_t*)parsec_zpotrf_U_new( uplo, A, info);
     } else {
-        handle = (dague_handle_t*)dague_zpotrf_L_new( uplo, A, info);
+        handle = (parsec_handle_t*)parsec_zpotrf_L_new( uplo, A, info);
     }
 
-    dague_zpotrf = (dague_zpotrf_L_handle_t*)handle;
-    dague_zpotrf->_g_PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
-    if(0 == dague_zpotrf->_g_PRI_CHANGE)
-      dague_zpotrf->_g_PRI_CHANGE = A->nt;
-    dplasma_add2arena_tile( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    parsec_zpotrf = (parsec_zpotrf_L_handle_t*)handle;
+    parsec_zpotrf->_g_PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
+    if(0 == parsec_zpotrf->_g_PRI_CHANGE)
+      parsec_zpotrf->_g_PRI_CHANGE = A->nt;
+    dplasma_add2arena_tile( parsec_zpotrf->arenas[PARSEC_zpotrf_L_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     return handle;
 }
@@ -169,12 +169,12 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zpotrf_Destruct( dague_handle_t *handle )
+dplasma_zpotrf_Destruct( parsec_handle_t *handle )
 {
-    dague_zpotrf_L_handle_t *dague_zpotrf = (dague_zpotrf_L_handle_t *)handle;
+    parsec_zpotrf_L_handle_t *parsec_zpotrf = (parsec_zpotrf_L_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zpotrf->arenas[DAGUE_zpotrf_L_DEFAULT_ARENA] );
-    dague_handle_free(handle);
+    parsec_matrix_del2arena( parsec_zpotrf->arenas[PARSEC_zpotrf_L_DEFAULT_ARENA] );
+    parsec_handle_free(handle);
 }
 
 /**
@@ -192,8 +192,8 @@ dplasma_zpotrf_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of A is referenced;
@@ -224,23 +224,23 @@ dplasma_zpotrf_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zpotrf( dague_context_t *dague,
+dplasma_zpotrf( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t *A )
 {
-    dague_handle_t *dague_zpotrf = NULL;
+    parsec_handle_t *parsec_zpotrf = NULL;
     int info = 0, ginfo = 0 ;
 
-    dague_zpotrf = dplasma_zpotrf_New( uplo, A, &info );
+    parsec_zpotrf = dplasma_zpotrf_New( uplo, A, &info );
 
-    if ( dague_zpotrf != NULL )
+    if ( parsec_zpotrf != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_zpotrf);
-        dplasma_progress(dague);
-        dplasma_zpotrf_Destruct( dague_zpotrf );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpotrf);
+        dplasma_progress(parsec);
+        dplasma_zpotrf_Destruct( parsec_zpotrf );
     }
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;
@@ -264,8 +264,8 @@ dplasma_zpotrf( dague_context_t *dague,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] uplo
  *          = PlasmaUpper: Upper triangle of A is referenced;
@@ -301,24 +301,24 @@ dplasma_zpotrf( dague_context_t *dague,
  *
  ******************************************************************************/
 int
-dplasma_zpotrf_rec( dague_context_t *dague,
+dplasma_zpotrf_rec( parsec_context_t *parsec,
                     PLASMA_enum uplo,
                     tiled_matrix_desc_t *A, int hmb )
 {
-    dague_handle_t *dague_zpotrf = NULL;
+    parsec_handle_t *parsec_zpotrf = NULL;
     int info = 0, ginfo = 0 ;
 
-    dague_zpotrf = dplasma_zpotrf_New( uplo, A, &info );
-    if ( dague_zpotrf != NULL )
+    parsec_zpotrf = dplasma_zpotrf_New( uplo, A, &info );
+    if ( parsec_zpotrf != NULL )
     {
-        dplasma_zpotrf_setrecursive( (dague_handle_t*)dague_zpotrf, hmb );
-        dague_enqueue( dague, (dague_handle_t*)dague_zpotrf);
-        dplasma_progress(dague);
-        dplasma_zpotrf_Destruct( dague_zpotrf );
-        dague_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+        dplasma_zpotrf_setrecursive( (parsec_handle_t*)parsec_zpotrf, hmb );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpotrf);
+        dplasma_progress(parsec);
+        dplasma_zpotrf_Destruct( parsec_zpotrf );
+        parsec_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     MPI_Allreduce( &info, &ginfo, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 #else
     ginfo = info;

@@ -65,11 +65,11 @@ BODY
              "\t(uplo, PlasmaNoTrans, descA->mb, tempkn, 1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam)\n",
              k, m, m, k, A, m, m, C);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zherk(uplo, PlasmaNoTrans, descA->mb, tempkn,
                1.0, A /* descA(m,k) */, ldam,
                1.0, C /* descA(m,m) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -103,13 +103,13 @@ BODY
              "\t(PlasmaNoTrans, PlasmaConjTrans, descA->mb, descA->nb, tempkn, 1.0, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldan, 1.0, A(%d,%d)[%p], ldam)\n",
              k, m, n, m, k, A, n, k, B, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
                descA->mb, descA->nb, tempkn,
                1.0, A /* descA(m,k) */, ldam,
                     B /* descA(n,k) */, ldan,
                1.0, C /* descA(m,n) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -141,12 +141,12 @@ BODY
              "\t(PlasmaRight, uplo, PlasmaConjTrans, PlasmaNonUnit, descA->mb, tempkn, 1.0, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
              k, m, k, k, A, m, k, B);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_ztrmm(PlasmaRight, uplo, PlasmaConjTrans, PlasmaNonUnit,
                descA->mb, tempkn,
                1.0, A /* descA(k,k) */, ldak,
                     B /* descA(m,k) */, ldam );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -172,9 +172,9 @@ BODY
              "\t(uplo, tempkn, A(%d,%d)[%p], ldak)\n",
              k, k, k, A);
 
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     CORE_zlauum(uplo, tempkn,
                 A /* descA(k,k) */, ldak );
-#endif  /* !defined(DAGUE_DRY_RUN) */
+#endif  /* !defined(PARSEC_DRY_RUN) */
 }
 END

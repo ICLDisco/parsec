@@ -72,9 +72,9 @@ BODY
     int nbA, mbA;
     nbA   = descA->nb;
     mbA   = descA->mb;
-    dague_complex64_t *vi, *vii, *taui, *tauii;
-    vi    = (dague_complex64_t*)A + mbA * NB;
-    vii   = (dague_complex64_t*)B + mbA * NB;
+    parsec_complex64_t *vi, *vii, *taui, *tauii;
+    vi    = (parsec_complex64_t*)A + mbA * NB;
+    vii   = (parsec_complex64_t*)B + mbA * NB;
     taui  = vi  + mbA;
     tauii = vii + mbA;
 
@@ -118,8 +118,8 @@ BODY
     int nbA, mbA;
     nbA   = descA->nb;
     mbA   = descA->mb;
-    dague_complex64_t *vi, *taui;
-    vi    = (dague_complex64_t*)A + mbA * NB;
+    parsec_complex64_t *vi, *taui;
+    vi    = (parsec_complex64_t*)A + mbA * NB;
     taui  = vi + mbA;
 
     assert(NB+2 == nbA); (void)nbA;

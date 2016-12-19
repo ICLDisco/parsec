@@ -4,30 +4,30 @@
  *                         reserved.
  */
 
-#include "dague.h"
+#include "parsec.h"
 #include "choice_wrapper.h"
 #include "choice_data.h"
-#include "dague/data_distribution.h"
-#if defined(DAGUE_HAVE_STRING_H)
+#include "parsec/data_distribution.h"
+#if defined(PARSEC_HAVE_STRING_H)
 #include <string.h>
-#endif  /* defined(DAGUE_HAVE_STRING_H) */
-#if defined(DAGUE_HAVE_MPI)
+#endif  /* defined(PARSEC_HAVE_STRING_H) */
+#if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
-#endif  /* defined(DAGUE_HAVE_MPI) */
+#endif  /* defined(PARSEC_HAVE_MPI) */
 #include <stdlib.h>
 #include <stdio.h>
 
 int main(int argc, char *argv[])
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int rank, world, cores;
     int size, nb, i, j, c;
-    dague_ddesc_t *ddescA;
+    parsec_ddesc_t *ddescA;
     int *decision;
-    dague_handle_t *choice;
+    parsec_handle_t *choice;
     char **dargv, ***pargv;
 
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
     {
         int provided;
         MPI_Init_thread(&argc, &argv, MPI_THREAD_SERIALIZED, &provided);
@@ -73,23 +73,23 @@ int main(int argc, char *argv[])
         pargv = NULL;
     else
         pargv = &dargv;
-    dague = dague_init(cores, &j, pargv);
-    if( NULL == dague ) {
+    parsec = parsec_init(cores, &j, pargv);
+    if( NULL == parsec ) {
         exit(-1);
     }
     ddescA = create_and_distribute_data(rank, world, size);
-    dague_ddesc_set_key(ddescA, "A");
+    parsec_ddesc_set_key(ddescA, "A");
 
     decision = (int*)calloc(sizeof(int), nb+1);
 
     choice = choice_new(ddescA, size, decision, nb, world);
-    dague_enqueue(dague, choice);
+    parsec_enqueue(parsec, choice);
 
-    dague_context_wait(dague);
+    parsec_context_wait(parsec);
 
     choice_destroy(choice);
 
-    dague_fini(&dague);
+    parsec_fini(&parsec);
 
     for(size = 0; size < world; size++) {
         if( rank == size ) {
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
                 printf("%c%s", c == 0 ? '#' : (c == 1 ? 'A' : 'B'), i == nb ? "\n" : ", ");
             }
         }
-#if defined(DAGUE_HAVE_MPI)
+#if defined(PARSEC_HAVE_MPI)
         MPI_Barrier(MPI_COMM_WORLD);
 #endif
     }
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
     free_data(ddescA);
     free(decision);
 
-#ifdef DAGUE_HAVE_MPI
+#ifdef PARSEC_HAVE_MPI
     MPI_Finalize();
 #endif
 
