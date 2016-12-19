@@ -85,10 +85,10 @@ BODY [type=RECURSIVE]
         parsec_handle_t *parsec_zgeqrt;
 
 
-        small_descA = subtile_desc_create( &(descA), k, k,
+        small_descA = subtile_desc_create( descA, k, k,
                                            dplasma_imin(descA->mb, ldak), smallnb,
                                            0, 0, tempkm, tempkn );
-        small_descT = subtile_desc_create( &(descT), k, k,
+        small_descT = subtile_desc_create( descT, k, k,
                                            ib, smallnb,
                                            0, 0, ib, tempkn );
 
@@ -170,13 +170,13 @@ BODY [type=RECURSIVE]
         parsec_handle_t *parsec_zunmqr_panel;
 
 
-        small_descA = subtile_desc_create( &(descA), k, k,
+        small_descA = subtile_desc_create( descA, k, k,
                                            dplasma_imin(descA->mb, ldak), smallnb,
                                            0, 0, tempkm, tempkm );
-        small_descC = subtile_desc_create( &(descA), k, n,
+        small_descC = subtile_desc_create( descA, k, n,
                                            dplasma_imin(descA->mb, ldak), smallnb,
                                            0, 0, tempkm, tempnn );
-        small_descT = subtile_desc_create( &(descT), k, k,
+        small_descT = subtile_desc_create( descT, k, k,
                                            ib, smallnb,
                                            0, 0, ib, tempkm );
 
@@ -254,7 +254,7 @@ ztsqrt(k,m)
 
   : descA(m, k)
 
-  RW   A1 <- ( m == (k+1)       ) ? A zgeqrt(m-1) : A1 ztsqrt(k, m-1)       [type = UPPER_TILE]
+  RW   A1 <- ( m == (k+1)        ) ? A zgeqrt(m-1) : A1 ztsqrt(k, m-1)       [type = UPPER_TILE]
           -> ( m == (descA->mt-1)) ? A1 ztsqrt_out_Ak(k) : A1 ztsqrt(k, m+1) [type = UPPER_TILE]
 
   RW   A2 <- (k == 0) ? descA(m, k) : A2 ztsmqr(k-1, m, k)
@@ -263,7 +263,7 @@ ztsqrt(k,m)
 
   RW   T  <- descT(m, k)                                                    [type = LITTLE_T]
           -> descT(m, k)                                                    [type = LITTLE_T]
-          -> (k < (descA->nt-1)) ? T ztsmqr(k, m, (k+1)..(descA->nt-1))       [type = LITTLE_T]
+          -> (k < (descA->nt-1)) ? T ztsmqr(k, m, (k+1)..(descA->nt-1))     [type = LITTLE_T]
 
     /* Priority */
 ; (descA->mt-k)*(descA->mt-k)*(descA->mt-k)
@@ -282,19 +282,19 @@ BODY [type=RECURSIVE]
         parsec_handle_t *parsec_ztsqrt;
 
 
-        small_descA1 = subtile_desc_create( &(descA), k, k,
+        small_descA1 = subtile_desc_create( descA, k, k,
                                             dplasma_imin(descA->mb, ldak), smallnb,
                                             0, 0, tempkn, tempkn );
-        small_descA2 = subtile_desc_create( &(descA), m, k,
+        small_descA2 = subtile_desc_create( descA, m, k,
                                             dplasma_imin(descA->mb, ldam), smallnb,
                                             0, 0, tempmm, tempkn );
-        small_descT = subtile_desc_create( &(descT), m, k,
-                                            ib, smallnb,
-                                            0, 0, ib, tempkn );
+        small_descT = subtile_desc_create( descT, m, k,
+                                           ib, smallnb,
+                                           0, 0, ib, tempkn );
 
-        small_descA->->mat = A1;
-        small_descA->->mat = A2;
-        small_descT->mat  = T;
+        small_descA1->mat = A1;
+        small_descA2->mat = A2;
+        small_descT->mat = T;
 
         /* parsec_object */
         parsec_ztsqrt = dplasma_zgeqrfr_tsqrt_New((tiled_matrix_desc_t *)small_descA1,
@@ -424,18 +424,18 @@ BODY [type=RECURSIVE]
         parsec_handle_t *parsec_ztsmqr;
 
 
-        small_descA1 = subtile_desc_create( &(descA), k, n,
+        small_descA1 = subtile_desc_create( descA, k, n,
                                             dplasma_imin(descA->mb, ldak), smallnb,
                                             0, 0, descA->mb, tempnn );
-        small_descA2 = subtile_desc_create( &(descA), m, n,
+        small_descA2 = subtile_desc_create( descA, m, n,
                                             dplasma_imin(descA->mb, ldam), smallnb,
                                             0, 0, tempmm, tempnn );
-        small_descV = subtile_desc_create( &(descA), m, k,
-                                            dplasma_imin(descA->mb, ldam), smallnb,
-                                            0, 0, tempmm, descA->nb );
-        small_descT = subtile_desc_create( &(descT), m, k,
-                                            ib, smallnb,
-                                            0, 0, ib, descA->nb );
+        small_descV = subtile_desc_create( descA, m, k,
+                                           dplasma_imin(descA->mb, ldam), smallnb,
+                                           0, 0, tempmm, descA->nb );
+        small_descT = subtile_desc_create( descT, m, k,
+                                           ib, smallnb,
+                                           0, 0, ib, descA->nb );
 
         small_descA1->mat = A1;
         small_descA2->mat = A2;
