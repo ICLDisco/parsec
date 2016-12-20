@@ -11,8 +11,8 @@
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
-#include "dague/private_mempool.h"
-#include "dague/vpmap.h"
+#include "parsec/private_mempool.h"
+#include "parsec/vpmap.h"
 
 #include "zgebrd_ge2gb.h"
 
@@ -126,8 +126,8 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgebrd_ge2gb_Destruct();
  *
  *******************************************************************************
@@ -139,7 +139,7 @@
  * @sa dplasma_sgebrd_ge2gb_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgebrd_ge2gbx_New( int ib,
                            dplasma_qrtree_t *qrtre0,
                            dplasma_qrtree_t *qrtree,
@@ -151,7 +151,7 @@ dplasma_zgebrd_ge2gbx_New( int ib,
                            tiled_matrix_desc_t *TT,
                            tiled_matrix_desc_t *Band )
 {
-    dague_zgebrd_ge2gb_handle_t* handle;
+    parsec_zgebrd_ge2gb_handle_t* handle;
 
     if ( (TS0 != NULL) && ((A->mt > TS0->mt) || (A->nt > TS0->nt) || (TS0->mb < ib)) ) {
         dplasma_error("dplasma_zgebrd_ge2gb_New", "TS0 doesn't have the same number of tiles as A");
@@ -178,60 +178,60 @@ dplasma_zgebrd_ge2gbx_New( int ib,
         return NULL;
     }
 
-    handle = dague_zgebrd_ge2gb_new( A, TS0, TT0, TS, TT, Band,
+    handle = parsec_zgebrd_ge2gb_new( A, TS0, TT0, TS, TT, Band,
                                      qrtre0, qrtree, lqtree,
                                      !(qrtre0 == qrtree), ib,
                                      NULL, NULL);
 
-    handle->_g_p_work = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->_g_p_work, ib * A->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( handle->_g_p_work, ib * A->nb * sizeof(parsec_complex64_t) );
 
-    handle->_g_p_tau = (dague_memory_pool_t*)malloc(sizeof(dague_memory_pool_t));
-    dague_private_memory_init( handle->_g_p_tau, A->nb * sizeof(dague_complex64_t) );
+    handle->_g_p_tau = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( handle->_g_p_tau, A->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[DAGUE_zgebrd_ge2gb_DEFAULT_ARENA],
-                            A->mb * A->nb * sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( handle->arenas[PARSEC_zgebrd_ge2gb_DEFAULT_ARENA],
+                            A->mb * A->nb * sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* Upper triangular part Non-Unit (QR) */
-    dplasma_add2arena_upper( handle->arenas[DAGUE_zgebrd_ge2gb_UPPER_NON_UNIT_ARENA],
-                             A->mb * A->nb * sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 1 );
+    dplasma_add2arena_upper( handle->arenas[PARSEC_zgebrd_ge2gb_UPPER_NON_UNIT_ARENA],
+                             A->mb * A->nb * sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* Upper triangular part Unit (LQ) */
-    dplasma_add2arena_upper( handle->arenas[DAGUE_zgebrd_ge2gb_UPPER_UNIT_ARENA],
-                             A->mb * A->nb * sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 0 );
+    dplasma_add2arena_upper( handle->arenas[PARSEC_zgebrd_ge2gb_UPPER_UNIT_ARENA],
+                             A->mb * A->nb * sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Lower triangular part Non-Unit (LQ) */
-    dplasma_add2arena_lower( handle->arenas[DAGUE_zgebrd_ge2gb_LOWER_NON_UNIT_ARENA],
-                             A->mb * A->nb * sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 1 );
+    dplasma_add2arena_lower( handle->arenas[PARSEC_zgebrd_ge2gb_LOWER_NON_UNIT_ARENA],
+                             A->mb * A->nb * sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* Lower triangular part Unit (QR) */
-    dplasma_add2arena_lower( handle->arenas[DAGUE_zgebrd_ge2gb_LOWER_UNIT_ARENA],
-                             A->mb * A->nb * sizeof(dague_complex64_t),
-                             DAGUE_ARENA_ALIGNMENT_SSE,
-                             dague_datatype_double_complex_t, A->mb, 0 );
+    dplasma_add2arena_lower( handle->arenas[PARSEC_zgebrd_ge2gb_LOWER_UNIT_ARENA],
+                             A->mb * A->nb * sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgebrd_ge2gb_LITTLE_T_ARENA],
-                                 ib * A->nb * sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, ib, A->nb, -1);
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgebrd_ge2gb_LITTLE_T_ARENA],
+                                 ib * A->nb * sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, ib, A->nb, -1);
 
     /* Band */
-    dplasma_add2arena_rectangle( handle->arenas[DAGUE_zgebrd_ge2gb_BAND_ARENA],
-                                 Band->mb * Band->nb * sizeof(dague_complex64_t),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_double_complex_t, Band->mb, Band->nb, -1);
+    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgebrd_ge2gb_BAND_ARENA],
+                                 Band->mb * Band->nb * sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, Band->mb, Band->nb, -1);
 
-    return (dague_handle_t*)handle;
+    return (parsec_handle_t*)handle;
 }
 
 /**
@@ -286,8 +286,8 @@ dplasma_zgebrd_ge2gbx_New( int ib,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The dague handle describing the operation that can be
- *          enqueued in the runtime with dague_enqueue(). It, then, needs to be
+ *          \retval The parsec handle describing the operation that can be
+ *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgebrd_ge2gb_Destruct();
  *
  *******************************************************************************
@@ -299,12 +299,12 @@ dplasma_zgebrd_ge2gbx_New( int ib,
  * @sa dplasma_sgebrd_ge2gb_New
  *
  ******************************************************************************/
-dague_handle_t*
+parsec_handle_t*
 dplasma_zgebrd_ge2gb_New( int ib,
                           tiled_matrix_desc_t *A,
                           tiled_matrix_desc_t *Band )
 {
-    dague_handle_t *handle;
+    parsec_handle_t *handle;
     tiled_matrix_desc_t *subA = NULL;
     dplasma_qrtree_t *qrtre0, *qrtree, *lqtree;
     int P, Q, cores;
@@ -403,24 +403,24 @@ dplasma_zgebrd_ge2gb_New( int ib,
  *
  ******************************************************************************/
 void
-dplasma_zgebrd_ge2gbx_Destruct( dague_handle_t *handle )
+dplasma_zgebrd_ge2gbx_Destruct( parsec_handle_t *handle )
 {
-    dague_zgebrd_ge2gb_handle_t *dague_zgebrd_ge2gb = (dague_zgebrd_ge2gb_handle_t *)handle;
+    parsec_zgebrd_ge2gb_handle_t *parsec_zgebrd_ge2gb = (parsec_zgebrd_ge2gb_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_DEFAULT_ARENA       ] );
-    dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_LOWER_NON_UNIT_ARENA] );
-    dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_LOWER_UNIT_ARENA    ] );
-    dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_UPPER_NON_UNIT_ARENA] );
-    dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_UPPER_UNIT_ARENA    ] );
-    dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_LITTLE_T_ARENA      ] );
-    dague_matrix_del2arena( dague_zgebrd_ge2gb->arenas[DAGUE_zgebrd_ge2gb_BAND_ARENA          ] );
+    parsec_matrix_del2arena( parsec_zgebrd_ge2gb->arenas[PARSEC_zgebrd_ge2gb_DEFAULT_ARENA       ] );
+    parsec_matrix_del2arena( parsec_zgebrd_ge2gb->arenas[PARSEC_zgebrd_ge2gb_LOWER_NON_UNIT_ARENA] );
+    parsec_matrix_del2arena( parsec_zgebrd_ge2gb->arenas[PARSEC_zgebrd_ge2gb_LOWER_UNIT_ARENA    ] );
+    parsec_matrix_del2arena( parsec_zgebrd_ge2gb->arenas[PARSEC_zgebrd_ge2gb_UPPER_NON_UNIT_ARENA] );
+    parsec_matrix_del2arena( parsec_zgebrd_ge2gb->arenas[PARSEC_zgebrd_ge2gb_UPPER_UNIT_ARENA    ] );
+    parsec_matrix_del2arena( parsec_zgebrd_ge2gb->arenas[PARSEC_zgebrd_ge2gb_LITTLE_T_ARENA      ] );
+    parsec_matrix_del2arena( parsec_zgebrd_ge2gb->arenas[PARSEC_zgebrd_ge2gb_BAND_ARENA          ] );
 
-    dague_private_memory_fini( dague_zgebrd_ge2gb->_g_p_work );
-    dague_private_memory_fini( dague_zgebrd_ge2gb->_g_p_tau  );
-    free( dague_zgebrd_ge2gb->_g_p_work );
-    free( dague_zgebrd_ge2gb->_g_p_tau  );
+    parsec_private_memory_fini( parsec_zgebrd_ge2gb->_g_p_work );
+    parsec_private_memory_fini( parsec_zgebrd_ge2gb->_g_p_tau  );
+    free( parsec_zgebrd_ge2gb->_g_p_work );
+    free( parsec_zgebrd_ge2gb->_g_p_tau  );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
 /**
@@ -444,18 +444,18 @@ dplasma_zgebrd_ge2gbx_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 void
-dplasma_zgebrd_ge2gb_Destruct( dague_handle_t *handle )
+dplasma_zgebrd_ge2gb_Destruct( parsec_handle_t *handle )
 {
-    dague_zgebrd_ge2gb_handle_t *dague_zgebrd_ge2gb = (dague_zgebrd_ge2gb_handle_t *)handle;
+    parsec_zgebrd_ge2gb_handle_t *parsec_zgebrd_ge2gb = (parsec_zgebrd_ge2gb_handle_t *)handle;
 
-    if ( dague_zgebrd_ge2gb->_g_qrtre0 != dague_zgebrd_ge2gb->_g_qrtree ) {
-        dplasma_hqr_finalize( dague_zgebrd_ge2gb->_g_qrtre0 );
-        free( dague_zgebrd_ge2gb->_g_qrtre0 );
+    if ( parsec_zgebrd_ge2gb->_g_qrtre0 != parsec_zgebrd_ge2gb->_g_qrtree ) {
+        dplasma_hqr_finalize( parsec_zgebrd_ge2gb->_g_qrtre0 );
+        free( parsec_zgebrd_ge2gb->_g_qrtre0 );
     }
-    dplasma_hqr_finalize( dague_zgebrd_ge2gb->_g_qrtree );
-    dplasma_hqr_finalize( dague_zgebrd_ge2gb->_g_lqtree );
-    free( dague_zgebrd_ge2gb->_g_qrtree );
-    free( dague_zgebrd_ge2gb->_g_lqtree );
+    dplasma_hqr_finalize( parsec_zgebrd_ge2gb->_g_qrtree );
+    dplasma_hqr_finalize( parsec_zgebrd_ge2gb->_g_lqtree );
+    free( parsec_zgebrd_ge2gb->_g_qrtree );
+    free( parsec_zgebrd_ge2gb->_g_lqtree );
 
     dplasma_zgebrd_ge2gbx_Destruct( handle );
 }
@@ -479,8 +479,8 @@ dplasma_zgebrd_ge2gb_Destruct( dague_handle_t *handle )
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] qrtree
  *          The structure that describes the trees used to perform the
@@ -528,7 +528,7 @@ dplasma_zgebrd_ge2gb_Destruct( dague_handle_t *handle )
  *
  ******************************************************************************/
 int
-dplasma_zgebrd_ge2gbx( dague_context_t *dague, int ib,
+dplasma_zgebrd_ge2gbx( parsec_context_t *parsec, int ib,
                        dplasma_qrtree_t *qrtre0,
                        dplasma_qrtree_t *qrtree,
                        dplasma_qrtree_t *lqtree,
@@ -539,15 +539,15 @@ dplasma_zgebrd_ge2gbx( dague_context_t *dague, int ib,
                        tiled_matrix_desc_t *TT,
                        tiled_matrix_desc_t *Band)
 {
-    dague_handle_t *dague_zgebrd_ge2gb = NULL;
+    parsec_handle_t *parsec_zgebrd_ge2gb = NULL;
 
-    dague_zgebrd_ge2gb = dplasma_zgebrd_ge2gbx_New(ib, qrtre0, qrtree, lqtree,
+    parsec_zgebrd_ge2gb = dplasma_zgebrd_ge2gbx_New(ib, qrtre0, qrtree, lqtree,
                                                    A, TS0, TT0, TS, TT, Band);
 
-    dague_enqueue(dague, (dague_handle_t*)dague_zgebrd_ge2gb);
-    dplasma_progress(dague);
+    parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgebrd_ge2gb);
+    dplasma_progress(parsec);
 
-    dplasma_zgebrd_ge2gbx_Destruct( dague_zgebrd_ge2gb );
+    dplasma_zgebrd_ge2gbx_Destruct( parsec_zgebrd_ge2gb );
 
     return 0;
 }
@@ -571,8 +571,8 @@ dplasma_zgebrd_ge2gbx( dague_context_t *dague, int ib,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] qrtree
  *          The structure that describes the trees used to perform the
@@ -620,18 +620,18 @@ dplasma_zgebrd_ge2gbx( dague_context_t *dague, int ib,
  *
  ******************************************************************************/
 int
-dplasma_zgebrd_ge2gb( dague_context_t *dague, int ib,
+dplasma_zgebrd_ge2gb( parsec_context_t *parsec, int ib,
                       tiled_matrix_desc_t *A,
                       tiled_matrix_desc_t *Band)
 {
-    dague_handle_t *dague_zgebrd_ge2gb = NULL;
+    parsec_handle_t *parsec_zgebrd_ge2gb = NULL;
 
-    dague_zgebrd_ge2gb = dplasma_zgebrd_ge2gb_New(ib, A, Band);
+    parsec_zgebrd_ge2gb = dplasma_zgebrd_ge2gb_New(ib, A, Band);
 
-    dague_enqueue(dague, (dague_handle_t*)dague_zgebrd_ge2gb);
-    dplasma_progress(dague);
+    parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgebrd_ge2gb);
+    dplasma_progress(parsec);
 
-    dplasma_zgebrd_ge2gb_Destruct( dague_zgebrd_ge2gb );
+    dplasma_zgebrd_ge2gb_Destruct( parsec_zgebrd_ge2gb );
 
     return 0;
 }

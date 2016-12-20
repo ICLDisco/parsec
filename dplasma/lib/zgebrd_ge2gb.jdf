@@ -30,8 +30,8 @@ lqtree   [type = "dplasma_qrtree_t *"]
 rbidiag  [type = "int" ]
 ib       [type = "int" ]
 
-p_work   [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descA->nb))"]
-p_tau    [type = "dague_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descA->nb))"]
+p_work   [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)*ib*(descA->nb))"]
+p_tau    [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t)   *(descA->nb))"]
 
 KT       [type = "int" hidden=on default="( rbidiag ? descA->nt : 1 )" ]
 NT       [type = "int" hidden=on default="( descA->nt )" ]
@@ -94,18 +94,18 @@ BODY
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], ldam, descTS0(%d,%d)[%p], TS0.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     CORE_zgeqrt(tempmm, tempkn, ib,
                 A /* descA(m,k)  */,  ldam,
                 T /* descTS0(m,k) */, ib,
                 p_elem_A, p_elem_B );
 
-    dague_private_memory_push( p_tau, p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -176,8 +176,8 @@ BODY
              "\t descA(%d,%d)[%p], ldam, descTS0(%d,%d)[%p], descTS0->mb, descA(%d,%d)[%p], ldam, p_elem_A, descTS0->nb)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_zunmqr(
         PlasmaLeft, PlasmaConjTrans,
@@ -187,8 +187,8 @@ BODY
         C /* descA(  m, n) */, ldam,
         p_elem_A, descA->nb );
 
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -255,9 +255,9 @@ BODY
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descTT0(%d,%d)[%p], descTT0->mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsqrt(
@@ -274,9 +274,9 @@ BODY
             T  /* descTT0(m, k) */, ib,
             p_elem_A, p_elem_B );
     }
-    dague_private_memory_push( p_tau , p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau , p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -346,8 +346,8 @@ BODY
              "\t descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descA(%d,%d)[%p], ldam, descTT0(%d,%d)[%p], descTT0->mb, p_elem_A, ldwork)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmqr(
@@ -368,8 +368,8 @@ BODY
             T  /* descTT(m, k) */, ib,
             p_elem_A, ldwork );
     }
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -422,7 +422,7 @@ inq   = %{ return rbidiag & (n > 0) & (m >= n); %}
 
 BODY
 {
-#if !defined(DAGUE_DRY_RUN)
+#if !defined(PARSEC_DRY_RUN)
     int tempmm = (m ==(descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;
     int tempnn = (n ==(descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
     int ldam = BLKLDD( descA, m );
@@ -441,7 +441,7 @@ BODY
                                  A, ldam, C, ldam );
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
+#endif /* !defined(PARSEC_DRY_RUN) */
 }
 END
 
@@ -506,18 +506,18 @@ BODY
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     CORE_zgeqrt(tempmm, tempkn, ib,
                 A /* descA(m,k)  */, ldam,
                 T /* descTS(m,k) */, ib,
                 p_elem_A, p_elem_B );
 
-    dague_private_memory_push( p_tau, p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -586,8 +586,8 @@ BODY
              "\t descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], descTS->mb, descA(%d,%d)[%p], ldam, p_elem_A, descTS->nb)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_zunmqr(
         PlasmaLeft, PlasmaConjTrans,
@@ -597,8 +597,8 @@ BODY
         C /* descA( m, n) */, ldam,
         p_elem_A, descA->nb );
 
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -670,9 +670,9 @@ BODY
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsqrt(
@@ -689,9 +689,9 @@ BODY
             T  /* descTT(m, k) */, ib,
             p_elem_A, p_elem_B );
     }
-    dague_private_memory_push( p_tau , p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau , p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -762,8 +762,8 @@ BODY
              "\t descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, ldwork)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     if ( typem == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmqr(
@@ -784,8 +784,8 @@ BODY
             T  /* descTT(m, k) */, ib,
             p_elem_A, ldwork );
     }
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -839,18 +839,18 @@ BODY
              "\t(tempkm, tempnn, ib, descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, n, k, n, A, k, n, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     CORE_zgelqt(tempkm, tempnn, ib,
                 A /* descA( k, n) */, ldak,
                 T /* descTS(k, n) */, ib,
                 p_elem_A, p_elem_B );
 
-    dague_private_memory_push( p_tau, p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau, p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -929,8 +929,8 @@ BODY
              "\t descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], descTS->mb, descA(%d,%d)[%p], ldam, p_elem_A, descTS->nb)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, k, n, A, k, n, T, m, n, C);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     CORE_zunmlq(
         PlasmaRight, PlasmaConjTrans,
@@ -940,8 +940,8 @@ BODY
         C /* descA( m, n) */, ldam,
         p_elem_A, descA->nb );
 
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -1013,9 +1013,9 @@ BODY
              "\t(tempkm, tempnn, ib, descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, p_elem_B)\n",
              context->th_id, context->virtual_process->vp_id, k, n, k, p, A1, k, n, A2, k, n, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_tau  );
-    void *p_elem_B = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_tau  );
+    void *p_elem_B = parsec_private_memory_pop( p_work );
 
     if ( type == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztslqt(
@@ -1032,9 +1032,9 @@ BODY
             T  /* descTT(k, n) */, ib,
             p_elem_A, p_elem_B );
     }
-    dague_private_memory_push( p_tau , p_elem_A );
-    dague_private_memory_push( p_work, p_elem_B );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_tau , p_elem_A );
+    parsec_private_memory_push( p_work, p_elem_B );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -1108,8 +1108,8 @@ BODY
              "\t descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, ldwork)\n",
              context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, k, n, V, k, n, T);
 
-#if !defined(DAGUE_DRY_RUN)
-    void *p_elem_A = dague_private_memory_pop( p_work );
+#if !defined(PARSEC_DRY_RUN)
+    void *p_elem_A = parsec_private_memory_pop( p_work );
 
     if ( typen == DPLASMA_QR_KILLED_BY_TS ) {
         CORE_ztsmlq(
@@ -1130,8 +1130,8 @@ BODY
             T  /* descTT(k, n) */, ib,
             p_elem_A, ldwork );
     }
-    dague_private_memory_push( p_work, p_elem_A );
-#endif /* !defined(DAGUE_DRY_RUN) */
+    parsec_private_memory_push( p_work, p_elem_A );
+#endif /* !defined(PARSEC_DRY_RUN) */
 
 }
 END
@@ -1173,7 +1173,7 @@ BODY
                              0., 0., B, ldbd );
     }
     LAPACKE_zlacpy_work( LAPACK_COL_MAJOR, 'U', tempkm, tempkn,
-                         A, ldak, ((dague_complex64_t*)B)+descA->mb, ldbd-1 );
+                         A, ldak, ((parsec_complex64_t*)B)+descA->mb, ldbd-1 );
 }
 END
 

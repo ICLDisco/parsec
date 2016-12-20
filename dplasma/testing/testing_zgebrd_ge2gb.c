@@ -95,7 +95,7 @@ int GD_cpQR( int p, int q ) {
     }
 }
 
-int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud,
+int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int loud,
                 int M, int N, int LDA, int MB, int NB, int IB, int P, int Q, int hmb,
                 int ltre0, int htre0, int ltree, int htree, int ts, int domino, int rbidiag )
 {
@@ -174,7 +174,7 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
                               PlasmaTrans, subA,
                               htree, Q, cores, hmb );
         } else {
-#if defined(DAGUE_SIM)
+#if defined(PARSEC_SIM)
             if (ltree == DPLASMA_FLAT_TREE) {
                 if (ts == 1) {
                     cp = TT_cpQR( MT, NT );
@@ -230,7 +230,7 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
                     }
                 }
             }
-#endif /* defined(DAGUE_SIM) */
+#endif /* defined(PARSEC_SIM) */
             dplasma_hqr_init( &qrtree,
                               PlasmaNoTrans, subA,
                               ltree, htree, ts, P, 0, 0 );
@@ -253,7 +253,7 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
                               PlasmaTrans, (tiled_matrix_desc_t *)&ddescA,
                               htree, Q, cores, hmb );
         } else {
-#if defined(DAGUE_SIM)
+#if defined(PARSEC_SIM)
             if (ltree == 0) {
                 if (ts == 1) {
                     cp = TT_cpBidiag( MT, NT );
@@ -267,7 +267,7 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
                     cp = GD_cpBidiag( MT, NT );
                 }
             }
-#endif /* defined(DAGUE_SIM) */
+#endif /* defined(PARSEC_SIM) */
             dplasma_hqr_init( &qrtree,
                               PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
                               ltree, htree, ts, P, 0, 0 );
@@ -278,17 +278,17 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
         }
     }
 
-#if defined(DAGUE_SIM)
+#if defined(PARSEC_SIM)
     nbrun = 1;
 #endif
 
     for (i=0; i<nbrun; i++) {
 
         /* Generate the matrix on rank 0 */
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
 
-        /* Create DAGuE */
-        PASTE_CODE_ENQUEUE_KERNEL(dague, zgebrd_ge2gbx,
+        /* Create Parsec */
+        PASTE_CODE_ENQUEUE_KERNEL(parsec, zgebrd_ge2gbx,
                                   (IB, rbidiag ? &qrtre0 : &qrtree,
                                    &qrtree, &lqtree,
                                    (tiled_matrix_desc_t*)&ddescA,
@@ -301,10 +301,10 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
         /* lets rock! */
         SYNC_TIME_START();
         TIME_START();
-        dague_context_wait(dague);
+        parsec_context_wait(parsec);
         SYNC_TIME_STOP();
 
-        dplasma_zgebrd_ge2gbx_Destruct( DAGUE_zgebrd_ge2gbx );
+        dplasma_zgebrd_ge2gbx_Destruct( PARSEC_zgebrd_ge2gbx );
 
         time_avg += sync_time_elapsed;
         gflops = (flops/1.e9)/(sync_time_elapsed);
@@ -325,15 +325,15 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
     gflops_avg = gflops_avg / (double)nbrun;
     gflops_sum = sqrt( (gflops_sum/(double)nbrun) - (gflops_avg * gflops_avg) );
 
-#if defined(DAGUE_SIM)
+#if defined(PARSEC_SIM)
     {
         (void)flops; (void)gflops;
         if ( rank == 0 ) {
             printf("zgebrd_ge2gb simulation M= %2d N= %2d NP= %2d NC= %2d P= %2d Q= %2d NB= %2d IB= %2d R-bidiag= %2d treeh= %2d treel_rb= %2d qr_a= %2d QR(domino= %2d treel_qr= %2d) : %3d - %3d ( error= %4d )\n",
                    M, N, nodes, cores, P, Q, NB, IB,
                    rbidiag, htree, ltree, ts, domino, ltre0,
-                   dague_getsimulationdate( dague ), cp,
-                   dague_getsimulationdate( dague ) - cp );
+                   parsec_getsimulationdate( parsec ), cp,
+                   parsec_getsimulationdate( parsec ) - cp );
         }
     }
 #else
@@ -351,16 +351,16 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
     if (rbidiag) {
         dplasma_hqr_finalize( &qrtre0 );
         free(subA);
-        dague_data_free(ddescTS0.mat);
-        dague_data_free(ddescTT0.mat);
+        parsec_data_free(ddescTS0.mat);
+        parsec_data_free(ddescTT0.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescTS0);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescTT0);
     }
 
-    dague_data_free(ddescA.mat);
-    dague_data_free(ddescTS.mat);
-    dague_data_free(ddescTT.mat);
-    dague_data_free(ddescBand.mat);
+    parsec_data_free(ddescA.mat);
+    parsec_data_free(ddescTS.mat);
+    parsec_data_free(ddescTT.mat);
+    parsec_data_free(ddescBand.mat);
 
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescTS);
@@ -375,7 +375,7 @@ int RunOneTest( dague_context_t *dague, int nodes, int cores, int rank, int loud
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     int m, ret = 0;
 
@@ -389,8 +389,8 @@ int main(int argc, char ** argv)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize Parsec */
+    parsec = setup_parsec(argc, argv, iparam);
 
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
@@ -413,7 +413,7 @@ int main(int argc, char ** argv)
      * -d --domino: Enable/Disable the domino between upper and lower trees. (specific to xgeqrf_param) (default: 1)\n"
      */
     for (m=M; m<=N; m+=K ) {
-        RunOneTest( dague, nodes, iparam[IPARAM_NCORES], rank, loud,
+        RunOneTest( parsec, nodes, iparam[IPARAM_NCORES], rank, loud,
                     m, m, LDA, MB, NB, IB, P, Q, iparam[IPARAM_HMB],
                     iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                     ltree, iparam[IPARAM_HIGHLVL_TREE],
@@ -421,14 +421,14 @@ int main(int argc, char ** argv)
     }
 
     for (m=N; m<=M; m+=K ) {
-        RunOneTest( dague, nodes, iparam[IPARAM_NCORES], rank, loud,
+        RunOneTest( parsec, nodes, iparam[IPARAM_NCORES], rank, loud,
                     m, N, LDA, MB, NB, IB, P, Q, iparam[IPARAM_HMB],
                     iparam[IPARAM_LOWLVL_TREE], iparam[IPARAM_HIGHLVL_TREE],
                     ltree, iparam[IPARAM_HIGHLVL_TREE],
                     iparam[IPARAM_QR_TS_SZE], iparam[IPARAM_QR_DOMINO], iparam[IPARAM_QR_TSRR] );
     }
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }

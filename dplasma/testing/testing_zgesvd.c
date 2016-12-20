@@ -16,7 +16,7 @@ static int check_solution(int N, const double *E1, const double *E2);
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     int ret = 0;
     double *s0 = NULL;
@@ -39,8 +39,8 @@ int main(int argc, char ** argv)
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
 
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize Parsec */
+    parsec = setup_parsec(argc, argv, iparam);
 
     /* Make sure SMB and SNB are set to 1, since it conflicts with HQR */
     iparam[IPARAM_SMB] = 1;
@@ -87,14 +87,14 @@ int main(int argc, char ** argv)
             }
         }
 
-        dplasma_zlatms( dague, PlasmaGeneral, (double)N, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zlatms( parsec, PlasmaGeneral, (double)N, (tiled_matrix_desc_t *)&ddescA, 3872);
     }
     else {
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
     }
 
-    /* Create DAGuE */
-    PASTE_CODE_ENQUEUE_KERNEL(dague, zgebrd_ge2gb,
+    /* Create Parsec */
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zgebrd_ge2gb,
                               (IB,
                                (tiled_matrix_desc_t*)&ddescA,
                                (tiled_matrix_desc_t*)&ddescBand));
@@ -102,7 +102,7 @@ int main(int argc, char ** argv)
     /* lets rock! */
     SYNC_TIME_START();
     TIME_START();
-    dague_context_wait(dague);
+    parsec_context_wait(parsec);
     SYNC_TIME_STOP();
     time_ge2gb = sync_time_elapsed;
 
@@ -163,7 +163,7 @@ int main(int argc, char ** argv)
                time_ge2gb, time_gb2bd, time_solve,
                gflops = (flops/1e9)/(time_ge2gb+time_gb2bd+time_solve));
 
-#if defined(DAGUE_SIM)
+#if defined(PARSEC_SIM)
         printf("zgeqrf GESVD simulation NP= %d NC= %d P= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d MT= %d NT= %d : %d \n",
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],
@@ -175,11 +175,11 @@ int main(int argc, char ** argv)
                iparam[IPARAM_QR_DOMINO],
                iparam[IPARAM_QR_TSRR],
                MT, NT,
-               dague_getsimulationdate( dague ));
+               parsec_getsimulationdate( parsec ));
 #endif
     }
 
-    dplasma_zgebrd_ge2gb_Destruct( DAGUE_zgebrd_ge2gb );
+    dplasma_zgebrd_ge2gb_Destruct( PARSEC_zgebrd_ge2gb );
 
     if( check && (rank==0) ) {
         if (info_solution == 0 ) {
@@ -200,13 +200,13 @@ int main(int argc, char ** argv)
         free(s0);
     }
 
-    dague_data_free(ddescA.mat);
-    dague_data_free(ddescBand.mat);
+    parsec_data_free(ddescA.mat);
+    parsec_data_free(ddescBand.mat);
 
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescBand);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }
