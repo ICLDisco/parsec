@@ -510,14 +510,11 @@ parsec_dtd_context_wait_on_handle( parsec_context_t     *parsec,
     /* Now we  can therefore release the extra dependency we had on the handle,
      * and if the handle is complete move on.
      */
-    int remaining = parsec_atomic_dec_32b( (uint32_t*)&dtd_handle->super.nb_tasks );
-    if( 0 == remaining ) {
-        if( parsec_atomic_cas_32b(&dtd_handle->super.nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+    if( 0 == parsec_atomic_dec_32b((uint32_t*)&dtd_handle->super.nb_tasks) ) {
+        if( parsec_atomic_cas_32b((uint32_t*)&(dtd_handle->super.nb_tasks), 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
             parsec_handle_update_runtime_nbtask((parsec_handle_t*)dtd_handle, -1);
         parsec_context_wait(parsec);
-        return;  /* we're done in all cases */
     }
-    assert(0 == remaining);
 }
 
 /* **************************************************************************** */
@@ -1856,7 +1853,7 @@ set_dependencies_for_function(parsec_handle_t* parsec_handle,
 
     if (NULL == tmp_flow) {
         int in_index = find_in_flow( parent_function, parent_flow_index );
-        dep_t *tmp_dep;
+        dep_t *tmp_dep = NULL;
         parsec_flow_t *tmp_p_flow = NULL;
         tmp_flow = (parsec_flow_t *) parent_function->in[in_index];
         for (i = 0; i < MAX_DEP_IN_COUNT; i++) {
@@ -2352,8 +2349,6 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
     for( flow_index = 0, tile = NULL, tile_op_type = 0; flow_index < function->nb_flows; flow_index ++ ) {
         parsec_dtd_tile_user_t last_user;
         tile = this_task->flow[flow_index].tile;
-        if( NULL == tile ) continue;  /* No flow here */
-
         tile_op_type = this_task->flow[flow_index].op_type;
 
         if(0 == parsec_dtd_handle->flow_set_flag[function->function_id]) {
@@ -2368,33 +2363,28 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
         /* Locking the last_user of the tile */
         parsec_dtd_last_user_lock( &(tile->last_user) );
+
+        if( (NULL == tile->last_user.task) && (tile_op_type & GET_OP_TYPE) == INPUT ) {
+            /* This tile should be unlocked during the insertion of the fake task */
+            parsec_dtd_last_user_unlock( &(tile->last_user) );
+
+            assert(tile == parsec_dtd_tile_find( parsec_dtd_handle, tile->key,
+                                                 tile->ddesc ));
+            //OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
+            /* parentless */
+            /* Create Fake output_task */
+            parsec_insert_task( (parsec_dtd_handle_t *)this_task->super.parsec_handle,
+                                &fake_first_out_body,  "Fake_FIRST_OUT",
+                                PASSED_BY_REF, tile, INOUT | REGION_FULL | AFFINITY,
+                                0 );
+
+            parsec_dtd_last_user_lock( &(tile->last_user) );
+        }
         /* Reading the last_user info */
         last_user.task          = tile->last_user.task;
         last_user.flow_index    = tile->last_user.flow_index;
         last_user.op_type       = tile->last_user.op_type;
         last_user.alive         = tile->last_user.alive;
-
-        if( NULL == last_user.task && (tile_op_type & GET_OP_TYPE) == INPUT ) {
-            parsec_dtd_last_user_unlock( &(tile->last_user) );
-
-            parsec_dtd_tile_t *tmp = parsec_dtd_tile_find ( parsec_dtd_handle, tile->key,
-                                                            tile->ddesc );
-            assert(tile == tmp );
-            //OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
-            /* parentless */
-            /* Create Fake output_task */
-            parsec_insert_task( (parsec_dtd_handle_t *)this_task->super.parsec_handle,
-                               &fake_first_out_body,  "Fake_FIRST_OUT",
-                               PASSED_BY_REF,         tile,       INOUT | REGION_FULL | AFFINITY,
-                               0 );
-
-            parsec_dtd_last_user_lock( &(tile->last_user) );
-            /* Reading the last_user info */
-            last_user.task          = tile->last_user.task;
-            last_user.flow_index    = tile->last_user.flow_index;
-            last_user.op_type       = tile->last_user.op_type;
-            last_user.alive         = tile->last_user.alive;
-        }
 
         /* Setting the last_user info with info of this_task */
         tile->last_user.task        = this_task;

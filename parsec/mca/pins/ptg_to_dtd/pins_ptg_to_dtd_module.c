@@ -99,7 +99,7 @@ static int pins_handle_complete_callback(parsec_handle_t* ptg_handle, void* void
     parsec_handle_t* dtd_handle = (parsec_handle_t*)void_dtd_handle;
     int remaining = parsec_atomic_dec_32b( (uint32_t*)&dtd_handle->nb_tasks );
     if( 0 == remaining ) {
-        if( parsec_atomic_cas_32b(&dtd_handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+        if( parsec_atomic_cas_32b((uint32_t*)&dtd_handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
             parsec_handle_update_runtime_nbtask((parsec_handle_t*)dtd_handle, -1);
         /* we're done in all cases */
     }

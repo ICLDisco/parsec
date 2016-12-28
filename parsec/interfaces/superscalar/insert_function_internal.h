@@ -41,12 +41,12 @@ extern int my_rank;
 #define NOT_OVERLAPPED 1
 #define OVERLAPPED     0
 
-#define TASK_IS_ALIVE       1
-#define TASK_IS_NOT_ALIVE   0
+#define TASK_IS_ALIVE       (uint8_t)1
+#define TASK_IS_NOT_ALIVE   (uint8_t)0
 
 /* Structure used to pack arguments of insert_task() */
 struct parsec_dtd_task_param_s {
-    void            *pointer_to_tile;
+    void                       *pointer_to_tile;
     parsec_dtd_task_param_t    *next;
 };
 
@@ -55,21 +55,21 @@ struct parsec_dtd_task_param_s {
  * number of flows
  */
 typedef struct parsec_dtd_flow_info_s {
-    int               op_type;  /* Operation type on the data */
+    uint8_t            op_type;  /* Operation type on the data */
     parsec_dtd_tile_t *tile;
 }parsec_dtd_flow_info_t;
 
 /* All the fields store info about the descendant
  */
 typedef struct descendant_info_s {
-    int               op_type;
-    uint8_t           flow_index;
+    uint8_t            op_type;
+    uint8_t            flow_index;
     parsec_dtd_task_t *task;
 }descendant_info_t;
 
 typedef struct parsec_dtd_parent_info_s {
-    int                 op_type;
-    uint8_t             flow_index;
+    uint8_t              op_type;
+    uint8_t              flow_index;
     parsec_dtd_task_t   *task;
 } parsec_dtd_parent_info_t;
 
@@ -94,9 +94,9 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dtd_task_t);
 /** Tile structure **/
 typedef struct parsec_dtd_tile_user_s {
     uint8_t              flow_index;
-    int                  op_type;
+    uint8_t              op_type;
+    uint8_t              alive;
     parsec_dtd_task_t   *task;
-    int                  alive;
     parsec_atomic_lock_t atomic_lock;
 }parsec_dtd_tile_user_t;
 

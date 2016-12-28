@@ -21,7 +21,6 @@
 #include "parsec/class/list.h"
 #include "parsec/os-spec-timing.h"
 #include "parsec/bindthread.h"
-#include "parsec/parsec_hwloc.h"
 
 static unsigned int NBELT = 8192;
 static unsigned int NBTIMES = 1000000;
@@ -91,7 +90,7 @@ static void check_lifo_translate_outoforder(parsec_list_t *l1,
         if( NULL == elt )
             fatal(" ! Error: there are only %u elements in %s -- expecting %u\n", e+1, l1name, NBELT);
         check_elt( elt );
-        parsec_list_lifo_push( l2, (parsec_list_item_t *)elt );
+        parsec_list_nolock_lifo_push( l2, (parsec_list_item_t *)elt );
         if( elt->base >= NBELT )
             fatal(" ! Error: base of the element %u of %s is outside boundaries\n", e, l1name);
         if( seen[elt->base] == 1 )
@@ -300,8 +299,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    parsec_hwloc_init();
-
     threads = (pthread_t*)calloc(sizeof(pthread_t), nbthreads);
     times = (uint64_t*)calloc(sizeof(uint64_t), nbthreads);
 
@@ -391,7 +388,6 @@ int main(int argc, char *argv[])
 
     printf(" - all tests passed\n");
 
-    parsec_hwloc_fini();
 #if defined(PARSEC_HAVE_MPI)
     MPI_Finalized(&ch);
 #endif
