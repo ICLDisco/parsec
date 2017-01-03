@@ -66,6 +66,18 @@ vpid_of(parsec_ddesc_t *desc, ...)
     return 0;
 }
 
+static uint64_t
+data_key(parsec_ddesc_t *desc, ...)
+{
+    int k;
+    va_list ap;
+    (void)desc;
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+    return (uint64_t)k;
+}
+
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
@@ -90,6 +102,7 @@ int main(int argc, char *argv[])
     parsec_ddesc_init(&taskdist, world, rank);
     taskdist.rank_of = rank_of;
     taskdist.vpid_of = vpid_of;
+    taskdist.data_key = data_key;
 
     handle = parsec_Ex02_Chain_new(&taskdist, 10);
 

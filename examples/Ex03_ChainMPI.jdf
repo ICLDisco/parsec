@@ -67,11 +67,34 @@ rank_of(parsec_ddesc_t *desc, ...)
     return k % desc->nodes;
 }
 
+/**
+ * The vpid_of function must return the virtual process id on which the task/data with the
+ * coordinates given as the va_args can run. The VPID must be a number between 0 and
+ * the number of virtual processes-1. We don't use virtual processes in this example,
+ * so there is only one, and we return 0.
+ */
 static int32_t
 vpid_of(parsec_ddesc_t *desc, ...)
 {
     (void)desc;
     return 0;
+}
+
+/**
+ * The data_key function must return a unique identifier for the data.
+ * This is needed for tracing and debugging purpose, but it's always good practice to
+ * define it.
+ */
+static uint64_t
+data_key(parsec_ddesc_t *desc, ...)
+{
+    int k;
+    va_list ap;
+    (void)desc;
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+    return (uint64_t)k;
 }
 
 int main(int argc, char *argv[])
@@ -103,6 +126,7 @@ int main(int argc, char *argv[])
     parsec_ddesc_init(&taskdist, world, rank);
     taskdist.rank_of = rank_of;
     taskdist.vpid_of = vpid_of;
+    taskdist.data_key = data_key;
 
     handle = parsec_Ex03_ChainMPI_new(&taskdist, 20);
 
