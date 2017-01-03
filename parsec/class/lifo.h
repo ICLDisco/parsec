@@ -171,6 +171,7 @@ static inline parsec_list_item_t* parsec_lifo_pop( parsec_lifo_t* lifo )
                                          (parsec_list_item_t *) item->list_next)) {
             parsec_atomic_wmb ();
             item->list_next = NULL;
+            PARSEC_ITEM_DETACH(item);
             return item;
         }
     } while (1);
@@ -193,6 +194,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
                                      (parsec_list_item_t *) item->list_next)) {
         parsec_atomic_wmb();
         item->list_next = NULL;
+        PARSEC_ITEM_DETACH(item);
         return item;
     }
     return NULL;
@@ -290,6 +292,7 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     parsec_atomic_wmb();
 
     item->list_next = NULL;
+    PARSEC_ITEM_DETACH(item);
     return item;
 }
 
@@ -310,6 +313,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     parsec_atomic_wmb();
 
     item->list_next = NULL;
+    PARSEC_ITEM_DETACH(item);
     return item;
 }
 #else
@@ -347,6 +351,7 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     parsec_atomic_wmb ();
 
     item->list_next = NULL;
+    PARSEC_ITEM_DETACH(item);
     return item;
 }
 
@@ -380,6 +385,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     parsec_atomic_wmb ();
 
     item->list_next = NULL;
+    PARSEC_ITEM_DETACH(item);
     return item;
 }
 #endif /* defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
