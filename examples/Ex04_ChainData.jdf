@@ -63,6 +63,18 @@ vpid_of(parsec_ddesc_t *desc, ...)
     return 0;
 }
 
+static uint64_t
+data_key(parsec_ddesc_t *desc, ...)
+{
+    int k;
+    va_list ap;
+    (void)desc;
+    va_start(ap, desc);
+    k = va_arg(ap, int);
+    va_end(ap);
+    return (uint64_t)k;
+}
+
 /**
  * The funtion data_of is similar to rank_of instead that it returns the
  * parsec_data_t structure that handle the single piece of data corresponding to
@@ -120,6 +132,7 @@ int main(int argc, char *argv[])
     parsec_ddesc_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
     mydata.vpid_of = vpid_of;
+    mydata.data_key = data_key;
 
     /**
      * Here we update the data_of pointer from the descriptor
