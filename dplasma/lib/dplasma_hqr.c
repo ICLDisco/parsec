@@ -2558,9 +2558,8 @@ svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
  *
  * @ingroup dplasma
  *
- * dplasma_svd_init - Creates the tree structure that will describes the
- * operation performed during QR/LQ factorization with parameterized QR/LQ
- * algorithms family.
+ * dplasma_svd_init - Create the tree structures that will describes the
+ * operation performed during QR/LQ reduction step of the gebrd_ge2gb operation.
  *
  * Trees available parameters are described below. It is recommended to:
  *   - set p to the same value than the P-by-Q process grid used to distribute
@@ -2586,31 +2585,19 @@ svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
  *
  * @param[in,out] qrtree
  *          On entry, an allocated structure uninitialized.
- *          On exit, the structure initialized according to the parameter given.
+ *          On exit, the structure initialized according to the given parameters.
  *
  * @param[in] trans
- *          @arg PlasmaNoTrans:   Structure is initialized for QR factorization.
- *          @arg PlasmaTrans:     Structure is initialized for LQ factorization.
- *          @arg PlasmaConjTrans: Structure is initialized for LQ factorization.
+ *          @arg PlasmaNoTrans:   Structure is initialized for the QR steps.
+ *          @arg PlasmaTrans:     Structure is initialized for the LQ steps.
+ *          @arg PlasmaConjTrans: Structure is initialized for the LQ steps.
  *
  * @param[in,out] A
  *          Descriptor of the distributed matrix A to be factorized, on which
- *          QR/LQ factorization will be performed.
+ *          QR/LQ reduction steps will be performed. In case, of
+ *          R-bidiagonalization, don't forget to provide the square submatrix
+ *          that is concerned by those operations.
  *          The descriptor is untouched and only mt/nt/P parameters are used.
- *
- * @param[in] type_llvl
- *          Defines the tree used to reduce the main tiles of each local domain
- *          together. The matrix of those tiles has a lower triangular structure
- *          with a diagonal by step a.
- *          @arg DPLASMA_FLAT_TREE: A Flat tree is used to reduce the local
- *          tiles.
- *          @arg DPLASMA_GREEDY_TREE: A Greedy tree is used to reduce the local
- *          tiles.
- *          @arg DPLASMA_FIBONACCI_TREE: A Fibonacci tree is used to reduce the
- *          local tiles.
- *          @arg DPLASMA_BINARY_TREE: A Binary tree is used to reduce the local
- *          tiles.
- *          @arg -1: The default is used (DPLASMA_GREEDY_TREE)
  *
  * @param[in] type_hlvl
  *          Defines the tree used to reduce the main tiles of each domain. This
@@ -2624,42 +2611,24 @@ svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
  *          column and then duplicated on all others.
  *          @arg -1: The default is used (DPLASMA_FIBONACCI_TREE)
  *
- * @param[in] a
- *          Defines the size of the local domains on which a classic flat TS
- *          tree is performed. If a==1, then all local tiles are reduced by the
- *          type_lllvl tree. If a is larger than mt/p, then no local reduction
- *          tree is performed and type_llvl is ignored.
- *          If a == -1, it is set to 4 by default.
- *
  * @param[in] p
  *          Defines the number of distributed domains, ie the width of the high
  *          level reduction tree.  If p == 1, no high level reduction tree is
- *          used. If p == mt, a and type_llvl are ignored since only high level
- *          reduction are performed.
+ *          used. If p == mt, this enforce the high level reduction tree to be
+ *          performed on the full matrix.
  *          By default, it is recommended to set p to P if trans ==
- *          PlasmaNoTrans, Q otherwise, where P-by-Q is the process grid used to
- *          distributed the data. (p > 0)
+ *          PlasmaNoTrans, and to Q otherwise, where P-by-Q is the process grid
+ *          used to distributed the data. (p > 0)
  *
- * @param[in] domino
- *          Enable/disable the domino effect that connects the high and low
- *          level reduction trees. Enabling the domino increases the proportion
- *          of TT (Triangle on top of Triangle) kernels that are less efficient,
- *          but increase the pipeline effect between independent factorization
- *          steps, reducin the critical path length.
- *          If disabled, it keeps the proprotion of more efficient TS (Triangle
- *          on top of Square) kernels high, but deteriorates the pipeline
- *          effect, and the critical path length.
- *          If domino == -1, it is enable when ration between M and N is lower
- *          than 1/2, and disabled otherwise.
+ * @param[in] nbthread_per_node
+ *          Define the number of working threads per node to configure the
+ *          adaptativ local tree to provide at least (ratio * nbthread_per_node)
+ *          tasks per step when possible by creating the right amount of TS and
+ *          TT kernels.
  *
- * @param[in] tsrr
- *          Enable/Disable a round robin selection of the killer in local
- *          domains reduced by TS kernels. Enabling a round-robin selection of
- *          the killer allows to take benefit of the good pipelining of the flat
- *          trees and the high efficient TS kernels, while having other trees on
- *          top of it to reduce critical path length.
- *          WARNING: This option is under development and should not be enabled
- *          due to problem in corner cases.
+ * @param[in] ratio
+ *          Define the minimal number of tasks per thread that the adaptiv tree
+ *          must provide at the lowest level of the tree.
  *
  *******************************************************************************
  *
@@ -2669,8 +2638,8 @@ svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
  *
  *******************************************************************************
  *
- * @sa dplasma_svd_finalize
- * @sa dplasma_systolic_init
+ * @sa dplasma_hqr_finalize
+ * @sa dplasma_hqr_init
  * @sa dplasma_zgeqrf_param
  * @sa dplasma_cgeqrf_param
  * @sa dplasma_dgeqrf_param
