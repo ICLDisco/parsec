@@ -7,7 +7,7 @@
  *
  */
 #include "dplasma.h"
-#include "dague/vpmap.h"
+#include "parsec/vpmap.h"
 #include <math.h>
 
 #if defined(PARSEC_HAVE_STRING_H)

@@ -24,7 +24,7 @@
  *******************************************************************************
  */
 static int
-dplasma_zlatms_operator( dague_execution_unit_t *eu,
+dplasma_zlatms_operator( parsec_execution_unit_t *eu,
                          const tiled_matrix_desc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
@@ -32,7 +32,7 @@ dplasma_zlatms_operator( dague_execution_unit_t *eu,
 {
     int tempmm, tempnn, ldam, i;
     double            *cond = (double*)args;
-    dague_complex64_t *A    = (dague_complex64_t*)_A;
+    parsec_complex64_t *A    = (parsec_complex64_t*)_A;
     (void)eu;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
@@ -57,7 +57,7 @@ dplasma_zlatms_operator( dague_execution_unit_t *eu,
             double alp = ( 1. - tmp ) / ((double)( descA->n - 1 ));
             int minmn = dplasma_imin( tempmm, tempnn );
             for(; i < minmn; i++){
-                A[i+i*ldam] = (dague_complex64_t)( (double)(descA->n-(descA->nb*n+i+1)) * alp + tmp );
+                A[i+i*ldam] = (parsec_complex64_t)( (double)(descA->n-(descA->nb*n+i+1)) * alp + tmp );
             }
         }
     } else {
@@ -79,8 +79,8 @@ dplasma_zlatms_operator( dague_execution_unit_t *eu,
  *
  *******************************************************************************
  *
- * @param[in,out] dague
- *          The dague context of the application that will run the operation.
+ * @param[in,out] parsec
+ *          The parsec context of the application that will run the operation.
  *
  * @param[in] mtxtype
  *           - PlasmaGeneral:   Generate a general matrix
@@ -108,7 +108,7 @@ dplasma_zlatms_operator( dague_execution_unit_t *eu,
  *
  ******************************************************************************/
 int
-dplasma_zlatms( dague_context_t *dague,
+dplasma_zlatms( parsec_context_t *parsec,
                 PLASMA_enum mtxtype, double cond,
                 tiled_matrix_desc_t *A,
                 unsigned long long int seed)
@@ -118,13 +118,13 @@ dplasma_zlatms( dague_context_t *dague,
 
     /* Init the diagonal of A */
     {
-        dague_handle_t *handle;
+        parsec_handle_t *handle;
         double *condptr = malloc(sizeof( double ));
         *condptr = cond;
         handle = dplasma_map_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );
         if ( handle != NULL ) {
-            dague_enqueue(dague, handle);
-            dague_context_wait( dague );
+            parsec_enqueue(parsec, handle);
+            parsec_context_wait( parsec );
             dplasma_map_Destruct( handle );
         }
         else {
@@ -154,18 +154,18 @@ dplasma_zlatms( dague_context_t *dague,
     /* Init the random matrix R */
     two_dim_block_cyclic_init( &Q, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, mb, nb, m, n, 0, 0, m, n, 1, 1, P );
-    Q.mat = dague_data_allocate((size_t)Q.super.nb_local_tiles *
+    Q.mat = parsec_data_allocate((size_t)Q.super.nb_local_tiles *
                                 (size_t)Q.super.bsiz *
-                                (size_t)dague_datadist_getsizeoftype(Q.super.mtype));
-    dague_ddesc_set_key((dague_ddesc_t*)&Q, "Q");
+                                (size_t)parsec_datadist_getsizeoftype(Q.super.mtype));
+    parsec_ddesc_set_key((parsec_ddesc_t*)&Q, "Q");
 
     /* Init the T matrix */
     two_dim_block_cyclic_init( &T, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, 32, nb, mt*32, n, 0, 0, mt*32, n, 1, 1, P );
-    T.mat = dague_data_allocate((size_t)T.super.nb_local_tiles *
+    T.mat = parsec_data_allocate((size_t)T.super.nb_local_tiles *
                                 (size_t)T.super.bsiz *
-                                (size_t)dague_datadist_getsizeoftype(T.super.mtype));
-    dague_ddesc_set_key((dague_ddesc_t*)&T, "T");
+                                (size_t)parsec_datadist_getsizeoftype(T.super.mtype));
+    parsec_ddesc_set_key((parsec_ddesc_t*)&T, "T");
 
     if ( mtxtype == PlasmaGeneral ) {
         if ( m >= n ) {
@@ -177,18 +177,18 @@ dplasma_zlatms( dague_context_t *dague,
 
 
             /* Multiply on the right by an unitary matrix */
-            dplasma_zplrnt( dague, 0, subQ, seed + 1 );
-            dplasma_zgeqrf( dague, subQ, subT );
-            dplasma_zunmqr( dague, PlasmaRight, PlasmaNoTrans,
+            dplasma_zplrnt( parsec, 0, subQ, seed + 1 );
+            dplasma_zgeqrf( parsec, subQ, subT );
+            dplasma_zunmqr( parsec, PlasmaRight, PlasmaNoTrans,
                             subQ, subT, subA );
 
             /* Multiply on the left by an unitary matrix */
-            dplasma_zplrnt( dague, 0,
+            dplasma_zplrnt( parsec, 0,
                             (tiled_matrix_desc_t *)&Q, seed );
-            dplasma_zgeqrf( dague,
+            dplasma_zgeqrf( parsec,
                             (tiled_matrix_desc_t*)&Q,
                             (tiled_matrix_desc_t*)&T );
-            dplasma_zunmqr( dague, PlasmaLeft, PlasmaNoTrans,
+            dplasma_zunmqr( parsec, PlasmaLeft, PlasmaNoTrans,
                             (tiled_matrix_desc_t*)&Q,
                             (tiled_matrix_desc_t*)&T, A );
         }
@@ -201,18 +201,18 @@ dplasma_zlatms( dague_context_t *dague,
 
 
             /* Multiply on the left by an unitary matrix */
-            dplasma_zplrnt( dague, 0, subQ, seed );
-            dplasma_zgeqrf( dague, subQ, subT );
-            dplasma_zunmqr( dague, PlasmaLeft, PlasmaNoTrans,
+            dplasma_zplrnt( parsec, 0, subQ, seed );
+            dplasma_zgeqrf( parsec, subQ, subT );
+            dplasma_zunmqr( parsec, PlasmaLeft, PlasmaNoTrans,
                             subQ, subT, subA );
 
             /* Multiply on the right by an unitary matrix */
-            dplasma_zplrnt( dague, 0,
+            dplasma_zplrnt( parsec, 0,
                             (tiled_matrix_desc_t *)&Q, seed );
-            dplasma_zgeqrf( dague,
+            dplasma_zgeqrf( parsec,
                             (tiled_matrix_desc_t*)&Q,
                             (tiled_matrix_desc_t*)&T );
-            dplasma_zunmqr( dague, PlasmaRight, PlasmaNoTrans,
+            dplasma_zunmqr( parsec, PlasmaRight, PlasmaNoTrans,
                             (tiled_matrix_desc_t*)&Q,
                             (tiled_matrix_desc_t*)&T, A );
         }
@@ -221,16 +221,16 @@ dplasma_zlatms( dague_context_t *dague,
         assert( mtxtype == PlasmaHermitian );
 
         /* Init the unitary matrix */
-        dplasma_zplrnt( dague, 0,
+        dplasma_zplrnt( parsec, 0,
                         (tiled_matrix_desc_t *)&Q, seed );
-        dplasma_zgeqrf( dague,
+        dplasma_zgeqrf( parsec,
                         (tiled_matrix_desc_t*)&Q,
                         (tiled_matrix_desc_t*)&T );
 
-        dplasma_zunmqr( dague, PlasmaLeft, PlasmaNoTrans,
+        dplasma_zunmqr( parsec, PlasmaLeft, PlasmaNoTrans,
                         (tiled_matrix_desc_t*)&Q,
                         (tiled_matrix_desc_t*)&T, A );
-        dplasma_zunmqr( dague, PlasmaRight, PlasmaConjTrans,
+        dplasma_zunmqr( parsec, PlasmaRight, PlasmaConjTrans,
                         (tiled_matrix_desc_t*)&Q,
                         (tiled_matrix_desc_t*)&T, A );
     }

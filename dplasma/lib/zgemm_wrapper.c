@@ -90,6 +90,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
 {
     parsec_handle_t* zgemm_handle;
     parsec_arena_t* arena;
+    two_dim_block_cyclic_t *Cdist;
     int P, Q, m, n;
 
     /* Check input arguments */
@@ -197,7 +198,7 @@ dplasma_zgemm_Destruct( parsec_handle_t *handle )
 {
     parsec_zgemm_NN_handle_t *zgemm_handle = (parsec_zgemm_NN_handle_t *)handle;
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(zgemm_handle->_g_Cdist) );
-    free( zgemm_handle->Cdist );
+    free( zgemm_handle->_g_Cdist );
 
     parsec_matrix_del2arena( ((parsec_zgemm_NN_handle_t *)handle)->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
     parsec_handle_free(handle);

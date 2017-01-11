@@ -31,7 +31,7 @@ beta   [type = parsec_complex64_t]
 descA  [type = "const tiled_matrix_desc_t*"]
 descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
-Cdist  [type = "dague_ddesc_t *"]
+Cdist  [type = "parsec_ddesc_t *"]
 
 P      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.rows"]
 Q      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.cols"]
@@ -53,7 +53,7 @@ READ A <- descA(k, m)
        -> A RING_A(k, m, k%Q)
 BODY
 {
-    printlog("rank %u <- A(%d,%d)\n", ((dague_ddesc_t*)descA)->myrank, k, m);
+    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, k, m);
 }
 END
 
@@ -93,7 +93,7 @@ READ B <- descB(k, n)
        -> B RING_B(k, n, k%P)
 BODY
 {
-     printlog("rank %u <- B(%d,%d)\n", ((dague_ddesc_t*)descB)->myrank, k, n);
+     printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, k, n);
 }
 END
 

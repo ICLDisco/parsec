@@ -11,14 +11,14 @@
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
-double check_zlanm2(int M, int N, dague_complex64_t *A, int LDA, int *info )
+double check_zlanm2(int M, int N, parsec_complex64_t *A, int LDA, int *info )
 {
     double            *DX  = (double*)malloc(N * sizeof(double));
-    dague_complex64_t *ZX  = (dague_complex64_t*)malloc(N * sizeof(dague_complex64_t));
-    dague_complex64_t *ZSX = (dague_complex64_t*)malloc(M * sizeof(dague_complex64_t));
-    dague_complex64_t zone  = 1.;
-    dague_complex64_t zzero = 0.;
-    dague_complex64_t alpha;
+    parsec_complex64_t *ZX  = (parsec_complex64_t*)malloc(N * sizeof(parsec_complex64_t));
+    parsec_complex64_t *ZSX = (parsec_complex64_t*)malloc(M * sizeof(parsec_complex64_t));
+    parsec_complex64_t zone  = 1.;
+    parsec_complex64_t zzero = 0.;
+    parsec_complex64_t alpha;
     double normx, normsx, e0, e1, tol;
     int maxiter, i = 0;
     int verbose = 0;
@@ -79,7 +79,7 @@ double check_zlanm2(int M, int N, dague_complex64_t *A, int LDA, int *info )
 
 int main(int argc, char ** argv)
 {
-    dague_context_t* dague;
+    parsec_context_t* parsec;
     double result;
     double normlap = 0.0;
     double normdag = 0.0;
@@ -93,8 +93,8 @@ int main(int argc, char ** argv)
     iparam_default_ibnbmb(iparam, 40, 200, 200);
     iparam[IPARAM_LDA] = -'m';
     iparam[IPARAM_LDB] = -'m';
-    /* Initialize DAGuE */
-    dague = setup_dague(argc, argv, iparam);
+    /* Initialize Parsec */
+    parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
 
     An = dplasma_imax(M, N);
@@ -117,20 +117,20 @@ int main(int argc, char ** argv)
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA0, 3872);
-        dplasma_zplrnt( dague, 0, (tiled_matrix_desc_t *)&ddescA,  3872);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA0, 3872);
+        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA,  3872);
         if(loud > 2) printf("Done\n");
 
         if ( rank == 0 ) {
             printf("***************************************************\n");
         }
         if(loud > 2) printf("+++ Computing 2-norm ... \n");
-        normdag = dplasma_zlanm2(dague,
+        normdag = dplasma_zlanm2(parsec,
                                  (tiled_matrix_desc_t *)&ddescA,
                                  &infodag);
 
         if ( rank == 0 ) {
-            normlap = check_zlanm2(M, N, (dague_complex64_t*)(ddescA0.mat), ddescA0.super.lm, &infolap );
+            normlap = check_zlanm2(M, N, (parsec_complex64_t*)(ddescA0.mat), ddescA0.super.lm, &infolap );
         }
         if(loud > 2) printf("Done.\n");
 
@@ -158,17 +158,17 @@ int main(int argc, char ** argv)
             }
         }
 
-        dague_data_free(ddescA.mat);
+        parsec_data_free(ddescA.mat);
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
     }
 
     if ( rank == 0 ) {
         printf("***************************************************\n");
     }
-    dague_data_free(ddescA0.mat);
+    parsec_data_free(ddescA0.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
 
-    cleanup_dague(dague, iparam);
+    cleanup_parsec(parsec, iparam);
 
     return ret;
 }
