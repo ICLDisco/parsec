@@ -90,12 +90,10 @@ int main(int argc, char ** argv)
     dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescTT);
     if(loud > 2) printf("Done\n");
 
-    //assert( iparam[IPARAM_QR_HLVL_SZE] * iparam[IPARAM_QR_TS_SZE] == P );
-    //assert( iparam[IPARAM_QR_HLVL_SZE] * iparam[IPARAM_QR_TS_SZE] <= MT );
     dplasma_systolic_init( &qrtree,
                            PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
-                           iparam[IPARAM_QR_HLVL_SZE],
-                           iparam[IPARAM_QR_TS_SZE] );
+                           iparam[IPARAM_P],
+                           iparam[IPARAM_Q] );
 
     /* Create PaRSEC */
     PASTE_CODE_ENQUEUE_KERNEL(parsec, zgeqrf_param,
@@ -117,8 +115,8 @@ int main(int argc, char ** argv)
                      iparam[IPARAM_IB],
                      iparam[IPARAM_MB],
                      iparam[IPARAM_NB],
-                     iparam[IPARAM_QR_TS_SZE],
-                     iparam[IPARAM_QR_HLVL_SZE],
+                     iparam[IPARAM_Q],
+                     iparam[IPARAM_P],
                      iparam[IPARAM_M],
                      iparam[IPARAM_N],
                      gflops = (flops/1e9)/(sync_time_elapsed)));
@@ -136,8 +134,8 @@ int main(int argc, char ** argv)
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],
                iparam[IPARAM_P],
-               iparam[IPARAM_QR_TS_SZE],
-               iparam[IPARAM_QR_HLVL_SZE],
+               iparam[IPARAM_Q],
+               iparam[IPARAM_P],
                MT, NT,
                parsec_getsimulationdate( parsec ));
     }
