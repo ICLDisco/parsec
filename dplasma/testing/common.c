@@ -563,7 +563,7 @@ static void iparam_default(int* iparam)
     iparam[IPARAM_LOWLVL_TREE]  = DPLASMA_GREEDY_TREE;
     iparam[IPARAM_HIGHLVL_TREE] = -1;
     iparam[IPARAM_QR_TS_SZE]    = -1;
-    iparam[IPARAM_QR_HLVL_SZE]  = -1;
+    iparam[IPARAM_QR_HLVL_SZE]  = -'P';
 }
 
 void iparam_default_ibnbmb(int* iparam, int ib, int nb, int mb)
