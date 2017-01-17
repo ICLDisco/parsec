@@ -18,6 +18,11 @@
 #include "zgemm_TN.h"
 #include "zgemm_TT.h"
 
+#include "zgemm_NN_summa.h"
+#include "zgemm_NT_summa.h"
+#include "zgemm_TN_summa.h"
+#include "zgemm_TT_summa.h"
+
 /**
  *******************************************************************************
  *
@@ -102,66 +107,97 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
         dplasma_error("dplasma_zgemm_New", "illegal value of transB");
         return NULL /*-2*/;
     }
-    if ( !(C->dtype & two_dim_block_cyclic_type) ) {
-        dplasma_error("dplasma_zgemm_New", "illegal type of descriptor for C (must be two_dim_block_cyclic_t)");
-        return NULL;
-    }
 
-    P = ((two_dim_block_cyclic_t*)C)->grid.rows;
-    Q = ((two_dim_block_cyclic_t*)C)->grid.cols;
+    if ( C->dtype & two_dim_block_cyclic_type ) {
+        P = ((two_dim_block_cyclic_t*)C)->grid.rows;
+        Q = ((two_dim_block_cyclic_t*)C)->grid.cols;
 
-    m = dplasma_imax(C->mt, P);
-    n = dplasma_imax(C->nt, Q);
+        m = dplasma_imax(C->mt, P);
+        n = dplasma_imax(C->nt, Q);
 
-    /* Create a copy of the A matrix to be used as a data distribution metric.
-     * As it is used as a NULL value we must have a data_copy and a data associated
-     * with it, so we can create them here.
-     * Create the task distribution */
-    Cdist = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
+        /* Create a copy of the A matrix to be used as a data distribution metric.
+         * As it is used as a NULL value we must have a data_copy and a data associated
+         * with it, so we can create them here.
+         * Create the task distribution */
+        Cdist = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
 
-    two_dim_block_cyclic_init(
-        Cdist, matrix_RealDouble, matrix_Tile,
-        C->super.nodes, C->super.myrank,
-        1, 1, /* Dimensions of the tiles              */
-        m, n, /* Dimensions of the matrix             */
-        0, 0, /* Starting points (not important here) */
-        m, n, /* Dimensions of the submatrix          */
-        1, 1, P);
-    Cdist->super.super.data_of = NULL;
-    Cdist->super.super.data_of_key = NULL;
+        two_dim_block_cyclic_init(
+            Cdist, matrix_RealDouble, matrix_Tile,
+            C->super.nodes, C->super.myrank,
+            1, 1, /* Dimensions of the tiles              */
+            m, n, /* Dimensions of the matrix             */
+            0, 0, /* Starting points (not important here) */
+            m, n, /* Dimensions of the submatrix          */
+            1, 1, P);
+        Cdist->super.super.data_of = NULL;
+        Cdist->super.super.data_of_key = NULL;
 
-    if( PlasmaNoTrans == transA ) {
-        if( PlasmaNoTrans == transB ) {
-            parsec_zgemm_NN_handle_t* handle;
-            handle = parsec_zgemm_NN_new(transA, transB, alpha, beta,
-                                         A, B, C,
-                                         (parsec_ddesc_t*)Cdist);
-            arena = handle->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
-            zgemm_handle = (parsec_handle_t*)handle;
+        if( PlasmaNoTrans == transA ) {
+            if( PlasmaNoTrans == transB ) {
+                parsec_zgemm_NN_summa_handle_t* handle;
+                handle = parsec_zgemm_NN_summa_new(transA, transB, alpha, beta,
+                                                   A, B, C,
+                                                   (parsec_ddesc_t*)Cdist);
+                arena = handle->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            } else {
+                parsec_zgemm_NT_summa_handle_t* handle;
+                handle = parsec_zgemm_NT_summa_new(transA, transB, alpha, beta,
+                                                   A, B, C,
+                                                   (parsec_ddesc_t*)Cdist);
+                arena = handle->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            }
         } else {
-            parsec_zgemm_NT_handle_t* handle;
-            handle = parsec_zgemm_NT_new(transA, transB, alpha, beta,
-                                         A, B, C,
-                                         (parsec_ddesc_t*)Cdist);
-            arena = handle->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
-            zgemm_handle = (parsec_handle_t*)handle;
+            if( PlasmaNoTrans == transB ) {
+                parsec_zgemm_TN_summa_handle_t* handle;
+                handle = parsec_zgemm_TN_summa_new(transA, transB, alpha, beta,
+                                                   A, B, C,
+                                                   (parsec_ddesc_t*)Cdist);
+                arena = handle->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            }
+            else {
+                parsec_zgemm_TT_summa_handle_t* handle;
+                handle = parsec_zgemm_TT_summa_new(transA, transB, alpha, beta,
+                                                   A, B, C,
+                                                   (parsec_ddesc_t*)Cdist);
+                arena = handle->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            }
         }
-    } else {
-        if( PlasmaNoTrans == transB ) {
-            parsec_zgemm_TN_handle_t* handle;
-            handle = parsec_zgemm_TN_new(transA, transB, alpha, beta,
-                                         A, B, C,
-                                         (parsec_ddesc_t*)Cdist);
-            arena = handle->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
-            zgemm_handle = (parsec_handle_t*)handle;
-        }
-        else {
-            parsec_zgemm_TT_handle_t* handle;
-            handle = parsec_zgemm_TT_new(transA, transB, alpha, beta,
-                                         A, B, C,
-                                         (parsec_ddesc_t*)Cdist);
-            arena = handle->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
-            zgemm_handle = (parsec_handle_t*)handle;
+    }
+    /* C is NOT 2D block-cyclic distributed */
+    else {
+        if( PlasmaNoTrans == transA ) {
+            if( PlasmaNoTrans == transB ) {
+                parsec_zgemm_NN_handle_t* handle;
+                handle = parsec_zgemm_NN_new(transA, transB, alpha, beta,
+                                             A, B, C);
+                arena = handle->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            } else {
+                parsec_zgemm_NT_handle_t* handle;
+                handle = parsec_zgemm_NT_new(transA, transB, alpha, beta,
+                                             A, B, C);
+                arena = handle->arenas[PARSEC_zgemm_NT_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            }
+        } else {
+            if( PlasmaNoTrans == transB ) {
+                parsec_zgemm_TN_handle_t* handle;
+                handle = parsec_zgemm_TN_new(transA, transB, alpha, beta,
+                                             A, B, C);
+                arena = handle->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            }
+            else {
+                parsec_zgemm_TT_handle_t* handle;
+                handle = parsec_zgemm_TT_new(transA, transB, alpha, beta,
+                                             A, B, C);
+                arena = handle->arenas[PARSEC_zgemm_TT_DEFAULT_ARENA];
+                zgemm_handle = (parsec_handle_t*)handle;
+            }
         }
     }
 
@@ -169,7 +205,6 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
-
     return zgemm_handle;
 }
 
@@ -197,8 +232,11 @@ void
 dplasma_zgemm_Destruct( parsec_handle_t *handle )
 {
     parsec_zgemm_NN_handle_t *zgemm_handle = (parsec_zgemm_NN_handle_t *)handle;
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(zgemm_handle->_g_Cdist) );
-    free( zgemm_handle->_g_Cdist );
+
+    if ( zgemm_handle->_g_Cdist != NULL ) {
+        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(zgemm_handle->_g_Cdist) );
+        free( zgemm_handle->_g_Cdist );
+    }
 
     parsec_matrix_del2arena( ((parsec_zgemm_NN_handle_t *)handle)->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
     parsec_handle_free(handle);
@@ -334,11 +372,6 @@ dplasma_zgemm( parsec_context_t *parsec,
     if ( (Ai != C->i) || (Aj != Bi) || (Bj != C->j) ) {
         dplasma_error("dplasma_zgemm", "start indexes have to match");
         return -101;
-    }
-
-    if ( !(C->dtype & two_dim_block_cyclic_type) ) {
-        dplasma_error("dplasma_zgemm", "illegal type of descriptor for C");
-        return -3.;
     }
 
     M = C->m;

@@ -30,6 +30,7 @@ set(JDF
   # BLAS Level 3
   #
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf
+  zgemm_NN_summa.jdf zgemm_TN_summa.jdf zgemm_NT_summa.jdf zgemm_TT_summa.jdf
   zhemm.jdf
   zher2k_LN.jdf zher2k_LC.jdf zher2k_UN.jdf zher2k_UC.jdf
   zherk_LN.jdf zherk_LC.jdf zherk_UN.jdf zherk_UC.jdf

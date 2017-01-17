@@ -31,10 +31,10 @@ beta   [type = parsec_complex64_t]
 descA  [type = "const tiled_matrix_desc_t*"]
 descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
-Cdist  [type = "parsec_ddesc_t *" hidden=on default="NULL"]
+Cdist  [type = "parsec_ddesc_t *"]
 
-P      [type = "int" hidden=on default="-1"]
-Q      [type = "int" hidden=on default="-1"]
+P      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.rows"]
+Q      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.cols"]
 
 /* Look ahead on both dimensions */
 lookP  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(descC)"]
@@ -43,21 +43,40 @@ lookQ  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(descC)"]
 /**************************************************
  *                       READ_A                   *
  **************************************************/
-READ_A(m, k)  [profile = off]
+READ_A(k, m)  [profile = off]
 
-m = 0 .. descA->mt-1
-k = 0 .. descA->nt-1
+k = 0 .. descA->mt-1
+m = 0 .. descA->nt-1
 
-: descA(m, k)
+: descA(k, m)
 
-READ A <- descA(m, k)
-       -> A GEMM(m, 0 .. descC->nt-1, k)
+READ A <- descA(k, m)
+       -> A RING_A(k, m, k%Q)
+BODY
+{
+    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, k, m);
+}
+END
 
-CTL ctla <- (k >= lookQ) ? ctla GEMM(m, 0 .. descC->nt-1, k-lookQ)
+RING_A(k, m, q)  [profile = off]
+
+k = 0 .. descA->mt-1
+m = 0 .. descA->nt-1
+q = 0 .. Q-1
+prevq = (q-1+Q)%Q
+nextq = (q+1)%Q
+
+: Cdist(m, q)
+
+READ A <- (k%Q == q) ? A READ_A(k, m) : A RING_A(k, m, prevq)
+       -> A GEMM(m, q .. descC->nt-1 .. Q, k)
+       -> (nextq != (k%Q)) ? A RING_A(k, m, nextq)
+
+CTL ctla <- (k >= lookQ) ? ctla GEMM(m, q .. descC->nt-1 .. Q, k-lookQ)
 
 BODY
 {
-    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, k, m);
 }
 END
 
@@ -72,9 +91,28 @@ n = 0 .. descB->nt-1
 : descB(k, n)
 
 READ B <- descB(k, n)
-       -> B GEMM(0 .. descC->mt-1, n, k)
+       -> B RING_B(k, n, k%P)
+BODY
+{
+     printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, k, n);
+}
+END
 
-CTL ctlb <- (k >= lookP) ? ctlb GEMM(0 .. descC->mt-1, n, k-lookP)
+RING_B(k, n, p)  [profile = off]
+
+k = 0 .. descB->mt-1
+n = 0 .. descB->nt-1
+p = 0 .. P-1
+prevp = (p-1+P)%P
+nextp = (p+1)%P
+
+: Cdist(p, n)
+
+READ B <- (k%P == p) ? B READ_B(k, n) : B RING_B(k, n, prevp)
+       -> B GEMM(p .. descC->mt-1 .. P, n, k)
+       -> (nextp != (k%P)) ? B RING_B(k, n, nextp)
+
+CTL ctlb <- (k >= lookP) ? ctlb GEMM(p .. descC->mt-1 .. P, n, k-lookP)
 
 BODY
 {
@@ -90,23 +128,23 @@ GEMM(m, n, k)
 // Execution space
 m = 0 .. descC->mt-1
 n = 0 .. descC->nt-1
-k = 0 .. descA->nt-1
+k = 0 .. descA->mt-1
 
 // Parallel partitioning
 : descC(m, n)
 
 // Parameters
-READ A <- A READ_A(m, k)
-READ B <- B READ_B(k, n)
+READ A <- A RING_A(k, m, n%Q)
+READ B <- B RING_B(k, n, m%P)
 RW   C <- (k == 0)             ? descC(m, n) : C GEMM( m, n, k-1 )
-       -> (k == (descA->nt-1)) ? descC(m, n) : C GEMM( m, n, k+1 )
+       -> (k == (descA->mt-1)) ? descC(m, n) : C GEMM( m, n, k+1 )
 
-CTL ctla -> (k < (descA->nt-lookQ)) ? ctla READ_A(m, k+lookQ)
-CTL ctlb -> (k < (descA->nt-lookP)) ? ctlb READ_B(k+lookP, n)
+CTL ctla -> (k < (descA->mt-lookQ)) ? ctla RING_A(k+lookQ, m, n%Q)
+CTL ctlb -> (k < (descA->mt-lookP)) ? ctlb RING_B(k+lookP, n, m%P)
 
 BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
-      weight=(descA->nt-k)]
+      weight=(descA->mt-k)]
 {
 #if defined(PRECISION_z) || defined(PRECISION_c)
     cuDoubleComplex lalpha = make_cuDoubleComplex(creal(alpha), cimag(alpha));
@@ -118,8 +156,8 @@ BODY [type=CUDA
 #endif
     int tempmm = m == descC->mt-1 ? descC->m - m * descC->mb : descC->mb;
     int tempnn = n == descC->nt-1 ? descC->n - n * descC->nb : descC->nb;
-    int tempkk = k == descA->nt-1 ? descA->n - k * descA->nb : descA->nb;
-    int ldam = BLKLDD(descA, m);
+    int tempkk = k == descA->mt-1 ? descA->m - k * descA->mb : descA->mb;
+    int ldak = BLKLDD(descA, k);
     int ldbk = BLKLDD(descB, k);
     int ldcm = BLKLDD(descC, m);
 
@@ -127,7 +165,7 @@ BODY [type=CUDA
     cublasSetKernelStream( parsec_body.stream );
     parsec_body.dyld_fn( lapack_const(transA), lapack_const(transB),
              tempmm, tempnn, tempkk,
-             lalpha, (cuDoubleComplex*)A, ldam,
+             lalpha, (cuDoubleComplex*)A, ldak,
                      (cuDoubleComplex*)B, ldbk,
              lbeta,  (cuDoubleComplex*)C, ldcm );
     status = cublasGetError();
@@ -141,15 +179,15 @@ BODY
     parsec_complex64_t lbeta = (k == 0) ? beta : (parsec_complex64_t)1.0;
     int tempmm = m == descC->mt-1 ? descC->m - m * descC->mb : descC->mb;
     int tempnn = n == descC->nt-1 ? descC->n - n * descC->nb : descC->nb;
-    int tempkk = k == descA->nt-1 ? descA->n - k * descA->nb : descA->nb;
-    int ldam = BLKLDD(descA, m);
+    int tempkk = k == descA->mt-1 ? descA->m - k * descA->mb : descA->mb;
+    int ldak = BLKLDD(descA, k);
     int ldbk = BLKLDD(descB, k);
     int ldcm = BLKLDD(descC, m);
 
 #if !defined(PARSEC_DRY_RUN)
     CORE_zgemm(transA, transB,
                tempmm, tempnn, tempkk,
-               alpha, A /*A(m, k)*/, ldam,
+               alpha, A /*A(k, m)*/, ldak,
                       B /*B(k, n)*/, ldbk,
                lbeta, C /*C(m, n)*/, ldcm);
 #endif  /* !defined(PARSEC_DRY_RUN) */
@@ -159,8 +197,8 @@ BODY
              m, n, k,
              plasma_const( transA ), plasma_const( transB ),
              tempmm, tempnn, tempkk,
-             creal(alpha), m, k, ldam,
+             creal(alpha), k, m, ldak,
                            k, n, ldbk,
-             creal(lbeta), m, n, ldcm );
+             creal(lbeta), m, n, ldcm);
 }
 END

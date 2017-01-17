@@ -31,10 +31,10 @@ beta   [type = parsec_complex64_t]
 descA  [type = "const tiled_matrix_desc_t*"]
 descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
-Cdist  [type = "parsec_ddesc_t *" hidden=on default="NULL"]
+Cdist  [type = "parsec_ddesc_t *"]
 
-P      [type = "int" hidden=on default="-1"]
-Q      [type = "int" hidden=on default="-1"]
+P      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.rows"]
+Q      [type = "int" hidden=on default="((two_dim_block_cyclic_t*)descC)->grid.cols"]
 
 /* Look ahead on both dimensions */
 lookP  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(descC)"]
@@ -51,9 +51,28 @@ k = 0 .. descA->nt-1
 : descA(m, k)
 
 READ A <- descA(m, k)
-       -> A GEMM(m, 0 .. descC->nt-1, k)
+       -> A RING_A(m, k, k%Q)
+BODY
+{
+    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, m, k);
+}
+END
 
-CTL ctla <- (k >= lookQ) ? ctla GEMM(m, 0 .. descC->nt-1, k-lookQ)
+RING_A(m, k, q)  [profile = off]
+
+m = 0 .. descA->mt-1
+k = 0 .. descA->nt-1
+q = 0 .. Q-1
+prevq = (q-1+Q)%Q
+nextq = (q+1)%Q
+
+: Cdist(m, q)
+
+READ A <- (k%Q == q) ? A READ_A(m, k) : A RING_A(m, k, prevq)
+       -> A GEMM(m, q .. descC->nt-1 .. Q, k)
+       -> (nextq != (k%Q)) ? A RING_A(m, k, nextq)
+
+CTL ctla <- (k >= lookQ) ? ctla GEMM(m, q .. descC->nt-1 .. Q, k-lookQ)
 
 BODY
 {
@@ -72,13 +91,32 @@ n = 0 .. descB->nt-1
 : descB(k, n)
 
 READ B <- descB(k, n)
-       -> B GEMM(0 .. descC->mt-1, n, k)
-
-CTL ctlb <- (k >= lookP) ? ctlb GEMM(0 .. descC->mt-1, n, k-lookP)
-
+       -> B RING_B(k, n, k%P)
 BODY
 {
      printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, k, n);
+}
+END
+
+RING_B(k, n, p)  [profile = off]
+
+k = 0 .. descB->mt-1
+n = 0 .. descB->nt-1
+p = 0 .. P-1
+prevp = (p-1+P)%P
+nextp = (p+1)%P
+
+: Cdist(p, n)
+
+READ B <- (k%P == p) ? B READ_B(k, n) : B RING_B(k, n, prevp)
+       -> B GEMM(p .. descC->mt-1 .. P, n, k)
+       -> (nextp != (k%P)) ? B RING_B(k, n, nextp)
+
+CTL ctlb <- (k >= lookP) ? ctlb GEMM(p .. descC->mt-1 .. P, n, k-lookP)
+
+BODY
+{
+    printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, k, n);
 }
 END
 
@@ -96,13 +134,13 @@ k = 0 .. descA->nt-1
 : descC(m, n)
 
 // Parameters
-READ A <- A READ_A(m, k)
-READ B <- B READ_B(k, n)
+READ A <- A RING_A(m, k, n%Q)
+READ B <- B RING_B(k, n, m%P)
 RW   C <- (k == 0)             ? descC(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA->nt-1)) ? descC(m, n) : C GEMM( m, n, k+1 )
 
-CTL ctla -> (k < (descA->nt-lookQ)) ? ctla READ_A(m, k+lookQ)
-CTL ctlb -> (k < (descA->nt-lookP)) ? ctlb READ_B(k+lookP, n)
+CTL ctla -> (k < (descA->nt-lookQ)) ? ctla RING_A(m, k+lookQ, n%Q)
+CTL ctlb -> (k < (descA->nt-lookP)) ? ctlb RING_B(k+lookP, n, m%P)
 
 BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
