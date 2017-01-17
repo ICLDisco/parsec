@@ -48,7 +48,7 @@ normsx       [type = "double" hidden=on default="0."]
 
 /**
  * STEP 1:
- *  For j in [1,P], W(i, n) = reduce( A(i+k*P, n) )
+ *  For i in [1,P], W(i, n) = reduce( A(i+k*P, n) )
  */
 STEP1(m,n)
 
