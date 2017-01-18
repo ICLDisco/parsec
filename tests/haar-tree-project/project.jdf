@@ -327,7 +327,7 @@ static int my_project_startup(parsec_execution_unit_t * eu, __parsec_project_PRO
   new_task->priority = 1;
 
   PARSEC_LIST_ITEM_SINGLETON(new_task);
-  __parsec_schedule(eu, (parsec_execution_context_t *)new_task);
+  __parsec_schedule(eu, (parsec_execution_context_t *)new_task, 0);
 
   (void)vpid;
   return PARSEC_HOOK_RETURN_DONE;

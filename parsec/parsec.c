@@ -1706,7 +1706,7 @@ int parsec_handle_enable(parsec_handle_t* handle,
                 else parsec_list_item_ring_push(ring, &ttask->super.list_item);
             }
         }
-        if( NULL != ring ) __parsec_schedule(eu, (parsec_execution_context_t *)ring);
+        if( NULL != ring ) __parsec_schedule(eu, (parsec_execution_context_t *)ring, 0);
     }
     /* Always register the handle. This allows the handle_t destructor to unregister it in all cases. */
     parsec_handle_register(handle);

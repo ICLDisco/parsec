@@ -2410,7 +2410,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s after_insert_task:  /* we jump here just so that we have code after the label */\n"
             "%s  if( nb_tasks > this_task->locals.reserved[0].value ) {\n"
             "%s    if( (size_t)this_task->locals.reserved[0].value < parsec_task_startup_iter ) this_task->locals.reserved[0].value <<= 1;\n"
-            "%s    __parsec_schedule(eu, (parsec_execution_context_t*)pready_ring);\n"
+            "%s    __parsec_schedule(eu, (parsec_execution_context_t*)pready_ring, 0);\n"
             "%s    pready_ring = NULL;\n"
             "%s    total_nb_tasks += nb_tasks;\n"
             "%s    nb_tasks = 0;\n"
@@ -2430,7 +2430,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     string_arena_free(sa2);
 
     coutput("  (void)eu; (void)vpid;\n"
-            "  if( NULL != pready_ring ) __parsec_schedule(eu, (parsec_execution_context_t*)pready_ring);\n"
+            "  if( NULL != pready_ring ) __parsec_schedule(eu, (parsec_execution_context_t*)pready_ring, 0);\n"
             "  return PARSEC_HOOK_RETURN_DONE;\n"
             "}\n\n");
 }
@@ -5117,9 +5117,9 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
         coutput("    for(__vp_id = 0; __vp_id < eu->virtual_process->parsec_context->nb_vp; __vp_id++) {\n"
                 "      if( NULL == arg.ready_lists[__vp_id] ) continue;\n"
                 "      if(__vp_id == eu->virtual_process->vp_id) {\n"
-                "        __parsec_schedule(eu, arg.ready_lists[__vp_id]);\n"
+                "        __parsec_schedule(eu, arg.ready_lists[__vp_id], 0);\n"
                 "      } else {\n"
-                "        __parsec_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id]);\n"
+                "        __parsec_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id], 0);\n"
                 "      }\n"
                 "      arg.ready_lists[__vp_id] = NULL;\n"
                 "    }\n"

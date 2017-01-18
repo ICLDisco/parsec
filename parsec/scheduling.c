@@ -251,7 +251,8 @@ int parsec_set_scheduler( parsec_context_t *parsec )
  * readylist. the new_context IS the readylist.
  */
 int __parsec_schedule( parsec_execution_unit_t* eu_context,
-                      parsec_execution_context_t* new_context )
+                      parsec_execution_context_t* new_context,
+                      int32_t distance)
 {
     int ret;
 
@@ -278,9 +279,9 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
                 parsec_abort( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
                         parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
             }*/ /* Change it as soon as dtd has a running version */
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s",
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
-                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context) );
+                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), distance );
             context = (parsec_execution_context_t*)context->super.list_item.list_next;
         } while ( context != new_context );
     }
@@ -289,7 +290,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
      */
-    ret = current_scheduler->module.schedule(eu_context, new_context);
+    ret = current_scheduler->module.schedule(eu_context, new_context, distance);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
      *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
      */
@@ -359,7 +360,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
     parsec_context_t* parsec_context = eu_context->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
     parsec_execution_context_t* exec_context;
-    int rc, nbiterations = 0;
+    int rc, nbiterations = 0, distance;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
@@ -421,7 +422,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
         }
 
-        exec_context = current_scheduler->module.select(eu_context);
+        exec_context = current_scheduler->module.select(eu_context, &distance);
 
         if( exec_context != NULL ) {
             PINS(eu_context, SELECT_END, exec_context);
@@ -463,7 +464,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
                     } else
                         exec_context->priority /= 10;  /* demote the task */
                     PARSEC_LIST_ITEM_SINGLETON(exec_context);
-                    __parsec_schedule(eu_context, exec_context);
+                    __parsec_schedule(eu_context, exec_context, distance + 1);
                     exec_context = NULL;
                     break;
                 case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
@@ -488,7 +489,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
                 } else
                     exec_context->priority /= 10;  /* demote the task */
                 PARSEC_LIST_ITEM_SINGLETON(exec_context);
-                __parsec_schedule(eu_context, exec_context);
+                __parsec_schedule(eu_context, exec_context, distance + 1);
                 exec_context = NULL;
                 break;
             default:
@@ -690,7 +691,8 @@ int parsec_enqueue( parsec_context_t* context, parsec_handle_t* handle )
                 startup_list[p] = (parsec_execution_context_t*)parsec_list_nolock_unchain(&temp);
                 OBJ_DESTRUCT(&temp);
                 /* We should add these tasks on the system queue when there is one */
-                __parsec_schedule( context->virtual_processes[p]->execution_units[0], startup_list[p] );
+                __parsec_schedule(context->virtual_processes[p]->execution_units[0],
+                                  startup_list[p], 0);
             }
         }
         free(startup_list);

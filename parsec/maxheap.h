@@ -168,7 +168,9 @@ void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
  * a new heap pointer created and put on your stack.
  * No matter what happens, an execution_context is returned unless the heap was NULL.
  */
-parsec_execution_context_t * heap_split_and_steal(parsec_heap_t ** heap_ptr, parsec_heap_t ** new_heap_ptr)
+parsec_execution_context_t*
+heap_split_and_steal(parsec_heap_t ** heap_ptr,
+                     parsec_heap_t ** new_heap_ptr)
 {
     // if tree is empty, return NULL
     // if tree has only one node (top), return new heap with single node
@@ -179,62 +181,64 @@ parsec_execution_context_t * heap_split_and_steal(parsec_heap_t ** heap_ptr, par
     parsec_execution_context_t * to_use = NULL;
     (*new_heap_ptr) = NULL; // this should already be NULL, but if it's not, we'll fix that.
 
-    if (heap != NULL) {
-        assert(heap->top != NULL); // this heap should have been destroyed
-        to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
-        if (heap->top->super.list_item.list_prev == NULL) {
-            /* no left child, so 'top' is the only node */
-            PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tDestroying heap %p", heap->top, heap->top->super.list_item.list_next, heap);
-            heap->top = NULL;
-            heap_destroy(heap_ptr);
-            assert(*heap_ptr == NULL);
-        } else { /* does have left child */
-            if (heap->top->super.list_item.list_next /* right */ == NULL) {
-                assert(heap->size == 2);
-                /* but doesn't have right child, so still not splitting */
-                heap->top = (parsec_execution_context_t*)heap->top->super.list_item.list_prev; // left
-                assert(heap->top->super.list_item.list_next == NULL);
-                assert(heap->top->super.list_item.list_prev == NULL);
-                heap->priority = heap->top->priority;
-                heap->size--; // should equal 1
-                /* set up doubly-linked singleton list in here, as DEFAULT scenario */
-                // PETER TODO this comment needs to be better, b/c I don't understand it anymore
-                heap->list_item.list_prev = (parsec_list_item_t*)*heap_ptr;
-                heap->list_item.list_next = (parsec_list_item_t*)*heap_ptr;
-            }
-            else { // heap has at least 3 nodes, so we should be actually splitting
-                unsigned int size = heap->size;
-                unsigned int highBit = hiBit(heap->size);
-                unsigned int twoBit = highBit >> 1;
-                assert(heap->size >= 3);
-                (*new_heap_ptr) = heap_create();
-                (*new_heap_ptr)->top = (parsec_execution_context_t*)heap->top->super.list_item.list_prev; // left
-                (*new_heap_ptr)->priority = (*new_heap_ptr)->top->priority;
-                heap->top = (parsec_execution_context_t*)heap->top->super.list_item.list_next;
-                heap->priority = heap->top->priority;
-                if (twoBit & size) { // last item is on right side
-                    heap->size = ~highBit & size;
-                    (*new_heap_ptr)->size = size - heap->size - 1;
-                }
-                else { // last item is on left side
-                    (*new_heap_ptr)->size = (size & ~highBit) + twoBit;
-                    heap->size = size - (*new_heap_ptr)->size - 1;
-                }
-                /* set up doubly-linked two-element list in here, as DEFAULT scenario */
-                heap->list_item.list_prev = (parsec_list_item_t*)(*new_heap_ptr);
-                heap->list_item.list_next = (parsec_list_item_t*)(*new_heap_ptr);
-                (*new_heap_ptr)->list_item.list_prev = (parsec_list_item_t*)heap;
-                (*new_heap_ptr)->list_item.list_next = (parsec_list_item_t*)heap;
-                PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tSplit heap %p into itself and heap %p", heap, *new_heap_ptr);
-            }
-        }
-        to_use->super.list_item.list_next = (parsec_list_item_t*)to_use; // safety's
-        to_use->super.list_item.list_prev = (parsec_list_item_t*)to_use; // sake
+    if( NULL == heap ) return NULL;
+
+    assert(heap->top != NULL); // this heap should have been destroyed
+    to_use = heap->top; // this will always be what we return, even if it's NULL, if a valid heap was passed
+    if( NULL == heap->top->super.list_item.list_prev ) {
+        /* no left child, so 'top' is the only node */
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tDestroying heap %p", heap->top, heap->top->super.list_item.list_next, heap);
+        heap->top = NULL;
+        heap_destroy(heap_ptr);
+        assert(*heap_ptr == NULL);
+        goto prepare_for_return;
+    }  /* otherwise we do have left child */
+    if( NULL == heap->top->super.list_item.list_next /* right */ ) {
+        assert(heap->size == 2);
+        /* but doesn't have right child, so still not splitting */
+        heap->top = (parsec_execution_context_t*)heap->top->super.list_item.list_prev; // left
+        assert(heap->top->super.list_item.list_next == NULL);
+        assert(heap->top->super.list_item.list_prev == NULL);
+        heap->priority = heap->top->priority;
+        heap->size--; // should equal 1
+        /* set up doubly-linked singleton list in here, as DEFAULT scenario */
+        // PETER TODO this comment needs to be better, b/c I don't understand it anymore
+        heap->list_item.list_prev = (parsec_list_item_t*)*heap_ptr;
+        heap->list_item.list_next = (parsec_list_item_t*)*heap_ptr;
     }
+    else { // heap has at least 3 nodes, so we should be actually splitting
+        unsigned int size = heap->size;
+        unsigned int highBit = hiBit(heap->size);
+        unsigned int twoBit = highBit >> 1;
+        assert(heap->size >= 3);
+        (*new_heap_ptr) = heap_create();
+        (*new_heap_ptr)->top = (parsec_execution_context_t*)heap->top->super.list_item.list_prev; // left
+        (*new_heap_ptr)->priority = (*new_heap_ptr)->top->priority;
+        heap->top = (parsec_execution_context_t*)heap->top->super.list_item.list_next;
+        heap->priority = heap->top->priority;
+        if (twoBit & size) { // last item is on right side
+            heap->size = ~highBit & size;
+            (*new_heap_ptr)->size = size - heap->size - 1;
+        }
+        else { // last item is on left side
+            (*new_heap_ptr)->size = (size & ~highBit) + twoBit;
+            heap->size = size - (*new_heap_ptr)->size - 1;
+        }
+        /* set up doubly-linked two-element list in here, as DEFAULT scenario */
+        heap->list_item.list_prev = (parsec_list_item_t*)(*new_heap_ptr);
+        heap->list_item.list_next = (parsec_list_item_t*)(*new_heap_ptr);
+        (*new_heap_ptr)->list_item.list_prev = (parsec_list_item_t*)heap;
+        (*new_heap_ptr)->list_item.list_next = (parsec_list_item_t*)heap;
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tSplit heap %p into itself and heap %p", heap, *new_heap_ptr);
+    }
+  prepare_for_return:
+    PARSEC_LIST_ITEM_SINGLETON(to_use);
+
 #if defined(PARSEC_DEBUG_NOISIER)
-    if (to_use != NULL) {
+    {
         char tmp[MAX_TASK_STRLEN];
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tStole exec C %s (%p) from heap %p", parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tStole exec C %s (%p) from heap %p",
+                             parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
     }
 #endif
     return to_use;
