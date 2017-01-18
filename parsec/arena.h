@@ -51,7 +51,6 @@ struct parsec_arena_s {
 struct parsec_arena_chunk_s {
     parsec_list_item_t item;               /* chaining of this chunk when in an arena's free list.
                                            *   SINGLETON when ( (not in free list) and (in debug mode) ) */
-    uint32_t          refcount;
     uint32_t          count;
     parsec_arena_t    *origin;
     void             *data;
