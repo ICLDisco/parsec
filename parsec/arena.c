@@ -171,7 +171,6 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
                            arena->alignment, size_t);
         chunk = (parsec_arena_chunk_t*)arena->data_malloc(size);
         OBJ_CONSTRUCT(&chunk->item, parsec_list_item_t);
-        chunk->refcount = 1;
 
         TRACE_MALLOC(arena_memory_alloc_key, size, chunk);
     }
