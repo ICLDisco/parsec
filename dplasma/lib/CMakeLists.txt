@@ -22,7 +22,7 @@ add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" ${EXTRA_SOU
 set(JDF
   # Auxiliary
   zlange_frb_cyclic.jdf zlange_one_cyclic.jdf
-  zlansy.jdf
+  zlansy.jdf zlanm2.jdf
   zlaswp.jdf
   zpltmg_chebvand.jdf zpltmg_fiedler.jdf zpltmg_hankel.jdf zpltmg_toeppd.jdf
   zprint.jdf
@@ -30,6 +30,7 @@ set(JDF
   # BLAS Level 3
   #
   zgemm_NN.jdf zgemm_TN.jdf zgemm_NT.jdf zgemm_TT.jdf
+  zgemm_NN_summa.jdf zgemm_TN_summa.jdf zgemm_NT_summa.jdf zgemm_TT_summa.jdf
   zhemm.jdf
   zher2k_LN.jdf zher2k_LC.jdf zher2k_UN.jdf zher2k_UC.jdf
   zherk_LN.jdf zherk_LC.jdf zherk_UN.jdf zherk_UC.jdf
@@ -75,6 +76,7 @@ set(JDF
   ztrsmpl_sd.jdf
   ztrsmpl_qrf.jdf
   # Other
+  zgebrd_ge2gb.jdf
   zgebmm.jdf
   zgebut.jdf
   zhetrf.jdf
@@ -114,6 +116,7 @@ set(SOURCES
   zlanhe_wrapper.c
   zlansy_wrapper.c
   zlantr_wrapper.c
+  zlanm2_wrapper.c
   zlascal_wrapper.c
   zlaset_wrapper.c
   zlaswp_wrapper.c
@@ -121,6 +124,7 @@ set(SOURCES
   zplgsy_wrapper.c
   zplrnt_wrapper.c
   zpltmg_wrapper.c
+  zlatms_wrapper.c
   zprint_wrapper.c
   # Level 3 Blas
   zgemm_wrapper.c
@@ -177,6 +181,7 @@ set(SOURCES
   #
   dplasma_zcheck.c
   #
+  zgebrd_ge2gb_wrapper.c
   zhbrdt_wrapper.c
   zherbt_wrapper.c
   zhetrd_wrapper.c

@@ -21,6 +21,9 @@ foreach(prec ${DPLASMA_PRECISIONS} )
   add_test(shm_${prec}lange_${DTD_TEST} ${SHM_TEST_CMD_LIST} ./testing_${prec}lange -M 287 -N 283 -K 97 -t 56 ${OPTIONS} ${DTD_OPTIONS})
   set_tests_properties("shm_${prec}lange" PROPERTIES DEPENDS "shm_${prec}print")
 
+  add_test(shm_${prec}lanm2 ${SHM_TEST_CMD_LIST} ./testing_${prec}lanm2 -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+  set_tests_properties("shm_${prec}lanm2" PROPERTIES DEPENDS "shm_${prec}print")
+
   # Need to add testings on zlacpy, zlaset, zgeadd, zlascal, zger, (zlaswp?)
 
   # BLAS Shared memory
@@ -167,6 +170,9 @@ if( MPI_C_FOUND )
     # check the norms that are used in all other testings
     add_test(mpi_${prec}lange ${MPI_TEST_CMD_LIST} ${PROCS}  ./testing_${prec}lange ${CORES} -P 4 -M 287 -N 283 -K 97 -t 19 ${OPTIONS})
     set_tests_properties(mpi_${prec}lange PROPERTIES DEPENDS mpi_${prec}print)
+
+    add_test(mpi_${prec}lanm2 ${MPI_TEST_CMD_LIST} ${PROCS}  ./testing_${prec}lanm2 ${CORES} -P 4 -M 287 -N 283 -K 97 -t 19 ${OPTIONS})
+    set_tests_properties(mpi_${prec}lanm2 PROPERTIES DEPENDS mpi_${prec}print)
 
     # Need to add testings on zlacpy, zlaset, zgeadd, zlascal, zger, (zlaswp?)
 

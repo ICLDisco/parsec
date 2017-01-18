@@ -12,16 +12,7 @@
 
 int dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc );
 
-
-#define PASTE_CODE_INIT_AND_ALLOCATE_MATRIX(DDESC, TYPE, INIT_PARAMS)   \
-    {                                                                   \
-        TYPE##_init INIT_PARAMS;                                        \
-        DDESC.mat = parsec_data_allocate((size_t)DDESC.super.nb_local_tiles * \
-                                        (size_t)DDESC.super.bsiz *      \
-                                        (size_t)parsec_datadist_getsizeoftype(DDESC.super.mtype)); \
-        parsec_ddesc_set_key((parsec_ddesc_t*)&DDESC, #DDESC);            \
-    }
-
+int dplasma_aux_getGEMMLookahead( tiled_matrix_desc_t *A );
 
 #endif
 

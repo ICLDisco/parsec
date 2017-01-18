@@ -115,7 +115,7 @@ swptrsm_u_in(k)   [profile = off]
   : descA(k, k)
 
   RW A  <- descA(k,k)
-        -> A swptrsm_u(k, 0..descB->nt-1)
+        -> A swptrsm_u(k, 0..descB->nt-1)  [type = LOWER_TILE]
 
   RW IP <- IPIV(k,k)                       [type = PIVOT]
         -> IP swptrsm_u(k, 0..descB->nt-1)    [type = PIVOT]

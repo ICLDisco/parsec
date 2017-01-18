@@ -42,6 +42,7 @@ enum criteria_e {
  */
 static inline int dplasma_imax(int a, int b) { return (a > b) ? a : b; };
 static inline int dplasma_imin(int a, int b) { return (a < b) ? a : b; };
+static inline int dplasma_iceil(int a, int b) { return (a + b - 1) / b; };
 
 /* sqrt function */
 #define dplasma_zsqrt csqrt

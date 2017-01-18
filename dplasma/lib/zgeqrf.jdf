@@ -55,6 +55,8 @@ zgeqrt(k)
   /* Execution space */
   k = 0 .. %{ return dplasma_imin((descA->nt-1),(descA->mt-1)); %}
 
+  SIMCOST 4
+
   : descA(k,k)
 
   RW    A <- (0 == k) ? descA(k, k) : A2 ztsmqr(k-1, k, k)
@@ -148,6 +150,8 @@ zunmqr(k,n)
   /* Execution space */
   k = 0   .. %{ return dplasma_imin((descA->nt-2),(descA->mt-1)); %}
   n = k+1 .. descA->nt-1
+
+  SIMCOST 6
 
   : descA(k,n)
 
@@ -251,6 +255,8 @@ ztsqrt(k,m)
   /* Execution space */
   k = 0   .. %{ return dplasma_imin((descA->nt-1),(descA->mt-2)); %}
   m = k+1 .. descA->mt-1
+
+  SIMCOST 6
 
   : descA(m, k)
 
@@ -368,6 +374,8 @@ ztsmqr(k,m,n)
   k = 0     .. %{ return dplasma_imin((descA->mt-2),(descA->nt-2)); %}
   m = (k+1) .. (descA->mt-1)
   n = (k+1) .. (descA->nt-1)
+
+  SIMCOST 12
 
   : descA(m, n)
 

@@ -122,8 +122,8 @@ int main(int argc, char ** argv)
 
     dplasma_systolic_init( &qrtree,
                            PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
-                           iparam[IPARAM_QR_HLVL_SZE],
-                           iparam[IPARAM_QR_TS_SZE] );
+                           iparam[IPARAM_P],
+                           iparam[IPARAM_Q] );
 
     if(loud > 3) printf("+++ Factorize A ... ");
     dplasma_zgeqrf_param( parsec, &qrtree,

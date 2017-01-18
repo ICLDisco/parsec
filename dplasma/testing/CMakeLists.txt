@@ -13,6 +13,7 @@ set(TESTS
   testing_zgeadd.c
   testing_zprint.c
   testing_zlange.c
+  testing_zlanm2.c
   # Level 3 Blas
   testing_zgemm.c
   testing_zhemm.c
@@ -52,6 +53,8 @@ set(TESTS
   #testing_zgesv.c
   testing_zgesv_incpiv.c
   # Extra testings
+  testing_zgesvd.c
+  testing_zgebrd_ge2gb.c
   testing_zgeqrf_rd.c
   testing_zhebut.c
   testing_zhbrdt.c

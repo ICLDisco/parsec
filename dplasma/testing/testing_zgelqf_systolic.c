@@ -92,8 +92,8 @@ int main(int argc, char ** argv)
 
     dplasma_systolic_init( &qrtree,
                            PlasmaConjTrans, (tiled_matrix_desc_t *)&ddescA,
-                           iparam[IPARAM_QR_HLVL_SZE],
-                           iparam[IPARAM_QR_TS_SZE] );
+                           iparam[IPARAM_P],
+                           iparam[IPARAM_Q] );
 
     /* Create PaRSEC */
     PASTE_CODE_ENQUEUE_KERNEL(parsec, zgelqf_param,
@@ -108,15 +108,15 @@ int main(int argc, char ** argv)
     parsec_context_wait(parsec);
 
     SYNC_TIME_PRINT(rank,
-                    ("zgelqf HQR computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %f gflops\n",
+                    ("zgelqf systolic computation NP= %d NC= %d P= %d IB= %d MB= %d NB= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d M= %d N= %d : %f gflops\n",
                      iparam[IPARAM_NNODES],
                      iparam[IPARAM_NCORES],
                      iparam[IPARAM_P],
                      iparam[IPARAM_IB],
                      iparam[IPARAM_MB],
                      iparam[IPARAM_NB],
-                     iparam[IPARAM_QR_TS_SZE],
-                     iparam[IPARAM_QR_HLVL_SZE],
+                     iparam[IPARAM_Q],
+                     iparam[IPARAM_P],
                      iparam[IPARAM_LOWLVL_TREE],
                      iparam[IPARAM_HIGHLVL_TREE],
                      iparam[IPARAM_QR_DOMINO],
@@ -134,12 +134,12 @@ int main(int argc, char ** argv)
 
 #if defined(PARSEC_SIM)
     if ( rank == 0 ) {
-        printf("zgelqf HQR simulation NP= %d NC= %d P= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d MT= %d NT= %d : %d \n",
+        printf("zgelqf systolic simulation NP= %d NC= %d P= %d qr_a= %d qr_p = %d treel= %d treeh= %d domino= %d RR= %d MT= %d NT= %d : %d \n",
                iparam[IPARAM_NNODES],
                iparam[IPARAM_NCORES],
                iparam[IPARAM_P],
-               iparam[IPARAM_QR_TS_SZE],
-               iparam[IPARAM_QR_HLVL_SZE],
+               iparam[IPARAM_Q],
+               iparam[IPARAM_P],
                iparam[IPARAM_LOWLVL_TREE],
                iparam[IPARAM_HIGHLVL_TREE],
                iparam[IPARAM_QR_DOMINO],

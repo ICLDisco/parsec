@@ -9,7 +9,10 @@ extern "C" %{
  *
  */
 #include "dplasma/lib/dplasmajdf.h"
+#include "dplasma/lib/dplasmaaux.h"
 #include "data_dist/matrix/matrix.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include <math.h>
 
 #if defined(PARSEC_HAVE_CUDA)
 #include <cublas.h>
@@ -28,6 +31,17 @@ beta   [type = parsec_complex64_t]
 descA  [type = "const tiled_matrix_desc_t*"]
 descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
+Cdist  [type = "parsec_ddesc_t *" hidden=on default="NULL"]
+
+/** We need to keep the set of handle-globals the same between
+ *  zgemm_*.jdf, to ensure that all handles can be destroyed
+ *  with a generic function. P and Q are unused here. */
+P      [type = "int" hidden=on default="-1"]
+Q      [type = "int" hidden=on default="-1"]
+
+/* Look ahead on both dimensions */
+lookP  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(descC)"]
+lookQ  [type = "int" hidden=on default="dplasma_aux_getGEMMLookahead(descC)"]
 
 /**************************************************
  *                       READ_A                   *
@@ -40,7 +54,10 @@ m = 0 .. descA->nt-1
 : descA(k, m)
 
 READ A <- descA(k, m)
-       -> A GEMM(m, 0, k)
+       -> A GEMM(m, 0 .. descC->nt-1, k)
+
+CTL ctla <- (k >= lookQ) ? ctla GEMM(m, 0 .. descC->nt-1, k-lookQ)
+
 BODY
 {
     printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, k, m);
@@ -50,7 +67,7 @@ END
 /**************************************************
  *                       READ_B                   *
  **************************************************/
-READ_B(k, n)  [profile = off]
+READ_B(k, n) [profile = off]
 
 k = 0 .. descB->mt-1
 n = 0 .. descB->nt-1
@@ -58,7 +75,10 @@ n = 0 .. descB->nt-1
 : descB(k, n)
 
 READ B <- descB(k, n)
-       -> B GEMM(0, n, k)
+       -> B GEMM(0 .. descC->mt-1, n, k)
+
+CTL ctlb <- (k >= lookP) ? ctlb GEMM(0 .. descC->mt-1, n, k-lookP)
+
 BODY
 {
      printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, k, n);
@@ -79,12 +99,13 @@ k = 0 .. descA->mt-1
 : descC(m, n)
 
 // Parameters
-READ A <- (n == 0)            ? A READ_A(k, m) : A GEMM( m, (n+descC->nt-1) % descC->nt, k )
-       -> (n <= (descC->nt-2)) ? A GEMM( m, (n+1) % descC->nt, k )
-READ B <- (m == 0)            ? B READ_B(k, n) : B GEMM( (m+descC->mt-1) % descC->mt, n, k )
-       -> (m <= (descC->mt-2)) ? B GEMM( (m+1) % descC->mt, n, k )
-RW   C <- (k == 0)            ? descC(m, n) : C GEMM( m, n, k-1 )
+READ A <- A READ_A(k, m)
+READ B <- B READ_B(k, n)
+RW   C <- (k == 0)             ? descC(m, n) : C GEMM( m, n, k-1 )
        -> (k == (descA->mt-1)) ? descC(m, n) : C GEMM( m, n, k+1 )
+
+CTL ctla -> (k < (descA->mt-lookQ)) ? ctla READ_A(k+lookQ, m)
+CTL ctlb -> (k < (descA->mt-lookP)) ? ctlb READ_B(k+lookP, n)
 
 BODY [type=CUDA
       dyld=cublasZgemm dyldtype=cublas_zgemm_t
