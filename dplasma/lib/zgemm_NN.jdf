@@ -33,6 +33,9 @@ descB  [type = "const tiled_matrix_desc_t*"]
 descC  [type = "tiled_matrix_desc_t*"]
 Cdist  [type = "parsec_ddesc_t *" hidden=on default="NULL"]
 
+/** We need to keep the set of handle-globals the same between
+ *  zgemm_*.jdf, to ensure that all handles can be destroyed
+ *  with a generic function. P and Q are unused here. */
 P      [type = "int" hidden=on default="-1"]
 Q      [type = "int" hidden=on default="-1"]
 
