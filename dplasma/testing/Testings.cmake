@@ -1,3 +1,6 @@
+# Prevent cmake from complaining about variable substitution
+cmake_policy(SET CMP0054 NEW)
+
 #
 # Shared Memory Testings
 #

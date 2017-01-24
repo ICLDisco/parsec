@@ -34,6 +34,27 @@ if( BUILD_DPLASMA AND NOT BUILD_PARSEC )
   message(FATAL_ERROR "Building the DPLASMA layer requires the PaRSEC framework")
 endif( BUILD_DPLASMA AND NOT BUILD_PARSEC )
 
+# veclib on OSX diverge from the standard blas interfaces. As a result all tests
+# in single precision and complex are delivering wrong results. Until we have a
+# real fix, amke sure to disable these 2 presicisions on OSX.
+if( PARSEC_OSX )
+  set(tmp_fixed_prec "")
+  foreach(prec ${DPLASMA_PRECISIONS})
+    STRING(COMPARE EQUAL "${prec}" "s" is_sprec)
+    STRING(COMPARE EQUAL "${prec}" "c" is_cprec)
+    if ( NOT (is_sprec OR is_cprec) )
+      set(tmp_fixed_prec "${tmp_fixed_prec} ${prec}")
+    endif ( NOT (is_sprec OR is_cprec) )
+  endforeach()
+  STRING(STRIP "${tmp_fixed_prec}" tmp_fixed_prec)
+  STRING(REPLACE " " ";" NEW_PREC "${tmp_fixed_prec}")
+  STRING(COMPARE NOTEQUAL "${NEW_PREC}" "${DPLASMA_PRECISIONS}" prec_change)
+  if( prec_change )
+    MESSAGE(WARNING "Precision change for DPLASMA to ${NEW_PREC} (from ${DPLASMA_PRECISIONS})")
+    set(DPLASMA_PRECISIONS ${NEW_PREC})
+  endif( prec_change )
+endif( PARSEC_OSX )
+
 #
 # Find packages to decide if we compile DPLASMA support or not
 #
