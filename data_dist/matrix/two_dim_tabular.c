@@ -44,8 +44,8 @@ static uint32_t twoDTD_rank_of(parsec_ddesc_t * desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i;
-    n += Ddesc->super.j;
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
 
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );
@@ -73,8 +73,8 @@ static int32_t twoDTD_vpid_of(parsec_ddesc_t * desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i;
-    n += Ddesc->super.j;
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
 
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );
@@ -103,8 +103,8 @@ static parsec_data_t* twoDTD_data_of(parsec_ddesc_t* ddesc, ...)
     va_end(ap);
 
     /* asking for tile (m,n) in submatrix, compute which tile it corresponds in full matrix */
-    m += Ddesc->super.i;
-    n += Ddesc->super.j;
+    m += Ddesc->super.i / Ddesc->super.mb;
+    n += Ddesc->super.j / Ddesc->super.nb;
 
     res = (Ddesc->super.lmt * n) + m;
     assert( res >= 0 && res < Ddesc->tiles_table->nbelem );

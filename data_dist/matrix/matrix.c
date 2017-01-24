@@ -14,6 +14,7 @@
 #include "parsec/data_distribution.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
+#include "data_dist/matrix/two_dim_tabular.h"
 #include "matrix.h"
 
 #if defined(PARSEC_HAVE_MPI)
@@ -182,6 +183,10 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     else if( tdesc->dtype & sym_two_dim_block_cyclic_type ) {
         newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
+    }
+    else if( tdesc->dtype & two_dim_tabular_type ) {
+        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(two_dim_tabular_t) );
+        memcpy( newdesc, tdesc, sizeof(two_dim_tabular_t) );
     } else {
         parsec_warning("Type not completely defined");
         return NULL;
