@@ -37,6 +37,7 @@ typedef struct two_dim_td_table_s {
  */
 typedef struct two_dim_tabular_s {
     tiled_matrix_desc_t super;
+    int user_table;
     two_dim_td_table_t *tiles_table;
 } two_dim_tabular_t;
 
@@ -69,6 +70,7 @@ void two_dim_tabular_init(two_dim_tabular_t * Ddesc,
 
 void two_dim_tabular_destroy(two_dim_tabular_t *tddesc);
 void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table);
+void two_dim_tabular_set_user_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table);
 void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc, unsigned int seed);
 void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabular_t *Dst);
 

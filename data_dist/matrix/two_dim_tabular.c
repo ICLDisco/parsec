@@ -164,13 +164,33 @@ void two_dim_tabular_destroy(two_dim_tabular_t *tddesc)
         i++, elem++)
     {
         if( elem->data != NULL ) {
-            parsec_data_free(elem->data);
+            if(tddesc->user_table == 0)
+                parsec_data_free(elem->data);
             elem->data = NULL;
         }
     }
     free(tddesc->tiles_table);
 
     tiled_matrix_desc_destroy( &(tddesc->super) );
+}
+
+void two_dim_tabular_set_user_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table)
+{
+    int i;
+    assert( Ddesc->tiles_table == NULL );
+    assert( table != NULL );
+    assert( table->nbelem == Ddesc->super.lmt * Ddesc->super.lnt );
+    Ddesc->tiles_table = table;
+    Ddesc->super.nb_local_tiles = 0;
+    for(i = 0; i < table->nbelem; i++) {
+        if( table->elems[i].rank == Ddesc->super.super.myrank ) {
+            assert(table->elems[i].data != NULL);
+            assert(table->elems[i].pos == Ddesc->super.nb_local_tiles);
+            Ddesc->super.nb_local_tiles++;
+        }
+    }
+    Ddesc->user_table = 1;
+    Ddesc->super.data_map = (parsec_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }
 
 void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *table)
@@ -196,7 +216,7 @@ void two_dim_tabular_set_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t *tab
             table->elems[i].data = NULL;
         }
     }
-
+    Ddesc->user_table = 0;
     Ddesc->super.data_map = (parsec_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(parsec_data_t*));
 }
 
