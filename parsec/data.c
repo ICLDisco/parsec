@@ -287,7 +287,7 @@ int parsec_data_transfer_ownership_to_copy(parsec_data_t* data,
         for( i = 0; i < parsec_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
             if( DATA_COHERENCY_OWNED == data->device_copies[i]->coherency_state
-                && data->device_copies[i]->version > copy->version ) {
+             && data->device_copies[i]->version > copy->version ) {
                 assert( (int)i == valid_copy );
                 transfer_required = 1;
             }
@@ -295,6 +295,7 @@ int parsec_data_transfer_ownership_to_copy(parsec_data_t* data,
             else {
                 assert( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state
                      || DATA_COHERENCY_SHARED == data->device_copies[i]->coherency_state
+                     || data->device_copies[i]->version == copy->version
                      || copy->data_transfer_status );
             }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
