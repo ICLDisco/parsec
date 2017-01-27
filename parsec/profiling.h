@@ -330,7 +330,7 @@ profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
 #endif
 
 #ifdef __cplusplus
-extern "C" {
+}
 #endif
 
 #endif  /* _PARSEC_profiling_h */
