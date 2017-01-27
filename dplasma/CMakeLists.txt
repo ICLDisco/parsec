@@ -95,6 +95,7 @@ if(COREBLAS_FOUND)
   IF( BUILD_TESTING )
     Add_Subdirectory(testing)
   ENDIF( BUILD_TESTING )
+  Add_Subdirectory(examples)
 endif(COREBLAS_FOUND)
 
 configure_file (
