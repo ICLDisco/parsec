@@ -42,7 +42,7 @@ HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
 GTG_DIR=${GTG_DIR:="/opt/gtg"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
 PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
-TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -bynode -np 1\""
+TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node -np 1\""
 
 . $(dirname $0)/config.inc
 guess_defaults
