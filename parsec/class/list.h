@@ -18,9 +18,9 @@
 #include "parsec/class/list_item.h"
 
 typedef struct parsec_list_t {
-    parsec_object_t     super;
-    parsec_list_item_t  ghost_element;
-    volatile uint32_t  atomic_lock;
+    parsec_object_t      super;
+    parsec_list_item_t   ghost_element;
+    parsec_atomic_lock_t atomic_lock;
 } parsec_list_t;
 
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_t);

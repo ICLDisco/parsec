@@ -115,7 +115,7 @@ ordering_correctly_1(parsec_execution_unit_t *eu,
         }
 
         if( INPUT == op_type_on_current_flow ) {
-            parsec_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), -1 );
+            (void)parsec_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), -1 );
             //PARSEC_DATA_COPY_RELEASE(current_task->super.data[current_dep].data_out);
         }
 
@@ -189,7 +189,7 @@ ordering_correctly_1(parsec_execution_unit_t *eu,
                     current_desc->dont_skip_releasing_data[desc_flow_index] = 1;
                 }
 
-                parsec_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), 1 );
+                (void)parsec_atomic_add_32b( (int *)&(current_task->super.data[current_dep].data_out->readers), 1 );
                 /* Each reader increments the ref count of the data_copy
                  * We should have a function to retain data copies like
                  * PARSEC_DATA_COPY_RELEASE

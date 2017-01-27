@@ -554,7 +554,6 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
 #if defined(PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS)
     for( i = 0; i < ndevices; i++ ) {
         gpu_device_t *source_gpu, *target_gpu;
-        CUdevice source, target;
         int canAccessPeer;
 
         if( NULL == (source_gpu = (gpu_device_t*)parsec_devices_get(i)) ) continue;

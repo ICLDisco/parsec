@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include "parsec_config.h"
 #undef NDEBUG
 #include <pthread.h>
@@ -308,7 +314,7 @@ int main(int argc, char *argv[])
         elt = (elt_t*)parsec_lifo_pop( &lifo2 );
         if( elt == NULL ) 
             fatal(" ! Error: list lifo2 is supposed to be non empty, but it is!\n");
-        if( elt == p ) 
+        if( elt == p )
             fatal(" ! I keep poping the same element in the list at element %u... It is now officially a frying pan\n",
                   ch);
         ch++;

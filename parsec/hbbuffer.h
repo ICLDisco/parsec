@@ -84,7 +84,7 @@ parsec_hbbuffer_push_all(parsec_hbbuffer_t *b,
         PARSEC_LIST_ITEM_SINGLETON(elt);
         /* Try to find a room for elt */
         for(; (size_t)i < b->size; i++) {
-            if( 0 == parsec_atomic_cas(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) )
+            if( 0 == parsec_atomic_cas_ptr(&b->items[i], (uintptr_t) NULL, (uintptr_t) elt) )
                 continue;
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output,  "HBB:\tPush elem %p in local queue %p at position %d", elt, b, i );
             /* Found an empty space to push the first element. */
@@ -168,7 +168,7 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
 
         if( best_index > -1 ) {
             /* found a nice place, try to CAS */
-            if( 1 == parsec_atomic_cas( &b->items[best_index], (uintptr_t) best_context, (uintptr_t) topush ) ) {
+            if( 1 == parsec_atomic_cas_ptr( &b->items[best_index], (uintptr_t) best_context, (uintptr_t) topush ) ) {
                 /* Woohoo ! Success... */
 #if defined(PARSEC_DEBUG_NOISIER)
                 char tmp[MAX_TASK_STRLEN];
@@ -294,8 +294,7 @@ static inline parsec_list_item_t *parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b,
         if( NULL == best_elt)
             break;
 
-    } while( parsec_atomic_cas( &b->items[best_idx], (uintptr_t) best_elt, (uintptr_t) NULL ) == 0 );
-
+    } while( parsec_atomic_cas_ptr( &b->items[best_idx], (uintptr_t) best_elt, (uintptr_t) NULL ) == 0 );
 
     /** Removes the element from the buffer. */
 #if defined(PARSEC_DEBUG_NOISIER)

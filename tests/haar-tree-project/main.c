@@ -40,7 +40,7 @@ static void cksum_node_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
     do {
         ov = *cksum;
         nv = ov ^ up;
-    } while(!parsec_atomic_cas(cksum, ov, nv));
+    } while(!parsec_atomic_cas_64b(cksum, ov, nv));
     (void)tree;
 }
 

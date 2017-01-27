@@ -86,9 +86,9 @@ struct data_repo_entry_s {
 };
 
 struct data_repo_head_s {
-    volatile uint32_t  lock;
-    uint32_t           size;
-    data_repo_entry_t *first_entry;
+    parsec_atomic_lock_t  lock;
+    uint32_t              size;
+    data_repo_entry_t    *first_entry;
 };
 
 struct data_repo_s {

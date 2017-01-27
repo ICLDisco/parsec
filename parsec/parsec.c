@@ -1120,7 +1120,7 @@ static int parsec_update_deps_with_counter(const parsec_handle_t *parsec_handle,
 
     if( 0 == *deps ) {
         dep_new_value = parsec_check_IN_dependencies_with_counter( parsec_handle, exec_context ) - 1;
-        if( parsec_atomic_cas( deps, 0, dep_new_value ) == 1 )
+        if( parsec_atomic_cas_32b( deps, 0, dep_new_value ) == 1 )
             dep_cur_value = dep_new_value;
         else
             dep_cur_value = parsec_atomic_dec_32b( deps );
@@ -1128,7 +1128,7 @@ static int parsec_update_deps_with_counter(const parsec_handle_t *parsec_handle,
         dep_cur_value = parsec_atomic_dec_32b( deps );
     }
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Activate counter dependency for %s leftover %d (excluding current)",
-            tmp, dep_cur_value);
+                         tmp, dep_cur_value);
 
 #if defined(PARSEC_DEBUG_PARANOID)
     {
@@ -1139,8 +1139,8 @@ static int parsec_update_deps_with_counter(const parsec_handle_t *parsec_handle,
         }
 
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Task %s has a current dependencies count of %d remaining. %s to go!",
-               tmp, dep_cur_value,
-               (dep_cur_value == 0) ? "Ready" : "Not ready");
+                             tmp, dep_cur_value,
+                             (dep_cur_value == 0) ? "Ready" : "Not ready");
     }
 #endif /* PARSEC_DEBUG_PARANOID */
 
@@ -1163,14 +1163,14 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
 #endif
 
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Activate mask dep for %s:%s (current 0x%x now 0x%x goal 0x%x) from %s:%s",
-            dest_flow->name, tmpt, *deps, (1 << dest_flow->flow_index), function->dependencies_goal,
-            origin_flow->name, tmpo);
+                         dest_flow->name, tmpt, *deps, (1 << dest_flow->flow_index), function->dependencies_goal,
+                         origin_flow->name, tmpo);
 #if defined(PARSEC_DEBUG_PARANOID)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
         parsec_abort("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)",
-               dest_flow->flow_index, tmpo,
-               origin_flow->name, *deps,
-               tmpt, dest_flow->name );
+                     dest_flow->flow_index, tmpo,
+                     origin_flow->name, *deps,
+                     tmpt, dest_flow->name );
     }
 #else
     (void) origin; (void) origin_flow;
@@ -1196,8 +1196,8 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
         int success;
         parsec_dependency_t tmp_mask;
         tmp_mask = *deps;
-        success = parsec_atomic_cas( deps,
-                                    tmp_mask, (tmp_mask | PARSEC_DEPENDENCIES_TASK_DONE) );
+        success = parsec_atomic_cas_32b(deps,
+                                        tmp_mask, (tmp_mask | PARSEC_DEPENDENCIES_TASK_DONE));
         if( !success || (tmp_mask & PARSEC_DEPENDENCIES_TASK_DONE) ) {
             parsec_abort("Task %s scheduled twice (second time by %s)!!!",
                    tmpt, tmpo);
@@ -1206,9 +1206,9 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "Task %s has a current dependencies of 0x%x and a goal of 0x%x. %s to go!",
-            tmpt, dep_cur_value, function->dependencies_goal,
-            ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ?
-            "Ready" : "Not ready");
+                         tmpt, dep_cur_value, function->dependencies_goal,
+                         ((dep_cur_value & function->dependencies_goal) == function->dependencies_goal) ?
+                         "Ready" : "Not ready");
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
 }
 
@@ -1553,7 +1553,7 @@ int parsec_get_enqueue_callback( const parsec_handle_t* parsec_handle,
 }
 
 /* TODO: Change this code to something better */
-static volatile uint32_t object_array_lock = 0;
+static parsec_atomic_lock_t object_array_lock = { PARSEC_ATOMIC_UNLOCKED };
 static parsec_handle_t** object_array = NULL;
 static uint32_t object_array_size = 1, object_array_pos = 0;
 #define NOOBJECT ((void*)-1)

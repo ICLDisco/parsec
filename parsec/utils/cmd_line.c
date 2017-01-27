@@ -910,7 +910,7 @@ static void cmd_line_constructor(parsec_cmd_line_t *cmd)
        only thread that has this instance), there's no need to lock it
        right now. */
 
-    cmd->lcl_mutex = 0;
+    parsec_atomic_unlock(&cmd->lcl_mutex);
 
     /* Initialize the lists */
 

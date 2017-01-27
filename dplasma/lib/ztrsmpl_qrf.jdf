@@ -1,6 +1,6 @@
 extern "C" %{
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation. All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -584,7 +584,7 @@ BODY
             }
         }
     }
-    parsec_atomic_add_32b( &this_task->parsec_handle->nb_tasks, -nb_tasks );
+    (void)parsec_atomic_add_32b( &this_task->parsec_handle->nb_tasks, -nb_tasks );
 
 }
 END

@@ -102,13 +102,14 @@ parsec_arena_get_chunk( parsec_arena_t *arena, size_t size, parsec_data_allocate
     parsec_list_item_t *item;
     item = parsec_lifo_pop(list);
     if( NULL != item ) {
-        if( arena->max_released != INT32_MAX ) parsec_atomic_dec_32b((uint32_t*)&arena->released);
+        if( arena->max_released != INT32_MAX )
+            (void)parsec_atomic_dec_32b((uint32_t*)&arena->released);
     }
     else {
         if(arena->max_used != INT32_MAX) {
             int32_t current = parsec_atomic_add_32b(&arena->used, 1);
             if(current > arena->max_used) {
-                parsec_atomic_dec_32b((uint32_t*)&arena->used);
+                (void)parsec_atomic_dec_32b((uint32_t*)&arena->used);
                 return NULL;
             }
         }
@@ -133,7 +134,7 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
                 arena->elem_size, arena, arena->alignment, chunk, chunk->data, sizeof(parsec_arena_chunk_t),
                 PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
         if(arena->max_released != INT32_MAX) {
-            parsec_atomic_inc_32b((uint32_t*)&arena->released);
+            (void)parsec_atomic_inc_32b((uint32_t*)&arena->released);
         }
         parsec_lifo_push(&arena->area_lifo, &chunk->item);
         return;
@@ -143,7 +144,7 @@ parsec_arena_release_chunk(parsec_arena_t* arena,
             PARSEC_ARENA_MIN_ALIGNMENT(arena->alignment));
     TRACE_FREE(arena_memory_free_key, chunk);
     if(arena->max_used != 0 && arena->max_used != INT32_MAX)
-        parsec_atomic_sub_32b(&arena->used, chunk->count);
+        (void)parsec_atomic_sub_32b(&arena->used, chunk->count);
     arena->data_free(chunk);
 }
 
@@ -163,7 +164,7 @@ parsec_data_copy_t *parsec_arena_get_copy(parsec_arena_t *arena, size_t count, i
         if(arena->max_used != INT32_MAX) {
             int32_t current = parsec_atomic_add_32b(&arena->used, count);
             if(current > arena->max_used) {
-                parsec_atomic_sub_32b(&arena->used, count);
+                (void)parsec_atomic_sub_32b(&arena->used, count);
                 return NULL;
             }
         }

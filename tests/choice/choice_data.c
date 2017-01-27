@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -50,7 +50,7 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
         data->nb_elts = 1;
         data->device_copies[0] = data_copy;
 
-        if( !parsec_atomic_cas(&dat->data_map[pos], NULL, data) ) {
+        if( !parsec_atomic_cas_ptr(&dat->data_map[pos], NULL, data) ) {
             free(data_copy);
             free(data);
             data = dat->data_map[pos];

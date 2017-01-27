@@ -99,7 +99,7 @@ static int pins_handle_complete_callback(parsec_handle_t* ptg_handle, void* void
     parsec_handle_t* dtd_handle = (parsec_handle_t*)void_dtd_handle;
     int remaining = parsec_atomic_dec_32b( (uint32_t*)&dtd_handle->nb_tasks );
     if( 0 == remaining ) {
-        if( parsec_atomic_cas(&dtd_handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+        if( parsec_atomic_cas_32b((uint32_t*)&dtd_handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
             parsec_handle_update_runtime_nbtask((parsec_handle_t*)dtd_handle, -1);
         /* we're done in all cases */
     }
@@ -225,7 +225,7 @@ tile_manage_for_testing(parsec_dtd_handle_t *parsec_dtd_handle,
         temp_tile->last_user.op_type     = -1;
         temp_tile->last_user.task        = NULL;
         temp_tile->last_user.alive       = TASK_IS_NOT_ALIVE;
-        temp_tile->last_user.atomic_lock = 0;
+        parsec_atomic_unlock(&temp_tile->last_user.atomic_lock);
 
         parsec_dtd_tile_insert ( parsec_dtd_handle, temp_tile->key,
                                 temp_tile, (parsec_ddesc_t *)data );
@@ -340,7 +340,7 @@ static int
 fake_hook_for_testing(parsec_execution_unit_t    *context,
                       parsec_execution_context_t *this_task)
 {
-    static volatile uint32_t pins_ptg_to_dtd_atomic_lock = 0;
+    static parsec_atomic_lock_t pins_ptg_to_dtd_atomic_lock = {PARSEC_ATOMIC_UNLOCKED};
     parsec_list_item_t* local_list = NULL;
 
     /* We will try to push our tasks in the same Global Deque.
@@ -376,7 +376,7 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
 
         local_list = parsec_list_item_ring_chop(local_list);
 
-        for (i=0; this_task->function->in[i] != NULL ; i++) {
+        for (i = 0; NULL != this_task->function->in[i]; i++) {
 
             tmp_op_type = this_task->function->in[i]->flow_flags;
             int op_type;
@@ -393,6 +393,7 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
             if( NULL != this_task->data[i].data_in ) {
                 data = this_task->data[i].data_in->original;
                 key = this_task->data[i].data_in->original->key;
+
                 tile = tile_manage_for_testing(dtd_handle, data, key);
             }
 
@@ -411,9 +412,10 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
         }
 
         for( i = 0; NULL != this_task->function->out[i]; i++) {
-            int op_type;
-            tmp_op_type = this_task->function->out[i]->flow_flags;
             parsec_dtd_tile_t *tile = NULL;
+            int op_type;
+
+            tmp_op_type = this_task->function->out[i]->flow_flags;
             if((tmp_op_type & FLOW_ACCESS_WRITE) == FLOW_ACCESS_WRITE) {
                 op_type = OUTPUT | REGION_FULL;
                 if( NULL != this_task->data[i].data_out ) {
@@ -424,7 +426,6 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
             } else {
                 continue;
             }
-
 
             tmp_param = (parsec_dtd_task_param_ptg_to_dtd_t *) malloc(sizeof(parsec_dtd_task_param_ptg_to_dtd_t));
             tmp_param->super.pointer_to_tile = (void *)tile;

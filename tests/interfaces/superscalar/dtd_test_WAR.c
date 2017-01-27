@@ -30,7 +30,7 @@ call_to_kernel_type_read( parsec_execution_unit_t    *context,
                           UNPACK_DATA,  &data
                           );
     if( *data > 1 ) {
-        parsec_atomic_inc_32b(&count);
+        (void)parsec_atomic_inc_32b(&count);
     }
 
     return 0;

@@ -607,7 +607,7 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
     /* Corresponding comment below on the propagation part */
     if(0 == origin->incoming_mask) {
         remote_dep_inc_flying_messages(task.parsec_handle);
-        parsec_atomic_add_32b(&origin->pending_ack, 1);
+        (void)parsec_atomic_add_32b(&origin->pending_ack, 1);
     }
 #endif  /* PARSEC_DIST_COLLECTIVES */
 
@@ -1179,7 +1179,7 @@ static int remote_dep_mpi_pack_dep(int peer,
                 tmp, k, deps, expected, deps->pending_ack);
     }
     if(expected)
-        parsec_atomic_add_32b((int32_t*)&deps->pending_ack, expected);  /* Keep track of the inflight data */
+        (void)parsec_atomic_add_32b((int32_t*)&deps->pending_ack, expected);  /* Keep track of the inflight data */
     /* We can only have up to k data sends related to this remote_dep (include the order itself) */
     item->cmd.activate.task.tag = next_tag(k);
     msg->tag = item->cmd.activate.task.tag;

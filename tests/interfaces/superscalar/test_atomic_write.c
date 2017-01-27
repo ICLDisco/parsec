@@ -32,7 +32,7 @@ call_to_kernel(parsec_execution_unit_t *context, parsec_execution_context_t * th
 
     uint32_t *data = PARSEC_DATA_COPY_GET_PTR((parsec_data_copy_t *) gDATA);
 
-    parsec_atomic_inc_32b(data);
+    (void)parsec_atomic_inc_32b(data);
 
     return 0;
 }

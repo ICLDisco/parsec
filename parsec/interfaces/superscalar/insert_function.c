@@ -510,14 +510,11 @@ parsec_dtd_context_wait_on_handle( parsec_context_t     *parsec,
     /* Now we  can therefore release the extra dependency we had on the handle,
      * and if the handle is complete move on.
      */
-    int remaining = parsec_atomic_dec_32b( (uint32_t*)&dtd_handle->super.nb_tasks );
-    if( 0 == remaining ) {
-        if( parsec_atomic_cas(&dtd_handle->super.nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+    if( 0 == parsec_atomic_dec_32b((uint32_t*)&dtd_handle->super.nb_tasks) ) {
+        if( parsec_atomic_cas_32b((uint32_t*)&(dtd_handle->super.nb_tasks), 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
             parsec_handle_update_runtime_nbtask((parsec_handle_t*)dtd_handle, -1);
         parsec_context_wait(parsec);
-        return;  /* we're done in all cases */
     }
-    assert(0 == remaining);
 }
 
 /* **************************************************************************** */
@@ -1109,7 +1106,7 @@ parsec_dtd_tile_of(parsec_dtd_handle_t *parsec_dtd_handle,
         temp_tile->last_user.op_type     = -1;
         temp_tile->last_user.task        = NULL;
         temp_tile->last_user.alive       = TASK_IS_NOT_ALIVE;
-        temp_tile->last_user.atomic_lock = 0;
+        parsec_atomic_unlock(&temp_tile->last_user.atomic_lock);
 
         parsec_dtd_tile_insert ( parsec_dtd_handle, temp_tile->key,
                                 temp_tile, ddesc );
@@ -1572,7 +1569,7 @@ complete_hook_of_dtd( parsec_execution_unit_t    *context,
 
     if (dump_traversal_info) {
         static int counter= 0;
-        parsec_atomic_add_32b(&counter,1);
+        (void)parsec_atomic_add_32b(&counter,1);
         parsec_output(parsec_debug_output, "------------------------------------------------\n"
                "execution done of task: %s \t %" PRIu64 "\n"
                "task done %d \n",
@@ -1815,7 +1812,7 @@ set_dependencies_for_function(parsec_handle_t* parsec_handle,
         int in_index = find_in_flow( desc_function, desc_flow_index );
         if(NULL != desc_function->in[in_index]) {
             parsec_flow_t *tmp_d_flow = (parsec_flow_t *)desc_function->in[in_index];
-            for (i=0; i<MAX_DEP_IN_COUNT; i++) {
+            for (i = 0; i < MAX_DEP_IN_COUNT; i++) {
                 if (NULL != tmp_d_flow->dep_in[i]) {
                     if (tmp_d_flow->dep_in[i]->function_id == LOCAL_DATA ) {
                         dep_exists = 1;
@@ -1849,100 +1846,100 @@ set_dependencies_for_function(parsec_handle_t* parsec_handle,
             }
         }
         return;
-    } else {
-        int out_index = find_out_flow( parent_function, parent_flow_index );
-        parsec_flow_t *tmp_flow = (parsec_flow_t *) parent_function->out[out_index];
+    }
 
-        if (NULL == tmp_flow) {
-            int in_index = find_in_flow( parent_function, parent_flow_index );
-            dep_t *tmp_dep;
-            parsec_flow_t *tmp_p_flow = NULL;
-            tmp_flow =(parsec_flow_t *) parent_function->in[in_index];
-            for (i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if(NULL != tmp_flow->dep_in[i]) {
-                    tmp_dep = (dep_t *) tmp_flow->dep_in[i];
-                }
-            }
-            if(tmp_dep->function_id == LOCAL_DATA) {
-                set_dependencies_for_function(parsec_handle,
-                                              NULL, desc_function, 0,
-                                              desc_flow_index);
-                return;
-            }
-            tmp_p_flow = (parsec_flow_t *)tmp_dep->flow;
-            parent_function = (parsec_function_t *)parsec_handle->functions_array[tmp_dep->function_id];
+    int out_index = find_out_flow( parent_function, parent_flow_index );
+    parsec_flow_t *tmp_flow = (parsec_flow_t *) parent_function->out[out_index];
 
-            for(j=0; j<MAX_DEP_OUT_COUNT; j++) {
-                if(NULL != tmp_p_flow->dep_out[j]) {
-                    if((parsec_flow_t *)tmp_p_flow->dep_out[j]->flow == tmp_flow) {
-                        parent_flow_index = tmp_p_flow->dep_out[j]->belongs_to->flow_index;
-                        set_dependencies_for_function(parsec_handle,
-                                                      parent_function,
-                                                      desc_function,
-                                                      parent_flow_index,
-                                                      desc_flow_index);
-                        return;
-                    }
-                }
+    if (NULL == tmp_flow) {
+        int in_index = find_in_flow( parent_function, parent_flow_index );
+        dep_t *tmp_dep = NULL;
+        parsec_flow_t *tmp_p_flow = NULL;
+        tmp_flow = (parsec_flow_t *) parent_function->in[in_index];
+        for (i = 0; i < MAX_DEP_IN_COUNT; i++) {
+            if(NULL != tmp_flow->dep_in[i]) {
+                tmp_dep = (dep_t *) tmp_flow->dep_in[i];
             }
-            dep_exists = 1;
         }
+        if(tmp_dep->function_id == LOCAL_DATA) {
+            set_dependencies_for_function(parsec_handle,
+                                          NULL, desc_function, 0,
+                                          desc_flow_index);
+            return;
+        }
+        tmp_p_flow = (parsec_flow_t *)tmp_dep->flow;
+        parent_function = (parsec_function_t *)parsec_handle->functions_array[tmp_dep->function_id];
 
-        int desc_in_index = find_in_flow( desc_function, desc_flow_index );
-        for (i=0; i<MAX_DEP_OUT_COUNT; i++) {
-            if (NULL != tmp_flow->dep_out[i]) {
-                if( tmp_flow->dep_out[i]->function_id == desc_function->function_id &&
-                    tmp_flow->dep_out[i]->flow == desc_function->in[desc_in_index] ) {
-                    dep_exists = 1;
-                    break;
+        for(j=0; j<MAX_DEP_OUT_COUNT; j++) {
+            if(NULL != tmp_p_flow->dep_out[j]) {
+                if((parsec_flow_t *)tmp_p_flow->dep_out[j]->flow == tmp_flow) {
+                    parent_flow_index = tmp_p_flow->dep_out[j]->belongs_to->flow_index;
+                    set_dependencies_for_function(parsec_handle,
+                                                  parent_function,
+                                                  desc_function,
+                                                  parent_flow_index,
+                                                  desc_flow_index);
+                    return;
                 }
             }
         }
+        dep_exists = 1;
+    }
 
-        if(!dep_exists) {
-            dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
-            dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
-
-            if (dump_function_info) {
-                parsec_output(parsec_debug_output, "%s -> %s\n", parent_function->name, desc_function->name);
+    int desc_in_index = find_in_flow( desc_function, desc_flow_index );
+    for (i=0; i<MAX_DEP_OUT_COUNT; i++) {
+        if (NULL != tmp_flow->dep_out[i]) {
+            if( tmp_flow->dep_out[i]->function_id == desc_function->function_id &&
+                tmp_flow->dep_out[i]->flow == desc_function->in[desc_in_index] ) {
+                dep_exists = 1;
+                break;
             }
+        }
+    }
 
-            /* setting out-dependency for parent */
-            parent_dep->cond            = NULL;
-            parent_dep->ctl_gather_nb   = NULL;
-            parent_dep->function_id     = desc_function->function_id;
-            parent_dep->flow            = desc_function->in[desc_in_index];
-            parent_dep->dep_index       = ((parsec_dtd_function_t*)parent_function)->dep_out_index++;
-            parent_dep->belongs_to      = parent_function->out[out_index];
-            parent_dep->direct_data     = NULL;
-            parent_dep->dep_datatype_index = ((parsec_dtd_function_t*)parent_function)->dep_datatype_index++;
+    if(!dep_exists) {
+        dep_t *desc_dep = (dep_t *) malloc(sizeof(dep_t));
+        dep_t *parent_dep = (dep_t *) malloc(sizeof(dep_t));
 
-            for(i=0; i<MAX_DEP_OUT_COUNT; i++) {
-                if(NULL == parent_function->out[out_index]->dep_out[i]) {
-                    /* to bypass constness in function structure */
-                    parsec_flow_t **parent_out = (parsec_flow_t **)&(parent_function->out[out_index]);
-                    (*parent_out)->dep_out[i] = (dep_t *)parent_dep;
-                    break;
-                }
+        if (dump_function_info) {
+            parsec_output(parsec_debug_output, "%s -> %s\n", parent_function->name, desc_function->name);
+        }
+
+        /* setting out-dependency for parent */
+        parent_dep->cond            = NULL;
+        parent_dep->ctl_gather_nb   = NULL;
+        parent_dep->function_id     = desc_function->function_id;
+        parent_dep->flow            = desc_function->in[desc_in_index];
+        parent_dep->dep_index       = ((parsec_dtd_function_t*)parent_function)->dep_out_index++;
+        parent_dep->belongs_to      = parent_function->out[out_index];
+        parent_dep->direct_data     = NULL;
+        parent_dep->dep_datatype_index = ((parsec_dtd_function_t*)parent_function)->dep_datatype_index++;
+
+        for(i=0; i<MAX_DEP_OUT_COUNT; i++) {
+            if(NULL == parent_function->out[out_index]->dep_out[i]) {
+                /* to bypass constness in function structure */
+                parsec_flow_t **parent_out = (parsec_flow_t **)&(parent_function->out[out_index]);
+                (*parent_out)->dep_out[i] = (dep_t *)parent_dep;
+                break;
             }
+        }
 
-            /* setting in-dependency for descendant */
-            desc_dep->cond          = NULL;
-            desc_dep->ctl_gather_nb = NULL;
-            desc_dep->function_id   = parent_function->function_id;
-            desc_dep->flow          = parent_function->out[out_index];
-            desc_dep->dep_index     = ((parsec_dtd_function_t*)desc_function)->dep_in_index++;
-            desc_dep->belongs_to    = desc_function->in[desc_in_index];
-            desc_dep->direct_data   = NULL;
-            desc_dep->dep_datatype_index = ((parsec_dtd_function_t*)desc_function)->dep_datatype_index;
+        /* setting in-dependency for descendant */
+        desc_dep->cond          = NULL;
+        desc_dep->ctl_gather_nb = NULL;
+        desc_dep->function_id   = parent_function->function_id;
+        desc_dep->flow          = parent_function->out[out_index];
+        desc_dep->dep_index     = ((parsec_dtd_function_t*)desc_function)->dep_in_index++;
+        desc_dep->belongs_to    = desc_function->in[desc_in_index];
+        desc_dep->direct_data   = NULL;
+        desc_dep->dep_datatype_index = ((parsec_dtd_function_t*)desc_function)->dep_datatype_index;
 
-            for(i=0; i<MAX_DEP_IN_COUNT; i++) {
-                if(NULL == desc_function->in[desc_in_index]->dep_in[i]) {
-                    /* Bypassing constness in function strucutre */
-                    parsec_flow_t **desc_in = (parsec_flow_t **)&(desc_function->in[desc_in_index]);
-                    (*desc_in)->dep_in[i]  = (dep_t *)desc_dep;
-                    break;
-                }
+        for(i=0; i<MAX_DEP_IN_COUNT; i++) {
+            if(NULL == desc_function->in[desc_in_index]->dep_in[i]) {
+                /* Bypassing constness in function strucutre */
+                parsec_flow_t **desc_in = (parsec_flow_t **)&(desc_function->in[desc_in_index]);
+                (*desc_in)->dep_in[i]  = (dep_t *)desc_dep;
+                break;
             }
         }
     }
@@ -2366,34 +2363,28 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
         /* Locking the last_user of the tile */
         parsec_dtd_last_user_lock( &(tile->last_user) );
+
+        if( (NULL == tile->last_user.task) && (tile_op_type & GET_OP_TYPE) == INPUT ) {
+            /* This tile should be unlocked during the insertion of the fake task */
+            parsec_dtd_last_user_unlock( &(tile->last_user) );
+
+            assert(tile == parsec_dtd_tile_find( parsec_dtd_handle, tile->key,
+                                                 tile->ddesc ));
+            //OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
+            /* parentless */
+            /* Create Fake output_task */
+            parsec_insert_task( (parsec_dtd_handle_t *)this_task->super.parsec_handle,
+                                &fake_first_out_body,  "Fake_FIRST_OUT",
+                                PASSED_BY_REF, tile, INOUT | REGION_FULL | AFFINITY,
+                                0 );
+
+            parsec_dtd_last_user_lock( &(tile->last_user) );
+        }
         /* Reading the last_user info */
         last_user.task          = tile->last_user.task;
         last_user.flow_index    = tile->last_user.flow_index;
         last_user.op_type       = tile->last_user.op_type;
         last_user.alive         = tile->last_user.alive;
-
-
-        if( NULL == last_user.task && (tile_op_type & GET_OP_TYPE) == INPUT ) {
-            parsec_dtd_last_user_unlock( &(tile->last_user) );
-
-            parsec_dtd_tile_t *tmp = parsec_dtd_tile_find ( parsec_dtd_handle, tile->key,
-                                                  tile->ddesc );
-            assert(tile == tmp );
-            //OBJ_RETAIN(tile); /* Recreating the effect of inserting a real task using the tile */
-            /* parentless */
-            /* Create Fake output_task */
-            parsec_insert_task( (parsec_dtd_handle_t *)this_task->super.parsec_handle,
-                               &fake_first_out_body,  "Fake_FIRST_OUT",
-                                PASSED_BY_REF,         tile,       INOUT | REGION_FULL | AFFINITY,
-                                    0 );
-
-            parsec_dtd_last_user_lock( &(tile->last_user) );
-            /* Reading the last_user info */
-            last_user.task          = tile->last_user.task;
-            last_user.flow_index    = tile->last_user.flow_index;
-            last_user.op_type       = tile->last_user.op_type;
-            last_user.alive         = tile->last_user.alive;
-        }
 
         /* Setting the last_user info with info of this_task */
         tile->last_user.task        = this_task;
@@ -2420,7 +2411,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                  */
                 if( ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT)
                     && (last_user.op_type & GET_OP_TYPE) == INPUT ) {
-                    parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , -1 );
+                    (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , -1 );
                 }
             }
 
@@ -2428,7 +2419,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             set_dependencies_for_function( (parsec_handle_t *)parsec_dtd_handle,
                                            (parsec_function_t *)last_user.task->super.function,
                                            (parsec_function_t *)this_task->super.function,
-                                            last_user.flow_index, flow_index );
+                                           last_user.flow_index, flow_index );
 #endif
         } else {  /* Have parent, but parent is not alive */
             this_task->super.data[flow_index].data_in = tile->data_copy;
@@ -2443,14 +2434,14 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                  * use the data and the operation is INPUT or ATOMIC_WRITE
                  */
                 this_task->dont_skip_releasing_data[flow_index] = 1;
-                parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , 1 );
+                (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , 1 );
             }
 
 #if defined (WILL_USE_IN_DISTRIBUTED)
             if((tile_op_type & GET_OP_TYPE) == INPUT || (tile_op_type & GET_OP_TYPE) == INOUT) {
-                    set_dependencies_for_function( (parsec_handle_t *)parsec_dtd_handle, NULL,
-                                                   (parsec_function_t *)this_task->super.function,
-                                                    0, flow_index );
+                set_dependencies_for_function( (parsec_handle_t *)parsec_dtd_handle, NULL,
+                                               (parsec_function_t *)this_task->super.function,
+                                                0, flow_index );
             }
 #endif
         }
@@ -2458,7 +2449,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
     parsec_dtd_handle->flow_set_flag[function->function_id] = 1;
 
-    parsec_atomic_add_32b((int *)&(parsec_dtd_handle->super.nb_tasks), 1);
+    (void)parsec_atomic_add_32b((int *)&(parsec_dtd_handle->super.nb_tasks), 1);
 
 #if defined(DEBUG_HEAVY)
     parsec_dtd_task_insert( parsec_dtd_handle, this_task );

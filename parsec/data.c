@@ -150,7 +150,7 @@ parsec_data_copy_attach(parsec_data_t* data,
     copy->original        = data;
     /* Atomically set the device copy */
     copy->older = data->device_copies[device];
-    if( !parsec_atomic_cas(&data->device_copies[device], copy->older, copy) ) {
+    if( !parsec_atomic_cas_ptr(&data->device_copies[device], copy->older, copy) ) {
         copy->older = NULL;
         return PARSEC_ERROR;
     }
@@ -171,7 +171,7 @@ int parsec_data_copy_detach(parsec_data_t* data,
     if( obj != copy )
         return PARSEC_ERR_NOT_FOUND;
     /* Atomically set the device copy */
-    if( !parsec_atomic_cas(&data->device_copies[device], copy, copy->older) ) {
+    if( !parsec_atomic_cas_ptr(&data->device_copies[device], copy, copy->older) ) {
         return PARSEC_ERROR;
     }
     copy->original     = NULL;
@@ -430,7 +430,7 @@ parsec_data_create( parsec_data_t **holder,
         data->nb_elts = size;
         parsec_data_copy_attach(data, data_copy, 0);
 
-        if( !parsec_atomic_cas(holder, NULL, data) ) {
+        if( !parsec_atomic_cas_ptr(holder, NULL, data) ) {
             parsec_data_copy_detach(data, data_copy, 0);
             OBJ_RELEASE(data_copy);
             data = *holder;
