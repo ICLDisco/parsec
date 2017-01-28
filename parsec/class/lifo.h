@@ -101,7 +101,7 @@ static inline int
 parsec_update_counted_pointer(volatile parsec_counted_pointer_t *addr, parsec_counted_pointer_t old,
                              parsec_list_item_t *item)
 {
-    parsec_counted_pointer_t elem = {.data = {.item = item, .counter = old.data.counter + 1}};
+    parsec_counted_pointer_t elem = {.data = {.counter = old.data.counter + 1, .item = item}};
     return parsec_atomic_cas_128b(&addr->value, old.value, elem.value);
 }
 
