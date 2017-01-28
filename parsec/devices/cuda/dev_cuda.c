@@ -1457,12 +1457,14 @@ progress_stream( gpu_device_t* gpu_device,
             if( task->task_type == GPU_TASK_TYPE_D2HTRANSFER ) {
                 PARSEC_DEBUG_VERBOSE(19, parsec_cuda_output_stream,
                                     "GPU[%d]: Completed Transfer(task %p) on stream %p",
+                                    gpu_device->cuda_index,
                                     (void*)task->ec,
                                     (void*)exec_stream->cuda_stream);
             }
             else {
                 PARSEC_DEBUG_VERBOSE(19, parsec_cuda_output_stream,
                                     "GPU[%d]: Completed %s(task %p) priority %d on stream %p",
+                                    gpu_device->cuda_index,
                                     task->ec->function->name, (void*)task->ec, task->ec->priority,
                                     (void*)exec_stream->cuda_stream);
             }
