@@ -7,6 +7,15 @@
 #ifndef _dbp_h
 #define _dbp_h
 
+/**
+ * @defgroup parsec_internal_profiling Tracing System
+ * @ingroup parsec_internal
+ * @brief The PaRSEC profiling system allows to expose information
+ *   about the DAG and the runtime engine for analysis.
+ * @addtogroup parsec_internal_profiling
+ * @{
+ */
+
 #include "parsec_config.h"
 #include <inttypes.h>
 #include <pthread.h>
@@ -126,5 +135,7 @@ typedef struct {
 /** here keys are the internal key */
 #define START_KEY(key)    (((key) << 1) + 0)
 #define END_KEY(key)      (((key) << 1) + 1)
+
+/** @} */
 
 #endif /* _dbp_h */

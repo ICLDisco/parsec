@@ -1,15 +1,24 @@
 #ifndef PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
 #define PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
-
 /*
  * Copyright (c) 2015      The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
 #include "parsec.h"
 #include "parsec/constants.h"
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
+
+/**
+ *  @defgroup parsec_internal_datatype Datatype portability
+ *  @ingroup parsec_internal
+ *    The Datatype portability group defines an abstract API that
+ *    allows to define basic data types on top of a variety of
+ *    communication and data movement engines.
+ *  @{
+ */
 
 #define PARSEC_DATATYPE_NULL  MPI_DATATYPE_NULL
 typedef MPI_Datatype parsec_datatype_t;
@@ -99,5 +108,7 @@ int parsec_type_create_resized(parsec_datatype_t oldtype,
 END_C_DECLS
 
 #endif  /* defined(PARSEC_HAVE_MPI) */
+
+/** @} */
 
 #endif  /* PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED */

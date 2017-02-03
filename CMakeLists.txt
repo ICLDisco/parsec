@@ -661,6 +661,10 @@ ELSE(CMAKE_CROSSCOMPILING)
   SET(parsecpp_EXE parsecpp)
 ENDIF(CMAKE_CROSSCOMPILING)
 
+# List of files that will go through documentation generation
+include(AddDocumentedFiles)
+add_documented_files(${CMAKE_SOURCE_DIR})
+
 add_subdirectory(parsec)
 add_subdirectory(data_dist)
 
@@ -684,9 +688,6 @@ ENDIF( BUILD_PARSEC )
 #
 # Now continue with compiling the tests.
 #
-
-# List of files that will go through documentation generation
-SET( PARSEC_ALL_SRCS "" CACHE INTERNAL "List of sources with internal documentation" )
 
 add_subdirectory(dplasma)
 add_subdirectory(tests)

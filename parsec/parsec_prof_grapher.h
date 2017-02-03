@@ -7,6 +7,11 @@
 #ifndef _parsec_prof_grapher_h
 #define _parsec_prof_grapher_h
 
+/** 
+ *  @addtogroup parsec_internal_profiling
+ *  @{
+ */
+
 #include "parsec_config.h"
 
 #include "parsec_internal.h"
@@ -25,5 +30,7 @@ void  parsec_prof_grapher_fini(void);
 char *unique_color(int index, int colorspace);
 
 END_C_DECLS
+
+/** @} */
 
 #endif /* _parsec_prof_grapher_h */

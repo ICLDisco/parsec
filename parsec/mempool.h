@@ -10,6 +10,10 @@
 #include "parsec_config.h"
 #include "parsec/class/lifo.h"
 
+/** @addtogroup parsec_internal_mempool
+ *  @{
+ */
+
 typedef struct parsec_mempool_s parsec_mempool_t;
 typedef struct parsec_thread_mempool_s parsec_thread_mempool_t;
 
@@ -27,25 +31,27 @@ typedef struct parsec_thread_mempool_s parsec_thread_mempool_t;
  * Memory Pool memory must also be a parsec_list_item_t, to
  * be chained using LIFOs.
  */
-
 struct parsec_mempool_s {
-    unsigned int            nb_thread_mempools;
-    size_t                  elt_size;
+    unsigned int            nb_thread_mempools; /**< Number of thread mempools that share this mempool */
+    size_t                  elt_size;           /**< Size of one element in this mempool */
     size_t                  pool_owner_offset;  /**< this is the offset to get to the thread_mempool_t
                                                  *   from a newly allocated element */
     volatile uint32_t       nb_max_elt;         /**< this reflects the maximum of the nb_elt of the other threads */
-    parsec_class_t          *obj_class;          /**< the base class of the objects inside the mempool */
-    parsec_thread_mempool_t *thread_mempools;
+    parsec_class_t          *obj_class;         /**< the base class of the objects inside the mempool */
+    parsec_thread_mempool_t *thread_mempools;   /**< Array of thread mempools (of size nb_thread_mempools) */
 };
 
 struct parsec_thread_mempool_s {
-    parsec_mempool_t  *parent;    /**<  back pointer to the mempool */
+    parsec_mempool_t  *parent;   /**<  back pointer to the mempool */
     uint32_t nb_elt;             /**< this is the number of elements this thread
                                   *   has allocated since the creation of the pool */
-    parsec_lifo_t mempool;
+    parsec_lifo_t mempool;       /**< Elements are stored in a LIFO */
 };
 
-/** PARSEC_MEMPOOL_CONSTRUCT / parsec_mempool_construct
+/**
+ * @brief constructs a mempool
+ *
+ * @details
  *    One can use either of the interfaces.
  *    PARSEC_MEMPOOL_CONSTRUCT( &mempool, parsec_execution_context_t, mempool, nbcores );
  *  has the same effect as
@@ -65,24 +71,53 @@ struct parsec_thread_mempool_s {
                                  (char*)&(__pseudo_elt),                   \
                                  nbthreads );                              \
         } while(0)
+/**
+ * @brief mempool constructor (outside of the parsec_object_t model)
+ *
+ * @details
+ * Create a mempool for nbthreads, where each element of size elt_size
+ * are ojects of class obj_class, and the field at byte pool_offset of
+ * these elements is the backpointer to the mempool object for memory
+ * release
+ *
+ * @param[out] mempool the mempool to construct
+ * @param[in] ojb_class the class of objects stored in this mempool
+ * @param[in] elt_size the size of each objects in this mempool
+ * @param[in] pool_offset the number of bytes between the beginning of the object
+ *            and a parsec_thread_mempool_t pointer field inside the object
+ *            that points to the mempool that allocated the object
+ * @param[in] the number of threads that can share this mempool
+ */
 void parsec_mempool_construct( parsec_mempool_t *mempool,
                               parsec_class_t* obj_class, size_t elt_size,
                               size_t pool_offset,
                               unsigned int nbthreads );
 
-/** parsec_thread_mempool_allocate_when_empty
+/**
+ * @brief extends a thread-mempool when it is empty
+ *
+ * @details
  *    Internal function.
  *    allocates an element of size thread_mempool->parent->elt_size,
  *    and set the back pointe to the appropriate thread_mempool,
  *    when the requested thread_mempool is empty.
  *  This function is called by parsec_thread_mempool_allocate,
  *  and should never be called by another function.
+ *
+ * @param[inout] thread_mempool the thread mempool to extend
+ * @return an object of class obj_class
  */
 void *parsec_thread_mempool_allocate_when_empty( parsec_thread_mempool_t *thread_mempool );
 
-/** parsec_thread_mempool_allocate
+/**
+ * @brief allocate an element from a mempool
+ *
+ * @details
  *    allocates an element of size thread_mempool->mempool->elt_size,
  *    using the internal function if the pool is empty.
+ *
+ * @param[inout] thread_mempool the thread-mempool from which an element should be allocated
+ * @return the new element
  */
 static inline void *parsec_thread_mempool_allocate( parsec_thread_mempool_t *thread_mempool )
 {
@@ -94,9 +129,14 @@ static inline void *parsec_thread_mempool_allocate( parsec_thread_mempool_t *thr
     return ret;
 }
 
-/** parsec_mempool_free
+/**
+ * @brief return a mempool element to its mempool
+ *
+ * @details
  *     "frees" an element allocated by one of the thread_mempools,
  *     pushing it back to it's owner memory pool
+ * @param[inout] mempool the mempool to which the element should be returned
+ * @param[inout] elt the element that is pushed back to the mempool
  */
 static inline void  parsec_mempool_free( parsec_mempool_t *mempool, void *elt )
 {
@@ -106,20 +146,33 @@ static inline void  parsec_mempool_free( parsec_mempool_t *mempool, void *elt )
         parsec_lifo_push( &(owner->mempool), (parsec_list_item_t*)elt );
 }
 
-/** parsec_thread_mempool_free
+/**
+ * @brief return a mempool element to its thread-mempool
+ *
+ * @details
  *     a shortcut to parsec_mempool_free( thread_mempool->parent, elt );
+ *
+ * @param[inout] thread_mempool the thread-mempool to which elt should be returned
+ * @param[inout] elt the element to free
  */
 static inline void  parsec_thread_mempool_free( parsec_thread_mempool_t *thread_mempool, void *elt )
 {
     parsec_mempool_free( thread_mempool->parent, elt );
 }
 
-/** parsec_mempool_destruct
+/**
+ * @brief destroy a mempool and collect all allocated memory
+ *
+ * @details
  *    destroy all resources allocated with the system-wide memory pool
  *    and the thread-specific memory pools. Anything that has not been
  *    pushed back in one of the thread-specific memory pools before
  *    might be lost.
+ *
+ * @param[inout] mempool the mempool to destruct
  */
 void parsec_mempool_destruct( parsec_mempool_t *mempool );
+
+/** @} */
 
 #endif /* defined(_mempool_h) */

@@ -1,6 +1,5 @@
 include(RulesPrecisions)
 include(RulesJDF)
-include(AddDocumentedFiles)
 
 # reset variables
 set(generated_files "")
@@ -15,8 +14,6 @@ set(EXTRA_SOURCES
   map2_wrapper.c
   butterfly_map.c
 )
-
-add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" ${EXTRA_SOURCES} )
 
 ### Generate .c files from .jdf for all required precisions
 set(JDF
@@ -194,8 +191,6 @@ set(SOURCES
 precisions_rules_py(generated_wrappers
                  "${SOURCES}"
                  PRECISIONS "${DPLASMA_PRECISIONS}")
-
-add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_BINARY_DIR}/" ${generated_wrappers} )
 
 ### Generate the lib
 link_directories(${COREBLAS_LIBRARY_DIRS})

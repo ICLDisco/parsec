@@ -7,6 +7,10 @@
 #ifndef DEBUG_MARKS_H_HAS_BEEN_INCLUDED
 #define DEBUG_MARKS_H_HAS_BEEN_INCLUDED
 
+/**  @addtogroup parsec_internal_debug
+ *   @{
+ */
+
 #include "parsec_config.h"
 
 #ifdef PARSEC_DEBUG_HISTORY
@@ -50,5 +54,7 @@ void debug_mark_dta_msg_end_recv(int tag);
 #define DEBUG_MARK_DTA_MSG_END_RECV(tag)
 
 #endif /* PARSEC_DEBUG_HISTORY */
+
+/** @} */
 
 #endif /* DEBUG_MARKS_H_HAS_BEEN_INCLUDED */

@@ -34,7 +34,7 @@ PROJECT_NAME           = PaRSEC/DPLASMA
 # This could be handy for archiving the generated documentation or
 # if some version control system is used.
 
-PROJECT_NUMBER         = @PARSEC_VERSION@
+PROJECT_NUMBER         = @PARSEC_VERSION_MAJOR@.@PARSEC_VERSION_MINOR@
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer
@@ -121,7 +121,7 @@ INLINE_INHERITED_MEMB  = NO
 # path before files name in the file list and in the header files. If set
 # to NO the shortest path that makes the file name unique will be used.
 
-FULL_PATH_NAMES        = NO
+FULL_PATH_NAMES        = YES
 
 # If the FULL_PATH_NAMES tag is set to YES then the STRIP_FROM_PATH tag
 # can be used to strip a user-defined part of the path. Stripping is
@@ -132,7 +132,7 @@ FULL_PATH_NAMES        = NO
 # relative paths, which will be relative from the directory where doxygen is
 # started.
 
-STRIP_FROM_PATH        =
+STRIP_FROM_PATH        = @CMAKE_SOURCE_DIR@
 
 # The STRIP_FROM_INC_PATH tag can be used to strip a user-defined part of
 # the path mentioned in the documentation of a class, which tells
@@ -243,7 +243,7 @@ OPTIMIZE_OUTPUT_VHDL   = NO
 # that for custom extensions you also need to set FILE_PATTERNS otherwise the
 # files are not read by doxygen.
 
-EXTENSION_MAPPING      =
+EXTENSION_MAPPING      = jdf=C
 
 # If MARKDOWN_SUPPORT is enabled (the default) then doxygen pre-processes all
 # comments according to the Markdown format, which allows for more readable
@@ -310,7 +310,7 @@ SUBGROUPING            = YES
 # @ingroup) instead of on a separate page (for HTML and Man pages) or
 # section (for LaTeX and RTF).
 
-INLINE_GROUPED_CLASSES = NO
+INLINE_GROUPED_CLASSES = YES
 
 # When the INLINE_SIMPLE_STRUCTS tag is set to YES, structs, classes, and
 # unions with only public data fields or simple typedef fields will be shown
@@ -319,7 +319,7 @@ INLINE_GROUPED_CLASSES = NO
 # to NO (the default), structs, classes, and unions are shown on a separate
 # page (for HTML and Man pages) or section (for LaTeX and RTF).
 
-INLINE_SIMPLE_STRUCTS  = NO
+INLINE_SIMPLE_STRUCTS  = YES
 
 # When TYPEDEF_HIDES_STRUCT is enabled, a typedef of a struct, union, or enum
 # is documented as struct, union, or enum with the name of the typedef. So
@@ -351,12 +351,12 @@ LOOKUP_CACHE_SIZE      = 0
 # Private class members and static file members will be hidden unless
 # the EXTRACT_PRIVATE respectively EXTRACT_STATIC tags are set to YES
 
-EXTRACT_ALL            = YES
+EXTRACT_ALL            = NO
 
 # If the EXTRACT_PRIVATE tag is set to YES all private members of a class
 # will be included in the documentation.
 
-EXTRACT_PRIVATE        = YES
+EXTRACT_PRIVATE        = NO
 
 # If the EXTRACT_PACKAGE tag is set to YES all members with package or internal
 # scope will be included in the documentation.
@@ -366,13 +366,13 @@ EXTRACT_PACKAGE        = NO
 # If the EXTRACT_STATIC tag is set to YES all static members of a file
 # will be included in the documentation.
 
-EXTRACT_STATIC         = YES
+EXTRACT_STATIC         = NO
 
 # If the EXTRACT_LOCAL_CLASSES tag is set to YES classes (and structs)
 # defined locally in source files will be included in the documentation.
 # If set to NO only classes defined in header files are included.
 
-EXTRACT_LOCAL_CLASSES  = YES
+EXTRACT_LOCAL_CLASSES  = NO
 
 # This flag is only useful for Objective-C code. When set to YES local
 # methods, which are defined in the implementation section but not in
@@ -461,7 +461,7 @@ INLINE_INFO            = YES
 # alphabetically by member name. If set to NO the members will appear in
 # declaration order.
 
-SORT_MEMBER_DOCS       = YES
+SORT_MEMBER_DOCS       = NO
 
 # If the SORT_BRIEF_DOCS tag is set to YES then doxygen will sort the
 # brief documentation of file, namespace and class members alphabetically
@@ -672,7 +672,7 @@ INPUT_ENCODING         = UTF-8
 # *.hxx *.hpp *.h++ *.idl *.odl *.cs *.php *.php3 *.inc *.m *.mm *.dox *.py
 # *.f90 *.f *.for *.vhd *.vhdl
 
-FILE_PATTERNS          =
+FILE_PATTERNS          = *.c *.h *.jdf *.dox *.py *.cc *.cxx *.cpp *.c++ *.hh *.hxx *.hpp *.h++ *.f90 *.f
 
 # The RECURSIVE tag can be used to turn specify whether or not subdirectories
 # should be searched for input files as well. Possible values are YES and NO.
@@ -686,7 +686,13 @@ RECURSIVE              = YES
 # Note that relative paths are relative to the directory from which doxygen is
 # run.
 
-EXCLUDE                =
+EXCLUDE                = @CMAKE_SOURCE_DIR@/examples/
+EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/PaRSEC+StarPU
+EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/bfr
+EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/profiling/python/utilities
+EXCLUDE               += @CMAKE_SOURCE_DIR@/tools/profiling/python/examples
+EXCLUDE               += @CMAKE_BINARY_DIR@
+EXCLUDE               += @CMAKE_SOURCE_DIR/tools/profiling/python/pbt2ptt.c
 
 # The EXCLUDE_SYMLINKS tag can be used to select whether or not files or
 # directories that are symbolic links (a Unix file system feature) are excluded
@@ -714,7 +720,7 @@ EXCLUDE_SYMBOLS        =
 # directories that contain example code fragments that are included (see
 # the \include command).
 
-EXAMPLE_PATH           =
+EXAMPLE_PATH           = @CMAKE_SOURCE_DIR@/examples/
 
 # If the value of the EXAMPLE_PATH tag contains directories, you can use the
 # EXAMPLE_PATTERNS tag to specify one or more wildcard pattern (like *.cpp
@@ -801,7 +807,7 @@ INLINE_SOURCES         = NO
 # doxygen to hide any special comment blocks from generated source code
 # fragments. Normal C, C++ and Fortran comments will always remain visible.
 
-STRIP_CODE_COMMENTS    = YES
+STRIP_CODE_COMMENTS    = NO
 
 # If the REFERENCED_BY_RELATION tag is set to YES
 # then for each documented function all documented
@@ -1584,7 +1590,11 @@ SEARCH_INCLUDES        = YES
 # contain include files that are not input files but should be processed by
 # the preprocessor.
 
-INCLUDE_PATH           =
+INCLUDE_PATH           = @CMAKE_SOURCE_DIR@/
+INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/parsec
+INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/parsec/include
+INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/dplasma
+INCLUDE_PATH          += @CMAKE_SOURCE_DIR@/dplasma/include
 
 # You can use the INCLUDE_FILE_PATTERNS tag to specify one or more wildcard
 # patterns (like *.h and *.hpp) to filter out the header-files in the

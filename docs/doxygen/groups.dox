@@ -1,39 +1,78 @@
 /**
  *
- * @defgroup PaRSEC - PaRSEC
+ * @defgroup parsec PaRSEC
  *   This is the group of functions available in the runtime system.
  *
- * @defgroup DPlasma - DPlasma
+ * @defgroup parsec_public Public API
+ * @ingroup parsec
+ *   This is the group with the public API for the PaRSEC Runtime
+ *
+ * @defgroup parsec_public_tools Tools
+ * @ingroup parsec_public
+ *   This group documents the public tools coming with the PaRSEC environment
+ *
+ * @defgroup parsec_internal Internal Documentation
+ * @ingroup parsec
+ *   This is the group with the internal documentation
+ *
+ * @defgroup parsec_internal_tools Tools
+ * @ingroup parsec_internal
+ *   This group documents the internal / development tools coming with the PaRSEC environment
+ *
+ * @defgroup parsec_internal_binding Binding System
+ * @ingroup parsec_internal
+ *   The PaRSEC binding system allows to bind threads on
+ *   multiple cores with a variety of interfaces for
+ *   portability.
+ *
+ * @defgroup parsec_internal_scheduling Scheduling
+ * @ingroup parsec_internal
+ *    The scheduling group defines all scheduler-related operations
+ *    of the runtime system.
+ *
+ * @defgroup parsec_internal_mempool Memory pools
+ * @ingroup parsec_internal
+ *    Memory pools to improve the performance
+ *    of frequent allocation/de-allocation inside the runtime
+ *    engine
+ *
+ * @defgroup parsec_internal_communication Communication Engine
+ * @ingroup parsec_internal
+ *    Internal Communication Engine of PaRSEC
+ *
+ ****
+ * @defgroup DPlasma DPlasma
  *    This is the dense linear algebra library developed on top of the
  *    PaRSEC runtime. Algorithms are tiled algorithms mainly coming
  *    from the PLASMA library and written in Paratmeterized Task Graph
  *    specific language.
  *
- ****
- *
- * @defgroup dplasma_float - Single Real
+ * @defgroup dplasma_float Single Real
  * @ingroup DPlasma
  *   This is the group of single real algorithms available in dplasma
  *   library.
  *
- * @defgroup dplasma_double - Double Real
+ * @defgroup dplasma_double Double Real
  * @ingroup DPlasma
  *   This is the group of double real algorithms available in dplasma
  *   library.
  *
- * @defgroup dplasma_complex32 - Single Complex
+ * @defgroup dplasma_complex32 Single Complex
  * @ingroup DPlasma
  *   This is the group of single complex algorithms available in dplasma
  *   library.
  *
- * @defgroup dplasma_complex64 - Double Complex
+ * @defgroup dplasma_complex64 Double Complex
  * @ingroup DPlasma
  *   This is the group of double complex algorithms available in dplasma
  *   library.
  *
- * @defgroup dplasma_internal - Internal functions
+ * @defgroup dplasma_internal Internal functions
  * @ingroup DPlasma
  *   This is the group of internal function to the DPlasma library.
  *
+ * @defgroup dplasma_tools Tools for DPlasma
+ * @ingroup dplasma_internal
+ *   This is the group of tools used to develop the DPlasma library.
  *
  **/

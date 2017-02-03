@@ -7,6 +7,10 @@
 #ifndef DATA_INTERNAL_H_HAS_BEEN_INCLUDED
 #define DATA_INTERNAL_H_HAS_BEEN_INCLUDED
 
+/** @addtogroup parsec_internal_data
+ *  @{
+ */
+
 #include "parsec/parsec_internal.h"
 #include "parsec/data.h"
 #include "parsec/types.h"
@@ -84,5 +88,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_data_copy_t);
  */
 #define PARSEC_DATA_COPY_GET_PTR(DATA) \
     ((DATA) ? (DATA)->device_private : NULL)
+
+/** @} */
 
 #endif  /* DATA_INTERNAL_H_HAS_BEEN_INCLUDED */

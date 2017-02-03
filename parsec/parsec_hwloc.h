@@ -6,6 +6,10 @@
 #ifndef HWLOC_H_HAS_BEEN_INCLUDED
 #define HWLOC_H_HAS_BEEN_INCLUDED
 
+/** @addtogroup parsec_internal_binding
+ *  @{
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -145,5 +149,7 @@ int parsec_hwloc_allow_ht(int htnb);
 int parsec_hwloc_get_ht(void);
 
 END_C_DECLS
+
+/** @} */
 
 #endif  /* HWLOC_H_HAS_BEEN_INCLUDED */

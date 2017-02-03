@@ -97,7 +97,7 @@ static void parsec_rusage_per_eu(parsec_execution_unit_t* eu, bool print) {
 #endif /* defined(PARSEC_HAVE_GETRUSAGE) defined(PARSEC_PROF_RUSAGE_EU) */
 
 #if 0
-/**
+/*
  * Disabled by now.
  */
 int __parsec_context_wait_task( parsec_execution_unit_t* eu_context,
@@ -168,7 +168,7 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
     return PARSEC_HOOK_RETURN_ERROR;
 }
 
-/**< Increases the number of runtime associated activities (decreases if
+/* Increases the number of runtime associated activities (decreases if
  *   nb_tasks is negative). When this counter reaches zero the handle is
  *   considered as completed, and all resources will be marked for
  *   release.
@@ -246,7 +246,7 @@ int parsec_set_scheduler( parsec_context_t *parsec )
     return 1;
 }
 
-/**
+/*
  * This is where we end up after the release_dep_fct is called and generates a
  * readylist. the new_context IS the readylist.
  */
@@ -571,7 +571,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
     return nbiterations;
 }
 
-/************ COMPOSITION OF PARSEC_OBJECTS ****************/
+/*  *********** COMPOSITION OF PARSEC_OBJECTS ***************  */
 typedef struct parsec_compound_state_t {
     parsec_context_t* ctx;
     int nb_objects;
@@ -644,12 +644,12 @@ parsec_handle_t* parsec_compose( parsec_handle_t* start,
     }
     return compound;
 }
-/** END: Composition ***/
+/* END: Composition */
 
-int32_t parsec_set_priority( parsec_handle_t* object, int32_t new_priority )
+int32_t parsec_set_priority( parsec_handle_t* handle, int32_t new_priority )
 {
-    int32_t old_priority = object->priority;
-    object->priority = new_priority;
+    int32_t old_priority = handle->priority;
+    handle->priority = new_priority;
     return old_priority;
 }
 
@@ -718,7 +718,7 @@ __parsec_context_cas_or_flag(parsec_context_t* context,
                                  current_flags | flags);
 }
 
-/**
+/*
  * If there are enqueued handles waiting to be executed launch the other threads
  * and then return. Mark the internal structures in such a way that we can't
  * start the context mutiple times without completions.
@@ -746,22 +746,11 @@ int parsec_context_start( parsec_context_t* context )
     return -1;  /* Someone else start it up */
 }
 
-/**
- * Check the status of a context. No progress on the context is guaranteed.
- *
- * @returns: 0 if the context is active, any other value otherwide.
- */
 int parsec_context_test( parsec_context_t* context )
 {
     return !all_tasks_done(context);
 }
 
-/**
- * If the context is active the current thread (which must be the thread that
- * created the context will join the other active threads to complete the tasks
- * enqueued on the context. This function is blocking, the return is only
- * possible upon completion of all active handles in the context.
- */
 int parsec_context_wait( parsec_context_t* context )
 {
     int ret = 0;

@@ -7,6 +7,16 @@
 #ifndef _VPMAP_H_
 #define _VPMAP_H_
 
+/**
+ *  @defgroup parsec_internal_virtualprocess Virtual Processes
+ *  @ingroup parsec_internal
+ *    Virtual Processes allow to isolate groups of threads and avoid
+ *    work stealing between threads belonging to different virtual
+ *    processes.
+ *  @addtogroup parsec_internal_virtualprocess
+ *  @{
+ */
+
 #include <stdio.h> /* for FILE* */
 
 BEGIN_C_DECLS
@@ -110,4 +120,7 @@ int vpmap_get_nb_total_threads(void);
 void vpmap_display_map(void);
 
 END_C_DECLS
+
+/** @} */
+
 #endif

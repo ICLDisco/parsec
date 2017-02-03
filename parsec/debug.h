@@ -7,6 +7,15 @@
 #ifndef DEBUG_H_HAS_BEEN_INCLUDED
 #define DEBUG_H_HAS_BEEN_INCLUDED
 
+/** @defgroup parsec_internal_debug Internal Debugging System
+ *  @ingroup parsec_internal
+ *    Functions and macros of this group are used internally to
+ *    check internal assertions and output debugging information
+ *    when requested by the user.
+ *  @addtogroup parsec_internal_debug
+ *  @{
+ */
+
 #include "parsec_config.h"
 #include "parsec/utils/output.h"
 
@@ -127,5 +136,7 @@ void parsec_debug_backtrace_dump(void);
 #else
 #define PARSEC_DEBUG_VERBOSE(...) do{} while(0)
 #endif /* defined(PARSEC_DEBUG_VERBOSE) */
+
+/** @} */
 
 #endif /* DEBUG_H_HAS_BEEN_INCLUDED */

@@ -7,6 +7,10 @@
 #ifndef BINDTHREAD_H
 #define BINDTHREAD_H
 
+/** @addtogroup parsec_internal_binding
+ *  @{
+ */
+
 BEGIN_C_DECLS
 
 int parsec_bindthread(int cpu, int ht);
@@ -15,6 +19,8 @@ int parsec_bindthread(int cpu, int ht);
 #include <hwloc.h>
 int parsec_bindthread_mask(hwloc_cpuset_t cpuset);
 #endif
+
+/** @} */
 
 END_C_DECLS
 

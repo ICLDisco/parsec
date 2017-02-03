@@ -7,6 +7,9 @@
 #ifndef HBBUFFER_H_HAS_BEEN_INCLUDED
 #define HBBUFFER_H_HAS_BEEN_INCLUDED
 
+/** @addtogroup parsec_internal_scheduling
+ *  @{ */
+
 #include "parsec_config.h"
 #include "parsec_internal.h"
 #include "parsec/debug.h"
@@ -316,5 +319,7 @@ static inline parsec_list_item_t *parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b,
 
     return best_elt;
 }
+
+/** @} */
 
 #endif /* HBBUFFER_H_HAS_BEEN_INCLUDED */

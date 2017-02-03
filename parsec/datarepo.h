@@ -7,6 +7,14 @@
 #ifndef _datarepo_h_
 #define _datarepo_h_
 
+/** @defgroup parsec_internal_datarepo Data Repositories
+ *  @ingroup parsec_internal
+ *    Data Repositories store data objects into hash tables
+ *    for tasks to retrieve them when they become schedulable.
+ *  @addtogroup parsec_internal_datarepo
+ *  @{
+ */
+
 #include "parsec_config.h"
 
 typedef struct data_repo_entry_s data_repo_entry_t;
@@ -305,5 +313,7 @@ static inline void data_repo_destroy_nothreadsafe(data_repo_t *repo)
 #endif  /* defined(PARSEC_DEBUG_NOISIER) */
     free(repo);
 }
+
+/** @} */
 
 #endif /* _datarepo_h_ */

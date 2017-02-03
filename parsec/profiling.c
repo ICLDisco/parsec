@@ -56,11 +56,6 @@
 #endif  /* defined(PARSEC_OSX) */
 #endif /* defined(HOST_NAME_MAX) */
 
-/**
- * Externally visible on/off switch for the profiling of new events. It
- * only protects the macros, a direct call to the parsec_profiling_trace
- * will always succeed. It is automatically turned on by the init call.
- */
 int parsec_profile_enabled = 0;
 static int __profile_initialized = 0;  /* not initialized */
 
@@ -172,8 +167,7 @@ int parsec_profiling_init( void )
 
     assert( sizeof(parsec_profiling_binary_file_header_t) < event_buffer_size );
 
-    /**
-     * As we called the _start function automatically, the timing will be
+    /* As we called the _start function automatically, the timing will be
      * based on this moment. By forcing back the __already_called to 0, we
      * allow the caller to decide when to rebase the timing in case there
      * is a need.
@@ -243,7 +237,7 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
         set_last_error("Profiling system: parsec_profiling_thread_init: call before parsec_profiling_dbp_start");
         return NULL;
     }
-    /** Remark: maybe calloc would be less perturbing for the measurements,
+    /*  Remark: maybe calloc would be less perturbing for the measurements,
      *  if we consider that we don't care about the _init phase, but only
      *  about the measurement phase that happens later.
      */
@@ -549,25 +543,6 @@ parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
     return 0;
 }
 
-int
-parsec_profiling_ts_trace_flags(int key,
-                               uint64_t event_id, uint32_t object_id,
-                               void *info, uint16_t flags)
-{
-    parsec_thread_profiling_t* context = (parsec_thread_profiling_t*)
-        pthread_getspecific(thread_specific_profiling_key);
-    return parsec_profiling_trace_flags(context, key, event_id, object_id,
-                                       info, flags);
-}
-
-int parsec_profiling_ts_trace(int key, uint64_t event_id, uint32_t object_id, void *info)
-{
-    parsec_thread_profiling_t* context = (parsec_thread_profiling_t*)
-        pthread_getspecific(thread_specific_profiling_key);
-    return parsec_profiling_trace_flags(context, key, event_id, object_id,
-                                       info, 0);
-}
-
 static int64_t dump_global_infos(int *nbinfos)
 {
     parsec_profiling_buffer_t *b, *n;
@@ -785,7 +760,7 @@ static int64_t dump_thread(int *nbth)
         thread = (parsec_thread_profiling_t*)it;
 
         if(thread->nb_events == 0)
-            continue; /** We don't store threads with no events at all */
+            continue; /* We don't store threads with no events at all */
 
         th_size = thread_size(thread);
 
@@ -900,15 +875,6 @@ int parsec_profiling_dbp_dump( void )
     return 0;
 }
 
-/**
- * Globally decide on a filename for the profiling file based on the requested
- * basefile, followed by the rank and then by a 6 letter unique key (generated
- * by mkstemp). The 6 letter key is used by all participants to create profiling
- * files that can be matched together.
- *
- * The basename is always respected, even in the case where it points to another
- * directory.
- */
 int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
 {
     int64_t zero;
@@ -934,8 +900,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
         return -1;
     }
     if( rank == 0 ) {
-        /**
-         * The first process create the unique locally unique filename, and then
+        /* The first process create the unique locally unique filename, and then
          * share it with every other participants. If such a file cannot be
          * created broacast an empty key to all other processes.
          */

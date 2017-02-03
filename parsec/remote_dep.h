@@ -6,6 +6,10 @@
 #ifndef __USE_REMOTE_DEP_H__
 #define __USE_REMOTE_DEP_H__
 
+/** @addtogroup parsec_internal_communication
+ *  @{
+ */
+
 #include "parsec_config.h"
 #include "parsec_internal.h"
 
@@ -229,5 +233,7 @@ int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
 #define parsec_remote_dep_activate(ctx, o, r) -1
 #define parsec_remote_dep_new_object(ctx)     0
 #endif /* DISTRIBUTED */
+
+/** @} */
 
 #endif /* __USE_REMOTE_DEP_H__ */

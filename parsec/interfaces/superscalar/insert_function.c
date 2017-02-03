@@ -15,7 +15,8 @@
 
 /* Define a group for Doxygen documentation */
 /**
- * @defgroup DTD_INTERFACE DTD_INTERFACE: Dynamic Task Discovery interface for PaRSEC
+ * @defgroup DTD_INTERFACE Dynamic Task Discovery interface for PaRSEC
+ * @ingroup parsec_public
  *
  * These functions are available from the PaRSEC library for the
  * scheduling of kernel routines.
@@ -23,7 +24,8 @@
 
 /* Define a group for Doxygen documentation */
 /**
- * @defgroup DTD_INTERFACE_INTERNAL DTD_INTERFACE_INTERNAL: Internal Dynamic Task Discovery functions for PaRSEC
+ * @defgroup DTD_INTERFACE_INTERNAL Dynamic Task Discovery functions for PaRSEC
+ * @ingroup parsec_internal
  *
  * These functions are not available from the PaRSEC library for the
  * scheduling of kernel routines.

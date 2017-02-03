@@ -57,7 +57,7 @@
 #include <cuda_runtime_api.h>
 #endif
 
-/**
+/*
  * Global variables.
  */
 size_t parsec_task_startup_iter = 64;
@@ -100,7 +100,7 @@ static parsec_device_t* parsec_device_recursive = NULL;
 static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
 
-/**
+/*
  * Object based task definition (no specialized constructor and destructor) */
 OBJ_CLASS_INSTANCE(parsec_execution_context_t, parsec_hashtable_item_t,
                    NULL, NULL);
@@ -152,8 +152,8 @@ typedef struct __parsec_temporary_thread_initialization_t {
     int nb_cores;
     int bindto;
     int bindto_ht;
-    parsec_barrier_t*  barrier;       /**< the barrier used to synchronize for the
-                                      *   local VP data construction. */
+    parsec_barrier_t*  barrier;       /*< the barrier used to synchronize for the
+                                       *   local VP data construction. */
 } __parsec_temporary_thread_initialization_t;
 
 static int parsec_parse_binding_parameter(const char* option, parsec_context_t* context,
@@ -196,7 +196,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     eu->sched_nb_tasks_done = 0;
 #endif
 
-    /**
+    /*
      * A single thread per VP has a little bit more responsability: allocating
      * the memory pools.
      */
@@ -424,7 +424,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     GET_STR_ARGV(cmd_line, "parsec_bind_comm", comm_binding_parameter);
     GET_STR_ARGV(cmd_line, "parsec_bind", binding_parameter);
 
-    /**
+    /*
      * Initialize the VPMAP, the discrete domains hosting
      * execution flows but where work stealing is prevented.
      */
@@ -514,7 +514,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         vp->parsec_context = context;
         vp->vp_id = p;
         context->virtual_processes[p] = vp;
-        /**
+        /*
          * Set the threads local variables from startup[t] -> startup[t+nb_cores].
          * Do not create or initialize any memory yet, or it will be automatically
          * bound to the allocation context of this thread.
@@ -523,7 +523,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         t += vp->nb_cores;
     }
 
-    /**
+    /*
      * Parameters defining the default ARENA behavior. Handle with care they can lead to
      * significant memory consumption or to a significant overhead in memory management
      * (allocation/deallocation). These values are only used by ARENAs constructed with
@@ -792,15 +792,12 @@ static void parsec_vp_fini( parsec_vp_t *vp )
     }
 }
 
-/**
- *
- */
 int parsec_fini( parsec_context_t** pcontext )
 {
     parsec_context_t* context = *pcontext;
     int nb_total_comp_threads, p;
 
-    /**
+    /*
      * We need to force the main thread to drain all possible pending messages
      * on the communication layer. This is not an issue in a distributed run,
      * but on a single node run with MPI support, objects can be created (and
@@ -929,7 +926,7 @@ int parsec_fini( parsec_context_t** pcontext )
     return 0;
 }
 
-/**
+/*
  * Resolve all IN() dependencies for this particular instance of execution.
  */
 static parsec_dependency_t
@@ -949,7 +946,7 @@ parsec_check_IN_dependencies_with_mask( const parsec_handle_t *parsec_handle,
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
         flow = function->in[i];
 
-        /**
+        /*
          * Controls and data have different logic:
          * Flows can depend conditionally on multiple input or control.
          * It is assumed that in the data case, one input will always become true.
@@ -979,7 +976,7 @@ parsec_check_IN_dependencies_with_mask( const parsec_handle_t *parsec_handle,
         } else {
             if( !(flow->flow_flags & FLOW_HAS_IN_DEPS) ) continue;
             if( NULL == flow->dep_in[0] ) {
-                /** As the flow is tagged with FLOW_HAS_IN_DEPS and there is no
+                /* As the flow is tagged with FLOW_HAS_IN_DEPS and there is no
                  * dep_in we are in the case where a write only dependency used
                  * an in dependency to specify the arena where the data should
                  * be allocated.
@@ -1028,7 +1025,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_handle_t *parsec_handle,
     for( i = 0; (i < MAX_PARAM_COUNT) && (NULL != function->in[i]); i++ ) {
         flow = function->in[i];
 
-        /**
+        /*
          * Controls and data have different logic:
          * Flows can depend conditionally on multiple input or control.
          * It is assumed that in the data case, one input will always become true.
@@ -1212,7 +1209,7 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
     return (dep_cur_value & function->dependencies_goal) == function->dependencies_goal;
 }
 
-/**
+/*
  * Mark the task as having all it's dependencies satisfied. This is not
  * necessarily required for the startup process, but it leaves traces such that
  * all executed tasks will show consistently (no difference between the startup
@@ -1231,7 +1228,7 @@ void parsec_dependencies_mark_task_as_startup(parsec_execution_context_t* restri
     }
 }
 
-/**
+/*
  * Release the OUT dependencies for a single instance of a task. No ranges are
  * supported and the task is supposed to be valid (no input/output tasks) and
  * local.
@@ -1287,7 +1284,7 @@ int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
 
             assert( dest_flow->flow_index <= new_context->function->nb_flows);
             memset( new_context->data, 0, sizeof(parsec_data_pair_t) * new_context->function->nb_flows);
-            /**
+            /*
              * Save the data_repo and the pointer to the data for later use. This will prevent the
              * engine from atomically locking the hash table for at least one of the flow
              * for each execution context.
@@ -1335,7 +1332,7 @@ parsec_release_dep_fct(parsec_execution_unit_t *eu,
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     const parsec_flow_t* src_flow = dep->belongs_to;
 
-    /**
+    /*
      * Check that we don't forward a NULL data to someone else. This
      * can be done only on the src node, since the dst node can
      * check for datatypes without knowing the data yet.
@@ -1423,7 +1420,7 @@ parsec_release_dep_fct(parsec_execution_unit_t *eu,
     return PARSEC_ITERATE_CONTINUE;
 }
 
-/**
+/*
  * Convert the execution context to a string.
  */
 char* parsec_snprintf_execution_context( char* str, size_t size,
@@ -1462,7 +1459,7 @@ char* parsec_snprintf_execution_context( char* str, size_t size,
 
     return str;
 }
-/**
+/*
  * Convert assignments to a string.
  */
 char* parsec_snprintf_assignments( char* str, size_t size,
@@ -1496,9 +1493,6 @@ void parsec_destruct_dependencies(parsec_dependencies_t* d)
     free(d);
 }
 
-/**
- *
- */
 int parsec_set_complete_callback( parsec_handle_t* parsec_handle,
                                  parsec_event_cb_t complete_cb, void* complete_cb_data )
 {
@@ -1510,9 +1504,6 @@ int parsec_set_complete_callback( parsec_handle_t* parsec_handle,
     return -1;
 }
 
-/**
- *
- */
 int parsec_get_complete_callback( const parsec_handle_t* parsec_handle,
                                  parsec_event_cb_t* complete_cb, void** complete_cb_data )
 {
@@ -1524,9 +1515,6 @@ int parsec_get_complete_callback( const parsec_handle_t* parsec_handle,
     return -1;
 }
 
-/**
- *
- */
 int parsec_set_enqueue_callback( parsec_handle_t* parsec_handle,
                                 parsec_event_cb_t enqueue_cb, void* enqueue_cb_data )
 {
@@ -1538,9 +1526,6 @@ int parsec_set_enqueue_callback( parsec_handle_t* parsec_handle,
     return -1;
 }
 
-/**
- *
- */
 int parsec_get_enqueue_callback( const parsec_handle_t* parsec_handle,
                                 parsec_event_cb_t* enqueue_cb, void** enqueue_cb_data )
 {
@@ -1568,7 +1553,7 @@ static void parsec_handle_empty_repository(void)
     parsec_atomic_unlock( &object_array_lock );
 }
 
-/**< Retrieve the local object attached to a unique object id */
+/* Retrieve the local object attached to a unique object id */
 parsec_handle_t* parsec_handle_lookup( uint32_t handle_id )
 {
     parsec_handle_t *r = NOOBJECT;
@@ -1580,7 +1565,7 @@ parsec_handle_t* parsec_handle_lookup( uint32_t handle_id )
     return (NOOBJECT == r ? NULL : r);
 }
 
-/**< Reverse an unique ID for the handle but without adding the object to the management array.
+/* Reverse an unique ID for the handle but without adding the object to the management array.
  *   Beware that on a distributed environment the connected objects must have the same ID.
  */
 int parsec_handle_reserve_id( parsec_handle_t* object )
@@ -1603,7 +1588,7 @@ int parsec_handle_reserve_id( parsec_handle_t* object )
     return idx;
 }
 
-/**< Register a handle object with the engine. Once enrolled the object can be target
+/* Register a handle object with the engine. Once enrolled the object can be target
  * for other components of the runtime, such as communications.
  */
 int parsec_handle_register( parsec_handle_t* object)
@@ -1623,7 +1608,7 @@ int parsec_handle_register( parsec_handle_t* object)
     return idx;
 }
 
-/**< globally synchronize object id's so that next register generates the same
+/* globally synchronize object id's so that next register generates the same
  * id at all ranks. */
 void parsec_handle_sync_ids( void )
 {
@@ -1644,7 +1629,7 @@ void parsec_handle_sync_ids( void )
     parsec_atomic_unlock( &object_array_lock );
 }
 
-/**< Unregister the object with the engine. This make the handle available for
+/* Unregister the object with the engine. This make the handle available for
  * future handles. Beware that in a distributed environment the connected objects
  * must have the same ID.
  */
@@ -1671,7 +1656,7 @@ void parsec_handle_free(parsec_handle_t *handle)
     handle->destructor( handle );
 }
 
-/**
+/*
  * The final step of a handle activation. At this point we assume that all the local
  * initializations have been successfully completed for all components, and that the
  * handle is ready to be registered with the system, and any potential pending tasks
@@ -1717,7 +1702,7 @@ int parsec_handle_enable(parsec_handle_t* handle,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-/**< Print PaRSEC usage message */
+/* Print PaRSEC usage message */
 void parsec_usage(void)
 {
     parsec_output(0,"\n"
@@ -1879,7 +1864,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
             position = strchr(option, ',');
             if( NULL == position )  /* we reached the end of the string, the last char is the one right in front */
                 position = (char*)option + strlen(option);
-            position--; /** Start with the last character, not the '\0' or the ',' */
+            position--; /* Start with the last character, not the '\0' or the ',' */
             where = 0;
             while( 1 ) {
                 long int mask;
@@ -1898,7 +1883,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
                 }
                 if( position == option )
                     break;
-                position--;       /** reverse parsing to maintain the natural order of bits */
+                position--;       /* reverse parsing to maintain the natural order of bits */
             }
             goto next_iteration;
         }
@@ -1969,7 +1954,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         startup[thr_idx].bindto = -1;
 
   compute_free_mask:
-    /**
+    /*
      * Compute the cpuset_free_mask bitmap, by excluding all the cores with
      * bound threads from the cpuset_allowed_mask.
      */
@@ -2045,7 +2030,7 @@ static int parsec_debug_enumerate_next_in_execution_space(parsec_execution_conte
     int cur, max, incr, min;
 
     if( li == function->nb_locals )
-        return init; /** We did not find a new context */
+        return init; /* We did not find a new context */
 
     min = parsec_expr_eval32(function->locals[li]->min,
                             context);
@@ -2062,10 +2047,10 @@ static int parsec_debug_enumerate_next_in_execution_space(parsec_execution_conte
 
     do {
         if( parsec_debug_enumerate_next_in_execution_space(context, init, li+1) )
-            return 1; /** We did find a new context */
+            return 1; /* We did find a new context */
 
         if( min == max )
-            return 0; /** We can't change this local */
+            return 0; /* We can't change this local */
 
         cur = context->locals[li].value;
         if( function->locals[li]->expr_inc == NULL ) {
@@ -2201,7 +2186,7 @@ void parsec_debug_print_local_expecting_tasks( int show_remote, int show_startup
     parsec_atomic_unlock( &object_array_lock );
 }
 
-/** deps is an array of size MAX_PARAM_COUNT
+/* deps is an array of size MAX_PARAM_COUNT
  *  Returns the number of output deps on which there is a final output
  */
 int parsec_task_deps_with_final_output(const parsec_execution_context_t *task,

@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+
+##
+# @defgroup dplasma_tools_conversion Conversion
+# @ingroup dplasma_tools
+#   Internal tool for precision generation
+#
+#   This python script is responsible for precision generation replacements
+#   as well as replacements of any kind in other files.  Different types of
+#   replacements can be defined such that no two sets can conflict.  Multiple
+#   types of replacements can, however, be specified for the same file.
+# @{
+
 """@package Tools
 
 This python script is responsible for precision generation replacements
@@ -33,6 +45,7 @@ REGEX = '^.*'+KEYWORD+'\s+((\w+,?)+)\s+(\w+)\s+->\s*((\s\w+)+).*$';
 """Default acceptable extensions for files during directory walking"""
 EXTS = ['.c','.cpp','.h','.hpp','.f','.jdf','.f90','.F90','.f77','.F77','.cu','.cuf','.CUF','.jdf'];
 
+## Reads the file and determines if the file needs generation.
 def check_gen(file, work, rex):
   """Reads the file and determines if the file needs generation."""
   fd = open(path.realpath(file), 'r');
@@ -43,14 +56,17 @@ def check_gen(file, work, rex):
     if m is None: continue;
     work.append((file, m.groups(), ''.join(lines)));
 
+## Simple grep a string in a list
 def grep(string,list):
   expr = re.compile(string)
   return filter(expr.search,list)
 
+## Filter function to exclude files starting with '.'
 def hidden(file):
   """Exclude hidden files"""
   return not file.startswith('.');
 
+## Filter function to keep only valid extensions
 def valid_extension(file):
   """Exclude non-valid extensions"""
   global EXTS;
@@ -59,11 +75,13 @@ def valid_extension(file):
       return True;
   return False;
 
+## Get the relative path of a file
 def relpath(p):
   """Get the relative path of a file."""
   p = path.realpath(p);
   return p.replace(path.realpath('.')+'/','');
 
+## This class works on a single file to create generations
 class Conversion:
   """
   This class works on a single file to create generations
@@ -264,3 +282,5 @@ class Conversion:
     to prevent multiple replacement issues if run again."""
     data = re.sub(KEYWORD+' '+','.join(self.types)+'.*', DONE_KEYWORD+' '+precision+' '+datetime.now().ctime(), data);
     return data;
+
+# @}

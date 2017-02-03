@@ -7,6 +7,15 @@
 #ifndef DATA_H_HAS_BEEN_INCLUDED
 #define DATA_H_HAS_BEEN_INCLUDED
 
+/** @defgroup parsec_internal_data Data
+ *  @ingroup parsec_internal
+ *    Data objects represent the meta-information associated to each
+ *    user's or temporary data blocks that the PaRSEC runtime engine
+ *    manipulate.
+ *  @addtogroup parsec_internal_data
+ *  @{
+ */
+
 #include "parsec_config.h"
 #include "parsec/types.h"
 
@@ -96,5 +105,7 @@ parsec_data_create( parsec_data_t **holder,
  */
 PARSEC_DECLSPEC void
 parsec_data_destroy( parsec_data_t *holder );
+
+/** @} */
 
 #endif  /* DATA_H_HAS_BEEN_INCLUDED */

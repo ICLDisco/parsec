@@ -15,36 +15,81 @@
 #include "parsec/parsec_description_structures.h"
 #include "parsec/profiling.h"
 
+BEGIN_C_DECLS
+
 /**
- * A classical way to find the container that contains a particular structure.
- * Read more at http://en.wikipedia.org/wiki/Offsetof.
+ * @defgroup parsec_internal_runtime Internal Runtime
+ * @ingroup parsec_internal
+ *   The Internal Runtime Module holds all functions and data structures
+ *   that allow to build the PaRSEC runtime system.
+ * @{
+ */
+
+/**
+ * @brief A classical way to find the container that contains a particular structure.
+ *
+ * @details Read more at http://en.wikipedia.org/wiki/Offsetof.
  */
 #define container_of(ptr, type, member) \
     ((type *)((char *)ptr - offsetof(type,member)))
 
-BEGIN_C_DECLS
-
+/**
+ * @brief A Task Class
+ */
 typedef struct parsec_function_s        parsec_function_t;
+/**
+ * @brief A Remote dependency
+ */
 typedef struct parsec_remote_deps_s     parsec_remote_deps_t;
+/**
+ * @brief A temporary memory allocated using the Arena system
+ */
 typedef struct parsec_arena_chunk_s     parsec_arena_chunk_t;
+/**
+ * @brief A data and its corresponding data repository entry
+ */
 typedef struct parsec_data_pair_s       parsec_data_pair_t;
+/**
+ * @brief A dependency tracking structure
+ */
 typedef struct parsec_dependencies_s    parsec_dependencies_t;
+/**
+ * @brief A data repository entry
+ */
 typedef struct data_repo_s             data_repo_t;
-
-/**< Each MPI process includes multiple virtual processes (and a
- *   single comm. thread) */
+/**
+ * @brief A Virtual Process
+ */
 typedef struct parsec_vp_s              parsec_vp_t;
-/* The description of the content of each data mouvement/copy */
+/**
+ * @brief A description of the content of each data mouvement/copy
+ */
 typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
 
+/**
+ * @brief The prototype of startup functions
+ *
+ * @details Startup functions generate a list of tasks ready to execute from
+ *          a PaRSEC handle
+ * @param[in] context the general PaRSEC context
+ * @param[inout] parsec_handle the DAG in which to look for list of startup tasks
+ * @param[out] A list of tasks ready to execute
+ */
 typedef void (*parsec_startup_fn_t)(parsec_context_t *context,
                                    parsec_handle_t *parsec_handle,
                                    parsec_execution_context_t** startup_list);
+/**
+ * @brief The prototype of a handle termination / destruction function
+ */
 typedef void (*parsec_destruct_fn_t)(parsec_handle_t* parsec_handle);
 
+/**
+ * @brief a PaRSEC handle represents an entire DAG of tasks
+ */
 struct parsec_handle_s {
-    parsec_list_item_t         super;
-    uint32_t                   handle_id;
+    parsec_list_item_t         super;     /**< A PaRSEC handle is also a list_item, so it can be chained into different lists */
+    uint32_t                   handle_id; /**< Handles are uniquely identified */
+o text editing for clarity).
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
                                            *   in the handle. This value is checked upon each task completion by
                                            *   the runtime, to see if the handle is completed (a nb_tasks equal
@@ -54,45 +99,52 @@ struct parsec_handle_s {
                                            *   internal purposes (in which case it is atomically set to
                                            *   PARSEC_RUNTIME_RESERVED_NB_TASKS).
                                            */
-    uint16_t                   nb_functions;
-    uint16_t                   devices_mask;
-    int32_t                    initial_number_tasks;
-    int32_t                    priority;
+    uint16_t                   nb_functions; /**< The number of task classes defined in this handle */
+    uint16_t                   devices_mask; /**< A bitmask on what devices this handle may use */
+    int32_t                    initial_number_tasks; /**< Counts the number of task classes initially ready */
+    int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this handle */
     volatile uint32_t          nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
                                                      *   activities (such as communications, data movement, and
                                                      *   so on). Also, its value is increase by one for all the tasks
                                                      *   in the handle. This extra reference will be removed upon
                                                      *   completion of all tasks.
                                                      */
-    parsec_context_t           *context;
-    parsec_startup_fn_t         startup_hook;
-    const parsec_function_t**   functions_array;
+    parsec_context_t           *context;   /**< The PaRSEC context on which this handle was generated */
+    parsec_startup_fn_t         startup_hook; /**< Function pointer to a function that generates initial tasks */
+    const parsec_function_t**   functions_array; /**< Array of task classes that build this DAG */
 #if defined(PARSEC_PROF_TRACE)
-    const int*                 profiling_array;
+    const int*                 profiling_array; /**< Array of profiling keys to start/stop each of the task classes
+                                                 *   The array is indexed on the same index as functions_array */
 #endif  /* defined(PARSEC_PROF_TRACE) */
-    /* A set of callbacks at critical moments in the lifetime of a handle:
-     * enqueue and completion. The enqueue is called when the handle is
-     * enqueue into a context, while the completion is triggered when all
-     * the tasks associated with a particular parsec handle have been completed.
-     */
-    parsec_event_cb_t           on_enqueue;
-    void*                      on_enqueue_data;
-    parsec_event_cb_t           on_complete;
-    void*                      on_complete_data;
-    parsec_destruct_fn_t        destructor;
-    void**                     dependencies_array;
-    data_repo_t**              repo_array;
+    parsec_event_cb_t           on_enqueue;      /**< Callback called when the handle is enqueued (scheduled) */
+    void*                       on_enqueue_data; /**< Data to pass to on_enqueue when called */
+    parsec_event_cb_t           on_complete;     /**< Callback called when the handle is completed */
+    void*                       on_complete_data;/**< Data to pass to on_complete when called */
+    parsec_destruct_fn_t        destructor;      /**< handle-specific destructor function */
+    void**                      dependencies_array; /**< Array of multidimensional dependencies
+                                                     *   Indexed on the same index as functions_array */
+    data_repo_t**               repo_array; /**< Array of data repositories
+                                             *   Indexed on the same index as functions array */
 };
 
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_handle_t);
 
+/**
+ * @brief Bitmask representing all possible devices
+ */
 #define PARSEC_DEVICES_ALL                                  UINT16_MAX
 
-/* There is another loop after this one. */
+/**
+ * @brief Dependencies flag: there is another loop after this one.
+ */
 #define PARSEC_DEPENDENCIES_FLAG_NEXT       0x01
-/* This is the final loop */
+/**
+ * @brief Dependencies flag: This is the final loop.
+ */
 #define PARSEC_DEPENDENCIES_FLAG_FINAL      0x02
-/* This loops array is allocated */
+/**
+ * @brief Dependencies flag: This loops array is allocated.
+ */
 #define PARSEC_DEPENDENCIES_FLAG_ALLOCATED  0x04
 
 /* When providing user-defined functions to count the number of tasks,
@@ -473,6 +525,8 @@ int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
 #if defined(PARSEC_SIM)
 int parsec_getsimulationdate( parsec_context_t *parsec_context );
 #endif
+
+/** @} */
 
 END_C_DECLS
 

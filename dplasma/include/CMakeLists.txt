@@ -1,5 +1,4 @@
 include(RulesPrecisions)
-include(AddDocumentedFiles)
 
 # reset variables
 set(generated_headers "")
@@ -21,6 +20,4 @@ install(FILES
 foreach(generated_header ${generated_headers})
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include)
 endforeach()
-
-add_documented_files( PARSEC_ALL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/" dplasma.h dplasma_qr_param.h )
 

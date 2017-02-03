@@ -7,6 +7,12 @@
 #ifndef _PARSEC_scheduling_h
 #define _PARSEC_scheduling_h
 
+/** 
+ *  @addtogroup parsec_internal_scheduling
+ *  @{
+ */
+
+
 #include "parsec_internal.h"
 
 BEGIN_C_DECLS
@@ -101,5 +107,7 @@ struct parsec_sched_module_s;
 extern struct parsec_sched_module_s *current_scheduler;
 
 END_C_DECLS
+
+/** @} */
 
 #endif  /* _PARSEC_scheduling_h */

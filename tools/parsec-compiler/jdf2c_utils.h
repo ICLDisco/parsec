@@ -29,9 +29,9 @@ typedef char *(*dumper_function_t)(void **elt, void *arg);
  *
  *  If the function fct return NULL, the element is ignored
  *
- *  @example: to create the list of expressions that is a parameter call, use
+ *  Example: to create the list of expressions that is a parameter call, use
  *    UTIL_DUMP_LIST_FIELD(sa, jdf->functions->predicates, next, expr, dump_expr, NULL, "(", "", ", ", ")")
- *  @example: to create the list of declarations of globals, use
+ *  Example: to create the list of declarations of globals, use
  *    UTIL_DUMP_LIST_FIELD(sa, jdf->globals, next, name, dumpstring, NULL, "", "  int ", ";\n", ";\n");
  */
 #define UTIL_DUMP_LIST_FIELD(arena, structure_ptr, nextfield, eltfield, fct, fctarg, before, prefix, separator, after) \
@@ -63,7 +63,7 @@ typedef char *(*dumper_function_t)(void **elt, void *arg);
  *
  *  @return a string (of characters) written in arena with the list formed so.
  *
- *  @example: to create the list of expressions that is #define list of macros, transforming each element
+ *  Example: to create the list of expressions that is #define list of macros, transforming each element
  *            using both the name of the element and the number of parameters, use
  *          UTIL_DUMP_LIST(sa1, jdf->data, next, dump_data, sa2, "", "#define ", "\n", "\n"));
  */
