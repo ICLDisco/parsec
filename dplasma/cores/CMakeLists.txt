@@ -91,11 +91,17 @@ if( CUDA_FOUND )
   endif()
 
   ### Generate the CUDA .cu kernels if necessary
-  # By default drop support for older devices (add 11 and 13 for support */
-  if( ${CUDA_VERSION_STRING} VERSION_GREATER "4.1")
-    set(CUDA_SM_TARGETS 20 35 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
-  else()
+  # By default drop support for older devices (add 11 and 13 for support
+  # SM targets with poor DP flops are also disabled by default (add 30 50 52 53 61 62)
+  if( ${CUDA_VERSION_STRING} VERSION_LESS "4.2" )
     set(CUDA_SM_TARGETS 11 13 20 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
+elseif( ${CUDA_VERSION_STRING} VERSION_LESS "8.0" )
+    set(CUDA_SM_TARGETS 20 35 37 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
+  elseif( ${CUDA_VERSION_STRING} VERSION_EQUAL "8.0" )
+    set(CUDA_SM_TARGETS 20 35 37 60 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
+  else()
+    # SM_20 will be removed in cuda>8
+    set(CUDA_SM_TARGETS 35 37 60 CACHE STRING "Specify GPU architectures to build binaries for, BIN(PTX) format is supported")
   endif()
 
 # For Tesla
@@ -111,6 +117,10 @@ if( CUDA_FOUND )
   set(CUDA_NVCC_FLAGS_50                  -arch sm_50 -DCUDA_SM_VERSION=50)
   set(CUDA_NVCC_FLAGS_52                  -arch sm_52 -DCUDA_SM_VERSION=52)
   set(CUDA_NVCC_FLAGS_53                  -arch sm_53 -DCUDA_SM_VERSION=53)
+# For Pascal
+  set(CUDA_NVCC_FLAGS_60                  -arch sm_60 -DCUDA_SM_VERSION=60)
+  set(CUDA_NVCC_FLAGS_61                  -arch sm_61 -DCUDA_SM_VERSION=61)
+  set(CUDA_NVCC_FLAGS_62                  -arch sm_62 -DCUDA_SM_VERSION=62)
 
   ### CUDA .cu sources
   set( CUDA11_SOURCES
@@ -121,8 +131,14 @@ if( CUDA_FOUND )
 #        zgemm_20_30.cu
   )
   set( CUDA30_SOURCES ${CUDA20_SOURCES} )
-  set( CUDA35_SOURCES ${CUDA20_SOURCES} )
-  set( CUDA37_SOURCES ${CUDA20_SOURCES} )
+  set( CUDA35_SOURCES ${CUDA30_SOURCES} )
+  set( CUDA37_SOURCES ${CUDA30_SOURCES} )
+  set( CUDA50_SOURCES ${CUDA30_SOURCES} )
+  set( CUDA52_SOURCES ${CUDA50_SOURCES} )
+  set( CUDA53_SOURCES ${CUDA50_SOURCES} )
+  set( CUDA60_SOURCES ${CUDA50_SOURCES} )
+  set( CUDA61_SOURCES ${CUDA60_SOURCES} )
+  set( CUDA62_SOURCES ${CUDA60_SOURCES} )
 
   foreach( _smtarget ${CUDA_SM_TARGETS} )
     if( NOT "${CUDA${_smtarget}_SOURCES}" STREQUAL "" )

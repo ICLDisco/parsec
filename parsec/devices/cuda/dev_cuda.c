@@ -53,31 +53,50 @@ parsec_cuda_memory_reserve( gpu_device_t* gpu_device,
 static int
 parsec_cuda_memory_release( gpu_device_t* gpu_device );
 
-/* the rate represents how many times single is faster than double */
-int stod_rate[3] = {8, 2, 3};
+static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 32, 35, 37, 50, 52, 53, 60, 61, 62};
 
-/* look up how many cuda cores per SM
- * 1.x    8
- * 2.0    32
- * 2.1    48
- * 3.x    192
+/* look up how many FMA per cycle in single/double, per cuda MP
+ * precision.
+ * The following table provides updated values for future archs
+ * http://docs.nvidia.com/cuda/cuda-c-programming-guide/index.html#arithmetic-instructions
  */
-static int parsec_cuda_lookup_device_cudacores(int *cuda_cores, int major, int minor)
-{
-    if (major == 1) {
-        *cuda_cores = 8;
+static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *srate, int *drate) {
+    if( major == 1 ) {
+        *srate = 8;
+        *drate = 1;
     } else if (major == 2 && minor == 0) {
-        *cuda_cores = 32;
+        *srate = 32;
+        *drate = 16;
     } else if (major == 2 && minor == 1) {
-        *cuda_cores = 48;
-    } else if (major == 3) {
-        *cuda_cores = 192;
+        *srate = 48;
+        *drate = 4;
+    } else if (major == 3 && minor == 0
+            || major == 3 && minor == 2) {
+        *srate = 192;
+        *drate = 8;
+    } else if (major == 3 && minor == 5
+            || major == 3 && minor == 7) {
+        *srate = 192;
+        *drate = 64;
+    } else if (major == 5 && minor == 0
+            || major == 5 && minor == 2
+            || major == 5 && minor == 3) {
+        *srate = 128;
+        *drate = 4;
+    } else if(major == 6 && minor == 0) {
+        *srate = 64;
+        *drate = 32;
+    } else if (major == 6 && minor == 1
+            || major == 6 && minor == 2) {
+        *srate = 128;
+        *drate = 4;
     } else {
-        parsec_debug_verbose(3, parsec_debug_output, "Unsupporttd GPU %d, %d, skipping.", major, minor);
+        parsec_debug_verbose(3, parsec_debug_output, "Unsupported GPU %d, %d, skipping.", major, minor);
         return PARSEC_ERROR;
     }
     return PARSEC_SUCCESS;
 }
+
 
 static int parsec_cuda_device_fini(parsec_device_t* device)
 {
@@ -180,7 +199,6 @@ static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_ddesc_t
     return rc;
 }
 
-static int cuda_legal_compute_capabilitites[] = {10, 11, 12, 13, 20, 21, 30, 35};
 
 void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
                                      const char* fname)
@@ -426,7 +444,8 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
     for( i = 0; i < ndevices; i++ ) {
         gpu_device_t* gpu_device;
         char *szName;
-        int major, minor, concurrency, computemode, streaming_multiprocessor, cuda_cores, clockRate;
+        int major, minor, concurrency, computemode, streaming_multiprocessor, srate, drate;
+        float clockRate;
         struct cudaDeviceProp prop;
 
         /* Allow fine grain selection of the GPU's */
@@ -440,7 +459,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         szName    = prop.name;
         major     = prop.major;
         minor     = prop.minor;
-        clockRate = prop.clockRate;
+        clockRate = prop.clockRate/1e3f;
         concurrency = prop.concurrentKernels;
         streaming_multiprocessor = prop.multiProcessorCount;
         computemode = prop.computeMode;
@@ -512,20 +531,19 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         gpu_device->super.device_handle_register   = parsec_cuda_handle_register;
         gpu_device->super.device_handle_unregister = parsec_cuda_handle_unregister;
 
-        if (parsec_cuda_lookup_device_cudacores(&cuda_cores, major, minor) == PARSEC_ERROR ) {
+        if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &srate, &drate) == PARSEC_ERROR ) {
             return -1;
         }
-
-        gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)cuda_cores * (float)clockRate * 2.0 / 1000000;
-        gpu_device->super.device_dweight = gpu_device->super.device_sweight / stod_rate[major-1];
+        gpu_device->super.device_sweight = (float)streaming_multiprocessor * (float)srate * (float)clockRate * 2e-3f;
+        gpu_device->super.device_dweight = (float)streaming_multiprocessor * (float)drate * (float)clockRate * 2e-3f;
 
         if( show_caps ) {
             parsec_inform("GPU Device %d (capability %d.%d): %s\n"
                          "\tSM                 : %d\n"
-                         "\tclockRate          : %d\n"
+                         "\tclockRate (MHz)    : %2.4f\n"
                          "\tconcurrency        : %s\n"
                          "\tcomputeMode        : %d\n"
-                         "\tFlops capacity     : single %2.4f, double %2.4f",
+                         "\tpeak Gflops        : single %2.4f, double %2.4f",
                          i, major, minor,szName,
                          streaming_multiprocessor,
                          clockRate,
