@@ -16,14 +16,15 @@ if( PARSEC_HAVE_STD_C1x )
         #else
         int main(void) { return 0; }
         #endif
-        " PARSEC_HAVE_C11_ATOMICS)
-        if( PARSEC_HAVE_C11_ATOMICS )
-          # Make sure we do have the stdatomic header
-          check_include_files(stdatomic.h PARSEC_HAVE_C11_ATOMICS)
-        endif( PARSEC_HAVE_C11_ATOMICS )
+        " PARSEC_STDC_HAVE_C11_ATOMICS)
+        if( PARSEC_STDC_HAVE_C11_ATOMICS )
+# Some "C11" compilers do not define __STDC_NO_ATOMICS__ even when they don't support
+# atomics (e.g. gcc-6.3.1, when using -fopenmp. See Issue #123).
+          check_include_files(stdatomic.h PARSEC_ATOMIC_USE_C11_ATOMICS)
+        endif( PARSEC_STDC_HAVE_C11_ATOMICS )
   endif( PARSEC_COMPILER_C11_COMPLIANT )
 endif( PARSEC_HAVE_STD_C1x )
-if( PARSEC_HAVE_C11_ATOMICS )
+if( PARSEC_ATOMIC_USE_C11_ATOMICS )
   set( PARSEC_HAVE_COMPARE_AND_SWAP_32  1 CACHE INTERNAL "Atomic operation on  32 bits are supported")
   set( PARSEC_HAVE_COMPARE_AND_SWAP_64  1 CACHE INTERNAL "Atomic operation on  64 bits are supported")
   set( PARSEC_HAVE_COMPARE_AND_SWAP_128 0 CACHE INTERNAL "Atomic operation on 128 bits are supported")
@@ -60,7 +61,7 @@ if( PARSEC_HAVE_C11_ATOMICS )
     endif( PARSEC_HAVE_COMPARE_AND_SWAP_128 )
   endif( NOT PARSEC_HAVE_COMPARE_AND_SWAP_128 )
 
-else( PARSEC_HAVE_C11_ATOMICS )
+else( PARSEC_ATOMIC_USE_C11_ATOMICS )
 
 #
 # Check if the compiler supports __sync_bool_compare_and_swap.
@@ -238,7 +239,7 @@ endif( CMAKE_SIZEOF_VOID_P MATCHES "8" )
 
 endif(NOT PARSEC_HAVE_COMPARE_AND_SWAP_32 AND NOT PARSEC_HAVE_COMPARE_AND_SWAP_64 AND NOT PARSEC_HAVE_COMPARE_AND_SWAP_128)
 
-endif( PARSEC_HAVE_C11_ATOMICS )
+endif( PARSEC_ATOMIC_USE_C11_ATOMICS )
 
 if( PARSEC_HAVE_COMPARE_AND_SWAP_32 )
   message( STATUS "\t support for 32 bits atomics - found")

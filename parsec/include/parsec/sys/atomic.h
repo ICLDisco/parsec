@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <assert.h>
 
-#if (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_ATOMICS__)
+#if defined(PARSEC_ATOMIC_USE_C11_ATOMICS)
 
 #include <stdatomic.h>
 #include <time.h>
@@ -110,7 +110,7 @@ static inline long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 #define PARSEC_ATOMIC_UNLOCKED 0
 #define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B 1
 
-#else  /* (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_ATOMICS__) */
+#else  /* defined(PARSEC_ATOMIC_USE_C11_ATOMICS) */
 
 /**
  * If the compiler provides atomic primitives we prefer to use
