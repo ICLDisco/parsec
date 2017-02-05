@@ -89,7 +89,6 @@ typedef void (*parsec_destruct_fn_t)(parsec_handle_t* parsec_handle);
 struct parsec_handle_s {
     parsec_list_item_t         super;     /**< A PaRSEC handle is also a list_item, so it can be chained into different lists */
     uint32_t                   handle_id; /**< Handles are uniquely identified */
-o text editing for clarity).
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
                                            *   in the handle. This value is checked upon each task completion by
                                            *   the runtime, to see if the handle is completed (a nb_tasks equal
