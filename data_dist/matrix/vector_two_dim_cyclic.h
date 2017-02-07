@@ -1,14 +1,10 @@
 /*
- * Copyright (c) 2009      The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 #ifndef __VECTOR_TWO_DIM_CYCLIC_H__
 #define __VECTOR_TWO_DIM_CYCLIC_H__
-
-#ifdef PARSEC_HAVE_MPI
-#include <mpi.h>
-#endif /* PARSEC_HAVE_MPI */
 
 #include "parsec_config.h"
 #include "data_dist/matrix/matrix.h"

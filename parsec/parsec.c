@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -753,11 +753,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     if( parsec_cmd_line_is_taken(cmd_line, "help") ||
         parsec_cmd_line_is_taken(cmd_line, "h")) {
-#if defined(DISTRIBUTED)
-        int rank;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if( 0 == rank )
-#endif
+        if( 0 == context->my_rank )
         {
             char* help_msg = parsec_cmd_line_get_usage_msg(cmd_line);
             parsec_list_t* l = NULL;
@@ -899,9 +895,13 @@ int parsec_fini( parsec_context_t** pcontext )
         char filename[64];
         char prefix[32];
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-        int rank, size;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        MPI_Comm_size(MPI_COMM_WORLD, &size);
+        int rank = 0, size = 1;
+        int mpi_is_on;
+        MPI_Initialized(&mpi_is_on);
+        if(mpi_is_on) {
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            MPI_Comm_size(MPI_COMM_WORLD, &size);
+        }
         snprintf(filename, 64, "parsec-%d.stats", rank);
         snprintf(prefix, 32, "%d/%d", rank, size);
 # else
@@ -1616,7 +1616,11 @@ void parsec_handle_sync_ids( void )
     parsec_atomic_lock( &object_array_lock );
     idx = (int)object_array_pos;
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-    MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+    int mpi_is_on;
+    MPI_Initialized(&mpi_is_on);
+    if( mpi_is_on ) {
+        MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
+    }
 #endif
     if( idx >= object_array_size ) {
         object_array_size <<= 1;
@@ -1827,7 +1831,11 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         int rank = 0, line_num = 0;
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
         /* distributed version: set the rank to find the corresponding line in the rankfile */
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        int mpi_is_on;
+        MPI_Initialized(&mpi_is_on);
+        if(mpi_is_on) {
+            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        }
 #endif /* DISTRIBUTED && PARSEC_HAVE_MPI */
         while (getline(&line, &line_len, f) != -1) {
             if(line_num == rank) {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015      The University of Tennessee and The University
+ * Copyright (c) 2015-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -50,6 +50,18 @@ int parsec_type_size( parsec_datatype_t type,
     default:
         return PARSEC_NOT_SUPPORTED;
     }
+    return PARSEC_SUCCESS;
+}
+
+int parsec_type_extent(parsec_datatype_t type, ptrdiff_t* lb, ptrdiff_t* extent) {
+    int size, rc;
+    rc = parsec_type_size(type, &size);
+    *extent = size;
+    return rc;
+}
+
+int parsec_type_free(parsec_datatype_t* type) {
+    *type = PARSEC_DATATYPE_NULL;
     return PARSEC_SUCCESS;
 }
 

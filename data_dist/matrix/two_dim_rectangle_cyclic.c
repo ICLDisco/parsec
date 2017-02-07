@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,10 +10,6 @@
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/devices/device.h"
 #include "parsec/vpmap.h"
-
-#ifdef PARSEC_HAVE_MPI
-#include <mpi.h>
-#endif /* PARSEC_HAVE_MPI */
 
 static uint32_t twoDBC_rank_of(parsec_ddesc_t* ddesc, ...);
 static int32_t twoDBC_vpid_of(parsec_ddesc_t* ddesc, ...);
@@ -75,18 +71,14 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     Ddesc->mat = NULL;  /* No data associated with the matrix yet */
 
     /* WARNING: This has to be removed when padding will be removed */
-#if defined(PARSEC_HAVE_MPI)
     if ( (storage == matrix_Lapack) && (nodes > 1) ) {
         if ( tdesc->lm % mb != 0 ) {
-            fprintf(stderr, "In distributed with Lapack storage, lm has to be a multiple of mb\n");
-            MPI_Abort(MPI_COMM_WORLD, 2);
+            parsec_abort("In distributed with Lapack storage, lm has to be a multiple of mb\n");
         }
         if ( tdesc->ln % nb != 0 ) {
-            fprintf(stderr, "In distributed with Lapack storage, ln has to be a multiple of nb\n");
-            MPI_Abort(MPI_COMM_WORLD, 2);
+            parsec_abort("In distributed with Lapack storage, ln has to be a multiple of nb\n");
         }
     }
-#endif
 
     if(nodes < P)
         parsec_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);

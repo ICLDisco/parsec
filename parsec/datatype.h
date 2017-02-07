@@ -1,7 +1,7 @@
 #ifndef PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
 #define PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
 /*
- * Copyright (c) 2015      The University of Tennessee and The University
+ * Copyright (c) 2015-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -22,7 +22,6 @@
 
 #define PARSEC_DATATYPE_NULL  MPI_DATATYPE_NULL
 typedef MPI_Datatype parsec_datatype_t;
-typedef MPI_Aint     parsec_aint_t;
 
 #define parsec_datatype_int_t              MPI_INT
 #define parsec_datatype_int8_t             MPI_INT8_T
@@ -45,7 +44,6 @@ typedef MPI_Aint     parsec_aint_t;
 
 #define PARSEC_DATATYPE_NULL  ((intptr_t)NULL)
 typedef intptr_t  parsec_datatype_t;
-typedef size_t    parsec_aint_t;
 
 #define parsec_datatype_int_t              1
 #define parsec_datatype_int8_t             2
@@ -71,7 +69,9 @@ BEGIN_C_DECLS
  */
 int parsec_type_size(parsec_datatype_t type,
                     int *size);
+int parsec_type_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent);
 
+int parsec_type_free(parsec_datatype_t* type);
 int parsec_type_create_contiguous(int count,
                                  parsec_datatype_t oldtype,
                                  parsec_datatype_t* newtype );

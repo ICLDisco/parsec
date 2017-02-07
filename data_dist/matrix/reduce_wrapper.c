@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -20,30 +20,20 @@ parsec_reduce_col_New( const tiled_matrix_desc_t* src,
 {
     parsec_reduce_col_handle_t* handle;
     parsec_datatype_t oldtype, newtype;
+    ptrdiff_t lb, extent;
 
+    handle = parsec_reduce_col_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
     if( -1 == parsec_translate_matrix_type(src->mtype, &oldtype) ) {
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }
     parsec_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
-    handle = parsec_reduce_col_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
-
-#ifdef PARSEC_HAVE_MPI
-    {
-        int extent;
-        MPI_Type_size(newtype, &extent);
-        parsec_arena_construct(handle->arenas[PARSEC_reduce_col_DEFAULT_ARENA],
-                              extent,
-                              PARSEC_ARENA_ALIGNMENT_SSE,
-                              newtype);
-    }
-#else
+    parsec_type_extent(newtype, &lb, &extent);
     parsec_arena_construct(handle->arenas[PARSEC_reduce_col_DEFAULT_ARENA],
-                          src->mb*src->nb,
-                          PARSEC_ARENA_ALIGNMENT_SSE,
-                          PARSEC_DATATYPE_NULL );
-#endif
+                           extent,
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           newtype);
 
     return (parsec_handle_t*)handle;
 }
@@ -61,30 +51,20 @@ parsec_reduce_row_New( const tiled_matrix_desc_t* src,
 {
     parsec_reduce_row_handle_t* handle;
     parsec_datatype_t oldtype, newtype;
+    ptrdiff_t lb, extent;
 
+    handle = parsec_reduce_row_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
     assert(src->mtype == dest->mtype);
     if( -1 == parsec_translate_matrix_type(src->mtype, &oldtype) ) {
         parsec_debug_verbose(3, parsec_debug_output, "Unknown matrix type %d.", src->mtype );
         return NULL;
     }
     parsec_type_create_contiguous(src->mb*src->nb, oldtype, &newtype);
-    handle = parsec_reduce_row_new( src, dest, operator, op_data, 0, 0, src->lnt, src->lmt );
-
-#ifdef PARSEC_HAVE_MPI
-    {
-        int extent;
-        MPI_Type_size(newtype, &extent);
-        parsec_arena_construct(handle->arenas[PARSEC_reduce_row_DEFAULT_ARENA],
-                          extent,
-                          PARSEC_ARENA_ALIGNMENT_SSE,
-                          newtype);
-    }
-#else
+    parsec_type_extent(newtype, &lb, &extent);
     parsec_arena_construct(handle->arenas[PARSEC_reduce_row_DEFAULT_ARENA],
-                          src->mb*src->nb,
-                          PARSEC_ARENA_ALIGNMENT_SSE,
-                          PARSEC_DATATYPE_NULL);
-#endif
+                           extent,
+                           PARSEC_ARENA_ALIGNMENT_SSE,
+                           newtype);
     return (parsec_handle_t*)handle;
 }
 

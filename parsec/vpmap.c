@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -246,34 +246,34 @@ int vpmap_init_from_file(const char *filename)
 
     char * th_arg = NULL;
     char * binding = NULL;
-#if defined(PARSEC_HAVE_MPI)
-    double mpi_num = -1;
+    long int tgt_rank = -1;
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#if defined(PARSEC_HAVE_MPI)
+    int mpi_is_on;
+    MPI_Initialized(&mpi_is_on);
+    if(mpi_is_on) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    }
+#endif
     /* Count the number of line describing a VP for the process rank */
     while( getline(&line, &nline, f) != -1 ) {
         if( NULL != strchr(line, ':') && (line[0] != ':')) {
-            mpi_num = strtod(line, NULL);
-            if ( mpi_num == rank ){
+            tgt_rank = strtol(line, NULL,0);
+            if ( tgt_rank == rank ){
                 nbvp++;
             }
-        }else if( (line[0] == ':') && (rank == 0) ){
+        } else if( (line[0] == ':') ){
+            /* no target proc specified, applies to all. */
             nbvp++;
+        } else {
+            parsec_warning("malformed line %s in vpmap description %s.", line, filename);
         }
     }
-#else
-    /* Each line descripe a VP */
-    while( getline(&line, &nline, f) != -1 ) {
-        if( NULL != strchr(line, ':')) {
-            nbvp++;
-        }
-    }
-#endif
 
 
     if( nbvp == 0 ) {
-        /* If no description is available for the MPI process, create a single monothread VP */
-        parsec_inform("No VP parameter for the MPI process %i: create a single VP (monothread, unbound)", rank);
+        /* If no description is available for the process, create a single monothread VP */
+        parsec_inform("No VP parameter for the process %i: create a single VP (monothread, unbound)", rank);
         nbvp=1;
         map = (vpmap_t*)malloc(sizeof(vpmap_t));
         map[0].nbthreads = 1;
@@ -301,14 +301,12 @@ int vpmap_init_from_file(const char *filename)
         vpmap_nb_total_threads  = 0;
         while( getline(&line, &nline, f) != -1 ) {
             if( NULL != strchr(line, ':') ) {
-#if defined(PARSEC_HAVE_MPI)
                 if (line[0] == ':')
-                    mpi_num=0;
+                    tgt_rank=0;
                 else
-                    mpi_num = strtod(line, NULL);
+                    tgt_rank = strtod(line, NULL);
 
-                if ( mpi_num == rank ){
-#endif
+                if ( tgt_rank == rank ){
                     nbth=0;
                     if( NULL != (th_arg = strchr(line, ':'))) {
                         /* skip the colon and treat the thread number argument */
@@ -328,17 +326,11 @@ int vpmap_init_from_file(const char *filename)
                             parse_binding_parameter(v, nbth, binding);
 
                         } else {
-#if defined(PARSEC_HAVE_MPI)
                             printf("[%i] No binding specified for threads of the VP %i \n", rank, v);
-#else
-                            printf("No binding specified for threads of the VP %i \n", v);
-#endif
                         }
                     }
                     v++;
-#if defined(PARSEC_HAVE_MPI)
                 }
-#endif
             }
         }
     }

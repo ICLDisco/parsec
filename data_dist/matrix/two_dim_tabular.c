@@ -1,6 +1,6 @@
 
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -15,10 +15,6 @@
 #include "parsec/data.h"
 
 #include <math.h>
-
-#ifdef PARSEC_HAVE_MPI
-#include <mpi.h>
-#endif /* PARSEC_HAVE_MPI */
 
 static uint32_t      twoDTD_rank_of(    parsec_ddesc_t* ddesc, ... );
 static uint32_t      twoDTD_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);

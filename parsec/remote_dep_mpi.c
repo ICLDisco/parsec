@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -213,7 +213,15 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
          */
         context->nb_nodes = 1;
         parsec_communication_engine_up = -1;  /* No communications supported */
+#if 0
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI is not initialized. Fall back to a single node shared memory execution");
+#else
+        /*TODO: restore the original behavior when modular datatype engine is
+         * available */
+        parsec_abort("MPI was not initialized. This version of PaRSEC was compiled with MPI datatype supports and *needs* MPI to execute.\n"
+                     "\t* Please initialized MPI in this program (MPI_Init_thread(..., MPI_THREAD_SERIALIZED,...))\n"
+                     "\t* Alternatively, compile a version of PaRSEC without MPI (-DPARSEC_DIST_WITH_MPI=OFF in ccmake)\n");
+#endif
         return 1;
     }
     parsec_communication_engine_up = 0;  /* we have communication capabilities */

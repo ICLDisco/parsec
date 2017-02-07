@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -39,9 +39,9 @@ static int* stack_size  = NULL;
 
 void parsec_debug_init(void) {
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
-    int is_mpi_up;
-    MPI_Initialized(&is_mpi_up);
-    if( is_mpi_up ) {
+    int mpi_is_up;
+    MPI_Initialized(&mpi_is_up);
+    if( mpi_is_up ) {
         MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
     }
 #endif

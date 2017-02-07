@@ -2,7 +2,7 @@
 #define DPLASMA_DATATYPE_H_HAS_BEEN_INCLUDED
 
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,22 +10,8 @@
 #include "dplasma.h"
 #include "parsec/arena.h"
 
-#define dplasma_comm MPI_COMM_WORLD
-
-#if defined(PARSEC_HAVE_MPI)
-
-#define dplasma_progress( object )                  \
-    do {                                            \
-        /*MPI_Barrier(dplasma_comm);*/              \
-        parsec_context_wait( object );               \
-    } while (0)
-
-#else
-
 #define dplasma_progress( object )              \
   parsec_context_wait( object );
-
-#endif
 
 static inline int
 dplasma_add2arena_rectangle( parsec_arena_t *arena, size_t elem_size, size_t alignment,

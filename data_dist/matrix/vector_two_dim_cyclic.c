@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,10 +10,6 @@
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/vector_two_dim_cyclic.h"
 #include "parsec/vpmap.h"
-
-#ifdef PARSEC_HAVE_MPI
-#include <mpi.h>
-#endif /* PARSEC_HAVE_MPI */
 
 static uint32_t vector_twoDBC_rank_of(parsec_ddesc_t* ddesc, ...);
 static int32_t  vector_twoDBC_vpid_of(parsec_ddesc_t* ddesc, ...);
@@ -185,7 +181,7 @@ static uint32_t vector_twoDBC_rank_of(parsec_ddesc_t * desc, ...)
     /* Offset by (i,j) to translate (m,n) in the global matrix */
     m += Ddesc->super.i / Ddesc->super.mb;
 
-    /* P(rr, cr) has the tile, compute the mpi rank*/
+    /* P(rr, cr) has the tile, compute the rank*/
     if ( Ddesc->distrib != PlasmaVectorCol )
         rr = m % Ddesc->grid.rows;
 

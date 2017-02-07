@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -62,9 +62,6 @@ int main( int argc, char* argv[] )
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Type_commit(&newtype);
-#endif  /* defined(PARSEC_HAVE_MPI) */
     parsec_arena_construct(((parsec_reduce_handle_t*)object)->arenas[PARSEC_reduce_DEFAULT_ARENA],
                           nb*sizeof(float),
                           PARSEC_ARENA_ALIGNMENT_SSE,

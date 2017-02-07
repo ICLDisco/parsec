@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -31,9 +31,7 @@ int main( int argc, char** argv )
 {
     parsec_context_t* parsec;
     parsec_handle_t* handle;
-#if defined(PARSEC_HAVE_MPI)
-    MPI_Datatype tile_dtt, vdtt1, vdtt2, vdtt;
-#endif
+    parsec_datatype_t tile_dtt, vdtt1, vdtt2, vdtt;
     parsec_dtt_bug_replicator_handle_t *dtt_handle;;
     int nodes, rank, i, j;
     (void)argc; (void)argv;
@@ -65,10 +63,7 @@ int main( int argc, char** argv )
                 ((double*)ddescA.mat)[i * NB + j] = (double)(i * NB + j);
         dump_double_array("Original ", (double*)ddescA.mat, 0, 0, NB, NB, NB);
     }
-#if defined(PARSEC_HAVE_MPI)
     parsec_type_create_contiguous(NB*NB, parsec_datatype_double_t, &tile_dtt);
-    MPI_Type_set_name(tile_dtt, "TILE_DTT");
-    MPI_Type_commit(&tile_dtt);
     parsec_arena_construct(dtt_handle->arenas[PARSEC_dtt_bug_replicator_DTT1_ARENA],
                           NB*NB*sizeof(double),
                           PARSEC_ARENA_ALIGNMENT_SSE, tile_dtt);
@@ -76,12 +71,9 @@ int main( int argc, char** argv )
     parsec_type_create_vector(NB, 1, NB, parsec_datatype_double_t, &vdtt1);
     parsec_type_create_resized(vdtt1, 0, sizeof(parsec_datatype_double_t), &vdtt2);
     parsec_type_create_contiguous(NB, vdtt2, &vdtt);
-    MPI_Type_set_name(vdtt, "TILE_DTT");
-    MPI_Type_commit(&vdtt);
     parsec_arena_construct(dtt_handle->arenas[PARSEC_dtt_bug_replicator_DTT2_ARENA],
                           NB*NB*sizeof(double),
                           PARSEC_ARENA_ALIGNMENT_SSE, vdtt);
-#endif
 
     parsec_enqueue( parsec, handle );
 
