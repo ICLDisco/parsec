@@ -25,6 +25,7 @@ int parsec_debug_history_verbose = 5;
 int parsec_debug_colorize        = 10; /* 10 is the size of the format string for colors */
 int parsec_debug_coredump_on_abort = 0;
 int parsec_debug_history_on_abort = 0;
+void (*parsec_exit_weaksym)(int status) = _Exit;
 
 /* debug backtrace circular buffer */
 static int bt_output    = -1;
@@ -37,6 +38,9 @@ static int* stack_size  = NULL;
 
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
+static void parsec_mpi_abort(int status) {
+    MPI_Abort(MPI_COMM_WORLD, status);
+}
 #endif
 
 void parsec_debug_init(void) {
@@ -45,6 +49,7 @@ void parsec_debug_init(void) {
     MPI_Initialized(&mpi_is_up);
     if( mpi_is_up ) {
         MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
+        parsec_exit_weaksym = parsec_mpi_abort;
     }
 #endif
     gethostname(parsec_debug_hostname, sizeof(parsec_debug_hostname));

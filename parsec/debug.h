@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -47,6 +47,7 @@ extern int parsec_debug_rank;
 extern int parsec_debug_coredump_on_abort;
 extern int parsec_debug_history_on_abort;
 extern char parsec_debug_hostname[];
+extern void (*parsec_exit_weaksym)(int status);
 
 void parsec_debug_init(void);
 void parsec_debug_fini(void);
@@ -85,7 +86,7 @@ void parsec_debug_backtrace_dump(void);
     if ( parsec_debug_coredump_on_abort ) {                          \
         abort();                                                     \
     }                                                                \
-    _Exit(1);                                                        \
+    parsec_exit_weaksym(-6);                                         \
 } while(0)
 
 /* Use when encountering a SERIOUS condition. The program will continue
@@ -123,7 +124,6 @@ void parsec_debug_backtrace_dump(void);
 #if defined(PARSEC_DEBUG_NOISIER)
 /* Increasingly heavy debugging output. Compiled out when
  * PARSEC_DEBUG_VERBOSE is not enabled.
- * The entire history is logged as soon as debug_verbose >= 3
  */
 #define PARSEC_DEBUG_VERBOSE(LVL, OUT, FMT, ...) do {                \
     parsec_output_verbose(LVL, OUT,                                  \
