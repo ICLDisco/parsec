@@ -17,7 +17,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
-    int rank, world, cores;
+    int rank, world;
     int size, nb;
     parsec_ddesc_t *ddescA;
     parsec_handle_t *rtt;
@@ -35,18 +35,18 @@ int main(int argc, char *argv[])
     rank = 0;
 #endif
 
-    cores = 1;
-    parsec = parsec_init(cores, &argc, &argv);
+    parsec = parsec_init(-1, &argc, &argv);
 
     size = 256;
-    nb   = 4 * world;
 
     ddescA = create_and_distribute_data(rank, world, size);
     parsec_ddesc_set_key(ddescA, "A");
 
+    nb   = 4 * world;
     rtt = rtt_new(ddescA, size, nb);
     parsec_enqueue(parsec, rtt);
-
+    
+    parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
     parsec_handle_free((parsec_handle_t*)rtt);
