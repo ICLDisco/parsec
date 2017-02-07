@@ -1017,7 +1017,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_handle_t *parsec_handle,
     if( !(function->flags & PARSEC_HAS_CTL_GATHER) &&
         !(function->flags & PARSEC_HAS_IN_IN_DEPENDENCIES) ) {
         /* If the number of goal does not depend on this particular task instance,
-         * it is pre-computed by the parsecpp compiler
+         * it is pre-computed by the parsec_ptgpp compiler
          */
         return function->dependencies_goal;
     }

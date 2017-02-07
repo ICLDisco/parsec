@@ -1,14 +1,9 @@
-Add_Subdirectory(parsec-compiler)
 Add_Subdirectory(profiling)
 #
 # If building cross-compile there is no reason
 # to build these.
 #
 IF( NOT CMAKE_CROSSCOMPILING )
-    IF (CMAKE_CXX_COMPILER_WORKS)
-        Add_Subdirectory(q2j)
-    ENDIF (CMAKE_CXX_COMPILER_WORKS)
-
     add_custom_target(
           grapher_create_objects.c
           COMMAND ./grapher_create_objects.sh > grapher_create_objects.c

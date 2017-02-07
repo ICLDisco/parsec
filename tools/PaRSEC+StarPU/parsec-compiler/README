@@ -6,3 +6,5 @@ contact vincent.cohen.addad@ens-lyon.org
 
 Replace the parsec-compiler directory (in the tools directory) 
 to enable this feature.
+
+v2.0.0 the PTG interface and related tools have moved to ./parsec/interfaces/ptg/*

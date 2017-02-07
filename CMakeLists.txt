@@ -66,10 +66,10 @@ option(PARSEC_WANT_HOME_CONFIG_FILES
        "Should the runtime check for the parameter configuration file in the user home (\$HOME/.parsec/mca-params.conf)" ON)
 
 ### PaRSEC PP options
-set(PARSECPP_CFLAGS "--noline" CACHE STRING "Additional parsecpp precompiling flags" )
-mark_as_advanced(PARSECPP_CFLAGS)
+set(PARSEC_PTGPP_CFLAGS "--noline" CACHE STRING "Additional parsec_ptgpp precompiling flags" )
+mark_as_advanced(PARSEC_PTGPP_CFLAGS)
 
-option(PARSEC_WITH_DEVEL_HEADERS "Install additional header files in include/parsecpp to compile generated files from JDF" OFF)
+option(PARSEC_WITH_DEVEL_HEADERS "Install additional header files in include/parsec_ptgpp to compile generated files from JDF" OFF)
 
 ## Multicore scheduler parameters
 mark_as_advanced(PARSEC_SCHED_REPORT_STATISTICS)
@@ -644,21 +644,21 @@ if(AWK_EXECUTABLE)
 endif(AWK_EXECUTABLE)
 
 get_property(PARSEC_C_INCLUDES DIRECTORY PROPERTY INCLUDE_DIRECTORIES)
-set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE "List of directories used to compile the parsecpp generated code" INTERNAL)
+set(PARSEC_C_INCLUDES "${PARSEC_C_INCLUDES};${MPI_C_COMPILE_FLAGS}" CACHE "List of directories used to compile the parsec_ptgpp generated code" INTERNAL)
 mark_as_advanced(PARSEC_C_INCLUDES)
 
 #
 # First go for the tools.
 #
-set(parsecpp_EXE "NOT-DEFINED")
+set(parsec_ptgpp_EXE "NOT-DEFINED")
 add_subdirectory(tools)
 IF(CMAKE_CROSSCOMPILING)
   SET(IMPORT_EXECUTABLES "IMPORTFILE-NOTFOUND" CACHE FILEPATH "Point it to the export file from a native build")
   MESSAGE(STATUS "Prepare cross-compiling using ${IMPORT_EXECUTABLES}")
   INCLUDE(${IMPORT_EXECUTABLES})
-  SET(parsecpp_EXE native-parsecpp)
+  SET(parsec_ptgpp_EXE native-parsec_ptgpp)
 ELSE(CMAKE_CROSSCOMPILING)
-  SET(parsecpp_EXE parsecpp)
+  SET(parsec_ptgpp_EXE parsec_ptgpp)
 ENDIF(CMAKE_CROSSCOMPILING)
 
 # List of files that will go through documentation generation

@@ -16,17 +16,17 @@ IF(NOT CMAKE_CROSSCOMPILING)
   include_directories(BEFORE ${CMAKE_CURRENT_SOURCE_DIR})
   include_directories(AFTER ${CMAKE_CURRENT_BINARY_DIR})
 
-  add_executable(parsecpp jdf.c jdf2c.c jdf_unparse.c ${BISON_parsec_yacc_OUTPUTS} ${FLEX_parsec_flex_OUTPUTS})
-  set_target_properties(parsecpp PROPERTIES LINKER_LANGUAGE C)
-  set_target_properties(parsecpp PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
-  target_link_libraries(parsecpp -lm)
-  target_link_libraries(parsecpp parsec-base)
+  add_executable(parsec_ptgpp jdf.c jdf2c.c jdf_unparse.c ${BISON_parsec_yacc_OUTPUTS} ${FLEX_parsec_flex_OUTPUTS})
+  set_target_properties(parsec_ptgpp PROPERTIES LINKER_LANGUAGE C)
+  set_target_properties(parsec_ptgpp PROPERTIES LINK_FLAGS "${LOCAL_C_LINK_FLAGS}")
+  target_link_libraries(parsec_ptgpp -lm)
+  target_link_libraries(parsec_ptgpp parsec-base)
 
-  install(TARGETS parsecpp RUNTIME DESTINATION bin)
+  install(TARGETS parsec_ptgpp RUNTIME DESTINATION bin)
 
   #
   # Generate the EXPORT file for external projects.
   #
-  EXPORT(TARGETS parsecpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake" NAMESPACE native-)
+  EXPORT(TARGETS parsec_ptgpp FILE "${CMAKE_BINARY_DIR}/ImportExecutables.cmake" NAMESPACE native-)
 ENDIF(NOT CMAKE_CROSSCOMPILING)
 

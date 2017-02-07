@@ -351,6 +351,17 @@ dplasma/testing/testing_[cz]hebut$
 dplasma/testing/testing_[sd]sybut$
 dplasma/testing/testing_[cz]hbrdt$
 dplasma/testing/testing_[sd]sbrdt$
+parsec/interfaces/ptg/q2j/examples/.*
+parsec/interfaces/ptg/q2j/plasma2parsec/pz.*\.c$
+parsec/interfaces/ptg/q2j/plasma2parsec/z.*\.jdf$
+parsec/interfaces/ptg/q2j/q2j$
+parsec/interfaces/ptg/q2j/q2j\.l\.c$
+parsec/interfaces/ptg/q2j/q2j\.y\.c$
+parsec/interfaces/ptg/q2j/q2j\.y\.h$
+parsec/interfaces/ptg/ptg-compiler/parsec\.l\.c$
+parsec/interfaces/ptg/ptg-compiler/parsec\.y\.[ch]$
+parsec/interfaces/ptg/ptg-compiler/parsec_ptgpp
+
 dplasma/testing/testing_[cz]heev$
 dplasma/testing/testing_[sd]syev$
 dplasma/testing/testing_[cz]herbt$
@@ -387,9 +398,6 @@ tests/unit/list$
 
 tools/cscalapack/t?sca[sdcz]ge[tq]rf$
 tools/cscalapack/t?sca[sdcz]potrf$
-tools/parsec-compiler/parsec\.l\.c$
-tools/parsec-compiler/parsec\.y\.[ch]$
-tools/parsec-compiler/parsecpp
 tools/gpu/sgemmN-api/sgemmN
 tools/gpu/sgemmN-api/sgemmN-.*\.cubin
 tools/grapher
@@ -402,12 +410,5 @@ tools/profiling/dbp2paje
 tools/profiling/dbp2xml
 tools/profiling/xml2traces/xml2traces
 tools/profiling/python/py_dbpreader.c
-tools/q2j/examples/.*
-tools/q2j/plasma2parsec/pz.*\.c$
-tools/q2j/plasma2parsec/z.*\.jdf$
-tools/q2j/q2j$
-tools/q2j/q2j\.l\.c$
-tools/q2j/q2j\.y\.c$
-tools/q2j/q2j\.y\.h$
 
 docs/out

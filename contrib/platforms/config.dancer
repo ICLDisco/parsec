@@ -26,7 +26,13 @@ elif [ "x$USER" = "xrhoque" ]; then
     FC="/opt/gcc/5.1/bin/gfortran"
     PLASMA_DIR="/opt/plasma-2.7.1-gcc-5.1"
     MPI_DIR="/opt/ompi/1.8.8/"
-
+elif [ "x$USER" = "xdgenet" ]; then
+    CC=gcc
+    CXX=g++
+    FC=gfortran
+    PLASMA_DIR="/opt/plasma-2.8.0"
+    MPI_DIR="/opt/ompi/2.0.1/"
+    USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 elif [ "x$USER" = "xYOURSELF" ]; then
     PLASMA_DIR="SOMEWHERE"
     USER_OPTIONS+="-DPARSEC_OPTION=ON"

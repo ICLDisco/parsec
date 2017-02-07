@@ -40,8 +40,8 @@ jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, NULL, NULL, NULL, 
 static void usage(void)
 {
     fprintf(stderr,
-            "Usage: parsecpp [OPTIONS] [-- COMPILER_OPTIONS]\n"
-            "  Compile a JDF into a PaRSEC representation (.h and .c files)\n"
+            "Usage: parsec_ptgpp [OPTIONS] [-- COMPILER_OPTIONS]\n"
+            "  Compile a PTG representation, JDF file, into a PaRSEC representation (.h and .c files)\n"
             "  and compile that .c file into a .o file (unless -E is specified)\n"
             "  unrecognized options and COMPILER_OPTIONS are all added to the options\n"
             "  passed to the final compiler.\n"

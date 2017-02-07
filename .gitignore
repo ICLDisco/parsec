@@ -31,6 +31,8 @@ parsec/mca/mca_static_components.h
 ^Makefile$
 parsec/Makefile
 parsec/fortran/Makefile
+parsec/interfaces/ptg/q2j/Makefile
+parsec/interfaces/ptg/ptg-compiler/Makefile
 data_dist/Makefile
 data_dist/matrix/Makefile
 docs/Makefile
@@ -53,7 +55,5 @@ tests/profiling/Makefile
 tests/scheduling/Makefile
 tests/unit/Makefile
 tools/Makefile
-tools/parsec-compiler/Makefile
 tools/profiling/Makefile
 tools/profiling/python/Makefile
-tools/q2j/Makefile
