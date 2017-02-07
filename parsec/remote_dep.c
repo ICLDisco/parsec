@@ -25,6 +25,11 @@ int parsec_communication_engine_up = -1;
 
 #ifdef DISTRIBUTED
 
+/* comm_yield mode: see valid values in the corresponding mca_register */
+static int comm_yield = 1;
+/* comm_yield_duration (ns) */
+static int comm_yield_ns = 5000;
+
 static int remote_dep_bind_thread(parsec_context_t* context);
 
 /* Clear the already forwarded remote dependency matrix */
@@ -126,8 +131,19 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
 
 
 #ifdef DISTRIBUTED
+
+#include "parsec/utils/mca_param.h"
+
 int parsec_remote_dep_init(parsec_context_t* context)
 {
+    parsec_mca_param_reg_int_name("runtime", "comm_thread_yield", "Controls the yielding behavior of the communication thread (if applicable).\n"
+                                                                 "  0: the communication thread never yield.\n"
+                                                                 "  1: the communication thread remain active when communication are pending.\n"
+                                                                 "  2: the communication thread yields as soon as it idles.",
+                                 false, false, comm_yield, &comm_yield);
+    parsec_mca_param_reg_int_name("runtime", "comm_thread_yield_duration", "Controls how long (in nanoseconds) the communication thread yields (if applicable).",
+                                  false, false, comm_yield_ns, &comm_yield_ns);
+
     (void)remote_dep_init(context);
 
     context->remote_dep_fw_mask_sizeof = 0;
@@ -480,8 +496,6 @@ void remote_deps_allocation_fini(void)
 /* Bind the communication thread on an unused core if possible */
 static int remote_dep_bind_thread(parsec_context_t* context)
 {
-    do_nano = 1;
-
 #if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     char *str = NULL;
     if( context->comm_th_core >= 0 ) {
@@ -490,10 +504,15 @@ static int remote_dep_bind_thread(parsec_context_t* context)
             parsec_debug_verbose(4, parsec_debug_output, "Communication thread bound to physical core %d",  context->comm_th_core);
 
             /* Check if this core is not used by a computation thread */
-            if( hwloc_bitmap_isset(context->cpuset_free_mask, context->comm_th_core) )
-                do_nano = 0;
+            if( hwloc_bitmap_isset(context->cpuset_free_mask, context->comm_th_core) ) {
+                /* The thread enjoys an exclusive core. Force disable comm_yield. */
+                comm_yield = 0;
+            } else {
+                /* The thread shares the core. Let comm_yield as user-set. */
+                parsec_debug_verbose(4, parsec_debug_output, "Communication thread is bound to core %d which is also hosting a compute execution unit", context->comm_th_core);
+            }
         } else {
-            /* There is no guarantee the thread doesn't share the core. Let do_nano to 1. */
+            /* There is no guarantee the thread doesn't share the core. Let comm_yield as user-set. */
             parsec_warning("Request to bind the communication thread on core %d failed.", context->comm_th_core);
         }
     } else {
@@ -504,16 +523,18 @@ static int remote_dep_bind_thread(parsec_context_t* context)
         if( !hwloc_bitmap_iszero(context->cpuset_free_mask) ) {
             if( parsec_bindthread_mask(context->cpuset_free_mask) > -1 ){
                 hwloc_bitmap_asprintf(&str, context->cpuset_free_mask);
-                do_nano = 0;
+                /* The thread enjoys an exclusive core. Force disable comm_yield. */
+                comm_yield = 0;
             }
         } else {
             if( parsec_bindthread_mask(context->cpuset_allowed_mask) > -1 ){
                 hwloc_bitmap_asprintf(&str, context->cpuset_allowed_mask);
-                do_nano = 1;
+                /* There is no guarantee the thread doesn't share the core. Let comm_yield as user-set. */
             }
         }
-        parsec_debug_verbose(4, parsec_debug_output, "Communication thread bound on the cpu mask %s (with%s back-off)",
-                            str, (do_nano ? "" : "out"));
+        parsec_debug_verbose(4, parsec_debug_output,
+                            "Communication thread bound on the cpu mask %s (with%s yield back-off)",
+                            str, (comm_yield ? "" : "out"));
         free(str);
     }
 #else /* NO PARSEC_HAVE_HWLOC */
@@ -527,8 +548,9 @@ static int remote_dep_bind_thread(parsec_context_t* context)
     if (boundto != nb_total_comp_threads) {
         parsec_debug_verbose(4, parsec_debug_output, "Communication thread floats");
     } else {
-        do_nano = 0;
         parsec_debug_verbose(4, parsec_debug_output, "Communication thread bound to physical core %d", boundto);
+        /* The thread (presumably) enjoys an exclusive core. Force disable comm_yield. */
+        comm_yield = 0;
     }
 #endif /* NO PARSEC_HAVE_HWLOC */
     return 0;

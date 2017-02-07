@@ -368,10 +368,7 @@ static int remote_dep_dequeue_off(parsec_context_t* context)
     return 0;
 }
 
-#define YIELD_TIME 5000
 #include "parsec/bindthread.h"
-
-static int do_nano = 0;
 
 static void* remote_dep_dequeue_main(parsec_context_t* context)
 {
@@ -758,9 +755,13 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
             ret = remote_dep_mpi_progress(eu_context);
         } while(ret);
 
-        if(do_nano && !ret) {
+        if( !ret 
+         && ((comm_yield == 2)
+          || (comm_yield == 1
+           && !parsec_list_nolock_is_empty(&dep_activates_fifo)
+           && !parsec_list_nolock_is_empty(&dep_put_fifo))) ) {
             struct timespec ts;
-            ts.tv_sec = 0; ts.tv_nsec = YIELD_TIME;
+            ts.tv_sec = 0; ts.tv_nsec = comm_yield_ns;
             nanosleep(&ts, NULL);
         }
         goto check_pending_queues;
