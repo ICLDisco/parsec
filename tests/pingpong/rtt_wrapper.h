@@ -12,7 +12,7 @@
 
 /**
  * @param [IN] A    the data, already distributed and allocated
- * @param [IN] size size of each local data element
+ * @param [IN] size size of each local data element (in bytes)
  * @param [IN] nb   number of iterations
  *
  * @return the parsec object to schedule.

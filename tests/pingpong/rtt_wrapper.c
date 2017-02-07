@@ -44,7 +44,7 @@ parsec_handle_t *rtt_new(parsec_ddesc_t *A, int size, int nb)
 #if defined(PARSEC_HAVE_MPI)
     {
         MPI_Aint extent;
-    	MPI_Type_contiguous(size, MPI_INT, &block);
+    	MPI_Type_contiguous(size, MPI_BYTE, &block);
         MPI_Type_commit(&block);
 #if defined(PARSEC_HAVE_MPI_20)
         MPI_Aint lb = 0; 

@@ -14,8 +14,7 @@
 
 typedef struct {
     parsec_ddesc_t super;
-    int   seg;
-    int   size;
+    size_t size;
     struct parsec_data_s     * data;
     struct parsec_data_copy_s* data_copy;
     uint32_t* ptr;
@@ -31,7 +30,7 @@ static uint32_t rank_of(parsec_ddesc_t *desc, ...)
     k = va_arg(ap, int);
     va_end(ap);
 
-    assert( k < dat->size && k >= 0 );
+    assert( (unsigned int)k < dat->super.nodes && k >= 0 );
     (void)dat;
     return k;
 }
@@ -46,7 +45,7 @@ static int32_t vpid_of(parsec_ddesc_t *desc, ...)
     k = va_arg(ap, int);
     va_end(ap);
 
-    assert( k < dat->size && k >= 0 );
+    assert( (unsigned int)k < dat->super.nodes && k >= 0 );
     (void)dat; (void)k;
     return 0;
 }
@@ -61,14 +60,8 @@ static parsec_data_t* data_of(parsec_ddesc_t *desc, ...)
     k = va_arg(ap, int);
     va_end(ap);
 
-    assert( k < dat->size && k >= 0 );
-    (void)k;
-    if(NULL == dat->data) {
-        dat->data = parsec_data_new();
-        dat->data_copy = parsec_data_copy_new(dat->data, 0);
-        dat->data_copy->device_private = dat->ptr;
-    }
-    return dat->data;
+    assert( (unsigned int)k < dat->super.nodes && k >= 0 );
+    return parsec_data_create( &dat->data, desc, k, dat->ptr, dat->size );
 }
 
 #if defined(PARSEC_PROF_TRACE)
@@ -82,13 +75,14 @@ static uint32_t data_key(parsec_ddesc_t *desc, ...)
     k = va_arg(ap, int);
     va_end(ap);
 
-    assert( k < dat->size && k >= 0 ); (void)dat;
+    assert( (unsigned int)k < dat->super.nodes && k >= 0 );
+    (void)dat;
 
     return (uint32_t)k;
 }
 #endif
 
-parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size, int seg)
+parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size)
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
     parsec_ddesc_t *d = &(m->super);
@@ -99,16 +93,15 @@ parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size, int se
     d->data_of = data_of;
     d->vpid_of = vpid_of;
 #if defined(PARSEC_PROF_TRACE)
-    asprintf(&d->key_dim, "(%d)", size);
+    asprintf(&d->key_dim, "(%d)", world);
     d->key_base = strdup("A");
     d->data_key = data_key;
 #endif
 
     m->size = size;
-    m->seg  = seg;
     m->data      = NULL;
     m->data_copy = NULL;
-    m->ptr = (uint32_t*)calloc(seg * size, sizeof(uint32_t) );
+    m->ptr = (uint32_t*)calloc(size, 1);
 
     return d;
 }
@@ -116,12 +109,8 @@ parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size, int se
 void free_data(parsec_ddesc_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
-    if(NULL != m->data_copy) {
-        parsec_data_copy_detach(m->data, m->data_copy, 0);
-        PARSEC_DATA_COPY_RELEASE(m->data_copy);
-        OBJ_RELEASE(m->data);
-        m->data_copy = NULL;
-        m->data = NULL;
+    if(NULL != m->data) {
+        parsec_data_destroy( m->data );
     }
     free(m->ptr);
     m->ptr = NULL;

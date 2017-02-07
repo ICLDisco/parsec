@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     parsec_ddesc_t *ddescA;
     parsec_handle_t *rtt;
 
+    
 #if defined(PARSEC_HAVE_MPI)
     {
         int provided;
@@ -33,13 +34,14 @@ int main(int argc, char *argv[])
     world = 1;
     rank = 0;
 #endif
+
     cores = 1;
     parsec = parsec_init(cores, &argc, &argv);
 
     size = 256;
     nb   = 4 * world;
 
-    ddescA = create_and_distribute_data(rank, world, size, 1);
+    ddescA = create_and_distribute_data(rank, world, size);
     parsec_ddesc_set_key(ddescA, "A");
 
     rtt = rtt_new(ddescA, size, nb);
