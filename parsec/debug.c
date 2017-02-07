@@ -21,8 +21,10 @@ char parsec_debug_hostname[32]   = "unknownhost";
 int parsec_debug_rank            = -1;
 int parsec_debug_output          = 0;
 int parsec_debug_verbose         = 1;
+int parsec_debug_history_verbose = 5;
 int parsec_debug_colorize        = 10; /* 10 is the size of the format string for colors */
 int parsec_debug_coredump_on_abort = 0;
+int parsec_debug_history_on_abort = 0;
 
 /* debug backtrace circular buffer */
 static int bt_output    = -1;
@@ -64,6 +66,12 @@ void parsec_debug_init(void) {
     parsec_output_set_verbosity(parsec_debug_output, parsec_debug_verbose);
     parsec_output_set_verbosity(0, parsec_debug_verbose);
 
+#if defined(PARSEC_DEBUG_HISTORY)
+    parsec_mca_param_reg_int_name("debug", "history_verbose",
+        "Set the output level for debug history ring buffer; same values as debug_verbose"
+        , false, false, 5, &parsec_debug_history_verbose);
+#endif
+
     parsec_mca_param_reg_int_name("debug", "color",
         "Toggle on/off color output for debug messages",
         false, false, 1, &parsec_debug_colorize);
@@ -73,6 +81,11 @@ void parsec_debug_init(void) {
         "Toggle on/off raise sigabort on internal engine error",
         false, false, 0, &parsec_debug_coredump_on_abort);
     parsec_debug_coredump_on_abort = parsec_debug_coredump_on_abort ? 1: 0;
+
+    parsec_mca_param_reg_int_name("debug", "history_on_abort",
+        "Toggle on/off dump the debug history on internal engine error",
+        false, false, 0, &parsec_debug_history_on_abort);
+    parsec_debug_history_on_abort = parsec_debug_history_on_abort ? 1: 0;
 
     /* We do not want backtraces in the syslog, so, we do not
      * inherit the defaults... */
