@@ -118,6 +118,21 @@ int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx 
 
 
 /**
+ * @brief Abort PaRSEC context
+ *
+ * @details
+ * Aborts the PaRSEC context. The execution stops at resources on which the
+ * context spans. The call does not return.
+ *
+ * @param[in] pcontext a pointer to the PaRSEC context to abort
+ * @param[in] status an integer value transmitted to the OS specific abort
+ * method (an exit code)
+ * @return this call does not return.
+ */
+int parsec_abort( parsec_context_t* pcontext, int status);
+
+
+/**
  * @brief Finalize a PaRSEC context
  *
  * @details

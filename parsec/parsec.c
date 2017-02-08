@@ -694,7 +694,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     if( 0 == parsec_set_scheduler( context ) ) {
         /* TODO: handle memory leak / thread leak here: this is a fatal
          * error for PaRSEC */
-        parsec_abort("Unable to load any scheduler in init function.");
+        parsec_fatal("Unable to load any scheduler in init function.");
         return NULL;
     }
 
@@ -773,6 +773,12 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         OBJ_RELEASE(cmd_line);
 
     return context;
+}
+
+void parsec_abort(parsec_context_t* ctx, int status) {
+    /* ATM, MPI_Abort aborts the whole job, in the future it would be nice to
+     * abort only the @ctx */
+    parsec_weaksym_exit(status);
 }
 
 static void parsec_vp_fini( parsec_vp_t *vp )
@@ -1131,7 +1137,7 @@ static int parsec_update_deps_with_counter(const parsec_handle_t *parsec_handle,
     {
         char wtmp[MAX_TASK_STRLEN];
         if( (uint32_t)dep_cur_value > (uint32_t)-128) {
-            parsec_abort("function %s as reached an improbable dependency count of %u",
+            parsec_fatal("function %s as reached an improbable dependency count of %u",
                   wtmp, dep_cur_value );
         }
 
@@ -1164,7 +1170,7 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
                          origin_flow->name, tmpo);
 #if defined(PARSEC_DEBUG_PARANOID)
     if( (*deps) & (1 << dest_flow->flow_index) ) {
-        parsec_abort("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)",
+        parsec_fatal("Output dependencies 0x%x from %s (flow %s) activate an already existing dependency 0x%x on %s (flow %s)",
                      dest_flow->flow_index, tmpo,
                      origin_flow->name, *deps,
                      tmpt, dest_flow->name );
@@ -1196,7 +1202,7 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
         success = parsec_atomic_cas_32b(deps,
                                         tmp_mask, (tmp_mask | PARSEC_DEPENDENCIES_TASK_DONE));
         if( !success || (tmp_mask & PARSEC_DEPENDENCIES_TASK_DONE) ) {
-            parsec_abort("Task %s scheduled twice (second time by %s)!!!",
+            parsec_fatal("Task %s scheduled twice (second time by %s)!!!",
                    tmpt, tmpo);
         }
     }
@@ -1343,7 +1349,7 @@ parsec_release_dep_fct(parsec_execution_unit_t *eu,
                        (eu->virtual_process->parsec_context->my_rank == src_rank) &&
                        ((dep->belongs_to->flow_flags & FLOW_ACCESS_MASK) != FLOW_ACCESS_NONE)) ) {
         char tmp1[MAX_TASK_STRLEN], tmp2[MAX_TASK_STRLEN];
-        parsec_abort("A NULL is forwarded\n"
+        parsec_fatal("A NULL is forwarded\n"
                     "\tfrom: %s flow %s\n"
                     "\tto:   %s flow %s",
                     parsec_snprintf_execution_context(tmp1, MAX_TASK_STRLEN, oldcontext), dep->belongs_to->name,

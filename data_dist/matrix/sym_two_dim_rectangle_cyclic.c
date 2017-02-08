@@ -244,8 +244,10 @@ void sym_two_dim_block_cyclic_init(sym_two_dim_block_cyclic_t * Ddesc,
     o->register_memory   = sym_twoDBC_memory_register;
     o->unregister_memory = sym_twoDBC_memory_unregister;
 
-    if(nodes < P)
-        parsec_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
+    if(nodes < P) {
+        parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
+        P = nodes;
+    }
     Q = nodes / P;
     if(nodes != P*Q)
         parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);

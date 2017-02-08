@@ -44,10 +44,10 @@ extern int parsec_debug_output;
 extern int parsec_debug_verbose;
 extern int parsec_debug_colorize;
 extern int parsec_debug_rank;
-extern int parsec_debug_coredump_on_abort;
-extern int parsec_debug_history_on_abort;
+extern int parsec_debug_coredump_on_fatal;
+extern int parsec_debug_history_on_fatal;
 extern char parsec_debug_hostname[];
-extern void (*parsec_exit_weaksym)(int status);
+extern void (*parsec_weaksym_exit)(int status);
 
 void parsec_debug_init(void);
 void parsec_debug_fini(void);
@@ -73,20 +73,20 @@ void parsec_debug_backtrace_dump(void);
 #endif /* defined(PARSEC_DEBUG_HISTORY) */
 
 /* Use when encountering a FATAL condition. Will terminate the program. */
-#define parsec_abort(FMT, ...) do {                                  \
+#define parsec_fatal(FMT, ...) do {                                  \
     parsec_output(0,                                                 \
-        "%.*sX@%05d%.*s " FMT " %.*s@%.30s:%-5d (%.30s:%-5d)%.*s",   \
+        "%.*sx@%05d%.*s " FMT " %.*s@%.30s:%-5d (%.30s:%-5d)%.*s",   \
         parsec_debug_colorize, "\x1B[1;37;41m", parsec_debug_rank,   \
         parsec_debug_colorize, "\033[0m", ##__VA_ARGS__,             \
         parsec_debug_colorize, "\x1B[36m", __func__, __LINE__, parsec_debug_hostname, getpid(), \
         parsec_debug_colorize, "\033[0m");                           \
-    if ( parsec_debug_history_on_abort ) {                           \
+    if ( parsec_debug_history_on_fatal ) {                           \
         parsec_debug_history_dump();                                 \
     }                                                                \
-    if ( parsec_debug_coredump_on_abort ) {                          \
+    if ( parsec_debug_coredump_on_fatal ) {                          \
         abort();                                                     \
     }                                                                \
-    parsec_exit_weaksym(-6);                                         \
+    parsec_weaksym_exit(-6);                                         \
 } while(0)
 
 /* Use when encountering a SERIOUS condition. The program will continue

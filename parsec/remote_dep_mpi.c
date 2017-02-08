@@ -218,7 +218,7 @@ static int remote_dep_dequeue_init(parsec_context_t* context)
 #else
         /*TODO: restore the original behavior when modular datatype engine is
          * available */
-        parsec_abort("MPI was not initialized. This version of PaRSEC was compiled with MPI datatype supports and *needs* MPI to execute.\n"
+        parsec_fatal("MPI was not initialized. This version of PaRSEC was compiled with MPI datatype supports and *needs* MPI to execute.\n"
                      "\t* Please initialized MPI in this program (MPI_Init_thread(..., MPI_THREAD_SERIALIZED,...))\n"
                      "\t* Alternatively, compile a version of PaRSEC without MPI (-DPARSEC_DIST_WITH_MPI=OFF in ccmake)\n");
 #endif
