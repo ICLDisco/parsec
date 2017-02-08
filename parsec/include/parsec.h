@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -129,7 +129,7 @@ int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx 
  * method (an exit code)
  * @return this call does not return.
  */
-int parsec_abort( parsec_context_t* pcontext, int status);
+void parsec_abort( parsec_context_t* pcontext, int status);
 
 
 /**
