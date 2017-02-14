@@ -1087,24 +1087,6 @@ parsec_check_IN_dependencies_with_counter( const parsec_handle_t *parsec_handle,
     return ret;
 }
 
-parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_handle,
-                                            const parsec_execution_context_t* restrict exec_context)
-{
-    parsec_dependencies_t *deps;
-    int p;
-
-    deps = parsec_handle->dependencies_array[exec_context->function->function_id];
-    assert( NULL != deps );
-
-    for(p = 0; p < exec_context->function->nb_parameters - 1; p++) {
-        assert( (deps->flags & PARSEC_DEPENDENCIES_FLAG_NEXT) != 0 );
-        deps = deps->u.next[exec_context->locals[exec_context->function->params[p]->context_index].value - deps->min];
-        assert( NULL != deps );
-    }
-
-    return &(deps->u.dependencies[exec_context->locals[exec_context->function->params[p]->context_index].value - deps->min]);
-}
-
 static int parsec_update_deps_with_counter(const parsec_handle_t *parsec_handle,
                                           const parsec_execution_context_t* restrict exec_context,
                                           parsec_dependency_t *deps)

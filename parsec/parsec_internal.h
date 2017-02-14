@@ -154,7 +154,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_handle_t);
 #define PARSEC_RUNTIME_RESERVED_NB_TASKS (int32_t)(0xffffffff)
 
 /* The first time the IN dependencies are
- *       checked leave a trace in order to avoid doing it again.
+ * checked leave a trace in order to avoid doing it again.
  */
 #define PARSEC_DEPENDENCIES_TASK_DONE      ((parsec_dependency_t)(1<<31))
 #define PARSEC_DEPENDENCIES_IN_DONE        ((parsec_dependency_t)(1<<30))
@@ -168,10 +168,8 @@ typedef union {
 
 struct parsec_dependencies_s {
     int                   flags;
-    const symbol_t*       symbol;
     int                   min;
     int                   max;
-    parsec_dependencies_t* prev;
     /* keep this as the last field in the structure */
     parsec_dependencies_union_t u;
 };
@@ -288,8 +286,6 @@ typedef int (parsec_data_ref_fn_t)(parsec_execution_context_t *exec_context,
  */
 typedef parsec_dependency_t *(parsec_find_dependency_fn_t)(const parsec_handle_t *parsec_handle,
                                                          const parsec_execution_context_t* exec_context);
-parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_handle,
-                                            const parsec_execution_context_t* exec_context);
 
 typedef struct __parsec_internal_incarnation_s {
     int32_t                    type;
@@ -309,7 +305,7 @@ struct parsec_function_s {
     uint8_t                      nb_parameters;
     uint8_t                      nb_locals;
 
-    parsec_dependency_t           dependencies_goal;
+    parsec_dependency_t          dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];
     const parsec_flow_t          *in[MAX_PARAM_COUNT];
