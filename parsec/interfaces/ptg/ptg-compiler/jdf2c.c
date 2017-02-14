@@ -2540,11 +2540,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
         }
     }
-    /**
-     * Assume that all startup tasks complete right away, without going through the
-     * second stage.
-     */
-    coutput("  this_task->status = PARSEC_TASK_STATUS_COMPLETE;\n");
 
     string_arena_init(sa1);
     string_arena_init(sa2);
@@ -2556,8 +2551,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
 
     if( need_to_iterate || need_min_max ) {
         nesting = 0;
-        coutput("%s  size_t __deps_position = 0;\n",
-                indent(nesting));
         for(dl = f->locals; dl != NULL; dl = dl->next) {
 
             /* is this local variable part of the function parameters */
@@ -2587,6 +2580,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     coutput("%s    saved_nb_tasks = nb_tasks;\n",
                             indent(nesting));
                 }
+                /* Adapt the loop condition depending on the value of the increment. We can
+                 * now handle both increasing and decreasing execution spaces. */
                 coutput("%s    for(%s = %s%s_start;\n"
                         "%s        (((%s%s_inc >= 0) && (%s <= %s%s_end)) ||\n"
                         "%s         ((%s%s_inc <  0) && (%s >= %s%s_end)));\n"
@@ -2642,32 +2637,16 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
             string_arena_add_string(sa1, "->u.next[%s-__%s_min]", dl->name, dl->name);
         }
-        coutput("%s    __deps_position += (__%s_max - __%s_min + 1);\n",
-                indent(nesting), dl->name, dl->name);
         for(; nesting > 0; nesting--) {
             coutput("%s}\n", indent(nesting));
         }
         if(need_to_count_tasks) {
-            coutput("%s   if( 0 != nb_tasks ) {\n", indent(nesting));
-        }
-        /* If this startup task belongs to a task class that has the pontetial to generate initial tasks,
-         * we should be careful to delay the generation of these tasks until all initializations tasks
-         * have been completed (or we face the opportunity for race condition between creating the
-         * dependencies arrays and accessing them). We synchronize the initial tasks via a sync. Until
-         * the sync trigger all task-generation tasks will be enqueued on the handle's startup_queue.
-         */
-        if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-            coutput("%s    do {\n"
-                    "%s      this_task->super.list_item.list_next = (parsec_list_item_t*)__parsec_handle->startup_queue;\n"
-                    "%s    } while(!parsec_atomic_cas_ptr(&__parsec_handle->startup_queue, this_task->super.list_item.list_next, this_task));\n"
-                    "%s    this_task->status = PARSEC_TASK_STATUS_HOOK;\n",
-                    indent(nesting), indent(nesting), indent(nesting), indent(nesting));
-        }
-
-        if(need_to_count_tasks) {
-            coutput("%s  (void)parsec_atomic_add_32b(&__parsec_handle->super.super.initial_number_tasks, nb_tasks);\n",
+            coutput("%s   if( 0 != nb_tasks ) {\n"
+                    "%s     (void)parsec_atomic_add_32b(&__parsec_handle->super.super.initial_number_tasks, nb_tasks);\n"
+                    "%s   }\n",
+                    indent(nesting),
+                    indent(nesting),
                     indent(nesting));
-            coutput("%s}\n", indent(nesting));
         }
         if( need_to_iterate ) {
             if( ! (f->user_defines & JDF_FUNCTION_HAS_UD_HASH_FUN) ) {
@@ -2679,6 +2658,25 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             }
         }
     }
+    /* If this startup task belongs to a task class that has the pontetial to generate initial tasks,
+     * we should be careful to delay the generation of these tasks until all initializations tasks
+     * have been completed (or we face the opportunity for race condition between creating the
+     * dependencies arrays and accessing them). We synchronize the initial tasks via a sync. Until
+     * the sync trigger all task-generation tasks will be enqueued on the handle's startup_queue.
+     */
+    if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
+        coutput("%s    do {\n"
+                "%s      this_task->super.list_item.list_next = (parsec_list_item_t*)__parsec_handle->startup_queue;\n"
+                "%s    } while(!parsec_atomic_cas_ptr(&__parsec_handle->startup_queue, this_task->super.list_item.list_next, this_task));\n"
+                "%s    this_task->status = PARSEC_TASK_STATUS_HOOK;\n",
+                indent(nesting), indent(nesting), indent(nesting), indent(nesting));
+    } else {
+        /* Assume that all startup tasks complete right away, without going through the
+         * second stage.
+         */
+        coutput("  this_task->status = PARSEC_TASK_STATUS_COMPLETE;\n");
+    }
+
     
     string_arena_free(sa1);
     string_arena_free(sa2);
