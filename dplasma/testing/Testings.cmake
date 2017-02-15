@@ -4,8 +4,16 @@ IF (CMAKE_VERSION VERSION_GREATER "3.1")
 ENDIF (CMAKE_VERSION VERSION_GREATER "3.1")
 
 #
-# Shared Memory Testings
+# A more compact representation of the DPLASMA tests. We ca compose any number
+# of tests, by providing the epilogue in ALL_TESTS and have the corresponding
+# OPTION_** defied to the extra options necessary to run that particular flavor
+# of the test.
 #
+set(OPTIONS_PTG_to_DTD "--;--mca;mca_pins;ptg_to_dtd")
+set(DEFAULT_OPTIONS "-x;-v=5")
+#set(OPTIONS "")
+
+set(ALL_TESTS " ;_PTG_to_DTD")
 
 set(PTG2DTD "ptg2dtd")
 set(PTD2DTD_OPTIONS "--;--mca;mca_pins;ptg_to_dtd")
@@ -46,80 +54,101 @@ macro(dplasma_add_test m_nameradix m_dependsradix m_types)
   endforeach()
 endmacro()
 
+
+set(ALL_TESTS " ;_PTG_to_DTD")
 #
 # Check BLAS/Lapack subroutines in shared memory
 #
 foreach(prec ${DPLASMA_PRECISIONS} )
 
-  # check the control and test matrices generation (zplrnt, zplghe, zplgsy, zpltmg) in shared memory
-  dplasma_add_test(print "" ${PTG2DTD}_shm -N 64 -t 7 ${OPTIONS})
+  foreach(test ${ALL_TESTS})
+    set(OPTIONS "${DEFAULT_OPTIONS};${OPTIONS${test}}")
 
-  # check the norms that are used in all other testings
-  dplasma_add_test(lange print ${PTG2DTD}_shm -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+    # check the control and test matrices generation (zplrnt, zplghe, zplgsy, zpltmg) in shared memory
+    add_test(shm_${prec}print${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}print -N 64 -t 7 ${OPTIONS})
 
-  dplasma_add_test(lanm2 print shm -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+    # check the norms that are used in all other testings
+    add_test(shm_${prec}lange${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}lange -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+    set_tests_properties("shm_${prec}lange${test}" PROPERTIES DEPENDS "shm_${prec}print${test}")
 
-  # Need to add testings on zlacpy, zlaset, zgeadd, zlascal, zger, (zlaswp?)
+    add_test(shm_${prec}lanm2${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}lanm2 -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+    set_tests_properties("shm_${prec}lanm2${test}" PROPERTIES DEPENDS "shm_${prec}print${test}")
 
-  # BLAS Shared memory
-  dplasma_add_test(trmm lange ${PTG2DTD}_shm -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(trsm trmm ${PTG2DTD}_shm -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(gemm lange ${PTG2DTD}_shm -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(symm lange ${PTG2DTD}_shm -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(syrk "" ${PTG2DTD}_shm -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(syr2k "" ${PTG2DTD}_shm -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+    # Need to add testings on zlacpy, zlaset, zgeadd, zlascal, zger, (zlaswp?)
 
-  if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
-    dplasma_add_test(hemm "" ${PTG2DTD}_shm -M 106 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(herk "" ${PTG2DTD}_shm -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(her2k "" ${PTG2DTD}_shm -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
-  endif()
+    # BLAS Shared memory
+    add_test(shm_${prec}trmm${test}      ${SHM_TEST_CMD_LIST} ./testing_${prec}trmm -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
+    set_tests_properties("shm_${prec}trmm${test}" PROPERTIES DEPENDS "shm_${prec}lange${test}")
 
-  # Cholesky
-  dplasma_add_test(potrf trsm ${PTG2DTD}_shm -N 378 -t 93        ${OPTIONS})
-  dplasma_add_test(posv potrf ${PTG2DTD}_shm -N 457 -t 93 -K 367 ${OPTIONS})
+    add_test(shm_${prec}trsm${test}      ${SHM_TEST_CMD_LIST} ./testing_${prec}trsm -M 106 -N 150 -K 97 -t 56 ${OPTIONS})
+    set_tests_properties("shm_${prec}trsm${test}" PROPERTIES DEPENDS "shm_${prec}trmm${test}")
 
-  # QR / LQ
-  dplasma_add_test(geqrf "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(gelqf "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
-    dplasma_add_test(unmqr "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(unmlq "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  else()
-    dplasma_add_test(ormqr "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(ormlq "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  endif()
+    add_test(shm_${prec}gemm${test}      ${SHM_TEST_CMD_LIST} ./testing_${prec}gemm -M 106 -N 283 -K 97 -t 56 ${OPTIONS})
+    set_tests_properties("shm_${prec}gemm${test}" PROPERTIES DEPENDS "shm_${prec}lange${test}")
 
-  # QR / LQ: HQR
-  dplasma_add_test(geqrf_hqr "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(gelqf_hqr "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
-    dplasma_add_test(unmqr_hqr "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(unmlq_hqr "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  else()
-    dplasma_add_test(ormqr_hqr "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(ormlq_hqr "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  endif()
+    add_test(shm_${prec}symm${test}      ${SHM_TEST_CMD_LIST} ./testing_${prec}symm -M 106 -N 283 -K 97 -t 56 ${OPTIONS})
+    set_tests_properties("shm_${prec}symm${test}" PROPERTIES DEPENDS "shm_${prec}lange${test}")
 
-  # QR / LQ: systolic
-  dplasma_add_test(geqrf_systolic "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-  dplasma_add_test(gelqf_systolic "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
-    dplasma_add_test(unmqr_systolic "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(unmlq_systolic "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  else()
-    dplasma_add_test(ormqr_systolic "" ${PTG2DTD}_shm -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
-    dplasma_add_test(ormlq_systolic "" ${PTG2DTD}_shm -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
-  endif()
+    add_test(shm_${prec}syrk${test}  ${SHM_TEST_CMD_LIST} ./testing_${prec}syrk  -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+    add_test(shm_${prec}syr2k${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}syr2k -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
 
-  # LU
-  dplasma_add_test(getrf "" shm -N 378 -t 93       ${OPTIONS})
-  dplasma_add_test(getrf_incpiv "" ${PTG2DTD}_shm -N 378 -t 93 -i 17 ${OPTIONS})
-  dplasma_add_test(getrf_nopiv "" ${PTG2DTD}_shm -N 378 -t 93       ${OPTIONS})
-  dplasma_add_test(getrf_qrf "" shm -N 378 -t 93 -i 17 ${OPTIONS})
+    if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
+      add_test(shm_${prec}hemm${test}  ${SHM_TEST_CMD_LIST} ./testing_${prec}hemm  -M 106 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}herk${test}  ${SHM_TEST_CMD_LIST} ./testing_${prec}herk  -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}her2k${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}her2k -M 287 -N 283 -K 97 -t 56 ${OPTIONS})
+    endif()
 
-  #dplasma_add_test(gesv "" ${PTG2DTD}_shm -N 874 -K 367 -t 76       ${OPTIONS})
-  dplasma_add_test(gesv_incpiv "" ${PTG2DTD}_shm -N 874 -K 367 -t 76 -i 23 ${OPTIONS})
+    # Cholesky
+    add_test(shm_${prec}potrf${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}potrf -N 378 -t 93        ${OPTIONS})
+    add_test(shm_${prec}posv${test}  ${SHM_TEST_CMD_LIST} ./testing_${prec}posv  -N 457 -t 93 -K 367 ${OPTIONS})
+
+    # QR / LQ
+    add_test(shm_${prec}geqrf${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+    add_test(shm_${prec}gelqf${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}gelqf -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
+      add_test(shm_${prec}unmqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}unmqr -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}unmlq${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}unmlq -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    else()
+      add_test(shm_${prec}ormqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}ormqr -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}ormlq${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}ormlq -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    endif()
+
+    # QR / LQ: HQR
+    add_test(shm_${prec}geqrf_hqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf_hqr -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+    add_test(shm_${prec}gelqf_hqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}gelqf_hqr -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
+      add_test(shm_${prec}unmqr_hqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}unmqr_hqr -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}unmlq_hqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}unmlq_hqr -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    else()
+      add_test(shm_${prec}ormqr_hqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}ormqr_hqr -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}ormlq_hqr${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}ormlq_hqr -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    endif()
+
+    # QR / LQ: systolic
+    add_test(shm_${prec}geqrf_systolic${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}geqrf_systolic -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+    add_test(shm_${prec}gelqf_systolic${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}gelqf_systolic -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    if ( ${prec} STREQUAL "c" OR ${prec} STREQUAL "z" )
+      add_test(shm_${prec}unmqr_systolic${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}unmqr_systolic -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}unmlq_systolic${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}unmlq_systolic -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    else()
+      add_test(shm_${prec}ormqr_systolic${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}ormqr_systolic -M 487 -N 283 -K 97 -t 56 ${OPTIONS})
+      add_test(shm_${prec}ormlq_systolic${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}ormlq_systolic -M 287 -N 383 -K 97 -t 56 ${OPTIONS})
+    endif()
+
+    # LU
+    add_test(shm_${prec}getrf_incpiv${test} ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_incpiv -N 378 -t 93 -i 17 ${OPTIONS})
+    add_test(shm_${prec}getrf_nopiv${test}  ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_nopiv  -N 378 -t 93       ${OPTIONS})
+
+    # LU
+    add_test(shm_${prec}getrf${test}        ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf        -N 378 -t 93       ${OPTIONS})
+    add_test(shm_${prec}getrf_qrf${test}    ${SHM_TEST_CMD_LIST} ./testing_${prec}getrf_qrf    -N 378 -t 93 -i 17 ${OPTIONS})
+
+    #add_test(shm_${prec}gesv${test}         ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv         -N 874 -K 367 -t 76       ${OPTIONS})
+    add_test(shm_${prec}gesv_incpiv${test}  ${SHM_TEST_CMD_LIST} ./testing_${prec}gesv_incpiv  -N 874 -K 367 -t 76 -i 23 ${OPTIONS})
+  endforeach(test ${ALL_TESTS})
+
+  # Reset the OPTIONS to default values
+  set(OPTIONS "${DEFAULT_OPTIONS}")
 
   # The headnode lack GPUs so we need MPI in order to get the test to run on
   # one of the nodes.
