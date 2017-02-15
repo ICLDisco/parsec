@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The University of Tennessee and The University
+ * Copyright (c) 2012-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -57,7 +57,7 @@ static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )
 {
-    parsec_abort("Use of 64b CAS using atomic-xlc without compiler support\n ");
+    parsec_fatal("Use of 64b CAS using atomic-xlc without compiler support\n ");
     return -1;
 }
 #endif

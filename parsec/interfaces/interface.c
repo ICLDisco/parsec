@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2016      The University of Tennessee and The University
+ * Copyright (c) 2016-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -94,7 +94,7 @@ static int parsec_empty_function_without_arguments(parsec_execution_unit_t *eu,
                                                   parsec_execution_context_t *this_task)
 {
     char tmp[128];
-    parsec_abort("Task %s is incorrectly initialized\n",
+    parsec_fatal("Task %s is incorrectly initialized\n",
                 parsec_snprintf_execution_context(tmp, 128, this_task));
     (void)eu;
     return PARSEC_HOOK_RETURN_DONE;

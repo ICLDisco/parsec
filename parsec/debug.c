@@ -21,8 +21,11 @@ char parsec_debug_hostname[32]   = "unknownhost";
 int parsec_debug_rank            = -1;
 int parsec_debug_output          = 0;
 int parsec_debug_verbose         = 1;
+int parsec_debug_history_verbose = 4;
 int parsec_debug_colorize        = 10; /* 10 is the size of the format string for colors */
-int parsec_debug_coredump_on_abort = 0;
+int parsec_debug_coredump_on_fatal = 0;
+int parsec_debug_history_on_fatal = 0;
+void (*parsec_weaksym_exit)(int status) = _Exit;
 
 /* debug backtrace circular buffer */
 static int bt_output    = -1;
@@ -35,6 +38,9 @@ static int* stack_size  = NULL;
 
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
+static void parsec_mpi_exit(int status) {
+    MPI_Abort(MPI_COMM_WORLD, status);
+}
 #endif
 
 void parsec_debug_init(void) {
@@ -43,6 +49,7 @@ void parsec_debug_init(void) {
     MPI_Initialized(&mpi_is_up);
     if( mpi_is_up ) {
         MPI_Comm_rank(MPI_COMM_WORLD, &parsec_debug_rank);
+        parsec_weaksym_exit = parsec_mpi_exit;
     }
 #endif
     gethostname(parsec_debug_hostname, sizeof(parsec_debug_hostname));
@@ -64,15 +71,26 @@ void parsec_debug_init(void) {
     parsec_output_set_verbosity(parsec_debug_output, parsec_debug_verbose);
     parsec_output_set_verbosity(0, parsec_debug_verbose);
 
+#if defined(PARSEC_DEBUG_HISTORY)
+    parsec_mca_param_reg_int_name("debug", "history_verbose",
+        "Set the output level for debug history ring buffer; same values as debug_verbose"
+        , false, false, 5, &parsec_debug_history_verbose);
+#endif
+
     parsec_mca_param_reg_int_name("debug", "color",
         "Toggle on/off color output for debug messages",
         false, false, 1, &parsec_debug_colorize);
     parsec_debug_colorize = parsec_debug_colorize? 10: 0;
 
-    parsec_mca_param_reg_int_name("debug", "coredump_on_abort",
+    parsec_mca_param_reg_int_name("debug", "coredump_on_fatal",
         "Toggle on/off raise sigabort on internal engine error",
-        false, false, 0, &parsec_debug_coredump_on_abort);
-    parsec_debug_coredump_on_abort = parsec_debug_coredump_on_abort ? 1: 0;
+        false, false, 0, &parsec_debug_coredump_on_fatal);
+    parsec_debug_coredump_on_fatal = parsec_debug_coredump_on_fatal ? 1: 0;
+
+    parsec_mca_param_reg_int_name("debug", "history_on_fatal",
+        "Toggle on/off dump the debug history on internal engine error",
+        false, false, 0, &parsec_debug_history_on_fatal);
+    parsec_debug_history_on_fatal = parsec_debug_history_on_fatal ? 1: 0;
 
     /* We do not want backtraces in the syslog, so, we do not
      * inherit the defaults... */

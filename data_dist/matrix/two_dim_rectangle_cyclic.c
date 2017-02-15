@@ -73,20 +73,24 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * Ddesc,
     /* WARNING: This has to be removed when padding will be removed */
     if ( (storage == matrix_Lapack) && (nodes > 1) ) {
         if ( tdesc->lm % mb != 0 ) {
-            parsec_abort("In distributed with Lapack storage, lm has to be a multiple of mb\n");
+            parsec_fatal("In distributed with Lapack storage, lm has to be a multiple of mb\n");
         }
         if ( tdesc->ln % nb != 0 ) {
-            parsec_abort("In distributed with Lapack storage, ln has to be a multiple of nb\n");
+            parsec_fatal("In distributed with Lapack storage, ln has to be a multiple of nb\n");
         }
     }
 
-    if(nodes < P)
-        parsec_abort("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
+    if(nodes < P) {
+        parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
+        P = nodes;
+    }
     Q = nodes / P;
     if(nodes != P*Q)
         parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
 
-    assert( (storage != matrix_Lapack) || (P==1) );
+    if( (storage == matrix_Lapack) && (P!=1) ) {
+        parsec_fatal("matrix_Lapack storage not supported with a grid that is not 1xQ");
+    }
 
 #if defined(PARSEC_HARD_SUPERTILE)
     grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, nrst, ncst);

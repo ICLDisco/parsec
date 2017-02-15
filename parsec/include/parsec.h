@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -115,6 +115,21 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[]);
  * @return PARSEC_SUCCESS on success
  */
 int parsec_remote_dep_set_ctx( parsec_context_t* context, void* opaque_comm_ctx );
+
+
+/**
+ * @brief Abort PaRSEC context
+ *
+ * @details
+ * Aborts the PaRSEC context. The execution stops at resources on which the
+ * context spans. The call does not return.
+ *
+ * @param[in] pcontext a pointer to the PaRSEC context to abort
+ * @param[in] status an integer value transmitted to the OS specific abort
+ * method (an exit code)
+ * @return this call does not return.
+ */
+void parsec_abort( parsec_context_t* pcontext, int status);
 
 
 /**

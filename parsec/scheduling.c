@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -276,7 +276,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
                 }
             }
             /*if( set_parameters > 1 ) {
-                parsec_abort( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
+                parsec_fatal( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
                         parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
             }*/ /* Change it as soon as dtd has a running version */
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
@@ -400,7 +400,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
     }
 
     if( NULL == current_scheduler ) {
-        parsec_abort("Main thread entered parsec_context_wait, while a scheduler is not selected yet!");
+        parsec_fatal("Main thread entered parsec_context_wait, while a scheduler is not selected yet!");
         return -1;
     }
 

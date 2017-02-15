@@ -463,7 +463,7 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
         /* convert the mask into a bitmap (define legal core indexes) */
         unsigned long mask = strtoul(position, NULL, 16);
         if (mask < 1)
-            parsec_abort("P %i: empty binding mask", vp);
+            parsec_fatal("P %i: empty binding mask", vp);
         hwloc_cpuset_t binding_mask = hwloc_bitmap_alloc();
         hwloc_bitmap_from_ulong(binding_mask, mask);
 

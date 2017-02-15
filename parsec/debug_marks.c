@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -23,7 +23,7 @@ void debug_mark_exe(int th, int vp, const struct parsec_execution_context_s *ctx
                         (j == ctx->function->nb_parameters-1) ? ")\n" : ", ");
     }
 
-    parsec_debug_history_add("Mark: execution on thread %d of VP %d:\t%s",
+    parsec_debug_history_add("Mark: thread %2d VP %d executes:\t%s",
                             th, vp, msg);
 }
 
