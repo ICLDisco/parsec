@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -1349,6 +1349,9 @@ int jdf_property_get_int( const jdf_def_list_t* properties,
     return ret_if_not_found;  /* ON by default */
 }
 
+/**
+ * Do not return a copy of the variable name, instead return directly the pointer.
+ */
 const char*jdf_property_get_string( const jdf_def_list_t* properties,
                                     const char* prop_name,
                                     const char* ret_if_not_found )
@@ -1358,7 +1361,7 @@ const char*jdf_property_get_string( const jdf_def_list_t* properties,
 
     if( NULL != expr ) {
         if( JDF_OP_IS_VAR(expr->op) )
-            return strdup(expr->jdf_var);
+            return expr->jdf_var;
         printf("Warning: property %s defined at line %d only support ON/OFF\n",
                prop_name, JDF_OBJECT_LINENO(property));
     }

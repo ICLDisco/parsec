@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -70,24 +70,24 @@ static int parsec_cuda_device_lookup_cudamp_floprate(int major, int minor, int *
     } else if (major == 2 && minor == 1) {
         *srate = 48;
         *drate = 4;
-    } else if (major == 3 && minor == 0
-            || major == 3 && minor == 2) {
+    } else if ((major == 3 && minor == 0) ||
+               (major == 3 && minor == 2)) {
         *srate = 192;
         *drate = 8;
-    } else if (major == 3 && minor == 5
-            || major == 3 && minor == 7) {
+    } else if ((major == 3 && minor == 5) ||
+               (major == 3 && minor == 7)) {
         *srate = 192;
         *drate = 64;
-    } else if (major == 5 && minor == 0
-            || major == 5 && minor == 2
-            || major == 5 && minor == 3) {
+    } else if ((major == 5 && minor == 0) ||
+               (major == 5 && minor == 2) ||
+               (major == 5 && minor == 3)) {
         *srate = 128;
         *drate = 4;
     } else if(major == 6 && minor == 0) {
         *srate = 64;
         *drate = 32;
-    } else if (major == 6 && minor == 1
-            || major == 6 && minor == 2) {
+    } else if ((major == 6 && minor == 1) ||
+               (major == 6 && minor == 2)) {
         *srate = 128;
         *drate = 4;
     } else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 The University of Tennessee and The University
+ * Copyright (c) 2012-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -154,7 +154,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_handle_t);
 #define PARSEC_RUNTIME_RESERVED_NB_TASKS (int32_t)(0xffffffff)
 
 /* The first time the IN dependencies are
- *       checked leave a trace in order to avoid doing it again.
+ * checked leave a trace in order to avoid doing it again.
  */
 #define PARSEC_DEPENDENCIES_TASK_DONE      ((parsec_dependency_t)(1<<31))
 #define PARSEC_DEPENDENCIES_IN_DONE        ((parsec_dependency_t)(1<<30))
@@ -168,10 +168,8 @@ typedef union {
 
 struct parsec_dependencies_s {
     int                   flags;
-    const symbol_t*       symbol;
     int                   min;
     int                   max;
-    parsec_dependencies_t* prev;
     /* keep this as the last field in the structure */
     parsec_dependencies_union_t u;
 };
@@ -288,14 +286,12 @@ typedef int (parsec_data_ref_fn_t)(parsec_execution_context_t *exec_context,
  */
 typedef parsec_dependency_t *(parsec_find_dependency_fn_t)(const parsec_handle_t *parsec_handle,
                                                          const parsec_execution_context_t* exec_context);
-parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_handle,
-                                            const parsec_execution_context_t* exec_context);
 
 typedef struct __parsec_internal_incarnation_s {
-    int32_t                    type;
+    int32_t                     type;
     parsec_evaluate_function_t *evaluate;
     parsec_hook_t              *hook;
-    char                      *dyld;
+    char                       *dyld;
     parsec_hook_t              *dyld_fn;
 } __parsec_chore_t;
 
@@ -309,38 +305,38 @@ struct parsec_function_s {
     uint8_t                      nb_parameters;
     uint8_t                      nb_locals;
 
-    parsec_dependency_t           dependencies_goal;
+    parsec_dependency_t          dependencies_goal;
     const symbol_t              *params[MAX_LOCAL_COUNT];
     const symbol_t              *locals[MAX_LOCAL_COUNT];
-    const parsec_flow_t          *in[MAX_PARAM_COUNT];
-    const parsec_flow_t          *out[MAX_PARAM_COUNT];
+    const parsec_flow_t         *in[MAX_PARAM_COUNT];
+    const parsec_flow_t         *out[MAX_PARAM_COUNT];
     const expr_t                *priority;
 
-    parsec_data_ref_fn_t         *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
-    parsec_data_ref_fn_t         *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
-    parsec_data_ref_fn_t         *data_affinity;  /**< Populates an array of data references, of size 1 */
-    parsec_functionkey_fn_t      *key;
+    parsec_data_ref_fn_t        *initial_data;   /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
+    parsec_data_ref_fn_t        *final_data;     /**< Populates an array of data references, of maximal size MAX_PARAM_COUNT */
+    parsec_data_ref_fn_t        *data_affinity;  /**< Populates an array of data references, of size 1 */
+    parsec_functionkey_fn_t     *key;
 #if defined(PARSEC_SIM)
-    parsec_sim_cost_fct_t        *sim_cost_fct;
+    parsec_sim_cost_fct_t       *sim_cost_fct;
 #endif
-    parsec_datatype_lookup_t     *get_datatype;
-    parsec_hook_t                *prepare_input;
-    const __parsec_chore_t       *incarnations;
-    parsec_hook_t                *prepare_output;
+    parsec_datatype_lookup_t    *get_datatype;
+    parsec_hook_t               *prepare_input;
+    const __parsec_chore_t      *incarnations;
+    parsec_hook_t               *prepare_output;
 
-    parsec_find_dependency_fn_t  *find_deps;
+    parsec_find_dependency_fn_t *find_deps;
 
-    parsec_traverse_function_t   *iterate_successors;
-    parsec_traverse_function_t   *iterate_predecessors;
-    parsec_release_deps_t        *release_deps;
-    parsec_hook_t                *complete_execution;
-    parsec_new_task_function_t   *new_task;
-    parsec_hook_t                *release_task;
-    parsec_hook_t                *fini;
+    parsec_traverse_function_t  *iterate_successors;
+    parsec_traverse_function_t  *iterate_predecessors;
+    parsec_release_deps_t       *release_deps;
+    parsec_hook_t               *complete_execution;
+    parsec_new_task_function_t  *new_task;
+    parsec_hook_t               *release_task;
+    parsec_hook_t               *fini;
 };
 
 struct parsec_data_pair_s {
-    struct data_repo_entry_s    *data_repo;
+    struct data_repo_entry_s     *data_repo;
     struct parsec_data_copy_s    *data_in;
     struct parsec_data_copy_s    *data_out;
 };
@@ -375,10 +371,10 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
  * not the data pairs. We need this in order to be able to only copy the minimal
  * amount of information when a new task is constructed.
  */
-#define PARSEC_MINIMAL_EXECUTION_CONTEXT              \
-    parsec_hashtable_item_t         super;            \
-    parsec_handle_t                *parsec_handle;     \
-    const  parsec_function_t       *function;         \
+#define PARSEC_MINIMAL_EXECUTION_CONTEXT             \
+    parsec_hashtable_item_t        super;            \
+    parsec_handle_t               *parsec_handle;    \
+    const  parsec_function_t      *function;         \
     int32_t                        priority;         \
     uint8_t                        status;           \
     uint8_t                        chore_id;         \
@@ -409,7 +405,7 @@ struct parsec_execution_context_s {
 #if defined(PARSEC_SIM)
     int                        sim_exec_date;
 #endif
-    parsec_data_pair_t          data[MAX_PARAM_COUNT];
+    parsec_data_pair_t         data[MAX_PARAM_COUNT];
 };
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_execution_context_t);
 
@@ -463,10 +459,10 @@ extern int device_delegate_begin, device_delegate_end;
  * Dependencies management.
  */
 typedef struct {
-    uint32_t action_mask;
-    uint32_t output_usage;
-    struct data_repo_entry_s *output_entry;
-    parsec_execution_context_t** ready_lists;
+    uint32_t                     action_mask;
+    uint32_t                     output_usage;
+    struct data_repo_entry_s    *output_entry;
+    parsec_execution_context_t **ready_lists;
 #if defined(DISTRIBUTED)
     struct parsec_remote_deps_s *remote_deps;
 #endif
