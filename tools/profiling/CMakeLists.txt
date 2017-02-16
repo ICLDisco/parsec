@@ -30,7 +30,7 @@ endif()
 find_package(Graphviz QUIET)
 
 if(GRAPHVIZ_FOUND)
-  include_directories(${GRAPHVIZ_INCLUDE_DIR})
+  include_directories(${GRAPHVIZ_INCLUDE_DIRS})
 
   add_executable(testgraph testgraph.c graph.c)
   set_target_properties(testgraph PROPERTIES LINKER_LANGUAGE C)

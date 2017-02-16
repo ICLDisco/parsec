@@ -53,24 +53,24 @@ if [ -n "$MPI_DIR" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_DIST_WITH_MPI=OFF.*")
         MPI+="-DMPI_C_COMPILER=${MPI_DIR}/bin/mpicc "
     elif [ -x $MPI_DIR/bin64/mpicc ]; then
         MPI+="-DMPI_C_COMPILER=${MPI_DIR}/bin64/mpicc "
-    elif [ -x $(which mpicc)]; then
-        MPI+="-DMPI_C_COMPILER=`which mpicc` "
+    elif [ -x $(command -v mpicxx 2>/dev/null) ]; then
+        MPI+="-DMPI_C_COMPILER=`command -v mpicc` "
     fi
   # Detect MPI C++ compiler
     if [ -x $MPI_DIR/bin/mpicxx ]; then
         MPI+="-DMPI_CXX_COMPILER=${MPI_DIR}/bin/mpicxx "
     elif [ -x $MPI_DIR/bin64/mpicxx ]; then
         MPI+="-DMPI_CXX_COMPILER=${MPI_DIR}/bin64/mpicxx "
-    elif [ -x $(which mpicxx)]; then
-        MPI+="-DMPI_CXX_COMPILER=`which mpicxx` "
+    elif [ -x $(command -v mpicxx 2>/dev/null) ]; then
+        MPI+="-DMPI_CXX_COMPILER=`command -v mpicxx` "
     fi
   # Detect MPI Fortran 90 compiler
     if [ -x $MPI_DIR/bin/mpif90 ]; then
         MPI+="-DMPI_Fortran_COMPILER=${MPI_DIR}/bin/mpif90 "
     elif [ -x $MPI_DIR/bin64/mpif90 ]; then
         MPI+="-DMPI_Fortran_COMPILER=${MPI_DIR}/bin64/mpif90 "
-    elif [ -x $(which mpif90)]; then
-        MPI+="-DMPI_Fortran_COMPILER=`which mpif90` "
+    elif [ -x $(command -v mpif90 2>/dev/null) ]; then
+        MPI+="-DMPI_Fortran_COMPILER=`command -v mpif90` "
     fi
 fi
 
