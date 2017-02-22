@@ -2615,9 +2615,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
          */
         if( need_to_count_tasks ) {
             coutput("%s  if( saved_nb_tasks != nb_tasks ) {\n", indent(nesting++));
+            coutput("%s    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocating dependencies array for %s (partial nb_tasks = %%d)\", nb_tasks);\n",
+                indent(nesting), f->fname);
         }
-        coutput("  PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocating dependencies array for %s (partial nb_tasks = %%d)\", nb_tasks);\n",
-                f->fname);
 
         string_arena_add_string(sa1, "dep");
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
