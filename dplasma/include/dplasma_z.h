@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2014 The University of Tennessee and The University
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -321,25 +321,25 @@ void dplasma_zheev_Destruct( parsec_taskpool_t *o );
 void dplasma_zherbt_Destruct( parsec_taskpool_t *o );
 
 /* New LU */
-void   dplasma_ztrsmpl_fusion( dague_context_t *dague, const tiled_matrix_desc_t *A,
+void   dplasma_ztrsmpl_fusion( parsec_context_t *parsec, const tiled_matrix_desc_t *A,
                              const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
-int    dplasma_zgetrf_fusion( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
-int    dplasma_zgetrf_panel( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
-int    dplasma_zgetrf_sp( dague_context_t *dague, const double criteria, tiled_matrix_desc_t* ddescA);
-int    dplasma_zgetrf_std( dague_context_t *dague, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
-int    dplasma_zgerfs( dague_context_t *dague, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescLU, tiled_matrix_desc_t* ddescB, tiled_matrix_desc_t* ddescX);
+int    dplasma_zgetrf_fusion( parsec_context_t *parsec, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
+int    dplasma_zgetrf_panel( parsec_context_t *parsec, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
+int    dplasma_zgetrf_sp( parsec_context_t *parsec, const double criteria, tiled_matrix_desc_t* ddescA);
+int    dplasma_zgetrf_std( parsec_context_t *parsec, tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV);
+int    dplasma_zgerfs( parsec_context_t *parsec, tiled_matrix_desc_t* ddescA, tiled_matrix_desc_t* ddescLU, tiled_matrix_desc_t* ddescB, tiled_matrix_desc_t* ddescX);
 
-dague_handle_t* dplasma_ztrsmpl_fusion_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
-dague_handle_t* dplasma_zgetrf_std_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
-dague_handle_t* dplasma_zgetrf_panel_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
-dague_handle_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
-dague_handle_t* dplasma_zgetrf_sp_New(double criteria, tiled_matrix_desc_t *A, int *info);
+parsec_handle_t* dplasma_ztrsmpl_fusion_New(const tiled_matrix_desc_t *A, const tiled_matrix_desc_t *IPIV, tiled_matrix_desc_t *B);
+parsec_handle_t* dplasma_zgetrf_std_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
+parsec_handle_t* dplasma_zgetrf_panel_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
+parsec_handle_t* dplasma_zgetrf_fusion_New( tiled_matrix_desc_t *A, tiled_matrix_desc_t *IPIV, int P, int Q, int *info );
+parsec_handle_t* dplasma_zgetrf_sp_New(double criteria, tiled_matrix_desc_t *A, int *info);
 
-void dplasma_ztrsmpl_fusion_Destruct( dague_handle_t *o );
-void dplasma_ztrsmpl_sd_Destruct( dague_handle_t *o );
-void dplasma_zgetrf_std_Destruct( dague_handle_t *o );
-void dplasma_zgetrf_panel_Destruct( dague_handle_t *o );
-void dplasma_zgetrf_fusion_Destruct( dague_handle_t *o );
-void dplasma_zgetrf_sp_Destruct( dague_handle_t *o );
+void dplasma_ztrsmpl_fusion_Destruct( parsec_handle_t *o );
+void dplasma_ztrsmpl_sd_Destruct( parsec_handle_t *o );
+void dplasma_zgetrf_std_Destruct( parsec_handle_t *o );
+void dplasma_zgetrf_panel_Destruct( parsec_handle_t *o );
+void dplasma_zgetrf_fusion_Destruct( parsec_handle_t *o );
+void dplasma_zgetrf_sp_Destruct( parsec_handle_t *o );
 
 #endif /* _DPLASMA_Z_H_ */

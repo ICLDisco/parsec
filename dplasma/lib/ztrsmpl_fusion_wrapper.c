@@ -6,7 +6,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include "dague.h"
+#include "parsec.h"
 #include <plasma.h>
 #include <core_blas.h>
 #include "dplasma.h"
@@ -16,59 +16,58 @@
 
 #include "ztrsmpl_fusion.h"
 
-dague_handle_t* dplasma_ztrsmpl_fusion_New( const tiled_matrix_desc_t *A,
-                                            const tiled_matrix_desc_t *IPIV,
-                                            tiled_matrix_desc_t *B )
+parsec_handle_t*
+dplasma_ztrsmpl_fusion_New( const tiled_matrix_desc_t *A,
+                            const tiled_matrix_desc_t *IPIV,
+                            tiled_matrix_desc_t *B )
 {
-    dague_ztrsmpl_fusion_handle_t *dague_ztrsmpl_fusion = NULL;
+    parsec_ztrsmpl_fusion_handle_t *parsec_ztrsmpl_fusion = NULL;
     int nb = A->nb;
     int P = ((two_dim_block_cyclic_t*)A)->grid.rows;
 
-    dague_ztrsmpl_fusion = dague_ztrsmpl_fusion_new((dague_ddesc_t*)A,
-                                                                     (dague_ddesc_t*)IPIV,
-                                                                     (dague_ddesc_t*)B,
-                                                                     P);
+    parsec_ztrsmpl_fusion = parsec_ztrsmpl_fusion_new(A, IPIV, B, P);
 
     /* A */
-    dplasma_add2arena_tile( dague_ztrsmpl_fusion->arenas[DAGUE_ztrsmpl_fusion_DEFAULT_ARENA],
-                            A->mb*A->nb*sizeof(dague_complex64_t),
-                            DAGUE_ARENA_ALIGNMENT_SSE,
-                            dague_datatype_double_complex_t, A->mb );
+    dplasma_add2arena_tile( parsec_ztrsmpl_fusion->arenas[PARSEC_ztrsmpl_fusion_DEFAULT_ARENA],
+                            A->mb*A->nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, A->mb );
 
     /* PERMUT */
-    dplasma_add2arena_rectangle( dague_ztrsmpl_fusion->arenas[DAGUE_ztrsmpl_fusion_PERMUT_ARENA],
+    dplasma_add2arena_rectangle( parsec_ztrsmpl_fusion->arenas[PARSEC_ztrsmpl_fusion_PERMUT_ARENA],
                                  2 * nb * sizeof(int),
-                                 DAGUE_ARENA_ALIGNMENT_SSE,
-                                 dague_datatype_int_t, 2, nb, -1 );
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_int_t, 2, nb, -1 );
 
-    return (dague_handle_t*)dague_ztrsmpl_fusion;
+    return (parsec_handle_t*)parsec_ztrsmpl_fusion;
 }
 
 void
-dplasma_ztrsmpl_fusion_Destruct( dague_handle_t *handle )
+dplasma_ztrsmpl_fusion_Destruct( parsec_handle_t *handle )
 {
-    dague_ztrsmpl_fusion_handle_t *dague_ztrsmpl_fusion = (dague_ztrsmpl_fusion_handle_t *)handle;
+    parsec_ztrsmpl_fusion_handle_t *parsec_ztrsmpl_fusion = (parsec_ztrsmpl_fusion_handle_t *)handle;
 
-    dague_matrix_del2arena( dague_ztrsmpl_fusion->arenas[DAGUE_ztrsmpl_fusion_DEFAULT_ARENA] );
-    dague_matrix_del2arena( dague_ztrsmpl_fusion->arenas[DAGUE_ztrsmpl_fusion_PERMUT_ARENA ] );
+    parsec_matrix_del2arena( parsec_ztrsmpl_fusion->arenas[PARSEC_ztrsmpl_fusion_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( parsec_ztrsmpl_fusion->arenas[PARSEC_ztrsmpl_fusion_PERMUT_ARENA ] );
 
-    dague_handle_free(handle);
+    parsec_handle_free(handle);
 }
 
-void dplasma_ztrsmpl_fusion( dague_context_t *dague,
-                             const tiled_matrix_desc_t *A,
-                             const tiled_matrix_desc_t *IPIV,
-                             tiled_matrix_desc_t *B )
+void
+dplasma_ztrsmpl_fusion( parsec_context_t *parsec,
+                        const tiled_matrix_desc_t *A,
+                        const tiled_matrix_desc_t *IPIV,
+                        tiled_matrix_desc_t *B )
 {
-    dague_handle_t *dague_ztrsmpl_fusion = NULL;
+    parsec_handle_t *parsec_ztrsmpl_fusion = NULL;
 
-    dague_ztrsmpl_fusion = dplasma_ztrsmpl_fusion_New(A, IPIV, B );
+    parsec_ztrsmpl_fusion = dplasma_ztrsmpl_fusion_New(A, IPIV, B );
 
-    if ( dague_ztrsmpl_fusion != NULL )
+    if ( parsec_ztrsmpl_fusion != NULL )
     {
-        dague_enqueue( dague, (dague_handle_t*)dague_ztrsmpl_fusion);
-        dplasma_progress(dague);
-        dplasma_ztrsmpl_fusion_Destruct( dague_ztrsmpl_fusion );
+        parsec_enqueue( parsec, (parsec_handle_t*)parsec_ztrsmpl_fusion);
+        dplasma_progress(parsec);
+        dplasma_ztrsmpl_fusion_Destruct( parsec_ztrsmpl_fusion );
     }
 
     return;

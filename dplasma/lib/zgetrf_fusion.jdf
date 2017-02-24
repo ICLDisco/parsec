@@ -1,10 +1,10 @@
 extern "C" %{
 /*
- *  Copyright (c) 2010
- *
- *  The University of Tennessee and The University
- *  of Tennessee Research Foundation.  All rights
- *  reserved.
+ * Copyright (c) 2010-2018 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation. All rights
+ *                         reserved.
+ * Copyright (c) 2010-2017 Bordeaux INP, CNRS (LaBRI UMR 5800), Inria,
+ *                         Univ. Bordeaux. All rights reserved.
  *
  * @precisions normal z -> s d c
  *
@@ -18,13 +18,12 @@ extern "C" %{
 #include <core_blas.h>
 #include <math.h>
 
-#define get_diag( _buf_ )  (((dague_complex64_t*)(_buf_)))
-#define get_rmax( _buf_ )  (((dague_complex64_t*)(_buf_)) + descA.nb)
-#define get_pivot( _buf_ ) (*( (int*)( ((dague_complex64_t*)(_buf_)) + 2*descA.nb ) ))
+#define get_diag( _buf_ )  (((parsec_complex64_t*)(_buf_)))
+#define get_rmax( _buf_ )  (((parsec_complex64_t*)(_buf_)) + descA->nb)
+#define get_pivot( _buf_ ) (*( (int*)( ((parsec_complex64_t*)(_buf_)) + 2*descA->nb ) ))
 
-static dague_complex64_t zone  = 1.;
-static dague_complex64_t mzone = -1.;
-static int tasks_in_panel = 0;
+static parsec_complex64_t zone  = 1.;
+static parsec_complex64_t mzone = -1.;
 
 /*
  * This jdf is composed of two parts: the panel and the update.
@@ -56,7 +55,6 @@ static int tasks_in_panel = 0;
  *    (m!=k) GEMM -> COLLECT -> RECV -> GEMM
  *
  * In the meantime: COLLECT -> SND -> TRSM_U
- *    (COPY, COLLECT and SND are immediate)
  *
  */
 
@@ -123,15 +121,14 @@ static inline int get_priority(int k, int n) {
 
 /* Globals
  */
-A            [type = "dague_ddesc_t *"]
-IPIV         [type = "dague_ddesc_t *"]
+descA        [type = "const tiled_matrix_desc_t*"]
+descIPIV     [type = "const tiled_matrix_desc_t*"]
 IB           [type = "int"]
 P            [type = "int"]
 Q            [type = "int"]
 INFO         [type = "int*"]
 
-descA        [type = "tiled_matrix_desc_t" hidden=on default="*((tiled_matrix_desc_t*)A)" ]
-minmnt       [type = "int" hidden=on default="( dague_imin( ((tiled_matrix_desc_t*)A)->mt, ((tiled_matrix_desc_t*)A)->nt ) - 1 )" ]
+minmnt       [type = "int" hidden=on default="( dplasma_imin( descA->mt, descA->nt ) - 1 )" ]
 
 /**************************************************
  *                    IP_in (pseudo task)
@@ -140,15 +137,15 @@ IP_in(k, m) [profile = off]
 
 // Execution space
 k = 0 .. minmnt
-m = 0 .. inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
+m = 0 .. inline_c %{ return dplasma_imin( descA->mt-k-1, P-1 ); %}
 r = inline_c %{ return (k+m) % P; %}
 
 // Parallel partitioning
-:IPIV(r, k)
+:descIPIV(r, k)
 
 // Parameters
-READ  IP <- IPIV( r, k )                                    [type = PIVOT]
-         -> IP GETRF_MAX(k, (k+m) .. (descA.mt-1) .. P, 0)  [type = PIVOT]
+READ  IP <- descIPIV( r, k )                                 [type = PIVOT]
+         -> IP GETRF_MAX(k, (k+m) .. (descA->mt-1) .. P, 0)  [type = PIVOT]
 
 ; inline_c %{ return get_priority(k, k); %}
 
@@ -165,15 +162,15 @@ IP_out(k, m) [profile = off]
 
 // Execution space
 k = 0 .. minmnt
-m = 0 .. inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
+m = 0 .. inline_c %{ return dplasma_imin( descA->mt-k-1, P-1 ); %}
 r = inline_c %{ return (k+m) % P; %}
 
 // Parallel partitioning
-:IPIV(r, k)
+:descIPIV(r, k)
 
 // Parameters
 READ  IP <- IP GETRF_FNL(k, k+m)                          [type = PIVOT]
-         -> IPIV(r, k)                                    [type = PIVOT]
+         -> descIPIV(r, k)                                [type = PIVOT]
 
 ;inline_c %{ return get_priority(k, k); %}
 
@@ -190,14 +187,14 @@ U_in(k, m) [profile = off]
 
 // Execution space
 k = 0 .. minmnt
-m = 0 .. inline_c %{ return dague_imin( descA.mt-k-1, P-1 ); %}
+m = 0 .. inline_c %{ return dplasma_imin( descA->mt-k-1, P-1 ); %}
 
 // Parallel partitioning
-:A(k+m, k%Q)
+:descA(k+m, k%Q)
 
 // Parameters
 WRITE  U <- NEW                                            [type = UMES]
-         -> U GETRF_MAX(k, (k+m) .. (descA.mt-1) .. P, 0)  [type = UMES]
+         -> U GETRF_MAX(k, (k+m) .. (descA->mt-1) .. P, 0)  [type = UMES]
 
 ;inline_c %{ return get_priority(k, k); %}
 
@@ -212,26 +209,26 @@ END
  * Apply the scale and the update of the step h-1
  * Look for the local tile max of the step h
  **************************************************/
-GETRF_MAX(k, m, h)
+GETRF_MAX(k, m, h) [high_priority = on]
 
 // Execution space
 k = 0 .. minmnt
-m = k .. descA.mt-1
+m = k .. descA->mt-1
 
-tempkm = inline_c %{ return (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb; %}
-tempkn = inline_c %{ return (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb; %}
-hmax   = inline_c %{ return dague_imin( tempkm, tempkn )-1; %}
+tempkm = inline_c %{ return (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb; %}
+tempkn = inline_c %{ return (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb; %}
+hmax   = inline_c %{ return dplasma_imin( tempkm, tempkn )-1; %}
 h  = 0 .. hmax
 
 /* Indices for Maximum reduction */
-size = inline_c %{ int ret = (descA.mt-k) / P;
-                   return (m-k)%P < (descA.mt-k)%P ? ret+1 : ret;%}
+size = inline_c %{ int ret = (descA->mt-k) / P;
+                   return (m-k)%P < (descA->mt-k)%P ? ret+1 : ret;%}
 lmmax= inline_c %{ return (size / 2) - 1; %}
 lm   = inline_c %{ return (m-k) / P; %}
 lr   = inline_c %{ return (m-k) % P; %}
 
 dmax = inline_c %{
-  int nb_init = dague_imin( descA.mt-k, P);
+  int nb_init = dplasma_imin( descA->mt-k, P);
   int i;
   for(i = 0;nb_init != 1 ;i++)
       nb_init/=2;
@@ -239,10 +236,10 @@ dmax = inline_c %{
 %}
 
 // Parallel partitioning
-:A(m, k)
+:descA(m, k)
 
  /* Tile A(m, k) we are working on */
-RW  T <- ((h == 0) && (k == 0)) ? A(m, k)
+RW  T <- ((h == 0) && (k == 0)) ? descA(m, k)
       <- ((h == 0) && (k != 0)) ? C GEMM(k-1, m, k )
       <-  (h != 0)              ? T GETRF_MAX(k, m, h-1 )
 
@@ -282,19 +279,18 @@ WRITE  M -> (size == 1) ? M GETRF_SVM(k, h, lr)                                 
 
 BODY
 {
-    dague_complex64_t *lM  = (dague_complex64_t*)M;
-    dague_complex64_t *lT  = (dague_complex64_t*)T;
-    dague_complex64_t *lU  = (dague_complex64_t*)U;
-    dague_complex64_t *A, *L;
+    parsec_complex64_t *lM  = (parsec_complex64_t*)M;
+    parsec_complex64_t *lT  = (parsec_complex64_t*)T;
+    parsec_complex64_t *lU  = (parsec_complex64_t*)U;
+    parsec_complex64_t *A, *L;
 
     int p = (m == k)? h : 0;
-    int tempmm = ( m == (descA.mt-1) ) ? descA.m - m * descA.mb : descA.mb;
+    int tempmm = ( m == (descA->mt-1) ) ? descA->m - m * descA->mb : descA->mb;
     tempmm -= p;
 
     printlog("GETRF_MAX(k=%d, m=%d, h=%d) / (hmax=%d, size=%d, lm=%d)\n",
              k, m, h, hmax, size, lm);
 
-#if !defined(DAGUE_DRY_RUN)
     int nt = ( tempkn - 1 ) / IB ;
     int jt = h / IB ;
     int temphn = ((jt == nt) && (tempkn%IB != 0)) ? tempkn%IB : IB;
@@ -304,11 +300,11 @@ BODY
     A = lT + ldam * h + p;
 
     if(h != 0) {
-        dague_complex64_t *lmaxi = get_rmax( V );
-        dague_complex64_t alpha;
+        parsec_complex64_t *lmaxi = get_rmax( V );
+        parsec_complex64_t alpha;
         int pivot = get_pivot( V );
-        int owner_last_index = pivot / descA.mb;
-        int last_index       = pivot % descA.mb;
+        int owner_last_index = pivot / descA->mb;
+        int last_index       = pivot % descA->mb;
 
         /* Applying the previous swap */
         if( (m == k) && (pivot != h-1) ) {
@@ -336,7 +332,7 @@ BODY
         L = lT + ldam * (h-1) + p;
 
         /* Applying the update */
-        alpha = (dague_complex64_t)1. / lmaxi[h-1];
+        alpha = (parsec_complex64_t)1. / lmaxi[h-1];
         cblas_zscal(tempmm, CBLAS_SADDR( alpha ), L, 1 );
 
         if((h%IB) != 0){
@@ -371,14 +367,13 @@ BODY
     index = cblas_izamax( tempmm, A, 1 ) + p;
 
     /* Save index */
-    (*((int*)M)) = descA.mb * m + index;
+    (*((int*)M)) = descA->mb * m + index;
 
     /* Save the line */
-    lM = ((dague_complex64_t*)M) + 1;
+    lM = ((parsec_complex64_t*)M) + 1;
     cblas_zcopy(tempkn, lT + index, ldam,
                 lM,         1);
 
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -387,20 +382,20 @@ END
  * Look for the local node max of the step h
  *
  **************************************************/
-GETRF_RDC(k, h, r, m) [immediate = off]
+GETRF_RDC(k, h, r, m)
 
 k = 0 .. minmnt
 
-tempkm = inline_c %{ return (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb; %}
-tempkn = inline_c %{ return (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb; %}
-hmax   = inline_c %{ return dague_imin(tempkm, tempkn)-1; %}
-rmax   = inline_c %{ return dague_imin(descA.mt-k, P)-1; %}
+tempkm = inline_c %{ return (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb; %}
+tempkn = inline_c %{ return (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb; %}
+hmax   = inline_c %{ return dplasma_imin(tempkm, tempkn)-1; %}
+rmax   = inline_c %{ return dplasma_imin(descA->mt-k, P)-1; %}
 
 h = 0 .. hmax
 r = 0 .. rmax
 
-size   = inline_c %{ int ret = (descA.mt-k) / P;
-                     return r < ((descA.mt-k)%P) ? ret+1 : ret; %}
+size   = inline_c %{ int ret = (descA->mt-k) / P;
+                     return r < ((descA->mt-k)%P) ? ret+1 : ret; %}
 mmax   = inline_c %{ return (size/2)-1; %}
 
 /* here m is the local tile indice and not the global one */
@@ -409,7 +404,7 @@ mg = inline_c %{ return 2 * m + 1; %}
 md = inline_c %{ return 2 * m + 2; %}
 
 // Parallel partitioning
-:A(k+r, k)
+:descA(k+r, k)
 
 RW    Mm <- M GETRF_MAX(k, k+r+P*m, h)                                   [type = MAXL]
          -> (m == 0) ? M GETRF_SVM(k, h, r)                              [type = MAXL]
@@ -429,14 +424,13 @@ READ  Md <- (md <= mmax) ? Mm GETRF_RDC(k, h, r, md )                    [type =
 
 BODY
 {
+    parsec_complex64_t *lMm = (parsec_complex64_t*)Mm;
+    parsec_complex64_t *lMg = (parsec_complex64_t*)Mg;
+    parsec_complex64_t *lMd = (parsec_complex64_t*)Md;
+    double vm = cabs(lMm[1+h]);
+
     printlog("GETRF_RDC(k=%d, h=%d, r=%d, size=%d, mmax=%d, m=%d, mg=%d, md=%d)\n",
              k, h, r, size, mmax, m, mg, md );
-
-#if !defined(DAGUE_DRY_RUN)
-    dague_complex64_t *lMm = (dague_complex64_t*)Mm;
-    dague_complex64_t *lMg = (dague_complex64_t*)Mg;
-    dague_complex64_t *lMd = (dague_complex64_t*)Md;
-    double vm = cabs(lMm[1+h]);
 
     if (md < size) {
         double vg = cabs(lMg[1+h]);
@@ -462,7 +456,6 @@ BODY
                         lMm, 1);
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -471,23 +464,23 @@ END
  * Saving the local node max in the V workspace
  *
  **************************************************/
-GETRF_SVM(k, h, r) [immediate = off]
+GETRF_SVM(k, h, r)
 
 k = 0 .. minmnt
 
-tempkm = inline_c %{ return (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb; %}
-tempkn = inline_c %{ return (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb; %}
-hmax   = inline_c %{ return dague_imin(tempkm, tempkn)-1; %}
-rmax   = inline_c %{ return dague_imin(descA.mt-k, P); %}
+tempkm = inline_c %{ return (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb; %}
+tempkn = inline_c %{ return (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb; %}
+hmax   = inline_c %{ return dplasma_imin(tempkm, tempkn)-1; %}
+rmax   = inline_c %{ return dplasma_imin(descA->mt-k, P); %}
 
 h = 0 .. hmax
 r = 0 .. rmax-1
 
-size = inline_c %{ int ret = (descA.mt-k) / P;
-                   return r < ((descA.mt-k)%P) ? ret+1 : ret; %}
+size = inline_c %{ int ret = (descA->mt-k) / P;
+                   return r < ((descA->mt-k)%P) ? ret+1 : ret; %}
 
 // Parallel partitioning
-:A(k+r, k)
+:descA(k+r, k)
 
 READ  A <- T GETRF_MAX(k, k+r, h)
 
@@ -502,17 +495,16 @@ WRITE V2 -> B  GETRF_SND(k, h, 0, (r+1)%rmax )         [type = SWAP] /* Remote *
 
 BODY
 {
+    parsec_complex64_t *lM = (parsec_complex64_t*)M;
+
     printlog("GETRF_SVM(k=%d, h=%d, r=%d)\n", k, h, r );
 
-#if !defined(DAGUE_DRY_RUN)
-    dague_complex64_t *lM = (dague_complex64_t*)M;
-
 #if !defined(NDEBUG)
-    memset( V1, 0, (2*descA.nb+1)*sizeof(dague_complex64_t));
+    memset( V1, 0, (2*descA->nb+1)*sizeof(parsec_complex64_t));
 #endif
     /* Saving the default swap line */
     if ( r == 0 ) {
-        dague_complex64_t *lA = (dague_complex64_t*)A;
+        parsec_complex64_t *lA = (parsec_complex64_t*)A;
         int ldam = BLKLDD( descA, m );
 
         cblas_zcopy(tempkn, lA + h,        ldam,
@@ -524,8 +516,7 @@ BODY
                 get_rmax( V1 ), 1);
     get_pivot( V1 ) = *((int*)M);
 
-    memcpy( V2, V1, (2*descA.nb+1)*sizeof(dague_complex64_t));
-#endif /* !defined(DAGUE_DRY_RUN) */
+    memcpy( V2, V1, (2*descA->nb+1)*sizeof(parsec_complex64_t));
 }
 END
 
@@ -534,14 +525,14 @@ END
  * Look and share the global max of the step h
  * by using the Bruck algorithm
  **************************************************/
-GETRF_SND(k, h, d, r) [immediate = off]
+GETRF_SND(k, h, d, r) [high_priority = on]
 
 k = 0 .. minmnt
 
-tempkm = inline_c %{ return (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb; %}
-tempkn = inline_c %{ return (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb; %}
-hmax   = inline_c %{ return dague_imin(tempkm, tempkn)-1; %}
-rmax   = inline_c %{ return dague_imin(descA.mt-k, P); %}
+tempkm = inline_c %{ return (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb; %}
+tempkn = inline_c %{ return (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb; %}
+hmax   = inline_c %{ return dplasma_imin(tempkm, tempkn)-1; %}
+rmax   = inline_c %{ return dplasma_imin(descA->mt-k, P); %}
 
 dmax = inline_c %{
     int nb_init = rmax;
@@ -557,52 +548,50 @@ r = 0 .. rmax-1
 pui = inline_c %{ return 1 << d; %}
 
 // Parallel partitioning
-:A(k+r, k)
+:descA(k+r, k)
 
         /* Local forward of T */
-RW    T <- (d > 0   ) ? T GETRF_SND(k, h, d-1, r) : V1 GETRF_SVM(k, h, r)               [type = SWAP]
+RW    T <- (d >  0   ) ? T GETRF_SND(k, h, d-1, r) : V1 GETRF_SVM(k, h, r)             [type = SWAP]
 
         -> (d <  dmax) ? T GETRF_SND(k, h, d+1, r)                                     [type = SWAP]
         -> (d == dmax) && ((h == hmax) || ((h+1)%IB == 0)) ? V GETRF_MDL(k, r, h/IB)   [type = SWAP]
-        -> (d == dmax) &&  (h != hmax) ? V GETRF_MAX(k, (k+r)..(descA.mt-1)..P, h+1)   [type = SWAP]
+        -> (d == dmax) &&  (h != hmax) ? V GETRF_MAX(k, (k+r)..(descA->mt-1)..P, h+1)  [type = SWAP]
 
         /* Send T to the bottom */
-RW    B <- (d == 0) ? V2 GETRF_SVM(k, h, (rmax+r-1)%rmax )                             [type = SWAP]
-        <- (d != 0)    ? B GETRF_SND(k, h, d-1, (rmax+r-pui)%rmax )                    [type = SWAP]
+RW    B <- (d == 0)    ? V2 GETRF_SVM(k, h,      (rmax+r-1)  %rmax )                   [type = SWAP]
+        <- (d != 0)    ? B  GETRF_SND(k, h, d-1, (rmax+r-pui)%rmax )                   [type = SWAP]
 
-        -> (d <  dmax) ? B GETRF_SND(k, h, d+1, (r+2*pui)%rmax)                        [type = SWAP]
+        -> (d <  dmax) ? B  GETRF_SND(k, h, d+1, (r+2*pui)%rmax)                       [type = SWAP]
 
 // Priority
 ;inline_c %{ return get_priority(k, k); %}
 
 BODY
 {
+    parsec_complex64_t *mT = get_rmax( T );
+    parsec_complex64_t *mB = get_rmax( B );
+
     printlog("GETRF_SND( k=%d, d=%d, r=%d, h=%d )\n", k, d, r, h );
 
-#if !defined(DAGUE_DRY_RUN)
     /* The received buffer contains the diagonal line */
     if( (pui <= r) && (r < 2*pui) ) {
         cblas_zcopy(tempkn, get_diag( B ), 1,
-                    get_diag( T ), 1);
+                            get_diag( T ), 1);
     } else {
         cblas_zcopy(tempkn, get_diag( T ), 1,
-                    get_diag( B ), 1);
+                            get_diag( B ), 1);
     }
-
-    dague_complex64_t *mT = get_rmax( T );
-    dague_complex64_t *mB = get_rmax( B );
 
     if( cabs( mB[h] ) > cabs( mT[h] ) )
     {
         cblas_zcopy(tempkn, mB, 1,
-                    mT, 1);
+                            mT, 1);
         get_pivot( T ) = get_pivot( B );
     } else {
         cblas_zcopy(tempkn, mT, 1,
-                    mB, 1);
+                            mB, 1);
         get_pivot( B ) = get_pivot( T );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -611,14 +600,14 @@ END
  * Applying the trsm on the local U matrice
  *
  **************************************************/
-GETRF_MDL(k, r, h)
+GETRF_MDL(k, r, h)  [high_priority = on]
 
 k = 0 .. minmnt
 
-tempkm = inline_c %{ return (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb; %}
-tempkn = inline_c %{ return (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb; %}
-minmn  = inline_c %{ return dague_imin(tempkm, tempkn); %}
-rmax   = inline_c %{ return dague_imin(descA.mt-k, P)-1; %}
+tempkm = inline_c %{ return (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb; %}
+tempkn = inline_c %{ return (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb; %}
+minmn  = inline_c %{ return dplasma_imin(tempkm, tempkn); %}
+rmax   = inline_c %{ return dplasma_imin(descA->mt-k, P)-1; %}
 hmax   = inline_c %{ return ((minmn%IB) == 0)? (minmn/IB-1) : minmn/IB; %}
 
 r = 0 .. rmax
@@ -634,21 +623,21 @@ dmax = inline_c %{
 sender = inline_c %{ return ((h == hmax) ? minmn-1 : ((h+1)*IB)-1); %}
 
 // Parallel partitioning
-:A(k+r, k)
+:descA(k+r, k)
 
 READ  V <- T GETRF_SND(k, sender, dmax, r)                                              [type = SWAP]
-        -> (h == hmax) ? V GETRF_FNL(k, (k+r) .. (descA.mt-1) .. P)                     [type = SWAP]
+        -> (h == hmax) ? V GETRF_FNL(k, (k+r) .. (descA->mt-1) .. P)                    [type = SWAP]
 RW    U <- U GETRF_MAX(k, k+r, sender)                                                  [type = UMES]
-        -> (h != hmax) ? U GETRF_MAX(k, (k+r) .. (descA.mt-1) .. P, ((h+1)*IB))         [type = UMES]
+        -> (h != hmax) ? U GETRF_MAX(k, (k+r) .. (descA->mt-1) .. P, ((h+1)*IB))        [type = UMES]
 
 // Priority
 ;inline_c %{ return get_priority(k, k); %}
 
 BODY
 {
+    parsec_complex64_t *lU = (parsec_complex64_t*)U;
+
     printlog("GETRF_MDL(k=%d, r=%d, h=%d )\n", k, r, h );
-#if !defined(DAGUE_DRY_RUN)
-    dague_complex64_t *lU = (dague_complex64_t*)U;
 
     /* Copying the previous max line in the local U */
     if(h != hmax) {
@@ -665,7 +654,6 @@ BODY
         cblas_zcopy(tempkn, get_rmax( V ),       1,
                     lU + ((minmn-1)%IB), IB);
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -674,60 +662,61 @@ END
  * Apply the last scale and update. Then send the
  * pivot to the swap operations.
  **************************************************/
-GETRF_FNL(k,m)
+GETRF_FNL(k,m)  [high_priority = on]
 
 // Execution space
 k = 0 .. minmnt
-m = k .. descA.mt-1
+m = k .. descA->mt-1
 
-tempkm = inline_c %{ return (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb; %}
-tempkn = inline_c %{ return (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb; %}
-minmn  = inline_c %{ return dague_imin( tempkm, tempkn ); %}
+tempkm = inline_c %{ return (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb; %}
+tempkn = inline_c %{ return (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb; %}
+minmn  = inline_c %{ return dplasma_imin( tempkm, tempkn ); %}
 
 imax = inline_c %{ return ((minmn%IB) == 0)? (minmn/IB-1) : minmn/IB; %}
 
 // Parallel partitioning
-:A(m, k)
+:descA(m, k)
 
 RW    T <- T GETRF_MAX(k, m, minmn-1)
-        -> (m == k) ? T TRSM_U(k, (k+1) .. (descA.nt-1)) : A GEMM(k, m, (k+1) .. (descA.nt-1))
-        -> A(m, k)
+        -> (m == k) ? T TRSM_U(k, (k+1) .. (descA->nt-1)) : A GEMM(k, m, (k+1) .. (descA->nt-1))
+        -> descA(m, k)
 
 READ  V <- V GETRF_MDL(k,(m-k)%P,imax)                                                         [type = SWAP]
 
 RW   IP <- IP GETRF_MAX( k, m, minmn-1 )                                                       [type = PIVOT]
         -> ((m-k) < P) ? IP IP_out(k,(m-k))                                                    [type = PIVOT]
 
-WRITE PERM -> ((m-k) < P) ? PERM SWAP_COLLECT(k, m .. (descA.mt-1) .. P, (k+1) .. (descA.nt-1))   [type = PERMUT]
+WRITE PERM -> ((m-k) < P) ? PERM SWAP_COLLECT(k, m .. (descA->mt-1) .. P, (k+1) .. (descA->nt-1))   [type = PERMUT]
 
 // Priority
 ;inline_c %{ return get_priority(k, k); %}
 
 BODY
 {
-    printlog("GETRF_FNL( k=%d, m=%d )\n", k, m );
-
-#if !defined(DAGUE_DRY_RUN)
-    int tempmm = (m == (descA.mt-1)) ? descA.m - m * descA.mb : descA.mb;
+    int tempmm = (m == (descA->mt-1)) ? descA->m - m * descA->mb : descA->mb;
     int ldam = BLKLDD( descA, m );
     int p = (m == k) ? minmn : 0;
+    int owner_last_index, last_index;
+    parsec_complex64_t alpha, *lT;
 
-    dague_complex64_t *lT = (dague_complex64_t*)T;
+    printlog("GETRF_FNL( k=%d, m=%d )\n", k, m );
 
     /* Applying the previous swap */
-    if(m == k)
+    lT = (parsec_complex64_t*)T;
+    if(m == k) {
         cblas_zcopy(tempkn, get_rmax( V ), 1,
-                    lT + minmn-1,  ldam);
+                            lT + minmn-1,  ldam);
+    }
 
-    int owner_last_index = get_pivot( V ) / descA.mb;
-    int last_index       = get_pivot( V ) % descA.mb;
+    owner_last_index = get_pivot( V ) / descA->mb;
+    last_index       = get_pivot( V ) % descA->mb;
     if(owner_last_index == m) {
         cblas_zcopy(tempkn, get_diag( V ),   1,
                     lT + last_index, ldam);
     }
 
     /* Appliying the update */
-    dague_complex64_t alpha = ((dague_complex64_t) 1.) / ( get_rmax( V )[minmn-1] );
+    alpha = ((parsec_complex64_t) 1.) / ( get_rmax( V )[minmn-1] );
     cblas_zscal(tempmm-p, CBLAS_SADDR( alpha ), lT + (minmn-1)*ldam + p, 1 );
 
     if(m - k < P) {
@@ -737,10 +726,9 @@ BODY
 
         pivot_to_permutation( (int*)IP, minmn,
                               (int*)PERM,
-                              (int*)PERM + descA.mb,
-                              k * descA.mb );
+                              (int*)PERM + descA->mb,
+                              k * descA->mb );
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -748,38 +736,36 @@ END
  *                    SWAP_COPY
  * Copying the A(k,n) and send it to itself
  **************************************************/
-SWAP_COPY(k, n) [immediate = off]
+SWAP_COPY(k, n)
 
 // Execution space
 k = 0   .. minmnt
-n = k+1 .. descA.nt-1
+n = k+1 .. descA->nt-1
 
 // Parallel partitioning
-:A(k, n)
+:descA(k, n)
 
 // Parameters
-READ     A <-  (k == 0) ? A(k, n) : C GEMM(k-1, k, n)
+READ     A <-  (k == 0) ? descA(k, n) : C GEMM(k-1, k, n)
            ->  C TRSM_U(k, n)
 
-WRITE    ACOPY ->  U SWAP_RECV(k, k+1 .. descA.mt-1, n)
+WRITE    ACOPY ->  U SWAP_RECV(k, k+1 .. descA->mt-1, n)
                ->  T SWAP_COLLECT(k, k, n)
 
 ;inline_c %{ return get_priority(k, n); %}
 
 BODY
 {
-    int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
-    int tempnn = (n == (descA.nt-1)) ? descA.n - n * descA.nb : descA.nb;
+    int tempkm = (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb;
+    int tempnn = (n == (descA->nt-1)) ? descA->n - n * descA->nb : descA->nb;
     int ldak = BLKLDD( descA, k );
 
     printlog("SWAP_COPY(k=%d,n=%d)\n", k, n);
 
-#if !defined(DAGUE_DRY_RUN)
     LAPACKE_zlacpy_work(LAPACK_COL_MAJOR,
                         'a', tempkm, tempnn,
                         A    , ldak,
-                        ACOPY, descA.mb);
-#endif /* !defined(DAGUE_DRY_RUN) */
+                        ACOPY, descA->mb);
 }
 END
 
@@ -792,11 +778,11 @@ SWAP_RECV(k,m,n)
 
 // Execution space
 k = 0   .. minmnt
-m = k+1 .. descA.mt-1
-n = k+1 .. descA.nt-1
+m = k+1 .. descA->mt-1
+n = k+1 .. descA->nt-1
 
 // Parallel partitioning
-:A(m, n)
+:descA(m, n)
 
 // Parameters
 READ      U <- ACOPY SWAP_COPY(k, n)
@@ -810,32 +796,30 @@ RW        T <-  T    SWAP_COLLECT(k, m, n)
 
 BODY
 {
-    printlog("SWAP_RECV(k=%d,m=%d,n=%d)\n",k,m,n);
-
-#if !defined(DAGUE_DRY_RUN)
-    int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
-    int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
-    int tempnn = (n == (descA.nt-1)) ? descA.n - n * descA.nb : descA.nb;
-    int minmn = dague_imin( tempkm, tempkn );
+    int tempkm = (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb;
+    int tempkn = (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb;
+    int tempnn = (n == (descA->nt-1)) ? descA->n - n * descA->nb : descA->nb;
+    int minmn = dplasma_imin( tempkm, tempkn );
     int ldam = BLKLDD( descA, m );
-    int *invperm = (int*)PERM + descA.nb;
+    int *invperm = (int*)PERM + descA->nb;
     int owner_index;
     int index;
     int i;
 
-    dague_complex64_t *lU = (dague_complex64_t*)U;
-    dague_complex64_t *lT = (dague_complex64_t*)T;
+    parsec_complex64_t *lU = (parsec_complex64_t*)U;
+    parsec_complex64_t *lT = (parsec_complex64_t*)T;
+
+    printlog("SWAP_RECV(k=%d,m=%d,n=%d)\n",k,m,n);
 
     for(i = 0; i < minmn; i++) {
-        owner_index = *invperm / descA.mb;
-        index       = *invperm % descA.mb;
+        owner_index = *invperm / descA->mb;
+        index       = *invperm % descA->mb;
         if(owner_index == m) {
-            cblas_zcopy(tempnn, lU + i    , descA.mb,
+            cblas_zcopy(tempnn, lU + i    , descA->mb,
                         lT + index, ldam);
         }
         invperm++;
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -844,83 +828,81 @@ END
  * Swapping all the lines for the current process
  * in the temporary buffer
  **************************************************/
-SWAP_COLLECT(k, m, n) [immediate = off]
+SWAP_COLLECT(k, m, n)
 
 // Execution space
 k = 0   .. minmnt
-m = k   .. descA.mt-1
-n = k+1 .. descA.nt-1
+m = k   .. descA->mt-1
+n = k+1 .. descA->nt-1
 i = inline_c %{ return ((m-k)%P); %}
 
-lastM = inline_c %{ return descA.mt - ( descA.mt - 1 - k - i)%P - 1; %}
+lastM = inline_c %{ return descA->mt - ( descA->mt - 1 - k - i)%P - 1; %}
 
 
 // Parallel partitioning
-:A(m, n)
+:descA(m, n)
 
 // Parameters
 RW    BUF   <-  ((m-k) <  P ) ? NULL
             <-  ((m-k) >= P ) ? BUFIN SWAP_COLLECT(k, k + i, n)
 
-            ->  ((m-k) >= P) && ((descA.mt-m-1) <  P) && (i%2 == 0) ? Rtop    SWAP_SND(k, 1, i/2, n )
-            ->  ((m-k) >= P) && ((descA.mt-m-1) <  P) && (i%2 == 1) ? Rbottom SWAP_SND(k, 1, i/2, n )
+            ->  ((m-k) >= P) && ((descA->mt-m-1) <  P) && (i%2 == 0) ? Rtop    SWAP_SND(k, 1, i/2, n )
+            ->  ((m-k) >= P) && ((descA->mt-m-1) <  P) && (i%2 == 1) ? Rbottom SWAP_SND(k, 1, i/2, n )
 
 READ  T     <-  (k == m) ? ACOPY SWAP_COPY(k, n)
-            <-  (k != m) && (k == 0) ? A(m, n)
+            <-  (k != m) && (k == 0) ? descA(m, n)
             <-  (k != m) && (k != 0) ? C GEMM(k-1, m, n)
             ->  (m > k) ? T SWAP_RECV(k,m,n)
 
 READ  PERM  <-  PERM GETRF_FNL(k, k + i )                                              [type = PERMUT]
             ->  PERM SWAP_RECV(k, m, n )                                               [type = PERMUT]
-            ->  (((descA.mt-m-1) <  P) && (i%2 == 0) ) ? PERM SWAP_SND(k, 1, i/2, n )  [type = PERMUT]
+            ->  (((descA->mt-m-1) <  P) && (i%2 == 0) ) ? PERM SWAP_SND(k, 1, i/2, n ) [type = PERMUT]
 
-WRITE BUFIN ->  ((m-k) < P) && ((descA.mt-m-1) >= P) ? BUF SWAP_COLLECT(k, m+P .. (descA.mt-1) .. P, n)
-            ->  ((m-k) < P) && ((descA.mt-m-1) <  P) && (i%2 == 0) ? Rtop    SWAP_SND(k, 1, i/2, n )
-            ->  ((m-k) < P) && ((descA.mt-m-1) <  P) && (i%2 == 1) ? Rbottom SWAP_SND(k, 1, i/2, n )
+WRITE BUFIN ->  ((m-k) < P) && ((descA->mt-m-1) >= P) ? BUF SWAP_COLLECT(k, m+P .. (descA->mt-1) .. P, n)
+            ->  ((m-k) < P) && ((descA->mt-m-1) <  P) && (i%2 == 0) ? Rtop    SWAP_SND(k, 1, i/2, n )
+            ->  ((m-k) < P) && ((descA->mt-m-1) <  P) && (i%2 == 1) ? Rbottom SWAP_SND(k, 1, i/2, n )
 
-CTL   ctl   ->   ((descA.mt-m-1) >=  P)? ctl SWAP_COLLECT(k, lastM, n)
-            <-  (((descA.mt-m-1) <  P) && ((descA.mt-k+i-1) >=  P))? ctl SWAP_COLLECT(k, k+i .. m-P .. P, n)
+CTL   ctl   ->   ((descA->mt-m-1) >=  P)? ctl SWAP_COLLECT(k, lastM, n)
+            <-  (((descA->mt-m-1) <  P) && ((descA->mt-k+i-1) >=  P))? ctl SWAP_COLLECT(k, k+i .. m-P .. P, n)
 
 ;inline_c %{ return get_priority(k, n); %}
 
 BODY
 {
-    printlog("SWAP_COLLECT(k=%d,m=%d,n=%d)\n",k,m,n);
-
-#if !defined(DAGUE_DRY_RUN)
-    int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
-    int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
-    int tempnn = (n == (descA.nt-1)) ? descA.n - n * descA.nb : descA.nb;
-    int minmn = dague_imin( tempkm, tempkn );
+    int tempkm = (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb;
+    int tempkn = (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb;
+    int tempnn = (n == (descA->nt-1)) ? descA->n - n * descA->nb : descA->nb;
+    int minmn = dplasma_imin( tempkm, tempkn );
     int ldam = BLKLDD( descA, m );
     int *perm = (int*)PERM;
     int owner_index;
     int index;
     int j;
 
-    dague_complex64_t *lT = (dague_complex64_t*)T;
-    dague_complex64_t *lM;
+    parsec_complex64_t *lT = (parsec_complex64_t*)T;
+    parsec_complex64_t *lM;
+
+    printlog("SWAP_COLLECT(k=%d,m=%d,n=%d)\n",k,m,n);
 
     if ( (m-k) < P ) {
-        lM = (dague_complex64_t*)BUFIN;
+        lM = (parsec_complex64_t*)BUFIN;
 #if !defined(NDEBUG)
-        memset(BUFIN, 0, descA.mb*descA.nb*sizeof(dague_complex64_t));
+        memset(BUFIN, 0, descA->mb*descA->nb*sizeof(parsec_complex64_t));
 #endif
     } else {
-        lM = (dague_complex64_t*)BUF;
+        lM = (parsec_complex64_t*)BUF;
     }
 
     for(j = 0; j < minmn; j++) {
-        owner_index = *perm / descA.mb;
-        index       = *perm % descA.mb;
+        owner_index = *perm / descA->mb;
+        index       = *perm % descA->mb;
 
         if(owner_index == m) {
             cblas_zcopy(tempnn, lT + index,      ldam,
-                        lM + j*descA.mb, 1);
+                        lM + j*descA->mb, 1);
         }
         perm++;
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -928,24 +910,24 @@ END
  *                    SWAP_SND
  *      Reduction tree of the collected rows
  **************************************************/
-SWAP_SND(k, l, i, n) [immediate = off]
+SWAP_SND(k, l, i, n)
 
 // Execution space
 k = 0 .. minmnt
-height = inline_c %{ return dague_imin( descA.mt-k, P ); %}
-depth  = inline_c %{ return (int)ceil( log ( dague_imax(height,2) ) / log(2.) ); %}
+height = inline_c %{ return dplasma_imin( descA->mt-k, P ); %}
+depth  = inline_c %{ return (int)ceil( log ( dplasma_imax(height,2) ) / log(2.) ); %}
 l = 1   .. depth
-i = 0   .. inline_c %{ return dague_imin( ((1 << (depth - l)) - 1), height / 2 ); %}
-n = k+1 .. descA.nt-1
+i = 0   .. inline_c %{ return dplasma_imin( ((1 << (depth - l)) - 1), height / 2 ); %}
+n = k+1 .. descA->nt-1
 
 size = inline_c %{ return 1<<(l-1); %}
 iT = inline_c %{ return  2*i   *size; %}
 iB = inline_c %{ return (2*i+1)*size; %}
-mT = inline_c %{ return descA.mt - ( descA.mt - 1 - k - iT)%P - 1; %}
-mB = inline_c %{ return descA.mt - ( descA.mt - 1 - k - iB)%P - 1; %}
+mT = inline_c %{ return descA->mt - ( descA->mt - 1 - k - iT)%P - 1; %}
+mB = inline_c %{ return descA->mt - ( descA->mt - 1 - k - iB)%P - 1; %}
 
 // Parallel partitioning
-:A(mT, n)
+:descA(mT, n)
 
 // Parameters
 RW       Rtop    <- (l == 1) && ((mT-k) <  P) ? BUFIN  SWAP_COLLECT( k, mT, n )
@@ -974,32 +956,30 @@ BODY
     printlog("SWAP_SND(k=%d,l=%d,i=%d,n=%d) => Merge( %d [%d], %d [%d])\n",
              k, l, i, n, iT, mT, iB, mB );
 
-#if !defined(DAGUE_DRY_RUN)
     if ( iB < height ) {
 
-        int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
-        int tempkn = (k == (descA.nt-1)) ? descA.n - k * descA.nb : descA.nb;
-        int tempnn = (n == (descA.nt-1)) ? descA.n - n * descA.nb : descA.nb;
-        int minmn = dague_imin( tempkm, tempkn );
+        int tempkm = (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb;
+        int tempkn = (k == (descA->nt-1)) ? descA->n - k * descA->nb : descA->nb;
+        int tempnn = (n == (descA->nt-1)) ? descA->n - n * descA->nb : descA->nb;
+        int minmn = dplasma_imin( tempkm, tempkn );
         int *perm = (int*)PERM;
         int owner_index;
         int j;
 
-        dague_complex64_t *lT = (dague_complex64_t*)Rtop;
-        dague_complex64_t *lB = (dague_complex64_t*)Rbottom;
+        parsec_complex64_t *lT = (parsec_complex64_t*)Rtop;
+        parsec_complex64_t *lB = (parsec_complex64_t*)Rbottom;
 
         for(j=0; j<minmn; j++) {
-            owner_index = (*perm) / descA.mb;
+            owner_index = (*perm) / descA->mb;
             owner_index = (owner_index - k)%P - iB;
 
             if( (0 <= owner_index) && (owner_index < size) ) {
-                cblas_zcopy(tempnn, lB + j * descA.mb, 1,
-                            lT + j * descA.mb, 1);
+                cblas_zcopy(tempnn, lB + j * descA->mb, 1,
+                            lT + j * descA->mb, 1);
             }
             perm++;
         }
     }
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -1012,19 +992,19 @@ TRSM_U(k, n)
 
 // Execution space
 k = 0   .. minmnt
-n = k+1 .. descA.nt-1
+n = k+1 .. descA->nt-1
 
-depth = inline_c %{ int height = dague_imax(dague_imin( descA.mt-k, P ),2);
+depth = inline_c %{ int height = dplasma_imax(dplasma_imin( descA->mt-k, P ),2);
                     return (int)ceil( log ( height ) / log(2.) ); %}
 
 // Parallel partitioning
-: A(k, n)
+: descA(k, n)
 
 // Parameters
 READ    T <- T GETRF_FNL(k, k)
 RW      C <- A SWAP_COPY(k, n)
-          -> B GEMM(k, k+1..descA.mt-1, n)
-          -> A(k, n)
+          -> B GEMM(k, k+1..descA->mt-1, n)
+          -> descA(k, n)
 
 READ    B <- Rtop SWAP_SND(k, depth, 0, n)
 
@@ -1032,22 +1012,21 @@ READ    B <- Rtop SWAP_SND(k, depth, 0, n)
 
 BODY
 {
-    int tempkm = (k == (descA.mt-1)) ? descA.m - k * descA.mb : descA.mb;
-    int tempnn = (n == (descA.nt-1)) ? descA.n - n * descA.nb : descA.nb;
+    int tempkm = (k == (descA->mt-1)) ? descA->m - k * descA->mb : descA->mb;
+    int tempnn = (n == (descA->nt-1)) ? descA->n - n * descA->nb : descA->nb;
     int ldak = BLKLDD( descA, k );
 
     printlog("TRSM_U(k=%d, n=%d)\n"
              "\t(M=%d, N=%d, LDA=LDC=%d)\n", k, n, tempkm, tempnn, ldak );
 
-#if !defined(DAGUE_DRY_RUN)
     /* Put back the swapped tile */
     CORE_zlatro(PlasmaUpperLower, PlasmaTrans,
                 tempnn, tempkm,
-                B /* Buf(k,n)*/, descA.mb,
+                B /* Buf(k,n)*/, descA->mb,
                 C /* A(k, n) */, ldak );
     /* LAPACKE_zlacpy_work(LAPACK_COL_MAJOR, 'A', */
     /*                     tempkm, tempnn, */
-    /*                     B /\* Buf(k,n)*\/, descA.mb, */
+    /*                     B /\* Buf(k,n)*\/, descA->mb, */
     /*                     C /\* A(k, n) *\/, ldak ); */
 
     CORE_ztrsm(
@@ -1055,7 +1034,6 @@ BODY
         tempkm, tempnn,
         1., T /*A(k, k)*/, ldak,
         C /*A(k, n)*/, ldak );
-#endif /* !defined(DAGUE_DRY_RUN) */
 }
 END
 
@@ -1066,11 +1044,11 @@ GEMM(k, m, n)
 
 // Execution space
 k = 0   .. minmnt-1
-m = k+1 .. descA.mt-1
-n = k+1 .. descA.nt-1
+m = k+1 .. descA->mt-1
+n = k+1 .. descA->nt-1
 
 // Parallel partitioning
-: A(m, n)
+: descA(m, n)
 
 // Parameters
 READ  A <- T GETRF_FNL(k, m)
@@ -1084,29 +1062,21 @@ RW    C <- T SWAP_RECV(k, m, n)
 
 BODY
 {
-    int tempmm = ((m)==(descA.mt-1)) ? (descA.m-(m*descA.mb)) : (descA.mb);
-    int tempnn = ((n)==(descA.nt-1)) ? (descA.n-(n*descA.nb)) : (descA.nb);
+    int tempmm = ((m)==(descA->mt-1)) ? (descA->m-(m*descA->mb)) : (descA->mb);
+    int tempnn = ((n)==(descA->nt-1)) ? (descA->n-(n*descA->nb)) : (descA->nb);
     int ldak = BLKLDD( descA, k );
     int ldam = BLKLDD( descA, m );
 
     printlog("GEMM(k=%d, m=%d, n=%d)"
              "\tCORE_gemm(M=%d,N=%d,K=%d,A(%d,%d),lda=%d,B(%d,%d),ldb=%d,C(%d,%d),ldc=%d)\n",
-             k, m, n, tempmm, tempnn, descA.mb,
+             k, m, n, tempmm, tempnn, descA->mb,
              m, k, ldam, k, n, ldak, m, n, ldam);
 
-#if !defined(DAGUE_DRY_RUN)
     CORE_zgemm(
         PlasmaNoTrans, PlasmaNoTrans,
-        tempmm, tempnn, descA.mb,
-        (dague_complex64_t)-1.0, A /*A(m, k)*/, ldam,
-        B /*A(k, n)*/, ldak,
-        (dague_complex64_t) 1.0, C /*A(m, n)*/, ldam );
-#endif /* !defined(DAGUE_DRY_RUN) */
-
-    if( n == k+1 ) {
-        dague_atomic_inc_32b(&tasks_in_panel);
-	if (tasks_in_panel == (descA.mt-k-1))
-	    dague_atomic_cas(&dague_communication_engine_yielder, -2, -1);
-    }
+        tempmm, tempnn, descA->mb,
+        (parsec_complex64_t)-1.0, A /*A(m, k)*/, ldam,
+                                  B /*A(k, n)*/, ldak,
+        (parsec_complex64_t) 1.0, C /*A(m, n)*/, ldam );
 }
 END
