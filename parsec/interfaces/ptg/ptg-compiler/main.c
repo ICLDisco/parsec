@@ -35,7 +35,8 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .noline = 0 /*< Otherwise, go for it (without INDENT or with INDENT but without AWK, lines will be ok) */
 #endif
 };
-jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { NULL, NULL, NULL, NULL, NULL, 0x0, 1, 0 };
+jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS = { /* .input = */ NULL, /* .output_c = */ NULL, /* .output_h = */ NULL, /* .output_o = */ NULL,
+                                                        /* .funcid = */ NULL, /* .wmask = */ 0x0, /* .compile = */ 1, /* .noline = */ 0 };
 
 static void usage(void)
 {
@@ -365,6 +366,8 @@ int main(int argc, char *argv[])
         free(exec_argv);
 
         execv(exec_argv[0], exec_argv);
+        fprintf(stderr, "Compilation failed with error %d (%s)\n", errno, strerror(errno));
+        return -1;
     }
 
     return 0;
