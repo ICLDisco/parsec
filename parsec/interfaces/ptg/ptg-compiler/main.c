@@ -363,10 +363,9 @@ int main(int argc, char *argv[])
         for( int i = 0; i < parsec_argv_count(exec_argv); ++i )
             fprintf(stderr, "%s ", exec_argv[i]);
         fprintf(stderr, "\n");
-        free(exec_argv);
-
         execv(exec_argv[0], exec_argv);
         fprintf(stderr, "Compilation failed with error %d (%s)\n", errno, strerror(errno));
+        free(exec_argv);
         return -1;
     }
 
