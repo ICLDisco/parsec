@@ -225,6 +225,17 @@ int parsec_context_wait(parsec_context_t* context);
 typedef int (*parsec_event_cb_t)(parsec_handle_t* parsec_handle, void*);
 
 /**
+ * @brief Hook to update runtime task for each handle type
+ *
+ * @details
+ * Each parsec handle has a counter nb_pending_action and to update
+ * that counter we need a function type that will act as a hook. Each
+ * handle type can attach it's own callback to get desired way to
+ * update the nb_pending_action.
+ */
+typedef int (*parsec_update_ref_t)(parsec_handle_t *parsec_handle, int32_t);
+
+/**
  * @brief Setter for the completion callback and data
  *
  * @details
@@ -237,6 +248,7 @@ typedef int (*parsec_event_cb_t)(parsec_handle_t* parsec_handle, void*);
  *               when it is called
  * @return PARSEC_SUCCESS on success, an error otherwise
  */
+
 int parsec_set_complete_callback(parsec_handle_t* parsec_handle,
                                 parsec_event_cb_t complete_cb, void* complete_data);
 

@@ -119,15 +119,13 @@ hash_table_nolock_remove
 
     if( current_item != NULL ) {
         OBJ_RELEASE(current_item);
-        if( current_item->super.obj_reference_count == 1 ) {
 #if defined(PARSEC_DEBUG_PARANOID)
-            assert(current_item->refcount == 1);
+        assert(current_item->refcount == 1);
 #endif
-            parsec_list_nolock_remove ( item_list, current_item );
+        parsec_list_nolock_remove ( item_list, current_item );
 #if defined(PARSEC_DEBUG_PARANOID)
-            assert(current_item->refcount == 0);
+        assert(current_item->refcount == 0);
 #endif
-        }
     }
 
     return current_item;

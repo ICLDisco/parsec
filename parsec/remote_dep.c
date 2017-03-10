@@ -11,6 +11,7 @@
 #include "parsec/execution_unit.h"
 #include "parsec/data_internal.h"
 #include "parsec/arena.h"
+#include "parsec/interfaces/superscalar/insert_function_internal.h"
 #include <stdio.h>
 
 /**
@@ -182,12 +183,6 @@ int parsec_remote_dep_progress(parsec_execution_unit_t* eu_context)
     return remote_dep_progress(eu_context->virtual_process[0].parsec_context, 1);
 }
 
-
-#ifdef PARSEC_DIST_COLLECTIVES
-#define PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
-#undef  PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL
-
-# ifdef PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
 static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
 {
     assert(him >= 0);
@@ -195,9 +190,7 @@ static inline int remote_dep_bcast_chainpipeline_child(int me, int him)
     if(him == me+1) return 1;
     return 0;
 }
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
 
-# elif defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
 static inline int remote_dep_bcast_binonial_child(int me, int him)
 {
     int k, mask;
@@ -220,19 +213,25 @@ static inline int remote_dep_bcast_binonial_child(int me, int him)
     /* is the remainder suffix "me" ? */
     return him == me;
 }
-#  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
 
-# else
-#  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
-# endif
-
-#else
 static inline int remote_dep_bcast_star_child(int me, int him)
 {
     (void)him;
     if(me == 0) return 1;
     else return 0;
 }
+
+#ifdef PARSEC_DIST_COLLECTIVES
+#define PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
+#undef  PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL
+# ifdef PARSEC_DIST_COLLECTIVES_TYPE_CHAINPIPELINE
+#  define remote_dep_bcast_child(me, him) remote_dep_bcast_chainpipeline_child(me, him)
+# elif defined(PARSEC_DIST_COLLECTIVES_TYPE_BINOMIAL)
+#  define remote_dep_bcast_child(me, him) remote_dep_bcast_binonial_child(me, him)
+# else
+#  error "INVALID COLLECTIVE TYPE. YOU MUST DEFINE ONE COLLECTIVE TYPE WHEN ENABLING COLLECTIVES"
+# endif
+#else
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
@@ -405,7 +404,14 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, " TOPO\t%s\troot=%d\t%d (d%d) -? %d (dna)",
                         tmp, remote_deps->root, eu_context->virtual_process->parsec_context->my_rank, my_idx, rank);
 
-                if(remote_dep_bcast_child(my_idx, idx)) {
+                int remote_dep_bcast_child_permits = 0;
+                if( 1 == exec_context->parsec_handle->handle_type ) {
+                    remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
+                } else {
+                    remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
+                }
+
+                if(remote_dep_bcast_child_permits) {
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "[%d:%d] task %s my_idx %d idx %d rank %d -- send (%x)",
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask);
                     assert(remote_deps->outgoing_mask & (1U<<i));

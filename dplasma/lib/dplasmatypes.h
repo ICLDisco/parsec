@@ -11,6 +11,7 @@
 #include "parsec/arena.h"
 
 #define dplasma_progress( object )              \
+  parsec_context_start( object );               \
   parsec_context_wait( object );
 
 static inline int

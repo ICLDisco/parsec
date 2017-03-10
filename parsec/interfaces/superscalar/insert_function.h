@@ -1,5 +1,5 @@
 /**
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2015-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  **/
@@ -8,7 +8,6 @@
  * @file insert_function.h
  *
  * @version 2.0.0
- * @author Reazul Hoque
  *
  **/
 
@@ -42,32 +41,38 @@ BEGIN_C_DECLS
 
  */
 
-#define GET_OP_TYPE 0xf00
-typedef enum {  INPUT=0x100,
-                OUTPUT=0x200,
-                INOUT=0x300,
-                ATOMIC_WRITE=0x400, /* DO NOT USE ,Iterate_successors do not support this at this point */
-                SCRATCH=0x500,
-                VALUE=0x600
-             } dtd_op_type;
+#define GET_OP_TYPE 0xf00000
+typedef enum { INPUT=0x100000,
+               OUTPUT=0x200000,
+               INOUT=0x300000,
+               ATOMIC_WRITE=0x400000, /* DO NOT USE ,Iterate_successors do not support this at this point */
+               SCRATCH=0x500000,
+               VALUE=0x600000
+             } parsec_dtd_op_type;
+
+#define GET_OTHER_FLAG_INFO 0xf0000
+typedef enum { AFFINITY=1<<16, /* Data affinity */
+               DONT_TRACK=1<<17, /* Drop dependency tracking */
+             } parsed_dtd_other_flag_type;
 
 /* Describes different regions to express more specific dependency.
  * All regions are mutually exclusive.
  */
-#define GET_REGION_INFO 0xff
-typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
-                REGION_L=1<<1, /* Lower triangle */
-                REGION_D=1<<2, /* Diagonal */
-                REGION_U=1<<3, /* Upper Triangle */
-                AFFINITY=1<<4, /* Data affinity */
-             } dtd_regions;
+#define GET_REGION_INFO 0xffff
 
-#define PARSEC_dtd_NB_FUNCTIONS  25 /* Max number of task classes allowed */
-#define PASSED_BY_REF           1
-#define UNPACK_VALUE            1
-#define UNPACK_DATA             2
-#define UNPACK_SCRATCH          3
-#define MAX_FLOW                25
+extern int dtd_window_size;
+extern int dtd_threshold_size;
+/* Array of arenas to hold the data region shape and other information.
+ * Currently only 16 types of different regions are supported at a time.
+ */
+extern parsec_arena_t **parsec_dtd_arenas;
+
+#define PASSED_BY_REF            1
+#define UNPACK_VALUE             1
+#define UNPACK_DATA              2
+#define UNPACK_SCRATCH           3
+#define MAX_FLOW                 25
+#define PARSEC_DTD_NB_FUNCTIONS  25 /* Max number of task classes allowed */
 
 /* The parameters to pass to get pointer to data
  * 1. parsec_dtd_handle_t*
@@ -75,14 +80,15 @@ typedef enum {  REGION_FULL=1<<0,/* 0x1 is reserved for default(FULL tile) */
  * 3. m (coordinates of the data in the matrix)
  * 4. n (coordinates of the data in the matrix)
  */
-#define TILE_OF(PARSEC, DDESC, I, J) \
-    parsec_dtd_tile_of(PARSEC, &(__ddesc##DDESC->super.super), I, J)
+#define TILE_OF(DDESC, I, J) \
+    parsec_dtd_tile_of(&(__ddesc##DDESC->super.super), (&(__ddesc##DDESC->super.super))->data_key(&(__ddesc##DDESC->super.super), I, J))
 
-typedef struct parsec_dtd_task_param_s parsec_dtd_task_param_t;
-typedef struct parsec_dtd_task_s       parsec_dtd_task_t;
+#define TILE_OF_KEY(DDESC, KEY) \
+    parsec_dtd_tile_of(DDESC, KEY)
+
 typedef struct parsec_dtd_tile_s       parsec_dtd_tile_t;
+typedef struct parsec_dtd_task_s       parsec_dtd_task_t;
 typedef struct parsec_dtd_handle_s     parsec_dtd_handle_t;
-typedef struct parsec_dtd_function_s   parsec_dtd_function_t;
 
 /* Function pointer typeof  kernel pointer pased as parameter to insert_function() */
 /* This is the prototype of the function in which the actual operations of each task
@@ -109,15 +115,16 @@ typedef int (parsec_dtd_funcptr_t)(parsec_execution_unit_t *, parsec_execution_c
  */
 void parsec_dtd_unpack_args(parsec_execution_context_t *this_task, ...);
 
-parsec_dtd_tile_t* parsec_dtd_tile_of(parsec_dtd_handle_t *parsec_dtd_handle,
-                                    parsec_ddesc_t *ddesc, int i, int j);
+parsec_dtd_tile_t *
+parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
 
 /* Using this function Users can insert task in PaRSEC
  * 1. The parsec handle (parsec_dtd_handle_t *)
  * 2. The function pointer which will be executed as the "task" being inserted. This function should include
       the actual calculation the User wants to perform on the data. (The body of the task)
- * 3. String, stating the name of the task.
- * 4. Variadic type paramter. User can pass any number of paramters.
+ * 3. The priority of the task, if not sure user should provide 0.
+ * 4. String, stating the name of the task.
+ * 5. Variadic type paramter. User can pass any number of paramters.
       Currently 3 type of paramters can be passed as a paramter of a task.
         - VALUE -> Will be copied according to the size(in bytes) specified.
         - SCRATCH -> Memory(in bytes) will be allocated and passed.
@@ -141,41 +148,49 @@ parsec_dtd_tile_t* parsec_dtd_tile_of(parsec_dtd_handle_t *parsec_dtd_handle,
       4. "0" indicates the end of paramter list. Must be provided.
  */
 void
-parsec_insert_task( parsec_dtd_handle_t  *parsec_dtd_handle,
-                       parsec_dtd_funcptr_t *fpointer,
-                       char *name_of_kernel, ... );
+parsec_insert_task( parsec_handle_t  *parsec_handle,
+                   parsec_dtd_funcptr_t *fpointer, int priority,
+                   char *name_of_kernel, ... );
+
+#define DTD_DDESC_INIT(DDESC) \
+    parsec_dtd_ddesc_init(&(__ddesc##DDESC->super.super))
+
+void
+parsec_dtd_ddesc_init( parsec_ddesc_t *ddesc );
+
+#define DTD_DDESC_FINI(DDESC) \
+    parsec_dtd_ddesc_fini(&(__ddesc##DDESC->super.super))
+
+void
+parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc );
 
 /* This function will create a handle and return it. Provide the corresponding
  * parsec context, so that the new handle is associated with.
  */
-parsec_dtd_handle_t* parsec_dtd_handle_new(parsec_context_t *);
-
-/* Destroys the PARSEC  handle
- * Should be called after all tasks are done.
- */
-void parsec_dtd_handle_destruct(parsec_dtd_handle_t *);
+parsec_handle_t*
+parsec_dtd_handle_new();
 
 /* Makes the PaRSEC context wait on the handle passed. The context will wait untill all the
  * tasks attached to this handle are over.
  * User can call this function multiple times in between a parsec_dtd_handle_new() and parsec_dtd_handle_destruct()
  */
-void parsec_dtd_handle_wait( parsec_context_t     *parsec,
-                            parsec_dtd_handle_t  *parsec_handle );
+void
+parsec_dtd_handle_wait( parsec_context_t *parsec,
+                        parsec_handle_t  *parsec_handle );
 
-/* User should call this function right before they intend to destroy a handle.
- * Should be called once for each handle.
- * User can not call this multiple times in between a parsec_dtd_handle_new() and parsec_dtd_handle_destruct().
- * This function can be called exactly once per handle.
+/* This function flushes a specific data, it indicates to the engine that this data
+ * will no longer be used by any tasks, this indication optimizes the reuse of memory attached to data.
  */
-void parsec_dtd_context_wait_on_handle( parsec_context_t     *parsec,
-                                       parsec_dtd_handle_t  *parsec_handle );
+void
+parsec_dtd_data_flush( parsec_handle_t *parsec_handle,
+                       parsec_dtd_tile_t *tile );
 
-/* Initiate and Finish dtd environment
- * parsec_dtd_init () should be called right after parsec_context_init()
- * parsec_dtd_fini () right before parsec_context_fini()
+/* This function flushes all data the runtime has discovered belonging to the ddesc(data descriptor) provided.
+ * By flushing, it means that we call parsec_dtd_data_flush() for each data belonging to this ddesc.
  */
-void parsec_dtd_init();
-void parsec_dtd_fini();
+void
+parsec_dtd_data_flush_all( parsec_handle_t *parsec_handle,
+                           parsec_ddesc_t *ddesc );
 
 END_C_DECLS
 

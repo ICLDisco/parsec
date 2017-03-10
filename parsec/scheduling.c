@@ -20,6 +20,7 @@
 #include "parsec/debug_marks.h"
 #include "parsec/ayudame.h"
 #include "parsec/constants.h"
+#include "parsec/interfaces/superscalar/insert_function_internal.h"
 
 #include <signal.h>
 #if defined(PARSEC_HAVE_STRING_H)
@@ -80,12 +81,14 @@ static void parsec_rusage_per_eu(parsec_execution_unit_t* eu, bool print) {
                 "Involuntary Context Switches: %10ld\n"
                 "Block Input Operations      : %10ld\n"
                 "Block Output Operations     : %10ld\n"
+                "Maximum Resident Memory     : %10ld\n"
                 "=============================================================\n"
                 , eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
                 usr, sys, usr + sys,
                 (current.ru_minflt  - eu->_eu_rusage.ru_minflt), (current.ru_majflt  - eu->_eu_rusage.ru_majflt),
                 (current.ru_nswap   - eu->_eu_rusage.ru_nswap) , (current.ru_nvcsw   - eu->_eu_rusage.ru_nvcsw),
-                (current.ru_inblock - eu->_eu_rusage.ru_inblock), (current.ru_oublock - eu->_eu_rusage.ru_oublock));
+                (current.ru_inblock - eu->_eu_rusage.ru_inblock), (current.ru_oublock - eu->_eu_rusage.ru_oublock),
+                current.ru_maxrss);
 
     }
     eu->_eu_rusage = current;
@@ -178,7 +181,7 @@ int parsec_handle_update_runtime_nbtask(parsec_handle_t *handle, int32_t nb_task
     int remaining;
 
     assert( handle->nb_pending_actions != 0 );
-    remaining = parsec_atomic_add_32b((int32_t*)&(handle->nb_pending_actions), nb_tasks );
+    remaining = handle->update_nb_runtime_task( handle, nb_tasks );
     assert( 0<= remaining );
     return parsec_check_complete_cb(handle, handle->context, remaining);
 }
@@ -741,6 +744,10 @@ int parsec_context_start( parsec_context_t* context )
         context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
         /* Wake up the other threads */
         parsec_barrier_wait( &(context->barrier) );
+        /* we keep one extra reference on the context to make sure we only match this with an
+         * explicit call to parsec_context_wait.
+         */
+        parsec_atomic_inc_32b( &(context->active_objects) );
         return 0;
     }
     return -1;  /* Someone else start it up */
@@ -759,6 +766,19 @@ int parsec_context_wait( parsec_context_t* context )
                                     PARSEC_CONTEXT_FLAG_COMM_ACTIVE) ) {
         (void)parsec_remote_dep_on(context);
     }
+    /* Remove the additional active_object to signal the runtime that we
+     * are ready to complete a scheduling epoch.
+     */
+    int active = parsec_atomic_dec_32b( &(context->active_objects) );
+    if( active < 0 ) {
+        parsec_warning("parsec_context_wait detected on a non-started context\n");
+        /* put the context back on it's original state */
+        parsec_atomic_inc_32b( &(context->active_objects) );
+        return -1;
+    }
+
+    /* Here we wait on all dtd handles registered with us */
+    parsec_detach_all_dtd_handles_from_context( context );
 
     ret = __parsec_context_wait( context->virtual_processes[0]->execution_units[0] );
 

@@ -217,6 +217,16 @@ void parsec_remote_dep_memcpy(parsec_handle_t* parsec_handle,
                              parsec_data_copy_t *src,
                              parsec_dep_data_description_t* data);
 
+/* This function adds a command in the commnad queue to activate
+ * release_deps of dep we had to delay in DTD runs.
+ */
+int
+remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps);
+
+/* This function creates a fake eu for comm thread for profiling DTD runs */
+void
+remote_dep_mpi_initialize_execution_unit(parsec_context_t *context);
+
 #ifdef PARSEC_DIST_COLLECTIVES
 /* Propagate an activation order from the current node down the original tree */
 int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
@@ -232,6 +242,7 @@ int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
 #define parsec_remote_dep_progress(ctx)       0
 #define parsec_remote_dep_activate(ctx, o, r) -1
 #define parsec_remote_dep_new_object(ctx)     0
+#define remote_dep_mpi_initialize_execution_unit(ctx) 0
 #endif /* DISTRIBUTED */
 
 /** @} */

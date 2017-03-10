@@ -40,6 +40,7 @@
 #include "parsec/devices/device.h"
 #include "parsec/utils/cmd_line.h"
 #include "parsec/utils/mca_param_cmd_line.h"
+#include "parsec/interfaces/superscalar/insert_function_internal.h"
 
 #include "parsec/mca/mca_repository.h"
 
@@ -129,12 +130,14 @@ static void parsec_rusage(bool print)
                      "Involuntary Context Switches: %10ld\n"
                      "Block Input Operations      : %10ld\n"
                      "Block Output Operations     : %10ld\n"
+                     "Maximum Resident set size   : %10ld\n"
                      "=============================================================\n",
                      usr, sys, usr + sys,
                      current.ru_minflt  - _parsec_rusage.ru_minflt, current.ru_majflt  - _parsec_rusage.ru_majflt,
                      current.ru_nswap   - _parsec_rusage.ru_nswap,
                      current.ru_nvcsw   - _parsec_rusage.ru_nvcsw, current.ru_nivcsw  - _parsec_rusage.ru_nivcsw,
-                     current.ru_inblock - _parsec_rusage.ru_inblock, current.ru_oublock - _parsec_rusage.ru_oublock);
+                     current.ru_inblock - _parsec_rusage.ru_inblock, current.ru_oublock - _parsec_rusage.ru_oublock,
+                     current.ru_maxrss);
     }
     _parsec_rusage = current;
     return;
@@ -483,6 +486,10 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->comm_ctx            = NULL;
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
+    /* initialize dtd handle array */
+    context->object_array_size     = 1;
+    context->object_array_occupied = 0;
+    context->object_array          = NULL;
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -722,6 +729,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
 
     __parsec_thread_init( &startup[0] );
 
+    remote_dep_mpi_initialize_execution_unit(context);
+
     /* Wait until all threads are done binding themselves */
     parsec_barrier_wait( &(context->barrier) );
     context->__parsec_internal_finalization_counter++;
@@ -799,7 +808,15 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_context_t* context = *pcontext;
     int nb_total_comp_threads, p;
 
-    /*
+    /* if dtd environment is set-up, we clean */
+    if( dtd_init ) {
+        parsec_dtd_fini();
+        /* clean dtd handle array */
+        free(context->object_array);
+        context->object_array = NULL;
+    }
+
+    /**
      * We need to force the main thread to drain all possible pending messages
      * on the communication layer. This is not an issue in a distributed run,
      * but on a single node run with MPI support, objects can be created (and
@@ -2214,3 +2231,10 @@ int parsec_task_deps_with_final_output(const parsec_execution_context_t *task,
 
     return nbout;
 }
+
+int
+parsec_ptg_update_runtime_task( parsec_handle_t *parsec_handle, int32_t nb_tasks )
+{
+    return parsec_atomic_add_32b((int32_t*)&(parsec_handle->nb_pending_actions), nb_tasks );
+}
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2015-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,11 +8,20 @@
  */
 
 #include "common.h"
+#include "dplasma/lib/dplasmatypes.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 
+enum regions {
+               TILE_FULL,
+               TILE_LOWER,
+               TILE_UPPER,
+               TILE_RECTANGLE,
+               L_TILE_RECTANGLE,
+             };
+
 int
-call_to_kernel_GE_TRF_INC(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m;
@@ -41,11 +50,11 @@ call_to_kernel_GE_TRF_INC(parsec_execution_unit_t *context, parsec_execution_con
     if (info != 0 && check_info)
         printf("Getrf_incpiv something is wrong\n");
 
-    return 0; /* supposed to return this PARSEC_HOOK_RETURN_DONE; */
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-call_to_kernel_GE_SSM(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_gessm(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m;
@@ -76,11 +85,11 @@ call_to_kernel_GE_SSM(parsec_execution_unit_t *context, parsec_execution_context
 
     CORE_zgessm(*m, *n, *k, *ib, IPIV, D, *ldd, A, *lda);
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-call_to_kernel_TS_TRF(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_tstrf(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m;
@@ -124,11 +133,11 @@ call_to_kernel_TS_TRF(parsec_execution_unit_t *context, parsec_execution_context
     if (info != 0 && check_info)
         printf("Gtstrf something is wrong\n");
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-call_to_kernel_SS_SSM(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_ssssm(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
 {
     (void)context;
     int *m1;
@@ -167,7 +176,7 @@ call_to_kernel_SS_SSM(parsec_execution_unit_t *context, parsec_execution_context
 
     CORE_zssssm(*m1, *n1, *m2, *n2, *k, *ib, A1, *lda1, A2, *lda2, L1, *ldl1, L2, *ldl2, IPIV);
 
-    return 0;
+    return PARSEC_HOOK_RETURN_DONE;
 }
 
 static int check_solution( parsec_context_t *parsec, int loud,
@@ -211,14 +220,29 @@ int main(int argc, char ** argv)
                                two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
+
+    /* Initializing ddesc for dtd */
+    two_dim_block_cyclic_t *__ddescA = &ddescA;
+    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescA);
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescL, 1,
                                two_dim_block_cyclic, (&ddescL, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                                       MT*IB, N, SMB, SNB, P));
+
+    /* Initializing ddesc for dtd */
+    two_dim_block_cyclic_t *__ddescL = &ddescL;
+    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescL);
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescIPIV, 1,
                                two_dim_block_cyclic, (&ddescIPIV, matrix_Integer, matrix_Tile,
                                                       nodes, rank, MB, 1, M, NT, 0, 0,
                                                       M, NT, SMB, SNB, P));
+
+    /* Initializing ddesc for dtd */
+    two_dim_block_cyclic_t *__ddescIPIV = &ddescIPIV;
+    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescIPIV);
+
     PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
                                two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
                                                       nodes, rank, MB, NB, LDA, N, 0, 0,
@@ -242,8 +266,6 @@ int main(int argc, char ** argv)
                                                       nodes, rank, MB, NB, LDA, N, 0, 0,
                                                       M, N, SMB, SNB, P));
 
-    parsec_dtd_init();
-
     /* matrix generation */
     if(loud > 2) printf("+++ Generate matrices ... ");
     dplasma_zpltmg( parsec, matrix_init, (tiled_matrix_desc_t *)&ddescA, random_seed );
@@ -262,10 +284,10 @@ int main(int argc, char ** argv)
     }
     if(loud > 2) printf("Done\n");
 
-    two_dim_block_cyclic_t *__ddescA    = &ddescA;
-    two_dim_block_cyclic_t *__ddescL    = &ddescL;
-    two_dim_block_cyclic_t *__ddescIPIV = &ddescIPIV;
+    /* Getting new parsec handle of dtd type */
+    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
 
+    /* Parameters passed on to Insert_task() */
     int k, m, n;
     int ldak, ldam;
     int tempkm, tempkn, tempmm, tempnn;
@@ -275,54 +297,88 @@ int main(int argc, char ** argv)
     int iinfo;
     int anb, nb, ldl;
 
+    /* Allocating data arrays to be used by comm engine */
+    /* A */
+    dplasma_add2arena_tile( parsec_dtd_arenas[TILE_FULL],
+                            ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, ddescA.super.mb );
+
+    /* Lower part of A without diagonal part */
+    dplasma_add2arena_lower( parsec_dtd_arenas[TILE_LOWER],
+                             ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, ddescA.super.mb, 0 );
+
+    /* Upper part of A with diagonal part */
+    dplasma_add2arena_upper( parsec_dtd_arenas[TILE_UPPER],
+                             ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                             PARSEC_ARENA_ALIGNMENT_SSE,
+                             parsec_datatype_double_complex_t, ddescA.super.mb, 1 );
+
+    /* IPIV */
+    dplasma_add2arena_rectangle( parsec_dtd_arenas[TILE_RECTANGLE],
+                                 ddescA.super.mb*sizeof(int),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_int_t, ddescA.super.mb, 1, -1 );
+
+    /* L */
+    dplasma_add2arena_rectangle( parsec_dtd_arenas[L_TILE_RECTANGLE],
+                                 ddescL.super.mb*ddescL.super.nb*sizeof(parsec_complex64_t),
+                                 PARSEC_ARENA_ALIGNMENT_SSE,
+                                 parsec_datatype_double_complex_t, ddescL.super.mb, ddescL.super.nb, -1);
+
+    /* Registering the handle with parsec context */
+    parsec_enqueue( parsec, parsec_dtd_handle );
+
     SYNC_TIME_START();
 
-    parsec_dtd_handle_t* PARSEC_dtd_handle = parsec_dtd_handle_new (parsec);
-    parsec_handle_t* PARSEC_zgetrf_inc_dtd = (parsec_handle_t *) PARSEC_dtd_handle;
+    /* #### Dague context starting #### */
 
-    parsec_enqueue(parsec, (parsec_handle_t*) PARSEC_dtd_handle);
-#if defined (OVERLAP)
-    parsec_context_start(parsec);
-#endif
+    /* start parsec context */
+    parsec_context_start( parsec );
 
     /* Testing insert task function */
-    for (k = 0; k < minMNT; k++) {
+    for( k = 0; k < minMNT; k++ ) {
         tempkm = k == ddescA.super.mt-1 ? (ddescA.super.m)-k*(ddescA.super.mb) : ddescA.super.mb;
         tempkn = k == ddescA.super.nt-1 ? (ddescA.super.n)-k*(ddescA.super.nb) : ddescA.super.nb;
         ldak = BLKLDD((tiled_matrix_desc_t*)&ddescA, k);
         check_info = k == ddescA.super.mt-1;
         iinfo = (ddescA.super.nb)*k;
 
-        parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_GE_TRF_INC,               "getrf_inc",
-                             sizeof(int),           &tempkm,                           VALUE,
-                             sizeof(int),           &tempkn,                           VALUE,
-                             sizeof(int),           &ib,                               VALUE,
-                             PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, k),     INOUT | REGION_FULL,
-                             sizeof(int),           &ldak,                             VALUE,
-                             PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, k, k),  OUTPUT | REGION_FULL,
-                             sizeof(PLASMA_bool),           &check_info,               VALUE,
-                             sizeof(int),           &iinfo,                            VALUE,
-                             0);
+        parsec_insert_task( parsec_dtd_handle,     parsec_core_getrf_incpiv,             0, "getrf_incpiv",
+                           sizeof(int),           &tempkm,                           VALUE,
+                           sizeof(int),           &tempkn,                           VALUE,
+                           sizeof(int),           &ib,                               VALUE,
+                           PASSED_BY_REF,         TILE_OF(A, k, k),     INOUT | TILE_FULL | AFFINITY,
+                           sizeof(int),           &ldak,                             VALUE,
+                           PASSED_BY_REF,         TILE_OF(IPIV, k, k),  OUTPUT | TILE_RECTANGLE,
+                           sizeof(PLASMA_bool),           &check_info,               VALUE,
+                           sizeof(int),           &iinfo,                            VALUE,
+                           0 );
 
-        for (n = k+1; n < ddescA.super.nt; n++) {
+        for( n = k+1; n < ddescA.super.nt; n++ ) {
             tempnn = n == ddescA.super.nt-1 ? (ddescA.super.n)-n*(ddescA.super.nb) : ddescA.super.nb;
             ldl = ddescL.super.mb;
 
-            parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_GE_SSM,               "gessm",
-                                 sizeof(int),           &tempkm,                           VALUE,
-                                 sizeof(int),           &tempnn,                           VALUE,
-                                 sizeof(int),           &tempkm,                           VALUE,
-                                 sizeof(int),           &ib,                               VALUE,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, k, k),    INPUT | REGION_FULL,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, L, k, k),       INPUT | REGION_FULL,
-                                 sizeof(int),           &ldl,                              VALUE,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, k),       INPUT | REGION_FULL,
-                                 sizeof(int),           &ldak,                             VALUE,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, n),       INOUT | REGION_FULL,
-                                 sizeof(int),           &ldak,                             VALUE,
-                                 0);
+            parsec_insert_task( parsec_dtd_handle,      parsec_core_gessm,           0,  "gessm",
+                               sizeof(int),           &tempkm,                           VALUE,
+                               sizeof(int),           &tempnn,                           VALUE,
+                               sizeof(int),           &tempkm,                           VALUE,
+                               sizeof(int),           &ib,                               VALUE,
+                               PASSED_BY_REF,         TILE_OF(IPIV, k, k),    INPUT | TILE_RECTANGLE,
+                               PASSED_BY_REF,         TILE_OF(L, k, k),       INPUT | L_TILE_RECTANGLE,
+                               sizeof(int),           &ldl,                              VALUE,
+                               PASSED_BY_REF,         TILE_OF(A, k, k),       INPUT | TILE_LOWER,
+                               sizeof(int),           &ldak,                             VALUE,
+                               PASSED_BY_REF,         TILE_OF(A, k, n),       INOUT | TILE_FULL | AFFINITY,
+                               sizeof(int),           &ldak,                             VALUE,
+                              0 );
         }
-        for (m = k+1; m < ddescA.super.mt; m++) {
+        parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(L, k, k) );
+        parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(IPIV, k, k) );
+
+        for( m = k+1; m < ddescA.super.mt; m++ ) {
             tempmm = m == ddescA.super.mt-1 ? (ddescA.super.m)-m*(ddescA.super.mb) : ddescA.super.mb;
             ldam = BLKLDD( (tiled_matrix_desc_t*)&ddescA, m);
             nb = ddescL.super.nb;
@@ -330,59 +386,77 @@ int main(int argc, char ** argv)
             check_info = m == ddescA.super.mt-1;
             iinfo = (ddescA.super.nb)*k;
 
-            parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_TS_TRF,               "tstrf",
-                                 sizeof(int),           &tempmm,                           VALUE,
-                                 sizeof(int),           &tempkn,                           VALUE,
-                                 sizeof(int),           &ib,                               VALUE,
-                                 sizeof(int),           &nb,                               VALUE,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, k),     INOUT | REGION_FULL,
-                                 sizeof(int),           &ldak,                             VALUE,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, m, k),     INOUT | REGION_FULL,
-                                 sizeof(int),           &ldam,                             VALUE,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, L, m, k),     OUTPUT | REGION_FULL,
-                                 sizeof(int),           &ldl,                              VALUE,
-                                 PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, m, k),  OUTPUT | REGION_FULL,
-                                 sizeof(parsec_complex64_t)*ib*nb,    NULL,                      SCRATCH,
-                                 sizeof(int),           &nb,                               VALUE,
-                                 sizeof(PLASMA_bool),           &check_info,               VALUE,
-                                 sizeof(int),           &iinfo,                            VALUE,
-                                 0);
-            for (n = k+1; n < ddescA.super.nt; n++) {
+            parsec_insert_task( parsec_dtd_handle,      parsec_core_tstrf,              0,  "tstrf",
+                               sizeof(int),           &tempmm,                           VALUE,
+                               sizeof(int),           &tempkn,                           VALUE,
+                               sizeof(int),           &ib,                               VALUE,
+                               sizeof(int),           &nb,                               VALUE,
+                               PASSED_BY_REF,         TILE_OF(A, k, k),     INOUT | TILE_UPPER,
+                               sizeof(int),           &ldak,                             VALUE,
+                               PASSED_BY_REF,         TILE_OF(A, m, k),     INOUT | TILE_FULL | AFFINITY,
+                               sizeof(int),           &ldam,                             VALUE,
+                               PASSED_BY_REF,         TILE_OF(L, m, k),     OUTPUT | L_TILE_RECTANGLE,
+                               sizeof(int),           &ldl,                              VALUE,
+                               PASSED_BY_REF,         TILE_OF(IPIV, m, k),  OUTPUT | TILE_RECTANGLE,
+                               sizeof(parsec_complex64_t)*ib*nb,    NULL,                SCRATCH,
+                               sizeof(int),           &nb,                               VALUE,
+                               sizeof(PLASMA_bool),           &check_info,               VALUE,
+                               sizeof(int),           &iinfo,                            VALUE,
+                               0 );
+
+            for( n = k+1; n < ddescA.super.nt; n++ ) {
                 tempnn = n == ddescA.super.nt-1 ? (ddescA.super.n)-n*(ddescA.super.nb) : ddescA.super.nb;
                 anb = ddescA.super.nb;
                 ldl = ddescL.super.mb;
 
-                parsec_insert_task(PARSEC_dtd_handle,      call_to_kernel_SS_SSM,               "ssssm",
-                                     sizeof(int),           &anb,                               VALUE,
-                                     sizeof(int),           &tempnn,                            VALUE,
-                                     sizeof(int),           &tempmm,                            VALUE,
-                                     sizeof(int),           &tempnn,                            VALUE,
-                                     sizeof(int),           &anb,                               VALUE,
-                                     sizeof(int),           &ib,                                VALUE,
-                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, k, n),     INOUT | REGION_FULL,
-                                     sizeof(int),           &ldak,                              VALUE,
-                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, m, n),     INOUT | REGION_FULL,
-                                     sizeof(int),           &ldam,                              VALUE,
-                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, L, m, k),     INPUT | REGION_FULL,
-                                     sizeof(int),           &ldl,                               VALUE,
-                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, A, m, k),     INPUT | REGION_FULL,
-                                     sizeof(int),           &ldam,                              VALUE,
-                                     PASSED_BY_REF,         TILE_OF(PARSEC_dtd_handle, IPIV, m, k),  INPUT | REGION_FULL,
-                                     0);
+                parsec_insert_task( parsec_dtd_handle,      parsec_core_ssssm,            0,    "ssssm",
+                                   sizeof(int),           &anb,                               VALUE,
+                                   sizeof(int),           &tempnn,                            VALUE,
+                                   sizeof(int),           &tempmm,                            VALUE,
+                                   sizeof(int),           &tempnn,                            VALUE,
+                                   sizeof(int),           &anb,                               VALUE,
+                                   sizeof(int),           &ib,                                VALUE,
+                                   PASSED_BY_REF,         TILE_OF(A, k, n),     INOUT | TILE_FULL,
+                                   sizeof(int),           &ldak,                              VALUE,
+                                   PASSED_BY_REF,         TILE_OF(A, m, n),     INOUT | TILE_FULL | AFFINITY,
+                                   sizeof(int),           &ldam,                              VALUE,
+                                   PASSED_BY_REF,         TILE_OF(L, m, k),     INPUT | L_TILE_RECTANGLE,
+                                   sizeof(int),           &ldl,                               VALUE,
+                                   PASSED_BY_REF,         TILE_OF(A, m, k),     INPUT | TILE_FULL,
+                                   sizeof(int),           &ldam,                              VALUE,
+                                   PASSED_BY_REF,         TILE_OF(IPIV, m, k),  INPUT | TILE_RECTANGLE,
+                                   0 );
             }
+            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(L, m, k) );
+            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(IPIV, m, k) );
         }
+        for( n = k+1; n < ddescA.super.nt; n++ ) {
+            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, k, n));
+        }
+        for( m = k+1; m < ddescA.super.mt; m++ ) {
+            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, m, k) );
+        }
+        parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, k, k) );
     }
 
-    parsec_dtd_handle_wait( parsec, PARSEC_dtd_handle );
-    parsec_dtd_context_wait_on_handle( parsec, PARSEC_dtd_handle );
+    parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescA );
+    parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescL );
+    parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescIPIV );
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(PARSEC_zgetrf_inc_dtd);
+    /* finishing all the tasks inserted, but not finishing the handle */
+    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+
+    /* Waiting on all handle and turning everything off for this context */
+    parsec_context_wait( parsec );
+
+    /* #### Dague context is done #### */
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
 
-    parsec_dtd_fini();
+    /* Cleaning up the parsec handle */
+    parsec_handle_free( parsec_dtd_handle );
 
     if ( info != 0 ) {
         if( rank == 0 && loud ) printf("-- Factorization is suspicious (info = %d) ! \n", info );
@@ -436,6 +510,17 @@ int main(int argc, char ** argv)
             tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescI);
         }
     }
+
+    /* Cleaning data arrays we allocated for communication */
+    parsec_matrix_del2arena( parsec_dtd_arenas[TILE_FULL] );
+    parsec_matrix_del2arena( parsec_dtd_arenas[TILE_LOWER] );
+    parsec_matrix_del2arena( parsec_dtd_arenas[TILE_UPPER] );
+    parsec_matrix_del2arena( parsec_dtd_arenas[TILE_RECTANGLE] );
+    parsec_matrix_del2arena( parsec_dtd_arenas[L_TILE_RECTANGLE] );
+
+    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescA );
+    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescL );
+    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescIPIV );
 
     parsec_data_free(ddescA.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);

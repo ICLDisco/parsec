@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -9,14 +9,17 @@
 
 #include "common.h"
 #include "flops.h"
+#include "dplasma/lib/dplasmatypes.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 
-struct parsec_execution_unit_s;
+enum regions {
+                TILE_FULL,
+             };
 
 int
-call_to_kernel_PO(struct parsec_execution_unit_s *context, parsec_execution_context_t *this_task)
+parsec_core_potrf(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *uplo;
@@ -37,7 +40,7 @@ call_to_kernel_PO(struct parsec_execution_unit_s *context, parsec_execution_cont
 }
 
 int
-call_to_kernel_TR(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_trsm(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *side, *uplo, *trans, *diag;
@@ -68,13 +71,13 @@ call_to_kernel_TR(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-call_to_kernel_HE(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_herk(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *uplo, *trans;
     int *m, *n, *lda, *ldc;
     parsec_complex64_t *alpha;
-    double *beta;
+    parsec_complex64_t *beta;
     parsec_complex64_t *A;
     parsec_complex64_t *C;
 
@@ -98,9 +101,8 @@ call_to_kernel_HE(parsec_execution_unit_t *context, parsec_execution_context_t *
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-
 int
-call_to_kernel_GE(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_gemm(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
 {
     (void)context;
     PLASMA_enum *transA, *transB;
@@ -126,7 +128,7 @@ call_to_kernel_GE(parsec_execution_unit_t *context, parsec_execution_context_t *
                           UNPACK_VALUE, &ldc
                         );
 
-    CORE_zgemm(PlasmaNoTrans, PlasmaConjTrans,
+    CORE_zgemm(*transA, *transB,
                *m, *n, *k,
                *alpha, A, *lda,
                        B, *ldb,
@@ -139,27 +141,14 @@ int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
-    PLASMA_enum uplo = PlasmaLower;
+    PLASMA_enum uplo = PlasmaUpper;
     int info = 0;
     int ret = 0;
-    int m, k, n, total; // loop counter
 
+    int m, n, k, total; /* loop counter */
     /* Parameters passed on to Insert_task() */
     int tempkm, tempmm, ldak, iinfo, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
     parsec_complex64_t alpha_trsm, alpha_herk, beta;
-
-    side = PlasmaRight;
-    transA_p = PlasmaConjTrans;
-    diag = PlasmaNonUnit;
-    alpha_trsm = 1.0;
-    trans = PlasmaNoTrans;
-    alpha_herk = -1.0;
-    beta = 1.0;
-    transB = PlasmaConjTrans;
-    transB = PlasmaConjTrans;
-    transA_g = PlasmaNoTrans;
-    iinfo = 0;
-    /* End */
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -184,6 +173,9 @@ int main(int argc, char **argv)
                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
+    /* Initializing ddesc for dtd */
+    sym_two_dim_block_cyclic_t *__ddescA = &ddescA;
+    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescA);
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
@@ -191,95 +183,210 @@ int main(int argc, char **argv)
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
-    parsec_dtd_init();
+    /* Getting new parsec handle of dtd type */
+    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+
+    /* Allocating data arrays to be used by comm engine */
+    dplasma_add2arena_tile( parsec_dtd_arenas[TILE_FULL],
+                            ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            parsec_datatype_double_complex_t, ddescA.super.mb );
+
+    /* Registering the handle with parsec context */
+    parsec_enqueue( parsec, parsec_dtd_handle );
+
     SYNC_TIME_START();
-    parsec_dtd_handle_t* PARSEC_dtd_handle = parsec_dtd_handle_new (parsec);
-    parsec_handle_t* PARSEC_zpotrf_dtd = (parsec_handle_t *) PARSEC_dtd_handle;
 
-    sym_two_dim_block_cyclic_t *__ddescA = &ddescA;
-    total = ddescA.super.mt;
-    //SYNC_TIME_START();
+    /* #### parsec context Starting #### */
 
-    parsec_enqueue(parsec, (parsec_handle_t*) PARSEC_dtd_handle);
+    /* start parsec context */
+    parsec_context_start( parsec );
 
-#if defined(OVERLAP)
-    parsec_context_start(parsec);
-#endif
+    if( PlasmaLower == uplo ) {
 
-    /* Testing Insert Function */
-    for(k=0;k<total;k++){
-        tempkm = (k == (ddescA.super.mt - 1)) ? ddescA.super.m - k * ddescA.super.mb : ddescA.super.mb;
-        ldak = BLKLDD((tiled_matrix_desc_t*)&ddescA, k);
-        parsec_insert_task(PARSEC_dtd_handle, &call_to_kernel_PO, "Potrf",
-                                 sizeof(int),      &uplo,              VALUE,
-                                 sizeof(int),      &tempkm,            VALUE,
-                                 PASSED_BY_REF,    TILE_OF(PARSEC_dtd_handle, A, k, k), INOUT | REGION_FULL,
-                                 sizeof(int),      &ldak,              VALUE,
-                                 sizeof(int),      &iinfo,             VALUE,
-                                 0);
-        for(m=k+1;m<total;m++){
-            tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
-            ldam = BLKLDD((tiled_matrix_desc_t*)&ddescA, m);
-            parsec_insert_task(PARSEC_dtd_handle, &call_to_kernel_TR, "Trsm",
-                                     sizeof(int),      &side,               VALUE,
-                                     sizeof(int),      &uplo,               VALUE,
-                                     sizeof(int),      &transA_p,           VALUE,
-                                     sizeof(int),      &diag,               VALUE,
-                                     sizeof(int),      &tempmm,             VALUE,
-                                     sizeof(int),      &ddescA.super.nb,    VALUE,
-                                     sizeof(parsec_complex64_t),      &alpha_trsm,         VALUE,
-                                     PASSED_BY_REF,    TILE_OF(PARSEC_dtd_handle, A, k, k), INPUT | REGION_FULL,
-                                     sizeof(int),      &ldak,               VALUE,
-                                     PASSED_BY_REF,    TILE_OF(PARSEC_dtd_handle, A, m, k), INOUT | REGION_FULL,
-                                     sizeof(int),      &ldam,               VALUE,
-                                     0);
+        side = PlasmaRight;
+        transA_p = PlasmaConjTrans;
+        diag = PlasmaNonUnit;
+        alpha_trsm = 1.0;
+        trans = PlasmaNoTrans;
+        alpha_herk = -1.0;
+        beta = 1.0;
+        transB = PlasmaConjTrans;
+        transA_g = PlasmaNoTrans;
+        iinfo = 0;
+
+        total = ddescA.super.mt;
+        /* Testing Insert Function */
+        for( k = 0; k < total; k++ ) {
+            tempkm = (k == (ddescA.super.mt - 1)) ? ddescA.super.m - k * ddescA.super.mb : ddescA.super.mb;
+            ldak = BLKLDD(&ddescA.super, k);
+
+            parsec_insert_task( parsec_dtd_handle, parsec_core_potrf,
+                              (total - k) * (total-k) * (total - k)/*priority*/, "Potrf",
+                               sizeof(int),      &uplo,              VALUE,
+                               sizeof(int),      &tempkm,            VALUE,
+                               PASSED_BY_REF,    TILE_OF(A, k, k), INOUT | TILE_FULL | AFFINITY,
+                               sizeof(int),      &ldak,              VALUE,
+                               sizeof(int),      &iinfo,             VALUE,
+                               0 );
+
+            for( m = k+1; m < total; m++ ) {
+                tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
+                ldam = BLKLDD(&ddescA.super, m);
+                parsec_insert_task( parsec_dtd_handle, parsec_core_trsm,
+                                  (total - m) * (total-m) * (total - m) + 3 * ((2 * total) - k - m - 1) * (m - k)/*priority*/, "Trsm",
+                                   sizeof(int),      &side,               VALUE,
+                                   sizeof(int),      &uplo,               VALUE,
+                                   sizeof(int),      &transA_p,           VALUE,
+                                   sizeof(int),      &diag,               VALUE,
+                                   sizeof(int),      &tempmm,             VALUE,
+                                   sizeof(int),      &ddescA.super.nb,    VALUE,
+                                   sizeof(parsec_complex64_t),      &alpha_trsm,         VALUE,
+                                   PASSED_BY_REF,    TILE_OF(A, k, k), INPUT | TILE_FULL,
+                                   sizeof(int),      &ldak,               VALUE,
+                                   PASSED_BY_REF,    TILE_OF(A, m, k), INOUT | TILE_FULL | AFFINITY,
+                                   sizeof(int),      &ldam,               VALUE,
+                                   0 );
+            }
+            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, k, k) );
+
+            for( m = k+1; m < ddescA.super.nt; m++ ) {
+                tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
+                ldam = BLKLDD(&ddescA.super, m);
+                parsec_insert_task( parsec_dtd_handle, parsec_core_herk,
+                                  (total - m) * (total - m) * (total - m) + 3 * (m - k)/*priority*/, "Herk",
+                                   sizeof(int),       &uplo,               VALUE,
+                                   sizeof(int),       &trans,              VALUE,
+                                   sizeof(int),       &tempmm,             VALUE,
+                                   sizeof(int),       &ddescA.super.mb,    VALUE,
+                                   sizeof(parsec_complex64_t),       &alpha_herk,         VALUE,
+                                   PASSED_BY_REF,     TILE_OF(A, m, k), INPUT | TILE_FULL,
+                                   sizeof(int),       &ldam,               VALUE,
+                                   sizeof(parsec_complex64_t),       &beta,               VALUE,
+                                   PASSED_BY_REF,     TILE_OF(A, m, m), INOUT | TILE_FULL | AFFINITY,
+                                   sizeof(int),       &ldam,               VALUE,
+                                   0 );
+
+                for( n = m+1; n < total; n++ ) {
+                    ldan = BLKLDD(&ddescA.super, n);
+                    parsec_insert_task( parsec_dtd_handle,  parsec_core_gemm,
+                                      (total - m) * (total - m) * (total - m) + 3 * ((2 * total) - m - n - 3) * (m - n) + 6 * (m - k) /*priority*/, "Gemm",
+                                       sizeof(int),        &transA_g,           VALUE,
+                                       sizeof(int),        &transB,             VALUE,
+                                       sizeof(int),        &tempmm,             VALUE,
+                                       sizeof(int),        &ddescA.super.mb,    VALUE,
+                                       sizeof(int),        &ddescA.super.mb,    VALUE,
+                                       sizeof(parsec_complex64_t),        &alpha_herk,         VALUE,
+                                       PASSED_BY_REF,      TILE_OF(A, n, k), INPUT | TILE_FULL,
+                                       sizeof(int),        &ldan,               VALUE,
+                                       PASSED_BY_REF,      TILE_OF(A, m, k), INPUT | TILE_FULL,
+                                       sizeof(int),        &ldam,               VALUE,
+                                       sizeof(parsec_complex64_t),        &beta,               VALUE,
+                                       PASSED_BY_REF,      TILE_OF(A, n, m), INOUT | TILE_FULL | AFFINITY,
+                                       sizeof(int),        &ldan,               VALUE,
+                                       0 );
+                }
+                parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, m, k) );
+            }
         }
-        for(m=k+1;m<total;m++){
-            tempmm = m == ddescA.super.mt - 1 ? ddescA.super.m - m * ddescA.super.mb : ddescA.super.mb;
-            ldam = BLKLDD((tiled_matrix_desc_t*)&ddescA, m);
-            parsec_insert_task(PARSEC_dtd_handle, &call_to_kernel_HE, "Herk",
-                                    sizeof(int),       &uplo,               VALUE,
-                                    sizeof(int),       &trans,              VALUE,
-                                    sizeof(int),       &tempmm,             VALUE,
-                                    sizeof(int),       &ddescA.super.mb,    VALUE,
-                                    sizeof(parsec_complex64_t),       &alpha_herk,         VALUE,
-                                    PASSED_BY_REF,     TILE_OF(PARSEC_dtd_handle, A, m, k), INPUT | REGION_FULL,
-                                    sizeof(int),       &ldam,               VALUE,
-                                    sizeof(double),       &beta,               VALUE,
-                                    PASSED_BY_REF,     TILE_OF(PARSEC_dtd_handle, A, m, m), INOUT | REGION_FULL,
-                                    sizeof(int),       &ldam,               VALUE,
-                                    0);
-            for(n=k+1;n<m;n++){
-                   ldan = BLKLDD((tiled_matrix_desc_t*)&ddescA, n);
-                   parsec_insert_task(PARSEC_dtd_handle,  &call_to_kernel_GE, "Gemm",
-                                           sizeof(int),        &transA_g,           VALUE,
-                                           sizeof(int),        &transB,             VALUE,
-                                           sizeof(int),        &tempmm,             VALUE,
-                                           sizeof(int),        &ddescA.super.mb,    VALUE,
-                                           sizeof(int),        &ddescA.super.mb,    VALUE,
-                                           sizeof(parsec_complex64_t),        &alpha_herk,         VALUE,
-                                           PASSED_BY_REF,      TILE_OF(PARSEC_dtd_handle, A, m, k), INPUT | REGION_FULL,
-                                           sizeof(int),        &ldam,               VALUE,
-                                           PASSED_BY_REF,      TILE_OF(PARSEC_dtd_handle, A, n, k), INPUT | REGION_FULL,
-                                           sizeof(int),        &ldan,               VALUE,
-                                           sizeof(parsec_complex64_t),        &beta,               VALUE,
-                                           PASSED_BY_REF,      TILE_OF(PARSEC_dtd_handle, A, m, n), INOUT | REGION_FULL,
-                                           sizeof(int),        &ldam,               VALUE,
-                                           0);
+    } else {
+        side = PlasmaLeft;
+        transA_p = PlasmaConjTrans;
+        diag = PlasmaNonUnit;
+        alpha_trsm = 1.0;
+        trans = PlasmaConjTrans;
+        alpha_herk = -1.0;
+        beta = 1.0;
+        transB = PlasmaNoTrans;
+        transA_g = PlasmaConjTrans;
+        iinfo = 0;
+
+        total = ddescA.super.nt;
+
+        for( k = 0; k < total; k++ ) {
+            tempkm = k == ddescA.super.nt-1 ? ddescA.super.n-k*ddescA.super.nb : ddescA.super.nb;
+            ldak = BLKLDD(&ddescA.super, k);
+            parsec_insert_task( parsec_dtd_handle, parsec_core_potrf, 4, "Potrf",
+                               sizeof(int),      &uplo,              VALUE,
+                               sizeof(int),      &tempkm,            VALUE,
+                               PASSED_BY_REF,    TILE_OF(A, k, k), INOUT | TILE_FULL | AFFINITY,
+                               sizeof(int),      &ldak,              VALUE,
+                               sizeof(int),      &iinfo,             VALUE,
+                               0 );
+
+            for( m = k+1; m < total; m++ ) {
+                tempmm = m == ddescA.super.nt-1 ? ddescA.super.n-m*ddescA.super.nb : ddescA.super.nb;
+                parsec_insert_task( parsec_dtd_handle, parsec_core_trsm, 3, "Trsm",
+                                   sizeof(int),      &side,               VALUE,
+                                   sizeof(int),      &uplo,               VALUE,
+                                   sizeof(int),      &transA_p,           VALUE,
+                                   sizeof(int),      &diag,               VALUE,
+                                   sizeof(int),      &ddescA.super.nb,    VALUE,
+                                   sizeof(int),      &tempmm,             VALUE,
+                                   sizeof(parsec_complex64_t),      &alpha_trsm,         VALUE,
+                                   PASSED_BY_REF,    TILE_OF(A, k, k), INPUT | TILE_FULL,
+                                   sizeof(int),      &ldak,               VALUE,
+                                   PASSED_BY_REF,    TILE_OF(A, k, m), INOUT | TILE_FULL | AFFINITY,
+                                   sizeof(int),      &ldak,               VALUE,
+                                   0 );
+            }
+            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, k, k) );
+
+            for( m = k+1; m < ddescA.super.mt; m++ ) {
+                tempmm = m == ddescA.super.nt-1 ? ddescA.super.n-m*ddescA.super.nb : ddescA.super.nb;
+                ldam = BLKLDD(&ddescA.super, m);
+                parsec_insert_task( parsec_dtd_handle, parsec_core_herk, 2, "Herk",
+                                   sizeof(int),       &uplo,               VALUE,
+                                   sizeof(int),       &trans,              VALUE,
+                                   sizeof(int),       &tempmm,             VALUE,
+                                   sizeof(int),       &ddescA.super.mb,    VALUE,
+                                   sizeof(parsec_complex64_t),       &alpha_herk,         VALUE,
+                                   PASSED_BY_REF,     TILE_OF(A, k, m), INPUT | TILE_FULL,
+                                   sizeof(int),       &ldak,               VALUE,
+                                   sizeof(parsec_complex64_t),    &beta,                  VALUE,
+                                   PASSED_BY_REF,     TILE_OF(A, m, m), INOUT | TILE_FULL | AFFINITY,
+                                   sizeof(int),       &ldam,               VALUE,
+                                   0 );
+
+                for( n = m+1; n < total; n++ ) {
+                   ldan = BLKLDD(&ddescA.super, n);
+                   parsec_insert_task( parsec_dtd_handle,  parsec_core_gemm, 1, "Gemm",
+                                      sizeof(int),        &transA_g,           VALUE,
+                                      sizeof(int),        &transB,             VALUE,
+                                      sizeof(int),        &ddescA.super.mb,    VALUE,
+                                      sizeof(int),        &tempmm,             VALUE,
+                                      sizeof(int),        &ddescA.super.mb,    VALUE,
+                                      sizeof(parsec_complex64_t),        &alpha_herk,         VALUE,
+                                      PASSED_BY_REF,      TILE_OF(A, k, m), INPUT | TILE_FULL,
+                                      sizeof(int),        &ldak,               VALUE,
+                                      PASSED_BY_REF,      TILE_OF(A, k, n), INPUT | TILE_FULL,
+                                      sizeof(int),        &ldak,               VALUE,
+                                      sizeof(parsec_complex64_t),        &beta,               VALUE,
+                                      PASSED_BY_REF,      TILE_OF(A, m, n), INOUT | TILE_FULL | AFFINITY,
+                                      sizeof(int),        &ldan,               VALUE,
+                                      0 );
+                }
+                parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, k, m) );
             }
         }
     }
 
-    parsec_dtd_handle_wait( parsec, PARSEC_dtd_handle );
-    parsec_dtd_context_wait_on_handle( parsec, PARSEC_dtd_handle );
+    parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescA );
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(PARSEC_zpotrf_dtd);
+    /* finishing all the tasks inserted, but not finishing the handle */
+    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+
+    /* Waiting on all handle and turning everything off for this context */
+    parsec_context_wait( parsec );
+
+    /* #### Dague context is done #### */
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,
                            gflops=(flops/1e9)/sync_time_elapsed));
 
-    parsec_dtd_fini();
+    /* Cleaning up the parsec handle */
+    parsec_handle_free( parsec_dtd_handle );
 
     if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);
@@ -329,6 +436,10 @@ int main(int argc, char **argv)
         parsec_data_free(ddescX.mat); ddescX.mat = NULL;
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX );
     }
+
+    /* Cleaning data arrays we allocated for communication */
+    parsec_matrix_del2arena( parsec_dtd_arenas[TILE_FULL] );
+    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescA );
 
     parsec_data_free(ddescA.mat); ddescA.mat = NULL;
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);

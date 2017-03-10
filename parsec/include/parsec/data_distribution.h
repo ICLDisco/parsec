@@ -35,6 +35,9 @@ struct parsec_ddesc_s {
     uint32_t            myrank;    /**< process rank */
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
+    /* This void pointer has astructures required to book keep dtd interface */
+    void *tile_h_table;
+
     /* return a unique key (unique only for the specified parsec_ddesc) associated to a data */
     parsec_data_key_t (*data_key)(parsec_ddesc_t *d, ...);
 
@@ -78,6 +81,7 @@ parsec_ddesc_init(parsec_ddesc_t *d,
 
     d->nodes  = nodes;
     d->myrank = myrank;
+    d->tile_h_table = NULL;
     d->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
 }
 

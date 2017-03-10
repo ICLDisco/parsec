@@ -16,7 +16,7 @@
 #include "parsec/debug.h"
 #include "parsec/debug_marks.h"
 #include "parsec/data.h"
-
+#include "parsec/interfaces/superscalar/insert_function_internal.h"
 
 #define PARSEC_REMOTE_DEP_USE_THREADS
 
@@ -98,6 +98,7 @@ typedef enum dep_cmd_action_t {
     DEP_NEW_OBJECT  =  0,
     DEP_MEMCPY,
     DEP_RELEASE,
+    DEP_DTD_DELAYED_RELEASE,
 /*    DEP_PROGRESS,
     DEP_PUT_DATA, */
     DEP_GET_DATA,
@@ -161,6 +162,8 @@ static int
 remote_dep_mpi_get_end_cb(parsec_execution_unit_t* eu_context,
                           parsec_comm_callback_t* cb, MPI_Status* status);
 static void remote_dep_mpi_new_object( parsec_execution_unit_t* eu_context, dep_cmd_item_t *item );
+static void remote_dep_mpi_release_delayed_deps( parsec_execution_unit_t* eu_context,
+                                                 dep_cmd_item_t *item );
 
 extern char*
 remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
@@ -172,6 +175,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     task.parsec_handle = parsec_handle_lookup( origin->handle_id );
     if( NULL == task.parsec_handle ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->handle_id), str;
     task.function     = task.parsec_handle->functions_array[origin->function_id];
+    if( NULL == task.function ) return snprintf(str, len, "UNKNOWN_of_Function_%d", origin->function_id), str;
     memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.function->nb_locals);
     task.priority     = 0xFFFFFFFF;
     return parsec_snprintf_execution_context(str, len, &task);
@@ -196,6 +200,33 @@ static int mpi_initialized = 0;
 static pthread_mutex_t mpi_thread_mutex;
 static pthread_cond_t mpi_thread_condition;
 #endif
+
+static parsec_execution_unit_t parsec_comm_eu = {
+        .th_id = 0,
+        .core_id = -1,
+        .socket_id = -1,
+#if defined(PARSEC_PROF_TRACE)
+        .eu_profile = NULL,
+#endif /* PARSEC_PROF_TRACE */
+        .scheduler_object = NULL,
+#if defined(PARSEC_SCHED_REPORT_STATISTICS)
+       .sched_nb_tasks_done = 0,
+#endif
+#if defined(PARSEC_SIM)
+        .largest_simulation_date = 0,
+#endif
+#if defined(PINS_ENABLE)
+        .pins_events_cb = {{0x0,},},
+#endif  /* defined(PINS_ENABLE) */
+#if defined(PARSEC_PROF_RUSAGE_EU)
+#if defined(PARSEC_HAVE_GETRUSAGE) || !defined(__bgp__)
+        ._eu_rusage = {0x0, },
+#endif /* PARSEC_HAVE_GETRUSAGE */
+#endif
+        .virtual_process = NULL,
+        .context_mempool = NULL,
+        .datarepo_mempools = {NULL, }
+};
 
 static int remote_dep_dequeue_init(parsec_context_t* context)
 {
@@ -410,6 +441,19 @@ static int remote_dep_dequeue_new_object(parsec_handle_t* obj)
     return 1;
 }
 
+int
+remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps)
+{
+    if(!mpi_initialized) return 0;
+    dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
+    OBJ_CONSTRUCT(item, parsec_list_item_t);
+    item->action = DEP_DTD_DELAYED_RELEASE;
+    item->priority = 0;
+    item->cmd.release.deps = deps;
+    parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*)item);
+    return 1;
+}
+
 static int remote_dep_dequeue_send(int rank,
                                    parsec_remote_deps_t* deps)
 {
@@ -524,12 +568,26 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
     parsec_execution_context_t task;
     uint32_t i, j, k, local_mask = 0;
 
+    parsec_dtd_handle_t *dtd_handle = NULL;
+    parsec_dtd_task_t *dtd_task = NULL;
+
     assert(NULL == origin->parsec_handle);
     origin->parsec_handle = parsec_handle_lookup(origin->msg.handle_id);
     if( NULL == origin->parsec_handle )
         return -1; /* the parsec object doesn't exist yet */
     task.parsec_handle = origin->parsec_handle;
     task.function     = task.parsec_handle->functions_array[origin->msg.function_id];
+
+    if( 1 == origin->parsec_handle->handle_type ) {
+        dtd_handle = (parsec_dtd_handle_t *)origin->parsec_handle;
+        parsec_dtd_two_hash_table_lock(dtd_handle->two_hash_table);
+
+        if( NULL == task.function ) {
+            assert(origin->incoming_mask == 0);
+            return -2; /* indicates problem with dtd progress in this node, so defer activation */
+        }
+    }
+
     task.priority     = 0;  /* unknown yet */
     for(i = 0; i < task.function->nb_locals; i++)
         task.locals[i] = origin->msg.locals[i];
@@ -539,8 +597,17 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
      * be able to identify the dep_index for each particular datatype index, and
      * call the iterate_successors on each of the dep_index sets.
      */
+    int return_defer = 0;
     for(k = 0; origin->msg.output_mask>>k; k++) {
         if(!(origin->msg.output_mask & (1U<<k))) continue;
+
+        if( 1 == origin->parsec_handle->handle_type ) {
+            uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
+            dtd_task = parsec_dtd_find_task( dtd_handle, key );
+
+            if( NULL == dtd_task ) { return_defer = 1; continue; }
+        }
+
         for(local_mask = i = 0; NULL != task.function->out[i]; i++ ) {
             if(!(task.function->out[i]->flow_datatype_mask & (1U<<k))) continue;
             for(j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
@@ -548,12 +615,36 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
                     local_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
             if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
         }
+
+        if( 1 == origin->parsec_handle->handle_type ) {
+            if( local_mask == 0 ) {
+                assert(0);
+                return -2;
+            }
+        }
+
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
-        task.function->iterate_successors(eu_context, &task,
-                                          local_mask,
-                                          remote_dep_mpi_retrieve_datatype,
-                                          origin);
+        if( 1 == origin->parsec_handle->handle_type ) {
+            task.function->iterate_successors(eu_context, (parsec_execution_context_t *)dtd_task,
+                                              local_mask,
+                                              remote_dep_mpi_retrieve_datatype,
+                                              origin);
+        } else {
+            task.function->iterate_successors(eu_context, &task,
+                                              local_mask,
+                                              remote_dep_mpi_retrieve_datatype,
+                                              origin);
+        }
     }
+
+    if( 1 == origin->parsec_handle->handle_type ) {
+        if( return_defer ) return -2;
+        else {
+            assert(origin->incoming_mask == origin->msg.output_mask );
+            parsec_dtd_two_hash_table_unlock(dtd_handle->two_hash_table);
+        }
+    }
+
     /**
      * At this point the msg->output_mask contains the root mask, and should be
      * keep as is and be propagated down the communication pattern. On the
@@ -610,7 +701,7 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
 
 #ifdef PARSEC_DIST_COLLECTIVES
     /* Corresponding comment below on the propagation part */
-    if(0 == origin->incoming_mask) {
+    if(0 == origin->incoming_mask && 0 == origin->parsec_handle->handle_type) {
         remote_dep_inc_flying_messages(task.parsec_handle);
         (void)parsec_atomic_add_32b(&origin->pending_ack, 1);
     }
@@ -645,7 +736,8 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
     origin->outgoing_mask = 0;
 
 #if defined(PARSEC_DIST_COLLECTIVES)
-    parsec_remote_dep_propagate(eu_context, &task, origin);
+    if( 0 == origin->parsec_handle->handle_type ) /* indicates it is a PTG handle */
+        parsec_remote_dep_propagate(eu_context, &task, origin);
 #endif  /* PARSEC_DIST_COLLECTIVES */
     /**
      * Release the dependency owned by the communication engine for all data
@@ -658,7 +750,11 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
             PARSEC_DATA_COPY_RELEASE(origin->output[i].data.data);
     }
 #if defined(PARSEC_DIST_COLLECTIVES)
-    remote_dep_complete_and_cleanup(&origin, 1);
+    if(0 == origin->parsec_handle->handle_type) {
+        remote_dep_complete_and_cleanup(&origin, 1);
+    } else {
+        remote_deps_free(origin);
+    }
 #else
     remote_deps_free(origin);
 #endif  /* PARSEC_DIST_COLLECTIVES */
@@ -691,7 +787,7 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
     dep_cmd_item_t *item, *same_pos;
     parsec_list_t temp_list;
     int ret = 0, how_many, position, executed_tasks = 0;
-    parsec_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
+    parsec_execution_unit_t* eu_context = &parsec_comm_eu;
 
     OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
@@ -779,6 +875,9 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
     case DEP_NEW_OBJECT:
         remote_dep_mpi_new_object(eu_context, item);
         break;
+    case DEP_DTD_DELAYED_RELEASE:
+        remote_dep_mpi_release_delayed_deps(eu_context, item);
+        break;
     case DEP_ACTIVATE:
         remote_dep_nothread_send(eu_context, &item);
         same_pos = item;
@@ -841,6 +940,8 @@ static unsigned long get = 0;
 static int MPI_Data_ctl_sk, MPI_Data_ctl_ek;
 static int MPI_Data_plds_sk, MPI_Data_plds_ek;
 static int MPI_Data_pldr_sk, MPI_Data_pldr_ek;
+static int activate_cb_trace_sk, activate_cb_trace_ek;
+static int put_cb_trace_sk, put_cb_trace_ek;
 
 typedef struct {
     int rank_src;  // 0
@@ -871,9 +972,19 @@ static void remote_dep_mpi_profiling_init(void)
                                             parsec_profile_remote_dep_mpi_info_to_string,
                                             &MPI_Data_pldr_sk, &MPI_Data_pldr_ek);
 
+    parsec_profiling_add_dictionary_keyword( "ACTIVATE_CB", "fill:#FF0000",
+                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
+                                            parsec_profile_remote_dep_mpi_info_to_string,
+                                            &activate_cb_trace_sk, &activate_cb_trace_ek);
+    parsec_profiling_add_dictionary_keyword( "PUT_CB", "fill:#FF0000",
+                                            sizeof(parsec_profile_remote_dep_mpi_info_t),
+                                            parsec_profile_remote_dep_mpi_info_to_string,
+                                            &put_cb_trace_sk, &put_cb_trace_ek);
+
     MPIctl_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI ctl");
     MPIsnd_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI isend");
     MPIrcv_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI irecv");
+    parsec_comm_eu.eu_profile = MPIctl_prof;
 }
 
 static void remote_dep_mpi_profiling_fini(void)
@@ -1053,8 +1164,14 @@ static int remote_dep_mpi_init(parsec_context_t* context)
         parsec_comm_last_active_req++;
     }
 
-    remote_dep_mpi_profiling_init();
     return 0;
+}
+
+void
+remote_dep_mpi_initialize_execution_unit(parsec_context_t *context)
+{
+    memcpy(&parsec_comm_eu, context->virtual_processes[0]->execution_units[0], sizeof(parsec_execution_unit_t));
+    remote_dep_mpi_profiling_init();
 }
 
 static int remote_dep_mpi_fini(parsec_context_t* context)
@@ -1623,10 +1740,11 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
                                 parsec_comm_callback_t* cb,
                                 MPI_Status* status)
 {
+    PINS(eu_context, ACTIVATE_CB_BEGIN, NULL);
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
-    int position = 0, length;
+    int position = 0, length, rc;
     parsec_remote_deps_t* deps = NULL;
 
     MPI_Get_count(status, MPI_PACKED, &length);
@@ -1639,7 +1757,9 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
         /* Retrieve the data arenas and update the msg.incoming_mask to reflect
          * the data we should be receiving from the predecessor.
          */
-        if( -1 == remote_dep_get_datatypes(eu_context, deps) ) {
+        rc = remote_dep_get_datatypes(eu_context, deps);
+
+        if( -1 == rc ) {
             /* the corresponding parsec_handle doesn't exist, yet. Put it in unexpected */
             char* packed_buffer;
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NOOBJ\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
@@ -1652,7 +1772,42 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
             deps->parsec_handle = (parsec_handle_t*)packed_buffer;  /* temporary storage */
             parsec_list_nolock_fifo_push(&dep_activates_noobj_fifo, (parsec_list_item_t*)deps);
             continue;
+        } else {
+            assert(deps->parsec_handle != NULL);
+            if( -2 == rc ) { /* DTD problems, defer activating this remote dep */
+                assert(deps->incoming_mask != deps->msg.output_mask);
+                int i;
+                parsec_dtd_handle_t *dtd_handle = (parsec_dtd_handle_t *)deps->parsec_handle;
+
+                for( i = 0; deps->msg.output_mask >> i; i++ ) {
+                    if( !(deps->msg.output_mask & (1U<<i) ) ) continue;
+                    if( deps->incoming_mask & (1U<<i) ) { /* we got successor for this flag, move to next */
+                        assert(0);
+                    }
+                    uint64_t key = (uint64_t)deps->msg.locals[0].value << 32 | (1U<<i);
+                    char* packed_buffer;
+                    PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate DeferDep\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
+                            deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
+                            cb->storage2, deps->msg.deps, deps->msg.output_mask);
+                    /* Copy the eager data to some temp storage */
+                    packed_buffer = malloc(deps->msg.length);
+                    memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
+                    position += deps->msg.length;  /* move to the next order */
+                    deps->parsec_handle = (parsec_handle_t*)packed_buffer;  /* temporary storage */
+#if defined(PARSEC_PROF_TRACE)
+                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_handle->super.handle_id, NULL );
+#endif
+                    parsec_dtd_insert_remote_dep( dtd_handle, key, deps );
+                }
+
+                /* unlocking the two hash table */
+                parsec_dtd_two_hash_table_unlock( dtd_handle->two_hash_table );
+
+                assert(deps->incoming_mask == 0);
+                continue;
+            }
         }
+
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tFROM\t%d\tActivate\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                status->MPI_SOURCE, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                cb->storage2, deps->msg.deps, deps->msg.output_mask);
@@ -1664,6 +1819,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
     assert(position == length);
     /* Let's re-enable the pending request in the same position */
     MPI_Start(&array_of_requests[cb->storage1]);
+    PINS(eu_context, ACTIVATE_CB_END, NULL);
     return 0;
 }
 
@@ -1691,6 +1847,34 @@ static void remote_dep_mpi_new_object( parsec_execution_unit_t* eu_context,
             (void)rc;
         }
     }));
+}
+
+/* In DTD runs, remote nodes might ask us to activate tasks that has not been
+ * discovered in the local node yet. We delay activation of those tasks and
+ * push the dep in a hash table. As soon as we discover the remote task, for
+ * which an activation is already pending, we issue a command to activate that
+ * dep, This function does the necessary steps to continue the activation of
+ * the remote task.
+ */
+static void
+remote_dep_mpi_release_delayed_deps( parsec_execution_unit_t* eu_context,
+                                     dep_cmd_item_t *item )
+{
+    PINS(eu_context, ACTIVATE_CB_BEGIN, NULL);
+    parsec_remote_deps_t *deps = item->cmd.release.deps;
+    int rc, position = 0;
+    char* buffer = (char*)deps->parsec_handle;  /* get back the buffer from the "temporary" storage */
+    deps->parsec_handle = NULL;
+
+    rc = remote_dep_get_datatypes(eu_context, deps);
+
+    assert(rc != -2);
+    (void)rc;
+
+    assert(deps != NULL);
+    remote_dep_mpi_recv_activate(eu_context, deps, buffer, deps->msg.length, &position);
+    free(buffer);
+    PINS(eu_context, ACTIVATE_CB_END, NULL);
 }
 
 static void remote_dep_mpi_get_start(parsec_execution_unit_t* eu_context,

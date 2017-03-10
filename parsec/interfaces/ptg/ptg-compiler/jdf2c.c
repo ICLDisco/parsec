@@ -3345,12 +3345,14 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     coutput("  __parsec_handle->super.super.nb_functions = PARSEC_%s_NB_FUNCTIONS;\n"
             "  __parsec_handle->super.super.devices_mask = PARSEC_DEVICES_ALL;\n"
+            "  __parsec_handle->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;\n"
             "  __parsec_handle->super.super.dependencies_array = (void **)\n"
             "              calloc(__parsec_handle->super.super.nb_functions , sizeof(void*));\n"
             "  /* Twice the size to hold the startup tasks function_t */\n"
             "  __parsec_handle->super.super.functions_array = (const parsec_function_t**)\n"
             "              malloc(2 * __parsec_handle->super.super.nb_functions * sizeof(parsec_function_t*));\n"
             "  __parsec_handle->super.super.nb_tasks = 1;\n"
+            "  __parsec_handle->super.super.handle_type = 0;\n"
             "  __parsec_handle->super.super.nb_pending_actions = 1 + __parsec_handle->super.super.nb_functions;  /* for the startup tasks */\n"
             "  __parsec_handle->sync_point = __parsec_handle->super.super.nb_functions;\n"
             "  __parsec_handle->startup_queue = NULL;\n"
@@ -5091,6 +5093,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 {
     coutput("static int %s(parsec_execution_unit_t *eu, %s *this_task, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
             "{\n"
+            "PINS(eu, RELEASE_DEPS_BEGIN, (parsec_execution_context_t *)this_task);"
+            "{\n"
             "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t *)this_task->parsec_handle;\n"
             "  parsec_release_dep_fct_arg_t arg;\n"
             "  int __vp_id;\n"
@@ -5148,6 +5152,8 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
     jdf_generate_code_free_hash_table_entry(jdf, f);
 
     coutput(
+        "PINS(eu, RELEASE_DEPS_END, (parsec_execution_context_t *)this_task);"
+        "}\n"
         "  return 0;\n"
         "}\n"
         "\n");

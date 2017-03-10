@@ -27,6 +27,12 @@ typedef enum PINS_FLAG {
     SELECT_END,          // called after scheduler has finished looking for an available task
     PREPARE_INPUT_BEGIN,
     PREPARE_INPUT_END,
+    RELEASE_DEPS_BEGIN,
+    RELEASE_DEPS_END,
+    ACTIVATE_CB_BEGIN,
+    ACTIVATE_CB_END,
+    DATA_FLUSH_BEGIN,
+    DATA_FLUSH_END,
     EXEC_BEGIN,          // called before thread executes a task
     EXEC_END,            // called before thread executes a task
     COMPLETE_EXEC_BEGIN, // called before scheduler adds a newly-enabled task

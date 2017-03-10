@@ -194,6 +194,7 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 
 #define PASTE_CODE_PROGRESS_KERNEL(PARSEC, KERNEL)                       \
     SYNC_TIME_START();                                                  \
+    parsec_context_start(PARSEC);                                       \
     TIME_START();                                                       \
     parsec_context_wait(PARSEC);                                          \
     SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \

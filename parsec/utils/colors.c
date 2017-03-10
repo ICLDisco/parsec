@@ -13,6 +13,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+static int color_seed = 1789;
+
 /**
  * A simple solution to generate different color tables for each rank. For a
  * more detailed and visualy appealing solution take a look at
@@ -69,7 +71,7 @@ static void HSVtoRGB( double *r, double *g, double *b, double h, double s, doubl
 
 static inline double get_rand_in_range(int m, int M)
 {
-    return (double)m + (double)rand() / ((double)RAND_MAX / (M - m + 1) + 1);
+    return (double)m + (double)rand_r(&color_seed) / ((double)RAND_MAX / (M - m + 1) + 1);
 }
 
 char *unique_color(int index, int colorspace)
