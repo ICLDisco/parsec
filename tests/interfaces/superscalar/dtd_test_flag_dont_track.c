@@ -75,7 +75,7 @@ int main(int argc, char ** argv)
     /****** Checking Dont track flag ******/
     parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
 
-    int i, j, total_tasks = 20;
+    int i, total_tasks = 20;
     nb = 1; /* size of each tile */
     nt = 1; /* total tiles */
 

@@ -789,10 +789,12 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     return context;
 }
 
-void parsec_abort(parsec_context_t* ctx, int status) {
+void parsec_abort(parsec_context_t* ctx, int status)
+{
     /* ATM, MPI_Abort aborts the whole job, in the future it would be nice to
      * abort only the @ctx */
     parsec_weaksym_exit(status);
+    (void)ctx;
 }
 
 static void parsec_vp_fini( parsec_vp_t *vp )

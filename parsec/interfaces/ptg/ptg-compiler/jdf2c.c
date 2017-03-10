@@ -2480,9 +2480,9 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     string_arena_t *sa1, *sa2, *sa_end;
     const jdf_def_list_t *dl;
     const jdf_name_list_t *pl;
-    int nesting, idx;
     expr_info_t info;
     int need_to_iterate, need_min_max, need_to_count_tasks;
+    int nesting = 0, idx;
     jdf_l2p_t *l2p = build_l2p(f), *l2p_item;
     (void)jdf;
 
@@ -2550,7 +2550,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     info.assignments = "&assignments";
 
     if( need_to_iterate || need_min_max ) {
-        nesting = 0;
         for(dl = f->locals; dl != NULL; dl = dl->next) {
 
             /* is this local variable part of the function parameters */

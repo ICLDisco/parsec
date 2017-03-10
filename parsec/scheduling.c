@@ -407,7 +407,7 @@ int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
          * this handle tasks once. We need to protect this action by atomically
          * setting the number of tasks to a non-zero value.
          */
-        if( parsec_atomic_cas_32b(&handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+        if( parsec_atomic_cas_32b((uint32_t*)&handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
             parsec_handle_update_runtime_nbtask(handle, -1);
     }
 
@@ -804,7 +804,7 @@ int parsec_context_start( parsec_context_t* context )
         /* we keep one extra reference on the context to make sure we only match this with an
          * explicit call to parsec_context_wait.
          */
-        parsec_atomic_inc_32b( &(context->active_objects) );
+        (void)parsec_atomic_inc_32b( (uint32_t*)&(context->active_objects) );
         return 0;
     }
     return -1;  /* Someone else start it up */
@@ -830,7 +830,7 @@ int parsec_context_wait( parsec_context_t* context )
     if( active < 0 ) {
         parsec_warning("parsec_context_wait detected on a non-started context\n");
         /* put the context back on it's original state */
-        parsec_atomic_inc_32b( &(context->active_objects) );
+        (void)parsec_atomic_inc_32b( &(context->active_objects) );
         return -1;
     }
 

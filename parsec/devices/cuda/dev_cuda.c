@@ -1922,7 +1922,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
     gpu_device_t* gpu_device;
     cudaError_t status;
     int rc, exec_stream = 0;
-    parsec_gpu_context_t *progress_task, *out_task_push, *out_task_submit, *out_task_pop;
+    parsec_gpu_context_t *progress_task, *out_task_push, *out_task_submit = NULL, *out_task_pop;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif

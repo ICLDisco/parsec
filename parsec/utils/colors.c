@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static int color_seed = 1789;
+static unsigned int color_seed = 1789;
 
 /**
  * A simple solution to generate different color tables for each rank. For a

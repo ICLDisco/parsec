@@ -148,8 +148,8 @@ typedef struct parsec_dtd_parent_info_s {
 
 struct parsec_dtd_task_s {
     parsec_execution_context_t   super;
-    int                         rank;
-    int                         flow_count;
+    int32_t                      rank;
+    int32_t                      flow_count;
     /* for testing PTG inserting task in DTD */
     parsec_execution_context_t  *orig_task;
 };
@@ -160,17 +160,17 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dtd_task_t);
 /** Tile structure **/
 typedef struct parsec_dtd_tile_user_s {
     parsec_atomic_lock_t atomic_lock;
-    int               op_type;
-    int               alive;
-    parsec_dtd_task_t *task;
-    uint8_t           flow_index;
+    int32_t              op_type;
+    int32_t              alive;
+    parsec_dtd_task_t   *task;
+    uint8_t              flow_index;
 }parsec_dtd_tile_user_t;
 
 struct parsec_dtd_tile_s {
     parsec_hashtable_item_t super;
     int16_t                 arena_index;
     int16_t                 flushed;
-    int                     rank;
+    int32_t                 rank;
     parsec_data_key_t       key;
     parsec_data_copy_t     *data_copy;
     parsec_ddesc_t         *ddesc;

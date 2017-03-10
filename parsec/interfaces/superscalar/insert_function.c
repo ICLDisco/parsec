@@ -1973,11 +1973,10 @@ output_data_of_dtd_task( parsec_execution_unit_t *context,
 {
     (void)context;
 
-    int current_dep, op_type_on_current_flow;
+    int current_dep;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
 
     for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
-        op_type_on_current_flow = ((FLOW_OF(current_task, current_dep))->op_type & GET_OP_TYPE);
         /* The following check makes sure the behavior is correct when NULL is provided as input to a flow.
            Dependency tracking and building is completely ignored in flow = NULL case, and no expectation should exist.
         */
@@ -1989,13 +1988,6 @@ output_data_of_dtd_task( parsec_execution_unit_t *context,
 
         if( NULL != current_task->super.data[current_dep].data_in ) {
             current_task->super.data[current_dep].data_out = current_task->super.data[current_dep].data_in;
-#if 0
-            if( INOUT == op_type_on_current_flow ||
-                OUTPUT == op_type_on_current_flow ) {
-                /* For each Write flow we update the version */
-                current_task->super.data[current_dep].data_out->version++;
-            }
-#endif
         }
     }
 
