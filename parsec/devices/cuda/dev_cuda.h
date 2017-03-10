@@ -210,6 +210,10 @@ int
 parsec_gpu_kernel_epilog( gpu_device_t        *gpu_device,
                          parsec_gpu_context_t *gpu_task );
 
+int
+parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
+                            parsec_gpu_context_t *gpu_task );
+
 END_C_DECLS
 
 #endif /* defined(PARSEC_HAVE_CUDA) */

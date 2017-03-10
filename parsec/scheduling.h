@@ -41,6 +41,25 @@ int __parsec_schedule( parsec_execution_unit_t*,
                        parsec_execution_context_t*,
                        int32_t distance);
 
+/**
+ * @brief Reschedule a task on the most appropriate resource.
+ *
+ * @details The function reschedules a task, by trying to locate it as closer
+ *          as possible to the current execution unit. If not available
+ *          execution unit was found, the task is rescheduled on the same
+ *          execution unit. To find the most appropriate execution unit
+ *          we start from the next execution unit after the current one, and
+ *          iterate over all existing execution units (in the current VP,
+ *          then on the next VP and so on).
+ *
+ * @param [IN] eu_context, the start execution_unit (normall it is the current one).
+ * @param [IN] task, the task to be rescheduled.
+ *
+ * @return parsec scheduling return code
+ */
+int __parsec_reschedule(parsec_execution_unit_t* eu_context,
+                        parsec_execution_context_t* task);
+
 int __parsec_context_wait(parsec_execution_unit_t* eu_context);
 
 /**

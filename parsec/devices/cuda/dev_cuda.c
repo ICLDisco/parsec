@@ -1399,13 +1399,15 @@ progress_stream( gpu_device_t* gpu_device,
     assert( NULL != progress_fct );
     rc = progress_fct( gpu_device, task, exec_stream );
     if( 0 > rc ) {
-        if( -1 == rc ) return -1;  /* Critical issue */
-        /* No more room on the GPU. Push the task back on the queue and check the completion queue. */
+        if( PARSEC_HOOK_RETURN_AGAIN != rc) {
+            *out_task = task;
+            return rc;
+        }
+
         PARSEC_FIFO_PUSH(exec_stream->fifo_pending, (parsec_list_item_t*)task);
         PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
-                            "GPU[%d]: Reschedule %s(task %p) priority %d: no room available on the GPU for data",
-                            gpu_device->cuda_index, task->ec->function->name, (void*)task->ec, task->ec->priority);
-        saved_rc = rc;  /* keep the info for the upper layer */
+                             "GPU[%d]: Reschedule %s(task %p) priority %d: no room available on the GPU for data",
+                             gpu_device->cuda_index, task->ec->function->name, (void*)task->ec, task->ec->priority);
     } else {
         /**
          * Do not skip the cuda event generation. The problem is that some of the inputs
@@ -1790,14 +1792,13 @@ parsec_gpu_kernel_epilog( gpu_device_t        *gpu_device,
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
 
-        gpu_copy = this_task->data[i].data_out;
-        original = gpu_copy->original;
-
         if( !(gpu_task->flow[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
             /* Warning data_out for read only flows has been overwritten in pop */
             continue;
         }
 
+        gpu_copy = this_task->data[i].data_out;
+        original = gpu_copy->original;
         cpu_copy = original->device_copies[0];
 
         /**
@@ -1839,6 +1840,68 @@ parsec_gpu_kernel_epilog( gpu_device_t        *gpu_device,
         } else {
             parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_owned_lru, (parsec_list_item_t*)gpu_copy);
         }
+    }
+    return 0;
+}
+
+/** @brief Release the CUDA copies of the data used in WRITE mode.
+ *
+ * @details This function can be used when the CUDA task didn't run
+ *          to completion on the device (either due to an error, or
+ *          simply because the body requested a reexecution on a
+ *          different location). It releases the CUDA copies of the
+ *          output data, allowing them to be reused by the runtime.
+ *          This function has the drawback of kicking in too late,
+ *          after all data transfers have been completed toward the
+ *          device.
+ *
+ * @param [IN] gpu_device, the GPU device the the task has been
+ *             supposed to execute.
+ * @param [IN] gpu_task, the task that has been cancelled, and which
+ *             needs it's data returned to the runtime.
+ * @return Currently only success.
+ */
+int
+parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
+                            parsec_gpu_context_t *gpu_task )
+{
+    parsec_execution_context_t *this_task = gpu_task->ec;
+    parsec_gpu_data_copy_t     *gpu_copy, *cpu_copy;
+    parsec_data_t              *original;
+    int i;
+
+#if defined(PARSEC_DEBUG_NOISIER)
+    char tmp[MAX_TASK_STRLEN];
+    PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
+                        "GPU[%d]: Cleanup of %s",
+                        gpu_device->cuda_index,
+                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
+#endif
+
+    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+        /* Don't bother if there is no real data (aka. CTL or no output) */
+        if(NULL == this_task->data[i].data_out) continue;
+        if( !(gpu_task->flow[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
+            /* Warning data_out for read only flows has been overwritten in pop */
+            continue;
+        }
+
+        gpu_copy = this_task->data[i].data_out;
+        original = gpu_copy->original;
+        /* Issue #134 */
+        parsec_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
+        gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
+        cpu_copy = original->device_copies[0];
+
+        /**
+         * Let's lie to the engine by reporting that working version of this
+         * data (aka. the one that GEMM worked on) is now on the CPU.
+         */
+        this_task->data[i].data_out = cpu_copy;
+        parsec_list_nolock_fifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)gpu_copy);
+        PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
+                             "CUDA copy %p [ref_count %d] moved to the read LRU in %s\n",
+                             gpu_copy, gpu_copy->super.super.obj_reference_count, __func__);
     }
     return 0;
 }
@@ -1923,8 +1986,21 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
                           NULL,
                           gpu_task, &progress_task );
     if( rc < 0 ) {
-        if( -1 == rc )
+        if( PARSEC_HOOK_RETURN_DISABLE == rc )
             goto disable_gpu;
+        if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
+            /* Reschedule the task. As the chore_id has been modified,
+               another incarnation of the task will be executed. */
+            if( NULL != progress_task ) {
+                __parsec_reschedule(eu_context, progress_task->ec);
+                parsec_gpu_kernel_cleanout(gpu_device, progress_task);
+                gpu_task = progress_task;
+                goto remove_gpu_task;
+            }
+            gpu_task = NULL;
+            goto fetch_task_from_shared_queue;
+        }
+        progress_task = NULL;
     }
     gpu_task = progress_task;
     out_task_submit = progress_task;
@@ -1986,8 +2062,9 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
     }
     parsec_gpu_kernel_epilog( gpu_device, gpu_task );
     __parsec_complete_execution( eu_context, gpu_task->ec );
-    parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];
     gpu_device->super.executed_tasks++;
+  remove_gpu_task:
+    parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];
     free( gpu_task );
     rc = parsec_atomic_dec_32b( &(gpu_device->mutex) );
     if( 0 == rc ) {  /* I was the last one */
