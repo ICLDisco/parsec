@@ -228,6 +228,7 @@ int main(int argc, char *argv[])
     project = parsec_project_new(treeA, world, (parsec_ddesc_t*)&fakeDesc, 1e-3, be_verbose);
     project->arenas[PARSEC_project_DEFAULT_ARENA] = &arena;
     parsec_enqueue(parsec, &project->super);
+    parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
     if( do_checks ) {
@@ -242,6 +243,7 @@ int main(int argc, char *argv[])
     }
     walker->arenas[PARSEC_walk_DEFAULT_ARENA] = &arena;
     parsec_enqueue(parsec, &walker->super);
+    parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
     ret = 0;

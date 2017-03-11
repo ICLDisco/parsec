@@ -104,8 +104,9 @@ int main(int argc, char ** argv)
                                (tiled_matrix_desc_t*)&ddescTS,
                                (tiled_matrix_desc_t*)&ddescTT));
 
-    /* lets rock! */
+    /* lets rock! This code should be copy the PASTE_CODE_PROGRESS_KERNEL macro */
     SYNC_TIME_START();
+    parsec_context_start(parsec);
     TIME_START();
     parsec_context_wait(parsec);
 

@@ -95,6 +95,7 @@ int main(int argc, char* argv[] )
                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
     parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
     free(descA.mat);

@@ -108,6 +108,7 @@ int main(int argc, char *argv[])
                           parsec_datatype_int_t );
 
     parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
     parsec_handle_free((parsec_handle_t*)handle);
