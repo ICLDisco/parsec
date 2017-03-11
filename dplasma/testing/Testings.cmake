@@ -153,7 +153,7 @@ if( MPI_C_FOUND )
     set_tests_properties(mpi_${prec}trsm PROPERTIES DEPENDS mpi_${prec}trmm)
 
     add_test(mpi_${prec}gemm  ${MPI_TEST_CMD_LIST} ${PROCS}  ./testing_${prec}gemm  ${CORES} -P 4 -M 106 -N 283 -K 97 -t 19 ${OPTIONS})
-    add_test(mpi_${prec}gemm  ${MPI_TEST_CMD_LIST} ${PROCS}  ./testing_${prec}gemm_dtd  ${CORES} -P 4 -M 106 -N 283 -K 97 -t 19 ${OPTIONS})
+    add_test(mpi_${prec}gemm_dtd  ${MPI_TEST_CMD_LIST} ${PROCS}  ./testing_${prec}gemm_dtd  ${CORES} -P 4 -M 106 -N 283 -K 97 -t 19 ${OPTIONS})
     set_tests_properties(mpi_${prec}trmm PROPERTIES DEPENDS mpi_${prec}lange)
 
     add_test(mpi_${prec}symm  ${MPI_TEST_CMD_LIST} ${PROCS}  ./testing_${prec}symm  ${CORES} -P 4 -M 106 -N 283 -K 97 -t 19 ${OPTIONS})
