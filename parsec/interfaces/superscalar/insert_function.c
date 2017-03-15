@@ -1762,7 +1762,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
                     if ( ((1<<function->out[i]->dep_out[j]->dep_index) & action_mask) ) {
                         flow_index = function->out[i]->dep_out[j]->belongs_to->flow_index;
                         if( !(track_flow & (1U<<flow_index) ) ) {
-                            if( NULL != parsec_dtd_find_and_remove_task( parsec_handle, (uint64_t)this_task->locals[0].value<<32 | (1U<<flow_index) ) ) {
+                            if( NULL != parsec_dtd_find_and_remove_task( parsec_handle, ((uint64_t)this_task->locals[0].value<<32 | (1U<<flow_index) )) ) {
                                 /* also releasing task */
                                 parsec_dtd_remote_task_release( this_dtd_task );
                             }
@@ -2551,12 +2551,14 @@ set_descendant( parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
         uint64_t key = (uint64_t)(real_parent_task->super.super.key<<32) | (1U<<real_parent_flow_index);
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( parsec_handle, key );
         if( NULL == dep ) {
-            flow->flags |= TASK_INSERTED;
-            parsec_dtd_insert_task( parsec_handle, key, real_parent_task );
-        } else {
             if( !(flow->flags & TASK_INSERTED) ) {
                 flow->flags |= TASK_INSERTED;
+                parsec_dtd_insert_task( parsec_handle, key, real_parent_task );
+            }
+        } else {
+            if( !(flow->flags & TASK_INSERTED) ) {
                 assert(dep->from == real_parent_task->rank);
+                flow->flags |= TASK_INSERTED;
                 parsec_dtd_find_and_remove_remote_dep( parsec_handle, key );
 #if defined(PARSEC_PROF_TRACE)
                 parsec_profiling_trace(parsec_handle->super.context->virtual_processes[0]->execution_units[0]->eu_profile, hashtable_trace_keyin, 0, parsec_handle->super.handle_id, NULL );
