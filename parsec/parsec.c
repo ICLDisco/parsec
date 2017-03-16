@@ -95,8 +95,6 @@ static struct rusage _parsec_rusage;
 
 static char *parsec_enable_dot = NULL;
 static char *parsec_app_name = NULL;
-static parsec_device_t* parsec_device_cpus = NULL;
-static parsec_device_t* parsec_device_recursive = NULL;
 
 static int parsec_runtime_max_number_of_cores = -1;
 static int parsec_runtime_bind_main_thread = 1;
@@ -671,26 +669,6 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     }
 
     parsec_devices_init(context);
-    /* By now let's add one device for the CPUs */
-    {
-        parsec_device_cpus = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
-        parsec_device_cpus->name = "default";
-        parsec_device_cpus->type = PARSEC_DEV_CPU;
-        parsec_devices_add(context, parsec_device_cpus);
-        /* TODO: This is plain WRONG, but should work by now */
-        parsec_device_cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
-        parsec_device_cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
-    }
-    /* By now let's add one device for the recursive kernels */
-    {
-        parsec_device_recursive = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
-        parsec_device_recursive->name = "recursive";
-        parsec_device_recursive->type = PARSEC_DEV_RECURSIVE;
-        parsec_devices_add(context, parsec_device_recursive);
-        /* TODO: This is plain WRONG, but should work by now */
-        parsec_device_recursive->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
-        parsec_device_recursive->device_dweight = nb_total_comp_threads * 4 * 2.27;
-    }
     parsec_devices_select(context);
     parsec_devices_freeze(context);
 
@@ -875,14 +853,6 @@ int parsec_fini( parsec_context_t** pcontext )
     parsec_remove_scheduler( context );
 
     parsec_data_fini(context);
-
-    parsec_devices_remove(parsec_device_cpus);
-    free(parsec_device_cpus);
-    parsec_device_cpus = NULL;
-
-    parsec_devices_remove(parsec_device_recursive);
-    free(parsec_device_recursive);
-    parsec_device_recursive = NULL;
 
     parsec_devices_fini(context);
 
@@ -1846,7 +1816,7 @@ int parsec_parse_binding_parameter(const char * option, parsec_context_t* contex
         int mpi_is_on;
         MPI_Initialized(&mpi_is_on);
         if(mpi_is_on) {
-            MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+            MPI_Comm_rank((MPI_Comm)context->comm_ctx, &rank);
         }
 #endif /* DISTRIBUTED && PARSEC_HAVE_MPI */
         while (getline(&line, &line_len, f) != -1) {

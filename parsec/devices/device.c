@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,6 +11,7 @@
 #include "parsec/constants.h"
 #include "parsec/debug.h"
 #include "parsec/execution_unit.h"
+#include "parsec/utils/argv.h"
 
 #include <stdlib.h>
 
@@ -21,6 +22,10 @@ static uint32_t parsec_nb_max_devices = 0;
 static uint32_t parsec_devices_are_freezed = 0;
 parsec_atomic_lock_t parsec_devices_mutex = { PARSEC_ATOMIC_UNLOCKED };
 static parsec_device_t** parsec_devices = NULL;
+static char* parsec_device_list_str = NULL, **parsec_device_list = NULL;
+
+static parsec_device_t* parsec_device_cpus = NULL;
+static parsec_device_t* parsec_device_recursive = NULL;
 
 /**
  * Temporary solution: Use the following two arrays to handle the weight and
@@ -34,15 +39,17 @@ float *parsec_device_dweight = NULL;
 
 int parsec_devices_init(parsec_context_t* parsec_context)
 {
-    (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
-                                       "Show the detailed devices capabilities",
-                                       false, false, 0, NULL);
     (void)parsec_mca_param_reg_string_name("device", NULL,
-                                          "Comma delimited list of devices to be enabled",
-                                          false, false, "none", NULL);
+                                           "Comma delimited list of devices to be enabled (or all)",
+                                           false, false, "all", &parsec_device_list_str);
+    (void)parsec_mca_param_reg_int_name("device", "show_capabilities",
+                                        "Show the detailed devices capabilities",
+                                        false, false, 0, NULL);
     (void)parsec_mca_param_reg_int_name("device", "show_statistics",
-                                       "Show the detailed devices statistics upon exit",
-                                       false, false, 0, NULL);
+                                        "Show the detailed devices statistics upon exit",
+                                        false, false, 0, NULL);
+    parsec_device_list = parsec_argv_split(parsec_device_list_str, ',');
+
     (void)parsec_context;
     return PARSEC_ERR_NOT_IMPLEMENTED;
 }
@@ -71,7 +78,7 @@ void parsec_compute_best_unit( uint64_t length, float* updated_value, char** bes
 int parsec_devices_fini(parsec_context_t* parsec_context)
 {
     parsec_device_t *device;
-    int show_stats_index, show_stats = 0, rvalue;
+    int show_stats_index, show_stats = 0;
 
     /* If no statistics are required */
     show_stats_index = parsec_mca_param_find("device", NULL, "show_statistics");
@@ -177,15 +184,24 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
     parsec_device_dweight = NULL;
 
 #if defined(PARSEC_HAVE_CUDA)
-    rvalue = parsec_gpu_fini();
-#else
-    rvalue = 0;
+    (void)parsec_gpu_fini();
 #endif  /* defined(PARSEC_HAVE_CUDA) */
 
-    free(parsec_devices);
-    parsec_devices = NULL;
+    if( NULL != parsec_device_recursive ) {  /* Release recursive device */
+        parsec_devices_remove(parsec_device_recursive);
+        free(parsec_device_recursive); parsec_device_recursive = NULL;
+    }
+    if( NULL != parsec_device_cpus ) {  /* Release the main CPU device */
+        parsec_devices_remove(parsec_device_cpus);
+        free(parsec_device_cpus); parsec_device_cpus = NULL;
+    }
 
-    return rvalue;
+    free(parsec_devices); parsec_devices = NULL;
+    free(parsec_device_list_str); parsec_device_list_str = NULL;
+    if( NULL != parsec_device_list ) {
+        parsec_argv_free(parsec_device_list); parsec_device_list = NULL;
+    }
+    return PARSEC_SUCCESS;
 }
 
 int parsec_devices_freeze(parsec_context_t* context)
@@ -215,13 +231,13 @@ int parsec_devices_freeze(parsec_context_t* context)
     parsec_debug_verbose(4, parsec_debug_output, "Global Theoretical performance: single %2.4f double %2.4f", total_sperf, total_dperf);
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
-               i, parsec_device_sweight[i], parsec_device_dweight[i]);
+                             i, parsec_device_sweight[i], parsec_device_dweight[i]);
 
         parsec_device_sweight[i] = (total_sperf / parsec_device_sweight[i]);
         parsec_device_dweight[i] = (total_dperf / parsec_device_dweight[i]);
         /* after the weighting */
         parsec_debug_verbose(4, parsec_debug_output, "  Dev[%d]             ->ratio single %2.4e double %2.4e",
-               i, parsec_device_sweight[i], parsec_device_dweight[i]);
+                             i, parsec_device_sweight[i], parsec_device_dweight[i]);
     }
 
     parsec_devices_are_freezed = 1;
@@ -236,7 +252,33 @@ int parsec_devices_freezed(parsec_context_t* context)
 
 int parsec_devices_select(parsec_context_t* context)
 {
-    (void)context;
+    int nb_total_comp_threads = 0;
+
+    for(int p = 0; p < context->nb_vp; p++) {
+        nb_total_comp_threads += context->virtual_processes[p]->nb_cores;
+    }
+
+    /* By now let's add one device for the CPUs */
+    {
+        parsec_device_cpus = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
+        parsec_device_cpus->name = "default";
+        parsec_device_cpus->type = PARSEC_DEV_CPU;
+        parsec_devices_add(context, parsec_device_cpus);
+        /* TODO: This is plain WRONG, but should work by now */
+        parsec_device_cpus->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
+        parsec_device_cpus->device_dweight = nb_total_comp_threads * 4 * 2.27;
+    }
+
+    /* By now let's add one device for the recursive kernels */
+    {
+        parsec_device_recursive = (parsec_device_t*)calloc(1, sizeof(parsec_device_t));
+        parsec_device_recursive->name = "recursive";
+        parsec_device_recursive->type = PARSEC_DEV_RECURSIVE;
+        parsec_devices_add(context, parsec_device_recursive);
+        /* TODO: This is plain WRONG, but should work by now */
+        parsec_device_recursive->device_sweight = nb_total_comp_threads * 8 * (float)2.27;
+        parsec_device_recursive->device_dweight = nb_total_comp_threads * 4 * 2.27;
+    }
 #if defined(PARSEC_HAVE_CUDA)
     return parsec_gpu_init(context);
 #else
@@ -298,8 +340,8 @@ int parsec_devices_remove(parsec_device_t* device)
 }
 
 
-void parsec_devices_handle_restrict( parsec_handle_t *handle,
-                                    uint8_t         devices_type )
+void parsec_devices_handle_restrict(parsec_handle_t *handle,
+                                    uint8_t         devices_type)
 {
     parsec_device_t *device;
     uint32_t i;
