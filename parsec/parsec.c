@@ -573,19 +573,18 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             parsec_warning("Profiling framework deactivated because of error %s.", parsec_profiling_strerror());
         }
 
-        l = strlen(parsec_app_name) + 2;  /* use the known application name */
+        l = strlen(parsec_app_name);  /* use the known application name */
         if( NULL != pargc ) {
             for(i = 1; i < *pargc; i++) {
                 l += strlen( (*pargv)[i] ) + 1;
             }
         }
-        cmdline_info = (char*)calloc(sizeof(char), l + 1);
-        l = 0;
-        sprintf(cmdline_info + l, "%s ", parsec_app_name);
+        cmdline_info = (char*)malloc(l + 1);
+        sprintf(cmdline_info, "%s", parsec_app_name);
+        l = strlen(parsec_app_name);
         if( NULL != pargc ) {
-            l = strlen(parsec_app_name) + 1;
             for(i = 1; i < *pargc; i++) {
-                sprintf(cmdline_info + l, "%s ", (*pargv)[i]);
+                sprintf(cmdline_info + l, " %s", (*pargv)[i]);
                 l += strlen( (*pargv)[i] ) + 1;
             }
         }
