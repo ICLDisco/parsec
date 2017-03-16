@@ -580,6 +580,7 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
             }
         }
         cmdline_info = (char*)calloc(sizeof(char), l + 1);
+        l = 0;
         sprintf(cmdline_info + l, "%s ", parsec_app_name);
         if( NULL != pargc ) {
             l = strlen(parsec_app_name) + 1;
