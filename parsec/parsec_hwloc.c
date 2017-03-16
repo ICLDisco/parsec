@@ -97,16 +97,11 @@ int parsec_hwloc_export_topology(int *buflen, char **xmlbuffer)
 #if defined(PARSEC_HAVE_HWLOC)
     if( first_init == 0 ) {
         return hwloc_topology_export_xmlbuffer(topology, xmlbuffer, buflen);
-    } else {
-        *buflen = 0;
-        *xmlbuffer = NULL;
-        return -1;
     }
-#else
+#endif
     *buflen = 0;
     *xmlbuffer = NULL;
     return -1;
-#endif
 }
 
 void parsec_hwloc_free_xml_buffer(char *xmlbuffer)

@@ -62,9 +62,6 @@ vpmap_get_nb_threads_in_vp_t vpmap_get_nb_threads_in_vp = vpmap_get_nb_threads_i
 vpmap_get_nb_cores_affinity_t vpmap_get_nb_cores_affinity = vpmap_get_nb_cores_affinity_parameters;
 vpmap_get_core_affinity_t vpmap_get_core_affinity = vpmap_get_core_affinity_parameters;
 
-/* int parse_binding_parameter(void * optarg, parsec_context_t* context, */
-/*                             __parsec_temporary_thread_initialization_t* startup); */
-
 
 int vpmap_get_nb_vp(void)
 {
