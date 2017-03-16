@@ -166,7 +166,6 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
                             exec_context->chore_id);
 #endif
         parsec_hook_t *hook = function->incarnations[exec_context->chore_id].hook;
-        exec_context->chore_id++;
 
         rc = hook( eu_context, exec_context );
         if( PARSEC_HOOK_RETURN_NEXT != rc ) {
@@ -177,6 +176,8 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
             }
             return rc;
         }
+        exec_context->chore_id++;
+
     } while(NULL != function->incarnations[exec_context->chore_id].hook);
     assert(exec_context->status == PARSEC_TASK_STATUS_HOOK);
     /* We're out of luck, no more chores */
@@ -818,6 +819,11 @@ int parsec_context_test( parsec_context_t* context )
 int parsec_context_wait( parsec_context_t* context )
 {
     int ret = 0;
+
+    if( !(PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE & context->flags) ) {
+        parsec_warning("parsec_context_wait detected on a non started context\n");
+        return -1;
+    }
 
     if( __parsec_context_cas_or_flag(context,
                                     PARSEC_CONTEXT_FLAG_COMM_ACTIVE) ) {
