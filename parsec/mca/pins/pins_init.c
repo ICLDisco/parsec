@@ -45,6 +45,7 @@ void pins_init(parsec_context_t* master_context)
     modules_activated = (parsec_pins_module_t**)malloc(sizeof(parsec_pins_module_t*) * i);
 #if defined(PARSEC_PROF_TRACE)
     modules_activated_str = (char*)malloc( (MAX_NAME_SIZE+1) * i);
+    modules_activated_str[0] = '\0';
 #endif /* PARSEC_PROF_TRACE */
     num_modules_activated = 0;
 
@@ -122,6 +123,7 @@ void pins_fini(parsec_context_t* master_context)
 void pins_thread_init(parsec_execution_unit_t* exec_unit)
 {
     int i;
+
     for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
         exec_unit->pins_events_cb[i].cb_func = NULL;
         exec_unit->pins_events_cb[i].cb_data = NULL;

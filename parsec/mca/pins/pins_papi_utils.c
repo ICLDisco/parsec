@@ -158,7 +158,7 @@ int pins_papi_init(parsec_context_t * master_context)
      * otherwise we stick with the default system units.
      */
     if( !find_unit_type_by_name(TIMER_UNIT, &system_units) ) {
-        parsec_inform("Could not find a proposed time unit equivalent for %s. Fall back to %s",
+        parsec_debug_verbose(4, parsec_debug_output, "Could not find a proposed time unit equivalent for %s. Fall back to %s",
                      TIMER_UNIT, find_unit_name_by_type(system_units));
     }
 
@@ -302,8 +302,9 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
     PAPI_event_info_t papi_info;
 
     events->num_counters = 0;
-    events->num_allocated_counters = 0;
-    events->events = NULL;
+    events->num_allocated_counters = 1;
+    /* Create a placeholder event */
+    events->events = (parsec_pins_papi_event_t**)malloc(sizeof(parsec_pins_papi_event_t*));
 
     mca_param_name = strdup(events_str);
     token = strtok_r(mca_param_name, ",", &save_hptr);
@@ -439,6 +440,13 @@ parsec_pins_papi_events_t* parsec_pins_papi_events_new(char* events_str)
         (void)PAPI_cleanup_eventset(tmp_eventset);  /* just do it and don't complain */
         (void)PAPI_destroy_eventset(&tmp_eventset);
     }
+
+    /* If we didn't add any events, there's no need to keep the placeholder event around */
+    if(events->num_counters == 0){
+        free(events->events);
+        events->events = NULL;
+    }
+
     return events;
 }
 

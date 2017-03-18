@@ -46,11 +46,11 @@ int parsec_pins_register_callback(struct parsec_execution_unit_s* exec_unit,
                                   struct parsec_pins_next_callback_s* cb_data)
 {
     if( method_flag >= PINS_FLAG_COUNT ) {
-        parsec_warning("PINS register MUST be called on a non valid type of event.");
+        parsec_warning("PINS register MUST be called with a valid event flag.");
         return -1;
     }
     if( NULL == cb_data ) {
-        parsec_warning("PINS registration MUST be called with a non-NULL data. Discard PINS module");
+        parsec_warning("PINS registration MUST be called with non-NULL data. Discard PINS module");
         return -1;
     }
     if (registration_disabled) {
@@ -75,7 +75,7 @@ int parsec_pins_unregister_callback(struct parsec_execution_unit_s* exec_unit,
 {
     *cb_data = NULL;
     if( method_flag >= PINS_FLAG_COUNT ) {
-        parsec_warning("PINS unregister MUST called on a non valid type of event.");
+        parsec_warning("PINS unregister MUST be called with a valid event flag.");
         return -1;
     }
     if (registration_disabled) {
@@ -88,7 +88,7 @@ int parsec_pins_unregister_callback(struct parsec_execution_unit_s* exec_unit,
         cb_event = cb_event->cb_data;
     }
     if( NULL == cb_event->cb_data ) {
-        parsec_debug_verbose(3, parsec_debug_output, "Unmatched call to PINS unregister");
+        /* No matching event could be found in the list */
         return -1;
     }
     assert(cb_event->cb_func == cb);

@@ -45,6 +45,31 @@ def convert_units(source, destination):
             return 1.0e3
     return 1.0
 
+# This takes an array with begin events in the first half and end
+# events in the second half that are all increasing counts and
+# converts each value to its local count, so instead of 'total
+# counts up to this point' it will be 'counts for my timeframe'
+def localize(array):
+    end_index = len(array) / 2
+    beg_index = 1
+    prev_value = array[0]
+    temp_prev = 0
+    flipflop = 1
+
+    for i in range(1, len(array)):
+        if(flipflop > 0):
+            temp_prev = array[end_index]
+            array[end_index] -= prev_value
+            end_index += 1
+            prev_value = temp_prev
+            flipflop *= -1
+        else:
+            temp_prev = array[beg_index]
+            array[beg_index] -= prev_value
+            beg_index += 1
+            prev_value = temp_prev
+            flipflop *= -1
+
 def scatter_papi(filenames, units, unit_modify):
     with Timer() as main:
         # The import of matplotlib is timed because it takes a surprisingly long time.
@@ -91,6 +116,18 @@ def scatter_papi(filenames, units, unit_modify):
                 column_data.append(trace.events[:][trace.events[column_name].notnull()])
         print('Populating the lists took {} seconds.\n'.format(t.interval))
 
+        # Find the maximum y value
+        max_count = 0
+        max_counts = []
+        for i in range(0, len(column_data)):
+            temp = column_data[i][:][column_names[i]].values.tolist()
+            max_counts.append(0)
+            for val in temp:
+                if(val > max_count):
+                    max_count = val
+                if(val > max_counts[i]):
+                    max_counts[i] = val
+
         # Determine the maximum number of colors that we would need for one of the graphs.
         colors_needed = 0
         for event_name in trace.event_names:
@@ -101,7 +138,7 @@ def scatter_papi(filenames, units, unit_modify):
         # Start the plot of the figure with a relatively large size.
         fig = plt.figure(num=None, figsize=(12, 9), dpi=80, facecolor='w', edgecolor='k')
         # Start the color iterator so we can plot each column in its own color.
-        colors = iter(cm.rainbow(np.linspace(0, 1, colors_needed)))
+        colors = iter(cm.prism(np.linspace(0, 1, colors_needed)))
         print('Plotting all PAPI counters together...')
         with Timer() as t:
             for i in range(0, len(column_data)):
@@ -113,8 +150,23 @@ def scatter_papi(filenames, units, unit_modify):
                 tempX.extend(temp.values.tolist())
 
                 tempY = column_data[i][:][column_names[i] + '_start'].values.tolist()
+                #end_index = len(tempY)
                 # We should now have all of the 'y' values (count)
                 tempY.extend(column_data[i][:][column_names[i]].values.tolist())
+
+                adjust_factor = 1000
+                adjust_power = 3
+                while max_count > adjust_factor:
+                    adjust_factor *= 1000
+                    adjust_power += 3
+                adjust_factor /= 1000
+                adjust_power -= 3
+
+                if(adjust_factor > 1):
+                    for v in range(0, len(tempY)):
+                        tempY[v] /= adjust_factor
+
+                #localize(tempY)
 
                 # Note: The values in tempX and tempY are stored with the first half of the array being
                 #       the '_start' values and the second half being the 'end' values, so they match up
@@ -122,10 +174,18 @@ def scatter_papi(filenames, units, unit_modify):
                 #       actually be interleaved.
                 plt.scatter(tempX, tempY, color = next(colors), label = column_names[i])
 
+                #if(tempY[-1] > max_count):
+                #    max_count = tempY[-1]
+
                 plt.title('All PAPI Counters')
-                plt.ylim(ymin = 0)
+                plt.ylim(ymin = 0, ymax = (max_count / adjust_factor) * 1.1)
                 plt.xlim(xmin = 0)
-                plt.ylabel('Count')
+
+                if(adjust_power > 0):
+                    plt.ylabel('Count (Times 10^' + str(adjust_power) + ')')
+                else:
+                    plt.ylabel('Count')
+
                 if units != 'c':
                     plt.xlabel('Time (' + units + ')')
                 else:
@@ -144,7 +204,7 @@ def scatter_papi(filenames, units, unit_modify):
                 print('Plotting data for: ' + column_names[i] + '...')
                 fig = plt.figure(num=None, figsize=(12, 9), dpi=80, facecolor='w', edgecolor='k')
                 # Restart the colors iterator
-                colors = iter(cm.rainbow(np.linspace(0, 1, colors_needed)))
+                colors = iter(cm.prism(np.linspace(0, 1, colors_needed)))
 
                 # Plot each non-empty subset of this counter by 'type'.  This typically means
                 # the counters that occurred on each core are grouped together.
@@ -160,13 +220,37 @@ def scatter_papi(filenames, units, unit_modify):
                             tempY = column_data[i][:][column_data[i]['type'] == n][column_names[i] + '_start'].values.tolist()
                             tempY.extend(column_data[i][:][column_data[i]['type'] == n][column_names[i]].values.tolist())
 
-                            plt.scatter(tempX, tempY, color = next(colors),\
+                            adjust_factor = 1000
+                            adjust_power = 3
+                            while max_counts[i] > adjust_factor:
+                                adjust_factor *= 1000
+                                adjust_power += 3
+                            adjust_factor /= 1000
+                            adjust_power -= 3
+
+                            if(adjust_factor > 1):
+                                for v in range(0, len(tempY)):
+                                    tempY[v] /= adjust_factor
+
+                            #localize(tempY)
+
+                            temp_color = next(colors)
+                            plt.scatter(tempX, tempY, color = temp_color,\
                                         label = trace.event_names[n].replace('PINS_PAPI_', ''))
 
+                            # The following will do line plots
+                            #plt.scatter(tempX, tempY, color = temp_color)
+                            #plt.plot(tempX, tempY, color = temp_color,\
+                            #         linestyle = '-', label = trace.event_names[n].replace('PINS_PAPI_', ''))
+
                 plt.title(column_names[i])
-                plt.ylim(ymin = 0)
+                plt.ylim(ymin = 0, ymax = (max_counts[i] / adjust_factor) * 1.1)
                 plt.xlim(xmin = 0)
-                plt.ylabel('Count')
+
+                if(adjust_power > 0):
+                    plt.ylabel('Count (Times 10^' + str(adjust_power) + ')')
+                else:
+                    plt.ylabel('Count')
                 if units != 'c':
                     plt.xlabel('Time (' + units + ')')
                 else:

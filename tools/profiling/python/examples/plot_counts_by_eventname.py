@@ -229,8 +229,48 @@ def scatter_papi(filenames, units, unit_modify, args):
                 event_data.append(trace.events[:][trace.events.type == event_types[i]])
         print('Populating the lists took {} seconds.\n'.format(t.interval))
 
+        max_count = 0
+        for i in range(0, len(counter_data)):
+            print('i = ' + str(i))
+            # For each counter, iterate through all of the selected event types
+            for j in range(0, len(event_types)):
+                # The begins, ends, and streams lists are used for selecting correct records from pandas
+                begins = event_data[j].begin.tolist()
+                ends = event_data[j].end.tolist()
+                streams = event_data[j].stream_id.tolist()
+                counts = []
+
+                 for k in range(0, len(event_data[j])):
+                    temp_data = counter_data[i][:][(counter_data[i].begin < ends[k])
+                                                   & (counter_data[i].end > begins[k])
+                                                   & (counter_data[i].stream_id == streams[k])].loc[:,[column_names[i],'begin','end']].values.tolist()
+                    for l in range(0,len(temp_data)):
+                        temp_begin = 0
+                        temp_end = 0
+                        if temp_data[l][1] < begins[k]:
+                            # The measurement started before the event
+                            temp_begin = begins[k]
+                        else:
+                            # The measurement started after the event
+                            temp_begin = temp_data[l][1]
+                        if temp_data[l][2] > ends[k]:
+                            # The measurement ended after the event
+                            temp_end = ends[k]
+                        else:
+                            # The measurement ended before the event
+                            temp_end = temp_data[l][2]
+                        # This is the proportion of overlap between the counter and event data
+                        overlap = (temp_end-temp_begin)/(temp_data[l][2]-temp_data[l][1])
+                        # Only the proportion of the counter data that corresponds to this event is recorded.
+                        # Note: This is an approximation, because events will inevitably accumulate counts
+                        #       at different rates.
+                        counts.append(int(overlap*counter_dict[i][temp_data[l][0]]))
+                for val in counts:
+                    if val > max_count:
+                        max_count = val
+
         # Start the plot of the figure with a relatively large size.
-        fig = plt.figure(num=None, figsize=(16, 8), dpi=80, facecolor='w', edgecolor='k')
+        fig = plt.figure(num=None, figsize=(16, 9), dpi=80, facecolor='w', edgecolor='k')
         # Start the color iterator so we can plot each column in its own color.
         colors = iter(cm.rainbow(np.linspace(0, 1, colors_needed)))
         print('Plotting all selected counters and events together...')
@@ -277,13 +317,31 @@ def scatter_papi(filenames, units, unit_modify, args):
                             #       at different rates.
                             counts.append(int(overlap*counter_dict[i][temp_data[l][0]]))
                             times.append(temp_end * unit_modify)
+
+                    adjust_factor = 1000
+                    adjust_power = 3
+                    while max_count > adjust_factor:
+                        adjust_factor *= 1000
+                        adjust_power += 3
+                    adjust_factor /= 1000
+                    adjust_power -= 3
+
+                    if(adjust_factor > 1):
+                        for v in range(0, len(counts)):
+                            counts[v] /= adjust_factor
+
                     # Plot the data for this event type
                     plt.scatter(times, counts, color = next(colors), label = event_names[j] + '_' + column_names[i])
 
                 plt.title('Counts by Event Name')
                 plt.ylim(ymin = 0)
                 plt.xlim(xmin = 0)
-                plt.ylabel('Count')
+
+                if(adjust_power > 0):
+                    plt.ylabel('Count (Times 10^' + str(adjust_power) + ')')
+                else:
+                    plt.ylabel('Count')
+
                 if units != 'c':
                     plt.xlabel('Time (' + units + ')')
                 else:

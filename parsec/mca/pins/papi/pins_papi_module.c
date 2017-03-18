@@ -73,6 +73,8 @@ static void pins_papi_trace(parsec_execution_unit_t* exec_unit,
     bool read = false;
     int i;
 
+    (void)exec_context;
+
     uint64_t set = 1; /* The bit to set to 1 (starting from the right-most bit) */
     for(i = 0; i < event_cb->num_groups; i++) {
         if(event_cb->groups[i].frequency < 0) { /* time-based frequency */
@@ -127,6 +129,8 @@ static void pins_init_papi(parsec_context_t * master_context)
 
 static void pins_fini_papi(parsec_context_t * master_context)
 {
+    (void)master_context;
+
     if( NULL != pins_papi_events ) {
         parsec_pins_papi_events_free(&pins_papi_events);
         pins_papi_events = NULL;
@@ -203,12 +207,23 @@ static int register_event_cb(parsec_execution_unit_t * exec_unit,
     }
 
     /* Register the EXEC_BEGIN and EXEC_END callbacks */
-    if(need_begin) {
-        PINS_REGISTER(exec_unit, EXEC_BEGIN, pins_papi_trace,
-                      (parsec_pins_next_callback_t*)event_cb);
-    }
     PINS_REGISTER(exec_unit, EXEC_END, pins_papi_trace,
                   (parsec_pins_next_callback_t*)event_cb);
+    if(need_begin) {
+        /* We need to create a copy of the event_cb so the linked lists don't share pointers */
+        parsec_pins_papi_callback_t *cb_copy = (parsec_pins_papi_callback_t*)malloc(sizeof(parsec_pins_papi_callback_t));
+
+        cb_copy->default_cb = event_cb->default_cb;
+        cb_copy->papi_eventset = event_cb->papi_eventset;
+        cb_copy->num_counters = event_cb->num_counters;
+        cb_copy->num_groups = event_cb->num_groups;
+        cb_copy->to_read = event_cb->to_read;
+        cb_copy->groups = event_cb->groups;
+        cb_copy->event = event_cb->event;
+
+        PINS_REGISTER(exec_unit, EXEC_BEGIN, pins_papi_trace,
+                      (parsec_pins_next_callback_t*)cb_copy);
+    }
 
     return PARSEC_SUCCESS;
 }
@@ -327,7 +342,6 @@ static void pins_thread_init_papi(parsec_execution_unit_t * exec_unit)
             else { /* Increment the current group. */
                 event_cb->groups[event_cb->num_groups-1].num_counters++;
             }
-
             switch( event->papi_data_type ) {
             case PAPI_DATATYPE_INT64: datatype = "int64_t"; break;
             case PAPI_DATATYPE_UINT64: datatype = "uint64_t"; break;
@@ -392,12 +406,13 @@ static void pins_thread_init_papi(parsec_execution_unit_t * exec_unit)
 static void pins_thread_fini_papi(parsec_execution_unit_t* exec_unit)
 {
     parsec_pins_papi_callback_t* event_cb;
+    parsec_pins_papi_callback_t* start_cb;
     parsec_pins_papi_values_t* info = alloca(max_supported_events * sizeof(parsec_pins_papi_values_t));
     int i;
 
     do {
-        /* Should this be in a loop to unregister all the callbacks for this thread? */
         PINS_UNREGISTER(exec_unit, EXEC_END, pins_papi_trace, (parsec_pins_next_callback_t**)&event_cb);
+
         if( NULL == event_cb )
             return;
 
@@ -411,10 +426,12 @@ static void pins_thread_fini_papi(parsec_execution_unit_t* exec_unit)
         }
         /* EXEC_BEGIN was registered, so unregister it. */
         if( has_begin ) {  /* this must have an EXEC_BEGIN */
-            parsec_pins_papi_callback_t* start_cb;
             PINS_UNREGISTER(exec_unit, EXEC_BEGIN, pins_papi_trace, (parsec_pins_next_callback_t**)&start_cb);
             if( NULL == start_cb ) {
                 parsec_debug_verbose(3, parsec_debug_output, "Unsetting exception of an event with frequency 1 but without a start callback. Ignored.");
+            }
+            else{
+                free(start_cb);
             }
         }
         /* Clean up the eventset, and perform final recordings. */
