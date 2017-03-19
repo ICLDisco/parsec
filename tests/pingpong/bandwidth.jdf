@@ -298,19 +298,24 @@ int main(int argc, char *argv[])
     for( i = 1; i < argc; i++ ) {
         if(0 == strcmp(argv[i], "-c")) {
             cores = atoi(argv[i+1]); i++;
+            if( 0 >= cores ) cores = 1;
         }
         if(0 == strcmp(argv[i], "-n")) {
             loops = atoi(argv[i+1]); i++;
+            if( 0 >= loops ) loops = 10;
         }
         if(0 == strcmp(argv[i], "-f")) {
             frags = atoi(argv[i+1]); i++;
+            if( 0 >= frags ) frags = 1;
         }
         if(0 == strcmp(argv[i], "-l")) {
             size = atoi(argv[i+1]); i++;
+            if( 0 >= size ) size = 1024;
         }
         /* GPU management */
         if(0 == strcmp(argv[i], "-g")) {
             ngpus = atoi(argv[i+1]); i++;
+            if( 0 > ngpus ) ngpus = 0;
         }
     }
     ddescA = create_and_distribute_data(rank, world, frags, size);

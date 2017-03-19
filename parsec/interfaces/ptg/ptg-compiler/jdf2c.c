@@ -2621,7 +2621,6 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         string_arena_add_string(sa1, "dep");
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
             dl = l2p_item->dl;
-            pl = l2p_item->pl;
 
             coutput("%s    if( %s == NULL ) {\n"
                     "%s      ALLOCATE_DEP_TRACKING(%s, __%s_min, __%s_max,\n"
@@ -4222,7 +4221,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     string_arena_t *sa_layout     = string_arena_new(256);
     string_arena_t *sa_tmp_layout = string_arena_new(256);
     string_arena_t *sa_cond       = string_arena_new(256);
-    int last_datatype_idx, continue_dependencies, type, skip_condition;
+    int last_datatype_idx, continue_dependencies, type, skip_condition, generate_exit_label = 0;
     uint32_t mask_in = 0, mask_out = 0, current_mask = 0;
     expr_info_t info;
 
@@ -4255,9 +4254,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     type = JDF_DEP_FLOW_IN;
 
   redo:
-    if( type == JDF_DEP_FLOW_IN )
-        coutput("if( (*flow_mask) & 0x80000000U ) { /* these are the input flows */\n");
-
+    string_arena_init(sa_coutput);
     for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
         if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) continue;
 
@@ -4267,7 +4264,6 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
             if( !(fl->flow_flags & JDF_FLOW_IS_OUT) ) continue;
         }
         skip_condition = 0;  /* Assume we have a valid not-yet-optimized condition */
-        string_arena_init(sa_coutput);
         string_arena_add_string(sa_coutput, "if( (*flow_mask) & 0x%xU ) {  /* Flow %s */\n",
                                 (type == JDF_DEP_FLOW_OUT ? fl->flow_dep_mask_out : (1U << fl->flow_index)), fl->varname);
 
@@ -4366,18 +4362,26 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
 
         string_arena_add_string(sa_coutput, "}  /* (flow_mask & 0x%xU) */\n",
                                 (type == JDF_DEP_FLOW_OUT ? fl->flow_dep_mask_out : (1U << fl->flow_index)));
-        coutput("%s", string_arena_get_string(sa_coutput));
     }
 
     if( type == JDF_DEP_FLOW_IN ) {
-        coutput("    goto no_mask_match;\n"
-                "  }  /* input flows */\n");
+        if( 0 < strlen(string_arena_get_string(sa_coutput)) ) {
+            coutput("  if( (*flow_mask) & 0x80000000U ) { /* these are the input flows */\n"
+                    "%s"
+                    "    goto no_mask_match;\n"
+                    "  }  /* input flows */\n",
+                    string_arena_get_string(sa_coutput));
+            generate_exit_label = 1;
+        }
         type = JDF_DEP_FLOW_OUT;
-        goto redo;
+        goto redo;  /* generate the code for the output dependencies */
+    } else {
+        coutput("%s", string_arena_get_string(sa_coutput));
     }
+    if( generate_exit_label )
+        coutput(" no_mask_match:\n");
 
-    coutput(" no_mask_match:\n"
-            "  data->arena  = NULL;\n"
+    coutput("  data->arena  = NULL;\n"
             "  data->data   = NULL;\n"
             "  data->layout = PARSEC_DATATYPE_NULL;\n"
             "  data->count  = 0;\n"

@@ -83,10 +83,12 @@ int main(int argc, char* argv[])
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-n=", 3) ) {
             n = strtol(argv[i]+3, NULL, 10);
+            if( 0 >= n ) n = 1000;  /* set to default value */
             goto move_and_continue;
         }
         if( 0 == strncmp(argv[i], "-b=", 3) ) {
             block = strtol(argv[i]+3, NULL, 10);
+            if( 0 >= block ) block = 10;  /* set to default value */
             goto move_and_continue;
         }
         i++;  /* skip this one */

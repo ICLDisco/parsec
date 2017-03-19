@@ -98,8 +98,10 @@ int main(int argc, char ** argv)
     parsec_context_t* parsec;
     int rank, world, cores = 20;
 
-    if(argv[1] != NULL){
+    if(argv > 1) {
         cores = atoi(argv[1]);
+        if( 0 >= cores )
+            cores = 1;  /* fix it to a sane number */
     }
 
 #if defined(PARSEC_HAVE_MPI)

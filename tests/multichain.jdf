@@ -83,18 +83,22 @@ int main(int argc, char* argv[])
     while( NULL != argv[i] ) {
         if( 0 == strncmp(argv[i], "-i=", 3) ) {
             ni = strtol(argv[i]+3, NULL, 10);
+            if( 0 >= ni ) ni = NN;
             goto move_and_continue;
         }
         if( 0 == strncmp(argv[i], "-j=", 3) ) {
             nj = strtol(argv[i]+3, NULL, 10);
+            if( 0 >= nj ) nj = NN;
             goto move_and_continue;
         }
         if( 0 == strncmp(argv[i], "-v=", 3) ) {
             verbose = strtol(argv[i]+3, NULL, 10);
+            if( 0 > verbose ) verbose = 0;
             goto move_and_continue;
         }
         if( 0 == strncmp(argv[i], "-l=", 3) ) {
             loops = strtol(argv[i]+3, NULL, 10);
+            if( 0 >= loops ) loops = 5;
             goto move_and_continue;
         }
         if( 0 == strncmp(argv[i], "-h", 2) ) {

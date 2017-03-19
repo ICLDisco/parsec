@@ -1022,7 +1022,7 @@ static int param_register(const char *type_name,
 
     param.mbp_full_name[0] = '\0';
     if (NULL != type_name) {
-        strncat(param.mbp_full_name, type_name, len);
+        strncat(param.mbp_full_name, type_name, len-1);
     }
     if (NULL != component_name) {
         if ('\0' != param.mbp_full_name[0]) {
@@ -1319,7 +1319,7 @@ static int syn_register(int index_orig, const char *syn_type_name,
     /* Copy the name over in parts */
     si->si_full_name[0] = '\0';
     if (NULL != syn_type_name) {
-        strncat(si->si_full_name, syn_type_name, len);
+        strncat(si->si_full_name, syn_type_name, len-1);
     }
     if (NULL != syn_component_name) {
         if ('\0' != si->si_full_name[0]) {
