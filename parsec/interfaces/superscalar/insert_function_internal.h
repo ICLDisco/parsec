@@ -26,16 +26,16 @@ BEGIN_C_DECLS
 typedef struct parsec_dtd_task_param_s parsec_dtd_task_param_t;
 typedef struct parsec_dtd_function_s   parsec_dtd_function_t;
 
-extern int dtd_init;
+extern int dtd_init; /* flag to indicate whether dtd_init() is called or not */
 extern int dump_traversal_info; /* For printing traversal info */
 extern int dump_function_info; /* For printing function_structure info */
 extern int hashtable_trace_keyin;
 extern int hashtable_trace_keyout;
-extern parsec_dtd_task_t **global_task_array;
 
 /* To flag the task we are trying to complete as a local one */
 #define PARSEC_ACTION_COMPLETE_LOCAL_TASK 0x08000000
 
+/* Macros to figure out offset of paramters attached to a task */
 #define GET_HEAD_OF_PARAM_LIST(TASK) (parsec_dtd_task_param_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (TASK->super.function->nb_flows * sizeof(parsec_dtd_parent_info_t)) + (TASK->super.function->nb_flows * sizeof(parsec_dtd_descendant_info_t))  + (TASK->super.function->nb_flows * sizeof(parsec_dtd_flow_info_t)) )
 
 #define GET_VALUE_BLOCK(HEAD, PARAM_COUNT) ((char *)HEAD) + PARAM_COUNT * sizeof(parsec_dtd_task_param_t)
@@ -52,10 +52,10 @@ extern parsec_dtd_task_t **global_task_array;
                                 TILE->last_writer.alive       = TASK_IS_NOT_ALIVE;      \
                                 parsec_atomic_unlock(&TILE->last_writer.atomic_lock);   \
 
-#define READ_IT(TO, FROM)       TO.task       = FROM.task;                              \
-                                TO.flow_index = FROM.flow_index;                        \
-                                TO.op_type    = FROM.op_type;                           \
-                                TO.alive      = FROM.alive;                             \
+#define READ_FROM_TILE(TO, FROM) TO.task       = FROM.task;                             \
+                                 TO.flow_index = FROM.flow_index;                       \
+                                 TO.op_type    = FROM.op_type;                          \
+                                 TO.alive      = FROM.alive;                            \
 
 
 #define LOCAL_DATA 200 /* function_id is uint8_t */
@@ -75,20 +75,21 @@ extern parsec_dtd_task_t **global_task_array;
 
 /* Structure used to pack arguments of insert_task() */
 struct parsec_dtd_task_param_s {
-    void                       *pointer_to_tile;
-    parsec_dtd_task_param_t    *next;
+    void                    *pointer_to_tile;
+    parsec_dtd_task_param_t *next;
 };
+
+typedef void (parsec_handle_wait_t)( parsec_context_t *context, parsec_handle_t *parsec_handle );
 
 #define SUCCESSOR_ITERATED (1<<0)
 #define TASK_INSERTED (1<<1)
 #define DATA_RELEASED (1<<2)
 #define RELEASE_REMOTE_DATA (1<<3)
 
-typedef void (parsec_handle_wait_t)( parsec_context_t *context, parsec_handle_t *parsec_handle );
-
-/* Contains info about each flow of a task
+/*
+ * Contains info about each flow of a task
  * We assume each task will have at most MAX_FLOW
- * number of flows
+ * number of flows.
  */
 typedef struct parsec_dtd_min_flow_info_s {
     int16_t  arena_index;
@@ -120,15 +121,15 @@ typedef struct parsec_dtd_flow_info_s {
 /* All the fields store info about the descendant
  */
 typedef struct parsec_dtd_descendant_info_s {
-    int               op_type;
-    uint8_t           flow_index;
+    int                op_type;
+    uint8_t            flow_index;
     parsec_dtd_task_t *task;
 } parsec_dtd_descendant_info_t;
 
 typedef struct parsec_dtd_parent_info_s {
-    uint8_t              op_type;
-    uint8_t              flow_index;
-    parsec_dtd_task_t   *task;
+    uint8_t            op_type;
+    uint8_t            flow_index;
+    parsec_dtd_task_t *task;
 } parsec_dtd_parent_info_t;
 
 #define PARENT_OF(TASK, INDEX) (parsec_dtd_parent_info_t *) ( ((char *)TASK) + sizeof(parsec_dtd_task_t) + (INDEX*sizeof(parsec_dtd_parent_info_t)) )
@@ -186,16 +187,14 @@ struct hook_info{
 };
 
 /**
- * Structure to hold two hash table and manipulate it in thread safe way
+ * We use one hash table for both remote tasks
+ * and remote_deps related to remote tasks.
  */
 typedef struct parsec_dtd_two_hash_table_s {
     hash_table       *task_and_rem_dep_h_table;
     parsec_atomic_lock_t atomic_lock;
 } parsec_dtd_two_hash_table_t;
 
-/**
- * Structure to hold tile hash table and a list to cache the key served
- */
 typedef struct parsec_dtd_tile_hash_table_s {
     hash_table *tile_h_table;
 } parsec_dtd_tile_hash_table_t;
@@ -204,7 +203,7 @@ typedef struct parsec_dtd_tile_hash_table_s {
  * internal_parsec_handle
  */
 struct parsec_dtd_handle_s {
-    parsec_handle_t          super;
+    parsec_handle_t         super;
     parsec_thread_mempool_t *mempool_owner;
     int                     enqueue_flag;
     int                     task_id;
@@ -310,8 +309,8 @@ hash_key( uintptr_t key, int size );
 
 void
 parsec_dtd_tile_insert( uint32_t key,
-                        parsec_dtd_tile_t   *tile,
-                        parsec_ddesc_t      *ddesc );
+                        parsec_dtd_tile_t *tile,
+                        parsec_ddesc_t    *ddesc );
 
 parsec_dtd_function_t *
 parsec_dtd_function_find( parsec_dtd_handle_t  *parsec_handle,
@@ -324,7 +323,7 @@ parsec_dtd_create_function( parsec_dtd_handle_t *__parsec_handle, parsec_dtd_fun
 
 void
 parsec_dtd_add_profiling_info( parsec_handle_t *parsec_handle,
-                    int function_id, char* name );
+                               int function_id, char *name );
 
 void
 parsec_dtd_add_profiling_info_generic( parsec_handle_t *parsec_handle,
@@ -337,7 +336,7 @@ parsec_dtd_task_release( parsec_dtd_handle_t  *parsec_handle,
 
 void
 parsec_execute_and_come_back( parsec_context_t *context,
-                              parsec_handle_t *parsec_handle,
+                              parsec_handle_t  *parsec_handle,
                               int task_threshold_count );
 
 dep_t *
@@ -347,7 +346,7 @@ parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task, parsec_dtd_task_
 void
 parsec_dtd_insert_task( parsec_dtd_handle_t *parsec_handle,
                         uint64_t            key,
-                        void               *value );
+                        void                *value );
 
 void *
 parsec_dtd_find_task( parsec_dtd_handle_t *parsec_handle,
@@ -360,7 +359,7 @@ parsec_dtd_find_and_remove_task( parsec_dtd_handle_t *parsec_handle,
 void
 parsec_dtd_insert_remote_dep( parsec_dtd_handle_t *parsec_handle,
                               uint64_t            key,
-                              void               *value );
+                              void                *value );
 
 int
 parsec_dtd_task_is_local( parsec_dtd_task_t *task );
@@ -375,7 +374,7 @@ parsec_hook_return_t
 parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 
 int
-parsec_dtd_copy_data_to_matrix( parsec_execution_unit_t *eu,
+parsec_dtd_copy_data_to_matrix( parsec_execution_unit_t    *eu,
                                 parsec_execution_context_t *this_task );
 
 void
@@ -409,8 +408,6 @@ parsec_dtd_release_floating_data( parsec_data_copy_t *data )
 {
     OBJ_RELEASE(data);
 }
-
-
 
 /***************************************************************************//**
  *

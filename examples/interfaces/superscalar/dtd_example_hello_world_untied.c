@@ -35,6 +35,11 @@
 #include <mpi.h>
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
+/*
+ * By this example we are trying to show the capability of the dtd interface to
+ * recursively insert task from another task. We esseentially untie which thread
+ * inserts task using this recursive task insertion.
+ */
 
 /* Task that prints "Hello World" */
 int
@@ -58,8 +63,7 @@ task_to_insert_task_hello_world( parsec_execution_unit_t    *context,
 
     printf("I am inserting task to print \"Hello World\", and my rank is: %d\n", this_task->parsec_handle->context->my_rank);
 
-    parsec_insert_task( parsec_dtd_handle, task_hello_world,    0,  "Hello_World_task",
-                       0 );
+    parsec_insert_task( parsec_dtd_handle, task_hello_world,    0,  "Hello_World_task", 0 );
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -97,8 +101,7 @@ int main(int argc, char ** argv)
      * will print Hello World and the
      * rank of the process
      */
-    parsec_insert_task( parsec_dtd_handle, task_to_insert_task_hello_world,    0,  "Task_inserting_task",
-                       0 );
+    parsec_insert_task( parsec_dtd_handle, task_to_insert_task_hello_world,    0,  "Task_inserting_task", 0 );
 
     /* finishing all the tasks inserted, but not finishing the handle */
     parsec_dtd_handle_wait( parsec, parsec_dtd_handle );

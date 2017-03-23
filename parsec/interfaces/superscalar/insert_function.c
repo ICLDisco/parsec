@@ -2790,8 +2790,8 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
         /* Locking the last_user of the tile */
         parsec_dtd_last_user_lock( &(tile->last_user) );
 
-        READ_IT(last_user, tile->last_user);
-        READ_IT(last_writer, tile->last_writer);
+        READ_FROM_TILE(last_user, tile->last_user);
+        READ_FROM_TILE(last_writer, tile->last_writer);
 
         if( NULL == last_user.task && (this_task->rank != tile->rank || (tile_op_type & GET_OP_TYPE) == INPUT) ) {
             parsec_dtd_last_user_unlock( &(tile->last_user) );
@@ -2806,8 +2806,8 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
             parsec_dtd_last_user_lock( &(tile->last_user) );
 
-            READ_IT(last_user, tile->last_user);
-            READ_IT(last_writer, tile->last_writer);
+            READ_FROM_TILE(last_user, tile->last_user);
+            READ_FROM_TILE(last_writer, tile->last_writer);
 
             if( last_user.task != NULL )
                 assert( (FLOW_OF(last_writer.task, last_writer.flow_index))->tile == tile );
