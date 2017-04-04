@@ -4280,8 +4280,6 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
         for(dl = fl->deps; NULL != dl; dl = dl->next) {
             if( !(dl->dep_flags & type) ) continue;
 
-            current_mask |= (type == JDF_DEP_FLOW_OUT ? (1U << dl->dep_index) : (1U << fl->flow_index));
-
             /* Prepare the memory layout of the output dependency. */
             if( last_datatype_idx != dl->dep_datatype_index ) {
                 JDF_CODE_DATATYPE_DUMP(sa_coutput, current_mask, sa_cond, sa_datatype, skip_condition);
@@ -4355,6 +4353,9 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                                         dump_expr((void**)dl->guard->guard, &info));
                 break;
             }
+
+	    /* update the mask before the next dump */
+	    current_mask |= (type == JDF_DEP_FLOW_OUT ? (1U << dl->dep_index) : (1U << fl->flow_index));
 
             if( !continue_dependencies ) break;
         }
