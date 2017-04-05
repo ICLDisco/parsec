@@ -27,6 +27,7 @@ TARGETS=pdpotrf tpdpotrf \
         pdgetrf tpdgetrf \
         pdgeqrf tpdgeqrf \
         pdsyev  tpdsyev  \
+        pdgebrd tpdgebrd \
         pdgemm  tpdgemm  \
         pdpotri tpdpotri
 
