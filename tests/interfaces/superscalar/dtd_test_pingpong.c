@@ -245,7 +245,6 @@ int main(int argc, char **argv)
         free_data(ddescA);
     }
 
-
     parsec_fini(&parsec);
 
 #ifdef PARSEC_HAVE_MPI

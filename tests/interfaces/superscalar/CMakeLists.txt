@@ -13,6 +13,7 @@ parsec_addtest(C dtd_test_reduce "dtd_test_reduce.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_allreduce "dtd_test_allreduce.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_template_counter "dtd_test_template_counter.c;${COMMON_DATA}")
 parsec_addtest(C dtd_test_untie "dtd_test_untie.c;${COMMON_DATA}")
+parsec_addtest(C dtd_test_hierarchy "dtd_test_hierarchy.c;${COMMON_DATA}")
 
 
 #
