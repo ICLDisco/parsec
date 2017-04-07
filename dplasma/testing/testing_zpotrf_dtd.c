@@ -31,7 +31,7 @@ parsec_core_potrf(parsec_execution_unit_t *context, parsec_execution_context_t *
                           UNPACK_VALUE, &m,
                           UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda,
-                          UNPACK_VALUE, &info
+                          UNPACK_SCRATCH, &info
                         );
 
     CORE_zpotrf(*uplo, *m, A, *lda, info);
@@ -147,7 +147,7 @@ int main(int argc, char **argv)
 
     int m, n, k, total; /* loop counter */
     /* Parameters passed on to Insert_task() */
-    int tempkm, tempmm, ldak, iinfo, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
+    int tempkm, tempmm, ldak, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
     parsec_complex64_t alpha_trsm, alpha_herk, beta;
 
     /* Set defaults for non argv iparams */
@@ -213,7 +213,6 @@ int main(int argc, char **argv)
         beta = 1.0;
         transB = PlasmaConjTrans;
         transA_g = PlasmaNoTrans;
-        iinfo = 0;
 
         total = ddescA.super.mt;
         /* Testing Insert Function */
@@ -227,7 +226,7 @@ int main(int argc, char **argv)
                                sizeof(int),      &tempkm,            VALUE,
                                PASSED_BY_REF,    TILE_OF(A, k, k), INOUT | TILE_FULL | AFFINITY,
                                sizeof(int),      &ldak,              VALUE,
-                               sizeof(int),      &iinfo,             VALUE,
+                               sizeof(int *),    &info,              SCRATCH,
                                0 );
 
             for( m = k+1; m < total; m++ ) {
@@ -299,7 +298,6 @@ int main(int argc, char **argv)
         beta = 1.0;
         transB = PlasmaNoTrans;
         transA_g = PlasmaConjTrans;
-        iinfo = 0;
 
         total = ddescA.super.nt;
 
@@ -311,7 +309,7 @@ int main(int argc, char **argv)
                                sizeof(int),      &tempkm,            VALUE,
                                PASSED_BY_REF,    TILE_OF(A, k, k), INOUT | TILE_FULL | AFFINITY,
                                sizeof(int),      &ldak,              VALUE,
-                               sizeof(int),      &iinfo,             VALUE,
+                               sizeof(int *),    &info,              SCRATCH,
                                0 );
 
             for( m = k+1; m < total; m++ ) {

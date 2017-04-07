@@ -43,7 +43,7 @@ parsec_core_potrf(parsec_execution_unit_t *context, parsec_execution_context_t *
                           UNPACK_VALUE, &m,
                           UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda,
-                          UNPACK_VALUE, &info
+                          UNPACK_SCRATCH, &info
                         );
 
     CORE_zpotrf(*uplo, *m, A, *lda, info);
@@ -154,11 +154,11 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_execution_context_t *
 {
     (void)context;
     /* Parameters passed on to Insert_task() */
-    int tempkm, tempmm, ldak, iinfo, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
+    int tempkm, tempmm, ldak, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
     parsec_complex64_t alpha_trsm, alpha_herk, beta;
     sym_two_dim_block_cyclic_t *ddescA;
 
-    int *total, *iteration, *uplo_enum, m, n, k, count = 0;
+    int *total, *iteration, *uplo_enum, *info, m, n, k, count = 0;
 
     parsec_handle_t *parsec_dtd_handle = (parsec_handle_t *)this_task->parsec_handle;
 
@@ -166,6 +166,7 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_execution_context_t *
                           UNPACK_VALUE,   &total,
                           UNPACK_VALUE,   &iteration,
                           UNPACK_VALUE,   &uplo_enum,
+                          UNPACK_SCRATCH, &info,
                           UNPACK_SCRATCH, &ddescA
                           );
 
@@ -181,7 +182,6 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_execution_context_t *
     beta = 1.0;
     transB = PlasmaConjTrans;
     transA_g = PlasmaNoTrans;
-    iinfo = 0;
 
     /* Testing Insert Function */
     for( k = *iteration; k < *total; k++, *iteration += 1, count++ ) {
@@ -198,7 +198,7 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_execution_context_t *
                          sizeof(int),      &tempkm,            VALUE,
                          PASSED_BY_REF,    TILE_OF(A, k, k), INOUT | TILE_FULL | AFFINITY,
                          sizeof(int),      &ldak,              VALUE,
-                         sizeof(int),      &iinfo,             VALUE,
+                         sizeof(int *),    &info,              SCRATCH,
                          0);
         for( m = k+1; m < *total; m++, count++ ) {
             tempmm = m == ddescA->super.mt - 1 ? ddescA->super.m - m * ddescA->super.mb : ddescA->super.mb;
@@ -268,11 +268,11 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_execution_context_t *
 {
     (void)context;
     /* Parameters passed on to Insert_task() */
-    int tempkm, tempmm, ldak, iinfo, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
+    int tempkm, tempmm, ldak, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
     parsec_complex64_t alpha_trsm, alpha_herk, beta;
     sym_two_dim_block_cyclic_t *ddescA;
 
-    int *total, *iteration, *uplo_enum, m, n, k, count = 0;
+    int *total, *iteration, *uplo_enum, *info, m, n, k, count = 0;
 
     parsec_handle_t *parsec_dtd_handle = (parsec_handle_t *)this_task->parsec_handle;
 
@@ -280,6 +280,7 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_execution_context_t *
                           UNPACK_VALUE,   &total,
                           UNPACK_VALUE,   &iteration,
                           UNPACK_VALUE,   &uplo_enum,
+                          UNPACK_SCRATCH, &info,
                           UNPACK_SCRATCH, &ddescA
                           );
 
@@ -296,7 +297,6 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_execution_context_t *
     beta = 1.0;
     transB = PlasmaNoTrans;
     transA_g = PlasmaConjTrans;
-    iinfo = 0;
 
     /* Testing Insert Function */
     for( k = *iteration; k < *total; k++, *iteration += 1, count++ ) {
@@ -312,7 +312,7 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_execution_context_t *
                          sizeof(int),      &tempkm,            VALUE,
                          PASSED_BY_REF,    TILE_OF(A, k, k), INOUT | TILE_FULL | AFFINITY,
                          sizeof(int),      &ldak,              VALUE,
-                         sizeof(int),      &iinfo,             VALUE,
+                         sizeof(int *),    info,               SCRATCH,
                          0);
         for (m = k+1; m < *total; m++, count++) {
             tempmm = m == ddescA->super.nt-1 ? ddescA->super.n-m*ddescA->super.nb : ddescA->super.nb;
@@ -441,6 +441,7 @@ int main(int argc, char **argv)
                            sizeof(int),           &total,             VALUE,
                            sizeof(int),           &iteration,         VALUE,
                            sizeof(int),           &uplo,              VALUE,
+                           sizeof(int *),         &info,              SCRATCH,
                            sizeof(sym_two_dim_block_cyclic_t *), &ddescA, SCRATCH,
                            0 );
 
@@ -450,6 +451,7 @@ int main(int argc, char **argv)
                            sizeof(int),           &total,             VALUE,
                            sizeof(int),           &iteration,         VALUE,
                            sizeof(int),           &uplo,              VALUE,
+                           sizeof(int *),         &info,              SCRATCH,
                            sizeof(sym_two_dim_block_cyclic_t *), &ddescA, SCRATCH,
                            0 );
 

@@ -31,9 +31,7 @@ parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_execution_cont
     int *lda;
     int *IPIV;
     PLASMA_bool *check_info;
-    int *iinfo;
-
-    int info;
+    int *info;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &m,
@@ -43,11 +41,11 @@ parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_execution_cont
                           UNPACK_VALUE, &lda,
                           UNPACK_DATA,  &IPIV,
                           UNPACK_VALUE, &check_info,
-                          UNPACK_VALUE, &iinfo
+                          UNPACK_SCRATCH, &info
                           );
 
-    CORE_zgetrf_incpiv(*m, *n, *ib, A, *lda, IPIV, &info);
-    if (info != 0 && check_info)
+    CORE_zgetrf_incpiv(*m, *n, *ib, A, *lda, IPIV, info);
+    if (*info != 0 && check_info)
         printf("Getrf_incpiv something is wrong\n");
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -106,9 +104,7 @@ parsec_core_tstrf(parsec_execution_unit_t *context, parsec_execution_context_t *
     parsec_complex64_t *WORK;
     int *ldwork;
     PLASMA_bool *check_info;
-    int *iinfo;
-
-    int info;
+    int *info;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE, &m,
@@ -125,12 +121,12 @@ parsec_core_tstrf(parsec_execution_unit_t *context, parsec_execution_context_t *
                           UNPACK_SCRATCH, &WORK,
                           UNPACK_VALUE, &ldwork,
                           UNPACK_VALUE, &check_info,
-                          UNPACK_VALUE, &iinfo
+                          UNPACK_VALUE, &info
                         );
 
-    CORE_ztstrf(*m, *n, *ib, *nb, U, *ldu, A, *lda, L, *ldl, IPIV, WORK, *ldwork, &info);
+    CORE_ztstrf(*m, *n, *ib, *nb, U, *ldu, A, *lda, L, *ldl, IPIV, WORK, *ldwork, info);
 
-    if (info != 0 && check_info)
+    if (*info != 0 && check_info)
         printf("Gtstrf something is wrong\n");
 
     return PARSEC_HOOK_RETURN_DONE;
@@ -294,7 +290,6 @@ int main(int argc, char ** argv)
     int ib = ddescL.super.mb;
     int minMNT = min(ddescA.super.mt, ddescA.super.nt);
     PLASMA_bool check_info;
-    int iinfo;
     int anb, nb, ldl;
 
     /* Allocating data arrays to be used by comm engine */
@@ -344,7 +339,6 @@ int main(int argc, char ** argv)
         tempkn = k == ddescA.super.nt-1 ? (ddescA.super.n)-k*(ddescA.super.nb) : ddescA.super.nb;
         ldak = BLKLDD((tiled_matrix_desc_t*)&ddescA, k);
         check_info = k == ddescA.super.mt-1;
-        iinfo = (ddescA.super.nb)*k;
 
         parsec_insert_task( parsec_dtd_handle,     parsec_core_getrf_incpiv,             0, "getrf_incpiv",
                            sizeof(int),           &tempkm,                           VALUE,
@@ -353,8 +347,8 @@ int main(int argc, char ** argv)
                            PASSED_BY_REF,         TILE_OF(A, k, k),     INOUT | TILE_FULL | AFFINITY,
                            sizeof(int),           &ldak,                             VALUE,
                            PASSED_BY_REF,         TILE_OF(IPIV, k, k),  OUTPUT | TILE_RECTANGLE,
-                           sizeof(PLASMA_bool),           &check_info,               VALUE,
-                           sizeof(int),           &iinfo,                            VALUE,
+                           sizeof(PLASMA_bool),   &check_info,                       VALUE,
+                           sizeof(int *),         &info,                             SCRATCH,
                            0 );
 
         for( n = k+1; n < ddescA.super.nt; n++ ) {
@@ -384,7 +378,6 @@ int main(int argc, char ** argv)
             nb = ddescL.super.nb;
             ldl = ddescL.super.mb;
             check_info = m == ddescA.super.mt-1;
-            iinfo = (ddescA.super.nb)*k;
 
             parsec_insert_task( parsec_dtd_handle,      parsec_core_tstrf,              0,  "tstrf",
                                sizeof(int),           &tempmm,                           VALUE,
@@ -400,8 +393,8 @@ int main(int argc, char ** argv)
                                PASSED_BY_REF,         TILE_OF(IPIV, m, k),  OUTPUT | TILE_RECTANGLE,
                                sizeof(parsec_complex64_t)*ib*nb,    NULL,                SCRATCH,
                                sizeof(int),           &nb,                               VALUE,
-                               sizeof(PLASMA_bool),           &check_info,               VALUE,
-                               sizeof(int),           &iinfo,                            VALUE,
+                               sizeof(PLASMA_bool),   &check_info,                       VALUE,
+                               sizeof(int *),         &info,                             SCRATCH,
                                0 );
 
             for( n = k+1; n < ddescA.super.nt; n++ ) {
