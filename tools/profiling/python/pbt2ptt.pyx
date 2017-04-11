@@ -493,90 +493,106 @@ cdef construct_stream(builder, skeleton_only, dbp_multifile_reader_t * dbp, dbp_
     builder.unordered_streams_by_node[node_id][stream_id] = stream
     while event_s != NULL and not skeleton_only:
         event_type = dbp_event_get_key(event_s) / 2 # to match dictionary
-        event_name = builder.event_names[event_type]
-        begin = dbp_event_get_timestamp(event_s)
-        if begin < prev_begin:
-           raise Exception('Internal', 'event ordering impossible')
-        prev_begin = begin
-        event_flags = dbp_event_get_flags(event_s)
-        handle_id = dbp_event_get_handle_id(event_s)
-        event_id = dbp_event_get_event_id(event_s)
-        if begin < th_begin:
-            th_begin = begin
+        if not event_type in builder.event_names:
+           error = {'node_id': node_id, 'stream_id': stream_id, 'handle_id': dbp_event_get_handle_id(event_s),
+                    'type': 'NA', 'begin': begin, 'end': 'unknown', 'flags': dbp_event_get_flags(event_s),
+                    'id': dbp_event_get_event_id(event_s), 'error_msg': ' event type not in event names'}
+           builder.errors.append(error)
+        else:
+            event_name = builder.event_names[event_type]
+            begin = dbp_event_get_timestamp(event_s)
+            if begin < prev_begin:
+               #print('current_event start at ' + str(begin) + ' previous event started at ' + str(prev_begin))
+               handle_id = dbp_event_get_handle_id(event_s)
+               event_id = dbp_event_get_event_id(event_s)
+               event_flags = dbp_event_get_flags(event_s)
+               error = {'node_id':node_id, 'stream_id':stream_id, 'handle_id':handle_id,
+                        'type':event_type, 'begin':begin, 'end':0,
+                        'flags':event_flags, 'id':event_id, 'error_msg':'event happened before its predecessor'}
+               builder.errors.append(error)
+    #           raise Exception('Internal', 'event ordering impossible: current_event start at ' + str(begin) + ' previous event started at ' + str(prev_begin))
+            else:
+              prev_begin = begin
+              event_flags = dbp_event_get_flags(event_s)
+              handle_id = dbp_event_get_handle_id(event_s)
+              event_id = dbp_event_get_event_id(event_s)
+              if begin < th_begin:
+                th_begin = begin
 
-        # this would be a good place for a test for 'singleton' events.
-        if KEY_IS_START( dbp_event_get_key(event_s) ):
+              # this would be a good place for a test for 'singleton' events.
+              if KEY_IS_START( dbp_event_get_key(event_s) ):
 
-            event = dict()
-            #event['info_start'] = None
-            #event['info_end']   = None
+                event = dict()
+                #event['info_start'] = None
+                #event['info_end']   = None
 
-            cinfo = dbp_event_get_info(event_s)
-            if cinfo != NULL:
-                if None != builder.event_convertors[event_type]:
-                    try:
-                        event_info = parse_info(builder, event_type, <char*>cinfo)
+                cinfo = dbp_event_get_info(event_s)
+                if cinfo != NULL:
+                    if None != builder.event_convertors[event_type]:
+                        try:
+                            event_info = parse_info(builder, event_type, <char*>cinfo)
 
-                        if None != event_info:
-                            #print(event_type, event_name, event_info)
-                            if 'PINS_PAPI' in builder.event_names[event_type]:
-                               for keyNum in range(0,len(event_info.keys())):
-                                   event[event_info.keys()[keyNum] + '_start'] = event_info.values()[keyNum]
-                            event.update(event_info)
-                    except:
-                        print('Failed to extract info from the start event (handle_id {0} event_id {1})'.format(handle_id, event_id))
+                            if None != event_info:
+                                #print(event_type, event_name, event_info)
+                                if 'PINS_PAPI' in builder.event_names[event_type]:
+                                   for keyNum in range(0,len(event_info.keys())):
+                                       event[event_info.keys()[keyNum] + '_start'] = event_info.values()[keyNum]
+                                event.update(event_info)
+                        except:
+                            print('Failed to extract info from the start event (handle_id {0} event_id {1})'.format(handle_id, event_id))
 
-            it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
-            if it_e != NULL:
+                it_e = dbp_iterator_find_matching_event_all_threads(it_s, 0)
+                if it_e != NULL:
 
-                event_e = dbp_iterator_current(it_e)
+                    event_e = dbp_iterator_current(it_e)
 
-                if event_e != NULL:
-                    end = dbp_event_get_timestamp(event_e)
+                    if event_e != NULL:
+                        end = dbp_event_get_timestamp(event_e)
 
-                    event['node_id']   = node_id
-                    event['stream_id'] = stream_id
-                    event['handle_id'] = handle_id
-                    event['type']      = event_type
-                    event['begin']     = begin
-                    event['end']       = end
-                    event['flags']     = event_flags
-                    event['id']        = event_id
+                        event['node_id']   = node_id
+                        event['stream_id'] = stream_id
+                        event['handle_id'] = handle_id
+                        event['type']      = event_type
+                        event['begin']     = begin
+                        event['end']       = end
+                        event['flags']     = event_flags
+                        event['id']        = event_id
 
-                    cinfo = dbp_event_get_info(event_e)
-                    if cinfo != NULL:
-                        if None != builder.event_convertors[event_type]:
-                            try:
-                                event_info = parse_info(builder, event_type, <char*>cinfo)
-                                if None != event_info:
-                                    #print(event_type, event_name, event_info)
-                                    #event[builder.event_names[event_type] + '_stop'] = event_info
-                                    event.update(event_info)
-                            except:
-                                print('Failed to extract info from the stop event (handle_id {0} event_id {1})'.format(handle_id, event_id))
+                        cinfo = dbp_event_get_info(event_e)
+                        if cinfo != NULL:
+                            if None != builder.event_convertors[event_type]:
+                                try:
+                                    event_info = parse_info(builder, event_type, <char*>cinfo)
+                                    if None != event_info:
+                                        #print(event_type, event_name, event_info)
+                                        #event[builder.event_names[event_type] + '_stop'] = event_info
+                                        event.update(event_info)
+                                except:
+                                    print('Failed to extract info from the stop event (handle_id {0} event_id {1})'.format(handle_id, event_id))
 
-                    # 'end' and 'begin' are unsigned, so subtraction is invalid if they are
-                    if end >= begin and (end - begin) <= th_duration:
-                        # VALID EVENT FOUND
-                        builder.events.append(event)
-                        if th_end < end:
-                            th_end = end
-                    else: # the event is 'not sane'
-                        event.update({'error_msg':'event has a unreasonable duration.'})
-                        # we still store error events, in the same format as a normal event
-                        # we simply add an error message column, and put them in a different table.
-                        # Users who wish to use these events can simply merge them with the events table.
-                        builder.errors.append(event)
+                        # 'end' and 'begin' are unsigned, so subtraction is invalid if they are
+                        if end >= begin and (end - begin) <= th_duration:
+                            # VALID EVENT FOUND
+                            builder.events.append(event)
+                            if th_end < end:
+                                th_end = end
+                        else: # the event is 'not sane'
+                            event.update({'error_msg':'event has a unreasonable duration.'})
+                            # we still store error events, in the same format as a normal event
+                            # we simply add an error message column, and put them in a different table.
+                            # Users who wish to use these events can simply merge them with the events table.
+                            builder.errors.append(event)
 
-                dbp_iterator_delete(it_e)
-                it_e = NULL
+                    dbp_iterator_delete(it_e)
+                    it_e = NULL
 
-            else: # the event is not complete
-                # this will change once singleton events are enabled.
-                error = {'node_id':node_id, 'stream_id':stream_id, 'handle_id':handle_id,
-                         'type':event_type, 'begin':begin, 'end':0,
-                         'flags':event_flags, 'id':event_id, 'error_msg':'event lack completion match.'}
-                builder.errors.append(error)
+                else: # the event is not complete
+                    # this will change once singleton events are enabled.
+                    error = {'node_id':node_id, 'stream_id':stream_id, 'handle_id':handle_id,
+                             'type':event_type, 'begin':begin, 'end':0,
+                             'flags':event_flags, 'id':event_id, 'error_msg':'event lack completion match.'}
+                    builder.errors.append(error)
+
         dbp_iterator_next(it_s)
         event_s = dbp_iterator_current(it_s)
 
