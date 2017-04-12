@@ -118,6 +118,15 @@ typedef struct parsec_dtd_flow_info_s {
     int rank_sent_to[MAX_RANK_INFO]; /* currently support 1024 nodes */
 } parsec_dtd_flow_info_t;
 
+/**
+ * @brief Simple pointer + key item fitted for a mempool allocation
+ */
+typedef struct dtd_hash_table_pointer_item_s {
+    hash_table_item_t        ht_item;
+    parsec_thread_mempool_t *mempool_owner;
+    void                    *value;
+} dtd_hash_table_pointer_item_t;
+
 /* All the fields store info about the descendant
  */
 typedef struct parsec_dtd_descendant_info_s {
@@ -149,6 +158,8 @@ typedef struct parsec_dtd_parent_info_s {
 
 struct parsec_dtd_task_s {
     parsec_execution_context_t   super;
+    hash_table_item_t            ht_item;
+    parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
     /* for testing PTG inserting task in DTD */
@@ -168,15 +179,17 @@ typedef struct parsec_dtd_tile_user_s {
 }parsec_dtd_tile_user_t;
 
 struct parsec_dtd_tile_s {
-    parsec_hashtable_item_t super;
-    int16_t                 arena_index;
-    int16_t                 flushed;
-    int32_t                 rank;
-    parsec_data_key_t       key;
-    parsec_data_copy_t     *data_copy;
-    parsec_ddesc_t         *ddesc;
-    parsec_dtd_tile_user_t  last_user;
-    parsec_dtd_tile_user_t  last_writer;
+    parsec_list_item_t       super;
+    hash_table_item_t        ht_item;
+    parsec_thread_mempool_t *mempool_owner;
+    int16_t                  arena_index;
+    int16_t                  flushed;
+    int32_t                  rank;
+    parsec_data_key_t        key;
+    parsec_data_copy_t      *data_copy;
+    parsec_ddesc_t          *ddesc;
+    parsec_dtd_tile_user_t   last_user;
+    parsec_dtd_tile_user_t   last_writer;
 };
 /* For creating objects of class parsec_dtd_tile_t */
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dtd_tile_t);
@@ -191,13 +204,9 @@ struct hook_info{
  * and remote_deps related to remote tasks.
  */
 typedef struct parsec_dtd_two_hash_table_s {
-    hash_table       *task_and_rem_dep_h_table;
+    hash_table_t        *task_and_rem_dep_h_table;
     parsec_atomic_lock_t atomic_lock;
 } parsec_dtd_two_hash_table_t;
-
-typedef struct parsec_dtd_tile_hash_table_s {
-    hash_table *tile_h_table;
-} parsec_dtd_tile_hash_table_t;
 
 /**
  * internal_parsec_handle
@@ -216,7 +225,7 @@ struct parsec_dtd_handle_s {
     parsec_handle_wait_t    *wait_func;
     parsec_mempool_t        *hash_table_bucket_mempool;
     parsec_dtd_two_hash_table_t *two_hash_table;
-    hash_table              *function_h_table;
+    hash_table_t            *function_h_table;
     /* ring of initial ready tasks */
     parsec_execution_context_t **startup_list;
     /* from here to end is for the testing interface */
@@ -228,6 +237,8 @@ struct parsec_dtd_handle_s {
  */
 struct parsec_dtd_function_s {
     parsec_function_t     super;
+    hash_table_item_t        ht_item;
+    parsec_thread_mempool_t *mempool_owner;
     parsec_dtd_funcptr_t *fpointer;
     parsec_mempool_t      context_mempool;
     parsec_mempool_t      remote_task_mempool;
@@ -304,8 +315,7 @@ parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint32_t key );
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
 
-uint32_t
-hash_key( uintptr_t key, int size );
+uint32_t hash_key (uint64_t key, void *data);
 
 void
 parsec_dtd_tile_insert( uint32_t key,

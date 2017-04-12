@@ -84,6 +84,11 @@ typedef uint64_t jdf_warning_mask_t;
 #define JDF_ALL_WARNINGS                 ((jdf_warning_mask_t)~JDF_WARNINGS_DISABLED_BY_DEFAULT)
 int jdf_sanity_checks( jdf_warning_mask_t mask );
 
+#define DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING "dynamic-hash-table"
+#define DEP_MANAGEMENT_DYNAMIC_HASH_TABLE 1
+#define DEP_MANAGEMENT_INDEX_ARRAY_STRING        "index-array"
+#define DEP_MANAGEMENT_INDEX_ARRAY        2
+
 typedef struct jdf_compiler_global_args {
     char *input;
     char *output_c;
@@ -91,9 +96,10 @@ typedef struct jdf_compiler_global_args {
     char *output_o;
     char *funcid;
     jdf_warning_mask_t wmask;
-    int compile;  /**< Should we generate the .[cho] files directly or should we
-                   *   limit the generation to the .[ch] files */
-    int  noline;  /**< Don't dump the jdf line number in the generate .c file */
+    int   compile;  /**< Should we generate the .[cho] files directly or should we
+                     *   limit the generation to the .[ch] files */
+    int   dep_management;
+    int   noline;  /**< Don't dump the jdf line number in the generate .c file */
 } jdf_compiler_global_args_t;
 extern jdf_compiler_global_args_t JDF_COMPILER_GLOBAL_ARGS;
 

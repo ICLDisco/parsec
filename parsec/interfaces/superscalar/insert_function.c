@@ -170,7 +170,7 @@ OBJ_CLASS_INSTANCE(parsec_dtd_task_t, parsec_execution_context_t,
 /* To create object of class .list_itemdtd_tile_t that inherits parsec_list_item_t
  * class
  */
-OBJ_CLASS_INSTANCE(parsec_dtd_tile_t, parsec_hashtable_item_t,
+OBJ_CLASS_INSTANCE(parsec_dtd_tile_t, parsec_list_item_t,
                    NULL, NULL);
 
 /* To create object of class parsec_handle_t that inherits parsec_list_t
@@ -200,14 +200,18 @@ void parsec_dtd_handle_constructor(parsec_dtd_handle_t *parsec_handle)
     parsec_handle->two_hash_table = (parsec_dtd_two_hash_table_t *) malloc(sizeof(parsec_dtd_two_hash_table_t));
     parsec_atomic_unlock(&parsec_handle->two_hash_table->atomic_lock);
 
-    parsec_handle->two_hash_table->task_and_rem_dep_h_table = OBJ_NEW(hash_table);
+    parsec_handle->two_hash_table->task_and_rem_dep_h_table = OBJ_NEW(hash_table_t);
     hash_table_init(parsec_handle->two_hash_table->task_and_rem_dep_h_table,
+                    offsetof(dtd_hash_table_pointer_item_t, ht_item),
                     task_hash_table_size,
-                    &hash_key);
-    parsec_handle->function_h_table = OBJ_NEW(hash_table);
+                    &hash_key,
+                    parsec_handle->two_hash_table->task_and_rem_dep_h_table);
+    parsec_handle->function_h_table = OBJ_NEW(hash_table_t);
     hash_table_init(parsec_handle->function_h_table,
+                    offsetof(dtd_hash_table_pointer_item_t, ht_item),
                     PARSEC_DTD_NB_FUNCTIONS,
-                    &hash_key);
+                    &hash_key,
+                    parsec_handle->function_h_table);
 
     parsec_handle->super.startup_hook    = parsec_dtd_startup;
     parsec_handle->super.destructor      = (parsec_destruct_fn_t)parsec_dtd_handle_destruct;
@@ -224,12 +228,11 @@ void parsec_dtd_handle_constructor(parsec_dtd_handle_t *parsec_handle)
 #endif /* defined(PARSEC_PROF_TRACE) */
 
     /* Initializing hash_table_bucket mempool */
-    parsec_generic_bucket_t fake_bucket;
     parsec_handle->hash_table_bucket_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
     parsec_mempool_construct( parsec_handle->hash_table_bucket_mempool,
-                             OBJ_CLASS(parsec_generic_bucket_t), sizeof(parsec_generic_bucket_t),
-                             ((char*)&fake_bucket.super.mempool_owner) - ((char*)&fake_bucket),
-                             1/* no. of threads*/ );
+                              NULL, sizeof(dtd_hash_table_pointer_item_t),
+                              offsetof(dtd_hash_table_pointer_item_t, mempool_owner),
+                              1/* no. of threads*/ );
 }
 
 /***************************************************************************//**
@@ -280,10 +283,10 @@ parsec_dtd_handle_destructor
     free(parsec_handle->hash_table_bucket_mempool);
     free(parsec_handle->startup_list);
 
-    hash_table_fini(parsec_handle->two_hash_table->task_and_rem_dep_h_table, parsec_handle->two_hash_table->task_and_rem_dep_h_table->size);
+    hash_table_fini(parsec_handle->two_hash_table->task_and_rem_dep_h_table);
     free(parsec_handle->two_hash_table);
 
-    hash_table_fini(parsec_handle->function_h_table, parsec_handle->function_h_table->size);
+    hash_table_fini(parsec_handle->function_h_table);
 }
 
 /* To create object of class parsec_dtd_handle_t that inherits parsec_handle_t
@@ -323,6 +326,8 @@ OBJ_CLASS_INSTANCE(parsec_dtd_handle_t, parsec_handle_t,
 void
 parsec_dtd_init()
 {
+    parsec_dtd_handle_t  *parsec_handle;
+
     /* Registering mca param for printing out traversal info */
     (void)parsec_mca_param_reg_int_name("dtd", "traversal_info",
                                        "Show graph traversal info",
@@ -353,24 +358,21 @@ parsec_dtd_init()
                                        "Registers the supplied size overriding the default size of threshold size",
                                        false, false, dtd_threshold_size, &dtd_threshold_size);
 
-    parsec_dtd_handle_t  fake_handle, *parsec_handle;
-
     handle_mempool          = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
     parsec_mempool_construct( handle_mempool,
-                             OBJ_CLASS(parsec_dtd_handle_t), sizeof(parsec_dtd_handle_t),
-                             ((char*)&fake_handle.mempool_owner) - ((char*)&fake_handle),
-                             1/* no. of threads*/ );
+                              OBJ_CLASS(parsec_dtd_handle_t), sizeof(parsec_dtd_handle_t),
+                              offsetof(parsec_dtd_handle_t, mempool_owner),
+                              1/* no. of threads*/ );
 
     parsec_handle = (parsec_dtd_handle_t *)parsec_thread_mempool_allocate(handle_mempool->thread_mempools);
     parsec_thread_mempool_free( handle_mempool->thread_mempools, parsec_handle );
 
     /* Initializing the tile mempool and attaching it to the parsec_handle */
-    parsec_dtd_tile_t fake_tile;
     parsec_dtd_tile_mempool = (parsec_mempool_t*) malloc (sizeof(parsec_mempool_t));
     parsec_mempool_construct( parsec_dtd_tile_mempool,
-                             OBJ_CLASS(parsec_dtd_tile_t), sizeof(parsec_dtd_tile_t),
-                             ((char*)&fake_tile.super.mempool_owner) - ((char*)&fake_tile),
-                             1/* no. of threads*/ );
+                              OBJ_CLASS(parsec_dtd_tile_t), sizeof(parsec_dtd_tile_t),
+                              offsetof(parsec_dtd_tile_t, mempool_owner),
+                              1/* no. of threads*/ );
 
     int i;
     parsec_dtd_arenas = (parsec_arena_t **) malloc(parsec_dtd_no_of_arenas * sizeof(parsec_arena_t *));
@@ -462,21 +464,16 @@ parsec_dtd_data_flush_all(parsec_handle_t *parsec_handle, parsec_ddesc_t *ddesc)
     PINS(parsec_dtd_handle->super.context->virtual_processes[0]->execution_units[0], DATA_FLUSH_BEGIN, NULL);
     int i;
     parsec_dtd_tile_t *tile;
+    hash_table_item_t *current_item;
 
-    hash_table *hash_table   = ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table;
-    parsec_hashtable_item_t *current_item;
-    parsec_list_t *item_list;
-    parsec_list_item_t *item;
+    hash_table_t *hash_table   = (hash_table_t *)ddesc->tile_h_table;
 
     for( i = 0; i < tile_hash_table_size; i++ ) {
-        item_list = hash_table->item_list[i];
-        current_item = (parsec_hashtable_item_t *) PARSEC_LIST_ITERATOR_FIRST(item_list);
+        current_item = hash_table->buckets[i].first_item;
         /* Iterating the list to check if we have the element */
-        while( current_item != (parsec_hashtable_item_t *) PARSEC_LIST_ITERATOR_END(item_list) ) {
-            tile = (parsec_dtd_tile_t *)current_item;
-            item = &(current_item->list_item);
-            current_item = (parsec_hashtable_item_t *)PARSEC_LIST_ITERATOR_NEXT(item);
-            assert(tile != NULL );
+        while( NULL != current_item ) {
+            tile = (parsec_dtd_tile_t *)hash_table_item_lookup(hash_table, current_item);
+            current_item = current_item->next_item;
             parsec_dtd_data_flush( parsec_handle, tile );
         }
     }
@@ -782,24 +779,25 @@ parsec_dtd_add_profiling_info_generic( parsec_handle_t *parsec_handle,
 #endif /* defined(PARSEC_PROF_TRACE) */
 
 /* **************************************************************************** */
+
 /**
- * This function produces a hash from a key and a size
+ * This function produces a hash from a key and a hash_table_t
  *
  * This function returns a hash for a key. The hash is produced
  * by the following operation key % size
  *
  * @param[in]   key
  *                  The key to be hashed
- * @param[in]   size
- *                  Size of the hash table
+ * @param[in]   ht
+ *                  the hash table
  * @return
  *              The hash for the key provided
  *
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
-uint32_t
-hash_key( uintptr_t key, int size )
+uint32_t hash_key (uint64_t key, void *data)
 {
+    int size = ((hash_table_t*)data)->size;
     uint32_t hash_val = key % size;
     return hash_val;
 }
@@ -809,15 +807,15 @@ parsec_dtd_insert_task( parsec_dtd_handle_t *parsec_handle,
                         uint64_t             key,
                         void                *value )
 {
-    parsec_generic_bucket_t *bucket = (parsec_generic_bucket_t *)parsec_thread_mempool_allocate(parsec_handle->hash_table_bucket_mempool->thread_mempools);
+    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(parsec_handle->hash_table_bucket_mempool->thread_mempools);
+    
+    hash_table_t *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
 
-    hash_table *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
-    uint32_t    hash       = hash_table->hash( key, hash_table->size );
+    item->ht_item.key   = key;
+    item->mempool_owner = parsec_handle->hash_table_bucket_mempool->thread_mempools;
+    item->value         = (void *)value;
 
-    bucket->super.key = key;
-    bucket->value     = (void *)value;
-
-    hash_table_nolock_insert( hash_table, (parsec_hashtable_item_t *)bucket, hash );
+    hash_table_nolock_insert( hash_table, &item->ht_item );
 }
 
 void
@@ -832,10 +830,9 @@ void
 parsec_dtd_remove_task( parsec_dtd_handle_t  *parsec_handle,
                         uint64_t              key )
 {
-    hash_table *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
-    uint32_t    hash       = hash_table->hash( key, hash_table->size );
+    hash_table_t *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
 
-    hash_table_nolock_remove( hash_table, key, hash );
+    hash_table_nolock_remove( hash_table, key );
 }
 
 void
@@ -849,12 +846,11 @@ void *
 parsec_dtd_find_task( parsec_dtd_handle_t *parsec_handle,
                       uint64_t             key )
 {
-    hash_table *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
-    uint32_t    hash       = hash_table->hash( key, hash_table->size );
+    hash_table_t *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
 
-    parsec_generic_bucket_t *bucket = (parsec_generic_bucket_t *)hash_table_nolock_find( hash_table, key, hash );
-    if( NULL == bucket ) return bucket;
-    else return bucket->value;
+    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)hash_table_nolock_find( hash_table, key );
+    if( NULL == item ) return NULL;
+    else return item->value;
 }
 
 void *
@@ -868,15 +864,16 @@ void *
 parsec_dtd_find_and_remove_task( parsec_dtd_handle_t *parsec_handle,
                                  uint64_t             key )
 {
-    hash_table *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
-    uint32_t    hash       = hash_table->hash( key, hash_table->size );
-
-    parsec_generic_bucket_t *bucket = (parsec_generic_bucket_t *)hash_table_nolock_find( hash_table, key, hash );
-    if( NULL == bucket ) return NULL;
+    hash_table_t *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
+    void *value;
+    
+    dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)hash_table_nolock_find( hash_table, key );
+    if( NULL == item ) return NULL;
     else {
         parsec_dtd_remove_task( parsec_handle, key );
-        parsec_thread_mempool_free( parsec_handle->hash_table_bucket_mempool->thread_mempools, bucket );
-        return bucket->value;
+        value = item->value;
+        parsec_thread_mempool_free( parsec_handle->hash_table_bucket_mempool->thread_mempools, item );
+        return value;
     }
 }
 
@@ -907,15 +904,15 @@ parsec_dtd_function_insert( parsec_dtd_handle_t   *parsec_handle,
                             uint64_t  key,
                             parsec_dtd_function_t *value )
 {
-    parsec_generic_bucket_t *bucket  =  (parsec_generic_bucket_t *)parsec_thread_mempool_allocate(parsec_handle->hash_table_bucket_mempool->thread_mempools);
+    dtd_hash_table_pointer_item_t *item  =  (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(parsec_handle->hash_table_bucket_mempool->thread_mempools);
 
-    hash_table *hash_table          =  parsec_handle->function_h_table;
-    uint32_t    hash                =  hash_table->hash ( (uint64_t)key, hash_table->size );
+    hash_table_t *hash_table          =  parsec_handle->function_h_table;
 
-    bucket->super.key   = (uint64_t)key;
-    bucket->value       = (void *)value;
+    item->ht_item.key   = (uint64_t)key;
+    item->mempool_owner = parsec_handle->hash_table_bucket_mempool->thread_mempools;
+    item->value         = (void *)value;
 
-    hash_table_insert( hash_table, (parsec_hashtable_item_t *)bucket, hash );
+    hash_table_insert ( hash_table, &item->ht_item );
 }
 
 /* **************************************************************************** */
@@ -935,10 +932,9 @@ void
 parsec_dtd_function_remove( parsec_dtd_handle_t  *parsec_handle,
                             uint64_t key )
 {
-    hash_table *hash_table      =  parsec_handle->function_h_table;
-    uint32_t    hash            =  hash_table->hash ( (uint64_t)key, hash_table->size );
+    hash_table_t *hash_table    =  parsec_handle->function_h_table;
 
-    hash_table_remove( hash_table, (uint64_t)key, hash );
+    hash_table_remove( hash_table, (uint64_t)key );
 }
 
 /* **************************************************************************** */
@@ -957,14 +953,13 @@ parsec_dtd_function_remove( parsec_dtd_handle_t  *parsec_handle,
  *
  * @ingroup         DTD_INTERFACE_INTERNAL
  */
-parsec_generic_bucket_t *
+void *
 parsec_dtd_function_find_internal( parsec_dtd_handle_t  *parsec_handle,
                                    uint64_t key )
 {
-    hash_table *hash_table      =  parsec_handle->function_h_table;
-    uint32_t    hash            =  hash_table->hash( (uint64_t)key, hash_table->size );
+    hash_table_t *hash_table      =  parsec_handle->function_h_table;
 
-    return (parsec_generic_bucket_t *) hash_table_nolock_find( hash_table, (uint64_t)key, hash );
+    return hash_table_nolock_find ( hash_table, key );
 }
 
 /* **************************************************************************** */
@@ -989,9 +984,9 @@ parsec_dtd_function_t *
 parsec_dtd_function_find( parsec_dtd_handle_t  *parsec_handle,
                           uint64_t key )
 {
-    parsec_generic_bucket_t *bucket = parsec_dtd_function_find_internal( parsec_handle, key );
-    if( bucket != NULL ) {
-        return (parsec_dtd_function_t *)bucket->value;
+    dtd_hash_table_pointer_item_t *item = parsec_dtd_function_find_internal( parsec_handle, key );
+    if( item != NULL ) {
+        return (parsec_dtd_function_t *)item->value;
     }
     return NULL;
 }
@@ -1023,12 +1018,11 @@ parsec_dtd_tile_insert( uint32_t key,
                         parsec_dtd_tile_t *tile,
                         parsec_ddesc_t    *ddesc )
 {
-    hash_table *hash_table   = ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table;
-    uint32_t    hash         =   hash_table->hash ( (uint64_t)key, hash_table->size );
+    hash_table_t *hash_table = (hash_table_t *)ddesc->tile_h_table;
 
-    tile->super.key = (uint64_t)key;
+    tile->ht_item.key = (uint64_t)key;
 
-    hash_table_insert( hash_table, (parsec_hashtable_item_t *)tile, hash );
+    hash_table_insert( hash_table, &tile->ht_item );
 }
 
 /* **************************************************************************** */
@@ -1048,14 +1042,9 @@ parsec_dtd_tile_insert( uint32_t key,
 void
 parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint32_t key )
 {
-    hash_table *hash_table = ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table;
-    uint32_t    hash       = hash_table->hash( (uint64_t)key, hash_table->size );
+    hash_table_t *hash_table = (hash_table_t *)ddesc->tile_h_table;
 
-    parsec_list_t *list = hash_table->item_list[hash];
-
-    parsec_list_lock( list );
-    hash_table_nolock_remove( hash_table, (uint64_t)key, hash );
-    parsec_list_unlock( list );
+    hash_table_remove( hash_table, (uint64_t)key );
 }
 
 /* **************************************************************************** */
@@ -1075,10 +1064,9 @@ parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint32_t key )
 parsec_dtd_tile_t *
 parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint32_t key )
 {
-    hash_table *hash_table   = ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table;
+    hash_table_t *hash_table   = (hash_table_t *)ddesc->tile_h_table;
     assert(hash_table != NULL);
-    uint32_t hash            = hash_table->hash( (uint64_t)key, hash_table->size );
-    parsec_dtd_tile_t *tile  = hash_table_nolock_find( hash_table, (uint64_t)key, hash );
+    parsec_dtd_tile_t *tile  = (parsec_dtd_tile_t *)hash_table_nolock_find( hash_table, (uint64_t)key );
 
     return tile;
 }
@@ -1104,12 +1092,9 @@ parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint32_t key )
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile )
 {
-    assert(tile->super.list_item.super.obj_reference_count>1);
-    if( 1 == parsec_atomic_add_32b( &tile->super.list_item.super.obj_reference_count, -1 ) ) {
+    assert(tile->super.super.obj_reference_count>1);
+    if( 1 == parsec_atomic_add_32b( &tile->super.super.obj_reference_count, -1 ) ) {
         assert(tile->flushed == FLUSHED);
-#if defined(PARSEC_DEBUG_PARANOID)
-        assert(tile->super.list_item.refcount == 0);
-#endif
         parsec_thread_mempool_free( parsec_dtd_tile_mempool->thread_mempools, tile );
         tile = NULL;
     }
@@ -1137,31 +1122,29 @@ void
 parsec_dtd_function_release( parsec_dtd_handle_t *parsec_handle,
                              uint64_t key )
 {
-    parsec_generic_bucket_t *bucket = parsec_dtd_function_find_internal( parsec_handle, key );
+    dtd_hash_table_pointer_item_t *item = parsec_dtd_function_find_internal( parsec_handle, key );
 #if defined(PARSEC_DEBUG_PARANOID)
-    assert (bucket != NULL);
+    assert (item != NULL);
 #endif
     parsec_dtd_function_remove( parsec_handle, key );
-    parsec_thread_mempool_free( parsec_handle->hash_table_bucket_mempool->thread_mempools, bucket );
+    parsec_thread_mempool_free( parsec_handle->hash_table_bucket_mempool->thread_mempools, item );
 }
 
 void
 parsec_dtd_ddesc_init( parsec_ddesc_t *ddesc )
 {
-    ddesc->tile_h_table = malloc(sizeof(parsec_dtd_tile_hash_table_t));
-    ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table = (void *)OBJ_NEW(hash_table);
-    hash_table_init( ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table,
-                       tile_hash_table_size,
-                      &hash_key );
+    ddesc->tile_h_table = OBJ_NEW(hash_table_t);
+    hash_table_init( ddesc->tile_h_table,
+                     offsetof(parsec_dtd_tile_t, ht_item),
+                     tile_hash_table_size,
+                     &hash_key,
+                     ddesc->tile_h_table);
 }
 
 void
 parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc )
 {
-    hash_table_fini( ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table,
-                     ((parsec_dtd_tile_hash_table_t *)ddesc->tile_h_table)->tile_h_table->size);
-
-    free(ddesc->tile_h_table);
+    hash_table_fini( ddesc->tile_h_table );
 }
 
 /* **************************************************************************** */
@@ -1189,15 +1172,12 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
     if( NULL == tile ) {
         /* Creating Tile object */
         tile = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_dtd_tile_mempool->thread_mempools );
-#if defined(PARSEC_DEBUG_PARANOID)
-        assert(tile->super.list_item.refcount == 0);
-#endif
         tile->ddesc                 = ddesc;
         tile->arena_index           = -1;
         tile->key                   = key;
         tile->rank                  = ddesc->rank_of_key(ddesc, tile->key);
         tile->flushed               = NOT_FLUSHED;
-        if( tile->rank == ddesc->myrank ) {
+        if( tile->rank == (int)ddesc->myrank ) {
             tile->data_copy         = (ddesc->data_of_key(ddesc, tile->key))->device_copies[0];
 #if defined(PARSEC_HAVE_CUDA)
             tile->data_copy->readers = 0;
@@ -1214,7 +1194,7 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
     }
     assert(tile->flushed == NOT_FLUSHED);
 #if defined(PARSEC_DEBUG_PARANOID)
-    assert(tile->super.list_item.super.obj_reference_count > 0);
+    assert(tile->super.super.obj_reference_count > 0);
 #endif
     return tile;
 }
@@ -1599,7 +1579,6 @@ dtd_release_dep_fct( parsec_execution_unit_t *eu,
         not_ready = parsec_atomic_add_32b((int *)&(current_task->flow_count), -1);
 
 #if defined(PARSEC_PROF_GRAPHER)
-        parsec_dtd_task_t *parent_task  = (parsec_dtd_task_t*)oldcontext;
         /* Check to not print stuff redundantly */
         parsec_flow_t *origin_flow = (parsec_flow_t*) calloc(1, sizeof(parsec_flow_t));
         parsec_flow_t *dest_flow = (parsec_flow_t*) calloc(1, sizeof(parsec_flow_t));
@@ -1619,13 +1598,13 @@ dtd_release_dep_fct( parsec_execution_unit_t *eu,
             assert(parsec_dtd_task_is_local(current_task));
             if(dump_traversal_info) {
                 parsec_output(parsec_debug_output, "------\ntask Ready: %s \t %" PRIu64 "\nTotal flow: %d  flow_count:"
-                       "%d\n-----\n", current_task->super.function->name, current_task->super.super.key,
-                       current_task->super.function->nb_flows, current_task->flow_count);
+                              "%d\n-----\n", current_task->super.function->name, current_task->ht_item.key,
+                              current_task->super.function->nb_flows, current_task->flow_count);
             }
 
             arg->ready_lists[dst_vpid] = (parsec_execution_context_t*)
                 parsec_list_item_ring_push_sorted( (parsec_list_item_t*)arg->ready_lists[dst_vpid],
-                                                  &current_task->super.super.list_item,
+                                                  &current_task->super.super,
                                                   parsec_execution_context_priority_comparator );
             return PARSEC_ITERATE_CONTINUE; /* Returns the status of the task being activated */
         } else {
@@ -1825,16 +1804,16 @@ complete_hook_of_dtd( parsec_execution_unit_t    *context,
         static int counter= 0;
         (void)parsec_atomic_add_32b(&counter,1);
         parsec_output(parsec_debug_output, "------------------------------------------------\n"
-               "execution done of task: %s \t %" PRIu64 "\n"
-               "task done %d rank --> %d\n",
-               this_task->function->name,
-               this_task->super.key,
-               counter, this_task->parsec_handle->context->my_rank);
+                      "execution done of task: %s \t %" PRIu64 "\n"
+                      "task done %d rank --> %d\n",
+                      this_task->function->name,
+                      this_dtd_task->ht_item.key,
+                      counter, this_task->parsec_handle->context->my_rank);
     }
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id,
-                            this_task->super.key);
+                             this_task->function->key(this_task->parsec_handle, this_task->locals));
 #endif /* defined(PARSEC_PROF_GRAPHER) */
 
     PARSEC_TASK_PROF_TRACE(context->eu_profile,
@@ -1862,7 +1841,7 @@ parsec_hook_return_t
 parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
 {
     parsec_object_t *object = (parsec_object_t *)this_task;
-    assert(this_task->super.super.list_item.super.obj_reference_count > 1);
+    assert(this_task->super.super.super.obj_reference_count > 1);
     if( 1 == parsec_atomic_add_32b( &object->obj_reference_count, -1 ) ) {
         int current_flow;
         for( current_flow = 0; current_flow < this_task->super.function->nb_flows; current_flow++ ) {
@@ -1881,14 +1860,10 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
                 parsec_dtd_tile_release( tile );
             }
         }
-        assert(this_task->super.super.list_item.super.obj_reference_count == 1);
+        assert(this_task->super.super.super.obj_reference_count == 1);
         parsec_handle_t *handle = this_task->super.parsec_handle;
 
-#if defined(PARSEC_DEBUG_PARANOID)
-        assert( this_task->super.super.list_item.refcount == 0 );
-#endif
-
-        parsec_thread_mempool_free( this_task->super.super.mempool_owner, this_task );
+        parsec_thread_mempool_free( this_task->mempool_owner, this_task );
         parsec_handle_update_runtime_nbtask( handle, -1 );
     }
     return PARSEC_HOOK_RETURN_DONE;
@@ -1930,9 +1905,9 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
                 parsec_dtd_tile_release( tile );
             }
         }
-        assert(this_task->super.super.list_item.super.obj_reference_count == 1);
+        assert(this_task->super.super.super.obj_reference_count == 1);
         parsec_handle_t *handle = this_task->super.parsec_handle;
-        parsec_thread_mempool_free( this_task->super.super.mempool_owner, this_task );
+        parsec_thread_mempool_free( this_task->mempool_owner, this_task );
         parsec_handle_update_runtime_nbtask( handle, -1 );
     }
     assert(object->obj_reference_count >= 1);
@@ -2304,8 +2279,6 @@ parsec_dtd_create_function( parsec_dtd_handle_t *__parsec_handle, parsec_dtd_fun
     dtd_function->ref_count          = 1;
 
     /* Allocating mempool according to the size and param count */
-    parsec_dtd_task_t fake_task;
-
     int total_size =  sizeof(parsec_dtd_task_t) +
                      (flow_count * sizeof(parsec_dtd_parent_info_t)) +
                      (flow_count * sizeof(parsec_dtd_descendant_info_t)) +
@@ -2314,9 +2287,9 @@ parsec_dtd_create_function( parsec_dtd_handle_t *__parsec_handle, parsec_dtd_fun
                       size_of_param;
 
     parsec_mempool_construct( &dtd_function->context_mempool,
-                             OBJ_CLASS(parsec_dtd_task_t), total_size,
-                             ((char*)&fake_task.super.super.mempool_owner) - ((char*)&fake_task),
-                             1/* no. of threads*/ );
+                              OBJ_CLASS(parsec_dtd_task_t), total_size,
+                              offsetof(parsec_dtd_task_t, mempool_owner),
+                              1/* no. of threads*/ );
 
     int total_size_remote_task = sizeof(parsec_dtd_task_t) +
                      (flow_count * sizeof(parsec_dtd_parent_info_t)) +
@@ -2324,9 +2297,9 @@ parsec_dtd_create_function( parsec_dtd_handle_t *__parsec_handle, parsec_dtd_fun
                      (flow_count * sizeof(parsec_dtd_min_flow_info_t));
 
     parsec_mempool_construct( &dtd_function->remote_task_mempool,
-                             OBJ_CLASS(parsec_dtd_task_t), total_size_remote_task,
-                             ((char*)&fake_task.super.super.mempool_owner) - ((char*)&fake_task),
-                             1/* no. of threads*/ );
+                              OBJ_CLASS(parsec_dtd_task_t), total_size_remote_task,
+                              offsetof(parsec_dtd_task_t, mempool_owner),
+                              1/* no. of threads*/ );
 
     /*
      To bypass const in function structure.
@@ -2548,7 +2521,7 @@ set_descendant( parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
         /* Locking the two hash table */
         parsec_dtd_two_hash_table_lock(parsec_handle->two_hash_table);
 
-        uint64_t key = (uint64_t)(real_parent_task->super.super.key<<32) | (1U<<real_parent_flow_index);
+        uint64_t key = (uint64_t)(real_parent_task->ht_item.key<<32) | (1U<<real_parent_flow_index);
         parsec_remote_deps_t *dep = parsec_dtd_find_remote_dep( parsec_handle, key );
         if( NULL == dep ) {
             if( !(flow->flags & TASK_INSERTED) ) {
@@ -2629,16 +2602,13 @@ parsec_dtd_create_and_initialize_task( parsec_dtd_handle_t *parsec_dtd_handle,
     }
     this_task = (parsec_dtd_task_t *)parsec_thread_mempool_allocate(dtd_task_mempool->thread_mempools);
 
-    assert(this_task->super.super.list_item.super.obj_reference_count == 1);
-#if defined(PARSEC_DEBUG_PARANOID)
-    assert( this_task->super.super.list_item.refcount == 0 );
-#endif
+    assert(this_task->super.super.super.obj_reference_count == 1);
 
     this_task->orig_task = NULL;
     this_task->super.parsec_handle   = (parsec_handle_t*)parsec_dtd_handle;
-    this_task->super.super.key       = parsec_dtd_handle->task_id++;
+    this_task->ht_item.key           = parsec_dtd_handle->task_id++;
     /* this is needed for grapher to work properly */
-    this_task->super.locals[0].value = (int)this_task->super.super.key;
+    this_task->super.locals[0].value = (int)this_task->ht_item.key;
     this_task->super.function        = function;
     /**
      * +1 to make sure the task cannot be completed by the potential predecessors,
@@ -2991,7 +2961,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
         (void)parsec_atomic_add_32b((int *)&(parsec_dtd_handle->super.nb_tasks), 1);
         parsec_dtd_handle->local_task_inserted++;
         if(dump_traversal_info) {
-            parsec_output(parsec_debug_output, "Task generated -> %s %d rank %d\n", this_task->super.function->name, this_task->super.super.key, this_task->rank);
+            parsec_output(parsec_debug_output, "Task generated -> %s %d rank %d\n", this_task->super.function->name, this_task->ht_item.key, this_task->rank);
         }
     }
 
@@ -3009,8 +2979,8 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
         if ( 0 == parsec_atomic_add_32b((int *)&(this_task->flow_count), -satisfied_flow) ) {
             if(dump_traversal_info) {
                 parsec_output(parsec_debug_output, "------\ntask Ready: %s \t %lld\nTotal flow: %d  flow_count:"
-                             "%d\n-----\n", this_task->super.function->name, this_task->super.super.key,
-                             this_task->super.function->nb_flows, this_task->flow_count);
+                              "%d\n-----\n", this_task->super.function->name, this_task->ht_item.key,
+                              this_task->super.function->nb_flows, this_task->flow_count);
             }
 
             PARSEC_LIST_ITEM_SINGLETON(this_task);

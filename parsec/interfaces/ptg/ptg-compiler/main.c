@@ -29,6 +29,7 @@ static jdf_compiler_global_args_t DEFAULTS = {
     .funcid = "a",
     .wmask = JDF_ALL_WARNINGS,
     .compile = 1,  /* by default the file must be compiled */
+    .dep_management = DEP_MANAGEMENT_DYNAMIC_HASH_TABLE,
 #if defined(PARSEC_HAVE_INDENT) && !defined(PARSEC_HAVE_AWK)
     .noline = 1 /*< By default, don't print the #line per default if can't fix the line numbers with awk */
 #else
@@ -57,6 +58,11 @@ static void usage(void)
             "  --function-name|-f Set the unique identifier of the generated function\n"
             "                     The generated function will be called PaRSEC_<ID>_new\n"
             "                     (default %s)\n"
+            "\n"
+            "  --dep-management|-M Select how dependencies tracking is managed. Possible choices\n"
+            "                      are '"DEP_MANAGEMENT_INDEX_ARRAY_STRING"' or '"DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING"'\n"
+            "                      (default '%s')\n"
+            "\n"
             "  --noline           Do not dump the JDF line number in the .c output file\n"
             "  --line             Force dumping the JDF line number in the .c output file\n"
             "                     Default: %s\n"
@@ -75,6 +81,9 @@ static void usage(void)
             DEFAULTS.output_c,
             DEFAULTS.output_h,
             DEFAULTS.funcid,
+            (DEFAULTS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ? DEP_MANAGEMENT_INDEX_ARRAY_STRING :
+             (DEFAULTS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ? DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING :
+              ("Unknown dep management string"))),
             DEFAULTS.noline?"--noline":"--line");
 }
 
@@ -155,14 +164,16 @@ static void parse_args(int argc, char *argv[])
         { "preproc",       no_argument,             NULL,  'E' },
         { "showme",        no_argument,             NULL,  's' },
         { "include",       required_argument,       NULL,  'I' },
+        { "dep-management",required_argument,       NULL,  'M' },
         { NULL,            0,                       NULL,   0  }
     };
 
     JDF_COMPILER_GLOBAL_ARGS.wmask = JDF_ALL_WARNINGS;
-
+    JDF_COMPILER_GLOBAL_ARGS.dep_management = DEFAULTS.dep_management;
+    
     print_jdf_line = !DEFAULTS.noline;
 
-    while( (ch = getopt_long(argc, argv, "d:i:C:H:o:f:hEsIO:", longopts, NULL)) != -1) {
+    while( (ch = getopt_long(argc, argv, "d:i:C:H:o:f:hEsIO:M:", longopts, NULL)) != -1) {
         switch(ch) {
         case 'd':
             yydebug = 1;
@@ -224,6 +235,17 @@ static void parse_args(int argc, char *argv[])
             free(exec_argv);
             exit(0);
         }
+        case 'M':
+            if( strcmp(optarg, DEP_MANAGEMENT_DYNAMIC_HASH_TABLE_STRING) == 0 )
+                JDF_COMPILER_GLOBAL_ARGS.dep_management = DEP_MANAGEMENT_DYNAMIC_HASH_TABLE;
+            else if( strcmp(optarg, DEP_MANAGEMENT_INDEX_ARRAY_STRING) == 0 )
+                JDF_COMPILER_GLOBAL_ARGS.dep_management = DEP_MANAGEMENT_INDEX_ARRAY;
+            else {
+                fprintf(stderr, "Unknown dependencies management method: '%s'\n", optarg);
+                usage();
+                exit(1);
+            }
+            break;
         case 'h':
             usage();
             exit(0);

@@ -33,7 +33,8 @@ static uint32_t undetermined_nb_tasks(struct __parsec_project_internal_handle_s 
 static void               *my_alloc_deps(struct __parsec_project_internal_handle_s *__parsec_handle);
 static void                my_free_deps(struct __parsec_project_internal_handle_s *__parsec_handle, void *deps);
 static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
-                                        const parsec_execution_context_t* restrict exec_context);
+                                         parsec_execution_unit_t *eu,
+                                         const parsec_execution_context_t* restrict exec_context);
 
 static int my_project_startup(parsec_execution_unit_t * eu,
                               struct __parsec_project_PROJECT_task_s * this_task);
@@ -265,12 +266,15 @@ static void                my_free_deps(struct __parsec_project_internal_handle_
 }
 
 static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
-                                        const parsec_execution_context_t* restrict exec_context)
+                                         parsec_execution_unit_t *eu_context,
+                                         const parsec_execution_context_t* restrict exec_context)
 {
     simple_hash_t *sh;
     simple_hash_entry_t *ne = NULL;
     int p, i;
     int n, l;
+
+    (void)eu_context;
 
     n = exec_context->locals[0].value;
     l = exec_context->locals[1].value;

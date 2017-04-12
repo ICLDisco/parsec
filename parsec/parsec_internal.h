@@ -14,6 +14,7 @@
 #include "parsec/class/hash_table.h"
 #include "parsec/parsec_description_structures.h"
 #include "parsec/profiling.h"
+#include "parsec/mempool.h"
 
 BEGIN_C_DECLS
 
@@ -163,11 +164,18 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_handle_t);
 #define PARSEC_DEPENDENCIES_STARTUP_TASK   ((parsec_dependency_t)(1<<29))
 #define PARSEC_DEPENDENCIES_BITMASK        (~(PARSEC_DEPENDENCIES_TASK_DONE|PARSEC_DEPENDENCIES_IN_DONE|PARSEC_DEPENDENCIES_STARTUP_TASK))
 
+/**
+ * This structure is used internally by the parsec_dependencies_t structures
+ */
 typedef union {
     parsec_dependency_t    dependencies[1];
     parsec_dependencies_t* next[1];
 } parsec_dependencies_union_t;
 
+/**
+ * This structure is used when dependencies are resolved as a multi-dimensional
+ * array indexed by the tasks parameters
+ */
 struct parsec_dependencies_s {
     int                   flags;
     int                   min;
@@ -176,7 +184,18 @@ struct parsec_dependencies_s {
     parsec_dependencies_union_t u;
 };
 
-void parsec_destruct_dependencies(parsec_dependencies_t* d);
+size_t parsec_destruct_dependencies(parsec_dependencies_t* d);
+
+/**
+ * This structure is used when dependencies are resolved using a dynamic
+ * hash table
+ */
+struct parsec_hashable_dependency_s {
+    hash_table_item_t        ht_item;
+    parsec_thread_mempool_t *mempool_owner;
+    parsec_dependency_t      dependency;
+};
+typedef struct parsec_hashable_dependency_s parsec_hashable_dependency_t;
 
 /**
  * Functions for DAG manipulation.
@@ -287,7 +306,14 @@ typedef int (parsec_data_ref_fn_t)(parsec_execution_context_t *exec_context,
  * Find the dependency corresponding to a given execution context.
  */
 typedef parsec_dependency_t *(parsec_find_dependency_fn_t)(const parsec_handle_t *parsec_handle,
-                                                         const parsec_execution_context_t* exec_context);
+                                                           parsec_execution_unit_t *eu_context,
+                                                           const parsec_execution_context_t* exec_context);
+parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_handle,
+                                              parsec_execution_unit_t *eu_context,
+                                              const parsec_execution_context_t* exec_context);
+parsec_dependency_t *parsec_hash_find_deps(const parsec_handle_t *parsec_handle,
+                                           parsec_execution_unit_t *eu_context,
+                                           const parsec_execution_context_t* exec_context);
 
 typedef struct __parsec_internal_incarnation_s {
     int32_t                     type;
@@ -374,7 +400,8 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
  * amount of information when a new task is constructed.
  */
 #define PARSEC_MINIMAL_EXECUTION_CONTEXT             \
-    parsec_hashtable_item_t        super;            \
+    parsec_list_item_t             super;            \
+    parsec_thread_mempool_t       *mempool_owner;    \
     parsec_handle_t               *parsec_handle;    \
     const  parsec_function_t      *function;         \
     int32_t                        priority;         \
@@ -414,14 +441,14 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_execution_context_t);
 #define PARSEC_COPY_EXECUTION_CONTEXT(dest, src) \
     do {                                                                \
         /* this should not be copied over from the old execution context */ \
-        parsec_thread_mempool_t *_mpool = (dest)->super.mempool_owner;         \
+        parsec_thread_mempool_t *_mpool = (dest)->mempool_owner;        \
         /* we copy everything but the parsec_list_item_t at the beginning, to \
          * avoid copying uninitialized stuff from the stack             \
          */                                                             \
-        memcpy( ((char*)(dest)) + sizeof(parsec_list_item_t),            \
-                ((char*)(src)) + sizeof(parsec_list_item_t),             \
+        memcpy( ((char*)(dest)) + sizeof(parsec_list_item_t),           \
+                ((char*)(src)) + sizeof(parsec_list_item_t),            \
                 sizeof(struct parsec_minimal_execution_context_s) - sizeof(parsec_list_item_t) ); \
-        (dest)->super.mempool_owner = _mpool;                                 \
+        (dest)->mempool_owner = _mpool;                                 \
     } while (0)
 
 /**
@@ -494,7 +521,7 @@ int parsec_task_deps_with_final_output(const parsec_execution_context_t *task,
 
 int parsec_ptg_update_runtime_task( parsec_handle_t *parsec_handle, int32_t nb_tasks );
 
-void parsec_dependencies_mark_task_as_startup(parsec_execution_context_t* exec_context);
+void parsec_dependencies_mark_task_as_startup(parsec_execution_context_t* exec_context, parsec_execution_unit_t *eu_context);
 
 int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
                                          const parsec_execution_context_t* origin,

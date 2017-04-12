@@ -229,7 +229,7 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
 
     while (1) {
         // check next element before insertion, which destroys next and prev
-        next = (parsec_execution_context_t*)cur->super.list_item.list_next;
+        next = (parsec_execution_context_t*)cur->super.list_next;
         assert(next != NULL);
 
         heap_insert(heap, cur);

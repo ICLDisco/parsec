@@ -10,6 +10,7 @@
 
 #include "parsec_config.h"
 #include "parsec/types.h"
+#include "parsec/class/hash_table.h"
 
 #if defined(PARSEC_HAVE_STDARG_H)
 #include <stdarg.h>
@@ -35,8 +36,8 @@ struct parsec_ddesc_s {
     uint32_t            myrank;    /**< process rank */
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
-    /* This void pointer has astructures required to book keep dtd interface */
-    void *tile_h_table;
+    /* This hash table book keep dtd interface */
+    hash_table_t        *tile_h_table;
 
     /* return a unique key (unique only for the specified parsec_ddesc) associated to a data */
     parsec_data_key_t (*data_key)(parsec_ddesc_t *d, ...);

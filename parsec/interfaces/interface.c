@@ -21,7 +21,7 @@ parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
                               parsec_execution_context_t *this_task)
 {
     (void)eu;
-    parsec_thread_mempool_free( this_task->super.mempool_owner, this_task );
+    parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -32,7 +32,7 @@ parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
     parsec_handle_t *handle;
     (void)eu;
     handle = this_task->parsec_handle;
-    parsec_thread_mempool_free( this_task->super.mempool_owner, this_task );
+    parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     (void)parsec_atomic_dec_32b( (uint32_t*)&handle->nb_tasks );
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -44,7 +44,7 @@ parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_
     parsec_handle_t *handle;
     (void)eu;
     handle = this_task->parsec_handle;
-    parsec_thread_mempool_free( this_task->super.mempool_owner, this_task );
+    parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     parsec_handle_update_runtime_nbtask(handle, -1);
     return PARSEC_HOOK_RETURN_DONE;
 }

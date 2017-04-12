@@ -1,185 +1,179 @@
 #include <assert.h>
 #include "parsec/class/hash_table.h"
 #include "parsec/class/list.h"
+#include <stdio.h>
 
-/* To create object of class hash_table that inherits parsec_object_t
- * class
- */
-OBJ_CLASS_INSTANCE(hash_table, parsec_object_t, NULL, NULL);
+#define BASEADDROF(item, ht)  (void*)(  ( (char*)(item) ) - ( (ht)->elt_hashitem_offset ) )
 
-/* To create object of class parsec_hashtabel_item_t that
- * inherits from parsec_list_item_t class.
- */
-OBJ_CLASS_INSTANCE(parsec_hashtable_item_t, parsec_list_item_t, NULL, NULL);
-
-/* To create object of class parsec_generic_bucket_t that
- * inherits from parsec_hashtable_item_t class.
- */
-OBJ_CLASS_INSTANCE(parsec_generic_bucket_t, parsec_hashtable_item_t, NULL, NULL);
-
-/* Function to create generic hash table
- * Arguments:   - Size of the hash table, or the total number of bucket the
-                  table will hold (int)
-                - Size of each bucket the table will hold (int)
- * Returns:     - void
-*/
-
-void
-hash_table_init(hash_table *obj, int size_of_table,
-                hash_fn    *hash)
+void *hash_table_item_lookup(hash_table_t *ht, hash_table_item_t *item)
 {
-    obj->size     = size_of_table;
-    obj->hash     = hash;
-    obj->item_list = calloc(size_of_table, sizeof(parsec_list_t *));
+    return BASEADDROF(item, ht);
+}
+
+/* To create object of class hash_table that inherits parsec_object_t class */
+OBJ_CLASS_INSTANCE(hash_table_t, parsec_object_t, NULL, NULL);
+
+void hash_table_init(hash_table_t *ht, int64_t offset, size_t size_of_table, hash_table_fn_t *hash, void *data)
+{
+    parsec_atomic_lock_t unlocked = { PARSEC_ATOMIC_UNLOCKED };
+    
+    ht->size      = size_of_table;
+    ht->hash      = hash;
+    ht->hash_data = data;
+    ht->elt_hashitem_offset = offset;
+    
+    ht->buckets = malloc(size_of_table * sizeof(hash_table_bucket_t));
 
     int i;
     for( i=0; i<size_of_table; i++) {
-        obj->item_list[i] = OBJ_NEW(parsec_list_t);
+        ht->buckets[i].lock = unlocked;
+        ht->buckets[i].first_item = NULL;
     }
 }
 
-/* Function to destroy generic hash table
- * Arguments:   - hash table (hash_table *)
- * Returns:     - void
-*/
-void
-hash_table_fini(hash_table *obj, int size_of_table)
+void hash_table_lock_bucket(hash_table_t *ht, uint64_t key )
+{
+    uint32_t hash = ht->hash(key, ht->hash_data);
+    assert( hash < ht->size );
+    parsec_atomic_lock(&ht->buckets[hash].lock);
+}
+
+void hash_table_unlock_bucket(hash_table_t *ht, uint64_t key )
+{
+    uint32_t hash = ht->hash(key, ht->hash_data);
+    assert( hash < ht->size );
+    parsec_atomic_unlock(&ht->buckets[hash].lock);
+}
+
+void hash_table_fini(hash_table_t *ht)
 {
     int i;
-    for( i=0; i<size_of_table; i++) {
-        free(obj->item_list[i]);
+    for(i=0; i < ht->size; i++) {
+        assert(NULL == ht->buckets[i].first_item);
     }
 
-    free(obj->item_list);
-    OBJ_RELEASE(obj);
+    free(ht->buckets);
+    OBJ_RELEASE(ht);
 }
 
-/* Item element's reference accounting:
- * Everytime we insert a item in the hashtable,
- * we increment the object's ref. count. Everytime
- * we find an element in the hash table, we
- * increment the ref. count.
- */
-
-/* Function to insert element in the hash table
- * Arguments:
- * Returns:
- */
-void
-hash_table_nolock_insert
-( hash_table *hash_table,
-  parsec_hashtable_item_t *item,
-  uint32_t hash )
+static void hash_table_nolock_insert_with_hash(hash_table_t *ht, hash_table_item_t *item, uint32_t hash)
 {
-    parsec_list_item_t *current_item = (parsec_list_item_t *)item;
-
-    parsec_list_t *item_list  = hash_table->item_list[hash];
-
-    OBJ_RETAIN(current_item);
-    parsec_list_nolock_push_back ( item_list, current_item );
+    item->next_item = ht->buckets[hash].first_item;
+    ht->buckets[hash].first_item = item;
 }
 
-/* Function to find element in the hash table (not thread safe)
- * Arguments:
- * Returns:
- */
-void *
-hash_table_nolock_find
-( hash_table *hash_table,
-  uint64_t key, uint32_t hash )
+static void *hash_table_nolock_find_with_hash(hash_table_t *ht, uint64_t key, uint32_t hash)
 {
-    parsec_hashtable_item_t *current_item;
-    parsec_list_t *item_list = hash_table->item_list[hash];
-
-    current_item = (parsec_hashtable_item_t *) PARSEC_LIST_ITERATOR_FIRST(item_list);
-
-    /* Iterating the list to check if we have the element */
-    while( current_item != (parsec_hashtable_item_t *) PARSEC_LIST_ITERATOR_END(item_list) ) {
+    hash_table_item_t *current_item;
+    for(current_item = ht->buckets[hash].first_item;
+        NULL != current_item;
+        current_item = current_item->next_item) {
         if( current_item->key == key ) {
-            return (void *)current_item;
+            return BASEADDROF(current_item, ht);
         }
-        parsec_list_item_t *item = &(current_item->list_item);
-        current_item = (parsec_hashtable_item_t *)PARSEC_LIST_ITERATOR_NEXT(item);
     }
-
-    return (void *)NULL;
+    return NULL;
 }
 
-/* Function to remove element from the hash table (not thread safe)
- * Arguments:
- * Returns:
- */
-void *
-hash_table_nolock_remove
-( hash_table *hash_table,
-  uint64_t key, uint32_t hash )
+static void *hash_table_nolock_remove_with_hash(hash_table_t *ht, uint64_t key, uint32_t hash)
 {
-    parsec_list_t *item_list = hash_table->item_list[hash];
-    parsec_list_item_t *current_item = hash_table_nolock_find ( hash_table, key, hash );
-
-    if( current_item != NULL ) {
-        OBJ_RELEASE(current_item);
-#if defined(PARSEC_DEBUG_PARANOID)
-        assert(current_item->refcount == 1);
-#endif
-        parsec_list_nolock_remove ( item_list, current_item );
-#if defined(PARSEC_DEBUG_PARANOID)
-        assert(current_item->refcount == 0);
-#endif
+    hash_table_item_t *current_item, *prev_item;
+    prev_item = NULL;
+    for(current_item = ht->buckets[hash].first_item;
+        NULL != current_item;
+        current_item = prev_item->next_item) {
+        if( current_item->key == key ) {
+            if( NULL == prev_item ) {
+                ht->buckets[hash].first_item = current_item->next_item;
+            } else {
+                prev_item->next_item = current_item->next_item;
+            }
+            return BASEADDROF(current_item, ht);
+        }
+        prev_item = current_item;
     }
-
-    return current_item;
+    return NULL;
 }
 
-/* Function to insert element in the hash table (thread safe)
- * Arguments:
- * Returns:
- */
-void
-hash_table_insert
-( hash_table *hash_table,
-  parsec_hashtable_item_t *item,
-  uint32_t hash )
+void hash_table_nolock_insert(hash_table_t *ht, hash_table_item_t *item)
 {
-    parsec_list_t *item_list  = hash_table->item_list[hash];
-
-    parsec_list_lock ( item_list );
-    hash_table_nolock_insert( hash_table, item, hash );
-    parsec_list_unlock ( item_list );
+    uint32_t hash = ht->hash(item->key, ht->hash_data);
+    assert(hash < ht->size);
+    hash_table_nolock_insert_with_hash(ht, item, hash);
 }
 
-/* Function to find element in the hash table (thread safe)
- * Arguments:
- * Returns:
- */
-void *
-hash_table_find
-( hash_table *hash_table,
-  uint64_t key, uint32_t hash )
+void *hash_table_nolock_find(hash_table_t *ht, uint64_t key)
 {
-    parsec_list_t *item_list = hash_table->item_list[hash];
-
-    parsec_list_lock ( item_list );
-    void *item = hash_table_nolock_find( hash_table, key, hash );
-    parsec_list_unlock ( item_list );
-
-    return item;
+    uint32_t hash = ht->hash(key, ht->hash_data);
+    assert(hash < ht->size);
+    return hash_table_nolock_find_with_hash(ht, key, hash);
 }
 
-/* Function to remove element from the hash table (thread safe)
- * Arguments:
- * Returns:
- */
-void *
-hash_table_remove
-( hash_table *hash_table,
-  uint64_t key, uint32_t hash )
+void *hash_table_nolock_remove(hash_table_t *ht, uint64_t key)
 {
-    parsec_list_t *item_list = hash_table->item_list[hash];
+    uint32_t hash = ht->hash(key, ht->hash_data);
+    assert(hash < ht->size);
+    return hash_table_nolock_remove_with_hash(ht, key, hash);
+}
 
-    parsec_list_lock ( item_list );
-    void *item = hash_table_nolock_remove( hash_table, key, hash );
-    parsec_list_unlock ( item_list );
+void hash_table_insert(hash_table_t *ht, hash_table_item_t *item)
+{
+    uint32_t hash = ht->hash(item->key, ht->hash_data);
+    assert( hash < ht->size );
+    parsec_atomic_lock(&ht->buckets[hash].lock);
+    hash_table_nolock_insert_with_hash(ht, item, hash);
+    parsec_atomic_unlock(&ht->buckets[hash].lock);
+}
 
-    return item;
+void *hash_table_find(hash_table_t *ht, uint64_t key)
+{
+    uint32_t hash = ht->hash(key, ht->hash_data);
+    void *ret;
+    assert( hash < ht->size );
+    parsec_atomic_lock(&ht->buckets[hash].lock);
+    ret = hash_table_nolock_find_with_hash(ht, key, hash);
+    parsec_atomic_unlock(&ht->buckets[hash].lock);
+    return ret;
+}
+
+void *hash_table_remove(hash_table_t *ht, uint64_t key)
+{
+    uint32_t hash = ht->hash(key, ht->hash_data);
+    void *ret;
+    assert( hash < ht->size );
+    parsec_atomic_lock(&ht->buckets[hash].lock);
+    ret = hash_table_nolock_remove_with_hash(ht, key, hash);
+    parsec_atomic_unlock(&ht->buckets[hash].lock);
+    return ret;
+}
+
+void hash_table_stat(hash_table_t *ht)
+{
+    double mean = 0.0, M2=0.0, delta, delta2;
+    int n = 0, min = -1, max = -1;
+    int nb;
+    uint32_t i;
+    hash_table_item_t *current_item;
+
+    for(i = 0; i < ht->size; i++) {
+        nb = 0;
+        for(current_item = ht->buckets[i].first_item;
+            current_item != NULL;
+            current_item = current_item->next_item) {
+            nb++;
+        }
+
+        n++;
+        delta = (double)nb - mean;
+        mean += delta/n;
+        delta2 = (double)nb - mean;
+        M2 += delta*delta2;
+
+        if( min == -1 || nb < min )
+            min = nb;
+        if( max == -1 || nb > max )
+            max = nb;
+    }
+    printf("table %p: %d lists, of length %d to %d average length: %g and variance %g\n",
+           ht, n, min, max, mean, M2/(n-1));
 }

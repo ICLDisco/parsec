@@ -323,11 +323,11 @@ parsec_list_unlock( parsec_list_t* list )
 
 #define _OPAQUE_LIST_ITERATOR_FIRST_DEFINITION(list) ((parsec_list_item_t*)(list)->ghost_element.list_next)
 #define _OPAQUE_LIST_ITERATOR_END_DEFINITION(list)   (&((list)->ghost_element))
-#define _OPAQUE_LIST_ITERATOR_NEXT_DEFINITION(ITEM)  ((parsec_list_item_t*)ITEM->list_next)
+#define _OPAQUE_LIST_ITERATOR_NEXT_DEFINITION(ITEM)  ((parsec_list_item_t*)((ITEM)->list_next))
 
 #define _OPAQUE_LIST_ITERATOR_LAST_DEFINITION(list)  ((parsec_list_item_t*)(list)->ghost_element.list_prev)
 #define _OPAQUE_LIST_ITERATOR_BEGIN_DEFINITION(list) (&((list)->ghost_element))
-#define _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)  ((parsec_list_item_t*)ITEM->list_prev)
+#define _OPAQUE_LIST_ITERATOR_PREV_DEFINITION(ITEM)  ((parsec_list_item_t*)((ITEM)->list_prev))
 
 #define _OPAQUE_LIST_ITERATOR_DEFINITION(list,ITEM,CODE) ({             \
     parsec_list_item_t* ITEM;                                            \

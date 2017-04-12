@@ -1122,6 +1122,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#include \"parsec/ayudame.h\"\n"
             "#include \"parsec/devices/device.h\"\n"
             "#include \"parsec/interfaces/interface.h\"\n"
+            "#include \"parsec/class/hash_table.h\"\n"
             "#include <assert.h>\n\n");
     houtput("BEGIN_C_DECLS\n\n");
 
@@ -1317,20 +1318,24 @@ static void jdf_generate_structure(const jdf_t *jdf)
         }
     }
 
-    coutput("/* Dependency Tracking Allocation Macro */\n"
-            "#define ALLOCATE_DEP_TRACKING(DEPS, vMIN, vMAX, vNAME, FLAG)                  \\\n"
-            "do {                                                                          \\\n"
-            "  int _vmin = (vMIN);                                                         \\\n"
-            "  int _vmax = (vMAX);                                                         \\\n"
-            "  (DEPS) = (parsec_dependencies_t*)calloc(1, sizeof(parsec_dependencies_t) +  \\\n"
-            "                   (_vmax - _vmin) * sizeof(parsec_dependencies_union_t));    \\\n"
-            "  PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p\",    \\\n"
-            "           (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS));        \\\n"
-            "  (DEPS)->flags = PARSEC_DEPENDENCIES_FLAG_ALLOCATED | (FLAG);                \\\n"
-            "  (DEPS)->min = _vmin;                                                        \\\n"
-            "  (DEPS)->max = _vmax;                                                        \\\n"
-            "} while (0)\n\n"
-            "static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
+    if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+        coutput("/* Dependency Tracking Allocation Macro */\n"
+                "#define ALLOCATE_DEP_TRACKING(DEPS, vMIN, vMAX, vNAME, FLAG)                  \\\n"
+                "do {                                                                          \\\n"
+                "  int _vmin = (vMIN);                                                         \\\n"
+                "  int _vmax = (vMAX);                                                         \\\n"
+                "  (DEPS) = (parsec_dependencies_t*)calloc(1, sizeof(parsec_dependencies_t) +  \\\n"
+                "                   (_vmax - _vmin) * sizeof(parsec_dependencies_union_t));    \\\n"
+                "  PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocate %%d spaces for loop %%s (min %%d max %%d) 0x%%p\",    \\\n"
+                "           (_vmax - _vmin + 1), (vNAME), _vmin, _vmax, (void*)(DEPS));        \\\n"
+                "  (DEPS)->flags = PARSEC_DEPENDENCIES_FLAG_ALLOCATED | (FLAG);                \\\n"
+                "  (DEPS)->min = _vmin;                                                        \\\n"
+                "  (DEPS)->max = _vmax;                                                        \\\n"
+                "} while (0)\n\n");
+    } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+        coutput("static uint32_t hash_fn_mod(uintptr_t key, void *param) { (void)param; return (uint32_t)(key %% 1024); }\n");
+    }
+    coutput("static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
             "static inline int parsec_imax(int a, int b) { return (a >= b) ? a : b; };\n\n");
 
     coutput("/* Release dependencies output macro */\n"
@@ -2399,9 +2404,9 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  }\n"
             "#endif\n", indent(nesting), indent(nesting), indent(nesting), indent(nesting), indent(nesting));
 
-    coutput("%s  parsec_dependencies_mark_task_as_startup((parsec_execution_context_t*)new_task);\n"
+    coutput("%s  parsec_dependencies_mark_task_as_startup((parsec_execution_context_t*)new_task, eu);\n"
             "%s  pready_ring = parsec_list_item_ring_push_sorted(pready_ring,\n"
-            "%s                                                 &new_task->super.list_item,\n"
+            "%s                                                 &new_task->super,\n"
             "%s                                                 parsec_execution_context_priority_comparator);\n"
             "%s  nb_tasks++;\n"
             "%s after_insert_task:  /* we jump here just so that we have code after the label */\n"
@@ -2522,10 +2527,11 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     }
 
     if( need_to_iterate ) {
-        coutput("  %s assignments;\n"
-                "  parsec_dependencies_t *dep = NULL;\n"
-                "%s",
-                parsec_get_name(jdf, f, "assignment_t"),
+        coutput("  %s assignments;\n", parsec_get_name(jdf, f, "assignment_t"));
+        if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+            coutput("  parsec_dependencies_t *dep = NULL;\n");
+        }
+        coutput("%s",
                 UTIL_DUMP_LIST_FIELD(sa1, f->locals, next, name, dump_string, NULL,
                                      "  int32_t ", " ", ",", ";\n"));
         for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
@@ -2536,7 +2542,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                         JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name );
                 /* Quiet the compiler by using the variables */
                 string_arena_add_string(sa_end, "  (void)%s%s_start; (void)%s%s_end; (void)%s%s_inc;",
-                                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE, dl->name);
+                                        JDF2C_NAMESPACE, dl->name, JDF2C_NAMESPACE,
+                                        dl->name, JDF2C_NAMESPACE, dl->name);
             }
         }
     }
@@ -2615,26 +2622,29 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         if( need_to_count_tasks ) {
             coutput("%s  if( saved_nb_tasks != nb_tasks ) {\n", indent(nesting++));
             coutput("%s    PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocating dependencies array for %s (partial nb_tasks = %%d)\", nb_tasks);\n",
-                indent(nesting), f->fname);
+                    indent(nesting), f->fname);
         }
 
-        string_arena_add_string(sa1, "dep");
-        for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
-            dl = l2p_item->dl;
+        if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+            string_arena_add_string(sa1, "dep");
+            for(l2p_item = l2p; NULL != l2p_item; l2p_item = l2p_item->next) {
+                dl = l2p_item->dl;
 
-            coutput("%s    if( %s == NULL ) {\n"
-                    "%s      ALLOCATE_DEP_TRACKING(%s, __%s_min, __%s_max,\n"
-                    "%s                            \"%s\", %s);\n"
-                    "%s    }\n",
-                    indent(nesting), string_arena_get_string(sa1),
-                    indent(nesting), string_arena_get_string(sa1), dl->name, dl->name,
-                    indent(nesting), dl->name,
-                    NULL == l2p_item->next ? "PARSEC_DEPENDENCIES_FLAG_FINAL" : "PARSEC_DEPENDENCIES_FLAG_NEXT",  /* last item */
-                    indent(nesting));
-            string_arena_init(sa2);
-            string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
-            string_arena_add_string(sa1, "->u.next[%s-__%s_min]", dl->name, dl->name);
+                coutput("%s    if( %s == NULL ) {\n"
+                        "%s      ALLOCATE_DEP_TRACKING(%s, __%s_min, __%s_max,\n"
+                        "%s                            \"%s\", %s);\n"
+                        "%s    }\n",
+                        indent(nesting), string_arena_get_string(sa1),
+                        indent(nesting), string_arena_get_string(sa1), dl->name, dl->name,
+                        indent(nesting), dl->name,
+                        NULL == l2p_item->next ? "PARSEC_DEPENDENCIES_FLAG_FINAL" : "PARSEC_DEPENDENCIES_FLAG_NEXT",  /* last item */
+                        indent(nesting));
+                string_arena_init(sa2);
+                string_arena_add_string(sa2, "%s", string_arena_get_string(sa1));
+                string_arena_add_string(sa1, "->u.next[%s-__%s_min]", dl->name, dl->name);
+            }
         }
+
         for(; nesting > 0; nesting--) {
             coutput("%s}\n", indent(nesting));
         }
@@ -2664,8 +2674,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
      */
     if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         coutput("%s    do {\n"
-                "%s      this_task->super.list_item.list_next = (parsec_list_item_t*)__parsec_handle->startup_queue;\n"
-                "%s    } while(!parsec_atomic_cas_ptr(&__parsec_handle->startup_queue, this_task->super.list_item.list_next, this_task));\n"
+                "%s      this_task->super.list_next = (parsec_list_item_t*)__parsec_handle->startup_queue;\n"
+                "%s    } while(!parsec_atomic_cas_ptr(&__parsec_handle->startup_queue, this_task->super.list_next, this_task));\n"
                 "%s    this_task->status = PARSEC_TASK_STATUS_HOOK;\n",
                 indent(nesting), indent(nesting), indent(nesting), indent(nesting));
     } else {
@@ -2687,8 +2697,14 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  __parsec_handle->super.super.dependencies_array[%d] = %s(__parsec_handle);\n",
                 f->function_id, jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL));
     } else {
-        coutput("  __parsec_handle->super.super.dependencies_array[%d] = dep;\n",
-                f->function_id);
+        if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+            coutput("  __parsec_handle->super.super.dependencies_array[%d] = dep;\n",
+                    f->function_id);
+        } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+            coutput("  __parsec_handle->super.super.dependencies_array[%d] = OBJ_NEW(hash_table_t);\n"
+                    "  hash_table_init(__parsec_handle->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 1024, hash_fn_mod, NULL);\n",
+                   f->function_id, f->function_id);
+        }
     }
 
     if( f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) {
@@ -2711,14 +2727,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     coutput("  if(0 == parsec_atomic_dec_32b(&__parsec_handle->sync_point)) {\n"
             "    /* Ready to rock. Update the count of expected tasks */\n");
     if(!need_to_count_tasks) {
-        coutput("    __parsec_handle->super.super.nb_tasks = %s(__parsec_handle);\n"
-                "    if( PARSEC_UNDETERMINED_NB_TASKS == __parsec_handle->super.super.nb_tasks ) {\n"
-                "        /* dont spend time counting */\n"
-                "        for( int id = 0; id < __parsec_handle->super.super.nb_functions; id++) {\n"
-                "            parsec_function_t* func = (parsec_function_t*)__parsec_handle->super.super.functions_array[id];\n"
-                "            func->release_task = (parsec_hook_t*)parsec_release_task_to_mempool;\n"
-                "        }\n"
-                "    }\n",
+        coutput("    __parsec_handle->super.super.nb_tasks = %s(__parsec_handle);\n",
                 jdf_property_get_string(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL));
     } else {
         coutput("    __parsec_handle->super.super.nb_tasks = __parsec_handle->super.super.initial_number_tasks;\n");
@@ -2824,6 +2833,34 @@ jdf_generate_function_incarnation_list( const jdf_t *jdf,
                             "      .evaluate = NULL,\n"
                             "      .hook     = (parsec_hook_t*)NULL },  /* End marker */\n"
                             "};\n\n");
+}
+
+static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t *f, const char *prefix)
+{
+    coutput("static parsec_hook_return_t %s(parsec_execution_unit_t *eu, parsec_execution_context_t *this_task)\n"
+            "{\n"
+            "    const __parsec_%s_internal_handle_t *__parsec_handle =\n"
+            "        (const __parsec_%s_internal_handle_t *)this_task->parsec_handle;\n",
+            prefix,
+            jdf_basename,
+            jdf_basename);
+    if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
+        coutput("    hash_table_t *ht = (hash_table_t*)__parsec_handle->super.super.dependencies_array[%d];\n"
+                "    uint64_t key = this_task->function->key(&__parsec_handle->super.super, this_task->locals);\n"
+                "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)hash_table_remove(ht, key);\n"
+                "    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n",
+                f->function_id);
+    }
+    if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL) ) {
+        coutput("    if( (PARSEC_UNDETERMINED_NB_TASKS == __parsec_handle->super.super.nb_tasks) ||\n"
+                "        (0 == __parsec_handle->super.super.nb_tasks) ) {\n"
+                "        /* don't spend time counting */\n"
+                "        return parsec_release_task_to_mempool(eu, this_task);\n"
+                "    }\n");
+    }
+    coutput("    return parsec_release_task_to_mempool_update_nbtasks(eu, this_task);\n"
+            "}\n"
+            "\n");
 }
 
 static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f)
@@ -3007,9 +3044,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     string_arena_add_string(sa, "  .incarnations = __%s_chores,\n", prefix);
     
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
-        sprintf(prefix, "find_deps_%s_%s", jdf_basename, f->fname);
-        jdf_generate_code_find_deps(jdf, f, prefix);
-        (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup(prefix));
+        if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+            sprintf(prefix, "find_deps_%s_%s", jdf_basename, f->fname);
+            jdf_generate_code_find_deps(jdf, f, prefix);
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup(prefix));
+        } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("parsec_hash_find_deps"));
+        }
     }
     string_arena_add_string(sa, "  .find_deps = %s,\n", jdf_property_get_string(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
 
@@ -3050,7 +3091,15 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
      * the tasks, the value returned from this function is not PARSEC_UNDETERMINED_NB_TASKS
      * (which means the runtime will have to count the completed tasks).
      */
-    string_arena_add_string(sa, "  .release_task = (parsec_hook_t*)parsec_release_task_to_mempool_update_nbtasks,\n");
+    if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+        string_arena_add_string(sa, "  .release_task = (parsec_hook_t*)parsec_release_task_to_mempool_update_nbtasks,\n");
+    } else if ( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+        /* If we have a user-defined find_deps function, don't generate the hashtable_dep release task, keep
+         * just counting, if needed */
+        sprintf(prefix, "release_task_of_%s_%s", jdf_basename, f->fname);
+        jdf_generate_release_task_fct(jdf, f, prefix);
+        string_arena_add_string(sa, "  .release_task = &%s,\n", prefix);
+    }
 
     if( NULL != f->simcost ) {
         sprintf(prefix, "simulation_cost_of_%s_%s", jdf_basename, f->fname);
@@ -3206,8 +3255,8 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
             "    task->priority = -1;\n"
             "    task->function = task->parsec_handle->functions_array[task->parsec_handle->nb_functions + i];\n"
-            "    if( 0 == i ) ready_tasks[0] = &task->super.list_item;\n"
-            "    else ready_tasks[0] = parsec_list_item_ring_push(ready_tasks[0], &task->super.list_item);\n"
+            "    if( 0 == i ) ready_tasks[0] = &task->super;\n"
+            "    else ready_tasks[0] = parsec_list_item_ring_push(ready_tasks[0], &task->super);\n"
             "  }\n"
             );
 
@@ -3232,6 +3281,9 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "{\n"
             "  uint32_t i;\n",
             jdf_basename, jdf_basename);
+    if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+        coutput("  size_t dependencies_size = 0;\n");
+    }
 
     coutput("  for( i = 0; i < (uint32_t)(2 * __parsec_handle->super.super.nb_functions); i++ ) {  /* Extra startup function added at the end */\n"
             "    parsec_function_t* func = (parsec_function_t*)__parsec_handle->super.super.functions_array[i];\n"
@@ -3261,8 +3313,14 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     coutput("  /* Release the dependencies arrays for this object */\n");
     for(f = jdf->functions; NULL != f; f = f->next) {
         if( !( f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS ) ) {
-            coutput("  parsec_destruct_dependencies( __parsec_handle->super.super.dependencies_array[%d] );\n",
-                    f->function_id);
+            if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+                coutput("  if(NULL != __parsec_handle->super.super.dependencies_array[%d])\n"
+                        "    dependencies_size += parsec_destruct_dependencies( __parsec_handle->super.super.dependencies_array[%d] );\n",
+                        f->function_id, f->function_id);
+            } else if (JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+                coutput("  hash_table_fini( (hash_table_t*)__parsec_handle->super.super.dependencies_array[%d] );\n",
+                        f->function_id);
+            } 
         } else {
             coutput("  %s(__parsec_handle, __parsec_handle->super.super.dependencies_array[%d]);\n",
                     jdf_property_get_string(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL),
@@ -3273,6 +3331,17 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     }
     coutput("  free( __parsec_handle->super.super.dependencies_array );\n"
             "  __parsec_handle->super.super.dependencies_array = NULL;\n");
+
+    if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+        coutput("#if defined(PARSEC_PROF_TRACE)\n"
+                "  {\n"
+                "    char meminfo[128];\n"
+                "    snprintf(meminfo, 128, \"INDEX_ARRAY - Handle %%d - Dependencies - %%llu bytes\",\n"
+                "             __parsec_handle->super.super.handle_id, dependencies_size);\n"
+                "    parsec_profiling_add_information(\"MEMORY_USAGE\", meminfo);\n"
+                "  }\n"
+                "#endif\n");
+    }
 
     coutput("  /* Unregister all the data */\n"
             "  uint32_t _i;\n"
@@ -5828,6 +5897,13 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
             f->user_defines |= JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
         } else {
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
+            if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
+                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("parsec_default_find_deps"));
+            } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
+                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("parsec_hash_find_deps"));
+            } else {
+                assert(0);
+            }
         }
     }
 }
@@ -5840,6 +5916,7 @@ jdf_generate_code_find_deps(const jdf_t *jdf,
     jdf_l2p_t *l2p = NULL, *l2p_item;
     coutput("parsec_dependency_t*\n"
             "%s(const parsec_handle_t*__handle,\n"
+            "   parsec_execution_unit_t *eu_context,\n"
             "   const parsec_execution_context_t* restrict __task)\n"
             "{\n"
             "  parsec_dependencies_t *deps;\n"

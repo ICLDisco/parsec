@@ -170,8 +170,9 @@ static inline void  parsec_thread_mempool_free( parsec_thread_mempool_t *thread_
  *    might be lost.
  *
  * @param[inout] mempool the mempool to destruct
+ * @return Number of elements (total) that were allocated in this mempool
  */
-void parsec_mempool_destruct( parsec_mempool_t *mempool );
+uint64_t parsec_mempool_destruct( parsec_mempool_t *mempool );
 
 /** @} */
 

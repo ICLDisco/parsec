@@ -319,9 +319,12 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
                 }
 
                 if(dump_traversal_info) {
-                    parsec_output(parsec_debug_output, "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
-                           "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.function->name, current_task->super.super.key, current_task->rank, current_desc->super.function->name, current_desc->super.super.key, current_desc->rank,
-                           current_desc->super.function->nb_flows, current_desc->flow_count, current_dep, tmp_desc_flow_index);
+                    parsec_output(parsec_debug_output,
+                                  "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
+                                  "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.function->name,
+                                  current_task->ht_item.key, current_task->rank, current_desc->super.function->name,
+                                  current_desc->ht_item.key, current_desc->rank, current_desc->super.function->nb_flows,
+                                  current_desc->flow_count, current_dep, tmp_desc_flow_index);
                 }
 
                 deps = parsec_dtd_find_and_return_dep( current_task, current_desc,

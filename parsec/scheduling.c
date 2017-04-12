@@ -299,7 +299,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), distance );
-            context = (parsec_execution_context_t*)context->super.list_item.list_next;
+            context = (parsec_execution_context_t*)context->super.list_next;
         } while ( context != new_context );
     }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */

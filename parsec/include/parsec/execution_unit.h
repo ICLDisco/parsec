@@ -64,11 +64,11 @@ struct parsec_execution_unit_s {
 #endif
 
     struct parsec_vp_s      *virtual_process;   /**< Backlink to the virtual process that holds this thread */
-    /**
-     * TODO: Why do we have the mempools both in the VP and in the execution unit?
-     */
-    parsec_thread_mempool_t *context_mempool;
-    parsec_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1];
+    parsec_thread_mempool_t *context_mempool;   /**< When allocating new execution contexts, this mempool is used */
+    parsec_thread_mempool_t *datarepo_mempools[MAX_PARAM_COUNT+1]; /**< When allocating new data repositories,
+                                                                    *   we use these mempools */
+    parsec_thread_mempool_t *dependencies_mempool; /**< If using hashtables to store dependencies
+                                                    *   those are allocated using this mempool */
 };
 
 /**
@@ -79,8 +79,15 @@ struct parsec_vp_s {
     int32_t vp_id;                  /**< virtual process identifier of this vp */
     int32_t nb_cores;               /**< number of cores for this vp */
 
-    parsec_mempool_t  context_mempool;
-    parsec_mempool_t  datarepo_mempools[MAX_PARAM_COUNT+1];
+    /* Mempools are allocated per VP, and used per execution_unit
+     * The last eu of this VP will create the mempools for all eus of this VP
+     * and each eu will point into the corresponding element
+     */
+    parsec_mempool_t         context_mempool;   /**< When allocating new execution contexts, this mempool is used */
+    parsec_mempool_t         datarepo_mempools[MAX_PARAM_COUNT+1]; /**< When allocating new data repositories,
+                                                                    *   we use these mempools */
+    parsec_mempool_t         dependencies_mempool; /**< If using hashtables to store dependencies
+                                                    *   those are allocated using this mempool */
 
     /* This field should always be the last one in the structure. Even if the
      * declared number of execution units is 1, when we allocate the memory
