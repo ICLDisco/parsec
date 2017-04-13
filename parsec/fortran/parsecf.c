@@ -27,6 +27,7 @@ void parsec_init_f08(int nbcores, parsec_context_t** context, int* ierr)
         argv[argc] = NULL;
     }
     *context = parsec_init(nbcores, &argc, &argv);
+    free(argv);
     *ierr = (NULL == *context) ? 0 : -1;
 }
 

@@ -448,6 +448,8 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
     char* position;
     int t, ht;
 
+    assert(NULL != option);
+
     parsec_hwloc_init();
     int nb_real_cores = parsec_hwloc_nb_real_cores();
 
@@ -588,42 +590,40 @@ int parse_binding_parameter(int vp, int nbth, char * binding)
 
         /* Parse the list. Store the in order cores in core_tab up to nbth.
            If the list is too short, the remaining threads won't be bound  */
-        if( NULL != option ) {
-            while( option != NULL && option[0] != '\0'  && cmp < nbth ) {
+        while( option != NULL && option[0] != '\0'  && cmp < nbth ) {
 
-                /* first core of the remaining list to parse*/
-                arg = (int) strtol(option, &option, 10);
-                if( (arg < nb_real_cores) && (arg > -1) ) {
-                    core_tab[cmp]=arg;
-                    cmp++;
+            /* first core of the remaining list to parse*/
+            arg = (int) strtol(option, &option, 10);
+            if( (arg < nb_real_cores) && (arg > -1) ) {
+                core_tab[cmp]=arg;
+                cmp++;
 
-                } else {
-                    parsec_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)", arg, nb_real_cores-1);
-                }
-
-                if( NULL != (position = strpbrk(option, ",-"))) {
-                    /* parse a core range */
-                    if( position[0] == '-' ) {
-                        /* core range */
-                        position++;
-                        next_arg = (int) strtol(position, &position, 10);
-                        for(t=arg+1; t<=next_arg; t++)
-                            if( (t < nb_real_cores) && (t > -1) ) {
-                                core_tab[cmp]=t;
-                                cmp++;
-                                if (cmp == nbth)
-                                    break;
-                            } else {
-                                parsec_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)", t, nb_real_cores-1);
-                            }
-                    }
-                }
-
-                /* next potential argument is following a comma */
-                option = strchr(option, ',');
-                if( NULL != option)
-                    option++;   /* skip the comma */
+            } else {
+                parsec_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)", arg, nb_real_cores-1);
             }
+
+            if( NULL != (position = strpbrk(option, ",-"))) {
+                /* parse a core range */
+                if( position[0] == '-' ) {
+                    /* core range */
+                    position++;
+                    next_arg = (int) strtol(position, &position, 10);
+                    for(t=arg+1; t<=next_arg; t++)
+                        if( (t < nb_real_cores) && (t > -1) ) {
+                            core_tab[cmp]=t;
+                            cmp++;
+                            if (cmp == nbth)
+                                break;
+                        } else {
+                            parsec_warning("binding core #%i not valid (must be between 0 and %i (nb_core-1)", t, nb_real_cores-1);
+                        }
+                }
+            }
+
+            /* next potential argument is following a comma */
+            option = strchr(option, ',');
+            if( NULL != option)
+                option++;   /* skip the comma */
         }
 
 #if defined(PARSEC_DEBUG_NOISIER)

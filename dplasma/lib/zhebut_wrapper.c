@@ -147,7 +147,7 @@ dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
         int type_exists;
         unsigned int m_sz, n_sz;
 
-        type_exists = type_index_to_sizes(seg_descA->seg_info, i, &m_sz, &n_sz);
+        type_exists = type_index_to_sizes(&seg_descA->seg_info, i, &m_sz, &n_sz);
 
         if( type_exists ){
             arena = ((parsec_zhebut_handle_t*)parsec_zhebut)->arenas[i];
@@ -218,7 +218,7 @@ dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
         int type_exists;
         unsigned int m_sz, n_sz;
 
-        type_exists = type_index_to_sizes(seg_descA->seg_info, i, &m_sz, &n_sz);
+        type_exists = type_index_to_sizes(&seg_descA->seg_info, i, &m_sz, &n_sz);
 
         if( type_exists ){
             arena = ((parsec_zgebut_handle_t*)parsec_zgebut)->arenas[i];
@@ -289,7 +289,7 @@ dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i
         int type_exists;
         unsigned int m_sz, n_sz;
 
-        type_exists = type_index_to_sizes(seg_descA->seg_info, i, &m_sz, &n_sz);
+        type_exists = type_index_to_sizes(&seg_descA->seg_info, i, &m_sz, &n_sz);
 
         if( type_exists ){
             arena = ((parsec_zgebmm_handle_t*)parsec_zgebmm)->arenas[i];
@@ -378,11 +378,13 @@ int dplasma_zhebut(parsec_context_t *parsec, tiled_matrix_desc_t *A, PLASMA_Comp
     int cur_level, N;
     int info = 0;
     int nbhe = 1<<levels;
-    int nbge = (1<<(levels-1))*((1<<levels)-1);
+    int nbge;
     int final_nt = A->nt/(2*nbhe);
 #if defined(DEBUG_BUTTERFLY)
     int i;
 #endif
+    nbge = (levels>0) ? (1<<(levels-1))*((1<<levels)-1) : 0;
+    
     if( final_nt == 0 ){
         fprintf(stderr,"Too many butterflies. Death by starvation.\n");
         return -1;
@@ -409,7 +411,7 @@ int dplasma_zhebut(parsec_context_t *parsec, tiled_matrix_desc_t *A, PLASMA_Comp
 
     for(cur_level = levels; cur_level >=0; cur_level--){
         nbhe = 1<<cur_level;
-        nbge = (1<<(cur_level-1))*((1<<cur_level)-1);
+        nbge = cur_level > 0 ? (1<<(cur_level-1))*((1<<cur_level)-1) : 0;
         final_nt = A->nt/(2*nbhe);
         if( final_nt == 0 ){
             fprintf(stderr,"Too many butterflies. Death by starvation.\n");

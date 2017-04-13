@@ -191,10 +191,12 @@ int parsec_mca_param_recache_files(void)
     rc = asprintf(&files,
                   "%s"PARSEC_PATH_SEP".parsec"PARSEC_PATH_SEP"mca-params.conf%c%s"PARSEC_PATH_SEP"parsec-mca-params.conf",
                   home, PARSEC_ENV_SEP, parsec_install_dirs.sysconfdir);
+    assert(0 < rc);
 #else
     rc = asprintf(&files,
                   "%s"PARSEC_PATH_SEP"parsec-mca-params.conf",
                   parsec_install_dirs.sysconfdir);
+    assert(0 < rc);
 #endif  /* defined(PARSEC_WANT_HOME_CONFIG_FILES) */
     if (-1 == rc) {
         return PARSEC_ERR_OUT_OF_RESOURCE;
@@ -869,10 +871,13 @@ static int read_keys_from_registry(HKEY hKey, char *sub_key, char *current_name)
         retCode = RegEnumKeyEx(hTestKey, i, achKey, &cbName, NULL, NULL, NULL, NULL);
         if (retCode != ERROR_SUCCESS) continue;
         asprintf(&sub_sub_key, "%s\\%s", sub_key, achKey);
+        assert(0 < rc);
         if( NULL != current_name ) {
             asprintf(&next_name, "%s_%s", current_name, achKey);
+            assert(0 < rc);
         } else {
             asprintf(&next_name, "%s", achKey);
+            assert(0 < rc);
         }
         read_keys_from_registry(hKey, sub_sub_key, next_name);
         free(next_name);
@@ -892,15 +897,21 @@ static int read_keys_from_registry(HKEY hKey, char *sub_key, char *current_name)
         retCode = RegQueryValueEx(hTestKey, achValue, NULL, (LPDWORD)&lpType, NULL, &dwSize);
 
         if (strcmp(achValue,"")) {
-            if (current_name!=NULL)
+            if (current_name!=NULL) {
                 rc = asprintf(&type_name, "%s_%s", current_name, achValue);
-            else
+                assert(0 < rc);
+            } else {
                 rc = asprintf(&type_name, "%s", achValue);
+                assert(0 < rc);
+            }
         } else {
-            if (current_name!=NULL)
+            if (current_name!=NULL) {
                 rc = asprintf(&type_name, "%s", current_name);
-            else
+                assert(0 < rc);
+            } else {
                 rc = asprintf(&type_name, "%s", achValue);
+                assert(0 < rc);
+            }
         }
         if (-1 == rc) {
             return PARSEC_ERR_OUT_OF_RESOURCE;
@@ -1505,6 +1516,7 @@ static bool param_lookup(size_t index, parsec_mca_param_storage_t *storage,
             if (0 == strncmp(storage->stringval, "~/", 2)) {
                 if( NULL == home ) {
                     rc = asprintf(&p, "%s", storage->stringval + 2);
+                    assert(0 < rc);
                 } else {
                     p = parsec_os_path( false, home, storage->stringval + 2, NULL );
                 }
@@ -1517,8 +1529,10 @@ static bool param_lookup(size_t index, parsec_mca_param_storage_t *storage,
                 *p = '\0';
                 if( NULL == home ) {
                     rc = asprintf(&q, "%s:%s", storage->stringval, p + 2);
+                    assert(0 < rc);
                 } else {
                     rc = asprintf(&q, "%s:%s%s", storage->stringval, home, p + 2);
+                    assert(0 < rc);
                 }
                 free(storage->stringval);
                 storage->stringval = q;
@@ -2066,6 +2080,7 @@ static char *source_name(parsec_mca_param_source_t source,
 
     case MCA_PARAM_SOURCE_FILE:
         rc = asprintf(&ret, "file (%s)", filename);
+        assert(0 < rc);
         return ret;
         break;
 
@@ -2077,7 +2092,6 @@ static char *source_name(parsec_mca_param_source_t source,
         return strdup("unknown (!)");
         break;
     }
-    (void)rc;
 }
 
 int parsec_mca_param_check_exclusive_string(const char *type_a,
@@ -2120,8 +2134,9 @@ int parsec_mca_param_check_exclusive_string(const char *type_a,
         if (NULL != type_a) len += strlen(type_a);
         if (NULL != component_a) len += strlen(component_a);
         if (NULL != param_a) len += strlen(param_a);
-        name_a = calloc(1, len);
+        name_a = calloc(1, len+1);
         if (NULL == name_a) {
+            free(str_a);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
         if (NULL != type_a) {
@@ -2130,7 +2145,7 @@ int parsec_mca_param_check_exclusive_string(const char *type_a,
         }
         if (NULL != component_a) strncat(name_a, component_a, len);
         strncat(name_a, "_", len);
-        strncat(name_a, param_a, len);
+        if (NULL != param_a) strncat(name_a, param_a, len);
 
         /* Form cosmetic string names for B */
         str_b = source_name(source_b, filename_b);
@@ -2138,8 +2153,11 @@ int parsec_mca_param_check_exclusive_string(const char *type_a,
         if (NULL != type_b) len += strlen(type_b);
         if (NULL != component_b) len += strlen(component_b);
         if (NULL != param_b) len += strlen(param_b);
-        name_b = calloc(1, len);
+        name_b = calloc(1, len+1);
         if (NULL == name_b) {
+            free(str_a);
+            free(name_a);
+            free(str_b);
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
         if (NULL != type_b) {
@@ -2148,7 +2166,7 @@ int parsec_mca_param_check_exclusive_string(const char *type_a,
         }
         if (NULL != component_b) strncat(name_b, component_b, len);
         strncat(name_b, "_", len);
-        strncat(name_b, param_b, len);
+        if (NULL != param_b) strncat(name_b, param_b, len);
 
         /* Print it all out */
         parsec_show_help("help-mca-param.txt",
@@ -2200,7 +2218,7 @@ parsec_info_out(const char *pretty_message, const char *plain_message, const cha
     size_t i, len, max_value_width;
     char *spaces = NULL;
     char *filler = NULL;
-    char *pos, *v, savev;
+    char *pos, *v, savev, *ov;
 
 #ifdef PARSEC_HAVE_ISATTY
     /* If we have isatty(), if this is not a tty, then disable
@@ -2221,7 +2239,8 @@ parsec_info_out(const char *pretty_message, const char *plain_message, const cha
 #endif
 
     /* Strip leading and trailing whitespace from the string value */
-    v = strdup(value);
+    ov = strdup(value);
+    v = ov;
     len = strlen(v);
     if (isspace(v[0])) {
         char *newv;
@@ -2231,6 +2250,7 @@ parsec_info_out(const char *pretty_message, const char *plain_message, const cha
         }
         newv = strdup(v + i);
         free(v);
+        ov = newv;
         v = newv;
         len = strlen(v);
     }
@@ -2251,6 +2271,7 @@ parsec_info_out(const char *pretty_message, const char *plain_message, const cha
         if (centerpoint > (int)strlen(pretty_message)) {
             rc = asprintf(&spaces, "%*s", centerpoint -
                           (int)strlen(pretty_message), " ");
+            assert(0 < rc);
         } else {
             spaces = strdup("");
 #if PARSEC_ENABLE_DEBUG
@@ -2264,8 +2285,10 @@ parsec_info_out(const char *pretty_message, const char *plain_message, const cha
         max_value_width = screen_width - strlen(spaces) - strlen(pretty_message) - 2;
         if (0 < strlen(pretty_message)) {
             rc = asprintf(&filler, "%s%s: ", spaces, pretty_message);
+            assert(0 < rc);
         } else {
             rc = asprintf(&filler, "%s  ", spaces);
+            assert(0 < rc);
         }
         free(spaces);
         spaces = NULL;
@@ -2276,7 +2299,7 @@ parsec_info_out(const char *pretty_message, const char *plain_message, const cha
                 break;
             } else {
                 rc = asprintf(&spaces, "%*s", centerpoint + 2, " ");
-
+                (void)rc;
                 /* Work backwards to find the first space before
                  * max_value_width
                  */
@@ -2327,6 +2350,8 @@ parsec_info_out(const char *pretty_message, const char *plain_message, const cha
             printf("  %s\n", value);
         }
     }
+    if( NULL != ov )
+        free(ov);
     (void)rc;
 }
 
@@ -2379,12 +2404,14 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                 } else {
                     parsec_mca_param_lookup_int(p->mbpp_index, &value_int);
                     rc = asprintf(&value_string, "%d", value_int);
+                    assert(0 < rc);
                 }
 
                 /* Build up the strings for the output */
 
                 if (pretty_print) {
                     rc = asprintf(&message, "MCA %s", p->mbpp_type_name);
+                    assert(0 < rc);
 
                     /* Put in the real, full name (which may be
                      * different than the categorization).
@@ -2394,26 +2421,31 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                                   p->mbpp_full_name,
                                   p->mbpp_read_only ? "value" : "current value",
                                   (0 == strlen(value_string)) ? "none" : value_string);
+                    assert(0 < rc);
 
                     /* Indicate where the param was set from */
                     switch(source) {
                         case MCA_PARAM_SOURCE_DEFAULT:
                             rc = asprintf(&tmp, "%sdefault value", content);
+                            assert(0 < rc);
                             free(content);
                             content = tmp;
                             break;
                         case MCA_PARAM_SOURCE_ENV:
                             rc = asprintf(&tmp, "%senvironment or cmdline", content);
+                            assert(0 < rc);
                             free(content);
                             content = tmp;
                             break;
                         case MCA_PARAM_SOURCE_FILE:
                             rc = asprintf(&tmp, "%sfile [%s]", content, src_file);
+                            assert(0 < rc);
                             free(content);
                             content = tmp;
                             break;
                         case MCA_PARAM_SOURCE_OVERRIDE:
                             rc = asprintf(&tmp, "%sAPI override", content);
+                            assert(0 < rc);
                             free(content);
                             content = tmp;
                             break;
@@ -2424,6 +2456,7 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                     /* Is this parameter deprecated? */
                     if (p->mbpp_deprecated) {
                         rc = asprintf(&tmp, "%s, deprecated", content);
+                        assert(0 < rc);
                         free(content);
                         content = tmp;
                     }
@@ -2431,15 +2464,18 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                     /* Does this parameter have any synonyms? */
                     if (p->mbpp_synonyms_len > 0) {
                         rc = asprintf(&tmp, "%s, synonyms: ", content);
+                        assert(0 < rc);
                         free(content);
                         content = tmp;
                         for (j = 0; j < p->mbpp_synonyms_len; ++j) {
                             if (j > 0) {
                                 rc = asprintf(&tmp, "%s, %s", content, p->mbpp_synonyms[j]->mbpp_full_name);
+                                assert(0 < rc);
                                 free(content);
                                 content = tmp;
                             } else {
                                 rc = asprintf(&tmp, "%s%s", content, p->mbpp_synonyms[j]->mbpp_full_name);
+                                assert(0 < rc);
                                 free(content);
                                 content = tmp;
                             }
@@ -2449,10 +2485,12 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                     /* Is this parameter a synonym of something else? */
                     else if (NULL != p->mbpp_synonym_parent) {
                         rc = asprintf(&tmp, "%s, synonym of: %s", content, p->mbpp_synonym_parent->mbpp_full_name);
+                        assert(0 < rc);
                         free(content);
                         content = tmp;
                     }
                     rc = asprintf(&tmp, "%s)", content);
+                    assert(0 < rc);
                     free(content);
                     content = tmp;
                     parsec_info_out(message, message, content);
@@ -2468,15 +2506,17 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                     rc = asprintf(&tmp, "mca:%s:%s:param:%s:", p->mbpp_type_name,
                              (NULL == p->mbpp_component_name) ? "base" : p->mbpp_component_name,
                              p->mbpp_full_name);
+                    assert(0 < rc);
 
                     /* Output the value */
                     rc = asprintf(&message, "%svalue", tmp);
+                    assert(0 < rc);
                     parsec_info_out(message, message, value_string);
                     free(message);
 
                     /* Indicate where the param was set from */
-
                     rc = asprintf(&message, "%sdata_source", tmp);
+                    assert(0 < rc);
                     switch(source) {
                         case MCA_PARAM_SOURCE_DEFAULT:
                             content = strdup("default value");
@@ -2486,11 +2526,13 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                             break;
                         case MCA_PARAM_SOURCE_FILE:
                             rc = asprintf(&content, "file: %s", src_file);
+                            assert(0 < rc);
                             break;
                         case MCA_PARAM_SOURCE_OVERRIDE:
                             content = strdup("API override");
                             break;
                         default:
+                            content = strdup("**INTERNAL ERROR: undefined source");
                             break;
                     }
                     parsec_info_out(message, message, content);
@@ -2500,6 +2542,7 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                     /* Output whether it's read only or writable */
 
                     rc = asprintf(&message, "%sstatus", tmp);
+                    assert(0 < rc);
                     content = p->mbpp_read_only ? "read-only" : "writable";
                     parsec_info_out(message, message, content);
                     free(message);
@@ -2508,6 +2551,7 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
 
                     if (NULL != p->mbpp_help_msg) {
                         rc = asprintf(&message, "%shelp", tmp);
+                        assert(0 < rc);
                         content = p->mbpp_help_msg;
                         parsec_info_out(message, message, content);
                         free(message);
@@ -2515,6 +2559,7 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
 
                     /* Is this parameter deprecated? */
                     rc = asprintf(&message, "%sdeprecated", tmp);
+                    assert(0 < rc);
                     content = p->mbpp_deprecated ? "yes" : "no";
                     parsec_info_out(message, message, content);
                     free(message);
@@ -2523,6 +2568,7 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                     if (p->mbpp_synonyms_len > 0) {
                         for (j = 0; j < p->mbpp_synonyms_len; ++j) {
                             rc = asprintf(&message, "%ssynonym:name", tmp);
+                            assert(0 < rc);
                             content = p->mbpp_synonyms[j]->mbpp_full_name;
                             parsec_info_out(message, message, content);
                             free(message);
@@ -2532,17 +2578,14 @@ void parsec_mca_show_mca_params(parsec_list_t *info,
                     /* Is this parameter a synonym of something else? */
                     else if (NULL != p->mbpp_synonym_parent) {
                         rc = asprintf(&message, "%ssynonym_of:name", tmp);
+                        assert(0 < rc);
                         content = p->mbpp_synonym_parent->mbpp_full_name;
                         parsec_info_out(message, message, content);
                         free(message);
                     }
                 }
 
-                /* If we allocated the string, then free it */
-
-                if (NULL != value_string) {
-                    free(value_string);
-                }
+                free(value_string);
             }
         }
     }

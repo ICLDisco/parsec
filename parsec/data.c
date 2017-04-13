@@ -69,9 +69,10 @@ static void parsec_data_destruct(parsec_data_t* obj )
     for( uint32_t i = 0; i < parsec_nb_devices; i++ ) {
         parsec_data_copy_t *copy = NULL;
         parsec_device_t *device = parsec_devices_get(i);
-
+        assert(NULL != device);
         while( (copy = obj->device_copies[i]) != NULL )
         {
+            assert(obj->super.obj_reference_count > 1);
             parsec_data_copy_detach( obj, copy, i );
             if ( !(device->type & PARSEC_DEV_CUDA) ){
                 /**

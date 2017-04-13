@@ -48,11 +48,11 @@ int main(int argc, char *argv[])
             dargv[j++] = strdup(argv[0]);
             continue;
         }
-        if( dargv ) {
+        if( NULL != dargv ) {
             dargv[j++] = argv[i];
         }
     }
-    if( !dargv ) {
+    if( NULL == dargv ) {
         dargv = (char**)calloc( 2, sizeof(char *));
         dargv[j++] = strdup(argv[0]);
     }
@@ -69,10 +69,7 @@ int main(int argc, char *argv[])
     }
 
     cores = 1;
-    if(dargv == NULL)
-        pargv = NULL;
-    else
-        pargv = &dargv;
+    pargv = &dargv;
     parsec = parsec_init(cores, &j, pargv);
     if( NULL == parsec ) {
         exit(-1);

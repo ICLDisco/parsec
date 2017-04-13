@@ -1355,6 +1355,7 @@ static int remote_dep_nothread_send(parsec_execution_unit_t* eu_context,
         } else item = NULL;
     }
     *head_item = item;
+    assert(NULL != ring);
 
     PARSEC_STATACC_ACCUMULATE_MSG(counter_control_messages_sent, packed, MPI_PACKED);
     MPI_Send((void*)packed_buffer, position, MPI_PACKED, peer, REMOTE_DEP_ACTIVATE_TAG, dep_comm);

@@ -321,6 +321,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                     if ( ret !=  tdesc->bsiz ) {
                         parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                 i, j, ret, tdesc->bsiz);
+                        fclose(tmpf);
                         return -1;
                     }
                 }
@@ -336,6 +337,7 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
                         if ( ret !=  tdesc->mb ) {
                             parsec_warning("The read on tile(%d, %d) read %d elements instead of %d",
                                     i, j, ret, tdesc->mb);
+                            fclose(tmpf);
                             return -1;
                         }
                         buf += eltsize * tdesc->lm;

@@ -249,7 +249,7 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
             do {
                 tmp_desc_flow_index = desc_flow_index;
                 current_desc = nextinline;
-
+                assert(NULL != current_desc);
                 /* Forward the data to each successor */
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                     if(parsec_dtd_task_is_local(current_desc)) {

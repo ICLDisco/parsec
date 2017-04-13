@@ -337,17 +337,13 @@ int __parsec_reschedule(parsec_execution_unit_t* eu_context, parsec_execution_co
     parsec_vp_t* vp_context = eu_context->virtual_process;
 
     int vp, start_vp = vp_context->vp_id, next_vp;
-    int eu, start_eu = (eu_context->th_id + 1) % context->virtual_processes[start_vp]->nb_cores, next_eu;
+    int start_eu = (eu_context->th_id + 1) % context->virtual_processes[start_vp]->nb_cores;
 
     for( vp = start_vp, next_vp = (start_vp + 1) % context->nb_vp;
          next_vp != vp_context->vp_id;
          ++vp) {
         if( 1 != context->virtual_processes[vp]->nb_cores ) {
-            for( eu = start_eu, next_eu = (start_eu + 1) % context->virtual_processes[vp]->nb_cores;
-                 next_eu != start_eu;
-                 ++eu ) {
-                return __parsec_schedule(context->virtual_processes[vp]->execution_units[eu], task, 0);
-            }
+            return __parsec_schedule(context->virtual_processes[vp]->execution_units[start_eu], task, 0);
         }
         else if ( context->virtual_processes[vp]->vp_id != vp_context->vp_id ) {
             /* VP contains only one EU, and it's not my VP, so not me */

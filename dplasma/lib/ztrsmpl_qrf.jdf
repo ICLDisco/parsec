@@ -432,7 +432,7 @@ tile2panel(k, n) [ profile = off ]
   : descB(k+1, n)
 
   CTL  ctl  <- (did_lu == 1) ? ctl  zgemm(k, k+1..descB->mt-1..param_p, n)
-            <- (did_lu != 1) ? ctl zttmqr(k, k+1..descB->mt-1..param_p, n)
+                             : ctl zttmqr(k, k+1..descB->mt-1..param_p, n)
             /* Protect step k+1 */
             -> (do_lu == 1) ? ctl swptrsm_u(k+1, n)
 

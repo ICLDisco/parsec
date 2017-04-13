@@ -82,7 +82,7 @@ typedef struct {
  */
 typedef struct {
     int64_t  this_buffer_file_offset;  /* Must be 0. Used by the malloc / write method. MUST BE THE FIRST ELEMENT */
-    char    magick[24];          /* Must be "#PARSEC BINARY PROFILE  " */
+    char    magick[25];          /* Must be "#PARSEC BINARY PROFILE " */
     int64_t byte_order;          /* The writer put 0x0123456789ABCDEF */
     int32_t profile_buffer_size; /* Size of profile_*_buffers */
     char    hr_id[128];          /* 128 bytes to identify the application "uniquely" */

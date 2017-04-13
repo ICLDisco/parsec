@@ -861,8 +861,7 @@ reduce_norm(k, p)
   WRITE W1 -> T setchoice(k, p,          0) [type = ReduceVec]
   WRITE W2 -> B setchoice(k, (p+1)%pmax, 0) [type = ReduceVec]
 
-  CTL ctl <- (p == 0) ? ctl zlufacto(k, 0)
-          <- (p != 0) ? ctl copypanel(k, k+p..descA->mt-1..param_p)
+  CTL ctl <- (p == 0) ? ctl zlufacto(k, 0) : ctl copypanel(k, k+p..descA->mt-1..param_p)
 
  ; descA->nt
 
@@ -1240,8 +1239,7 @@ selector(k,m,n)
             -> ( (do_lu == 1) && (k != n) && (k == m) && diagdom) ? C swptrsm_u(k,n)
             -> ( (do_lu == 1) && (k != n) && (k != m) && diagdom) ? C zgemm(k,m,n)
 
-  CTL  ctl  <- (q == 0) ? ctl setchoice(k, p, hmax)
-            <- (q != 0) ? ctl setchoice_update(k, p, q)
+  CTL  ctl  <- (q == 0) ? ctl setchoice(k, p, hmax) : ctl setchoice_update(k, p, q)
 
   ; descA->nt
 

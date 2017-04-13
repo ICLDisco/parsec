@@ -8,6 +8,7 @@
 #define PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
 
 #include "parsec_config.h"
+#include "parsec.h"
 #include "parsec/class/parsec_object.h"
 #include <stdlib.h>
 #include <assert.h>
@@ -152,8 +153,8 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
 
 static inline parsec_list_item_t*
 parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
-                                  parsec_list_item_t* item,
-                                  size_t off )
+                                   parsec_list_item_t* item,
+                                   size_t off )
 {
     parsec_list_item_t* position;
     int success = 0;

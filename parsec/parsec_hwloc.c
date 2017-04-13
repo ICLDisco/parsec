@@ -232,17 +232,19 @@ int parsec_hwloc_core_first_hrwd_ancestor_depth(void)
                      hwloc_get_type_depth(topology, HWLOC_OBJ_SOCKET) );
     assert(level < hwloc_get_type_depth(topology, HWLOC_OBJ_CORE));
     return level;
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
+#else
     return -1;
+#endif  /* defined(PARSEC_HAVE_HWLOC) */
 }
 
 int parsec_hwloc_get_nb_objects(int level)
 {
 #if defined(PARSEC_HAVE_HWLOC)
     return hwloc_get_nbobjs_by_depth(topology, level);
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
+#else
     (void)level;
     return -1;
+#endif  /* defined(PARSEC_HAVE_HWLOC) */
 }
 
 
@@ -256,8 +258,9 @@ int parsec_hwloc_socket_id(int core_id )
                                                          HWLOC_OBJ_SOCKET, core)) ) {
         return socket->logical_index;
     }
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
+#else
     (void)core_id;
+#endif  /* defined(PARSEC_HAVE_HWLOC) */
     return -1;
 }
 
@@ -270,8 +273,9 @@ int parsec_hwloc_numa_id(int core_id )
     if( NULL != (node = hwloc_get_ancestor_obj_by_type(topology , HWLOC_OBJ_NODE, core)) ) {
         return node->logical_index;
     }
-#endif  /* defined(PARSEC_HAVE_HWLOC) */
+#else
     (void)core_id;
+#endif  /* defined(PARSEC_HAVE_HWLOC) */
     return -1;
 }
 
@@ -312,8 +316,9 @@ char *parsec_hwloc_get_binding(void)
     HWLOC_ASPRINTF(&binding, cpuset);
     HWLOC_FREE(cpuset);
     return binding;
-#endif
+#else
     return strdup("No_Binding_Information");
+#endif
 }
 
 int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)

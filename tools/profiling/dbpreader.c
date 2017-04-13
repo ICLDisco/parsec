@@ -561,6 +561,7 @@ static void read_infos(dbp_file_t *dbp, parsec_profiling_binary_file_header_t *h
                             dbp->nb_infos - nb, nb, dbp->filename);
                     release_events_buffer( info );
                     dbp->nb_infos = nb;
+                    free(id);
                     return;
                 }
                 assert( PROFILING_BUFFER_TYPE_GLOBAL_INFO == next->buffer_type );

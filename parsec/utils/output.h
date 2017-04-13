@@ -436,7 +436,8 @@ PARSEC_DECLSPEC void parsec_output_vverbose(int verbose_level, int output_id,
  * responsible for free()'ing the returned string.
  */
 PARSEC_DECLSPEC char *parsec_output_string(int verbose_level, int output_id,
-                                         const char *format, ...);
+                                         const char *format, ...)
+    PARSEC_ATTRIBUTE_FORMAT_PRINTF(3, 4);
 
 /**
  * Same as parsec_output_string, but accepts a va_list form of varargs.

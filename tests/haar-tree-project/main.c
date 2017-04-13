@@ -191,12 +191,13 @@ int main(int argc, char *argv[])
             break;
         case 'd':
             if( rank == atoi(optarg) ) {
+                volatile int loop;
                 char hostname[256];
                 gethostname(hostname, 256);
                 fprintf(stderr, "Rank %d is pid %d on host %s -- Waiting for debugger to attach\n",
                         rank, getpid(), hostname);
-                ret = 1;
-                while(ret != 0) {
+                loop = 1;
+                while(loop != 0) {
                     sleep(1);
                 }
             }

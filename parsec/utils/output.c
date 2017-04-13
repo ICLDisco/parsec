@@ -931,6 +931,7 @@ static int output(int output_id, const char *format, va_list arglist)
                     snprintf(buffer, BUFSIZ - 1,
                              "[WARNING: %d lines lost because the Open MPI process session directory did\n not exist when parsec_output() was invoked]\n",
                              ldi->ldi_file_num_lines_lost);
+                    assert(ldi->ldi_fd >= 0);
                     nbwrote = write(ldi->ldi_fd, buffer, (int)strlen(buffer));
                     ldi->ldi_file_num_lines_lost = 0;
                 }

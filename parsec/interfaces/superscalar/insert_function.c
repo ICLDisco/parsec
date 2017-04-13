@@ -1668,11 +1668,13 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
                      uint32_t action_mask,
                      parsec_remote_deps_t *deps )
 {
-    PINS(eu, RELEASE_DEPS_BEGIN, this_task);
     (void)deps;
     parsec_release_dep_fct_arg_t arg;
     int __vp_id;
 
+    assert(NULL != eu);
+    
+    PINS(eu, RELEASE_DEPS_BEGIN, this_task);
 #if defined(DISTRIBUTED)
     arg.remote_deps = deps;
 #endif /* defined(DISTRIBUTED) */
@@ -1680,12 +1682,12 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
     arg.action_mask  = action_mask;
     arg.output_usage = 0;
     arg.output_entry = NULL;
-    arg.ready_lists  = (NULL != eu) ? alloca(sizeof(parsec_execution_context_t *) * eu->virtual_process->parsec_context->nb_vp) : NULL;
+    arg.ready_lists  = alloca(sizeof(parsec_execution_context_t *) * eu->virtual_process->parsec_context->nb_vp);
 
-    if (NULL != eu)
-        for (__vp_id = 0; __vp_id < eu->virtual_process->parsec_context->nb_vp; arg.ready_lists[__vp_id++] = NULL);
+    for (__vp_id = 0; __vp_id < eu->virtual_process->parsec_context->nb_vp; __vp_id++)
+        arg.ready_lists[__vp_id] = NULL;
 
-    parsec_dtd_task_t *this_dtd_task;
+    parsec_dtd_task_t *this_dtd_task = NULL;
     const parsec_function_t  *function = this_task->function;
     parsec_dtd_handle_t *parsec_handle = (parsec_dtd_handle_t *)this_task->parsec_handle;
 
@@ -1723,7 +1725,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
         }
         parsec_dtd_two_hash_table_unlock(parsec_handle->two_hash_table);
     }
-
+    assert(NULL != this_dtd_task);
     iterate_successors_of_dtd_task(eu, (parsec_execution_context_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
 
 #if defined(DISTRIBUTED)
@@ -2086,6 +2088,11 @@ set_dependencies_for_function(parsec_handle_t* parsec_handle,
                     break;
                 }
             }
+
+            if(MAX_DEP_IN_COUNT == i) {
+                free(desc_dep);
+                parsec_fatal("Fatal Error: user could try to insert more than MAX_DEP_IN_COUNT(%d) dependencies into a flow\n", MAX_DEP_IN_COUNT);
+            }
         }
         return;
     }
@@ -2126,6 +2133,10 @@ set_dependencies_for_function(parsec_handle_t* parsec_handle,
                     break;
                 }
             }
+            if( MAX_DEP_IN_COUNT == i ) {
+                free(desc_dep);
+                parsec_fatal("Fatal Error: user could try to insert more than MAX_DEP_IN_COUNT(%d) dependencies into a flow\n", MAX_DEP_IN_COUNT);
+            }
         }
         return;
     } else {
@@ -2136,7 +2147,7 @@ set_dependencies_for_function(parsec_handle_t* parsec_handle,
 
         if (tmp_flow->flow_flags == FLOW_ACCESS_READ) {
             int in_index = parent_flow_index;
-            dep_t *tmp_dep;
+            dep_t *tmp_dep = NULL;
             parsec_flow_t *tmp_p_flow = NULL;
             tmp_flow = (parsec_flow_t *) parent_function->in[in_index];
             for ( i = 0; i < MAX_DEP_IN_COUNT; i++ ) {
@@ -2779,8 +2790,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             READ_FROM_TILE(last_user, tile->last_user);
             READ_FROM_TILE(last_writer, tile->last_writer);
 
-            if( last_user.task != NULL )
-                assert( (FLOW_OF(last_writer.task, last_writer.flow_index))->tile == tile );
+            assert( (last_user.task == NULL) || ((FLOW_OF(last_writer.task, last_writer.flow_index))->tile == tile) );
         }
 
         if( INOUT == (tile_op_type & GET_OP_TYPE) || OUTPUT == (tile_op_type & GET_OP_TYPE) ) {
@@ -2843,6 +2853,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                                             (PARENT_OF(this_task, flow_index))->flow_index, flow_index );
 
             if( put_in_chain ) {
+                assert(NULL != last_user.task);
                 set_descendant(last_user.task, last_user.flow_index,
                                this_task, flow_index, last_user.op_type,
                                tile_op_type, last_user.alive);
@@ -2868,6 +2879,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                     }
                 }
             }
+            assert( NULL != last_user.task );
             if( parsec_dtd_task_is_remote(last_user.task) && parsec_dtd_task_is_remote(this_task) ) {
                 if( ((parsec_dtd_function_t *)this_task->super.function)->fpointer == parsec_dtd_copy_data_to_matrix ) {
                     if( last_writer.task == last_user.task ) {

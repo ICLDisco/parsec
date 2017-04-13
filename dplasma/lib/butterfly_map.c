@@ -258,7 +258,7 @@ void segment_to_tile(const parsec_seg_ddesc_t *seg_ddesc, int m, int n, int *m_t
     return;
 }
 
-int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, unsigned *n_sz){
+int type_index_to_sizes(const seg_info_t *seg, int type_index, unsigned *m_sz, unsigned *n_sz){
     unsigned width = 0;
     unsigned height = 0;
     /* int abs_m, abs_n; */
@@ -275,38 +275,38 @@ int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, un
     switch(type_index_n){
         /**** left edge ****/
         case 0:
-            /* abs_n = seg.spn; */
-            width = seg.l_sz.n1;
+            /* abs_n = seg->spn; */
+            width = seg->l_sz.n1;
             break;
         case 1:
-            /* abs_n = seg.spn; */
-            width = seg.l_sz.n1;
-            /* abs_n += seg.l_sz.n1; */
-            width = seg.l_sz.n2;
+            /* abs_n = seg->spn; */
+            /* width = seg->l_sz.n1; */
+            /* abs_n += seg->l_sz.n1; */
+            width = seg->l_sz.n2;
             break;
         /**** center ****/
         case 2:
-            /* abs_n = seg.spn + seg.l_sz.n1 + seg.l_sz.n2; */
-            width = seg.c_sz.n1;
+            /* abs_n = seg->spn + seg->l_sz.n1 + seg->l_sz.n2; */
+            width = seg->c_sz.n1;
             break;
         case 3:
             /*
-            abs_n = seg.spn + seg.l_sz.n1 + seg.l_sz.n2;
-            abs_n += seg.c_sz.n1;
+            abs_n = seg->spn + seg->l_sz.n1 + seg->l_sz.n2;
+            abs_n += seg->c_sz.n1;
             */
-            width = seg.c_sz.n2;
+            width = seg->c_sz.n2;
             break;
         /**** right edge ****/
         case 4:
-            /* abs_n = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2); */
-            width = seg.r_sz.n1;
+            /* abs_n = seg->mpn - (seg->r_sz.n1 + seg->r_sz.n2); */
+            width = seg->r_sz.n1;
             break;
         case 5:
             /*
-            abs_n = seg.mpn - (seg.r_sz.n1 + seg.r_sz.n2);
-            abs_n += seg.r_sz.n1;
+            abs_n = seg->mpn - (seg->r_sz.n1 + seg->r_sz.n2);
+            abs_n += seg->r_sz.n1;
             */
-            width = seg.r_sz.n2;
+            width = seg->r_sz.n2;
             break;
         default: assert(0);
     }
@@ -314,39 +314,39 @@ int type_index_to_sizes(const seg_info_t seg, int type_index, unsigned *m_sz, un
     switch(type_index_m){
         /**** top edge ****/
         case 0:
-            /* abs_m = seg.spm; */
-            height = seg.t_sz.m1;
+            /* abs_m = seg->spm; */
+            height = seg->t_sz.m1;
             break;
         case 1:
             /*
-            abs_m = seg.spm;
-            abs_m += seg.t_sz.m1;
+            abs_m = seg->spm;
+            abs_m += seg->t_sz.m1;
             */
-            height = seg.t_sz.m2;
+            height = seg->t_sz.m2;
             break;
         /**** center ****/
         case 2:
-            /* abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2; */
-            height = seg.c_sz.m1;
+            /* abs_m = seg->spm + seg->t_sz.m1 + seg->t_sz.m2; */
+            height = seg->c_sz.m1;
             break;
         case 3:
             /*
-            abs_m = seg.spm + seg.t_sz.m1 + seg.t_sz.m2;
-            abs_m += seg.c_sz.m1;
+            abs_m = seg->spm + seg->t_sz.m1 + seg->t_sz.m2;
+            abs_m += seg->c_sz.m1;
             */
-            height = seg.c_sz.m2;
+            height = seg->c_sz.m2;
             break;
         /**** bottom edge ****/
         case 4:
-            /* abs_m = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2); */
-            height = seg.b_sz.m1;
+            /* abs_m = seg->mpm - (seg->b_sz.m1 + seg->b_sz.m2); */
+            height = seg->b_sz.m1;
             break;
         case 5:
             /*
-            abs_m = seg.mpm - (seg.b_sz.m1 + seg.b_sz.m2);
-            abs_m += seg.b_sz.m1;
+            abs_m = seg->mpm - (seg->b_sz.m1 + seg->b_sz.m2);
+            abs_m += seg->b_sz.m1;
             */
-            height = seg.b_sz.m2;
+            height = seg->b_sz.m2;
             break;
         default: assert(0);
     }
@@ -367,56 +367,56 @@ int segment_to_arena_index(const parsec_seg_ddesc_t* but_ddesc, int m, int n){
     /* if using named types in the JDF or the default type, then you need to
      * offset the following value by the number of named+default types used
      */
-    return segment_to_type_index(but_ddesc->seg_info, m, n);
+    return segment_to_type_index(&but_ddesc->seg_info, m, n);
 }
 
-int segment_to_type_index(const seg_info_t seg, int m, int n){
+int segment_to_type_index(const seg_info_t *seg, int m, int n){
     int type_index_n, type_index_m, type_index;
 
-    if( n >= seg.tot_seg_cnt_n || m >= seg.tot_seg_cnt_m ){
+    if( n >= seg->tot_seg_cnt_n || m >= seg->tot_seg_cnt_m ){
         fprintf(stderr,"invalid segment coordinates\n");
         return -1;
     }
 
-    if( n >= seg.tot_seg_cnt_n/2 ){
-        n -= seg.tot_seg_cnt_n/2;
+    if( n >= seg->tot_seg_cnt_n/2 ){
+        n -= seg->tot_seg_cnt_n/2;
     }
-    if( m >= seg.tot_seg_cnt_n/2 ){
-        m -= seg.tot_seg_cnt_n/2;
+    if( m >= seg->tot_seg_cnt_n/2 ){
+        m -= seg->tot_seg_cnt_n/2;
     }
 
     /* Horizontal */
-    if( n < seg.l_cnt.n ){ /* left edge */
+    if( n < seg->l_cnt.n ){ /* left edge */
         type_index_n = 0;
         if( 1 == n ){
             type_index_n = 1;
         }
-    }else if( n < (seg.l_cnt.n+seg.c_seg_cnt_n) ){ /* center */
+    }else if( n < (seg->l_cnt.n+seg->c_seg_cnt_n) ){ /* center */
         type_index_n = 2;
-        if( (n-seg.l_cnt.n) % seg.c_cnt.n ){
+        if( (n-seg->l_cnt.n) % seg->c_cnt.n ){
             type_index_n = 3;
         }
     }else{ /* right edge */
         type_index_n = 4;
-        if( n - (seg.l_cnt.n+seg.c_seg_cnt_n) ){
+        if( n - (seg->l_cnt.n+seg->c_seg_cnt_n) ){
             type_index_n = 5;
         }
     }
 
     /* Vertical */
-    if( m < seg.t_cnt.m ){ /* top edge */
+    if( m < seg->t_cnt.m ){ /* top edge */
         type_index_m = 0;
         if( 1 == m ){
             type_index_m = 1;
         }
-    }else if( m < (seg.t_cnt.m+seg.c_seg_cnt_m) ){ /* center */
+    }else if( m < (seg->t_cnt.m+seg->c_seg_cnt_m) ){ /* center */
         type_index_m = 2;
-        if( (m-seg.t_cnt.m) % seg.c_cnt.m ){
+        if( (m-seg->t_cnt.m) % seg->c_cnt.m ){
             type_index_m = 3;
         }
     }else{ /* bottom edge */
         type_index_m = 4;
-        if( m - (seg.t_cnt.m+seg.c_seg_cnt_m) ){
+        if( m - (seg->t_cnt.m+seg->c_seg_cnt_m) ){
             type_index_m = 5;
         }
     }

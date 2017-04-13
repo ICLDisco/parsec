@@ -195,38 +195,6 @@ void pins_handle_fini(parsec_handle_t * handle)
     }
 }
 
-/**
- * Convenient functions for application that want to overwrite the MCA
- *  default behavior.
- */
-void pins_enable_modules (const char * const modules[])
-{
-    int i, l;
-    char *str;
-    int idx;
-
-    idx = parsec_mca_param_find("mca", NULL, "pins");
-    if( idx >= 0 )  /* Generally a bad sign */
-        return;
-    
-    l = 0;
-    for(i = 0; NULL != modules[i]; i++) {
-        l += strlen(modules[i])+1;
-    }
-    str = (char *)malloc(l);
-    str[0] = '\0';
-    for(i = 0; NULL != modules[i]; i++) {
-        strcat(str, modules[i]);
-        strcat(str, ",");
-    }
-    if(l > 0)
-        str[l-1] = '\0';
-
-    parsec_mca_param_set_string(idx, str);
-
-    free(str);
-}
-
 /*
   This function is not currently useful if the module limiting functionality
   is not in use, because this function checks based on that array.

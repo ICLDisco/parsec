@@ -65,12 +65,12 @@ int main(int argc, char ** argv)
                                M, N, SMB, SNB, P));
 
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
-        two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(ddescC0, check,
+        two_dim_block_cyclic, (&ddescC0, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDC, N, 0, 0,
                                M, N, SMB, SNB, P));
 
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC0, Cseed);
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
     for(tA=0; tA<3; tA++) {
@@ -100,7 +100,7 @@ int main(int argc, char ** argv)
             /* matrix generation */
             if(loud) printf("Generate matrices ... ");
             dplasma_zlacpy( parsec, PlasmaUpperLower,
-                            (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
+                            (tiled_matrix_desc_t *)&ddescC0, (tiled_matrix_desc_t *)&ddescC );
             if(loud) printf("Done\n");
 
             /* Create GEMM PaRSEC */
@@ -118,7 +118,7 @@ int main(int argc, char ** argv)
                                                alpha, Am, An,
                                                (tiled_matrix_desc_t *)&ddescA,
                                                beta,  M,  N,
-                                               (tiled_matrix_desc_t *)&ddescC2,
+                                               (tiled_matrix_desc_t *)&ddescC0,
                                                (tiled_matrix_desc_t *)&ddescC );
             if ( rank == 0 ) {
                 if (info_solution == 0) {
@@ -167,7 +167,7 @@ int main(int argc, char ** argv)
         /* matrix generation */
         if(loud) printf("Generate matrices ... ");
         dplasma_zlacpy( parsec, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
+                        (tiled_matrix_desc_t *)&ddescC0, (tiled_matrix_desc_t *)&ddescC );
         if(loud) printf("Done\n");
 
         /* Create GEMM PaRSEC */
@@ -185,7 +185,7 @@ int main(int argc, char ** argv)
                                            alpha, Am, An,
                                            (tiled_matrix_desc_t *)&ddescA,
                                            beta,  M,  N,
-                                           (tiled_matrix_desc_t *)&ddescC2,
+                                           (tiled_matrix_desc_t *)&ddescC0,
                                            (tiled_matrix_desc_t *)&ddescC );
         if ( rank == 0 ) {
             if (info_solution == 0) {
@@ -208,8 +208,8 @@ int main(int argc, char ** argv)
 
     parsec_data_free(ddescC.mat);
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
-    parsec_data_free(ddescC2.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC2);
+    parsec_data_free(ddescC0.mat);
+    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC0);
 
     cleanup_parsec(parsec, iparam);
 

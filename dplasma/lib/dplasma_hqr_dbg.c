@@ -604,4 +604,5 @@ void dplasma_qrtree_print_dag( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree,
     fclose( f );
     free(pos);
     free(next);
+    free(done);
 }

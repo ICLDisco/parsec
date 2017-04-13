@@ -132,17 +132,17 @@ void parsec_debug_init(void) {
         stack = malloc(ST_ASIZE*ST_SIZE*sizeof(void*));
         stack_size = malloc(ST_ASIZE*sizeof(int));
         if( (NULL == stack_size) || (NULL == stack) ) {
-             parsec_warning("Backtrace debug framework DISABLED: could not allocate the backtrace circular buffer with backtrace_keep=%d and backtrace_size=%d", ST_ASIZE, ST_SIZE);
-             if( NULL != stack_size ) { free(stack_size); stack_size = NULL; }
-             if( NULL != stack ) { free(stack); stack = NULL; }
-             if( bt_output > 0 ) {
-                 parsec_output_close(bt_output);
-                 bt_output = -1;
-                 return;
-             }
-         }
-         memset(stack_size, 0, ST_ASIZE*sizeof(int));
-         memset(stack, 0, ST_ASIZE*ST_SIZE*sizeof(int));
+            parsec_warning("Backtrace debug framework DISABLED: could not allocate the backtrace circular buffer with backtrace_keep=%d and backtrace_size=%d", ST_ASIZE, ST_SIZE);
+            if( NULL != stack_size ) { free(stack_size); stack_size = NULL; }
+            if( NULL != stack ) { free(stack); stack = NULL; }
+            if( bt_output > 0 ) {
+                parsec_output_close(bt_output);
+                bt_output = -1;
+            }
+            return;
+        }
+        memset(stack_size, 0, ST_ASIZE*sizeof(int));
+        memset(stack, 0, ST_ASIZE*ST_SIZE*sizeof(int));
     }
 }
 

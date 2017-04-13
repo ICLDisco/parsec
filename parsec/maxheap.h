@@ -139,8 +139,10 @@ void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
 
             level_counter++;
         }
+        free(parents);
     }
 
+    
     /* set priority to top priority */
     heap->priority = heap->top->priority;
 

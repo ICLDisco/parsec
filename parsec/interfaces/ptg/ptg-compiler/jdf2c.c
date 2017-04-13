@@ -1907,8 +1907,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
                 jdf_fatal(JDF_OBJECT_LINENO(dep), "This dependency features a range as input but is not a Control dependency\n");
                 exit(1);
             }
-            string_arena_add_string(sa2, "&ctl_gather_compute_for_dep_%s",
-                                    JDF_OBJECT_ONAME(dep));
+            string_arena_add_string(sa2, "&ctl_gather_compute_for_dep_%s", depname);
             /* skip the & at the beginning */
             jdf_generate_ctl_gather_compute(jdf, f, call->func_or_mem,
                                             string_arena_get_string(sa2)+1, call->parameters);
@@ -1982,7 +1981,8 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
 
     string_arena_free(sa);
     string_arena_free(sa2);
-
+    string_arena_free(sa3);
+    
     return ret;
 }
 
@@ -2406,7 +2406,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("%s  parsec_dependencies_mark_task_as_startup((parsec_execution_context_t*)new_task, eu);\n"
             "%s  pready_ring = parsec_list_item_ring_push_sorted(pready_ring,\n"
-            "%s                                                 &new_task->super,\n"
+            "%s                                                 (parsec_list_item_t*)new_task,\n"
             "%s                                                 parsec_execution_context_priority_comparator);\n"
             "%s  nb_tasks++;\n"
             "%s after_insert_task:  /* we jump here just so that we have code after the label */\n"
@@ -2588,14 +2588,32 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 }
                 /* Adapt the loop condition depending on the value of the increment. We can
                  * now handle both increasing and decreasing execution spaces. */
-                coutput("%s    for(%s = %s%s_start;\n"
-                        "%s        (((%s%s_inc >= 0) && (%s <= %s%s_end)) ||\n"
-                        "%s         ((%s%s_inc <  0) && (%s >= %s%s_end)));\n"
-                        "%s        %s+=%s%s_inc) {\n",
-                        indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name,
-                        indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name,
-                        indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name);
+                if( JDF_OP_IS_CST(dl->expr->jdf_ta3->op) ) {
+                    if( dl->expr->jdf_ta3->jdf_cst >= 0 ) {
+                        coutput("%s    for(%s =  %s%s_start;\n"
+                                "%s        %s <= %s%s_end;\n"
+                                "%s        %s += %s%s_inc) {\n",
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name);
+                    } else {
+                        coutput("%s    for(%s =  %s%s_start;\n"
+                                "%s        %s >= %s%s_end;\n"
+                                "%s        %s += %s%s_inc) {\n",
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name);
+                    }
+                } else {
+                    coutput("%s    for(%s = %s%s_start;\n"
+                            "%s        (((%s%s_inc >= 0) && (%s <= %s%s_end)) ||\n"
+                            "%s         ((%s%s_inc <  0) && (%s >= %s%s_end)));\n"
+                            "%s        %s+=%s%s_inc) {\n",
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name,
+                            indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name,
+                            indent(nesting), JDF2C_NAMESPACE, dl->name, dl->name, JDF2C_NAMESPACE, dl->name,
+                            indent(nesting), dl->name, JDF2C_NAMESPACE, dl->name);
+                }
                 nesting++;
             } else {
                 coutput("%s    %s = %s;\n",
@@ -3164,6 +3182,7 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
                                         jdf_basename, f->fname, i != (max_id - 1) ? "," : "");
             }
         }
+        free(array);
     }
     string_arena_add_string(sa, "};\n\n");
     coutput("%s", string_arena_get_string(sa));
@@ -3428,7 +3447,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     /* Prepare the functions */
     coutput("  for( i = 0; i < (int)__parsec_handle->super.super.nb_functions; i++ ) {\n"
             "    __parsec_handle->super.super.functions_array[i] = func = malloc(sizeof(parsec_function_t));\n"
-            "    memcpy((parsec_function_t*)__parsec_handle->super.super.functions_array[i], %s_functions[i], sizeof(parsec_function_t));\n"
+            "    memcpy(func, %s_functions[i], sizeof(parsec_function_t));\n"
             "    for( j = 0; NULL != func->incarnations[j].hook; j++);\n"
             "    func->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n"
             "    memcpy((__parsec_chore_t*)func->incarnations, %s_functions[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
@@ -3812,19 +3831,23 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                 spaces, call->func_or_mem, jdf_property_get_string(targetf->properties, JDF_PROP_UD_HASH_FN_NAME, NULL));
 
         coutput("%s    chunk = entry->data[%d];  /* %s:%s <- %s:%s */\n"
-                "%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", target_locals, chunk);\n",
+                "%s    ACQUIRE_FLOW(this_task, \"%s\", &%s_%s, \"%s\", target_locals, chunk);\n"
+                "%s    this_task->data._f_%s.data_out = chunk;\n",
                 spaces, tflow->flow_index, f->varname, fname, call->var, call->func_or_mem,
-                spaces, f->varname, jdf_basename, call->func_or_mem, call->var);
+                spaces, f->varname, jdf_basename, call->func_or_mem, call->var,
+                spaces, f->varname);
     }
     else {
         /* Memory references */
         if ( call->parameters != NULL) {
             coutput("%s    chunk = parsec_data_get_copy(data_of_%s(%s), target_device);\n"
-                    "%s    OBJ_RETAIN(chunk);\n",
+                    "%s    OBJ_RETAIN(chunk);\n"
+                    "%s    this_task->data._f_%s.data_out = chunk;\n",
                     spaces, call->func_or_mem,
                     UTIL_DUMP_LIST(sa, call->parameters, next,
                                    dump_expr, (void*)&info, "", "", ", ", ""),
-                    spaces);
+                    spaces,
+                    spaces, f->varname);
         }
         /* NEW or NULL data */
         else {
@@ -3844,9 +3867,11 @@ jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_call_t *call,
                 string_arena_add_string(sa2, "%s", dump_expr((void**)dl->datatype.count, &info));
 
                 coutput("%s    chunk = parsec_arena_get_copy(%s, %s, target_device);\n"
-                        "%s    chunk->original->owner_device = target_device;\n",
+                        "%s    chunk->original->owner_device = target_device;\n"
+                        "%s    this_task->data._f_%s.data_out = chunk;\n",
                         spaces, string_arena_get_string(sa), string_arena_get_string(sa2),
-                        spaces);
+                        spaces,
+                        spaces, f->varname);
 
                 string_arena_free(info.sa);
             }
@@ -3901,7 +3926,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
 {
     jdf_dep_t *dl;
     expr_info_t info;
-    string_arena_t *sa, *sa2, *sa_count;
+    string_arena_t *sa, *sa2 = NULL, *sa_count = NULL;
     int cond_index = 0;
     char* condition[] = {"    if( %s ) {\n", "    else if( %s ) {\n"};
 
@@ -3916,6 +3941,22 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                 flow->varname);
         return;
     }
+
+    {
+        int has_output_deps = 0;
+        for(dl = flow->deps; dl != NULL; dl = dl->next) {
+            if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
+                has_output_deps = 1;
+                break;
+            }
+        }
+        if( !has_output_deps ) {
+            coutput("    this_task->data._f_%s.data_out = NULL;  /* input only */\n\n", flow->varname);
+        } else {
+            coutput("    this_task->data._f_%s.data_out = NULL;  /* By default, if nothing matches */\n\n", flow->varname);
+        }
+    }
+
     coutput( "  if( NULL == (chunk = this_task->data._f_%s.data_in) ) {  /* flow %s */\n"
              "    entry = NULL;\n",
              flow->varname, flow->varname);
@@ -3926,7 +3967,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     info.prefix = "";
     info.suffix = "";
     info.assignments = "    &this_task->locals";
-
+    
     if ( flow->flow_flags & JDF_FLOW_TYPE_READ ) {
         int check = 1;
         for(dl = flow->deps; dl != NULL; dl = dl->next) {
@@ -3991,6 +4032,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                 if( 0 != cond_index ) coutput("    else {\n");
                 jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), f->fname, "  ",
                                                    string_arena_get_string(sa2), string_arena_get_string(sa_count));
+                coutput("      this_task->data._f_%s.data_out = chunk;\n\n", flow->varname);
                 if( 0 != cond_index ) coutput("    }\n");
                 goto done_with_input;
             case JDF_GUARD_BINARY:
@@ -3998,6 +4040,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                          dump_expr((void**)dl->guard->guard, &info));
                 jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), f->fname, "  ",
                                                    string_arena_get_string(sa2), string_arena_get_string(sa_count));
+                coutput("      this_task->data._f_%s.data_out = chunk;\n\n", flow->varname);
                 coutput("    }\n");
                 cond_index++;
                 break;
@@ -4006,46 +4049,31 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
                          dump_expr((void**)dl->guard->guard, &info));
                 jdf_generate_code_call_init_output(jdf, dl->guard->calltrue, JDF_OBJECT_LINENO(flow), f->fname, "  ",
                                                    string_arena_get_string(sa2), string_arena_get_string(sa_count));
+                coutput("      this_task->data._f_%s.data_out = chunk;\n\n", flow->varname);
                 coutput("    } else {\n");
                 jdf_generate_code_call_init_output(jdf, dl->guard->callfalse, JDF_OBJECT_LINENO(flow), f->fname, "  ",
                                                    string_arena_get_string(sa2), string_arena_get_string(sa_count));
+                coutput("      this_task->data._f_%s.data_out = chunk;\n\n", flow->varname);
                 coutput("    }\n");
                 goto done_with_input;
             }
         }
-        string_arena_free(sa2);
-        string_arena_free(sa_count);
     }
  done_with_input:
     coutput("      this_task->data._f_%s.data_in   = chunk;   /* flow %s */\n"
             "      this_task->data._f_%s.data_repo = entry;\n"
+            "    } else {\n"
+            "      this_task->data._f_%s.data_out = parsec_data_get_copy(chunk->original, target_device);\n"
             "    }\n",
             flow->varname, flow->varname,
+            flow->varname,
             flow->varname);
-    {
-        int has_output_deps = 0;
-        for(dl = flow->deps; dl != NULL; dl = dl->next) {
-            if ( dl->dep_flags & JDF_DEP_FLOW_OUT ) {
-                has_output_deps = 1;
-                break;
-            }
-        }
-        if( has_output_deps ) {
-            /* CTL does not reach that point */
-            assert( flow->flow_flags & JDF_FLOW_TYPE_WRITE ||
-                    flow->flow_flags & JDF_FLOW_TYPE_READ);
-            coutput("    /* Now get the local version of the data to be worked on */\n"
-                    "    if( NULL != chunk ) {\n"
-                    "        this_task->data._f_%s.data_out = parsec_data_get_copy(chunk->original, target_device);\n"
-                    "    } else {\n"
-                    "        this_task->data._f_%s.data_out = NULL;\n"
-                    "    }\n",
-                    flow->varname, flow->varname);
-        } else {
-            coutput("    this_task->data._f_%s.data_out = NULL;  /* input only */\n\n", flow->varname);
-        }
-    }
+    
     string_arena_free(sa);
+    if( NULL != sa2 )
+        string_arena_free(sa2);
+    if( NULL != sa_count )
+        string_arena_free(sa_count);
 }
 
 static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_t *call,
@@ -4078,7 +4106,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
 
         string_arena_init(sa2);
         jdf_generate_arena_string_from_datatype(sa2, datatype);
-        coutput("%s  if( this_task->data._f_%s.data_out->original != data_of_%s(%s) ) {\n"
+        coutput("%s  if( (NULL != this_task->data._f_%s.data_out) && (this_task->data._f_%s.data_out->original != data_of_%s(%s)) ) {\n"
                 "%s    parsec_dep_data_description_t data;\n"
                 "%s    data.data   = this_task->data._f_%s.data_out;\n"
                 "%s    data.arena  = %s;\n"
@@ -4090,7 +4118,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
                 "%s                            parsec_data_get_copy(data_of_%s(%s), 0),\n"
                 "%s                            this_task->data._f_%s.data_out, &data);\n"
                 "%s  }\n",
-                spaces, flow->varname, call->func_or_mem, string_arena_get_string(sa),
+                spaces, flow->varname, flow->varname, call->func_or_mem, string_arena_get_string(sa),
                 spaces,
                 spaces, flow->varname,
                 spaces, string_arena_get_string(sa2),
@@ -4107,6 +4135,7 @@ static void jdf_generate_code_call_final_write(const jdf_t *jdf, const jdf_call_
     string_arena_free(sa);
     string_arena_free(sa2);
     string_arena_free(sa3);
+    string_arena_free(sa4);
 }
 
 static void
@@ -4411,6 +4440,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 skip_condition = 1;
+                /* No break; process case for JDF_GUARD_TERNARY */
             case JDF_GUARD_TERNARY:
                 if( type == JDF_DEP_FLOW_IN ) continue_dependencies = 0;
                 break;
@@ -4464,6 +4494,18 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
     string_arena_free(sa);
     string_arena_free(sa2);
+    string_arena_free(sa_displ);
+    string_arena_free(sa_coutput);
+    string_arena_free(sa_datatype);
+    string_arena_free(sa_cond);
+    string_arena_free(sa_layout);
+    string_arena_free(sa_deps);
+    string_arena_free(sa_type);
+    string_arena_free(sa_tmp_type);
+    string_arena_free(sa_nbelt);
+    string_arena_free(sa_tmp_nbelt);
+    string_arena_free(sa_tmp_displ);
+    string_arena_free(sa_tmp_layout);
 }
 
 static void
@@ -4710,25 +4752,25 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     else {
         weight = "1.";
     }
-
+    coutput("  ratio = %s;\n", weight);
+    
     /* Get the hint for statix and/or external gpu scheduling */
     jdf_find_property( body->properties, "device", &device_property );
     if ( NULL != device_property ) {
         device = dump_expr((void**)device_property->expr, &info);
+        coutput("  dev_index = %s;\n"
+                "  if (dev_index < -1) {\n"
+                "    return PARSEC_HOOK_RETURN_NEXT;\n"
+                "  } else if (dev_index == -1) {\n"
+                "    dev_index = parsec_gpu_get_best_device((parsec_execution_context_t*)this_task, ratio);\n"
+                "  } else {\n"
+                "    dev_index = (dev_index %% (parsec_devices_enabled()-2)) + 2;\n"
+                "  }\n",
+                device);
+    } else {
+        coutput("  dev_index = parsec_gpu_get_best_device((parsec_execution_context_t*)this_task, ratio);\n");
     }
-    else {
-        device = "-1";
-    }
-    coutput("  ratio = %s;\n"
-            "  dev_index = %s;\n"
-            "  if (dev_index < -1) {\n"
-            "    return PARSEC_HOOK_RETURN_NEXT;\n"
-            "  } else if (dev_index == -1) {\n"
-            "    dev_index = parsec_gpu_get_best_device((parsec_execution_context_t*)this_task, ratio);\n"
-            "  } else {\n"
-            "    dev_index = (dev_index %% (parsec_devices_enabled()-2)) + 2;\n"
-            "  }\n"
-            "  assert(dev_index >= 0);\n"
+    coutput("  assert(dev_index >= 0);\n"
             "  if( dev_index < 2 ) {\n"
             "    return PARSEC_HOOK_RETURN_NEXT;  /* Fall back */\n"
             "  }\n"
@@ -4739,7 +4781,6 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
             "  gpu_task->ec = (parsec_execution_context_t*)this_task;\n"
             "  gpu_task->submit = &gpu_kernel_submit_%s_%s;\n"
             "  gpu_task->task_type = 0;\n",
-            weight, device,
             jdf_basename, f->fname);
 
     /* Dump the dataflow */
@@ -4787,18 +4828,15 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                     break;
                 case JDF_GUARD_TERNARY:
                     if( testtrue ) {
-                        coutput("  if( %s ) {\n"
-                                "    gpu_task->pushout[%d] = 1;\n"
-                                "  }\n",
-                                dump_expr((void**)dl->guard->guard, &info), di);
                         if( testfalse ) {
-                            coutput("  else {\n"
+                            coutput("  gpu_task->pushout[%d] = 1;\n", di);
+                        } else {
+                            coutput("  if( %s ) {\n"
                                     "    gpu_task->pushout[%d] = 1;\n"
                                     "  }\n",
-                                    di);
+                                    dump_expr((void**)dl->guard->guard, &info), di);
                         }
-                    }
-                    else if ( testfalse ) {
+                    } else if ( testfalse ) {
                         coutput("  if( !(%s) ) {\n"
                                 "    gpu_task->pushout[%d] = 1;\n"
                                 "  }\n",
@@ -5809,13 +5847,12 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
         rc = asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d",
                       jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
         assert(rc != -1);
-        coutput("static inline int %s(const __parsec_%s_internal_handle_t *__parsec_handle, const %s *assignments)\n"
+        coutput("static inline int %s(const __parsec_%s_internal_handle_t *__parsec_handle, const assignment_t *assignments)\n"
                 "{\n"
                 "  /* This inline C function was declared in the global context: no variables */\n"
                 "  (void)assignments;\n"
                 "  (void)__parsec_handle;\n",
-                expr->jdf_c_code.fname, jdf_basename,
-                parsec_get_name(NULL, expr->jdf_c_code.function_context, "assignment_t"));
+                expr->jdf_c_code.fname, jdf_basename);
     }
 
     string_arena_free(sa1);
@@ -5857,7 +5894,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
                           "Out of ressoruces to generate the hash function name hash_%s\n", f->fname);
                 exit(1);
             }
-            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_FN_NAME, strdup(tmp));
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_HASH_FN_NAME, tmp);
             free(tmp);
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_HASH_FUN;
         } else {
@@ -5876,7 +5913,7 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
                               "Out of ressoruces to generate the startup function name startup_%s\n", f->fname);
                     exit(1);
                 }
-                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, strdup(tmp));
+                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, tmp);
                 free(tmp);
             }
         }

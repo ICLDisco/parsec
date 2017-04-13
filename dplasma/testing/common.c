@@ -375,9 +375,12 @@ static void parse_arguments(int *_argc, char*** _argv, int* iparam)
                 break;
 
             case 'h': print_usage(); exit(0);
+                break;
 
             case '?': /* getopt_long already printed an error message. */
                 exit(1);
+                break;
+                
             default:
                 break; /* Assume anything else is parsec/mpi stuff */
         }

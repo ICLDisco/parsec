@@ -93,8 +93,8 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
            i, i, i, Atl);
 
-  type = segment_to_type_index(descA->seg_info, i, i);
-  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, i);
+  type_exists = type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
   mb_tile = descA->A_org->mb;
   nb_tile = descA->A_org->nb;
@@ -200,12 +200,12 @@ BODY
   fflush(stdout);
 #endif
 
-  type = segment_to_type_index(descA->seg_info, i, j);
+  type = segment_to_type_index(&descA->seg_info, i, j);
 #if defined(DEBUG_BUTTERFLY)
   printf("type = %d\n",type);
   fflush(stdout);
 #endif
-  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type_exists = type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 #if defined(DEBUG_BUTTERFLY)
   printf("mb_seg = %d, nb_seg = %d\n",mb_seg, nb_seg);
   fflush(stdout);
@@ -310,8 +310,8 @@ BODY
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -366,8 +366,8 @@ BODY
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -420,8 +420,8 @@ BODY
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -471,8 +471,8 @@ BODY
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");
@@ -524,8 +524,8 @@ BODY
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");
@@ -575,8 +575,8 @@ BODY
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");

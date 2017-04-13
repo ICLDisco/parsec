@@ -172,7 +172,7 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
     int pi;
 
     /* don't use PARSEC_THREAD_IS_MASTER, it is too early and we cannot yet allocate the eu struct */
-    if( (0 != startup->virtual_process) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
+    if( (0 != startup->virtual_process->vp_id) || (0 != startup->th_id) || parsec_runtime_bind_main_thread ) {
         /* Bind to the specified CORE */
         parsec_bindthread(startup->bindto, startup->bindto_ht);
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Bind thread %i.%i on core %i [HT %i]",
@@ -278,6 +278,7 @@ static void parsec_vp_init( parsec_vp_t *vp,
     int t, pi;
     parsec_barrier_t*  barrier;
 
+    assert(nb_cores > 0);
     vp->nb_cores = nb_cores;
 
     barrier = (parsec_barrier_t*)malloc(sizeof(parsec_barrier_t));
@@ -449,21 +450,28 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         if( parsec_cmd_line_is_taken(cmd_line, "vpmap") ) {
             char* optarg = NULL;
             GET_STR_ARGV(cmd_line, "vpmap", optarg);
-            if( !strncmp(optarg, "display", 7 )) {
-                display_vpmap = 1;
+            if(NULL == optarg) {
+                parsec_warning("VPMAP choice (-V argument): expected argument. Falling back to default!");
             } else {
-                if( !strncmp(optarg, "flat", 4) ) {
-                    /* default case (handled in parsec_init) */
-                } else if( !strncmp(optarg, "hwloc", 5) ) {
-                    vpmap_init_from_hardware_affinity(nb_cores);
-                } else if( !strncmp(optarg, "file:", 5) ) {
-                    vpmap_init_from_file(optarg + 5);
-                } else if( !strncmp(optarg, "rr:", 3) ) {
-                    int n, p, co;
-                    sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co);
-                    vpmap_init_from_parameters(n, p, co);
+                if( !strncmp(optarg, "display", 7 )) {
+                    display_vpmap = 1;
                 } else {
-                    parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
+                    if( !strncmp(optarg, "flat", 4) ) {
+                        /* default case (handled in parsec_init) */
+                    } else if( !strncmp(optarg, "hwloc", 5) ) {
+                        vpmap_init_from_hardware_affinity(nb_cores);
+                    } else if( !strncmp(optarg, "file:", 5) ) {
+                        vpmap_init_from_file(optarg + 5);
+                    } else if( !strncmp(optarg, "rr:", 3) ) {
+                        int n, p, co;
+                        if( sscanf(optarg, "rr:%d:%d:%d", &n, &p, &co) == 3 ) {
+                            vpmap_init_from_parameters(n, p, co);
+                        } else {
+                            parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
+                        }
+                    } else {
+                        parsec_warning("VPMAP choice (-V argument): %s is invalid. Falling back to default!", optarg);
+                    }
                 }
             }
         }
@@ -649,9 +657,8 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
         parsec_profiling_start();
     }
 #endif  /* PARSEC_PROF_TRACE */
-    if (parsec_enable_profiling) {
-        free(parsec_enable_profiling);
-    }
+    assert (NULL != parsec_enable_profiling);
+    free(parsec_enable_profiling);
 
     /* Extract the expected thread placement */
     if( NULL != comm_binding_parameter )

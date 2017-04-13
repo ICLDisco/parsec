@@ -461,13 +461,13 @@ parsec_map_operator_New(const tiled_matrix_desc_t* src,
                        parsec_operator_t op,
                        void* op_data)
 {
-    __parsec_map_operator_handle_t *res = (__parsec_map_operator_handle_t*)calloc(1, sizeof(__parsec_map_operator_handle_t));
+    __parsec_map_operator_handle_t *res;
 
     if( (NULL == src) && (NULL == dest) )
         return NULL;
     /* src and dest should have similar distributions */
     /* TODO */
-
+    res =  (__parsec_map_operator_handle_t*)calloc(1, sizeof(__parsec_map_operator_handle_t));
     res->super.src     = src;
     res->super.dest    = dest;
     res->super.op      = op;

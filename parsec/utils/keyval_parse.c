@@ -91,7 +91,7 @@ parsec_util_keyval_parse(const char *filename,
         default:
             /* anything else is an error */
             parse_error(1);
-            break;
+            ret = val;
         }
     }
     fclose(parsec_util_keyval_yyin);
@@ -165,5 +165,5 @@ static int parse_line(void)
 static void parse_error(int num)
 {
     parsec_output(0, "keyval parser: error %d reading file %s at line %d:\n  %s\n",
-                num, keyval_filename, parsec_util_keyval_yynewlines, parsec_util_keyval_yytext);
+                  num, keyval_filename, parsec_util_keyval_yynewlines, parsec_util_keyval_yytext);
 }

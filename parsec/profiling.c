@@ -575,13 +575,13 @@ static int64_t dump_global_infos(int *nbinfos)
         if( pos + sizeof(parsec_profiling_info_buffer_t) + is - 1 >= event_avail_space ) {
             b->this_buffer.nb_infos = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
+            write_down_existing_buffer(b, pos);
+
             if( NULL == n ) {
                 set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
                 *nbinfos = nb;
                 return first_off;
             }
-
-            write_down_existing_buffer(b, pos);
 
             b = n;
             pos = 0;
@@ -615,13 +615,13 @@ static int64_t dump_global_infos(int *nbinfos)
             if( pos == (int)event_avail_space ) {
                 b->this_buffer.nb_infos = nbthis;
                 n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_GLOBAL_INFO);
+                write_down_existing_buffer(b, pos);
+
                 if( NULL == n ) {
                     set_last_error("Profiling System: error: Global Infos will be truncated to %d infos only -- buffer allocation error\n", nb);
                     *nbinfos = nb;
                     return first_off;
                 }
-
-                write_down_existing_buffer(b, pos);
 
                 b = n;
                 pos = 0;
@@ -673,11 +673,6 @@ static int64_t dump_dictionary(int *nbdico)
         if( pos + sizeof(parsec_profiling_key_buffer_t) + cs - 1 >= event_avail_space ) {
             b->this_buffer.nb_dictionary_entries = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_DICTIONARY);
-            if( NULL == n ) {
-                set_last_error("Profiling system: error: Dictionary will be truncated to %d entries only -- buffer allocation error\n", nb);
-                *nbdico = nb;
-                return first_off;
-            }
 
             write_down_existing_buffer(b, pos);
 
@@ -685,10 +680,15 @@ static int64_t dump_dictionary(int *nbdico)
             pos = 0;
             nbthis = 0;
 
+            if( NULL == b ) {
+                set_last_error("Profiling system: error: Dictionary will be truncated to %d entries only -- buffer allocation error\n", nb);
+                *nbdico = nb;
+                return first_off;
+            }
         }
         kb = (parsec_profiling_key_buffer_t *)&(b->buffer[pos]);
-        strncpy(kb->name, k->name, 64);
-        strncpy(kb->attributes, k->attributes, 128);
+        strncpy(kb->name, k->name, 63); /* We copy only up to 63 bytes to leave room for the '\0' */
+        strncpy(kb->attributes, k->attributes, 127); /* We copy only up to 127 bytes to leave room for the '\0' */
         kb->keyinfo_length = k->info_length;
         kb->keyinfo_convertor_length = cs;
         if( cs > 0 ) {
@@ -767,13 +767,13 @@ static int64_t dump_thread(int *nbth)
         if( pos + th_size >= event_avail_space ) {
             b->this_buffer.nb_threads = nbthis;
             n = allocate_empty_buffer(&b->next_buffer_file_offset, PROFILING_BUFFER_TYPE_THREAD);
+            write_down_existing_buffer(b, pos);
+
             if( NULL == n ) {
                 set_last_error("Profiling system: error: Threads will be truncated to %d threads only -- buffer allocation error\n", nb);
                 *nbth = nb;
                 return off;
             }
-
-            write_down_existing_buffer(b, pos);
 
             b = n;
             pos = 0;
@@ -782,7 +782,7 @@ static int64_t dump_thread(int *nbth)
 
         tb = (parsec_profiling_thread_buffer_t *)&(b->buffer[pos]);
         tb->nb_events = thread->nb_events;
-        strncpy(tb->hr_id, thread->hr_id, 128);
+        strncpy(tb->hr_id, thread->hr_id, 127); /* We copy only up to 127 bytes to leave room for the '\0' */
         tb->first_events_buffer_offset = thread->first_events_buffer_offset;
 
         nb++;
@@ -810,9 +810,7 @@ static int64_t dump_thread(int *nbth)
     }
 
     b->this_buffer.nb_threads = nbthis;
-    if(nbthis > 0) {
-        write_down_existing_buffer(b, pos);
-    }
+    write_down_existing_buffer(b, pos);
 
     *nbth = nb;
     return off;
@@ -880,7 +878,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     int64_t zero;
     char *xmlbuffer;
     int rank = 0, worldsize = 1, buflen;
-    int  min_fd, rc;
+    int  min_fd = -1, rc;
 #if defined(PARSEC_HAVE_MPI)
     char *unique_str;
 
@@ -904,7 +902,9 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
          * share it with every other participants. If such a file cannot be
          * created broacast an empty key to all other processes.
          */
+        mode_t old_mask = umask(S_IWGRP | S_IWOTH);
         min_fd = file_backend_fd = mkstemp(bpf_filename);
+        (void)umask(old_mask);
         if( -1 == file_backend_fd ) {
             set_last_error("Profiling system: error: Unable to create backend file %s: %s. Events not logged.\n",
                            bpf_filename, strerror(errno));
@@ -947,7 +947,7 @@ int parsec_profiling_dbp_start( const char *basefile, const char *hr_info )
     memcpy(profile_head->magick, PARSEC_PROFILING_MAGICK, strlen(PARSEC_PROFILING_MAGICK) + 1);
     profile_head->byte_order = 0x0123456789ABCDEF;
     profile_head->profile_buffer_size = event_buffer_size;
-    strncpy(profile_head->hr_id, hr_info, 128);
+    strncpy(profile_head->hr_id, hr_info, 127); /* We copy only up to 127 bytes to leave room for the '\0' */
     profile_head->rank = rank;
     profile_head->worldsize = worldsize;
 

@@ -20,11 +20,13 @@ int
 dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc )
 {
     char *v;
-    char keyword[strlen(function)+2];
+    char *keyword;
 
     if( NULL == function || NULL == ddesc )
         return 0;
 
+    keyword = alloca( strlen(function)+2 );
+    
     switch( ddesc->mtype ) {
     case matrix_RealFloat:
         sprintf(keyword, "S%s", function);

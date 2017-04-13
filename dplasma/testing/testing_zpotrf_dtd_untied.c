@@ -381,7 +381,6 @@ int main(int argc, char **argv)
     parsec_context_t* parsec;
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaUpper;
-
     int info = 0;
     int ret = 0;
 

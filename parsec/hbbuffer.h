@@ -113,6 +113,7 @@ parsec_hbbuffer_push_all(parsec_hbbuffer_t *b,
     }
 
   push_upstream:
+    assert(NULL != b->parent_push_fct);
     b->parent_push_fct(b->parent_store, elt, distance - 1);
 }
 
@@ -138,10 +139,11 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
      * Don't move this line inside the loop: sometimes, multiple iterations of the loop with
      * the same element are necessary.
      */
+    assert(NULL != list);
     topush = list;
     list = parsec_list_item_ring_chop(topush);
     PARSEC_LIST_ITEM_SINGLETON(topush);
-    while(topush != NULL) {
+    while(1) {
         /* Iterate on the list, find best position */
         best_index = -1;
         /* We need to find something with a lower priority than topush anyway */
@@ -224,7 +226,7 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
             /* List is full. Go to parent */
             break;
         }
-    } /* end while( topush != NULL ) */
+    }
 
   push_upstream:
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\t  %s",
@@ -243,7 +245,7 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
             it = PARSEC_LIST_ITEM_NEXT(it);
         } while(it != ejected);
 #endif
-
+        assert(NULL != b->parent_push_fct);
         b->parent_push_fct(b->parent_store, ejected, distance - 1);
     }
 #undef CTX

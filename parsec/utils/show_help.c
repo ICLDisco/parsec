@@ -253,6 +253,7 @@ static int read_topic(char ***array)
                 return PARSEC_ERR_OUT_OF_RESOURCE;
             }
             parsec_argv_append_nosize(array, tmp);
+            free(tmp);
             break;
 
         default:

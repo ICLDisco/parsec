@@ -92,6 +92,7 @@ static int flow_lhq_init(parsec_execution_unit_t* eu_context, struct parsec_barr
             for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
                 int idx = sched_obj->nb_hierarch_queues - 1 - level;
                 int m = parsec_hwloc_master_id(level, eu->th_id);
+                assert(m >= 0);
                 if( eu->th_id == m ) {
                     int nbcores = parsec_hwloc_nb_cores(level, m);
                     int queue_size = 96 * (level+1) / nbcores;
@@ -119,6 +120,7 @@ static int flow_lhq_init(parsec_execution_unit_t* eu_context, struct parsec_barr
             for(int level = 0; level < sched_obj->nb_hierarch_queues; level++) {
                 int idx = sched_obj->nb_hierarch_queues - 1 - level;
                 int m = parsec_hwloc_master_id(level, eu->th_id);
+                assert(m >= 0);
                 if( eu->th_id != m ) {
                     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "schedHQ %d: \ttakes the buffer of %d at level %d stored in %d: %p",
                             eu->th_id, m, level, idx, LOCAL_QUEUES_OBJECT(vp->execution_units[m])->hierarch_queues[idx]);

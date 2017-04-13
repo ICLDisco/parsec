@@ -441,7 +441,6 @@ int jdf_unparse( const jdf_t *jdf, FILE *out )
     else {
         fprintf(stderr,
                 "**Warning** Malformed JDF structure: a prologue is mandatory in the grammar...\n");
-        err = 1;
     }
     fprintf(out, "\n");
 

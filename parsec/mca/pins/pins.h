@@ -121,8 +121,6 @@ void parsec_pins_instrument(struct parsec_execution_unit_s * exec_unit,
 
 void parsec_pins_disable_registration(int disable);
 
-void parsec_pins_enable_modules (const char * const modules[]);
-
 int parsec_pins_is_module_enabled(char * module_name);
 
 int parsec_pins_register_callback(struct parsec_execution_unit_s* exec_unit,

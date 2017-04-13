@@ -406,7 +406,23 @@ if (PARSEC_HAVE_STDARG_H)
         }"
         PARSEC_HAVE_UNDERSCORE_VA_COPY
         )
-  endif (NOT PARSEC_HAVE_VA_COPY)
+    endif (NOT PARSEC_HAVE_VA_COPY)
+
+    check_c_source_compiles("#include <stdio.h>
+#include <stdarg.h>
+int my_printf(const char *format, ...) __attribute__ ((format (printf, 1, 2)));
+int my_printf(const char *format, ...) {
+  va_list ap;
+  int ret;
+  va_start(ap, format);
+  ret = vprintf(format, ap);
+  va_end(ap);
+  return ret;
+}
+int main() {
+  return my_printf(\"toto\");
+}" PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF)
+    
 endif (PARSEC_HAVE_STDARG_H)
 check_function_exists(asprintf PARSEC_HAVE_ASPRINTF)
 check_function_exists(vasprintf PARSEC_HAVE_VASPRINTF)
@@ -438,6 +454,24 @@ check_include_files(sys/types.h PARSEC_HAVE_SYS_TYPES_H)
 check_include_files(syslog.h PARSEC_HAVE_SYSLOG_H)
 
 check_c_source_compiles("
+static int toto(int c) __attribute__ ((always_inline));
+static int toto(int c) {
+  return c;
+}
+int main() {
+  return toto(3);
+}" PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE)
+
+check_c_source_compiles("
+int toto(int c) __attribute__ ((visibility (\"hidden\")));
+int toto(int c) {
+  return c;
+}
+int main() {
+  return toto(3);
+}" PARSEC_HAVE_ATTRIBUTE_VISIBILITY)
+
+check_c_source_compiles("
       int main( int argc, char** argv) {
          int x = 0;
          if ( __builtin_expect(!!(x), 0) )
@@ -445,6 +479,7 @@ check_c_source_compiles("
          return 0;
       }
       " PARSEC_HAVE_BUILTIN_EXPECT)
+
 #
 # Find optional packages
 #

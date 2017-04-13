@@ -127,8 +127,7 @@ int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
             blocklens[i] = mm < m ? mm : m ;
             indices[i]   = i * ld;
         }
-    }
-    else if ( uplo == matrix_Lower ) {
+    } else if ( uplo == matrix_Lower ) {
         nmax = n >= (m-diag) ? m-diag : n;
 
         for( i = 0; i < nmax; i++ ) {
@@ -136,12 +135,16 @@ int parsec_matrix_define_triangle( parsec_datatype_t oldtype,
             indices[i]   = i * ld + i + diag;
         }
         diag = 0;
-    }
-    else
+    } else {
+        free(blocklens);
+        free(indices);
         return PARSEC_ERR_BAD_PARAM;
+    }
 
     rc = parsec_type_create_indexed(nmax, blocklens+diag, indices+diag, oldtype, &tmp );
     if( PARSEC_SUCCESS != rc ) {
+        free(blocklens);
+        free(indices);
         return rc;
     }
     parsec_type_size(oldtype, &oldsize);

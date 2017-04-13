@@ -43,7 +43,7 @@ extern int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
 %}
 
 uplo       [type = "int"]
-desc_A     [type = "tiled_matrix_desc_t"]
+desc_A     [type = "tiled_matrix_desc_t*"]
 data_A     [type = "parsec_ddesc_t *"]
 DPLASMA_IB [type = "int"]
 pool_1     [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*lwork"]
@@ -53,7 +53,7 @@ INFO       [type = "int*"]
 
 zhetrf2_nopiv(k)
   /* Execution space */
-  k = 0..(desc_A.mt-2)
+  k = 0..(desc_A->mt-2)
 
   : data_A(k,k)
 
@@ -64,18 +64,18 @@ zhetrf2_nopiv(k)
   /* H == data_A(k,k) */
   /* O == data_A(k1,k1) */
 
-  RW    A <- (k>=1) & (desc_A.mt>=(k+2)) ? F zhedrk(k-1, k)
-          <- (0==k) & (desc_A.mt>=2) ? data_A(k,k)
-          -> (desc_A.mt>=(k+2)) ? O ztrmdm(k)
-          -> (desc_A.mt>=(k+2)) ? G zhedrk(k, (k+1)..(desc_A.mt-1))
-          -> (desc_A.mt>=(k+3)) ? H magic(k, (k+2)..(desc_A.mt-1))
-          -> (desc_A.mt>=(k+2)) ? C ztrsm(k, (k+1)..(desc_A.mt-1))
+  RW    A <- (k>=1) & (desc_A->mt>=(k+2)) ? F zhedrk(k-1, k)
+          <- (0==k) & (desc_A->mt>=2) ? data_A(k,k)
+          -> (desc_A->mt>=(k+2)) ? O ztrmdm(k)
+          -> (desc_A->mt>=(k+2)) ? G zhedrk(k, (k+1)..(desc_A->mt-1))
+          -> (desc_A->mt>=(k+3)) ? H magic(k, (k+2)..(desc_A->mt-1))
+          -> (desc_A->mt>=(k+2)) ? C ztrsm(k, (k+1)..(desc_A->mt-1))
 
 BODY
 
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = desc_A.mb;
+  int ldak = desc_A->mb;
   int ldwork = (tempkn+1)*ib;
 
   printlog("thread %d CORE_zhetrf2_nopiv(%d)\n"
@@ -102,22 +102,22 @@ END
 
 zhetrf_nopiv(k)
   /* Execution space */
-  k = (desc_A.mt-1)..(desc_A.mt-1)
+  k = (desc_A->mt-1)..(desc_A->mt-1)
 
   : data_A(k,k)
 
   /* B == data_A(k,k) */
   /* F == data_A(m1,m1) */
 
-  RW    B <- (k>=1) && (k == desc_A.mt-1) ? F zhedrk(desc_A.mt-2, desc_A.mt-1)
-          <- (k==0) & (1==desc_A.mt) ? data_A(k,k)
-          -> (k == desc_A.mt-1) ? data_A(k,k)
+  RW    B <- (k>=1) && (k == desc_A->mt-1) ? F zhedrk(desc_A->mt-2, desc_A->mt-1)
+          <- (k==0) & (1==desc_A->mt) ? data_A(k,k)
+          -> (k == desc_A->mt-1) ? data_A(k,k)
 
 BODY
 
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
   int ib = DPLASMA_IB;
-  int ldak = desc_A.mb;
+  int ldak = desc_A->mb;
   int ldwork = (tempkn+1)*ib;
 
   printlog("thread %d CORE_zhetrf_nopiv(%d)\n"
@@ -145,8 +145,8 @@ END
 
 ztrsm(k,m)
   /* Execution space */
-  k = 0..(desc_A.mt-2)
-  m = (k+1)..(desc_A.mt-1)
+  k = 0..(desc_A->mt-2)
+  m = (k+1)..(desc_A->mt-1)
 
   : data_A(m,k)
 
@@ -162,18 +162,18 @@ ztrsm(k,m)
   RW    D <- (k>=1) ? M zgemdm(k-1, m, k)
           <- (0==k) ? data_A(m,k)
           -> data_A(m,k)
-/*          -> (desc_A.mt>=(2+m)) ? L zgemdm(k, %{ return dplasma_imax((m+1),(k+1)); %}..(desc_A.mt-1), m) */
-          -> (desc_A.mt>=(2+m)) ? L zgemdm(k, (m+1)..(desc_A.mt-1), m)
+/*          -> (desc_A->mt>=(2+m)) ? L zgemdm(k, %{ return dplasma_imax((m+1),(k+1)); %}..(desc_A->mt-1), m) */
+          -> (desc_A->mt>=(2+m)) ? L zgemdm(k, (m+1)..(desc_A->mt-1), m)
           -> (m>=(2+k)) ? K zgemdm(k, m, (k+1)..(m-1))
           -> E zhedrk(k, m)
 
 BODY
 
-  int tempmm = ((m)==((desc_A.mt)-1)) ? ((desc_A.m)-(m*(desc_A.mb))) : (desc_A.mb);
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int tempmm = ((m)==((desc_A->mt)-1)) ? ((desc_A->m)-(m*(desc_A->mb))) : (desc_A->mb);
+  int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
   PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
-  int ldak = desc_A.mb;
-  int ldam = desc_A.mb;
+  int ldak = desc_A->mb;
+  int ldam = desc_A->mb;
 
   printlog("thread %d CORE_ztrsm(%d, %d)\n"
            "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
@@ -192,8 +192,8 @@ END
 
 zhedrk(k,m1)
   /* Execution space */
-  k = 0..(desc_A.mt-2)
-  m1 = (k+1)..(desc_A.mt-1)
+  k = 0..(desc_A->mt-2)
+  m1 = (k+1)..(desc_A->mt-1)
 
   : data_A(m1,m1)
 
@@ -207,20 +207,20 @@ zhedrk(k,m1)
   READ  E <- D ztrsm(k, m1)
   RW    F <- (k>=1) ? F zhedrk(k-1, m1)
           <- (0==k) ? data_A(m1,m1)
-          -> ((k+1)==m1) & (desc_A.mt>=(k+3)) ? A zhetrf2_nopiv(m1)
-          -> ((k+1)==m1) & ((k+2)==desc_A.mt) ? B zhetrf_nopiv(m1)
+          -> ((k+1)==m1) & (desc_A->mt>=(k+3)) ? A zhetrf2_nopiv(m1)
+          -> ((k+1)==m1) & ((k+2)==desc_A->mt) ? B zhetrf_nopiv(m1)
           -> (m1>=(k+2)) ? F zhedrk(k+1, m1)
   READ  G <- A zhetrf2_nopiv(k)
   CTL ctl -> ctl2 GOK(k, m1, k+1)
 
 BODY
 
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int tempmm = ((m1)==((desc_A->mt)-1)) ? ((desc_A->m)-(m1*(desc_A->mb))) : (desc_A->mb);
+  int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
   int ib = 64;
-  int ldam = desc_A.mb;
+  int ldam = desc_A->mb;
   int lwork = ((tempmm+1)*tempkn)+(ib*ib);
-  int ldak = desc_A.mb;
+  int ldak = desc_A->mb;
 
   printlog("thread %d CORE_zhedrk(%d, %d)\n"
            "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
@@ -243,8 +243,8 @@ END
 
 magic(k,m1)
   /* Execution space */
-  k = 0..(desc_A.mt-2)
-  m1 = (k+2)..(desc_A.mt-1)
+  k = 0..(desc_A->mt-2)
+  m1 = (k+2)..(desc_A->mt-1)
 
   : data_A(k,k)
 
@@ -264,8 +264,8 @@ END
 
 zgemdm(k,m1,n)
   /* Execution space */
-  k = 0..(desc_A.mt-2)
-  m1 = (k+2)..(desc_A.mt-1)
+  k = 0..(desc_A->mt-2)
+  m1 = (k+2)..(desc_A->mt-1)
   n = (k+1)..(m1-1)
 
   : data_A(m1,n)
@@ -286,17 +286,17 @@ zgemdm(k,m1,n)
 
 BODY
 
-  int tempmm = ((m1)==((desc_A.mt)-1)) ? ((desc_A.m)-(m1*(desc_A.mb))) : (desc_A.mb);
-  int tempnn = ((n)==((desc_A.nt)-1)) ? ((desc_A.n)-(n*(desc_A.nb))) : (desc_A.nb);
-  int tempkn = ((k)==((desc_A.nt)-1)) ? ((desc_A.n)-(k*(desc_A.nb))) : (desc_A.nb);
+  int tempmm = ((m1)==((desc_A->mt)-1)) ? ((desc_A->m)-(m1*(desc_A->mb))) : (desc_A->mb);
+  int tempnn = ((n)==((desc_A->nt)-1)) ? ((desc_A->n)-(n*(desc_A->nb))) : (desc_A->nb);
+  int tempkn = ((k)==((desc_A->nt)-1)) ? ((desc_A->n)-(k*(desc_A->nb))) : (desc_A->nb);
   PLASMA_Complex64_t mzone = (PLASMA_Complex64_t)-1.000000;
-  int ldam = desc_A.mb;
+  int ldam = desc_A->mb;
   PLASMA_Complex64_t zone = (PLASMA_Complex64_t)1.000000;
   int lwork = ((PlasmaNoTrans)==(PlasmaNoTrans)) ? ((tempmm+1)*tempkn) : ((tempnn+1)*tempkn);
-  int ldak = desc_A.mb;
+  int ldak = desc_A->mb;
 
   printlog("thread %d CORE_zgemdm(%d, %d, %d)\n"
-           "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A.mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
+           "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A->mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
   context->th_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
 
 #if !defined(PARSEC_DRY_RUN)
@@ -305,7 +305,7 @@ BODY
     CORE_zgemdm(PlasmaNoTrans, PlasmaConjTrans, tempmm,
         tempnn, tempkn, mzone,
         K /* data_A(m1,k) */, ldam, L /* data_A(n,k) */,
-        desc_A.mb, zone, M /* data_A(m1,n) */,
+        desc_A->mb, zone, M /* data_A(m1,n) */,
         ldam, N, ldak+1, p_elem_A, lwork );
 
     parsec_private_memory_push( pool_1, p_elem_A );
@@ -316,7 +316,7 @@ END
 
 ztrmdm(k1)
   /* Execution space */
-  k1 = 0..(desc_A.mt-2)
+  k1 = 0..(desc_A->mt-2)
 
   : data_A(k1,k1)
 
@@ -325,12 +325,12 @@ ztrmdm(k1)
 
   RW    O <- A zhetrf2_nopiv(k1)
           -> data_A(k1,k1)
-  CTL   ctl <- ctl GOK(k1, desc_A.mt-1, desc_A.mt-2)
+  CTL   ctl <- ctl GOK(k1, desc_A->mt-1, desc_A->mt-2)
 
 BODY
 
-  int tempkn = ((k1)==((desc_A.nt)-1)) ? ((desc_A.n)-(k1*(desc_A.nb))) : (desc_A.nb);
-  int ldak = desc_A.mb;
+  int tempkn = ((k1)==((desc_A->nt)-1)) ? ((desc_A->n)-(k1*(desc_A->nb))) : (desc_A->nb);
+  int ldak = desc_A->mb;
 
   printlog("thread %d CORE_ztrmdm(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
@@ -349,17 +349,17 @@ END
  **************************************************/
 GOK(k,m,n)  [profile = off]
   /* Execution space */
-  k = 0..(desc_A.mt-2)
-  m = (k+1)..(desc_A.mt-1)
+  k = 0..(desc_A->mt-2)
+  m = (k+1)..(desc_A->mt-1)
   n = (k+1)..m /* this is "m" and not "m-1" on purpose */
 
   : data_A(m,m)
 
   CTL  ctl <- (n>k+1) ? ctl GOK(k, m, n-1)
-           <- (n==k+1) && (m>k+1) ? ctl GOK(k, m-1, desc_A.mt-1)
+           <- (n==k+1) && (m>k+1) ? ctl GOK(k, m-1, desc_A->mt-1)
            -> (n<m) ? ctl GOK(k, m, n+1)
-           -> (n==m) && (m<desc_A.mt-1) ? ctl GOK(k, m+1, k+1)
-           -> (n==m) && (m==desc_A.mt-1) ? ctl ztrmdm(k)
+           -> (n==m) && (m<desc_A->mt-1) ? ctl GOK(k, m+1, k+1)
+           -> (n==m) && (m==desc_A->mt-1) ? ctl ztrmdm(k)
 
   CTL ctl1 <- (n<m) ? ctl zgemdm(k,m,n)
   CTL ctl2 <- (n==k+1) ? ctl zhedrk(k,m)

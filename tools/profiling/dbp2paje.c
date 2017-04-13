@@ -673,7 +673,7 @@ static int dump_one_paje( const dbp_multifile_reader_t *dbp,
                         dbp_event_iterator_t *nit2;
                         /* Search for next starting event on another device */
                         nit2 = dbp_iterator_find_matching_event_all_threads(nit, 1);
-                        if( NULL == nit ) {
+                        if( NULL == nit2 ) {
                             /* Argh, couldn't find the end in this trace */
                             WARNING("   Event of class %s id %"PRIu32":%"PRIu64" rescheduled at %lu does not have a new starting point anywhere\n",
                                      dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),

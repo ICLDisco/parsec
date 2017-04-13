@@ -280,8 +280,8 @@ static int jdf_sanity_check_expr_bound_before_definition(jdf_expr_t *e, jdf_func
                           d->name,  vc, e->jdf_var);
                 rc = -1;
             }
-            free(vc);
         }
+        free(vc);
         return rc;
     case JDF_CST:
         return 0;
@@ -353,8 +353,8 @@ static int jdf_sanity_check_expr_bound(jdf_expr_t *e, const char *kind, jdf_func
                           kind, f->fname, vc, e->jdf_var);
                 rc = -1;
             }
-            free(vc);
         }
+        free(vc);
         return rc;
     case JDF_CST:
         return 0;
@@ -874,6 +874,7 @@ static int jdf_sanity_check_remote_memory_references(void)
     jdf_guarded_call_t *g;
     jdf_expr_t not;
 
+    memset(&not, 0, sizeof(jdf_expr_t));
     not.op = JDF_NOT;
 
     for( f = current_jdf.functions; f != NULL; f = f->next) {

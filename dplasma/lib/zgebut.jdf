@@ -90,8 +90,8 @@ BODY
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
   context->th_id, i, j, i, j, Atl);
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  type_exists = type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  type_exists = type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
   assert( type_exists ); (void)type_exists;
   mb_tile = descA->A_org->mb;
   nb_tile = descA->A_org->nb;
@@ -177,8 +177,8 @@ BODY
   int i_seg = i_tile*mb_tile + off_in_tile%mb_tile;
   int j_seg = j_tile*nb_tile + off_in_tile/mb_tile;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  R ");
@@ -226,8 +226,8 @@ BODY
   mb_tile = descA->A_org->mb;
   nb_tile = descA->A_org->nb;
 
-  type = segment_to_type_index(descA->seg_info, i, j);
-  (void)type_index_to_sizes(descA->seg_info, type, &mb_seg, &nb_seg);
+  type = segment_to_type_index(&descA->seg_info, i, j);
+  (void)type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
 
   for(ii=0; ii<mb_seg; ii++){
       printf ("  W ");

@@ -212,7 +212,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     status = cudaSetDevice( gpu_device->cuda_index );
     PARSEC_CUDA_CHECK_ERROR( "(cuda_solve_handle_dependencies) cudaSetDevice ", status, {continue;} );
 
-    for( i = 0, index = -1; i < (int)sizeof(cuda_legal_compute_capabilitites); i++ ) {
+    for( i = 0, index = -1; i < (int)sizeof(cuda_legal_compute_capabilitites)/sizeof(int); i++ ) {
         if(cuda_legal_compute_capabilitites[i] == capability) {
             index = i;
             break;
@@ -804,12 +804,11 @@ parsec_cuda_memory_release( gpu_device_t* gpu_device )
     parsec_cuda_memory_release_list(gpu_device, &gpu_device->gpu_mem_owned_lru);
 
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
-    if( gpu_device->memory ) {
-        void* ptr = zone_malloc_fini(&gpu_device->memory);
-        status = cudaFree(ptr);
-        PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_memory_release) cudaFree ", status,
-                                { parsec_warning("Failed to free the GPU backend memory."); } );
-    }
+    assert( NULL != gpu_device->memory );
+    void* ptr = zone_malloc_fini(&gpu_device->memory);
+    status = cudaFree(ptr);
+    PARSEC_CUDA_CHECK_ERROR( "(parsec_cuda_memory_release) cudaFree ", status,
+                             { parsec_warning("Failed to free the GPU backend memory."); } );
 #endif
 
     return PARSEC_SUCCESS;
@@ -913,10 +912,10 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             }
 
             /* The data is not used, and it's not one of ours: we can free it or reuse it */
-            parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
             PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                                 "GPU[%d]:\tRepurpose copy %p to mirror block %p (in task %s:i) instead of %p",
                                 gpu_device->cuda_index, lru_gpu_elem, master, this_task->function->name, i, oldmaster);
+            parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
 
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
             /* Let's free this space, and try again to malloc some space */
@@ -1135,16 +1134,15 @@ int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device)
 {
     //parsec_list_t *sort_list = &(gpu_device->pending);
     parsec_list_t *sort_list = gpu_device->exec_stream[0].fifo_pending;
-    int lock_required = 0;
-    if (lock_required) {
-        if ( !parsec_atomic_trylock(&(sort_list->atomic_lock)) ) {
-            return 0;
-        }
+#if 0
+    if ( !parsec_atomic_trylock(&(sort_list->atomic_lock)) ) {
+        return 0;
     }
+#endif
     if (parsec_list_nolock_is_empty(sort_list) ) { /* list is empty */
-        if (lock_required) {
-            parsec_atomic_unlock(&(sort_list->atomic_lock));
-        }
+#if 0
+        parsec_atomic_unlock(&(sort_list->atomic_lock));
+#endif
         return 0;
     }
 
@@ -1188,9 +1186,9 @@ int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device)
         p = (parsec_list_item_t*)min_p->list_next;
     }
 
-    if (lock_required) {
+#if 0
         parsec_atomic_unlock(&(sort_list->atomic_lock));
-    }
+#endif
     return 0;
 }
 
@@ -1223,9 +1221,9 @@ parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parse
         }
         if( NULL == ec ) {  /* allocate on-demand */
             ec = (parsec_execution_context_t*)parsec_thread_mempool_allocate(eu_context->context_mempool);
-            ec->status = PARSEC_TASK_STATUS_NONE;
             if( NULL == ec )  /* we're running out of memory. Bail out. */
                 break;
+            ec->status = PARSEC_TASK_STATUS_NONE;
         }
         parsec_list_item_ring_chop((parsec_list_item_t*)gpu_copy);
         PARSEC_LIST_ITEM_SINGLETON(gpu_copy);
@@ -1299,7 +1297,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
  */
 int parsec_gpu_get_best_device( parsec_execution_context_t* this_task, double ratio )
 {
-    int i, dev_index, data_index = 0;
+    int i, dev_index = -1, data_index = 0;
     parsec_handle_t* handle = this_task->parsec_handle;
 
     /* Step one: Find the first data in WRITE mode stored on a GPU */
@@ -1313,6 +1311,7 @@ int parsec_gpu_get_best_device( parsec_execution_context_t* this_task, double ra
             }
         }
     }
+    assert(dev_index >= 0);
 
     /* 0 is CPU, and 1 is recursive device */
     if( dev_index <= 1 ) {  /* This is the first time we see this data for a GPU.
@@ -1416,6 +1415,7 @@ progress_stream( gpu_device_t* gpu_device,
          * Obviously, this lead to incorrect results.
          */
         rc = cudaEventRecord( exec_stream->events[exec_stream->start], exec_stream->cuda_stream );
+        assert(cudaSuccess == rc);
         exec_stream->tasks[exec_stream->start] = task;
         exec_stream->start = (exec_stream->start + 1) % exec_stream->max_events;
 #if defined(PARSEC_DEBUG_NOISIER)
@@ -1439,7 +1439,7 @@ progress_stream( gpu_device_t* gpu_device,
   check_completion:
     if( (NULL == *out_task) && (NULL != exec_stream->tasks[exec_stream->end]) ) {
         rc = cudaEventQuery(exec_stream->events[exec_stream->end]);
-        if( CUDA_SUCCESS == rc ) {
+        if( cudaSuccess == rc ) {
 
             /**
              * Even though cuda event return success, the PUSH may not be
@@ -1888,6 +1888,7 @@ parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
 
         gpu_copy = this_task->data[i].data_out;
         original = gpu_copy->original;
+        assert(gpu_copy->super.super.obj_reference_count > 1);
         /* Issue #134 */
         parsec_data_copy_detach(original, gpu_copy, gpu_device->super.device_index);
         gpu_copy->coherency_state = DATA_COHERENCY_SHARED;
@@ -1922,7 +1923,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
     gpu_device_t* gpu_device;
     cudaError_t status;
     int rc, exec_stream = 0;
-    parsec_gpu_context_t *progress_task, *out_task_push, *out_task_submit = NULL, *out_task_pop;
+    parsec_gpu_context_t *progress_task, *out_task_push, *out_task_submit = NULL, *out_task_pop = NULL;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -1995,6 +1996,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
                 __parsec_reschedule(eu_context, progress_task->ec);
                 parsec_gpu_kernel_cleanout(gpu_device, progress_task);
                 gpu_task = progress_task;
+                progress_task = NULL;
                 goto remove_gpu_task;
             }
             gpu_task = NULL;

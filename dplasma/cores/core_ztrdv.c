@@ -274,7 +274,6 @@ static void CORE_zhbtelr(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
   (void)N;
 
   KDM1 = NB-1;
-  LDX = LDA1-1;
   LDX = LDA2-1;
   /* **********************************************************************************************
    *   Annihiliate, then LEFT:
@@ -456,7 +455,6 @@ static void CORE_zhbtlrx(int N, int NB, parsec_complex64_t *A1, int LDA1, parsec
 
   (void)N;
   KDM1 = NB-1;
-  LDX = LDA1-1;
   LDX = LDA2-1;
   /* **********************************************************************************************
    *   Annihiliate, then LEFT:

@@ -96,6 +96,7 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
         float best_required_in, best_required_out;
         char *data_in_unit, *data_out_unit;
         char *required_in_unit, *required_out_unit;
+        char percent1[64], percent2[64];
         uint32_t i;
 
         /* GPU counter for GEMM / each */
@@ -160,12 +161,22 @@ int parsec_devices_fini(parsec_context_t* parsec_context)
         parsec_compute_best_unit( total_data_in,      &best_data_in,      &data_in_unit      );
         parsec_compute_best_unit( total_data_out,     &best_data_out,     &data_out_unit     );
 
-        printf("|All Devs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%5.2f) | %8.2f%2s | %8.2f%2s(%5.2f) |\n",
+        if( 0 == total_required_in ) {
+            snprintf(percent1, 64, "nan");
+        } else {
+            snprintf(percent1, 64, "%5.2f",  ((double)total_data_in  / (double)total_required_in ) * 100.0);
+        }
+        if( 0 == total_required_out ) {
+            snprintf(percent2, 64, "nan");
+        } else {
+            snprintf(percent2, 64, "%5.2f", ((double)total_data_out / (double)total_required_out) * 100.0);
+        }
+        printf("|All Devs |%10d | %5.2f | %8.2f%2s | %8.2f%2s(%s) | %8.2f%2s | %8.2f%2s(%s) |\n",
                total, (total/gtotal)*100.00,
                best_required_in,  required_in_unit,  best_data_in,  data_in_unit,
-               ((double)total_data_in  / (double)total_required_in ) * 100.0,
+               percent1,
                best_required_out, required_out_unit, best_data_out, data_out_unit,
-               ((double)total_data_out / (double)total_required_out) * 100.0);
+               percent2);
         printf("-------------------------------------------------------------------------------------------------\n");
 
         free(device_counter);

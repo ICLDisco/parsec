@@ -142,7 +142,8 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                 myassert( start == mt );
                 return mt;
             }
-
+            /* No break; process case for DPLASMA_QR_KILLED_BY_TS */
+            
         case DPLASMA_QR_KILLED_BY_TS:
 
             if ( start == mt )
@@ -154,6 +155,7 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                 return nextp;
 
             start = mt;
+            /* No break; process case for DPLASMA_QR_KILLED_BY_LOCALTREE */
 
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
 
@@ -171,6 +173,7 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                 return nextp;
 
             start = mt;
+            /* No break; process case for DPLASMA_QR_KILLED_BY_DISTTREE */
 
         case DPLASMA_QR_KILLED_BY_DISTTREE:
 
@@ -184,6 +187,7 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
 
             if ( nextp < k + p )
                 return nextp;
+            /* No break; process default case  */
 
         default:
             return mt;
@@ -249,7 +253,8 @@ static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                     return nextp;
             }
             start = pivot;
-
+            /* No break; process case for DPLASMA_QR_KILLED_BY_LOCALTREE */
+            
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
 
             if ( lp > DPLASMA_QR_KILLED_BY_LOCALTREE ) {
@@ -268,6 +273,7 @@ static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                     return nextp;
             }
             start = pivot;
+            /* No break; process case for DPLASMA_QR_KILLED_BY_TS */
 
         case DPLASMA_QR_KILLED_BY_TS:
             /* Search for predecessor in TS tree */
@@ -284,6 +290,7 @@ static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                 if ( pivot < nextp )
                     return nextp;
             }
+            /* No break; process default case */
 
         default:
             return mt;

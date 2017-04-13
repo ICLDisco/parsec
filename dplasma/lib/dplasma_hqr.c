@@ -1096,7 +1096,8 @@ static void hqr_high_fibonacci_init(hqr_subpiv_t *arg){
 /****************************************************
  *                 HQR_HIGH_GREEDY_TREE (1 panel duplicated)
  ***************************************************/
-static void hqr_high_greedy1p_init(hqr_subpiv_t *arg){
+static void hqr_high_greedy1p_init(hqr_subpiv_t *arg)
+{
     int *ipiv;
     int mt, p;
 
@@ -1112,53 +1113,35 @@ static void hqr_high_greedy1p_init(hqr_subpiv_t *arg){
     memset(ipiv, 0, p*sizeof(int));
 
     {
-        int minMN = 1;
-        int j, k, height, start, end, firstk = 0;
-        int *nT = (int*)malloc(minMN*sizeof(int));
-        int *nZ = (int*)malloc(minMN*sizeof(int));
-        memset( nT, 0, minMN*sizeof(int));
-        memset( nZ, 0, minMN*sizeof(int));
+        int j, height, start, end, firstk = 0;
+        int nT = mt;
+        int nZ = dplasma_imax( mt - p, 0 );
 
-        nT[0] = mt;
-        nZ[0] = dplasma_imax( mt - p, 0 );
-        for(k=1; k<minMN; k++) {
-            height = dplasma_imax(mt-k-p, 0);
-            nT[k] = height;
-            nZ[k] = height;
-        }
-
-        k = 0;
-        while ( (!( ( nT[minMN-1] == mt - (minMN - 1) ) &&
-                    ( nZ[minMN-1]+1 == nT[minMN-1] ) ) )
-                && ( firstk < minMN ) ) {
-            height = (nT[k] - nZ[k]) / 2;
+        while ( (!( ( nT == mt ) && ( nZ+1 == nT ) ) )
+                && ( firstk < 1 ) )
+        {
+            height = (nT - nZ) / 2;
             if ( height == 0 ) {
-                while ( (firstk < minMN) &&
-                        ( nT[firstk] == mt - firstk ) &&
-                        ( nZ[firstk]+1 == nT[firstk] ) ) {
+                while ( ( firstk < 1 ) &&
+                        ( nT   == mt ) &&
+                        ( nZ+1 == nT ) )
+                {
                     firstk++;
                 }
-                k = firstk;
-                continue;
+                if (firstk > 0)
+                    break;
             }
 
-            start = mt - nZ[k] - 1;
+            start = mt - nZ - 1;
             end = start - height;
-            nZ[k] += height;
-            if (k < minMN-1) nT[k+1] = nZ[k];
+            nZ += height;
 
             for( j=start; j > end; j-- ) {
-                ipiv[ k*p + j-k ] = (j - height);
+                ipiv[ j ] = (j - height);
             }
-
-            k++;
-            if (k > minMN-1) k = firstk;
         }
-
-        free(nT);
-        free(nZ);
     }
-};
+}
 
 /****************************************************
  *                 HQR_HIGH_GREEDY_TREE

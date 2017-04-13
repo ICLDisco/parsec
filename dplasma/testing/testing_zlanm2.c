@@ -21,7 +21,6 @@ double check_zlanm2(int M, int N, parsec_complex64_t *A, int LDA, int *info )
     parsec_complex64_t alpha;
     double normx, normsx, e0, e1, tol;
     int maxiter, i = 0;
-    int verbose = 0;
 
     memset( DX, 0, N * sizeof(double) );
     CORE_dzasum(PlasmaColumnwise, PlasmaUpperLower,
@@ -43,10 +42,10 @@ double check_zlanm2(int M, int N, parsec_complex64_t *A, int LDA, int *info )
     while( (i < maxiter) &&
            (fabs(e1 - e0) > (tol * e1)))
     {
-        if (verbose) {
+#if defined(VERBOSE)
             printf( "LAP[0] ZLANM2[%d] normx=%e / normsx=%e / e0=%e / e1=%e\n",
                     i, normx, normsx, e0, e1 );
-        }
+#endif
         alpha = 1. / normx;
         cblas_zscal( N, CBLAS_SADDR(alpha), ZX, 1 );
 
@@ -63,10 +62,10 @@ double check_zlanm2(int M, int N, parsec_complex64_t *A, int LDA, int *info )
         i++;
     }
 
-    if (verbose) {
+#if defined(VERBOSE)
         printf( "LAP[0] ZLANM2[%d] normx=%e / normsx=%e / e0=%e / e1=%e\n",
                 i, normx, normsx, e0, e1 );
-    }
+#endif
 
     *info = i;
 
