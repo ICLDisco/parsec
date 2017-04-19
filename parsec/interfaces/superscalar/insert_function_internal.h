@@ -85,6 +85,14 @@ typedef void (parsec_handle_wait_t)( parsec_context_t *context, parsec_handle_t 
 #define TASK_INSERTED (1<<1)
 #define DATA_RELEASED (1<<2)
 #define RELEASE_REMOTE_DATA (1<<3)
+/* This flag is used to mark flow of a task specially. There might be cases,
+ * where one task uses same data in multiple flow, in the order W->...->R.
+ * In this special case the task does not release the ownserhip of the data
+ * for the "W" flow, but it needs to. We mark the last "R" flow as special
+ * and make sure we release the ownership of the data when we are going
+ * through the last "R" flow.
+ */
+#define RELEASE_OWNERSHIP_SPECIAL (1<<4)
 
 /*
  * Contains info about each flow of a task
@@ -113,6 +121,7 @@ typedef struct parsec_dtd_flow_info_s {
     1 task_inserted;
     2 data_released;
     3 release remote data
+    4 release ownership even when the flow is of type R
     */
     parsec_dtd_tile_t *tile;
     int rank_sent_to[MAX_RANK_INFO]; /* currently support 1024 nodes */
@@ -185,7 +194,7 @@ struct parsec_dtd_tile_s {
     int16_t                  arena_index;
     int16_t                  flushed;
     int32_t                  rank;
-    parsec_data_key_t        key;
+    uint64_t                 key;
     parsec_data_copy_t      *data_copy;
     parsec_ddesc_t          *ddesc;
     parsec_dtd_tile_user_t   last_user;
@@ -305,12 +314,12 @@ parsec_dtd_schedule_tasks( parsec_dtd_handle_t *__parsec_handle );
 /* Function to remove tile from hash_table
  */
 void
-parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint32_t key );
+parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint64_t key );
 
 /* Function to find tile in hash_table
  */
 parsec_dtd_tile_t *
-parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint32_t key );
+parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint64_t key );
 
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
@@ -318,9 +327,9 @@ parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
 uint32_t hash_key (uint64_t key, void *data);
 
 void
-parsec_dtd_tile_insert( uint32_t key,
-                        parsec_dtd_tile_t *tile,
-                        parsec_ddesc_t    *ddesc );
+parsec_dtd_tile_insert( uint64_t key,
+                        parsec_dtd_tile_t   *tile,
+                        parsec_ddesc_t      *ddesc );
 
 parsec_dtd_function_t *
 parsec_dtd_function_find( parsec_dtd_handle_t  *parsec_handle,

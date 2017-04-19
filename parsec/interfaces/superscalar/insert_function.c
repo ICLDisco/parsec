@@ -808,7 +808,7 @@ parsec_dtd_insert_task( parsec_dtd_handle_t *parsec_handle,
                         void                *value )
 {
     dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)parsec_thread_mempool_allocate(parsec_handle->hash_table_bucket_mempool->thread_mempools);
-    
+
     hash_table_t *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
 
     item->ht_item.key   = key;
@@ -866,10 +866,11 @@ parsec_dtd_find_and_remove_task( parsec_dtd_handle_t *parsec_handle,
 {
     hash_table_t *hash_table = parsec_handle->two_hash_table->task_and_rem_dep_h_table;
     void *value;
-    
+
     dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)hash_table_nolock_find( hash_table, key );
     if( NULL == item ) return NULL;
     else {
+        void *tmp = item->value;
         parsec_dtd_remove_task( parsec_handle, key );
         value = item->value;
         parsec_thread_mempool_free( parsec_handle->hash_table_bucket_mempool->thread_mempools, item );
@@ -1014,7 +1015,7 @@ parsec_dtd_function_find( parsec_dtd_handle_t  *parsec_handle,
  * @ingroup         DTD_ITERFACE_INTERNAL
  */
 void
-parsec_dtd_tile_insert( uint32_t key,
+parsec_dtd_tile_insert( uint64_t key,
                         parsec_dtd_tile_t *tile,
                         parsec_ddesc_t    *ddesc )
 {
@@ -1040,7 +1041,7 @@ parsec_dtd_tile_insert( uint32_t key,
  * @ingroup         DTD_ITERFACE_INTERNAL
  */
 void
-parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint32_t key )
+parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint64_t key )
 {
     hash_table_t *hash_table = (hash_table_t *)ddesc->tile_h_table;
 
@@ -1062,7 +1063,7 @@ parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint32_t key )
  * @ingroup         DTD_ITERFACE_INTERNAL
  */
 parsec_dtd_tile_t *
-parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint32_t key )
+parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint64_t key )
 {
     hash_table_t *hash_table   = (hash_table_t *)ddesc->tile_h_table;
     assert(hash_table != NULL);
@@ -1168,13 +1169,13 @@ parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc )
 parsec_dtd_tile_t*
 parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
 {
-    parsec_dtd_tile_t *tile = parsec_dtd_tile_find ( ddesc, key );
+    parsec_dtd_tile_t *tile = parsec_dtd_tile_find ( ddesc, (uint64_t)key );
     if( NULL == tile ) {
         /* Creating Tile object */
         tile = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_dtd_tile_mempool->thread_mempools );
         tile->ddesc                 = ddesc;
         tile->arena_index           = -1;
-        tile->key                   = key;
+        tile->key                   = (uint64_t) 0x00000000 | key;
         tile->rank                  = ddesc->rank_of_key(ddesc, tile->key);
         tile->flushed               = NOT_FLUSHED;
         if( tile->rank == (int)ddesc->myrank ) {
@@ -1190,7 +1191,7 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
 
         parsec_dtd_tile_retain(tile);
         parsec_dtd_tile_insert( tile->key,
-                               tile, ddesc );
+                                tile, ddesc );
     }
     assert(tile->flushed == NOT_FLUSHED);
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -2021,7 +2022,7 @@ parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task, parsec_dtd_task_
     dep_t *dep = NULL;
 
     for (i=0; i<MAX_DEP_OUT_COUNT; i++) {
-        if ( flow->dep_out[i]->function_id == desc_function_id &&
+        if( flow->dep_out[i]->function_id == desc_function_id &&
             flow->dep_out[i]->flow->flow_index == desc_flow_index ) {
             dep = (dep_t *) flow->dep_out[i];
             break;
@@ -2863,19 +2864,39 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             if(last_user.task == this_task) {
                 satisfied_flow += 1;
                 this_task->super.data[flow_index].data_in = tile->data_copy;
-                if( ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT) ) {
-                    if( parsec_dtd_task_is_local(this_task) ) {
-                        parsec_dtd_release_local_task( this_task );
-                    }
-                }
                 /* What if we have the same task using the same data in different flows
                  * with the corresponding  operation type on the data : R then W, we are
                  * doomed and this is to not get doomed
                  */
                 if(parsec_dtd_task_is_local(this_task)) {
+                    /* Checking if a task uses same data on different
+                     * flows in the order W, R ...
+                     * If yes, we MARK the later flow, as the last flow
+                     * needs to release ownership and it is not released
+                     * in the case where the last flow is a R.
+                     */
+                    if( ( (last_user.op_type  & GET_OP_TYPE) == INOUT || (last_user.op_type  & GET_OP_TYPE) == OUTPUT ) && ((tile_op_type & GET_OP_TYPE) == INPUT) ) {
+                        FLOW_OF(this_task, flow_index)->flags |= RELEASE_OWNERSHIP_SPECIAL;
+                    } else if( (last_user.op_type  & GET_OP_TYPE) == INPUT && (tile_op_type & GET_OP_TYPE) == INPUT ) {
+                        /* we unset flag for previous flow and set it for last one */
+                        FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
+                        FLOW_OF(this_task, flow_index)->flags |= RELEASE_OWNERSHIP_SPECIAL;
+                    }
+
                     if( ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT)
                         && (last_user.op_type & GET_OP_TYPE) == INPUT ) {
+
+                        /* clearing bit set to track special release of ownership */
+                        FLOW_OF(last_user.task, last_user.flow_index)->flags &= ~RELEASE_OWNERSHIP_SPECIAL;
+
                         (void)parsec_atomic_add_32b( (int *)&(this_task->super.data[flow_index].data_in->readers) , -1 );
+
+                    }
+                }
+
+                if( ((tile_op_type & GET_OP_TYPE) == OUTPUT || (tile_op_type & GET_OP_TYPE) == INOUT) ) {
+                    if( parsec_dtd_task_is_local(this_task) ) {
+                        parsec_dtd_release_local_task( this_task );
                     }
                 }
             }
@@ -3095,7 +3116,7 @@ parsec_insert_task( parsec_handle_t  *parsec_handle,
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
     parsec_function_t *function = (parsec_function_t *) parsec_dtd_function_find
-                                                     (parsec_dtd_handle, fkey);
+                                                       (parsec_dtd_handle, fkey);
 
     if( NULL == function ) {
         /* calculating the size of parameters for each task class*/

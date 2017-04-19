@@ -193,7 +193,6 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
                 continue;
             }
 
-
             if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                 if( INPUT == op_type_on_current_flow ) {
                     if(parsec_dtd_task_is_local(current_task)){
@@ -224,6 +223,11 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
                         } /* Current task has a descendant hence we must activate her */
                     }
                 } else {
+                    if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
+                        if( FLOW_OF(current_task, current_dep)->flags & RELEASE_OWNERSHIP_SPECIAL ){
+                            made_sure_nextinline_is_null(current_task, current_dep);
+                        }
+                    }
                     //parsec_dtd_tile_release( (parsec_dtd_handle_t *)current_task->super.parsec_handle, tile);
                     continue;
                 }
