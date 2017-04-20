@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
     msort = merge_sort_new(ddescA, nb, nt);
     parsec_enqueue(parsec, msort);
 
+    parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
     parsec_handle_free((parsec_handle_t*)msort);
