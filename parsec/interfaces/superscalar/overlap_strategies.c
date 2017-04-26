@@ -36,7 +36,7 @@ extern int dump_traversal_info; /**< For printing traversal info */
 static int
 made_sure_nextinline_is_null(parsec_dtd_task_t *current_task, int flow_index)
 {
-    parsec_dtd_tile_t *tile = (FLOW_OF(current_task, flow_index))->tile;
+    parsec_dtd_tile_t *tile = FLOW_OF(current_task, flow_index)->tile;
 
     parsec_dtd_last_user_lock( &(tile->last_user) );
     parsec_mfence(); /* Write */
@@ -48,7 +48,6 @@ made_sure_nextinline_is_null(parsec_dtd_task_t *current_task, int flow_index)
 
         /* Setting the iterated flag of parent as YES */
         if( !((FLOW_OF((PARENT_OF(current_task, flow_index))->task, (PARENT_OF(current_task, flow_index))->flow_index))->flags & SUCCESSOR_ITERATED) ) {
-            //parsec_dtd_tile_release( (parsec_dtd_handle_t *)current_task->super.parsec_handle, current_task->flow[flow_index].tile);
             (FLOW_OF((PARENT_OF(current_task, flow_index))->task, (PARENT_OF(current_task, flow_index))->flow_index))->flags |= SUCCESSOR_ITERATED;
         }
 
@@ -86,9 +85,9 @@ made_sure_nextinline_is_null(parsec_dtd_task_t *current_task, int flow_index)
  *
  ******************************************************************************/
 static int
-release_ownership_of_data_1(parsec_dtd_task_t *current_task, int flow_index)
+release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
 {
-    parsec_dtd_tile_t *tile = (FLOW_OF(current_task, flow_index))->tile;
+    parsec_dtd_tile_t *tile = FLOW_OF(current_task, flow_index)->tile;
 
     parsec_dtd_last_user_lock( &(tile->last_user) );
     parsec_mfence(); /* Write */
@@ -97,7 +96,7 @@ release_ownership_of_data_1(parsec_dtd_task_t *current_task, int flow_index)
     if( tile->last_user.task == current_task ) {
         tile->last_user.alive = TASK_IS_NOT_ALIVE;
 
-        (FLOW_OF(current_task, flow_index))->flags |= SUCCESSOR_ITERATED;
+        FLOW_OF(current_task, flow_index)->flags |= SUCCESSOR_ITERATED;
 
         parsec_dtd_last_user_unlock( &(tile->last_user) );
         /* we are successful, we do not need to wait and there is no successor yet*/
@@ -139,11 +138,11 @@ release_ownership_of_data_1(parsec_dtd_task_t *current_task, int flow_index)
  *
  ******************************************************************************/
 void
-parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
-                                 const parsec_execution_context_t *this_task,
-                                 uint32_t action_mask,
-                                 parsec_ontask_function_t *ontask,
-                                 void *ontask_arg )
+parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
+                               const parsec_execution_context_t *this_task,
+                               uint32_t action_mask,
+                               parsec_ontask_function_t *ontask,
+                               void *ontask_arg )
 {
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     int current_dep;
@@ -155,7 +154,6 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)ontask_arg;
     parsec_dep_data_description_t data;
     int rank_src = 0, rank_dst = 0, vpid_dst=0;
-    (void)action_mask;
 
     /* finding for which flow we need to iterate successors of */
     int flow_mask = 0;
@@ -181,14 +179,14 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
     for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
         if( (flow_mask & (1<<current_dep)) ) {
             current_desc = (DESC_OF(current_task, current_dep))->task;
-            op_type_on_current_flow = ((FLOW_OF(current_task, current_dep))->op_type & GET_OP_TYPE);
-            tile = (FLOW_OF(current_task, current_dep))->tile;
+            op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & GET_OP_TYPE);
+            tile = FLOW_OF(current_task, current_dep)->tile;
 
             if( NULL == tile ) {
                 continue;
             }
 
-            if( ((FLOW_OF(current_task, current_dep))->op_type) & DONT_TRACK ) {
+            if( FLOW_OF(current_task, current_dep)->op_type & DONT_TRACK ) {
                 /* User has instructed us not to track this data */
                 continue;
             }
@@ -207,7 +205,6 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
              * to ourself.
              */
             if(current_task == current_desc) {
-                //parsec_dtd_tile_release( (parsec_dtd_handle_t *)current_task->super.parsec_handle, tile);
                 continue;
             }
 
@@ -215,8 +212,7 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
                 if( INOUT == op_type_on_current_flow ||
                     OUTPUT == op_type_on_current_flow ) {
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                        if(release_ownership_of_data_1(current_task, current_dep)) { /* trying to release ownership */
-                            //parsec_dtd_tile_release( (parsec_dtd_handle_t *)current_task->super.parsec_handle, tile);
+                        if(release_ownership_of_data(current_task, current_dep)) { /* trying to release ownership */
                             continue;  /* no descendent for this data */
                         } else {
                             current_desc = (DESC_OF(current_task, current_dep))->task;
@@ -228,7 +224,6 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
                             made_sure_nextinline_is_null(current_task, current_dep);
                         }
                     }
-                    //parsec_dtd_tile_release( (parsec_dtd_handle_t *)current_task->super.parsec_handle, tile);
                     continue;
                 }
             }
@@ -239,7 +234,7 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
 
             /* setting data */
             data.data   = current_task->super.data[current_dep].data_out;
-            data.arena  = parsec_dtd_arenas[(FLOW_OF(current_task, current_dep))->arena_index];
+            data.arena  = parsec_dtd_arenas[FLOW_OF(current_task, current_dep)->arena_index];
             data.layout = data.arena->opaque_dtt;
             data.count  = 1;
             data.displ  = 0;
@@ -258,10 +253,9 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                     if(parsec_dtd_task_is_local(current_desc)) {
                         current_desc->super.data[desc_flow_index].data_in = current_task->super.data[current_dep].data_out;
-                        if( parsec_dtd_task_is_remote(current_task) ) {
-                            (FLOW_OF(current_desc, desc_flow_index))->flags |= RELEASE_REMOTE_DATA;
-                        }
                         if( current_task->super.data[current_dep].data_out != tile->data_copy ) {
+                            FLOW_OF(current_task, current_dep)->flags |= RELEASE_REMOTE_DATA;
+                            FLOW_OF(current_desc, desc_flow_index)->flags |= RELEASE_REMOTE_DATA;
                             parsec_dtd_retain_floating_data(current_task->super.data[current_dep].data_out);
                         }
                     }
@@ -311,9 +305,8 @@ parsec_dtd_ordering_correctly_1( parsec_execution_unit_t *eu,
                      */
                 } else {
                     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-                        if( !((FLOW_OF(current_task, current_dep))->flags & SUCCESSOR_ITERATED) ){
-                            (FLOW_OF(current_task, current_dep))->flags |= SUCCESSOR_ITERATED;
-                            //parsec_dtd_tile_release( (parsec_dtd_handle_t *)current_task->super.parsec_handle, tile);
+                        if( !(FLOW_OF(current_task, current_dep)->flags & SUCCESSOR_ITERATED) ){
+                            FLOW_OF(current_task, current_dep)->flags |= SUCCESSOR_ITERATED;
                         }
                         /* Found next owner of data, decrement count on current local owner */
                         if( parsec_dtd_task_is_local(current_task) ) {

@@ -1642,8 +1642,8 @@ iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
     this_dtd_task = (parsec_dtd_task_t *)this_task;
 
     (void)eu; (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
-    parsec_dtd_ordering_correctly_1( eu, (parsec_execution_context_t *)this_dtd_task,
-                                     action_mask, ontask, ontask_arg );
+    parsec_dtd_ordering_correctly( eu, (parsec_execution_context_t *)this_dtd_task,
+                                   action_mask, ontask, ontask_arg );
 }
 
 /* **************************************************************************** */

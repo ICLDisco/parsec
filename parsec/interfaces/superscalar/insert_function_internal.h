@@ -302,11 +302,11 @@ data_lookup_of_dtd_task( parsec_execution_unit_t *,
                          parsec_execution_context_t * );
 
 void
-parsec_dtd_ordering_correctly_1( parsec_execution_unit_t * eu,
-                                 const parsec_execution_context_t * this_task,
-                                 uint32_t action_mask,
-                                 parsec_ontask_function_t * ontask,
-                                 void *ontask_arg );
+parsec_dtd_ordering_correctly( parsec_execution_unit_t * eu,
+                               const parsec_execution_context_t * this_task,
+                               uint32_t action_mask,
+                               parsec_ontask_function_t * ontask,
+                               void *ontask_arg );
 
 void
 parsec_dtd_schedule_tasks( parsec_dtd_handle_t *__parsec_handle );
