@@ -324,8 +324,6 @@ parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint64_t key );
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
 
-uint32_t hash_key (uint64_t key, void *data);
-
 void
 parsec_dtd_tile_insert( uint64_t key,
                         parsec_dtd_tile_t   *tile,

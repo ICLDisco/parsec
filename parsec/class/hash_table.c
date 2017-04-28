@@ -24,8 +24,7 @@ void hash_table_init(hash_table_t *ht, int64_t offset, size_t size_of_table, has
     
     ht->buckets = malloc(size_of_table * sizeof(hash_table_bucket_t));
 
-    int i;
-    for( i=0; i<size_of_table; i++) {
+    for( size_t i = 0; i < size_of_table; i++) {
         ht->buckets[i].lock = unlocked;
         ht->buckets[i].first_item = NULL;
     }
@@ -47,8 +46,7 @@ void hash_table_unlock_bucket(hash_table_t *ht, uint64_t key )
 
 void hash_table_fini(hash_table_t *ht)
 {
-    int i;
-    for(i=0; i < ht->size; i++) {
+    for(size_t i = 0; i < ht->size; i++) {
         assert(NULL == ht->buckets[i].first_item);
     }
 

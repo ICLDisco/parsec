@@ -126,10 +126,8 @@ int main(int argc, char ** argv)
 #endif
 
     int m;
-    int no_of_chain;
     int nb, nt;
     tiled_matrix_desc_t *ddescA;
-    int amount_of_work[3] = {1000, 10000, 100000};
     parsec_handle_t *parsec_dtd_handle;
 
     parsec = parsec_init( cores, &argc, &argv );
@@ -154,7 +152,6 @@ int main(int argc, char ** argv)
 
     parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
     parsec_dtd_ddesc_init(A);
-    int work_index = 0;
 
     SYNC_TIME_START();
 

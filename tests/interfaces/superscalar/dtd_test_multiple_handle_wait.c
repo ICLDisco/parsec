@@ -39,8 +39,7 @@ int main(int argc, char ** argv)
 {
     parsec_context_t* parsec;
     int rank, world, cores;
-    int nb, nt, parsec_argc;
-    tiled_matrix_desc_t *ddescA;
+    int parsec_argc;
     char** parsec_argv;
 
 #if defined(PARSEC_HAVE_MPI)

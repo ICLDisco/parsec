@@ -2072,26 +2072,22 @@ static char *source_name(parsec_mca_param_source_t source,
     switch (source) {
     case MCA_PARAM_SOURCE_DEFAULT:
         return strdup("default value");
-        break;
 
     case MCA_PARAM_SOURCE_ENV:
         return strdup("command line or environment variable");
-        break;
 
     case MCA_PARAM_SOURCE_FILE:
         rc = asprintf(&ret, "file (%s)", filename);
         assert(0 < rc);
         return ret;
-        break;
 
     case MCA_PARAM_SOURCE_OVERRIDE:
         return strdup("internal override");
-        break;
 
     default:
         return strdup("unknown (!)");
-        break;
     }
+    (void)rc;  /* prevent the compiler form complaining */
 }
 
 int parsec_mca_param_check_exclusive_string(const char *type_a,

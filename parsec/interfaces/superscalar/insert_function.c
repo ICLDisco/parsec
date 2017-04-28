@@ -95,6 +95,8 @@ static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_unit_t *,
                      parsec_execution_context_t *);
 
+static uint32_t hash_key (uintptr_t key, void *data);
+
 inline int parsec_dtd_task_is_local(parsec_dtd_task_t *task) { return task->rank == task->super.parsec_handle->context->my_rank;}
 inline int parsec_dtd_task_is_remote(parsec_dtd_task_t *task) { return !parsec_dtd_task_is_local(task);}
 
@@ -795,10 +797,10 @@ parsec_dtd_add_profiling_info_generic( parsec_handle_t *parsec_handle,
  *
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
-uint32_t hash_key (uint64_t key, void *data)
+static uint32_t hash_key (uintptr_t key, void *data)
 {
     int size = ((hash_table_t*)data)->size;
-    uint32_t hash_val = key % size;
+    uint32_t hash_val = ((uint64_t)key) % size;
     return hash_val;
 }
 

@@ -4269,28 +4269,28 @@ static void jdf_generate_code_call_release_dependencies(const jdf_t *jdf,
 #define JDF_CODE_DATATYPE_DUMP(SA_WHERE, MASK, SA_COND, SA_DATATYPE, SKIP_COND)    \
     do {                                                                \
         if( strlen(string_arena_get_string((SA_DATATYPE))) ) {          \
+            string_arena_add_string((SA_WHERE),                         \
+                                    "    if( ((*flow_mask) & 0x%xU)",   \
+                                    (MASK));                            \
             if( strlen(string_arena_get_string((SA_COND))) ) {          \
-                string_arena_add_string((SA_WHERE),                     \
-                                        "    if( ((*flow_mask) & 0x%xU)", \
-                                        (MASK));                        \
                 if( !(SKIP_COND) ) {                                    \
                     string_arena_add_string((SA_WHERE),                 \
                                             "\n && (%s)",               \
                                             string_arena_get_string((SA_COND))); \
                 }                                                       \
-                string_arena_add_string((SA_WHERE),                     \
-                                        " ) {%s\n",                     \
-                    ((SKIP_COND) ? "  /* Have unconditional! */" : "")); \
-                (SKIP_COND) = 0;                                        \
             }                                                           \
+            string_arena_add_string((SA_WHERE),                         \
+                                    " ) {%s\n",                         \
+                                    ((SKIP_COND) ? "  /* Have unconditional! */" : "")); \
+            (SKIP_COND) = 0;                                            \
             string_arena_add_string((SA_WHERE),                         \
                                     "%s"                                \
                                     "      (*flow_mask) &= ~0x%xU;\n"   \
                                     "      return PARSEC_HOOK_RETURN_NEXT;\n", \
                                     string_arena_get_string((SA_DATATYPE)), \
                                     (MASK));                            \
+            string_arena_add_string((SA_WHERE), "    }\n");             \
             if( strlen(string_arena_get_string((SA_COND))) ) {          \
-                string_arena_add_string((SA_WHERE), "    }\n");         \
                 string_arena_init((SA_COND));                           \
             }                                                           \
             (MASK) = 0;                                                 \
@@ -4351,7 +4351,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
     }
     type = JDF_DEP_FLOW_IN;
 
-  redo:
+ redo:  /* we come back here to iterate over the output flows (depending on the variable type) */
     string_arena_init(sa_coutput);
     for( fl = f->dataflow; fl != NULL; fl = fl->next ) {
         if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) continue;
@@ -4405,19 +4405,19 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                     updated = 1;
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_layout), string_arena_get_string(sa_layout)) ) {
-                    /* Same thing: the memory layout may change at anytime */
+                    /* Same thing: the memory layout may have changed */
                     string_arena_init(sa_layout);
                     string_arena_add_string(sa_layout, "%s", string_arena_get_string(sa_tmp_layout));
                     updated = 1;
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_nbelt), string_arena_get_string(sa_nbelt)) ) {
-                    /* Same thing: the number of transmitted elements may change at anytime */
+                    /* Same thing: the number of transmitted elements may have changed */
                     string_arena_init(sa_nbelt);
                     string_arena_add_string(sa_nbelt, "%s", string_arena_get_string(sa_tmp_nbelt));
                     updated = 1;
                 }
                 if( strcmp(string_arena_get_string(sa_tmp_displ), string_arena_get_string(sa_displ)) ) {
-                    /* Same thing: the displacement may change at anytime */
+                    /* Same thing: the displacement may have changed */
                     string_arena_init(sa_displ);
                     string_arena_add_string(sa_displ, "%s", string_arena_get_string(sa_tmp_displ));
                     updated = 1;
@@ -4453,8 +4453,8 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
                 break;
             }
 
-	    /* update the mask before the next dump */
-	    current_mask |= (type == JDF_DEP_FLOW_OUT ? (1U << dl->dep_index) : (1U << fl->flow_index));
+            /* update the mask before the next dump */
+            current_mask |= (type == JDF_DEP_FLOW_OUT ? (1U << dl->dep_index) : (1U << fl->flow_index));
 
             if( !continue_dependencies ) break;
         }

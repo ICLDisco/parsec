@@ -2240,7 +2240,7 @@ void parsec_debug_print_local_expecting_tasks_for_function( parsec_handle_t *han
                 parsec_debug_verbose(0, parsec_debug_output,
                                      "  Task %s uses a dependency lookup mechanism that does not allow it to remember executed / waiting / ready tasks\n",
                                      parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, &context));
-                (*nlocal--);
+                (*nlocal)--;
                 continue;
             }
             if( function->flags & PARSEC_USE_DEPS_MASK ) {
