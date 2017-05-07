@@ -94,6 +94,7 @@ bcast1( parsec_execution_unit_t    *context,
 int main(int argc, char **argv)
 {
     parsec_context_t* parsec;
+    int rc;
     int rank, world, cores;
     int nb, nt;
     tiled_matrix_desc_t *ddescA;
@@ -137,9 +138,11 @@ int main(int argc, char **argv)
     int root = 0, i;
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    rc = parsec_enqueue( parsec, parsec_dtd_handle );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
-    parsec_context_start(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
     root = 0;
 
@@ -198,7 +201,8 @@ int main(int argc, char **argv)
     parsec_dtd_data_flush_all( parsec_dtd_handle, A );
 
     parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     parsec_handle_free( parsec_dtd_handle );
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);

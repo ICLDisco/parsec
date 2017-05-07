@@ -272,7 +272,7 @@ parsec_dtd_handle_new();
  * between a parsec_dtd_handle_new() and parsec_handle_free()
  * Takes a parsec context and a parsec handle as input.
  */
-void
+int
 parsec_dtd_handle_wait( parsec_context_t *parsec,
                         parsec_handle_t  *parsec_handle );
 

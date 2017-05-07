@@ -27,6 +27,7 @@ int main(int argc, char *argv[])
     int iparam[IPARAM_SIZEOF];
     PLASMA_enum uplo = PlasmaLower;
     int j;
+    int rc;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -84,8 +85,12 @@ goto fin;
                            MB*NB*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, MB);
-    parsec_enqueue(parsec, (parsec_handle_t*)PARSEC_diag_band_to_rect);
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue(parsec, (parsec_handle_t*)PARSEC_diag_band_to_rect);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 #ifdef PRINTF_HEAVY
     printf("########### BAND (converted from A)\n");

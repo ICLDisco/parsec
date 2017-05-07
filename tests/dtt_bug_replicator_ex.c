@@ -30,6 +30,7 @@ extern void dump_double_array(char* msg, double* mat, int i, int j, int nb, int 
 int main( int argc, char** argv )
 {
     parsec_context_t* parsec;
+    int rc;
     parsec_handle_t* handle;
     parsec_datatype_t tile_dtt, vdtt1, vdtt2, vdtt;
     parsec_dtt_bug_replicator_handle_t *dtt_handle;;
@@ -75,9 +76,14 @@ int main( int argc, char** argv )
                           NB*NB*sizeof(double),
                           PARSEC_ARENA_ALIGNMENT_SSE, vdtt);
 
-    parsec_enqueue( parsec, handle );
+    rc = parsec_enqueue( parsec, handle );
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_fini( &parsec);
 #if defined(PARSEC_HAVE_MPI)

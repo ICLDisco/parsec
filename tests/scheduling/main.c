@@ -29,6 +29,7 @@ double stdev(double sum, double sumsqr, double n)
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
+    int rc;
     int rank, world;
     int nt, level, try;
     parsec_ddesc_t *ddescA;
@@ -72,11 +73,16 @@ int main(int argc, char *argv[])
                 }
 
                 ep = ep_new(ddescA, nt, level);
-                parsec_enqueue(parsec, ep);
+                rc = parsec_enqueue(parsec, ep);
+                PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+
+                rc = parsec_context_start(parsec);
+                PARSEC_CHECK_ERROR(rc, "parsec_context_start");
 
                 start = take_time();
-                parsec_context_wait(parsec);
+                rc = parsec_context_wait(parsec);
                 end = take_time();
+                PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
                 ep_destroy(ep);
 

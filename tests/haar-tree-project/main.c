@@ -136,6 +136,7 @@ static void print_link_fn(tree_dist_t *tree, node_t *node, int n, int l, void *p
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
+    int rc;
     int rank, world;
     tree_dist_t *treeA;
     two_dim_block_cyclic_t fakeDesc;
@@ -228,9 +229,12 @@ int main(int argc, char *argv[])
                          );
     project = parsec_project_new(treeA, world, (parsec_ddesc_t*)&fakeDesc, 1e-3, be_verbose);
     project->arenas[PARSEC_project_DEFAULT_ARENA] = &arena;
-    parsec_enqueue(parsec, &project->super);
-    parsec_context_start(parsec);
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue(parsec, &project->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     if( do_checks ) {
         walker = parsec_walk_new(treeA, world, (parsec_ddesc_t*)&fakeDesc,
@@ -243,9 +247,12 @@ int main(int argc, char *argv[])
                                 be_verbose);
     }
     walker->arenas[PARSEC_walk_DEFAULT_ARENA] = &arena;
-    parsec_enqueue(parsec, &walker->super);
-    parsec_context_start(parsec);
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue(parsec, &walker->super);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     ret = 0;
 #if defined(HAVE_MPI)

@@ -20,6 +20,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
+    int rc;
     int rank, world, cores;
     int size, nb, i, j, c;
     parsec_ddesc_t *ddescA;
@@ -80,9 +81,14 @@ int main(int argc, char *argv[])
     decision = (int*)calloc(sizeof(int), nb+1);
 
     choice = choice_new(ddescA, size, decision, nb, world);
-    parsec_enqueue(parsec, choice);
+    rc = parsec_enqueue(parsec, choice);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     choice_destroy(choice);
 

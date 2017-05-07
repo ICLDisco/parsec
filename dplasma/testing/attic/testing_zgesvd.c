@@ -192,6 +192,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     PLASMA_desc *plasmaDescA;
     PLASMA_desc *plasmaDescT;
+    int rc;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -243,8 +244,12 @@ int main(int argc, char ** argv)
         MB*NB*sizeof(parsec_complex64_t),
         PARSEC_ARENA_ALIGNMENT_SSE,
         MPI_DOUBLE_COMPLEX, MB);
-    parsec_enqueue(parsec, (parsec_handle_t*)PARSEC_diag_band_to_rect);
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue(parsec, (parsec_handle_t*)PARSEC_diag_band_to_rect);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 
     PASTE_CODE_ENQUEUE_KERNEL(parsec, zgbrdb, ((tiled_matrix_desc_t*)&ddescBAND));

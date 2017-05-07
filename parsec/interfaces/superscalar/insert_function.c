@@ -636,13 +636,14 @@ parsec_execute_and_come_back( parsec_context_t *context,
  *
  * @ingroup         DTD_INTERFACE
  */
-void
+int
 parsec_dtd_handle_wait( parsec_context_t *parsec,
                         parsec_handle_t  *parsec_handle )
 {
     parsec_dtd_handle_t *parsec_dtd_handle = (parsec_dtd_handle_t *)parsec_handle;
     parsec_dtd_schedule_tasks( parsec_dtd_handle );
     parsec_dtd_handle->wait_func( parsec, parsec_handle );
+    return 0;
 }
 
 static void

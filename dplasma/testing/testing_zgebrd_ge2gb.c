@@ -107,6 +107,7 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
     int NT = (N%NB==0) ? (N/NB) : (N/NB+1);
     int cp = -1;
     int i, nbrun = 3;
+    int rc;
 
     //PASTE_CODE_FLOPS(FLOPS_ZGEBRD, ((DagDouble_t)M, (DagDouble_t)N));
     DagDouble_t flops, gflops = -1.;
@@ -300,8 +301,11 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
 
         /* lets rock! */
         SYNC_TIME_START();
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
         TIME_START();
-        parsec_context_wait(parsec);
+        rc = parsec_context_wait(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
         SYNC_TIME_STOP();
 
         dplasma_zgebrd_ge2gbx_Destruct( PARSEC_zgebrd_ge2gbx );

@@ -15,6 +15,8 @@
 #include <stddef.h>
 #endif
 
+#include "parsec/debug.h"
+
 BEGIN_C_DECLS
 
 /**
@@ -36,6 +38,17 @@ BEGIN_C_DECLS
 #define PARSEC_VERSION_MAJOR 2
 /** @brief For backward compatibility, minor version number */
 #define PARSEC_VERSION_MINOR 0
+
+/** $brief To check if any parsec function returned error.
+  *        Should be used by users to check correctness.
+  */
+#define PARSEC_CHECK_ERROR(rc, MSG) \
+        if( rc < 0 ) {            \
+            parsec_warning( "**** Error occurred in file: %s"   \
+                            ":%d : "                            \
+                            "%s", __FILE__, __LINE__, MSG );    \
+            exit(-1);                                           \
+        }                                                       \
 
 /**
  * @brief Defines a DAG of tasks

@@ -34,6 +34,7 @@ parsec_operator_print_id( struct parsec_execution_unit_s *eu,
 int main( int argc, char* argv[] )
 {
     parsec_context_t* parsec;
+    int rc;
     parsec_handle_t* object;
     two_dim_block_cyclic_t ddescA;
     int cores = 4, world = 1, rank = 0;
@@ -63,9 +64,14 @@ int main( int argc, char* argv[] )
                                     NULL,
                                     parsec_operator_print_id,
                                     "A");
-    parsec_enqueue(parsec, (parsec_handle_t*)object);
+    rc = parsec_enqueue(parsec, (parsec_handle_t*)object);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_map_operator_Destruct( object );
 

@@ -115,6 +115,7 @@ dplasma_zlatms( parsec_context_t *parsec,
 {
     two_dim_block_cyclic_t Q, T;
     int nodes, rank, mb, nb, m, n, mt, nt, P;
+    int rc;
 
     /* Init the diagonal of A */
     {
@@ -123,8 +124,12 @@ dplasma_zlatms( parsec_context_t *parsec,
         *condptr = cond;
         handle = dplasma_map_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );
         if ( handle != NULL ) {
-            parsec_enqueue(parsec, handle);
-            parsec_context_wait( parsec );
+            rc = parsec_enqueue(parsec, handle);
+            PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+            rc = parsec_context_start( parsec );
+            PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+            rc = parsec_context_wait( parsec );
+            PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
             dplasma_map_Destruct( handle );
         }
         else {

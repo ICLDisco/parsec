@@ -17,12 +17,12 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
+    int rc;
     int rank, world;
     int size, nb;
     parsec_ddesc_t *ddescA;
     parsec_handle_t *rtt;
 
-    
 #if defined(PARSEC_HAVE_MPI)
     {
         int provided;
@@ -44,10 +44,14 @@ int main(int argc, char *argv[])
 
     nb   = 4 * world;
     rtt = rtt_new(ddescA, size, nb);
-    parsec_enqueue(parsec, rtt);
-    
-    parsec_context_start(parsec);
-    parsec_context_wait(parsec);
+    rc = parsec_enqueue(parsec, rtt);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
+
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_handle_free((parsec_handle_t*)rtt);
 

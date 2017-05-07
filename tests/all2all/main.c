@@ -14,6 +14,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
+    int rc;
     int rank, world, cores;
     int size, repeat;
     tiled_matrix_desc_t *ddescA, *ddescB;
@@ -42,9 +43,14 @@ int main(int argc, char *argv[])
     parsec_ddesc_set_key( (parsec_ddesc_t*)ddescB, "B");
 
     a2a = a2a_new(ddescA, ddescB, size, repeat);
-    parsec_enqueue(parsec, a2a);
+    rc = parsec_enqueue(parsec, a2a);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_handle_free(a2a);
     parsec_fini(&parsec);

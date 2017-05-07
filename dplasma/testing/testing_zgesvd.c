@@ -24,6 +24,7 @@ int main(int argc, char ** argv)
     int minMN;
     int info_solution;
     double time_ge2gb, time_gb2bd, time_solve = -1.;
+    int rc;
 
     /* Ensure BLAS are sequential and set thread affinity for the master */
 /* #if defined(__ICC) || defined(__INTEL_COMPILER) */
@@ -101,8 +102,11 @@ int main(int argc, char ** argv)
 
     /* lets rock! */
     SYNC_TIME_START();
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     TIME_START();
-    parsec_context_wait(parsec);
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
     SYNC_TIME_STOP();
     time_ge2gb = sync_time_elapsed;
 

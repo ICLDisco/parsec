@@ -182,21 +182,21 @@ static inline int min(int a, int b) { return a < b ? a : b; }
         DDESC.mat = parsec_data_allocate((size_t)DDESC.super.nb_local_tiles * \
                                         (size_t)DDESC.super.bsiz *      \
                                         (size_t)parsec_datadist_getsizeoftype(DDESC.super.mtype)); \
-        parsec_ddesc_set_key((parsec_ddesc_t*)&DDESC, #DDESC);            \
+        parsec_ddesc_set_key((parsec_ddesc_t*)&DDESC, #DDESC);          \
     }
 
-#define PASTE_CODE_ENQUEUE_KERNEL(PARSEC, KERNEL, PARAMS)                \
+#define PASTE_CODE_ENQUEUE_KERNEL(PARSEC, KERNEL, PARAMS)               \
     SYNC_TIME_START();                                                  \
-    parsec_handle_t* PARSEC_##KERNEL = dplasma_##KERNEL##_New PARAMS;     \
-    parsec_enqueue(PARSEC, PARSEC_##KERNEL);                               \
+    parsec_handle_t* PARSEC_##KERNEL = dplasma_##KERNEL##_New PARAMS;   \
+    PARSEC_CHECK_ERROR(parsec_enqueue(PARSEC, PARSEC_##KERNEL), "parsec_enqueue");      \
     if( loud > 2 ) SYNC_TIME_PRINT(rank, ( #KERNEL "\tDAG created\n"));
 
 
-#define PASTE_CODE_PROGRESS_KERNEL(PARSEC, KERNEL)                       \
+#define PASTE_CODE_PROGRESS_KERNEL(PARSEC, KERNEL)                      \
     SYNC_TIME_START();                                                  \
-    parsec_context_start(PARSEC);                                       \
+    PARSEC_CHECK_ERROR(parsec_context_start(PARSEC), "parsec_context_start"); \
     TIME_START();                                                       \
-    parsec_context_wait(PARSEC);                                          \
+    PARSEC_CHECK_ERROR(parsec_context_wait(PARSEC), "parsec_context_wait"); \
     SYNC_TIME_PRINT(rank, (#KERNEL "\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n", \
                            P, Q, NB, N,                                 \
                            gflops=(flops/1e9)/sync_time_elapsed));      \

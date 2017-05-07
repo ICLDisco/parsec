@@ -19,6 +19,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     int info_ortho = 0, info_facto = 0;
     qr_piv_t *qrpiv;
+    int rc;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -160,8 +161,11 @@ int main(int argc, char ** argv)
 
                                 /* lets rock! */
                                 SYNC_TIME_START();
+                                rc = parsec_context_start(parsec);
+                                PARSEC_CHECK_ERROR(rc, "parsec_context_start");
                                 TIME_START();
-                                parsec_context_wait(parsec);
+                                rc = parsec_context_wait(parsec);
+                                PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
 #if defined(PARSEC_SIM)
                                 printf("zgeqrf simulation M= %d N= %d qr_a= %d qr_p= %d treel= %d treeh= %d domino= %d RR= %d : %d \n",

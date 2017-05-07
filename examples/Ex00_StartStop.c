@@ -17,6 +17,7 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank, world;
+    int rc;
 
     /**
      * Let's initialize MPI *before* parsec
@@ -46,12 +47,16 @@ int main(int argc, char *argv[])
      * Let's do some computation with the runtime, and wait for the end.
      * Here, no computation is performed.
      */
-    parsec_context_wait(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     /**
      * We now finalize the engine, and then MPI if needed
      */
-    parsec_fini(&parsec);
+    rc = parsec_fini(&parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_fini");
 #if defined(PARSEC_HAVE_MPI)
     MPI_Finalize();
 #endif

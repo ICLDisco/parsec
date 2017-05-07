@@ -17,6 +17,7 @@
 int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
+    int rc;
     int rank, world, cores;
     int size, nb;
     parsec_ddesc_t *ddescA;
@@ -43,9 +44,14 @@ int main(int argc, char *argv[])
     parsec_ddesc_set_key(ddescA, "A");
 
     ctlgat = ctlgat_new(ddescA, size, nb);
-    parsec_enqueue(parsec, ctlgat);
+    rc = parsec_enqueue(parsec, ctlgat);
+    PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
-    parsec_context_wait(parsec);
+    rc = parsec_context_start(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+    rc = parsec_context_wait(parsec);
+    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     free_data(ddescA);
 

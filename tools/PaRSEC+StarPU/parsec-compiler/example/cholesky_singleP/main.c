@@ -51,15 +51,15 @@ main (int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &world);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 #endif
-    
+
     world = 1;
     rank = 0;
     cores = 1;
-    
+
 
     /*
     fprintf(stdout, "PLASMA_Complex64_t : %lu\nDouble : %lu\n"
-	            "cuDoubleComplex : %lu\nmagma_int_t : %lu\n", 
+	            "cuDoubleComplex : %lu\nmagma_int_t : %lu\n",
 	            sizeof(PLASMA_Complex64_t), sizeof(double), sizeof(cuDoubleComplex), sizeof(magma_int_t));
 
     fprintf(stderr, "starpu_init...\n");
@@ -78,25 +78,26 @@ main (int argc, char *argv[])
     parsec = parsec_init(cores, 0, &argv);
 //      fprintf(stderr, "initialisation parsec done\n");
 
-    
-    
+
+
     parsec_set_scheduler( parsec, parsec_schedulers_array[ 0 ] );
 
 
     ddescA = create_and_distribute_data(rank, world, cores, atoi(argv[1]), atoi(argv[2]));
 //    fprintf(stderr, "create & distribute done\n");
-  
+
 
     parsec_ddesc_set_key(ddesc, "A");
-      
+
     cholesky = cholesky_new(ddescA, BLOCKSIZE, matrix_rank/BLOCKSIZE, uplo, &info);
 
-	
-    parsec_context_wait(parsec);
-  
-    
 
-    
+    parsec_context_start(parsec);
+    parsec_context_wait(parsec);
+
+
+
+
     if( cholesky->nb_local_tasks > 0 ) {
         /* Update the number of pending parsec choleskys */
         parsec_atomic_inc_32b( &(parsec->active_objects) );
@@ -109,16 +110,16 @@ main (int argc, char *argv[])
 		// old :               __parsec_schedule( parsec->execution_units[0], startup_list );
 		gettimeofday(&start, NULL);
 		generic_scheduling_func(parsec->execution_units[0],(parsec_list_item_t*) startup_list);
- 
+
             }
         }
     }
 
     while((parsec->active_objects != 0));
-	
+
     starpu_task_wait_for_all();
     gettimeofday(&end, NULL);
-    	
+
 
     double timing = (double)((end.tv_sec - start.tv_sec)*1000000 + (end.tv_usec - start.tv_usec));
 
@@ -133,7 +134,7 @@ main (int argc, char *argv[])
 	            "GFlop/s             : %2.2f\n"
          	    "---------------------\n",
 	    (matrix_rank/BLOCKSIZE*BLOCKSIZE), timing/1000.0f, flop/1000000000.0f,(flop/timing)/1000.0f);
-	    
+
 
     parsec_fini(&parsec);
 

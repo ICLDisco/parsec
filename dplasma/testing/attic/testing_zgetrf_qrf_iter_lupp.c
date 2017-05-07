@@ -16,6 +16,7 @@ int main(int argc, char ** argv)
     int iparam[IPARAM_SIZEOF];
     double AnormI, Anorm1, BnormI, Bnorm1, XnormI, Xnorm1, RnormI, Rnorm1;
     int firsttest = 1;
+    int rc;
 
     /* Set defaults for non argv iparams */
     iparam_default_facto(iparam);
@@ -150,8 +151,11 @@ int main(int argc, char ** argv)
 
                     /* lets rock! */
                     SYNC_TIME_START();
+                    rc = parsec_context_start(parsec);
+                    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
                     TIME_START();
-                    parsec_context_wait(parsec);
+                    rc = parsec_context_wait(parsec);
+                    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
                     SYNC_TIME_STOP();
                     gflops = (flops/1e9)/(sync_time_elapsed);
                     dplasma_zgetrf_Destruct( PARSEC_zgetrf );
@@ -167,8 +171,11 @@ int main(int argc, char ** argv)
 
                     /* lets rock! */
                     SYNC_TIME_START();
+                    rc = parsec_context_start(parsec);
+                    PARSEC_CHECK_ERROR(rc, "parsec_context_start");
                     TIME_START();
-                    parsec_context_wait(parsec);
+                    rc = parsec_context_wait(parsec);
+                    PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
                     SYNC_TIME_STOP();
                     gflops = (flops/1e9)/(sync_time_elapsed);
                     dplasma_zgetrf_nopiv_Destruct( PARSEC_zgetrf_nopiv );

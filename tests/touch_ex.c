@@ -17,6 +17,7 @@ extern parsec_handle_t* touch_initialize(int block, int n);
 
 int main( int argc, char** argv )
 {
+    int rc;
     parsec_context_t* parsec;
     parsec_handle_t* handle;
 
@@ -27,9 +28,14 @@ int main( int argc, char** argv )
     if( NULL != parsec ) {
         handle = touch_initialize(BLOCK, N);
 
-        parsec_enqueue( parsec, handle );
+        rc = parsec_enqueue( parsec, handle );
+        PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
-        parsec_context_wait(parsec);
+        rc = parsec_context_start(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_start");
+
+        rc = parsec_context_wait(parsec);
+        PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
         parsec_fini( &parsec);
 
