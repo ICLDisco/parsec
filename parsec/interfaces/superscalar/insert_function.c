@@ -417,8 +417,8 @@ parsec_dtd_fini()
  * Body of function to copy data to the original matrix, coming from remote tasks.
  */
 int
-parsec_dtd_copy_data_to_matrix
-(parsec_execution_unit_t *eu, parsec_execution_context_t *this_task)
+parsec_dtd_copy_data_to_matrix(parsec_execution_unit_t *eu,
+                               parsec_execution_context_t *this_task)
 {
     (void)eu;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
@@ -462,23 +462,11 @@ void
 parsec_dtd_data_flush_all(parsec_handle_t *parsec_handle, parsec_ddesc_t *ddesc)
 {
     parsec_dtd_handle_t *parsec_dtd_handle = (parsec_dtd_handle_t *)parsec_handle;
-
-    PINS(parsec_dtd_handle->super.context->virtual_processes[0]->execution_units[0], DATA_FLUSH_BEGIN, NULL);
-    int i;
-    parsec_dtd_tile_t *tile;
-    hash_table_item_t *current_item;
-
     hash_table_t *hash_table   = (hash_table_t *)ddesc->tile_h_table;
 
-    for( i = 0; i < tile_hash_table_size; i++ ) {
-        current_item = hash_table->buckets[i].first_item;
-        /* Iterating the list to check if we have the element */
-        while( NULL != current_item ) {
-            tile = (parsec_dtd_tile_t *)hash_table_item_lookup(hash_table, current_item);
-            current_item = current_item->next_item;
-            parsec_dtd_data_flush( parsec_handle, tile );
-        }
-    }
+    PINS(parsec_dtd_handle->super.context->virtual_processes[0]->execution_units[0], DATA_FLUSH_BEGIN, NULL);
+
+    hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_dtd_data_flush, parsec_handle);
 
     PINS(parsec_dtd_handle->super.context->virtual_processes[0]->execution_units[0], DATA_FLUSH_END, NULL);
 }
@@ -873,7 +861,6 @@ parsec_dtd_find_and_remove_task( parsec_dtd_handle_t *parsec_handle,
     dtd_hash_table_pointer_item_t *item = (dtd_hash_table_pointer_item_t *)hash_table_nolock_find( hash_table, key );
     if( NULL == item ) return NULL;
     else {
-        void *tmp = item->value;
         parsec_dtd_remove_task( parsec_handle, key );
         value = item->value;
         parsec_thread_mempool_free( parsec_handle->hash_table_bucket_mempool->thread_mempools, item );

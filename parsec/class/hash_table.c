@@ -1,7 +1,22 @@
+/*
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #include <assert.h>
 #include "parsec/class/hash_table.h"
 #include "parsec/class/list.h"
 #include <stdio.h>
+
+/**
+ * @brief Bucket for hash tables. There is no need to have this structure public, it
+ *        should only be used in this file.
+ */
+struct hash_table_bucket_s {
+    parsec_atomic_lock_t     lock;             /**< Buckets are lockable for multithread access */
+    hash_table_item_t       *first_item;       /**< Otherwise they are simply chained lists */
+};
 
 #define BASEADDROF(item, ht)  (void*)(  ( (char*)(item) ) - ( (ht)->elt_hashitem_offset ) )
 
@@ -175,3 +190,20 @@ void hash_table_stat(hash_table_t *ht)
     printf("table %p: %d lists, of length %d to %d average length: %g and variance %g\n",
            ht, n, min, max, mean, M2/(n-1));
 }
+
+void hash_table_for_all(hash_table_t* ht, hash_elem_fct_t fct, void* cb_data)
+{
+    hash_table_item_t *current_item;
+    void* user_item;
+
+    for( size_t i = 0; i < ht->size; i++ ) {
+        current_item = ht->buckets[i].first_item;
+        /* Iterating the list to check if we have the element */
+        while( NULL != current_item ) {
+            user_item = hash_table_item_lookup(ht, current_item);
+            current_item = current_item->next_item;
+            fct( cb_data, user_item );
+        }
+    }
+}
+

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -22,13 +22,15 @@
 /*#include <bpcore/ppc450_inlines.h>*/
 #include <assert.h>
 
-static inline void parsec_mfence( void )
+ATOMIC_STATIC_INLINE
+void parsec_mfence( void )
 {
     _bgp_msync();
 }
 
-static inline int parsec_atomic_bor_32b( volatile uint32_t* location,
-                                        uint32_t mask )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_bor_32b( volatile uint32_t* location,
+                           uint32_t mask )
 {
     register uint32_t old_val, tmp_val;
 
@@ -41,8 +43,9 @@ static inline int parsec_atomic_bor_32b( volatile uint32_t* location,
     return( tmp_val );
 }
 
-static inline int parsec_atomic_band_32b( volatile uint32_t* location,
-                                          uint32_t mask )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_band_32b( volatile uint32_t* location,
+                            uint32_t mask )
 {
     register uint32_t old_val, tmp_val;
 
@@ -55,9 +58,10 @@ static inline int parsec_atomic_band_32b( volatile uint32_t* location,
     return( tmp_val );
 }
 
-static inline int parsec_atomic_cas_32b( volatile uint32_t* location,
-                                        uint32_t old_value,
-                                        uint32_t new_value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_32b( volatile uint32_t* location,
+                           uint32_t old_value,
+                           uint32_t new_value )
 {
     uint32_t tmp_val;
 
@@ -72,15 +76,17 @@ static inline int parsec_atomic_cas_32b( volatile uint32_t* location,
     return( 1 );
 }
 
-static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
-                                          uint64_t old_value,
-                                          uint64_t new_value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_64b( volatile uint64_t* location,
+                           uint64_t old_value,
+                           uint64_t new_value )
 {
     assert(0);  /* Not supported */
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-static inline uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
 {
     register int32_t old_val, tmp_val;
 
@@ -95,7 +101,8 @@ static inline uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
-static inline uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
 {
     register int32_t old_val, tmp_val;
 

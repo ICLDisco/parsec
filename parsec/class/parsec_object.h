@@ -120,8 +120,6 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "parsec/sys/atomic.h"
-
 BEGIN_C_DECLS
 
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -474,6 +472,8 @@ static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls)
     return object;
 }
 
+#if defined(BUILD_PARSEC)
+#include "parsec/sys/atomic.h"
 
 /**
  * Atomically update the object's reference count by some increment.
@@ -490,7 +490,11 @@ static inline int parsec_obj_update(parsec_object_t *object, int inc)
 {
     return parsec_atomic_add_32b(&(object->obj_reference_count), inc );
 }
-
+#else
+/* Read the comment in parsec_object.c regarding the use of this function */
+PARSEC_DECLSPEC int parsec_obj_update_not_inline(parsec_object_t *object, int inc);
+#define parsec_obj_update parsec_obj_update_not_inline
+#endif  /* defined(BUILD_PARSEC) */
 END_C_DECLS
 
 #endif

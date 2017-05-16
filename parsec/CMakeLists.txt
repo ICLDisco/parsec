@@ -22,6 +22,7 @@ set(BASE_SOURCES
   utils/output.c
   utils/show_help.c
   utils/zone_malloc.c
+  utils/atomic_external.c
 )
 
 FLEX_TARGET(show_help_flex utils/show_help_lex.l ${CMAKE_CURRENT_BINARY_DIR}/show_help_lex.l.c)

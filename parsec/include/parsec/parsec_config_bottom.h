@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -33,19 +33,19 @@
 #define END_C_DECLS            /* empty */
 #endif
 
-#if defined(PARSEC_HAVE_ATTRIBUTE_VISIBILITY)
+#if defined(PARSEC_HAVE_ATTRIBUTE_VISIBILITY) && defined(BUILD_PARSEC)
 #    define __parsec_attribute_visibility__(a) __attribute__((__visibility__(a)))
 #else
 #    define __parsec_attribute_visibility__(a)
 #endif
 
-#if defined(PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE)
+#if defined(PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE) && defined(BUILD_PARSEC)
 #    define __parsec_attribute_always_inline__ __attribute__((__always_inline__))
 #else
 #    define __parsec_attribute_always_inline__
 #endif
 
-#if defined(PARSEC_HAVE_BUILTIN_EXPECT)
+#if defined(PARSEC_HAVE_BUILTIN_EXPECT) && defined(BUILD_PARSEC)
 #define PARSEC_LIKELY(x)       __builtin_expect(!!(x), 1)
 #define PARSEC_UNLIKELY(x)     __builtin_expect(!!(x), 0)
 #else
@@ -93,7 +93,6 @@ typedef uint32_t parsec_dependency_t;
  * Should be large enough to support MAX_PARAM_COUNT values.
  */
 typedef uint32_t parsec_dependency_t;
-
 #endif
 
 /*

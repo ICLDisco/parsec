@@ -484,6 +484,7 @@ check_c_source_compiles("
 # Find optional packages
 #
 IF( BUILD_PARSEC )
+  add_definitions(-DBUILD_PARSEC)
   # Look for dl library to dynamically load the mca modules and cuda kernels
   check_function_exists(dlsym PARSEC_HAVE_DL)
   if( NOT PARSEC_HAVE_DL )

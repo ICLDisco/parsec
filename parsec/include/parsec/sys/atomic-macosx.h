@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,66 +10,76 @@
 
 #include <libkern/OSAtomic.h>
 
-static inline void parsec_mfence( void )
+ATOMIC_STATIC_INLINE
+void parsec_mfence( void )
 {
     OSMemoryBarrier();
 }
 
-static inline int parsec_atomic_bor_32b( volatile uint32_t* location,
-                                          uint32_t value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_bor_32b( volatile uint32_t* location,
+                           uint32_t value )
 {
     return OSAtomicOr32( value, location );
 }
 
-static inline int parsec_atomic_band_32b( volatile uint32_t* location,
-                                          uint32_t value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_band_32b( volatile uint32_t* location,
+                            uint32_t value )
 {
     return OSAtomicAnd32( value, location );
 }
 
-static inline int parsec_atomic_cas_32b( volatile uint32_t* location,
-                                          uint32_t old_value,
-                                          uint32_t new_value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_32b( volatile uint32_t* location,
+                           uint32_t old_value,
+                           uint32_t new_value )
 {
     return OSAtomicCompareAndSwap32( old_value, new_value, (volatile int32_t*)location );
 }
 
-static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
-                                          uint64_t old_value,
-                                          uint64_t new_value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_64b( volatile uint64_t* location,
+                           uint64_t old_value,
+                           uint64_t new_value )
 {
     return OSAtomicCompareAndSwap64( old_value, new_value, (volatile int64_t*)location );
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
-static inline int32_t parsec_atomic_inc_32b( volatile uint32_t *location )
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_inc_32b( volatile uint32_t *location )
 {
     return OSAtomicIncrement32( (int32_t*)location );
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
-static inline int32_t parsec_atomic_dec_32b( volatile uint32_t *location )
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_dec_32b( volatile uint32_t *location )
 {
     return OSAtomicDecrement32( (int32_t*)location );
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-static inline int32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
 {
     return OSAtomicAdd32( i, location );
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
-static inline int32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
 {
     return OSAtomicAdd32( -i, location );
 }
 
-#if defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
+if defined(PARSEC_ATOMIC_USE_GCC_128_BUILTINS)
 #define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B
-static inline int parsec_atomic_cas_128b( volatile __uint128_t* location,
-                                         __uint128_t old_value,
-                                         __uint128_t new_value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_128b( volatile __uint128_t* location,
+                            __uint128_t old_value,
+                            __uint128_t new_value )
 {
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
