@@ -60,9 +60,6 @@ typedef struct parsec_pins_papi_callback_s {
     parsec_pins_papi_event_t*           event;
 } parsec_pins_papi_callback_t;
 
-/* CORES_PER_SOCKET is now in CMAKE config,
- * until parsec-hwloc is updated to support dynamic determination */
-
 int pins_papi_init(parsec_context_t * master_context);
 int pins_papi_fini(parsec_context_t * master_context);
 int pins_papi_thread_init(parsec_execution_unit_t * exec_unit);

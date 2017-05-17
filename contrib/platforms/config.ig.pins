@@ -18,7 +18,6 @@ USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 USER_OPTIONS+=" -DPINS_ENABLE=ON"
 USER_OPTIONS+=" -DPARSEC_PROF_TRACE=ON"
 USER_OPTIONS+=" -DPARSEC_PROF_TAU=OFF"
-USER_OPTIONS+=" -DCORES_PER_SOCKET=6"
 
 # These are override variables you can set (here or in the env) to alter defaults
 if [ -d /mnt/scratch/sw/intel/composerxe/bin/ ]; then

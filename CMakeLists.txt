@@ -164,9 +164,6 @@ option(PINS_ENABLE
 #  message(WARNING "PINS Instrumentation System requires to enable PARSEC_PROF_TRACE. Forcing profiling system on.")
 #  SET(PARSEC_PROF_TRACE ON CACHE BOOL "Enable the generation of the profiling information during execution" FORCE)
 # endif( PINS_ENABLE AND NOT PARSEC_PROF_TRACE )
-SET(CORES_PER_SOCKET 6 CACHE STRING
-  "This is a temporary configuration parameter until parsec-hwloc enables dynamic determination of this number.") # default for ig.icl
-mark_as_advanced(CORES_PER_SOCKET)
 
 # cmake modules setup
 set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
