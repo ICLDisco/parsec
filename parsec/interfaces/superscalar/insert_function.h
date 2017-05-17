@@ -117,7 +117,7 @@ typedef struct parsec_dtd_handle_s     parsec_dtd_handle_t;
  * is implemented by the User. The actual computation will be performed in functions
  * having this prototype.
  * 1. parsec_execution_unit_t *
- * 2. parsec_execution_context_t * -> this gives access to the actual task the User inserted
+ * 2. parsec_task_t * -> this gives access to the actual task the User inserted
  *                                    using this interface.
  * This function should return one of the following:
  *  PARSEC_HOOK_RETURN_DONE    : This execution succeeded
@@ -129,12 +129,12 @@ typedef struct parsec_dtd_handle_s     parsec_dtd_handle_t;
  *  PARSEC_HOOK_RETURN_ERROR   : Some other major error happened
  *
  */
-typedef int (parsec_dtd_funcptr_t)(parsec_execution_unit_t *, parsec_execution_context_t *);
+typedef int (parsec_dtd_funcptr_t)(parsec_execution_unit_t *, parsec_task_t *);
 
 /*
  * This function is used to retrieve the parameters passed during insertion of a task.
  * This function takes variadic parameters.
- * 1. parsec_execution_context_t * -> The parameter list is attached with this structure.
+ * 1. parsec_task_t * -> The parameter list is attached with this structure.
  *                                     The User needs to pass a FLAG to specify what sort of value needs to be
  *                                     unpacked. Three types of FLAGS are supported:
  *                                     - UNPACK_VALUE
@@ -151,7 +151,7 @@ typedef int (parsec_dtd_funcptr_t)(parsec_execution_unit_t *, parsec_execution_c
  *                              STRICTLY FOLLOWED WHILE UNPACKING
  */
 void
-parsec_dtd_unpack_args( parsec_execution_context_t *this_task, ... );
+parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
 
 /*
  * The following macro is very specific to two dimensional matrix.

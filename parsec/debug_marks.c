@@ -11,7 +11,7 @@
 #include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
 
-void debug_mark_exe(int th, int vp, const struct parsec_execution_context_s *ctx)
+void debug_mark_exe(int th, int vp, const struct parsec_task_s *ctx)
 {
     int j, pos = 0, len = 512;
     char msg[512];

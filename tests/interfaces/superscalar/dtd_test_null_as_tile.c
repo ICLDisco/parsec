@@ -27,7 +27,7 @@ double sync_time_elapsed;
 
 int
 call_to_kernel_type( parsec_execution_unit_t    *context,
-                     parsec_execution_context_t *this_task )
+                     parsec_task_t *this_task )
 {
     (void)context;
 

@@ -170,7 +170,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
                          char* str,
                          size_t len)
 {
-    parsec_execution_context_t task;
+    parsec_task_t task;
 
     task.parsec_handle = parsec_handle_lookup( origin->handle_id );
     if( NULL == task.parsec_handle ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->handle_id), str;
@@ -514,8 +514,8 @@ remote_dep_copy_allocate(parsec_dep_data_description_t* data)
  */
 parsec_ontask_iterate_t
 remote_dep_mpi_retrieve_datatype(parsec_execution_unit_t *eu,
-                                 const parsec_execution_context_t *newcontext,
-                                 const parsec_execution_context_t *oldcontext,
+                                 const parsec_task_t *newcontext,
+                                 const parsec_task_t *oldcontext,
                                  const dep_t* dep,
                                  parsec_dep_data_description_t* out_data,
                                  int src_rank, int dst_rank, int dst_vpid,
@@ -561,7 +561,7 @@ static int
 remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
                          parsec_remote_deps_t* origin)
 {
-    parsec_execution_context_t task;
+    parsec_task_t task;
     uint32_t i, j, k, local_mask = 0;
 
     parsec_dtd_handle_t *dtd_handle = NULL;
@@ -621,7 +621,7 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
 
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
         if( 1 == origin->parsec_handle->handle_type ) {
-            task.function->iterate_successors(eu_context, (parsec_execution_context_t *)dtd_task,
+            task.function->iterate_successors(eu_context, (parsec_task_t *)dtd_task,
                                               local_mask,
                                               remote_dep_mpi_retrieve_datatype,
                                               origin);
@@ -662,7 +662,7 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
                             parsec_remote_deps_t* origin,
                             remote_dep_datakey_t complete_mask)
 {
-    parsec_execution_context_t task;
+    parsec_task_t task;
     const parsec_flow_t* target;
     int i, pidx;
     uint32_t action_mask = 0;

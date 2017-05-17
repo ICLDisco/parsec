@@ -104,7 +104,7 @@ static void parsec_rusage_per_eu(parsec_execution_unit_t* eu, bool print) {
  * Disabled by now.
  */
 int __parsec_context_wait_task( parsec_execution_unit_t* eu_context,
-                           parsec_execution_context_t* task )
+                           parsec_task_t* task )
 {
     (void)eu_context;
     switch(task->status) {
@@ -136,7 +136,7 @@ int __parsec_context_wait_task( parsec_execution_unit_t* eu_context,
 #endif
 
 int __parsec_execute( parsec_execution_unit_t* eu_context,
-                      parsec_execution_context_t* exec_context )
+                     parsec_task_t* exec_context )
 {
     const parsec_function_t* function = exec_context->function;
     parsec_evaluate_function_t* eval;
@@ -286,14 +286,14 @@ int parsec_set_scheduler( parsec_context_t *parsec )
  * readylist. the new_context IS the readylist.
  */
 int __parsec_schedule( parsec_execution_unit_t* eu_context,
-                      parsec_execution_context_t* new_context,
+                      parsec_task_t* new_context,
                       int32_t distance)
 {
     int ret;
 
 #if defined(PARSEC_DEBUG_PARANOID) && defined(PARSEC_DEBUG_NOISIER)
     {
-        parsec_execution_context_t* context = new_context;
+        parsec_task_t* context = new_context;
         const struct parsec_flow_s* flow;
         int set_parameters, i;
         char tmp[MAX_TASK_STRLEN];
@@ -317,7 +317,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
                     eu_context->th_id, eu_context->virtual_process->vp_id,
                     parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), distance );
-            context = (parsec_execution_context_t*)context->super.list_next;
+            context = (parsec_task_t*)context->super.list_next;
         } while ( context != new_context );
     }
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
@@ -349,7 +349,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
  *
  * @return parsec scheduling return code
  */
-int __parsec_reschedule(parsec_execution_unit_t* eu_context, parsec_execution_context_t* task)
+int __parsec_reschedule(parsec_execution_unit_t* eu_context, parsec_task_t* task)
 {
     parsec_context_t* context = eu_context->virtual_process->parsec_context;
     parsec_vp_t* vp_context = eu_context->virtual_process;
@@ -387,7 +387,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
 }
 
 int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
-                                parsec_execution_context_t *exec_context )
+                                parsec_task_t *exec_context )
 {
     parsec_handle_t *handle = exec_context->parsec_handle;
     int rc = 0;
@@ -434,7 +434,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
     uint64_t misses_in_a_row;
     parsec_context_t* parsec_context = eu_context->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
-    parsec_execution_context_t* exec_context;
+    parsec_task_t* exec_context;
     int rc, nbiterations = 0, distance;
     struct timespec rqtp;
 
@@ -670,7 +670,7 @@ static int parsec_composed_cb( parsec_handle_t* o, void* cbdata )
 
 static void parsec_compound_startup( parsec_context_t *context,
                                     parsec_handle_t *compound_object,
-                                    parsec_execution_context_t** startup_list)
+                                    parsec_task_t** startup_list)
 {
     parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound_object->functions_array;
     parsec_handle_t* first = compound_state->objects_array[0];
@@ -747,10 +747,10 @@ int parsec_enqueue( parsec_context_t* context, parsec_handle_t* handle )
     }
 
     if( NULL != handle->startup_hook ) {
-        parsec_execution_context_t **startup_list;
+        parsec_task_t **startup_list;
         int p;
         /* These pointers need to be initialized to NULL; doing it with calloc */
-        startup_list = (parsec_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(parsec_execution_context_t*) );
+        startup_list = (parsec_task_t**)calloc( vpmap_get_nb_vp(), sizeof(parsec_task_t*) );
         if( NULL == startup_list ) {  /* bad bad */
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
@@ -763,7 +763,7 @@ int parsec_enqueue( parsec_context_t* context, parsec_handle_t* handle )
                 /* Order the tasks by priority */
                 parsec_list_chain_sorted(&temp, (parsec_list_item_t*)startup_list[p],
                                         parsec_execution_context_priority_comparator);
-                startup_list[p] = (parsec_execution_context_t*)parsec_list_nolock_unchain(&temp);
+                startup_list[p] = (parsec_task_t*)parsec_list_nolock_unchain(&temp);
                 OBJ_DESTRUCT(&temp);
                 /* We should add these tasks on the system queue when there is one */
                 __parsec_schedule(context->virtual_processes[p]->execution_units[0],

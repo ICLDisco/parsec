@@ -44,7 +44,7 @@
 /* Task that prints "Hello World" */
 int
 task_hello_world( parsec_execution_unit_t    *context,
-                  parsec_execution_context_t *this_task )
+                  parsec_task_t *this_task )
 {
     (void)context; (void)this_task;
 
@@ -56,7 +56,7 @@ task_hello_world( parsec_execution_unit_t    *context,
 /* Task that inserts task to print "Hello World" */
 int
 task_to_insert_task_hello_world( parsec_execution_unit_t    *context,
-                                 parsec_execution_context_t *this_task )
+                                 parsec_task_t *this_task )
 {
     (void)context; (void)this_task;
     parsec_handle_t *parsec_dtd_handle = this_task->parsec_handle;

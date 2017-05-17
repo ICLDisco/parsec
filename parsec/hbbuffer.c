@@ -89,11 +89,11 @@ parsec_hbbuffer_push_all_by_priority(parsec_hbbuffer_t *b,
                                      int32_t distance)
 {
     int i = 0;
-    parsec_execution_context_t *candidate, *best_context;
+    parsec_task_t *candidate, *best_context;
     parsec_list_item_t *topush;
     int best_index;
     parsec_list_item_t *ejected = NULL;
-#define CTX(to) ((parsec_execution_context_t*)(to))
+#define CTX(to) ((parsec_task_t*)(to))
 
     if( (0 != distance) && (NULL != b->parent_push_fct) ) {
         ejected = list;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,7 +16,7 @@ static int registration_disabled;
 
 void parsec_pins_instrument(struct parsec_execution_unit_s* exec_unit,
                             PINS_FLAG method_flag,
-                            struct parsec_execution_context_s* task)
+                            parsec_task_t* task)
 {
     assert( method_flag < PINS_FLAG_COUNT );
 

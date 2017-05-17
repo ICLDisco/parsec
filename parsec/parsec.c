@@ -101,7 +101,7 @@ static int parsec_runtime_bind_main_thread = 1;
 
 /*
  * Object based task definition (no specialized constructor and destructor) */
-OBJ_CLASS_INSTANCE(parsec_execution_context_t, parsec_list_item_t,
+OBJ_CLASS_INSTANCE(parsec_task_t, parsec_list_item_t,
                    NULL, NULL);
 
 static inline void parsec_hashable_dependency_construct( parsec_hashable_dependency_t* dep )
@@ -208,12 +208,12 @@ static void* __parsec_thread_init( __parsec_temporary_thread_initialization_t* s
      */
     if( startup->th_id == (startup->nb_cores - 1) ) {
         parsec_vp_t *vp = startup->virtual_process;
-        parsec_execution_context_t fake_context;
+        parsec_task_t fake_context;
         data_repo_entry_t fake_entry;
         parsec_hashable_dependency_t fake_hashable_dependency;
         
         parsec_mempool_construct( &vp->context_mempool,
-                                  OBJ_CLASS(parsec_execution_context_t), sizeof(parsec_execution_context_t),
+                                  OBJ_CLASS(parsec_task_t), sizeof(parsec_task_t),
                                   ((char*)&fake_context.mempool_owner) - ((char*)&fake_context),
                                   vp->nb_cores );
 
@@ -1000,7 +1000,7 @@ int parsec_fini( parsec_context_t** pcontext )
  */
 static parsec_dependency_t
 parsec_check_IN_dependencies_with_mask( const parsec_handle_t *parsec_handle,
-                                       const parsec_execution_context_t* exec_context )
+                                       const parsec_task_t* exec_context )
 {
     const parsec_function_t* function = exec_context->function;
     int i, j, active;
@@ -1075,7 +1075,7 @@ parsec_check_IN_dependencies_with_mask( const parsec_handle_t *parsec_handle,
 
 static parsec_dependency_t
 parsec_check_IN_dependencies_with_counter( const parsec_handle_t *parsec_handle,
-                                          const parsec_execution_context_t* exec_context )
+                                          const parsec_task_t* exec_context )
 {
     const parsec_function_t* function = exec_context->function;
     int i, j, active;
@@ -1158,7 +1158,7 @@ parsec_check_IN_dependencies_with_counter( const parsec_handle_t *parsec_handle,
 
 parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_handle,
                                               parsec_execution_unit_t *eu_context,
-                                              const parsec_execution_context_t* restrict exec_context)
+                                              const parsec_task_t* restrict exec_context)
 {
     parsec_dependencies_t *deps;
     int p;
@@ -1179,7 +1179,7 @@ parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_hand
 
 parsec_dependency_t *parsec_hash_find_deps(const parsec_handle_t *parsec_handle,
                                            parsec_execution_unit_t *eu_context,
-                                           const parsec_execution_context_t* restrict exec_context)
+                                           const parsec_task_t* restrict exec_context)
 {
     parsec_hashable_dependency_t *hd;
     hash_table_t *ht = (hash_table_t*)parsec_handle->dependencies_array[exec_context->function->function_id];
@@ -1205,7 +1205,7 @@ parsec_dependency_t *parsec_hash_find_deps(const parsec_handle_t *parsec_handle,
 }
 
 static int parsec_update_deps_with_counter(const parsec_handle_t *parsec_handle,
-                                          const parsec_execution_context_t* restrict exec_context,
+                                          const parsec_task_t* restrict exec_context,
                                           parsec_dependency_t *deps)
 {
     parsec_dependency_t dep_new_value, dep_cur_value;
@@ -1244,9 +1244,9 @@ static int parsec_update_deps_with_counter(const parsec_handle_t *parsec_handle,
 }
 
 static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
-                                       const parsec_execution_context_t* restrict exec_context,
+                                       const parsec_task_t* restrict exec_context,
                                        parsec_dependency_t *deps,
-                                       const parsec_execution_context_t* restrict origin,
+                                       const parsec_task_t* restrict origin,
                                        const parsec_flow_t* restrict origin_flow,
                                        const parsec_flow_t* restrict dest_flow)
 {
@@ -1314,7 +1314,7 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
  * all executed tasks will show consistently (no difference between the startup
  * tasks and later tasks).
  */
-void parsec_dependencies_mark_task_as_startup(parsec_execution_context_t* restrict exec_context,
+void parsec_dependencies_mark_task_as_startup(parsec_task_t* restrict exec_context,
                                               parsec_execution_unit_t *eu_context)
 {
     const parsec_function_t* function = exec_context->function;
@@ -1334,13 +1334,13 @@ void parsec_dependencies_mark_task_as_startup(parsec_execution_context_t* restri
  * local.
  */
 int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
-                                         const parsec_execution_context_t* restrict origin,
+                                         const parsec_task_t* restrict origin,
                                          const parsec_flow_t* restrict origin_flow,
-                                         const parsec_execution_context_t* restrict exec_context,
+                                         const parsec_task_t* restrict exec_context,
                                          const parsec_flow_t* restrict dest_flow,
                                          data_repo_entry_t* dest_repo_entry,
                                          parsec_dep_data_description_t* data,
-                                         parsec_execution_context_t** pready_ring)
+                                         parsec_task_t** pready_ring)
 {
     const parsec_function_t* function = exec_context->function;
     parsec_dependency_t *deps;
@@ -1369,7 +1369,7 @@ int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
          * Queue it into the ready_list passed as an argument.
          */
         {
-            parsec_execution_context_t *new_context = (parsec_execution_context_t *) parsec_thread_mempool_allocate(eu_context->context_mempool);
+            parsec_task_t *new_context = (parsec_task_t *) parsec_thread_mempool_allocate(eu_context->context_mempool);
             PARSEC_COPY_EXECUTION_CONTEXT(new_context, exec_context);
             new_context->status = PARSEC_TASK_STATUS_NONE;
             AYU_ADD_TASK(new_context);
@@ -1407,7 +1407,7 @@ int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
                 *pimmediate_ring = new_context;
 #endif
             } else {
-                *pready_ring = (parsec_execution_context_t*)
+                *pready_ring = (parsec_task_t*)
                     parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(*pready_ring),
                                                        &new_context->super,
                                                        parsec_execution_context_priority_comparator );
@@ -1422,8 +1422,8 @@ int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
 
 parsec_ontask_iterate_t
 parsec_release_dep_fct(parsec_execution_unit_t *eu,
-                      const parsec_execution_context_t *newcontext,
-                      const parsec_execution_context_t *oldcontext,
+                      const parsec_task_t *newcontext,
+                      const parsec_task_t *oldcontext,
                       const dep_t* dep,
                       parsec_dep_data_description_t* data,
                       int src_rank, int dst_rank, int dst_vpid,
@@ -1524,7 +1524,7 @@ parsec_release_dep_fct(parsec_execution_unit_t *eu,
  * Convert the execution context to a string.
  */
 char* parsec_snprintf_execution_context( char* str, size_t size,
-                                        const parsec_execution_context_t* task)
+                                        const parsec_task_t* task)
 {
     const parsec_function_t* function = task->function;
     unsigned int i, ip, index = 0, is_param;
@@ -1783,18 +1783,18 @@ void parsec_handle_free(parsec_handle_t *handle)
  * we reactivate all pending tasks, starting the tasks generation step for all type classes.
  */
 int parsec_handle_enable(parsec_handle_t* handle,
-                        parsec_execution_context_t** startup_queue,
-                        parsec_execution_context_t* local_task,
+                        parsec_task_t** startup_queue,
+                        parsec_task_t* local_task,
                         parsec_execution_unit_t * eu,
                         int distributed)
 {
     if( NULL != startup_queue ) {
         parsec_list_item_t *ring = NULL;
-        parsec_execution_context_t* ttask = (parsec_execution_context_t*)*startup_queue;
+        parsec_task_t* ttask = (parsec_task_t*)*startup_queue;
 
-        while( NULL != (ttask = (parsec_execution_context_t*)*startup_queue) ) {
+        while( NULL != (ttask = (parsec_task_t*)*startup_queue) ) {
             /* Transform the single linked list into a ring */
-            *startup_queue = (parsec_execution_context_t*)ttask->super.list_next;
+            *startup_queue = (parsec_task_t*)ttask->super.list_next;
             if(ttask != local_task) {
                 ttask->status = PARSEC_TASK_STATUS_HOOK;
                 PARSEC_LIST_ITEM_SINGLETON(ttask);
@@ -1802,7 +1802,7 @@ int parsec_handle_enable(parsec_handle_t* handle,
                 else parsec_list_item_ring_push(ring, &ttask->super);
             }
         }
-        if( NULL != ring ) __parsec_schedule(eu, (parsec_execution_context_t *)ring, 0);
+        if( NULL != ring ) __parsec_schedule(eu, (parsec_task_t *)ring, 0);
     }
     /* Always register the handle. This allows the handle_t destructor to unregister it in all cases. */
     parsec_handle_register(handle);
@@ -2130,7 +2130,7 @@ int parsec_getsimulationdate( parsec_context_t *parsec_context ){
 }
 #endif
 
-static int32_t parsec_expr_eval32(const expr_t *expr, parsec_execution_context_t *context)
+static int32_t parsec_expr_eval32(const expr_t *expr, parsec_task_t *context)
 {
     parsec_handle_t *handle = context->parsec_handle;
 
@@ -2138,7 +2138,7 @@ static int32_t parsec_expr_eval32(const expr_t *expr, parsec_execution_context_t
     return expr->inline_func32(handle, context->locals);
 }
 
-static int parsec_debug_enumerate_next_in_execution_space(parsec_execution_context_t *context,
+static int parsec_debug_enumerate_next_in_execution_space(parsec_task_t *context,
                                                          int init, int li)
 {
     const parsec_function_t *function = context->function;
@@ -2208,7 +2208,7 @@ void parsec_debug_print_local_expecting_tasks_for_function( parsec_handle_t *han
                                                            int *nreleased,
                                                            int *ntotal)
 {
-    parsec_execution_context_t context;
+    parsec_task_t context;
     parsec_dependency_t *dep;
     parsec_data_ref_t ref;
     int li, init;
@@ -2362,7 +2362,7 @@ void parsec_debug_print_local_expecting_tasks( int show_remote, int show_startup
 /* deps is an array of size MAX_PARAM_COUNT
  *  Returns the number of output deps on which there is a final output
  */
-int parsec_task_deps_with_final_output(const parsec_execution_context_t *task,
+int parsec_task_deps_with_final_output(const parsec_task_t *task,
                                       const dep_t **deps)
 {
     const parsec_function_t *f;

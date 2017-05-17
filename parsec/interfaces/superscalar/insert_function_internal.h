@@ -166,13 +166,13 @@ typedef struct parsec_dtd_parent_info_s {
                                                        (INDEX*sizeof(parsec_dtd_min_flow_info_t)) ))
 
 struct parsec_dtd_task_s {
-    parsec_execution_context_t   super;
+    parsec_task_t   super;
     hash_table_item_t            ht_item;
     parsec_thread_mempool_t     *mempool_owner;
     int32_t                      rank;
     int32_t                      flow_count;
     /* for testing PTG inserting task in DTD */
-    parsec_execution_context_t  *orig_task;
+    parsec_task_t  *orig_task;
 };
 
 /* For creating objects of class parsec_dtd_task_t */
@@ -236,7 +236,7 @@ struct parsec_dtd_handle_s {
     parsec_dtd_two_hash_table_t *two_hash_table;
     hash_table_t            *function_h_table;
     /* ring of initial ready tasks */
-    parsec_execution_context_t **startup_list;
+    parsec_task_t **startup_list;
     /* from here to end is for the testing interface */
     struct hook_info actual_hook[PARSEC_DTD_NB_FUNCTIONS];
 };
@@ -295,15 +295,15 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task );
 void
 parsec_dtd_startup( parsec_context_t *context,
                     parsec_handle_t *parsec_handle,
-                    parsec_execution_context_t **pready_list );
+                    parsec_task_t **pready_list );
 
 int
 data_lookup_of_dtd_task( parsec_execution_unit_t *,
-                         parsec_execution_context_t * );
+                         parsec_task_t * );
 
 void
 parsec_dtd_ordering_correctly( parsec_execution_unit_t * eu,
-                               const parsec_execution_context_t * this_task,
+                               const parsec_task_t * this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t * ontask,
                                void *ontask_arg );
@@ -392,7 +392,7 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 
 int
 parsec_dtd_copy_data_to_matrix( parsec_execution_unit_t    *eu,
-                                parsec_execution_context_t *this_task );
+                                parsec_task_t *this_task );
 
 void
 parsec_dtd_function_release( parsec_dtd_handle_t  *parsec_handle,

@@ -24,9 +24,9 @@ static int SYSTEM_NEIGHBOR = 0;
  */
 static int sched_rnd_install(parsec_context_t* master);
 static int sched_rnd_schedule(parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context,
+                              parsec_task_t* new_context,
                               int32_t distance);
-static parsec_execution_context_t *sched_rnd_select(parsec_execution_unit_t *eu_context,
+static parsec_task_t *sched_rnd_select(parsec_execution_unit_t *eu_context,
                                                     int32_t* distance);
 static int flow_rnd_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
 static void sched_rnd_remove(parsec_context_t* master);
@@ -63,12 +63,12 @@ static int flow_rnd_init(parsec_execution_unit_t* eu_context, struct parsec_barr
     return 0;
 }
 
-static parsec_execution_context_t*
+static parsec_task_t*
 sched_rnd_select(parsec_execution_unit_t *eu_context,
                  int32_t* distance)
 {
-    parsec_execution_context_t * context =
-        (parsec_execution_context_t*)parsec_list_pop_front((parsec_list_t*)eu_context->scheduler_object);
+    parsec_task_t * context =
+        (parsec_task_t*)parsec_list_pop_front((parsec_list_t*)eu_context->scheduler_object);
 #if defined(PINS_ENABLE)
     if (NULL != context)
         context->victim_core = SYSTEM_NEIGHBOR;
@@ -78,7 +78,7 @@ sched_rnd_select(parsec_execution_unit_t *eu_context,
 }
 
 static int sched_rnd_schedule(parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context,
+                              parsec_task_t* new_context,
                               int32_t distance)
 {
     parsec_list_item_t *it = (parsec_list_item_t*)new_context;
@@ -88,7 +88,7 @@ static int sched_rnd_schedule(parsec_execution_unit_t* eu_context,
     do {
 #if defined(PARSEC_DEBUG_NOISIER)
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "RND:\t Pushing task %s",
-                parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_execution_context_t*)it));
+                parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_task_t*)it));
 #endif
         /* randomly assign priority */
         (*((int*)(((uintptr_t)it)+parsec_execution_context_priority_comparator))) = rand();

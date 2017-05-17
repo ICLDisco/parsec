@@ -48,7 +48,7 @@ static void pins_fini_ptg_to_dtd(parsec_context_t *master_context);
 static void pins_handle_init_ptg_to_dtd(struct parsec_handle_s *handle);
 static void pins_handle_fini_ptg_to_dtd(struct parsec_handle_s *handle);
 static int fake_hook_for_testing(parsec_execution_unit_t    *context,
-                                 parsec_execution_context_t *__this_task);
+                                 parsec_task_t *__this_task);
 
 const parsec_pins_module_t parsec_pins_ptg_to_dtd_module = {
     &parsec_pins_ptg_to_dtd_component,
@@ -174,13 +174,13 @@ static void pins_handle_fini_ptg_to_dtd(parsec_handle_t *handle)
  * Called internally by the scheduler
  * Arguments:
  *   - the execution unit (parsec_execution_unit_t *)
- *   - the PaRSEC task (parsec_execution_context_t *)
+ *   - the PaRSEC task (parsec_task_t *)
  */
 static int
 testing_hook_of_dtd_task(parsec_execution_unit_t *context,
                          parsec_dtd_task_t       *dtd_task)
 {
-    parsec_execution_context_t *orig_task = dtd_task->orig_task;
+    parsec_task_t *orig_task = dtd_task->orig_task;
     int rc = 0;
 
     PARSEC_TASK_PROF_TRACE(context->eu_profile,
@@ -257,7 +257,7 @@ tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_in
 /* Prepare_input function */
 static int
 data_lookup_ptg_to_dtd_task(parsec_execution_unit_t *context,
-                            parsec_execution_context_t *this_task)
+                            parsec_task_t *this_task)
 {
     (void)context;(void)this_task;
 
@@ -273,7 +273,7 @@ data_lookup_ptg_to_dtd_task(parsec_execution_unit_t *context,
  */
 static void
 parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
-                              parsec_dtd_funcptr_t *fpointer, parsec_execution_context_t *orig_task,
+                              parsec_dtd_funcptr_t *fpointer, parsec_task_t *orig_task,
                               char *name_of_kernel, parsec_dtd_task_param_t *packed_parameters_head, int count_of_params )
 {
     parsec_handle_t *parsec_handle = (parsec_handle_t *)parsec_dtd_handle;
@@ -366,7 +366,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
 
 static int
 fake_hook_for_testing(parsec_execution_unit_t    *context,
-                      parsec_execution_context_t *this_task)
+                      parsec_task_t *this_task)
 {
     static parsec_atomic_lock_t pins_ptg_to_dtd_atomic_lock = {PARSEC_ATOMIC_UNLOCKED};
     parsec_list_item_t* local_list = NULL;
@@ -392,9 +392,9 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
     /* Successful in ataining the lock, now we will pop all the tasks out of the list and put it
      * in our local list.
      */
-    for( this_task = (parsec_execution_context_t*)local_list;
+    for( this_task = (parsec_task_t*)local_list;
          NULL != this_task;
-         this_task = (parsec_execution_context_t*)local_list ) {
+         this_task = (parsec_task_t*)local_list ) {
 
         int i, tmp_op_type;
         int count_of_params = 0;

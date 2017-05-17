@@ -30,7 +30,7 @@ enum regions {
 
 int
 call_to_kernel_type_read( parsec_execution_unit_t    *context,
-                          parsec_execution_context_t *this_task )
+                          parsec_task_t *this_task )
 {
     (void)context; (void)this_task;
     int *data;
@@ -47,7 +47,7 @@ call_to_kernel_type_read( parsec_execution_unit_t    *context,
 
 int
 call_to_kernel_type_write( parsec_execution_unit_t    *context,
-                           parsec_execution_context_t *this_task )
+                           parsec_task_t *this_task )
 {
     (void)context;
     int *data;

@@ -29,7 +29,7 @@ enum regions {
 
 int
 reduce0( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+             parsec_task_t *this_task )
 {
     (void)context;
     int *data;
@@ -43,7 +43,7 @@ reduce0( parsec_execution_unit_t    *context,
 
 int
 reduce1( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+             parsec_task_t *this_task )
 {
     (void)context;
     int *data;
@@ -61,7 +61,7 @@ reduce1( parsec_execution_unit_t    *context,
 
 int
 bcast0( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+             parsec_task_t *this_task )
 {
     (void)context;
     int *data;
@@ -75,7 +75,7 @@ bcast0( parsec_execution_unit_t    *context,
 
 int
 bcast1( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+             parsec_task_t *this_task )
 {
     (void)context;
     int *data;

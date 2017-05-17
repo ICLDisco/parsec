@@ -139,7 +139,7 @@ release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
  ******************************************************************************/
 void
 parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
-                               const parsec_execution_context_t *this_task,
+                               const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
                                void *ontask_arg )
@@ -327,7 +327,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
 
                 rank_dst = current_desc->rank;
 
-                ontask( eu, (parsec_execution_context_t *)current_desc, (parsec_execution_context_t *)current_task,
+                ontask( eu, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
                         deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
                 vpid_dst = (vpid_dst+1) % current_task->super.parsec_handle->context->nb_vp;
 
@@ -351,7 +351,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
 
 #if defined(DISTRIBUTED)
             if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
-                parsec_remote_dep_activate(eu, (parsec_execution_context_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
+                parsec_remote_dep_activate(eu, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
                 arg->remote_deps = NULL;
             }
 #endif

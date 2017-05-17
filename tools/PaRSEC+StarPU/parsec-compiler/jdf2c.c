@@ -1161,7 +1161,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     // on génère la structure pour les arguments des fonctions callback
     houtput("struct callback_args {\n"
 	    "    parsec_execution_unit_t     *exec_unit;\n"
-	    "    parsec_execution_context_t  *exec_context;\n"
+	    "    parsec_task_t  *exec_context;\n"
 	    "};\n");
     // on génère la structure pour les arguments des fonctions (cpu, gpu)
     houtput("struct func_args {\n"
@@ -1749,13 +1749,13 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int %s(parsec_context_t *context, const __parsec_%s_internal_handle_t *__parsec_handle, parsec_execution_context_t** pready_list)\n"
+    coutput("static int %s(parsec_context_t *context, const __parsec_%s_internal_handle_t *__parsec_handle, parsec_task_t** pready_list)\n"
             "{\n"
-            "  parsec_execution_context_t* new_context;\n"
+            "  parsec_task_t* new_context;\n"
             "  assignment_t *assignments = NULL;\n"
             "%s\n"
             "%s\n"
-            "  new_context = (parsec_execution_context_t*)parsec_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
+            "  new_context = (parsec_task_t*)parsec_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
             "  assignments = new_context->locals;\n",
             fname, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, dump_string, NULL,
@@ -1811,7 +1811,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
     }
 
-    coutput("%s  PARSEC_STAT_INCREASE(mem_contexts, sizeof(parsec_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
+    coutput("%s  PARSEC_STAT_INCREASE(mem_contexts, sizeof(parsec_task_t) + STAT_MALLOC_OVERHEAD);\n"
             "%s  PARSEC_LIST_ITEM_SINGLETON( new_context );\n",
             indent(nesting),
             indent(nesting));
@@ -1843,7 +1843,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
 
     coutput("%s  parsec_list_add_single_elem_by_priority( pready_list, new_context );\n", indent(nesting));
 
-    coutput("%s  new_context = (parsec_execution_context_t*)parsec_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
+    coutput("%s  new_context = (parsec_task_t*)parsec_thread_mempool_allocate( context->execution_units[0]->context_mempool );\n"
             "%s  assignments = new_context->locals;\n",
             indent(nesting),
             indent(nesting));
@@ -2083,7 +2083,7 @@ static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_functio
     ai.expr = NULL;
 
     coutput("#if defined(PARSEC_SIM)\n"
-            "static int %s(const parsec_execution_context_t *this_task)\n"
+            "static int %s(const parsec_task_t *this_task)\n"
             "{\n"
             "  const parsec_handle_t *__parsec_handle = (const parsec_handle_t*)this_task->parsec_handle;\n"
             "%s"
@@ -2334,8 +2334,8 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
      
     coutput("/** Predeclarations of the parsec_function_t objects */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
-	houtput("void hook_of_%s_%s_callback_function(parsec_execution_unit_t*, parsec_execution_context_t*);\n", jdf_basename, f->fname);
-	coutput("static int hook_of_%s_%s_task_create(parsec_execution_unit_t*, parsec_execution_context_t*);\n",
+	houtput("void hook_of_%s_%s_callback_function(parsec_execution_unit_t*, parsec_task_t*);\n", jdf_basename, f->fname);
+	coutput("static int hook_of_%s_%s_task_create(parsec_execution_unit_t*, parsec_task_t*);\n",
 		jdf_basename, f->fname); 
 	coutput("static void func_cpu_hook_of_%s_%s(void* buffers[], void* cl_arg);\n",
 		jdf_basename, f->fname); 
@@ -2375,7 +2375,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
-    coutput("static void %s_startup(parsec_context_t *context, parsec_handle_t *parsec_handle, parsec_execution_context_t** pready_list)\n"
+    coutput("static void %s_startup(parsec_context_t *context, parsec_handle_t *parsec_handle, parsec_task_t** pready_list)\n"
             "{\n"
             "%s\n"
             "}\n",
@@ -2970,7 +2970,7 @@ jdf_generate_code_generic_scheduling_func(const jdf_t *jdf)
 	    "{\n");
 
 
-    coutput("    parsec_execution_context_t *task2exec;\n"
+    coutput("    parsec_task_t *task2exec;\n"
 	    "    parsec_list_item_t *next = elt;\n"
 	    "    while( NULL != elt ) {\n"
 	    "/* Assume that we're going to push elt.\n"
@@ -2985,7 +2985,7 @@ jdf_generate_code_generic_scheduling_func(const jdf_t *jdf)
             "            elt->list_prev = elt;\n"
             "            elt->list_next = elt;\n"
             "        }\n"
-	    "        task2exec = (parsec_execution_context_t*) elt;\n"	    
+	    "        task2exec = (parsec_task_t*) elt;\n"	    
 	    "        elt = next;\n");
 	    
     // Liste des fonctions :
@@ -3002,7 +3002,7 @@ jdf_generate_code_generic_scheduling_func(const jdf_t *jdf)
 static void
 jdf_generate_code_callback_function(const char *name)
 {
-    coutput("void %s_callback_function(parsec_execution_unit_t *exec_unit, parsec_execution_context_t *exec_context)\n"
+    coutput("void %s_callback_function(parsec_execution_unit_t *exec_unit, parsec_task_t *exec_context)\n"
 	    "{\n"
 	    "    //fprintf(stderr, \"Début de la fonction callback %s\\n\");\n"
 	    "    parsec_handle_t *parsec_handle = exec_context->parsec_handle;\n"
@@ -3018,7 +3018,7 @@ jdf_generate_code_callback_function(const char *name)
 	    "        parsec_atomic_dec_32b( &(exec_unit->master_context->active_objects) );\n"
 	    "    }\n"
 	    "    DEBUG_MARK_EXE( eu_context->eu_id, exec_context );\n"
-	    "    PARSEC_STAT_DECREASE(mem_contexts, sizeof(parsec_execution_context_t) + STAT_MALLOC_OVERHEAD);\n"
+	    "    PARSEC_STAT_DECREASE(mem_contexts, sizeof(parsec_task_t) + STAT_MALLOC_OVERHEAD);\n"
 	    "    parsec_thread_mempool_free( exec_unit->context_mempool, exec_context );\n"
 	    "    //fprintf(stderr, \"FIN de la fonction callback %s\\n\");\n"
 	    "}\n\n", 
@@ -3046,7 +3046,7 @@ jdf_generate_code_starpu_task_create(const jdf_t *jdf, const jdf_function_entry_
     ai.idx = 0;
     ai.holder = "this_task->locals";
     ai.expr = NULL;
-    coutput("static int %s_task_create(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)\n"
+    coutput("static int %s_task_create(parsec_execution_unit_t *context, parsec_task_t *this_task)\n"
             "{\n"
 	    "   // fprintf(stderr, \"début de la fonction task_create %s\\n\");\n"
 	    "    struct starpu_task *task = starpu_task_create();\n"
@@ -3435,7 +3435,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     
     if(f->body_gpu != NULL)
 	jdf_generate_code_gpu_function(jdf, f, name);
-    /* coutput("static int %s(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)\n" */
+    /* coutput("static int %s(parsec_execution_unit_t *context, parsec_task_t *this_task)\n" */
     /*         "{\n" */
     /*         "  const __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t *)this_task->parsec_handle;\n" */
     /*         "  assignment_t tass[MAX_PARAM_COUNT];\n" */
@@ -3525,7 +3525,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
 
 
 
-    coutput("static int complete_%s(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)\n"
+    coutput("static int complete_%s(parsec_execution_unit_t *context, parsec_task_t *this_task)\n"
             "{\n"
 	    "   // fprintf(stderr, \"début de la fonction COMPLETE %s\\n\");\n"
             "  const __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t *)this_task->parsec_handle;\n"
@@ -3664,7 +3664,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 {
     int has_output_data = function_has_data_output(f);
 
-    coutput("static int %s(parsec_execution_unit_t *eu, parsec_execution_context_t *context, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
+    coutput("static int %s(parsec_execution_unit_t *eu, parsec_task_t *context, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
             "{\n"
             "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t *)context->parsec_handle;\n"
             "  parsec_release_dep_fct_arg_t arg;\n"
@@ -3934,11 +3934,11 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
     ai.holder = "this_task->locals";
     ai.expr = NULL;
     coutput("static void\n"
-            "%s(parsec_execution_unit_t *eu, parsec_execution_context_t *this_task,\n"
+            "%s(parsec_execution_unit_t *eu, parsec_task_t *this_task,\n"
             "               uint32_t action_mask, parsec_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
             "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t*)this_task->parsec_handle;\n"
-            "  parsec_execution_context_t nc;\n"
+            "  parsec_task_t nc;\n"
             "  parsec_arena_t* arena = NULL;\n"
             "  int rank_src = 0, rank_dst = 0;\n"
             "%s"

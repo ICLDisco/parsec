@@ -20,7 +20,7 @@ enum regions {
              };
 
 int
-parsec_core_geqrt(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_geqrt(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     int *m;
@@ -51,7 +51,7 @@ parsec_core_geqrt(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-parsec_core_unmqr(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_unmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
 {
     (void)context;
     PLASMA_enum *side;
@@ -93,7 +93,7 @@ parsec_core_unmqr(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-parsec_core_tsqrt(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_tsqrt(parsec_execution_unit_t *context, parsec_task_t * this_task)
 {
     (void)context;
     int *m;
@@ -128,7 +128,7 @@ parsec_core_tsqrt(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-parsec_core_tsmqr(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_tsmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
 {
     (void)context;
     PLASMA_enum *side;
@@ -178,7 +178,7 @@ parsec_core_tsmqr(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-insert_task_geqrf(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     two_dim_block_cyclic_t *ddescA;

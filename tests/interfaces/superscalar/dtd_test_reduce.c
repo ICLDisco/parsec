@@ -29,7 +29,7 @@ enum regions {
 
 int
 task_rank_0( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+             parsec_task_t *this_task )
 {
     (void)context;
     int *data;
@@ -45,7 +45,7 @@ task_rank_0( parsec_execution_unit_t    *context,
 
 int
 task_rank_1( parsec_execution_unit_t    *context,
-             parsec_execution_context_t *this_task )
+             parsec_task_t *this_task )
 {
     (void)context;
     int *data;

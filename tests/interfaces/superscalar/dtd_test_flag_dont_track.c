@@ -25,7 +25,7 @@
 #endif  /* defined(PARSEC_HAVE_MPI) */
 
 int
-task_to_check_dont_track(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+task_to_check_dont_track(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context; (void)this_task;
     int *data;

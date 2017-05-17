@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The University of Tennessee and The University
+ * Copyright (c) 2012-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -27,30 +27,30 @@ static void pins_thread_init_task_profiler(struct parsec_execution_unit_s * exec
 static void pins_thread_fini_task_profiler(struct parsec_execution_unit_s * exec_unit);
 
 /* PINS callbacks */
-static void task_profiler_release_deps_begin(struct parsec_execution_unit_s*      exec_unit,
-                                             struct parsec_execution_context_s*   task,
+static void task_profiler_release_deps_begin(struct parsec_execution_unit_s*    exec_unit,
+                                             struct parsec_task_s*               task,
                                              struct parsec_pins_next_callback_s* cb_data);
-static void task_profiler_release_deps_end(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
+static void task_profiler_release_deps_end(struct parsec_execution_unit_s*     exec_unit,
+                                           struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data);
 static void task_profiler_activate_cb_begin(struct parsec_execution_unit_s*      exec_unit,
-                                             struct parsec_execution_context_s*   task,
+                                             struct parsec_task_s*               task,
                                              struct parsec_pins_next_callback_s* cb_data);
 static void task_profiler_activate_cb_end(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
+                                           struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data);
-static void task_profiler_data_flush_begin(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
+static void task_profiler_data_flush_begin(struct parsec_execution_unit_s*     exec_unit,
+                                           struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data);
-static void task_profiler_data_flush_end(struct parsec_execution_unit_s*      exec_unit,
-                                         struct parsec_execution_context_s*   task,
+static void task_profiler_data_flush_end(struct parsec_execution_unit_s*     exec_unit,
+                                         struct parsec_task_s*               task,
                                          struct parsec_pins_next_callback_s* cb_data);
 
-static void task_profiler_exec_count_begin(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
+static void task_profiler_exec_count_begin(struct parsec_execution_unit_s*     exec_unit,
+                                           struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data);
-static void task_profiler_exec_count_end(struct parsec_execution_unit_s*      exec_unit,
-                                         struct parsec_execution_context_s*   task,
+static void task_profiler_exec_count_end(struct parsec_execution_unit_s*     exec_unit,
+                                         struct parsec_task_s*               task,
                                          struct parsec_pins_next_callback_s* cb_data);
 
 const parsec_pins_module_t parsec_pins_task_profiler_module = {
@@ -144,8 +144,8 @@ static void pins_thread_fini_task_profiler(struct parsec_execution_unit_s * exec
  PINS CALLBACKS
  */
 
-static void task_profiler_release_deps_begin(struct parsec_execution_unit_s*      exec_unit,
-                                             struct parsec_execution_context_s*   task,
+static void task_profiler_release_deps_begin(struct parsec_execution_unit_s*     exec_unit,
+                                             struct parsec_task_s*               task,
                                              struct parsec_pins_next_callback_s* cb_data)
 {
     uint64_t key;
@@ -166,8 +166,8 @@ static void task_profiler_release_deps_begin(struct parsec_execution_unit_s*    
     (void)cb_data;
 }
 
-static void task_profiler_release_deps_end(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
+static void task_profiler_release_deps_end(struct parsec_execution_unit_s*     exec_unit,
+                                           struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data)
 {
     uint64_t key;
@@ -187,9 +187,9 @@ static void task_profiler_release_deps_end(struct parsec_execution_unit_s*      
     (void)cb_data;
 }
 
-static void task_profiler_activate_cb_begin(struct parsec_execution_unit_s*      exec_unit,
-                                             struct parsec_execution_context_s*   task,
-                                             struct parsec_pins_next_callback_s* cb_data)
+static void task_profiler_activate_cb_begin(struct parsec_execution_unit_s*     exec_unit,
+                                            struct parsec_task_s*               task,
+                                            struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
                           activate_cb_trace_keyin,
@@ -200,9 +200,9 @@ static void task_profiler_activate_cb_begin(struct parsec_execution_unit_s*     
     (void)cb_data;(void)task;
 }
 
-static void task_profiler_activate_cb_end(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
-                                           struct parsec_pins_next_callback_s* cb_data)
+static void task_profiler_activate_cb_end(struct parsec_execution_unit_s*     exec_unit,
+                                          struct parsec_task_s*               task,
+                                          struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
                           activate_cb_trace_keyout,
@@ -212,8 +212,8 @@ static void task_profiler_activate_cb_end(struct parsec_execution_unit_s*      e
     (void)cb_data;(void)task;
 }
 
-static void task_profiler_data_flush_begin(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
+static void task_profiler_data_flush_begin(struct parsec_execution_unit_s*     exec_unit,
+                                           struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
@@ -225,8 +225,8 @@ static void task_profiler_data_flush_begin(struct parsec_execution_unit_s*      
     (void)cb_data;(void)task;
 }
 
-static void task_profiler_data_flush_end(struct parsec_execution_unit_s*      exec_unit,
-                                         struct parsec_execution_context_s*   task,
+static void task_profiler_data_flush_end(struct parsec_execution_unit_s*     exec_unit,
+                                         struct parsec_task_s*               task,
                                          struct parsec_pins_next_callback_s* cb_data)
 {
     PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
@@ -237,8 +237,8 @@ static void task_profiler_data_flush_end(struct parsec_execution_unit_s*      ex
     (void)cb_data;(void)task;
 }
 
-static void task_profiler_exec_count_begin(struct parsec_execution_unit_s*      exec_unit,
-                                           struct parsec_execution_context_s*   task,
+static void task_profiler_exec_count_begin(struct parsec_execution_unit_s*     exec_unit,
+                                           struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data)
 {
     if (NULL != task->parsec_handle->profiling_array)
@@ -250,8 +250,8 @@ static void task_profiler_exec_count_begin(struct parsec_execution_unit_s*      
     (void)cb_data;
 }
 
-static void task_profiler_exec_count_end(struct parsec_execution_unit_s*      exec_unit,
-                                         struct parsec_execution_context_s*   task,
+static void task_profiler_exec_count_end(struct parsec_execution_unit_s*     exec_unit,
+                                         struct parsec_task_s*               task,
                                          struct parsec_pins_next_callback_s* cb_data)
 {
     if (NULL != task->parsec_handle->profiling_array)

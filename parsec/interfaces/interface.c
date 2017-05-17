@@ -19,7 +19,7 @@
  */
 parsec_hook_return_t
 parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
-                              parsec_execution_context_t *this_task)
+                              parsec_task_t *this_task)
 {
     (void)eu;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
@@ -28,7 +28,7 @@ parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
 
 parsec_hook_return_t
 parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
-                                             parsec_execution_context_t *this_task)
+                                             parsec_task_t *this_task)
 {
     parsec_handle_t *handle;
     (void)eu;
@@ -40,7 +40,7 @@ parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
 
 parsec_hook_return_t
 parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_t *eu,
-                                                         parsec_execution_context_t *this_task)
+                                                         parsec_task_t *this_task)
 {
     parsec_handle_t *handle;
     (void)eu;
@@ -92,7 +92,7 @@ __parsec_generic_startup_hash(const parsec_handle_t * __parsec_handle,
  * The default action here is to assert.
  */
 static int parsec_empty_function_without_arguments(parsec_execution_unit_t *eu,
-                                                  parsec_execution_context_t *this_task)
+                                                  parsec_task_t *this_task)
 {
     char tmp[128];
     parsec_fatal("Task %s is incorrectly initialized\n",

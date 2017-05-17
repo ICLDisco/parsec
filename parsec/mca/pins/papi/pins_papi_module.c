@@ -65,7 +65,7 @@ pins_papi_read_and_trace(parsec_execution_unit_t* exec_unit,
  * and if so calls pins_papi_read_and_trace to read them and put the information in the profiling data.
  */
 static void pins_papi_trace(parsec_execution_unit_t* exec_unit,
-                           parsec_execution_context_t* exec_context,
+                           parsec_task_t* exec_context,
                            parsec_pins_next_callback_t* cb_data)
 {
     parsec_pins_papi_callback_t* event_cb = (parsec_pins_papi_callback_t*)cb_data;

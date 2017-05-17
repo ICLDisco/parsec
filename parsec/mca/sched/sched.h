@@ -264,7 +264,7 @@ typedef int  (*parsec_sched_base_module_flow_init_fn_t)(parsec_execution_unit_t*
  */
 typedef int  (*parsec_sched_base_module_schedule_fn_t)
                  (parsec_execution_unit_t* eu_context,
-                  parsec_execution_context_t* new_context,
+                  parsec_task_t* new_context,
                   int32_t distance);
 /**
  * @brief Selecting Function
@@ -282,7 +282,7 @@ typedef int  (*parsec_sched_base_module_schedule_fn_t)
  *                         is returned
  * @return The selected task, or NULL if none is selectable
  */
-typedef parsec_execution_context_t *(*parsec_sched_base_module_select_fn_t)
+typedef parsec_task_t *(*parsec_sched_base_module_select_fn_t)
                  (parsec_execution_unit_t *eu_context,
                   int32_t* distance);
 

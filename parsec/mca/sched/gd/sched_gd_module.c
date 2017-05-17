@@ -23,9 +23,9 @@
  */
 static int sched_gd_install(parsec_context_t* master);
 static int sched_gd_schedule(parsec_execution_unit_t* eu_context,
-                             parsec_execution_context_t* new_context,
+                             parsec_task_t* new_context,
                              int32_t distance);
-static parsec_execution_context_t*
+static parsec_task_t*
 sched_gd_select(parsec_execution_unit_t *eu_context,
                 int32_t* distance);
 static int flow_gd_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
@@ -63,18 +63,18 @@ static int flow_gd_init(parsec_execution_unit_t* eu_context, struct parsec_barri
     return 0;
 }
 
-static parsec_execution_context_t*
+static parsec_task_t*
 sched_gd_select(parsec_execution_unit_t *eu_context,
                 int32_t* distance)
 {
-    parsec_execution_context_t * context =
-        (parsec_execution_context_t*)parsec_dequeue_try_pop_front( (parsec_dequeue_t*)eu_context->scheduler_object );
+    parsec_task_t * context =
+        (parsec_task_t*)parsec_dequeue_try_pop_front( (parsec_dequeue_t*)eu_context->scheduler_object );
     *distance = 0;
     return context;
 }
 
 static int sched_gd_schedule(parsec_execution_unit_t* eu_context,
-                             parsec_execution_context_t* new_context,
+                             parsec_task_t* new_context,
                              int32_t distance)
 {
 #if defined(PINS_ENABLE)

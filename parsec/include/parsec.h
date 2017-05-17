@@ -47,7 +47,7 @@ typedef struct parsec_handle_s            parsec_handle_t;
 /**
  * @brief Defines a Task
  */
-typedef struct parsec_execution_context_s parsec_execution_context_t;
+typedef struct parsec_task_s parsec_task_t;
 
 /**
  * @brief Represents a computing element (usually a system thread)
@@ -429,8 +429,8 @@ void parsec_handle_free(parsec_handle_t *handle);
  * @param[in] distributed 0 if that handle is local, non zero if it exists on all ranks.
  */
 int parsec_handle_enable(parsec_handle_t* handle,
-                        parsec_execution_context_t** startup_queue,
-                        parsec_execution_context_t* local_task,
+                        parsec_task_t** startup_queue,
+                        parsec_task_t* local_task,
                         parsec_execution_unit_t * eu,
                         int distributed);
 
@@ -469,7 +469,7 @@ int32_t parsec_set_priority( parsec_handle_t* handle, int32_t new_priority );
  * @return str
  */
 char* parsec_snprintf_execution_context( char* str, size_t size,
-                                        const parsec_execution_context_t* task);
+                                        const parsec_task_t* task);
 
 /**
  * @brief Opaque structure representing the parameters of a task

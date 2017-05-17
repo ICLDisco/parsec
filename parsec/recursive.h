@@ -9,7 +9,7 @@
 
 typedef struct cb_data_s {
     parsec_execution_unit_t    *eu;
-    parsec_execution_context_t *context;
+    parsec_task_t *context;
     void (*destruct)( parsec_handle_t * );
     int nbdesc;
     parsec_ddesc_t *desc[1];
@@ -34,7 +34,7 @@ static inline int parsec_recursivecall_callback(parsec_handle_t* parsec_handle, 
 }
 
 static inline int parsec_recursivecall( parsec_execution_unit_t    *eu,
-                                       parsec_execution_context_t *context,
+                                       parsec_task_t *context,
                                        parsec_handle_t            *handle,
                                        void (*handle_destroy)(parsec_handle_t *),
                                        int nbdesc,

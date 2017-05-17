@@ -26,15 +26,14 @@ static inline int hiBit(unsigned int n)
 /**
  * An inefficient recursive count, just for debugging
  */
-static inline int get_size(parsec_execution_context_t * node)
+static inline int get_size(parsec_task_t * node)
 {
     if (node == NULL)
         return 0;
     else
-        return 1 + get_size((parsec_execution_context_t *)node->super.list_next)
-            + get_size((parsec_execution_context_t *)node->super.list_prev);
+        return 1 + get_size((parsec_task_t *)node->super.list_next)
+            + get_size((parsec_task_t *)node->super.list_prev);
 }
-
 parsec_heap_t* heap_create(void)
 {
     parsec_heap_t* heap = calloc(sizeof(parsec_heap_t), 1);
@@ -58,7 +57,7 @@ void heap_destroy(parsec_heap_t** heap)
  *
  * Destroys elem->list_item next and prev.
  */
-void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
+void heap_insert(parsec_heap_t * heap, parsec_task_t * elem)
 {
     assert(heap != NULL);
     assert(elem != NULL);
@@ -69,7 +68,7 @@ void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
     if (heap->size == 1) {
         heap->top = elem;
     } else {
-        parsec_execution_context_t * parent = heap->top;
+        parsec_task_t * parent = heap->top;
         unsigned int bitmask = 1, size = heap->size;
         // prime the bitmask
         int level_counter = 0, parents_size = 0;
@@ -79,14 +78,14 @@ void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
         }
         parents_size = level_counter;
 
-        parsec_execution_context_t ** parents = calloc(sizeof(parsec_execution_context_t *), level_counter);
+        parsec_task_t ** parents = calloc(sizeof(parsec_task_t *), level_counter);
         // now the bitmask is two places farther than we want it, so back down
         bitmask = bitmask >> 2;
 
         parents[--level_counter] = heap->top;
         // now move through tree
         while (bitmask > 1) {
-            parent = (parsec_execution_context_t*)((bitmask & size) ? parent->super.list_next : parent->super.list_prev);
+            parent = (parsec_task_t*)((bitmask & size) ? parent->super.list_next : parent->super.list_prev);
             parents[--level_counter] = parent; // save parent
             bitmask = bitmask >> 1;
         }
@@ -104,7 +103,7 @@ void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
                     parent, elem, parent->priority, elem->priority);
             /* first, fix our grandparent, if necessary */
             if (level_counter + 1 < parents_size && parents[level_counter + 1] != NULL) {
-                parsec_execution_context_t * grandparent = parents[level_counter + 1];
+                parsec_task_t * grandparent = parents[level_counter + 1];
                 // i.e. our parent has a parent
                 if (grandparent->super.list_prev /* left */ == (parsec_list_item_t*)parent)
                     grandparent->super.list_prev = (parsec_list_item_t*)elem;
@@ -137,7 +136,6 @@ void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
         free(parents);
     }
 
-    
     /* set priority to top priority */
     heap->priority = heap->top->priority;
 
@@ -165,7 +163,7 @@ void heap_insert(parsec_heap_t * heap, parsec_execution_context_t * elem)
  * a new heap pointer created and put on your stack.
  * No matter what happens, an execution_context is returned unless the heap was NULL.
  */
-parsec_execution_context_t*
+parsec_task_t*
 heap_split_and_steal(parsec_heap_t ** heap_ptr,
                      parsec_heap_t ** new_heap_ptr)
 {
@@ -175,7 +173,7 @@ heap_split_and_steal(parsec_heap_t ** heap_ptr,
     // if tree has left child but not right child, put left child in new tree
 
     parsec_heap_t * heap = *heap_ptr; // shortcut to doing a bunch of (*heap_ptr)s
-    parsec_execution_context_t * to_use = NULL;
+    parsec_task_t * to_use = NULL;
     (*new_heap_ptr) = NULL; // this should already be NULL, but if it's not, we'll fix that.
 
     if( NULL == heap ) return NULL;
@@ -193,7 +191,7 @@ heap_split_and_steal(parsec_heap_t ** heap_ptr,
     if( NULL == heap->top->super.list_next /* right */ ) {
         assert(heap->size == 2);
         /* but doesn't have right child, so still not splitting */
-        heap->top = (parsec_execution_context_t*)heap->top->super.list_prev; // left
+        heap->top = (parsec_task_t*)heap->top->super.list_prev; // left
         assert(heap->top->super.list_next == NULL);
         assert(heap->top->super.list_prev == NULL);
         heap->priority = heap->top->priority;
@@ -209,9 +207,9 @@ heap_split_and_steal(parsec_heap_t ** heap_ptr,
         unsigned int twoBit = highBit >> 1;
         assert(heap->size >= 3);
         (*new_heap_ptr) = heap_create();
-        (*new_heap_ptr)->top = (parsec_execution_context_t*)heap->top->super.list_prev; // left
+        (*new_heap_ptr)->top = (parsec_task_t*)heap->top->super.list_prev; // left
         (*new_heap_ptr)->priority = (*new_heap_ptr)->top->priority;
-        heap->top = (parsec_execution_context_t*)heap->top->super.list_next;
+        heap->top = (parsec_task_t*)heap->top->super.list_next;
         heap->priority = heap->top->priority;
         if (twoBit & size) { // last item is on right side
             heap->size = ~highBit & size;
@@ -242,8 +240,9 @@ heap_split_and_steal(parsec_heap_t ** heap_ptr,
 }
 
 // cannot be made thread-safe with atomics
-parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr) {
-    parsec_execution_context_t * to_use = NULL;
+parsec_task_t* heap_remove(parsec_heap_t ** heap_ptr)
+{
+    parsec_task_t * to_use = NULL;
     parsec_heap_t * heap = *heap_ptr;
 
     if (heap != NULL) {
@@ -261,7 +260,7 @@ parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr) {
             if (heap->top->super.list_next /* right */ == NULL) {
                 assert(heap->size == 2);
                 /* but doesn't have right child, so still not splitting */
-                heap->top = (parsec_execution_context_t*)heap->top->super.list_prev; // left
+                heap->top = (parsec_task_t*)heap->top->super.list_prev; // left
                 /* set up doubly-linked singleton list in here, as DEFAULT scenario */
                 heap->list_item.list_prev = (parsec_list_item_t*)*heap_ptr;
                 heap->list_item.list_next = (parsec_list_item_t*)*heap_ptr;
@@ -275,7 +274,7 @@ parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr) {
                  Once the swap is made, in order to preserve priority order, we then
                  'bubble down' in the direction of the higher of any higher children.
                  */
-                parsec_execution_context_t * parent = heap->top;
+                parsec_task_t * parent = heap->top;
                 unsigned int bitmask = 1;
                 unsigned int size = heap->size;
                 // this allows us to count the number of layers in the heap
@@ -292,13 +291,13 @@ parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr) {
                      * through the heap one layer at a time in the direction of the
                      * 'last' element in the 'complete' heap.
                      */
-                    parent = (parsec_execution_context_t*)(
+                    parent = (parsec_task_t*)(
                         (bitmask & size) ? parent->super.list_next : parent->super.list_prev);
                     bitmask = bitmask >> 1;
                 }
 
                 if (bitmask & size) { // LAST NODE IS A 'NEXT' NODE
-                    heap->top = (parsec_execution_context_t*)parent->super.list_next;
+                    heap->top = (parsec_task_t*)parent->super.list_next;
                     // should ALWAYS be a leaf node
                     assert(heap->top != NULL);
                     assert(heap->top->super.list_next == NULL);
@@ -312,7 +311,7 @@ parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr) {
                     heap->top->super.list_prev = to_use->super.list_prev;
                 }
                 else { // LAST NODE IS A 'PREV' NODE
-                    heap->top = (parsec_execution_context_t*)parent->super.list_prev;
+                    heap->top = (parsec_task_t*)parent->super.list_prev;
                     // should ALWAYS be a leaf node
                     assert(heap->top != NULL);
                     assert(heap->top->super.list_next == NULL);
@@ -326,13 +325,13 @@ parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr) {
                 }
 
                 // now bubble down
-                parsec_execution_context_t * bubbler = heap->top;
+                parsec_task_t * bubbler = heap->top;
                 int is_next = -1; /* flag keeps track of whether we are 'prev' or 'next' to our current PARENT.
                                    * the initial value doesn't matter since we're at the top and have no parent. */
                 parent = NULL;
                 while (1) {
-                    parsec_execution_context_t * next = (parsec_execution_context_t*)bubbler->super.list_next;
-                    parsec_execution_context_t * prev = (parsec_execution_context_t*)bubbler->super.list_prev;
+                    parsec_task_t * next = (parsec_task_t*)bubbler->super.list_next;
+                    parsec_task_t * prev = (parsec_task_t*)bubbler->super.list_prev;
                     // first, compare all three priorities to see which way to bubble, if any
                     if (prev != NULL && prev->priority > bubbler->priority &&
                         (next == NULL || prev->priority >= next->priority)) {
@@ -393,3 +392,4 @@ parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr) {
 #endif
     return to_use;
 }
+

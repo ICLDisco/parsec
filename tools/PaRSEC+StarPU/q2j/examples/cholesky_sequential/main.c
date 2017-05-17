@@ -32,7 +32,7 @@ main (int argc, char *argv[])
     PLASMA_enum uplo = PlasmaLower;
     parsec_ddesc_t *ddescA;
     parsec_handle_t *cholesky;
-    parsec_execution_context_t *startup_list = NULL;
+    parsec_task_t* startup_list = NULL;
     struct timeval start;
     struct timeval end;
 

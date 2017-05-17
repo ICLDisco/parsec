@@ -37,8 +37,8 @@ BEGIN_C_DECLS
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int __parsec_schedule( parsec_execution_unit_t* eu,
-                       parsec_execution_context_t* ec,
+int __parsec_schedule( parsec_execution_unit_t*,
+                       parsec_task_t*,
                        int32_t distance);
 
 /**
@@ -58,7 +58,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu,
  * @return parsec scheduling return code
  */
 int __parsec_reschedule(parsec_execution_unit_t* eu_context,
-                        parsec_execution_context_t* task);
+                        parsec_task_t* task);
 
 /**
  * @brief Enter the progress engine for this execution unit
@@ -79,7 +79,7 @@ int __parsec_context_wait(parsec_execution_unit_t* eu_context);
 /**
  * Execute the body of the task associated to the context.
  */
-int __parsec_execute( parsec_execution_unit_t*, parsec_execution_context_t*);
+int __parsec_execute( parsec_execution_unit_t*, parsec_task_t*);
 /**
  * Signal the termination of the execution context to all dependencies of
  * its dependencies.
@@ -91,7 +91,7 @@ int __parsec_execute( parsec_execution_unit_t*, parsec_execution_context_t*);
  * @return -1   If something went wrong.
  */
 int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
-                                 parsec_execution_context_t *exec_context );
+                                 parsec_task_t *exec_context );
 
 /**
  * Signal the handle that a certain number of runtime bound activities have been

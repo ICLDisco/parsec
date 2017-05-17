@@ -120,8 +120,8 @@ static edge_list_t *lookup_create_edge(const vertex_list_t *from, const vertex_l
 }
 
 static parsec_ontask_iterate_t ontask_function(struct parsec_execution_unit *eu, 
-                                              parsec_execution_context_t *newcontext, 
-                                              parsec_execution_context_t *oldcontext, 
+                                              parsec_task_t *newcontext, 
+                                              parsec_task_t *oldcontext, 
                                               int flow_index, int outdep_index, 
                                               int rank_src, int rank_dst,
                                               void *param)
@@ -180,7 +180,7 @@ int main(int argc, char *argv[])
 {
     int i;
     parsec_handle_t *o;
-    parsec_execution_context_t *startup;
+    parsec_task_t *startup;
     parsec_list_item_t *s;
     parsec_context_t *parsec;
 
@@ -208,14 +208,14 @@ int main(int argc, char *argv[])
     s = (parsec_list_item_t*)startup;
     do {
         char fromstr[MAX_TASK_STRLEN];
-        parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, (parsec_execution_context_t*)s);
+        parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, (parsec_task_t*)s);
         lookup_create_vertex(fromstr);
         s = (parsec_list_item_t*)s->list_next;
     } while( s != (parsec_list_item_t*)startup );
 
     s = (parsec_list_item_t*)startup;
     do {
-        ((parsec_execution_context_t*)s)->function->iterate_successors(parsec->execution_units[0], (parsec_execution_context_t*)s, ontask_function, NULL);
+        ((parsec_task_t*)s)->function->iterate_successors(parsec->execution_units[0], (parsec_task_t*)s, ontask_function, NULL);
         s = (parsec_list_item_t*)s->list_next;
     } while( s!= (parsec_list_item_t*)startup );
 

@@ -21,7 +21,7 @@ static void pins_thread_fini_iterators_checker(struct parsec_execution_unit_s* e
 
 /* PINS callbacks */
 static void iterators_checker_exec_count_begin(parsec_execution_unit_t* exec_unit,
-                                               parsec_execution_context_t* exec_context,
+                                               parsec_task_t* exec_context,
                                                struct parsec_pins_next_callback_s* data);
 const parsec_pins_module_t parsec_pins_iterators_checker_module = {
     &parsec_pins_iterators_checker_component,
@@ -56,8 +56,8 @@ static void pins_thread_fini_iterators_checker(struct parsec_execution_unit_s* e
 #define TASK_STR_LEN 256
 
 static parsec_ontask_iterate_t print_link(parsec_execution_unit_t *eu,
-                                         const parsec_execution_context_t *newcontext,
-                                         const parsec_execution_context_t *oldcontext,
+                                         const parsec_task_t *newcontext,
+                                         const parsec_task_t *oldcontext,
                                          const dep_t* dep,
                                          parsec_dep_data_description_t* data,
                                          int src_rank, int dst_rank, int dst_vpid,
@@ -78,7 +78,7 @@ static parsec_ontask_iterate_t print_link(parsec_execution_unit_t *eu,
 }
 
 static void iterators_checker_exec_count_begin(parsec_execution_unit_t* exec_unit,
-                                               parsec_execution_context_t* exec_context,
+                                               parsec_task_t* exec_context,
                                                struct parsec_pins_next_callback_s* _data)
 {
     char  str[TASK_STR_LEN];

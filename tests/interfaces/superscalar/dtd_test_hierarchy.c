@@ -38,7 +38,7 @@ enum regions {
 
 int
 test_task( parsec_execution_unit_t    *context,
-           parsec_execution_context_t *this_task )
+           parsec_task_t *this_task )
 {
     (void)context;
 
@@ -62,7 +62,7 @@ test_task( parsec_execution_unit_t    *context,
 
 int
 test_task_generator( parsec_execution_unit_t    *context,
-                     parsec_execution_context_t *this_task )
+                     parsec_task_t *this_task )
 {
     (void)context;
 

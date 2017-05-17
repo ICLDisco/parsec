@@ -31,7 +31,7 @@ enum regions {
              };
 
 int
-parsec_core_potrf(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_potrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     PLASMA_enum *uplo;
@@ -52,7 +52,7 @@ parsec_core_potrf(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-parsec_core_trsm(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_trsm(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     PLASMA_enum *side, *uplo, *trans, *diag;
@@ -83,7 +83,7 @@ parsec_core_trsm(parsec_execution_unit_t *context, parsec_execution_context_t *t
 }
 
 int
-parsec_core_herk(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_herk(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     PLASMA_enum *uplo, *trans;
@@ -114,7 +114,7 @@ parsec_core_herk(parsec_execution_unit_t *context, parsec_execution_context_t *t
 }
 
 int
-parsec_core_gemm(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_gemm(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     PLASMA_enum *transA, *transB;
@@ -150,7 +150,7 @@ parsec_core_gemm(parsec_execution_unit_t *context, parsec_execution_context_t *t
 }
 
 int
-insert_task_lower(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+insert_task_lower(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     /* Parameters passed on to Insert_task() */
@@ -264,7 +264,7 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-insert_task_upper(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+insert_task_upper(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     /* Parameters passed on to Insert_task() */

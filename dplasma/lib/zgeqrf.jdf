@@ -103,7 +103,7 @@ BODY [type=RECURSIVE]
                                                   p_work );
 
         /* recursive call */
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall( context, (parsec_task_t*)this_task,
                              parsec_zgeqrt, dplasma_zgeqrfr_geqrt_Destruct,
                              2, small_descA, small_descT);
 
@@ -195,7 +195,7 @@ BODY [type=RECURSIVE]
                                                         p_work );
 
         /* recursive call */
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall( context, (parsec_task_t*)this_task,
                              parsec_zunmqr_panel, dplasma_zgeqrfr_unmqr_Destruct,
                              3, small_descA, small_descC, small_descT);
 
@@ -309,7 +309,7 @@ BODY [type=RECURSIVE]
                                                  p_work, p_tau );
 
         /* recursive call */
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall( context, (parsec_task_t*)this_task,
                              parsec_ztsqrt, dplasma_zgeqrfr_tsqrt_Destruct,
                              3, small_descA1, small_descA2, small_descT);
 
@@ -458,7 +458,7 @@ BODY [type=RECURSIVE]
                                                   p_work );
 
         /* recursive call */
-        parsec_recursivecall( context, (parsec_execution_context_t*)this_task,
+        parsec_recursivecall( context, (parsec_task_t*)this_task,
                              parsec_ztsmqr, dplasma_zgeqrfr_tsmqr_Destruct,
                              4, small_descA1, small_descA2, small_descV, small_descT);
 

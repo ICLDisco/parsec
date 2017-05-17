@@ -34,7 +34,7 @@ typedef struct parsec_pins_print_steals_data_s {
 } parsec_pins_print_steals_data_t;
 
 static void stop_print_steals_count(parsec_execution_unit_t* exec_unit,
-                                    parsec_execution_context_t* exec_context,
+                                    parsec_task_t* exec_context,
                                     parsec_pins_next_callback_t* data);
 
 #define THREAD_NUM(exec_unit) (exec_unit->virtual_process->vp_id *      \
@@ -70,7 +70,7 @@ static void pins_thread_fini_print_steals(parsec_execution_unit_t* exec_unit)
 }
 
 static void stop_print_steals_count(parsec_execution_unit_t* exec_unit,
-                                    parsec_execution_context_t* exec_context,
+                                    parsec_task_t* exec_context,
                                     parsec_pins_next_callback_t* data)
 {
     parsec_pins_print_steals_data_t* event_cb = (parsec_pins_print_steals_data_t*)data;

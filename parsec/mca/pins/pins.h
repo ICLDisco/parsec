@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef MCA_PINS_H
 #define MCA_PINS_H
 /* PaRSEC Performance Instrumentation Callback System */
@@ -8,8 +14,8 @@
 #define PARSEC_PINS_SEPARATOR ";"
 
 struct parsec_pins_next_callback_s;
-typedef void (*parsec_pins_callback)(struct parsec_execution_unit_s*      exec_unit,
-                                     struct parsec_execution_context_s*   task,
+typedef void (*parsec_pins_callback)(struct parsec_execution_unit_s*     exec_unit,
+                                     struct parsec_task_s*               task,
                                      struct parsec_pins_next_callback_s* cb_data);
 
 typedef struct parsec_pins_next_callback_s {
@@ -112,7 +118,7 @@ void pins_thread_fini(struct parsec_execution_unit_s * exec_unit);
  */
 void parsec_pins_instrument(struct parsec_execution_unit_s * exec_unit,
                             PINS_FLAG method_flag,
-                            struct parsec_execution_context_s * task);
+                            struct parsec_task_s* task);
 
 void parsec_pins_disable_registration(int disable);
 

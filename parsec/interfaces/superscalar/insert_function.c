@@ -77,23 +77,23 @@ parsec_mempool_t *parsec_dtd_tile_mempool = NULL;
  */
 static int
 hook_of_dtd_task(parsec_execution_unit_t *context,
-                      parsec_execution_context_t *this_task);
+                      parsec_task_t *this_task);
 
 static void
 iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
-                               const parsec_execution_context_t *this_task,
+                               const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
                                void *ontask_arg);
 
 static int
 release_deps_of_dtd(parsec_execution_unit_t *,
-                    parsec_execution_context_t *,
+                    parsec_task_t *,
                     uint32_t, parsec_remote_deps_t *);
 
 static parsec_hook_return_t
 complete_hook_of_dtd(parsec_execution_unit_t *,
-                     parsec_execution_context_t *);
+                     parsec_task_t *);
 
 static uint32_t hash_key (uintptr_t key, void *data);
 
@@ -163,10 +163,10 @@ parsec_dtd_enqueue_handle( parsec_handle_t *parsec_handle, void *parsec_context 
     return 0;
 }
 
-/* To create object of class parsec_dtd_task_t that inherits parsec_execution_context_t
+/* To create object of class parsec_dtd_task_t that inherits parsec_task_t
  * class
  */
-OBJ_CLASS_INSTANCE(parsec_dtd_task_t, parsec_execution_context_t,
+OBJ_CLASS_INSTANCE(parsec_dtd_task_t, parsec_task_t,
                    NULL, NULL);
 
 /* To create object of class .list_itemdtd_tile_t that inherits parsec_list_item_t
@@ -195,7 +195,7 @@ void parsec_dtd_handle_constructor(parsec_dtd_handle_t *parsec_handle)
 {
     int i;
 
-    parsec_handle->startup_list = (parsec_execution_context_t**)calloc( vpmap_get_nb_vp(), sizeof(parsec_execution_context_t*));
+    parsec_handle->startup_list = (parsec_task_t**)calloc( vpmap_get_nb_vp(), sizeof(parsec_task_t*));
 
     parsec_handle->function_counter = 0;
 
@@ -418,7 +418,7 @@ parsec_dtd_fini()
  */
 int
 parsec_dtd_copy_data_to_matrix(parsec_execution_unit_t *eu,
-                               parsec_execution_context_t *this_task)
+                               parsec_task_t *this_task)
 {
     (void)eu;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
@@ -497,7 +497,7 @@ parsec_execute_and_come_back( parsec_context_t *context,
 {
     uint64_t misses_in_a_row;
     parsec_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
-    parsec_execution_context_t* exec_context;
+    parsec_task_t* exec_context;
     int rc, nbiterations = 0, distance;
     struct timespec rqtp;
 
@@ -659,7 +659,7 @@ parsec_dtd_handle_wait_func( parsec_context_t *parsec,
  * @ingroup DTD_INTERFACE
  */
 void
-parsec_dtd_unpack_args(parsec_execution_context_t *this_task, ...)
+parsec_dtd_unpack_args(parsec_task_t *this_task, ...)
 {
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_task_param_t *current_param = GET_HEAD_OF_PARAM_LIST(current_task);
@@ -1197,7 +1197,7 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
  */
 static int
 hook_of_dtd_task( parsec_execution_unit_t    *context,
-                  parsec_execution_context_t *this_task )
+                  parsec_task_t *this_task )
 {
     parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t*)this_task;
     assert(parsec_dtd_task_is_local(dtd_task));
@@ -1423,7 +1423,7 @@ parsec_dtd_handle_release( parsec_handle_t *parsec_handle )
 void
 parsec_dtd_startup( parsec_context_t            *context,
                     parsec_handle_t             *parsec_handle,
-                    parsec_execution_context_t **pready_list )
+                    parsec_task_t **pready_list )
 {
     uint32_t supported_dev = 0;
     parsec_dtd_handle_t *parsec_dtd_handle = (parsec_dtd_handle_t *) parsec_handle;
@@ -1493,8 +1493,8 @@ parsec_dtd_not_sent_to_rank(parsec_dtd_task_t *this_task, int flow_index, int ds
  */
 parsec_ontask_iterate_t
 dtd_release_dep_fct( parsec_execution_unit_t *eu,
-                     const parsec_execution_context_t *newcontext,
-                     const parsec_execution_context_t *oldcontext,
+                     const parsec_task_t *newcontext,
+                     const parsec_task_t *oldcontext,
                      const dep_t *dep,
                      parsec_dep_data_description_t *data,
                      int src_rank, int dst_rank, int dst_vpid,
@@ -1575,7 +1575,7 @@ dtd_release_dep_fct( parsec_execution_unit_t *eu,
                               current_task->super.function->nb_flows, current_task->flow_count);
             }
 
-            arg->ready_lists[dst_vpid] = (parsec_execution_context_t*)
+            arg->ready_lists[dst_vpid] = (parsec_task_t*)
                 parsec_list_item_ring_push_sorted( (parsec_list_item_t*)arg->ready_lists[dst_vpid],
                                                   &current_task->super.super,
                                                   parsec_execution_context_priority_comparator );
@@ -1604,7 +1604,7 @@ dtd_release_dep_fct( parsec_execution_unit_t *eu,
  */
 static void
 iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
-                               const parsec_execution_context_t *this_task,
+                               const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
                                void *ontask_arg)
@@ -1614,7 +1614,7 @@ iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
     this_dtd_task = (parsec_dtd_task_t *)this_task;
 
     (void)eu; (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
-    parsec_dtd_ordering_correctly( eu, (parsec_execution_context_t *)this_dtd_task,
+    parsec_dtd_ordering_correctly( eu, (parsec_task_t *)this_dtd_task,
                                    action_mask, ontask, ontask_arg );
 }
 
@@ -1637,7 +1637,7 @@ iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
  */
 static int
 release_deps_of_dtd( parsec_execution_unit_t *eu,
-                     parsec_execution_context_t *this_task,
+                     parsec_task_t *this_task,
                      uint32_t action_mask,
                      parsec_remote_deps_t *deps )
 {
@@ -1655,7 +1655,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
     arg.action_mask  = action_mask;
     arg.output_usage = 0;
     arg.output_entry = NULL;
-    arg.ready_lists  = alloca(sizeof(parsec_execution_context_t *) * eu->virtual_process->parsec_context->nb_vp);
+    arg.ready_lists  = alloca(sizeof(parsec_task_t *) * eu->virtual_process->parsec_context->nb_vp);
 
     for (__vp_id = 0; __vp_id < eu->virtual_process->parsec_context->nb_vp; __vp_id++)
         arg.ready_lists[__vp_id] = NULL;
@@ -1699,7 +1699,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
         parsec_dtd_two_hash_table_unlock(parsec_handle->two_hash_table);
     }
     assert(NULL != this_dtd_task);
-    iterate_successors_of_dtd_task(eu, (parsec_execution_context_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
+    iterate_successors_of_dtd_task(eu, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
 
 #if defined(DISTRIBUTED)
     /* We perform this only for remote tasks that are being activated
@@ -1768,7 +1768,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
  */
 static int
 complete_hook_of_dtd( parsec_execution_unit_t    *context,
-                      parsec_execution_context_t *this_task )
+                      parsec_task_t *this_task )
 {
     /* Assuming we only call this function for local tasks */
     parsec_dtd_task_t *this_dtd_task = (parsec_dtd_task_t *) this_task;
@@ -1844,7 +1844,7 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
 /* Function to push back tasks in their mempool once the execution are done */
 parsec_hook_return_t
 parsec_release_dtd_task_to_mempool(parsec_execution_unit_t *eu,
-                                  parsec_execution_context_t *this_task)
+                                  parsec_task_t *this_task)
 {
     (void)eu;
     (void)parsec_atomic_dec_32b( (uint32_t*)&this_task->parsec_handle->nb_tasks );
@@ -1888,7 +1888,7 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
 /* Prepare_input function */
 int
 data_lookup_of_dtd_task( parsec_execution_unit_t *context,
-                         parsec_execution_context_t *this_task )
+                         parsec_task_t *this_task )
 {
     (void)context;
 
@@ -1916,7 +1916,7 @@ data_lookup_of_dtd_task( parsec_execution_unit_t *context,
 /* Prepare_output function */
 int
 output_data_of_dtd_task( parsec_execution_unit_t *context,
-                         parsec_execution_context_t *this_task )
+                         parsec_task_t *this_task )
 {
     (void)context;
 
@@ -1942,7 +1942,7 @@ output_data_of_dtd_task( parsec_execution_unit_t *context,
 }
 
 static int datatype_lookup_of_dtd_task(parsec_execution_unit_t *eu,
-                                       const parsec_execution_context_t *this_task,
+                                       const parsec_task_t *this_task,
                                        uint32_t *flow_mask, parsec_dep_data_description_t *data)
 {
     (void)eu;
@@ -2540,7 +2540,7 @@ set_descendant( parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
 void
 parsec_dtd_schedule_tasks( parsec_dtd_handle_t *__parsec_handle )
 {
-    parsec_execution_context_t **startup_list = __parsec_handle->startup_list;
+    parsec_task_t **startup_list = __parsec_handle->startup_list;
     parsec_list_t temp;
 
     OBJ_CONSTRUCT( &temp, parsec_list_t );
@@ -2550,7 +2550,7 @@ parsec_dtd_schedule_tasks( parsec_dtd_handle_t *__parsec_handle )
         /* Order the tasks by priority */
         parsec_list_chain_sorted(&temp, (parsec_list_item_t*)startup_list[p],
                                 parsec_execution_context_priority_comparator);
-        startup_list[p] = (parsec_execution_context_t*)parsec_list_nolock_unchain(&temp);
+        startup_list[p] = (parsec_task_t*)parsec_list_nolock_unchain(&temp);
         /* We should add these tasks on the system queue when there is one */
         __parsec_schedule( __parsec_handle->super.context->virtual_processes[p]->execution_units[0],
                           startup_list[p], 0 );
@@ -2678,7 +2678,7 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
  * @ingroup DTD_INTERFACE_INTERNAL
  */
 int
-fake_first_out_body( parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+fake_first_out_body( parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context; (void)this_task;
     return PARSEC_HOOK_RETURN_DONE;
@@ -2918,7 +2918,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                             /* To make sure we do not release any remote data held by this task */
                             OBJ_RETAIN(parent_task);
                         }
-                        release_deps_of_dtd(eu, (parsec_execution_context_t *)(PARENT_OF(this_task, flow_index))->task,
+                        release_deps_of_dtd(eu, (parsec_task_t *)(PARENT_OF(this_task, flow_index))->task,
                                             action_mask |
                                             PARSEC_ACTION_SEND_REMOTE_DEPS      |
                                             PARSEC_ACTION_SEND_INIT_REMOTE_DEPS |
@@ -2996,7 +2996,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
 
             PARSEC_LIST_ITEM_SINGLETON(this_task);
             __parsec_schedule( parsec_dtd_handle->super.context->virtual_processes[vpid]->execution_units[0],
-                               (parsec_execution_context_t *)this_task, 0 );
+                               (parsec_task_t *)this_task, 0 );
             vpid = (vpid+1)%parsec_dtd_handle->super.context->nb_vp;
         }
     }

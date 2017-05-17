@@ -31,9 +31,9 @@ static int SYSTEM_NEIGHBOR = 0;
  */
 static int sched_ltq_install(parsec_context_t* master);
 static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context,
+                              parsec_task_t* new_context,
                               int32_t distance);
-static parsec_execution_context_t *sched_ltq_select(parsec_execution_unit_t *eu_context,
+static parsec_task_t *sched_ltq_select(parsec_execution_unit_t *eu_context,
                                                     int32_t* distance);
 static int flow_ltq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
 static void sched_ltq_remove(parsec_context_t* master);
@@ -135,13 +135,13 @@ static int flow_ltq_init(parsec_execution_unit_t * eu, struct parsec_barrier_t* 
     return 0;
 }
 
-static parsec_execution_context_t*
+static parsec_task_t*
 sched_ltq_select(parsec_execution_unit_t *eu_context,
                  int32_t* distance)
 {
     parsec_heap_t* heap = NULL;
     parsec_heap_t* new_heap = NULL;
-    parsec_execution_context_t * exec_context = NULL;
+    parsec_task_t * exec_context = NULL;
     int i = 0;
     /*
      possible future improvement over using existing pop_best function:
@@ -211,11 +211,11 @@ sched_ltq_select(parsec_execution_unit_t *eu_context,
 }
 
 static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
-                              parsec_execution_context_t* new_context,
+                              parsec_task_t* new_context,
                               int32_t distance)
 {
-    parsec_execution_context_t * cur = new_context;
-    parsec_execution_context_t * next;
+    parsec_task_t * cur = new_context;
+    parsec_task_t * next;
     parsec_heap_t* heap = heap_create();
     parsec_heap_t* first_h = heap;
     int matches = 0;
@@ -229,7 +229,7 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
 
     while (1) {
         // check next element before insertion, which destroys next and prev
-        next = (parsec_execution_context_t*)cur->super.list_next;
+        next = (parsec_task_t*)cur->super.list_next;
         assert(next != NULL);
 
         heap_insert(heap, cur);

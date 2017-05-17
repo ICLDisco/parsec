@@ -27,7 +27,7 @@ double sync_time_elapsed;
 
 int
 real_task( parsec_execution_unit_t    *context,
-           parsec_execution_context_t *this_task )
+           parsec_task_t *this_task )
 {
     (void)context; (void)this_task;
 
@@ -39,7 +39,7 @@ real_task( parsec_execution_unit_t    *context,
 
 int
 task_to_insert_task( parsec_execution_unit_t    *context,
-                     parsec_execution_context_t *this_task )
+                     parsec_task_t *this_task )
 {
     (void)context;
 

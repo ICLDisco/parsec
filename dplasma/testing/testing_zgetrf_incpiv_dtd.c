@@ -21,7 +21,7 @@ enum regions {
              };
 
 int
-parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_task_t * this_task)
 {
     (void)context;
     int *m;
@@ -52,7 +52,7 @@ parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_execution_cont
 }
 
 int
-parsec_core_gessm(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_gessm(parsec_execution_unit_t *context, parsec_task_t * this_task)
 {
     (void)context;
     int *m;
@@ -87,7 +87,7 @@ parsec_core_gessm(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-parsec_core_tstrf(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_tstrf(parsec_execution_unit_t *context, parsec_task_t * this_task)
 {
     (void)context;
     int *m;
@@ -133,7 +133,7 @@ parsec_core_tstrf(parsec_execution_unit_t *context, parsec_execution_context_t *
 }
 
 int
-parsec_core_ssssm(parsec_execution_unit_t *context, parsec_execution_context_t * this_task)
+parsec_core_ssssm(parsec_execution_unit_t *context, parsec_task_t * this_task)
 {
     (void)context;
     int *m1;

@@ -24,7 +24,7 @@ static int check_solution( parsec_context_t *parsec, int loud,
                            two_dim_block_cyclic_t *ddescCfinal );
 
 static int
-parsec_core_gemm(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+parsec_core_gemm(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context;
     PLASMA_enum *transA;

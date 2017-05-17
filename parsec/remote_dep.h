@@ -204,7 +204,7 @@ int parsec_remote_dep_new_object(parsec_handle_t* handle);
 
 /* Send remote dependencies to target processes */
 int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
-                              const parsec_execution_context_t* origin,
+                              const parsec_task_t* origin,
                               parsec_remote_deps_t* remote_deps,
                               uint32_t propagation_mask);
 
@@ -227,7 +227,7 @@ remote_dep_mpi_initialize_execution_unit(parsec_context_t *context);
 #ifdef PARSEC_DIST_COLLECTIVES
 /* Propagate an activation order from the current node down the original tree */
 int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
-                               const parsec_execution_context_t* task,
+                               const parsec_task_t* task,
                                parsec_remote_deps_t* deps);
 #endif
 

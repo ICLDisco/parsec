@@ -250,8 +250,8 @@ int parsec_remote_dep_new_object(parsec_handle_t* obj) {
  */
 parsec_ontask_iterate_t
 parsec_gather_collective_pattern(parsec_execution_unit_t *eu,
-                                const parsec_execution_context_t *newcontext,
-                                const parsec_execution_context_t *oldcontext,
+                                const parsec_task_t *newcontext,
+                                const parsec_task_t *oldcontext,
                                 const dep_t* dep,
                                 parsec_dep_data_description_t* data,
                                 int src_rank, int dst_rank, int dst_vpid,
@@ -287,7 +287,7 @@ parsec_gather_collective_pattern(parsec_execution_unit_t *eu,
  * function is called to start propagating the activation order and the data.
  */
 int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
-                               const parsec_execution_context_t* task,
+                               const parsec_task_t* task,
                                parsec_remote_deps_t* deps)
 {
     const parsec_function_t* function = task->function;
@@ -319,7 +319,7 @@ int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
  *
  */
 int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
-                              const parsec_execution_context_t* exec_context,
+                              const parsec_task_t* exec_context,
                               parsec_remote_deps_t* remote_deps,
                               uint32_t propagation_mask)
 {

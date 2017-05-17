@@ -115,7 +115,7 @@ static const symbol_t symb_column = {
     .flags = PARSEC_SYMBOL_IS_STANDALONE
 };
 
-static inline int affinity_of_map_operator(parsec_execution_context_t *this_task,
+static inline int affinity_of_map_operator(parsec_task_t *this_task,
                                            parsec_data_ref_t *ref)
 {
     const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)this_task->parsec_handle;
@@ -126,7 +126,7 @@ static inline int affinity_of_map_operator(parsec_execution_context_t *this_task
     return 1;
 }
 
-static inline int initial_data_of_map_operator(parsec_execution_context_t *this_task,
+static inline int initial_data_of_map_operator(parsec_task_t *this_task,
                                                parsec_data_ref_t *refs)
 {
     int __flow_nb = 0;
@@ -143,7 +143,7 @@ static inline int initial_data_of_map_operator(parsec_execution_context_t *this_
     return __flow_nb;
 }
 
-static inline int final_data_of_map_operator(parsec_execution_context_t *this_task,
+static inline int final_data_of_map_operator(parsec_task_t *this_task,
                                              parsec_data_ref_t *data_refs)
 {
     int __flow_nb = 0;
@@ -184,20 +184,20 @@ static const parsec_flow_t flow_of_map_operator = {
 
 static parsec_ontask_iterate_t
 add_task_to_list(parsec_execution_unit_t *eu_context,
-                 const parsec_execution_context_t *newcontext,
-                 const parsec_execution_context_t *oldcontext,
+                 const parsec_task_t *newcontext,
+                 const parsec_task_t *oldcontext,
                  const dep_t* dep,
                  parsec_dep_data_description_t* data,
                  int rank_src, int rank_dst,
                  int vpid_dst,
                  void *_ready_lists)
 {
-    parsec_execution_context_t** pready_list = (parsec_execution_context_t**)_ready_lists;
-    parsec_execution_context_t* new_context = (parsec_execution_context_t*)parsec_thread_mempool_allocate( eu_context->context_mempool );
+    parsec_task_t** pready_list = (parsec_task_t**)_ready_lists;
+    parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_allocate( eu_context->context_mempool );
 
     new_context->status = PARSEC_TASK_STATUS_NONE;
     PARSEC_COPY_EXECUTION_CONTEXT(new_context, newcontext);
-    pready_list[vpid_dst] = (parsec_execution_context_t*)parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(pready_list[vpid_dst]),
+    pready_list[vpid_dst] = (parsec_task_t*)parsec_list_item_ring_push_sorted( (parsec_list_item_t*)(pready_list[vpid_dst]),
                                                                                           (parsec_list_item_t*)new_context,
                                                                                           parsec_execution_context_priority_comparator );
 
@@ -206,7 +206,7 @@ add_task_to_list(parsec_execution_unit_t *eu_context,
 }
 
 static void iterate_successors(parsec_execution_unit_t *eu,
-                               const parsec_execution_context_t *this_task,
+                               const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
                                void *ontask_arg)
@@ -214,7 +214,7 @@ static void iterate_successors(parsec_execution_unit_t *eu,
     __parsec_map_operator_handle_t *__parsec_handle = (__parsec_map_operator_handle_t*)this_task->parsec_handle;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value+1;
-    parsec_execution_context_t nc;
+    parsec_task_t nc;
 
     nc.priority = 0;
     nc.chore_id = 0;
@@ -251,14 +251,14 @@ static void iterate_successors(parsec_execution_unit_t *eu,
 }
 
 static int release_deps(parsec_execution_unit_t *eu,
-                        parsec_execution_context_t *this_task,
+                        parsec_task_t *this_task,
                         uint32_t action_mask,
                         parsec_remote_deps_t *deps)
 {
-    parsec_execution_context_t** ready_list;
+    parsec_task_t** ready_list;
     int i;
 
-    ready_list = (parsec_execution_context_t **)calloc(sizeof(parsec_execution_context_t *),
+    ready_list = (parsec_task_t **)calloc(sizeof(parsec_task_t *),
                                                       vpmap_get_nb_vp());
 
     iterate_successors(eu, this_task, action_mask, add_task_to_list, ready_list);
@@ -292,7 +292,7 @@ static int release_deps(parsec_execution_unit_t *eu,
 }
 
 static int data_lookup(parsec_execution_unit_t *context,
-                       parsec_execution_context_t *this_task)
+                       parsec_task_t *this_task)
 {
     const __parsec_map_operator_handle_t *__parsec_handle = (__parsec_map_operator_handle_t*)this_task->parsec_handle;
     int k = this_task->locals[0].value;
@@ -314,7 +314,7 @@ static int data_lookup(parsec_execution_unit_t *context,
 }
 
 static int hook_of(parsec_execution_unit_t *context,
-                   parsec_execution_context_t *this_task)
+                   parsec_task_t *this_task)
 {
     const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t*)this_task->parsec_handle;
     int k = this_task->locals[0].value;
@@ -340,7 +340,7 @@ static int hook_of(parsec_execution_unit_t *context,
 }
 
 static int complete_hook(parsec_execution_unit_t *context,
-                         parsec_execution_context_t *this_task)
+                         parsec_task_t *this_task)
 {
     const __parsec_map_operator_handle_t *__parsec_handle = (const __parsec_map_operator_handle_t *)this_task->parsec_handle;
     int k = this_task->locals[0].value;
@@ -399,11 +399,11 @@ static const parsec_function_t parsec_map_operator = {
 
 static void parsec_map_operator_startup_fn(parsec_context_t *context,
                                           parsec_handle_t *parsec_handle,
-                                          parsec_execution_context_t** startup_list)
+                                          parsec_task_t** startup_list)
 {
     __parsec_map_operator_handle_t *__parsec_handle = (__parsec_map_operator_handle_t*)parsec_handle;
-    parsec_execution_context_t fake_context;
-    parsec_execution_context_t *ready_list;
+    parsec_task_t fake_context;
+    parsec_task_t *ready_list;
     int k = 0, n = 0, count = 0, vpid = 0;
     parsec_execution_unit_t* eu;
 

@@ -77,7 +77,7 @@ typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
  */
 typedef void (*parsec_startup_fn_t)(parsec_context_t *context,
                                    parsec_handle_t *parsec_handle,
-                                   parsec_execution_context_t** startup_list);
+                                   parsec_task_t** startup_list);
 /**
  * @brief The prototype of a handle termination / destruction function
  */
@@ -205,19 +205,19 @@ typedef enum  {
 } parsec_ontask_iterate_t;
 
 typedef int (parsec_release_deps_t)(struct parsec_execution_unit_s*,
-                                   parsec_execution_context_t*,
+                                   parsec_task_t*,
                                    uint32_t,
                                    parsec_remote_deps_t*);
 #if defined(PARSEC_SIM)
-typedef int (parsec_sim_cost_fct_t)(const parsec_execution_context_t *exec_context);
+typedef int (parsec_sim_cost_fct_t)(const parsec_task_t *exec_context);
 #endif
 
 /**
  *
  */
 typedef parsec_ontask_iterate_t (parsec_ontask_function_t)(struct parsec_execution_unit_s *eu,
-                                                         const parsec_execution_context_t *newcontext,
-                                                         const parsec_execution_context_t *oldcontext,
+                                                         const parsec_task_t *newcontext,
+                                                         const parsec_task_t *oldcontext,
                                                          const dep_t* dep,
                                                          parsec_dep_data_description_t *data,
                                                          int rank_src, int rank_dst, int vpid_dst,
@@ -226,7 +226,7 @@ typedef parsec_ontask_iterate_t (parsec_ontask_function_t)(struct parsec_executi
  *
  */
 typedef void (parsec_traverse_function_t)(struct parsec_execution_unit_s *,
-                                         const parsec_execution_context_t *,
+                                         const parsec_task_t *,
                                          uint32_t,
                                          parsec_ontask_function_t *,
                                          void *);
@@ -239,7 +239,7 @@ typedef uint64_t (parsec_functionkey_fn_t)(const parsec_handle_t *parsec_handle,
 /**
  *
  */
-typedef float (parsec_evaluate_function_t)(const parsec_execution_context_t* task);
+typedef float (parsec_evaluate_function_t)(const parsec_task_t* task);
 
 /**
  * Retrieve the datatype for each flow (for input) or dependency (for output)
@@ -259,20 +259,29 @@ typedef float (parsec_evaluate_function_t)(const parsec_execution_context_t* tas
  * there is no reason to call this function again for the same task.
  */
 typedef int (parsec_datatype_lookup_t)(struct parsec_execution_unit_s* eu,
-                                      const parsec_execution_context_t * this_task,
+                                      const parsec_task_t * this_task,
                                       uint32_t * flow_mask,
                                       parsec_dep_data_description_t * data);
 
 /**
  * Allocate a new task that matches the function_t type. This can also be a task
- * of a generic type (such as parsec_execution_context_t).
+ * of a generic type (such as parsec_task_t).
  */
-typedef int (parsec_new_task_function_t)(const parsec_execution_context_t** task);
+typedef int (parsec_new_task_function_t)(const parsec_task_t** task);
 
 /**
  *
  */
-typedef parsec_hook_return_t (parsec_hook_t)(struct parsec_execution_unit_s*, parsec_execution_context_t*);
+typedef enum parsec_hook_return_e {
+    PARSEC_HOOK_RETURN_DONE    =  0,  /* This execution succeeded */
+    PARSEC_HOOK_RETURN_AGAIN   = -1,  /* Reschedule later */
+    PARSEC_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
+    PARSEC_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
+    PARSEC_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
+                                      * be triggered asynchronously. */
+    PARSEC_HOOK_RETURN_ERROR   = -5,  /* Some other major error happened */
+} parsec_hook_return_t;
+typedef parsec_hook_return_t (parsec_hook_t)(struct parsec_execution_unit_s*, parsec_task_t*);
 
 /**
  *
@@ -282,7 +291,7 @@ typedef struct parsec_data_ref_s {
     parsec_data_key_t key;
 } parsec_data_ref_t;
 
-typedef int (parsec_data_ref_fn_t)(parsec_execution_context_t *exec_context,
+typedef int (parsec_data_ref_fn_t)(parsec_task_t *exec_context,
                                   parsec_data_ref_t *ref);
 
 #define PARSEC_HAS_IN_IN_DEPENDENCIES     0x0001
@@ -297,13 +306,13 @@ typedef int (parsec_data_ref_fn_t)(parsec_execution_context_t *exec_context,
  */
 typedef parsec_dependency_t *(parsec_find_dependency_fn_t)(const parsec_handle_t *parsec_handle,
                                                            parsec_execution_unit_t *eu_context,
-                                                           const parsec_execution_context_t* exec_context);
+                                                           const parsec_task_t* exec_context);
 parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_handle,
                                               parsec_execution_unit_t *eu_context,
-                                              const parsec_execution_context_t* exec_context);
+                                              const parsec_task_t* exec_context);
 parsec_dependency_t *parsec_hash_find_deps(const parsec_handle_t *parsec_handle,
                                            parsec_execution_unit_t *eu_context,
-                                           const parsec_execution_context_t* exec_context);
+                                           const parsec_task_t* exec_context);
 
 typedef struct __parsec_internal_incarnation_s {
     int32_t                     type;
@@ -409,7 +418,7 @@ struct parsec_minimal_execution_context_s {
     assignment_t               locals[MAX_LOCAL_COUNT];
 };
 
-struct parsec_execution_context_s {
+struct parsec_task_s{
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
     parsec_profile_ddesc_info_t prof_info;
@@ -426,7 +435,7 @@ struct parsec_execution_context_s {
 #endif
     parsec_data_pair_t         data[MAX_PARAM_COUNT];
 };
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_execution_context_t);
+PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_task_t);
 
 #define PARSEC_COPY_EXECUTION_CONTEXT(dest, src) \
     do {                                                                \
@@ -481,7 +490,7 @@ typedef struct {
     uint32_t                     action_mask;
     uint32_t                     output_usage;
     struct data_repo_entry_s    *output_entry;
-    parsec_execution_context_t **ready_lists;
+    parsec_task_t **ready_lists;
 #if defined(DISTRIBUTED)
     struct parsec_remote_deps_s *remote_deps;
 #endif
@@ -493,11 +502,11 @@ typedef struct {
  */
 parsec_hook_return_t
 parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
-                              parsec_execution_context_t *this_task);
+                              parsec_task_t *this_task);
 
 parsec_ontask_iterate_t parsec_release_dep_fct(struct parsec_execution_unit_s *eu,
-                                             const parsec_execution_context_t *newcontext,
-                                             const parsec_execution_context_t *oldcontext,
+                                             const parsec_task_t *newcontext,
+                                             const parsec_task_t *oldcontext,
                                              const dep_t* dep,
                                              parsec_dep_data_description_t* data,
                                              int rank_src, int rank_dst, int vpid_dst,
@@ -506,21 +515,21 @@ parsec_ontask_iterate_t parsec_release_dep_fct(struct parsec_execution_unit_s *e
 /** deps is an array of size MAX_PARAM_COUNT
  *  Returns the number of output deps on which there is a final output
  */
-int parsec_task_deps_with_final_output(const parsec_execution_context_t *task,
+int parsec_task_deps_with_final_output(const parsec_task_t *task,
                                       const dep_t **deps);
 
 int parsec_ptg_update_runtime_task( parsec_handle_t *parsec_handle, int32_t nb_tasks );
 
-void parsec_dependencies_mark_task_as_startup(parsec_execution_context_t* exec_context, parsec_execution_unit_t *eu_context);
+void parsec_dependencies_mark_task_as_startup(parsec_task_t* exec_context, parsec_execution_unit_t *eu_context);
 
 int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
-                                         const parsec_execution_context_t* origin,
+                                         const parsec_task_t* origin,
                                          const parsec_flow_t* origin_flow,
-                                         const parsec_execution_context_t* exec_context,
+                                         const parsec_task_t* exec_context,
                                          const parsec_flow_t* dest_flow,
                                          struct data_repo_entry_s* dest_repo_entry,
                                          parsec_dep_data_description_t* data,
-                                         parsec_execution_context_t** pready_list);
+                                         parsec_task_t** pready_list);
 
 
 /**
@@ -536,7 +545,7 @@ int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
         (OBJ) = NULL;                                                  \
     } while (0)
 
-#define parsec_execution_context_priority_comparator offsetof(parsec_execution_context_t, priority)
+#define parsec_execution_context_priority_comparator offsetof(parsec_task_t, priority)
 
 #if defined(PARSEC_SIM)
 int parsec_getsimulationdate( parsec_context_t *parsec_context );

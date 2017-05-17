@@ -28,7 +28,7 @@ double time_elapsed;
 double sync_time_elapsed;
 
 int
-task_to_check_generation(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
+task_to_check_generation(parsec_execution_unit_t *context, parsec_task_t *this_task)
 {
     (void)context; (void)this_task;
 
