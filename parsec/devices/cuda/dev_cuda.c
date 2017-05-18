@@ -321,9 +321,9 @@ parsec_cuda_handle_register(parsec_device_t* device, parsec_handle_t* handle)
      * user to write the code to assess this.
      */
     assert(PARSEC_DEV_CUDA == device->type);
-    for( i = 0; i < handle->nb_functions; i++ ) {
-        const parsec_function_t* function = handle->functions_array[i];
-        __parsec_chore_t* chores = (__parsec_chore_t*)function->incarnations;
+    for( i = 0; i < handle->nb_task_classes; i++ ) {
+        const parsec_task_class_t* tc = handle->task_classes_array[i];
+        __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
             if( chores[j].type == device->type ) {
                 if ( NULL == chores[j].dyld ) {
@@ -1502,7 +1502,7 @@ progress_stream( gpu_device_t* gpu_device,
                     PARSEC_TASK_PROF_TRACE(exec_stream->profiling,
                                           (-1 == exec_stream->prof_event_key_end ?
                                            PARSEC_PROF_FUNC_KEY_END(task->ec->parsec_handle,
-                                                                   task->ec->function->function_id) :
+                                                                   task->ec->function->task_class_id) :
                                            exec_stream->prof_event_key_end),
                                           task->ec);
                 }
@@ -1617,7 +1617,7 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
                              gpu_stream->profiling,
                              (-1 == gpu_stream->prof_event_key_start ?
                               PARSEC_PROF_FUNC_KEY_START(this_task->parsec_handle,
-                                                        this_task->function->function_id) :
+                                                        this_task->function->task_class_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
 
@@ -1739,7 +1739,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                                          gpu_stream->profiling,
                                          (-1 == gpu_stream->prof_event_key_start ?
                                           PARSEC_PROF_FUNC_KEY_START(this_task->parsec_handle,
-                                                                    this_task->function->function_id) :
+                                                                    this_task->function->task_class_id) :
                                           gpu_stream->prof_event_key_start),
                                          this_task);
                 /* Move the data back into main memory */
@@ -1933,7 +1933,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( eu_context->eu_profile,
                                  PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->parsec_handle,
-                                                         gpu_task->ec->function->function_id),
+                                                         gpu_task->ec->function->task_class_id),
                                  gpu_task->ec->function->key( gpu_task->ec->parsec_handle, gpu_task->ec->locals),
                                  gpu_task->ec->parsec_handle->handle_id, NULL,
                                  PARSEC_PROFILING_EVENT_RESCHEDULED );

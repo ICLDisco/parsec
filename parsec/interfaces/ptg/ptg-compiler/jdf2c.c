@@ -683,8 +683,8 @@ static char *dump_profiling_init(void **elem, void *arg)
                             "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
                             "                                       sizeof(parsec_profile_ddesc_info_t)+%d*sizeof(assignment_t),\n"
                             "                                       \"%s\",\n"
-                            "                                       (int*)&__parsec_handle->super.super.profiling_array[0 + 2 * %s_%s.function_id /* %s start key */],\n"
-                            "                                       (int*)&__parsec_handle->super.super.profiling_array[1 + 2 * %s_%s.function_id /* %s end key */]);\n",
+                            "                                       (int*)&__parsec_handle->super.super.profiling_array[0 + 2 * %s_%s.task_class_id /* %s start key */],\n"
+                            "                                       (int*)&__parsec_handle->super.super.profiling_array[1 + 2 * %s_%s.task_class_id /* %s end key */]);\n",
                             fname, R, G, B,
                             nb_locals,
                             string_arena_get_string(profiling_convertor_params),
@@ -1180,11 +1180,11 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
     string_arena_t *sa2 = string_arena_new(64);
     int rc;
 
-    coutput("/** Predeclarations of the parsec_function_t */\n");
+    coutput("/** Predeclarations of the parsec_task_class_t */\n");
     for(f = jdf->functions; f != NULL; f = f->next) {
         rc = asprintf(&JDF_OBJECT_ONAME( f ), "%s_%s", jdf_basename, f->fname);
         assert(rc != -1);
-        coutput("static const parsec_function_t %s;\n", JDF_OBJECT_ONAME( f ));
+        coutput("static const parsec_task_class_t %s;\n", JDF_OBJECT_ONAME( f ));
     }
     string_arena_free(sa);
     string_arena_free(sa2);
@@ -1229,7 +1229,7 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
             "extern int parsec_cuda_output_stream;\n"
             "#endif  /* defined(PARSEC_HAVE_CUDA) */\n"
             "#include <alloca.h>\n\n"
-            "#define PARSEC_%s_NB_FUNCTIONS %d\n"
+            "#define PARSEC_%s_NB_TASK_CLASSES %d\n"
             "#define PARSEC_%s_NB_DATA %d\n\n"
             "typedef struct __parsec_%s_internal_handle_s __parsec_%s_internal_handle_t;\n"
             "struct parsec_%s_internal_handle_s;\n\n",
@@ -1287,7 +1287,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
     }
     if( need_profile )
         coutput("#if defined(PARSEC_PROF_TRACE)\n"
-                "static int %s_profiling_array[2*PARSEC_%s_NB_FUNCTIONS] = {-1};\n"
+                "static int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-1};\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
                 jdf_basename, jdf_basename);
 
@@ -1315,7 +1315,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
                 coutput("#define %s_repo (__parsec_handle->repositories[%d])\n",
-                        f->fname, f->function_id);
+                        f->fname, f->task_class_id);
             }
         }
     }
@@ -1954,9 +1954,9 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             exit(-1);
         }
         string_arena_add_string(sa,
-                                "  .function_id = %d, /* %s_%s */\n"
+                                "  .task_class_id = %d, /* %s_%s */\n"
                                 "  .direct_data = (direct_data_lookup_func_t)NULL,\n",
-                                (NULL != pf ? pf->function_id : -1), jdf_basename, call->func_or_mem);
+                                (NULL != pf ? pf->task_class_id : -1), jdf_basename, call->func_or_mem);
         string_arena_add_string(sa,
                                 "  .flow = &flow_of_%s_%s_for_%s,\n",
                                 jdf_basename, call->func_or_mem, call->var);
@@ -1967,7 +1967,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
             jdf_generate_direct_data_function(jdf, call->func_or_mem, call->parameters, f,
                                               string_arena_get_string(tmp_fct_name));
             string_arena_add_string(sa,
-                                    "  .function_id = %d, /* %s_%s */\n"
+                                    "  .task_class_id = %d, /* %s_%s */\n"
                                     "  .direct_data = (direct_data_lookup_func_t)&%s,\n",
                                     -1, jdf_basename, call->func_or_mem,
                                     string_arena_get_string(tmp_fct_name));
@@ -1975,7 +1975,7 @@ static int jdf_generate_dependency( const jdf_t *jdf, jdf_dataflow_t *flow, jdf_
         }
         else {
             string_arena_add_string(sa,
-                                    "  .function_id = %d, /* %s_%s */\n"
+                                    "  .task_class_id = %d, /* %s_%s */\n"
                                     "  .direct_data = (direct_data_lookup_func_t)NULL,\n",
                                     -1, jdf_basename, call->func_or_mem);
         }
@@ -2378,7 +2378,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nbdefinitions);
     coutput("%s  /* Copy only the valid elements from this_task to new_task one */\n"
             "%s  new_task->parsec_handle = this_task->parsec_handle;\n"
-            "%s  new_task->function     = __parsec_handle->super.super.functions_array[%s_%s.function_id];\n"
+            "%s  new_task->task_class   = __parsec_handle->super.super.task_classes_array[%s_%s.task_class_id];\n"
             "%s  new_task->chore_id     = 0;\n",
             indent(nesting),
             indent(nesting),
@@ -2725,24 +2725,24 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         coutput("  PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, \"Allocating dependencies array for %s (user-defined allocator)\\n\");\n",
                 fname);
         coutput("  __parsec_handle->super.super.dependencies_array[%d] = %s(__parsec_handle);\n",
-                f->function_id, jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL));
+                f->task_class_id, jdf_property_get_string(f->properties, JDF_PROP_UD_ALLOC_DEPS_FN_NAME, NULL));
     } else {
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
             coutput("  __parsec_handle->super.super.dependencies_array[%d] = dep;\n",
-                    f->function_id);
+                    f->task_class_id);
         } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
             coutput("  __parsec_handle->super.super.dependencies_array[%d] = OBJ_NEW(hash_table_t);\n"
-                    "  hash_table_init(__parsec_handle->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), (1<<10), hash_fn_mod, NULL);\n",
-                   f->function_id, f->function_id);
+                    "  hash_table_init(__parsec_handle->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 1<<10, hash_fn_mod, NULL);\n",
+                   f->task_class_id, f->task_class_id);
         }
     }
 
     if( f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) {
         coutput("  __parsec_handle->repositories[%d] = NULL;\n",
-                f->function_id );
+                f->task_class_id );
     } else {
         coutput("  __parsec_handle->repositories[%d] = data_repo_create_nothreadsafe(%s, %d);\n",
-                f->function_id, need_to_count_tasks ? "nb_tasks" : "PARSEC_DEFAULT_DATAREPO_HASH_LENGTH", idx );
+                f->task_class_id, need_to_count_tasks ? "nb_tasks" : "PARSEC_DEFAULT_DATAREPO_HASH_LENGTH", idx );
     }
 
     coutput("%s"
@@ -2876,10 +2876,10 @@ static void jdf_generate_release_task_fct(const jdf_t *jdf, jdf_function_entry_t
             jdf_basename);
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
         coutput("    hash_table_t *ht = (hash_table_t*)__parsec_handle->super.super.dependencies_array[%d];\n"
-                "    uint64_t key = this_task->function->key(&__parsec_handle->super.super, this_task->locals);\n"
+                "    uint64_t key = this_task->task_class->key(&__parsec_handle->super.super, this_task->locals);\n"
                 "    parsec_hashable_dependency_t *hash_dep = (parsec_hashable_dependency_t *)hash_table_remove(ht, key);\n"
                 "    parsec_thread_mempool_free(hash_dep->mempool_owner, hash_dep);\n",
-                f->function_id);
+                f->task_class_id);
     }
     if( NULL != jdf_property_get_string(jdf->global_properties, JDF_PROP_UD_NB_LOCAL_TASKS_FN_NAME, NULL) ) {
         coutput("    if( (PARSEC_UNDETERMINED_NB_TASKS == __parsec_handle->super.super.nb_tasks) ||\n"
@@ -2966,15 +2966,15 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
     jdf_generate_function_incarnation_list(jdf, f, sa, prefix);
 
     string_arena_add_string(sa,
-                            "static const parsec_function_t %s = {\n"
+                            "static const parsec_task_class_t %s = {\n"
                             "  .name = \"%s\",\n"
-                            "  .function_id = %d,\n"
+                            "  .task_class_id = %d,\n"
                             "  .nb_flows = %d,\n"
                             "  .nb_parameters = %d,\n"
                             "  .nb_locals = %d,\n",
                             JDF_OBJECT_ONAME(f),
                             f->fname,
-                            f->function_id,
+                            f->task_class_id,
                             input_index,
                             nbparameters,
                             nbdefinitions);
@@ -3169,22 +3169,22 @@ static void jdf_generate_functions_statics( const jdf_t *jdf )
     int i;
 
     sa = string_arena_new(64);
-    string_arena_add_string(sa, "static const parsec_function_t *%s_functions[] = {\n",
+    string_arena_add_string(sa, "static const parsec_task_class_t *%s_task_classes[] = {\n",
                             jdf_basename);
-    /* We need to put the function in the array based on their function_id */
+    /* We need to put the function in the array based on their task_class_id */
     {
         jdf_function_entry_t** array;
         int max_id;
 
         for(max_id = 0, f = jdf->functions; NULL != f; f = f->next) {
             jdf_generate_one_function(jdf, f);
-            if( max_id < f->function_id ) max_id = f->function_id;
+            if( max_id < f->task_class_id ) max_id = f->task_class_id;
         }
         max_id++;  /* allow one more space */
         array = (jdf_function_entry_t**)malloc(max_id * sizeof(jdf_function_entry_t*));
         for(i = 0; i < max_id; array[i] = NULL, i++);
         for(f = jdf->functions; NULL != f; f = f->next)
-            array[f->function_id] = f;
+            array[f->task_class_id] = f;
         for(i = 0; i < max_id; array[i] = NULL, i++) {
             if( NULL == (f = array[i]) ) {
                 string_arena_add_string(sa, "  NULL%s\n",
@@ -3261,16 +3261,16 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
                            "      }\n"));
     coutput("  /* Remove all the chores without a backend device */\n"
             "  uint32_t i;\n"
-            "  for( i = 0; i < __parsec_handle->super.super.nb_functions; i++ ) {\n"
-            "    parsec_function_t* func = (parsec_function_t*)__parsec_handle->super.super.functions_array[i];\n"
-            "    __parsec_chore_t* chores = (__parsec_chore_t*)func->incarnations;\n"
+            "  for( i = 0; i < __parsec_handle->super.super.nb_task_classes; i++ ) {\n"
+            "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_handle->super.super.task_classes_array[i];\n"
+            "    __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;\n"
             "    uint32_t index = 0;\n"
             "    uint32_t j;\n"
             "    for( j = 0; NULL != chores[j].hook; j++ ) {\n"
             "      if(supported_dev & chores[j].type) {\n"
             "          if( j != index ) {\n"
             "            chores[index] = chores[j];\n"
-            "            parsec_debug_verbose(20, parsec_debug_output, \"Device type %%i disabled for function %%s\"\n, chores[j].type, func->name);\n"
+            "            parsec_debug_verbose(20, parsec_debug_output, \"Device type %%i disabled for function %%s\"\n, chores[j].type, tc->name);\n"
             "          }\n"
             "          index++;\n"
             "      }\n"
@@ -3285,7 +3285,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "    memset(&task->locals, 0, sizeof(assignment_t) * MAX_LOCAL_COUNT);\n"
             "    PARSEC_LIST_ITEM_SINGLETON(task);\n"
             "    task->priority = -1;\n"
-            "    task->function = task->parsec_handle->functions_array[task->parsec_handle->nb_functions + i];\n"
+            "    task->task_class = task->parsec_handle->task_classes_array[task->parsec_handle->nb_task_classes + i];\n"
             "    if( 0 == i ) ready_tasks[0] = &task->super;\n"
             "    else ready_tasks[0] = parsec_list_item_ring_push(ready_tasks[0], &task->super);\n"
             "  }\n"
@@ -3316,13 +3316,13 @@ static void jdf_generate_destructor( const jdf_t *jdf )
         coutput("  size_t dependencies_size = 0;\n");
     }
 
-    coutput("  for( i = 0; i < (uint32_t)(2 * __parsec_handle->super.super.nb_functions); i++ ) {  /* Extra startup function added at the end */\n"
-            "    parsec_function_t* func = (parsec_function_t*)__parsec_handle->super.super.functions_array[i];\n"
-            "    free((void*)func->incarnations);\n"
-            "    free(func);\n"
+    coutput("  for( i = 0; i < (uint32_t)(2 * __parsec_handle->super.super.nb_task_classes); i++ ) {  /* Extra startup function added at the end */\n"
+            "    parsec_task_class_t* tc = (parsec_task_class_t*)__parsec_handle->super.super.task_classes_array[i];\n"
+            "    free((void*)tc->incarnations);\n"
+            "    free(tc);\n"
             "  }\n"
-            "  free(__parsec_handle->super.super.functions_array); __parsec_handle->super.super.functions_array = NULL;\n"
-            "  __parsec_handle->super.super.nb_functions = 0;\n"
+            "  free(__parsec_handle->super.super.task_classes_array); __parsec_handle->super.super.task_classes_array = NULL;\n"
+            "  __parsec_handle->super.super.nb_task_classes = 0;\n"
             "\n"
             "  for(i = 0; i < (uint32_t)__parsec_handle->super.arenas_size; i++) {\n"
             "    if( __parsec_handle->super.arenas[i] != NULL ) {\n"
@@ -3337,7 +3337,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     for( f = jdf->functions; NULL != f; f = f->next ) {
         if( !(f->flags & JDF_FUNCTION_FLAG_NO_SUCCESSORS) ) {
             coutput("   data_repo_destroy_nothreadsafe(__parsec_handle->repositories[%d]);  /* %s */\n",
-                    f->function_id, f->fname);
+                    f->task_class_id, f->fname);
         }
     }
 
@@ -3347,18 +3347,18 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
                 coutput("  if(NULL != __parsec_handle->super.super.dependencies_array[%d])\n"
                         "    dependencies_size += parsec_destruct_dependencies( __parsec_handle->super.super.dependencies_array[%d] );\n",
-                        f->function_id, f->function_id);
+                        f->task_class_id, f->task_class_id);
             } else if (JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
                 coutput("  hash_table_fini( (hash_table_t*)__parsec_handle->super.super.dependencies_array[%d] );\n",
-                        f->function_id);
+                        f->task_class_id);
             } 
         } else {
             coutput("  %s(__parsec_handle, __parsec_handle->super.super.dependencies_array[%d]);\n",
                     jdf_property_get_string(f->properties, JDF_PROP_UD_FREE_DEPS_FN_NAME, NULL),
-                    f->function_id);
+                    f->task_class_id);
         }
         coutput("  __parsec_handle->super.super.dependencies_array[%d] = NULL;\n",
-                f->function_id);
+                f->task_class_id);
     }
     coutput("  free( __parsec_handle->super.super.dependencies_array );\n"
             "  __parsec_handle->super.super.dependencies_array = NULL;\n");
@@ -3430,7 +3430,7 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     }
 
     coutput("  __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t *)calloc(1, sizeof(__parsec_%s_internal_handle_t));\n"
-            "  parsec_function_t* func;\n"
+            "  parsec_task_class_t* tc;\n"
             "  int i, j;\n",
             jdf_basename, jdf_basename, jdf_basename);
 
@@ -3441,35 +3441,35 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     string_arena_init(sa1);
     string_arena_init(sa2);
 
-    coutput("  __parsec_handle->super.super.nb_functions = PARSEC_%s_NB_FUNCTIONS;\n"
+    coutput("  __parsec_handle->super.super.nb_task_classes = PARSEC_%s_NB_TASK_CLASSES;\n"
             "  __parsec_handle->super.super.devices_mask = PARSEC_DEVICES_ALL;\n"
             "  __parsec_handle->super.super.update_nb_runtime_task = parsec_ptg_update_runtime_task;\n"
             "  __parsec_handle->super.super.dependencies_array = (void **)\n"
-            "              calloc(__parsec_handle->super.super.nb_functions , sizeof(void*));\n"
+            "              calloc(__parsec_handle->super.super.nb_task_classes, sizeof(void*));\n"
             "  /* Twice the size to hold the startup tasks function_t */\n"
-            "  __parsec_handle->super.super.functions_array = (const parsec_function_t**)\n"
-            "              malloc(2 * __parsec_handle->super.super.nb_functions * sizeof(parsec_function_t*));\n"
+            "  __parsec_handle->super.super.task_classes_array = (const parsec_task_class_t**)\n"
+            "              malloc(2 * __parsec_handle->super.super.nb_task_classes * sizeof(parsec_task_class_t*));\n"
             "  __parsec_handle->super.super.nb_tasks = 1;\n"
             "  __parsec_handle->super.super.handle_type = 0;\n"
-            "  __parsec_handle->super.super.nb_pending_actions = 1 + __parsec_handle->super.super.nb_functions;  /* for the startup tasks */\n"
-            "  __parsec_handle->sync_point = __parsec_handle->super.super.nb_functions;\n"
+            "  __parsec_handle->super.super.nb_pending_actions = 1 + __parsec_handle->super.super.nb_task_classes;  /* for the startup tasks */\n"
+            "  __parsec_handle->sync_point = __parsec_handle->super.super.nb_task_classes;\n"
             "  __parsec_handle->startup_queue = NULL;\n"
             "%s",
             jdf_basename, string_arena_get_string(sa1));
     /* Prepare the functions */
-    coutput("  for( i = 0; i < (int)__parsec_handle->super.super.nb_functions; i++ ) {\n"
-            "    __parsec_handle->super.super.functions_array[i] = func = malloc(sizeof(parsec_function_t));\n"
-            "    memcpy(func, %s_functions[i], sizeof(parsec_function_t));\n"
-            "    for( j = 0; NULL != func->incarnations[j].hook; j++);\n"
-            "    func->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n"
-            "    memcpy((__parsec_chore_t*)func->incarnations, %s_functions[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
+    coutput("  for( i = 0; i < (int)__parsec_handle->super.super.nb_task_classes; i++ ) {\n"
+            "    __parsec_handle->super.super.task_classes_array[i] = tc = malloc(sizeof(parsec_task_class_t));\n"
+            "    memcpy(tc, %s_task_classes[i], sizeof(parsec_task_class_t));\n"
+            "    for( j = 0; NULL != tc->incarnations[j].hook; j++);\n"
+            "    tc->incarnations = (__parsec_chore_t*)malloc((j+1) * sizeof(__parsec_chore_t));\n"
+            "    memcpy((__parsec_chore_t*)tc->incarnations, %s_task_classes[i]->incarnations, (j+1) * sizeof(__parsec_chore_t));\n\n"
             "    /* Add a placeholder for initialization and startup task */\n"
-            "    __parsec_handle->super.super.functions_array[__parsec_handle->super.super.nb_functions+i] = func = (parsec_function_t*)malloc(sizeof(parsec_function_t));\n"
-            "    memcpy(func, (void*)&__parsec_generic_startup, sizeof(parsec_function_t));\n"
-            "    func->function_id = __parsec_handle->super.super.nb_functions + i;\n"
-            "    func->incarnations = (__parsec_chore_t*)malloc(2 * sizeof(__parsec_chore_t));\n"
-            "    memcpy((__parsec_chore_t*)func->incarnations, (void*)__parsec_generic_startup.incarnations, 2 * sizeof(__parsec_chore_t));\n"
-            "    func->release_task = parsec_release_task_to_mempool_and_count_as_runtime_tasks;\n"
+            "    __parsec_handle->super.super.task_classes_array[__parsec_handle->super.super.nb_task_classes+i] = tc = (parsec_task_class_t*)malloc(sizeof(parsec_task_class_t));\n"
+            "    memcpy(tc, (void*)&__parsec_generic_startup, sizeof(parsec_task_class_t));\n"
+            "    tc->task_class_id = __parsec_handle->super.super.nb_task_classes + i;\n"
+            "    tc->incarnations = (__parsec_chore_t*)malloc(2 * sizeof(__parsec_chore_t));\n"
+            "    memcpy((__parsec_chore_t*)tc->incarnations, (void*)__parsec_generic_startup.incarnations, 2 * sizeof(__parsec_chore_t));\n"
+            "    tc->release_task = parsec_release_task_to_mempool_and_count_as_runtime_tasks;\n"
             "  }\n",
             jdf_basename,
             jdf_basename);
@@ -3481,14 +3481,14 @@ static void jdf_generate_constructor( const jdf_t* jdf )
     string_arena_init(sa1);
     idx = 0;
     for(jdf_function_entry_t *f = jdf->functions; f != NULL; f = f->next) {
-        coutput("  func = (parsec_function_t *)__parsec_handle->super.super.functions_array[__parsec_handle->super.super.nb_functions+%d];\n"
-                "  func->name = \"Startup for %s\";\n",
+        coutput("  tc = (parsec_task_class_t *)__parsec_handle->super.super.task_classes_array[__parsec_handle->super.super.nb_task_classes+%d];\n"
+                "  tc->name = \"Startup for %s\";\n",
                 idx, f->fname);
         idx++;
-        coutput("  func->prepare_input = (parsec_hook_t*)%s_%s_internal_init;\n",
+        coutput("  tc->prepare_input = (parsec_hook_t*)%s_%s_internal_init;\n",
                 jdf_basename, f->fname);
         if( f->flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
-            coutput("  ((__parsec_chore_t*)&func->incarnations[0])->hook = (parsec_hook_t *)%s;\n",
+            coutput("  ((__parsec_chore_t*)&tc->incarnations[0])->hook = (parsec_hook_t *)%s;\n",
                     jdf_property_get_string(f->properties, JDF_PROP_UD_STARTUP_TASKS_FN_NAME, NULL));
         }
     }
@@ -4716,7 +4716,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "                           gpu_stream->profiling,\n"
                 "                           (-1 == gpu_stream->prof_event_key_start ?\n"
                 "                           PARSEC_PROF_FUNC_KEY_START(this_task->parsec_handle,\n"
-                "                                                     this_task->function->function_id) :\n"
+                "                                                     this_task->function->task_class_id) :\n"
                 "                           gpu_stream->prof_event_key_start),\n"
                 "                           this_task);\n");
     }
@@ -5008,7 +5008,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
 
     if( profile_on ) {
         coutput("  PARSEC_TASK_PROF_TRACE(context->eu_profile,\n"
-                "                        this_task->parsec_handle->profiling_array[2*this_task->function->function_id],\n"
+                "                        this_task->parsec_handle->profiling_array[2*this_task->task_class->task_class_id],\n"
                 "                        this_task);\n");
     }
 
@@ -5075,7 +5075,7 @@ jdf_generate_code_complete_hook(const jdf_t *jdf,
 
     if( profile_on ) {
         coutput("  PARSEC_TASK_PROF_TRACE(context->eu_profile,\n"
-                "                        this_task->parsec_handle->profiling_array[2*this_task->function->function_id+1],\n"
+                "                        this_task->parsec_handle->profiling_array[2*this_task->task_class->task_class_id+1],\n"
                 "                        this_task);\n");
     }
 
@@ -5332,7 +5332,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     string_arena_add_string(sa_open, "%s%s%s* ncc = (%s*)&%s;\n",
                             prefix, indent(nbopen), parsec_get_name(jdf, targetf, "task_t"), parsec_get_name(jdf, targetf, "task_t"), var);
-    string_arena_add_string(sa_open, "%s%s%s.function = __parsec_handle->super.super.functions_array[%s_%s.function_id];\n",
+    string_arena_add_string(sa_open, "%s%s%s.task_class = __parsec_handle->super.super.task_classes_array[%s_%s.task_class_id];\n",
                             prefix, indent(nbopen), var, jdf_basename, targetf->fname);
 
     nbparam_given = 0;
@@ -5972,7 +5972,7 @@ jdf_generate_code_find_deps(const jdf_t *jdf,
             "  parsec_dependencies_t *deps;\n"
             "  const parsec_%s_handle_t *__parsec_handle = (parsec_%s_handle_t*)__handle;\n"
             "  const __parsec_%s_%s_task_t* task = (__parsec_%s_%s_task_t*)__task;\n"
-            "  deps = %sdependencies_array[task->function->function_id];\n",
+            "  deps = %sdependencies_array[task->function->task_class_id];\n",
             name,
             jdf_basename, jdf_basename,
             jdf_basename, f->fname, jdf_basename, f->fname,

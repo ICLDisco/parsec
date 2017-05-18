@@ -225,7 +225,7 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
      * Force a call to prepare the input of the task. The internals should
      * be protected such that the inputs are only acquired once.
      */
-    cur->function->prepare_input(eu_context, cur);
+    cur->task_class->prepare_input(eu_context, cur);
 
     while (1) {
         // check next element before insertion, which destroys next and prev
@@ -239,7 +239,7 @@ static int sched_ltq_schedule(parsec_execution_unit_t* eu_context,
         }
 
         /* Prepare the inputs */
-        next->function->prepare_input(eu_context, next);
+        next->task_class->prepare_input(eu_context, next);
         /**
          * Count how many common inputs are shared by 2 consecutive tasks. If we found
          * at least one identical input we group the 2 tasks in the same heap. Otherwise

@@ -138,8 +138,7 @@ int __parsec_context_wait_task( parsec_execution_unit_t* eu_context,
 int __parsec_execute( parsec_execution_unit_t* eu_context,
                      parsec_task_t* exec_context )
 {
-    const parsec_function_t* function = exec_context->function;
-    parsec_evaluate_function_t* eval;
+    const parsec_task_class_t* tc = exec_context->task_class;
     int rc;
 #if defined(PARSEC_DEBUG)
     char tmp[MAX_TASK_STRLEN];
@@ -147,27 +146,27 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
 #endif
     AYU_TASK_RUN(eu_context->th_id, exec_context);
 
-    if (NULL == function->incarnations[exec_context->chore_id].hook) {
+    if (NULL == tc->incarnations[exec_context->chore_id].hook) {
 #if !defined(PARSEC_DEBUG)
         char tmp[MAX_TASK_STRLEN];
         parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
 #endif
         parsec_warning("Task %s[%d] run out of valid incarnations. Consider it complete",
-                       tmp, function->incarnations[exec_context->chore_id].type);
+                       tmp, tc->incarnations[exec_context->chore_id].type);
         return PARSEC_HOOK_RETURN_ERROR;
     }
 
     PINS(eu_context, EXEC_BEGIN, exec_context);
     /* Try all the incarnations until one agree to execute. */
     do {
-        if( NULL != (eval = function->incarnations[exec_context->chore_id].evaluate) ) {
+        if( NULL != (eval = tc->incarnations[exec_context->chore_id].evaluate) ) {
             rc = eval(exec_context);
             if( PARSEC_HOOK_RETURN_DONE != rc ) {
                 if( PARSEC_HOOK_RETURN_NEXT != rc ) {
 #if defined(PARSEC_DEBUG)
                     parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Failed to evaluate %s[%d] chore %d",
                                          eu_context->th_id, eu_context->virtual_process->vp_id,
-                                         tmp, function->incarnations[exec_context->chore_id].type,
+                                         tmp, tc->incarnations[exec_context->chore_id].type,
                                          exec_context->chore_id);
 #endif
                     break;
@@ -179,10 +178,10 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
 #if defined(PARSEC_DEBUG)
         parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
                              eu_context->th_id, eu_context->virtual_process->vp_id,
-                             tmp, function->incarnations[exec_context->chore_id].type,
+                             tmp, tc->incarnations[exec_context->chore_id].type,
                              exec_context->chore_id);
 #endif
-        parsec_hook_t *hook = function->incarnations[exec_context->chore_id].hook;
+        parsec_hook_t *hook = tc->incarnations[exec_context->chore_id].hook;
 
         rc = hook( eu_context, exec_context );
         if( PARSEC_HOOK_RETURN_NEXT != rc ) {
@@ -196,7 +195,7 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
     next_chore:
         exec_context->chore_id++;
 
-    } while(NULL != function->incarnations[exec_context->chore_id].hook);
+    } while(NULL != tc->incarnations[exec_context->chore_id].hook);
     assert(exec_context->status == PARSEC_TASK_STATUS_HOOK);
     /* We're out of luck, no more chores */
     PINS(eu_context, EXEC_END, exec_context);
@@ -299,7 +298,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
         char tmp[MAX_TASK_STRLEN];
 
         do {
-            for( i = set_parameters = 0; NULL != (flow = context->function->in[i]); i++ ) {
+            for( i = set_parameters = 0; NULL != (flow = context->task_class->in[i]); i++ ) {
                 if( FLOW_ACCESS_NONE == (flow->flow_flags & FLOW_ACCESS_MASK) ) continue;
                 if( NULL != context->data[flow->flow_index].data_repo ) {
                     set_parameters++;
@@ -397,11 +396,11 @@ int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
      */
     PINS(eu_context, COMPLETE_EXEC_BEGIN, exec_context);
 
-    if( NULL != exec_context->function->prepare_output ) {
-        exec_context->function->prepare_output( eu_context, exec_context );
+    if( NULL != exec_context->task_class->prepare_output ) {
+        exec_context->task_class->prepare_output( eu_context, exec_context );
     }
-    if( NULL != exec_context->function->complete_execution )
-        rc = exec_context->function->complete_execution( eu_context, exec_context );
+    if( NULL != exec_context->task_class->complete_execution )
+        rc = exec_context->task_class->complete_execution( eu_context, exec_context );
 
     PINS(eu_context, COMPLETE_EXEC_END, exec_context);
     AYU_TASK_COMPLETE(exec_context);
@@ -412,7 +411,7 @@ int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
     DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
 
     /* Release the execution context */
-    exec_context->function->release_task( eu_context, exec_context );
+    exec_context->task_class->release_task( eu_context, exec_context );
 
     /* Check to see if the DSL has marked the handle as completed */
     if( 0 == handle->nb_tasks ) {
@@ -518,7 +517,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
             rc = PARSEC_HOOK_RETURN_DONE;
             if(exec_context->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
                 PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
-                rc = exec_context->function->prepare_input(eu_context, exec_context);
+                rc = exec_context->task_class->prepare_input(eu_context, exec_context);
                 PINS(eu_context, PREPARE_INPUT_END, exec_context);
             }
             switch(rc) {
@@ -657,7 +656,7 @@ typedef struct parsec_compound_state_t {
 static int parsec_composed_cb( parsec_handle_t* o, void* cbdata )
 {
     parsec_handle_t* compound = (parsec_handle_t*)cbdata;
-    parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound->functions_array;
+    parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound->task_classes_array;
     int completed_objects = compound_state->completed_objects++;
     assert( o == compound_state->objects_array[completed_objects] ); (void)o;
     if( compound->nb_pending_actions-- ) {
@@ -672,11 +671,11 @@ static void parsec_compound_startup( parsec_context_t *context,
                                     parsec_handle_t *compound_object,
                                     parsec_task_t** startup_list)
 {
-    parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound_object->functions_array;
+    parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound_object->task_classes_array;
     parsec_handle_t* first = compound_state->objects_array[0];
     int i;
 
-    assert( 0 == compound_object->nb_functions );
+    assert( 0 == compound_object->nb_task_classes );
     assert( NULL != first );
     first->startup_hook(context, first, startup_list);
     compound_state->ctx = context;
@@ -695,21 +694,21 @@ parsec_handle_t* parsec_compose( parsec_handle_t* start,
     parsec_handle_t* compound = NULL;
     parsec_compound_state_t* compound_state = NULL;
 
-    if( start->nb_functions == 0 ) {  /* start is already a compound object */
+    if( 0 == start->nb_task_classes ) {  /* start is already a compound object */
         compound = start;
-        compound_state = (parsec_compound_state_t*)compound->functions_array;
+        compound_state = (parsec_compound_state_t*)compound->task_classes_array;
         compound_state->objects_array[compound_state->nb_objects++] = next;
         /* make room for NULL terminating, if necessary */
         if( 0 == (compound_state->nb_objects % 16) ) {
             compound_state = realloc(compound_state, sizeof(parsec_compound_state_t) +
                             (1 + compound_state->nb_objects / 16) * 16 * sizeof(void*));
-            compound->functions_array = (void*)compound_state;
+            compound->task_classes_array = (void*)compound_state;
         }
         compound_state->objects_array[compound_state->nb_objects] = NULL;
     } else {
         compound = calloc(1, sizeof(parsec_handle_t));
-        compound->functions_array = malloc(sizeof(parsec_compound_state_t) + 16 * sizeof(void*));
-        compound_state = (parsec_compound_state_t*)compound->functions_array;
+        compound->task_classes_array = malloc(sizeof(parsec_compound_state_t) + 16 * sizeof(void*));
+        compound_state = (parsec_compound_state_t*)compound->task_classes_array;
         compound_state->objects_array[0] = start;
         compound_state->objects_array[1] = next;
         compound_state->objects_array[2] = NULL;

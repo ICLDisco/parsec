@@ -72,13 +72,13 @@ static void
 copy_chores(parsec_handle_t *handle, parsec_dtd_handle_t *dtd_handle)
 {
     int i, j;
-    for( i = 0; i < (int)handle->nb_functions; i++) {
-        for( j = 0; NULL != handle->functions_array[i]->incarnations[j].hook; j++) {
-            parsec_hook_t **hook_not_const = (parsec_hook_t **)&(handle->functions_array[i]->incarnations[j].hook);
+    for( i = 0; i < (int)handle->nb_task_classes; i++) {
+        for( j = 0; NULL != handle->task_classes_array[i]->incarnations[j].hook; j++) {
+            parsec_hook_t **hook_not_const = (parsec_hook_t **)&(handle->task_classes_array[i]->incarnations[j].hook);
 
             /* saving the CPU hook only */
-            if (handle->functions_array[i]->incarnations[j].type == PARSEC_DEV_CPU) {
-                dtd_handle->actual_hook[i].hook = handle->functions_array[i]->incarnations[j].hook;
+            if (handle->task_classes_array[i]->incarnations[j].type == PARSEC_DEV_CPU) {
+                dtd_handle->actual_hook[i].hook = handle->task_classes_array[i]->incarnations[j].hook;
             }
             /* copying the fake hook in all the hooks (CPU, GPU etc) */
             *hook_not_const = &fake_hook_for_testing;
@@ -184,14 +184,14 @@ testing_hook_of_dtd_task(parsec_execution_unit_t *context,
     int rc = 0;
 
     PARSEC_TASK_PROF_TRACE(context->eu_profile,
-                          dtd_task->super.parsec_handle->profiling_array[2 * dtd_task->super.function->function_id],
+                          dtd_task->super.parsec_handle->profiling_array[2 * dtd_task->super.task_class->task_class_id],
                           &(dtd_task->super));
 
     /**
      * Check to see which interface, if it is the PTG inserting task in DTD then
      * this condition will be true
      */
-    rc = ((parsec_dtd_function_t *)(dtd_task->super.function))->fpointer(context, orig_task);
+    rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(context, orig_task);
     if(rc == PARSEC_HOOK_RETURN_DONE) {
         /* Completing the orig task */
         dtd_task->orig_task = NULL;
@@ -201,7 +201,7 @@ testing_hook_of_dtd_task(parsec_execution_unit_t *context,
     return rc;
 }
 
-/* chores and parsec_function_t structure initialization
+/* chores and parsec_task_class_t structure initialization
  * This is for the ptg inserting task in dtd mode
  */
 static const __parsec_chore_t dtd_chore_for_testing[] = {
@@ -267,7 +267,7 @@ data_lookup_ptg_to_dtd_task(parsec_execution_unit_t *context,
 /*
  * INSERT Task Function.
  * Each time the user calls it a task is created with the respective parameters the user has passed.
- * For each task class a structure known as "function" is created as well. (e.g. for Cholesky 4 function
+ * For each task class a structure is created. (e.g. for Cholesky 4 function
  * structures are created for each task class).
  * The flow of data from each task to others and all other dependencies are tracked from this function.
  */
@@ -288,10 +288,10 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
     uint64_t fkey = (uint64_t)(uintptr_t)fpointer + count_of_params;
-    parsec_function_t *function = (parsec_function_t *) parsec_dtd_function_find
-                                                     (parsec_dtd_handle, fkey);
+    parsec_task_class_t *tc = (parsec_task_class_t *)parsec_dtd_find_task_class
+                                                      (parsec_dtd_handle, fkey);
 
-    if( NULL == function ) {
+    if( NULL == tc ) {
         /* calculating the size of parameters for each task class*/
         long unsigned int size_of_params = 0;
 
@@ -300,19 +300,19 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
                    "Total Size: %lu\n", name_of_kernel, count_of_params, size_of_params);
         }
 
-        function = parsec_dtd_create_function( parsec_dtd_handle, fpointer, name_of_kernel, count_of_params,
-                                               size_of_params, count_of_params );
+        tc = parsec_dtd_create_task_class( parsec_dtd_handle, fpointer, name_of_kernel, count_of_params,
+                                           size_of_params, count_of_params );
 
-        __parsec_chore_t **incarnations = (__parsec_chore_t **)&(function->incarnations);
-        *incarnations                  = (__parsec_chore_t *)dtd_chore_for_testing;
-        function->prepare_input        = data_lookup_ptg_to_dtd_task;
+        __parsec_chore_t **incarnations = (__parsec_chore_t **)&(tc->incarnations);
+        *incarnations                   = (__parsec_chore_t *)dtd_chore_for_testing;
+        tc->prepare_input               = data_lookup_ptg_to_dtd_task;
 
 #if defined(PARSEC_PROF_TRACE)
-        parsec_dtd_add_profiling_info((parsec_handle_t *)parsec_dtd_handle, function->function_id, name_of_kernel);
+        parsec_dtd_add_profiling_info((parsec_handle_t *)parsec_dtd_handle, tc->task_class_id, name_of_kernel);
 #endif /* defined(PARSEC_PROF_TRACE) */
     }
 
-    parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(parsec_dtd_handle, function, 0/*setting rank as 0*/);
+    parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(parsec_dtd_handle, tc, 0/*setting rank as 0*/);
     this_task->orig_task = orig_task;
 
     /* Iterating through the parameters of the task */
@@ -322,7 +322,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
     /* Getting the pointer to allocated memory by mempool */
     head_of_param_list = GET_HEAD_OF_PARAM_LIST(this_task);
     current_param      = head_of_param_list;
-    value_block        = GET_VALUE_BLOCK(head_of_param_list, ((parsec_dtd_function_t*)function)->count_of_params);
+    value_block        = GET_VALUE_BLOCK(head_of_param_list, ((parsec_dtd_task_class_t*)tc)->count_of_params);
     current_val        = value_block;
 
     current_paramm = packed_parameters_head;
@@ -365,7 +365,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
 }
 
 static int
-fake_hook_for_testing(parsec_execution_unit_t    *context,
+fake_hook_for_testing(parsec_execution_unit_t *context,
                       parsec_task_t *this_task)
 {
     static parsec_atomic_lock_t pins_ptg_to_dtd_atomic_lock = {PARSEC_ATOMIC_UNLOCKED};
@@ -405,9 +405,9 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
 
         local_list = parsec_list_item_ring_chop(local_list);
 
-        for (i = 0; NULL != this_task->function->in[i]; i++) {
+        for (i = 0; NULL != this_task->task_class->in[i]; i++) {
 
-            tmp_op_type = this_task->function->in[i]->flow_flags;
+            tmp_op_type = this_task->task_class->in[i]->flow_flags;
             int op_type;
             parsec_dtd_tile_t *tile = NULL;
 
@@ -440,10 +440,10 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
             current_param = tmp_param;
         }
 
-        for( i = 0; NULL != this_task->function->out[i]; i++) {
+        for( i = 0; NULL != this_task->task_class->out[i]; i++) {
             int op_type;
 
-            tmp_op_type = this_task->function->out[i]->flow_flags;
+            tmp_op_type = this_task->task_class->out[i]->flow_flags;
             parsec_dtd_tile_t *tile = NULL;
             if((tmp_op_type & FLOW_ACCESS_RW) == FLOW_ACCESS_WRITE) {
                 op_type = OUTPUT;
@@ -471,8 +471,8 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
             current_param = tmp_param;
         }
 
-        parsec_insert_task_ptg_to_dtd( dtd_handle, __dtd_handle->actual_hook[this_task->function->function_id].hook,
-                                       this_task, (char *)this_task->function->name, (parsec_dtd_task_param_t *)head_param, count_of_params );
+        parsec_insert_task_ptg_to_dtd( dtd_handle, __dtd_handle->actual_hook[this_task->task_class->task_class_id].hook,
+                                       this_task, (char *)this_task->task_class->name, (parsec_dtd_task_param_t *)head_param, count_of_params );
 
         /* Cleaning the params */
         current_param = head_param;

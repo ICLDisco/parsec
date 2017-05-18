@@ -38,6 +38,10 @@ BEGIN_C_DECLS
     ((type *)((char *)ptr - offsetof(type,member)))
 
 /**
+ * @brief A Task Class
+ */
+typedef struct parsec_task_class_s      parsec_task_class_t;
+/**
  * @brief A Remote dependency
  */
 typedef struct parsec_remote_deps_s     parsec_remote_deps_t;
@@ -98,7 +102,7 @@ struct parsec_handle_s {
                                            *   internal purposes (in which case it is atomically set to
                                            *   PARSEC_RUNTIME_RESERVED_NB_TASKS).
                                            */
-    uint16_t                   nb_functions; /**< The number of task classes defined in this handle */
+    uint16_t                   nb_task_classes; /**< The number of task classes defined in this handle */
     uint16_t                   devices_mask; /**< A bitmask on what devices this handle may use */
     int32_t                    initial_number_tasks; /**< Counts the number of task classes initially ready */
     int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this handle */
@@ -111,10 +115,10 @@ struct parsec_handle_s {
                                                      */
     parsec_context_t           *context;   /**< The PaRSEC context on which this handle was generated */
     parsec_startup_fn_t         startup_hook; /**< Function pointer to a function that generates initial tasks */
-    const parsec_function_t**   functions_array; /**< Array of task classes that build this DAG */
+    const parsec_task_class_t** task_classes_array; /**< Array of task classes that build this DAG */
 #if defined(PARSEC_PROF_TRACE)
-    const int*                 profiling_array; /**< Array of profiling keys to start/stop each of the task classes
-                                                 *   The array is indexed on the same index as functions_array */
+    const int*                   profiling_array; /**< Array of profiling keys to start/stop each of the task classes
+                                                   *   The array is indexed on the same index as task_classes_array */
 #endif  /* defined(PARSEC_PROF_TRACE) */
     parsec_event_cb_t           on_enqueue;      /**< Callback called when the handle is enqueued (scheduled) */
     void*                       on_enqueue_data; /**< Data to pass to on_enqueue when called */
@@ -123,7 +127,7 @@ struct parsec_handle_s {
     parsec_update_ref_t         update_nb_runtime_task;
     parsec_destruct_fn_t        destructor;      /**< handle-specific destructor function */
     void**                      dependencies_array; /**< Array of multidimensional dependencies
-                                                     *   Indexed on the same index as functions_array */
+                                                     *   Indexed on the same index as task_classes_array */
     data_repo_t**               repo_array; /**< Array of data repositories
                                              *   Indexed on the same index as functions array */
 };
@@ -322,11 +326,11 @@ typedef struct __parsec_internal_incarnation_s {
     parsec_hook_t              *dyld_fn;
 } __parsec_chore_t;
 
-struct parsec_function_s {
+struct parsec_task_class_s {
     const char                  *name;
 
     uint16_t                     flags;
-    uint8_t                      function_id;  /**< index in the dependency and in the function array */
+    uint8_t                      task_class_id;  /**< index in the dependency and in the function array */
 
     uint8_t                      nb_flows;
     uint8_t                      nb_parameters;
@@ -402,7 +406,7 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
     parsec_list_item_t             super;            \
     parsec_thread_mempool_t       *mempool_owner;    \
     parsec_handle_t               *parsec_handle;    \
-    const  parsec_function_t      *function;         \
+    const  parsec_task_class_t    *task_class;       \
     int32_t                        priority;         \
     uint8_t                        status;           \
     uint8_t                        chore_id;         \
@@ -462,15 +466,15 @@ extern int queue_add_begin, queue_add_end;
 extern int queue_remove_begin, queue_remove_end;
 extern int device_delegate_begin, device_delegate_end;
 
-#define PARSEC_PROF_FUNC_KEY_START(parsec_handle, function_index) \
-    (parsec_handle)->profiling_array[2 * (function_index)]
-#define PARSEC_PROF_FUNC_KEY_END(parsec_handle, function_index) \
-    (parsec_handle)->profiling_array[1 + 2 * (function_index)]
+#define PARSEC_PROF_FUNC_KEY_START(parsec_handle, tc_index) \
+    (parsec_handle)->profiling_array[2 * (tc_index)]
+#define PARSEC_PROF_FUNC_KEY_END(parsec_handle, tc_index) \
+    (parsec_handle)->profiling_array[1 + 2 * (tc_index)]
 
 #define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
     PARSEC_PROFILING_TRACE((PROFILE),                                    \
                           (KEY),                                        \
-                          (TASK)->function->key((TASK)->parsec_handle, (assignment_t *)&(TASK)->locals), \
+                          (TASK)->task_class->key((TASK)->parsec_handle, (assignment_t *)&(TASK)->locals), \
                           (TASK)->parsec_handle->handle_id, (void*)&(TASK)->prof_info)
 
 #define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \

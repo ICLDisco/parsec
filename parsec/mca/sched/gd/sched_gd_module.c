@@ -80,7 +80,7 @@ static int sched_gd_schedule(parsec_execution_unit_t* eu_context,
 #if defined(PINS_ENABLE)
     new_context->creator_core = 1;
 #endif
-    if( (new_context->function->flags & PARSEC_HIGH_PRIORITY_TASK) &&
+    if( (new_context->task_class->flags & PARSEC_HIGH_PRIORITY_TASK) &&
         (0 == distance) ) {
         parsec_dequeue_chain_front( (parsec_dequeue_t*)eu_context->scheduler_object, (parsec_list_item_t*)new_context);
     } else {

@@ -100,12 +100,12 @@ extern parsec_arena_t **parsec_dtd_arenas;
 extern int dtd_window_size;
 extern int dtd_threshold_size;
 
-#define PASSED_BY_REF            1
-#define UNPACK_VALUE             1
-#define UNPACK_DATA              2
-#define UNPACK_SCRATCH           3
-#define MAX_FLOW                 25 /* Max number of flows allowed per task */
-#define PARSEC_DTD_NB_FUNCTIONS  25 /* Max number of task classes allowed */
+#define PASSED_BY_REF                1
+#define UNPACK_VALUE                 1
+#define UNPACK_DATA                  2
+#define UNPACK_SCRATCH               3
+#define MAX_FLOW                    25 /* Max number of flows allowed per task */
+#define PARSEC_DTD_NB_TASK_CLASSES  25 /* Max number of task classes allowed */
 
 typedef struct parsec_dtd_tile_s       parsec_dtd_tile_t;
 typedef struct parsec_dtd_task_s       parsec_dtd_task_t;

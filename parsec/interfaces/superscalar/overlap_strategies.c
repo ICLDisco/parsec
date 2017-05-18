@@ -161,13 +161,13 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
     if( (PARSEC_ACTION_COMPLETE_LOCAL_TASK & action_mask) ) {
         flow_mask = action_mask;
     } else {
-        for(current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++) {
+        for(current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++) {
             int j = 0;
-            if( current_task->super.function->out[current_dep] != NULL ) {
-                while ( current_task->super.function->out[current_dep]->dep_out[j] != NULL ) {
-                    if ( ((1<<current_task->super.function->out[current_dep]->dep_out[j]->dep_index) & action_mask) ) {
-                       flow_mask |= (1U << current_task->super.function->out[current_dep]->dep_out[j]->belongs_to->flow_index);
-                       dep_mask |= (1U << current_task->super.function->out[current_dep]->dep_out[j]->dep_datatype_index);
+            if( current_task->super.task_class->out[current_dep] != NULL ) {
+                while ( current_task->super.task_class->out[current_dep]->dep_out[j] != NULL ) {
+                    if ( ((1<<current_task->super.task_class->out[current_dep]->dep_out[j]->dep_index) & action_mask) ) {
+                       flow_mask |= (1U << current_task->super.task_class->out[current_dep]->dep_out[j]->belongs_to->flow_index);
+                       dep_mask |= (1U << current_task->super.task_class->out[current_dep]->dep_out[j]->dep_datatype_index);
                     }
                     j++;
                 }
@@ -176,7 +176,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
     }
 
     rank_src = current_task->rank;
-    for( current_dep = 0; current_dep < current_task->super.function->nb_flows; current_dep++ ) {
+    for( current_dep = 0; current_dep < current_task->super.task_class->nb_flows; current_dep++ ) {
         if( (flow_mask & (1<<current_dep)) ) {
             current_desc = (DESC_OF(current_task, current_dep))->task;
             op_type_on_current_flow = (FLOW_OF(current_task, current_dep)->op_type & GET_OP_TYPE);
@@ -315,9 +315,9 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
                 if(dump_traversal_info) {
                     parsec_output(parsec_debug_output,
                                   "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
-                                  "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.function->name,
-                                  current_task->ht_item.key, current_task->rank, current_desc->super.function->name,
-                                  current_desc->ht_item.key, current_desc->rank, current_desc->super.function->nb_flows,
+                                  "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.task_class->name,
+                                  current_task->ht_item.key, current_task->rank, current_desc->super.task_class->name,
+                                  current_desc->ht_item.key, current_desc->rank, current_desc->super.task_class->nb_flows,
                                   current_desc->flow_count, current_dep, tmp_desc_flow_index);
                 }
 
@@ -337,7 +337,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
                         parsec_dtd_remote_task_release( current_desc );
                     }
                     if( parsec_dtd_task_is_remote(current_desc) ) {
-                        if( ((parsec_dtd_function_t *)current_desc->super.function)->fpointer == parsec_dtd_copy_data_to_matrix ) {
+                        if( ((parsec_dtd_task_class_t *)current_desc->super.task_class)->fpointer == parsec_dtd_copy_data_to_matrix ) {
                             parsec_dtd_remote_task_release( current_desc );
                         }
                     }

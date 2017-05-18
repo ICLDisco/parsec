@@ -472,6 +472,11 @@ char* parsec_snprintf_execution_context( char* str, size_t size,
                                         const parsec_task_t* task);
 
 /**
+ * @brief Opaque structure representing a Task Class
+ */
+struct parsec_task_class_s;
+
+/**
  * @brief Opaque structure representing the parameters of a task
  */
 struct assignment_s;
@@ -490,8 +495,8 @@ struct assignment_s;
  * @param[in] locals the set of parameters of the task
  * @return str
  */
-char* parsec_snprintf_assignments( char* str, size_t size,
-                                  const struct parsec_function_s* function,
+char* parsec_snprintf_assignments(char* str, size_t size,
+                                  const struct parsec_task_class_s* function,
                                   const struct assignment_s* locals);
 
 /**  @} */

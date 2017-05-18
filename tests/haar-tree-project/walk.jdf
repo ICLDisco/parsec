@@ -274,11 +274,11 @@ static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
     int n, l;
 
     (void)eu_context;
-    
+
     n = exec_context->locals[0].value;
     l = exec_context->locals[1].value;
 
-    sh = (simple_hash_t*)parsec_handle->dependencies_array[ exec_context->function->function_id ];
+    sh = (simple_hash_t*)parsec_handle->dependencies_array[ exec_context->task_class->task_class_id ];
     p = my_simple_tree_hash(n, l) % sh->size;
     for(i = p; i != p-1; i = ((i+1) % sh->size)) {
         if( NULL == sh->buckets[i] ) {
@@ -318,7 +318,7 @@ static int my_walk_startup(parsec_execution_unit_t * eu, __parsec_walk_DOWN_task
   new_task = (__parsec_walk_DOWN_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
   new_task->status = PARSEC_TASK_STATUS_NONE;
   new_task->parsec_handle = this_task->parsec_handle;
-  new_task->function = __parsec_handle->super.super.functions_array[walk_DOWN.function_id];
+  new_task->task_class = __parsec_handle->super.super.task_classes_array[walk_DOWN.task_class_id];
   new_task->chore_id = 0;
 
   new_task->locals.n.value = 0;

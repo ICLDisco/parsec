@@ -25,7 +25,7 @@
  */
 #define AYU_REGISTER_TASK(FCT) \
   if( AYU_event ) { \
-    AYU_event( AYU_REGISTERFUNCTION, (FCT)->function_id, (void*)((FCT)->name) ); \
+    AYU_event( AYU_REGISTERFUNCTION, (FCT)->task_class_id, (void*)((FCT)->name) ); \
   }
 
 /**
@@ -34,7 +34,7 @@
  */
 #define AYU_ADD_TASK(TASK)                                 \
   if( AYU_event ) {                                        \
-    int64_t _data[2] = {(TASK)->function->function_id, 1}; \
+    int64_t _data[2] = {(TASK)->function->task_class_id, 1}; \
     AYU_event( AYU_ADDTASK, (int64_t)(TASK), _data );      \
   }
 

@@ -88,13 +88,13 @@ static void iterators_checker_exec_count_begin(parsec_execution_unit_t* exec_uni
 
     parsec_snprintf_execution_context(str, TASK_STR_LEN, exec_context);
 
-    if( exec_context->function->iterate_successors )
-        exec_context->function->iterate_successors(exec_unit, exec_context, PARSEC_DEPENDENCIES_BITMASK, print_link, "successor");
+    if( exec_context->task_class->iterate_successors )
+        exec_context->task_class->iterate_successors(exec_unit, exec_context, PARSEC_DEPENDENCIES_BITMASK, print_link, "successor");
     else
         fprintf(stderr, "PINS ITERATORS CHECKER::   %s has no successor\n", str);
 
-    if( exec_context->function->iterate_predecessors )
-        exec_context->function->iterate_predecessors(exec_unit, exec_context, PARSEC_DEPENDENCIES_BITMASK, print_link, "predecessor");
+    if( exec_context->task_class->iterate_predecessors )
+        exec_context->task_class->iterate_predecessors(exec_unit, exec_context, PARSEC_DEPENDENCIES_BITMASK, print_link, "predecessor");
     else
         fprintf(stderr, "PINS ITERATORS CHECKER::   %s has no predecessor\n", str);
 

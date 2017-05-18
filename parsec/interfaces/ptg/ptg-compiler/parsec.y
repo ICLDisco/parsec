@@ -261,9 +261,9 @@ jdf:            jdf function
                     jdf_expr_t *el;
 
                     if( NULL == current_jdf.functions ) {
-                        $2->function_id = 0;
+                        $2->task_class_id = 0;
                     } else {
-                        $2->function_id = current_jdf.functions->function_id + 1;
+                        $2->task_class_id = current_jdf.functions->task_class_id + 1;
                     }
                     $2->next = current_jdf.functions;
                     current_jdf.functions = $2;

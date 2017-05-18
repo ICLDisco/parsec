@@ -174,9 +174,9 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
 
     task.parsec_handle = parsec_handle_lookup( origin->handle_id );
     if( NULL == task.parsec_handle ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->handle_id), str;
-    task.function     = task.parsec_handle->functions_array[origin->function_id];
-    if( NULL == task.function ) return snprintf(str, len, "UNKNOWN_of_Function_%d", origin->function_id), str;
-    memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.function->nb_locals);
+    task.task_class   = task.parsec_handle->task_classes_array[origin->task_class_id];
+    if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_Function_%d", origin->task_class_id), str;
+    memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.task_class->nb_locals);
     task.priority     = 0xFFFFFFFF;
     return parsec_snprintf_execution_context(str, len, &task);
 }
@@ -525,9 +525,9 @@ remote_dep_mpi_retrieve_datatype(parsec_execution_unit_t *eu,
     if( dst_rank != eu->virtual_process->parsec_context->my_rank )
         return PARSEC_ITERATE_CONTINUE;
 
-    parsec_remote_deps_t *deps                = (parsec_remote_deps_t*)param;
+    parsec_remote_deps_t *deps               = (parsec_remote_deps_t*)param;
     struct remote_dep_output_param_s* output = &deps->output[dep->dep_datatype_index];
-    const parsec_function_t* fct              = newcontext->function;
+    const parsec_task_class_t* fct           = newcontext->task_class;
     uint32_t flow_mask                       = (1U << dep->flow->flow_index) | 0x80000000;  /* in flow */
     /* Extract the datatype, count and displacement from the target task */
     if( PARSEC_HOOK_RETURN_DONE == fct->get_datatype(eu, newcontext, &flow_mask, &output->data) ) {
@@ -572,20 +572,20 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
     if( NULL == origin->parsec_handle )
         return -1; /* the parsec object doesn't exist yet */
     task.parsec_handle = origin->parsec_handle;
-    task.function     = task.parsec_handle->functions_array[origin->msg.function_id];
+    task.task_class    = task.parsec_handle->task_classes_array[origin->msg.task_class_id];
 
     if( 1 == origin->parsec_handle->handle_type ) {
         dtd_handle = (parsec_dtd_handle_t *)origin->parsec_handle;
         parsec_dtd_two_hash_table_lock(dtd_handle->two_hash_table);
 
-        if( NULL == task.function ) {
+        if( NULL == task.task_class ) {
             assert(origin->incoming_mask == 0);
             return -2; /* indicates problem with dtd progress in this node, so defer activation */
         }
     }
 
     task.priority     = 0;  /* unknown yet */
-    for(i = 0; i < task.function->nb_locals; i++)
+    for(i = 0; i < task.task_class->nb_locals; i++)
         task.locals[i] = origin->msg.locals[i];
 
     /* We need to convert from a dep_datatype_index mask into a dep_index
@@ -604,11 +604,11 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
             if( NULL == dtd_task ) { return_defer = 1; continue; }
         }
 
-        for(local_mask = i = 0; NULL != task.function->out[i]; i++ ) {
-            if(!(task.function->out[i]->flow_datatype_mask & (1U<<k))) continue;
-            for(j = 0; NULL != task.function->out[i]->dep_out[j]; j++ )
-                if(k == task.function->out[i]->dep_out[j]->dep_datatype_index)
-                    local_mask |= (1U << task.function->out[i]->dep_out[j]->dep_index);
+        for(local_mask = i = 0; NULL != task.task_class->out[i]; i++ ) {
+            if(!(task.task_class->out[i]->flow_datatype_mask & (1U<<k))) continue;
+            for(j = 0; NULL != task.task_class->out[i]->dep_out[j]; j++ )
+                if(k == task.task_class->out[i]->dep_out[j]->dep_datatype_index)
+                    local_mask |= (1U << task.task_class->out[i]->dep_out[j]->dep_index);
             if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
         }
 
@@ -621,15 +621,15 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
 
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
         if( 1 == origin->parsec_handle->handle_type ) {
-            task.function->iterate_successors(eu_context, (parsec_task_t *)dtd_task,
-                                              local_mask,
-                                              remote_dep_mpi_retrieve_datatype,
-                                              origin);
+            task.task_class->iterate_successors(eu_context, (parsec_task_t *)dtd_task,
+                                               local_mask,
+                                               remote_dep_mpi_retrieve_datatype,
+                                               origin);
         } else {
-            task.function->iterate_successors(eu_context, &task,
-                                              local_mask,
-                                              remote_dep_mpi_retrieve_datatype,
-                                              origin);
+            task.task_class->iterate_successors(eu_context, &task,
+                                                local_mask,
+                                                remote_dep_mpi_retrieve_datatype,
+                                                origin);
         }
     }
 
@@ -672,20 +672,20 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
     origin->incoming_mask ^= complete_mask;
 
     task.parsec_handle = origin->parsec_handle;
-    task.function = task.parsec_handle->functions_array[origin->msg.function_id];
+    task.task_class = task.parsec_handle->task_classes_array[origin->msg.task_class_id];
     task.priority = origin->priority;
-    for(i = 0; i < task.function->nb_locals;
+    for(i = 0; i < task.task_class->nb_locals;
         task.locals[i] = origin->msg.locals[i], i++);
-    for(i = 0; i < task.function->nb_flows;
+    for(i = 0; i < task.task_class->nb_flows;
         task.data[i].data_in = task.data[i].data_out = NULL, task.data[i].data_repo = NULL, i++);
 
     for(i = 0; complete_mask>>i; i++) {
         assert(i < MAX_PARAM_COUNT);
         if( !((1U<<i) & complete_mask) ) continue;
         pidx = 0;
-        target = task.function->out[pidx];
+        target = task.task_class->out[pidx];
         while( !((1U<<i) & target->flow_datatype_mask) ) {
-            target = task.function->out[++pidx];
+            target = task.task_class->out[++pidx];
             assert(NULL != target);
         }
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tDATA %p(%s) released from %p[%d] flow idx %d",
@@ -704,8 +704,8 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
 #endif  /* PARSEC_DIST_COLLECTIVES */
 
     /* We need to convert from a dep_datatype_index mask into a dep_index mask */
-    for(int i = 0; NULL != task.function->out[i]; i++ ) {
-        target = task.function->out[i];
+    for(int i = 0; NULL != task.task_class->out[i]; i++ ) {
+        target = task.task_class->out[i];
         if( !(complete_mask & target->flow_datatype_mask) ) continue;
         for(int j = 0; NULL != target->dep_out[j]; j++ )
             if(complete_mask & (1U << target->dep_out[j]->dep_datatype_index))
@@ -713,9 +713,9 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
     }
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tTranslate mask from 0x%lx to 0x%x (remote_dep_release_incoming)",
             complete_mask, action_mask);
-    (void)task.function->release_deps(eu_context, &task,
-                                      action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
-                                      NULL);
+    (void)task.task_class->release_deps(eu_context, &task,
+                                        action_mask | PARSEC_ACTION_RELEASE_LOCAL_DEPS,
+                                        NULL);
     assert(0 == (origin->incoming_mask & complete_mask));
 
     if(0 != origin->incoming_mask)  /* not done receiving */
@@ -991,17 +991,17 @@ static void remote_dep_mpi_profiling_fini(void)
 }
 
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw)                \
-    if( parsec_profile_enabled ) {                                       \
-        parsec_profile_remote_dep_mpi_info_t __info;                     \
+    if( parsec_profile_enabled ) {                                      \
+        parsec_profile_remote_dep_mpi_info_t __info;                    \
         parsec_handle_t *__object = parsec_handle_lookup( (rdw).handle_id ); \
-        const parsec_function_t *__function = __object->functions_array[(rdw).function_id ]; \
+        const parsec_task_class_t *__tc = __object->task_classes_array[(rdw).task_class_id ]; \
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
         __info.hid = __object->handle_id;                               \
         /** Recompute the base profiling key of that function */        \
-        __info.fid = __function->function_id;                           \
-        __info.tid = __function->key(__object, (rdw).locals);           \
-        PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                       \
+        __info.fid = __tc->task_class_id;                               \
+        __info.tid = __tc->key(__object, (rdw).locals);                 \
+        PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
                               PROFILE_OBJECT_ID_NULL, &__info);         \
     }
 

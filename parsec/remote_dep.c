@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -290,7 +290,7 @@ int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
                                const parsec_task_t* task,
                                parsec_remote_deps_t* deps)
 {
-    const parsec_function_t* function = task->function;
+    const parsec_task_class_t* tc = task->task_class;
     uint32_t dep_mask = 0;
 
     assert(deps->root != eu_context->virtual_process->parsec_context->my_rank );
@@ -301,15 +301,15 @@ int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
     assert(0 == deps->outgoing_mask);
 
     /* We need to convert from a dep_datatype_index mask into a dep_index mask */
-    for(int i = 0; NULL != function->out[i]; i++ )
-        for(int j = 0; NULL != function->out[i]->dep_out[j]; j++ )
-            if(deps->msg.output_mask & (1U << function->out[i]->dep_out[j]->dep_datatype_index))
-                dep_mask |= (1U << function->out[i]->dep_out[j]->dep_index);
+    for(int i = 0; NULL != tc->out[i]; i++ )
+        for(int j = 0; NULL != tc->out[i]->dep_out[j]; j++ )
+            if(deps->msg.output_mask & (1U << tc->out[i]->dep_out[j]->dep_datatype_index))
+                dep_mask |= (1U << tc->out[i]->dep_out[j]->dep_index);
 
-    function->iterate_successors(eu_context, task,
-                                 dep_mask | PARSEC_ACTION_RELEASE_REMOTE_DEPS,
-                                 parsec_gather_collective_pattern,
-                                 deps);
+    tc->iterate_successors(eu_context, task,
+                           dep_mask | PARSEC_ACTION_RELEASE_REMOTE_DEPS,
+                           parsec_gather_collective_pattern,
+                           deps);
 
     return parsec_remote_dep_activate(eu_context, task, deps, deps->msg.output_mask);
 }
@@ -323,7 +323,7 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                               parsec_remote_deps_t* remote_deps,
                               uint32_t propagation_mask)
 {
-    const parsec_function_t* function = exec_context->function;
+    const parsec_task_class_t* tc = exec_context->task_class;
     int i, my_idx, idx, current_mask, keeper = 0;
     unsigned int array_index, count, bit_index;
     struct remote_dep_output_param_s* output;
@@ -341,8 +341,8 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
     remote_deps->msg.output_mask = propagation_mask;
     remote_deps->msg.deps        = (uintptr_t)remote_deps;
     remote_deps->msg.handle_id   = exec_context->parsec_handle->handle_id;
-    remote_deps->msg.function_id = function->function_id;
-    for(i = 0; i < function->nb_locals; i++) {
+    remote_deps->msg.task_class_id = tc->task_class_id;
+    for(i = 0; i < tc->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
     }
 #if defined(PARSEC_DEBUG_PARANOID)
@@ -416,11 +416,11 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                             remote_deps->root, i, tmp, my_idx, idx, rank, remote_deps->outgoing_mask);
                     assert(remote_deps->outgoing_mask & (1U<<i));
 #if defined(PARSEC_DEBUG_NOISIER)
-                    for(int flow_index = 0; NULL != exec_context->function->out[flow_index]; flow_index++) {
-                        if( exec_context->function->out[flow_index]->flow_datatype_mask & (1<<i) ) {
-                            assert( NULL != exec_context->function->out[flow_index] );
+                    for(int flow_index = 0; NULL != exec_context->task_class->out[flow_index]; flow_index++) {
+                        if( exec_context->task_class->out[flow_index]->flow_datatype_mask & (1<<i) ) {
+                            assert( NULL != exec_context->task_class->out[flow_index] );
                             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, " TOPO\t%s flow %s root=%d\t%d (d%d) -> %d (d%d)",
-                                    tmp, exec_context->function->out[flow_index]->name, remote_deps->root,
+                                    tmp, exec_context->task_class->out[flow_index]->name, remote_deps->root,
                                     eu_context->virtual_process->parsec_context->my_rank, my_idx, rank, idx);
                             break;
                         }

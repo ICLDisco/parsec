@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -63,14 +63,14 @@ void parsec_prof_grapher_init(const char *base_filename, int nbthreads)
 
 char *parsec_prof_grapher_taskid(const parsec_task_t *exec_context, char *tmp, int length)
 {
-    const parsec_function_t* function = exec_context->function;
+    const parsec_task_class_t* tc = exec_context->task_class;
     unsigned int i, index = 0;
 
     assert( NULL!= exec_context->parsec_handle );
-    index += snprintf( tmp + index, length - index, "%s_%u", function->name, exec_context->parsec_handle->handle_id );
-    for( i = 0; i < function->nb_parameters; i++ ) {
+    index += snprintf( tmp + index, length - index, "%s_%u", tc->name, exec_context->parsec_handle->handle_id );
+    for( i = 0; i < tc->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
-                           exec_context->locals[function->params[i]->context_index].value );
+                           exec_context->locals[tc->params[i]->context_index].value );
     }
 
     return tmp;
@@ -89,23 +89,23 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
                 "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
                 context->parsec_handle->handle_id,
                 context->parsec_handle->profiling_array != NULL 
-                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->function->function_id])
+                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->task_class->task_class_id])
                     : -1,
-                context->function->name,
+                context->task_class->name,
                 task_hash);
 #  else
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s [%d]\","
                 "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
                 context->parsec_handle->handle_id,
-                context->function->name,
+                context->task_class->name,
                 task_hash);
 #  endif
 #else
@@ -114,23 +114,23 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s\","
                 "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
                 context->parsec_handle->handle_id,
                 context->parsec_handle->profiling_array != NULL 
-                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->function->function_id])
+                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->task_class->task_class_id])
                     : -1,
-                context->function->name,
+                context->task_class->name,
                 task_hash);
 #  else
         fprintf(grapher_file,
                 "%s [shape=\"polygon\",style=filled,fillcolor=\"%s\","
                 "fontcolor=\"black\",label=\"<%d/%d> %s\","
                 "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
-                nmp, colors[context->function->function_id % nbfuncs],
+                nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
                 context->parsec_handle->handle_id,
-                context->function->name,
+                context->task_class->name,
                 task_hash);
 #  endif
 #endif

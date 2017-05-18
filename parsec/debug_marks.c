@@ -16,11 +16,11 @@ void debug_mark_exe(int th, int vp, const struct parsec_task_s *ctx)
     int j, pos = 0, len = 512;
     char msg[512];
 
-    pos += snprintf(msg+pos, len-pos, "%s(", ctx->function->name);
-    for(j = 0; j < ctx->function->nb_parameters; j++) {
+    pos += snprintf(msg+pos, len-pos, "%s(", ctx->task_class->name);
+    for(j = 0; j < ctx->task_class->nb_parameters; j++) {
         pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
-                        j, ctx->function->locals[j]->name, ctx->locals[j].value,
-                        (j == ctx->function->nb_parameters-1) ? ")\n" : ", ");
+                        j, ctx->task_class->locals[j]->name, ctx->locals[j].value,
+                        (j == ctx->task_class->nb_parameters-1) ? ")\n" : ", ");
     }
 
     parsec_debug_history_add("Mark: thread %2d VP %d executes:\t%s",
@@ -32,18 +32,18 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
     int j, pos = 0, len = 512;
     char msg[512];
     parsec_handle_t *object;
-    const parsec_function_t *f;
+    const parsec_task_class_t *tc;
 
     pos += snprintf(msg+pos, len-pos, "Mark: emission of an activate message to %d\n", to);
     pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n", b);
     object = parsec_handle_lookup( m->handle_id );
-    f = object->functions_array[m->function_id];
-    pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-    for(j = 0; j < f->nb_parameters; j++) {
+    tc = object->task_classes_array[m->task_class_id];
+    pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", tc->name);
+    for(j = 0; j < tc->nb_parameters; j++) {
         pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
                         j,
-                        f->locals[j]->name, m->locals[j].value,
-                        (j == f->nb_parameters - 1) ? ")\n" : ", ");
+                        tc->locals[j]->name, m->locals[j].value,
+                        (j == tc->nb_parameters - 1) ? ")\n" : ", ");
     }
     pos += snprintf(msg+pos, len-pos, "\toutput_mask = 0x%08x\n",
                     (uint32_t)m->output_mask);
@@ -57,18 +57,18 @@ void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remo
     int j, pos = 0, len = 512;
     char msg[512];
     parsec_handle_t *object;
-    const parsec_function_t *f;
+    const parsec_task_class_t *tc;
 
     pos += snprintf(msg+pos, len-pos, "Mark: reception of an activate message from %d\n", from);
     pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n", b);
     object = parsec_handle_lookup( m->handle_id );
-    f = object->functions_array[m->function_id];
-    pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", f->name);
-    for(j = 0; j < f->nb_parameters; j++) {
+    tc = object->task_classes_array[m->task_class_id];
+    pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", tc->name);
+    for(j = 0; j < tc->nb_parameters; j++) {
         pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
                         j,
-                        f->locals[j]->name, m->locals[j].value,
-                        (j == f->nb_parameters - 1) ? ")\n" : ", ");
+                        tc->locals[j]->name, m->locals[j].value,
+                        (j == tc->nb_parameters - 1) ? ")\n" : ", ");
     }
     pos += snprintf(msg+pos, len-pos, "\toutput_mask = 0x%08x\n",
                     (uint32_t)m->output_mask);

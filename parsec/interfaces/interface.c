@@ -110,9 +110,9 @@ static const __parsec_chore_t __parsec_generic_startup_chores[] = {
      .hook = (parsec_hook_t *) NULL},	/* End marker */
 };
 
-const parsec_function_t __parsec_generic_startup = {
+const parsec_task_class_t __parsec_generic_startup = {
     .name = "Generic Startup",
-    .function_id = -1,  /* To be replaced in all copies */
+    .task_class_id = -1,  /* To be replaced in all copies */
     .nb_flows = 0,
     .nb_parameters = 0,
     .nb_locals = 0,

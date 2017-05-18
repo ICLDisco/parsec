@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2016 The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -45,7 +45,7 @@ typedef struct __parsec_map_operator_handle {
 } __parsec_map_operator_handle_t;
 
 static const parsec_flow_t flow_of_map_operator;
-static const parsec_function_t parsec_map_operator;
+static const parsec_task_class_t parsec_map_operator;
 
 #define src(k,n)  (((parsec_ddesc_t*)__parsec_handle->super.src)->data_of((parsec_ddesc_t*)__parsec_handle->super.src, (k), (n)))
 #define dest(k,n)  (((parsec_ddesc_t*)__parsec_handle->super.dest)->data_of((parsec_ddesc_t*)__parsec_handle->super.dest, (k), (n)))
@@ -162,13 +162,13 @@ static inline int final_data_of_map_operator(parsec_task_t *this_task,
 
 static const dep_t flow_of_map_operator_dep_in = {
     .cond = NULL,
-    .function_id = 0,  /* parsec_map_operator.function_id */
+    .task_class_id = 0,  /* parsec_map_operator.task_class_id */
     .flow = &flow_of_map_operator,
 };
 
 static const dep_t flow_of_map_operator_dep_out = {
     .cond = NULL,
-    .function_id = 0,  /* parsec_map_operator.function_id */
+    .task_class_id = 0,  /* parsec_map_operator.task_class_id */
     .dep_index = 1,
     .flow = &flow_of_map_operator,
 };
@@ -232,7 +232,7 @@ static void iterate_successors(parsec_execution_unit_t *eu,
             /* Here we go, one ready local task */
             nc.locals[0].value = k;
             nc.locals[1].value = n;
-            nc.function = &parsec_map_operator /*this*/;
+            nc.task_class = &parsec_map_operator /*this*/;
             nc.parsec_handle = this_task->parsec_handle;
             nc.data[0].data_in = this_task->data[0].data_out;
             nc.data[1].data_in = this_task->data[1].data_out;
@@ -330,7 +330,7 @@ static int hook_of(parsec_execution_unit_t *context,
     }
 
 #if !defined(PARSEC_PROF_DRY_BODY)
-    TAKE_TIME(context, 2*this_task->function->function_id,
+    TAKE_TIME(context, 2*this_task->task_class->task_class_id,
               map_operator_op_hash( __parsec_handle, k, n ), __parsec_handle->super.src,
               ((parsec_ddesc_t*)(__parsec_handle->super.src))->data_key((parsec_ddesc_t*)__parsec_handle->super.src, k, n) );
     __parsec_handle->super.op( context, src_data, dest_data, __parsec_handle->super.op_data, k, n );
@@ -347,7 +347,7 @@ static int complete_hook(parsec_execution_unit_t *context,
     int n = this_task->locals[1].value;
     (void)k; (void)n; (void)__parsec_handle;
 
-    TAKE_TIME(context, 2*this_task->function->function_id+1, map_operator_op_hash( __parsec_handle, k, n ), NULL, 0);
+    TAKE_TIME(context, 2*this_task->task_class->task_class_id+1, map_operator_op_hash( __parsec_handle, k, n ), NULL, 0);
 
 #if defined(PARSEC_PROF_GRAPHER)
     parsec_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id, k+n);
@@ -372,10 +372,10 @@ static __parsec_chore_t __parsec_map_chores[] = {
       .hook     = NULL },
 };
 
-static const parsec_function_t parsec_map_operator = {
+static const parsec_task_class_t parsec_map_operator = {
     .name = "map_operator",
     .flags = 0x0,
-    .function_id = 0,
+    .task_class_id = 0,
     .nb_parameters = 2,
     .nb_locals = 2,
     .dependencies_goal = 0x1,
@@ -408,7 +408,7 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
     parsec_execution_unit_t* eu;
 
     *startup_list = NULL;
-    fake_context.function = &parsec_map_operator;
+    fake_context.task_class = &parsec_map_operator;
     fake_context.parsec_handle = parsec_handle;
     fake_context.priority = 0;
     fake_context.data[0].data_repo = NULL;
@@ -479,8 +479,8 @@ parsec_map_operator_New(const tiled_matrix_desc_t* src,
     if( -1 == parsec_map_operator_profiling_array[0] ) {
         parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
                                                sizeof(parsec_profile_ddesc_info_t), PARSEC_PROFILE_DDESC_INFO_CONVERTOR,
-                                               (int*)&res->super.super.profiling_array[0 + 2 * parsec_map_operator.function_id],
-                                               (int*)&res->super.super.profiling_array[1 + 2 * parsec_map_operator.function_id]);
+                                               (int*)&res->super.super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
+                                               (int*)&res->super.super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
     }
 #  endif /* defined(PARSEC_PROF_TRACE) */
 
