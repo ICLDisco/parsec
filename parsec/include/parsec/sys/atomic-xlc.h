@@ -4,27 +4,32 @@
  *                         reserved.
  */
 
-#define parsec_mfence     __sync
 #define PARSEC_ATOMIC_HAS_RMB
 #define RMB              __lwsync
 #define PARSEC_ATOMIC_HAS_WMB
 #define WMB()            __eieio
 
-static inline int parsec_atomic_bor_32b( volatile uint32_t* location,
+ATOMIC_STATIC_INLINE
+void parsec_mfence(void)
+{
+    __sync();
+}
+
+ATOMIC_STATIC_INLINE int parsec_atomic_bor_32b( volatile uint32_t* location,
                                         uint32_t value )
 {
     uint32_t old_value = __fetch_and_or(location, value);
     return old_value | value;
 }
 
-static inline int parsec_atomic_band_32b( volatile uint32_t* location,
+ATOMIC_STATIC_INLINE int parsec_atomic_band_32b( volatile uint32_t* location,
                                          uint32_t value )
 {
     uint32_t old_value = __fetch_and_and(location, value);
     return old_value & value;
 }
 
-static inline int parsec_atomic_cas_32b( volatile uint32_t* location,
+ATOMIC_STATIC_INLINE int parsec_atomic_cas_32b( volatile uint32_t* location,
                                         uint32_t old_value,
                                         uint32_t new_value )
 {
@@ -44,7 +49,7 @@ static inline int parsec_atomic_cas_32b( volatile uint32_t* location,
 #define parsec_atomic_sc_ptr parsec_atomic_sc_64b
 
 #if defined(PARSEC_ATOMIC_USE_XLC_64_BUILTINS)
-static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
+ATOMIC_STATIC_INLINE int parsec_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )
 {
@@ -53,7 +58,7 @@ static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
 }
 #else
 #include "parsec/debug.h"
-static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
+ATOMIC_STATIC_INLINE int parsec_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )
 {
@@ -63,7 +68,7 @@ static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
 #endif
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-static inline uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
 {
     register int32_t old_val, tmp_val;
 
@@ -77,7 +82,7 @@ static inline uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
-static inline uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
 {
     register int32_t old_val, tmp_val;
 

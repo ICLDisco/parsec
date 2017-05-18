@@ -43,7 +43,6 @@
 
 /* Instrumenting (PINS) */
 #cmakedefine PINS_ENABLE
-#cmakedefine CORES_PER_SOCKET @CORES_PER_SOCKET@
 
 /* Simulating */
 #cmakedefine PARSEC_SIM

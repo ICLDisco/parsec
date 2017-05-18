@@ -91,7 +91,7 @@ typedef void (*parsec_data_free_t)(void *data);
 extern parsec_data_allocate_t parsec_data_allocate;
 
 /**
- * @brief Global deallocator function that PaRSEC uses (defaults to libc fee)
+ * @brief Global deallocator function that PaRSEC uses (defaults to libc free)
  */
 extern parsec_data_free_t     parsec_data_free;
 

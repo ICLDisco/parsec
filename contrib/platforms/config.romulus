@@ -19,7 +19,6 @@ USER_OPTIONS+=" -DPAPI_DIR=$HOME/sw/$HOSTNAME"
 USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 USER_OPTIONS+=" -DPINS_ENABLE=ON"
 USER_OPTIONS+=" -DPARSEC_PROF_TRACE=ON"
-USER_OPTIONS+=" -DCORES_PER_SOCKET=12"
 
 # These are override variables you can set (here or in the env) to alter defaults
 CC=${CC:="/mnt/scratch/sw/intel/composer_xe_2013.4.183/bin/intel64/icc"}

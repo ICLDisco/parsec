@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -21,7 +21,8 @@
 #define PARSEC_ASM_ADDR(a) (a)
 #endif
 
-static inline void parsec_mfence( void )
+ATOMIC_STATIC_INLINE
+void parsec_mfence( void )
 {
     __asm__ __volatile__ ("sync\n\t":::"memory");
 }
@@ -32,8 +33,9 @@ static inline void parsec_mfence( void )
 #define PARSEC_ATOMIC_HAS_WMB
 #define WMB() __asm__ __volatile__ ("eieio" : : : "memory")
 
-static inline int parsec_atomic_bor_32b( volatile uint32_t* location,
-                                          uint32_t mask )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_bor_32b( volatile uint32_t* location,
+                           uint32_t mask )
 {
 #if !defined(__IBMC__)
    int32_t old, t;
@@ -53,8 +55,9 @@ static inline int parsec_atomic_bor_32b( volatile uint32_t* location,
 #endif  /* !defined(__IBMC__) */
 }
 
-static inline int parsec_atomic_band_32b( volatile uint32_t* location,
-                                          uint32_t mask )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_band_32b( volatile uint32_t* location,
+                            uint32_t mask )
 {
 #if !defined(__IBMC__)
    int32_t old, t;
@@ -74,9 +77,10 @@ static inline int parsec_atomic_band_32b( volatile uint32_t* location,
 #endif  /* !defined(__IBMC__) */
 }
 
-static inline int parsec_atomic_cas_32b( volatile uint32_t* location,
-                                          uint32_t old_value,
-                                          uint32_t new_value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_32b( volatile uint32_t* location,
+                           uint32_t old_value,
+                           uint32_t new_value )
 {
 #if !defined(__IBMC__)
    int32_t ret;
@@ -98,9 +102,10 @@ static inline int parsec_atomic_cas_32b( volatile uint32_t* location,
 #endif  /* !defined(__IBMC__) */
 }
 
-static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
-                                          uint64_t old_value,
-                                          uint64_t new_value )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_64b( volatile uint64_t* location,
+                           uint64_t old_value,
+                           uint64_t new_value )
 {
 #if !defined(__IBMC__)
    int64_t ret;
@@ -123,7 +128,8 @@ static inline int parsec_atomic_cas_64b( volatile uint64_t* location,
 }
 
 #define PARSEC_HAVE_ATOMIC_LLSC_PTR
-static inline int32_t parsec_atomic_ll_32b(volatile int32_t *location)
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_ll_32b(volatile int32_t *location)
 {
    int32_t ret;
 
@@ -134,7 +140,8 @@ static inline int32_t parsec_atomic_ll_32b(volatile int32_t *location)
    return ret;
 }
 
-static inline int64_t parsec_atomic_ll_64b(volatile int64_t *location)
+ATOMIC_STATIC_INLINE
+int64_t parsec_atomic_ll_64b(volatile int64_t *location)
 {
    int64_t ret;
 
@@ -146,7 +153,8 @@ static inline int64_t parsec_atomic_ll_64b(volatile int64_t *location)
 }
 #define parsec_atomic_ll_ptr parsec_atomic_ll_64b
 
-static inline int parsec_atomic_sc_32b(volatile int32_t *location, int32_t newval)
+ATOMIC_STATIC_INLINE
+int parsec_atomic_sc_32b(volatile int32_t *location, int32_t newval)
 {
     int32_t ret, foo;
 
@@ -161,7 +169,8 @@ static inline int parsec_atomic_sc_32b(volatile int32_t *location, int32_t newva
     return ret;
 }
 
-static inline int parsec_atomic_sc_64b(volatile int64_t *location, int64_t newval)
+ATOMIC_STATIC_INLINE
+int parsec_atomic_sc_64b(volatile int64_t *location, int64_t newval)
 {
     int32_t ret, foo;
 
@@ -178,7 +187,8 @@ static inline int parsec_atomic_sc_64b(volatile int64_t *location, int64_t newva
 #define parsec_atomic_sc_ptr parsec_atomic_sc_64b
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
-static inline uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
 {
 #if !defined(__IBMC__)
    int32_t t;
@@ -199,7 +209,8 @@ static inline uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
-static inline uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
 {
 #if !defined(__IBMC__)
    int32_t t;
@@ -220,7 +231,8 @@ static inline uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-static inline uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_t i )
 {
 #if !defined(__IBMC__)
    int32_t t;
@@ -241,7 +253,8 @@ static inline uint32_t parsec_atomic_add_32b( volatile int32_t *location, int32_
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
-static inline uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_sub_32b( volatile int32_t *location, int32_t i )
 {
 #if !defined(__IBMC__)
    int32_t t;

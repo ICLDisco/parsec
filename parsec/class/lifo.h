@@ -120,7 +120,7 @@ static inline void parsec_lifo_push( parsec_lifo_t* lifo,
         parsec_atomic_wmb ();
 
         /* to protect against ABA issues it is sufficient to only update the counter in pop */
-        if (parsec_atomic_cas_64b((uint64_t*)&lifo->lifo_head.data.item, (uint64_t)next, (uint64_t)item)) {
+        if (parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item)) {
             return;
         }
         /* DO some kind of pause to release the bus */
@@ -143,7 +143,7 @@ static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
         parsec_atomic_wmb ();
 
         /* to protect against ABA issues it is sufficient to only update the counter in pop */
-        if (parsec_atomic_cas_64b((uint64_t*)&lifo->lifo_head.data.item, (uint64_t)next, (uint64_t)ring)) {
+        if (parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, ring)) {
             return;
         }
         /* DO some kind of pause to release the bus */
@@ -213,7 +213,7 @@ static inline void parsec_lifo_push(parsec_lifo_t *lifo,
         parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
         item->list_next = next;
         parsec_atomic_wmb();
-         if( parsec_atomic_cas(&lifo->lifo_head.data.item, next, item) ) {
+         if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item) ) {
             parsec_atomic_wmb();
             /* now safe to pop this item */
             item->aba_key = 0;
@@ -239,7 +239,7 @@ static inline void parsec_lifo_chain( parsec_lifo_t* lifo,
         parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
         tail->list_next = next;
         parsec_atomic_wmb();
-         if( parsec_atomic_cas(&lifo->lifo_head.data.item, next, ring) ) {
+         if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, ring) ) {
             parsec_atomic_wmb();
             /* now safe to pop this item */
             ring->aba_key = 0;
@@ -324,15 +324,15 @@ static inline parsec_list_item_t *parsec_lifo_pop(parsec_lifo_t* lifo)
     parsec_list_item_t *item;
     while ((item = lifo->lifo_head.data.item) != lifo->lifo_ghost) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas((volatile int32_t *) &item->aba_key, 0, 1)) {
+        if (parsec_atomic_cas_64b(&item->aba_key, 0UL, 1UL)) {
             continue;
         }
 
         parsec_atomic_wmb ();
 
         /* try to swap out the head pointer */
-        if( parsec_atomic_cas(&lifo->lifo_head.data.item, item,
-                                   (void *) item->list_next) ) {
+        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item,
+                                  item, (void*)item->list_next) ) {
             break;
         }
 
@@ -358,15 +358,15 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
     parsec_list_item_t *item;
     if( (item = lifo->lifo_head.data.item) != lifo->lifo_ghost ) {
         /* ensure it is safe to pop the head */
-        if (parsec_atomic_cas((volatile int32_t *) &item->aba_key, 0, 1)) {
+        if (parsec_atomic_cas_64b(&item->aba_key, 0UL, 1UL)) {
             return NULL;
         }
 
         parsec_atomic_wmb ();
 
         /* try to swap out the head pointer */
-        if( parsec_atomic_cas(&lifo->lifo_head.data.item, item,
-                                   (void *) item->list_next) ) {
+        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item,
+                                  item, (void *)item->list_next) ) {
             return NULL;
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -36,14 +36,6 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(hash_table_t);
 struct hash_table_item_s {
     hash_table_item_t       *next_item;        /**< A hash table item is a chained list */
     uint64_t                 key;              /**< Items are identified with a 64 bits key */
-};
-
-/**
- * @brief Bucket for hash tables.
- */
-struct hash_table_bucket_s {
-    parsec_atomic_lock_t     lock;             /**< Buckets are lockable for multithread access */
-    hash_table_item_t       *first_item;       /**< Otherwise they are simply chained lists */
 };
 
 /**
@@ -174,7 +166,19 @@ void * hash_table_remove(hash_table_t *ht, uint64_t key);
  *     @return the pointer to the user data
  */
 void *hash_table_item_lookup(hash_table_t *ht, hash_table_item_t *item);
- 
+
+/**
+ * @brief: Call the function passed as argument for all items in the
+ *         hash table. This function is safe for items removal. In order
+ *         to allow items removal, this function does not protect the hash
+ *         table, and it is therefore not thread safe.
+ *
+ *  @arg[IN] ht    the hash table
+ *  @arg[IN] fct   function to apply to all items in the hash table
+ *  @arg[IN] cb_data data to pass for each element as the first parameter of the fct.
+ */
+typedef void (*hash_elem_fct_t)(void*, void*);
+void hash_table_for_all(hash_table_t* ht, hash_elem_fct_t fct, void* cb_data);
 
 #endif
 

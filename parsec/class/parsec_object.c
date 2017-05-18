@@ -2,7 +2,7 @@
  * Copyright (c) 2004-2005 The Trustees of Indiana University and Indiana
  *                         University Research and Technology
  *                         Corporation.  All rights reserved.
- * Copyright (c) 2004-2005 The University of Tennessee and The University
+ * Copyright (c) 2004-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2004-2007 High Performance Computing Center Stuttgart,
@@ -61,6 +61,16 @@ static const int increment = 10;
 static void save_class(parsec_class_t *cls);
 static void expand_array(void);
 
+/*
+ * When we build PaRSEC itself, we will use the inline version of the function from
+ * the header file. When we are building outside the scope of PaRSEC, aka. using
+ * PaRSEC as a library, we will fall back to using this version, and therefore removing
+ * the need to include the atomic infrastructure directly from our headers.
+ */
+int parsec_obj_update_not_inline(parsec_object_t *object, int inc)
+{
+    return parsec_atomic_add_32b(&(object->obj_reference_count), inc );
+}
 
 /*
  * Lazy initialization of class descriptor.
