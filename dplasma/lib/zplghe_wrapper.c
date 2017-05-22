@@ -91,7 +91,7 @@ dplasma_zplghe_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_cplghe_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zplghe_New( double bump, PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed)
@@ -125,7 +125,7 @@ dplasma_zplghe_New( double bump, PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zplghe_Destruct( parsec_handle_t *handle )
+dplasma_zplghe_Destruct( parsec_taskpool_t *handle )
 {
     dplasma_map_Destruct(handle);
 }
@@ -181,7 +181,7 @@ dplasma_zplghe( parsec_context_t *parsec,
                 tiled_matrix_desc_t *A,
                 unsigned long long int seed)
 {
-    parsec_handle_t *parsec_zplghe = NULL;
+    parsec_taskpool_t *parsec_zplghe = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -195,7 +195,7 @@ dplasma_zplghe( parsec_context_t *parsec,
     parsec_zplghe = dplasma_zplghe_New( bump, uplo, A, seed );
 
     if ( parsec_zplghe != NULL ) {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplghe);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zplghe);
         dplasma_wait_until_completion(parsec);
         dplasma_zplghe_Destruct( parsec_zplghe );
     }

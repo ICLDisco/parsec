@@ -30,9 +30,9 @@ dplasma_zhetrd( parsec_context_t* parsec,
                 tiled_matrix_desc_t* T,
                 int* info )
 {
-    parsec_zhetrd_h2b_L_handle_t * h2b=NULL;
-    parsec_diag_band_to_rect_handle_t* band2rect=NULL;
-    parsec_zhetrd_b2s_handle_t * b2s=NULL;
+    parsec_zhetrd_h2b_L_taskpool_t * h2b = NULL;
+    parsec_diag_band_to_rect_taskpool_t* band2rect = NULL;
+    parsec_zhetrd_b2s_taskpool_t * b2s = NULL;
     parsec_memory_pool_t pool[4];
 
     if( uplo != PlasmaLower && uplo != PlasmaUpper ) {
@@ -40,12 +40,12 @@ dplasma_zhetrd( parsec_context_t* parsec,
         *info = -1;
         return *info;
     }
-    
+
     parsec_private_memory_init( &pool[0], (sizeof(parsec_complex64_t)*T->nb) ); /* tau */
     parsec_private_memory_init( &pool[1], (sizeof(parsec_complex64_t)*T->nb*ib) ); /* work */
     parsec_private_memory_init( &pool[2], (sizeof(parsec_complex64_t)*T->nb*2 *T->nb) ); /* work for HERFB1 */
     parsec_private_memory_init( &pool[3], (sizeof(parsec_complex64_t)*T->nb*4 *T->nb) ); /* work for the TSMQRLR */
-    
+
     if( PlasmaLower == uplo ) {
         h2b = parsec_zhetrd_h2b_L_new( ib, A, T, &pool[3], &pool[2], &pool[1], &pool[0] );
         dplasma_add2arena_rectangle( h2b->arenas[PARSEC_zhetrd_h2b_L_DEFAULT_ARENA],
@@ -69,7 +69,7 @@ dplasma_zhetrd( parsec_context_t* parsec,
                                  parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 #endif
     }
-    if( NULL == h2b ) { 
+    if( NULL == h2b ) {
         *info=-101; goto cleanup;
     }
 
@@ -87,21 +87,21 @@ dplasma_zhetrd( parsec_context_t* parsec,
                                 DE->mb*DE->nb*sizeof(parsec_complex64_t),
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, DE->mb, DE->nb, -1);
-        
-    parsec_enqueue( parsec, (parsec_handle_t*)h2b );
-    parsec_enqueue( parsec, (parsec_handle_t*)band2rect );
-    parsec_enqueue( parsec, (parsec_handle_t*)b2s );
+
+    parsec_enqueue( parsec, (parsec_taskpool_t*)h2b );
+    parsec_enqueue( parsec, (parsec_taskpool_t*)band2rect );
+    parsec_enqueue( parsec, (parsec_taskpool_t*)b2s );
     dplasma_wait_until_completion(parsec);
 
 cleanup:
-    if( h2b ) PARSEC_INTERNAL_HANDLE_DESTRUCT( h2b );
-    if( band2rect ) PARSEC_INTERNAL_HANDLE_DESTRUCT( band2rect );
-    if( b2s ) PARSEC_INTERNAL_HANDLE_DESTRUCT( b2s );
+    if( h2b ) PARSEC_INTERNAL_TASKPOOL_DESTRUCT( h2b );
+    if( band2rect ) PARSEC_INTERNAL_TASKPOOL_DESTRUCT( band2rect );
+    if( b2s ) PARSEC_INTERNAL_TASKPOOL_DESTRUCT( b2s );
     parsec_private_memory_fini( &pool[0] );
     parsec_private_memory_fini( &pool[1] );
     parsec_private_memory_fini( &pool[2] );
     parsec_private_memory_fini( &pool[3] );
-    return *info; 
+    return *info;
 }
 
 

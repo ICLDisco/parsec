@@ -25,19 +25,19 @@ static MPI_Datatype block;
  *
  * @return the parsec object to schedule.
  */
-parsec_handle_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb)
+parsec_taskpool_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb)
 {
     int worldsize;
-    parsec_ctlgat_handle_t *o = NULL;
+    parsec_ctlgat_taskpool_t *o = NULL;
 #if defined(PARSEC_HAVE_MPI)
     MPI_Comm_size(MPI_COMM_WORLD, &worldsize);
 #else
     worldsize = 1;
 #endif
-    
+
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CTLGAT must do at least one round time trip of at least one byte\n");
-        return (parsec_handle_t*)o;
+        return (parsec_taskpool_t*)o;
     }
 
     o = parsec_ctlgat_new(A, nb, worldsize);
@@ -45,7 +45,7 @@ parsec_handle_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb)
 #if defined(PARSEC_HAVE_MPI)
     {
         MPI_Aint extent;
-    	MPI_Type_contiguous(size, MPI_INT, &block);
+        MPI_Type_contiguous(size, MPI_INT, &block);
         MPI_Type_commit(&block);
 #if defined(PARSEC_HAVE_MPI_20)
         MPI_Aint lb = 0; 
@@ -59,17 +59,17 @@ parsec_handle_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb)
     }
 #endif
 
-    return (parsec_handle_t*)o;
+    return (parsec_taskpool_t*)o;
 }
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
-void ctlgat_destroy(parsec_handle_t *o)
+void ctlgat_destroy(parsec_taskpool_t *o)
 {
 #if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
 }

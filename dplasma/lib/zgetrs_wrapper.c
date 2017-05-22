@@ -78,9 +78,9 @@ dplasma_zgetrs(parsec_context_t *parsec,
     }
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_zlaswp = NULL;
-    parsec_handle_t *parsec_ztrsm1 = NULL;
-    parsec_handle_t *parsec_ztrsm2 = NULL;
+    parsec_taskpool_t *parsec_zlaswp = NULL;
+    parsec_taskpool_t *parsec_ztrsm1 = NULL;
+    parsec_taskpool_t *parsec_ztrsm2 = NULL;
 
     if ( trans == PlasmaNoTrans )
     {

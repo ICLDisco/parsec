@@ -130,7 +130,7 @@ int main(int argc, char ** argv)
         parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescB);
 
         /* Getting new parsec handle of dtd type */
-        parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new( );
+        parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new( );
 
         /* Default type */
         dplasma_add2arena_tile( parsec_dtd_arenas[TILE_FULL],
@@ -152,7 +152,7 @@ int main(int argc, char ** argv)
         parsec_complex64_t zbeta;
         parsec_complex64_t zone = (parsec_complex64_t)1.0;
 
-        parsec_enqueue( parsec, parsec_dtd_handle );
+        parsec_enqueue( parsec, dtd_tp );
 
         SYNC_TIME_START();
 
@@ -177,7 +177,7 @@ int main(int argc, char ** argv)
                             ldbk = BLKLDD(&ddescB.super, k);
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm,  0, "Gemm",
+                            parsec_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -203,7 +203,7 @@ int main(int argc, char ** argv)
                             tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-k*ddescA.super.nb : ddescA.super.nb;
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm,  0, "Gemm",
+                            parsec_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -231,7 +231,7 @@ int main(int argc, char ** argv)
                             ldbk = BLKLDD(&ddescB.super, k);
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm, 0,  "Gemm",
+                            parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -257,7 +257,7 @@ int main(int argc, char ** argv)
                             ldak = BLKLDD(&ddescA.super, k);
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm, 0,  "Gemm",
+                            parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -278,12 +278,12 @@ int main(int argc, char ** argv)
             }
         }
 
-        parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescA );
-        parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescB );
-        parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescC );
+        parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescA );
+        parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescB );
+        parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescC );
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
         /* Waiting on all handle and turning everything off for this context */
         parsec_context_wait( parsec );
@@ -295,7 +295,7 @@ int main(int argc, char ** argv)
                                gflops=(flops/1e9)/sync_time_elapsed));
 
         /* Cleaning up the parsec handle */
-        parsec_handle_free( parsec_dtd_handle );
+        parsec_taskpool_free( dtd_tp );
 
         /* Cleaning data arrays we allocated for communication */
         parsec_matrix_del2arena( parsec_dtd_arenas[0] );
@@ -325,7 +325,7 @@ int main(int argc, char ** argv)
 #endif
 
                 /* Getting new parsec handle of dtd type */
-                parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new( );
+                parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new( );
 
                 if ( trans[tA] == PlasmaNoTrans ) {
                     Am = M; An = K;
@@ -389,7 +389,7 @@ int main(int argc, char ** argv)
                 parsec_complex64_t zone = (parsec_complex64_t)1.0;
 
                 /* Registering the handle with parsec context */
-                parsec_enqueue( parsec, parsec_dtd_handle );
+                parsec_enqueue( parsec, dtd_tp );
 
                 SYNC_TIME_START();
 
@@ -416,7 +416,7 @@ int main(int argc, char ** argv)
                                     ldbk = BLKLDD(&ddescB.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,
@@ -443,7 +443,7 @@ int main(int argc, char ** argv)
                                     tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-k*ddescA.super.nb : ddescA.super.nb;
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,
@@ -472,7 +472,7 @@ int main(int argc, char ** argv)
                                     ldbk = BLKLDD(&ddescB.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,
@@ -500,7 +500,7 @@ int main(int argc, char ** argv)
                                     ldak = BLKLDD(&ddescA.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( parsec_dtd_handle,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,
@@ -521,12 +521,12 @@ int main(int argc, char ** argv)
                     }
                 }
 
-                parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescA );
-                parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescB );
-                parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)&ddescC );
+                parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescA );
+                parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescB );
+                parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescC );
 
                 /* finishing all the tasks inserted, but not finishing the handle */
-                parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+                parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
                 /* Waiting on all handle and turning everything off for this context */
                 parsec_context_wait( parsec );
@@ -536,7 +536,7 @@ int main(int argc, char ** argv)
                 /* #### PaRSEC context is done #### */
 
                 /* Cleaning up the parsec handle */
-                parsec_handle_free( parsec_dtd_handle );
+                parsec_taskpool_free( dtd_tp );
 
                 /* Cleaning data arrays we allocated for communication */
                 parsec_matrix_del2arena( parsec_dtd_arenas[0] );

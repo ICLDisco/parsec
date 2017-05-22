@@ -76,12 +76,12 @@
  * @sa dplasma_sgetrf_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zgetrf_New( tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *IPIV,
                     int *INFO )
 {
-    parsec_zgetrf_handle_t *parsec_getrf;
+    parsec_zgetrf_taskpool_t *parsec_getrf;
     int nbthreads = dplasma_imax( 1, vpmap_get_nb_threads_in_vp(0) - 1 );
 
     if ( (IPIV->mt != 1) || (dplasma_imin(A->nt, A->mt) > IPIV->nt)) {
@@ -125,7 +125,7 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_int_t, 1, A->mb, -1 );
 
-    return (parsec_handle_t*)parsec_getrf;
+    return (parsec_taskpool_t*)parsec_getrf;
 }
 
 /**
@@ -149,9 +149,9 @@ dplasma_zgetrf_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_Destruct( parsec_handle_t *handle )
+dplasma_zgetrf_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgetrf_handle_t *parsec_zgetrf = (parsec_zgetrf_handle_t *)handle;
+    parsec_zgetrf_taskpool_t *parsec_zgetrf = (parsec_zgetrf_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgetrf->arenas[PARSEC_zgetrf_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_zgetrf->arenas[PARSEC_zgetrf_PIVOT_ARENA  ] );
@@ -159,7 +159,7 @@ dplasma_zgetrf_Destruct( parsec_handle_t *handle )
     if ( parsec_zgetrf->_g_getrfdata != NULL )
         free( parsec_zgetrf->_g_getrfdata );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -222,7 +222,7 @@ dplasma_zgetrf( parsec_context_t *parsec,
                 tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *IPIV )
 {
-    parsec_handle_t *parsec_zgetrf = NULL;
+    parsec_taskpool_t *parsec_zgetrf = NULL;
 
     int info = 0;
 

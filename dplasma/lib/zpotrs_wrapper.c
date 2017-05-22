@@ -67,8 +67,8 @@ dplasma_zpotrs( parsec_context_t *parsec,
     }
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_ztrsm1 = NULL;
-    parsec_handle_t *parsec_ztrsm2 = NULL;
+    parsec_taskpool_t *parsec_ztrsm1 = NULL;
+    parsec_taskpool_t *parsec_ztrsm2 = NULL;
 
     if ( uplo == PlasmaUpper ) {
       parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, uplo, PlasmaConjTrans, PlasmaNonUnit, 1.0, A, B);

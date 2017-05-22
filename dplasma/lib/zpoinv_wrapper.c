@@ -67,13 +67,13 @@
  * @sa dplasma_spoinv_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zpoinv_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
                     int *info )
 {
-    parsec_zpoinv_L_handle_t *parsec_zpoinv = NULL;
-    parsec_handle_t *handle = NULL;
+    parsec_zpoinv_L_taskpool_t *parsec_zpoinv = NULL;
+    parsec_taskpool_t *tp = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaUpper) && (uplo != PlasmaLower)) {
@@ -83,31 +83,31 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        handle = (parsec_handle_t*)parsec_zpoinv_U_new( A /*, info */);
+        tp = (parsec_taskpool_t*)parsec_zpoinv_U_new( A /*, info */);
 
         /* Upper part of A with diagonal part */
-        /* dplasma_add2arena_upper( ((parsec_zpoinv_U_handle_t*)parsec_poinv)->arenas[PARSEC_zpoinv_U_UPPER_TILE_ARENA], */
+        /* dplasma_add2arena_upper( ((parsec_zpoinv_U_taskpool_t*)parsec_poinv)->arenas[PARSEC_zpoinv_U_UPPER_TILE_ARENA], */
         /*                          A->mb*A->nb*sizeof(parsec_complex64_t), */
         /*                          PARSEC_ARENA_ALIGNMENT_SSE, */
         /*                          parsec_datatype_double_complex_t, A->mb, 1 ); */
     } else {
-        handle = (parsec_handle_t*)parsec_zpoinv_L_new( A /*, info */);
+        tp = (parsec_taskpool_t*)parsec_zpoinv_L_new( A /*, info */);
 
         /* Lower part of A with diagonal part */
-        /* dplasma_add2arena_lower( ((parsec_zpoinv_L_handle_t*)parsec_poinv)->arenas[PARSEC_zpoinv_L_LOWER_TILE_ARENA], */
+        /* dplasma_add2arena_lower( ((parsec_zpoinv_L_taskpool_t*)parsec_poinv)->arenas[PARSEC_zpoinv_L_LOWER_TILE_ARENA], */
         /*                          A->mb*A->nb*sizeof(parsec_complex64_t), */
         /*                          PARSEC_ARENA_ALIGNMENT_SSE, */
         /*                          parsec_datatype_double_complex_t, A->mb, 1 ); */
     }
 
-    parsec_zpoinv = (parsec_zpoinv_L_handle_t*)handle;
+    parsec_zpoinv = (parsec_zpoinv_L_taskpool_t*)tp;
 
     dplasma_add2arena_tile( parsec_zpoinv->arenas[PARSEC_zpoinv_L_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A->mb );
 
-    return handle;
+    return tp;
 }
 
 /**
@@ -131,13 +131,13 @@ dplasma_zpoinv_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zpoinv_Destruct( parsec_handle_t *handle )
+dplasma_zpoinv_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zpoinv_L_handle_t *parsec_zpoinv = (parsec_zpoinv_L_handle_t *)handle;
+    parsec_zpoinv_L_taskpool_t *parsec_zpoinv = (parsec_zpoinv_L_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zpoinv->arenas[PARSEC_zpoinv_L_DEFAULT_ARENA   ] );
     /* parsec_matrix_del2arena( parsec_zpoinv->arenas[PARSEC_zpoinv_L_LOWER_TILE_ARENA] ); */
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -186,14 +186,14 @@ dplasma_zpoinv( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t *A )
 {
-    parsec_handle_t *parsec_zpoinv = NULL;
+    parsec_taskpool_t *parsec_zpoinv = NULL;
     int info = 0, ginfo = 0 ;
 
     parsec_zpoinv = dplasma_zpoinv_New( uplo, A, &info );
 
     if ( parsec_zpoinv != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpoinv);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zpoinv);
         dplasma_wait_until_completion(parsec);
         dplasma_zpoinv_Destruct( parsec_zpoinv );
     }

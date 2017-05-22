@@ -19,16 +19,15 @@
 
 #include "dplasma/lib/zhetrf.h"
 #include "dplasma/lib/ztrmdm.h"
-/*#include <lapacke.h>*/
 
 /*
  * dplasma_zhetrf_New()
  */
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *INFO)
 {
     int ldwork, lwork, ib;
-    parsec_handle_t *parsec_zhetrf = NULL;
+    parsec_taskpool_t *parsec_zhetrf = NULL;
     parsec_memory_pool_t *pool_0, *pool_1;
 
     ib = A->mb;
@@ -43,9 +42,9 @@ dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *INFO)
     pool_1 = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
     parsec_private_memory_init( pool_1, zhetrf_pool_1_SIZE );
 
-    parsec_zhetrf = (parsec_handle_t *)parsec_zhetrf_new(PlasmaLower, A, (parsec_ddesc_t *)A, ib, pool_1, pool_0, INFO);
+    parsec_zhetrf = (parsec_taskpool_t *)parsec_zhetrf_new(PlasmaLower, A, (parsec_ddesc_t *)A, ib, pool_1, pool_0, INFO);
 
-    dplasma_add2arena_tile(((parsec_zhetrf_handle_t*)parsec_zhetrf)->arenas[PARSEC_zhetrf_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_zhetrf_taskpool_t*)parsec_zhetrf)->arenas[PARSEC_zhetrf_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
@@ -54,28 +53,28 @@ dplasma_zhetrf_New( tiled_matrix_desc_t *A, int *INFO)
 }
 
 void
-dplasma_zhetrf_Destruct( parsec_handle_t *handle )
+dplasma_zhetrf_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zhetrf_handle_t *obut = (parsec_zhetrf_handle_t *)handle;
+    parsec_zhetrf_taskpool_t *obut = (parsec_zhetrf_taskpool_t *)tp;
 
     parsec_matrix_del2arena( obut->arenas[PARSEC_zhetrf_DEFAULT_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 
 /*
  * dplasma_ztrmdm_New()
  */
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_ztrmdm_New( tiled_matrix_desc_t *A)
 {
-    parsec_handle_t *parsec_ztrmdm = NULL;
+    parsec_taskpool_t *parsec_ztrmdm = NULL;
 
 
-    parsec_ztrmdm = (parsec_handle_t *)parsec_ztrmdm_new(A);
+    parsec_ztrmdm = (parsec_taskpool_t *)parsec_ztrmdm_new(A);
 
-    dplasma_add2arena_tile(((parsec_ztrmdm_handle_t*)parsec_ztrmdm)->arenas[PARSEC_ztrmdm_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_ztrmdm_taskpool_t*)parsec_ztrmdm)->arenas[PARSEC_ztrmdm_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
@@ -84,14 +83,13 @@ dplasma_ztrmdm_New( tiled_matrix_desc_t *A)
 }
 
 void
-dplasma_ztrmdm_Destruct( parsec_handle_t *handle )
+dplasma_ztrmdm_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_ztrmdm_handle_t *obut = (parsec_ztrmdm_handle_t *)handle;
+    parsec_ztrmdm_taskpool_t *obut = (parsec_ztrmdm_taskpool_t *)tp;
 
     parsec_matrix_del2arena( obut->arenas[PARSEC_ztrmdm_DEFAULT_ARENA] );
 
-    //parsec_ztrmdm_destroy(obut);
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /*
@@ -100,17 +98,17 @@ dplasma_ztrmdm_Destruct( parsec_handle_t *handle )
 
 int dplasma_zhetrf(parsec_context_t *parsec, tiled_matrix_desc_t *A)
 {
-    parsec_handle_t *parsec_zhetrf/*, *parsec_ztrmdm*/;
+    parsec_taskpool_t *parsec_zhetrf/*, *parsec_ztrmdm*/;
     int info = 0, ginfo = 0;
 
     parsec_zhetrf = dplasma_zhetrf_New(A, &info);
-    parsec_enqueue(parsec, (parsec_handle_t *)parsec_zhetrf);
+    parsec_enqueue(parsec, (parsec_taskpool_t *)parsec_zhetrf);
     dplasma_wait_until_completion(parsec);
     dplasma_zhetrf_Destruct(parsec_zhetrf);
 
     /*
     parsec_ztrmdm = dplasma_ztrmdm_New(A);
-    parsec_enqueue(parsec, (parsec_handle_t *)parsec_ztrmdm);
+    parsec_enqueue(parsec, (parsec_taskpool_t *)parsec_ztrmdm);
     dplasma_wait_until_completion(parsec);
     dplasma_ztrmdm_Destruct(parsec_ztrmdm);
     */

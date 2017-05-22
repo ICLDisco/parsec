@@ -63,7 +63,7 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                 if( NULL == m ) {
                     WARNING("   Event of class %s id %"PRIu32":%"PRIu64" at %lu does not have a match anywhere\n",
                              dbp_dictionary_name(dbp_reader_get_dictionary(dbp, BASE_KEY(dbp_event_get_key(e)))),
-                             dbp_event_get_handle_id(e), dbp_event_get_event_id(e),
+                             dbp_event_get_taskpool_id(e), dbp_event_get_event_id(e),
                              dbp_event_get_timestamp(e));
                 } else {
                     g = dbp_iterator_current(m);
@@ -81,7 +81,7 @@ static void dump_one_xml(FILE *tracefile, const dbp_multifile_reader_t *dbp, con
                             "                     <ID>%"PRIu32":%"PRIu64"</ID>\n"
                             "                     <START>%"PRIu64"</START>\n"
                             "                     <END>%"PRIu64"</END>\n",
-                            dbp_event_get_handle_id(e), dbp_event_get_event_id( e ),
+                            dbp_event_get_taskpool_id(e), dbp_event_get_event_id( e ),
                             start, end);
 
                     if( dbp_event_get_flags( e ) & PARSEC_PROFILING_EVENT_HAS_INFO ) {

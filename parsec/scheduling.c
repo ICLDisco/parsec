@@ -139,6 +139,7 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
                      parsec_task_t* exec_context )
 {
     const parsec_task_class_t* tc = exec_context->task_class;
+    parsec_evaluate_function_t* eval;
     int rc;
 #if defined(PARSEC_DEBUG)
     char tmp[MAX_TASK_STRLEN];
@@ -203,18 +204,18 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
 }
 
 /* Increases the number of runtime associated activities (decreases if
- *   nb_tasks is negative). When this counter reaches zero the handle is
- *   considered as completed, and all resources will be marked for
+ *   nb_tasks is negative). When this counter reaches zero the taskpool
+ *   is considered as completed, and all resources will be marked for
  *   release.
  */
-int parsec_handle_update_runtime_nbtask(parsec_handle_t *handle, int32_t nb_tasks)
+int parsec_taskpool_update_runtime_nbtask(parsec_taskpool_t *tp, int32_t nb_tasks)
 {
     int remaining;
 
-    assert( handle->nb_pending_actions != 0 );
-    remaining = handle->update_nb_runtime_task( handle, nb_tasks );
+    assert( tp->nb_pending_actions != 0 );
+    remaining = tp->update_nb_runtime_task( tp, nb_tasks );
     assert( 0<= remaining );
-    return parsec_check_complete_cb(handle, handle->context, remaining);
+    return parsec_check_complete_cb(tp, tp->context, remaining);
 }
 
 static inline int all_tasks_done(parsec_context_t* context)
@@ -222,17 +223,17 @@ static inline int all_tasks_done(parsec_context_t* context)
     return (context->active_objects == 0);
 }
 
-int parsec_check_complete_cb(parsec_handle_t *parsec_handle, parsec_context_t *context, int remaining)
+int parsec_check_complete_cb(parsec_taskpool_t *tp, parsec_context_t *context, int remaining)
 {
    if( 0 == remaining ) {
         /* A parsec object has been completed. Call the attached callback if
          * necessary, then update the main engine.
          */
-        if( NULL != parsec_handle->on_complete ) {
-            (void)parsec_handle->on_complete( parsec_handle, parsec_handle->on_complete_data );
+        if( NULL != tp->on_complete ) {
+            (void)tp->on_complete( tp, tp->on_complete_data );
         }
         (void)parsec_atomic_dec_32b( &(context->active_objects) );
-        PINS_HANDLE_FINI(parsec_handle);
+        PINS_TASKPOOL_FINI(tp);
         return 1;
     }
     return 0;
@@ -386,9 +387,9 @@ static inline unsigned long exponential_backoff(uint64_t k)
 }
 
 int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
-                                parsec_task_t *exec_context )
+                                 parsec_task_t *exec_context )
 {
-    parsec_handle_t *handle = exec_context->parsec_handle;
+    parsec_taskpool_t *tp = exec_context->taskpool;
     int rc = 0;
 
     /* complete execution PINS event includes the preparation of the
@@ -413,16 +414,16 @@ int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
     /* Release the execution context */
     exec_context->task_class->release_task( eu_context, exec_context );
 
-    /* Check to see if the DSL has marked the handle as completed */
-    if( 0 == handle->nb_tasks ) {
-        /* The handle has been marked as complete. Unfortunately, it is possible
-         * that multiple threads are completing tasks associated with this handle
+    /* Check to see if the DSL has marked the taskpool as completed */
+    if( 0 == tp->nb_tasks ) {
+        /* The taskpool has been marked as complete. Unfortunately, it is possible
+         * that multiple threads are completing tasks associated with this taskpool
          * simultaneously and we need to release the runtime action associated with
-         * this handle tasks once. We need to protect this action by atomically
+         * this taskpool tasks once. We need to protect this action by atomically
          * setting the number of tasks to a non-zero value.
          */
-        if( parsec_atomic_cas_32b((uint32_t*)&handle->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
-            parsec_handle_update_runtime_nbtask(handle, -1);
+        if( parsec_atomic_cas_32b((uint32_t*)&tp->nb_tasks, 0, PARSEC_RUNTIME_RESERVED_NB_TASKS) )
+            parsec_taskpool_update_runtime_nbtask(tp, -1);
     }
 
     return rc;
@@ -650,12 +651,12 @@ typedef struct parsec_compound_state_t {
     parsec_context_t* ctx;
     int nb_objects;
     int completed_objects;
-    parsec_handle_t* objects_array[1];
+    parsec_taskpool_t* objects_array[1];
 } parsec_compound_state_t;
 
-static int parsec_composed_cb( parsec_handle_t* o, void* cbdata )
+static int parsec_composed_cb( parsec_taskpool_t* o, void* cbdata )
 {
-    parsec_handle_t* compound = (parsec_handle_t*)cbdata;
+    parsec_taskpool_t* compound = (parsec_taskpool_t*)cbdata;
     parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound->task_classes_array;
     int completed_objects = compound_state->completed_objects++;
     assert( o == compound_state->objects_array[completed_objects] ); (void)o;
@@ -668,11 +669,11 @@ static int parsec_composed_cb( parsec_handle_t* o, void* cbdata )
 }
 
 static void parsec_compound_startup( parsec_context_t *context,
-                                    parsec_handle_t *compound_object,
+                                    parsec_taskpool_t *compound_object,
                                     parsec_task_t** startup_list)
 {
     parsec_compound_state_t* compound_state = (parsec_compound_state_t*)compound_object->task_classes_array;
-    parsec_handle_t* first = compound_state->objects_array[0];
+    parsec_taskpool_t* first = compound_state->objects_array[0];
     int i;
 
     assert( 0 == compound_object->nb_task_classes );
@@ -681,17 +682,17 @@ static void parsec_compound_startup( parsec_context_t *context,
     compound_state->ctx = context;
     compound_object->nb_pending_actions = compound_state->nb_objects;
     for( i = 0; i < compound_state->nb_objects; i++ ) {
-        parsec_handle_t* o = compound_state->objects_array[i];
+        parsec_taskpool_t* o = compound_state->objects_array[i];
         assert( NULL != o );
         o->on_complete      = parsec_composed_cb;
         o->on_complete_data = compound_object;
     }
 }
 
-parsec_handle_t* parsec_compose( parsec_handle_t* start,
-                               parsec_handle_t* next )
+parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
+                               parsec_taskpool_t* next )
 {
-    parsec_handle_t* compound = NULL;
+    parsec_taskpool_t* compound = NULL;
     parsec_compound_state_t* compound_state = NULL;
 
     if( 0 == start->nb_task_classes ) {  /* start is already a compound object */
@@ -706,7 +707,7 @@ parsec_handle_t* parsec_compose( parsec_handle_t* start,
         }
         compound_state->objects_array[compound_state->nb_objects] = NULL;
     } else {
-        compound = calloc(1, sizeof(parsec_handle_t));
+        compound = calloc(1, sizeof(parsec_taskpool_t));
         compound->task_classes_array = malloc(sizeof(parsec_compound_state_t) + 16 * sizeof(void*));
         compound_state = (parsec_compound_state_t*)compound->task_classes_array;
         compound_state->objects_array[0] = start;
@@ -720,32 +721,32 @@ parsec_handle_t* parsec_compose( parsec_handle_t* start,
 }
 /* END: Composition */
 
-int32_t parsec_set_priority( parsec_handle_t* handle, int32_t new_priority )
+int32_t parsec_set_priority( parsec_taskpool_t* tp, int32_t new_priority )
 {
-    int32_t old_priority = handle->priority;
-    handle->priority = new_priority;
+    int32_t old_priority = tp->priority;
+    tp->priority = new_priority;
     return old_priority;
 }
 
-int parsec_enqueue( parsec_context_t* context, parsec_handle_t* handle )
+int parsec_enqueue( parsec_context_t* context, parsec_taskpool_t* tp )
 {
     if( NULL == current_scheduler) {
         parsec_set_scheduler( context );
     }
 
-    handle->context = context;  /* save the context */
+    tp->context = context;  /* save the context */
 
-    PINS_HANDLE_INIT(handle);  /* PINS handle initialization */
+    PINS_TASKPOOL_INIT(tp);  /* PINS taskpool initialization */
 
     /* Update the number of pending objects */
     (void)parsec_atomic_inc_32b( &(context->active_objects) );
 
     /* If necessary trigger the on_enqueue callback */
-    if( NULL != handle->on_enqueue ) {
-        handle->on_enqueue(handle, handle->on_enqueue_data);
+    if( NULL != tp->on_enqueue ) {
+        tp->on_enqueue(tp, tp->on_enqueue_data);
     }
 
-    if( NULL != handle->startup_hook ) {
+    if( NULL != tp->startup_hook ) {
         parsec_task_t **startup_list;
         int p;
         /* These pointers need to be initialized to NULL; doing it with calloc */
@@ -753,7 +754,7 @@ int parsec_enqueue( parsec_context_t* context, parsec_handle_t* handle )
         if( NULL == startup_list ) {  /* bad bad */
             return PARSEC_ERR_OUT_OF_RESOURCE;
         }
-        handle->startup_hook(context, handle, startup_list);
+        tp->startup_hook(context, tp, startup_list);
         for(p = 0; p < vpmap_get_nb_vp(); p++) {
             if( NULL != startup_list[p] ) {
                 parsec_list_t temp;
@@ -771,7 +772,7 @@ int parsec_enqueue( parsec_context_t* context, parsec_handle_t* handle )
         }
         free(startup_list);
     } else {
-        parsec_check_complete_cb(handle, context, handle->nb_pending_actions);
+        parsec_check_complete_cb(tp, context, tp->nb_pending_actions);
     }
 #if defined(PARSEC_SCHED_REPORT_STATISTICS)
     sched_priority_trace_counter = 0;
@@ -793,7 +794,7 @@ __parsec_context_cas_or_flag(parsec_context_t* context,
 }
 
 /*
- * If there are enqueued handles waiting to be executed launch the other threads
+ * If there are enqueued taskpools waiting to be executed launch the other threads
  * and then return. Mark the internal structures in such a way that we can't
  * start the context mutiple times without completions.
  *
@@ -853,8 +854,8 @@ int parsec_context_wait( parsec_context_t* context )
         return -1;
     }
 
-    /* Here we wait on all dtd handles registered with us */
-    parsec_detach_all_dtd_handles_from_context( context );
+    /* Here we wait on all dtd taskpools registered with us */
+    parsec_detach_all_dtd_taskpool_from_context( context );
 
     ret = __parsec_context_wait( context->virtual_processes[0]->execution_units[0] );
 

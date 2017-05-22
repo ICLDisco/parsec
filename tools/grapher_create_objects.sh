@@ -29,7 +29,7 @@ onefile() {
     
     /bin/echo "#include \"dplasma/lib/$BASEFILE\""
     cat<<EOF
-static parsec_handle_t *${BASE}_create(int argc, char **argv)
+static parsec_taskpool_t *${BASE}_create(int argc, char **argv)
 {
 EOF
     
@@ -38,7 +38,7 @@ EOF
     done
     
     cat <<EOF
-  parsec_handle_t *ret;
+  parsec_taskpool_t *ret;
   int allset = 1;
   int i;
   for(i = 0; i < argc; i+= 2) {
@@ -60,7 +60,7 @@ EOF
     return NULL;
 
 EOF
-    /bin/echo -n "  ret = (parsec_handle_t*)parsec_${BASE}_new"
+    /bin/echo -n "  ret = (parsec_taskpool_t*)parsec_${BASE}_new"
     
     V="("
     for m in $MAT; do

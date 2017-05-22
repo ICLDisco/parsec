@@ -80,13 +80,13 @@
  * @sa dplasma_strsmpl_New
  *
  ******************************************************************************/
-parsec_handle_t *
+parsec_taskpool_t *
 dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
                     const tiled_matrix_desc_t *L,
                     const tiled_matrix_desc_t *IPIV,
                     tiled_matrix_desc_t *B)
 {
-    parsec_ztrsmpl_handle_t *parsec_trsmpl = NULL; 
+    parsec_ztrsmpl_taskpool_t *parsec_trsmpl = NULL; 
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
         dplasma_error("dplasma_ztrsmpl_New", "L doesn't have the same number of tiles as A");
@@ -104,7 +104,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
                                          B );
     }
     else {
-        parsec_trsmpl = (parsec_ztrsmpl_handle_t*)
+        parsec_trsmpl = (parsec_ztrsmpl_taskpool_t*)
             parsec_ztrsmpl_sd_new( A,
                                   L,
                                   NULL,
@@ -129,7 +129,7 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, L->mb, L->nb, -1);
 
-    return (parsec_handle_t*)parsec_trsmpl;
+    return (parsec_taskpool_t*)parsec_trsmpl;
 }
 
 /**
@@ -153,15 +153,15 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_ztrsmpl_Destruct( parsec_handle_t *handle )
+dplasma_ztrsmpl_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_ztrsmpl_handle_t *parsec_trsmpl = (parsec_ztrsmpl_handle_t *)handle;
+    parsec_ztrsmpl_taskpool_t *parsec_trsmpl = (parsec_ztrsmpl_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_trsmpl->arenas[PARSEC_ztrsmpl_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_trsmpl->arenas[PARSEC_ztrsmpl_PIVOT_ARENA  ] );
     parsec_matrix_del2arena( parsec_trsmpl->arenas[PARSEC_ztrsmpl_SMALL_L_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -234,7 +234,7 @@ dplasma_ztrsmpl( parsec_context_t *parsec,
                  const tiled_matrix_desc_t *IPIV,
                        tiled_matrix_desc_t *B )
 {
-    parsec_handle_t *parsec_ztrsmpl = NULL;
+    parsec_taskpool_t *parsec_ztrsmpl = NULL;
 
     if ( (A->mt != L->mt) || (A->nt != L->nt) ) {
         dplasma_error("dplasma_ztrsmpl", "L doesn't have the same number of tiles as A");

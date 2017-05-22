@@ -28,7 +28,7 @@ static parsec_device_t* parsec_device_cpus = NULL;
 static parsec_device_t* parsec_device_recursive = NULL;
 
 /**
- * Temporary solution: Use the following two arrays to handle the weight and
+ * Temporary solution: Use the following two arrays to taskpool the weight and
  * the load on different devices. These arrays are not available before the
  * call to parsec_devices_freeze(). This is just a first step, a smarter approach
  * should take this spot.
@@ -351,14 +351,14 @@ int parsec_devices_remove(parsec_device_t* device)
 }
 
 
-void parsec_devices_handle_restrict(parsec_handle_t *handle,
-                                    uint8_t         devices_type)
+void parsec_devices_taskpool_restrict(parsec_taskpool_t *tp,
+                                      uint8_t            devices_type)
 {
     parsec_device_t *device;
     uint32_t i;
 
     for (i = 0; i < parsec_nb_devices; i++) {
-	if (!(handle->devices_mask & (1 << i)))
+	if (!(tp->devices_mask & (1 << i)))
 	    continue;
 
 	device = parsec_devices_get(i);
@@ -366,7 +366,7 @@ void parsec_devices_handle_restrict(parsec_handle_t *handle,
 	    continue;
 
         /* Disable this type of device */
-        handle->devices_mask &= ~(1 << i);
+        tp->devices_mask &= ~(1 << i);
     }
     return;
 }

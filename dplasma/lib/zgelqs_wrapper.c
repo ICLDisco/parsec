@@ -86,8 +86,8 @@ dplasma_zgelqs( parsec_context_t *parsec,
 
 #ifdef PARSEC_COMPOSITION
 
-    parsec_handle_t *parsec_zunmlq = NULL;
-    parsec_handle_t *parsec_ztrsm  = NULL;
+    parsec_taskpool_t *parsec_zunmlq = NULL;
+    parsec_taskpool_t *parsec_ztrsm  = NULL;
 
     parsec_ztrsm  = dplasma_ztrsm_New(  PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaNonUnit, 1.0, subA, subB );
     parsec_zunmlq = dplasma_zunmlq_New( PlasmaLeft, PlasmaConjTrans, A, T, B );

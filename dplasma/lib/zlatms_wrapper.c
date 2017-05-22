@@ -120,7 +120,7 @@ dplasma_zlatms( parsec_context_t *parsec,
 
     /* Init the diagonal of A */
     {
-        parsec_handle_t *handle;
+        parsec_taskpool_t *handle;
         double *condptr = malloc(sizeof( double ));
         *condptr = cond;
         handle = dplasma_map_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );

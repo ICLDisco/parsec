@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -39,7 +39,7 @@ static parsec_ddesc_t pseudo_desc = {
 
 typedef struct {
     const char *command_name;
-    parsec_handle_t *(*create_function)(int argc, char **argv);
+    parsec_taskpool_t *(*create_function)(int argc, char **argv);
 } create_function_t;
 
 #define TEST_SET(fname, vname) do {                                     \
@@ -179,7 +179,7 @@ static int dump_graph(const char *filename)
 int main(int argc, char *argv[])
 {
     int i;
-    parsec_handle_t *o;
+    parsec_taskpool_t *o;
     parsec_task_t *startup;
     parsec_list_item_t *s;
     parsec_context_t *parsec;

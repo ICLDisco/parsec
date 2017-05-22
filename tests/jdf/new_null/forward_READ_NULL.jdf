@@ -70,7 +70,7 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rank, world;
     parsec_ddesc_t taskdist;
-    parsec_forward_READ_NULL_handle_t *handle;
+    parsec_forward_READ_NULL_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -97,21 +97,21 @@ int main(int argc, char *argv[])
     taskdist.vpid_of  = vpid_of;
     taskdist.data_key = data_key;
 
-    handle = parsec_forward_READ_NULL_new(&taskdist, 20);
+    tp = parsec_forward_READ_NULL_new(&taskdist, 20);
 
     /**
      * The arena is now also used to describe the layout to the communication
      * engine (MPI)
      */
-    parsec_arena_construct(handle->arenas[PARSEC_forward_READ_NULL_DEFAULT_ARENA],
+    parsec_arena_construct(tp->arenas[PARSEC_forward_READ_NULL_DEFAULT_ARENA],
                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                           parsec_datatype_int_t );
 
-    parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
-    parsec_handle_free((parsec_handle_t*)handle);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     /**
      * Cleanup the descriptor

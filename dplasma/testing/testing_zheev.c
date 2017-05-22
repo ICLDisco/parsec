@@ -78,14 +78,14 @@ goto fin;
                                nodes, rank, MB+1, NB+2, MB+1, (NB+2)*(NT+1), 0, 0,
                                MB+1, (NB+2)*(NT+1), 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
-    parsec_diag_band_to_rect_handle_t* PARSEC_diag_band_to_rect = parsec_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
+    parsec_diag_band_to_rect_taskpool_t* PARSEC_diag_band_to_rect = parsec_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
                                                                                             MT, NT, MB, NB, sizeof(parsec_complex64_t));
     parsec_arena_t* arena = PARSEC_diag_band_to_rect->arenas[PARSEC_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
                            MB*NB*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, MB);
-    rc = parsec_enqueue(parsec, (parsec_handle_t*)PARSEC_diag_band_to_rect);
+    rc = parsec_enqueue(parsec, (parsec_taskpool_t*)PARSEC_diag_band_to_rect);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -243,7 +243,7 @@ goto fin;
     }
 
     dplasma_zherbt_Destruct( PARSEC_zherbt );
-    PARSEC_INTERNAL_HANDLE_DESTRUCT( PARSEC_diag_band_to_rect );
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT( PARSEC_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( PARSEC_zhbrdt );
 
     parsec_data_free(ddescBAND.mat);

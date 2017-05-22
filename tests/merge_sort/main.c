@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     int rank, world, cores;
     int nt, nb;
     tiled_matrix_desc_t *ddescA;
-    parsec_handle_t *msort;
+    parsec_taskpool_t *msort;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     parsec_context_start(parsec);
     parsec_context_wait(parsec);
 
-    parsec_handle_free((parsec_handle_t*)msort);
+    parsec_taskpool_free((parsec_taskpool_t*)msort);
     free_data(ddescA);
 
     parsec_fini(&parsec);

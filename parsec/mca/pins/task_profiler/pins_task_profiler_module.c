@@ -151,8 +151,8 @@ static void task_profiler_release_deps_begin(struct parsec_execution_unit_s*    
     uint64_t key;
     int32_t rd_fid = task->task_class->task_class_id;
 
-    if( 0 == task->parsec_handle->handle_type ) { /* PTG */
-        key = (*task->task_class->key)(task->parsec_handle, task->locals);
+    if( 0 == task->taskpool->taskpool_type ) { /* PTG */
+        key = (*task->task_class->key)(task->taskpool, task->locals);
     } else { /* DTD */
         key = task->locals[0].value;
     }
@@ -160,7 +160,7 @@ static void task_profiler_release_deps_begin(struct parsec_execution_unit_s*    
     PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
                           release_deps_trace_keyin,
                           key,
-                          task->parsec_handle->handle_id,
+                          task->taskpool->taskpool_id,
                           (void *)&rd_fid);
 
     (void)cb_data;
@@ -173,8 +173,8 @@ static void task_profiler_release_deps_end(struct parsec_execution_unit_s*     e
     uint64_t key;
     int32_t rd_fid = task->task_class->task_class_id;
 
-    if( 0 == task->parsec_handle->handle_type ) { /* PTG */
-        key = (*task->task_class->key)(task->parsec_handle, task->locals);
+    if( 0 == task->taskpool->taskpool_type ) { /* PTG */
+        key = (*task->task_class->key)(task->taskpool, task->locals);
     } else { /* DTD */
         key = task->locals[0].value;
     }
@@ -182,7 +182,7 @@ static void task_profiler_release_deps_end(struct parsec_execution_unit_s*     e
     PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
                           release_deps_trace_keyout,
                           key,
-                          task->parsec_handle->handle_id,
+                          task->taskpool->taskpool_id,
                           (void*)&rd_fid);
     (void)cb_data;
 }
@@ -241,11 +241,11 @@ static void task_profiler_exec_count_begin(struct parsec_execution_unit_s*     e
                                            struct parsec_task_s*               task,
                                            struct parsec_pins_next_callback_s* cb_data)
 {
-    if (NULL != task->parsec_handle->profiling_array)
+    if (NULL != task->taskpool->profiling_array)
         PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
-                              task->parsec_handle->profiling_array[2 * task->task_class->task_class_id],
-                              (*task->task_class->key)(task->parsec_handle, task->locals),
-                              task->parsec_handle->handle_id,
+                              task->taskpool->profiling_array[2 * task->task_class->task_class_id],
+                              (*task->task_class->key)(task->taskpool, task->locals),
+                              task->taskpool->taskpool_id,
                               (void *)NULL);
     (void)cb_data;
 }
@@ -254,11 +254,11 @@ static void task_profiler_exec_count_end(struct parsec_execution_unit_s*     exe
                                          struct parsec_task_s*               task,
                                          struct parsec_pins_next_callback_s* cb_data)
 {
-    if (NULL != task->parsec_handle->profiling_array)
+    if (NULL != task->taskpool->profiling_array)
         PARSEC_PROFILING_TRACE(exec_unit->eu_profile,
-                              task->parsec_handle->profiling_array[1 + 2 * task->task_class->task_class_id],
-                              (*task->task_class->key)(task->parsec_handle, task->locals),
-                              task->parsec_handle->handle_id,
+                              task->taskpool->profiling_array[1 + 2 * task->task_class->task_class_id],
+                              (*task->task_class->key)(task->taskpool, task->locals),
+                              task->taskpool->taskpool_id,
                               (void *)NULL);
     (void)cb_data;
 }

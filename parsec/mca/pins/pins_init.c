@@ -161,21 +161,21 @@ void pins_thread_fini(parsec_execution_unit_t* exec_unit)
 }
 
 /**
- * pins_handle_init() should be called once per PaRSEC handle instantiation.
- * It should be called near the beginning of the handle's lifetime, preferably
- * once most other handle components have been initialized, so as to allow the
+ * pins_taskpool_init() should be called once per PaRSEC taskpool instantiation.
+ * It should be called near the beginning of the taskpool's lifetime, preferably
+ * once most other taskpool components have been initialized, so as to allow the
  * interfacing of PINS measurements with working PaRSEC subsystems.
  *
  * It MUST NOT be called BEFORE pins_init().
  */
-void pins_handle_init(parsec_handle_t* handle)
+void pins_taskpool_init(parsec_taskpool_t* tp)
 {
     int i = 0;
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
-            if ( NULL != modules_activated[i]->module.handle_init)
-                modules_activated[i]->module.handle_init(handle);
+            if ( NULL != modules_activated[i]->module.taskpool_init)
+                modules_activated[i]->module.taskpool_init(tp);
         }
     }
 }
@@ -183,14 +183,14 @@ void pins_handle_init(parsec_handle_t* handle)
 /**
  * Currently uncalled in the PaRSEC DPLAMSA testing executables
  */
-void pins_handle_fini(parsec_handle_t * handle)
+void pins_taskpool_fini(parsec_taskpool_t * tp)
 {
     int i = 0;
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
-            if ( NULL != modules_activated[i]->module.handle_fini)
-                modules_activated[i]->module.handle_fini(handle);
+            if ( NULL != modules_activated[i]->module.taskpool_fini)
+                modules_activated[i]->module.taskpool_fini(tp);
         }
     }
 }

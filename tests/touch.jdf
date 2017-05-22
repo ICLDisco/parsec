@@ -51,9 +51,9 @@ extern "C" %{
 #define TYPE  matrix_RealFloat
 static two_dim_block_cyclic_t descA;
 
-parsec_handle_t* touch_initialize(int block, int n)
+parsec_taskpool_t* touch_initialize(int block, int n)
 {
-    parsec_touch_handle_t* handle;
+    parsec_touch_taskpool_t* tp;
 
     two_dim_block_cyclic_init( &descA, TYPE, matrix_Tile,
                                1 /*nodes*/, 0 /*rank*/,
@@ -63,15 +63,15 @@ parsec_handle_t* touch_initialize(int block, int n)
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
 
-    handle = parsec_touch_new( &descA, ((n + block - 1) / block) - 1 );
-    assert( NULL != handle );
+    tp = parsec_touch_new( &descA, ((n + block - 1) / block) - 1 );
+    assert( NULL != tp );
 
-    parsec_arena_construct( handle->arenas[PARSEC_touch_DEFAULT_ARENA],
-                           descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
-                           PARSEC_ARENA_ALIGNMENT_SSE,
-                           PARSEC_DATATYPE_NULL);  /* change for distributed cases */
+    parsec_arena_construct( tp->arenas[PARSEC_touch_DEFAULT_ARENA],
+                            descA.super.mb * descA.super.nb * parsec_datadist_getsizeoftype(TYPE),
+                            PARSEC_ARENA_ALIGNMENT_SSE,
+                            PARSEC_DATATYPE_NULL);  /* change for distributed cases */
 
-    return &handle->super;
+    return &tp->super;
 }
 
 int touch_finalize(void)

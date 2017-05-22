@@ -8,17 +8,17 @@ struct __parsec_walk_DOWN_assignment_s;
 struct __parsec_walk_DO_DOWN_assignment_s;
 struct __parsec_walk_DOWN_task_s;
 
-static uint64_t up_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+static uint64_t up_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
                         struct __parsec_walk_UP_assignment_s * assignments);
-static uint64_t down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+static uint64_t down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
                           struct __parsec_walk_DOWN_assignment_s * assignments);
-static uint64_t do_down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+static uint64_t do_down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
                              struct __parsec_walk_DO_DOWN_assignment_s * assignments);
-static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_handle_s *__parsec_handle);
+static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_taskpool_s *__tp);
 
-static void               *my_alloc_deps(struct __parsec_walk_internal_handle_s *__parsec_handle);
-static void                my_free_deps(struct __parsec_walk_internal_handle_s *__parsec_handle, void *deps);
-static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
+static void               *my_alloc_deps(struct __parsec_walk_internal_taskpool_s *__tp);
+static void                my_free_deps(struct __parsec_walk_internal_taskpool_s *__tp, void *deps);
+static parsec_dependency_t *my_find_deps(const parsec_taskpool_t *tp,
                                          parsec_execution_unit_t *eu_context,
                                          const parsec_task_t* restrict exec_context);
 
@@ -48,7 +48,7 @@ CTL RL <- RL UP(0, 0)
 
 BODY
 {
-    __parsec_handle->super.super.nb_tasks = 0; /** We are now DONE ! **/
+    __parsec_tp->super.super.nb_tasks = 0; /** We are now DONE ! **/
     if( verbose ) {
         fprintf(stderr, "Rank %d in BCAST_UP\n", rank);
     }
@@ -104,7 +104,7 @@ BODY
     /* The root node has to delete all remaining tasks*/
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
+        int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
         fprintf(stderr, "CALLING UP(%d, %d) on rank %d\n", n, l, rank);
     }
     if( NULL != on_node_up ) {
@@ -152,13 +152,13 @@ CTL RL      <- (n > 0) ? RL DOWN(n-1, l/2)
 BODY
 {
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
+        int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
         fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
     if( tree_dist_lookup_node(tree, n, l) == -1 ) {
         if( verbose ) {
-            int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
+            int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
             fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);
         }
         this_task->locals.node_exists.value = 0;
@@ -184,7 +184,7 @@ BODY
 {
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)__parsec_handle->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_handle->super._g_tree, n, l));
+        int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
         fprintf(stderr, "CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -200,31 +200,31 @@ static uint64_t my_simple_tree_hash(int n, int l)
     return (((uint64_t)n) << 32) | ((uint64_t)l);
 }
 
-static uint64_t up_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+static uint64_t up_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
                         struct __parsec_walk_UP_assignment_s * assignments)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+static uint64_t down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
                           struct __parsec_walk_DOWN_assignment_s * assignments)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
-static uint64_t do_down_hash(const struct __parsec_walk_internal_handle_s * __parsec_handle,
+static uint64_t do_down_hash(const struct __parsec_walk_internal_taskpool_s * __tp,
                              struct __parsec_walk_DO_DOWN_assignment_s * assignments)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     return my_simple_tree_hash(assignments->n.value, assignments->l.value);
 }
 
  
-static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_handle_s *__parsec_handle)
+static uint32_t undetermined_nb_tasks(struct __parsec_walk_internal_taskpool_s *__tp)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     return PARSEC_UNDETERMINED_NB_TASKS;
 }
 
@@ -240,10 +240,10 @@ typedef struct {
     simple_hash_entry_t **buckets;
 } simple_hash_t;
 
-static void               *my_alloc_deps(struct __parsec_walk_internal_handle_s *__parsec_handle)
+static void               *my_alloc_deps(struct __parsec_walk_internal_taskpool_s *__tp)
 {
     simple_hash_t *sh;
-    (void)__parsec_handle;
+    (void)__tp;
     sh = (simple_hash_t*)malloc(sizeof(simple_hash_t));
     sh->size = 6000;
     sh->used = 0;
@@ -251,11 +251,11 @@ static void               *my_alloc_deps(struct __parsec_walk_internal_handle_s 
     return (void*)sh;
 }
 
-static void                my_free_deps(struct __parsec_walk_internal_handle_s *__parsec_handle, void *deps)
+static void                my_free_deps(struct __parsec_walk_internal_taskpool_s *__tp, void *deps)
 {
     simple_hash_t *sh;
     int i;
-    (void)__parsec_handle;
+    (void)__tp;
     sh = (simple_hash_t*)deps;
     for(i = 0; i < sh->size; i++)
         if( sh->buckets[i] !=  NULL )
@@ -264,7 +264,7 @@ static void                my_free_deps(struct __parsec_walk_internal_handle_s *
     free(sh);
 }
 
-static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
+static parsec_dependency_t *my_find_deps(const parsec_taskpool_t *tp,
                                          parsec_execution_unit_t *eu_context,
                                          const parsec_task_t* restrict exec_context)
 {
@@ -278,7 +278,7 @@ static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
     n = exec_context->locals[0].value;
     l = exec_context->locals[1].value;
 
-    sh = (simple_hash_t*)parsec_handle->dependencies_array[ exec_context->task_class->task_class_id ];
+    sh = (simple_hash_t*)tp->dependencies_array[ exec_context->task_class->task_class_id ];
     p = my_simple_tree_hash(n, l) % sh->size;
     for(i = p; i != p-1; i = ((i+1) % sh->size)) {
         if( NULL == sh->buckets[i] ) {
@@ -304,21 +304,21 @@ static parsec_dependency_t *my_find_deps(const parsec_handle_t *parsec_handle,
 static int my_walk_startup(parsec_execution_unit_t * eu, __parsec_walk_DOWN_task_t * this_task)
 {
   __parsec_walk_DOWN_task_t *new_task;
-  __parsec_walk_internal_handle_t *__parsec_handle = (__parsec_walk_internal_handle_t *) this_task->parsec_handle;
+  __parsec_walk_internal_taskpool_t *__tp = (__parsec_walk_internal_taskpool_t *) this_task->taskpool;
   int vpid = 0;
-  parsec_context_t *context = __parsec_handle->super.super.context;
+  parsec_context_t *context = __tp->super.super.context;
 
-  if ( ((parsec_ddesc_t *)__parsec_handle->super._g_tree)->myrank != 0)
+  if ( ((parsec_ddesc_t *)__tp->super._g_tree)->myrank != 0)
       return PARSEC_HOOK_RETURN_DONE;
-  if (NULL != ((parsec_ddesc_t *) __parsec_handle->super._g_tree)->vpid_of) {
-      vpid = ((parsec_ddesc_t *) __parsec_handle->super._g_tree)->vpid_of((parsec_ddesc_t *) __parsec_handle->super._g_tree, 0, 0);
+  if (NULL != ((parsec_ddesc_t *) __tp->super._g_tree)->vpid_of) {
+      vpid = ((parsec_ddesc_t *) __tp->super._g_tree)->vpid_of((parsec_ddesc_t *) __tp->super._g_tree, 0, 0);
       (void)vpid;
       assert(context->nb_vp >= vpid);
   }
   new_task = (__parsec_walk_DOWN_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
   new_task->status = PARSEC_TASK_STATUS_NONE;
-  new_task->parsec_handle = this_task->parsec_handle;
-  new_task->task_class = __parsec_handle->super.super.task_classes_array[walk_DOWN.task_class_id];
+  new_task->taskpool = this_task->taskpool;
+  new_task->task_class = __tp->super.super.task_classes_array[walk_DOWN.task_class_id];
   new_task->chore_id = 0;
 
   new_task->locals.n.value = 0;

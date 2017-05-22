@@ -86,12 +86,12 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_slacpy_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlacpy_New( PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *B)
 {
-    parsec_handle_t* handle;
+    parsec_taskpool_t* handle;
 
     handle = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
                               dplasma_zlacpy_operator, NULL );
@@ -120,7 +120,7 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlacpy_Destruct( parsec_handle_t *handle )
+dplasma_zlacpy_Destruct( parsec_taskpool_t *handle )
 {
     dplasma_map2_Destruct(handle);
 }
@@ -177,7 +177,7 @@ dplasma_zlacpy( parsec_context_t *parsec,
                 const tiled_matrix_desc_t *A,
                 tiled_matrix_desc_t *B)
 {
-    parsec_handle_t *parsec_zlacpy = NULL;
+    parsec_taskpool_t *parsec_zlacpy = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -196,7 +196,7 @@ dplasma_zlacpy( parsec_context_t *parsec,
 
     if ( parsec_zlacpy != NULL )
     {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlacpy);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zlacpy);
         dplasma_wait_until_completion(parsec);
         dplasma_zlacpy_Destruct( parsec_zlacpy );
     }

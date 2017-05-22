@@ -105,7 +105,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world;
     parsec_ddesc_t mydata;
-    parsec_Ex05_Broadcast_handle_t *handle;
+    parsec_Ex05_Broadcast_taskpool_t *tp;
     int mycounter;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -136,20 +136,20 @@ int main(int argc, char *argv[])
     /**
      * We now remove the NB parameter as it is an hidden global
      */
-    handle = parsec_Ex05_Broadcast_new(&mydata, world, rank);
+    tp = parsec_Ex05_Broadcast_new(&mydata, world, rank);
 
-    parsec_arena_construct(handle->arenas[PARSEC_Ex05_Broadcast_DEFAULT_ARENA],
+    parsec_arena_construct(tp->arenas[PARSEC_Ex05_Broadcast_DEFAULT_ARENA],
                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                           parsec_datatype_int_t );
 
-    rc = parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_handle_free((parsec_handle_t*)handle);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     parsec_data_destroy( ddata_mycounter );
     parsec_ddesc_destroy( &mydata );

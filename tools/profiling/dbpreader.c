@@ -108,9 +108,9 @@ uint64_t dbp_event_get_event_id(const dbp_event_t *e)
     return e->native->event.event_id;
 }
 
-uint32_t dbp_event_get_handle_id(const dbp_event_t *e)
+uint32_t dbp_event_get_taskpool_id(const dbp_event_t *e)
 {
-    return e->native->event.handle_id;
+    return e->native->event.taskpool_id;
 }
 
 uint64_t dbp_event_get_timestamp(const dbp_event_t *e)
@@ -347,14 +347,14 @@ int dbp_iterator_move_to_matching_event(dbp_event_iterator_t *pos,
 {
     const dbp_event_t *e;
     uint64_t ref_eid = dbp_event_get_event_id(ref);
-    uint32_t ref_hid = dbp_event_get_handle_id(ref);
+    uint32_t ref_hid = dbp_event_get_taskpool_id(ref);
     int      ref_key = start ?
         START_KEY(BASE_KEY(dbp_event_get_key(ref))) :
         END_KEY(  BASE_KEY(dbp_event_get_key(ref)));
 
     e = dbp_iterator_current( pos );
     while( NULL != e ) {
-        if( (dbp_event_get_handle_id(e) == ref_hid) &&
+        if( (dbp_event_get_taskpool_id(e) == ref_hid) &&
             (dbp_event_get_event_id(e)  == ref_eid) &&
             (dbp_event_get_key(e)       == ref_key) ) {
             if( dbp_event_get_event_id(e) != 0 ||

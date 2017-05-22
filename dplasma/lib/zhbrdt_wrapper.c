@@ -18,9 +18,9 @@
 
 #include "zhbrdt.h"
 
-parsec_handle_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
+parsec_taskpool_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
 {
-    parsec_zhbrdt_handle_t *parsec_zhbrdt = NULL;
+    parsec_zhbrdt_taskpool_t *parsec_zhbrdt = NULL;
 
     parsec_zhbrdt = parsec_zhbrdt_new(A, A->mb-1);
 
@@ -28,11 +28,11 @@ parsec_handle_t* dplasma_zhbrdt_New(tiled_matrix_desc_t* A /* data A */)
                                  (A->nb)*(A->mb)*sizeof(parsec_complex64_t), 16,
                                  parsec_datatype_double_complex_t,
                                  A->mb, A->nb, -1 );
-    return (parsec_handle_t*)parsec_zhbrdt;
+    return (parsec_taskpool_t*)parsec_zhbrdt;
 }
 
-void dplasma_zhbrdt_Destruct( parsec_handle_t *handle )
+void dplasma_zhbrdt_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 

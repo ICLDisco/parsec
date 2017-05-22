@@ -71,7 +71,7 @@ BODY [type=RECURSIVE]
     if (tempkn > smallnb)
     {
         subtile_desc_t *small_descT;
-        parsec_handle_t *parsec_zpotrf;
+        parsec_taskpool_t *parsec_zpotrf;
 
         small_descT = subtile_desc_create( descA, k, k,
                                            smallnb, smallnb, 0, 0, tempkn, tempkn );
@@ -141,7 +141,7 @@ BODY [type=RECURSIVE]
     {
         subtile_desc_t *small_descT;
         subtile_desc_t *small_descC;
-        parsec_handle_t* parsec_ztrsm;
+        parsec_taskpool_t* parsec_ztrsm;
 
 
         small_descT = subtile_desc_create( descA, k, k,
@@ -221,7 +221,7 @@ BODY [type=RECURSIVE]
     {
         subtile_desc_t *small_descT;
         subtile_desc_t *small_descA;
-        parsec_handle_t* parsec_zherk;
+        parsec_taskpool_t* parsec_zherk;
 
         small_descT = subtile_desc_create( descA, n, n,
                                            smallnb, smallnb, 0, 0, tempnn, tempnn );
@@ -339,7 +339,7 @@ BODY [type=RECURSIVE]
         subtile_desc_t *small_descA;
         subtile_desc_t *small_descB;
         subtile_desc_t *small_descC;
-        parsec_handle_t *parsec_zgemm;
+        parsec_taskpool_t *parsec_zgemm;
 
         small_descA = subtile_desc_create( descA, k, m,
                                            smallnb, smallnb, 0, 0, descA->mb, descA->nb );

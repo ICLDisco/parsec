@@ -250,11 +250,11 @@ parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset)
         char tmp[MAX_TASK_STRLEN];
         if (priority_offset == offsetof(parsec_heap_t, priority)) {
                 PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tFound best element %s in heap %p in local queue %p at position %d",
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_execution_context_t*)((parsec_heap_t*)best_elt)->top), best_elt,
+                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_task_t*)((parsec_heap_t*)best_elt)->top), best_elt,
                         b, best_idx);
         } else {
             PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "HBB:\tFound best element %s in local queue %p at position %d",
-                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_execution_context_t*)best_elt),
+                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_task_t*)best_elt),
                     b, best_idx);
         }
     }

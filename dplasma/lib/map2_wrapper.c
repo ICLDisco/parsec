@@ -87,7 +87,7 @@
  * @sa dplasma_map2_Destruct
  *
  ******************************************************************************/
-parsec_handle_t *
+parsec_taskpool_t *
 dplasma_map2_New( PLASMA_enum uplo,
                   PLASMA_enum trans,
                   const tiled_matrix_desc_t *A,
@@ -95,7 +95,7 @@ dplasma_map2_New( PLASMA_enum uplo,
                   tiled_matrix_binary_op_t operator,
                   void *op_args)
 {
-    parsec_map2_handle_t *parsec_map2 = NULL;
+    parsec_map2_taskpool_t *parsec_map2 = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -159,7 +159,7 @@ dplasma_map2_New( PLASMA_enum uplo,
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_int_t, A->mb);
     }
-    return (parsec_handle_t*)parsec_map2;
+    return (parsec_taskpool_t*)parsec_map2;
 }
 
 /**
@@ -183,9 +183,9 @@ dplasma_map2_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_map2_Destruct( parsec_handle_t *handle )
+dplasma_map2_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_map2_handle_t *omap2 = (parsec_map2_handle_t *)handle;
+    parsec_map2_taskpool_t *omap2 = (parsec_map2_taskpool_t *)tp;
 
     if ( omap2->_g_op_args ) {
         free( omap2->_g_op_args );
@@ -193,7 +193,7 @@ dplasma_map2_Destruct( parsec_handle_t *handle )
 
     parsec_matrix_del2arena( omap2->arenas[PARSEC_map2_DEFAULT_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -271,7 +271,7 @@ dplasma_map2( parsec_context_t *parsec,
               tiled_matrix_binary_op_t operator,
               void *op_args)
 {
-    parsec_handle_t *parsec_map2 = NULL;
+    parsec_taskpool_t *parsec_map2 = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&

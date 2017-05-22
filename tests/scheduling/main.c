@@ -34,7 +34,7 @@ int main(int argc, char *argv[])
     int rank, world;
     int nt, level, try;
     parsec_ddesc_t *ddescA;
-    parsec_handle_t *ep;
+    parsec_taskpool_t *ep;
     parsec_time_t start, end;
     double sum, sumsqr, val;
 

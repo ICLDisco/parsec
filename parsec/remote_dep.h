@@ -32,7 +32,7 @@ typedef struct remote_dep_wire_activate_s
     remote_dep_datakey_t deps;         /**< a pointer to the dep structure on the source */
     remote_dep_datakey_t output_mask;  /**< the mask of the output dependencies satisfied by this activation message */
     remote_dep_datakey_t tag;
-    uint32_t             handle_id;
+    uint32_t             taskpool_id;
     uint32_t             task_class_id;
     uint32_t             length;
     assignment_t         locals[MAX_LOCAL_COUNT];
@@ -79,9 +79,9 @@ struct remote_dep_output_param_s {
 };
 
 struct parsec_remote_deps_s {
-    parsec_list_item_t                super;
-    parsec_lifo_t                    *origin;  /**< The memory arena where the data pointer is comming from */
-    struct parsec_handle_s           *parsec_handle;  /**< parsec object generating this data transfer */
+    parsec_list_item_t               super;
+    parsec_lifo_t                   *origin;    /**< The memory arena where the data pointer is comming from */
+    struct parsec_taskpool_s        *taskpool;  /**< parsec object generating this data transfer */
     int32_t                          pending_ack;  /**< Number of releases before completion */
     int32_t                          from;    /**< From whom we received the control */
     int32_t                          root;    /**< The root of the control message */
@@ -130,7 +130,7 @@ static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         char *ptr;
         PARSEC_LIFO_ITEM_ALLOC( lifo, remote_deps, parsec_remote_dep_context.elem_size );
         remote_deps->origin = lifo;
-        remote_deps->parsec_handle = NULL;
+        remote_deps->taskpool = NULL;
         ptr = (char*)(&(remote_deps->output[parsec_remote_dep_context.max_dep_count]));
         rank_bit_size = sizeof(uint32_t) * ((parsec_remote_dep_context.max_nodes_number + 31) / 32);
         memset(ptr, 0, rank_bit_size * parsec_remote_dep_context.max_dep_count);
@@ -148,7 +148,7 @@ static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
         assert( (int)(ptr - (char*)remote_deps) ==
                 (int)(parsec_remote_dep_context.elem_size - rank_bit_size));
     }
-    assert(NULL == remote_deps->parsec_handle);
+    assert(NULL == remote_deps->taskpool);
     remote_deps->max_priority    = 0xffffffff;
     remote_deps->root            = -1;
     remote_deps->pending_ack     = 0;
@@ -187,7 +187,7 @@ static inline void remote_deps_free(parsec_remote_deps_t* deps)
 #if defined(PARSEC_DEBUG_PARANOID)
     memset( &deps->msg, 0, sizeof(remote_dep_wire_activate_t) );
 #endif
-    deps->parsec_handle      = NULL;
+    deps->taskpool      = NULL;
     parsec_lifo_push(deps->origin, (parsec_list_item_t*)deps);
 }
 
@@ -200,7 +200,7 @@ int parsec_remote_dep_off(parsec_context_t* context);
 int parsec_remote_dep_progress(parsec_execution_unit_t* eu_context);
 
 /* Inform the communication engine from the creation of new objects */
-int parsec_remote_dep_new_object(parsec_handle_t* handle);
+int parsec_remote_dep_new_object(parsec_taskpool_t* handle);
 
 /* Send remote dependencies to target processes */
 int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
@@ -209,7 +209,7 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                               uint32_t propagation_mask);
 
 /* Memcopy a particular data using datatype specification */
-void parsec_remote_dep_memcpy(parsec_handle_t* parsec_handle,
+void parsec_remote_dep_memcpy(parsec_taskpool_t* tp,
                              parsec_data_copy_t *dst,
                              parsec_data_copy_t *src,
                              parsec_dep_data_description_t* data);

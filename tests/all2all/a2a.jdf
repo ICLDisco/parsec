@@ -108,10 +108,10 @@ extern "C" %{
  *
  * @return the parsec handle to schedule.
  */
-parsec_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size, int repeat)
+parsec_taskpool_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size, int repeat)
 {
     int worldsize;
-    parsec_a2a_handle_t *o = NULL;
+    parsec_a2a_taskpool_t *o = NULL;
     (void)size;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -122,7 +122,7 @@ parsec_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int siz
 
     if( repeat <= 0 ) {
         fprintf(stderr, "To work, A2A must do at least one exchange of at least one byte\n");
-        return (parsec_handle_t*)o;
+        return (parsec_taskpool_t*)o;
     }
 
     o = parsec_a2a_new(A, B, repeat, worldsize);
@@ -144,19 +144,19 @@ parsec_handle_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int siz
     }
 #endif
 
-    return (parsec_handle_t*)o;
+    return (parsec_taskpool_t*)o;
 }
 
 /**
  * @param [INOUT] o the parsec handle to destroy
  */
-void a2a_destroy(parsec_handle_t *o)
+void a2a_destroy(parsec_taskpool_t *o)
 {
 #if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
 }
 
 %}

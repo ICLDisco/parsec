@@ -584,7 +584,7 @@ BODY
             }
         }
     }
-    (void)parsec_atomic_add_32b( &this_task->parsec_handle->nb_tasks, -nb_tasks );
+    (void)parsec_atomic_add_32b( &this_task->taskpool->nb_tasks, -nb_tasks );
 
 }
 END

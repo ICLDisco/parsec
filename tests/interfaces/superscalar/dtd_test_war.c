@@ -93,7 +93,7 @@ int main(int argc, char ** argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
@@ -132,29 +132,29 @@ int main(int argc, char ** argv)
     }
     #endif
 
-    /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    /* Registering the dtd_taskpool with PARSEC context */
+    parsec_enqueue( parsec, dtd_tp );
 
     parsec_context_start(parsec);
 
     for( i = 0; i < no_of_tasks; i++ ) {
         key = A->data_key(A, i, 0);
-        parsec_insert_task( parsec_dtd_handle, call_to_kernel_type_write,    0,  "Write_Task",
+        parsec_insert_task( dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
                            PASSED_BY_REF,    TILE_OF_KEY(A, key),   INOUT | TILE_FULL | AFFINITY,
                            0 );
         for( j = 0; j < no_of_read_tasks; j++ ) {
-            parsec_insert_task( parsec_dtd_handle, call_to_kernel_type_read,   0,   "Read_Task",
+            parsec_insert_task( dtd_tp, call_to_kernel_type_read,   0,   "Read_Task",
                                PASSED_BY_REF,    TILE_OF_KEY(A, key),   INPUT | TILE_FULL | AFFINITY,
                                0 );
         }
-        parsec_insert_task( parsec_dtd_handle, call_to_kernel_type_write,    0,  "Write_Task",
+        parsec_insert_task( dtd_tp, call_to_kernel_type_write,    0,  "Write_Task",
                            PASSED_BY_REF,    TILE_OF_KEY(A, key),   INOUT | TILE_FULL | AFFINITY,
                            0 );
     }
 
-    parsec_dtd_data_flush_all( parsec_dtd_handle, A );
+    parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     parsec_context_wait(parsec);
 
@@ -175,7 +175,7 @@ int main(int argc, char ** argv)
         parsec_output( 0, "\nWAR test passed\n\n" );
     }
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_dtd_ddesc_fini( A );
     free_data(ddescA);

@@ -58,7 +58,7 @@ test_task_generator( parsec_execution_unit_t    *context,
 {
     (void)context;
 
-    parsec_handle_t *parsec_dtd_handle = this_task->parsec_handle;
+    parsec_taskpool_t *dtd_tp = this_task->taskpool;
     int *total, *step, *iteration, *amount_of_work;
     int i;
 
@@ -73,7 +73,7 @@ test_task_generator( parsec_execution_unit_t    *context,
         if( i > *step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
-            parsec_insert_task( parsec_dtd_handle, test_task,    0,  "Test_Task",
+            parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                sizeof(int),      amount_of_work,    VALUE,
                                0 );
 
@@ -107,14 +107,14 @@ int main(int argc, char ** argv)
     int m, n;
     int no_of_tasks = 500000;
     int amount_of_work[3] = {100, 1000, 10000};
-    parsec_handle_t *parsec_dtd_handle;
+    parsec_taskpool_t *dtd_tp;
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_dtd_handle = parsec_dtd_handle_new(  );
+    dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
     parsec_context_start( parsec );
 
     if( rank == 0 ) {
@@ -144,13 +144,13 @@ int main(int argc, char ** argv)
         TIME_START();
 
         for( m = 0; m < no_of_tasks; m++ ) {
-            parsec_insert_task( parsec_dtd_handle, test_task,    0,  "Test_Task",
+            parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                sizeof(int),      &amount_of_work[n], VALUE,
                                0 );
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
@@ -173,13 +173,13 @@ int main(int argc, char ** argv)
         TIME_START();
 
         for( m = 0; m < no_of_tasks; m++ ) {
-            parsec_insert_task( parsec_dtd_handle, test_task,    0,  "Test_Task",
+            parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                sizeof(int),      &amount_of_work[n], VALUE,
                                0 );
         }
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
     }
@@ -198,7 +198,7 @@ int main(int argc, char ** argv)
         TIME_START();
 
         int step = dtd_window_size, iteration = 0;
-        parsec_insert_task( parsec_dtd_handle, test_task_generator,    0,  "Test_Task",
+        parsec_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task",
                            sizeof(int),      &amount_of_work[n],     VALUE,
                            sizeof(int),      &no_of_tasks,           VALUE,
                            sizeof(int),      &step,                  VALUE,
@@ -206,7 +206,7 @@ int main(int argc, char ** argv)
                            0 );
 
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
         TIME_PRINT(rank, ("Tasks executed : %d : Amount of work: %d\n", count, amount_of_work[n]));
 
@@ -216,7 +216,7 @@ int main(int argc, char ** argv)
 
     parsec_context_wait(parsec);
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
 

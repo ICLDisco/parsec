@@ -74,7 +74,7 @@
  * @sa dplasma_clanhe_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlanhe_New( PLASMA_enum norm,
                     PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
@@ -82,7 +82,7 @@ dplasma_zlanhe_New( PLASMA_enum norm,
 {
     int P, Q, mb, nb, elt, m;
     two_dim_block_cyclic_t *Tdist;
-    parsec_handle_t *parsec_zlanhe = NULL;
+    parsec_taskpool_t *parsec_zlanhe = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -139,24 +139,24 @@ dplasma_zlanhe_New( PLASMA_enum norm,
     Tdist->super.super.data_of = fake_data_of;
 
     /* Create the DAG */
-    parsec_zlanhe = (parsec_handle_t*)parsec_zlansy_new(
+    parsec_zlanhe = (parsec_taskpool_t*)parsec_zlansy_new(
         P, Q, norm, uplo, PlasmaConjTrans,
         A, (parsec_ddesc_t*)Tdist,
         result);
 
     /* Set the datatypes */
-    dplasma_add2arena_tile(((parsec_zlansy_handle_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_zlansy_taskpool_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
-    dplasma_add2arena_rectangle(((parsec_zlansy_handle_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_COL_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlansy_taskpool_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_COL_ARENA],
                                 mb * nb * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, mb, nb, -1);
-    dplasma_add2arena_rectangle(((parsec_zlansy_handle_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_ELT_ARENA],
+    dplasma_add2arena_rectangle(((parsec_zlansy_taskpool_t*)parsec_zlanhe)->arenas[PARSEC_zlansy_ELT_ARENA],
                                 elt * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_t, elt, 1, -1);
 
-    return (parsec_handle_t*)parsec_zlanhe;
+    return (parsec_taskpool_t*)parsec_zlanhe;
 }
 
 /**
@@ -180,9 +180,9 @@ dplasma_zlanhe_New( PLASMA_enum norm,
  *
  ******************************************************************************/
 void
-dplasma_zlanhe_Destruct( parsec_handle_t *handle )
+dplasma_zlanhe_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zlansy_handle_t *parsec_zlanhe = (parsec_zlansy_handle_t *)handle;
+    parsec_zlansy_taskpool_t *parsec_zlanhe = (parsec_zlansy_taskpool_t *)tp;
 
     tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlanhe->_g_Tdist) );
     free( parsec_zlanhe->_g_Tdist );
@@ -191,7 +191,7 @@ dplasma_zlanhe_Destruct( parsec_handle_t *handle )
     parsec_matrix_del2arena( parsec_zlanhe->arenas[PARSEC_zlansy_COL_ARENA] );
     parsec_matrix_del2arena( parsec_zlanhe->arenas[PARSEC_zlansy_ELT_ARENA] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -254,7 +254,7 @@ dplasma_zlanhe( parsec_context_t *parsec,
                 const tiled_matrix_desc_t *A)
 {
     double result = 0.;
-    parsec_handle_t *parsec_zlanhe = NULL;
+    parsec_taskpool_t *parsec_zlanhe = NULL;
 
     if ( (norm != PlasmaMaxNorm) && (norm != PlasmaOneNorm)
         && (norm != PlasmaInfNorm) && (norm != PlasmaFrobeniusNorm) ) {
@@ -278,7 +278,7 @@ dplasma_zlanhe( parsec_context_t *parsec,
 
     if ( parsec_zlanhe != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlanhe);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zlanhe);
         dplasma_wait_until_completion(parsec);
         dplasma_zlanhe_Destruct( parsec_zlanhe );
     }

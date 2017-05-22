@@ -30,9 +30,9 @@ parsec_hook_return_t
 parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
                                              parsec_task_t *this_task)
 {
-    parsec_handle_t *handle;
+    parsec_taskpool_t *handle;
     (void)eu;
-    handle = this_task->parsec_handle;
+    handle = this_task->taskpool;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     (void)parsec_atomic_dec_32b( (uint32_t*)&handle->nb_tasks );
     return PARSEC_HOOK_RETURN_DONE;
@@ -42,11 +42,11 @@ parsec_hook_return_t
 parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_t *eu,
                                                          parsec_task_t *this_task)
 {
-    parsec_handle_t *handle;
+    parsec_taskpool_t *handle;
     (void)eu;
-    handle = this_task->parsec_handle;
+    handle = this_task->taskpool;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
-    parsec_handle_update_runtime_nbtask(handle, -1);
+    parsec_taskpool_update_runtime_nbtask(handle, -1);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -64,10 +64,10 @@ parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_
  */
 
 static inline int
-priority_of_generic_startup_as_expr_fct(const parsec_handle_t * __parsec_handle,
+priority_of_generic_startup_as_expr_fct(const parsec_taskpool_t * __tp,
                                         const assignment_t * locals)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     (void)locals;
     return INT_MIN;
 }
@@ -78,10 +78,10 @@ static const expr_t priority_of_generic_startup_as_expr = {
 };
 
 static inline uint64_t
-__parsec_generic_startup_hash(const parsec_handle_t * __parsec_handle,
+__parsec_generic_startup_hash(const parsec_taskpool_t * __tp,
                              const assignment_t * assignments)
 {
-    (void)__parsec_handle;
+    (void)__tp;
     (void)assignments;
     return 0ULL;
 }

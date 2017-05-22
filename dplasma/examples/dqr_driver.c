@@ -182,7 +182,7 @@ int main(int argc, char ** argv)
         gettimeofday(&start, NULL);
 
         /** Create a handle for the QR operation on A and Work */
-        parsec_handle_t* PARSEC_dgeqrf = dplasma_dgeqrf_New( (tiled_matrix_desc_t*)&ddescA,
+        parsec_taskpool_t* PARSEC_dgeqrf = dplasma_dgeqrf_New( (tiled_matrix_desc_t*)&ddescA,
                                                            (tiled_matrix_desc_t*)&ddescWork );
 
         /** Schedule the QR operation */

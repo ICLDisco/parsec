@@ -155,7 +155,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  * @sa dplasma_sgetrf_qrf_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                         tiled_matrix_desc_t *A,
                         tiled_matrix_desc_t *IPIV,
@@ -164,7 +164,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
                         int criteria, double alpha, int* lu_tab,
                         int* INFO)
 {
-    parsec_zgetrf_qrf_handle_t* handle;
+    parsec_zgetrf_qrf_taskpool_t* tp;
     int ib = TS->mb;
     size_t sizeW = 1;
     size_t sizeReduceVec = 1;
@@ -194,14 +194,14 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
         dplasma_genrandom_lutab(lu_tab, 0, minMNT-1, nb_lu, 0);
     }
 
-    handle = parsec_zgetrf_qrf_new( A,
-                                   (parsec_ddesc_t*)IPIV,
-                                   TS,
-                                   TT,
-                                   lu_tab, *qrtree,
-                                   ib, criteria, alpha,
-                                   NULL, NULL, NULL,
-                                   INFO);
+    tp = parsec_zgetrf_qrf_new( A,
+                                (parsec_ddesc_t*)IPIV,
+                                TS,
+                                TT,
+                                lu_tab, *qrtree,
+                                ib, criteria, alpha,
+                                NULL, NULL, NULL,
+                                INFO);
 
 #if defined(CORE_GETRF_270)
 
@@ -210,68 +210,68 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     } else {
         CORE_zgetrf_reclap_init();
     }
-    handle->_g_nbmaxthrd = dplasma_imin( nbthreads, 48 );
+    tp->_g_nbmaxthrd = dplasma_imin( nbthreads, 48 );
 
 #else
 
     if ( A->storage == matrix_Tile ) {
-        handle->_g_getrfdata = CORE_zgetrf_rectil_init(nbthreads);
+        tp->_g_getrfdata = CORE_zgetrf_rectil_init(nbthreads);
     } else {
-        handle->_g_getrfdata = CORE_zgetrf_reclap_init(nbthreads);
+        tp->_g_getrfdata = CORE_zgetrf_reclap_init(nbthreads);
     }
-    handle->_g_nbmaxthrd = nbthreads;
+    tp->_g_nbmaxthrd = nbthreads;
 
 #endif
 
-    handle->_g_W = (double*)malloc(sizeW * sizeof(double));
+    tp->_g_W = (double*)malloc(sizeW * sizeof(double));
 
-    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
-    parsec_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(parsec_complex64_t) );
+    tp->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( tp->_g_p_work, ib * TS->nb * sizeof(parsec_complex64_t) );
 
-    handle->_g_p_tau = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
-    parsec_private_memory_init( handle->_g_p_tau, TS->nb * sizeof(parsec_complex64_t) );
+    tp->_g_p_tau = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( tp->_g_p_tau, TS->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[PARSEC_zgetrf_qrf_DEFAULT_ARENA],
+    dplasma_add2arena_tile( tp->arenas[PARSEC_zgetrf_qrf_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A->mb );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( handle->arenas[PARSEC_zgetrf_qrf_LOWER_TILE_ARENA],
+    dplasma_add2arena_lower( tp->arenas[PARSEC_zgetrf_qrf_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* IPIV */
-    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_PIVOT_ARENA],
+    dplasma_add2arena_rectangle( tp->arenas[PARSEC_zgetrf_qrf_PIVOT_ARENA],
                                  A->mb*sizeof(int),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_int_t, A->mb, 1, -1 );
 
     /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( handle->arenas[PARSEC_zgetrf_qrf_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( tp->arenas[PARSEC_zgetrf_qrf_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( tp->arenas[PARSEC_zgetrf_qrf_LITTLE_T_ARENA],
                                  TS->mb*TS->nb*sizeof(parsec_complex64_t),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, TS->mb, TS->nb, -1);
 
     /* ReduceVec */
-    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_ReduceVec_ARENA],
+    dplasma_add2arena_rectangle( tp->arenas[PARSEC_zgetrf_qrf_ReduceVec_ARENA],
                                  sizeReduceVec * sizeof(double), PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_t, sizeReduceVec, 1, -1);
 
     /* Choice */
-    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zgetrf_qrf_CHOICE_ARENA],
+    dplasma_add2arena_rectangle( tp->arenas[PARSEC_zgetrf_qrf_CHOICE_ARENA],
                                  sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_int_t, 1, 1, -1);
 
-    return (parsec_handle_t*)handle;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
@@ -295,9 +295,9 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zgetrf_qrf_Destruct( parsec_handle_t *handle )
+dplasma_zgetrf_qrf_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgetrf_qrf_handle_t *parsec_zgetrf_qrf = (parsec_zgetrf_qrf_handle_t *)handle;
+    parsec_zgetrf_qrf_taskpool_t *parsec_zgetrf_qrf = (parsec_zgetrf_qrf_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_DEFAULT_ARENA   ] );
     parsec_matrix_del2arena( parsec_zgetrf_qrf->arenas[PARSEC_zgetrf_qrf_LOWER_TILE_ARENA] );
@@ -316,7 +316,7 @@ dplasma_zgetrf_qrf_Destruct( parsec_handle_t *handle )
     free( parsec_zgetrf_qrf->_g_p_work );
     free( parsec_zgetrf_qrf->_g_p_tau  );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -438,11 +438,11 @@ dplasma_zgetrf_qrf( parsec_context_t *parsec,
                     int criteria, double alpha, int* lu_tab,
                     int* INFO )
 {
-    parsec_handle_t *parsec_zgetrf_qrf = NULL;
+    parsec_taskpool_t *parsec_zgetrf_qrf = NULL;
 
     parsec_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrtree, A, IPIV, TS, TT, criteria, alpha, lu_tab, INFO);
 
-    parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgetrf_qrf);
+    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zgetrf_qrf);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zgetrf_qrf_Destruct( parsec_zgetrf_qrf );

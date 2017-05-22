@@ -113,7 +113,7 @@ dplasma_zpltmg_generic( parsec_context_t *parsec,
                         parsec_complex64_t *W,
                         unsigned long long int seed)
 {
-    parsec_handle_t *parsec_zpltmg = NULL;
+    parsec_taskpool_t *parsec_zpltmg = NULL;
     zpltmg_args_t *params = (zpltmg_args_t*)malloc(sizeof(zpltmg_args_t));
 
     params->mtxtype = mtxtype;
@@ -123,7 +123,7 @@ dplasma_zpltmg_generic( parsec_context_t *parsec,
     parsec_zpltmg = dplasma_map_New( PlasmaUpperLower, A, dplasma_zpltmg_generic_operator, params );
     if ( parsec_zpltmg != NULL )
     {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zpltmg);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zpltmg);
         dplasma_wait_until_completion(parsec);
         dplasma_map_Destruct( parsec_zpltmg );
         return 0;
@@ -174,29 +174,29 @@ dplasma_zpltmg_genvect( parsec_context_t *parsec,
                         unsigned long long int seed )
 {
     size_t vectorsize = 0;
-    parsec_handle_t* handle;
+    parsec_taskpool_t* tp;
 
     switch( mtxtype ) {
     case PlasmaMatrixChebvand:
-        handle = (parsec_handle_t*)parsec_zpltmg_chebvand_new( seed,
+        tp = (parsec_taskpool_t*)parsec_zpltmg_chebvand_new( seed,
                                                             A );
         vectorsize = 2 * A->nb * sizeof(parsec_complex64_t);
         break;
 
     case PlasmaMatrixFiedler:
-        handle = (parsec_handle_t*)parsec_zpltmg_fiedler_new( seed,
+        tp = (parsec_taskpool_t*)parsec_zpltmg_fiedler_new( seed,
                                                             A );
         vectorsize = A->mb * sizeof(parsec_complex64_t);
         break;
 
     case PlasmaMatrixHankel:
-        handle = (parsec_handle_t*)parsec_zpltmg_hankel_new( seed,
+        tp = (parsec_taskpool_t*)parsec_zpltmg_hankel_new( seed,
                                                            A );
         vectorsize = A->mb * sizeof(parsec_complex64_t);
         break;
 
     case PlasmaMatrixToeppd:
-        handle = (parsec_handle_t*)parsec_zpltmg_toeppd_new( seed,
+        tp = (parsec_taskpool_t*)parsec_zpltmg_toeppd_new( seed,
                                                            A );
         vectorsize = 2 * A->mb * sizeof(parsec_complex64_t);
         break;
@@ -205,27 +205,27 @@ dplasma_zpltmg_genvect( parsec_context_t *parsec,
         return -2;
     }
 
-    if (handle != NULL) {
-        parsec_zpltmg_hankel_handle_t *handle_zpltmg = (parsec_zpltmg_hankel_handle_t*)handle;
+    if (NULL != tp) {
+        parsec_zpltmg_hankel_taskpool_t *tp_zpltmg = (parsec_zpltmg_hankel_taskpool_t*)tp;
 
         /* Default type */
-        dplasma_add2arena_tile( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA],
+        dplasma_add2arena_tile( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(parsec_complex64_t),
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, A->mb );
 
         /* Vector type */
-        dplasma_add2arena_tile( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA],
+        dplasma_add2arena_tile( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA],
                                 vectorsize,
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, A->mb );
 
-        parsec_enqueue(parsec, handle);
+        parsec_enqueue(parsec, tp);
         dplasma_wait_until_completion(parsec);
 
-        parsec_matrix_del2arena( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA] );
-        parsec_matrix_del2arena( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA ] );
-        parsec_handle_free(handle);
+        parsec_matrix_del2arena( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA] );
+        parsec_matrix_del2arena( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA ] );
+        parsec_taskpool_free(tp);
         return 0;
     } else {
         return -101;

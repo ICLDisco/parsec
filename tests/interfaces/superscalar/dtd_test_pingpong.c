@@ -114,7 +114,7 @@ int main(int argc, char **argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
@@ -149,21 +149,21 @@ int main(int argc, char **argv)
     }
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
 
     parsec_context_start(parsec);
 
-    parsec_insert_task( parsec_dtd_handle, task_rank_0,    0,  "task_rank_0",
+    parsec_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
                        PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
                        0 );
-    parsec_insert_task( parsec_dtd_handle, task_rank_1,    0,  "task_rank_1",
+    parsec_insert_task( dtd_tp, task_rank_1,    0,  "task_rank_1",
                        PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
                        PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
                        0 );
 
-    parsec_dtd_data_flush_all( parsec_dtd_handle, A );
+    parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     parsec_context_wait(parsec);
 
@@ -184,7 +184,7 @@ int main(int argc, char **argv)
         parsec_output( 0, "\nPingpong is behaving correctly.\n" );
     }
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     /* End of correctness checking */
 
@@ -202,8 +202,8 @@ int main(int argc, char **argv)
 
 
     for( i = 0; i < sizes_of_data; i++ ) {
-        parsec_dtd_handle = parsec_dtd_handle_new(  );
-        parsec_enqueue( parsec, parsec_dtd_handle );
+        dtd_tp = parsec_dtd_taskpool_new(  );
+        parsec_enqueue( parsec, dtd_tp );
         parsec_context_start(parsec);
 
         nb = sizes[i];
@@ -224,18 +224,18 @@ int main(int argc, char **argv)
         SYNC_TIME_START();
 
         for( j = 0; j < repeat_pingpong; j++ ) {
-            parsec_insert_task( parsec_dtd_handle, task_rank_0,    0,  "task_for_timing_0",
+            parsec_insert_task( dtd_tp, task_rank_0,    0,  "task_for_timing_0",
                                PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL | AFFINITY,
                                0 );
-            parsec_insert_task( parsec_dtd_handle, task_rank_1,    0,  "task_for_timing_1",
+            parsec_insert_task( dtd_tp, task_rank_1,    0,  "task_for_timing_1",
                                PASSED_BY_REF,    TILE_OF_KEY(A, 0), INOUT | TILE_FULL,
                                PASSED_BY_REF,    TILE_OF_KEY(A, 1), INOUT | TILE_FULL | AFFINITY,
                                0 );
         }
 
-        parsec_dtd_data_flush_all( parsec_dtd_handle, A );
+        parsec_dtd_data_flush_all( dtd_tp, A );
         /* finishing all the tasks inserted, but not finishing the handle */
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
         parsec_context_wait(parsec);
         SYNC_TIME_PRINT(rank, ("\tSize of message : %ld bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));

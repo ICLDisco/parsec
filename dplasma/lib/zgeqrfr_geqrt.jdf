@@ -170,12 +170,12 @@ extern "C" %{
  * @sa dplasma_sgeqrfr_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
                            tiled_matrix_desc_t *T,
                            void *work )
 {
-    parsec_zgeqrfr_geqrt_handle_t *geqrt;
+    parsec_zgeqrfr_geqrt_taskpool_t *geqrt;
 
     geqrt = parsec_zgeqrfr_geqrt_new( A,
                                      T,
@@ -193,7 +193,7 @@ dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return (parsec_handle_t*)geqrt;
+    return (parsec_taskpool_t*)geqrt;
 }
 
 /**
@@ -217,14 +217,14 @@ dplasma_zgeqrfr_geqrt_New( tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zgeqrfr_geqrt_Destruct( parsec_handle_t *handle )
+dplasma_zgeqrfr_geqrt_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgeqrfr_geqrt_handle_t *parsec_zgeqrt = (parsec_zgeqrfr_geqrt_handle_t *)handle;
+    parsec_zgeqrfr_geqrt_taskpool_t *parsec_zgeqrt = (parsec_zgeqrfr_geqrt_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgeqrt->arenas[PARSEC_zgeqrfr_geqrt_DEFAULT_ARENA ] );
     parsec_matrix_del2arena( parsec_zgeqrt->arenas[PARSEC_zgeqrfr_geqrt_LITTLE_T_ARENA] );
 
-    handle->destructor(handle);
+    tp->destructor(tp);
 }
 
 %}

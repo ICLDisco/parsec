@@ -17,7 +17,7 @@
 
 static void multilevel_zgebmm(parsec_context_t *parsec, tiled_matrix_desc_t* B, PLASMA_Complex64_t *U_but_vec, int level, int trans, int order, int *info){
     int cur_level, L;
-    parsec_handle_t **op;
+    parsec_taskpool_t **op;
 
     for( L=0; L <= level; L++ ){
         int i_block, j_block, block_count;
@@ -34,7 +34,7 @@ static void multilevel_zgebmm(parsec_context_t *parsec, tiled_matrix_desc_t* B, 
         fflush(stdout);
 #endif
 
-        op = (parsec_handle_t **)calloc( block_count*block_count, sizeof(parsec_handle_t *));
+        op = (parsec_taskpool_t **)calloc( block_count*block_count, sizeof(parsec_taskpool_t *));
 
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){

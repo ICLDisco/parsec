@@ -91,14 +91,14 @@
  * @sa dplasma_strmm_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
                    PLASMA_enum trans, PLASMA_enum diag,
                    parsec_complex64_t alpha,
                    const tiled_matrix_desc_t *A,
                    tiled_matrix_desc_t *B )
 {
-    parsec_handle_t *parsec_trmm = NULL;
+    parsec_taskpool_t *parsec_trmm = NULL;
 
     /* Check input arguments */
     if (side != PlasmaLeft && side != PlasmaRight) {
@@ -121,21 +121,21 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
     if ( side == PlasmaLeft ) {
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_LLN_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_LLN_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_LLT_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_LLT_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_LUN_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_LUN_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_LUT_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_LUT_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             }
@@ -143,28 +143,28 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
     } else { /* side == PlasmaRight */
         if ( uplo == PlasmaLower ) {
             if ( trans == PlasmaNoTrans ) {
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_RLN_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_RLN_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_RLT_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_RLT_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             }
         } else { /* uplo = PlasmaUpper */
             if ( trans == PlasmaNoTrans ) {
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_RUN_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_RUN_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             } else { /* trans =! PlasmaNoTrans */
-                parsec_trmm = (parsec_handle_t*)parsec_ztrmm_RUT_new(
+                parsec_trmm = (parsec_taskpool_t*)parsec_ztrmm_RUT_new(
                     side, uplo, trans, diag, alpha,
                     A, B);
             }
         }
     }
 
-    dplasma_add2arena_tile(((parsec_ztrmm_LLN_handle_t*)parsec_trmm)->arenas[PARSEC_ztrmm_LLN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_ztrmm_LLN_taskpool_t*)parsec_trmm)->arenas[PARSEC_ztrmm_LLN_DEFAULT_ARENA],
                            A->mb*A->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, A->mb);
@@ -193,12 +193,12 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_ztrmm_Destruct( parsec_handle_t *handle )
+dplasma_ztrmm_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_ztrmm_LLN_handle_t *otrmm = (parsec_ztrmm_LLN_handle_t *)handle;
+    parsec_ztrmm_LLN_taskpool_t *otrmm = (parsec_ztrmm_LLN_taskpool_t *)tp;
 
     parsec_matrix_del2arena( otrmm->arenas[PARSEC_ztrmm_LLN_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -276,7 +276,7 @@ dplasma_ztrmm( parsec_context_t *parsec,
                const tiled_matrix_desc_t *A,
                tiled_matrix_desc_t *B)
 {
-    parsec_handle_t *parsec_ztrmm = NULL;
+    parsec_taskpool_t *parsec_ztrmm = NULL;
 
     /* Check input arguments */
     if (side != PlasmaLeft && side != PlasmaRight) {
@@ -307,7 +307,7 @@ dplasma_ztrmm( parsec_context_t *parsec,
 
     if ( parsec_ztrmm != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_ztrmm);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_ztrmm);
         dplasma_wait_until_completion(parsec);
         dplasma_ztrmm_Destruct( parsec_ztrmm );
         return 0;

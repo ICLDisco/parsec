@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -53,7 +53,7 @@ int main(int argc, char ** argv)
     {
 
         SYNC_TIME_START();
-        parsec_handle_t* PARSEC_zpotrf = dplasma_zpotrf_New( uplo, (tiled_matrix_desc_t*)&ddescA, &info );
+        parsec_taskpool_t* PARSEC_zpotrf = dplasma_zpotrf_New( uplo, (tiled_matrix_desc_t*)&ddescA, &info );
         /* Set the recursive size */
         dplasma_zpotrf_setrecursive( PARSEC_zpotrf, iparam[IPARAM_HMB] );
         parsec_enqueue(parsec, PARSEC_zpotrf);
@@ -62,7 +62,7 @@ int main(int argc, char ** argv)
         PASTE_CODE_PROGRESS_KERNEL(parsec, zpotrf);
         dplasma_zpotrf_Destruct( PARSEC_zpotrf );
 
-        parsec_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+        parsec_taskpool_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }
     else
     {

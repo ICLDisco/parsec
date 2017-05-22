@@ -39,7 +39,7 @@ static int remote_dep_nothread_memcpy(parsec_execution_unit_t* eu_context,
                                       dep_cmd_item_t *item);
 
 static int remote_dep_dequeue_send(int rank, parsec_remote_deps_t* deps);
-static int remote_dep_dequeue_new_object(parsec_handle_t* obj);
+static int remote_dep_dequeue_new_object(parsec_taskpool_t* obj);
 #ifdef PARSEC_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_init(parsec_context_t* context);
 static int remote_dep_dequeue_fini(parsec_context_t* context);
@@ -118,13 +118,13 @@ union dep_cmd_u {
         int enable;
     } ctl;
     struct {
-        parsec_handle_t       *obj;
+        parsec_taskpool_t    *obj;
     } new_object;
     struct {
-        parsec_handle_t       *parsec_handle;
-        parsec_data_copy_t    *source;
-        parsec_data_copy_t    *destination;
-        parsec_datatype_t      datatype;
+        parsec_taskpool_t    *taskpool;
+        parsec_data_copy_t   *source;
+        parsec_data_copy_t   *destination;
+        parsec_datatype_t     datatype;
         int64_t               displ_s;
         int64_t               displ_r;
         int                   count;
@@ -172,9 +172,9 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
 {
     parsec_task_t task;
 
-    task.parsec_handle = parsec_handle_lookup( origin->handle_id );
-    if( NULL == task.parsec_handle ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->handle_id), str;
-    task.task_class   = task.parsec_handle->task_classes_array[origin->task_class_id];
+    task.taskpool = parsec_taskpool_lookup( origin->taskpool_id );
+    if( NULL == task.taskpool ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->taskpool_id), str;
+    task.task_class   = task.taskpool->task_classes_array[origin->task_class_id];
     if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_Function_%d", origin->task_class_id), str;
     memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.task_class->nb_locals);
     task.priority     = 0xFFFFFFFF;
@@ -425,7 +425,7 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
     return (void*)context;
 }
 
-static int remote_dep_dequeue_new_object(parsec_handle_t* obj)
+static int remote_dep_dequeue_new_object(parsec_taskpool_t* obj)
 {
     if(!mpi_initialized) return 0;
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
@@ -465,7 +465,7 @@ static int remote_dep_dequeue_send(int rank,
     return 1;
 }
 
-void parsec_remote_dep_memcpy(parsec_handle_t* parsec_handle,
+void parsec_remote_dep_memcpy(parsec_taskpool_t* tp,
                              parsec_data_copy_t *dst,
                              parsec_data_copy_t *src,
                              parsec_dep_data_description_t* data)
@@ -475,7 +475,7 @@ void parsec_remote_dep_memcpy(parsec_handle_t* parsec_handle,
     OBJ_CONSTRUCT(item, parsec_list_item_t);
     item->action = DEP_MEMCPY;
     item->priority = 0;
-    item->cmd.memcpy.parsec_handle = parsec_handle;
+    item->cmd.memcpy.taskpool = tp;
     item->cmd.memcpy.source       = src;
     item->cmd.memcpy.destination  = dst;
     item->cmd.memcpy.datatype     = data->layout;
@@ -484,7 +484,7 @@ void parsec_remote_dep_memcpy(parsec_handle_t* parsec_handle,
     item->cmd.memcpy.count        = data->count;
 
     OBJ_RETAIN(src);
-    remote_dep_inc_flying_messages(parsec_handle);
+    remote_dep_inc_flying_messages(tp);
 
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*) item);
 }
@@ -564,18 +564,18 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
     parsec_task_t task;
     uint32_t i, j, k, local_mask = 0;
 
-    parsec_dtd_handle_t *dtd_handle = NULL;
+    parsec_dtd_taskpool_t *dtd_handle = NULL;
     parsec_dtd_task_t *dtd_task = NULL;
 
-    assert(NULL == origin->parsec_handle);
-    origin->parsec_handle = parsec_handle_lookup(origin->msg.handle_id);
-    if( NULL == origin->parsec_handle )
+    assert(NULL == origin->taskpool);
+    origin->taskpool = parsec_taskpool_lookup(origin->msg.taskpool_id);
+    if( NULL == origin->taskpool )
         return -1; /* the parsec object doesn't exist yet */
-    task.parsec_handle = origin->parsec_handle;
-    task.task_class    = task.parsec_handle->task_classes_array[origin->msg.task_class_id];
+    task.taskpool = origin->taskpool;
+    task.task_class    = task.taskpool->task_classes_array[origin->msg.task_class_id];
 
-    if( 1 == origin->parsec_handle->handle_type ) {
-        dtd_handle = (parsec_dtd_handle_t *)origin->parsec_handle;
+    if( 1 == origin->taskpool->taskpool_type ) {
+        dtd_handle = (parsec_dtd_taskpool_t *)origin->taskpool;
         parsec_dtd_two_hash_table_lock(dtd_handle->two_hash_table);
 
         if( NULL == task.task_class ) {
@@ -597,7 +597,7 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
     for(k = 0; origin->msg.output_mask>>k; k++) {
         if(!(origin->msg.output_mask & (1U<<k))) continue;
 
-        if( 1 == origin->parsec_handle->handle_type ) {
+        if( 1 == origin->taskpool->taskpool_type ) {
             uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
             dtd_task = parsec_dtd_find_task( dtd_handle, key );
 
@@ -612,7 +612,7 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
             if( 0 != local_mask ) break;  /* we have our local mask, go get the datatype */
         }
 
-        if( 1 == origin->parsec_handle->handle_type ) {
+        if( 1 == origin->taskpool->taskpool_type ) {
             if( local_mask == 0 ) {
                 assert(0);
                 return -2;
@@ -620,7 +620,7 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
         }
 
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MPI:\tRetrieve datatype with mask 0x%x (remote_dep_get_datatypes)", local_mask);
-        if( 1 == origin->parsec_handle->handle_type ) {
+        if( 1 == origin->taskpool->taskpool_type ) {
             task.task_class->iterate_successors(eu_context, (parsec_task_t *)dtd_task,
                                                local_mask,
                                                remote_dep_mpi_retrieve_datatype,
@@ -633,7 +633,7 @@ remote_dep_get_datatypes(parsec_execution_unit_t* eu_context,
         }
     }
 
-    if( 1 == origin->parsec_handle->handle_type ) {
+    if( 1 == origin->taskpool->taskpool_type ) {
         if( return_defer ) return -2;
         else {
             assert(origin->incoming_mask == origin->msg.output_mask );
@@ -671,8 +671,8 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
     assert((origin->incoming_mask & complete_mask) == complete_mask);
     origin->incoming_mask ^= complete_mask;
 
-    task.parsec_handle = origin->parsec_handle;
-    task.task_class = task.parsec_handle->task_classes_array[origin->msg.task_class_id];
+    task.taskpool = origin->taskpool;
+    task.task_class = task.taskpool->task_classes_array[origin->msg.task_class_id];
     task.priority = origin->priority;
     for(i = 0; i < task.task_class->nb_locals;
         task.locals[i] = origin->msg.locals[i], i++);
@@ -697,8 +697,8 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
 
 #ifdef PARSEC_DIST_COLLECTIVES
     /* Corresponding comment below on the propagation part */
-    if(0 == origin->incoming_mask && 0 == origin->parsec_handle->handle_type) {
-        remote_dep_inc_flying_messages(task.parsec_handle);
+    if(0 == origin->incoming_mask && 0 == origin->taskpool->taskpool_type) {
+        remote_dep_inc_flying_messages(task.taskpool);
         (void)parsec_atomic_add_32b(&origin->pending_ack, 1);
     }
 #endif  /* PARSEC_DIST_COLLECTIVES */
@@ -732,7 +732,7 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
     origin->outgoing_mask = 0;
 
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if( 0 == origin->parsec_handle->handle_type ) /* indicates it is a PTG handle */
+    if( 0 == origin->taskpool->taskpool_type ) /* indicates it is a PTG handle */
         parsec_remote_dep_propagate(eu_context, &task, origin);
 #endif  /* PARSEC_DIST_COLLECTIVES */
     /**
@@ -746,7 +746,7 @@ remote_dep_release_incoming(parsec_execution_unit_t* eu_context,
             PARSEC_DATA_COPY_RELEASE(origin->output[i].data.data);
     }
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if(0 == origin->parsec_handle->handle_type) {
+    if(0 == origin->taskpool->taskpool_type) {
         remote_dep_complete_and_cleanup(&origin, 1);
     } else {
         remote_deps_free(origin);
@@ -912,7 +912,7 @@ static int remote_dep_nothread_memcpy(parsec_execution_unit_t* eu_context,
                           cmd->memcpy.count, cmd->memcpy.datatype, 0, 0,
                           MPI_COMM_SELF, MPI_STATUS_IGNORE);
     PARSEC_DATA_COPY_RELEASE(cmd->memcpy.source);
-    remote_dep_dec_flying_messages(item->cmd.memcpy.parsec_handle);
+    remote_dep_dec_flying_messages(item->cmd.memcpy.taskpool);
     (void)eu_context;
     return (MPI_SUCCESS == rc ? 0 : -1);
 }
@@ -993,14 +993,14 @@ static void remote_dep_mpi_profiling_fini(void)
 #define TAKE_TIME_WITH_INFO(PROF, KEY, I, src, dst, rdw)                \
     if( parsec_profile_enabled ) {                                      \
         parsec_profile_remote_dep_mpi_info_t __info;                    \
-        parsec_handle_t *__object = parsec_handle_lookup( (rdw).handle_id ); \
-        const parsec_task_class_t *__tc = __object->task_classes_array[(rdw).task_class_id ]; \
+        parsec_taskpool_t *__tp = parsec_taskpool_lookup( (rdw).taskpool_id ); \
+        const parsec_task_class_t *__tc = __tp->task_classes_array[(rdw).task_class_id ]; \
         __info.rank_src = (src);                                        \
         __info.rank_dst = (dst);                                        \
-        __info.hid = __object->handle_id;                               \
+        __info.hid = __tp->taskpool_id;                                 \
         /** Recompute the base profiling key of that function */        \
         __info.fid = __tc->task_class_id;                               \
-        __info.tid = __tc->key(__object, (rdw).locals);                 \
+        __info.tid = __tc->key(__tp, (rdw).locals);                     \
         PARSEC_PROFILING_TRACE((PROF), (KEY), (I),                      \
                               PROFILE_OBJECT_ID_NULL, &__info);         \
     }
@@ -1757,7 +1757,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
         rc = remote_dep_get_datatypes(eu_context, deps);
 
         if( -1 == rc ) {
-            /* the corresponding parsec_handle doesn't exist, yet. Put it in unexpected */
+            /* the corresponding tp doesn't exist, yet. Put it in unexpected */
             char* packed_buffer;
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NOOBJ\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
@@ -1766,15 +1766,15 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
             packed_buffer = malloc(deps->msg.length);
             memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
             position += deps->msg.length;  /* move to the next order */
-            deps->parsec_handle = (parsec_handle_t*)packed_buffer;  /* temporary storage */
+            deps->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
             parsec_list_nolock_fifo_push(&dep_activates_noobj_fifo, (parsec_list_item_t*)deps);
             continue;
         } else {
-            assert(deps->parsec_handle != NULL);
+            assert(deps->taskpool != NULL);
             if( -2 == rc ) { /* DTD problems, defer activating this remote dep */
                 assert(deps->incoming_mask != deps->msg.output_mask);
                 int i;
-                parsec_dtd_handle_t *dtd_handle = (parsec_dtd_handle_t *)deps->parsec_handle;
+                parsec_dtd_taskpool_t *dtd_handle = (parsec_dtd_taskpool_t *)deps->taskpool;
 
                 for( i = 0; deps->msg.output_mask >> i; i++ ) {
                     if( !(deps->msg.output_mask & (1U<<i) ) ) continue;
@@ -1790,9 +1790,9 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
                     packed_buffer = malloc(deps->msg.length);
                     memcpy(packed_buffer, dep_activate_buff[cb->storage2] + position, deps->msg.length);
                     position += deps->msg.length;  /* move to the next order */
-                    deps->parsec_handle = (parsec_handle_t*)packed_buffer;  /* temporary storage */
+                    deps->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
 #if defined(PARSEC_PROF_TRACE)
-                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_handle->super.handle_id, NULL );
+                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_handle->super.taskpool_id, NULL );
 #endif
                     parsec_dtd_insert_remote_dep( dtd_handle, key, deps );
                 }
@@ -1823,17 +1823,17 @@ remote_dep_mpi_save_activate_cb(parsec_execution_unit_t* eu_context,
 static void remote_dep_mpi_new_object( parsec_execution_unit_t* eu_context,
                                        dep_cmd_item_t *item )
 {
-    parsec_handle_t* obj = item->cmd.new_object.obj;
+    parsec_taskpool_t* obj = item->cmd.new_object.obj;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
     PARSEC_LIST_NOLOCK_ITERATOR(&dep_activates_noobj_fifo, item,
     ({
         parsec_remote_deps_t* deps = (parsec_remote_deps_t*)item;
-        if( deps->msg.handle_id == obj->handle_id ) {
-            char* buffer = (char*)deps->parsec_handle;  /* get back the buffer from the "temporary" storage */
+        if( deps->msg.taskpool_id == obj->taskpool_id ) {
+            char* buffer = (char*)deps->taskpool;  /* get back the buffer from the "temporary" storage */
             int rc, position = 0;
-            deps->parsec_handle = NULL;
+            deps->taskpool = NULL;
             rc = remote_dep_get_datatypes(eu_context, deps); assert( -1 != rc );
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NEWOBJ\t% -8s\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
@@ -1860,8 +1860,8 @@ remote_dep_mpi_release_delayed_deps( parsec_execution_unit_t* eu_context,
     PINS(eu_context, ACTIVATE_CB_BEGIN, NULL);
     parsec_remote_deps_t *deps = item->cmd.release.deps;
     int rc, position = 0;
-    char* buffer = (char*)deps->parsec_handle;  /* get back the buffer from the "temporary" storage */
-    deps->parsec_handle = NULL;
+    char* buffer = (char*)deps->taskpool;  /* get back the buffer from the "temporary" storage */
+    deps->taskpool = NULL;
 
     rc = remote_dep_get_datatypes(eu_context, deps);
 

@@ -27,7 +27,7 @@
 #define PARSEC_cholesky_DEFAULT_ARENA    0
 
 typedef struct parsec_cholesky_object {
-  parsec_handle_t super;
+  parsec_taskpool_t super;
   /* The list of globals */
   parsec_ddesc_t* A /* data A */;
   int NB;

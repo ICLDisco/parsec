@@ -179,7 +179,7 @@ static char *dump_string(void **elt, void *_)
 
 /**
  * dump_globals:
- *   Dump a global symbol like #define ABC (__parsec_handle->ABC)
+ *   Dump a global symbol like #define ABC (__tp->ABC)
  */
 static char* dump_globals(void** elem, void *arg)
 {
@@ -189,7 +189,7 @@ static char* dump_globals(void** elem, void *arg)
     string_arena_init(sa);
     if( NULL != global->data )
         return NULL;
-    string_arena_add_string(sa, "%s (__parsec_handle->super.%s)", global->name, global->name );
+    string_arena_add_string(sa, "%s (__tp->super.%s)", global->name, global->name );
     return string_arena_get_string(sa);
 }
 
@@ -197,7 +197,7 @@ static char* dump_globals(void** elem, void *arg)
 /**
  * dump_data:
  *   Dump a global symbol like
- *     #define ABC(A0, A1) (__parsec_handle->ABC->data_of(__parsec_handle->ABC, A0, A1))
+ *     #define ABC(A0, A1) (__tp->ABC->data_of(__tp->ABC, A0, A1))
  */
 static char* dump_data(void** elem, void *arg)
 {
@@ -210,7 +210,7 @@ static char* dump_data(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)__parsec_handle->super.%s)->data_of((parsec_ddesc_t*)__parsec_handle->super.%s", 
+    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)__tp->super.%s)->data_of((parsec_ddesc_t*)__tp->super.%s", 
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -223,7 +223,7 @@ static char* dump_data(void** elem, void *arg)
 /**
  * dump_data_handle:
  *  Dump a global symbol like
- *  #define A_HANDLE(A0, A1) (__parsec_handle->ABC->data_handle_of(__parsec_handle->ABC, A0, A1))   
+ *  #define A_HANDLE(A0, A1) (__tp->ABC->data_handle_of(__tp->ABC, A0, A1))   
  */
 static char*
 dump_data_handle(void** elem, void *arg)
@@ -237,7 +237,7 @@ dump_data_handle(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)__parsec_handle->super.%s)->data_handle_of((parsec_ddesc_t*)__parsec_handle->super.%s", 
+    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)__tp->super.%s)->data_handle_of((parsec_ddesc_t*)__tp->super.%s", 
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -421,7 +421,7 @@ static char * dump_expr(void **elem, void *arg)
                     e->jdf_c_code.lineno);
             assert( NULL != e->jdf_c_code.fname );
         }
-        string_arena_add_string(sa, "%s((const parsec_handle_t*)__parsec_handle, %s)", 
+        string_arena_add_string(sa, "%s((const parsec_taskpool_t*)__tp, %s)", 
                                 e->jdf_c_code.fname, expr_info->assignments);
         break;
     default:
@@ -436,7 +436,7 @@ static char * dump_expr(void **elem, void *arg)
 
 /**
  * Dump a predicate like 
- *  #define F_pred(k, n, m) (__parsec_handle->ABC->rank == __parsec_handle->ABC->rank_of(__parsec_handle->ABC, k, n, m))
+ *  #define F_pred(k, n, m) (__tp->ABC->rank == __tp->ABC->rank_of(__tp->ABC, k, n, m))
  */
 static char* dump_predicate(void** elem, void *arg)
 {
@@ -455,7 +455,7 @@ static char* dump_predicate(void** elem, void *arg)
     expr_info.sa = sa3;
     expr_info.prefix = "";
     expr_info.assignments = "assignments";
-    string_arena_add_string(sa, "(((parsec_ddesc_t*)(__parsec_handle->super.%s))->myrank == ((parsec_ddesc_t*)(__parsec_handle->super.%s))->rank_of((parsec_ddesc_t*)__parsec_handle->super.%s, %s))", 
+    string_arena_add_string(sa, "(((parsec_ddesc_t*)(__tp->super.%s))->myrank == ((parsec_ddesc_t*)(__tp->super.%s))->rank_of((parsec_ddesc_t*)__tp->super.%s, %s))", 
                             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
                                            dump_expr, &expr_info,
@@ -793,7 +793,7 @@ static char *dump_startup_call(void **elem, void *arg)
     if( f->dep_flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         string_arena_init(sa);
         string_arena_add_string(sa,
-                                "_%s_startup_tasks(context, (__parsec_%s_internal_handle_t*)parsec_handle, pready_list);",
+                                "_%s_startup_tasks(context, (__parsec_%s_internal_handle_t*)tp, pready_list);",
                                 f->fname, jdf_basename);
         return string_arena_get_string(sa);
     }
@@ -1124,7 +1124,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
         datatype_index++;
     }
     houtput("\ntypedef struct parsec_%s_handle {\n", jdf_basename);
-    houtput("  parsec_handle_t super;\n");
+    houtput("  parsec_taskpool_t super;\n");
     {
         typed_globals_info_t prop = { sa2, NULL, NULL };
         houtput("  /* The list of globals */\n"
@@ -1208,7 +1208,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "   info.desc = (parsec_ddesc_t*)refdesc;                     \\\n"
             "   info.id = refid;                                         \\\n"
             "   PARSEC_PROFILING_TRACE(context->eu_profile,               \\\n"
-            "                         __parsec_handle->super.super.profiling_array[(key)],\\\n"
+            "                         __tp->super.super.profiling_array[(key)],\\\n"
             "                         eid, (void*)&info);                \\\n"
             "  } while(0);\n"
             "#else\n"
@@ -1264,7 +1264,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("#define %s_repo (__parsec_handle->%s_repository)\n",
+                coutput("#define %s_repo (__tp->%s_repository)\n",
                         f->fname, f->fname);
         }
     }
@@ -1332,11 +1332,11 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
         ai.idx = 0;
         ai.holder = "assignments";
         ai.expr = e;
-        coutput("static inline int %s_fct(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments)\n"
+        coutput("static inline int %s_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)\n"
                 "{\n"
-                "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t*)__parsec_handle_parent;\n"
+                "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)tp;\n"
                 "%s\n"
-                "  (void)__parsec_handle; (void)assignments;\n"
+                "  (void)__tp; (void)assignments;\n"
                 "  return %s;\n"
                 "}\n", name, jdf_basename, jdf_basename,
                 UTIL_DUMP_LIST_FIELD(sa2, context, next, name, 
@@ -1370,12 +1370,12 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     ai.idx = 0;
     ai.holder = "assignments";
     ai.expr = NULL;
-    coutput("static inline int %s_fct(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments)\n"
+    coutput("static inline int %s_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t*)__parsec_handle_parent;\n"
+            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)tp;\n"
             "%s\n"
             "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
-            "  (void)__parsec_handle;\n"
+            "  (void)__tp;\n"
             "%s\n"
             "  /* Compute Predicate */\n"
             "  return %s_pred%s;\n"
@@ -1749,7 +1749,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int %s(parsec_context_t *context, const __parsec_%s_internal_handle_t *__parsec_handle, parsec_task_t** pready_list)\n"
+    coutput("static int %s(parsec_context_t *context, const __parsec_%s_internal_handle_t *__tp, parsec_task_t** pready_list)\n"
             "{\n"
             "  parsec_task_t* new_context;\n"
             "  assignment_t *assignments = NULL;\n"
@@ -1815,12 +1815,12 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             "%s  PARSEC_LIST_ITEM_SINGLETON( new_context );\n",
             indent(nesting),
             indent(nesting));
-    coutput("%s  new_context->parsec_handle = (parsec_handle_t*)__parsec_handle;\n"
+    coutput("%s  new_context->taskpool = (parsec_taskpool_t*)__tp;\n"
             "%s  new_context->task_class = (const parsec_task_class_t*)&%s_%s;\n",
             indent(nesting),
             indent(nesting), jdf_basename, f->fname);
     if( NULL != f->priority ) {
-        coutput("%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->parsec_handle, new_context->locals);\n",
+        coutput("%s  new_context->priority = priority_of_%s_%s_as_expr_fct(new_context->taskpool, new_context->locals);\n",
                 indent(nesting), jdf_basename, f->fname);
     } else {
         coutput("%s  new_context->priority = 0;\n", indent(nesting));
@@ -1879,7 +1879,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int %s(__parsec_%s_internal_handle_t *__parsec_handle)\n"
+    coutput("static int %s(__parsec_%s_internal_handle_t *__tp)\n"
             "{\n"
             "  parsec_dependencies_t *dep = NULL;\n"
             "  assignment_t assignments[MAX_LOCAL_COUNT];(void) assignments;\n"
@@ -1902,7 +1902,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
             UTIL_DUMP_LIST_FIELD(sa2, f->parameters, next, name, dump_string, NULL,
                                  "  int32_t ", " ", "_end,", "_end;\n"));
 #endif
-    coutput("  (void)__parsec_handle; (void)__foundone;\n");
+    coutput("  (void)__tp; (void)__foundone;\n");
     /* The first definitions are the parameter definitions, and only those */
     if( NULL != f->parameters->next ) {
         for(dl = f->definitions, pl = f->parameters; pl != NULL; dl = dl->next, pl = pl->next ) {
@@ -2060,8 +2060,8 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
         strcmp( pf->fname, f->fname);
         nesting++, pf = pf->next) /* nothing */;
 
-    coutput("  __parsec_handle->super.super.dependencies_array[%d] = dep;\n"
-            "  __parsec_handle->super.super.nb_local_tasks += nb_tasks;\n"
+    coutput("  __tp->super.super.dependencies_array[%d] = dep;\n"
+            "  __tp->super.super.nb_local_tasks += nb_tasks;\n"
             "  return nb_tasks;\n"
             "}\n"
             "\n",
@@ -2085,9 +2085,9 @@ static void jdf_generate_simulation_cost_fct(const jdf_t *jdf, const jdf_functio
     coutput("#if defined(PARSEC_SIM)\n"
             "static int %s(const parsec_task_t *this_task)\n"
             "{\n"
-            "  const parsec_handle_t *__parsec_handle = (const parsec_handle_t*)this_task->parsec_handle;\n"
+            "  const parsec_taskpool_t *__tp = (const parsec_taskpool_t*)this_task->taskpool;\n"
             "%s"
-            "  (void)__parsec_handle;\n",
+            "  (void)__tp;\n",
             prefix, UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
                                          dump_assignments, &ai, "", "  int ", ";\n", ";\n"));
     
@@ -2344,7 +2344,7 @@ static void jdf_generate_predeclarations( const jdf_t *jdf )
 		    jdf_basename, f->fname); 
         coutput("static const parsec_task_class_t %s_%s;\n", jdf_basename, f->fname);
         if( NULL != f->priority ) {
-            coutput("static inline int priority_of_%s_%s_as_expr_fct(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments);\n", 
+            coutput("static inline int priority_of_%s_%s_as_expr_fct(const parsec_taskpool_t *tp, const assignment_t *assignments);\n", 
                     jdf_basename, f->fname);
         }
     }
@@ -2375,7 +2375,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
     string_arena_t *sa1 = string_arena_new(64);
     string_arena_t *sa2 = string_arena_new(64);
 
-    coutput("static void %s_startup(parsec_context_t *context, parsec_handle_t *parsec_handle, parsec_task_t** pready_list)\n"
+    coutput("static void %s_startup(parsec_context_t *context, parsec_taskpool_t *tp, parsec_task_t** pready_list)\n"
             "{\n"
             "%s\n"
             "}\n",
@@ -2394,8 +2394,8 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
     coutput("void parsec_%s_destroy( parsec_%s_handle_t *o )\n"
             "{\n"
-            "  parsec_handle_t *d = (parsec_handle_t *)o;\n"
-            "  __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t*)o; (void)__parsec_handle;\n"
+            "  parsec_taskpool_t *d = (parsec_taskpool_t *)o;\n"
+            "  __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t*)o; (void)__tp;\n"
             "  int i;\n",
             jdf_basename, jdf_basename,
             jdf_basename,
@@ -2421,7 +2421,7 @@ static void jdf_generate_destructor( const jdf_t *jdf )
 
         for( f = jdf->functions; NULL != f; f = f->next ) {
             if( 0 != function_has_data_output(f) )
-                coutput("   data_repo_destroy_nothreadsafe(__parsec_handle->%s_repository);\n",
+                coutput("   data_repo_destroy_nothreadsafe(__tp->%s_repository);\n",
                         f->fname);
         }
     }
@@ -2508,8 +2508,8 @@ static void jdf_generate_constructor( const jdf_t* jdf )
                             "", "", "\n", "\n"));
 
     coutput("  _res->super.super.startup_hook = %s_startup;\n"
-            "  (void)parsec_handle_register((parsec_handle_t*)_res);\n"
-            "  return (parsec_%s_handle_t*)_res;\n"
+            "  (void)parsec_taskpool_register((parsec_taskpool_t*)_res);\n"
+            "  return (parsec_%s_taskpool_t*)_res;\n"
             "}\n\n",
             jdf_basename, jdf_basename);
 
@@ -2527,10 +2527,10 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 
     (void)jdf;
 
-    coutput("static inline uint64_t %s_hash(const __parsec_%s_internal_handle_t *__parsec_handle, const assignment_t *assignments)\n"
+    coutput("static inline uint64_t %s_hash(const __parsec_%s_internal_handle_t *__tp, const assignment_t *assignments)\n"
             "{\n"
             "  uint64_t __h = 0;\n"
-            "  (void)__parsec_handle;\n",
+            "  (void)__tp;\n",
             f->fname, jdf_basename);
 
     info.prefix = "";
@@ -2679,7 +2679,7 @@ static void jdf_generate_code_call_initialization(const jdf_t *jdf, const jdf_ca
             }
         }
         coutput("%s",  jdf_create_code_assignments_calls(sa, strlen(spaces), jdf, "tass", call->parameters));
-        coutput("%s  e%s = data_repo_lookup_entry( %s_repo, %s_hash( __parsec_handle, tass ));\n"
+        coutput("%s  e%s = data_repo_lookup_entry( %s_repo, %s_hash( __tp, tass ));\n"
                 "%s  g%s = e%s->data[%d];\n",
                 spaces, f->varname, call->func_or_mem, call->func_or_mem, 
                 spaces, f->varname, f->varname, dataindex);
@@ -2798,8 +2798,8 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
 /*         UTIL_DUMP_LIST(sa, call->parameters, next, */
 /*                        dump_expr, (void**)&info, "", "", ", ", ""); */
 /*         coutput("%s  if( ADATA(this_task->data[%d].data) != %s(%s) ) {\n" */
-/*                 "%s    parsec_remote_dep_memcpy( context, this_task->parsec_handle, %s(%s), this_task->data[%d].data, \n" */
-/*                 "%s                             __parsec_handle->super.arenas[PARSEC_%s_%s_ARENA]->opaque_dtt );\n" */
+/*                 "%s    parsec_remote_dep_memcpy( context, this_task->taskpool, %s(%s), this_task->data[%d].data, \n" */
+/*                 "%s                             __tp->super.arenas[PARSEC_%s_%s_ARENA]->opaque_dtt );\n" */
 /*                 "%s  }\n",                 */
 /*                 spaces, dataflow_index, call->func_or_mem, string_arena_get_string(sa), */
 /*                 spaces, call->func_or_mem, string_arena_get_string(sa), dataflow_index,  */
@@ -2909,7 +2909,7 @@ static void jdf_generate_code_grapher_task_done(const jdf_t *jdf, const jdf_func
 {
     (void)jdf;
 
-    coutput("  parsec_prof_grapher_task(%s, context->eu_id, %s_hash(__parsec_handle, %s->locals));\n",
+    coutput("  parsec_prof_grapher_task(%s, context->eu_id, %s_hash(__tp, %s->locals));\n",
             context_name, f->fname, context_name);
 }
 
@@ -3005,15 +3005,15 @@ jdf_generate_code_callback_function(const char *name)
     coutput("void %s_callback_function(parsec_execution_unit_t *exec_unit, parsec_task_t *exec_context)\n"
 	    "{\n"
 	    "    //fprintf(stderr, \"Début de la fonction callback %s\\n\");\n"
-	    "    parsec_handle_t *parsec_handle = exec_context->parsec_handle;\n"
+	    "    parsec_taskpool_t *tp = exec_context->taskpool;\n"
 	    "    int rc = 0;\n"
 	    "    if( NULL != exec_context->task_class->complete_execution )\n"
 	    "        rc = exec_context->task_class->complete_execution( exec_unit, exec_context );\n\n"
-	    "    if( 0 ==  parsec_atomic_dec_32b( &(parsec_handle->nb_local_tasks) )){\n"
+	    "    if( 0 ==  parsec_atomic_dec_32b( &(tp->nb_local_tasks) )){\n"
 	    "        /* A parsec object has been completed. Call the attached callback if\n"    
 	    "         * necessary, then update the main engine.*/ \n"
-	    "        if( NULL != parsec_handle->complete_cb ) {\n"
-            "            (void)parsec_handle->complete_cb( parsec_handle, parsec_handle->complete_cb_data );\n"
+	    "        if( NULL != tp->complete_cb ) {\n"
+            "            (void)tp->complete_cb( tp, tp->complete_cb_data );\n"
 	    "        }\n"
 	    "        parsec_atomic_dec_32b( &(exec_unit->master_context->active_objects) );\n"
 	    "    }\n"
@@ -3055,9 +3055,9 @@ jdf_generate_code_starpu_task_create(const jdf_t *jdf, const jdf_function_entry_
 	    "    struct func_args *arg = malloc(sizeof(struct func_args));\n"
 	    /* "    callback_arg->exec_unit     = context;\n" */
 	    /* "    callback_arg->exec_context  = this_task;\n" */
-            "    const __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t *)this_task->parsec_handle; (void) __parsec_handle;\n"
+            "    const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)this_task->taskpool; (void) __tp;\n"
             "    assignment_t tass[MAX_PARAM_COUNT];\n"
-            "    (void)context; (void)__parsec_handle; (void)tass;\n"
+            "    (void)context; (void)__tp; (void)tass;\n"
             "#if defined(PARSEC_SIM)\n"
             "    int __parsec_simulation_date = 0;\n"
             "#endif\n"
@@ -3107,7 +3107,7 @@ jdf_generate_code_starpu_task_create(const jdf_t *jdf, const jdf_function_entry_
     }
 
 //    coutput("    arg->obj = (void*) obj_temp;\n");
-    coutput("    arg->obj = (void*) __parsec_handle;\n");
+    coutput("    arg->obj = (void*) __tp;\n");
   
     coutput("    /* Definition of the task */\n"
 	    "    task->cl = &%s_cl;\n"
@@ -3116,7 +3116,7 @@ jdf_generate_code_starpu_task_create(const jdf_t *jdf, const jdf_function_entry_
     
 
     /* coutput("    /\* Global variables must be saved *\/ \n" */
-    /* 	    "    memcpy(obj_temp, __parsec_handle, sizeof(struct __parsec_%s_internal_handle));\n", */
+    /* 	    "    memcpy(obj_temp, __tp, sizeof(struct __parsec_%s_internal_handle));\n", */
     /* 	    jdf_basename); */
 
     /* coutput("    /\* Callback function for task completion *\/ \n" */
@@ -3214,7 +3214,7 @@ jdf_generate_code_gpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
         linfo.sa = sa2;
         linfo.assignments = "this_task->locals";
 
-        /* cudaoutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __parsec_handle, this_task->locals), __parsec_handle->super.%s, ((parsec_ddesc_t*)(__parsec_handle->super.%s))->data_key((parsec_ddesc_t*)__parsec_handle->super.%s, %s) );\n", */
+        /* cudaoutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_ddesc_t*)(__tp->super.%s))->data_key((parsec_ddesc_t*)__tp->super.%s, %s) );\n", */
         /*         f->fname, */
         /*         f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem, */
         /*         UTIL_DUMP_LIST(sa3, f->predicate->parameters, next, */
@@ -3268,8 +3268,8 @@ jdf_generate_code_cpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
 	    "    assignment_t tass[MAX_PARAM_COUNT];\n"
 	    "    (void) tass;\n"
 	    "    struct func_args *args = (struct func_args*) cl_arg;\n"
-	    "    const __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t *)(args->obj);\n"
-	    "    (void) __parsec_handle;\n"
+	    "    const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)(args->obj);\n"
+	    "    (void) __tp;\n"
 	    "#if defined(PARSEC_SIM)\n"
             "  int __parsec_simulation_date = 0;\n"
             "#endif\n",
@@ -3309,7 +3309,7 @@ jdf_generate_code_cpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
         linfo.sa = sa2;
         linfo.assignments = "this_task->locals";
 
-        /* coutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __parsec_handle, this_task->locals), __parsec_handle->super.%s, ((parsec_ddesc_t*)(__parsec_handle->super.%s))->data_key((parsec_ddesc_t*)__parsec_handle->super.%s, %s) );\n", */
+        /* coutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_ddesc_t*)(__tp->super.%s))->data_key((parsec_ddesc_t*)__tp->super.%s, %s) );\n", */
         /*         f->fname, */
         /*         f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem, */
         /*         UTIL_DUMP_LIST(sa3, f->predicate->parameters, next, */
@@ -3331,7 +3331,7 @@ jdf_generate_code_cpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
 
     /* coutput("    %s_callback_function((void*)(args->callback));\n", name); */
 
-//    coutput("    free((__parsec_%s_internal_handle_t*)__parsec_handle);\n", jdf_basename);
+//    coutput("    free((__parsec_%s_internal_handle_t*)__tp);\n", jdf_basename);
     coutput("    free(cl_arg);\n"
 	    "}\n\n");
     
@@ -3437,9 +3437,9 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         jdf_generate_code_gpu_function(jdf, f, name);
     /* coutput("static int %s(parsec_execution_unit_t *context, parsec_task_t *this_task)\n" */
     /*         "{\n" */
-    /*         "  const __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t *)this_task->parsec_handle;\n" */
+    /*         "  const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)this_task->taskpool;\n" */
     /*         "  assignment_t tass[MAX_PARAM_COUNT];\n" */
-    /*         "  (void)context; (void)__parsec_handle; (void)tass;\n" */
+    /*         "  (void)context; (void)__tp; (void)tass;\n" */
     /*         "#if defined(PARSEC_SIM)\n" */
     /*         "  int __parsec_simulation_date = 0;\n" */
     /*         "#endif\n" */
@@ -3504,7 +3504,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     /*     linfo.sa = sa2; */
     /*     linfo.assignments = "this_task->locals"; */
 
-    /*     coutput("  TAKE_TIME(context, 2*this_task->task_class->tank_class_id, %s_hash( __parsec_handle, this_task->locals), __parsec_handle->super.%s, ((parsec_ddesc_t*)(__parsec_handle->super.%s))->data_key((parsec_ddesc_t*)__parsec_handle->super.%s, %s) );\n", */
+    /*     coutput("  TAKE_TIME(context, 2*this_task->task_class->tank_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_ddesc_t*)(__tp->super.%s))->data_key((parsec_ddesc_t*)__tp->super.%s, %s) );\n", */
     /*             f->fname, */
     /*             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem, */
     /*             UTIL_DUMP_LIST(sa3, f->predicate->parameters, next, */
@@ -3528,8 +3528,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     coutput("static int complete_%s(parsec_execution_unit_t *context, parsec_task_t *this_task)\n"
             "{\n"
 	    "   // fprintf(stderr, \"début de la fonction COMPLETE %s\\n\");\n"
-            "  const __parsec_%s_internal_handle_t *__parsec_handle = (__parsec_%s_internal_handle_t *)this_task->parsec_handle;\n"
-            "  (void)context; (void)__parsec_handle;\n"
+            "  const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)this_task->taskpool;\n"
+            "  (void)context; (void)__tp;\n"
             "%s",
             name, name, jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa, f->definitions, next, name, 
@@ -3540,7 +3540,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
     /* if( profile_on ) { */
-    /*     coutput("  TAKE_TIME(context,2*this_task->task_class->task_class_id+1, %s_hash( __parsec_handle, this_task->locals ), NULL, 0);\n", */
+    /*     coutput("  TAKE_TIME(context,2*this_task->task_class->task_class_id+1, %s_hash( __tp, this_task->locals ), NULL, 0);\n", */
     /*             f->fname); */
     /* } */
     jdf_generate_code_papi_events_after(jdf, f);
@@ -3666,19 +3666,19 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     coutput("static int %s(parsec_execution_unit_t *eu, parsec_task_t *context, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t *)context->parsec_handle;\n"
+            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t *)context->taskpool;\n"
             "  parsec_release_dep_fct_arg_t arg;\n"
             "  arg.nb_released = 0;\n"
             "  arg.output_usage = 0;\n"
             "  arg.action_mask = action_mask;\n"
             "  arg.deps = deps;\n"
             "  arg.ready_list = NULL;\n"
-            "  (void)__parsec_handle;\n",
+            "  (void)__tp;\n",
             name, jdf_basename, jdf_basename);
 
     if( 0 != has_output_data )
         coutput("  if( action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS ) {\n"
-                "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__parsec_handle, context->locals) );\n"
+                "    arg.output_entry = data_repo_lookup_entry_and_create( eu, %s_repo, %s_hash(__tp, context->locals) );\n"
                 "#if defined(PARSEC_SIM)\n"
                 "    assert(arg.output_entry->sim_exec_date == 0);\n"
                 "    arg.output_entry->sim_exec_date = context->sim_exec_date;\n"
@@ -3855,7 +3855,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
      */
     /* string_arena_add_string(sa_open,  */
     /*                         "#if defined(DISTRIBUTED)\n" */
-    /*                         "%s%s  rank_dst = ((parsec_ddesc_t*)__parsec_handle->super.%s)->rank_of((parsec_ddesc_t*)__parsec_handle->super.%s, %s);\n" */
+    /*                         "%s%s  rank_dst = ((parsec_ddesc_t*)__tp->super.%s)->rank_of((parsec_ddesc_t*)__tp->super.%s, %s);\n" */
     /*                         "#endif\n", */
     /*                         prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem, */
     /*                         UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next, */
@@ -3884,7 +3884,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
 
     if( NULL != targetf->priority ) {
         string_arena_add_string(sa_open,
-                                "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(this_task->parsec_handle, nc.locals);\n",
+                                "%s%s  %s.priority = priority_of_%s_%s_as_expr_fct(this_task->taskpool, nc.locals);\n",
                                 prefix, indent(nbopen), var, jdf_basename, targetf->fname);
     } else {
         string_arena_add_string(sa_open, "%s%s  %s.priority = 0;\n",
@@ -3937,12 +3937,12 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "%s(parsec_execution_unit_t *eu, parsec_task_t *this_task,\n"
             "               uint32_t action_mask, parsec_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t*)this_task->parsec_handle;\n"
+            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)this_task->taskpool;\n"
             "  parsec_task_t nc;\n"
             "  parsec_arena_t* arena = NULL;\n"
             "  int rank_src = 0, rank_dst = 0;\n"
             "%s"
-            "  (void)rank_src; (void)rank_dst; (void)__parsec_handle;\n",
+            "  (void)rank_src; (void)rank_dst; (void)__tp;\n",
             name,
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name, 
@@ -3951,9 +3951,9 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             UTIL_DUMP_LIST_FIELD(sa1, f->definitions, next, name,
                                  dump_string, NULL, "", "  (void)", ";", ";\n"));
 
-    coutput("  nc.parsec_handle = this_task->parsec_handle;\n");
+    coutput("  nc.taskpool = this_task->taskpool;\n");
     /* coutput("#if defined(DISTRIBUTED)\n" */
-    /*         "  rank_src = ((parsec_ddesc_t*)__parsec_handle->super.%s)->rank_of((parsec_ddesc_t*)__parsec_handle->super.%s, %s);\n" */
+    /*         "  rank_src = ((parsec_ddesc_t*)__tp->super.%s)->rank_of((parsec_ddesc_t*)__tp->super.%s, %s);\n" */
     /*         "#endif\n", */
     /*         f->predicate->func_or_mem, f->predicate->func_or_mem, */
     /*         UTIL_DUMP_LIST(sa, f->predicate->parameters, next, */
@@ -3972,7 +3972,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
                 if( JDF_FLOW_TYPE_CTL & fl->flow_flags ) {
                     string_arena_add_string(sa, "NULL");
                 } else {
-                    string_arena_add_string(sa, "__parsec_handle->super.arenas[PARSEC_%s_%s_ARENA]",
+                    string_arena_add_string(sa, "__tp->super.arenas[PARSEC_%s_%s_ARENA]",
                                             jdf_basename, dl->datatype_name);
                 }
                 /* string_arena_add_string(sa_coutput, */
@@ -4094,10 +4094,10 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
     assert(JDF_OP_IS_C_CODE(expr->op));
     asprintf(&expr->jdf_c_code.fname, "%s_inline_c_expr%d_line_%d", 
              jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
-    coutput("static inline int %s(const parsec_handle_t *__parsec_handle_parent, const assignment_t *assignments)\n"
+    coutput("static inline int %s(const parsec_taskpool_t *tp, const assignment_t *assignments)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__parsec_handle = (const __parsec_%s_internal_handle_t*)__parsec_handle_parent;\n"
-            "  (void)__parsec_handle;\n",
+            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)tp;\n"
+            "  (void)__tp;\n",
             expr->jdf_c_code.fname, jdf_basename, jdf_basename);
 
     if( NULL != expr->jdf_c_code.function_context ) {

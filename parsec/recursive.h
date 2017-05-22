@@ -10,12 +10,12 @@
 typedef struct cb_data_s {
     parsec_execution_unit_t    *eu;
     parsec_task_t *context;
-    void (*destruct)( parsec_handle_t * );
+    void (*destruct)( parsec_taskpool_t * );
     int nbdesc;
     parsec_ddesc_t *desc[1];
 } cb_data_t;
 
-static inline int parsec_recursivecall_callback(parsec_handle_t* parsec_handle, void* cb_data)
+static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_data)
 {
     int i, rc = 0;
     cb_data_t* data = (cb_data_t*)cb_data;
@@ -27,7 +27,7 @@ static inline int parsec_recursivecall_callback(parsec_handle_t* parsec_handle, 
         free( data->desc[i] );
     }
 
-    data->destruct( parsec_handle );
+    data->destruct( tp );
     free(data);
 
     return rc;
@@ -35,8 +35,8 @@ static inline int parsec_recursivecall_callback(parsec_handle_t* parsec_handle, 
 
 static inline int parsec_recursivecall( parsec_execution_unit_t    *eu,
                                        parsec_task_t *context,
-                                       parsec_handle_t            *handle,
-                                       void (*handle_destroy)(parsec_handle_t *),
+                                       parsec_taskpool_t            *tp,
+                                       void (*taskpool_destroy)(parsec_taskpool_t *),
                                        int nbdesc,
                                        ... )
 {
@@ -45,13 +45,13 @@ static inline int parsec_recursivecall( parsec_execution_unit_t    *eu,
     va_list ap;
 
     /* Set mask to be used only on CPU */
-    parsec_devices_handle_restrict( handle, PARSEC_DEV_CPU );
+    parsec_devices_taskpool_restrict( tp, PARSEC_DEV_CPU );
 
     /* Callback */
     cbdata = (cb_data_t *) malloc( sizeof(cb_data_t) + (nbdesc-1)*sizeof(parsec_ddesc_t*));
     cbdata->eu       = eu;
     cbdata->context  = context;
-    cbdata->destruct = handle_destroy;
+    cbdata->destruct = taskpool_destroy;
     cbdata->nbdesc   = nbdesc;
 
     /* Get descriptors */
@@ -61,11 +61,10 @@ static inline int parsec_recursivecall( parsec_execution_unit_t    *eu,
     }
     va_end(ap);
 
-    parsec_set_complete_callback( handle, parsec_recursivecall_callback,
+    parsec_set_complete_callback( tp, parsec_recursivecall_callback,
                                  (void *)cbdata );
 
-    parsec_enqueue( eu->virtual_process->parsec_context,
-                   handle );
+    parsec_enqueue( eu->virtual_process->parsec_context, tp);
 
     return -1;
 }

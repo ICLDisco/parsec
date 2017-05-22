@@ -67,11 +67,11 @@ static inline int dplasma_iceil(int a, int b) { return (a + b - 1) / b; };
 int dplasma_map(  parsec_context_t *parsec, PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t op, void *op_args);
 int dplasma_map2( parsec_context_t *parsec, PLASMA_enum uplo, PLASMA_enum trans, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 
-parsec_handle_t *dplasma_map_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t op, void *op_args);
-parsec_handle_t *dplasma_map2_New( PLASMA_enum uplo, PLASMA_enum trans, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
+parsec_taskpool_t *dplasma_map_New( PLASMA_enum uplo, tiled_matrix_desc_t *A, tiled_matrix_unary_op_t op, void *op_args);
+parsec_taskpool_t *dplasma_map2_New( PLASMA_enum uplo, PLASMA_enum trans, const tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, tiled_matrix_binary_op_t op, void *op_args);
 
-void dplasma_map_Destruct( parsec_handle_t *o );
-void dplasma_map2_Destruct( parsec_handle_t *o );
+void dplasma_map_Destruct( parsec_taskpool_t *o );
+void dplasma_map2_Destruct( parsec_taskpool_t *o );
 
 END_C_DECLS
 

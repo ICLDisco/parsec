@@ -192,7 +192,7 @@ insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
 
     int *total, *iteration, count = 0;
 
-    parsec_handle_t *parsec_dtd_handle = (parsec_handle_t *)this_task->parsec_handle;
+    parsec_taskpool_t *dtd_tp = (parsec_taskpool_t *)this_task->taskpool;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE,   &total,
@@ -216,7 +216,7 @@ insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
         tempkn = k == ddescA->super.nt-1 ? ddescA->super.n-(k*ddescA->super.nb) : ddescA->super.nb;
         ldak = BLKLDD( (tiled_matrix_desc_t*)ddescA, k);
 
-        parsec_insert_task( parsec_dtd_handle,      parsec_core_geqrt,
+        parsec_insert_task( dtd_tp,      parsec_core_geqrt,
                           (ddescA->super.nt-k)*(ddescA->super.nt-k)*(ddescA->super.nt-k), "geqrt",
                            sizeof(int),           &tempkm,                           VALUE,
                            sizeof(int),           &tempkn,                           VALUE,
@@ -232,7 +232,7 @@ insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
         for( n = k+1; n < ddescA->super.nt; n++, count++ ) {
             tempnn = n == ddescA->super.nt-1 ? ddescA->super.n-(n*ddescA->super.nb) : ddescA->super.nb;
 
-            parsec_insert_task( parsec_dtd_handle,      parsec_core_unmqr,          0,    "unmqr",
+            parsec_insert_task( dtd_tp,      parsec_core_unmqr,          0,    "unmqr",
                                sizeof(PLASMA_enum),   &side,                              VALUE,
                                sizeof(PLASMA_enum),   &trans,                             VALUE,
                                sizeof(int),           &tempkm,                            VALUE,
@@ -249,13 +249,13 @@ insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
                                sizeof(int),           &ddescT->super.nb,                   VALUE,
                                0 );
         }
-        parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(T, k, k) );
+        parsec_dtd_data_flush( dtd_tp, TILE_OF(T, k, k) );
 
         for( m = k+1; m < ddescA->super.mt; m++, count++ ) {
             tempmm = m == ddescA->super.mt-1 ? ddescA->super.m-(m*ddescA->super.mb) : ddescA->super.mb;
             ldam = BLKLDD( (tiled_matrix_desc_t*)ddescA, m);
 
-            parsec_insert_task( parsec_dtd_handle,      parsec_core_tsqrt,
+            parsec_insert_task( dtd_tp,      parsec_core_tsqrt,
                               (ddescA->super.mt-k)*(ddescA->super.mt-k)*(ddescA->super.mt-k),  "tsqrt",
                                sizeof(PLASMA_enum),   &tempmm,                            VALUE,
                                sizeof(int),           &tempkn,                            VALUE,
@@ -274,7 +274,7 @@ insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
                 tempnn = n == ddescA->super.nt-1 ? ddescA->super.n-(n*ddescA->super.nb) : ddescA->super.nb;
                 int ldwork = PlasmaLeft == PlasmaLeft ? ib : ddescT->super.nb;
 
-                parsec_insert_task( parsec_dtd_handle,      parsec_core_tsmqr,
+                parsec_insert_task( dtd_tp,      parsec_core_tsmqr,
                                   (ddescA->super.mt-k)*(ddescA->super.mt-n)*(ddescA->super.mt-n),        "tsmqr",
                                    sizeof(PLASMA_enum),   &side,                             VALUE,
                                    sizeof(PLASMA_enum),   &trans,                            VALUE,
@@ -296,19 +296,19 @@ insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
                                    sizeof(int),           &ldwork,                           VALUE,
                                    0 );
             }
-            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(T, m, k) );
+            parsec_dtd_data_flush( dtd_tp, TILE_OF(T, m, k) );
         }
         for( n = k+1; n < ddescA->super.nt; n++, count++ ) {
-            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, k, n) );
+            parsec_dtd_data_flush( dtd_tp, TILE_OF(A, k, n) );
         }
         for( m = k+1; m < ddescA->super.mt; m++, count++ ) {
-            parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, m, k) );
+            parsec_dtd_data_flush( dtd_tp, TILE_OF(A, m, k) );
         }
-        parsec_dtd_data_flush( parsec_dtd_handle, TILE_OF(A, k, k) );
+        parsec_dtd_data_flush( dtd_tp, TILE_OF(A, k, k) );
     }
 
-    parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)ddescA );
-    parsec_dtd_data_flush_all( parsec_dtd_handle, (parsec_ddesc_t *)ddescT );
+    parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)ddescA );
+    parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)ddescT );
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -395,7 +395,7 @@ int main(int argc, char ** argv)
     if(loud > 3) printf("Done\n");
 
     /* Getting new parsec handle of dtd type */
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     int minMNT = min(ddescA.super.mt, ddescA.super.nt);
 
@@ -424,7 +424,7 @@ int main(int argc, char ** argv)
                                  parsec_datatype_double_complex_t, ddescT.super.mb, ddescT.super.nb, -1);
 
     /* Registering the handle with parsec context */
-    parsec_enqueue(parsec, parsec_dtd_handle);
+    parsec_enqueue(parsec, dtd_tp);
 
     SYNC_TIME_START();
 
@@ -439,7 +439,7 @@ int main(int argc, char ** argv)
     int iteration = 0, total = minMNT;
 
 
-    parsec_insert_task( parsec_dtd_handle,       insert_task_geqrf, 0, "insert_task_geeqrf",
+    parsec_insert_task( dtd_tp,       insert_task_geqrf, 0, "insert_task_geeqrf",
                        sizeof(int),           &total,             VALUE,
                        sizeof(int),           &iteration,         VALUE,
                        sizeof(two_dim_block_cyclic_t *), &ddescA, SCRATCH,
@@ -448,7 +448,7 @@ int main(int argc, char ** argv)
 
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     /* Waiting on all handle and turning everything off for this context */
     parsec_context_wait( parsec );
@@ -458,7 +458,7 @@ int main(int argc, char ** argv)
                            gflops=(flops/1e9)/sync_time_elapsed));
 
     /* Cleaning up the parsec handle */
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     if( check ) {
         if (M >= N) {

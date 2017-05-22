@@ -56,7 +56,7 @@ int dplasma_zprint( parsec_context_t *parsec,
                     PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A)
 {
-    parsec_zprint_handle_t* handle;
+    parsec_zprint_taskpool_t* tp;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -67,20 +67,20 @@ int dplasma_zprint( parsec_context_t *parsec,
         return -3;
     }
 
-    handle = parsec_zprint_new( uplo, A);
+    tp = parsec_zprint_new( uplo, A);
 
-    if (handle != NULL) {
+    if (tp != NULL) {
         /* Default type */
-        dplasma_add2arena_tile( handle->arenas[PARSEC_zprint_DEFAULT_ARENA],
+        dplasma_add2arena_tile( tp->arenas[PARSEC_zprint_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(parsec_complex64_t),
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, A->mb );
 
-        parsec_enqueue(parsec, (parsec_handle_t*)handle);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)tp);
         dplasma_wait_until_completion(parsec);
 
-        parsec_matrix_del2arena( handle->arenas[PARSEC_zprint_DEFAULT_ARENA] );
-        PARSEC_INTERNAL_HANDLE_DESTRUCT( handle );
+        parsec_matrix_del2arena( tp->arenas[PARSEC_zprint_DEFAULT_ARENA] );
+        PARSEC_INTERNAL_TASKPOOL_DESTRUCT( tp );
         return 0;
     }
     return -101;

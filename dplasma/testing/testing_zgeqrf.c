@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -85,8 +85,8 @@ int main(int argc, char ** argv)
     if(iparam[IPARAM_HNB] != iparam[IPARAM_NB])
     {
         SYNC_TIME_START();
-        parsec_handle_t* PARSEC_zgeqrf = dplasma_zgeqrf_New( (tiled_matrix_desc_t*)&ddescA,
-                                                           (tiled_matrix_desc_t*)&ddescT );
+        parsec_taskpool_t* PARSEC_zgeqrf = dplasma_zgeqrf_New( (tiled_matrix_desc_t*)&ddescA,
+                                                               (tiled_matrix_desc_t*)&ddescT );
         /* Set the recursive size */
         dplasma_zgeqrf_setrecursive( PARSEC_zgeqrf, iparam[IPARAM_HNB] );
         parsec_enqueue(parsec, PARSEC_zgeqrf);
@@ -95,7 +95,7 @@ int main(int argc, char ** argv)
         PASTE_CODE_PROGRESS_KERNEL(parsec, zgeqrf);
         dplasma_zgeqrf_Destruct( PARSEC_zgeqrf );
 
-        parsec_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+        parsec_taskpool_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }
     else
     {

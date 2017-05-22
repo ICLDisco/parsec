@@ -102,7 +102,7 @@ static void iterators_checker_exec_count_begin(parsec_execution_unit_t* exec_uni
     fprintf(stderr, "PINS ITERATORS CHECKER::   %s does %d final outputs.\n",
             str, nbfo);
     for(i = 0; i < nbfo; i++) {
-        data = final_deps[i]->direct_data(exec_context->parsec_handle, exec_context->locals);
+        data = final_deps[i]->direct_data(exec_context->taskpool, exec_context->locals);
         if( NULL != data )
             fprintf(stderr, "PINS ITERATORS CHECKER::   %s final output number %d/%d key is %u, on device %d. \n",
                     str, i, nbfo, data->key, data->owner_device);

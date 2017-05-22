@@ -66,8 +66,8 @@ char *parsec_prof_grapher_taskid(const parsec_task_t *exec_context, char *tmp, i
     const parsec_task_class_t* tc = exec_context->task_class;
     unsigned int i, index = 0;
 
-    assert( NULL!= exec_context->parsec_handle );
-    index += snprintf( tmp + index, length - index, "%s_%u", tc->name, exec_context->parsec_handle->handle_id );
+    assert( NULL!= exec_context->taskpool );
+    index += snprintf( tmp + index, length - index, "%s_%u", tc->name, exec_context->taskpool->taskpool_id );
     for( i = 0; i < tc->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
                            exec_context->locals[tc->params[i]->context_index].value );
@@ -91,9 +91,9 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
-                context->parsec_handle->handle_id,
-                context->parsec_handle->profiling_array != NULL 
-                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->task_class->task_class_id])
+                context->taskpool->taskpool_id,
+                context->taskpool->profiling_array != NULL 
+                    ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
                     : -1,
                 context->task_class->name,
                 task_hash);
@@ -104,7 +104,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp, context->sim_exec_date,
-                context->parsec_handle->handle_id,
+                context->taskpool->taskpool_id,
                 context->task_class->name,
                 task_hash);
 #  endif
@@ -116,9 +116,9 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 "tooltip=\"hid=%u:did=%d:tname=%s:tid=%d\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
-                context->parsec_handle->handle_id,
-                context->parsec_handle->profiling_array != NULL 
-                    ? BASE_KEY(context->parsec_handle->profiling_array[2*context->task_class->task_class_id])
+                context->taskpool->taskpool_id,
+                context->taskpool->profiling_array != NULL 
+                    ? BASE_KEY(context->taskpool->profiling_array[2*context->task_class->task_class_id])
                     : -1,
                 context->task_class->name,
                 task_hash);
@@ -129,7 +129,7 @@ void parsec_prof_grapher_task(const parsec_task_t *context,
                 "tooltip=\"hid=%u:tname=%s:tid=%d\"];\n",
                 nmp, colors[context->task_class->task_class_id % nbfuncs],
                 thread_id, vp_id, tmp,
-                context->parsec_handle->handle_id,
+                context->taskpool->taskpool_id,
                 context->task_class->name,
                 task_hash);
 #  endif

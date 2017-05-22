@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     int rank, world, cores;
     int size, nb;
     parsec_ddesc_t *ddescA;
-    parsec_handle_t *ctlgat;
+    parsec_taskpool_t *ctlgat;
 
 #if defined(PARSEC_HAVE_MPI)
     {

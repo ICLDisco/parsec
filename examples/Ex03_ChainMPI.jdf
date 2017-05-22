@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world;
     parsec_ddesc_t taskdist;
-    parsec_Ex03_ChainMPI_handle_t *handle;
+    parsec_Ex03_ChainMPI_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -129,24 +129,24 @@ int main(int argc, char *argv[])
     taskdist.vpid_of = vpid_of;
     taskdist.data_key = data_key;
 
-    handle = parsec_Ex03_ChainMPI_new(&taskdist, 20);
+    tp = parsec_Ex03_ChainMPI_new(&taskdist, 20);
 
     /**
      * The arena is now also used to describe the layout to the communication
      * engine (MPI)
      */
-    parsec_arena_construct(handle->arenas[PARSEC_Ex03_ChainMPI_DEFAULT_ARENA],
-                          sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          parsec_datatype_int_t );
+    parsec_arena_construct(tp->arenas[PARSEC_Ex03_ChainMPI_DEFAULT_ARENA],
+                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_int_t );
 
-    rc = parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_handle_free((parsec_handle_t*)handle);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     /**
      * Cleanup the descriptor

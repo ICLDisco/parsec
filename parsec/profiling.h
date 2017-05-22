@@ -241,9 +241,9 @@ int parsec_profiling_dictionary_flush( void );
  *                      a couple (start, end) has
  *                        - the same key
  *                        - end is the next "end" event with the same key and the same non-null event_id and
- *                          non OBJECT_ID_NULL handle_id as start in the event buffer of the thread context
+ *                          non OBJECT_ID_NULL taskpool_id as start in the event buffer of the thread context
  *                        - if no matching end is found, this is an error
- * @param[in] handle_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
+ * @param[in] taskpool_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
  * @param[in] info    a pointer to an area of size info_length for this key (see
  *                        parsec_profiling_add_dictionary_keyword)
  * @param[in] flags   flags related to the event
@@ -251,14 +251,14 @@ int parsec_profiling_dictionary_flush( void );
  * @remark not thread safe (if two threads share a same thread_context. Safe per thread_context)
  */
 int parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
-                                 uint64_t event_id, uint32_t handle_id,
+                                 uint64_t event_id, uint32_t taskpool_id,
                                  void *info, uint16_t flags );
 
 /**
  * @brief Convenience macro used to trace events without flags
  */
-#define parsec_profiling_trace(CTX, KEY, EVENT_ID, HANDLE_ID, INFO)     \
-    parsec_profiling_trace_flags( (CTX), (KEY), (EVENT_ID), (HANDLE_ID), (INFO), 0 )
+#define parsec_profiling_trace(CTX, KEY, EVENT_ID, TASKPOOL_ID, INFO)     \
+    parsec_profiling_trace_flags( (CTX), (KEY), (EVENT_ID), (TASKPOOL_ID), (INFO), 0 )
 
 /**
  * @brief Trace one event on the implicit thread context.
@@ -272,9 +272,9 @@ int parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
  *                      a couple (start, end) has
  *                        - the same key
  *                        - end is the next "end" event with the same key and the same non-null event_id and
- *                          non OBJECT_ID_NULL handle_id as start in the event buffer of the thread context
+ *                          non OBJECT_ID_NULL taskpool_id as start in the event buffer of the thread context
  *                        - if no matching end is found, this is an error
- * @param[in] object_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
+ * @param[in] taskpool_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
  * @param[in] info    a pointer to an area of size info_length for this key (see
  *                        parsec_profiling_add_dictionary_keyword)
  * @param[in] flags   flags related to the event

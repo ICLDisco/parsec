@@ -83,9 +83,9 @@ dplasma_zgesv_incpiv( parsec_context_t *parsec,
     int info;
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
-    parsec_handle_t *parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
-    parsec_handle_t *parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    parsec_taskpool_t *parsec_zgetrf  = dplasma_zgetrf_incpiv_New(A, L, IPIV, &info);
+    parsec_taskpool_t *parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
+    parsec_taskpool_t *parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
     parsec_enqueue( parsec, parsec_zgetrf  );
     parsec_enqueue( parsec, parsec_ztrsmpl );

@@ -17,12 +17,12 @@
 
 #include "zherbt_L.h"
 
-parsec_handle_t *
+parsec_taskpool_t *
 dplasma_zherbt_New( PLASMA_enum uplo, int IB,
                     tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *T)
 {
-    parsec_zherbt_L_handle_t *parsec_zherbt = NULL;
+    parsec_zherbt_L_taskpool_t *parsec_zherbt = NULL;
     parsec_memory_pool_t *pool[4];
 
     if( PlasmaLower != uplo ) {
@@ -57,12 +57,12 @@ dplasma_zherbt_New( PLASMA_enum uplo, int IB,
                                      parsec_datatype_double_complex_t, T->mb, T->nb, -1);
     }
 
-    return (parsec_handle_t*)parsec_zherbt;
+    return (parsec_taskpool_t*)parsec_zherbt;
 }
 
-void dplasma_zherbt_Destruct( parsec_handle_t *handle )
+void dplasma_zherbt_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zherbt_L_handle_t *parsec_zherbt = (parsec_zherbt_L_handle_t *)handle;
+    parsec_zherbt_L_taskpool_t *parsec_zherbt = (parsec_zherbt_L_taskpool_t *)tp;
 
     if( PlasmaLower == parsec_zherbt->_g_uplo ) {
 
@@ -78,6 +78,6 @@ void dplasma_zherbt_Destruct( parsec_handle_t *handle )
         parsec_private_memory_fini( parsec_zherbt->_g_pool_3 );
         free( parsec_zherbt->_g_pool_3 );
 
-        parsec_handle_free(handle);
+        parsec_taskpool_free(tp);
     }
 }

@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     int rank, world, cores;
     int size, repeat;
     tiled_matrix_desc_t *ddescA, *ddescB;
-    parsec_handle_t *a2a;
+    parsec_taskpool_t *a2a;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -53,7 +53,7 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_handle_free(a2a);
+    parsec_taskpool_free(a2a);
     parsec_fini(&parsec);
     free_data(ddescA);
     free_data(ddescB);

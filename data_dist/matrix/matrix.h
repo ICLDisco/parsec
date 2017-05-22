@@ -147,29 +147,29 @@ typedef int (*tiled_matrix_binary_op_t)( struct parsec_execution_unit_s *eu,
                                          int uplo, int m, int n,
                                          void *args );
 
-extern struct parsec_handle_s*
+extern struct parsec_taskpool_s*
 parsec_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        parsec_operator_t op,
                        void* op_data);
 
 extern void
-parsec_map_operator_Destruct( struct parsec_handle_s* o );
+parsec_map_operator_Destruct( struct parsec_taskpool_s* o );
 
-extern struct parsec_handle_s*
+extern struct parsec_taskpool_s*
 parsec_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       parsec_operator_t op,
                       void* op_data );
 
-extern void parsec_reduce_col_Destruct( struct parsec_handle_s* o );
+extern void parsec_reduce_col_Destruct( struct parsec_taskpool_s *o );
 
-extern struct parsec_handle_s*
+extern struct parsec_taskpool_s*
 parsec_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       parsec_operator_t op,
                       void* op_data );
-extern void parsec_reduce_row_Destruct( struct parsec_handle_s* o );
+extern void parsec_reduce_row_Destruct( struct parsec_taskpool_s *o );
 
 /*
  * Macro to get the block leading dimension

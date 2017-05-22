@@ -38,10 +38,6 @@ BEGIN_C_DECLS
     ((type *)((char *)ptr - offsetof(type,member)))
 
 /**
- * @brief A Task Class
- */
-typedef struct parsec_task_class_s      parsec_task_class_t;
-/**
  * @brief A Remote dependency
  */
 typedef struct parsec_remote_deps_s     parsec_remote_deps_t;
@@ -76,23 +72,24 @@ typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
  * @details Startup functions generate a list of tasks ready to execute from
  *          a PaRSEC handle
  * @param[in] context the general PaRSEC context
- * @param[inout] parsec_handle the DAG in which to look for list of startup tasks
+ * @param[inout] tp the DAG in which to look for list of startup tasks
  * @param[out] A list of tasks ready to execute
  */
 typedef void (*parsec_startup_fn_t)(parsec_context_t *context,
-                                   parsec_handle_t *parsec_handle,
+                                   parsec_taskpool_t *tp,
                                    parsec_task_t** startup_list);
 /**
  * @brief The prototype of a handle termination / destruction function
  */
-typedef void (*parsec_destruct_fn_t)(parsec_handle_t* parsec_handle);
+typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
 
 /**
- * @brief a PaRSEC handle represents an entire DAG of tasks
+ * @brief a PaRSEC taskpool represents an a collection of tasks (with or without their dependencies).
+ *        as provided by the Domain Specific Language.
  */
-struct parsec_handle_s {
+struct parsec_taskpool_s {
     parsec_list_item_t         super;     /**< A PaRSEC handle is also a list_item, so it can be chained into different lists */
-    uint32_t                   handle_id; /**< Handles are uniquely identified */
+    uint32_t                   taskpool_id; /**< Taskpool are uniquely globally consisntently named */
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
                                            *   in the handle. This value is checked upon each task completion by
                                            *   the runtime, to see if the handle is completed (a nb_tasks equal
@@ -106,7 +103,7 @@ struct parsec_handle_s {
     uint16_t                   devices_mask; /**< A bitmask on what devices this handle may use */
     int32_t                    initial_number_tasks; /**< Counts the number of task classes initially ready */
     int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this handle */
-    int32_t                    handle_type;
+    int32_t                    taskpool_type;
     volatile uint32_t          nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
                                                      *   activities (such as communications, data movement, and
                                                      *   so on). Also, its value is increase by one for all the tasks
@@ -132,7 +129,7 @@ struct parsec_handle_s {
                                              *   Indexed on the same index as functions array */
 };
 
-PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_handle_t);
+PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_taskpool_t);
 
 /**
  * @brief Bitmask representing all possible devices
@@ -238,7 +235,7 @@ typedef void (parsec_traverse_function_t)(struct parsec_execution_unit_s *,
 /**
  *
  */
-typedef uint64_t (parsec_functionkey_fn_t)(const parsec_handle_t *parsec_handle,
+typedef uint64_t (parsec_functionkey_fn_t)(const parsec_taskpool_t *tp,
                                           const assignment_t *assignments);
 /**
  *
@@ -276,15 +273,6 @@ typedef int (parsec_new_task_function_t)(const parsec_task_t** task);
 /**
  *
  */
-typedef enum parsec_hook_return_e {
-    PARSEC_HOOK_RETURN_DONE    =  0,  /* This execution succeeded */
-    PARSEC_HOOK_RETURN_AGAIN   = -1,  /* Reschedule later */
-    PARSEC_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
-    PARSEC_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
-    PARSEC_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
-                                      * be triggered asynchronously. */
-    PARSEC_HOOK_RETURN_ERROR   = -5,  /* Some other major error happened */
-} parsec_hook_return_t;
 typedef parsec_hook_return_t (parsec_hook_t)(struct parsec_execution_unit_s*, parsec_task_t*);
 
 /**
@@ -308,13 +296,13 @@ typedef int (parsec_data_ref_fn_t)(parsec_task_t *exec_context,
 /**
  * Find the dependency corresponding to a given execution context.
  */
-typedef parsec_dependency_t *(parsec_find_dependency_fn_t)(const parsec_handle_t *parsec_handle,
+typedef parsec_dependency_t *(parsec_find_dependency_fn_t)(const parsec_taskpool_t *tp,
                                                            parsec_execution_unit_t *eu_context,
                                                            const parsec_task_t* exec_context);
-parsec_dependency_t *parsec_default_find_deps(const parsec_handle_t *parsec_handle,
+parsec_dependency_t *parsec_default_find_deps(const parsec_taskpool_t *tp,
                                               parsec_execution_unit_t *eu_context,
                                               const parsec_task_t* exec_context);
-parsec_dependency_t *parsec_hash_find_deps(const parsec_handle_t *parsec_handle,
+parsec_dependency_t *parsec_hash_find_deps(const parsec_taskpool_t *tp,
                                            parsec_execution_unit_t *eu_context,
                                            const parsec_task_t* exec_context);
 
@@ -405,7 +393,7 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
 #define PARSEC_MINIMAL_EXECUTION_CONTEXT             \
     parsec_list_item_t             super;            \
     parsec_thread_mempool_t       *mempool_owner;    \
-    parsec_handle_t               *parsec_handle;    \
+    parsec_taskpool_t             *taskpool;         \
     const  parsec_task_class_t    *task_class;       \
     int32_t                        priority;         \
     uint8_t                        status;           \
@@ -466,16 +454,16 @@ extern int queue_add_begin, queue_add_end;
 extern int queue_remove_begin, queue_remove_end;
 extern int device_delegate_begin, device_delegate_end;
 
-#define PARSEC_PROF_FUNC_KEY_START(parsec_handle, tc_index) \
-    (parsec_handle)->profiling_array[2 * (tc_index)]
-#define PARSEC_PROF_FUNC_KEY_END(parsec_handle, tc_index) \
-    (parsec_handle)->profiling_array[1 + 2 * (tc_index)]
+#define PARSEC_PROF_FUNC_KEY_START(tp, tc_index) \
+    (tp)->profiling_array[2 * (tc_index)]
+#define PARSEC_PROF_FUNC_KEY_END(tp, tc_index) \
+    (tp)->profiling_array[1 + 2 * (tc_index)]
 
 #define PARSEC_TASK_PROF_TRACE(PROFILE, KEY, TASK)                       \
     PARSEC_PROFILING_TRACE((PROFILE),                                    \
                           (KEY),                                        \
-                          (TASK)->task_class->key((TASK)->parsec_handle, (assignment_t *)&(TASK)->locals), \
-                          (TASK)->parsec_handle->handle_id, (void*)&(TASK)->prof_info)
+                          (TASK)->task_class->key((TASK)->taskpool, (assignment_t *)&(TASK)->locals), \
+                          (TASK)->taskpool->taskpool_id, (void*)&(TASK)->prof_info)
 
 #define PARSEC_TASK_PROF_TRACE_IF(COND, PROFILE, KEY, TASK)   \
     if(!!(COND)) {                                           \
@@ -522,7 +510,7 @@ parsec_ontask_iterate_t parsec_release_dep_fct(struct parsec_execution_unit_s *e
 int parsec_task_deps_with_final_output(const parsec_task_t *task,
                                       const dep_t **deps);
 
-int parsec_ptg_update_runtime_task( parsec_handle_t *parsec_handle, int32_t nb_tasks );
+int parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks );
 
 void parsec_dependencies_mark_task_as_startup(parsec_task_t* exec_context, parsec_execution_unit_t *eu_context);
 
@@ -542,10 +530,10 @@ int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
  * most internal structures, while leaving the datatypes and the tasks management
  * buffers untouched. Instead, from the application layer call the _Destruct.
  */
-#define PARSEC_INTERNAL_HANDLE_DESTRUCT(OBJ)                            \
+#define PARSEC_INTERNAL_TASKPOOL_DESTRUCT(OBJ)                            \
     do {                                                               \
         void* __obj = (void*)(OBJ);                                    \
-        ((parsec_handle_t*)__obj)->destructor((parsec_handle_t*)__obj);  \
+        ((parsec_taskpool_t*)__obj)->destructor((parsec_taskpool_t*)__obj);  \
         (OBJ) = NULL;                                                  \
     } while (0)
 

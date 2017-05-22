@@ -160,7 +160,7 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_task_t *this_task)
 
     int *total, *iteration, *uplo_enum, *info, m, n, k, count = 0;
 
-    parsec_handle_t *parsec_dtd_handle = (parsec_handle_t *)this_task->parsec_handle;
+    parsec_taskpool_t *dtd_tp = (parsec_taskpool_t *)this_task->taskpool;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE,   &total,
@@ -192,7 +192,7 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_task_t *this_task)
         tempkm = (k == (ddescA->super.mt - 1)) ? ddescA->super.m - k * ddescA->super.mb : ddescA->super.mb;
         ldak = BLKLDD(&ddescA->super, k);
 
-        parsec_insert_task(parsec_dtd_handle, parsec_core_potrf,
+        parsec_insert_task(dtd_tp, parsec_core_potrf,
                          (*total - k) * (*total-k) * (*total - k)/*priority*/, "Potrf",
                          sizeof(int),      &uplo,              VALUE,
                          sizeof(int),      &tempkm,            VALUE,
@@ -203,7 +203,7 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_task_t *this_task)
         for( m = k+1; m < *total; m++, count++ ) {
             tempmm = m == ddescA->super.mt - 1 ? ddescA->super.m - m * ddescA->super.mb : ddescA->super.mb;
             ldam = BLKLDD(&ddescA->super, m);
-            parsec_insert_task(parsec_dtd_handle, parsec_core_trsm,
+            parsec_insert_task(dtd_tp, parsec_core_trsm,
                              (*total - m) * (*total-m) * (*total - m) + 3 * ((2 * *total) - k - m - 1) * (m - k)/*priority*/, "Trsm",
                              sizeof(int),      &side,               VALUE,
                              sizeof(int),      &uplo,               VALUE,
@@ -219,11 +219,11 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_task_t *this_task)
                              0);
         }
 
-        parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF(A, k, k));
+        parsec_dtd_data_flush(dtd_tp, TILE_OF(A, k, k));
         for( m = k+1; m < ddescA->super.nt; m++, count++ ){
             tempmm = m == ddescA->super.mt - 1 ? ddescA->super.m - m * ddescA->super.mb : ddescA->super.mb;
             ldam = BLKLDD(&ddescA->super, m);
-            parsec_insert_task(parsec_dtd_handle, parsec_core_herk,
+            parsec_insert_task(dtd_tp, parsec_core_herk,
                             (*total - m) * (*total - m) * (*total - m) + 3 * (m - k)/*priority*/, "Herk",
                             sizeof(int),       &uplo,               VALUE,
                             sizeof(int),       &trans,              VALUE,
@@ -238,7 +238,7 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_task_t *this_task)
                             0);
             for( n = m+1; n < *total; n++, count++ ){
                 ldan = BLKLDD(&ddescA->super, n);
-                parsec_insert_task(parsec_dtd_handle,  parsec_core_gemm,
+                parsec_insert_task(dtd_tp,  parsec_core_gemm,
                                (*total - m) * (*total - m) * (*total - m) + 3 * ((2 * *total) - m - n - 3) * (m - n) + 6 * (m - k) /*priority*/, "Gemm",
                                sizeof(int),        &transA_g,           VALUE,
                                sizeof(int),        &transB,             VALUE,
@@ -255,11 +255,11 @@ insert_task_lower(parsec_execution_unit_t *context, parsec_task_t *this_task)
                                sizeof(int),        &ldan,               VALUE,
                                0);
             }
-            parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF(A, m, k));
+            parsec_dtd_data_flush(dtd_tp, TILE_OF(A, m, k));
         }
     }
 
-    parsec_dtd_data_flush_all(parsec_dtd_handle, (parsec_ddesc_t *)ddescA);
+    parsec_dtd_data_flush_all(dtd_tp, (parsec_ddesc_t *)ddescA);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -274,7 +274,7 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_task_t *this_task)
 
     int *total, *iteration, *uplo_enum, *info, m, n, k, count = 0;
 
-    parsec_handle_t *parsec_dtd_handle = (parsec_handle_t *)this_task->parsec_handle;
+    parsec_taskpool_t *dtd_tp = (parsec_taskpool_t *)this_task->taskpool;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_VALUE,   &total,
@@ -306,7 +306,7 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_task_t *this_task)
 
         tempkm = k == ddescA->super.nt-1 ? ddescA->super.n-k*ddescA->super.nb : ddescA->super.nb;
         ldak = BLKLDD(&ddescA->super, k);
-        parsec_insert_task(parsec_dtd_handle, parsec_core_potrf,
+        parsec_insert_task(dtd_tp, parsec_core_potrf,
                          (*total - k) * (*total-k) * (*total - k)/*priority*/, "Potrf",
                          sizeof(int),      &uplo,              VALUE,
                          sizeof(int),      &tempkm,            VALUE,
@@ -316,7 +316,7 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_task_t *this_task)
                          0);
         for (m = k+1; m < *total; m++, count++) {
             tempmm = m == ddescA->super.nt-1 ? ddescA->super.n-m*ddescA->super.nb : ddescA->super.nb;
-            parsec_insert_task(parsec_dtd_handle, parsec_core_trsm,
+            parsec_insert_task(dtd_tp, parsec_core_trsm,
                              (*total - m) * (*total-m) * (*total - m) + 3 * ((2 * *total) - k - m - 1) * (m - k)/*priority*/, "Trsm",
                              sizeof(int),      &side,               VALUE,
                              sizeof(int),      &uplo,               VALUE,
@@ -331,12 +331,12 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_task_t *this_task)
                              sizeof(int),      &ldak,               VALUE,
                              0);
         }
-        parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF(A, k, k));
+        parsec_dtd_data_flush(dtd_tp, TILE_OF(A, k, k));
 
         for (m = k+1; m < ddescA->super.mt; m++, count++) {
             tempmm = m == ddescA->super.nt-1 ? ddescA->super.n-m*ddescA->super.nb : ddescA->super.nb;
             ldam = BLKLDD(&ddescA->super, m);
-            parsec_insert_task(parsec_dtd_handle, parsec_core_herk,
+            parsec_insert_task(dtd_tp, parsec_core_herk,
                             (*total - m) * (*total - m) * (*total - m) + 3 * (m - k)/*priority*/, "Herk",
                             sizeof(int),       &uplo,               VALUE,
                             sizeof(int),       &trans,              VALUE,
@@ -351,7 +351,7 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_task_t *this_task)
                             0);
             for (n = m+1; n < *total; n++, count++) {
                ldan = BLKLDD(&ddescA->super, n);
-               parsec_insert_task(parsec_dtd_handle,  parsec_core_gemm,
+               parsec_insert_task(dtd_tp,  parsec_core_gemm,
                                (*total - m) * (*total - m) * (*total - m) + 3 * ((2 * *total) - m - n - 3) * (m - n) + 6 * (m - k) /*priority*/, "Gemm",
                                sizeof(int),        &transA_g,           VALUE,
                                sizeof(int),        &transB,             VALUE,
@@ -368,11 +368,11 @@ insert_task_upper(parsec_execution_unit_t *context, parsec_task_t *this_task)
                                sizeof(int),        &ldan,               VALUE,
                                0);
             }
-            parsec_dtd_data_flush(parsec_dtd_handle, TILE_OF(A, k, m));
+            parsec_dtd_data_flush(dtd_tp, TILE_OF(A, k, m));
         }
     }
 
-    parsec_dtd_data_flush_all(parsec_dtd_handle, (parsec_ddesc_t *)ddescA);
+    parsec_dtd_data_flush_all(dtd_tp, (parsec_ddesc_t *)ddescA);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -415,7 +415,7 @@ int main(int argc, char **argv)
                     (tiled_matrix_desc_t *)&ddescA, random_seed);
     if(loud > 3) printf("Done\n");
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new( );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new( );
 
     /* Default type */
     dplasma_add2arena_tile( parsec_dtd_arenas[0],
@@ -424,7 +424,7 @@ int main(int argc, char **argv)
                             parsec_datatype_double_complex_t, ddescA.super.mb );
 
     /* Registering the handle with parsec context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
 
     SYNC_TIME_START();
 
@@ -436,7 +436,7 @@ int main(int argc, char **argv)
     int iteration = 0, total;
     if( PlasmaLower == uplo ) {
         total = ddescA.super.mt;
-        parsec_insert_task( parsec_dtd_handle,       insert_task_lower, 0, "insert_task_lower",
+        parsec_insert_task( dtd_tp,       insert_task_lower, 0, "insert_task_lower",
                            sizeof(int),           &total,             VALUE,
                            sizeof(int),           &iteration,         VALUE,
                            sizeof(int),           &uplo,              VALUE,
@@ -446,7 +446,7 @@ int main(int argc, char **argv)
 
     } else {
         total = ddescA.super.nt;
-        parsec_insert_task( parsec_dtd_handle,       insert_task_upper, 0, "insert_task_upper",
+        parsec_insert_task( dtd_tp,       insert_task_upper, 0, "insert_task_upper",
                            sizeof(int),           &total,             VALUE,
                            sizeof(int),           &iteration,         VALUE,
                            sizeof(int),           &uplo,              VALUE,
@@ -457,7 +457,7 @@ int main(int argc, char **argv)
     }
 
     /* Finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     /* Waiting on all handle and turning everything off for this context */
     parsec_context_wait(parsec);
@@ -469,7 +469,7 @@ int main(int argc, char **argv)
                            gflops=(flops/1e9)/sync_time_elapsed));
 
     /* Cleaning up the parsec handle */
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     if( 0 == rank && info != 0 ) {
         printf("-- Factorization is suspicious (info = %d) ! \n", info);

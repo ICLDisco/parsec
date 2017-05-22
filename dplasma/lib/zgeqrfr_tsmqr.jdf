@@ -154,33 +154,33 @@ extern "C" %{
  * @sa dplasma_zgeqrfr_tsmqr_Destruct
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
                            tiled_matrix_desc_t *A2,
                            tiled_matrix_desc_t *V,
                            tiled_matrix_desc_t *T,
                            void *work )
 {
-    parsec_handle_t* handle;
+    parsec_taskpool_t* tp;
 
-    handle = (parsec_handle_t*)parsec_zgeqrfr_tsmqr_new( A1,
+    tp = (parsec_taskpool_t*)parsec_zgeqrfr_tsmqr_new( A1,
                                                        A2,
                                                        V,
                                                        T,
                                                        (parsec_memory_pool_t*)work );
     /* Default type */
-    dplasma_add2arena_rectangle( ((parsec_zgeqrfr_tsmqr_handle_t*)handle)->arenas[PARSEC_zgeqrfr_tsmqr_DEFAULT_ARENA],
+    dplasma_add2arena_rectangle( ((parsec_zgeqrfr_tsmqr_taskpool_t*)tp)->arenas[PARSEC_zgeqrfr_tsmqr_DEFAULT_ARENA],
                             A1->mb*A1->nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A1->mb , A1->nb, -1);
 
     /* Little T */
-    dplasma_add2arena_rectangle( ((parsec_zgeqrfr_tsmqr_handle_t*)handle)->arenas[PARSEC_zgeqrfr_tsmqr_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( ((parsec_zgeqrfr_tsmqr_taskpool_t*)tp)->arenas[PARSEC_zgeqrfr_tsmqr_LITTLE_T_ARENA],
                                  T->mb*T->nb*sizeof(parsec_complex64_t),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, T->mb, T->nb, -1);
 
-    return handle;
+    return tp;
 }
 
 /**
@@ -204,14 +204,14 @@ dplasma_zgeqrfr_tsmqr_New( tiled_matrix_desc_t *A1,
  *
  ******************************************************************************/
 void
-dplasma_zgeqrfr_tsmqr_Destruct( parsec_handle_t *handle )
+dplasma_zgeqrfr_tsmqr_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zgeqrfr_tsmqr_handle_t *parsec_zgeqrfr_tsmqr = (parsec_zgeqrfr_tsmqr_handle_t *)handle;
+    parsec_zgeqrfr_tsmqr_taskpool_t *parsec_zgeqrfr_tsmqr = (parsec_zgeqrfr_tsmqr_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zgeqrfr_tsmqr->arenas[PARSEC_zgeqrfr_tsmqr_DEFAULT_ARENA ] );
     parsec_matrix_del2arena( parsec_zgeqrfr_tsmqr->arenas[PARSEC_zgeqrfr_tsmqr_LITTLE_T_ARENA] );
 
-    handle->destructor(handle);
+    tp->destructor(tp);
 }
 
 %}

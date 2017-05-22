@@ -82,7 +82,7 @@
  * @sa dplasma_chemm_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zhemm_New( PLASMA_enum side,
                    PLASMA_enum uplo,
                    parsec_complex64_t alpha,
@@ -91,19 +91,19 @@ dplasma_zhemm_New( PLASMA_enum side,
                    parsec_complex64_t beta,
                    tiled_matrix_desc_t* C)
 {
-    parsec_zhemm_handle_t* handle;
+    parsec_zhemm_taskpool_t* tp;
 
-    handle = parsec_zhemm_new(side, uplo, alpha, beta,
-                             A,
-                             B,
-                             C);
+    tp = parsec_zhemm_new(side, uplo, alpha, beta,
+                          A,
+                          B,
+                          C);
 
-    dplasma_add2arena_tile(handle->arenas[PARSEC_zhemm_DEFAULT_ARENA],
+    dplasma_add2arena_tile(tp->arenas[PARSEC_zhemm_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, C->mb);
 
-    return (parsec_handle_t*)handle;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
@@ -127,11 +127,11 @@ dplasma_zhemm_New( PLASMA_enum side,
  *
  ******************************************************************************/
 void
-dplasma_zhemm_Destruct( parsec_handle_t *handle )
+dplasma_zhemm_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zhemm_handle_t *zhemm_handle = (parsec_zhemm_handle_t*)handle;
-    parsec_matrix_del2arena( zhemm_handle->arenas[PARSEC_zhemm_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_zhemm_taskpool_t *zhemm_tp = (parsec_zhemm_taskpool_t*)tp;
+    parsec_matrix_del2arena( zhemm_tp->arenas[PARSEC_zhemm_DEFAULT_ARENA] );
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -211,7 +211,7 @@ dplasma_zhemm( parsec_context_t *parsec,
                parsec_complex64_t beta,
                tiled_matrix_desc_t *C)
 {
-    parsec_handle_t *parsec_zhemm = NULL;
+    parsec_taskpool_t *parsec_zhemm = NULL;
 
     /* Check input arguments */
     if ((side != PlasmaLeft) && (side != PlasmaRight)) {
@@ -242,7 +242,7 @@ dplasma_zhemm( parsec_context_t *parsec,
 
     if ( parsec_zhemm != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zhemm);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zhemm);
         dplasma_wait_until_completion(parsec);
         dplasma_zhemm_Destruct( parsec_zhemm );
     }

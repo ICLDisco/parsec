@@ -37,35 +37,35 @@ void parsec_fini_f08(parsec_context_t** context, int* ierr)
     *ierr = parsec_fini(context);
 }
 
-void parsec_set_complete_callback_f08(parsec_handle_t** object,
+void parsec_set_complete_callback_f08(parsec_taskpool_t** object,
                                      parsec_event_cb_t complete_cb,
                                      void* cb_data, int* ierr)
 {
     *ierr = parsec_set_complete_callback(*object, complete_cb, cb_data);
 }
 
-void parsec_get_complete_callback_f08(parsec_handle_t** object,
+void parsec_get_complete_callback_f08(parsec_taskpool_t** object,
                                      parsec_event_cb_t* complete_cb,
                                      void** cb_data, int* ierr)
 {
     *ierr = parsec_get_complete_callback(*object, complete_cb, cb_data);
 }
 
-void parsec_set_enqueue_callback_f08(parsec_handle_t** object,
+void parsec_set_enqueue_callback_f08(parsec_taskpool_t** object,
                                     parsec_event_cb_t enqueue_cb,
                                     void* cb_data, int* ierr)
 {
     *ierr = parsec_set_enqueue_callback(*object, enqueue_cb, cb_data);
 }
 
-void parsec_get_enqueue_callback_f08(parsec_handle_t** object,
+void parsec_get_enqueue_callback_f08(parsec_taskpool_t** object,
                                     parsec_event_cb_t* enqueue_cb,
                                     void** cb_data, int* ierr)
 {
     *ierr = parsec_get_enqueue_callback(*object, enqueue_cb, cb_data);
 }
 
-void parsec_set_priority_f08(parsec_handle_t** object, int priority, int* ierr)
+void parsec_set_priority_f08(parsec_taskpool_t** object, int priority, int* ierr)
 {
     *ierr = parsec_set_priority(*object, priority);
 }

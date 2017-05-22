@@ -56,12 +56,12 @@
  * @sa dplasma_slaswp_New
  *
  ******************************************************************************/
-parsec_handle_t *
+parsec_taskpool_t *
 dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                    const tiled_matrix_desc_t *IPIV,
                    int inc)
 {
-    parsec_zlaswp_handle_t *parsec_laswp;
+    parsec_zlaswp_taskpool_t *parsec_laswp;
 
     parsec_laswp = parsec_zlaswp_new( A,
                                     IPIV,
@@ -79,7 +79,7 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_int_t, 1, A->mb, -1 );
 
-    return (parsec_handle_t*)parsec_laswp;
+    return (parsec_taskpool_t*)parsec_laswp;
 }
 
 /**
@@ -103,14 +103,14 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
  *
  ******************************************************************************/
 void
-dplasma_zlaswp_Destruct( parsec_handle_t *handle )
+dplasma_zlaswp_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zlaswp_handle_t *parsec_zlaswp = (parsec_zlaswp_handle_t *)handle;
+    parsec_zlaswp_taskpool_t *parsec_zlaswp = (parsec_zlaswp_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zlaswp->arenas[PARSEC_zlaswp_DEFAULT_ARENA] );
     parsec_matrix_del2arena( parsec_zlaswp->arenas[PARSEC_zlaswp_PIVOT_ARENA  ] );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -159,11 +159,11 @@ dplasma_zlaswp( parsec_context_t *parsec,
                 const tiled_matrix_desc_t *IPIV,
                 int inc)
 {
-    parsec_handle_t *parsec_zlaswp = NULL;
+    parsec_taskpool_t *parsec_zlaswp = NULL;
 
     parsec_zlaswp = dplasma_zlaswp_New(A, IPIV, inc);
 
-    parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlaswp);
+    parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zlaswp);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zlaswp_Destruct( parsec_zlaswp );

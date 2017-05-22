@@ -31,7 +31,7 @@ main (int argc, char *argv[])
     int rc;
     PLASMA_enum uplo = PlasmaLower;
     parsec_ddesc_t *ddescA;
-    parsec_handle_t *cholesky;
+    parsec_taskpool_t *cholesky;
     parsec_task_t* startup_list = NULL;
     struct timeval start;
     struct timeval end;

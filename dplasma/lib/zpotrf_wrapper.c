@@ -27,9 +27,9 @@
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to modify.
- *          On exit, the modified handle.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to modify.
+ *          On exit, the modified taskpool.
  *
  * @param[in] hmb
  *          The tile size to use for the smaller recursive call.
@@ -42,9 +42,9 @@
  *
  ******************************************************************************/
 void
-dplasma_zpotrf_setrecursive( parsec_handle_t *handle, int hmb )
+dplasma_zpotrf_setrecursive( parsec_taskpool_t *tp, int hmb )
 {
-    parsec_zpotrf_L_handle_t *parsec_zpotrf = (parsec_zpotrf_L_handle_t *)handle;
+    parsec_zpotrf_L_taskpool_t *parsec_zpotrf = (parsec_zpotrf_L_taskpool_t*)tp;
 
     if (hmb > 0) {
         parsec_zpotrf->_g_smallnb = hmb;
@@ -56,7 +56,7 @@ dplasma_zpotrf_setrecursive( parsec_handle_t *handle, int hmb )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zpotrf_New - Generates the handle that Computes the Cholesky
+ * dplasma_zpotrf_New - Generates the taskpool that Computes the Cholesky
  * factorization of a symmetric positive definite (or Hermitian positive
  * definite in the complex case) matrix A, with or without recursive calls.
  * The factorization has the form
@@ -68,7 +68,7 @@ dplasma_zpotrf_setrecursive( parsec_handle_t *handle, int hmb )
  * WARNING: The computations are not done by this call.
  *
  * If you want to enable the recursive DAGs, don't forget to set the recursive
- * tile size and to synchonize the handle ids after the computations since those
+ * tile size and to synchonize the taskpool ids after the computations since those
  * are for now local. You can follow the code of dplasma_zpotrf_rec() as an
  * example to do this.
  *
@@ -104,7 +104,7 @@ dplasma_zpotrf_setrecursive( parsec_handle_t *handle, int hmb )
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zpotrf_Destruct();
  *
@@ -117,13 +117,13 @@ dplasma_zpotrf_setrecursive( parsec_handle_t *handle, int hmb )
  * @sa dplasma_spotrf_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zpotrf_New( PLASMA_enum uplo,
                     tiled_matrix_desc_t *A,
                     int *info )
 {
-    parsec_zpotrf_L_handle_t *parsec_zpotrf = NULL;
-    parsec_handle_t *handle = NULL;
+    parsec_zpotrf_L_taskpool_t *parsec_zpotrf = NULL;
+    parsec_taskpool_t *tp = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaUpper) && (uplo != PlasmaLower)) {
@@ -133,12 +133,12 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
 
     *info = 0;
     if ( uplo == PlasmaUpper ) {
-        handle = (parsec_handle_t*)parsec_zpotrf_U_new( uplo, A, info);
+        tp = (parsec_taskpool_t*)parsec_zpotrf_U_new( uplo, A, info);
     } else {
-        handle = (parsec_handle_t*)parsec_zpotrf_L_new( uplo, A, info);
+        tp = (parsec_taskpool_t*)parsec_zpotrf_L_new( uplo, A, info);
     }
 
-    parsec_zpotrf = (parsec_zpotrf_L_handle_t*)handle;
+    parsec_zpotrf = (parsec_zpotrf_L_taskpool_t*)tp;
     parsec_zpotrf->_g_PRI_CHANGE = dplasma_aux_get_priority_limit( "POTRF", A );
     if(0 == parsec_zpotrf->_g_PRI_CHANGE)
       parsec_zpotrf->_g_PRI_CHANGE = A->nt;
@@ -147,7 +147,7 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A->mb );
 
-    return handle;
+    return tp;
 }
 
 /**
@@ -155,14 +155,14 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zpotrf_Destruct - Free the data structure associated to an handle
+ *  dplasma_zpotrf_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zpotrf_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -171,12 +171,12 @@ dplasma_zpotrf_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zpotrf_Destruct( parsec_handle_t *handle )
+dplasma_zpotrf_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zpotrf_L_handle_t *parsec_zpotrf = (parsec_zpotrf_L_handle_t *)handle;
+    parsec_zpotrf_L_taskpool_t *parsec_zpotrf = (parsec_zpotrf_L_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zpotrf->arenas[PARSEC_zpotrf_L_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -230,14 +230,14 @@ dplasma_zpotrf( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 tiled_matrix_desc_t *A )
 {
-    parsec_handle_t *parsec_zpotrf = NULL;
+    parsec_taskpool_t *parsec_zpotrf = NULL;
     int info = 0, ginfo = 0 ;
 
     parsec_zpotrf = dplasma_zpotrf_New( uplo, A, &info );
 
     if ( parsec_zpotrf != NULL )
     {
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpotrf);
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zpotrf);
         dplasma_wait_until_completion(parsec);
         dplasma_zpotrf_Destruct( parsec_zpotrf );
     }
@@ -307,17 +307,17 @@ dplasma_zpotrf_rec( parsec_context_t *parsec,
                     PLASMA_enum uplo,
                     tiled_matrix_desc_t *A, int hmb )
 {
-    parsec_handle_t *parsec_zpotrf = NULL;
+    parsec_taskpool_t *parsec_zpotrf = NULL;
     int info = 0, ginfo = 0 ;
 
     parsec_zpotrf = dplasma_zpotrf_New( uplo, A, &info );
     if ( parsec_zpotrf != NULL )
     {
-        dplasma_zpotrf_setrecursive( (parsec_handle_t*)parsec_zpotrf, hmb );
-        parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpotrf);
+        dplasma_zpotrf_setrecursive( (parsec_taskpool_t*)parsec_zpotrf, hmb );
+        parsec_enqueue( parsec, (parsec_taskpool_t*)parsec_zpotrf);
         dplasma_wait_until_completion(parsec);
         dplasma_zpotrf_Destruct( parsec_zpotrf );
-        parsec_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
+        parsec_taskpool_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }
 
 #if defined(PARSEC_HAVE_MPI)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2016 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,11 +7,11 @@
 /**
  * This is a playground to transform Parameterized Task Graphs into insert_task type of
  * programming model. As the PTG engine of PaRSEC generate ready tasks we insert them into
- * a new DTD handle, and allow the new tasks to go through the system and eventually get
+ * a new DTD taskpool, and allow the new tasks to go through the system and eventually get
  * executed. Upon completion each of these tasks will trigger the completion of the
  * corresponding PTG task.
  *
- * The main complextity here is to synchronize the 2 parsec_handle_t, the one that the upper
+ * The main complextity here is to synchronize the 2 parsec_taskpool_t, the one that the upper
  * level is manipulation (possible waiting on), and the one we create for internal purposes.
  */
 #include "parsec/parsec_config.h"
@@ -38,15 +38,15 @@ struct parsec_dtd_task_param_ptg_to_dtd_s {
 /* list to push tasks in */
 static parsec_list_t *dtd_global_deque = NULL;
 /* for testing purpose of automatic insertion from Awesome PTG approach */
-static parsec_dtd_handle_t *__dtd_handle = NULL;
+static parsec_dtd_taskpool_t *__dtd_taskpool = NULL;
 /* We  use a global ddesc as PTG has varying behavior */
 static parsec_ddesc_t *__ddesc;
 
 /* Prototype of some of the static functions */
 static void pins_init_ptg_to_dtd(parsec_context_t *master_context);
 static void pins_fini_ptg_to_dtd(parsec_context_t *master_context);
-static void pins_handle_init_ptg_to_dtd(struct parsec_handle_s *handle);
-static void pins_handle_fini_ptg_to_dtd(struct parsec_handle_s *handle);
+static void pins_taskpool_init_ptg_to_dtd(struct parsec_taskpool_s *tp);
+static void pins_taskpool_fini_ptg_to_dtd(struct parsec_taskpool_s *tp);
 static int fake_hook_for_testing(parsec_execution_unit_t    *context,
                                  parsec_task_t *__this_task);
 
@@ -55,30 +55,30 @@ const parsec_pins_module_t parsec_pins_ptg_to_dtd_module = {
     {
         pins_init_ptg_to_dtd,
         pins_fini_ptg_to_dtd,
-        pins_handle_init_ptg_to_dtd,
-        pins_handle_fini_ptg_to_dtd,
+        pins_taskpool_init_ptg_to_dtd,
+        pins_taskpool_fini_ptg_to_dtd,
         NULL,
         NULL
     }
 };
 
 /**
- * Make a copy of the original chores of the parsec_handle_t and replace them with a
+ * Make a copy of the original chores of the parsec_taskpool_t and replace them with a
  * set of temporary hooks allowing to transition all tasks as DTD tasks. Only make
  * a copy of the officially exposed nb_function hooks, protecting all those that are
  * hidden (such as the initialization functions).
  */
 static void
-copy_chores(parsec_handle_t *handle, parsec_dtd_handle_t *dtd_handle)
+copy_chores(parsec_taskpool_t *tp, parsec_dtd_taskpool_t *dtd_tp)
 {
     int i, j;
-    for( i = 0; i < (int)handle->nb_task_classes; i++) {
-        for( j = 0; NULL != handle->task_classes_array[i]->incarnations[j].hook; j++) {
-            parsec_hook_t **hook_not_const = (parsec_hook_t **)&(handle->task_classes_array[i]->incarnations[j].hook);
+    for( i = 0; i < (int)tp->nb_task_classes; i++) {
+        for( j = 0; NULL != tp->task_classes_array[i]->incarnations[j].hook; j++) {
+            parsec_hook_t **hook_not_const = (parsec_hook_t **)&(tp->task_classes_array[i]->incarnations[j].hook);
 
             /* saving the CPU hook only */
-            if (handle->task_classes_array[i]->incarnations[j].type == PARSEC_DEV_CPU) {
-                dtd_handle->actual_hook[i].hook = handle->task_classes_array[i]->incarnations[j].hook;
+            if (tp->task_classes_array[i]->incarnations[j].type == PARSEC_DEV_CPU) {
+                dtd_tp->actual_hook[i].hook = tp->task_classes_array[i]->incarnations[j].hook;
             }
             /* copying the fake hook in all the hooks (CPU, GPU etc) */
             *hook_not_const = &fake_hook_for_testing;
@@ -100,11 +100,11 @@ static void pins_fini_ptg_to_dtd(parsec_context_t *master_context)
     (void)master_context;
 }
 
-static int pins_handle_complete_callback(parsec_handle_t* ptg_handle, void* void_dtd_handle)
+static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void_dtd_tp)
 {
-    parsec_handle_t *dtd_handle = (parsec_handle_t*)void_dtd_handle;
+    parsec_taskpool_t *dtd_tp = (parsec_taskpool_t*)void_dtd_tp;
 
-    parsec_dtd_data_flush_all( (parsec_handle_t *)__dtd_handle, __ddesc );
+    parsec_dtd_data_flush_all( (parsec_taskpool_t *)__dtd_taskpool, __ddesc );
     /* We can not wait until all tasks are done as:
      * 1. This callback is called from the complete hook of another task
      *    so we need to wait for at least until the counter reaches 2
@@ -116,50 +116,48 @@ static int pins_handle_complete_callback(parsec_handle_t* ptg_handle, void* void
      * If there is any task with more than 9 flows it will get stuck in the
      * following function call.
      */
-    parsec_execute_and_come_back( dtd_handle->context, dtd_handle, 10);
+    parsec_execute_and_come_back( dtd_tp->context, dtd_tp, 10);
 
-    parsec_detach_all_dtd_handles_from_context( ptg_handle->context );
+    parsec_detach_all_dtd_taskpool_from_context( ptg_tp->context );
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 /**
  * This PINS callback is triggered everytime the PaRSEC runtime is notified
- * about the eixtence of a new parsec_handle_t. For each handle not corresponding
- * to a DTD version, we create a DTD handle, a placeholder where all intermediary
+ * about the eixtence of a new parsec_taskpool_t. For each taskpool not corresponding
+ * to a DTD version, we create a DTD taskpool, a placeholder where all intermediary
  * tasks will belong to. As we need to be informed about the completion of the PTG
- * handle, we highjack the completion_callback and register our own function.
+ * taskpool, we highjack the completion_callback and register our own function.
  */
-static void pins_handle_init_ptg_to_dtd(parsec_handle_t *ptg_handle)
+static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
 {
-    if(ptg_handle->destructor == (parsec_destruct_fn_t)parsec_dtd_handle_destruct) {
+    if(ptg_tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct) {
         return;
     }
-    if( __dtd_handle != NULL ) {
-        parsec_handle_free((parsec_handle_t *)__dtd_handle);
+    if( __dtd_taskpool != NULL ) {
+        parsec_taskpool_free((parsec_taskpool_t *)__dtd_taskpool);
     }
 
     parsec_dtd_ddesc_init( __ddesc );
-    __dtd_handle = (parsec_dtd_handle_t *)parsec_dtd_handle_new( );
+    __dtd_taskpool = (parsec_dtd_taskpool_t *)parsec_dtd_taskpool_new( );
     dtd_global_deque = OBJ_NEW(parsec_list_t);
-    copy_chores(ptg_handle, __dtd_handle);
+    copy_chores(ptg_tp, __dtd_taskpool);
     {
         parsec_event_cb_t lfct = NULL;
         void* ldata = NULL;
-        parsec_get_complete_callback(ptg_handle, &lfct, &ldata);
+        parsec_get_complete_callback(ptg_tp, &lfct, &ldata);
         if( NULL != lfct ) {
-            parsec_set_complete_callback((parsec_handle_t*)__dtd_handle, lfct, ldata);
+            parsec_set_complete_callback((parsec_taskpool_t*)__dtd_taskpool, lfct, ldata);
         }
-        parsec_set_complete_callback((parsec_handle_t*)ptg_handle, pins_handle_complete_callback, __dtd_handle);
+        parsec_set_complete_callback((parsec_taskpool_t*)ptg_tp, pins_taskpool_complete_callback, __dtd_taskpool);
     }
-    parsec_enqueue(ptg_handle->context, (parsec_handle_t*)__dtd_handle);
+    parsec_enqueue(ptg_tp->context, (parsec_taskpool_t*)__dtd_taskpool);
 }
 
-static void pins_handle_fini_ptg_to_dtd(parsec_handle_t *handle)
+static void pins_taskpool_fini_ptg_to_dtd(parsec_taskpool_t *tp)
 {
-    (void)handle;
-
-    if(handle->destructor == (parsec_destruct_fn_t)parsec_dtd_handle_destruct) {
+    if(tp->destructor == (parsec_destruct_fn_t)parsec_dtd_taskpool_destruct) {
         return;
     }
 
@@ -184,7 +182,7 @@ testing_hook_of_dtd_task(parsec_execution_unit_t *context,
     int rc = 0;
 
     PARSEC_TASK_PROF_TRACE(context->eu_profile,
-                          dtd_task->super.parsec_handle->profiling_array[2 * dtd_task->super.task_class->task_class_id],
+                          dtd_task->super.taskpool->profiling_array[2 * dtd_task->super.task_class->task_class_id],
                           &(dtd_task->super));
 
     /**
@@ -218,7 +216,7 @@ static const __parsec_chore_t dtd_chore_for_testing[] = {
  * generate tasks from PTG and insert it using insert task interface.
  * This function checks if the tile structure(parsec_dtd_tile_t) is created for the data
  * already or not.
- * Arguments:   - parsec handle (parsec_dtd_handle_t *)
+ * Arguments:   - parsec taskpool (parsec_dtd_taskpool_t *)
                 - data descriptor (parsec_ddesc_t *)
                 - key of this data (parsec_data_key_t)
  * Returns:     - tile, creates one if not already created, and returns that
@@ -272,13 +270,13 @@ data_lookup_ptg_to_dtd_task(parsec_execution_unit_t *context,
  * The flow of data from each task to others and all other dependencies are tracked from this function.
  */
 static void
-parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
+parsec_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
                               parsec_dtd_funcptr_t *fpointer, parsec_task_t *orig_task,
                               char *name_of_kernel, parsec_dtd_task_param_t *packed_parameters_head, int count_of_params )
 {
-    parsec_handle_t *parsec_handle = (parsec_handle_t *)parsec_dtd_handle;
-    if( 0 == parsec_dtd_handle->enqueue_flag ) {
-        parsec_enqueue( parsec_handle->context, parsec_handle );
+    parsec_taskpool_t *parsec_tp = (parsec_taskpool_t *)dtd_tp;
+    if( 0 == dtd_tp->enqueue_flag ) {
+        parsec_enqueue( parsec_tp->context, parsec_tp );
     }
 
     parsec_dtd_task_param_t *current_paramm;
@@ -289,7 +287,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
     /* Hash table lookup to check if the function structure exists or not */
     uint64_t fkey = (uint64_t)(uintptr_t)fpointer + count_of_params;
     parsec_task_class_t *tc = (parsec_task_class_t *)parsec_dtd_find_task_class
-                                                      (parsec_dtd_handle, fkey);
+                                                      (dtd_tp, fkey);
 
     if( NULL == tc ) {
         /* calculating the size of parameters for each task class*/
@@ -300,7 +298,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
                    "Total Size: %lu\n", name_of_kernel, count_of_params, size_of_params);
         }
 
-        tc = parsec_dtd_create_task_class( parsec_dtd_handle, fpointer, name_of_kernel, count_of_params,
+        tc = parsec_dtd_create_task_class( dtd_tp, fpointer, name_of_kernel, count_of_params,
                                            size_of_params, count_of_params );
 
         __parsec_chore_t **incarnations = (__parsec_chore_t **)&(tc->incarnations);
@@ -308,11 +306,11 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
         tc->prepare_input               = data_lookup_ptg_to_dtd_task;
 
 #if defined(PARSEC_PROF_TRACE)
-        parsec_dtd_add_profiling_info((parsec_handle_t *)parsec_dtd_handle, tc->task_class_id, name_of_kernel);
+        parsec_dtd_add_profiling_info((parsec_taskpool_t *)dtd_tp, tc->task_class_id, name_of_kernel);
 #endif /* defined(PARSEC_PROF_TRACE) */
     }
 
-    parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(parsec_dtd_handle, tc, 0/*setting rank as 0*/);
+    parsec_dtd_task_t *this_task = parsec_dtd_create_and_initialize_task(dtd_tp, tc, 0/*setting rank as 0*/);
     this_task->orig_task = orig_task;
 
     /* Iterating through the parameters of the task */
@@ -398,7 +396,7 @@ fake_hook_for_testing(parsec_execution_unit_t *context,
 
         int i, tmp_op_type;
         int count_of_params = 0;
-        parsec_dtd_handle_t *dtd_handle = __dtd_handle;
+        parsec_dtd_taskpool_t *dtd_tp= __dtd_taskpool;
         parsec_dtd_task_param_ptg_to_dtd_t *head_param = NULL, *current_param = NULL, *tmp_param = NULL;
         parsec_data_t *data;
         parsec_data_key_t key;
@@ -471,7 +469,7 @@ fake_hook_for_testing(parsec_execution_unit_t *context,
             current_param = tmp_param;
         }
 
-        parsec_insert_task_ptg_to_dtd( dtd_handle, __dtd_handle->actual_hook[this_task->task_class->task_class_id].hook,
+        parsec_insert_task_ptg_to_dtd( dtd_tp, __dtd_taskpool->actual_hook[this_task->task_class->task_class_id].hook,
                                        this_task, (char *)this_task->task_class->name, (parsec_dtd_task_param_t *)head_param, count_of_params );
 
         /* Cleaning the params */

@@ -13,22 +13,22 @@
 #define N     100
 
 extern int touch_finalize(void);
-extern parsec_handle_t* touch_initialize(int block, int n);
+extern parsec_taskpool_t* touch_initialize(int block, int n);
 
 int main( int argc, char** argv )
 {
     int rc;
     parsec_context_t* parsec;
-    parsec_handle_t* handle;
+    parsec_taskpool_t* tp;
 
 #ifdef PARSEC_HAVE_MPI
     MPI_Init(NULL, NULL);
 #endif
     parsec = parsec_init(1, &argc, &argv);
     if( NULL != parsec ) {
-        handle = touch_initialize(BLOCK, N);
+        tp = touch_initialize(BLOCK, N);
 
-        rc = parsec_enqueue( parsec, handle );
+        rc = parsec_enqueue( parsec, tp );
         PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
         rc = parsec_context_start(parsec);

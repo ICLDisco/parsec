@@ -502,7 +502,7 @@ static int switch_event_buffer( parsec_thread_profiling_t *context )
 
 int
 parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
-                            uint64_t event_id, uint32_t handle_id,
+                            uint64_t event_id, uint32_t taskpool_id,
                             void *info, uint16_t flags)
 {
     parsec_profiling_output_t *this_event;
@@ -529,7 +529,7 @@ parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
 
     this_event->event.key = (uint16_t)key;
     this_event->event.event_id = event_id;
-    this_event->event.handle_id = handle_id;
+    this_event->event.taskpool_id = taskpool_id;
     this_event->event.flags = 0;
 
     if( NULL != info ) {

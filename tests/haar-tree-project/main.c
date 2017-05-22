@@ -142,8 +142,8 @@ int main(int argc, char *argv[])
     int rank, world;
     tree_dist_t *treeA;
     two_dim_block_cyclic_t fakeDesc;
-    parsec_project_handle_t *project;
-    parsec_walk_handle_t *walker;
+    parsec_project_taskpool_t *project;
+    parsec_walk_taskpool_t *walker;
     parsec_arena_t arena;
     int do_checks = 0, be_verbose = 0;
     int pargc = 0, i, dashdash = -1;
@@ -295,9 +295,9 @@ int main(int argc, char *argv[])
 #endif  /* defined(HAVE_MPI) */
 
     project->arenas[PARSEC_project_DEFAULT_ARENA] = NULL;
-    parsec_handle_free(&project->super);
+    parsec_taskpool_free(&project->super);
     walker->arenas[PARSEC_walk_DEFAULT_ARENA] = NULL;
-    parsec_handle_free(&walker->super);
+    parsec_taskpool_free(&walker->super);
 
     parsec_fini(&parsec);
 

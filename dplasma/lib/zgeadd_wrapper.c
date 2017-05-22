@@ -115,7 +115,7 @@ dplasma_ztradd_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_stradd_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans,
                     parsec_complex64_t alpha,
                     const tiled_matrix_desc_t *A,
@@ -185,7 +185,7 @@ dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans,
  * @sa dplasma_sgeadd_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zgeadd_New( PLASMA_enum trans,
                     parsec_complex64_t alpha,
                     const tiled_matrix_desc_t *A,
@@ -216,7 +216,7 @@ dplasma_zgeadd_New( PLASMA_enum trans,
  *
  ******************************************************************************/
 void
-dplasma_ztradd_Destruct( parsec_handle_t *handle )
+dplasma_ztradd_Destruct( parsec_taskpool_t *handle )
 {
     dplasma_map2_Destruct(handle);
 }
@@ -242,7 +242,7 @@ dplasma_ztradd_Destruct( parsec_handle_t *handle )
  *
  ******************************************************************************/
 void
-dplasma_zgeadd_Destruct( parsec_handle_t *handle )
+dplasma_zgeadd_Destruct( parsec_taskpool_t *handle )
 {
     dplasma_ztradd_Destruct(handle);
 }
@@ -314,7 +314,7 @@ dplasma_ztradd( parsec_context_t *parsec,
                 parsec_complex64_t beta,
                 tiled_matrix_desc_t *B)
 {
-    parsec_handle_t *parsec_ztradd = NULL;
+    parsec_taskpool_t *parsec_ztradd = NULL;
 
     if ((uplo != PlasmaUpperLower) &&
         (uplo != PlasmaUpper)      &&
@@ -336,7 +336,7 @@ dplasma_ztradd( parsec_context_t *parsec,
 
     if ( parsec_ztradd != NULL )
     {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_ztradd);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_ztradd);
         dplasma_wait_until_completion(parsec);
         dplasma_ztradd_Destruct( parsec_ztradd );
     }

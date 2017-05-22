@@ -17,11 +17,11 @@
  *
  * @return the parsec object to schedule.
  */
-parsec_handle_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb);
+parsec_taskpool_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb);
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
-void ctlgat_destroy(parsec_handle_t *o);
+void ctlgat_destroy(parsec_taskpool_t *o);
 
 #endif 

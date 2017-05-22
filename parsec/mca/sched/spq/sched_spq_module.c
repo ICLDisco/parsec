@@ -23,9 +23,9 @@
  */
 static int sched_spq_install(parsec_context_t* master);
 static int sched_spq_schedule(parsec_execution_unit_t* eu_context,
-                             parsec_execution_context_t* new_context,
+                             parsec_task_t* new_context,
                              int32_t distance);
-static parsec_execution_context_t*
+static parsec_task_t*
 sched_spq_select(parsec_execution_unit_t *eu_context,
                 int32_t* distance);
 static int flow_spq_init(parsec_execution_unit_t* eu_context, struct parsec_barrier_t* barrier);
@@ -74,10 +74,10 @@ static int flow_spq_init(parsec_execution_unit_t* eu_context, struct parsec_barr
     return 0;
 }
 
-static parsec_execution_context_t* sched_spq_select(parsec_execution_unit_t *eu_context,
+static parsec_task_t* sched_spq_select(parsec_execution_unit_t *eu_context,
                                                     int32_t* distance)
 {
-    parsec_execution_context_t *context;
+    parsec_task_t* context;
     parsec_list_item_t *li;
     parsec_spq_priority_list_t *plist;
     parsec_list_t *task_list = (parsec_list_t*)eu_context->scheduler_object;
@@ -87,7 +87,7 @@ static parsec_execution_context_t* sched_spq_select(parsec_execution_unit_t *eu_
          li != PARSEC_LIST_ITERATOR_END(task_list);
          li = PARSEC_LIST_ITERATOR_NEXT(li) ) {
         plist = (parsec_spq_priority_list_t*)li;
-        if( (context = (parsec_execution_context_t*)parsec_list_pop_front(&plist->tasks)) != NULL ) {
+        if( (context = (parsec_task_t*)parsec_list_pop_front(&plist->tasks)) != NULL ) {
             *distance = plist->prio;
             break;
         }
@@ -97,7 +97,7 @@ static parsec_execution_context_t* sched_spq_select(parsec_execution_unit_t *eu_
 }
 
 static int sched_spq_schedule(parsec_execution_unit_t* eu_context,
-                             parsec_execution_context_t* new_context,
+                             parsec_task_t* new_context,
                              int32_t distance)
 {
     parsec_list_item_t *li;

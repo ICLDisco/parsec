@@ -10,7 +10,7 @@ interface touch_initialize
     implicit none
     integer(kind=c_int), INTENT(IN), VALUE :: block
     integer(kind=c_int), INTENT(IN), VALUE :: n
-    type(parsec_handle_t)  :: touch_initialize_f08
+    type(parsec_taskpool_t)  :: touch_initialize_f08
   end function
 end interface
 
@@ -25,13 +25,13 @@ end interface
   parameter (BLOCK=10, N=100)
 
   type(parsec_context_t) :: context
-  type(parsec_handle_t)  :: handle
+  type(parsec_taskpool_t)  :: tp
 
   call parsec_init(1, context)
 
-  handle = touch_initialize_f08(BLOCK, N)
+  tp = touch_initialize_f08(BLOCK, N)
 
-  call parsec_enqueue( context, handle )
+  call parsec_enqueue( context, tp )
 
   call parsec_context_wait(context)
 

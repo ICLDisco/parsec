@@ -18,7 +18,8 @@ typedef struct parsec_flow_s parsec_flow_t;
 typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
 
-struct parsec_handle_s;
+struct parsec_taskpool_s;
+#include "parsec/datatype.h"
 
 /**
  * Assignments
@@ -34,10 +35,10 @@ struct assignment_s {
 #define EXPR_OP_RANGE_EXPR_INCREMENT  25
 #define EXPR_OP_INLINE                100
 
-typedef parsec_datatype_t (*expr_op_datatype_inline_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
-typedef int32_t (*expr_op_int32_inline_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
-typedef int64_t (*expr_op_int64_inline_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
-typedef parsec_data_t *(*direct_data_lookup_func_t)(const struct parsec_handle_s *__parsec_handle_parent, const assignment_t *assignments);
+typedef parsec_datatype_t (*expr_op_datatype_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef int32_t (*expr_op_int32_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef int64_t (*expr_op_int64_inline_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
+typedef parsec_data_t *(*direct_data_lookup_func_t)(const struct parsec_taskpool_s *tp, const assignment_t *assignments);
 
 struct expr_s {
     union {
@@ -128,7 +129,7 @@ struct dep_s {
                                                 *   this dep is a direct memory access */
 };
 
-void dep_dump(const dep_t *d, const struct parsec_handle_s *parsec_handle, const char *prefix);
+void dep_dump(const dep_t *d, const struct parsec_taskpool_s *tp, const char *prefix);
 
 /**
  * Parameters

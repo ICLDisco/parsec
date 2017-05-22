@@ -43,7 +43,7 @@ task_to_insert_task( parsec_execution_unit_t    *context,
 {
     (void)context;
 
-    parsec_handle_t* parsec_dtd_handle = this_task->parsec_handle;
+    parsec_taskpool_t* dtd_tp = this_task->taskpool;
     int *total, *increment, *count, i;
 
     parsec_dtd_unpack_args( this_task,
@@ -60,7 +60,7 @@ task_to_insert_task( parsec_execution_unit_t    *context,
             return PARSEC_HOOK_RETURN_AGAIN;
         }
         /* Inserting real task */
-        parsec_insert_task( parsec_dtd_handle, real_task,    0,  "Real_Task",
+        parsec_insert_task( dtd_tp, real_task,    0,  "Real_Task",
                            0 );
     }
 
@@ -92,10 +92,10 @@ int main(int argc, char ** argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue(parsec, (parsec_handle_t *)parsec_dtd_handle);
+    parsec_enqueue(parsec, (parsec_taskpool_t *)dtd_tp);
 
     parsec_context_start(parsec);
 
@@ -106,7 +106,7 @@ int main(int argc, char ** argv)
     int count       = 0;
 
     for( m = 0; m < no_of_tasks; m++ ) {
-        parsec_insert_task( parsec_dtd_handle, task_to_insert_task,    0,  "Task_inserting_Task",
+        parsec_insert_task( dtd_tp, task_to_insert_task,    0,  "Task_inserting_Task",
                            sizeof(int),      &total_tasks,        VALUE,
                            sizeof(int),      &count,              VALUE,
                            sizeof(int),      &increment,          VALUE,
@@ -114,13 +114,13 @@ int main(int argc, char ** argv)
     }
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 
     SYNC_TIME_PRINT(rank, ("\n"));
 
     parsec_context_wait(parsec);
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_fini(&parsec);
 

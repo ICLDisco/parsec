@@ -186,10 +186,10 @@ free_data(parsec_ddesc_t *d)
  *
  * @return the parsec object to schedule.
  */
-static parsec_handle_t*
+static parsec_taskpool_t*
 bandwidth_new(parsec_ddesc_t *A, int loops, int frags, int size, int ws)
 {
-    parsec_bandwidth_handle_t *o = NULL;
+    parsec_bandwidth_taskpool_t *tp = NULL;
 
     if( (loops < 1) || (frags < 1) ) {
         fprintf(stderr, "To work, this test needs at lest 1 loop \n"
@@ -202,23 +202,23 @@ bandwidth_new(parsec_ddesc_t *A, int loops, int frags, int size, int ws)
         return NULL;
     }
 
-    o = parsec_bandwidth_new(A, loops, frags, ws);
+    tp  = parsec_bandwidth_new(A, loops, frags, ws);
 
-    parsec_arena_construct(((parsec_bandwidth_handle_t*)o)->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
+    parsec_arena_construct(((parsec_bandwidth_taskpool_t*)tp)->arenas[PARSEC_bandwidth_DEFAULT_ARENA],
                           size*sizeof(uint8_t), PARSEC_ARENA_ALIGNMENT_SSE, PARSEC_DATATYPE_NULL);
 
-    return (parsec_handle_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
 static void
-bandwidth_destroy(parsec_handle_t* handle)
+bandwidth_destroy(parsec_taskpool_t* tp)
 {
-    parsec_bandwidth_handle_t * bw_handle = (parsec_bandwidth_handle_t*)handle;
-    bw_handle->arenas[PARSEC_bandwidth_DEFAULT_ARENA] = NULL;
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(bw_handle);
+    parsec_bandwidth_taskpool_t * bw_tp = (parsec_bandwidth_taskpool_t*)tp;
+    bw_tp->arenas[PARSEC_bandwidth_DEFAULT_ARENA] = NULL;
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(bw_tp);
 }
 
 %}
@@ -283,7 +283,7 @@ int main(int argc, char *argv[])
     int rank, world, cores, ngpus = 0;
     int i, size, loops, frags;
     parsec_ddesc_t *ddescA;
-    parsec_handle_t *bw_test;
+    parsec_taskpool_t *bw_test;
     struct timeval tstart, tend;
     double t, bw;
 

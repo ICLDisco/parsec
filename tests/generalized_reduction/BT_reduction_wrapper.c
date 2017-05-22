@@ -25,9 +25,9 @@ static MPI_Datatype block;
  *
  * @return the parsec object to schedule.
  */
-parsec_handle_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
+parsec_taskpool_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
 {
-    parsec_BT_reduction_handle_t *o = NULL;
+    parsec_BT_reduction_taskpool_t *o = NULL;
 
     o = parsec_BT_reduction_new(A, nb, nt);
 
@@ -48,17 +48,17 @@ parsec_handle_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
     }
 #endif
 
-    return (parsec_handle_t*)o;
+    return (parsec_taskpool_t*)o;
 }
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
-void BT_reduction_destroy(parsec_handle_t *o)
+void BT_reduction_destroy(parsec_taskpool_t *o)
 {
 #if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_HANDLE_DESTRUCT(o);
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
 }

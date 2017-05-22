@@ -83,14 +83,14 @@
  * @sa dplasma_zgelqf_param_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
                           tiled_matrix_desc_t *A,
                           tiled_matrix_desc_t *TS,
                           tiled_matrix_desc_t *TT,
                           tiled_matrix_desc_t *Q )
 {
-    parsec_zunglq_param_handle_t* handle;
+    parsec_zunglq_param_taskpool_t* tp;
     int ib = TS->mb;
 
     if ( Q->m > Q->n ) {
@@ -110,41 +110,41 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
         return NULL;
     }
 
-    handle = parsec_zunglq_param_new( A,
-                                     TS,
-                                     TT,
-                                     Q,
-                                     *qrtree,
-                                     NULL );
+    tp = parsec_zunglq_param_new( A,
+                                  TS,
+                                  TT,
+                                  Q,
+                                  *qrtree,
+                                  NULL );
 
-    handle->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
-    parsec_private_memory_init( handle->_g_p_work, ib * TS->nb * sizeof(parsec_complex64_t) );
+    tp->_g_p_work = (parsec_memory_pool_t*)malloc(sizeof(parsec_memory_pool_t));
+    parsec_private_memory_init( tp->_g_p_work, ib * TS->nb * sizeof(parsec_complex64_t) );
 
     /* Default type */
-    dplasma_add2arena_tile( handle->arenas[PARSEC_zunglq_param_DEFAULT_ARENA],
+    dplasma_add2arena_tile( tp->arenas[PARSEC_zunglq_param_DEFAULT_ARENA],
                             A->mb*A->nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
                             parsec_datatype_double_complex_t, A->mb );
 
     /* Upper triangular part of tile with diagonal */
-    dplasma_add2arena_upper( handle->arenas[PARSEC_zunglq_param_UPPER_TILE_ARENA],
+    dplasma_add2arena_upper( tp->arenas[PARSEC_zunglq_param_UPPER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 0 );
 
     /* Lower triangular part of tile without diagonal */
-    dplasma_add2arena_lower( handle->arenas[PARSEC_zunglq_param_LOWER_TILE_ARENA],
+    dplasma_add2arena_lower( tp->arenas[PARSEC_zunglq_param_LOWER_TILE_ARENA],
                              A->mb*A->nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
                              parsec_datatype_double_complex_t, A->mb, 1 );
 
     /* Little T */
-    dplasma_add2arena_rectangle( handle->arenas[PARSEC_zunglq_param_LITTLE_T_ARENA],
+    dplasma_add2arena_rectangle( tp->arenas[PARSEC_zunglq_param_LITTLE_T_ARENA],
                                  TS->mb*TS->nb*sizeof(parsec_complex64_t),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
                                  parsec_datatype_double_complex_t, TS->mb, TS->nb, -1);
 
-    return (parsec_handle_t*)handle;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
@@ -168,9 +168,9 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
  *
  ******************************************************************************/
 void
-dplasma_zunglq_param_Destruct( parsec_handle_t *handle )
+dplasma_zunglq_param_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zunglq_param_handle_t *parsec_zunglq = (parsec_zunglq_param_handle_t *)handle;
+    parsec_zunglq_param_taskpool_t *parsec_zunglq = (parsec_zunglq_param_taskpool_t *)tp;
 
     parsec_matrix_del2arena( parsec_zunglq->arenas[PARSEC_zunglq_param_DEFAULT_ARENA   ] );
     parsec_matrix_del2arena( parsec_zunglq->arenas[PARSEC_zunglq_param_UPPER_TILE_ARENA] );
@@ -180,7 +180,7 @@ dplasma_zunglq_param_Destruct( parsec_handle_t *handle )
     parsec_private_memory_fini( parsec_zunglq->_g_p_work );
     free( parsec_zunglq->_g_p_work );
 
-    parsec_handle_free(handle);
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -258,7 +258,7 @@ dplasma_zunglq_param( parsec_context_t *parsec,
                       tiled_matrix_desc_t *TT,
                       tiled_matrix_desc_t *Q )
 {
-    parsec_handle_t *parsec_zunglq;
+    parsec_taskpool_t *parsec_zunglq;
 
     if (parsec == NULL) {
         dplasma_error("dplasma_zunglq_param", "dplasma not initialized");

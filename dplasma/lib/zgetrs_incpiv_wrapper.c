@@ -96,8 +96,8 @@ dplasma_zgetrs_incpiv(parsec_context_t *parsec,
     }
 
 #ifdef PARSEC_COMPOSITION
-    parsec_handle_t *parsec_ztrsmpl = NULL;
-    parsec_handle_t *parsec_ztrsm   = NULL;
+    parsec_taskpool_t *parsec_ztrsmpl = NULL;
+    parsec_taskpool_t *parsec_ztrsm   = NULL;
 
     parsec_ztrsmpl = dplasma_ztrsmpl_New(A, L, IPIV, B);
     parsec_ztrsm   = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);

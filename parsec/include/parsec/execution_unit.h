@@ -132,7 +132,7 @@ struct parsec_context_s {
 
     int32_t object_array_size; /**< size of array to save reference of dtd handles */
     int32_t object_array_occupied; /**< count of dtd handles registered */
-    parsec_handle_t **object_array; /**< array of dtd handles registered with this context */
+    parsec_taskpool_t **object_array; /**< array of dtd handles registered with this context */
 
 #if defined(PARSEC_SIM)
     int largest_simulation_date;

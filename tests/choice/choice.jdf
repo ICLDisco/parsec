@@ -62,7 +62,7 @@ BODY
         printf("Execute TB(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task A not done */
-        (void)parsec_atomic_dec_32b((uint32_t*)&this_task->parsec_handle->nb_tasks);
+        (void)parsec_atomic_dec_32b((uint32_t*)&this_task->taskpool->nb_tasks);
 }
 END
 
@@ -81,6 +81,6 @@ BODY
         printf("Execute TA(%d); decision[%d] = %d\n", k, k, decision[k]);
 
         /* Decrease counter for the task B not done */
-        (void)parsec_atomic_dec_32b((uint32_t*)&this_task->parsec_handle->nb_tasks);
+        (void)parsec_atomic_dec_32b((uint32_t*)&this_task->taskpool->nb_tasks);
 }
 END

@@ -309,7 +309,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 }
 
 static int
-parsec_cuda_handle_register(parsec_device_t* device, parsec_handle_t* handle)
+parsec_cuda_handle_register(parsec_device_t* device, parsec_taskpool_t* handle)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
     uint32_t i, j, dev_mask = 0x0;
@@ -352,7 +352,7 @@ parsec_cuda_handle_register(parsec_device_t* device, parsec_handle_t* handle)
 }
 
 static int
-parsec_cuda_handle_unregister(parsec_device_t* device, parsec_handle_t* handle)
+parsec_cuda_handle_unregister(parsec_device_t* device, parsec_taskpool_t* handle)
 {
     (void)device; (void)handle;
     return PARSEC_SUCCESS;
@@ -1010,8 +1010,8 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
             assert(-1 != gpu_stream->prof_event_key_start);
             PARSEC_PROFILING_TRACE(gpu_stream->profiling,
                                   gpu_stream->prof_event_key_start,
-                                  this_task->function->key(this_task->parsec_handle, this_task->locals),
-                                  this_task->parsec_handle->handle_id,
+                                  this_task->function->key(this_task->taskpool, this_task->locals),
+                                  this_task->taskpool->taskpool_id,
                                   &original);
         }
 #endif
@@ -1298,7 +1298,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
 int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
 {
     int i, dev_index = -1, data_index = 0;
-    parsec_handle_t* handle = this_task->parsec_handle;
+    parsec_taskpool_t* handle = this_task->taskpool;
 
     /* Step one: Find the first data in WRITE mode stored on a GPU */
     for( i = 0; i < this_task->function->nb_flows; i++ ) {
@@ -1501,7 +1501,7 @@ progress_stream( gpu_device_t* gpu_device,
                 } else {
                     PARSEC_TASK_PROF_TRACE(exec_stream->profiling,
                                           (-1 == exec_stream->prof_event_key_end ?
-                                           PARSEC_PROF_FUNC_KEY_END(task->ec->parsec_handle,
+                                           PARSEC_PROF_FUNC_KEY_END(task->ec->taskpool,
                                                                    task->ec->function->task_class_id) :
                                            exec_stream->prof_event_key_end),
                                           task->ec);
@@ -1616,7 +1616,7 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
     PARSEC_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                              gpu_stream->profiling,
                              (-1 == gpu_stream->prof_event_key_start ?
-                              PARSEC_PROF_FUNC_KEY_START(this_task->parsec_handle,
+                              PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,
                                                         this_task->function->task_class_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
@@ -1738,7 +1738,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                 PARSEC_TASK_PROF_TRACE_IF(gpu_stream->prof_event_track_enable,
                                          gpu_stream->profiling,
                                          (-1 == gpu_stream->prof_event_key_start ?
-                                          PARSEC_PROF_FUNC_KEY_START(this_task->parsec_handle,
+                                          PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,
                                                                     this_task->function->task_class_id) :
                                           gpu_stream->prof_event_key_start),
                                          this_task);
@@ -1932,10 +1932,10 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
 
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( eu_context->eu_profile,
-                                 PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->parsec_handle,
+                                 PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
                                                          gpu_task->ec->function->task_class_id),
-                                 gpu_task->ec->function->key( gpu_task->ec->parsec_handle, gpu_task->ec->locals),
-                                 gpu_task->ec->parsec_handle->handle_id, NULL,
+                                 gpu_task->ec->function->key( gpu_task->ec->taskpool, gpu_task->ec->locals),
+                                 gpu_task->ec->taskpool->taskpool_id, NULL,
                                  PARSEC_PROFILING_EVENT_RESCHEDULED );
 #endif /* defined(PARSEC_PROF_TRACE) */
 

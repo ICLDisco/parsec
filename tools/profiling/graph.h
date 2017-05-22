@@ -8,7 +8,7 @@ typedef struct {
     char              *node;
     char              *vp;
     char              *thread;
-    unsigned long long handle_id;
+    unsigned long long taskpool_id;
     int                priority;
 } node_info_t;
 
@@ -23,7 +23,7 @@ typedef struct {
 unsigned int add_node(node_info_t *info);
 unsigned int find_node_by_task_id(const char *task_id);
 unsigned int find_node_by_task_name_and_parameters(const char *name, const char *parameters);
-unsigned int find_node_by_task_name_and_handle_id(const char *name, unsigned long long oid);
+unsigned int find_node_by_task_name_and_taskpool_id(const char *name, unsigned long long oid);
 void get_node_info(unsigned int node, node_info_t *info);
 unsigned int add_edge(unsigned int src, unsigned int dst);
 

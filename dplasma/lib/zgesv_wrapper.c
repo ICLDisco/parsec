@@ -66,10 +66,10 @@ dplasma_zgesv( parsec_context_t *parsec,
 #ifdef PARSEC_COMPOSITION
 #warning "Not implemented"
 
-    parsec_handle_t *parsec_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
-    parsec_handle_t *parsec_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
-    parsec_handle_t *parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
-    parsec_handle_t *parsec_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
+    parsec_taskpool_t *parsec_zgetrf = dplasma_zgetrf_New(A, IPIV, &info);
+    parsec_taskpool_t *parsec_zlaswp = dplasma_zlaswp_New(B, IPIV, 1);
+    parsec_taskpool_t *parsec_ztrsm1 = dplasma_ztrsm_New(PlasmaLeft, PlasmaLower, PlasmaNoTrans, PlasmaUnit, 1.0, A, B);
+    parsec_taskpool_t *parsec_ztrsm2 = dplasma_ztrsm_New(PlasmaLeft, PlasmaUpper, PlasmaNoTrans, PlasmaNonUnit, 1.0, A, B);
 
     parsec_enqueue( parsec, parsec_zgetrf  );
     parsec_enqueue( parsec, parsec_zlaswp );

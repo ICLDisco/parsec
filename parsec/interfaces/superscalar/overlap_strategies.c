@@ -329,7 +329,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
 
                 ontask( eu, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
                         deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
-                vpid_dst = (vpid_dst+1) % current_task->super.parsec_handle->context->nb_vp;
+                vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
                 /* releasing remote tasks that is a descendant of a local task */
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {

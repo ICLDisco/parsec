@@ -16,7 +16,7 @@ extern "C" %{
 #define TYPE  matrix_RealFloat
 
 #include "multichain.h"
-static parsec_multichain_handle_t* handle;
+static parsec_multichain_taskpool_t* tp;
 static int verbose = 0;
 %}
 
@@ -37,7 +37,7 @@ RW   B <- (i == 0)      ? descB(i, 0) : B HORIZONTAL(i-1)
        -> (i != (NI-1)) ? B HORIZONTAL(i+1)
 BODY
     if(verbose)
-        printf("HORIZONTAL(%d) [left-over tasks %d]\n", i, handle->super.nb_tasks);
+        printf("HORIZONTAL(%d) [left-over tasks %d]\n", i, tp->super.nb_tasks);
 END
 
 VERTICAL(i, j)
@@ -52,7 +52,7 @@ RW   B <- (i == 0)      ? descB(i, 0) : B VERTICAL(i-1, j)
        -> (i != (NI-1)) ? B VERTICAL(i+1, j) : descB(i, 0)
 BODY
     if(verbose)
-        printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, handle->super.nb_tasks);
+        printf("VERTICAL(%d, %d) [left-over tasks %d]\n", i, j, tp->super.nb_tasks);
 END
 
 extern "C" %{
@@ -157,11 +157,11 @@ int main(int argc, char* argv[])
     for( ; loops > 0; loops-- ) {
 
         printf("\n\n\n%d iterations remaining\n\n\n", loops);
-        handle = parsec_multichain_new( &descA, &descB, ni, nj );
-        assert( NULL != handle );
+        tp = parsec_multichain_new( &descA, &descB, ni, nj );
+        assert( NULL != tp );
         TIMER_START(time_elapsed);
-        handle->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
-        parsec_enqueue( parsec, (parsec_handle_t*)handle );
+        tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+        parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
         TIMER_STOP(time_elapsed);
         printf("DAG construction in %ld micro-sec\n", time_elapsed);
 
@@ -181,17 +181,17 @@ int main(int argc, char* argv[])
          * Validate the parsec_context_start / parsec_context_wait functionality.
          */
         printf("\n\nChecking the parsec_context_start / parsec_context_wait (sleep 5)\n\n");
-        handle = parsec_multichain_new( &descA, &descB, ni, nj );
-        assert( NULL != handle );
+        tp = parsec_multichain_new( &descA, &descB, ni, nj );
+        assert( NULL != tp );
 
         TIMER_START(time_elapsed);
-        handle->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
-        parsec_enqueue( parsec, (parsec_handle_t*)handle );
+        tp->arenas[PARSEC_multichain_DEFAULT_ARENA] = &arena;
+        parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
         TIMER_STOP(time_elapsed);
 
         parsec_context_start(parsec);
         sleep(5);
-        printf("Main thread going for the wait (remaining tasks %d)\n", handle->super.nb_tasks);
+        printf("Main thread going for the wait (remaining tasks %d)\n", tp->super.nb_tasks);
         /* By now most of the tasks should be completed */
         TIMER_START(time_elapsed);
         parsec_context_wait(parsec);

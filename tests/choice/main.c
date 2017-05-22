@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
     int size, nb, i, j, c;
     parsec_ddesc_t *ddescA;
     int *decision;
-    parsec_handle_t *choice;
+    parsec_taskpool_t *choice;
     char **dargv, ***pargv;
 
 #if defined(PARSEC_HAVE_MPI)

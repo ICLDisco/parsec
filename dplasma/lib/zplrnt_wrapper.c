@@ -106,7 +106,7 @@ dplasma_zplrnt_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_splrnt_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zplrnt_New( int diagdom,
                     tiled_matrix_desc_t *A,
                     unsigned long long int seed)
@@ -140,7 +140,7 @@ dplasma_zplrnt_New( int diagdom,
  *
  ******************************************************************************/
 void
-dplasma_zplrnt_Destruct( parsec_handle_t *handle )
+dplasma_zplrnt_Destruct( parsec_taskpool_t *handle )
 {
     dplasma_map_Destruct(handle);
 }
@@ -192,11 +192,11 @@ dplasma_zplrnt( parsec_context_t *parsec,
                 tiled_matrix_desc_t *A,
                 unsigned long long int seed)
 {
-    parsec_handle_t *parsec_zplrnt = NULL;
+    parsec_taskpool_t *parsec_zplrnt = NULL;
 
     parsec_zplrnt = dplasma_zplrnt_New(diagdom, A, seed);
 
-    parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplrnt);
+    parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zplrnt);
     dplasma_wait_until_completion(parsec);
 
     dplasma_zplrnt_Destruct( parsec_zplrnt );

@@ -109,7 +109,7 @@ extern int dtd_threshold_size;
 
 typedef struct parsec_dtd_tile_s       parsec_dtd_tile_t;
 typedef struct parsec_dtd_task_s       parsec_dtd_task_t;
-typedef struct parsec_dtd_handle_s     parsec_dtd_handle_t;
+typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 
 /*
  * Function pointer typeof  kernel pointer pased as parameter to insert_function().
@@ -176,7 +176,7 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
 
 /*
  * Using this function users can insert task in PaRSEC
- * 1. The parsec handle (parsec_dtd_handle_t *)
+ * 1. The parsec handle (parsec_dtd_taskpool_t *)
  * 2. The function pointer which will be executed as the "real computation task" being inserted.
  *    This function should include the actual computation the user wants to perform on the data.
  * 3. The priority of the task, if not sure user should provide 0.
@@ -235,7 +235,7 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
  *
  */
 void
-parsec_insert_task( parsec_handle_t  *parsec_handle,
+parsec_insert_task( parsec_taskpool_t  *tp,
                     parsec_dtd_funcptr_t *fpointer, int priority,
                     char *name_of_kernel, ... );
 
@@ -262,19 +262,19 @@ parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc );
  * This function will create and returns a parsec handle
  * of dtd-type.
  */
-parsec_handle_t*
-parsec_dtd_handle_new();
+parsec_taskpool_t*
+parsec_dtd_taskpool_new();
 
 /*
  * This function will block until all the tasks inserted
  * so far is completed.
  * User can call this function multiple times
- * between a parsec_dtd_handle_new() and parsec_handle_free()
+ * between a parsec_dtd_taskpool_new() and parsec_taskpool_free()
  * Takes a parsec context and a parsec handle as input.
  */
 int
-parsec_dtd_handle_wait( parsec_context_t *parsec,
-                        parsec_handle_t  *parsec_handle );
+parsec_dtd_taskpool_wait( parsec_context_t *parsec,
+                        parsec_taskpool_t  *tp );
 
 /*
  * This function flushes a specific data,
@@ -290,7 +290,7 @@ parsec_dtd_handle_wait( parsec_context_t *parsec,
  * TILE_OF or TILE_OF_KEY macro.
  */
 void
-parsec_dtd_data_flush( parsec_handle_t   *parsec_handle,
+parsec_dtd_data_flush( parsec_taskpool_t   *tp,
                        parsec_dtd_tile_t *tile );
 
 /*
@@ -299,7 +299,7 @@ parsec_dtd_data_flush( parsec_handle_t   *parsec_handle,
  * parsec_context_wait() is called.
  */
 void
-parsec_dtd_data_flush_all( parsec_handle_t *parsec_handle,
+parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
                            parsec_ddesc_t  *ddesc );
 
 END_C_DECLS

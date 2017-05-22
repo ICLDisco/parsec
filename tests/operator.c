@@ -36,7 +36,7 @@ int main( int argc, char* argv[] )
 {
     parsec_context_t* parsec;
     int rc;
-    parsec_handle_t* object;
+    parsec_taskpool_t* op;
     two_dim_block_cyclic_t ddescA;
     int cores = 4, world = 1, rank = 0;
     int mb = 100, nb = 100;
@@ -61,11 +61,11 @@ int main( int argc, char* argv[] )
                                      (size_t)parsec_datadist_getsizeoftype(ddescA.super.mtype));
 
     parsec_ddesc_set_key(&ddescA.super.super, "A");
-    object = parsec_map_operator_New((tiled_matrix_desc_t*)&ddescA,
-                                    NULL,
-                                    parsec_operator_print_id,
-                                    "A");
-    rc = parsec_enqueue(parsec, (parsec_handle_t*)object);
+    op = parsec_map_operator_New((tiled_matrix_desc_t*)&ddescA,
+                                  NULL,
+                                  parsec_operator_print_id,
+                                  "A");
+    rc = parsec_enqueue(parsec, op);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
     rc = parsec_context_start(parsec);
@@ -74,7 +74,7 @@ int main( int argc, char* argv[] )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_map_operator_Destruct( object );
+    parsec_map_operator_Destruct( op );
 
     parsec_fini(&parsec);
 

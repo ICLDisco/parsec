@@ -70,7 +70,7 @@ int main(int argc, char ** argv)
     }
 
     /****** Checking task generation ******/
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
     int i, j, total_tasks = 100000;
 
@@ -80,7 +80,7 @@ int main(int argc, char ** argv)
     }
 
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( parsec, parsec_dtd_handle );
+    parsec_enqueue( parsec, dtd_tp );
 
     parsec_context_start(parsec);
 
@@ -88,15 +88,15 @@ int main(int argc, char ** argv)
         SYNC_TIME_START();
         for( j = 0; j < total_tasks; j++ ) {
             /* This task does not have any data associated with it, so it will be inserted in all mpi processes */
-            parsec_insert_task( parsec_dtd_handle, task_to_check_generation,    0,  "sample_task",
+            parsec_insert_task( dtd_tp, task_to_check_generation,    0,  "sample_task",
                                 0 );
         }
 
-        parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+        parsec_dtd_taskpool_wait( parsec, dtd_tp );
         SYNC_TIME_PRINT(rank, ("\n"));
     }
 
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_context_wait(parsec);
 

@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     int rank, world;
     int size, nb;
     parsec_ddesc_t *ddescA;
-    parsec_handle_t *rtt;
+    parsec_taskpool_t *rtt;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -54,7 +54,7 @@ int main(int argc, char *argv[])
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_handle_free((parsec_handle_t*)rtt);
+    parsec_taskpool_free((parsec_taskpool_t*)rtt);
 
     free_data(ddescA);
 

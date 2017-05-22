@@ -77,7 +77,7 @@ remote_dep_is_forwarded(parsec_execution_unit_t* eu_context,
 
 /* make sure we don't leave before serving all data deps */
 static inline void
-remote_dep_inc_flying_messages(parsec_handle_t* handle)
+remote_dep_inc_flying_messages(parsec_taskpool_t* handle)
 {
     assert( handle->nb_pending_actions > 0 );
     (void)parsec_atomic_inc_32b( &(handle->nb_pending_actions) );
@@ -85,9 +85,9 @@ remote_dep_inc_flying_messages(parsec_handle_t* handle)
 
 /* allow for termination when all deps have been served */
 static inline void
-remote_dep_dec_flying_messages(parsec_handle_t *handle)
+remote_dep_dec_flying_messages(parsec_taskpool_t *handle)
 {
-    (void)parsec_handle_update_runtime_nbtask(handle, -1);
+    (void)parsec_taskpool_update_runtime_nbtask(handle, -1);
 }
 
 /* Mark that ncompleted of the remote deps are finished, and return the remote dep to
@@ -114,7 +114,7 @@ remote_dep_complete_and_cleanup(parsec_remote_deps_t** deps,
             }
         (*deps)->outgoing_mask = 0;
         if(ncompleted)
-            remote_dep_dec_flying_messages((*deps)->parsec_handle);
+            remote_dep_dec_flying_messages((*deps)->taskpool);
         remote_deps_free(*deps);
         *deps = NULL;
         return 1;
@@ -235,7 +235,7 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
-int parsec_remote_dep_new_object(parsec_handle_t* obj) {
+int parsec_remote_dep_new_object(parsec_taskpool_t* obj) {
     return remote_dep_new_object(obj);
 }
 
@@ -336,11 +336,11 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
 #endif
 
     remote_dep_reset_forwarded(eu_context, remote_deps);
-    remote_deps->parsec_handle    = exec_context->parsec_handle;
+    remote_deps->taskpool    = exec_context->taskpool;
     /* Safe-keep the propagation mask (it must be packed in the message) */
     remote_deps->msg.output_mask = propagation_mask;
     remote_deps->msg.deps        = (uintptr_t)remote_deps;
-    remote_deps->msg.handle_id   = exec_context->parsec_handle->handle_id;
+    remote_deps->msg.taskpool_id   = exec_context->taskpool->taskpool_id;
     remote_deps->msg.task_class_id = tc->task_class_id;
     for(i = 0; i < tc->nb_locals; i++) {
         remote_deps->msg.locals[i] = exec_context->locals[i];
@@ -405,7 +405,7 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                         tmp, remote_deps->root, eu_context->virtual_process->parsec_context->my_rank, my_idx, rank);
 
                 int remote_dep_bcast_child_permits = 0;
-                if( 1 == exec_context->parsec_handle->handle_type ) {
+                if( 1 == exec_context->taskpool->taskpool_type ) {
                     remote_dep_bcast_child_permits = remote_dep_bcast_star_child(my_idx, idx);
                 } else {
                     remote_dep_bcast_child_permits = remote_dep_bcast_child(my_idx, idx);
@@ -426,11 +426,11 @@ int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
                         }
                     }
 #endif  /* PARSEC_DEBUG_NOISIER */
-                    assert(output->parent->parsec_handle == exec_context->parsec_handle);
+                    assert(output->parent->taskpool == exec_context->taskpool);
                     if( 1 == parsec_atomic_add_32b(&remote_deps->pending_ack, 1) ) {
                         keeper = 1;
                         /* Let the engine know we're working to activate the dependencies remotely */
-                        remote_dep_inc_flying_messages(exec_context->parsec_handle);
+                        remote_dep_inc_flying_messages(exec_context->taskpool);
                         /* We need to increase the pending_ack to make the deps persistant until the
                          * end of this function.
                          */

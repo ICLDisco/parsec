@@ -90,7 +90,7 @@ dplasma_zlaset_operator( parsec_execution_unit_t *eu,
  * @sa dplasma_slaset_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zlaset_New( PLASMA_enum uplo,
                     parsec_complex64_t alpha,
                     parsec_complex64_t beta,
@@ -125,7 +125,7 @@ dplasma_zlaset_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlaset_Destruct( parsec_handle_t *handle )
+dplasma_zlaset_Destruct( parsec_taskpool_t *handle )
 {
     dplasma_map_Destruct(handle);
 }
@@ -184,7 +184,7 @@ dplasma_zlaset( parsec_context_t *parsec,
                 parsec_complex64_t beta,
                 tiled_matrix_desc_t *A )
 {
-    parsec_handle_t *parsec_zlaset = NULL;
+    parsec_taskpool_t *parsec_zlaset = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) &&
@@ -198,7 +198,7 @@ dplasma_zlaset( parsec_context_t *parsec,
     parsec_zlaset = dplasma_zlaset_New(uplo, alpha, beta, A);
 
     if ( parsec_zlaset != NULL ) {
-        parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlaset);
+        parsec_enqueue(parsec, (parsec_taskpool_t*)parsec_zlaset);
         dplasma_wait_until_completion(parsec);
         dplasma_zlaset_Destruct( parsec_zlaset );
     }

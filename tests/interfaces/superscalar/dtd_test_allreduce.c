@@ -86,7 +86,7 @@ bcast1( parsec_execution_unit_t    *context,
                           UNPACK_DATA,  &second_data
                           );
 
-    printf( "My rank: %d, data: %d\n", this_task->parsec_handle->context->my_rank, *data );
+    printf( "My rank: %d, data: %d\n", this_task->taskpool->context->my_rank, *data );
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -117,7 +117,7 @@ int main(int argc, char **argv)
 
     parsec = parsec_init( cores, &argc, &argv );
 
-    parsec_handle_t *parsec_dtd_handle = parsec_dtd_handle_new(  );
+    parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new(  );
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
     int root = 0, i;
 
     /* Registering the dtd_handle with PARSEC context */
-    rc = parsec_enqueue( parsec, parsec_dtd_handle );
+    rc = parsec_enqueue( parsec, dtd_tp );
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
     rc = parsec_context_start(parsec);
@@ -156,18 +156,18 @@ int main(int argc, char **argv)
 
     for( i = 0; i < world; i ++ ) {
         if( root != i ) {
-            parsec_insert_task( parsec_dtd_handle, reduce0,    0,  "reduce0",
+            parsec_insert_task( dtd_tp, reduce0,    0,  "reduce0",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
                                 0 );
 
-            parsec_insert_task( parsec_dtd_handle, reduce1,    0,  "reduce1",
+            parsec_insert_task( dtd_tp, reduce1,    0,  "reduce1",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
                                 PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
                                 0 );
         }
     }
 
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
 // *********************
 
 //Broadcast:
@@ -176,14 +176,14 @@ int main(int argc, char **argv)
         printf("Root: %d\n\n", root );
     }
 
-    parsec_insert_task( parsec_dtd_handle, bcast0,    0,  "bcast0",
+    parsec_insert_task( dtd_tp, bcast0,    0,  "bcast0",
                         PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
                         0 );
 
     if( rank == root ) {
         for( i = 0; i < world; i++ ) {
             if( i != root ) {
-                parsec_insert_task( parsec_dtd_handle, bcast1,    0,  "bcast1",
+                parsec_insert_task( dtd_tp, bcast1,    0,  "bcast1",
                                     PASSED_BY_REF,    TILE_OF_KEY(A, root),  INPUT | TILE_FULL,
                                     PASSED_BY_REF,    TILE_OF_KEY(A, i),     INOUT | TILE_FULL | AFFINITY,
                                     0 );
@@ -191,19 +191,19 @@ int main(int argc, char **argv)
         }
 
     } else {
-        parsec_insert_task( parsec_dtd_handle, bcast1,    0,  "bcast1",
+        parsec_insert_task( dtd_tp, bcast1,    0,  "bcast1",
                             PASSED_BY_REF,    TILE_OF_KEY(A, root),    INPUT | TILE_FULL,
                             PASSED_BY_REF,    TILE_OF_KEY(A, rank), INOUT | TILE_FULL | AFFINITY,
                             0 );
     }
 //******************
 
-    parsec_dtd_data_flush_all( parsec_dtd_handle, A );
+    parsec_dtd_data_flush_all( dtd_tp, A );
 
-    parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
+    parsec_dtd_taskpool_wait( parsec, dtd_tp );
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-    parsec_handle_free( parsec_dtd_handle );
+    parsec_taskpool_free( dtd_tp );
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
     parsec_dtd_ddesc_fini( A );

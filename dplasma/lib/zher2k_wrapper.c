@@ -83,7 +83,7 @@
  * @sa dplasma_cher2k_New
  *
  ******************************************************************************/
-parsec_handle_t*
+parsec_taskpool_t*
 dplasma_zher2k_New( PLASMA_enum uplo,
                     PLASMA_enum trans,
                     parsec_complex64_t alpha,
@@ -92,7 +92,7 @@ dplasma_zher2k_New( PLASMA_enum uplo,
                     double beta,
                     tiled_matrix_desc_t* C)
 {
-    parsec_handle_t* handle;
+    parsec_taskpool_t* tp;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {
@@ -120,14 +120,14 @@ dplasma_zher2k_New( PLASMA_enum uplo,
 
     if ( uplo == PlasmaLower ) {
         if ( trans == PlasmaNoTrans ) {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zher2k_LN_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
         }
         else {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zher2k_LC_new(uplo, trans,
                                     alpha, A,
                                            B,
@@ -136,14 +136,14 @@ dplasma_zher2k_New( PLASMA_enum uplo,
     }
     else {
         if ( trans == PlasmaNoTrans ) {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zher2k_UN_new(uplo, trans,
                                     alpha, A,
                                            B,
                                     beta,  C);
         }
         else {
-            handle = (parsec_handle_t*)
+            tp = (parsec_taskpool_t*)
                 parsec_zher2k_UC_new(uplo, trans,
                                     alpha, A,
                                            B,
@@ -151,12 +151,12 @@ dplasma_zher2k_New( PLASMA_enum uplo,
         }
     }
 
-    dplasma_add2arena_tile(((parsec_zher2k_LN_handle_t*)handle)->arenas[PARSEC_zher2k_LN_DEFAULT_ARENA],
+    dplasma_add2arena_tile(((parsec_zher2k_LN_taskpool_t*)tp)->arenas[PARSEC_zher2k_LN_DEFAULT_ARENA],
                            C->mb*C->nb*sizeof(parsec_complex64_t),
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_double_complex_t, C->mb);
 
-    return handle;
+    return tp;
 }
 
 /***************************************************************************//**
@@ -178,11 +178,11 @@ dplasma_zher2k_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zher2k_Destruct( parsec_handle_t *handle )
+dplasma_zher2k_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zher2k_LN_handle_t *zher2k_handle = (parsec_zher2k_LN_handle_t*)handle;
-    parsec_matrix_del2arena( zher2k_handle->arenas[PARSEC_zher2k_LN_DEFAULT_ARENA] );
-    parsec_handle_free(handle);
+    parsec_zher2k_LN_taskpool_t *zher2k_tp = (parsec_zher2k_LN_taskpool_t*)tp;
+    parsec_matrix_del2arena( zher2k_tp->arenas[PARSEC_zher2k_LN_DEFAULT_ARENA] );
+    parsec_taskpool_free(tp);
 }
 
 /**
@@ -258,7 +258,7 @@ dplasma_zher2k( parsec_context_t *parsec,
                 double beta,
                 tiled_matrix_desc_t *C)
 {
-    parsec_handle_t *parsec_zher2k = NULL;
+    parsec_taskpool_t *parsec_zher2k = NULL;
 
     /* Check input arguments */
     if ((uplo != PlasmaLower) && (uplo != PlasmaUpper)) {

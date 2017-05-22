@@ -33,7 +33,7 @@ int main( int argc, char* argv[] )
 {
     parsec_context_t* parsec;
     int rc;
-    parsec_handle_t* object;
+    parsec_taskpool_t* tp;
     two_dim_block_cyclic_t ddescA;
     int cores = 2, world = 1, rank = 0;
     int nb = 100, ln = 900;
@@ -59,17 +59,17 @@ int main( int argc, char* argv[] )
 
     parsec_ddesc_set_key(&ddescA.super.super, "A");
 
-    object = (parsec_handle_t*)parsec_reduce_new((tiled_matrix_desc_t*)&ddescA,
+    tp = (parsec_taskpool_t*)parsec_reduce_new((tiled_matrix_desc_t*)&ddescA,
                                                (tiled_matrix_desc_t*)&ddescA,
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);
-    parsec_arena_construct(((parsec_reduce_handle_t*)object)->arenas[PARSEC_reduce_DEFAULT_ARENA],
+    parsec_arena_construct(((parsec_reduce_taskpool_t*)tp)->arenas[PARSEC_reduce_DEFAULT_ARENA],
                           nb*sizeof(float),
                           PARSEC_ARENA_ALIGNMENT_SSE,
                           newtype);
 
-    rc = parsec_enqueue(parsec, (parsec_handle_t*)object);
+    rc = parsec_enqueue(parsec, tp);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
     rc = parsec_context_start(parsec);
@@ -78,7 +78,7 @@ int main( int argc, char* argv[] )
     rc = parsec_context_wait(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
-    parsec_map_operator_Destruct( object );
+    parsec_map_operator_Destruct( tp );
 
     parsec_fini(&parsec);
 

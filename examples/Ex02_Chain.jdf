@@ -84,7 +84,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world;
     parsec_ddesc_t taskdist;
-    parsec_Ex02_Chain_handle_t *handle;
+    parsec_Ex02_Chain_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -105,18 +105,18 @@ int main(int argc, char *argv[])
     taskdist.vpid_of = vpid_of;
     taskdist.data_key = data_key;
 
-    handle = parsec_Ex02_Chain_new(&taskdist, 10);
+    tp = parsec_Ex02_Chain_new(&taskdist, 10);
 
     /**
      * Since we create a data on the fly, we need to tell the runtime the
      * datatype of the DEFAULT type, so it can allocate the required memory
      * space.
      */
-    parsec_arena_construct(handle->arenas[PARSEC_Ex02_Chain_DEFAULT_ARENA],
-                          sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
-                          parsec_datatype_int_t );
+    parsec_arena_construct(tp->arenas[PARSEC_Ex02_Chain_DEFAULT_ARENA],
+                           sizeof(int), PARSEC_ARENA_ALIGNMENT_SSE,
+                           parsec_datatype_int_t );
 
-    rc = parsec_enqueue( parsec, (parsec_handle_t*)handle );
+    rc = parsec_enqueue( parsec, (parsec_taskpool_t*)tp );
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
 
-    parsec_handle_free((parsec_handle_t*)handle);
+    parsec_taskpool_free((parsec_taskpool_t*)tp);
     parsec_ddesc_destroy(&taskdist);
 
     parsec_fini(&parsec);
