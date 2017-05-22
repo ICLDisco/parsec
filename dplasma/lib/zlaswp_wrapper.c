@@ -19,7 +19,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlaswp_New - Generates the handle that performs a series of row
+ *  dplasma_zlaswp_New - Generates the taskpool that performs a series of row
  *  interchanges on the matrix A.  One row interchange is initiated for each
  *  rows in IPIV descriptor.
  *
@@ -43,7 +43,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlaswp_Destruct();
  *
@@ -87,14 +87,14 @@ dplasma_zlaswp_New(tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlaswp_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlaswp_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlaswp_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

@@ -114,7 +114,7 @@ goto fin;
         if( P*Q > 1 ) {
             /* We need to gather the distributed band on rank0 */
 #if 0
-            /* LAcpy doesn't handle differing tile sizes, so lets get simple here */
+            /* LAcpy doesn't taskpool differing tile sizes, so lets get simple here */
             PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
                                        two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
                                                               nodes, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */

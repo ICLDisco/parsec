@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasm_zherk_New - Generates the handle that performs the following operation
+ *  dplasm_zherk_New - Generates the taskpool that performs the following operation
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( A )' )] + \beta C \f],
  *
@@ -66,7 +66,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zherk_Destruct();
  *
@@ -129,14 +129,14 @@ dplasma_zherk_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zherk_Destruct - Free the data structure associated to an handle
+ *  dplasma_zherk_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zherk_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -147,7 +147,7 @@ dplasma_zherk_New( PLASMA_enum uplo,
 void
 dplasma_zherk_Destruct( parsec_taskpool_t *tp )
 {
-    parsec_zherk_LN_taskpool_t *zherk_tp= (parsec_zherk_LN_taskpool_t*)tp;
+    parsec_zherk_LN_taskpool_t *zherk_tp = (parsec_zherk_LN_taskpool_t*)tp;
     parsec_matrix_del2arena( zherk_tp->arenas[PARSEC_zherk_LN_DEFAULT_ARENA] );
     parsec_taskpool_free(tp);
 }

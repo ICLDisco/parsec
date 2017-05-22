@@ -77,7 +77,7 @@ data_key(parsec_ddesc_t *desc, ...)
 
 /**
  * The funtion data_of is similar to rank_of instead that it returns the
- * parsec_data_t structure that handle the single piece of data corresponding to
+ * parsec_data_t structure that taskpool the single piece of data corresponding to
  * the given indexes.
  * Each piece of data that will go through the engine needs to have it's own
  * parsec_data_t stucture that stores its status information about it
@@ -123,7 +123,7 @@ int main(int argc, char *argv[])
      * Let's create the local data (mycounter), and the parsec_data_t associated to it
      */
     mycounter = 300 + rank;
-    ddata_mycounter = parsec_data_create( &ddata_mycounter, /* The parsec_data_t handle value   */
+    ddata_mycounter = parsec_data_create( &ddata_mycounter, /* The parsec_data_t taskpool value   */
                                          &mydata,          /* The descriptor associated to it */
                                          0,                /* The data key (see later)        */
                                          &mycounter,       /* The pointer to the data         */

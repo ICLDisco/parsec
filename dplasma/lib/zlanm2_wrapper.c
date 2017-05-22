@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlanm2_New - Generates the handle that computes an estimate of the
+ *  dplasma_zlanm2_New - Generates the taskpool that computes an estimate of the
  *  matrix 2-norm:
  *  @code{.tex}
  *     ||A||_2 = sqrt( \lambda_{max} A* A ) = \sigma_{max}(A)
@@ -45,7 +45,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlanm2_Destruct();
  *
@@ -131,14 +131,14 @@ dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlanm2_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlanm2_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlanm2_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

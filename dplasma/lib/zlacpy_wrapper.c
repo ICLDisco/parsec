@@ -45,7 +45,7 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlacpy_New - Generates an handle that performs a copy of the matrix A
+ * dplasma_zlacpy_New - Generates an taskpool that performs a copy of the matrix A
  * into the matrix B.
  *
  * See dplasma_map2_New() for further information.
@@ -73,7 +73,7 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlacpy_Destruct();
  *
@@ -91,12 +91,12 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
                     const tiled_matrix_desc_t *A,
                     tiled_matrix_desc_t *B)
 {
-    parsec_taskpool_t* handle;
+    parsec_taskpool_t* tp;
 
-    handle = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
-                              dplasma_zlacpy_operator, NULL );
+    tp = dplasma_map2_New(uplo, PlasmaNoTrans, A, B,
+                          dplasma_zlacpy_operator, NULL );
 
-    return handle;
+    return tp;
 }
 
 /**
@@ -104,14 +104,14 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlacpy_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlacpy_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlacpy_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -120,9 +120,9 @@ dplasma_zlacpy_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlacpy_Destruct( parsec_taskpool_t *handle )
+dplasma_zlacpy_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map2_Destruct(handle);
+    dplasma_map2_Destruct(tp);
 }
 
 
@@ -131,7 +131,7 @@ dplasma_zlacpy_Destruct( parsec_taskpool_t *handle )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlacpy - Generates an handle that performs a copy of the matrix A
+ * dplasma_zlacpy - Generates an taskpool that performs a copy of the matrix A
  * into the matrix B.
  *
  * See dplasma_map2() for further information.

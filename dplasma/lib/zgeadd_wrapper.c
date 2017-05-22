@@ -58,7 +58,7 @@ dplasma_ztradd_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_ztradd_New - Generates an handle that computes the operation B =
+ * dplasma_ztradd_New - Generates an taskpool that computes the operation B =
  * alpha * op(A) + beta * B, where op(A) is one of op(A) = A or op(A) = A' or
  * op(A) = conj(A')
  * A and B are upper or lower trapezoidal matricesn or general matrices.
@@ -102,7 +102,7 @@ dplasma_ztradd_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztradd_Destruct();
  *
@@ -136,7 +136,7 @@ dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgeadd_New - Generates an handle that computes the operation B =
+ * dplasma_zgeadd_New - Generates an taskpool that computes the operation B =
  * alpha * op(A) + beta * B, where op(A) is one of op(A) = A or op(A) = A' or
  * op(A) = conj(A')
  * A and B are general matrices.
@@ -172,7 +172,7 @@ dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgeadd_Destruct();
  *
@@ -200,14 +200,14 @@ dplasma_zgeadd_New( PLASMA_enum trans,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztradd_Destruct - Free the data structure associated to an handle
+ *  dplasma_ztradd_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_ztradd_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -216,9 +216,9 @@ dplasma_zgeadd_New( PLASMA_enum trans,
  *
  ******************************************************************************/
 void
-dplasma_ztradd_Destruct( parsec_taskpool_t *handle )
+dplasma_ztradd_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map2_Destruct(handle);
+    dplasma_map2_Destruct(tp);
 }
 
 /**
@@ -226,14 +226,14 @@ dplasma_ztradd_Destruct( parsec_taskpool_t *handle )
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgeadd_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgeadd_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgeadd_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -242,9 +242,9 @@ dplasma_ztradd_Destruct( parsec_taskpool_t *handle )
  *
  ******************************************************************************/
 void
-dplasma_zgeadd_Destruct( parsec_taskpool_t *handle )
+dplasma_zgeadd_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_ztradd_Destruct(handle);
+    dplasma_ztradd_Destruct(tp);
 }
 
 /**
@@ -252,7 +252,7 @@ dplasma_zgeadd_Destruct( parsec_taskpool_t *handle )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_ztradd - Generates an handle that computes the operation B = alpha *
+ * dplasma_ztradd - Generates an taskpool that computes the operation B = alpha *
  * op(A) + beta * B, and op(A) is one of op(A) = A, or op(A) = A', or op(A) =
  * conj(A')
  *
@@ -348,7 +348,7 @@ dplasma_ztradd( parsec_context_t *parsec,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgeadd - Generates an handle that computes the operation B = alpha *
+ * dplasma_zgeadd - Generates an taskpool that computes the operation B = alpha *
  * op(A) + beta * B, and op(A) is one of op(A) = A, or op(A) = A', or op(A) =
  * conj(A') with A and B two general matrices.
  *

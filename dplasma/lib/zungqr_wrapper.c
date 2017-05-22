@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zungqr_New - Generates the parsec handle that computes the generation
+ *  dplasma_zungqr_New - Generates the parsec taskpool that computes the generation
  *  of an M-by-N matrix Q with orthonormal columns, which is defined as the
  *  first N columns of a product of K elementary reflectors of order M
  *
@@ -57,7 +57,7 @@
  *******************************************************************************
  *
  * @return
- *          \retval The parsec handle which describes the operation to perform
+ *          \retval The parsec taskpool which describes the operation to perform
  *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
@@ -125,14 +125,14 @@ dplasma_zungqr_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zungqr_Destruct - Free the data structure associated to an handle
+ *  dplasma_zungqr_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zungqr_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

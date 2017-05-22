@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgelqf_New - Generates the handle that computes the LQ factorization
+ * dplasma_zgelqf_New - Generates the taskpool that computes the LQ factorization
  * a complex M-by-N matrix A: A = L * Q.
  *
  * The method used in this algorithm is a tile LQ algorithm with a flat
@@ -67,7 +67,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgelqf_Destruct();
  *
@@ -129,14 +129,14 @@ dplasma_zgelqf_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgelqf_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgelqf_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgelqf_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

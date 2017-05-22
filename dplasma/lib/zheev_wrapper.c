@@ -120,14 +120,14 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zheev_Destruct - Free the data structure associated to an handle
+ *  dplasma_zheev_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zheev_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zunglq_param_New - Generates the parsec handle that computes the generation
+ *  dplasma_zunglq_param_New - Generates the parsec taskpool that computes the generation
  *  of an M-by-N matrix Q with orthonormal rows, which is defined as the
  *  first M rows of a product of K elementary reflectors of order N
  *
@@ -70,7 +70,7 @@
  *******************************************************************************
  *
  * @return
- *          \retval The parsec handle which describes the operation to perform
+ *          \retval The parsec taskpool which describes the operation to perform
  *                  NULL if one of the parameter is incorrect
  *
  *******************************************************************************
@@ -152,14 +152,14 @@ dplasma_zunglq_param_New( dplasma_qrtree_t *qrtree,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zunglq_param_Destruct - Free the data structure associated to an handle
+ *  dplasma_zunglq_param_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zunglq_param_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsymm_New - Generates the parsec handle to compute the following
+ *  dplasma_zsymm_New - Generates the parsec taskpool to compute the following
  *  operation.  WARNING: The computations are not done by this call.
  *
  *     \f[ C = \alpha \times A \times B + \beta \times C \f]
@@ -71,7 +71,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zsymm_Destruct();
  *
@@ -113,14 +113,14 @@ dplasma_zsymm_New( PLASMA_enum side,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zsymm_Destruct - Free the data structure associated to an handle
+ *  dplasma_zsymm_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zsymm_New().
  *
  *******************************************************************************
  *
- * @param[in] handle
- *          On entry, the handle to destroy
- *          On exit, the handle cannot be used anymore.
+ * @param[in] tp
+ *          On entry, the taskpool to destroy
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

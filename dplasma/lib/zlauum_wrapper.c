@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlauum_New - Generates parsec handle to compute the product U * U' or
+ *  dplasma_zlauum_New - Generates parsec taskpool to compute the product U * U' or
  *  L' * L, where the triangular factor U or L is stored in the upper or lower
  *  triangular part of the array A.
  *
@@ -53,7 +53,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlauum_Destruct();
  *
@@ -105,14 +105,14 @@ dplasma_zlauum_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlauum_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlauum_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlauum_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

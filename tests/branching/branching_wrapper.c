@@ -27,26 +27,26 @@ static MPI_Datatype block;
  */
 parsec_taskpool_t *branching_new(parsec_ddesc_t *A, int size, int nb)
 {
-    parsec_branching_taskpool_t *o = NULL;
+    parsec_branching_taskpool_t *tp = NULL;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, BRANCHING nb and size must be > 0\n");
-        return (parsec_taskpool_t*)o;
+        return (parsec_taskpool_t*)tp;
     }
 
-    o = parsec_branching_new(A, nb);
+    tp = parsec_branching_new(A, nb);
 
 #if defined(PARSEC_HAVE_MPI)
     {
         MPI_Type_vector(1, size, size, MPI_BYTE, &block);
         MPI_Type_commit(&block);
-        parsec_arena_construct(o->arenas[PARSEC_branching_DEFAULT_ARENA],
-                              size * sizeof(char), size * sizeof(char), 
-                              block);
+        parsec_arena_construct(tp->arenas[PARSEC_branching_DEFAULT_ARENA],
+                               size * sizeof(char), size * sizeof(char), 
+                               block);
     }
 #endif
 
-    return (parsec_taskpool_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**

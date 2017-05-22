@@ -18,7 +18,7 @@
  *
  * @ingroup dplasma
  *
- * dplasma_map2_New - Generates an handle that performs a map operation with
+ * dplasma_map2_New - Generates an taskpool that performs a map operation with
  * two similar matrices, applying the operator on each couple of tiles:
  *
  *    operator( A, B )
@@ -77,7 +77,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_map2_Destruct();
  *
@@ -167,14 +167,14 @@ dplasma_map2_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma
  *
- *  dplasma_map2_Destruct - Free the data structure associated to an handle
+ *  dplasma_map2_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_map2_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

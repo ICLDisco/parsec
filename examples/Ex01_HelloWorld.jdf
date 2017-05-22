@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world;
     parsec_ddesc_t taskdist;
-    parsec_taskpool_t *handle;
+    parsec_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -113,17 +113,17 @@ int main(int argc, char *argv[])
     taskdist.data_key = data_key;
 
     /**
-     * Let's create the handle that contains the description of the algorithm to
+     * Let's create the taskpool that contains the description of the algorithm to
      * run.
      * The prototype of the parsec_Ex01_HelloWorld_new() is automatically
      * generated and included in the generated .h file Ex01_HelloWorld.h
      */
-    handle = (parsec_taskpool_t*)parsec_Ex01_HelloWorld_new(&taskdist);
+    tp = (parsec_taskpool_t*)parsec_Ex01_HelloWorld_new(&taskdist);
 
     /**
-     * Let's submit this handle to the runtime and wait for the completion
+     * Let's submit this taskpool to the runtime and wait for the completion
      */
-    rc = parsec_enqueue( parsec, handle );
+    rc = parsec_enqueue( parsec, tp );
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
     rc = parsec_context_start(parsec);
     PARSEC_CHECK_ERROR(rc, "parsec_context_start");
@@ -131,9 +131,9 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     /**
-     * Let's cleanup the handle.
+     * We are done, time to cleanup the taskpool.
      */
-    parsec_taskpool_free(handle);
+    parsec_taskpool_free(tp);
 
     /**
      * See Ex03_ChainMPI.jdf for explanation

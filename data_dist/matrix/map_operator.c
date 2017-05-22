@@ -32,7 +32,7 @@ int parsec_map_operator_profiling_array[2] = {-1};
 #endif
 
 typedef struct parsec_map_operator_taskpool {
-    parsec_taskpool_t             super;
+    parsec_taskpool_t          super;
     const tiled_matrix_desc_t* src;
           tiled_matrix_desc_t* dest;
     volatile uint32_t          next_k;
@@ -51,9 +51,9 @@ static const parsec_task_class_t parsec_map_operator;
 #define dest(k,n)  (((parsec_ddesc_t*)__tp->super.dest)->data_of((parsec_ddesc_t*)__tp->super.dest, (k), (n)))
 
 #if defined(PARSEC_PROF_TRACE)
-static inline uint32_t map_operator_op_hash(const __parsec_map_operator_taskpool_t *o, int k, int n )
+static inline uint32_t map_operator_op_hash(const __parsec_map_operator_taskpool_t *tp, int k, int n )
 {
-    return o->super.src->mt * k + n;
+    return tp->super.src->mt * k + n;
 }
 #endif  /* defined(PARSEC_PROF_TRACE) */
 

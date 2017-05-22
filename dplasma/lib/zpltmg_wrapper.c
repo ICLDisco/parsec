@@ -205,17 +205,17 @@ dplasma_zpltmg_genvect( parsec_context_t *parsec,
         return -2;
     }
 
-    if (NULL != tp) {
-        parsec_zpltmg_hankel_taskpool_t *tp_zpltmg = (parsec_zpltmg_hankel_taskpool_t*)tp;
+    if (tp != NULL) {
+        parsec_zpltmg_hankel_taskpool_t *zpltmg_tp = (parsec_zpltmg_hankel_taskpool_t*)tp;
 
         /* Default type */
-        dplasma_add2arena_tile( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA],
+        dplasma_add2arena_tile( zpltmg_tp->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA],
                                 A->mb*A->nb*sizeof(parsec_complex64_t),
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, A->mb );
 
         /* Vector type */
-        dplasma_add2arena_tile( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA],
+        dplasma_add2arena_tile( zpltmg_tp->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA],
                                 vectorsize,
                                 PARSEC_ARENA_ALIGNMENT_SSE,
                                 parsec_datatype_double_complex_t, A->mb );
@@ -223,13 +223,12 @@ dplasma_zpltmg_genvect( parsec_context_t *parsec,
         parsec_enqueue(parsec, tp);
         dplasma_wait_until_completion(parsec);
 
-        parsec_matrix_del2arena( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA] );
-        parsec_matrix_del2arena( tp_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA ] );
+        parsec_matrix_del2arena( zpltmg_tp->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA] );
+        parsec_matrix_del2arena( zpltmg_tp->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA ] );
         parsec_taskpool_free(tp);
         return 0;
-    } else {
-        return -101;
     }
+    return -101;
 }
 
 /**

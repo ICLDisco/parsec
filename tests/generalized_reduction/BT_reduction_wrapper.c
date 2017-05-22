@@ -27,9 +27,9 @@ static MPI_Datatype block;
  */
 parsec_taskpool_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
 {
-    parsec_BT_reduction_taskpool_t *o = NULL;
+    parsec_BT_reduction_taskpool_t *tp = NULL;
 
-    o = parsec_BT_reduction_new(A, nb, nt);
+    tp = parsec_BT_reduction_new(A, nb, nt);
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -42,13 +42,13 @@ parsec_taskpool_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
 #else
         MPI_Type_extent(block, &extent);
 #endif  /* defined(PARSEC_HAVE_MPI_20) */
-        parsec_arena_construct(o->arenas[PARSEC_BT_reduction_DEFAULT_ARENA],
-                              extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                              block);
+        parsec_arena_construct(tp->arenas[PARSEC_BT_reduction_DEFAULT_ARENA],
+                               extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                               block);
     }
 #endif
 
-    return (parsec_taskpool_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**

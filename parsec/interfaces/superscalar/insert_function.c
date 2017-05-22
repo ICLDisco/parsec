@@ -113,7 +113,7 @@ static inline unsigned long exponential_backoff(uint64_t k)
 void
 parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context )
 {
-    /* Here we wait on all dtd handles registered with us */
+    /* Here we wait on all dtd taskpool registered with us */
     if( NULL != context->object_array && 0 < context->object_array_occupied ) {
         int iterator;
         for( iterator = 0; iterator < context->object_array_occupied; iterator++ ) {
@@ -151,14 +151,14 @@ parsec_dtd_enqueue_taskpool( parsec_taskpool_t *tp, void *parsec_context )
     (void)parsec_context;
 
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    tp->nb_pending_actions = 1;  /* For the future tasks that will be inserted */
-    tp->nb_tasks -= PARSEC_RUNTIME_RESERVED_NB_TASKS;
-    tp->nb_tasks += 1;  /* For the bounded window, starting with +1 task */
+    dtd_tp->super.nb_pending_actions = 1;  /* For the future tasks that will be inserted */
+    dtd_tp->super.nb_tasks -= PARSEC_RUNTIME_RESERVED_NB_TASKS;
+    dtd_tp->super.nb_tasks += 1;  /* For the bounded window, starting with +1 task */
     dtd_tp->enqueue_flag    = 1;
 
     parsec_dtd_taskpool_retain(tp);
 
-    /* Attaching the reference of this handle to the parsec context */
+    /* Attaching the reference of this taskpool to the parsec context */
     parsec_dtd_attach_taskpool_to_context( tp, tp->context );
     return 0;
 }
@@ -267,7 +267,7 @@ parsec_dtd_taskpool_destructor(parsec_dtd_taskpool_t *tp)
     free(tp->super.dependencies_array);
     tp->super.dependencies_array = NULL;
 
-    /* Unregister the taskpoolfrom the devices */
+    /* Unregister the taskpool from the devices */
     for (i = 0; i < (int)parsec_nb_devices; i++) {
         if (!(tp->super.devices_mask & (1 << i)))
             continue;
@@ -607,7 +607,7 @@ parsec_execute_and_come_back( parsec_context_t *context,
 
 /* **************************************************************************** */
 /**
- * Function to call when PaRSEC context should wait on a specific taskpool
+ * Function to call when PaRSEC context should wait on a specific taskpool.
  *
  * This function is called to execute a task collection attached to the
  * taskpool by the user. This function will schedule all the initially ready
@@ -1403,7 +1403,7 @@ parsec_dtd_taskpool_release( parsec_taskpool_t *tp )
             parsec_dtd_task_class_t   *dtd_tc = (parsec_dtd_task_class_t *)tc;
 
 
-            /* Have we reached the end of known functions for this taskpool ? */
+            /* Have we reached the end of known functions for this taskpool? */
             if( NULL == tc ) {
                 assert(dtd_tp->function_counter == i);
                 break;

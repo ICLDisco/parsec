@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgebrd_ge2gbx_New - Generates the handle that computes the
+ * dplasma_zgebrd_ge2gbx_New - Generates the taskpool that computes the
  * reduction of general matrix A to a general band stored in Band.
  *
  * This algorithm is a generic algorithm that exploits trees from the
@@ -127,7 +127,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgebrd_ge2gb_Destruct();
  *
@@ -240,7 +240,7 @@ dplasma_zgebrd_ge2gbx_New( int ib,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgebrd_ge2gb_New - Generates the handle that computes the
+ * dplasma_zgebrd_ge2gb_New - Generates the taskpool that computes the
  * reduction of general matrix A to a general band stored in Band. This is a
  * simplified version of the dplasma_zgebrd_ge2gbx_New which cannot be used to
  * compute singular vectors as it doesn't return the trees and the T matrices.
@@ -287,7 +287,7 @@ dplasma_zgebrd_ge2gbx_New( int ib,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgebrd_ge2gb_Destruct();
  *
@@ -390,13 +390,13 @@ dplasma_zgebrd_ge2gb_New( int ib,
  * @ingroup dplasma_complex64
  *
  *  dplasma_zgebrd_ge2gbx_Destruct - Free the data structure associated to an
- *  handle created with dplasma_zgebrd_ge2gbx_New().
+ *  taskpool created with dplasma_zgebrd_ge2gbx_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -431,13 +431,13 @@ dplasma_zgebrd_ge2gbx_Destruct( parsec_taskpool_t *tp)
  * @ingroup dplasma_complex64
  *
  *  dplasma_zgebrd_ge2gb_Destruct - Free the data structure associated to an
- *  handle created with dplasma_zgebrd_ge2gb_New().
+ *  taskpool created with dplasma_zgebrd_ge2gb_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -459,7 +459,7 @@ dplasma_zgebrd_ge2gb_Destruct( parsec_taskpool_t *tp )
     free( parsec_zgebrd_ge2gb->_g_qrtree );
     free( parsec_zgebrd_ge2gb->_g_lqtree );
 
-    dplasma_zgebrd_ge2gbx_Destruct( tp );
+    dplasma_zgebrd_ge2gbx_Destruct(tp);
 }
 
 /**

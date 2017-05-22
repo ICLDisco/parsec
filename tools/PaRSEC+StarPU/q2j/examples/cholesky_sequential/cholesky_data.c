@@ -16,7 +16,7 @@ int nblocks;
 typedef struct {
     parsec_ddesc_t super;
     float *matrix[NMAX_BLOCKS][NMAX_BLOCKS];
-    starpu_data_handle_t matrix_handle[NMAX_BLOCKS][NMAX_BLOCKS];
+    starpu_data_taskpool_t matrix_taskpool[NMAX_BLOCKS][NMAX_BLOCKS];
 } my_datatype_t;
 
 static uint32_t rank_of(parsec_ddesc_t *desc, ...)

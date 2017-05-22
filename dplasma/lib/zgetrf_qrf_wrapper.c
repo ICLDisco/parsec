@@ -52,7 +52,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_qrf_New - Generates the handle that computes an hybrid LU-QR
+ * dplasma_zgetrf_qrf_New - Generates the taskpool that computes an hybrid LU-QR
  * factorization of a M-by-N matrix A.
  *
  * This algorithm tries to take advantage of the low number of flops of the LU
@@ -142,7 +142,7 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_qrf_Destruct();
  *
@@ -279,14 +279,14 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgetrf_qrf_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgetrf_qrf_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgetrf_qrf_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -324,7 +324,7 @@ dplasma_zgetrf_qrf_Destruct( parsec_taskpool_t *tp )
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_qrf_New - Generates the handle that computes an hybrid LU-QR
+ * dplasma_zgetrf_qrf_New - Generates the taskpool that computes an hybrid LU-QR
  * factorization of a M-by-N matrix A.
  *
  * This algorithm tries to take advantage of the low number of flops of the LU

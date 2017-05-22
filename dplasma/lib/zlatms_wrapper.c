@@ -120,18 +120,18 @@ dplasma_zlatms( parsec_context_t *parsec,
 
     /* Init the diagonal of A */
     {
-        parsec_taskpool_t *handle;
+        parsec_taskpool_t *tp;
         double *condptr = malloc(sizeof( double ));
         *condptr = cond;
-        handle = dplasma_map_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );
-        if ( handle != NULL ) {
-            rc = parsec_enqueue(parsec, handle);
+        tp = dplasma_map_New( PlasmaUpperLower, A, dplasma_zlatms_operator, condptr );
+        if ( tp != NULL ) {
+            rc = parsec_enqueue(parsec, tp);
             PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
             rc = parsec_context_start( parsec );
             PARSEC_CHECK_ERROR(rc, "parsec_context_start");
             rc = parsec_context_wait( parsec );
             PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
-            dplasma_map_Destruct( handle );
+            dplasma_map_Destruct(tp);
         }
         else {
             return -1;

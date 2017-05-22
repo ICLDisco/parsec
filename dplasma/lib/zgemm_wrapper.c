@@ -29,7 +29,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgemm_New - Generates the handle that performs one of the following
+ *  dplasma_zgemm_New - Generates the taskpool that performs one of the following
  *  matrix-matrix operations. WARNING: The computations are not done by this call.
  *
  *    \f[ C = \alpha [op( A )\times op( B )] + \beta C \f],
@@ -76,7 +76,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgemm_Destruct();
  *
@@ -137,8 +137,8 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
             if( PlasmaNoTrans == transB ) {
                 parsec_zgemm_NN_summa_taskpool_t* tp;
                 tp = parsec_zgemm_NN_summa_new(transA, transB, alpha, beta,
-                                                A, B, C,
-                                                (parsec_ddesc_t*)Cdist);
+                                               A, B, C,
+                                               (parsec_ddesc_t*)Cdist);
                 arena = tp->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA];
                 zgemm_tp = (parsec_taskpool_t*)tp;
             } else {
@@ -156,7 +156,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
                                                A, B, C,
                                                (parsec_ddesc_t*)Cdist);
                 arena = tp->arenas[PARSEC_zgemm_TN_DEFAULT_ARENA];
-                zgemm_tp= (parsec_taskpool_t*)tp;
+                zgemm_tp = (parsec_taskpool_t*)tp;
             }
             else {
                 parsec_zgemm_TT_summa_taskpool_t* tp;
@@ -214,14 +214,14 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgemm_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgemm_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgemm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

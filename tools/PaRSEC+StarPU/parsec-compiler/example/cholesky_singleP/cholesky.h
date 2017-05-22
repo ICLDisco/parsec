@@ -42,10 +42,10 @@ typedef struct parsec_cholesky_object {
   starpu_data_handle_t INFO_handle;
   /* The array of datatypes DEFAULT */
   parsec_arena_t* arenas[1];
-} parsec_cholesky_handle_t;
+} parsec_cholesky_taskpool_t;
 
-extern parsec_cholesky_handle_t *parsec_cholesky_new(parsec_ddesc_t* A /* data A */, int NB, int SIZE, PLASMA_enum uplo, int* INFO);
-extern void parsec_cholesky_destroy( parsec_cholesky_handle_t *o );
+extern parsec_cholesky_taskpool_t *parsec_cholesky_new(parsec_ddesc_t* A /* data A */, int NB, int SIZE, PLASMA_enum uplo, int* INFO);
+extern void parsec_cholesky_destroy( parsec_cholesky_taskpool_t *o );
 
 struct callback_args {
     parsec_execution_unit_t     *exec_unit;

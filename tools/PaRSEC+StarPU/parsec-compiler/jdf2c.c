@@ -656,7 +656,7 @@ static char *dump_data_declaration(void **elem, void *arg)
     string_arena_init(sa);
 
     string_arena_add_string(sa, 
-                            "    starpu_data_handle_t *%s = NULL; (void)%s;\n"
+                            "    starpu_data_taskpool_t *%s = NULL; (void)%s;\n"
                             "    parsec_arena_chunk_t *g%s = NULL; (void)g%s;\n"
                             "    data_repo_entry_t *e%s = NULL; (void)e%s;\n", 
                             varname, varname, varname,
@@ -681,7 +681,7 @@ static char *dump_data_declaration(void **elem, void *arg)
 /* 	    continue; */
 	
 /* 	string_arena_add_string(sa, */
-/* 				"    starpu_data_handle_t *%s = (starpu_data_handle_t*) buffer[%d];\n" */
+/* 				"    starpu_data_taskpool_t *%s = (starpu_data_taskpool_t*) buffer[%d];\n" */
 /* 				"    (void) %s;\n", */
 /* 				f->varname, num_arg++, f->varname); */
 /*     } */
@@ -793,7 +793,7 @@ static char *dump_startup_call(void **elem, void *arg)
     if( f->dep_flags & JDF_FUNCTION_FLAG_CAN_BE_STARTUP ) {
         string_arena_init(sa);
         string_arena_add_string(sa,
-                                "_%s_startup_tasks(context, (__parsec_%s_internal_handle_t*)tp, pready_list);",
+                                "_%s_startup_tasks(context, (__parsec_%s_internal_taskpool_t*)tp, pready_list);",
                                 f->fname, jdf_basename);
         return string_arena_get_string(sa);
     }
@@ -854,7 +854,7 @@ static char* dump_starpu_handle(void **elem, void *arg)
   jdf_global_entry_t* global = (jdf_global_entry_t*)elem;
 
   string_arena_init(sa);
-  string_arena_add_string(sa, "starpu_data_handle_t %s_handle", global->name);
+  string_arena_add_string(sa, "starpu_data_taskpool_t %s_handle", global->name);
 
   return string_arena_get_string(sa);
 }
@@ -1145,16 +1145,16 @@ static void jdf_generate_header_file(const jdf_t* jdf)
                                   dump_string, NULL, "", "", ",", ""),
             datatype_index);
 
-    houtput("} parsec_%s_handle_t;\n\n", jdf_basename);
+    houtput("} parsec_%s_taskpool_t;\n\n", jdf_basename);
     
     {
         typed_globals_info_t prop = { sa3, NULL, "hidden" };
-        houtput("extern parsec_%s_handle_t *parsec_%s_new(%s);\n", jdf_basename, jdf_basename,
+        houtput("extern parsec_%s_taskpool_t *parsec_%s_new(%s);\n", jdf_basename, jdf_basename,
                 UTIL_DUMP_LIST( sa2, jdf->globals, next, dump_typed_globals, &prop,
                                 "", "", ", ", ""));
     }
 
-    houtput("extern void parsec_%s_destroy( parsec_%s_handle_t *o );\n\n",
+    houtput("extern void parsec_%s_destroy( parsec_%s_taskpool_t *o );\n\n",
             jdf_basename, jdf_basename);
 
 
@@ -1221,7 +1221,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
             jdf_basename, nbdata,
             jdf_basename, jdf_basename);
     coutput("typedef struct __parsec_%s_internal_handle {\n", jdf_basename);
-    coutput(" parsec_%s_handle_t super;\n",
+    coutput(" parsec_%s_taskpool_t super;\n",
             jdf_basename);
     coutput("  /* The list of data repositories */\n");
     {
@@ -1232,7 +1232,7 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 coutput("  data_repo_t *%s_repository;\n", f->fname);
         }
     }
-    coutput("} __parsec_%s_internal_handle_t;\n"
+    coutput("} __parsec_%s_internal_taskpool_t;\n"
             "\n", jdf_basename);
 
     
@@ -1334,7 +1334,7 @@ static void jdf_generate_expression( const jdf_t *jdf, const jdf_def_list_t *con
         ai.expr = e;
         coutput("static inline int %s_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)\n"
                 "{\n"
-                "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)tp;\n"
+                "  const __parsec_%s_internal_taskpool_t *__tp = (const __parsec_%s_internal_taskpool_t*)tp;\n"
                 "%s\n"
                 "  (void)__tp; (void)assignments;\n"
                 "  return %s;\n"
@@ -1372,7 +1372,7 @@ static void jdf_generate_predicate_expr( const jdf_t *jdf, const jdf_def_list_t 
     ai.expr = NULL;
     coutput("static inline int %s_fct(const parsec_taskpool_t *tp, const assignment_t *assignments)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)tp;\n"
+            "  const __parsec_%s_internal_taskpool_t *__tp = (const __parsec_%s_internal_taskpool_t*)tp;\n"
             "%s\n"
             "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
             "  (void)__tp;\n"
@@ -1749,7 +1749,7 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int %s(parsec_context_t *context, const __parsec_%s_internal_handle_t *__tp, parsec_task_t** pready_list)\n"
+    coutput("static int %s(parsec_context_t *context, const __parsec_%s_internal_taskpool_t *__tp, parsec_task_t** pready_list)\n"
             "{\n"
             "  parsec_task_t* new_context;\n"
             "  assignment_t *assignments = NULL;\n"
@@ -1879,7 +1879,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
     sa1 = string_arena_new(64);
     sa2 = string_arena_new(64);
 
-    coutput("static int %s(__parsec_%s_internal_handle_t *__tp)\n"
+    coutput("static int %s(__parsec_%s_internal_taskpool_t *__tp)\n"
             "{\n"
             "  parsec_dependencies_t *dep = NULL;\n"
             "  assignment_t assignments[MAX_LOCAL_COUNT];(void) assignments;\n"
@@ -2392,10 +2392,10 @@ static void jdf_generate_destructor( const jdf_t *jdf )
     struct jdf_name_list* g;
     string_arena_t *sa = string_arena_new(64);
 
-    coutput("void parsec_%s_destroy( parsec_%s_handle_t *o )\n"
+    coutput("void parsec_%s_destroy( parsec_%s_taskpool_t *o )\n"
             "{\n"
             "  parsec_taskpool_t *d = (parsec_taskpool_t *)o;\n"
-            "  __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t*)o; (void)__tp;\n"
+            "  __parsec_%s_internal_taskpool_t *__tp = (__parsec_%s_internal_taskpool_t*)o; (void)__tp;\n"
             "  int i;\n",
             jdf_basename, jdf_basename,
             jdf_basename,
@@ -2452,13 +2452,13 @@ static void jdf_generate_constructor( const jdf_t* jdf )
 
     {
         typed_globals_info_t prop = { sa2, NULL, "hidden" };
-        coutput("parsec_%s_handle_t *parsec_%s_new(%s)\n{\n",
+        coutput("parsec_%s_taskpool_t *parsec_%s_new(%s)\n{\n",
                 jdf_basename, jdf_basename,
                 UTIL_DUMP_LIST( sa1, jdf->globals, next, dump_typed_globals, &prop,
                                 "", "", ", ", ""));
     }
 
-    coutput("  __parsec_%s_internal_handle_t *_res = (__parsec_%s_internal_handle_t *)calloc(1, sizeof(__parsec_%s_internal_handle_t));\n",
+    coutput("  __parsec_%s_internal_taskpool_t *_res = (__parsec_%s_internal_taskpool_t *)calloc(1, sizeof(__parsec_%s_internal_taskpool_t));\n",
             jdf_basename, jdf_basename, jdf_basename);
 
     string_arena_init(sa1);
@@ -2527,7 +2527,7 @@ static void jdf_generate_hashfunction_for(const jdf_t *jdf, const jdf_function_e
 
     (void)jdf;
 
-    coutput("static inline uint64_t %s_hash(const __parsec_%s_internal_handle_t *__tp, const assignment_t *assignments)\n"
+    coutput("static inline uint64_t %s_hash(const __parsec_%s_internal_taskpool_t *__tp, const assignment_t *assignments)\n"
             "{\n"
             "  uint64_t __h = 0;\n"
             "  (void)__tp;\n",
@@ -2771,7 +2771,7 @@ static void jdf_generate_code_flow_initialization(const jdf_t *jdf,
     coutput("    this_task->data[%u].data = g%s;\n"
             "    this_task->data[%u].data_repo = e%s;\n"
             "  }\n"
-            "  %s = (starpu_data_handle_t*)ADATA(g%s);\n",
+            "  %s = (starpu_data_taskpool_t*)ADATA(g%s);\n",
             flow_index, flow->varname,
             flow_index, flow->varname,
             flow->varname, flow->varname);
@@ -3050,12 +3050,12 @@ jdf_generate_code_starpu_task_create(const jdf_t *jdf, const jdf_function_entry_
             "{\n"
 	    "   // fprintf(stderr, \"début de la fonction task_create %s\\n\");\n"
 	    "    struct starpu_task *task = starpu_task_create();\n"
-//	    "    __parsec_%s_internal_handle_t *obj_temp = malloc(sizeof(struct __parsec_%s_internal_handle));\n"
+//	    "    __parsec_%s_internal_taskpool_t *obj_temp = malloc(sizeof(struct __parsec_%s_internal_handle));\n"
 	    /* "    struct callback_args *callback_arg = malloc(sizeof(struct callback_args));\n" */
 	    "    struct func_args *arg = malloc(sizeof(struct func_args));\n"
 	    /* "    callback_arg->exec_unit     = context;\n" */
 	    /* "    callback_arg->exec_context  = this_task;\n" */
-            "    const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)this_task->taskpool; (void) __tp;\n"
+            "    const __parsec_%s_internal_taskpool_t *__tp = (__parsec_%s_internal_taskpoll_t *)this_task->taskpool; (void) __tp;\n"
             "    assignment_t tass[MAX_PARAM_COUNT];\n"
             "    (void)context; (void)__tp; (void)tass;\n"
             "#if defined(PARSEC_SIM)\n"
@@ -3268,7 +3268,7 @@ jdf_generate_code_cpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
 	    "    assignment_t tass[MAX_PARAM_COUNT];\n"
 	    "    (void) tass;\n"
 	    "    struct func_args *args = (struct func_args*) cl_arg;\n"
-	    "    const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)(args->obj);\n"
+	    "    const __parsec_%s_internal_taskpool_t *__tp = (__parsec_%s_internal_taskpool_t *)(args->obj);\n"
 	    "    (void) __tp;\n"
 	    "#if defined(PARSEC_SIM)\n"
             "  int __parsec_simulation_date = 0;\n"
@@ -3331,7 +3331,7 @@ jdf_generate_code_cpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
 
     /* coutput("    %s_callback_function((void*)(args->callback));\n", name); */
 
-//    coutput("    free((__parsec_%s_internal_handle_t*)__tp);\n", jdf_basename);
+//    coutput("    free((__parsec_%s_internal_taskpool_t*)__tp);\n", jdf_basename);
     coutput("    free(cl_arg);\n"
 	    "}\n\n");
     
@@ -3437,7 +3437,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
         jdf_generate_code_gpu_function(jdf, f, name);
     /* coutput("static int %s(parsec_execution_unit_t *context, parsec_task_t *this_task)\n" */
     /*         "{\n" */
-    /*         "  const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)this_task->taskpool;\n" */
+    /*         "  const __parsec_%s_internal_taskpool_t *__tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n" */
     /*         "  assignment_t tass[MAX_PARAM_COUNT];\n" */
     /*         "  (void)context; (void)__tp; (void)tass;\n" */
     /*         "#if defined(PARSEC_SIM)\n" */
@@ -3528,7 +3528,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     coutput("static int complete_%s(parsec_execution_unit_t *context, parsec_task_t *this_task)\n"
             "{\n"
 	    "   // fprintf(stderr, \"début de la fonction COMPLETE %s\\n\");\n"
-            "  const __parsec_%s_internal_handle_t *__tp = (__parsec_%s_internal_handle_t *)this_task->taskpool;\n"
+            "  const __parsec_%s_internal_taskpool_t *__tp = (__parsec_%s_internal_taskpool_t *)this_task->taskpool;\n"
             "  (void)context; (void)__tp;\n"
             "%s",
             name, name, jdf_basename, jdf_basename,
@@ -3666,7 +3666,7 @@ static void jdf_generate_code_release_deps(const jdf_t *jdf, const jdf_function_
 
     coutput("static int %s(parsec_execution_unit_t *eu, parsec_task_t *context, uint32_t action_mask, parsec_remote_deps_t *deps)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t *)context->taskpool;\n"
+            "  const __parsec_%s_internal_taskpool_t *__tp = (const __parsec_%s_internal_taskpool_t *)context->taskpool;\n"
             "  parsec_release_dep_fct_arg_t arg;\n"
             "  arg.nb_released = 0;\n"
             "  arg.output_usage = 0;\n"
@@ -3937,7 +3937,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
             "%s(parsec_execution_unit_t *eu, parsec_task_t *this_task,\n"
             "               uint32_t action_mask, parsec_ontask_function_t *ontask, void *ontask_arg)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)this_task->taskpool;\n"
+            "  const __parsec_%s_internal_taskpool_t *__tp = (const __parsec_%s_internal_taskpool_t*)this_task->taskpool;\n"
             "  parsec_task_t nc;\n"
             "  parsec_arena_t* arena = NULL;\n"
             "  int rank_src = 0, rank_dst = 0;\n"
@@ -4096,7 +4096,7 @@ static void jdf_generate_inline_c_function(jdf_expr_t *expr)
              jdf_basename, ++inline_c_functions, expr->jdf_c_code.lineno);
     coutput("static inline int %s(const parsec_taskpool_t *tp, const assignment_t *assignments)\n"
             "{\n"
-            "  const __parsec_%s_internal_handle_t *__tp = (const __parsec_%s_internal_handle_t*)tp;\n"
+            "  const __parsec_%s_internal_taskpool_t *__tp = (const __parsec_%s_internal_taskpool_t*)tp;\n"
             "  (void)__tp;\n",
             expr->jdf_c_code.fname, jdf_basename, jdf_basename);
 

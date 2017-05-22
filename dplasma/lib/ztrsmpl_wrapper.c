@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_ztrsmpl_New - Generates the handle that solves U*x = b, when U has
+ * dplasma_ztrsmpl_New - Generates the taskpool that solves U*x = b, when U has
  * been generated through LU factorization with incremental pivoting strategy
  * See dplasma_zgetrf_incpiv_New().
  *
@@ -67,7 +67,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrsmpl_Destruct();
  *
@@ -137,14 +137,14 @@ dplasma_ztrsmpl_New(const tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrsmpl_Destruct - Free the data structure associated to an handle
+ *  dplasma_ztrsmpl_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_ztrsmpl_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

@@ -18,7 +18,7 @@ extern "C" %{
 /**
  * The JDF file can contains globals that will be variables global to all tasks.
  * These are not global variables to the whole code, but only to the scope of
- * the instantiated handle, so multiple instances of the same algorithm will
+ * the instantiated taskpool, so multiple instances of the same algorithm will
  * have different values.
  */
 NB   [ type="int" ]

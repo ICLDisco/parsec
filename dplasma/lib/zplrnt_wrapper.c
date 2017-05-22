@@ -68,7 +68,7 @@ dplasma_zplrnt_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zplrnt_New - Generates the handle that generates a random general
+ * dplasma_zplrnt_New - Generates the taskpool that generates a random general
  * matrix by tiles.
  *
  * See dplasma_map_New() for further information.
@@ -93,7 +93,7 @@ dplasma_zplrnt_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zplrnt_Destruct();
  *
@@ -124,14 +124,14 @@ dplasma_zplrnt_New( int diagdom,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zplrnt_Destruct - Free the data structure associated to an handle
+ *  dplasma_zplrnt_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zplrnt_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -140,9 +140,9 @@ dplasma_zplrnt_New( int diagdom,
  *
  ******************************************************************************/
 void
-dplasma_zplrnt_Destruct( parsec_taskpool_t *handle )
+dplasma_zplrnt_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(handle);
+    dplasma_map_Destruct(tp);
 }
 
 /**

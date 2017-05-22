@@ -20,7 +20,7 @@ PROGRAM GENERATE_F
   type(dfi_type), target :: dfi
   type(dd_type), target  :: dd
 
-  type(parsec_profile_handle_t) :: prof_handle
+  type(parsec_profile_taskpool_t) :: prof_tp
 
   call parsec_profile_init(ierr)
 
@@ -34,14 +34,14 @@ PROGRAM GENERATE_F
        info_length, "double1{double}:double2{double}", k3_start, k3_end, ierr)
 
   prof_length = 1024 * 1024
-  prof_handle = parsec_profile_thread_init(prof_length, "thread 1", ierr)
+  prof_tp = parsec_profile_thread_init(prof_length, "thread 1", ierr)
   if(0.eq.ierr) then
      write(*,*) 'Call to parsec_profile_thread_init should have FAILED'
   endif
 
   call parsec_profile_start("myfile", "MYKEY", ierr)
 
-  prof_handle = parsec_profile_thread_init(prof_length, "thread 1", ierr)
+  prof_tp = parsec_profile_thread_init(prof_length, "thread 1", ierr)
   if(0.ne.ierr) then
      write(*,*) 'Call to parsec_profile_thread_init FAILED'
   endif
@@ -51,16 +51,16 @@ PROGRAM GENERATE_F
      dfi%d = i * 1.0d0
      dfi%f = i * 1.0d0
      dfi%i = i
-     call parsec_profile_trace(prof_handle, k1_start, event_id, 1, &
+     call parsec_profile_trace(prof_tp, k1_start, event_id, 1, &
           C_LOC(dfi), ierr)
      dfi%f = i * 2.0d0
-     call parsec_profile_trace(prof_handle, k1_end, event_id, 1, &
+     call parsec_profile_trace(prof_tp, k1_end, event_id, 1, &
           C_LOC(dfi), ierr)
-     call parsec_profile_trace(prof_handle, k3_start, event_id, 1, &
+     call parsec_profile_trace(prof_tp, k3_start, event_id, 1, &
           C_NULL_PTR, ierr)
      dd%d1 = i * 4.0d0
      dd%d2 = i * 8.0d0
-     call parsec_profile_trace(prof_handle, k3_end, event_id, 1, &
+     call parsec_profile_trace(prof_tp, k3_end, event_id, 1, &
           C_LOC(dd), ierr)
   end do
 

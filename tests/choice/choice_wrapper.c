@@ -27,39 +27,39 @@ static MPI_Datatype block;
  */
 parsec_taskpool_t *choice_new(parsec_ddesc_t *A, int size, int *decision, int nb, int world)
 {
-    parsec_choice_taskpool_t *o = NULL;
+    parsec_choice_taskpool_t *tp = NULL;
 
     if( nb <= 0 || size <= 0 ) {
         fprintf(stderr, "To work, CHOICE nb and size must be > 0\n");
-        return (parsec_taskpool_t*)o;
+        return (parsec_taskpool_t*)tp;
     }
 
-    o = parsec_choice_new(A, nb, world, decision);
+    tp = parsec_choice_new(A, nb, world, decision);
 
 #if defined(PARSEC_HAVE_MPI)
     {
         MPI_Type_vector(1, size, size, MPI_BYTE, &block);
         MPI_Type_commit(&block);
-        parsec_arena_construct(o->arenas[PARSEC_choice_DEFAULT_ARENA],
-                              size * sizeof(char), size * sizeof(char),
-                              block);
+        parsec_arena_construct(tp->arenas[PARSEC_choice_DEFAULT_ARENA],
+                               size * sizeof(char), size * sizeof(char),
+                               block);
     }
 #endif
 
-    return (parsec_taskpool_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**
  * @param [INOUT] o the parsec object to destroy
  */
-void choice_destroy(parsec_taskpool_t *o)
+void choice_destroy(parsec_taskpool_t *tp)
 {
-    parsec_choice_taskpool_t *c = (parsec_choice_taskpool_t*)o;
+    parsec_choice_taskpool_t *c = (parsec_choice_taskpool_t*)tp;
     (void)c;
 
 #if defined(PARSEC_HAVE_MPI)
     MPI_Type_free( &block );
 #endif
 
-    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(o);
+    PARSEC_INTERNAL_TASKPOOL_DESTRUCT(tp);
 }

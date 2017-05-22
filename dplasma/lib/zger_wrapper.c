@@ -18,9 +18,9 @@
  *
  * @ingroup dplasma_internal
  *
- *  dplasma_zger_internal_New - Generates the handle that performs the gerc or
+ *  dplasma_zger_internal_New - Generates the taskpool that performs the gerc or
  *      geru operation
- *  dplasma_zger_internal_Destruct - Destroy the handle generated through
+ *  dplasma_zger_internal_Destruct - Destroy the taskpool generated through
  *      dplasma_zger_internal_New()
  *  dplasma_zger_internal - Performs the gerc or geru operation
  *
@@ -119,7 +119,7 @@ dplasma_zger_internal( parsec_context_t *parsec,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgeru_New - Generates the handle that performs one of the following
+ *  dplasma_zgeru_New - Generates the taskpool that performs one of the following
  *  vector-matrix operations
  *
  *    \f[ A = \alpha [ X \times Y' ] + A \f],
@@ -148,7 +148,7 @@ dplasma_zger_internal( parsec_context_t *parsec,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgeru_Destruct();
  *
@@ -175,14 +175,14 @@ dplasma_zgeru_New( const parsec_complex64_t alpha,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgeru_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgeru_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgeru_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpoll to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -258,7 +258,7 @@ dplasma_zgeru( parsec_context_t *parsec,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgerc_New - Generates the handle that performs one of the following
+ *  dplasma_zgerc_New - Generates the taskpool that performs one of the following
  *  vector-matrix operations
  *
  *    \f[ A = \alpha [ X \times conj( Y' ) ] + A \f],
@@ -287,7 +287,7 @@ dplasma_zgeru( parsec_context_t *parsec,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgerc_Destruct();
  *
@@ -314,14 +314,14 @@ dplasma_zgerc_New( parsec_complex64_t alpha,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgerc_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgerc_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgerc_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -330,9 +330,9 @@ dplasma_zgerc_New( parsec_complex64_t alpha,
  *
  ******************************************************************************/
 void
-dplasma_zgerc_Destruct( parsec_taskpool_t *handle )
+dplasma_zgerc_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_zger_internal_Destruct(handle);
+    dplasma_zger_internal_Destruct(tp);
 }
 
 /**

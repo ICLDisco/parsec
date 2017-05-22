@@ -64,7 +64,7 @@ dplasma_zlascal_operator( parsec_execution_unit_t *eu,
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zlascal_New - Generates the handle that scales a matrix by a given scalar.
+ * dplasma_zlascal_New - Generates the taskpool that scales a matrix by a given scalar.
  *
  * See dplasma_map_New() for further information.
  *
@@ -95,7 +95,7 @@ dplasma_zlascal_operator( parsec_execution_unit_t *eu,
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zlascal_Destruct();
  *
@@ -124,14 +124,14 @@ dplasma_zlascal_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zlascal_Destruct - Free the data structure associated to an handle
+ *  dplasma_zlascal_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zlascal_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *
@@ -140,9 +140,9 @@ dplasma_zlascal_New( PLASMA_enum uplo,
  *
  ******************************************************************************/
 void
-dplasma_zlascal_Destruct( parsec_taskpool_t *handle )
+dplasma_zlascal_Destruct( parsec_taskpool_t *tp )
 {
-    dplasma_map_Destruct(handle);
+    dplasma_map_Destruct(tp);
 }
 
 /**

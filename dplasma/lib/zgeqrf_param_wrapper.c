@@ -20,7 +20,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgeqrf_param_New - Generates the handle that computes the
+ * dplasma_zgeqrf_param_New - Generates the taskpool that computes the
  * hierarchical QR factorization of a M-by-N matrix A: A = Q * R.
  *
  * The method used in this algorithm is a hierachical tile QR algorithm with
@@ -70,7 +70,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgeqrf_param_Destruct();
  *
@@ -145,13 +145,13 @@ dplasma_zgeqrf_param_New( dplasma_qrtree_t *qrtree,
  * @ingroup dplasma_complex64
  *
  *  dplasma_zgeqrf_param_Destruct - Free the data structure associated to an
- *  handle created with dplasma_zgeqrf_param_New().
+ *  taskpool created with dplasma_zgeqrf_param_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

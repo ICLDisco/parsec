@@ -23,7 +23,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zher2k_New - Generates the parsec handle to performs one of the
+ *  dplasma_zher2k_New - Generates the parsec taskpool to performs one of the
  *  hermitian rank 2k operations
  *
  *    \f[ C = \alpha [ op( A ) \times conjg( op( B )' )] + conjg( \alpha ) [ op( B ) \times conjg( op( A )' )] + \beta C \f],
@@ -72,7 +72,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zher2k_Destruct();
  *
@@ -163,13 +163,13 @@ dplasma_zher2k_New( PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zher2k_Destruct - Free the data structure associated to an handle
+ *  dplasma_zher2k_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zher2k_New().
  *
  *******************************************************************************
  *
- * @param[in] handle
- *          handle to destroy.
+ * @param[in] tp
+ *          taskpool to destroy.
  *
  *******************************************************************************
  *

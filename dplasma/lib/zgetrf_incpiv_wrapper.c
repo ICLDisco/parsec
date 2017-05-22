@@ -22,7 +22,7 @@
  *
  * @ingroup dplasma_complex64
  *
- * dplasma_zgetrf_incpiv_New - Generates the handle that computes the LU
+ * dplasma_zgetrf_incpiv_New - Generates the taskpool that computes the LU
  * factorization of a M-by-N matrix A using tile algorithm.
  *
  * This algorithm exploits the multi-threaded recursive kernels of the PLASMA
@@ -81,7 +81,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_zgetrf_incpiv_Destruct();
  *
@@ -167,14 +167,14 @@ dplasma_zgetrf_incpiv_New( tiled_matrix_desc_t *A,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_zgetrf_incpiv_Destruct - Free the data structure associated to an handle
+ *  dplasma_zgetrf_incpiv_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_zgetrf_incpiv_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

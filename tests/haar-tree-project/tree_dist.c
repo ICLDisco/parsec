@@ -234,6 +234,8 @@ static int tree_dist_key_to_string(parsec_ddesc_t *desc, parsec_data_key_t key, 
     (void)key;
     if( buffer_size > 0 )
         buffer[0] = '\0';
+    (void)desc;
+    (void)key;
     return PARSEC_SUCCESS;
 }
 #endif

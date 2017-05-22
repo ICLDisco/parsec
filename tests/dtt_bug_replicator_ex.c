@@ -67,17 +67,17 @@ int main( int argc, char** argv )
     }
     parsec_type_create_contiguous(NB*NB, parsec_datatype_double_t, &tile_dtt);
     parsec_arena_construct(dtt_tp->arenas[PARSEC_dtt_bug_replicator_DTT1_ARENA],
-                          NB*NB*sizeof(double),
-                          PARSEC_ARENA_ALIGNMENT_SSE, tile_dtt);
+                           NB*NB*sizeof(double),
+                           PARSEC_ARENA_ALIGNMENT_SSE, tile_dtt);
 
     parsec_type_create_vector(NB, 1, NB, parsec_datatype_double_t, &vdtt1);
     parsec_type_create_resized(vdtt1, 0, sizeof(parsec_datatype_double_t), &vdtt2);
     parsec_type_create_contiguous(NB, vdtt2, &vdtt);
     parsec_arena_construct(dtt_tp->arenas[PARSEC_dtt_bug_replicator_DTT2_ARENA],
-                          NB*NB*sizeof(double),
-                          PARSEC_ARENA_ALIGNMENT_SSE, vdtt);
+                           NB*NB*sizeof(double),
+                           PARSEC_ARENA_ALIGNMENT_SSE, vdtt);
 
-    rc = parsec_enqueue( parsec, tp );
+    rc = parsec_enqueue( parsec, tp);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
     rc = parsec_context_start(parsec);

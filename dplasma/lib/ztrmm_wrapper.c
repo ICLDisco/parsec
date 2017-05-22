@@ -28,7 +28,7 @@
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrmm_New - Generates parsec handle to compute:
+ *  dplasma_ztrmm_New - Generates parsec taskpool to compute:
  *
  *  B = alpha*op( A )*B or B = alpha*B*op( A ).
  *
@@ -78,7 +78,7 @@
  *
  * @return
  *          \retval NULL if incorrect parameters are given.
- *          \retval The parsec handle describing the operation that can be
+ *          \retval The parsec taskpool describing the operation that can be
  *          enqueued in the runtime with parsec_enqueue(). It, then, needs to be
  *          destroy with dplasma_ztrmm_Destruct();
  *
@@ -177,14 +177,14 @@ dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
  *
  * @ingroup dplasma_complex64
  *
- *  dplasma_ztrmm_Destruct - Free the data structure associated to an handle
+ *  dplasma_ztrmm_Destruct - Free the data structure associated to an taskpool
  *  created with dplasma_ztrmm_New().
  *
  *******************************************************************************
  *
- * @param[in,out] handle
- *          On entry, the handle to destroy.
- *          On exit, the handle cannot be used anymore.
+ * @param[in,out] taskpool
+ *          On entry, the taskpool to destroy.
+ *          On exit, the taskpool cannot be used anymore.
  *
  *******************************************************************************
  *

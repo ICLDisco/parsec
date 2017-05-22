@@ -23,14 +23,14 @@
  */
 parsec_taskpool_t *ep_new(parsec_ddesc_t *A, int nt, int level)
 {
-    parsec_ep_taskpool_t *o = NULL;
+    parsec_ep_taskpool_t *tp = NULL;
 
     if( nt <= 0 || level <= 0 ) {
         fprintf(stderr, "To work, EP must have at least one task to run per level\n");
-        return (parsec_taskpool_t*)o;
+        return (parsec_taskpool_t*)tp;
     }
 
-    o = parsec_ep_new(nt, level, A);
+    tp = parsec_ep_new(nt, level, A);
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -41,13 +41,13 @@ parsec_taskpool_t *ep_new(parsec_ddesc_t *A, int nt, int level)
 #else
         MPI_Type_extent(MPI_BYTE, &extent);
 #endif  /* defined(PARSEC_HAVE_MPI_20) */
-        parsec_arena_construct(o->arenas[PARSEC_ep_DEFAULT_ARENA],
-                              extent, PARSEC_ARENA_ALIGNMENT_SSE,
-                              MPI_BYTE);
+        parsec_arena_construct(tp->arenas[PARSEC_ep_DEFAULT_ARENA],
+                               extent, PARSEC_ARENA_ALIGNMENT_SSE,
+                               MPI_BYTE);
     }
 #endif
 
-    return (parsec_taskpool_t*)o;
+    return (parsec_taskpool_t*)tp;
 }
 
 /**

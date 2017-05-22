@@ -2,7 +2,7 @@ extern "C" %{
 #include "tree_dist.h"
 #include "parsec/sys/atomic.h"
 
-struct __parsec_walk_internal_handle;
+struct __parsec_walk_internal_taskpool_s;
 struct __parsec_walk_UP_assignment_s;
 struct __parsec_walk_DOWN_assignment_s;
 struct __parsec_walk_DO_DOWN_assignment_s;
