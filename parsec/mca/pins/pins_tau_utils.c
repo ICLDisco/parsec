@@ -23,9 +23,9 @@ void pins_tau_init(parsec_context_t * master_context)
 }
 
 
-void pins_tau_thread_init(parsec_execution_unit_t * exec_unit)
+void pins_tau_thread_init(parsec_execution_stream_t* es)
 {
-    (void)exec_unit;
+    (void)es;
 #if defined(PARSEC_HAVE_TAU)
     if (!thread_init_done) {
         thread_init_done = 1;

@@ -26,10 +26,10 @@ double time_elapsed;
 double sync_time_elapsed;
 
 int
-call_to_kernel_type( parsec_execution_unit_t    *context,
+call_to_kernel_type( parsec_execution_stream_t *es,
                      parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     parsec_output( 0, "Executing task with null as tile in rank: %d\n", this_task->taskpool->context->my_rank );
 

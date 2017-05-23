@@ -116,7 +116,7 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
  * This is the prototype of the function in which the actual operations of each task
  * is implemented by the User. The actual computation will be performed in functions
  * having this prototype.
- * 1. parsec_execution_unit_t *
+ * 1. parsec_execution_stream_t *
  * 2. parsec_task_t * -> this gives access to the actual task the User inserted
  *                                    using this interface.
  * This function should return one of the following:
@@ -129,7 +129,7 @@ typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
  *  PARSEC_HOOK_RETURN_ERROR   : Some other major error happened
  *
  */
-typedef int (parsec_dtd_funcptr_t)(parsec_execution_unit_t *, parsec_task_t *);
+typedef int (parsec_dtd_funcptr_t)(parsec_execution_stream_t *, parsec_task_t *);
 
 /*
  * This function is used to retrieve the parameters passed during insertion of a task.

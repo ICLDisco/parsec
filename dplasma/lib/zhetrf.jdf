@@ -78,9 +78,9 @@ BODY
   int ldak = desc_A->mb;
   int ldwork = (tempkn+1)*ib;
 
-  printlog("thread %d CORE_zhetrf2_nopiv(%d)\n"
+  printlog("CORE_zhetrf2_nopiv(%d)\n"
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
-  context->th_id, k, tempkn, ib, k, k, A, ldak, ldwork);
+           k, tempkn, ib, k, k, A, ldak, ldwork);
 
 #if !defined(PARSEC_DRY_RUN)
     int info = 0;
@@ -120,9 +120,9 @@ BODY
   int ldak = desc_A->mb;
   int ldwork = (tempkn+1)*ib;
 
-  printlog("thread %d CORE_zhetrf_nopiv(%d)\n"
+  printlog("CORE_zhetrf_nopiv(%d)\n"
            "\t(PlasmaLower, tempkn=%d, ib=%d, A(%d,%d)[%p], ldak=%d, p_elem_A, ldwork=%d, info)\n",
-  context->th_id, k, tempkn, ib, k, k, B, ldak, ldwork);
+           k, tempkn, ib, k, k, B, ldak, ldwork);
 
 #if !defined(PARSEC_DRY_RUN)
     int info = 0;
@@ -175,9 +175,9 @@ BODY
   int ldak = desc_A->mb;
   int ldam = desc_A->mb;
 
-  printlog("thread %d CORE_ztrsm(%d, %d)\n"
+  printlog("CORE_ztrsm(%d, %d)\n"
            "\t(PlasmaRight, PlasmaLower, PlasmaConjTrans, PlasmaNonUnit, tempmm, tempkn, zone, A(%d,%d)[%p], ldak, A(%d,%d)[%p], ldam)\n",
-  context->th_id, k, m, k, k, C, m, k, D);
+           k, m, k, k, C, m, k, D);
 
 #if !defined(PARSEC_DRY_RUN)
 
@@ -222,9 +222,9 @@ BODY
   int lwork = ((tempmm+1)*tempkn)+(ib*ib);
   int ldak = desc_A->mb;
 
-  printlog("thread %d CORE_zhedrk(%d, %d)\n"
+  printlog("CORE_zhedrk(%d, %d)\n"
            "\t(PlasmaLower, PlasmaNoTrans, tempmm, tempkn, ib, -1.000000, A(%d,%d)[%p], ldam, 1.000000, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
-  context->th_id, k, m1, m1, k, E, m1, m1, F, k, k, G);
+           k, m1, m1, k, E, m1, m1, F, k, k, G);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( pool_1 );
@@ -256,8 +256,7 @@ magic(k,m1)
 BODY
 /* This is a pseudo-task generated to enable the "triangular" broadcast */
 
-  printlog("thread %d magic(%d,%d)\n",
-      context->th_id, k, m1);
+  printlog("magic(%d,%d)\n", k, m1);
 
 END
 
@@ -295,9 +294,9 @@ BODY
   int lwork = ((PlasmaNoTrans)==(PlasmaNoTrans)) ? ((tempmm+1)*tempkn) : ((tempnn+1)*tempkn);
   int ldak = desc_A->mb;
 
-  printlog("thread %d CORE_zgemdm(%d, %d, %d)\n"
+  printlog("CORE_zgemdm(%d, %d, %d)\n"
            "\t(PlasmaNoTrans, PlasmaConjTrans, tempmm, tempnn, tempkn, mzone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], desc_A->mb, zone, A(%d,%d)[%p], ldam, A(%d,%d)[%p], ldak+1, p_elem_A, lwork)\n",
-  context->th_id, k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
+           k, m1, n, m1, k, K, n, k, L, m1, n, M, k, k, N);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( pool_1 );
@@ -332,9 +331,9 @@ BODY
   int tempkn = ((k1)==((desc_A->nt)-1)) ? ((desc_A->n)-(k1*(desc_A->nb))) : (desc_A->nb);
   int ldak = desc_A->mb;
 
-  printlog("thread %d CORE_ztrmdm(%d)\n"
+  printlog("CORE_ztrmdm(%d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, k1, k1, k1, O);
+           k1, k1, k1, O);
 
 #if !defined(PARSEC_DRY_RUN)
 
@@ -366,5 +365,5 @@ GOK(k,m,n)  [profile = off]
 
 BODY
      /* Synchronization thread */
-     printlog("thread %d gok( %d, %d, %d )\n", context->th_id, k, m, n);
+     printlog("gok( %d, %d, %d )\n", k, m, n);
 END

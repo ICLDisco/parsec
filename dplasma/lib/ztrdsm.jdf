@@ -94,9 +94,9 @@ BODY
     CORE_ztrdsm(tempkm, tempkn, A, lda, B, ldb );
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-  printlog("thread %d CORE_ztrdsm(%d, %d)\n"
+  printlog("CORE_ztrdsm(%d, %d)\n"
            "\t(tempkm, tempkn, A(%d,%d)[%p], lda, B(%d,%d)[%p], ldb)\n",
-           context->th_id, k, n, k, k, A, k, n, B);
+           k, n, k, k, A, k, n, B);
 
 END
 

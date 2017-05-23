@@ -86,9 +86,9 @@ BODY
   int type, sz, type_exists, i_tile, j_tile;
   void *p_elem_tl, *p_elem_bl, *p_elem_tr, *p_elem_br;
 
-  printlog("thread %d GEBUT(%d, %d)\n"
+  printlog("GEBUT(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i, j, Atl);
+           i, j, i, j, Atl);
 
   type = segment_to_type_index(&descA->seg_info, i, j);
   type_exists = type_index_to_sizes(&descA->seg_info, type, &mb_seg, &nb_seg);
@@ -163,9 +163,9 @@ BODY
   uintptr_t off_in_tile;
 #endif
 
-  printlog("thread %d GEBUT_Reader(%d, %d)\n"
+  printlog("GEBUT_Reader(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i, j, A);
+           i, j, i, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("GEBUT_Reader(%d,%d)\n",i,j);
@@ -216,9 +216,9 @@ BODY
   unsigned ii,jj;
 #endif
 
-  printlog("thread %d GEBUT_Writer(%d, %d)\n"
+  printlog("GEBUT_Writer(%d, %d)\n"
            "\t(PlasmaLower, tempkn, A(%d,%d)[%p], ldak)\n",
-  context->th_id, i, j, i, j, A);
+           i, j, i, j, A);
 
 #if defined(DEBUG_BUTTERFLY)
   printf ("GEBUT_Writer(%d,%d)\n",i,j);

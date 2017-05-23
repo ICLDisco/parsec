@@ -28,15 +28,14 @@ double sync_time_elapsed = 0.0;
 uint32_t count = 0;
 
 int
-test_task( parsec_execution_unit_t    *context,
+test_task( parsec_execution_stream_t *es,
            parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     int *amount_of_work;
     parsec_dtd_unpack_args( this_task,
-                           UNPACK_VALUE,  &amount_of_work
-                          );
+                           UNPACK_VALUE,  &amount_of_work);
 
     (void)parsec_atomic_inc_32b(&count);
 
@@ -53,10 +52,10 @@ test_task( parsec_execution_unit_t    *context,
 }
 
 int
-test_task_generator( parsec_execution_unit_t    *context,
+test_task_generator( parsec_execution_stream_t *es,
                      parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     parsec_taskpool_t *dtd_tp = this_task->taskpool;
     int *total, *step, *iteration, *amount_of_work;
@@ -66,8 +65,7 @@ test_task_generator( parsec_execution_unit_t    *context,
                            UNPACK_VALUE,  &amount_of_work,
                            UNPACK_VALUE,  &total,
                            UNPACK_VALUE,  &step,
-                           UNPACK_VALUE,  &iteration
-                          );
+                           UNPACK_VALUE,  &iteration);
 
     for( i = 0; *iteration < *total; *iteration += 1, i++ ) {
         if( i > *step ) {

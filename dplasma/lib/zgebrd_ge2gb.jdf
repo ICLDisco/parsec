@@ -90,9 +90,9 @@ BODY
     int tempkn = (k==(descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
     int ldam   = BLKLDD( descA, m );
 
-    printlog("thread %d VP %d CORE_zgeqrt(%d, %d)\n"
+    printlog("CORE_zgeqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], ldam, descTS0(%d,%d)[%p], TS0.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
+             k, m, m, k, A, m, k, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_tau  );
@@ -171,10 +171,10 @@ BODY
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
     int ldam   = BLKLDD( descA, m );
 
-    printlog("thread %d VP %d CORE_zunmqr(%d, %d, %d)\n"
+    printlog("CORE_zunmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
              "\t descA(%d,%d)[%p], ldam, descTS0(%d,%d)[%p], descTS0->mb, descA(%d,%d)[%p], ldam, p_elem_A, descTS0->nb)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
+             k, m, n, m, k, A, m, k, T, m, n, C);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_work );
@@ -251,9 +251,9 @@ BODY
     int ldap = BLKLDD( descA, p );
     int ldam = BLKLDD( descA, m );
 
-    printlog("thread %d VP %d CORE_zttqrt(%d, %d)\n"
+    printlog("CORE_zttqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descTT0(%d,%d)[%p], descTT0->mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
+             k, m, p, k, A1, m, k, A2, m, k, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_tau  );
@@ -341,10 +341,10 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldwork = ib;
 
-    printlog("thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"
+    printlog("CORE_zttmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA->mb, tempnn, tempmm, tempnn, descA->nb, ib, \n"
              "\t descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descA(%d,%d)[%p], ldam, descTT0(%d,%d)[%p], descTT0->mb, p_elem_A, ldwork)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
+             k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_work );
@@ -502,9 +502,9 @@ BODY
     int tempkn = (k==(descA->nt-1)) ? (descA->n - k * descA->nb) : descA->nb;
     int ldam   = BLKLDD( descA, m );
 
-    printlog("thread %d VP %d CORE_zgeqrt(%d, %d)\n"
+    printlog("CORE_zgeqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, m, k, A, m, k, T);
+             k, m, m, k, A, m, k, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_tau  );
@@ -581,10 +581,10 @@ BODY
     int tempnn = (n == (descA->nt-1)) ? (descA->n - n * descA->nb) : descA->nb;
     int ldam   = BLKLDD( descA, m );
 
-    printlog("thread %d VP %d CORE_zunmqr(%d, %d, %d)\n"
+    printlog("CORE_zunmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
              "\t descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], descTS->mb, descA(%d,%d)[%p], ldam, p_elem_A, descTS->nb)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, m, k, A, m, k, T, m, n, C);
+             k, m, n, m, k, A, m, k, T, m, n, C);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_work );
@@ -666,9 +666,9 @@ BODY
     int ldap = BLKLDD( descA, p );
     int ldam = BLKLDD( descA, m );
 
-    printlog("thread %d VP %d CORE_zttqrt(%d, %d)\n"
+    printlog("CORE_zttqrt(%d, %d)\n"
              "\t(tempmm, tempkn, ib, descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, p, k, A1, m, k, A2, m, k, T);
+             k, m, p, k, A1, m, k, A2, m, k, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_tau  );
@@ -757,10 +757,10 @@ BODY
     int ldam = BLKLDD( descA, m );
     int ldwork = ib;
 
-    printlog("thread %d VP %d CORE_zttmqr(%d, %d, %d)\n"
+    printlog("CORE_zttmqr(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA->mb, tempnn, tempmm, tempnn, descA->nb, ib, \n"
              "\t descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, ldwork)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
+             k, m, n, p, n, A1, m, n, A2, m, k, V, m, k, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_work );
@@ -835,9 +835,9 @@ BODY
     int ldak   = BLKLDD( descA, lk );
     (void)lk;
 
-    printlog("thread %d VP %d CORE_zgelqt(%d, %d)\n"
+    printlog("VP %d CORE_zgelqt(%d, %d)\n"
              "\t(tempkm, tempnn, ib, descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], TS.mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, n, k, n, A, k, n, T);
+             es->virtual_process->vp_id, k, n, k, n, A, k, n, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_tau  );
@@ -924,10 +924,10 @@ BODY
     int ldam   = BLKLDD( descA, m );
     (void)lk;
 
-    printlog("thread %d VP %d CORE_zunmlq(%d, %d, %d)\n"
+    printlog("CORE_zunmlq(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, tempmm, tempnn, min(tempmm, tempnn), ib, \n"
              "\t descA(%d,%d)[%p], ldam, descTS(%d,%d)[%p], descTS->mb, descA(%d,%d)[%p], ldam, p_elem_A, descTS->nb)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, k, n, A, k, n, T, m, n, C);
+             k, m, n, k, n, A, k, n, T, m, n, C);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_work );
@@ -1009,9 +1009,9 @@ BODY
     int ldak = BLKLDD( descA, lk );
     (void)lk;
 
-    printlog("thread %d VP %d CORE_zttlqt(%d, %d)\n"
+    printlog("CORE_zttlqt(%d, %d)\n"
              "\t(tempkm, tempnn, ib, descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, p_elem_B)\n",
-             context->th_id, context->virtual_process->vp_id, k, n, k, p, A1, k, n, A2, k, n, T);
+             k, n, k, p, A1, k, n, A2, k, n, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_tau  );
@@ -1103,10 +1103,10 @@ BODY
     int ldwork = descA->nb;
     (void)lk;
 
-    printlog("thread %d VP %d CORE_zttmlq(%d, %d, %d)\n"
+    printlog("CORE_zttmlq(%d, %d, %d)\n"
              "\t(PlasmaLeft, PlasmaConjTrans, descA->mb, tempnn, tempmm, tempnn, descA->nb, ib, \n"
              "\t descA(%d,%d)[%p], A.mb, descA(%d,%d)[%p], ldam, descA(%d,%d)[%p], ldam, descTT(%d,%d)[%p], descTT->mb, p_elem_A, ldwork)\n",
-             context->th_id, context->virtual_process->vp_id, k, m, n, p, n, A1, m, n, A2, k, n, V, k, n, T);
+             k, m, n, p, n, A1, m, n, A2, k, n, V, k, n, T);
 
 #if !defined(PARSEC_DRY_RUN)
     void *p_elem_A = parsec_private_memory_pop( p_work );

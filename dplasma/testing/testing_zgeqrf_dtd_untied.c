@@ -20,9 +20,9 @@ enum regions {
              };
 
 int
-parsec_core_geqrt(parsec_execution_unit_t *context, parsec_task_t *this_task)
+parsec_core_geqrt(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     int *m;
     int *n;
     int *ib;
@@ -42,8 +42,7 @@ parsec_core_geqrt(parsec_execution_unit_t *context, parsec_task_t *this_task)
                           UNPACK_DATA,  &T,
                           UNPACK_VALUE, &ldt,
                           UNPACK_SCRATCH, &TAU,
-                          UNPACK_SCRATCH, &WORK
-                        );
+                          UNPACK_SCRATCH, &WORK);
 
     CORE_zgeqrt(*m, *n, *ib, A, *lda, T, *ldt, TAU, WORK);
 
@@ -51,9 +50,9 @@ parsec_core_geqrt(parsec_execution_unit_t *context, parsec_task_t *this_task)
 }
 
 int
-parsec_core_unmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
+parsec_core_unmqr(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
-    (void)context;
+    (void)es;
     PLASMA_enum *side;
     PLASMA_enum *trans;
     int *m;
@@ -83,8 +82,7 @@ parsec_core_unmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
                           UNPACK_DATA,  &C,
                           UNPACK_VALUE, &ldc,
                           UNPACK_SCRATCH, &WORK,
-                          UNPACK_VALUE, &ldwork
-                        );
+                          UNPACK_VALUE, &ldwork);
 
     CORE_zunmqr(*side, *trans, *m, *n, *k, *ib,
                 A, *lda, T, *ldt, C, *ldc, WORK, *ldwork);
@@ -93,9 +91,9 @@ parsec_core_unmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
 }
 
 int
-parsec_core_tsqrt(parsec_execution_unit_t *context, parsec_task_t * this_task)
+parsec_core_tsqrt(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
-    (void)context;
+    (void)es;
     int *m;
     int *n;
     int *ib;
@@ -119,8 +117,7 @@ parsec_core_tsqrt(parsec_execution_unit_t *context, parsec_task_t * this_task)
                           UNPACK_DATA,  &T,
                           UNPACK_VALUE, &ldt,
                           UNPACK_SCRATCH, &TAU,
-                          UNPACK_SCRATCH, &WORK
-                        );
+                          UNPACK_SCRATCH, &WORK);
 
     CORE_ztsqrt(*m, *n, *ib, A1, *lda1, A2, *lda2, T, *ldt, TAU, WORK);
 
@@ -128,9 +125,9 @@ parsec_core_tsqrt(parsec_execution_unit_t *context, parsec_task_t * this_task)
 }
 
 int
-parsec_core_tsmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
+parsec_core_tsmqr(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
-    (void)context;
+    (void)es;
     PLASMA_enum *side;
     PLASMA_enum *trans;
     int *m1;
@@ -168,8 +165,7 @@ parsec_core_tsmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
                           UNPACK_DATA,  &T,
                           UNPACK_VALUE, &ldt,
                           UNPACK_SCRATCH, &WORK,
-                          UNPACK_VALUE, &ldwork
-                        );
+                          UNPACK_VALUE, &ldwork);
 
     CORE_ztsmqr(*side, *trans, *m1, *n1, *m2, *n2, *k, *ib,
                 A1, *lda1, A2, *lda2, V, *ldv, T, *ldt, WORK, *ldwork);
@@ -178,9 +174,9 @@ parsec_core_tsmqr(parsec_execution_unit_t *context, parsec_task_t * this_task)
 }
 
 int
-insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
+insert_task_geqrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     two_dim_block_cyclic_t *ddescA;
     two_dim_block_cyclic_t *ddescT;
     /* Parameters passed on to Insert_task() */
@@ -198,8 +194,7 @@ insert_task_geqrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
                           UNPACK_VALUE,   &total,
                           UNPACK_VALUE,   &iteration,
                           UNPACK_SCRATCH, &ddescA,
-                          UNPACK_SCRATCH, &ddescT
-                          );
+                          UNPACK_SCRATCH, &ddescT);
 
 
     two_dim_block_cyclic_t *__ddescA = ddescA;

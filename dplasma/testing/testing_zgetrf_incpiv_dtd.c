@@ -21,9 +21,9 @@ enum regions {
              };
 
 int
-parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_task_t * this_task)
+parsec_core_getrf_incpiv(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
-    (void)context;
+    (void)es;
     int *m;
     int *n;
     int *ib;
@@ -41,8 +41,7 @@ parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_task_t * this_
                           UNPACK_VALUE, &lda,
                           UNPACK_DATA,  &IPIV,
                           UNPACK_VALUE, &check_info,
-                          UNPACK_SCRATCH, &info
-                          );
+                          UNPACK_SCRATCH, &info);
 
     CORE_zgetrf_incpiv(*m, *n, *ib, A, *lda, IPIV, info);
     if (*info != 0 && check_info)
@@ -52,9 +51,9 @@ parsec_core_getrf_incpiv(parsec_execution_unit_t *context, parsec_task_t * this_
 }
 
 int
-parsec_core_gessm(parsec_execution_unit_t *context, parsec_task_t * this_task)
+parsec_core_gessm(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
-    (void)context;
+    (void)es;
     int *m;
     int *n;
     int *k;
@@ -78,8 +77,7 @@ parsec_core_gessm(parsec_execution_unit_t *context, parsec_task_t * this_task)
                           UNPACK_DATA,  &D,
                           UNPACK_VALUE, &ldd,
                           UNPACK_DATA,  &A,
-                          UNPACK_VALUE, &lda
-                          );
+                          UNPACK_VALUE, &lda);
 
     CORE_zgessm(*m, *n, *k, *ib, IPIV, D, *ldd, A, *lda);
 
@@ -87,9 +85,9 @@ parsec_core_gessm(parsec_execution_unit_t *context, parsec_task_t * this_task)
 }
 
 int
-parsec_core_tstrf(parsec_execution_unit_t *context, parsec_task_t * this_task)
+parsec_core_tstrf(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
-    (void)context;
+    (void)es;
     int *m;
     int *n;
     int *ib;
@@ -121,8 +119,7 @@ parsec_core_tstrf(parsec_execution_unit_t *context, parsec_task_t * this_task)
                           UNPACK_SCRATCH, &WORK,
                           UNPACK_VALUE, &ldwork,
                           UNPACK_VALUE, &check_info,
-                          UNPACK_VALUE, &info
-                        );
+                          UNPACK_VALUE, &info);
 
     CORE_ztstrf(*m, *n, *ib, *nb, U, *ldu, A, *lda, L, *ldl, IPIV, WORK, *ldwork, info);
 
@@ -133,9 +130,9 @@ parsec_core_tstrf(parsec_execution_unit_t *context, parsec_task_t * this_task)
 }
 
 int
-parsec_core_ssssm(parsec_execution_unit_t *context, parsec_task_t * this_task)
+parsec_core_ssssm(parsec_execution_stream_t *es, parsec_task_t * this_task)
 {
-    (void)context;
+    (void)es;
     int *m1;
     int *n1;
     int *m2;
@@ -167,8 +164,7 @@ parsec_core_ssssm(parsec_execution_unit_t *context, parsec_task_t * this_task)
                           UNPACK_VALUE, &ldl1,
                           UNPACK_DATA,  &L2,
                           UNPACK_VALUE, &ldl2,
-                          UNPACK_DATA,  &IPIV
-                          );
+                          UNPACK_DATA,  &IPIV);
 
     CORE_zssssm(*m1, *n1, *m2, *n2, *k, *ib, A1, *lda1, A2, *lda2, L1, *ldl1, L2, *ldl2, IPIV);
 

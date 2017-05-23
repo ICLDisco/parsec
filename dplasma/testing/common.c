@@ -6,7 +6,7 @@
  */
 #include "parsec/parsec_config.h"
 #include "parsec.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/utils/mca_param.h"
 
 #include "common.h"

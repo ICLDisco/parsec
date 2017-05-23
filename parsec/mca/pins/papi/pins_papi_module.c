@@ -12,7 +12,7 @@
 #include "parsec/utils/mca_param.h"
 #include <stdio.h>
 #include <papi.h>
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/include/parsec/os-spec-timing.h"
 
 static char* mca_param_string;
@@ -28,7 +28,7 @@ int max_supported_events;
  * function, which pushes this information into the global profiling information.
  */
 static inline int
-pins_papi_read_and_trace(parsec_execution_unit_t* exec_unit,
+pins_papi_read_and_trace(parsec_execution_stream_t* es,
                          parsec_pins_papi_callback_t* event_cb)
 {
     parsec_pins_papi_values_t* info = alloca(max_supported_events * sizeof(parsec_pins_papi_values_t));
@@ -38,7 +38,7 @@ pins_papi_read_and_trace(parsec_execution_unit_t* exec_unit,
     if( PAPI_OK != (err = PAPI_read(event_cb->papi_eventset, info->values)) ) {
         parsec_debug_verbose(3, parsec_debug_output,
             "couldn't read PAPI eventset for thread %d; ERROR: %s\n",
-            exec_unit->th_id, PAPI_strerror(err));
+            es->th_id, PAPI_strerror(err));
         return PARSEC_ERROR;
     }
 
@@ -47,7 +47,7 @@ pins_papi_read_and_trace(parsec_execution_unit_t* exec_unit,
     for(i = 0; i < event_cb->num_groups; i++) {
         /* We need to read this group */
         if((event_cb->to_read & check) != 0) { /* This AND operation determines whether the bit corresponding to 'check' is set to 1 */
-            PARSEC_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[event_cb->groups[i].begin_end],
+            PARSEC_PROFILING_TRACE(es->es_profile, event_cb->groups[i].pins_prof_event[event_cb->groups[i].begin_end],
                                   45, 0, (void*)&info->values[index]);
             event_cb->groups[i].begin_end = (event_cb->groups[i].begin_end + 1) & 0x1;  /* aka. % 2 */
         }
@@ -64,8 +64,8 @@ pins_papi_read_and_trace(parsec_execution_unit_t* exec_unit,
  * whether or not a PAPI_read is required for any of the frequency groups in the event_cb's events list,
  * and if so calls pins_papi_read_and_trace to read them and put the information in the profiling data.
  */
-static void pins_papi_trace(parsec_execution_unit_t* exec_unit,
-                           parsec_task_t* exec_context,
+static void pins_papi_trace(parsec_execution_stream_t* es,
+                           parsec_task_t* task,
                            parsec_pins_next_callback_t* cb_data)
 {
     parsec_pins_papi_callback_t* event_cb = (parsec_pins_papi_callback_t*)cb_data;
@@ -73,7 +73,7 @@ static void pins_papi_trace(parsec_execution_unit_t* exec_unit,
     bool read = false;
     int i;
 
-    (void)exec_context;
+    (void)es; (void)task;
 
     uint64_t set = 1; /* The bit to set to 1 (starting from the right-most bit) */
     for(i = 0; i < event_cb->num_groups; i++) {
@@ -82,7 +82,7 @@ static void pins_papi_trace(parsec_execution_unit_t* exec_unit,
 
             /* The elapsed time is longer than the frequency period, so we read. */
             if(elapsed_time > event_cb->groups[i].time){
-                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "[Thread %d] Elapsed Time: %f (%s) > %f", exec_unit->th_id, elapsed_time,
+                PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "[Thread %d] Elapsed Time: %f (%s) > %f", es->th_id, elapsed_time,
                               find_unit_name_by_type(system_units), event_cb->groups[i].time);
                 event_cb->groups[i].start_time = current_time;
 
@@ -102,7 +102,7 @@ static void pins_papi_trace(parsec_execution_unit_t* exec_unit,
 
     /* Actually call the read function to read all of the relevant groups. */
     if(read) {
-        (void)pins_papi_read_and_trace(exec_unit, event_cb);
+        (void)pins_papi_read_and_trace(es, event_cb);
     }
 }
 
@@ -141,7 +141,7 @@ static void pins_fini_papi(parsec_context_t * master_context)
  * This function creates the dictionary entries for each frequency group within the events list,
  * starts the eventset for the event_cb, and registers the EXEC_BEGIN (if needed) and EXEC_END callbacks.
  */
-static int register_event_cb(parsec_execution_unit_t * exec_unit,
+static int register_event_cb(parsec_execution_stream_t* es,
                              parsec_pins_papi_callback_t* event_cb,
                              char** conv_string,
                              int event_id)
@@ -154,7 +154,7 @@ static int register_event_cb(parsec_execution_unit_t * exec_unit,
     /* Start the PAPI eventset */
     if( PAPI_OK != (err = PAPI_start(event_cb->papi_eventset)) ) {
         parsec_warning("couldn't start PAPI eventset for thread %d; ERROR: %s\n",
-            exec_unit->th_id, PAPI_strerror(err));
+                       es->th_id, PAPI_strerror(err));
         event_cb->num_counters = 0;
         return PARSEC_ERROR;
     }
@@ -171,11 +171,11 @@ static int register_event_cb(parsec_execution_unit_t * exec_unit,
     {
         if(event_cb->groups[i].frequency > 0) { /* task-based frequency */
             asprintf(&key_string, "PINS_PAPI_S%d_C%d_F%dt_%d",
-                     exec_unit->socket_id, exec_unit->core_id, event_cb->groups[i].frequency, event_id);
+                     es->socket_id, es->core_id, event_cb->groups[i].frequency, event_id);
         }
         else { /* time-based frequency */
             asprintf(&key_string, "PINS_PAPI_S%d_C%d_F%f%s_%d",
-                     exec_unit->socket_id, exec_unit->core_id, event_cb->groups[i].time, find_short_unit_name_by_type(system_units), event_id);
+                     es->socket_id, es->core_id, event_cb->groups[i].time, find_short_unit_name_by_type(system_units), event_id);
         }
         parsec_profiling_add_dictionary_keyword(key_string, "fill:#00AAFF",
                                                sizeof(long long) * event_cb->groups[i].num_counters,
@@ -186,7 +186,7 @@ static int register_event_cb(parsec_execution_unit_t * exec_unit,
     }
 
     /* the event is now ready. Trigger it once ! */
-    if( PARSEC_SUCCESS != (err = pins_papi_read_and_trace(exec_unit, event_cb)) ) {
+    if( PARSEC_SUCCESS != (err = pins_papi_read_and_trace(es, event_cb)) ) {
         parsec_warning("PAPI event %s core %d socket %d frequency %d failed to generate. Disabled!",
             conv_string[i], event_cb->event->core, event_cb->event->socket, event_cb->event->frequency);
         return err;
@@ -201,13 +201,13 @@ static int register_event_cb(parsec_execution_unit_t * exec_unit,
                 need_begin = true;
         } else { /* time-based frequency */
             parsec_debug_verbose(4, parsec_debug_output, "PAPI event %s core %d socket %d frequency %f %s enabled",
-                         conv_string[i], exec_unit->core_id, exec_unit->socket_id, event_cb->groups[i].time,
+                         conv_string[i], es->core_id, es->socket_id, event_cb->groups[i].time,
                          find_short_unit_name_by_type(system_units));
         }
     }
 
     /* Register the EXEC_BEGIN and EXEC_END callbacks */
-    PINS_REGISTER(exec_unit, EXEC_END, pins_papi_trace,
+    PINS_REGISTER(es, EXEC_END, pins_papi_trace,
                   (parsec_pins_next_callback_t*)event_cb);
     if(need_begin) {
         /* We need to create a copy of the event_cb so the linked lists don't share pointers */
@@ -221,7 +221,7 @@ static int register_event_cb(parsec_execution_unit_t * exec_unit,
         cb_copy->groups = event_cb->groups;
         cb_copy->event = event_cb->event;
 
-        PINS_REGISTER(exec_unit, EXEC_BEGIN, pins_papi_trace,
+        PINS_REGISTER(es, EXEC_BEGIN, pins_papi_trace,
                       (parsec_pins_next_callback_t*)cb_copy);
     }
 
@@ -233,7 +233,7 @@ static int register_event_cb(parsec_execution_unit_t * exec_unit,
  * thread-specific initializations.  This function also creates strings for each
  * group with the event names and data types for use in registering the event_cb's
  */
-static void pins_thread_init_papi(parsec_execution_unit_t * exec_unit)
+static void pins_thread_init_papi(parsec_execution_stream_t* es)
 {
     parsec_pins_papi_callback_t* event_cb;
     parsec_pins_papi_event_t* event;
@@ -244,10 +244,10 @@ static void pins_thread_init_papi(parsec_execution_unit_t * exec_unit)
     if( NULL == pins_papi_events ) /* There aren't any events, so nothing to do. */
         return;
 
-    my_socket = exec_unit->socket_id;
-    my_core = exec_unit->core_id;
+    my_socket = es->socket_id;
+    my_core = es->core_id;
 
-    pins_papi_thread_init(exec_unit);
+    pins_papi_thread_init(es);
 
     /* Iterate through all of the event classes */
     for( i = 0; i < pins_papi_events->num_counters; i++ ) {
@@ -284,7 +284,7 @@ static void pins_thread_init_papi(parsec_execution_unit_t * exec_unit)
                 /* Create an empty eventset */
                 if( PAPI_OK != (err = PAPI_create_eventset(&event_cb->papi_eventset)) ) {
                     parsec_warning("thread %d couldn't create the PAPI event set; ERROR: %s\n",
-                                  exec_unit->th_id, PAPI_strerror(err));
+                                  es->th_id, PAPI_strerror(err));
                     /* Destroy the event it is unsafe to use */
                     free(event_cb->groups);
                     free(event_cb); event_cb = NULL;
@@ -375,8 +375,8 @@ static void pins_thread_init_papi(parsec_execution_unit_t * exec_unit)
         }
         /* If we could successfully create an event_cb, we need to register it. */
         if( NULL != event_cb ) {
-            /* Register the event_cb with this exec_unit and conv_string.  Note: i is used for the event_id */
-            if( PARSEC_SUCCESS != (err = register_event_cb(exec_unit, event_cb, conv_string, i)) ) {
+            /* Register the event_cb with this execution stream and conv_string.  Note: i is used for the event_id */
+            if( PARSEC_SUCCESS != (err = register_event_cb(es, event_cb, conv_string, i)) ) {
                 parsec_warning("Unable to register event_cb %d starting with '%s' on socket %d and core %d",
                              i, event_cb->event->pins_papi_event_name, my_socket, my_core);
 
@@ -403,7 +403,7 @@ static void pins_thread_init_papi(parsec_execution_unit_t * exec_unit)
  * This function breaks down the event_cb and frees up thread-specific data.  This funciton also
  * performs the final traces for each frequency group within the event_cb.
  */
-static void pins_thread_fini_papi(parsec_execution_unit_t* exec_unit)
+static void pins_thread_fini_papi(parsec_execution_stream_t* es)
 {
     parsec_pins_papi_callback_t* event_cb;
     parsec_pins_papi_callback_t* start_cb;
@@ -411,7 +411,7 @@ static void pins_thread_fini_papi(parsec_execution_unit_t* exec_unit)
     int i;
 
     do {
-        PINS_UNREGISTER(exec_unit, EXEC_END, pins_papi_trace, (parsec_pins_next_callback_t**)&event_cb);
+        PINS_UNREGISTER(es, EXEC_END, pins_papi_trace, (parsec_pins_next_callback_t**)&event_cb);
 
         if( NULL == event_cb )
             return;
@@ -426,7 +426,7 @@ static void pins_thread_fini_papi(parsec_execution_unit_t* exec_unit)
         }
         /* EXEC_BEGIN was registered, so unregister it. */
         if( has_begin ) {  /* this must have an EXEC_BEGIN */
-            PINS_UNREGISTER(exec_unit, EXEC_BEGIN, pins_papi_trace, (parsec_pins_next_callback_t**)&start_cb);
+            PINS_UNREGISTER(es, EXEC_BEGIN, pins_papi_trace, (parsec_pins_next_callback_t**)&start_cb);
             if( NULL == start_cb ) {
                 parsec_debug_verbose(3, parsec_debug_output, "Unsetting exception of an event with frequency 1 but without a start callback. Ignored.");
             }
@@ -442,10 +442,10 @@ static void pins_thread_fini_papi(parsec_execution_unit_t* exec_unit)
             for(i = 0; i < event_cb->num_groups; i++) {
                 /* If the last profiling event was an 'end' event */
                 if(event_cb->groups[i].begin_end == 0) {
-                    PARSEC_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[0],
+                    PARSEC_PROFILING_TRACE(es->es_profile, event_cb->groups[i].pins_prof_event[0],
                                           45, 0, (void *)&info->values[index]);
                 }
-                PARSEC_PROFILING_TRACE(exec_unit->eu_profile, event_cb->groups[i].pins_prof_event[1],
+                PARSEC_PROFILING_TRACE(es->es_profile, event_cb->groups[i].pins_prof_event[1],
                                       45, 0, (void *)&info->values[index]);
                 index += event_cb->groups[i].num_counters;
             }
@@ -453,7 +453,7 @@ static void pins_thread_fini_papi(parsec_execution_unit_t* exec_unit)
         free(event_cb);
     } while(1);
 
-    pins_papi_thread_fini(exec_unit);
+    pins_papi_thread_fini(es);
 }
 
 const parsec_pins_module_t parsec_pins_papi_module = {

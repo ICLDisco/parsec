@@ -76,23 +76,23 @@ parsec_mempool_t *parsec_dtd_tile_mempool = NULL;
  * All the static functions should be declared before being defined.
  */
 static int
-hook_of_dtd_task(parsec_execution_unit_t *context,
-                      parsec_task_t *this_task);
+hook_of_dtd_task(parsec_execution_stream_t *es,
+                 parsec_task_t *this_task);
 
 static void
-iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
+iterate_successors_of_dtd_task(parsec_execution_stream_t *es,
                                const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
                                void *ontask_arg);
 
 static int
-release_deps_of_dtd(parsec_execution_unit_t *,
+release_deps_of_dtd(parsec_execution_stream_t *,
                     parsec_task_t *,
                     uint32_t, parsec_remote_deps_t *);
 
 static parsec_hook_return_t
-complete_hook_of_dtd(parsec_execution_unit_t *,
+complete_hook_of_dtd(parsec_execution_stream_t *,
                      parsec_task_t *);
 
 static uint32_t hash_key (uintptr_t key, void *data);
@@ -415,10 +415,10 @@ void parsec_dtd_fini(void)
  * Body of function to copy data to the original matrix, coming from remote tasks.
  */
 int
-parsec_dtd_copy_data_to_matrix(parsec_execution_unit_t *eu,
+parsec_dtd_copy_data_to_matrix(parsec_execution_stream_t *es,
                                parsec_task_t *this_task)
 {
-    (void)eu;
+    (void)es;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
     parsec_dtd_tile_t *tile = (FLOW_OF(current_task, 0))->tile;
 
@@ -462,11 +462,11 @@ parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_ddesc_t *ddesc)
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
     hash_table_t *hash_table   = (hash_table_t *)ddesc->tile_h_table;
 
-    PINS(dtd_tp->super.context->virtual_processes[0]->execution_units[0], DATA_FLUSH_BEGIN, NULL);
+    PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
 
     hash_table_for_all( hash_table, (hash_elem_fct_t)parsec_dtd_data_flush, tp);
 
-    PINS(dtd_tp->super.context->virtual_processes[0]->execution_units[0], DATA_FLUSH_END, NULL);
+    PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_END, NULL);
 }
 
 /* **************************************************************************** */
@@ -494,8 +494,8 @@ parsec_execute_and_come_back( parsec_context_t *context,
                               int task_threshold_count )
 {
     uint64_t misses_in_a_row;
-    parsec_execution_unit_t* eu_context = context->virtual_processes[0]->execution_units[0];
-    parsec_task_t* exec_context;
+    parsec_execution_stream_t* es = context->virtual_processes[0]->execution_streams[0];
+    parsec_task_t* task;
     int rc, nbiterations = 0, distance;
     struct timespec rqtp;
 
@@ -523,50 +523,50 @@ parsec_execute_and_come_back( parsec_context_t *context,
             nanosleep(&rqtp, NULL);
         }
 
-        exec_context = current_scheduler->module.select(eu_context, &distance);
+        task = current_scheduler->module.select(es, &distance);
 
-        if( exec_context != NULL ) {
-            PINS(eu_context, SELECT_END, exec_context);
+        if( task != NULL ) {
+            PINS(es, SELECT_END, task);
             misses_in_a_row = 0;
 
 #if defined(PARSEC_SCHED_REPORT_STATISTICS)
             {
                 uint32_t my_idx = parsec_atomic_inc_32b(&sched_priority_trace_counter);
                 if(my_idx < PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
-                    sched_priority_trace[my_idx].step = eu_context->sched_nb_tasks_done++;
-                    sched_priority_trace[my_idx].thread_id = eu_context->th_id;
-                    sched_priority_trace[my_idx].vp_id     = eu_context->virtual_process->vp_id;
-                    sched_priority_trace[my_idx].priority  = exec_context->priority;
+                    sched_priority_trace[my_idx].step = es->sched_nb_tasks_done++;
+                    sched_priority_trace[my_idx].thread_id = es->th_id;
+                    sched_priority_trace[my_idx].vp_id     = es->virtual_process->vp_id;
+                    sched_priority_trace[my_idx].priority  = task->priority;
                 }
             }
 #endif
 
             rc = PARSEC_HOOK_RETURN_DONE;
-            if(exec_context->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
-                PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
-                rc = exec_context->task_class->prepare_input(eu_context, exec_context);
-                PINS(eu_context, PREPARE_INPUT_END, exec_context);
+            if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
+                PINS(es, PREPARE_INPUT_BEGIN, task);
+                rc = task->task_class->prepare_input(es, task);
+                PINS(es, PREPARE_INPUT_END, task);
             }
             switch(rc) {
             case PARSEC_HOOK_RETURN_DONE: {
-                if(exec_context->status <= PARSEC_TASK_STATUS_HOOK) {
-                    rc = __parsec_execute( eu_context, exec_context );
+                if(task->status <= PARSEC_TASK_STATUS_HOOK) {
+                    rc = __parsec_execute( es, task );
                 }
                 /* We're good to go ... */
                 switch(rc) {
                 case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
-                    exec_context->status = PARSEC_TASK_STATUS_COMPLETE;
-                    __parsec_complete_execution( eu_context, exec_context );
+                    task->status = PARSEC_TASK_STATUS_COMPLETE;
+                    __parsec_complete_execution( es, task );
                     break;
                 case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                    exec_context->status = PARSEC_TASK_STATUS_HOOK;
-                    if(0 == exec_context->priority) {
-                        SET_LOWEST_PRIORITY(exec_context, parsec_execution_context_priority_comparator);
+                    task->status = PARSEC_TASK_STATUS_HOOK;
+                    if(0 == task->priority) {
+                        SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
                     } else
-                        exec_context->priority /= 10;  /* demote the task */
-                    PARSEC_LIST_ITEM_SINGLETON(exec_context);
-                    __parsec_schedule(eu_context, exec_context, distance + 1);
-                    exec_context = NULL;
+                        task->priority /= 10;  /* demote the task */
+                    PARSEC_LIST_ITEM_SINGLETON(task);
+                    __parsec_schedule(es, task, distance + 1);
+                    task = NULL;
                     break;
                 case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
                                                  * even try to change it's state, the completion
@@ -585,20 +585,20 @@ parsec_execute_and_come_back( parsec_context_t *context,
                                              * will be triggered asynchronously. */
                 break;
             case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                if(0 == exec_context->priority) {
-                    SET_LOWEST_PRIORITY(exec_context, parsec_execution_context_priority_comparator);
+                if(0 == task->priority) {
+                    SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
                 } else
-                    exec_context->priority /= 10;  /* demote the task */
-                PARSEC_LIST_ITEM_SINGLETON(exec_context);
-                __parsec_schedule(eu_context, exec_context, distance + 1);
-                exec_context = NULL;
+                    task->priority /= 10;  /* demote the task */
+                PARSEC_LIST_ITEM_SINGLETON(task);
+                __parsec_schedule(es, task, distance + 1);
+                task = NULL;
                 break;
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
 
             // subsequent select begins
-            PINS(eu_context, SELECT_BEGIN, NULL);
+            PINS(es, SELECT_BEGIN, NULL);
         } else {
             misses_in_a_row++;
         }
@@ -1208,20 +1208,20 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 static int
-hook_of_dtd_task( parsec_execution_unit_t    *context,
+hook_of_dtd_task( parsec_execution_stream_t *es,
                   parsec_task_t *this_task )
 {
     parsec_dtd_task_t *dtd_task = (parsec_dtd_task_t*)this_task;
     assert(parsec_dtd_task_is_local(dtd_task));
     int rc = 0;
 
-    PARSEC_TASK_PROF_TRACE(context->eu_profile,
+    PARSEC_TASK_PROF_TRACE(es->es_profile,
                           this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id],
                           this_task);
 
 #if !defined(PARSEC_PROF_DRY_BODY)
 #if !defined(PARSEC_DRY_RUN)
-    rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(context, this_task);
+    rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(es, this_task);
 #endif /* !defined(PARSEC_DRY_RUN) */
 #endif
 
@@ -1490,7 +1490,7 @@ parsec_dtd_not_sent_to_rank(parsec_dtd_task_t *this_task, int flow_index, int ds
  * This function will have more functionality in the implementation
  * for distributed memory
  *
- * @param[in]   eu
+ * @param[in]   es
  *                  Execution unit
  * @param[in]   newcontext
  *                  Pointer to DTD task we are trying to activate
@@ -1506,7 +1506,7 @@ parsec_dtd_not_sent_to_rank(parsec_dtd_task_t *this_task, int flow_index, int ds
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 parsec_ontask_iterate_t
-dtd_release_dep_fct( parsec_execution_unit_t *eu,
+dtd_release_dep_fct( parsec_execution_stream_t *es,
                      const parsec_task_t *newcontext,
                      const parsec_task_t *oldcontext,
                      const dep_t *dep,
@@ -1514,7 +1514,7 @@ dtd_release_dep_fct( parsec_execution_unit_t *eu,
                      int src_rank, int dst_rank, int dst_vpid,
                      void *param )
 {
-    (void)eu; (void)data; (void)src_rank; (void)dst_rank; (void)oldcontext;
+    (void)es; (void)data; (void)src_rank; (void)dst_rank; (void)oldcontext;
     parsec_release_dep_fct_arg_t *arg = (parsec_release_dep_fct_arg_t *)param;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)newcontext;
     int not_ready = 1;
@@ -1530,7 +1530,7 @@ dtd_release_dep_fct( parsec_execution_unit_t *eu,
                 int _array_pos, _array_mask;
 
 #if !defined(PARSEC_DIST_COLLECTIVES)
-                assert(src_rank == eu->virtual_process->parsec_context->my_rank);
+                assert(src_rank == es->virtual_process->parsec_context->my_rank);
 #endif
                 _array_pos = dst_rank / (8 * sizeof(uint32_t));
                 _array_mask = 1 << (dst_rank % (8 * sizeof(uint32_t)));
@@ -1612,12 +1612,12 @@ dtd_release_dep_fct( parsec_execution_unit_t *eu,
  *
  * @see     ordering_correctly_2()
  *
- * @param   eu,this_task,action_mask,ontask,ontask_arg
+ * @param   es,this_task,action_mask,ontask,ontask_arg
  *
  * @ingroup DTD_ITERFACE_INTERNAL
  */
 static void
-iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
+iterate_successors_of_dtd_task(parsec_execution_stream_t *es,
                                const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
@@ -1627,8 +1627,8 @@ iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
 
     this_dtd_task = (parsec_dtd_task_t *)this_task;
 
-    (void)eu; (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
-    parsec_dtd_ordering_correctly( eu, (parsec_task_t *)this_dtd_task,
+    (void)this_task; (void)action_mask; (void)ontask; (void)ontask_arg;
+    parsec_dtd_ordering_correctly( es, (parsec_task_t *)this_dtd_task,
                                    action_mask, ontask, ontask_arg );
 }
 
@@ -1639,7 +1639,7 @@ iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
  * Calls iterate successors function that returns a list of tasks that
  * are ready to go. Those ready tasks are scheduled in here.
  *
- * @param[in]   eu
+ * @param[in]   es
  *                  Execution unit
  * @param[in]   this_task
  *                  Pointer to DTD task we are releasing deps of
@@ -1650,7 +1650,7 @@ iterate_successors_of_dtd_task(parsec_execution_unit_t *eu,
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 static int
-release_deps_of_dtd( parsec_execution_unit_t *eu,
+release_deps_of_dtd( parsec_execution_stream_t *es,
                      parsec_task_t *this_task,
                      uint32_t action_mask,
                      parsec_remote_deps_t *deps )
@@ -1659,9 +1659,9 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
     parsec_release_dep_fct_arg_t arg;
     int __vp_id;
 
-    assert(NULL != eu);
+    assert(NULL != es);
 
-    PINS(eu, RELEASE_DEPS_BEGIN, this_task);
+    PINS(es, RELEASE_DEPS_BEGIN, this_task);
 #if defined(DISTRIBUTED)
     arg.remote_deps = deps;
 #endif /* defined(DISTRIBUTED) */
@@ -1669,9 +1669,9 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
     arg.action_mask  = action_mask;
     arg.output_usage = 0;
     arg.output_entry = NULL;
-    arg.ready_lists  = alloca(sizeof(parsec_task_t *) * eu->virtual_process->parsec_context->nb_vp);
+    arg.ready_lists  = alloca(sizeof(parsec_task_t *) * es->virtual_process->parsec_context->nb_vp);
 
-    for (__vp_id = 0; __vp_id < eu->virtual_process->parsec_context->nb_vp; __vp_id++)
+    for (__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++)
         arg.ready_lists[__vp_id] = NULL;
 
     parsec_dtd_task_t *this_dtd_task = NULL;
@@ -1713,7 +1713,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
         parsec_dtd_two_hash_table_unlock(tp->two_hash_table);
     }
     assert(NULL != this_dtd_task);
-    iterate_successors_of_dtd_task(eu, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
+    iterate_successors_of_dtd_task(es, (parsec_task_t*)this_dtd_task, action_mask, dtd_release_dep_fct, &arg);
 
 #if defined(DISTRIBUTED)
     /* We perform this only for remote tasks that are being activated
@@ -1749,21 +1749,21 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
 
     /* Scheduling tasks */
     if (action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
-        parsec_vp_t **vps = eu->virtual_process->parsec_context->virtual_processes;
-        for (__vp_id = 0; __vp_id < eu->virtual_process->parsec_context->nb_vp; __vp_id++) {
+        parsec_vp_t **vps = es->virtual_process->parsec_context->virtual_processes;
+        for (__vp_id = 0; __vp_id < es->virtual_process->parsec_context->nb_vp; __vp_id++) {
             if (NULL == arg.ready_lists[__vp_id]) {
                 continue;
             }
-            if (__vp_id == eu->virtual_process->vp_id) {
-                __parsec_schedule(eu, arg.ready_lists[__vp_id], 0);
+            if (__vp_id == es->virtual_process->vp_id) {
+                __parsec_schedule(es, arg.ready_lists[__vp_id], 0);
             }else {
-                __parsec_schedule(vps[__vp_id]->execution_units[0], arg.ready_lists[__vp_id], 0);
+                __parsec_schedule(vps[__vp_id]->execution_streams[0], arg.ready_lists[__vp_id], 0);
             }
             arg.ready_lists[__vp_id] = NULL;
         }
     }
 
-    PINS(eu, RELEASE_DEPS_END, this_task);
+    PINS(es, RELEASE_DEPS_END, this_task);
     return 0;
 }
 
@@ -1781,7 +1781,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
  * @ingroup     DTD_INTERFACE_INTERNAL
  */
 static int
-complete_hook_of_dtd( parsec_execution_unit_t    *context,
+complete_hook_of_dtd( parsec_execution_stream_t *es,
                       parsec_task_t *this_task )
 {
     /* Assuming we only call this function for local tasks */
@@ -1801,11 +1801,11 @@ complete_hook_of_dtd( parsec_execution_unit_t    *context,
     }
 
 #if defined(PARSEC_PROF_GRAPHER)
-    parsec_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id,
+    parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id,
                              this_task->task_class->key(this_task->taskpool, this_task->locals));
 #endif /* defined(PARSEC_PROF_GRAPHER) */
 
-    PARSEC_TASK_PROF_TRACE(context->eu_profile,
+    PARSEC_TASK_PROF_TRACE(es->es_profile,
                            this_task->taskpool->profiling_array[2 * this_task->task_class->task_class_id + 1],
                            this_task);
 
@@ -1815,7 +1815,7 @@ complete_hook_of_dtd( parsec_execution_unit_t    *context,
         action_mask |= (1U << current_dep);
     }
 
-    release_deps_of_dtd( context, this_task, action_mask     |
+    release_deps_of_dtd( es, this_task, action_mask     |
                          PARSEC_ACTION_RELEASE_LOCAL_DEPS    |
                          PARSEC_ACTION_SEND_REMOTE_DEPS      |
                          PARSEC_ACTION_SEND_INIT_REMOTE_DEPS |
@@ -1857,10 +1857,10 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
 
 /* Function to push back tasks in their mempool once the execution are done */
 parsec_hook_return_t
-parsec_release_dtd_task_to_mempool(parsec_execution_unit_t *eu,
+parsec_release_dtd_task_to_mempool(parsec_execution_stream_t *es,
                                   parsec_task_t *this_task)
 {
-    (void)eu;
+    (void)es;
     (void)parsec_atomic_dec_32b( (uint32_t*)&this_task->taskpool->nb_tasks );
     return parsec_dtd_release_local_task( (parsec_dtd_task_t *)this_task );
 }
@@ -1901,10 +1901,10 @@ parsec_dtd_remote_task_release( parsec_dtd_task_t *this_task )
 
 /* Prepare_input function */
 int
-data_lookup_of_dtd_task( parsec_execution_unit_t *context,
+data_lookup_of_dtd_task( parsec_execution_stream_t *es,
                          parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     int current_dep, op_type_on_current_flow;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
@@ -1929,10 +1929,10 @@ data_lookup_of_dtd_task( parsec_execution_unit_t *context,
 
 /* Prepare_output function */
 int
-output_data_of_dtd_task( parsec_execution_unit_t *context,
+output_data_of_dtd_task( parsec_execution_stream_t *es,
                          parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     int current_dep;
     parsec_dtd_task_t *current_task = (parsec_dtd_task_t *)this_task;
@@ -1955,11 +1955,11 @@ output_data_of_dtd_task( parsec_execution_unit_t *context,
     return PARSEC_HOOK_RETURN_DONE;
 }
 
-static int datatype_lookup_of_dtd_task(parsec_execution_unit_t *eu,
+static int datatype_lookup_of_dtd_task(parsec_execution_stream_t *es,
                                        const parsec_task_t *this_task,
                                        uint32_t *flow_mask, parsec_dep_data_description_t *data)
 {
-    (void)eu;
+    (void)es;
     data->count = 1;
     data->displ = 0;
 
@@ -2530,7 +2530,7 @@ set_descendant( parsec_dtd_task_t *parent_task, uint8_t parent_flow_index,
                 flow->flags |= TASK_INSERTED;
                 parsec_dtd_find_and_remove_remote_dep( tp, key );
 #if defined(PARSEC_PROF_TRACE)
-                parsec_profiling_trace(tp->super.context->virtual_processes[0]->execution_units[0]->eu_profile, hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL );
+                parsec_profiling_trace(tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile, hashtable_trace_keyin, 0, tp->super.taskpool_id, NULL );
 #endif
                 parsec_dtd_insert_task( tp, key, real_parent_task );
                 remote_dep_dequeue_delayed_dep_release(dep);
@@ -2567,7 +2567,7 @@ parsec_dtd_schedule_tasks( parsec_dtd_taskpool_t *__tp )
                                 parsec_execution_context_priority_comparator);
         startup_list[p] = (parsec_task_t*)parsec_list_nolock_unchain(&temp);
         /* We should add these tasks on the system queue when there is one */
-        __parsec_schedule( __tp->super.context->virtual_processes[p]->execution_units[0],
+        __parsec_schedule( __tp->super.context->virtual_processes[p]->execution_streams[0],
                           startup_list[p], 0 );
         startup_list[p] = NULL;
     }
@@ -2693,9 +2693,9 @@ parsec_dtd_set_params_of_task( parsec_dtd_task_t *this_task, parsec_dtd_tile_t *
  * @ingroup DTD_INTERFACE_INTERNAL
  */
 int
-fake_first_out_body( parsec_execution_unit_t *context, parsec_task_t *this_task)
+fake_first_out_body( parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -2927,13 +2927,13 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                         int action_mask = 0;
                         action_mask |= (1<<(PARENT_OF(this_task, flow_index))->flow_index);
 
-                        parsec_execution_unit_t *eu = dtd_tp->super.context->virtual_processes[0]->execution_units[0];
+                        parsec_execution_stream_t *es = dtd_tp->super.context->virtual_processes[0]->execution_streams[0];
 
                         if( parsec_dtd_task_is_local(parent_task) && parsec_dtd_task_is_remote(this_task) ) {
                             /* To make sure we do not release any remote data held by this task */
                             OBJ_RETAIN(parent_task);
                         }
-                        release_deps_of_dtd(eu, (parsec_task_t *)(PARENT_OF(this_task, flow_index))->task,
+                        release_deps_of_dtd(es, (parsec_task_t *)(PARENT_OF(this_task, flow_index))->task,
                                             action_mask |
                                             PARSEC_ACTION_SEND_REMOTE_DEPS      |
                                             PARSEC_ACTION_SEND_INIT_REMOTE_DEPS |
@@ -3010,7 +3010,7 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             }
 
             PARSEC_LIST_ITEM_SINGLETON(this_task);
-            __parsec_schedule( dtd_tp->super.context->virtual_processes[vpid]->execution_units[0],
+            __parsec_schedule( dtd_tp->super.context->virtual_processes[vpid]->execution_streams[0],
                                (parsec_task_t *)this_task, 0 );
             vpid = (vpid+1)%dtd_tp->super.context->nb_vp;
         }
@@ -3077,7 +3077,7 @@ parsec_insert_task( parsec_taskpool_t  *tp,
     va_start(args, name_of_kernel);
 
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_units[0]->eu_profile, insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL );
+    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile, insert_task_trace_keyin, 0, dtd_tp->super.taskpool_id, NULL );
 #endif
 
     /* extracting the rank of the task */
@@ -3216,7 +3216,7 @@ parsec_insert_task( parsec_taskpool_t  *tp,
 
 #if defined(PARSEC_PROF_TRACE)
     /* try using PARSEC_PROFILING_TRACE */
-    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_units[0]->eu_profile,
+    parsec_profiling_trace(dtd_tp->super.context->virtual_processes[0]->execution_streams[0]->es_profile,
                            insert_task_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
 #endif
 

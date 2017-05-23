@@ -298,11 +298,11 @@ parsec_dtd_startup( parsec_context_t *context,
                     parsec_task_t **pready_list );
 
 int
-data_lookup_of_dtd_task( parsec_execution_unit_t *,
+data_lookup_of_dtd_task( parsec_execution_stream_t *,
                          parsec_task_t * );
 
 void
-parsec_dtd_ordering_correctly( parsec_execution_unit_t * eu,
+parsec_dtd_ordering_correctly( parsec_execution_stream_t * es,
                                const parsec_task_t * this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t * ontask,
@@ -391,7 +391,7 @@ parsec_hook_return_t
 parsec_dtd_release_local_task( parsec_dtd_task_t *this_task );
 
 int
-parsec_dtd_copy_data_to_matrix( parsec_execution_unit_t    *eu,
+parsec_dtd_copy_data_to_matrix( parsec_execution_stream_t *es,
                                 parsec_task_t *this_task );
 
 void

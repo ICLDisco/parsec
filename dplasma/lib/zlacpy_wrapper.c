@@ -16,7 +16,7 @@
 #include "map2.h"
 
 static int
-dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
+dplasma_zlacpy_operator( parsec_execution_stream_t *es,
                          const tiled_matrix_desc_t *descA,
                          const tiled_matrix_desc_t *descB,
                          const void *_A, void *_B,
@@ -26,7 +26,7 @@ dplasma_zlacpy_operator( parsec_execution_unit_t *eu,
     int tempmm, tempnn, ldam, ldbm;
     const parsec_complex64_t *A = (const parsec_complex64_t*)_A;
     parsec_complex64_t       *B = (parsec_complex64_t*)_B;
-    (void)eu;
+    (void)es;
     (void)args;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);

@@ -10,7 +10,7 @@
 #include "parsec/utils/mca_param.h"
 #include "parsec/constants.h"
 #include "parsec/debug.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/utils/argv.h"
 
 #include <stdlib.h>

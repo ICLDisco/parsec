@@ -37,10 +37,10 @@ enum regions {
              };
 
 int
-test_task( parsec_execution_unit_t    *context,
+test_task( parsec_execution_stream_t *es,
            parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     int *amount_of_work;
     parsec_dtd_unpack_args( this_task,
@@ -61,21 +61,20 @@ test_task( parsec_execution_unit_t    *context,
 }
 
 int
-test_task_generator( parsec_execution_unit_t    *context,
+test_task_generator( parsec_execution_stream_t *es,
                      parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     tiled_matrix_desc_t *ddescB;
     int amount = 0, *nb, *nt;
-    int rank = context->virtual_process->parsec_context->my_rank;
-    int world = context->virtual_process->parsec_context->nb_nodes, i;
+    int rank = es->virtual_process->parsec_context->my_rank;
+    int world = es->virtual_process->parsec_context->nb_nodes, i;
 
     parsec_dtd_unpack_args( this_task,
                             UNPACK_VALUE, &nb,
                             UNPACK_VALUE, &nt,
-                            0
-                          );
+                            0);
 
     ddescB = create_and_distribute_empty_data(rank, world, *nb, *nt);
     parsec_ddesc_set_key((parsec_ddesc_t *)ddescB, "B");
@@ -84,7 +83,7 @@ test_task_generator( parsec_execution_unit_t    *context,
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
     /* Registering the dtd_handle with PARSEC context */
-    parsec_enqueue( context->virtual_process->parsec_context, dtd_tp );
+    parsec_enqueue( es->virtual_process->parsec_context, dtd_tp );
 
     for( i = 0; i < 100; i++ ) {
         parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
@@ -96,7 +95,7 @@ test_task_generator( parsec_execution_unit_t    *context,
     parsec_dtd_data_flush(dtd_tp, TILE_OF_KEY(B, rank));
 
     /* finishing all the tasks inserted, but not finishing the handle */
-    parsec_dtd_taskpool_wait( context->virtual_process->parsec_context, dtd_tp );
+    parsec_dtd_taskpool_wait( es->virtual_process->parsec_context, dtd_tp );
 
     parsec_dtd_ddesc_fini(B);
     free_data(ddescB);

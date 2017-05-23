@@ -14,7 +14,7 @@
 #define PARSEC_PINS_SEPARATOR ";"
 
 struct parsec_pins_next_callback_s;
-typedef void (*parsec_pins_callback)(struct parsec_execution_unit_s*     exec_unit,
+typedef void (*parsec_pins_callback)(struct parsec_execution_stream_s*   es,
                                      struct parsec_task_s*               task,
                                      struct parsec_pins_next_callback_s* cb_data);
 
@@ -73,8 +73,8 @@ typedef void (*parsec_pins_base_module_init_fn_t)(struct parsec_context_s * mast
 typedef void (*parsec_pins_base_module_fini_fn_t)(struct parsec_context_s * master);
 typedef void (*parsec_pins_base_module_taskpool_init_fn_t)(struct parsec_taskpool_s * tp);
 typedef void (*parsec_pins_base_module_taskpool_fini_fn_t)(struct parsec_taskpool_s * tp);
-typedef void (*parsec_pins_base_module_thread_init_fn_t)(struct parsec_execution_unit_s * exec_unit);
-typedef void (*parsec_pins_base_module_thread_fini_fn_t)(struct parsec_execution_unit_s * exec_unit);
+typedef void (*parsec_pins_base_module_thread_init_fn_t)(struct parsec_execution_stream_s * es);
+typedef void (*parsec_pins_base_module_thread_fini_fn_t)(struct parsec_execution_stream_s * es);
 
 struct parsec_pins_base_module_1_0_0_t {
     parsec_pins_base_module_init_fn_t          init;
@@ -110,13 +110,13 @@ void pins_init(struct parsec_context_s * master);
 void pins_fini(struct parsec_context_s * master);
 void pins_taskpool_init(struct parsec_taskpool_s * tp);
 void pins_taskpool_fini(struct parsec_taskpool_s * tp);
-void pins_thread_init(struct parsec_execution_unit_s * exec_unit);
-void pins_thread_fini(struct parsec_execution_unit_s * exec_unit);
+void pins_thread_init(struct parsec_execution_stream_s * es);
+void pins_thread_fini(struct parsec_execution_stream_s * es);
 
 /*
  the following functions are intended for public use wherever they are necessary
  */
-void parsec_pins_instrument(struct parsec_execution_unit_s * exec_unit,
+void parsec_pins_instrument(struct parsec_execution_stream_s* es,
                             PINS_FLAG method_flag,
                             struct parsec_task_s* task);
 
@@ -124,12 +124,12 @@ void parsec_pins_disable_registration(int disable);
 
 int parsec_pins_is_module_enabled(char * module_name);
 
-int parsec_pins_register_callback(struct parsec_execution_unit_s* exec_unit,
+int parsec_pins_register_callback(struct parsec_execution_stream_s* es,
                            PINS_FLAG method_flag,
                            parsec_pins_callback cb,
                            parsec_pins_next_callback_t* cb_data);
 
-int parsec_pins_unregister_callback(struct parsec_execution_unit_s* exec_unit,
+int parsec_pins_unregister_callback(struct parsec_execution_stream_s* es,
                              PINS_FLAG method_flag,
                              parsec_pins_callback cb,
                              parsec_pins_next_callback_t** cb_data);

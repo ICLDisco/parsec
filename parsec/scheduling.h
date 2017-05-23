@@ -37,7 +37,7 @@ BEGIN_C_DECLS
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int __parsec_schedule( parsec_execution_unit_t*,
+int __parsec_schedule( parsec_execution_stream_t*,
                        parsec_task_t*,
                        int32_t distance);
 
@@ -52,12 +52,12 @@ int __parsec_schedule( parsec_execution_unit_t*,
  *          iterate over all existing execution units (in the current VP,
  *          then on the next VP and so on).
  *
- * @param[in] eu_context the start execution_unit (normal it is the current one).
- * @param[in] task the task to be rescheduled.
+ * @param [IN] es, the start execution_stream (normall it is the current one).
+ * @param [IN] task, the task to be rescheduled.
  *
  * @return parsec scheduling return code
  */
-int __parsec_reschedule(parsec_execution_unit_t* eu_context,
+int __parsec_reschedule(parsec_execution_stream_t* es,
                         parsec_task_t* task);
 
 /**
@@ -74,12 +74,12 @@ int __parsec_reschedule(parsec_execution_unit_t* eu_context,
  *
  * @return parsec scheduling return code
  */
-int __parsec_context_wait(parsec_execution_unit_t* eu_context);
+int __parsec_context_wait(parsec_execution_stream_t* es);
 
 /**
  * Execute the body of the task associated to the context.
  */
-int __parsec_execute( parsec_execution_unit_t*, parsec_task_t*);
+int __parsec_execute( parsec_execution_stream_t*, parsec_task_t*);
 /**
  * Signal the termination of the execution context to all dependencies of
  * its dependencies.
@@ -90,8 +90,8 @@ int __parsec_execute( parsec_execution_unit_t*, parsec_task_t*);
  * @return 0    If the dependencies have successfully been signaled.
  * @return -1   If something went wrong.
  */
-int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
-                                 parsec_task_t *exec_context );
+int __parsec_complete_execution( parsec_execution_stream_t *es,
+                                 parsec_task_t *task);
 
 /**
  * Signal the handle that a certain number of runtime bound activities have been

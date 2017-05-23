@@ -20,13 +20,13 @@ PARSEC_DECLSPEC extern const parsec_task_class_t __parsec_generic_startup;
  * not necessary, while the second one contains the task counting.
  */
 parsec_hook_return_t
-parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
+parsec_release_task_to_mempool(parsec_execution_stream_t *es,
                                parsec_task_t *this_task);
 parsec_hook_return_t
-parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
+parsec_release_task_to_mempool_update_nbtasks(parsec_execution_stream_t *es,
                                               parsec_task_t *this_task);
 
 parsec_hook_return_t
-parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_t *eu,
+parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_stream_t *es,
                                                           parsec_task_t *this_task);
 #endif  /* PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED */

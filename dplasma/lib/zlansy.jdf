@@ -117,9 +117,9 @@ BODY
     int tempnn = ( n1 == (descA->nt-1) ) ? descA->n - n1 * descA->nb : descA->nb;
     int ldam = BLKLDD( descA, m );
 
-    printlog("thread %d zlange STEP1(%d, %d)\n"
+    printlog("zlange STEP1(%d, %d)\n"
              "\t( tempmm=%d, tempnn=%d, A(%d, %d)[%p], lda=%d, W(%d,%d)[%p])\n",
-             context->th_id, m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
+             m, n, tempmm, tempnn, m, n, A, ldam, m, n%Q, W);
 
 #if !defined(PARSEC_DRY_RUN)
     double *dW = (double*)W;
@@ -237,9 +237,9 @@ BODY
 {
     int tempmm = ( m == (descA->mt-1) ) ? descA->m - m * descA->mb : descA->mb;
 
-    printlog("thread %d zlange STEP2(%d, %d)\n"
+    printlog("zlange STEP2(%d, %d)\n"
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
-             context->th_id, m, n, tempmm, m, n-1, m, n);
+             m, n, tempmm, m, n-1, m, n);
 
 #if !defined(PARSEC_DRY_RUN)
     double *dA = (double*)A;
@@ -306,9 +306,9 @@ BODY
 {
     int tempmm = ( m == (descA->mt-1) ) ? descA->m - m * descA->mb : descA->mb;
 
-    printlog("thread %d zlange STEP2(%d, %d)\n"
+    printlog("zlange STEP2(%d, %d)\n"
              "\t( tempmm=%d, W(%d, %d) + W(%d, %d)\n",
-             context->th_id, m, n, tempmm, m, n-1, m, n);
+             m, n, tempmm, m, n-1, m, n);
 
 #if !defined(PARSEC_DRY_RUN)
     if(n > 0)
@@ -362,8 +362,7 @@ BODY
 {
     int tempmm = ( m == descA->mt-1) ? descA->m - m * descA->mb  : descA->mb;
 
-    printlog("thread %d zlange STEP3(%d, %d)\n",
-             context->th_id, m, n);
+    printlog("zlange STEP3(%d, %d)\n", m, n);
 
 #if !defined(PARSEC_DRY_RUN)
     double *dA = (double*)A;
@@ -427,8 +426,7 @@ STEP4(m,n)
 
 BODY
 {
-    printlog("thread %d zlange STEP4(%d, %d)\n",
-             context->th_id, m, n);
+    printlog("zlange STEP4(%d, %d)\n", m, n);
 
     double *dA = (double*)A;
     double *dW = (double*)W;
@@ -479,8 +477,7 @@ WRITE_RES(m,n)
 
 BODY
 {
-    printlog("thread %d zlange STORE RESULT(%d, %d)\n",
-             context->th_id, m, n);
+    printlog("zlange STORE RESULT(%d, %d)\n", m, n);
 
     double *dW = (double*)W;
 

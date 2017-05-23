@@ -48,8 +48,8 @@ extern parsec_cholesky_taskpool_t *parsec_cholesky_new(parsec_ddesc_t* A /* data
 extern void parsec_cholesky_destroy( parsec_cholesky_taskpool_t *o );
 
 struct callback_args {
-    parsec_execution_unit_t     *exec_unit;
-    parsec_task_t  *exec_context;
+    parsec_execution_stream_t *exec_stream;
+    parsec_task_t             *task;
 };
 struct func_args {
     int var[MAX_PARAM_COUNT];
@@ -57,14 +57,14 @@ struct func_args {
     void *obj;
     void *glob[MAX_GLOBAL_COUNT];
 };
-void generic_scheduling_func(parsec_execution_unit_t *context, parsec_list_item_t *elt);
+void generic_scheduling_func(parsec_execution_stream_t *context, parsec_list_item_t *elt);
 #ifdef __cplusplus
 extern "C" {
 #endif
-void hook_of_cholesky_GEMM_callback_function(parsec_execution_unit_t*, parsec_task_t*);
-void hook_of_cholesky_HERK_callback_function(parsec_execution_unit_t*, parsec_task_t*);
-void hook_of_cholesky_TRSM_callback_function(parsec_execution_unit_t*, parsec_task_t*);
-void hook_of_cholesky_POTRF_callback_function(parsec_execution_unit_t*, parsec_task_t*);
+void hook_of_cholesky_GEMM_callback_function(parsec_execution_stream_t*, parsec_task_t*);
+void hook_of_cholesky_HERK_callback_function(parsec_execution_stream_t*, parsec_task_t*);
+void hook_of_cholesky_TRSM_callback_function(parsec_execution_stream_t*, parsec_task_t*);
+void hook_of_cholesky_POTRF_callback_function(parsec_execution_stream_t*, parsec_task_t*);
 #ifdef __cplusplus
 }
 #endif

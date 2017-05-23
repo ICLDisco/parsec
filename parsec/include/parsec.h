@@ -52,7 +52,7 @@ typedef struct parsec_task_s parsec_task_t;
 /**
  * @brief Represents a computing element (usually a system thread)
 */
-typedef struct parsec_execution_unit_s    parsec_execution_unit_t;
+typedef struct parsec_execution_stream_s    parsec_execution_stream_t;
 
 /**
  * @brief Holds all the resources used by PaRSEC for this process (threads, memory, ...)
@@ -431,7 +431,7 @@ void parsec_taskpool_free(parsec_taskpool_t *tp);
 int parsec_taskpool_enable(parsec_taskpool_t* tp,
                            parsec_task_t** startup_queue,
                            parsec_task_t* local_task,
-                           parsec_execution_unit_t * eu,
+                           parsec_execution_stream_t* es,
                            int distributed);
 
 /**

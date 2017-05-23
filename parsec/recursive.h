@@ -1,14 +1,20 @@
+/*
+ * Copyright (c) 2015-2017 The University of Tennessee and The University
+ *                         of Tennessee Research Foundation.  All rights
+ *                         reserved.
+ */
+
 #ifndef _PARSEC_RECURSIVE_H_
 #define _PARSEC_RECURSIVE_H_
 
 #include "parsec/parsec_internal.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/scheduling.h"
 #include "parsec/devices/device.h"
 #include "data_dist/matrix/matrix.h"
 
 typedef struct cb_data_s {
-    parsec_execution_unit_t    *eu;
+    parsec_execution_stream_t    *es;
     parsec_task_t *context;
     void (*destruct)( parsec_taskpool_t * );
     int nbdesc;
@@ -20,7 +26,7 @@ static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_
     int i, rc = 0;
     cb_data_t* data = (cb_data_t*)cb_data;
 
-    rc = __parsec_complete_execution(data->eu, data->context);
+    rc = __parsec_complete_execution(data->es, data->context);
 
     for(i=0; i<data->nbdesc; i++){
         tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(data->desc[i]) );
@@ -33,12 +39,13 @@ static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_
     return rc;
 }
 
-static inline int parsec_recursivecall( parsec_execution_unit_t    *eu,
-                                       parsec_task_t *context,
-                                       parsec_taskpool_t            *tp,
-                                       void (*taskpool_destroy)(parsec_taskpool_t *),
-                                       int nbdesc,
-                                       ... )
+static inline int
+parsec_recursivecall( parsec_execution_stream_t    *es,
+                      parsec_task_t *context,
+                      parsec_taskpool_t            *tp,
+                      void (*taskpool_destroy)(parsec_taskpool_t *),
+                      int nbdesc,
+                      ... )
 {
     cb_data_t *cbdata = NULL;
     int i;
@@ -49,7 +56,7 @@ static inline int parsec_recursivecall( parsec_execution_unit_t    *eu,
 
     /* Callback */
     cbdata = (cb_data_t *) malloc( sizeof(cb_data_t) + (nbdesc-1)*sizeof(parsec_ddesc_t*));
-    cbdata->eu       = eu;
+    cbdata->es       = es;
     cbdata->context  = context;
     cbdata->destruct = taskpool_destroy;
     cbdata->nbdesc   = nbdesc;
@@ -64,7 +71,7 @@ static inline int parsec_recursivecall( parsec_execution_unit_t    *eu,
     parsec_set_complete_callback( tp, parsec_recursivecall_callback,
                                  (void *)cbdata );
 
-    parsec_enqueue( eu->virtual_process->parsec_context, tp);
+    parsec_enqueue( es->virtual_process->parsec_context, tp);
 
     return -1;
 }

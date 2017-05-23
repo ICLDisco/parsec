@@ -16,7 +16,7 @@
 #include "map.h"
 
 static int
-dplasma_zlaset_operator( parsec_execution_unit_t *eu,
+dplasma_zlaset_operator( parsec_execution_stream_t *es,
                          const tiled_matrix_desc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
@@ -25,7 +25,7 @@ dplasma_zlaset_operator( parsec_execution_unit_t *eu,
     int tempmm, tempnn, ldam;
     parsec_complex64_t *alpha = (parsec_complex64_t*)args;
     parsec_complex64_t *A = (parsec_complex64_t*)_A;
-    (void)eu;
+    (void)es;
 
     tempmm = ((m)==((descA->mt)-1)) ? ((descA->m)-(m*(descA->mb))) : (descA->mb);
     tempnn = ((n)==((descA->nt)-1)) ? ((descA->n)-(n*(descA->nb))) : (descA->nb);

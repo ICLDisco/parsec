@@ -205,18 +205,18 @@ typedef enum  {
     PARSEC_ITERATE_CONTINUE
 } parsec_ontask_iterate_t;
 
-typedef int (parsec_release_deps_t)(struct parsec_execution_unit_s*,
+typedef int (parsec_release_deps_t)(struct parsec_execution_stream_s*,
                                    parsec_task_t*,
                                    uint32_t,
                                    parsec_remote_deps_t*);
 #if defined(PARSEC_SIM)
-typedef int (parsec_sim_cost_fct_t)(const parsec_task_t *exec_context);
+typedef int (parsec_sim_cost_fct_t)(const parsec_task_t *task);
 #endif
 
 /**
  *
  */
-typedef parsec_ontask_iterate_t (parsec_ontask_function_t)(struct parsec_execution_unit_s *eu,
+typedef parsec_ontask_iterate_t (parsec_ontask_function_t)(struct parsec_execution_stream_s* es,
                                                          const parsec_task_t *newcontext,
                                                          const parsec_task_t *oldcontext,
                                                          const dep_t* dep,
@@ -226,7 +226,7 @@ typedef parsec_ontask_iterate_t (parsec_ontask_function_t)(struct parsec_executi
 /**
  *
  */
-typedef void (parsec_traverse_function_t)(struct parsec_execution_unit_s *,
+typedef void (parsec_traverse_function_t)(struct parsec_execution_stream_s *,
                                          const parsec_task_t *,
                                          uint32_t,
                                          parsec_ontask_function_t *,
@@ -259,7 +259,7 @@ typedef float (parsec_evaluate_function_t)(const parsec_task_t* task);
  * PARSEC_HOOK_RETURN_DONE otherwise (the data structure has not been updated and
  * there is no reason to call this function again for the same task.
  */
-typedef int (parsec_datatype_lookup_t)(struct parsec_execution_unit_s* eu,
+typedef int (parsec_datatype_lookup_t)(struct parsec_execution_stream_s* es,
                                       const parsec_task_t * this_task,
                                       uint32_t * flow_mask,
                                       parsec_dep_data_description_t * data);
@@ -273,7 +273,7 @@ typedef int (parsec_new_task_function_t)(const parsec_task_t** task);
 /**
  *
  */
-typedef parsec_hook_return_t (parsec_hook_t)(struct parsec_execution_unit_s*, parsec_task_t*);
+typedef parsec_hook_return_t (parsec_hook_t)(struct parsec_execution_stream_s*, parsec_task_t*);
 
 /**
  *
@@ -283,7 +283,7 @@ typedef struct parsec_data_ref_s {
     parsec_data_key_t key;
 } parsec_data_ref_t;
 
-typedef int (parsec_data_ref_fn_t)(parsec_task_t *exec_context,
+typedef int (parsec_data_ref_fn_t)(parsec_task_t *task,
                                   parsec_data_ref_t *ref);
 
 #define PARSEC_HAS_IN_IN_DEPENDENCIES     0x0001
@@ -297,14 +297,14 @@ typedef int (parsec_data_ref_fn_t)(parsec_task_t *exec_context,
  * Find the dependency corresponding to a given execution context.
  */
 typedef parsec_dependency_t *(parsec_find_dependency_fn_t)(const parsec_taskpool_t *tp,
-                                                           parsec_execution_unit_t *eu_context,
-                                                           const parsec_task_t* exec_context);
+                                                           parsec_execution_stream_t *es,
+                                                           const parsec_task_t* task);
 parsec_dependency_t *parsec_default_find_deps(const parsec_taskpool_t *tp,
-                                              parsec_execution_unit_t *eu_context,
-                                              const parsec_task_t* exec_context);
+                                              parsec_execution_stream_t *es,
+                                              const parsec_task_t* task);
 parsec_dependency_t *parsec_hash_find_deps(const parsec_taskpool_t *tp,
-                                           parsec_execution_unit_t *eu_context,
-                                           const parsec_task_t* exec_context);
+                                           parsec_execution_stream_t *es,
+                                           const parsec_task_t* task);
 
 typedef struct __parsec_internal_incarnation_s {
     int32_t                     type;
@@ -493,16 +493,17 @@ typedef struct {
  * Generic function to return a task in the corresponding mempool.
  */
 parsec_hook_return_t
-parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
+parsec_release_task_to_mempool(parsec_execution_stream_t *es,
                               parsec_task_t *this_task);
 
-parsec_ontask_iterate_t parsec_release_dep_fct(struct parsec_execution_unit_s *eu,
-                                             const parsec_task_t *newcontext,
-                                             const parsec_task_t *oldcontext,
-                                             const dep_t* dep,
-                                             parsec_dep_data_description_t* data,
-                                             int rank_src, int rank_dst, int vpid_dst,
-                                             void *param);
+parsec_ontask_iterate_t
+parsec_release_dep_fct(struct parsec_execution_stream_s *es,
+                       const parsec_task_t *newcontext,
+                       const parsec_task_t *oldcontext,
+                       const dep_t* dep,
+                       parsec_dep_data_description_t* data,
+                       int rank_src, int rank_dst, int vpid_dst,
+                       void *param);
 
 /** deps is an array of size MAX_PARAM_COUNT
  *  Returns the number of output deps on which there is a final output
@@ -512,17 +513,17 @@ int parsec_task_deps_with_final_output(const parsec_task_t *task,
 
 int parsec_ptg_update_runtime_task( parsec_taskpool_t *tp, int32_t nb_tasks );
 
-void parsec_dependencies_mark_task_as_startup(parsec_task_t* exec_context, parsec_execution_unit_t *eu_context);
+void parsec_dependencies_mark_task_as_startup(parsec_task_t* task, parsec_execution_stream_t *es);
 
-int parsec_release_local_OUT_dependencies(parsec_execution_unit_t* eu_context,
-                                         const parsec_task_t* origin,
-                                         const parsec_flow_t* origin_flow,
-                                         const parsec_task_t* exec_context,
-                                         const parsec_flow_t* dest_flow,
-                                         struct data_repo_entry_s* dest_repo_entry,
-                                         parsec_dep_data_description_t* data,
-                                         parsec_task_t** pready_list);
-
+int
+parsec_release_local_OUT_dependencies(parsec_execution_stream_t* es,
+                                      const parsec_task_t* origin,
+                                      const parsec_flow_t* origin_flow,
+                                      const parsec_task_t* task,
+                                      const parsec_flow_t* dest_flow,
+                                      struct data_repo_entry_s* dest_repo_entry,
+                                      parsec_dep_data_description_t* data,
+                                      parsec_task_t** pready_list);
 
 /**
  * This is a convenience macro for the wrapper file. Do not call this destructor

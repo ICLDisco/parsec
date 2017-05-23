@@ -24,9 +24,9 @@ static int check_solution( parsec_context_t *parsec, int loud,
                            two_dim_block_cyclic_t *ddescCfinal );
 
 static int
-parsec_core_gemm(parsec_execution_unit_t *context, parsec_task_t *this_task)
+parsec_core_gemm(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     PLASMA_enum *transA;
     PLASMA_enum *transB;
     int *m;
@@ -54,8 +54,7 @@ parsec_core_gemm(parsec_execution_unit_t *context, parsec_task_t *this_task)
                           UNPACK_VALUE, &ldb,
                           UNPACK_VALUE, &beta,
                           UNPACK_DATA,  &C,
-                          UNPACK_VALUE, &ldc
-                          );
+                          UNPACK_VALUE, &ldc);
 
     CORE_zgemm(*transA, *transB, *m, *n, *k,
                *alpha, A, *lda,

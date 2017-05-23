@@ -75,8 +75,8 @@ BODY
         }
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-    printlog("thread %d   CORE_zlaswp(%d, %d)\n"
+    printlog("CORE_zlaswp(%d, %d)\n"
              "\t(%d, A(%d,%d)[%p], %d, %d, %d, IPIV(%d)[%p], %d)\n",
-             context->th_id, k, n, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
+             k, n, tempnn, k, n, A, ldak, 1, tempkm, k, IPIV, inc);
 }
 END

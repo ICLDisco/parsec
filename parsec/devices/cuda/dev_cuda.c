@@ -16,7 +16,7 @@
 #include "parsec/data_internal.h"
 #include "parsec/devices/cuda/dev_cuda.h"
 #include "parsec/profiling.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/arena.h"
 #include "parsec/utils/output.h"
 #include "parsec/utils/argv.h"
@@ -1197,7 +1197,7 @@ int parsec_gpu_sort_pending_list(gpu_device_t *gpu_device)
  * to main memory. Create a single task to move them all out, then switch the
  * GPU data copy in shared mode.
  */
-parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parsec_execution_unit_t *eu_context)
+parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parsec_execution_stream_t *es)
 {
     parsec_gpu_context_t *w2r_task = NULL;
     parsec_task_t *ec = NULL;
@@ -1220,7 +1220,7 @@ parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parse
             continue;
         }
         if( NULL == ec ) {  /* allocate on-demand */
-            ec = (parsec_task_t*)parsec_thread_mempool_allocate(eu_context->context_mempool);
+            ec = (parsec_task_t*)parsec_thread_mempool_allocate(es->context_mempool);
             if( NULL == ec )  /* we're running out of memory. Bail out. */
                 break;
             ec->status = PARSEC_TASK_STATUS_NONE;
@@ -1249,7 +1249,7 @@ parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parse
  */
 int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
                             parsec_gpu_context_t *w2r_task,
-                            parsec_execution_unit_t *eu_context)
+                            parsec_execution_stream_t *es)
 {
     parsec_gpu_data_copy_t *gpu_copy, *cpu_copy;
     parsec_task_t *ec = w2r_task->ec;
@@ -1270,7 +1270,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
         gpu_copy->readers--;
         assert(gpu_copy->readers >= 0);
     }
-    parsec_thread_mempool_free(eu_context->context_mempool, w2r_task->ec);
+    parsec_thread_mempool_free(es->context_mempool, w2r_task->ec);
     free(w2r_task);
     return 0;
 }
@@ -1916,7 +1916,7 @@ parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
  * where tasks ready to jump to the respective step are waiting.
  */
 parsec_hook_return_t
-parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
+parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
                             parsec_gpu_context_t    *gpu_task,
                             int which_gpu )
 {
@@ -1931,7 +1931,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
     gpu_device = (gpu_device_t*)parsec_devices_get(which_gpu);
 
 #if defined(PARSEC_PROF_TRACE)
-    PARSEC_PROFILING_TRACE_FLAGS( eu_context->eu_profile,
+    PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,
                                  PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
                                                          gpu_task->ec->function->task_class_id),
                                  gpu_task->ec->function->key( gpu_task->ec->taskpool, gpu_task->ec->locals),
@@ -1948,8 +1948,8 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
 
 #if defined(PARSEC_PROF_TRACE)
     if( parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_OWN )
-        PARSEC_PROFILING_TRACE( eu_context->eu_profile, parsec_cuda_own_GPU_key_start,
-                               (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
+        PARSEC_PROFILING_TRACE( es->es_profile, parsec_cuda_own_GPU_key_start,
+                               (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
     status = cudaSetDevice( gpu_device->cuda_index );
@@ -1993,7 +1993,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
             /* Reschedule the task. As the chore_id has been modified,
                another incarnation of the task will be executed. */
             if( NULL != progress_task ) {
-                __parsec_reschedule(eu_context, progress_task->ec);
+                __parsec_reschedule(es, progress_task->ec);
                 parsec_gpu_kernel_cleanout(gpu_device, progress_task);
                 gpu_task = progress_task;
                 progress_task = NULL;
@@ -2014,7 +2014,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
                             gpu_task->ec->priority );
     }
     if (out_task_submit == NULL && out_task_push == NULL) {
-        gpu_task = parsec_gpu_create_W2R_task(gpu_device, eu_context);
+        gpu_task = parsec_gpu_create_W2R_task(gpu_device, es);
     }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
@@ -2058,12 +2058,12 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);
     if (gpu_task->task_type == GPU_TASK_TYPE_D2HTRANSFER) {
-        parsec_gpu_W2R_task_fini(gpu_device, gpu_task, eu_context);
+        parsec_gpu_W2R_task_fini(gpu_device, gpu_task, es);
         gpu_task = progress_task;
         goto fetch_task_from_shared_queue;
     }
     parsec_gpu_kernel_epilog( gpu_device, gpu_task );
-    __parsec_complete_execution( eu_context, gpu_task->ec );
+    __parsec_complete_execution( es, gpu_task->ec );
     gpu_device->super.executed_tasks++;
   remove_gpu_task:
     parsec_device_load[gpu_device->super.device_index] -= parsec_device_sweight[gpu_device->super.device_index];
@@ -2072,8 +2072,8 @@ parsec_gpu_kernel_scheduler( parsec_execution_unit_t *eu_context,
     if( 0 == rc ) {  /* I was the last one */
 #if defined(PARSEC_PROF_TRACE)
         if( parsec_cuda_trackable_events & PARSEC_PROFILE_CUDA_TRACK_OWN )
-            PARSEC_PROFILING_TRACE( eu_context->eu_profile, parsec_cuda_own_GPU_key_end,
-                                   (unsigned long)eu_context, PROFILE_OBJECT_ID_NULL, NULL );
+            PARSEC_PROFILING_TRACE( es->es_profile, parsec_cuda_own_GPU_key_end,
+                                   (unsigned long)es, PROFILE_OBJECT_ID_NULL, NULL );
 #endif  /* defined(PARSEC_PROF_TRACE) */
 
         return PARSEC_HOOK_RETURN_ASYNC;

@@ -128,19 +128,19 @@ tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, 
 int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
 int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
 
-typedef int (*parsec_operator_t)( struct parsec_execution_unit_s *eu,
+typedef int (*parsec_operator_t)( struct parsec_execution_stream_s *es,
                                   const void* src,
                                   void* dst,
                                   void* op_data,
                                   ... );
 
-typedef int (*tiled_matrix_unary_op_t )( struct parsec_execution_unit_s *eu,
+typedef int (*tiled_matrix_unary_op_t )( struct parsec_execution_stream_s *es,
                                          const tiled_matrix_desc_t *desc1,
                                          void *data1,
                                          int uplo, int m, int n,
                                          void *args );
 
-typedef int (*tiled_matrix_binary_op_t)( struct parsec_execution_unit_s *eu,
+typedef int (*tiled_matrix_binary_op_t)( struct parsec_execution_stream_s *es,
                                          const tiled_matrix_desc_t *desc1,
                                          const tiled_matrix_desc_t *desc2,
                                          const void *data1, void *data2,

@@ -28,31 +28,29 @@ enum regions {
              };
 
 int
-reduce0( parsec_execution_unit_t    *context,
-             parsec_task_t *this_task )
+reduce0( parsec_execution_stream_t    *es,
+         parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
 
     parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data
-                          );
+                          UNPACK_DATA,  &data);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-reduce1( parsec_execution_unit_t    *context,
-             parsec_task_t *this_task )
+reduce1( parsec_execution_stream_t    *es,
+         parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
     int *second_data;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_DATA,  &data,
-                          UNPACK_DATA,  &second_data
-                          );
+                          UNPACK_DATA,  &second_data);
 
     *second_data += *data;
 
@@ -60,31 +58,29 @@ reduce1( parsec_execution_unit_t    *context,
 }
 
 int
-bcast0( parsec_execution_unit_t    *context,
-             parsec_task_t *this_task )
+bcast0( parsec_execution_stream_t    *es,
+        parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
 
     parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data
-                          );
+                          UNPACK_DATA,  &data);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-bcast1( parsec_execution_unit_t    *context,
-             parsec_task_t *this_task )
+bcast1( parsec_execution_stream_t    *es,
+        parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
     int *second_data;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_DATA,  &data,
-                          UNPACK_DATA,  &second_data
-                          );
+                          UNPACK_DATA,  &second_data);
 
     printf( "My rank: %d, data: %d\n", this_task->taskpool->context->my_rank, *data );
 

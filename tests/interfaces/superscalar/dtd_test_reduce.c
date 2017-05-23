@@ -28,15 +28,14 @@ enum regions {
              };
 
 int
-task_rank_0( parsec_execution_unit_t    *context,
+task_rank_0( parsec_execution_stream_t    *es,
              parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
 
     parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data
-                          );
+                          UNPACK_DATA,  &data);
 
     if(this_task->taskpool->context->my_rank == 5)sleep(1);
 
@@ -44,17 +43,16 @@ task_rank_0( parsec_execution_unit_t    *context,
 }
 
 int
-task_rank_1( parsec_execution_unit_t    *context,
+task_rank_1( parsec_execution_stream_t    *es,
              parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
     int *second_data;
 
     parsec_dtd_unpack_args(this_task,
                           UNPACK_DATA,  &data,
-                          UNPACK_DATA,  &second_data
-                          );
+                          UNPACK_DATA,  &second_data);
 
     *second_data += *data;
     printf( "My rank: %d, diff: %d\n", this_task->taskpool->context->my_rank, *data );

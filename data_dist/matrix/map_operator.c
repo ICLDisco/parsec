@@ -23,7 +23,7 @@ int parsec_map_operator_profiling_array[2] = {-1};
    parsec_profile_ddesc_info_t info;                         \
    info.desc = (parsec_ddesc_t*)refdesc;                     \
    info.id = refid;                                         \
-   PARSEC_PROFILING_TRACE(context->eu_profile,               \
+   PARSEC_PROFILING_TRACE(context->es_profile,               \
                          __tp->super.super.profiling_array[(key)],\
                          eid, __tp->super.super.taskpool_id, (void*)&info);  \
   } while(0);
@@ -183,7 +183,7 @@ static const parsec_flow_t flow_of_map_operator = {
 };
 
 static parsec_ontask_iterate_t
-add_task_to_list(parsec_execution_unit_t *eu_context,
+add_task_to_list(parsec_execution_stream_t *es,
                  const parsec_task_t *newcontext,
                  const parsec_task_t *oldcontext,
                  const dep_t* dep,
@@ -193,7 +193,7 @@ add_task_to_list(parsec_execution_unit_t *eu_context,
                  void *_ready_lists)
 {
     parsec_task_t** pready_list = (parsec_task_t**)_ready_lists;
-    parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_allocate( eu_context->context_mempool );
+    parsec_task_t* new_context = (parsec_task_t*)parsec_thread_mempool_allocate( es->context_mempool );
 
     new_context->status = PARSEC_TASK_STATUS_NONE;
     PARSEC_COPY_EXECUTION_CONTEXT(new_context, newcontext);
@@ -205,7 +205,7 @@ add_task_to_list(parsec_execution_unit_t *eu_context,
     return PARSEC_ITERATE_STOP;
 }
 
-static void iterate_successors(parsec_execution_unit_t *eu,
+static void iterate_successors(parsec_execution_stream_t *es,
                                const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
@@ -237,7 +237,7 @@ static void iterate_successors(parsec_execution_unit_t *eu,
             nc.data[0].data_in = this_task->data[0].data_out;
             nc.data[1].data_in = this_task->data[1].data_out;
 
-            ontask(eu, &nc, this_task, &flow_of_map_operator_dep_out, NULL,
+            ontask(es, &nc, this_task, &flow_of_map_operator_dep_out, NULL,
                    __tp->super.src->super.myrank,
                    __tp->super.src->super.myrank,
                    vpid,
@@ -250,7 +250,7 @@ static void iterate_successors(parsec_execution_unit_t *eu,
     (void)action_mask;
 }
 
-static int release_deps(parsec_execution_unit_t *eu,
+static int release_deps(parsec_execution_stream_t *es,
                         parsec_task_t *this_task,
                         uint32_t action_mask,
                         parsec_remote_deps_t *deps)
@@ -261,15 +261,15 @@ static int release_deps(parsec_execution_unit_t *eu,
     ready_list = (parsec_task_t **)calloc(sizeof(parsec_task_t *),
                                                       vpmap_get_nb_vp());
 
-    iterate_successors(eu, this_task, action_mask, add_task_to_list, ready_list);
+    iterate_successors(es, this_task, action_mask, add_task_to_list, ready_list);
 
     if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
         for(i = 0; i < vpmap_get_nb_vp(); i++) {
             if( NULL != ready_list[i] ) {
-                if( i == eu->virtual_process->vp_id )
-                    __parsec_schedule(eu, ready_list[i], 0);
+                if( i == es->virtual_process->vp_id )
+                    __parsec_schedule(es, ready_list[i], 0);
                 else
-                    __parsec_schedule(eu->virtual_process->parsec_context->virtual_processes[i]->execution_units[0],
+                    __parsec_schedule(es->virtual_process->parsec_context->virtual_processes[i]->execution_streams[0],
                                      ready_list[i], 0);
             }
         }
@@ -291,14 +291,14 @@ static int release_deps(parsec_execution_unit_t *eu,
     return 1;
 }
 
-static int data_lookup(parsec_execution_unit_t *context,
+static int data_lookup(parsec_execution_stream_t *es,
                        parsec_task_t *this_task)
 {
     const __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
 
-    (void)context;
+    (void)es;
 
     if( NULL != __tp->super.src ) {
         this_task->data[0].data_in   = parsec_data_get_copy(src(k,n), 0);
@@ -313,7 +313,7 @@ static int data_lookup(parsec_execution_unit_t *context,
     return 0;
 }
 
-static int hook_of(parsec_execution_unit_t *context,
+static int hook_of(parsec_execution_stream_t *es,
                    parsec_task_t *this_task)
 {
     const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
@@ -330,16 +330,16 @@ static int hook_of(parsec_execution_unit_t *context,
     }
 
 #if !defined(PARSEC_PROF_DRY_BODY)
-    TAKE_TIME(context, 2*this_task->task_class->task_class_id,
+    TAKE_TIME(es, 2*this_task->task_class->task_class_id,
               map_operator_op_hash( __tp, k, n ), __tp->super.src,
               ((parsec_ddesc_t*)(__tp->super.src))->data_key((parsec_ddesc_t*)__tp->super.src, k, n) );
-    __tp->super.op( context, src_data, dest_data, __tp->super.op_data, k, n );
+    __tp->super.op( es, src_data, dest_data, __tp->super.op_data, k, n );
 #endif
-    (void)context;
+    (void)es;
     return 0;
 }
 
-static int complete_hook(parsec_execution_unit_t *context,
+static int complete_hook(parsec_execution_stream_t *es,
                          parsec_task_t *this_task)
 {
     const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t *)this_task->taskpool;
@@ -347,13 +347,13 @@ static int complete_hook(parsec_execution_unit_t *context,
     int n = this_task->locals[1].value;
     (void)k; (void)n; (void)__tp;
 
-    TAKE_TIME(context, 2*this_task->task_class->task_class_id+1, map_operator_op_hash( __tp, k, n ), NULL, 0);
+    TAKE_TIME(es, 2*this_task->task_class->task_class_id+1, map_operator_op_hash( __tp, k, n ), NULL, 0);
 
 #if defined(PARSEC_PROF_GRAPHER)
-    parsec_prof_grapher_task(this_task, context->th_id, context->virtual_process->vp_id, k+n);
+    parsec_prof_grapher_task(this_task, es->th_id, es->virtual_process->vp_id, k+n);
 #endif  /* defined(PARSEC_PROF_GRAPHER) */
 
-    release_deps(context, this_task,
+    release_deps(es, this_task,
                  (PARSEC_ACTION_RELEASE_REMOTE_DEPS |
                   PARSEC_ACTION_RELEASE_LOCAL_DEPS |
                   PARSEC_ACTION_RELEASE_LOCAL_REFS |
@@ -398,14 +398,14 @@ static const parsec_task_class_t parsec_map_operator = {
 };
 
 static void parsec_map_operator_startup_fn(parsec_context_t *context,
-                                          parsec_taskpool_t *tp,
-                                          parsec_task_t** startup_list)
+                                           parsec_taskpool_t *tp,
+                                           parsec_task_t** startup_list)
 {
     __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)tp;
     parsec_task_t fake_context;
     parsec_task_t *ready_list;
     int k = 0, n = 0, count = 0, vpid = 0;
-    parsec_execution_unit_t* eu;
+    parsec_execution_stream_t* es;
 
     *startup_list = NULL;
     fake_context.task_class = &parsec_map_operator;
@@ -430,13 +430,13 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
                     continue;
                 /* Here we go, one ready local task */
                 ready_list = NULL;
-                eu = context->virtual_processes[vpid]->execution_units[count];
+                es = context->virtual_processes[vpid]->execution_streams[count];
                 fake_context.locals[0].value = k;
                 fake_context.locals[1].value = n;
-                add_task_to_list(eu, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
+                add_task_to_list(es, &fake_context, NULL, &flow_of_map_operator_dep_out, NULL,
                                  __tp->super.src->super.myrank, -1,
                                  0, (void*)&ready_list);
-                __parsec_schedule( eu, ready_list, 0 );
+                __parsec_schedule( es, ready_list, 0 );
                 count++;
                 if( count == context->virtual_processes[vpid]->nb_cores )
                     goto done;
@@ -447,7 +447,6 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
         }
     done:  continue;
     }
-    return;
 }
 
 /**

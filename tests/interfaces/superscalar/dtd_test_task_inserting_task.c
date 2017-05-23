@@ -26,22 +26,22 @@ double time_elapsed;
 double sync_time_elapsed;
 
 int
-real_task( parsec_execution_unit_t    *context,
+real_task( parsec_execution_stream_t *es,
            parsec_task_t *this_task )
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
 
-    parsec_output( 0, "I am %d and I am executing a real task\n", context->th_id );
+    parsec_output( 0, "I am %d and I am executing a real task\n", es->th_id );
     usleep(10);
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-task_to_insert_task( parsec_execution_unit_t    *context,
+task_to_insert_task( parsec_execution_stream_t *es,
                      parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     parsec_taskpool_t* dtd_tp = this_task->taskpool;
     int *total, *increment, *count, i;
@@ -49,10 +49,10 @@ task_to_insert_task( parsec_execution_unit_t    *context,
     parsec_dtd_unpack_args( this_task,
                            UNPACK_VALUE, &total,
                            UNPACK_VALUE, &count,
-                           UNPACK_VALUE, &increment
-                         );
+                           UNPACK_VALUE, &increment);
 
-    parsec_output( 0, "Task inserting task by thread: %d count: %d Total: %d increment: %d total_inserted: %d\n", context->th_id, *count, *total, *increment, *count-1 );
+    parsec_output( 0, "Task inserting task by thread: %d count: %d Total: %d increment: %d total_inserted: %d\n",
+                   es->th_id, *count, *total, *increment, *count-1 );
 
     for( i = 0; *count < *total; i++, *count += 1 ) {
         if( i > *increment ) {

@@ -107,9 +107,9 @@ main (int argc, char *argv[])
 //	    fprintf(stderr, "name : %s\n", startup_list->function->name);
             if( NULL != startup_list ) {
 		/* We should add these tasks on the system queue */
-		// old :               __parsec_schedule( parsec->execution_units[0], startup_list );
+		// old :               __parsec_schedule( parsec->execution_streamsd[0], startup_list );
 		gettimeofday(&start, NULL);
-		generic_scheduling_func(parsec->execution_units[0],(parsec_list_item_t*) startup_list);
+		generic_scheduling_func(parsec->execution_streams[0],(parsec_list_item_t*) startup_list);
 
             }
         }

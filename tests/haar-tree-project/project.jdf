@@ -33,10 +33,10 @@ static uint32_t undetermined_nb_tasks(struct __parsec_project_internal_taskpool_
 static void               *my_alloc_deps(struct __parsec_project_internal_taskpool_s *__tp);
 static void                my_free_deps(struct __parsec_project_internal_taskpool_s *__tp, void *deps);
 static parsec_dependency_t *my_find_deps(const parsec_taskpool_t *tp,
-                                         parsec_execution_unit_t *eu,
-                                         const parsec_task_t* restrict exec_context);
+                                         parsec_execution_stream_t *es,
+                                         const parsec_task_t* restrict task);
 
-static int my_project_startup(parsec_execution_unit_t * eu,
+static int my_project_startup(parsec_execution_stream_t * es,
                               struct __parsec_project_PROJECT_task_s * this_task);
 %}
 
@@ -266,20 +266,20 @@ static void                my_free_deps(struct __parsec_project_internal_taskpoo
 }
 
 static parsec_dependency_t *my_find_deps(const parsec_taskpool_t *tp,
-                                         parsec_execution_unit_t *eu_context,
-                                         const parsec_task_t* restrict exec_context)
+                                         parsec_execution_stream_t *es,
+                                         const parsec_task_t* restrict task)
 {
     simple_hash_t *sh;
     simple_hash_entry_t *ne = NULL;
     int p, i;
     int n, l;
 
-    (void)eu_context;
+    (void)es;
 
-    n = exec_context->locals[0].value;
-    l = exec_context->locals[1].value;
+    n = task->locals[0].value;
+    l = task->locals[1].value;
 
-    sh = (simple_hash_t*)tp->dependencies_array[ exec_context->task_class->task_class_id ];
+    sh = (simple_hash_t*)tp->dependencies_array[ task->task_class->task_class_id ];
     p = my_simple_tree_hash(n, l) % sh->size;
     for(i = p; i != p-1; i = ((i+1) % sh->size)) {
         if( NULL == sh->buckets[i] ) {
@@ -302,7 +302,7 @@ static parsec_dependency_t *my_find_deps(const parsec_taskpool_t *tp,
     exit(1); /** Catastrophic failure */
 }
 
-static int my_project_startup(parsec_execution_unit_t * eu, __parsec_project_PROJECT_task_t * this_task)
+static int my_project_startup(parsec_execution_stream_t * es, __parsec_project_PROJECT_task_t * this_task)
 {
   __parsec_project_PROJECT_task_t *new_task;
   __parsec_project_internal_taskpool_t *__tp = (__parsec_project_internal_taskpool_t *) this_task->taskpool;
@@ -315,7 +315,7 @@ static int my_project_startup(parsec_execution_unit_t * eu, __parsec_project_PRO
       vpid = ((parsec_ddesc_t *) __tp->super._g_treeA)->vpid_of((parsec_ddesc_t *) __tp->super._g_treeA, 0, 0);
       assert(context->nb_vp >= vpid);
   }
-  new_task = (__parsec_project_PROJECT_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_units[0]->context_mempool);
+  new_task = (__parsec_project_PROJECT_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);
   new_task->status = PARSEC_TASK_STATUS_NONE;
   new_task->taskpool = this_task->taskpool;
   new_task->task_class = __tp->super.super.task_classes_array[project_PROJECT.task_class_id];
@@ -331,7 +331,7 @@ static int my_project_startup(parsec_execution_unit_t * eu, __parsec_project_PRO
   new_task->priority = 1;
 
   PARSEC_LIST_ITEM_SINGLETON(new_task);
-  __parsec_schedule(eu, (parsec_task_t *)new_task, 0);
+  __parsec_schedule(es, (parsec_task_t *)new_task, 0);
 
   (void)vpid;
   return PARSEC_HOOK_RETURN_DONE;

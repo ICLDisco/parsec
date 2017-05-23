@@ -7,7 +7,7 @@
 #include "parsec/parsec_config.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/mca_repository.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/profiling.h"
 #include "parsec/utils/mca_param.h"
 
@@ -120,43 +120,43 @@ void pins_fini(parsec_context_t* master_context)
  * interfacing of PINS measurements with working PaRSEC subsystems.
  * It MUST NOT be called BEFORE pins_init().
  */
-void pins_thread_init(parsec_execution_unit_t* exec_unit)
+void pins_thread_init(parsec_execution_stream_t* es)
 {
     int i;
 
     for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
-        exec_unit->pins_events_cb[i].cb_func = NULL;
-        exec_unit->pins_events_cb[i].cb_data = NULL;
+        es->pins_events_cb[i].cb_func = NULL;
+        es->pins_events_cb[i].cb_data = NULL;
     }
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
             if ( NULL != modules_activated[i]->module.thread_init)
-                modules_activated[i]->module.thread_init(exec_unit);
+                modules_activated[i]->module.thread_init(es);
         }
     }
 
-    PINS(exec_unit, THREAD_INIT, NULL);
+    PINS(es, THREAD_INIT, NULL);
 }
 
 /**
  * called in scheduling.c, which is not ideal
  */
-void pins_thread_fini(parsec_execution_unit_t* exec_unit)
+void pins_thread_fini(parsec_execution_stream_t* es)
 {
     int i = 0;
 
-    PINS(exec_unit, THREAD_FINI, NULL);
+    PINS(es, THREAD_FINI, NULL);
 
     if (NULL != modules_activated) {
         for(i = 0; i < num_modules_activated; i++) {
             if ( NULL != modules_activated[i]->module.thread_fini)
-                modules_activated[i]->module.thread_fini(exec_unit);
+                modules_activated[i]->module.thread_fini(es);
         }
     }
 
     for( i = 0; i < PINS_FLAG_COUNT; i++ ) {
-        assert(NULL == exec_unit->pins_events_cb[i].cb_func);
-        assert(NULL == exec_unit->pins_events_cb[i].cb_data);
+        assert(NULL == es->pins_events_cb[i].cb_func);
+        assert(NULL == es->pins_events_cb[i].cb_data);
     }
 }
 

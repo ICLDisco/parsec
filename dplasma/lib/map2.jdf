@@ -61,12 +61,11 @@ MAP_L(m, n)  [profile = off]
 BODY
 {
 #if !defined(PARSEC_DRY_RUN)
-    operator( context, descA, descB,
+    operator( es, descA, descB,
               A, B, PlasmaUpperLower, m, n, op_args );
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-    printlog("thread %d VP %d map_l( %d, %d )\n",
-             context->th_id, context->virtual_process->vp_id, m, n );
+    printlog("map_l( %d, %d )\n", m, n );
 }
 END
 
@@ -103,12 +102,11 @@ MAP_U(m, n)  [profile = off]
 BODY
 {
 #if !defined(PARSEC_DRY_RUN)
-    operator( context, descA, descB,
+    operator( es, descA, descB,
               A, B, PlasmaUpperLower, m, n, op_args );
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-    printlog("thread %d VP %d map_u( %d, %d )\n",
-             context->th_id, context->virtual_process->vp_id, m, n );
+    printlog("map_u( %d, %d )\n", m, n );
 }
 END
 
@@ -141,11 +139,10 @@ MAP_DIAG(k) [profile = off]
 BODY
 {
 #if !defined(PARSEC_DRY_RUN)
-    operator( context, descA, descB,
+    operator( es, descA, descB,
               A, B, uplo, k, k, op_args );
 #endif /* !defined(PARSEC_DRY_RUN) */
 
-    printlog("thread %d VP %d map_diag( %d, %d )\n",
-             context->th_id, context->virtual_process->vp_id, k, k );
+    printlog("map_diag( %d, %d )\n", k, k );
 }
 END

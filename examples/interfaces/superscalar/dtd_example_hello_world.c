@@ -38,10 +38,10 @@
 
 /* Task that prints "Hello World" */
 int
-task_hello_world( parsec_execution_unit_t    *context,
+task_hello_world( parsec_execution_stream_t *es,
                   parsec_task_t *this_task )
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
 
     printf("Hello World my rank is: %d\n", this_task->taskpool->context->my_rank);
 

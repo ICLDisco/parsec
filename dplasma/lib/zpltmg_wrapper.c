@@ -38,7 +38,7 @@ struct zpltmg_args_s {
 typedef struct zpltmg_args_s zpltmg_args_t;
 
 static int
-dplasma_zpltmg_generic_operator( parsec_execution_unit_t *eu,
+dplasma_zpltmg_generic_operator( parsec_execution_stream_t *es,
                                  const tiled_matrix_desc_t *descA,
                                  void *_A,
                                  PLASMA_enum uplo, int m, int n,
@@ -47,7 +47,7 @@ dplasma_zpltmg_generic_operator( parsec_execution_unit_t *eu,
     int tempmm, tempnn, ldam;
     zpltmg_args_t     *args = (zpltmg_args_t*)op_data;
     parsec_complex64_t *A    = (parsec_complex64_t*)_A;
-    (void)eu;
+    (void)es;
     (void)uplo;
 
     tempmm = (m == (descA->mt-1)) ? (descA->m - m * descA->mb) : descA->mb;

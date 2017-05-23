@@ -30,9 +30,9 @@ double sync_time_elapsed;
 uint32_t global_counter;
 
 int
-task_to_check_generation(parsec_execution_unit_t *context, parsec_task_t *this_task)
+task_to_check_generation(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
 
     (void)parsec_atomic_inc_32b(&global_counter);
 
@@ -40,34 +40,30 @@ task_to_check_generation(parsec_execution_unit_t *context, parsec_task_t *this_t
 }
 
 int
-task_to_check_overhead(parsec_execution_unit_t *context, parsec_task_t *this_task)
+task_to_check_overhead(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     int *flows;
     int *data;
 
     parsec_dtd_unpack_args( this_task,
                             UNPACK_VALUE,  &flows,
-                            0
-                          );
+                            0);
     if( *flows == 1 ) {
          parsec_dtd_unpack_args(this_task,
                                UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data
-                               );
+                               UNPACK_DATA,   &data);
     } else if( *flows == 2 ) {
          parsec_dtd_unpack_args(this_task,
                                UNPACK_VALUE,  &flows,
                                UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data
-                               );
+                               UNPACK_DATA,   &data);
     } else if( *flows == 3 ) {
          parsec_dtd_unpack_args(this_task,
                                UNPACK_VALUE,  &flows,
                                UNPACK_DATA,   &data,
                                UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data
-                               );
+                               UNPACK_DATA,   &data);
     } else if( *flows == 5 ) {
          parsec_dtd_unpack_args(this_task,
                                UNPACK_VALUE,  &flows,
@@ -75,8 +71,7 @@ task_to_check_overhead(parsec_execution_unit_t *context, parsec_task_t *this_tas
                                UNPACK_DATA,   &data,
                                UNPACK_DATA,   &data,
                                UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data
-                               );
+                               UNPACK_DATA,   &data);
     } else if( *flows == 10 ) {
          parsec_dtd_unpack_args(this_task,
                                UNPACK_VALUE,  &flows,
@@ -89,8 +84,7 @@ task_to_check_overhead(parsec_execution_unit_t *context, parsec_task_t *this_tas
                                UNPACK_DATA,   &data,
                                UNPACK_DATA,   &data,
                                UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data
-                               );
+                               UNPACK_DATA,   &data);
     } else if( *flows == 15 ) {
          parsec_dtd_unpack_args(this_task,
                                UNPACK_VALUE,  &flows,
@@ -108,13 +102,11 @@ task_to_check_overhead(parsec_execution_unit_t *context, parsec_task_t *this_tas
                                UNPACK_DATA,   &data,
                                UNPACK_DATA,   &data,
                                UNPACK_DATA,   &data,
-                               UNPACK_DATA,   &data
-                               );
+                               UNPACK_DATA,   &data);
     } else {
         parsec_dtd_unpack_args(this_task,
                                UNPACK_VALUE,  &flows,
-                               UNPACK_DATA,   &data
-                               );
+                               UNPACK_DATA,   &data);
     }
 
     return PARSEC_HOOK_RETURN_DONE;

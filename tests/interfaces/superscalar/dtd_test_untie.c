@@ -33,18 +33,16 @@ enum regions {
              };
 
 int
-test_task( parsec_execution_unit_t    *context,
+test_task( parsec_execution_stream_t *es,
            parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     int *amount_of_work;
     parsec_dtd_unpack_args( this_task,
-                           UNPACK_VALUE,  &amount_of_work
-                          );
+                           UNPACK_VALUE,  &amount_of_work);
     int i, j, bla;
     for( i = 0; i < *amount_of_work; i++ ) {
-        //for( j = 0; j < *amount_of_work; j++ ) {
         for( j = 0; j < 2; j++ ) {
             bla = j*2;
             bla = j + 20;
@@ -57,10 +55,10 @@ test_task( parsec_execution_unit_t    *context,
 }
 
 int
-test_task_generator( parsec_execution_unit_t    *context,
+test_task_generator( parsec_execution_stream_t    *es,
                      parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
 
     tiled_matrix_desc_t *ddescA;
     parsec_taskpool_t *dtd_tp = this_task->taskpool;
@@ -74,8 +72,7 @@ test_task_generator( parsec_execution_unit_t    *context,
                            UNPACK_VALUE,  &total,
                            UNPACK_VALUE,  &step,
                            UNPACK_VALUE,  &iteration,
-                           UNPACK_SCRATCH, &ddescA
-                          );
+                           UNPACK_SCRATCH, &ddescA);
 
     parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
     for( i = 0; *iteration < *total; *iteration += 1, i++ ) {

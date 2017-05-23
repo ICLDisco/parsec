@@ -18,20 +18,20 @@
  * not necessary, while the second one contains the task counting.
  */
 parsec_hook_return_t
-parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
+parsec_release_task_to_mempool(parsec_execution_stream_t *es,
                               parsec_task_t *this_task)
 {
-    (void)eu;
+    (void)es;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 parsec_hook_return_t
-parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
+parsec_release_task_to_mempool_update_nbtasks(parsec_execution_stream_t *es,
                                              parsec_task_t *this_task)
 {
     parsec_taskpool_t *handle;
-    (void)eu;
+    (void)es;
     handle = this_task->taskpool;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     (void)parsec_atomic_dec_32b( (uint32_t*)&handle->nb_tasks );
@@ -39,11 +39,11 @@ parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
 }
 
 parsec_hook_return_t
-parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_t *eu,
+parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_stream_t *es,
                                                          parsec_task_t *this_task)
 {
     parsec_taskpool_t *handle;
-    (void)eu;
+    (void)es;
     handle = this_task->taskpool;
     parsec_thread_mempool_free( this_task->mempool_owner, this_task );
     parsec_taskpool_update_runtime_nbtask(handle, -1);
@@ -91,13 +91,14 @@ __parsec_generic_startup_hash(const parsec_taskpool_t * __tp,
  * to make sure the user of these objects are setting them up correcty.
  * The default action here is to assert.
  */
-static int parsec_empty_function_without_arguments(parsec_execution_unit_t *eu,
-                                                  parsec_task_t *this_task)
+static int
+parsec_empty_function_without_arguments(parsec_execution_stream_t *es,
+                                        parsec_task_t *this_task)
 {
     char tmp[128];
     parsec_fatal("Task %s is incorrectly initialized\n",
                 parsec_snprintf_execution_context(tmp, 128, this_task));
-    (void)eu;
+    (void)es;
     return PARSEC_HOOK_RETURN_DONE;
 }
 

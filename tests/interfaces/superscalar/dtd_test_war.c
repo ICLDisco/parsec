@@ -29,15 +29,14 @@ enum regions {
              };
 
 int
-call_to_kernel_type_read( parsec_execution_unit_t    *context,
+call_to_kernel_type_read( parsec_execution_stream_t *es,
                           parsec_task_t *this_task )
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
     int *data;
 
     parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data
-                          );
+                           UNPACK_DATA,  &data);
     if( *data > 1 ) {
         (void)parsec_atomic_inc_32b(&count);
     }
@@ -46,15 +45,14 @@ call_to_kernel_type_read( parsec_execution_unit_t    *context,
 }
 
 int
-call_to_kernel_type_write( parsec_execution_unit_t    *context,
+call_to_kernel_type_write( parsec_execution_stream_t    *es,
                            parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
 
     parsec_dtd_unpack_args(this_task,
-                          UNPACK_DATA,  &data
-                          );
+                           UNPACK_DATA,  &data);
     *data += 1;
 
     return PARSEC_HOOK_RETURN_DONE;

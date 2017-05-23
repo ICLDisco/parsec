@@ -19,9 +19,9 @@ enum regions {
              };
 
 int
-parsec_core_potrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
+parsec_core_potrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     PLASMA_enum *uplo;
     int *m, *lda, *info;
     parsec_complex64_t *A;
@@ -31,8 +31,7 @@ parsec_core_potrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
                           UNPACK_VALUE, &m,
                           UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda,
-                          UNPACK_SCRATCH, &info
-                        );
+                          UNPACK_SCRATCH, &info);
 
     CORE_zpotrf(*uplo, *m, A, *lda, info);
 
@@ -40,9 +39,9 @@ parsec_core_potrf(parsec_execution_unit_t *context, parsec_task_t *this_task)
 }
 
 int
-parsec_core_trsm(parsec_execution_unit_t *context, parsec_task_t *this_task)
+parsec_core_trsm(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     PLASMA_enum *side, *uplo, *trans, *diag;
     int  *m, *n, *lda, *ldc;
     parsec_complex64_t *alpha;
@@ -59,8 +58,7 @@ parsec_core_trsm(parsec_execution_unit_t *context, parsec_task_t *this_task)
                           UNPACK_DATA,  &A,
                           UNPACK_VALUE, &lda,
                           UNPACK_DATA,  &C,
-                          UNPACK_VALUE, &ldc
-                        );
+                          UNPACK_VALUE, &ldc);
 
     CORE_ztrsm(*side, *uplo, *trans, *diag,
                *m, *n, *alpha,
@@ -71,9 +69,9 @@ parsec_core_trsm(parsec_execution_unit_t *context, parsec_task_t *this_task)
 }
 
 int
-parsec_core_herk(parsec_execution_unit_t *context, parsec_task_t *this_task)
+parsec_core_herk(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     PLASMA_enum *uplo, *trans;
     int *m, *n, *lda, *ldc;
     parsec_complex64_t *alpha;
@@ -91,8 +89,7 @@ parsec_core_herk(parsec_execution_unit_t *context, parsec_task_t *this_task)
                           UNPACK_VALUE, &lda,
                           UNPACK_VALUE, &beta,
                           UNPACK_DATA,  &C,
-                          UNPACK_VALUE, &ldc
-                        );
+                          UNPACK_VALUE, &ldc);
 
     CORE_zherk( *uplo, *trans, *m, *n,
                 *alpha, A, *lda,
@@ -102,9 +99,9 @@ parsec_core_herk(parsec_execution_unit_t *context, parsec_task_t *this_task)
 }
 
 int
-parsec_core_gemm(parsec_execution_unit_t *context, parsec_task_t *this_task)
+parsec_core_gemm(parsec_execution_stream_t *es, parsec_task_t *this_task)
 {
-    (void)context;
+    (void)es;
     PLASMA_enum *transA, *transB;
     int *m, *n, *k, *lda, *ldb, *ldc;
     parsec_complex64_t *alpha, *beta;
@@ -125,8 +122,7 @@ parsec_core_gemm(parsec_execution_unit_t *context, parsec_task_t *this_task)
                           UNPACK_VALUE, &ldb,
                           UNPACK_VALUE, &beta,
                           UNPACK_DATA,  &C,
-                          UNPACK_VALUE, &ldc
-                        );
+                          UNPACK_VALUE, &ldc);
 
     CORE_zgemm(*transA, *transB,
                *m, *n, *k,

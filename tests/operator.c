@@ -7,14 +7,14 @@
 #include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "parsec/data_internal.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 
 static int
-parsec_operator_print_id( struct parsec_execution_unit_s *eu,
-                         const void* src,
-                         void* dest,
-                         void* op_data, ... )
+parsec_operator_print_id( struct parsec_execution_stream_s *es,
+                          const void* src,
+                          void* dest,
+                          void* op_data, ... )
 {
     va_list ap;
     int k, n, rank = 0;
@@ -28,7 +28,7 @@ parsec_operator_print_id( struct parsec_execution_unit_s *eu,
     n = va_arg(ap, int);
     va_end(ap);
     printf( "tile (%d, %d) -> %p:%p thread %d of VP %d, process %d\n",
-            k, n, src, dest, eu->th_id, eu->virtual_process->vp_id, rank );
+            k, n, src, dest, es->th_id, es->virtual_process->vp_id, rank );
     return 0;
 }
 

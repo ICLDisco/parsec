@@ -5,6 +5,7 @@
  */
 
 #include "parsec/parsec_config.h"
+#include "data.h"
 #include "parsec_prof_grapher.h"
 #include "parsec_internal.h"
 #if defined(PARSEC_PROF_TRACE)
@@ -12,6 +13,8 @@
 #endif
 #include "parsec/utils/colors.h"
 #include <errno.h>
+#include <stdio.h>
+#include <string.h>
 
 #if defined(PARSEC_PROF_GRAPHER)
 
@@ -61,16 +64,16 @@ void parsec_prof_grapher_init(const char *base_filename, int nbthreads)
         colors[t] = unique_color(rank * nbfuncs + t, size * nbfuncs);
 }
 
-char *parsec_prof_grapher_taskid(const parsec_task_t *exec_context, char *tmp, int length)
+char *parsec_prof_grapher_taskid(const parsec_task_t *task, char *tmp, int length)
 {
-    const parsec_task_class_t* tc = exec_context->task_class;
+    const parsec_task_class_t* tc = task->task_class;
     unsigned int i, index = 0;
 
-    assert( NULL!= exec_context->taskpool );
-    index += snprintf( tmp + index, length - index, "%s_%u", tc->name, exec_context->taskpool->taskpool_id );
+    assert( NULL!= task->taskpool );
+    index += snprintf( tmp + index, length - index, "%s_%u", tc->name, task->taskpool->taskpool_id );
     for( i = 0; i < tc->nb_parameters; i++ ) {
         index += snprintf( tmp + index, length - index, "_%d",
-                           exec_context->locals[tc->params[i]->context_index].value );
+                           task->locals[tc->params[i]->context_index].value );
     }
 
     return tmp;

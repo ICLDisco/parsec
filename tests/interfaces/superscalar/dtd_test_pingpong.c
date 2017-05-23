@@ -31,28 +31,28 @@ enum regions {
              };
 
 int
-task_for_timing_0( parsec_execution_unit_t    *context,
+task_for_timing_0( parsec_execution_stream_t *es,
                    parsec_task_t *this_task )
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-task_for_timing_1( parsec_execution_unit_t    *context,
+task_for_timing_1( parsec_execution_stream_t *es,
              parsec_task_t *this_task )
 {
-    (void)context; (void)this_task;
+    (void)es; (void)this_task;
 
     return PARSEC_HOOK_RETURN_DONE;
 }
 
 int
-task_rank_0( parsec_execution_unit_t    *context,
+task_rank_0( parsec_execution_stream_t  *es,
              parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
 
     parsec_dtd_unpack_args(this_task,
@@ -64,10 +64,10 @@ task_rank_0( parsec_execution_unit_t    *context,
 }
 
 int
-task_rank_1( parsec_execution_unit_t    *context,
+task_rank_1( parsec_execution_stream_t  *es,
              parsec_task_t *this_task )
 {
-    (void)context;
+    (void)es;
     int *data;
     int *second_data;
 

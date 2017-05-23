@@ -47,7 +47,7 @@ static void pins_init_ptg_to_dtd(parsec_context_t *master_context);
 static void pins_fini_ptg_to_dtd(parsec_context_t *master_context);
 static void pins_taskpool_init_ptg_to_dtd(struct parsec_taskpool_s *tp);
 static void pins_taskpool_fini_ptg_to_dtd(struct parsec_taskpool_s *tp);
-static int fake_hook_for_testing(parsec_execution_unit_t    *context,
+static int fake_hook_for_testing(parsec_execution_stream_t    *es,
                                  parsec_task_t *__this_task);
 
 const parsec_pins_module_t parsec_pins_ptg_to_dtd_module = {
@@ -171,17 +171,17 @@ static void pins_taskpool_fini_ptg_to_dtd(parsec_taskpool_t *tp)
  * The function users passed while inserting task in PaRSEC is called in this procedure.
  * Called internally by the scheduler
  * Arguments:
- *   - the execution unit (parsec_execution_unit_t *)
+ *   - the execution unit (parsec_execution_stream_t *)
  *   - the PaRSEC task (parsec_task_t *)
  */
 static int
-testing_hook_of_dtd_task(parsec_execution_unit_t *context,
-                         parsec_dtd_task_t       *dtd_task)
+testing_hook_of_dtd_task(parsec_execution_stream_t *es,
+                         parsec_dtd_task_t         *dtd_task)
 {
     parsec_task_t *orig_task = dtd_task->orig_task;
     int rc = 0;
 
-    PARSEC_TASK_PROF_TRACE(context->eu_profile,
+    PARSEC_TASK_PROF_TRACE(es->es_profile,
                           dtd_task->super.taskpool->profiling_array[2 * dtd_task->super.task_class->task_class_id],
                           &(dtd_task->super));
 
@@ -189,11 +189,11 @@ testing_hook_of_dtd_task(parsec_execution_unit_t *context,
      * Check to see which interface, if it is the PTG inserting task in DTD then
      * this condition will be true
      */
-    rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(context, orig_task);
+    rc = ((parsec_dtd_task_class_t *)(dtd_task->super.task_class))->fpointer(es, orig_task);
     if(rc == PARSEC_HOOK_RETURN_DONE) {
         /* Completing the orig task */
         dtd_task->orig_task = NULL;
-        __parsec_complete_execution( context, orig_task );
+        __parsec_complete_execution( es, orig_task );
     }
 
     return rc;
@@ -254,10 +254,10 @@ tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_in
 
 /* Prepare_input function */
 static int
-data_lookup_ptg_to_dtd_task(parsec_execution_unit_t *context,
+data_lookup_ptg_to_dtd_task(parsec_execution_stream_t *es,
                             parsec_task_t *this_task)
 {
-    (void)context;(void)this_task;
+    (void)es;(void)this_task;
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -363,7 +363,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
 }
 
 static int
-fake_hook_for_testing(parsec_execution_unit_t *context,
+fake_hook_for_testing(parsec_execution_stream_t *es,
                       parsec_task_t *this_task)
 {
     static parsec_atomic_lock_t pins_ptg_to_dtd_atomic_lock = {PARSEC_ATOMIC_UNLOCKED};
@@ -480,6 +480,6 @@ fake_hook_for_testing(parsec_execution_unit_t *context,
             free(tmp_param);
         }
     }
-    (void)context;
     goto redo;
+    (void)es;
 }

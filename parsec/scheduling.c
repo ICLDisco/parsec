@@ -9,7 +9,7 @@
 #include "parsec/mca/sched/sched.h"
 #include "parsec/profiling.h"
 #include "datarepo.h"
-#include "parsec/execution_unit.h"
+#include "parsec/execution_stream.h"
 #include "parsec/vpmap.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/os-spec-timing.h"
@@ -35,9 +35,9 @@
 #include <linux/unistd.h>
 #endif  /* defined(PARSEC_HAVE_SCHED_SETAFFINITY) */
 #if defined(PARSEC_PROF_TRACE) && defined(PARSEC_PROF_TRACE_SCHEDULING_EVENTS)
-#define TAKE_TIME(EU_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((EU_PROFILE), (KEY), (ID), NULL)
+#define TAKE_TIME(ES_PROFILE, KEY, ID)  PARSEC_PROFILING_TRACE((ES_PROFILE), (KEY), (ID), NULL)
 #else
-#define TAKE_TIME(EU_PROFILE, KEY, ID) do {} while(0)
+#define TAKE_TIME(ES_PROFILE, KEY, ID) do {} while(0)
 #endif
 
 #if defined(PARSEC_SCHED_REPORT_STATISTICS)
@@ -57,16 +57,17 @@ static uint32_t sched_priority_trace_counter;
 #include <sys/time.h>
 #include <sys/resource.h>
 
-static void parsec_rusage_per_eu(parsec_execution_unit_t* eu, bool print) {
+static void parsec_rusage_per_eu(parsec_execution_stream_t* es, bool print)
+{
     struct rusage current;
     getrusage(RUSAGE_THREAD, &current);
     if( print ) {
         double usr, sys;
 
-        usr = ((current.ru_utime.tv_sec - eu->_eu_rusage.ru_utime.tv_sec) +
-               (current.ru_utime.tv_usec - eu->_eu_rusage.ru_utime.tv_usec) / 1000000.0);
-        sys = ((current.ru_stime.tv_sec - eu->_eu_rusage.ru_stime.tv_sec) +
-               (current.ru_stime.tv_usec - eu->_eu_rusage.ru_stime.tv_usec) / 1000000.0);
+        usr = ((current.ru_utime.tv_sec - es->_es_rusage.ru_utime.tv_sec) +
+               (current.ru_utime.tv_usec - es->_es_rusage.ru_utime.tv_usec) / 1000000.0);
+        sys = ((current.ru_stime.tv_sec - es->_es_rusage.ru_stime.tv_sec) +
+               (current.ru_stime.tv_usec - es->_es_rusage.ru_stime.tv_usec) / 1000000.0);
 
         parsec_inform(
                 "Resource Usage Exec. Unit VP: %i Thread: %i (Core %i, socket %i)\n"
@@ -83,15 +84,15 @@ static void parsec_rusage_per_eu(parsec_execution_unit_t* eu, bool print) {
                 "Block Output Operations     : %10ld\n"
                 "Maximum Resident Memory     : %10ld\n"
                 "=============================================================\n"
-                , eu->virtual_process->vp_id, eu->th_id, eu->core_id, eu->socket_id,
+                , es->virtual_process->vp_id, es->th_id, es->core_id, es->socket_id,
                 usr, sys, usr + sys,
-                (current.ru_minflt  - eu->_eu_rusage.ru_minflt), (current.ru_majflt  - eu->_eu_rusage.ru_majflt),
-                (current.ru_nswap   - eu->_eu_rusage.ru_nswap) , (current.ru_nvcsw   - eu->_eu_rusage.ru_nvcsw),
-                (current.ru_inblock - eu->_eu_rusage.ru_inblock), (current.ru_oublock - eu->_eu_rusage.ru_oublock),
+                (current.ru_minflt  - eu->_es_rusage.ru_minflt), (current.ru_majflt  - es->_es_rusage.ru_majflt),
+                (current.ru_nswap   - eu->_es_rusage.ru_nswap) , (current.ru_nvcsw   - es->_es_rusage.ru_nvcsw),
+                (current.ru_inblock - eu->_es_rusage.ru_inblock), (current.ru_oublock - es->_es_rusage.ru_oublock),
                 current.ru_maxrss);
 
     }
-    eu->_eu_rusage = current;
+    es->_es_rusage = current;
     return;
 }
 #define parsec_rusage_per_eu(eu, b) do { if(parsec_want_rusage > 1) parsec_rusage_per_eu(eu, b); } while(0)
@@ -103,15 +104,15 @@ static void parsec_rusage_per_eu(parsec_execution_unit_t* eu, bool print) {
 /*
  * Disabled by now.
  */
-int __parsec_context_wait_task( parsec_execution_unit_t* eu_context,
+int __parsec_context_wait_task( parsec_execution_stream_t* es,
                            parsec_task_t* task )
 {
-    (void)eu_context;
+    (void)es;
     switch(task->status) {
         case PARSEC_TASK_STATUS_NONE:
 #if defined(PARSEC_DEBUG)
             char tmp[MAX_TASK_STRLEN];
-            parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", eu_context->th_id, eu_context->virtual_process->vp_id,
+            parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
@@ -135,40 +136,40 @@ int __parsec_context_wait_task( parsec_execution_unit_t* eu_context,
 }
 #endif
 
-int __parsec_execute( parsec_execution_unit_t* eu_context,
-                     parsec_task_t* exec_context )
+int __parsec_execute( parsec_execution_stream_t* es,
+                      parsec_task_t* task )
 {
-    const parsec_task_class_t* tc = exec_context->task_class;
+    const parsec_task_class_t* tc = task->task_class;
     parsec_evaluate_function_t* eval;
     int rc;
 #if defined(PARSEC_DEBUG)
     char tmp[MAX_TASK_STRLEN];
-    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
+    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task);
 #endif
-    AYU_TASK_RUN(eu_context->th_id, exec_context);
+    AYU_TASK_RUN(es->th_id, task);
 
-    if (NULL == tc->incarnations[exec_context->chore_id].hook) {
+    if (NULL == tc->incarnations[task->chore_id].hook) {
 #if !defined(PARSEC_DEBUG)
         char tmp[MAX_TASK_STRLEN];
-        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, exec_context);
+        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task);
 #endif
         parsec_warning("Task %s[%d] run out of valid incarnations. Consider it complete",
-                       tmp, tc->incarnations[exec_context->chore_id].type);
+                       tmp, tc->incarnations[task->chore_id].type);
         return PARSEC_HOOK_RETURN_ERROR;
     }
 
-    PINS(eu_context, EXEC_BEGIN, exec_context);
+    PINS(es, EXEC_BEGIN, task);
     /* Try all the incarnations until one agree to execute. */
     do {
-        if( NULL != (eval = tc->incarnations[exec_context->chore_id].evaluate) ) {
-            rc = eval(exec_context);
+        if( NULL != (eval = tc->incarnations[task->chore_id].evaluate) ) {
+            rc = eval(task);
             if( PARSEC_HOOK_RETURN_DONE != rc ) {
                 if( PARSEC_HOOK_RETURN_NEXT != rc ) {
 #if defined(PARSEC_DEBUG)
                     parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Failed to evaluate %s[%d] chore %d",
-                                         eu_context->th_id, eu_context->virtual_process->vp_id,
-                                         tmp, tc->incarnations[exec_context->chore_id].type,
-                                         exec_context->chore_id);
+                                         es->th_id, es->virtual_process->vp_id,
+                                         tmp, tc->incarnations[task->chore_id].type,
+                                         task->chore_id);
 #endif
                     break;
                 }
@@ -178,28 +179,28 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
 
 #if defined(PARSEC_DEBUG)
         parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
-                             eu_context->th_id, eu_context->virtual_process->vp_id,
-                             tmp, tc->incarnations[exec_context->chore_id].type,
-                             exec_context->chore_id);
+                             es->th_id, es->virtual_process->vp_id,
+                             tmp, tc->incarnations[task->chore_id].type,
+                             task->chore_id);
 #endif
-        parsec_hook_t *hook = tc->incarnations[exec_context->chore_id].hook;
+        parsec_hook_t *hook = tc->incarnations[task->chore_id].hook;
 
-        rc = hook( eu_context, exec_context );
+        rc = hook( es, task );
         if( PARSEC_HOOK_RETURN_NEXT != rc ) {
-            PINS(eu_context, EXEC_END, exec_context);
+            PINS(es, EXEC_END, task);
             if( PARSEC_HOOK_RETURN_ASYNC != rc ) {
                 /* Let's assume everything goes just fine */
-                exec_context->status = PARSEC_TASK_STATUS_COMPLETE;
+                task->status = PARSEC_TASK_STATUS_COMPLETE;
             }
             return rc;
         }
-    next_chore:
-        exec_context->chore_id++;
+      next_chore:
+        task->chore_id++;
 
-    } while(NULL != tc->incarnations[exec_context->chore_id].hook);
-    assert(exec_context->status == PARSEC_TASK_STATUS_HOOK);
+    } while(NULL != tc->incarnations[task->chore_id].hook);
+    assert(task->status == PARSEC_TASK_STATUS_HOOK);
     /* We're out of luck, no more chores */
-    PINS(eu_context, EXEC_END, exec_context);
+    PINS(es, EXEC_END, task);
     return PARSEC_HOOK_RETURN_ERROR;
 }
 
@@ -285,7 +286,7 @@ int parsec_set_scheduler( parsec_context_t *parsec )
  * This is where we end up after the release_dep_fct is called and generates a
  * readylist. the new_context IS the readylist.
  */
-int __parsec_schedule( parsec_execution_unit_t* eu_context,
+int __parsec_schedule(parsec_execution_stream_t* es,
                       parsec_task_t* new_context,
                       int32_t distance)
 {
@@ -315,7 +316,7 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
                         parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
             }*/ /* Change it as soon as dtd has a running version */
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
-                    eu_context->th_id, eu_context->virtual_process->vp_id,
+                    es->th_id, es->virtual_process->vp_id,
                     parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), distance );
             context = (parsec_task_t*)context->super.list_next;
         } while ( context != new_context );
@@ -323,11 +324,11 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 
     /* Deactivate this measurement, until the MPI thread has its own execution unit
-     *  TAKE_TIME(eu_context->eu_profile, schedule_push_begin, 0);
+     *  TAKE_TIME(es->es_profile, schedule_push_begin, 0);
      */
-    ret = current_scheduler->module.schedule(eu_context, new_context, distance);
+    ret = current_scheduler->module.schedule(es, new_context, distance);
     /* Deactivate this measurement, until the MPI thread has its own execution unit
-     *  TAKE_TIME( eu_context->eu_profile, schedule_push_end, 0);
+     *  TAKE_TIME( es->es_profile, schedule_push_end, 0);
      */
 
     return ret;
@@ -344,33 +345,33 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
  *          iterate over all existing execution units (in the current VP,
  *          then on the next VP and so on).
  *
- * @param[in] eu_context the start execution_unit (usually, the current one).
- * @param[in] task the task to be rescheduled.
+ * @param [IN] es, the start execution_stream (normall it is the current one).
+ * @param [IN] task, the task to be rescheduled.
  *
  * @return parsec scheduling return code
  */
-int __parsec_reschedule(parsec_execution_unit_t* eu_context, parsec_task_t* task)
+int __parsec_reschedule(parsec_execution_stream_t* es, parsec_task_t* task)
 {
-    parsec_context_t* context = eu_context->virtual_process->parsec_context;
-    parsec_vp_t* vp_context = eu_context->virtual_process;
+    parsec_context_t* context = es->virtual_process->parsec_context;
+    parsec_vp_t* vp_context = es->virtual_process;
 
     int vp, start_vp = vp_context->vp_id, next_vp;
-    int start_eu = (eu_context->th_id + 1) % context->virtual_processes[start_vp]->nb_cores;
+    int start_eu = (es->th_id + 1) % context->virtual_processes[start_vp]->nb_cores;
 
     for( vp = start_vp, next_vp = (start_vp + 1) % context->nb_vp;
          next_vp != vp_context->vp_id;
          ++vp) {
         if( 1 != context->virtual_processes[vp]->nb_cores ) {
-            return __parsec_schedule(context->virtual_processes[vp]->execution_units[start_eu], task, 0);
+            return __parsec_schedule(context->virtual_processes[vp]->execution_streams[start_eu], task, 0);
         }
         else if ( context->virtual_processes[vp]->vp_id != vp_context->vp_id ) {
             /* VP contains only one EU, and it's not my VP, so not me */
-            return __parsec_schedule(context->virtual_processes[vp]->execution_units[0], task, 0);
+            return __parsec_schedule(context->virtual_processes[vp]->execution_streams[0], task, 0);
         }
-        start_eu = 0;  /* with the exception of the first eu_context, we always iterate from 0 */
+        start_eu = 0;  /* with the exception of the first es, we always iterate from 0 */
     }
     /* no luck so far, let's reschedule the task on the same execution unit */
-    return __parsec_schedule(eu_context, task, 0);
+    return __parsec_schedule(es, task, 0);
 }
 
 #ifdef  PARSEC_HAVE_SCHED_SETAFFINITY
@@ -386,33 +387,33 @@ static inline unsigned long exponential_backoff(uint64_t k)
     return r * TIME_STEP;
 }
 
-int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
-                                 parsec_task_t *exec_context )
+int __parsec_complete_execution( parsec_execution_stream_t *es,
+                                 parsec_task_t *task )
 {
-    parsec_taskpool_t *tp = exec_context->taskpool;
+    parsec_taskpool_t *tp = task->taskpool;
     int rc = 0;
 
     /* complete execution PINS event includes the preparation of the
      * output and the and the call to complete_execution.
      */
-    PINS(eu_context, COMPLETE_EXEC_BEGIN, exec_context);
+    PINS(es, COMPLETE_EXEC_BEGIN, task);
 
-    if( NULL != exec_context->task_class->prepare_output ) {
-        exec_context->task_class->prepare_output( eu_context, exec_context );
+    if( NULL != task->task_class->prepare_output ) {
+        task->task_class->prepare_output( es, task );
     }
-    if( NULL != exec_context->task_class->complete_execution )
-        rc = exec_context->task_class->complete_execution( eu_context, exec_context );
+    if( NULL != task->task_class->complete_execution )
+        rc = task->task_class->complete_execution( es, task );
 
-    PINS(eu_context, COMPLETE_EXEC_END, exec_context);
-    AYU_TASK_COMPLETE(exec_context);
+    PINS(es, COMPLETE_EXEC_END, task);
+    AYU_TASK_COMPLETE(task);
 
     /* Succesfull execution. The context is ready to be released, all
      * dependencies have been marked as completed.
      */
-    DEBUG_MARK_EXE( eu_context->th_id, eu_context->virtual_process->vp_id, exec_context );
+    DEBUG_MARK_EXE( es->th_id, es->virtual_process->vp_id, task );
 
     /* Release the execution context */
-    exec_context->task_class->release_task( eu_context, exec_context );
+    task->task_class->release_task( es, task );
 
     /* Check to see if the DSL has marked the taskpool as completed */
     if( 0 == tp->nb_tasks ) {
@@ -429,19 +430,19 @@ int __parsec_complete_execution( parsec_execution_unit_t *eu_context,
     return rc;
 }
 
-int __parsec_context_wait( parsec_execution_unit_t* eu_context )
+int __parsec_context_wait( parsec_execution_stream_t* es )
 {
     uint64_t misses_in_a_row;
-    parsec_context_t* parsec_context = eu_context->virtual_process->parsec_context;
+    parsec_context_t* parsec_context = es->virtual_process->parsec_context;
     int32_t my_barrier_counter = parsec_context->__parsec_internal_finalization_counter;
-    parsec_task_t* exec_context;
+    parsec_task_t* task;
     int rc, nbiterations = 0, distance;
     struct timespec rqtp;
 
     rqtp.tv_sec = 0;
     misses_in_a_row = 1;
 
-    if( !PARSEC_THREAD_IS_MASTER(eu_context) ) {
+    if( !PARSEC_THREAD_IS_MASTER(es) ) {
         /* Wait until all threads are done binding themselves
          * (see parsec_init) */
         parsec_barrier_wait( &(parsec_context->barrier) );
@@ -456,10 +457,10 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
         parsec_context->flags |= PARSEC_CONTEXT_FLAG_CONTEXT_ACTIVE;
     }
 
-    parsec_rusage_per_eu(eu_context, false);
+    parsec_rusage_per_eu(es, false);
 
     /* first select begin, right before the wait_for_the... goto label */
-    PINS(eu_context, SELECT_BEGIN, NULL);
+    PINS(es, SELECT_BEGIN, NULL);
 
     /* The main loop where all the threads will spend their time */
   wait_for_the_next_round:
@@ -483,10 +484,10 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
     while( !all_tasks_done(parsec_context) ) {
 #if defined(DISTRIBUTED)
         if( (1 == parsec_communication_engine_up) &&
-            (eu_context->virtual_process[0].parsec_context->nb_nodes == 1) &&
-            PARSEC_THREAD_IS_MASTER(eu_context) ) {
+            (es->virtual_process[0].parsec_context->nb_nodes == 1) &&
+            PARSEC_THREAD_IS_MASTER(es) ) {
             /* check for remote deps completion */
-            while(parsec_remote_dep_progress(eu_context) > 0)  {
+            while(parsec_remote_dep_progress(es) > 0)  {
                 misses_in_a_row = 0;
             }
         }
@@ -497,50 +498,50 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
             nanosleep(&rqtp, NULL);
         }
 
-        exec_context = current_scheduler->module.select(eu_context, &distance);
+        task = current_scheduler->module.select(es, &distance);
 
-        if( exec_context != NULL ) {
-            PINS(eu_context, SELECT_END, exec_context);
+        if( task != NULL ) {
+            PINS(es, SELECT_END, task);
             misses_in_a_row = 0;
 
 #if defined(PARSEC_SCHED_REPORT_STATISTICS)
             {
                 uint32_t my_idx = parsec_atomic_inc_32b(&sched_priority_trace_counter);
                 if(my_idx < PARSEC_SCHED_MAX_PRIORITY_TRACE_COUNTER ) {
-                    sched_priority_trace[my_idx].step = eu_context->sched_nb_tasks_done++;
-                    sched_priority_trace[my_idx].thread_id = eu_context->th_id;
-                    sched_priority_trace[my_idx].vp_id     = eu_context->virtual_process->vp_id;
-                    sched_priority_trace[my_idx].priority  = exec_context->priority;
+                    sched_priority_trace[my_idx].step = es->sched_nb_tasks_done++;
+                    sched_priority_trace[my_idx].thread_id = es->th_id;
+                    sched_priority_trace[my_idx].vp_id     = es->virtual_process->vp_id;
+                    sched_priority_trace[my_idx].priority  = task->priority;
                 }
             }
 #endif
 
             rc = PARSEC_HOOK_RETURN_DONE;
-            if(exec_context->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
-                PINS(eu_context, PREPARE_INPUT_BEGIN, exec_context);
-                rc = exec_context->task_class->prepare_input(eu_context, exec_context);
-                PINS(eu_context, PREPARE_INPUT_END, exec_context);
+            if(task->status <= PARSEC_TASK_STATUS_PREPARE_INPUT) {
+                PINS(es, PREPARE_INPUT_BEGIN, task);
+                rc = task->task_class->prepare_input(es, task);
+                PINS(es, PREPARE_INPUT_END, task);
             }
             switch(rc) {
             case PARSEC_HOOK_RETURN_DONE: {
-                if(exec_context->status <= PARSEC_TASK_STATUS_HOOK) {
-                    rc = __parsec_execute( eu_context, exec_context );
+                if(task->status <= PARSEC_TASK_STATUS_HOOK) {
+                    rc = __parsec_execute( es, task );
                 }
                 /* We're good to go ... */
                 switch(rc) {
                 case PARSEC_HOOK_RETURN_DONE:    /* This execution succeeded */
-                    exec_context->status = PARSEC_TASK_STATUS_COMPLETE;
-                    __parsec_complete_execution( eu_context, exec_context );
+                    task->status = PARSEC_TASK_STATUS_COMPLETE;
+                    __parsec_complete_execution( es, task );
                     break;
                 case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                    exec_context->status = PARSEC_TASK_STATUS_HOOK;
-                    if(0 == exec_context->priority) {
-                        SET_LOWEST_PRIORITY(exec_context, parsec_execution_context_priority_comparator);
+                    task->status = PARSEC_TASK_STATUS_HOOK;
+                    if(0 == task->priority) {
+                        SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
                     } else
-                        exec_context->priority /= 10;  /* demote the task */
-                    PARSEC_LIST_ITEM_SINGLETON(exec_context);
-                    __parsec_schedule(eu_context, exec_context, distance + 1);
-                    exec_context = NULL;
+                        task->priority /= 10;  /* demote the task */
+                    PARSEC_LIST_ITEM_SINGLETON(task);
+                    __parsec_schedule(es, task, distance + 1);
+                    task = NULL;
                     break;
                 case PARSEC_HOOK_RETURN_ASYNC:   /* The task is outside our reach we should not
                                                  * even try to change it's state, the completion
@@ -559,49 +560,49 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
                                              * will be triggered asynchronously. */
                 break;
             case PARSEC_HOOK_RETURN_AGAIN:   /* Reschedule later */
-                if(0 == exec_context->priority) {
-                    SET_LOWEST_PRIORITY(exec_context, parsec_execution_context_priority_comparator);
+                if(0 == task->priority) {
+                    SET_LOWEST_PRIORITY(task, parsec_execution_context_priority_comparator);
                 } else
-                    exec_context->priority /= 10;  /* demote the task */
-                PARSEC_LIST_ITEM_SINGLETON(exec_context);
-                __parsec_schedule(eu_context, exec_context, distance + 1);
-                exec_context = NULL;
+                    task->priority /= 10;  /* demote the task */
+                PARSEC_LIST_ITEM_SINGLETON(task);
+                __parsec_schedule(es, task, distance + 1);
+                task = NULL;
                 break;
             default:
                 assert( 0 ); /* Internal error: invalid return value for data_lookup function */
             }
 
             // subsequent select begins
-            PINS(eu_context, SELECT_BEGIN, NULL);
+            PINS(es, SELECT_BEGIN, NULL);
         } else {
             misses_in_a_row++;
         }
     }
 
-    parsec_rusage_per_eu(eu_context, true);
+    parsec_rusage_per_eu(es, true);
 
     /* We're all done ? */
     parsec_barrier_wait( &(parsec_context->barrier) );
 
 #if defined(PARSEC_SIM)
-    if( PARSEC_THREAD_IS_MASTER(eu_context) ) {
+    if( PARSEC_THREAD_IS_MASTER(es) ) {
         parsec_vp_t *vp;
         int32_t my_vpid, my_idx;
         int largest_date = 0;
         for(my_vpid = 0; my_vpid < parsec_context->nb_vp; my_vpid++) {
             vp = parsec_context->virtual_processes[my_vpid];
             for(my_idx = 0; my_idx < vp->nb_cores; my_idx++) {
-                if( vp->execution_units[my_idx]->largest_simulation_date > largest_date )
-                    largest_date = vp->execution_units[my_idx]->largest_simulation_date;
+                if( vp->execution_streams[my_idx]->largest_simulation_date > largest_date )
+                    largest_date = vp->execution_streams[my_idx]->largest_simulation_date;
             }
         }
         parsec_context->largest_simulation_date = largest_date;
     }
     parsec_barrier_wait( &(parsec_context->barrier) );
-    eu_context->largest_simulation_date = 0;
+    es->largest_simulation_date = 0;
 #endif
 
-    if( !PARSEC_THREAD_IS_MASTER(eu_context) ) {
+    if( !PARSEC_THREAD_IS_MASTER(es) ) {
         my_barrier_counter++;
         goto wait_for_the_next_round;
     }
@@ -610,20 +611,20 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
     // final select end - can we mark this as special somehow?
     // actually, it will already be obviously special, since it will be the only select
     // that has no context
-    PINS(eu_context, SELECT_END, NULL);
+    PINS(es, SELECT_END, NULL);
 
 #if defined(PARSEC_SCHED_REPORT_STATISTICS)
     parsec_inform("#Scheduling: th <%3d/%3d> done %6d | local %6llu | remote %6llu | stolen %6llu | starve %6llu | miss %6llu",
-            eu_context->th_id, eu_context->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
+            es->th_id, es->virtual_process->vp_id, nbiterations, (long long unsigned int)found_local,
             (long long unsigned int)found_remote,
             (long long unsigned int)found_victim,
             (long long unsigned int)miss_local,
             (long long unsigned int)miss_victim );
 
-    if( PARSEC_THREAD_IS_MASTER(eu_context) ) {
+    if( PARSEC_THREAD_IS_MASTER(es) ) {
         char  priority_trace_fname[64];
         FILE *priority_trace = NULL;
-        sprintf(priority_trace_fname, "priority_trace-%d.dat", eu_context->virtual_process->parsec_context->my_rank);
+        sprintf(priority_trace_fname, "priority_trace-%d.dat", es->virtual_process->parsec_context->my_rank);
         priority_trace = fopen(priority_trace_fname, "w");
         if( NULL != priority_trace ) {
             uint32_t my_idx;
@@ -641,7 +642,7 @@ int __parsec_context_wait( parsec_execution_unit_t* eu_context )
 #endif  /* PARSEC_REPORT_STATISTICS */
 
     if( parsec_context->__parsec_internal_finalization_in_progress ) {
-        PINS_THREAD_FINI(eu_context);
+        PINS_THREAD_FINI(es);
     }
     return nbiterations;
 }
@@ -766,7 +767,7 @@ int parsec_enqueue( parsec_context_t* context, parsec_taskpool_t* tp )
                 startup_list[p] = (parsec_task_t*)parsec_list_nolock_unchain(&temp);
                 OBJ_DESTRUCT(&temp);
                 /* We should add these tasks on the system queue when there is one */
-                __parsec_schedule(context->virtual_processes[p]->execution_units[0],
+                __parsec_schedule(context->virtual_processes[p]->execution_streams[0],
                                   startup_list[p], 0);
             }
         }
@@ -857,7 +858,7 @@ int parsec_context_wait( parsec_context_t* context )
     /* Here we wait on all dtd taskpools registered with us */
     parsec_detach_all_dtd_taskpool_from_context( context );
 
-    ret = __parsec_context_wait( context->virtual_processes[0]->execution_units[0] );
+    ret = __parsec_context_wait( context->virtual_processes[0]->execution_streams[0] );
 
     context->__parsec_internal_finalization_counter++;
     (void)parsec_remote_dep_off(context);

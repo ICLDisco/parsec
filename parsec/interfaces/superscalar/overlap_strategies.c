@@ -128,7 +128,7 @@ release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
  * INPUT tasks are activated if they are found in successions,
  * and they are treated the same way.
  *
- * @param[in]   eu
+ * @param[in]   es
  *                  Execution unit
  * @param[in]   this_task
  *                  We will iterate thorugh the successors of this task
@@ -138,7 +138,7 @@ release_ownership_of_data(parsec_dtd_task_t *current_task, int flow_index)
  *
  ******************************************************************************/
 void
-parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
+parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                                const parsec_task_t *this_task,
                                uint32_t action_mask,
                                parsec_ontask_function_t *ontask,
@@ -327,7 +327,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
 
                 rank_dst = current_desc->rank;
 
-                ontask( eu, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
+                ontask( es, (parsec_task_t *)current_desc, (parsec_task_t *)current_task,
                         deps, &data, rank_src, rank_dst, vpid_dst, ontask_arg );
                 vpid_dst = (vpid_dst+1) % current_task->super.taskpool->context->nb_vp;
 
@@ -351,7 +351,7 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
 
 #if defined(DISTRIBUTED)
             if( (action_mask & PARSEC_ACTION_COMPLETE_LOCAL_TASK) && (NULL != arg->remote_deps) ) {
-                parsec_remote_dep_activate(eu, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
+                parsec_remote_dep_activate(es, (parsec_task_t *)current_task, arg->remote_deps, arg->remote_deps->outgoing_mask);
                 arg->remote_deps = NULL;
             }
 #endif

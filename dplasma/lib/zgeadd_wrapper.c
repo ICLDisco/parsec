@@ -22,7 +22,7 @@ typedef struct ztradd_args_s {
 } ztradd_args_t;
 
 static int
-dplasma_ztradd_operator( parsec_execution_unit_t *eu,
+dplasma_ztradd_operator( parsec_execution_stream_t *es,
                          const tiled_matrix_desc_t *descA,
                          const tiled_matrix_desc_t *descB,
                          const void *_A, void *_B,
@@ -37,7 +37,7 @@ dplasma_ztradd_operator( parsec_execution_unit_t *eu,
     parsec_complex64_t        beta  = _args->beta;
 
     int tempmm, tempnn, ldam, ldbm;
-    (void)eu;
+    (void)es;
 
     tempmm = ((m)==((descB->mt)-1)) ? ((descB->m)-(m*(descB->mb))) : (descB->mb);
     tempnn = ((n)==((descB->nt)-1)) ? ((descB->n)-(n*(descB->nb))) : (descB->nb);

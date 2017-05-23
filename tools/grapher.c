@@ -81,7 +81,7 @@ static edge_list_t *edges = NULL;
 static vertex_list_t *lookup_create_vertex(const char *name)
 {
     vertex_list_t *v, *p;
-    
+
     p = NULL;
     for(v = vertices; NULL != v; v = v->next) {
         if( !strcmp(v->value, name) )
@@ -119,10 +119,10 @@ static edge_list_t *lookup_create_edge(const vertex_list_t *from, const vertex_l
     return e;
 }
 
-static parsec_ontask_iterate_t ontask_function(struct parsec_execution_unit *eu, 
-                                              parsec_task_t *newcontext, 
-                                              parsec_task_t *oldcontext, 
-                                              int flow_index, int outdep_index, 
+static parsec_ontask_iterate_t ontask_function(struct parsec_execution_stream_s *es,
+                                              parsec_task_t *newcontext,
+                                              parsec_task_t *oldcontext,
+                                              int flow_index, int outdep_index,
                                               int rank_src, int rank_dst,
                                               void *param)
 {
@@ -140,12 +140,12 @@ static parsec_ontask_iterate_t ontask_function(struct parsec_execution_unit *eu,
 
     parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, oldcontext);
     parsec_snprintf_execution_context(tostr, MAX_TASK_STRLEN, newcontext);
-    
+
     from = lookup_create_vertex(fromstr);
     to = lookup_create_vertex(tostr);
     lookup_create_edge(from, to);
 
-    newcontext->function->iterate_successors(eu, newcontext, ontask_function, NULL);
+    newcontext->function->iterate_successors(es, newcontext, ontask_function, NULL);
 
     return PARSEC_ITERATE_CONTINUE;
 }
@@ -155,7 +155,7 @@ static int dump_graph(const char *filename)
     FILE *f;
     vertex_list_t *v;
     edge_list_t *e;
-    
+
     f = fopen(filename, "w");
     if( NULL == f ) {
         fprintf(stderr, "unable to create %s: %s\n", filename, strerror(errno));
@@ -204,7 +204,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    o->startup_hook( parsec->execution_units[0], o, &startup );
+    o->startup_hook( parsec->execution_streams[0], o, &startup );
     s = (parsec_list_item_t*)startup;
     do {
         char fromstr[MAX_TASK_STRLEN];
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
 
     s = (parsec_list_item_t*)startup;
     do {
-        ((parsec_task_t*)s)->function->iterate_successors(parsec->execution_units[0], (parsec_task_t*)s, ontask_function, NULL);
+        ((parsec_task_t*)s)->function->iterate_successors(parsec->execution_streams[0], (parsec_task_t*)s, ontask_function, NULL);
         s = (parsec_list_item_t*)s->list_next;
     } while( s!= (parsec_list_item_t*)startup );
 

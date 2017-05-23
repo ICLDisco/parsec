@@ -278,7 +278,7 @@ BODY
         nbtasks += mynt * dplasma_imin( mymt, 1 ) * (maxiter-i-1);
 
         printlog("DAG[%d] ZLANM2[%d] I'm done, and I remove %d tasks\n",
-                 context->virtual_process->parsec_context->my_rank,
+                 es->virtual_process->parsec_context->my_rank,
                  i, nbtasks );
         (void)parsec_atomic_add_32b( &this_task->taskpool->nb_tasks, -nbtasks );
 
@@ -287,7 +287,7 @@ BODY
         }
     }
     printlog("DAG[%d] ZLANM2[%d] normx=%e / normsx=%e / e0=%e / e1=%e / e=%e \n",
-            context->virtual_process->parsec_context->my_rank,
+            es->virtual_process->parsec_context->my_rank,
             i, normx, normsx, e0, e1, *e );
 }
 END

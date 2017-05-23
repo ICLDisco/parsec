@@ -158,7 +158,7 @@ static inline parsec_remote_deps_t* remote_deps_allocate( parsec_lifo_t* lifo )
     return remote_deps;
 }
 
-#define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, EXEC_CONTEXT, COUNT) \
+#define PARSEC_ALLOCATE_REMOTE_DEPS_IF_NULL(REMOTE_DEPS, TASK, COUNT) \
     if( NULL == (REMOTE_DEPS) ) { /* only once per function */                 \
         (REMOTE_DEPS) = (parsec_remote_deps_t*)remote_deps_allocate(&parsec_remote_dep_context.freelist); \
     }
@@ -197,16 +197,16 @@ int parsec_remote_dep_on(parsec_context_t* context);
 int parsec_remote_dep_off(parsec_context_t* context);
 
 /* Poll for remote completion of tasks that would enable some work locally */
-int parsec_remote_dep_progress(parsec_execution_unit_t* eu_context);
+int parsec_remote_dep_progress(parsec_execution_stream_t* es);
 
 /* Inform the communication engine from the creation of new objects */
 int parsec_remote_dep_new_object(parsec_taskpool_t* handle);
 
 /* Send remote dependencies to target processes */
-int parsec_remote_dep_activate(parsec_execution_unit_t* eu_context,
-                              const parsec_task_t* origin,
-                              parsec_remote_deps_t* remote_deps,
-                              uint32_t propagation_mask);
+int parsec_remote_dep_activate(parsec_execution_stream_t* es,
+                               const parsec_task_t* origin,
+                               parsec_remote_deps_t* remote_deps,
+                               uint32_t propagation_mask);
 
 /* Memcopy a particular data using datatype specification */
 void parsec_remote_dep_memcpy(parsec_taskpool_t* tp,
@@ -222,11 +222,11 @@ remote_dep_dequeue_delayed_dep_release(parsec_remote_deps_t *deps);
 
 /* This function creates a fake eu for comm thread for profiling DTD runs */
 void
-remote_dep_mpi_initialize_execution_unit(parsec_context_t *context);
+remote_dep_mpi_initialize_execution_stream(parsec_context_t *context);
 
 #ifdef PARSEC_DIST_COLLECTIVES
 /* Propagate an activation order from the current node down the original tree */
-int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
+int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
                                const parsec_task_t* task,
                                parsec_remote_deps_t* deps);
 #endif
@@ -239,7 +239,7 @@ int parsec_remote_dep_propagate(parsec_execution_unit_t* eu_context,
 #define parsec_remote_dep_progress(ctx)       0
 #define parsec_remote_dep_activate(ctx, o, r) -1
 #define parsec_remote_dep_new_object(ctx)     0
-#define remote_dep_mpi_initialize_execution_unit(ctx) 0
+#define remote_dep_mpi_initialize_execution_stream(ctx) 0
 #endif /* DISTRIBUTED */
 
 /** @} */
