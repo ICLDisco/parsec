@@ -30,7 +30,7 @@ main (int argc, char *argv[])
     int info;
     int rc;
     PLASMA_enum uplo = PlasmaLower;
-    parsec_ddesc_t *ddescA;
+    parsec_data_collection_t *dcA;
     parsec_taskpool_t *cholesky;
     parsec_task_t* startup_list = NULL;
     struct timeval start;
@@ -85,13 +85,13 @@ main (int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_set_scheduler");
 
 
-    ddescA = create_and_distribute_data(rank, world, cores, atoi(argv[1]), atoi(argv[2]));
+    dcA = create_and_distribute_data(rank, world, cores, atoi(argv[1]), atoi(argv[2]));
 //    fprintf(stderr, "create & distribute done\n");
 
 
-    parsec_ddesc_set_key(ddesc, "A");
+    parsec_data_collection_set_key(dc, "A");
 
-    cholesky = cholesky_new(ddescA, BLOCKSIZE, matrix_rank/BLOCKSIZE, uplo, &info);
+    cholesky = cholesky_new(dcA, BLOCKSIZE, matrix_rank/BLOCKSIZE, uplo, &info);
 
 
     rc = parsec_context_start(parsec);
@@ -153,7 +153,7 @@ main (int argc, char *argv[])
 */
 
 
-    free_data(ddescA);
+    free_data(dcA);
 
 //    starpu_helper_cublas_shutdown();
     starpu_shutdown();

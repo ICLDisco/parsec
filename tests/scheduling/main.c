@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world;
     int nt, level, try;
-    parsec_ddesc_t *ddescA;
+    parsec_data_collection_t *dcA;
     parsec_taskpool_t *ep;
     parsec_time_t start, end;
     double sum, sumsqr, val;
@@ -57,8 +57,8 @@ int main(int argc, char *argv[])
 
     level   = 4 * world;
 
-    ddescA = create_and_distribute_data(rank, world, MAXNT, 1);
-    parsec_ddesc_set_key(ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, MAXNT, 1);
+    parsec_data_collection_set_key(dcA, "A");
 
     printf("#Embarrasingly Parallel Empty Tasks\n");
     printf("#Level\tNumber of tasks (per level)\tAvg\tStdev\n");
@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
                         break;
                 }
 
-                ep = ep_new(ddescA, nt, level);
+                ep = ep_new(dcA, nt, level);
                 rc = parsec_enqueue(parsec, ep);
                 PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     printf("\n"
            "\n");
 
-    free_data(ddescA);
+    free_data(dcA);
 
     parsec_fini(&parsec);
 #ifdef PARSEC_HAVE_MPI

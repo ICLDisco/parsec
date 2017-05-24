@@ -20,8 +20,8 @@
 #if defined(PARSEC_PROF_TRACE)
 int parsec_map_operator_profiling_array[2] = {-1};
 #define TAKE_TIME(context, key, eid, refdesc, refid) do {   \
-   parsec_profile_ddesc_info_t info;                         \
-   info.desc = (parsec_ddesc_t*)refdesc;                     \
+   parsec_profile_data_collection_info_t info;                         \
+   info.desc = (parsec_data_collection_t*)refdesc;                     \
    info.id = refid;                                         \
    PARSEC_PROFILING_TRACE(context->es_profile,               \
                          __tp->super.super.profiling_array[(key)],\
@@ -33,8 +33,8 @@ int parsec_map_operator_profiling_array[2] = {-1};
 
 typedef struct parsec_map_operator_taskpool {
     parsec_taskpool_t          super;
-    const tiled_matrix_desc_t* src;
-          tiled_matrix_desc_t* dest;
+    const parsec_tiled_matrix_dc_t* src;
+          parsec_tiled_matrix_dc_t* dest;
     volatile uint32_t          next_k;
     parsec_operator_t           op;
     void*                      op_data;
@@ -47,8 +47,8 @@ typedef struct __parsec_map_operator_taskpool {
 static const parsec_flow_t flow_of_map_operator;
 static const parsec_task_class_t parsec_map_operator;
 
-#define src(k,n)  (((parsec_ddesc_t*)__tp->super.src)->data_of((parsec_ddesc_t*)__tp->super.src, (k), (n)))
-#define dest(k,n)  (((parsec_ddesc_t*)__tp->super.dest)->data_of((parsec_ddesc_t*)__tp->super.dest, (k), (n)))
+#define src(k,n)  (((parsec_data_collection_t*)__tp->super.src)->data_of((parsec_data_collection_t*)__tp->super.src, (k), (n)))
+#define dest(k,n)  (((parsec_data_collection_t*)__tp->super.dest)->data_of((parsec_data_collection_t*)__tp->super.dest, (k), (n)))
 
 #if defined(PARSEC_PROF_TRACE)
 static inline uint32_t map_operator_op_hash(const __parsec_map_operator_taskpool_t *tp, int k, int n )
@@ -121,8 +121,8 @@ static inline int affinity_of_map_operator(parsec_task_t *this_task,
     const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
-    ref->ddesc = (parsec_ddesc_t*)__tp->super.src;
-    ref->key = ref->ddesc->data_key(ref->ddesc, k, n);
+    ref->dc = (parsec_data_collection_t*)__tp->super.src;
+    ref->key = ref->dc->data_key(ref->dc, k, n);
     return 1;
 }
 
@@ -130,13 +130,13 @@ static inline int initial_data_of_map_operator(parsec_task_t *this_task,
                                                parsec_data_ref_t *refs)
 {
     int __flow_nb = 0;
-    parsec_ddesc_t *__d;
+    parsec_data_collection_t *__d;
     const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
 
-    __d = (parsec_ddesc_t*)__tp->super.src;
-    refs[__flow_nb].ddesc = __d;
+    __d = (parsec_data_collection_t*)__tp->super.src;
+    refs[__flow_nb].dc = __d;
     refs[__flow_nb].key = __d->data_key(__d, k, n);
     __flow_nb++;
 
@@ -147,13 +147,13 @@ static inline int final_data_of_map_operator(parsec_task_t *this_task,
                                              parsec_data_ref_t *data_refs)
 {
     int __flow_nb = 0;
-    parsec_ddesc_t *__d;
+    parsec_data_collection_t *__d;
     const __parsec_map_operator_taskpool_t *__tp = (const __parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value;
 
-    __d = (parsec_ddesc_t*)__tp->super.dest;
-    data_refs[__flow_nb].ddesc = __d;
+    __d = (parsec_data_collection_t*)__tp->super.dest;
+    data_refs[__flow_nb].dc = __d;
     data_refs[__flow_nb].key = __d->data_key(__d, k, n);
     __flow_nb++;
 
@@ -224,10 +224,10 @@ static void iterate_successors(parsec_execution_stream_t *es,
     for( ; k < (int)__tp->super.src->nt; n = 0) {
         for( ; n < (int)__tp->super.src->mt; n++ ) {
             if( __tp->super.src->super.myrank !=
-                ((parsec_ddesc_t*)__tp->super.src)->rank_of((parsec_ddesc_t*)__tp->super.src,
+                ((parsec_data_collection_t*)__tp->super.src)->rank_of((parsec_data_collection_t*)__tp->super.src,
                                                                      k, n) )
                 continue;
-            int vpid =  ((parsec_ddesc_t*)__tp->super.src)->vpid_of((parsec_ddesc_t*)__tp->super.src,
+            int vpid =  ((parsec_data_collection_t*)__tp->super.src)->vpid_of((parsec_data_collection_t*)__tp->super.src,
                                                                              k, n);
             /* Here we go, one ready local task */
             nc.locals[0].value = k;
@@ -332,7 +332,7 @@ static int hook_of(parsec_execution_stream_t *es,
 #if !defined(PARSEC_PROF_DRY_BODY)
     TAKE_TIME(es, 2*this_task->task_class->task_class_id,
               map_operator_op_hash( __tp, k, n ), __tp->super.src,
-              ((parsec_ddesc_t*)(__tp->super.src))->data_key((parsec_ddesc_t*)__tp->super.src, k, n) );
+              ((parsec_data_collection_t*)(__tp->super.src))->data_key((parsec_data_collection_t*)__tp->super.src, k, n) );
     __tp->super.op( es, src_data, dest_data, __tp->super.op_data, k, n );
 #endif
     (void)es;
@@ -421,11 +421,11 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
         for( ; k < (int)__tp->super.src->nt; n = 0) {
             for( ; n < (int)__tp->super.src->mt; n++ ) {
                 if (__tp->super.src->super.myrank !=
-                    ((parsec_ddesc_t*)__tp->super.src)->rank_of((parsec_ddesc_t*)__tp->super.src,
+                    ((parsec_data_collection_t*)__tp->super.src)->rank_of((parsec_data_collection_t*)__tp->super.src,
                                                                          k, n) )
                     continue;
 
-                if( vpid != ((parsec_ddesc_t*)__tp->super.src)->vpid_of((parsec_ddesc_t*)__tp->super.src,
+                if( vpid != ((parsec_data_collection_t*)__tp->super.src)->vpid_of((parsec_data_collection_t*)__tp->super.src,
                                                                                  k, n) )
                     continue;
                 /* Here we go, one ready local task */
@@ -456,8 +456,8 @@ static void parsec_map_operator_startup_fn(parsec_context_t *context,
  * floweter.
  */
 parsec_taskpool_t*
-parsec_map_operator_New(const tiled_matrix_desc_t* src,
-                       tiled_matrix_desc_t* dest,
+parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
+                       parsec_tiled_matrix_dc_t* dest,
                        parsec_operator_t op,
                        void* op_data)
 {
@@ -477,7 +477,7 @@ parsec_map_operator_New(const tiled_matrix_desc_t* src,
     res->super.super.profiling_array = parsec_map_operator_profiling_array;
     if( -1 == parsec_map_operator_profiling_array[0] ) {
         parsec_profiling_add_dictionary_keyword("operator", "fill:CC2828",
-                                               sizeof(parsec_profile_ddesc_info_t), PARSEC_PROFILE_DDESC_INFO_CONVERTOR,
+                                               sizeof(parsec_profile_data_collection_info_t), PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
                                                (int*)&res->super.super.profiling_array[0 + 2 * parsec_map_operator.task_class_id],
                                                (int*)&res->super.super.profiling_array[1 + 2 * parsec_map_operator.task_class_id]);
     }

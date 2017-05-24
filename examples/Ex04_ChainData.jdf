@@ -13,7 +13,7 @@ extern "C" %{
 
 %}
 
-mydata  [ type="parsec_ddesc_t*" ]
+mydata  [ type="parsec_data_collection_t*" ]
 NB      [ type="int" ]
 
 Task(k)
@@ -44,7 +44,7 @@ END
 extern "C" %{
 
 static uint32_t
-rank_of(parsec_ddesc_t *desc, ...)
+rank_of(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -57,14 +57,14 @@ rank_of(parsec_ddesc_t *desc, ...)
 }
 
 static int32_t
-vpid_of(parsec_ddesc_t *desc, ...)
+vpid_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
 static uint64_t
-data_key(parsec_ddesc_t *desc, ...)
+data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -90,7 +90,7 @@ data_key(parsec_ddesc_t *desc, ...)
 static parsec_data_t *ddata_mycounter = NULL;
 
 static parsec_data_t *
-data_of(parsec_ddesc_t *desc, ...)
+data_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return ddata_mycounter;
@@ -101,7 +101,7 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rc;
     int rank, world;
-    parsec_ddesc_t mydata;
+    parsec_data_collection_t mydata;
     parsec_Ex04_ChainData_taskpool_t *tp;
     int mycounter;
 
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
                                          sizeof(int)       /* The size of the data            */);
 
 
-    parsec_ddesc_init(&mydata, world, rank);
+    parsec_data_collection_init(&mydata, world, rank);
     mydata.rank_of = rank_of;
     mydata.vpid_of = vpid_of;
     mydata.data_key = data_key;
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
     parsec_taskpool_free((parsec_taskpool_t*)tp);
 
     parsec_data_destroy( ddata_mycounter );
-    parsec_ddesc_destroy( &mydata );
+    parsec_data_collection_destroy( &mydata );
 
     parsec_fini(&parsec);
 #if defined(PARSEC_HAVE_MPI)

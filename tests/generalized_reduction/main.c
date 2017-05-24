@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world, cores;
     int nt, nb;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *BT_reduction;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -45,10 +45,10 @@ int main(int argc, char *argv[])
         nt = (int)strtol(argv[1], NULL, 0);
     }
 
-    ddescA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt, sizeof(int));
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    BT_reduction = BT_reduction_new(ddescA, nb, nt);
+    BT_reduction = BT_reduction_new(dcA, nb, nt);
     rc = parsec_enqueue(parsec, BT_reduction);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     parsec_taskpool_free((parsec_taskpool_t*)BT_reduction);
-    free_data(ddescA);
+    free_data(dcA);
 
     parsec_fini(&parsec);
 

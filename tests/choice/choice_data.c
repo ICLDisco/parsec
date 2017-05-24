@@ -13,13 +13,13 @@
 #include <assert.h>
 
 typedef struct {
-    parsec_ddesc_t   super;
+    parsec_data_collection_t   super;
     uint32_t        size;
     parsec_data_t  **data_map;
     int32_t        *data;
 } my_datatype_t;
 
-static uint32_t rank_of(parsec_ddesc_t *desc, ...)
+static uint32_t rank_of(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -66,7 +66,7 @@ get_or_create_data(my_datatype_t* dat, uint32_t pos)
     return data;
 }
 
-static parsec_data_t* data_of(parsec_ddesc_t *desc, ...)
+static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
 {
     int k;
 
@@ -82,7 +82,7 @@ static parsec_data_t* data_of(parsec_ddesc_t *desc, ...)
     return get_or_create_data(dat, k);
 } 
 
-static int vpid_of(parsec_ddesc_t *desc, ...)
+static int vpid_of(parsec_data_collection_t *desc, ...)
 {
     int k;
 
@@ -98,7 +98,7 @@ static int vpid_of(parsec_ddesc_t *desc, ...)
 }
 
 #if defined(PARSEC_PROF_TRACE)
-static uint32_t data_key(struct parsec_ddesc_s *desc, ...)
+static uint32_t data_key(struct parsec_data_collection_s *desc, ...)
 {
     int k;
     va_list ap;
@@ -111,10 +111,10 @@ static uint32_t data_key(struct parsec_ddesc_s *desc, ...)
 }
 #endif
 
-parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size)
+parsec_data_collection_t *create_and_distribute_data(int rank, int world, int size)
 {
     my_datatype_t *m = (my_datatype_t*)calloc(1, sizeof(my_datatype_t));
-    parsec_ddesc_t *d = &(m->super);
+    parsec_data_collection_t *d = &(m->super);
 
     d->myrank  = rank;
     d->nodes   = world;
@@ -134,10 +134,10 @@ parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size)
     return d;
 }
 
-void free_data(parsec_ddesc_t *d)
+void free_data(parsec_data_collection_t *d)
 {
     my_datatype_t *m = (my_datatype_t*)d;
     free(m->data);
-    parsec_ddesc_destroy(d);
+    parsec_data_collection_destroy(d);
     free(d);
 }

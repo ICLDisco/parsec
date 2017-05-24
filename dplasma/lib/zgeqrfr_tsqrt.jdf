@@ -16,9 +16,9 @@ extern "C" %{
 
 %}
 
-descA1 [type = "tiled_matrix_desc_t*"]
-descA2 [type = "tiled_matrix_desc_t*" aligned=descA1]
-descT  [type = "tiled_matrix_desc_t*" aligned=descA1]
+descA1 [type = "parsec_tiled_matrix_dc_t*"]
+descA2 [type = "parsec_tiled_matrix_dc_t*" aligned=descA1]
+descT  [type = "parsec_tiled_matrix_dc_t*" aligned=descA1]
 p_work [type = "parsec_memory_pool_t *"]
 p_tau  [type = "parsec_memory_pool_t *"]
 
@@ -182,9 +182,9 @@ extern "C" %{
  *
  ******************************************************************************/
 parsec_taskpool_t*
-dplasma_zgeqrfr_tsqrt_New( tiled_matrix_desc_t *A1,
-                           tiled_matrix_desc_t *A2,
-                           tiled_matrix_desc_t *T,
+dplasma_zgeqrfr_tsqrt_New( parsec_tiled_matrix_dc_t *A1,
+                           parsec_tiled_matrix_dc_t *A2,
+                           parsec_tiled_matrix_dc_t *T,
                            void *work,
                            void *tau )
 {

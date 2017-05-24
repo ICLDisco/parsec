@@ -19,11 +19,11 @@
 
 parsec_taskpool_t*
 dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
-                         tiled_matrix_desc_t *A,
-                         tiled_matrix_desc_t *IPIV,
-                         tiled_matrix_desc_t *B,
-                         tiled_matrix_desc_t *TS,
-                         tiled_matrix_desc_t *TT,
+                         parsec_tiled_matrix_dc_t *A,
+                         parsec_tiled_matrix_dc_t *IPIV,
+                         parsec_tiled_matrix_dc_t *B,
+                         parsec_tiled_matrix_dc_t *TS,
+                         parsec_tiled_matrix_dc_t *TT,
                          int *lu_tab )
 {
     parsec_ztrsmpl_qrf_taskpool_t* tp;
@@ -35,7 +35,7 @@ dplasma_ztrsmpl_qrf_New( dplasma_qrtree_t *qrtree,
      */
 
     tp = parsec_ztrsmpl_qrf_new(A,
-                                (parsec_ddesc_t*)IPIV,
+                                (parsec_data_collection_t*)IPIV,
                                 TS,
                                 TT,
                                 B,
@@ -105,11 +105,11 @@ dplasma_ztrsmpl_qrf_Destruct( parsec_taskpool_t *tp )
 int
 dplasma_ztrsmpl_qrf( parsec_context_t *parsec,
                      dplasma_qrtree_t *qrtree,
-                     tiled_matrix_desc_t *A,
-                     tiled_matrix_desc_t *IPIV,
-                     tiled_matrix_desc_t *B,
-                     tiled_matrix_desc_t *TS,
-                     tiled_matrix_desc_t *TT,
+                     parsec_tiled_matrix_dc_t *A,
+                     parsec_tiled_matrix_dc_t *IPIV,
+                     parsec_tiled_matrix_dc_t *B,
+                     parsec_tiled_matrix_dc_t *TS,
+                     parsec_tiled_matrix_dc_t *TT,
                      int *lu_tab)
 {
     parsec_taskpool_t *parsec_ztrsmpl_qrf = NULL;

@@ -22,14 +22,14 @@
 #endif
 #include <string.h>
 
-static uint32_t tiled_matrix_data_key(struct parsec_ddesc_s *desc, ...);
+static uint32_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...);
 
 #if defined(PARSEC_PROF_TRACE)
-static int      tiled_matrix_key_to_string(struct parsec_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static int      tiled_matrix_key_to_string(struct parsec_data_collection_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
 parsec_data_t*
-parsec_matrix_create_data(tiled_matrix_desc_t* matrix,
+parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
                          void* ptr,
                          int pos,
                          parsec_data_key_t key)
@@ -41,7 +41,7 @@ parsec_matrix_create_data(tiled_matrix_desc_t* matrix,
 }
 
 void
-parsec_matrix_destroy_data( tiled_matrix_desc_t* matrix )
+parsec_matrix_destroy_data( parsec_tiled_matrix_dc_t* matrix )
 {
     if ( matrix->data_map != NULL ) {
         parsec_data_t **data = matrix->data_map;
@@ -59,16 +59,16 @@ parsec_matrix_destroy_data( tiled_matrix_desc_t* matrix )
 }
 
 parsec_data_t*
-fake_data_of(parsec_ddesc_t *mat, ...)
+fake_data_of(parsec_data_collection_t *mat, ...)
 {
-    return parsec_matrix_create_data( (tiled_matrix_desc_t*)mat, NULL,
+    return parsec_matrix_create_data( (parsec_tiled_matrix_dc_t*)mat, NULL,
                                      0, 0 );
 }
 
 /***************************************************************************//**
  *  Internal static descriptor initializer (PLASMA code)
  **/
-void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
+void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc,
                              enum matrix_type    mtyp,
                              enum matrix_storage storage,
                              int dtype, int nodes, int myrank,
@@ -77,10 +77,10 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
                              int i,  int j,
                              int m,  int n)
 {
-    parsec_ddesc_t *o = (parsec_ddesc_t*)tdesc;
+    parsec_data_collection_t *o = (parsec_data_collection_t*)tdesc;
 
     /* Super setup */
-    parsec_ddesc_init( o, nodes, myrank );
+    parsec_data_collection_init( o, nodes, myrank );
 
     /* Change the common data_key */
     o->data_key = tiled_matrix_data_key;
@@ -99,7 +99,7 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
     tdesc->data_map = NULL;
     tdesc->mtype    = mtyp;
     tdesc->storage  = storage;
-    tdesc->dtype    = tiled_matrix_desc_type | dtype;
+    tdesc->dtype    = parsec_tiled_matrix_dc_type | dtype;
     tdesc->tileld   = (storage == matrix_Tile) ? mb : lm;
     tdesc->mb       = mb;
     tdesc->nb       = nb;
@@ -143,19 +143,19 @@ void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc,
 }
 
 void
-tiled_matrix_desc_destroy( tiled_matrix_desc_t *tdesc )
+parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_dc_t *tdesc )
 {
     parsec_matrix_destroy_data( tdesc );
-    parsec_ddesc_destroy( (parsec_ddesc_t*)tdesc );
+    parsec_data_collection_destroy( (parsec_data_collection_t*)tdesc );
 }
 
 
-tiled_matrix_desc_t *
-tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
+parsec_tiled_matrix_dc_t *
+tiled_matrix_submatrix( parsec_tiled_matrix_dc_t *tdesc,
                         int i, int j, int m, int n)
 {
     int mb, nb;
-    tiled_matrix_desc_t *newdesc;
+    parsec_tiled_matrix_dc_t *newdesc;
 
     mb = tdesc->mb;
     nb = tdesc->nb;
@@ -178,15 +178,15 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     }
 
     if( tdesc->dtype & two_dim_block_cyclic_type ) {
-        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(two_dim_block_cyclic_t) );
+        newdesc = (parsec_tiled_matrix_dc_t*) malloc ( sizeof(two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(two_dim_block_cyclic_t) );
     }
     else if( tdesc->dtype & sym_two_dim_block_cyclic_type ) {
-        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
+        newdesc = (parsec_tiled_matrix_dc_t*) malloc ( sizeof(sym_two_dim_block_cyclic_t) );
         memcpy( newdesc, tdesc, sizeof(sym_two_dim_block_cyclic_t) );
     }
     else if( tdesc->dtype & two_dim_tabular_type ) {
-        newdesc = (tiled_matrix_desc_t*) malloc ( sizeof(two_dim_tabular_t) );
+        newdesc = (parsec_tiled_matrix_dc_t*) malloc ( sizeof(two_dim_tabular_t) );
         memcpy( newdesc, tdesc, sizeof(two_dim_tabular_t) );
     } else {
         parsec_warning("Type not completely defined");
@@ -204,13 +204,13 @@ tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc,
     return newdesc;
 }
 
-/* return a unique key (unique only for the specified parsec_ddesc) associated to a data */
-static uint32_t tiled_matrix_data_key(struct parsec_ddesc_s *desc, ...)
+/* return a unique key (unique only for the specified parsec_dc) associated to a data */
+static uint32_t tiled_matrix_data_key(struct parsec_data_collection_s *desc, ...)
 {
-    tiled_matrix_desc_t * Ddesc;
+    parsec_tiled_matrix_dc_t * dc;
     unsigned int m, n;
     va_list ap;
-    Ddesc = (tiled_matrix_desc_t*)desc;
+    dc = (parsec_tiled_matrix_dc_t*)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -219,22 +219,22 @@ static uint32_t tiled_matrix_data_key(struct parsec_ddesc_s *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->i / Ddesc->mb;
-    n += Ddesc->j / Ddesc->nb;
+    m += dc->i / dc->mb;
+    n += dc->j / dc->nb;
 
-    return ((n * Ddesc->lmt) + m);
+    return ((n * dc->lmt) + m);
 }
 
 #if defined(PARSEC_PROF_TRACE)
-static int  tiled_matrix_key_to_string(struct parsec_ddesc_s *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int  tiled_matrix_key_to_string(struct parsec_data_collection_s *desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 /* return a string meaningful for profiling about data */
 {
-    tiled_matrix_desc_t * Ddesc;
+    parsec_tiled_matrix_dc_t * dc;
     unsigned int m, n;
     int res;
-    Ddesc = (tiled_matrix_desc_t*)desc;
-    m = datakey % Ddesc->lmt;
-    n = datakey / Ddesc->lmt;
+    dc = (parsec_tiled_matrix_dc_t*)desc;
+    m = datakey % dc->lmt;
+    n = datakey / dc->lmt;
     res = snprintf(buffer, buffer_size, "(%u, %u)", m, n);
     if (res < 0)
     {
@@ -248,9 +248,9 @@ static int  tiled_matrix_key_to_string(struct parsec_ddesc_s *desc, uint32_t dat
  * Writes the data into the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
+int tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename)
 {
-    parsec_ddesc_t *ddesc = &(tdesc->super);
+    parsec_data_collection_t *dc = &(tdesc->super);
     parsec_data_t* data;
     FILE *tmpf;
     char *buf;
@@ -267,8 +267,8 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
     if ( tdesc->storage == matrix_Tile ) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
-                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    data = ddesc->data_of( ddesc, i, j );
+                if ( dc->rank_of( dc, i, j ) == myrank ) {
+                    data = dc->data_of( dc, i, j );
                     buf = parsec_data_get_ptr(data, 0);
                     fwrite(buf, eltsize, tdesc->bsiz, tmpf );
                 }
@@ -276,8 +276,8 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
     } else {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
-                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    data = ddesc->data_of( ddesc, i, j );
+                if ( dc->rank_of( dc, i, j ) == myrank ) {
+                    data = dc->data_of( dc, i, j );
                     buf = parsec_data_get_ptr(data, 0);
                     for (k=0; k<tdesc->nb; k++) {
                         fwrite(buf, eltsize, tdesc->mb, tmpf );
@@ -296,9 +296,9 @@ int tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename)
  * Read the data from the file filename
  * Sequential function per node
  */
-int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
+int tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename)
 {
-    parsec_ddesc_t *ddesc = &(tdesc->super);
+    parsec_data_collection_t *dc = &(tdesc->super);
     parsec_data_t* data;
     FILE *tmpf;
     char *buf;
@@ -315,8 +315,8 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
     if ( tdesc->storage == matrix_Tile ) {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
-                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    data = ddesc->data_of( ddesc, i, j );
+                if ( dc->rank_of( dc, i, j ) == myrank ) {
+                    data = dc->data_of( dc, i, j );
                     buf = parsec_data_get_ptr(data, 0);
                     ret = fread(buf, eltsize, tdesc->bsiz, tmpf );
                     if ( ret !=  tdesc->bsiz ) {
@@ -330,8 +330,8 @@ int tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename)
     } else {
         for (i = 0 ; i < tdesc->mt ; i++)
             for ( j = 0 ; j< tdesc->nt ; j++) {
-                if ( ddesc->rank_of( ddesc, i, j ) == myrank ) {
-                    data = ddesc->data_of( ddesc, i, j );
+                if ( dc->rank_of( dc, i, j ) == myrank ) {
+                    data = dc->data_of( dc, i, j );
                     buf = parsec_data_get_ptr(data, 0);
                     for (k=0; k < tdesc->nb; k++) {
                         ret = fread(buf, eltsize, tdesc->mb, tmpf );

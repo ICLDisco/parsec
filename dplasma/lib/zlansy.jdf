@@ -26,7 +26,7 @@ extern "C" %{
 #include "dplasma/lib/dplasmajdf.h"
 #include "data_dist/matrix/matrix.h"
 
-#define my_rank_of(m, n) (((parsec_ddesc_t*)(descA))->rank_of((parsec_ddesc_t*)descA, m, n))
+#define my_rank_of(m, n) (((parsec_data_collection_t*)(descA))->rank_of((parsec_data_collection_t*)descA, m, n))
 %}
 
 /* Globals
@@ -37,8 +37,8 @@ PQ           [type = "int" hidden=on default="P*Q"]
 ntype        [type = "PLASMA_enum"]
 uplo         [type = "PLASMA_enum"]
 trans        [type = "PLASMA_enum"]
-descA        [type = "const tiled_matrix_desc_t*"]
-Tdist        [type = "parsec_ddesc_t *"]
+descA        [type = "const parsec_tiled_matrix_dc_t*"]
+Tdist        [type = "parsec_data_collection_t *"]
 norm         [type = "double *"]
 
 

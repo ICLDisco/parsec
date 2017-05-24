@@ -21,7 +21,7 @@
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t *ep_new(parsec_ddesc_t *A, int nt, int level)
+parsec_taskpool_t *ep_new(parsec_data_collection_t *A, int nt, int level)
 {
     parsec_ep_taskpool_t *tp = NULL;
 

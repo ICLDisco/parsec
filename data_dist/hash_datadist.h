@@ -29,7 +29,7 @@ typedef struct parsec_hash_datadist_entry_s {
 } parsec_hash_datadist_entry_t;
 
 typedef struct parsec_hash_datadist_s {
-    parsec_ddesc_t super;
+    parsec_data_collection_t super;
     uint32_t hash_size;
     parsec_hash_datadist_entry_t **hash;
 } parsec_hash_datadist_t;

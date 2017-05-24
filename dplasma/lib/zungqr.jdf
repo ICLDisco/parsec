@@ -15,9 +15,9 @@ extern "C" %{
 
 %}
 
-descA     [type = "tiled_matrix_desc_t*"]
-descT     [type = "tiled_matrix_desc_t*"]
-descQ     [type = "tiled_matrix_desc_t*"]
+descA     [type = "parsec_tiled_matrix_dc_t*"]
+descT     [type = "parsec_tiled_matrix_dc_t*"]
+descQ     [type = "parsec_tiled_matrix_dc_t*"]
 p_work    [type = "parsec_memory_pool_t *" size = "((sizeof(parsec_complex64_t))*ib)*descT->nb"]
 
 ib        [type = "int" hidden = on default = "descT->mb" ]

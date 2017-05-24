@@ -13,8 +13,8 @@
 #include "reduce_row.h"
 
 parsec_taskpool_t*
-parsec_reduce_col_New( const tiled_matrix_desc_t* src,
-                      tiled_matrix_desc_t* dest,
+parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
+                      parsec_tiled_matrix_dc_t* dest,
                       parsec_operator_t operator,
                       void* op_data )
 {
@@ -44,8 +44,8 @@ void parsec_reduce_col_Destruct( parsec_taskpool_t *o )
 }
 
 parsec_taskpool_t*
-parsec_reduce_row_New( const tiled_matrix_desc_t* src,
-                      tiled_matrix_desc_t* dest,
+parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
+                      parsec_tiled_matrix_dc_t* dest,
                       parsec_operator_t operator,
                       void* op_data )
 {

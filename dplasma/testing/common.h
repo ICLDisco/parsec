@@ -175,14 +175,14 @@ static inline int min(int a, int b) { return a < b ? a : b; }
 
 
 /* Paste code to allocate a matrix in desc if cond_init is true */
-#define PASTE_CODE_ALLOCATE_MATRIX(DDESC, COND, TYPE, INIT_PARAMS)      \
-    TYPE##_t DDESC;                                                     \
+#define PASTE_CODE_ALLOCATE_MATRIX(DC, COND, TYPE, INIT_PARAMS)      \
+    TYPE##_t DC;                                                     \
     if(COND) {                                                          \
         TYPE##_init INIT_PARAMS;                                        \
-        DDESC.mat = parsec_data_allocate((size_t)DDESC.super.nb_local_tiles * \
-                                        (size_t)DDESC.super.bsiz *      \
-                                        (size_t)parsec_datadist_getsizeoftype(DDESC.super.mtype)); \
-        parsec_ddesc_set_key((parsec_ddesc_t*)&DDESC, #DDESC);          \
+        DC.mat = parsec_data_allocate((size_t)DC.super.nb_local_tiles * \
+                                        (size_t)DC.super.bsiz *      \
+                                        (size_t)parsec_datadist_getsizeoftype(DC.super.mtype)); \
+        parsec_data_collection_set_key((parsec_data_collection_t*)&DC, #DC);          \
     }
 
 #define PASTE_CODE_ENQUEUE_KERNEL(PARSEC, KERNEL, PARAMS)               \

@@ -104,10 +104,10 @@
 parsec_taskpool_t*
 dplasma_zunmqr_param_New( PLASMA_enum side, PLASMA_enum trans,
                           dplasma_qrtree_t *qrtree,
-                          tiled_matrix_desc_t *A,
-                          tiled_matrix_desc_t *TS,
-                          tiled_matrix_desc_t *TT,
-                          tiled_matrix_desc_t *C)
+                          parsec_tiled_matrix_dc_t *A,
+                          parsec_tiled_matrix_dc_t *TS,
+                          parsec_tiled_matrix_dc_t *TT,
+                          parsec_tiled_matrix_dc_t *C)
 {
     parsec_taskpool_t* tp = NULL;
     int Am, ib = TS->mb;
@@ -348,10 +348,10 @@ int
 dplasma_zunmqr_param( parsec_context_t *parsec,
                       PLASMA_enum side, PLASMA_enum trans,
                       dplasma_qrtree_t    *qrtree,
-                      tiled_matrix_desc_t *A,
-                      tiled_matrix_desc_t *TS,
-                      tiled_matrix_desc_t *TT,
-                      tiled_matrix_desc_t *C )
+                      parsec_tiled_matrix_dc_t *A,
+                      parsec_tiled_matrix_dc_t *TS,
+                      parsec_tiled_matrix_dc_t *TT,
+                      parsec_tiled_matrix_dc_t *C )
 {
     parsec_taskpool_t *parsec_zunmqr_param = NULL;
     int Am;

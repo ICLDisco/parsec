@@ -16,8 +16,8 @@ extern "C" %{
  */
 uplo     [type = PLASMA_enum]
 trans    [type = PLASMA_enum]
-descA    [type="const tiled_matrix_desc_t*"]
-descB    [type="tiled_matrix_desc_t*"]
+descA    [type="const parsec_tiled_matrix_dc_t*"]
+descB    [type="parsec_tiled_matrix_dc_t*"]
 operator [type = "tiled_matrix_binary_op_t" ]
 op_args  [type = "void *" ]
 

@@ -86,7 +86,7 @@ int main(int argc, char* argv[] )
                                      descA.super.bsiz *
                                      parsec_datadist_getsizeoftype(TYPE) );
 
-    tp = parsec_strange_new( (parsec_ddesc_t*)&descA, n, &val, 2.5 );
+    tp = parsec_strange_new( (parsec_data_collection_t*)&descA, n, &val, 2.5 );
     assert( NULL != tp );
 
     parsec_arena_construct( tp->arenas[PARSEC_strange_DEFAULT_ARENA],

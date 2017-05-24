@@ -146,7 +146,7 @@ static int parsec_cuda_device_fini(parsec_device_t* device)
     return PARSEC_SUCCESS;
 }
 
-static int parsec_cuda_memory_register(parsec_device_t* device, parsec_ddesc_t* desc, void* ptr, size_t length)
+static int parsec_cuda_memory_register(parsec_device_t* device, parsec_data_collection_t* desc, void* ptr, size_t length)
 {
     cudaError_t status;
     int rc = PARSEC_ERROR;
@@ -174,7 +174,7 @@ static int parsec_cuda_memory_register(parsec_device_t* device, parsec_ddesc_t* 
     return rc;
 }
 
-static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_ddesc_t* desc, void* ptr)
+static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_data_collection_t* desc, void* ptr)
 {
     cudaError_t status;
     int rc = PARSEC_ERROR;
@@ -758,7 +758,7 @@ static void parsec_cuda_memory_release_list(gpu_device_t* gpu_device,
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                             "Release CUDA copy %p (device_ptr %p) [ref_count %d: must be 1], attached to %p, in map %p",
                             gpu_copy, gpu_copy->device_private, gpu_copy->super.super.obj_reference_count,
-                            original, (NULL != original ? original->ddesc : NULL));
+                            original, (NULL != original ? original->dc : NULL));
         assert( gpu_copy->device_index == gpu_device->super.device_index );
         if( DATA_COHERENCY_OWNED == gpu_copy->coherency_state ) {
             parsec_warning("GPU[%d] still OWNS the master memory copy for data %d and it is discarding it!",

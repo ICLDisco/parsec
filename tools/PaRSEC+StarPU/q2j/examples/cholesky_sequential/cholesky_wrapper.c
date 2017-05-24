@@ -5,7 +5,7 @@
 #include "cholesky.h"
 #include "cholesky_wrapper.h"
 
-parsec_taskpool_t *cholesky_new(parsec_ddesc_t *_A_, int _nb_, int _size_, PLASMA_enum _uplo_, int *_info_)
+parsec_taskpool_t *cholesky_new(parsec_data_collection_t *_A_, int _nb_, int _size_, PLASMA_enum _uplo_, int *_info_)
 {
     parsec_cholesky_taskpool_t *tp = NULL;
 

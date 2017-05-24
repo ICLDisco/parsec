@@ -13,7 +13,7 @@ extern "C" %{
 
 static inline void
 dplasma_zprint_tile( int m, int n,
-                     const tiled_matrix_desc_t* descA,
+                     const parsec_tiled_matrix_dc_t* descA,
                      parsec_complex64_t *M )
 {
     int tempmm = ( m == descA->mt-1 ) ? descA->m - m*descA->mb : descA->mb;
@@ -49,7 +49,7 @@ dplasma_zprint_tile( int m, int n,
  * Globals
  */
 uplo   [type = PLASMA_enum]
-descA  [type = "const tiled_matrix_desc_t*"]
+descA  [type = "const parsec_tiled_matrix_dc_t*"]
 
 plasma_upper [type = "PLASMA_enum"         hidden=on default=PlasmaUpper ]
 plasma_lower [type = "PLASMA_enum"         hidden=on default=PlasmaLower ]

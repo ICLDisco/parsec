@@ -17,7 +17,7 @@
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t *rtt_new(parsec_ddesc_t *A, int size, int nb);
+parsec_taskpool_t *rtt_new(parsec_data_collection_t *A, int size, int nb);
 
 /**
  * @param [INOUT] o the parsec object to destroy

@@ -18,7 +18,7 @@ globals() {
 }
 
 matrices() {
-    awk -v FS='[ |;|\*]+' 'BEGIN {dump=0} $6=="data" {dump=1} $2=="parsec_ddesc_t" && dump==1 { print $3}' $1
+    awk -v FS='[ |;|\*]+' 'BEGIN {dump=0} $6=="data" {dump=1} $2=="parsec_data_collection_t" && dump==1 { print $3}' $1
 }
 
 onefile() {
@@ -26,52 +26,52 @@ onefile() {
     BASE=$(basename $1 .h)
     GLOBALS=$(globals $1)
     MAT=$(matrices $1)
-    
+
     /bin/echo "#include \"dplasma/lib/$BASEFILE\""
     cat<<EOF
 static parsec_taskpool_t *${BASE}_create(int argc, char **argv)
 {
 EOF
-    
+
     for g in $GLOBALS ; do
-	/bin/echo "  int $g = -1; int ${g}_set = 0;"
+        /bin/echo "  int $g = -1; int ${g}_set = 0;"
     done
-    
+
     cat <<EOF
   parsec_taskpool_t *ret;
   int allset = 1;
   int i;
   for(i = 0; i < argc; i+= 2) {
 EOF
-    
+
     for g in $GLOBALS ; do
-	/bin/echo "    TRY_SET($g);"
+        /bin/echo "    TRY_SET($g);"
     done
-    
+
     /bin/echo "  }"
     /bin/echo ""
-    
+
     for g in $GLOBALS ; do
-	/bin/echo "  TEST_SET(\"$BASE\", $g);"
+        /bin/echo "  TEST_SET(\"$BASE\", $g);"
     done
-    
+
     cat<<EOF
   if( allset == 0 )
     return NULL;
 
 EOF
     /bin/echo -n "  ret = (parsec_taskpool_t*)parsec_${BASE}_new"
-    
+
     V="("
     for m in $MAT; do
-	/bin/echo -n "$V&pseudo_desc"
-	V=", "
+        /bin/echo -n "$V&pseudo_desc"
+        V=", "
     done
-    
+
     for g in $GLOBALS; do
-	/bin/echo -n "$V$g"
+        /bin/echo -n "$V$g"
     done
-    
+
     /bin/echo ");"
     /bin/echo "  return ret;"
     /bin/echo "}"

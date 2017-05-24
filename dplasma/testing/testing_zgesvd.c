@@ -59,12 +59,12 @@ int main(int argc, char ** argv)
     minMN = dplasma_imin(M, N);
 
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescBand, 1,
-        two_dim_block_cyclic, (&ddescBand, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcBand, 1,
+        two_dim_block_cyclic, (&dcBand, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB+1, NB, MB+1, minMN, 0, 0,
                                MB+1, minMN, 1, 1, 1));
 
@@ -88,17 +88,17 @@ int main(int argc, char ** argv)
             }
         }
 
-        dplasma_zlatms( parsec, PlasmaGeneral, (double)N, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zlatms( parsec, PlasmaGeneral, (double)N, (parsec_tiled_matrix_dc_t *)&dcA, 3872);
     }
     else {
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, 3872);
     }
 
     /* Create Parsec */
     PASTE_CODE_ENQUEUE_KERNEL(parsec, zgebrd_ge2gb,
                               (IB,
-                               (tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescBand));
+                               (parsec_tiled_matrix_dc_t*)&dcA,
+                               (parsec_tiled_matrix_dc_t*)&dcBand));
 
     /* lets rock! */
     SYNC_TIME_START();
@@ -125,7 +125,7 @@ int main(int argc, char ** argv)
                                         'N',
                                         M, N,
                                         0, 0, NB,
-                                        ddescBand.mat, MB+1,
+                                        dcBand.mat, MB+1,
                                         s1, e,
                                         NULL, 1,
                                         NULL, 1,
@@ -204,11 +204,11 @@ int main(int argc, char ** argv)
         free(s0);
     }
 
-    parsec_data_free(ddescA.mat);
-    parsec_data_free(ddescBand.mat);
+    parsec_data_free(dcA.mat);
+    parsec_data_free(dcBand.mat);
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescBand);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcBand);
 
     cleanup_parsec(parsec, iparam);
 

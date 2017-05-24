@@ -104,12 +104,12 @@
 int
 dplasma_zgels( parsec_context_t *parsec,
                PLASMA_enum trans,
-               tiled_matrix_desc_t* A,
-               tiled_matrix_desc_t* T,
-               tiled_matrix_desc_t* B )
+               parsec_tiled_matrix_dc_t* A,
+               parsec_tiled_matrix_dc_t* T,
+               parsec_tiled_matrix_dc_t* B )
 {
-    tiled_matrix_desc_t *subA;
-    tiled_matrix_desc_t *subB;
+    parsec_tiled_matrix_dc_t *subA;
+    parsec_tiled_matrix_dc_t *subB;
     int info = 0;
 
     /* Check input arguments */

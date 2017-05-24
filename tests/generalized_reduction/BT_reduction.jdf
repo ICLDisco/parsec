@@ -88,7 +88,7 @@ int global_to_local_index(int N, int idx){
 
 %}
 
-dataA      [type = "struct tiled_matrix_desc_t *"]
+dataA      [type = "struct parsec_tiled_matrix_dc_t *"]
 NB         [type = int]
 NT         [type = int]
 

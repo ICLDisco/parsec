@@ -24,7 +24,7 @@ extern void RBMM_zBTM( int mb, int nb, int lda, int off, int lvl, int N, int tra
 
 %}
 
-descA  [type = "parsec_seg_ddesc_t*"]
+descA  [type = "parsec_seg_dc_t*"]
 U      [type = "PLASMA_Complex64_t *"]
 nt     [type = "int"]
 mt     [type = "int"]

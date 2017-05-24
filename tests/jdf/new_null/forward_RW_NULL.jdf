@@ -13,7 +13,7 @@ extern "C" %{
  * Data descriptor used in the jdf can be declared manually as global to fix the
  * parameters order of the _New function
  */
-taskdist  [ type="parsec_ddesc_t*" ]
+taskdist  [ type="parsec_data_collection_t*" ]
 NB        [ type="int" ]
 
 Task(k)
@@ -34,7 +34,7 @@ END
 extern "C" %{
 
 static uint32_t
-rank_of(parsec_ddesc_t *desc, ...)
+rank_of(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -47,13 +47,13 @@ rank_of(parsec_ddesc_t *desc, ...)
 }
 
 static int32_t
-vpid_of(parsec_ddesc_t *desc, ...)
+vpid_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return 0;
 }
 
-static parsec_data_key_t data_key(parsec_ddesc_t *desc, ...)
+static parsec_data_key_t data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 {
     parsec_context_t* parsec;
     int rank, world;
-    parsec_ddesc_t taskdist;
+    parsec_data_collection_t taskdist;
     parsec_forward_RW_NULL_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
      * functions always return 0. A unique naming of data must also be provided
      * for profiling, we just return the index of the data as the key.
      */
-    parsec_ddesc_init(&taskdist, world, rank);
+    parsec_data_collection_init(&taskdist, world, rank);
     taskdist.rank_of  = rank_of;
     taskdist.vpid_of  = vpid_of;
     taskdist.data_key = data_key;
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
     /**
      * Cleanup the descriptor
      */
-    parsec_ddesc_destroy(&taskdist);
+    parsec_data_collection_destroy(&taskdist);
 
     parsec_fini(&parsec);
 #if defined(PARSEC_HAVE_MPI)

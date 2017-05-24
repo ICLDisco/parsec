@@ -74,13 +74,13 @@
 int
 dplasma_zgelqs_param( parsec_context_t *parsec,
                       dplasma_qrtree_t *qrtree,
-                      tiled_matrix_desc_t* A,
-                      tiled_matrix_desc_t* TS,
-                      tiled_matrix_desc_t* TT,
-                      tiled_matrix_desc_t* B )
+                      parsec_tiled_matrix_dc_t* A,
+                      parsec_tiled_matrix_dc_t* TS,
+                      parsec_tiled_matrix_dc_t* TT,
+                      parsec_tiled_matrix_dc_t* B )
 {
-    tiled_matrix_desc_t *subA;
-    tiled_matrix_desc_t *subB;
+    parsec_tiled_matrix_dc_t *subA;
+    parsec_tiled_matrix_dc_t *subB;
 
     /* Check input arguments */
     if ( A->m > A->n ) {

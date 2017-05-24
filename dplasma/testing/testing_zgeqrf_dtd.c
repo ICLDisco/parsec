@@ -176,15 +176,15 @@ parsec_core_tsmqr(parsec_execution_stream_t *es, parsec_task_t * this_task)
 
 
 static int check_orthogonality(parsec_context_t *parsec, int loud,
-                               tiled_matrix_desc_t *Q);
+                               parsec_tiled_matrix_dc_t *Q);
 static int check_factorization(parsec_context_t *parsec, int loud,
-                               tiled_matrix_desc_t *Aorig,
-                               tiled_matrix_desc_t *A,
-                               tiled_matrix_desc_t *Q);
+                               parsec_tiled_matrix_dc_t *Aorig,
+                               parsec_tiled_matrix_dc_t *A,
+                               parsec_tiled_matrix_dc_t *Q);
 static int check_solution( parsec_context_t *parsec, int loud,
-                           tiled_matrix_desc_t *ddescA,
-                           tiled_matrix_desc_t *ddescB,
-                           tiled_matrix_desc_t *ddescX );
+                           parsec_tiled_matrix_dc_t *dcA,
+                           parsec_tiled_matrix_dc_t *dcB,
+                           parsec_tiled_matrix_dc_t *dcX );
 
 int main(int argc, char ** argv)
 {
@@ -209,51 +209,51 @@ int main(int argc, char ** argv)
     LDB = max(M, LDB);
 
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
-    /* Initializing ddesc for dtd */
-    two_dim_block_cyclic_t *__ddescA = &ddescA;
-    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescA);
+    /* Initializing dc for dtd */
+    two_dim_block_cyclic_t *__dcA = &dcA;
+    parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcA);
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
-        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcT, 1,
+        two_dim_block_cyclic, (&dcT, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SNB, P));
 
-    /* Initializing ddesc for dtd */
-    two_dim_block_cyclic_t *__ddescT = &ddescT;
-    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescT);
+    /* Initializing dc for dtd */
+    two_dim_block_cyclic_t *__dcT = &dcT;
+    parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcT);
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-        two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA0, check,
+        two_dim_block_cyclic, (&dcA0, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescQ, check,
-        two_dim_block_cyclic, (&ddescQ, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcQ, check,
+        two_dim_block_cyclic, (&dcQ, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, SMB, SNB, P));
 
     /* Check the solution */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcB, check,
+        two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                M, NRHS, SMB, SNB, P));
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-        two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcX, check,
+        two_dim_block_cyclic, (&dcX, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                M, NRHS, SMB, SNB, P));
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, 3872);
     if( check )
         dplasma_zlacpy( parsec, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescA, (tiled_matrix_desc_t *)&ddescA0 );
-    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&ddescT);
+                        (parsec_tiled_matrix_dc_t *)&dcA, (parsec_tiled_matrix_dc_t *)&dcA0 );
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (parsec_tiled_matrix_dc_t *)&dcT);
     if(loud > 3) printf("Done\n");
 
     /* Getting new parsec handle of dtd type */
@@ -263,34 +263,34 @@ int main(int argc, char ** argv)
     int k, m, n;
     int ldak, ldam;
     int tempkm, tempkn, tempnn, tempmm;
-    int ib = ddescT.super.mb;
-    int minMNT = min(ddescA.super.mt, ddescA.super.nt);
+    int ib = dcT.super.mb;
+    int minMNT = min(dcA.super.mt, dcA.super.nt);
     int side = PlasmaLeft;
     int trans = PlasmaConjTrans;
 
     /* Allocating data arrays to be used by comm engine */
     /* Default type */
     dplasma_add2arena_tile( parsec_dtd_arenas[TILE_FULL],
-                            ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                            dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
-                            parsec_datatype_double_complex_t, ddescA.super.mb );
+                            parsec_datatype_double_complex_t, dcA.super.mb );
 
     /* Lower triangular part of tile without diagonal */
     dplasma_add2arena_lower( parsec_dtd_arenas[TILE_LOWER],
-                             ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                             dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
-                             parsec_datatype_double_complex_t, ddescA.super.mb, 0 );
+                             parsec_datatype_double_complex_t, dcA.super.mb, 0 );
 
     /* Upper triangular part of tile with diagonal */
     dplasma_add2arena_upper( parsec_dtd_arenas[TILE_UPPER],
-                             ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                             dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
                              PARSEC_ARENA_ALIGNMENT_SSE,
-                             parsec_datatype_double_complex_t, ddescA.super.mb, 1 );
+                             parsec_datatype_double_complex_t, dcA.super.mb, 1 );
 
     dplasma_add2arena_rectangle( parsec_dtd_arenas[TILE_RECTANGLE],
-                                 ddescT.super.mb*ddescT.super.nb*sizeof(parsec_complex64_t),
+                                 dcT.super.mb*dcT.super.nb*sizeof(parsec_complex64_t),
                                  PARSEC_ARENA_ALIGNMENT_SSE,
-                                 parsec_datatype_double_complex_t, ddescT.super.mb, ddescT.super.nb, -1);
+                                 parsec_datatype_double_complex_t, dcT.super.mb, dcT.super.nb, -1);
 
     /* Registering the handle with parsec context */
     parsec_enqueue(parsec, dtd_tp);
@@ -304,25 +304,25 @@ int main(int argc, char ** argv)
 
     /* Testing Insert Function */
     for( k = 0; k < minMNT; k++ ) {
-        tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-(k*ddescA.super.mb) : ddescA.super.mb;
-        tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-(k*ddescA.super.nb) : ddescA.super.nb;
-        ldak = BLKLDD( (tiled_matrix_desc_t*)&ddescA, k);
+        tempkm = k == dcA.super.mt-1 ? dcA.super.m-(k*dcA.super.mb) : dcA.super.mb;
+        tempkn = k == dcA.super.nt-1 ? dcA.super.n-(k*dcA.super.nb) : dcA.super.nb;
+        ldak = BLKLDD( (parsec_tiled_matrix_dc_t*)&dcA, k);
 
         parsec_insert_task( dtd_tp,      parsec_core_geqrt,
-                          (ddescA.super.nt-k)*(ddescA.super.nt-k)*(ddescA.super.nt-k), "geqrt",
+                          (dcA.super.nt-k)*(dcA.super.nt-k)*(dcA.super.nt-k), "geqrt",
                            sizeof(int),           &tempkm,                           VALUE,
                            sizeof(int),           &tempkn,                           VALUE,
                            sizeof(int),           &ib,                               VALUE,
                            PASSED_BY_REF,         TILE_OF(A, k, k),     INOUT | TILE_FULL | AFFINITY,
                            sizeof(int),           &ldak,                             VALUE,
                            PASSED_BY_REF,         TILE_OF(T, k, k),     OUTPUT | TILE_RECTANGLE,
-                           sizeof(int),           &ddescT.super.mb,                  VALUE,
-                           sizeof(parsec_complex64_t)*ddescT.super.nb,       NULL,   SCRATCH,
-                           sizeof(parsec_complex64_t)*ib*ddescT.super.nb,    NULL,   SCRATCH,
+                           sizeof(int),           &dcT.super.mb,                  VALUE,
+                           sizeof(parsec_complex64_t)*dcT.super.nb,       NULL,   SCRATCH,
+                           sizeof(parsec_complex64_t)*ib*dcT.super.nb,    NULL,   SCRATCH,
                            0 );
 
-        for( n = k+1; n < ddescA.super.nt; n++ ) {
-            tempnn = n == ddescA.super.nt-1 ? ddescA.super.n-(n*ddescA.super.nb) : ddescA.super.nb;
+        for( n = k+1; n < dcA.super.nt; n++ ) {
+            tempnn = n == dcA.super.nt-1 ? dcA.super.n-(n*dcA.super.nb) : dcA.super.nb;
 
             parsec_insert_task( dtd_tp,      parsec_core_unmqr,          0,    "unmqr",
                                sizeof(PLASMA_enum),   &side,                              VALUE,
@@ -334,21 +334,21 @@ int main(int argc, char ** argv)
                                PASSED_BY_REF,         TILE_OF(A, k, k),      INPUT | TILE_LOWER,
                                sizeof(int),           &ldak,                              VALUE,
                                PASSED_BY_REF,         TILE_OF(T, k, k),      INPUT | TILE_RECTANGLE,
-                               sizeof(int),           &ddescT.super.mb,                   VALUE,
+                               sizeof(int),           &dcT.super.mb,                   VALUE,
                                PASSED_BY_REF,         TILE_OF(A, k, n),      INOUT | TILE_FULL | AFFINITY,
                                sizeof(int),           &ldak,                              VALUE,
-                               sizeof(parsec_complex64_t)*ib*ddescT.super.nb,   NULL,     SCRATCH,
-                               sizeof(int),           &ddescT.super.nb,                   VALUE,
+                               sizeof(parsec_complex64_t)*ib*dcT.super.nb,   NULL,     SCRATCH,
+                               sizeof(int),           &dcT.super.nb,                   VALUE,
                                0 );
         }
         parsec_dtd_data_flush( dtd_tp, TILE_OF(T, k, k) );
 
-        for( m = k+1; m < ddescA.super.mt; m++ ) {
-            tempmm = m == ddescA.super.mt-1 ? ddescA.super.m-(m*ddescA.super.mb) : ddescA.super.mb;
-            ldam = BLKLDD( (tiled_matrix_desc_t*)&ddescA, m);
+        for( m = k+1; m < dcA.super.mt; m++ ) {
+            tempmm = m == dcA.super.mt-1 ? dcA.super.m-(m*dcA.super.mb) : dcA.super.mb;
+            ldam = BLKLDD( (parsec_tiled_matrix_dc_t*)&dcA, m);
 
             parsec_insert_task( dtd_tp,      parsec_core_tsqrt,
-                              (ddescA.super.mt-k)*(ddescA.super.mt-k)*(ddescA.super.mt-k),  "tsqrt",
+                              (dcA.super.mt-k)*(dcA.super.mt-k)*(dcA.super.mt-k),  "tsqrt",
                                sizeof(PLASMA_enum),   &tempmm,                            VALUE,
                                sizeof(int),           &tempkn,                            VALUE,
                                sizeof(int),           &ib,                                VALUE,
@@ -357,24 +357,24 @@ int main(int argc, char ** argv)
                                PASSED_BY_REF,         TILE_OF(A, m, k),     INOUT | TILE_FULL | AFFINITY,
                                sizeof(int),           &ldam,                              VALUE,
                                PASSED_BY_REF,         TILE_OF(T, m, k),     OUTPUT | TILE_RECTANGLE,
-                               sizeof(int),           &ddescT.super.mb,                   VALUE,
-                               sizeof(parsec_complex64_t)*ddescT.super.nb,       NULL,    SCRATCH,
-                               sizeof(parsec_complex64_t)*ib*ddescT.super.nb,    NULL,    SCRATCH,
+                               sizeof(int),           &dcT.super.mb,                   VALUE,
+                               sizeof(parsec_complex64_t)*dcT.super.nb,       NULL,    SCRATCH,
+                               sizeof(parsec_complex64_t)*ib*dcT.super.nb,    NULL,    SCRATCH,
                                0 );
 
-            for( n = k+1; n < ddescA.super.nt; n++ ) {
-                tempnn = n == ddescA.super.nt-1 ? ddescA.super.n-(n*ddescA.super.nb) : ddescA.super.nb;
-                int ldwork = PlasmaLeft == PlasmaLeft ? ib : ddescT.super.nb;
+            for( n = k+1; n < dcA.super.nt; n++ ) {
+                tempnn = n == dcA.super.nt-1 ? dcA.super.n-(n*dcA.super.nb) : dcA.super.nb;
+                int ldwork = PlasmaLeft == PlasmaLeft ? ib : dcT.super.nb;
 
                 parsec_insert_task( dtd_tp,      parsec_core_tsmqr,
-                                  (ddescA.super.mt-k)*(ddescA.super.mt-n)*(ddescA.super.mt-n),        "tsmqr",
+                                  (dcA.super.mt-k)*(dcA.super.mt-n)*(dcA.super.mt-n),        "tsmqr",
                                    sizeof(PLASMA_enum),   &side,                             VALUE,
                                    sizeof(PLASMA_enum),   &trans,                            VALUE,
-                                   sizeof(int),           &ddescA.super.mb,                  VALUE,
+                                   sizeof(int),           &dcA.super.mb,                  VALUE,
                                    sizeof(int),           &tempnn,                           VALUE,
                                    sizeof(int),           &tempmm,                           VALUE,
                                    sizeof(int),           &tempnn,                           VALUE,
-                                   sizeof(int),           &ddescA.super.nb,                  VALUE,
+                                   sizeof(int),           &dcA.super.nb,                  VALUE,
                                    sizeof(int),           &ib,                               VALUE,
                                    PASSED_BY_REF,         TILE_OF(A, k, n),     INOUT | TILE_FULL,
                                    sizeof(int),           &ldak,                             VALUE,
@@ -383,24 +383,24 @@ int main(int argc, char ** argv)
                                    PASSED_BY_REF,         TILE_OF(A, m, k),     INPUT | TILE_FULL,
                                    sizeof(int),           &ldam,                             VALUE,
                                    PASSED_BY_REF,         TILE_OF(T, m, k),     INPUT | TILE_RECTANGLE,
-                                   sizeof(int),           &ddescT.super.mb,                  VALUE,
-                                   sizeof(parsec_complex64_t)*ib*ddescT.super.nb,    NULL,   SCRATCH,
+                                   sizeof(int),           &dcT.super.mb,                  VALUE,
+                                   sizeof(parsec_complex64_t)*ib*dcT.super.nb,    NULL,   SCRATCH,
                                    sizeof(int),           &ldwork,                           VALUE,
                                    0 );
             }
             parsec_dtd_data_flush( dtd_tp, TILE_OF(T, m, k) );
         }
-        for( n = k+1; n < ddescA.super.nt; n++ ) {
+        for( n = k+1; n < dcA.super.nt; n++ ) {
             parsec_dtd_data_flush( dtd_tp, TILE_OF(A, k, n) );
         }
-        for( m = k+1; m < ddescA.super.mt; m++ ) {
+        for( m = k+1; m < dcA.super.mt; m++ ) {
             parsec_dtd_data_flush( dtd_tp, TILE_OF(A, m, k) );
         }
         parsec_dtd_data_flush( dtd_tp, TILE_OF(A, k, k) );
     }
 
-    parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescA );
-    parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescT );
+    parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcA );
+    parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcT );
 
     /* finishing all the tasks inserted, but not finishing the handle */
     parsec_dtd_taskpool_wait( parsec, dtd_tp );
@@ -419,46 +419,46 @@ int main(int argc, char ** argv)
         if (M >= N) {
             if(loud > 2) printf("+++ Generate the Q ...");
             dplasma_zungqr( parsec,
-                            (tiled_matrix_desc_t *)&ddescA,
-                            (tiled_matrix_desc_t *)&ddescT,
-                            (tiled_matrix_desc_t *)&ddescQ);
+                            (parsec_tiled_matrix_dc_t *)&dcA,
+                            (parsec_tiled_matrix_dc_t *)&dcT,
+                            (parsec_tiled_matrix_dc_t *)&dcQ);
             if(loud > 2) printf("Done\n");
 
             if(loud > 2) printf("+++ Solve the system ...");
-            dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescX, 2354);
+            dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcX, 2354);
             dplasma_zlacpy( parsec, PlasmaUpperLower,
-                            (tiled_matrix_desc_t *)&ddescX,
-                            (tiled_matrix_desc_t *)&ddescB );
+                            (parsec_tiled_matrix_dc_t *)&dcX,
+                            (parsec_tiled_matrix_dc_t *)&dcB );
             dplasma_zgeqrs( parsec,
-                            (tiled_matrix_desc_t *)&ddescA,
-                            (tiled_matrix_desc_t *)&ddescT,
-                            (tiled_matrix_desc_t *)&ddescX );
+                            (parsec_tiled_matrix_dc_t *)&dcA,
+                            (parsec_tiled_matrix_dc_t *)&dcT,
+                            (parsec_tiled_matrix_dc_t *)&dcX );
             if(loud > 2) printf("Done\n");
 
             /* Check the orthogonality, factorization and the solution */
             ret |= check_orthogonality( parsec, (rank == 0) ? loud : 0,
-                                        (tiled_matrix_desc_t *)&ddescQ);
+                                        (parsec_tiled_matrix_dc_t *)&dcQ);
             ret |= check_factorization( parsec, (rank == 0) ? loud : 0,
-                                        (tiled_matrix_desc_t *)&ddescA0,
-                                        (tiled_matrix_desc_t *)&ddescA,
-                                        (tiled_matrix_desc_t *)&ddescQ );
+                                        (parsec_tiled_matrix_dc_t *)&dcA0,
+                                        (parsec_tiled_matrix_dc_t *)&dcA,
+                                        (parsec_tiled_matrix_dc_t *)&dcQ );
             ret |= check_solution( parsec, (rank == 0) ? loud : 0,
-                                   (tiled_matrix_desc_t *)&ddescA0,
-                                   (tiled_matrix_desc_t *)&ddescB,
-                                   (tiled_matrix_desc_t *)&ddescX );
+                                   (parsec_tiled_matrix_dc_t *)&dcA0,
+                                   (parsec_tiled_matrix_dc_t *)&dcB,
+                                   (parsec_tiled_matrix_dc_t *)&dcX );
 
         } else {
             printf("Check cannot be performed when N > M\n");
         }
 
-        parsec_data_free(ddescA0.mat);
-        parsec_data_free(ddescQ.mat);
-        parsec_data_free(ddescB.mat);
-        parsec_data_free(ddescX.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescQ);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX);
+        parsec_data_free(dcA0.mat);
+        parsec_data_free(dcQ.mat);
+        parsec_data_free(dcB.mat);
+        parsec_data_free(dcX.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA0);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcQ);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcX);
     }
 
     /* Cleaning data arrays we allocated for communication */
@@ -467,13 +467,13 @@ int main(int argc, char ** argv)
     parsec_matrix_del2arena( parsec_dtd_arenas[TILE_UPPER] );
     parsec_matrix_del2arena( parsec_dtd_arenas[TILE_RECTANGLE] );
 
-    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescA );
-    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescT );
+    parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcA );
+    parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcT );
 
-    parsec_data_free(ddescA.mat);
-    parsec_data_free(ddescT.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
+    parsec_data_free(dcA.mat);
+    parsec_data_free(dcT.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcT);
 
     cleanup_parsec(parsec, iparam);
 
@@ -483,7 +483,7 @@ int main(int argc, char ** argv)
 /*-------------------------------------------------------------------
  * Check the orthogonality of Q
  */
-static int check_orthogonality(parsec_context_t *parsec, int loud, tiled_matrix_desc_t *Q)
+static int check_orthogonality(parsec_context_t *parsec, int loud, parsec_tiled_matrix_dc_t *Q)
 {
     two_dim_block_cyclic_t *twodQ = (two_dim_block_cyclic_t *)Q;
     double normQ = 999999.0;
@@ -500,18 +500,18 @@ static int check_orthogonality(parsec_context_t *parsec, int loud, tiled_matrix_
                                Q->mb, Q->nb, minMN, minMN, 0, 0,
                                minMN, minMN, twodQ->grid.strows, twodQ->grid.stcols, twodQ->grid.rows));
 
-    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (tiled_matrix_desc_t *)&Id);
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 1., (parsec_tiled_matrix_dc_t *)&Id);
 
     /* Perform Id - Q'Q */
     if ( M >= N ) {
         dplasma_zherk( parsec, PlasmaUpper, PlasmaConjTrans,
-                       1.0, Q, -1.0, (tiled_matrix_desc_t*)&Id );
+                       1.0, Q, -1.0, (parsec_tiled_matrix_dc_t*)&Id );
     } else {
         dplasma_zherk( parsec, PlasmaUpper, PlasmaNoTrans,
-                       1.0, Q, -1.0, (tiled_matrix_desc_t*)&Id );
+                       1.0, Q, -1.0, (parsec_tiled_matrix_dc_t*)&Id );
     }
 
-    normQ = dplasma_zlanhe(parsec, PlasmaInfNorm, PlasmaUpper, (tiled_matrix_desc_t*)&Id);
+    normQ = dplasma_zlanhe(parsec, PlasmaInfNorm, PlasmaUpper, (parsec_tiled_matrix_dc_t*)&Id);
 
     result = normQ / (minMN * eps);
     if ( loud ) {
@@ -530,7 +530,7 @@ static int check_orthogonality(parsec_context_t *parsec, int loud, tiled_matrix_
     }
 
     parsec_data_free(Id.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&Id);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&Id);
     return info_ortho;
 }
 
@@ -539,11 +539,11 @@ static int check_orthogonality(parsec_context_t *parsec, int loud, tiled_matrix_
  */
 static int
 check_factorization(parsec_context_t *parsec, int loud,
-                    tiled_matrix_desc_t *Aorig,
-                    tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *Q)
+                    parsec_tiled_matrix_dc_t *Aorig,
+                    parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *Q)
 {
-    tiled_matrix_desc_t *subA;
+    parsec_tiled_matrix_dc_t *subA;
     two_dim_block_cyclic_t *twodA = (two_dim_block_cyclic_t *)A;
     double Anorm, Rnorm;
     double result;
@@ -566,25 +566,25 @@ check_factorization(parsec_context_t *parsec, int loud,
                                N, N, twodA->grid.strows, twodA->grid.stcols, twodA->grid.rows));
 
     /* Copy the original A in Residual */
-    dplasma_zlacpy( parsec, PlasmaUpperLower, Aorig, (tiled_matrix_desc_t *)&Residual );
+    dplasma_zlacpy( parsec, PlasmaUpperLower, Aorig, (parsec_tiled_matrix_dc_t *)&Residual );
 
     /* Extract the R */
-    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (tiled_matrix_desc_t *)&R);
+    dplasma_zlaset( parsec, PlasmaUpperLower, 0., 0., (parsec_tiled_matrix_dc_t *)&R);
 
     subA = tiled_matrix_submatrix( A, 0, 0, N, N );
-    dplasma_zlacpy( parsec, PlasmaUpper, subA, (tiled_matrix_desc_t *)&R );
+    dplasma_zlacpy( parsec, PlasmaUpper, subA, (parsec_tiled_matrix_dc_t *)&R );
     free(subA);
 
     /* Perform Residual = Aorig - Q*R */
     dplasma_zgemm( parsec, PlasmaNoTrans, PlasmaNoTrans,
-                   -1.0, Q, (tiled_matrix_desc_t *)&R,
-                    1.0, (tiled_matrix_desc_t *)&Residual);
+                   -1.0, Q, (parsec_tiled_matrix_dc_t *)&R,
+                    1.0, (parsec_tiled_matrix_dc_t *)&Residual);
 
     /* Free R */
     parsec_data_free(R.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&R);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&R);
 
-    Rnorm = dplasma_zlange(parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&Residual);
+    Rnorm = dplasma_zlange(parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&Residual);
     Anorm = dplasma_zlange(parsec, PlasmaInfNorm, Aorig);
 
     result = Rnorm / ( Anorm * minMN * eps);
@@ -605,16 +605,16 @@ check_factorization(parsec_context_t *parsec, int loud,
     }
 
     parsec_data_free(Residual.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&Residual);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&Residual);
     return info_factorization;
 }
 
 static int check_solution( parsec_context_t *parsec, int loud,
-                           tiled_matrix_desc_t *ddescA,
-                           tiled_matrix_desc_t *ddescB,
-                           tiled_matrix_desc_t *ddescX )
+                           parsec_tiled_matrix_dc_t *dcA,
+                           parsec_tiled_matrix_dc_t *dcB,
+                           parsec_tiled_matrix_dc_t *dcX )
 {
-    tiled_matrix_desc_t *subX;
+    parsec_tiled_matrix_dc_t *subX;
     int info_solution;
     double Rnorm = 0.0;
     double Anorm = 0.0;
@@ -622,23 +622,23 @@ static int check_solution( parsec_context_t *parsec, int loud,
     double Xnorm, result;
     double eps = LAPACKE_dlamch_work('e');
 
-    subX = tiled_matrix_submatrix( ddescX, 0, 0, ddescA->n, ddescX->n );
+    subX = tiled_matrix_submatrix( dcX, 0, 0, dcA->n, dcX->n );
 
-    Anorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescA);
-    Bnorm = dplasma_zlange(parsec, PlasmaInfNorm, ddescB);
+    Anorm = dplasma_zlange(parsec, PlasmaInfNorm, dcA);
+    Bnorm = dplasma_zlange(parsec, PlasmaInfNorm, dcB);
     Xnorm = dplasma_zlange(parsec, PlasmaInfNorm, subX);
 
     /* Compute A*x-b */
-    dplasma_zgemm( parsec, PlasmaNoTrans, PlasmaNoTrans, 1.0, ddescA, subX, -1.0, ddescB);
+    dplasma_zgemm( parsec, PlasmaNoTrans, PlasmaNoTrans, 1.0, dcA, subX, -1.0, dcB);
 
     /* Compute A' * ( A*x - b ) */
     dplasma_zgemm( parsec, PlasmaConjTrans, PlasmaNoTrans,
-                   1.0, ddescA, ddescB, 0., subX );
+                   1.0, dcA, dcB, 0., subX );
 
     Rnorm = dplasma_zlange( parsec, PlasmaInfNorm, subX );
     free(subX);
 
-    result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * ddescA->n * eps ) ;
+    result = Rnorm / ( ( Anorm * Xnorm + Bnorm ) * dcA->n * eps ) ;
 
     if ( loud > 2 ) {
         printf("============\n");

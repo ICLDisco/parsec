@@ -63,7 +63,7 @@ int main(int argc, char ** argv)
     parsec_context_t* parsec;
     int rank, world, cores;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
 
     cores = 8;
     int i, j;
@@ -99,11 +99,11 @@ int main(int argc, char ** argv)
                           MPI_INT);
 #endif
 
-    ddescA = create_and_distribute_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
 
     #if 0
     parsec_data_copy_t *gdata;
@@ -175,8 +175,8 @@ int main(int argc, char ** argv)
 
     parsec_taskpool_free( dtd_tp );
 
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
     parsec_fini(&parsec);
 

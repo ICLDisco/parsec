@@ -24,8 +24,8 @@ extern "C" %{
 
 %}
 
-descA  [type = "tiled_matrix_desc_t*"]
-descT  [type = "tiled_matrix_desc_t*" aligned=descA]
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+descT  [type = "parsec_tiled_matrix_dc_t*" aligned=descA]
 ib     [type = "int"]
 p_work [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)*ib*descT->nb)"]
 p_tau  [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)   *descT->nb)"]
@@ -98,8 +98,8 @@ BODY [type=RECURSIVE]
         small_descT->mat = T;
 
         /* parsec_object */
-        parsec_zgeqrt = dplasma_zgeqrfr_geqrt_New( (tiled_matrix_desc_t *)small_descA,
-                                                  (tiled_matrix_desc_t *)small_descT,
+        parsec_zgeqrt = dplasma_zgeqrfr_geqrt_New( (parsec_tiled_matrix_dc_t *)small_descA,
+                                                  (parsec_tiled_matrix_dc_t *)small_descT,
                                                   p_work );
 
         /* recursive call */
@@ -189,9 +189,9 @@ BODY [type=RECURSIVE]
         small_descT->mat = T;
 
         /* parsec_object */
-        parsec_zunmqr_panel = dplasma_zgeqrfr_unmqr_New( (tiled_matrix_desc_t *)small_descA,
-                                                        (tiled_matrix_desc_t *)small_descT,
-                                                        (tiled_matrix_desc_t *)small_descC,
+        parsec_zunmqr_panel = dplasma_zgeqrfr_unmqr_New( (parsec_tiled_matrix_dc_t *)small_descA,
+                                                        (parsec_tiled_matrix_dc_t *)small_descT,
+                                                        (parsec_tiled_matrix_dc_t *)small_descC,
                                                         p_work );
 
         /* recursive call */
@@ -303,9 +303,9 @@ BODY [type=RECURSIVE]
         small_descT->mat = T;
 
         /* parsec_object */
-        parsec_ztsqrt = dplasma_zgeqrfr_tsqrt_New((tiled_matrix_desc_t *)small_descA1,
-                                                 (tiled_matrix_desc_t *)small_descA2,
-                                                 (tiled_matrix_desc_t *)small_descT,
+        parsec_ztsqrt = dplasma_zgeqrfr_tsqrt_New((parsec_tiled_matrix_dc_t *)small_descA1,
+                                                 (parsec_tiled_matrix_dc_t *)small_descA2,
+                                                 (parsec_tiled_matrix_dc_t *)small_descT,
                                                  p_work, p_tau );
 
         /* recursive call */
@@ -451,10 +451,10 @@ BODY [type=RECURSIVE]
         small_descT->mat  = T;
 
         /* parsec_object */
-        parsec_ztsmqr = dplasma_zgeqrfr_tsmqr_New( (tiled_matrix_desc_t *)small_descA1,
-                                                  (tiled_matrix_desc_t *)small_descA2,
-                                                  (tiled_matrix_desc_t *)small_descV,
-                                                  (tiled_matrix_desc_t *)small_descT,
+        parsec_ztsmqr = dplasma_zgeqrfr_tsmqr_New( (parsec_tiled_matrix_dc_t *)small_descA1,
+                                                  (parsec_tiled_matrix_dc_t *)small_descA2,
+                                                  (parsec_tiled_matrix_dc_t *)small_descV,
+                                                  (parsec_tiled_matrix_dc_t *)small_descT,
                                                   p_work );
 
         /* recursive call */

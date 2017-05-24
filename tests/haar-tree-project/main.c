@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
                            PARSEC_ARENA_ALIGNMENT_SSE,
                            parsec_datatype_float_t
                          );
-    project = parsec_project_new(treeA, world, (parsec_ddesc_t*)&fakeDesc, 1e-3, be_verbose);
+    project = parsec_project_new(treeA, world, (parsec_data_collection_t*)&fakeDesc, 1e-3, be_verbose);
     project->arenas[PARSEC_project_DEFAULT_ARENA] = &arena;
     rc = parsec_enqueue(parsec, &project->super);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
@@ -239,12 +239,12 @@ int main(int argc, char *argv[])
     PARSEC_CHECK_ERROR(rc, "parsec_context_wait");
 
     if( do_checks ) {
-        walker = parsec_walk_new(treeA, world, (parsec_ddesc_t*)&fakeDesc,
+        walker = parsec_walk_new(treeA, world, (parsec_data_collection_t*)&fakeDesc,
                                 &cksum, cksum_node_fn, NULL,
                                 be_verbose);
     } else {
         rs = rs_new();
-        walker = parsec_walk_new(treeA, world, (parsec_ddesc_t*)&fakeDesc,
+        walker = parsec_walk_new(treeA, world, (parsec_data_collection_t*)&fakeDesc,
                                 rs, print_node_fn, print_link_fn,
                                 be_verbose);
     }

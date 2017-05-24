@@ -21,7 +21,7 @@ static int check_solution( parsec_context_t *parsec, int loud,
                            parsec_complex64_t alpha, int Am, int An, int Aseed,
                                                     int Bm, int Bn, int Bseed,
                            parsec_complex64_t beta,  int M,  int N,  int Cseed,
-                           two_dim_block_cyclic_t *ddescCfinal );
+                           two_dim_block_cyclic_t *dcCfinal );
 
 static int
 parsec_core_gemm(parsec_execution_stream_t *es, parsec_task_t *this_task)
@@ -98,50 +98,50 @@ int main(int argc, char ** argv)
     LDB = max(LDB, max(K, N));
     LDC = max(LDC, M);
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
-        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcC, 1,
+        two_dim_block_cyclic, (&dcC, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDC, N, 0, 0,
                                M, N, SMB, SNB, P));
 
-    /* Initializing ddesc for dtd */
-    two_dim_block_cyclic_t *__ddescC = &ddescC;
-    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescC);
+    /* Initializing dc for dtd */
+    two_dim_block_cyclic_t *__dcC = &dcC;
+    parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcC);
 
     /* initializing matrix structure */
     if(!check)
     {
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-            two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+            two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDA, K, 0, 0,
                                    M, K, SMB, SNB, P));
 
-        /* Initializing ddesc for dtd */
-        two_dim_block_cyclic_t *__ddescA = &ddescA;
-        parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescA);
+        /* Initializing dc for dtd */
+        two_dim_block_cyclic_t *__dcA = &dcA;
+        parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcA);
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
+            two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDB, N, 0, 0,
                                    K, N, SMB, SNB, P));
 
-        /* Initializing ddesc for dtd */
-        two_dim_block_cyclic_t *__ddescB = &ddescB;
-        parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescB);
+        /* Initializing dc for dtd */
+        two_dim_block_cyclic_t *__dcB = &dcB;
+        parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcB);
 
         /* Getting new parsec handle of dtd type */
         parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new( );
 
         /* Default type */
         dplasma_add2arena_tile( parsec_dtd_arenas[TILE_FULL],
-                                ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                                dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
                                 PARSEC_ARENA_ALIGNMENT_SSE,
-                                parsec_datatype_double_complex_t, ddescA.super.mb );
+                                parsec_datatype_double_complex_t, dcA.super.mb );
 
         /* matrix generation */
         if(loud > 2) printf("+++ Generate matrices ... ");
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC, Cseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, Aseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcB, Bseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC, Cseed);
         if(loud > 2) printf("Done\n");
 
         int m, n, k;
@@ -160,20 +160,20 @@ int main(int argc, char ** argv)
         /* start parsec context */
         parsec_context_start(parsec);
 
-        for( m = 0; m < ddescC.super.mt; m++ ) {
-            tempmm = m == ddescC.super.mt-1 ? ddescC.super.m-m*ddescC.super.mb : ddescC.super.mb;
-            ldcm = BLKLDD(&ddescC.super, m);
-            for( n = 0; n < ddescC.super.nt; n++ ) {
-                tempnn = n == ddescC.super.nt-1 ? ddescC.super.n-n*ddescC.super.nb : ddescC.super.nb;
+        for( m = 0; m < dcC.super.mt; m++ ) {
+            tempmm = m == dcC.super.mt-1 ? dcC.super.m-m*dcC.super.mb : dcC.super.mb;
+            ldcm = BLKLDD(&dcC.super, m);
+            for( n = 0; n < dcC.super.nt; n++ ) {
+                tempnn = n == dcC.super.nt-1 ? dcC.super.n-n*dcC.super.nb : dcC.super.nb;
                 /*
                  *  A: PlasmaNoTrans / B: PlasmaNoTrans
                  */
                 if( tA == PlasmaNoTrans ) {
-                    ldam = BLKLDD(&ddescA.super, m);
+                    ldam = BLKLDD(&dcA.super, m);
                     if( tB == PlasmaNoTrans ) {
-                        for( k = 0; k < ddescA.super.nt; k++ ) {
-                            tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-k*ddescA.super.nb : ddescA.super.nb;
-                            ldbk = BLKLDD(&ddescB.super, k);
+                        for( k = 0; k < dcA.super.nt; k++ ) {
+                            tempkn = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
+                            ldbk = BLKLDD(&dcB.super, k);
                             zbeta = k == 0 ? beta : zone;
 
                             parsec_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
@@ -197,9 +197,9 @@ int main(int argc, char ** argv)
                      *  A: PlasmaNoTrans / B: Plasma[Conj]Trans
                      */
                     else {
-                        ldbn = BLKLDD(&ddescB.super, n);
-                        for( k = 0; k < ddescA.super.nt; k++ ) {
-                            tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-k*ddescA.super.nb : ddescA.super.nb;
+                        ldbn = BLKLDD(&dcB.super, n);
+                        for( k = 0; k < dcA.super.nt; k++ ) {
+                            tempkn = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
                             zbeta = k == 0 ? beta : zone;
 
                             parsec_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
@@ -225,9 +225,9 @@ int main(int argc, char ** argv)
                  */
                 else {
                     if( tB == PlasmaNoTrans ) {
-                        for( k = 0; k < ddescA.super.mt; k++ ) {
-                            ldak = BLKLDD(&ddescA.super, k);
-                            ldbk = BLKLDD(&ddescB.super, k);
+                        for( k = 0; k < dcA.super.mt; k++ ) {
+                            ldak = BLKLDD(&dcA.super, k);
+                            ldbk = BLKLDD(&dcB.super, k);
                             zbeta = k == 0 ? beta : zone;
 
                             parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
@@ -251,9 +251,9 @@ int main(int argc, char ** argv)
                      *  A: Plasma[Conj]Trans / B: Plasma[Conj]Trans
                      */
                     else {
-                        ldbn = BLKLDD(&ddescB.super, n);
-                        for( k = 0; k < ddescA.super.mt; k++ ) {
-                            ldak = BLKLDD(&ddescA.super, k);
+                        ldbn = BLKLDD(&dcB.super, n);
+                        for( k = 0; k < dcA.super.mt; k++ ) {
+                            ldak = BLKLDD(&dcA.super, k);
                             zbeta = k == 0 ? beta : zone;
 
                             parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
@@ -277,9 +277,9 @@ int main(int argc, char ** argv)
             }
         }
 
-        parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescA );
-        parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescB );
-        parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescC );
+        parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcA );
+        parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcB );
+        parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcC );
 
         /* finishing all the tasks inserted, but not finishing the handle */
         parsec_dtd_taskpool_wait( parsec, dtd_tp );
@@ -298,22 +298,22 @@ int main(int argc, char ** argv)
 
         /* Cleaning data arrays we allocated for communication */
         parsec_matrix_del2arena( parsec_dtd_arenas[0] );
-        parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescA );
+        parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcA );
 
-        parsec_data_free(ddescA.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+        parsec_data_free(dcA.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
 
-        parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescB );
-        parsec_data_free(ddescB.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
+        parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcB );
+        parsec_data_free(dcB.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
     } else {
         int Am, An, Bm, Bn;
-        PASTE_CODE_ALLOCATE_MATRIX(ddescC2, check,
-            two_dim_block_cyclic, (&ddescC2, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcC2, check,
+            two_dim_block_cyclic, (&dcC2, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDC, N, 0, 0,
                                    M, N, SMB, SNB, P));
 
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC2, Cseed);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC2, Cseed);
 
 #if defined(PRECISION_z) || defined(PRECISION_c)
         for(tA=0; tA<3; tA++) {
@@ -337,33 +337,33 @@ int main(int argc, char ** argv)
                     Bm = N; Bn = K;
                 }
 
-                PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-                    two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+                PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+                    two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                            nodes, rank, MB, NB, LDA, LDA, 0, 0,
                                            Am, An, SMB, SNB, P));
 
-                /* Initializing ddesc for dtd */
-                two_dim_block_cyclic_t *__ddescA = &ddescA;
-                parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescA);
+                /* Initializing dc for dtd */
+                two_dim_block_cyclic_t *__dcA = &dcA;
+                parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcA);
 
-                PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-                    two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+                PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
+                    two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Tile,
                                            nodes, rank, MB, NB, LDB, LDB, 0, 0,
                                            Bm, Bn, SMB, SNB, P));
 
-                /* Initializing ddesc for dtd */
-                two_dim_block_cyclic_t *__ddescB = &ddescB;
-                parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescB);
+                /* Initializing dc for dtd */
+                two_dim_block_cyclic_t *__dcB = &dcB;
+                parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcB);
 
                 /* Allocating data arrays to be used by comm engine */
                 /* Default type */
                 dplasma_add2arena_tile( parsec_dtd_arenas[TILE_FULL],
-                                        ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                                        dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
                                         PARSEC_ARENA_ALIGNMENT_SSE,
-                                        parsec_datatype_double_complex_t, ddescA.super.mb );
+                                        parsec_datatype_double_complex_t, dcA.super.mb );
 
-                dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed);
-                dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed);
+                dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, Aseed);
+                dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcB, Bseed);
 
                 if ( rank == 0 ) {
                     printf("***************************************************\n");
@@ -374,7 +374,7 @@ int main(int argc, char ** argv)
                 /* matrix generation */
                 if(loud) printf("Generate matrices ... ");
                 dplasma_zlacpy( parsec, PlasmaUpperLower,
-                                (tiled_matrix_desc_t *)&ddescC2, (tiled_matrix_desc_t *)&ddescC );
+                                (parsec_tiled_matrix_dc_t *)&dcC2, (parsec_tiled_matrix_dc_t *)&dcC );
                 if(loud) printf("Done\n");
 
                 /* Create GEMM PaRSEC */
@@ -397,22 +397,22 @@ int main(int argc, char ** argv)
                 /* start parsec context */
                 parsec_context_start(parsec);
 
-                for( m = 0; m < ddescC.super.mt; m++ ) {
-                    tempmm = m == ddescC.super.mt-1 ? ddescC.super.m-m*ddescC.super.mb : ddescC.super.mb;
-                    ldcm = BLKLDD(&ddescC.super, m);
+                for( m = 0; m < dcC.super.mt; m++ ) {
+                    tempmm = m == dcC.super.mt-1 ? dcC.super.m-m*dcC.super.mb : dcC.super.mb;
+                    ldcm = BLKLDD(&dcC.super, m);
 
-                    for( n = 0; n < ddescC.super.nt; n++ ) {
-                        tempnn = n == ddescC.super.nt-1 ? ddescC.super.n-n*ddescC.super.nb : ddescC.super.nb;
+                    for( n = 0; n < dcC.super.nt; n++ ) {
+                        tempnn = n == dcC.super.nt-1 ? dcC.super.n-n*dcC.super.nb : dcC.super.nb;
                         /*
                          *  A: PlasmaNoTrans / B: PlasmaNoTrans
                          */
                         if( trans[tA] == PlasmaNoTrans ) {
-                            ldam = BLKLDD(&ddescA.super, m);
+                            ldam = BLKLDD(&dcA.super, m);
 
                             if( trans[tB] == PlasmaNoTrans ) {
-                                for( k = 0; k < ddescA.super.nt; k++ ) {
-                                    tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-k*ddescA.super.nb : ddescA.super.nb;
-                                    ldbk = BLKLDD(&ddescB.super, k);
+                                for( k = 0; k < dcA.super.nt; k++ ) {
+                                    tempkn = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
+                                    ldbk = BLKLDD(&dcB.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
                                     parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
@@ -436,10 +436,10 @@ int main(int argc, char ** argv)
                              *  A: PlasmaNoTrans / B: Plasma[Conj]Trans
                              */
                             else {
-                                ldbn = BLKLDD(&ddescB.super, n);
+                                ldbn = BLKLDD(&dcB.super, n);
 
-                                for( k = 0; k < ddescA.super.nt; k++ ) {
-                                    tempkn = k == ddescA.super.nt-1 ? ddescA.super.n-k*ddescA.super.nb : ddescA.super.nb;
+                                for( k = 0; k < dcA.super.nt; k++ ) {
+                                    tempkn = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
                                     zbeta = k == 0 ? beta : zone;
 
                                     parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
@@ -465,10 +465,10 @@ int main(int argc, char ** argv)
                          */
                         else {
                             if( trans[tB] == PlasmaNoTrans ) {
-                                for( k = 0; k < ddescA.super.mt; k++ ) {
-                                    tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-k*ddescA.super.mb : ddescA.super.mb;
-                                    ldak = BLKLDD(&ddescA.super, k);
-                                    ldbk = BLKLDD(&ddescB.super, k);
+                                for( k = 0; k < dcA.super.mt; k++ ) {
+                                    tempkm = k == dcA.super.mt-1 ? dcA.super.m-k*dcA.super.mb : dcA.super.mb;
+                                    ldak = BLKLDD(&dcA.super, k);
+                                    ldbk = BLKLDD(&dcB.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
                                     parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
@@ -492,11 +492,11 @@ int main(int argc, char ** argv)
                              *  A: Plasma[Conj]Trans / B: Plasma[Conj]Trans
                              */
                             else {
-                                ldbn = BLKLDD(&ddescB.super, n);
+                                ldbn = BLKLDD(&dcB.super, n);
 
-                                for( k = 0; k < ddescA.super.mt; k++ ) {
-                                    tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-k*ddescA.super.mb : ddescA.super.mb;
-                                    ldak = BLKLDD(&ddescA.super, k);
+                                for( k = 0; k < dcA.super.mt; k++ ) {
+                                    tempkm = k == dcA.super.mt-1 ? dcA.super.m-k*dcA.super.mb : dcA.super.mb;
+                                    ldak = BLKLDD(&dcA.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
                                     parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
@@ -520,9 +520,9 @@ int main(int argc, char ** argv)
                     }
                 }
 
-                parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescA );
-                parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescB );
-                parsec_dtd_data_flush_all( dtd_tp, (parsec_ddesc_t *)&ddescC );
+                parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcA );
+                parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcB );
+                parsec_dtd_data_flush_all( dtd_tp, (parsec_data_collection_t *)&dcC );
 
                 /* finishing all the tasks inserted, but not finishing the handle */
                 parsec_dtd_taskpool_wait( parsec, dtd_tp );
@@ -539,15 +539,15 @@ int main(int argc, char ** argv)
 
                 /* Cleaning data arrays we allocated for communication */
                 parsec_matrix_del2arena( parsec_dtd_arenas[0] );
-                parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescA );
+                parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcA );
 
-                parsec_data_free(ddescA.mat);
-                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+                parsec_data_free(dcA.mat);
+                parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
 
-                parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescB );
+                parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcB );
 
-                parsec_data_free(ddescB.mat);
-                tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
+                parsec_data_free(dcB.mat);
+                parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
 
                 /* Check the solution */
                 info_solution = check_solution( parsec, (rank == 0) ? loud : 0,
@@ -555,7 +555,7 @@ int main(int argc, char ** argv)
                                                 alpha, Am, An, Aseed,
                                                        Bm, Bn, Bseed,
                                                 beta,  M,  N,  Cseed,
-                                                &ddescC);
+                                                &dcC);
                 if ( rank == 0 ) {
                     if (info_solution == 0) {
                         printf(" ---- TESTING ZGEMM (%s, %s) ...... PASSED !\n",
@@ -573,15 +573,15 @@ int main(int argc, char ** argv)
             }
         }
 #endif
-        parsec_data_free(ddescC2.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC2);
+        parsec_data_free(dcC2.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcC2);
     }
 
     /* Cleaning data arrays we allocated for communication */
-    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescC );
+    parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcC );
 
-    parsec_data_free(ddescC.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
+    parsec_data_free(dcC.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcC);
 
     cleanup_parsec(parsec, iparam);
 
@@ -600,58 +600,58 @@ static int check_solution( parsec_context_t *parsec, int loud,
                            parsec_complex64_t alpha, int Am, int An, int Aseed,
                                                     int Bm, int Bn, int Bseed,
                            parsec_complex64_t beta,  int M,  int N,  int Cseed,
-                           two_dim_block_cyclic_t *ddescCfinal )
+                           two_dim_block_cyclic_t *dcCfinal )
 {
     int info_solution = 1;
     double Anorm, Bnorm, Cinitnorm, Cdplasmanorm, Clapacknorm, Rnorm;
     double eps, result;
     int K  = ( transA == PlasmaNoTrans ) ? An : Am ;
-    int MB = ddescCfinal->super.mb;
-    int NB = ddescCfinal->super.nb;
+    int MB = dcCfinal->super.mb;
+    int NB = dcCfinal->super.nb;
     int LDA = Am;
     int LDB = Bm;
     int LDC = M;
-    int rank  = ddescCfinal->super.super.myrank;
+    int rank  = dcCfinal->super.super.myrank;
 
     eps = LAPACKE_dlamch_work('e');
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB, NB, LDA, An, 0, 0,
                                Am, An, 1, 1, 1));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescB, 1,
-        two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcB, 1,
+        two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB, NB, LDB, Bn, 0, 0,
                                Bm, Bn, 1, 1, 1));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescC, 1,
-        two_dim_block_cyclic, (&ddescC, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcC, 1,
+        two_dim_block_cyclic, (&dcC, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB, NB, LDC, N, 0, 0,
                                M, N, 1, 1, 1));
 
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, Aseed );
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, Bseed );
-    dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescC, Cseed );
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, Aseed );
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcB, Bseed );
+    dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcC, Cseed );
 
-    Anorm        = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescA );
-    Bnorm        = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescB );
-    Cinitnorm    = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
-    Cdplasmanorm = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)ddescCfinal );
+    Anorm        = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcA );
+    Bnorm        = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcB );
+    Cinitnorm    = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcC );
+    Cdplasmanorm = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)dcCfinal );
 
     if ( rank == 0 ) {
         cblas_zgemm(CblasColMajor,
                     (CBLAS_TRANSPOSE)transA, (CBLAS_TRANSPOSE)transB,
                     M, N, K,
-                    CBLAS_SADDR(alpha), ddescA.mat, LDA,
-                                        ddescB.mat, LDB,
-                    CBLAS_SADDR(beta),  ddescC.mat, LDC );
+                    CBLAS_SADDR(alpha), dcA.mat, LDA,
+                                        dcB.mat, LDB,
+                    CBLAS_SADDR(beta),  dcC.mat, LDC );
     }
 
-    Clapacknorm = dplasma_zlange( parsec, PlasmaInfNorm, (tiled_matrix_desc_t*)&ddescC );
+    Clapacknorm = dplasma_zlange( parsec, PlasmaInfNorm, (parsec_tiled_matrix_dc_t*)&dcC );
 
-    dplasma_zgeadd( parsec, PlasmaNoTrans, -1.0, (tiled_matrix_desc_t*)ddescCfinal,
-                                           1.0, (tiled_matrix_desc_t*)&ddescC );
+    dplasma_zgeadd( parsec, PlasmaNoTrans, -1.0, (parsec_tiled_matrix_dc_t*)dcCfinal,
+                                           1.0, (parsec_tiled_matrix_dc_t*)&dcC );
 
-    Rnorm = dplasma_zlange( parsec, PlasmaMaxNorm, (tiled_matrix_desc_t*)&ddescC);
+    Rnorm = dplasma_zlange( parsec, PlasmaMaxNorm, (parsec_tiled_matrix_dc_t*)&dcC);
 
     if ( rank == 0 ) {
         if ( loud > 2 ) {
@@ -674,12 +674,12 @@ static int check_solution( parsec_context_t *parsec, int loud,
     MPI_Bcast(&info_solution, 1, MPI_INT, 0, MPI_COMM_WORLD);
 #endif
 
-    parsec_data_free(ddescA.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    parsec_data_free(ddescB.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB);
-    parsec_data_free(ddescC.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescC);
+    parsec_data_free(dcA.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_data_free(dcB.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB);
+    parsec_data_free(dcC.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcC);
 
     return info_solution;
 }

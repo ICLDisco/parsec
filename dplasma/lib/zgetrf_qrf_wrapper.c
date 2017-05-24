@@ -157,10 +157,10 @@ dplasma_genrandom_lutab(int *lutab, int deb, int fin, int nb_lu, int rec_depth)
  ******************************************************************************/
 parsec_taskpool_t*
 dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
-                        tiled_matrix_desc_t *A,
-                        tiled_matrix_desc_t *IPIV,
-                        tiled_matrix_desc_t *TS,
-                        tiled_matrix_desc_t *TT,
+                        parsec_tiled_matrix_dc_t *A,
+                        parsec_tiled_matrix_dc_t *IPIV,
+                        parsec_tiled_matrix_dc_t *TS,
+                        parsec_tiled_matrix_dc_t *TT,
                         int criteria, double alpha, int* lu_tab,
                         int* INFO)
 {
@@ -195,7 +195,7 @@ dplasma_zgetrf_qrf_New( dplasma_qrtree_t *qrtree,
     }
 
     tp = parsec_zgetrf_qrf_new( A,
-                                (parsec_ddesc_t*)IPIV,
+                                (parsec_data_collection_t*)IPIV,
                                 TS,
                                 TT,
                                 lu_tab, *qrtree,
@@ -431,10 +431,10 @@ dplasma_zgetrf_qrf_Destruct( parsec_taskpool_t *tp )
 int
 dplasma_zgetrf_qrf( parsec_context_t *parsec,
                     dplasma_qrtree_t *qrtree,
-                    tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *IPIV,
-                    tiled_matrix_desc_t *TS,
-                    tiled_matrix_desc_t *TT,
+                    parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *IPIV,
+                    parsec_tiled_matrix_dc_t *TS,
+                    parsec_tiled_matrix_dc_t *TT,
                     int criteria, double alpha, int* lu_tab,
                     int* INFO )
 {

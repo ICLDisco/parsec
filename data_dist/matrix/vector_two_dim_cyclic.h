@@ -21,12 +21,12 @@ typedef enum vector_distrib {
 } vector_distrib_t;
 
 /*
- * Vector structure inheriting from tiled_matrix_desc_t
+ * Vector structure inheriting from parsec_tiled_matrix_dc_t
  * Follows the same distribution than the diagonal tiles of the
  * two_dim_block_cyclic_t structure.
  */
 typedef struct vector_two_dim_cyclic_s {
-    tiled_matrix_desc_t super;
+    parsec_tiled_matrix_dc_t super;
     grid_2Dcyclic_t     grid;
     vector_distrib_t    distrib; /**< Distribution used for the vector: Row, Column or diagonal */
     int   lcm;                   /**< number of processors present on diagonal */
@@ -36,7 +36,7 @@ typedef struct vector_two_dim_cyclic_s {
 /**
  * Initialize the description of a 2-D block cyclic distributed vector.
  *
- * @param Ddesc matrix description structure, already allocated, that will be initialize
+ * @param dc matrix description structure, already allocated, that will be initialize
  * @param mtype type of data used for this matrix
  * @param nodes number of nodes
  * @param myrank rank of the local node (as of mpi rank)

@@ -36,10 +36,10 @@ dplasma_log2(int n)
 
 %}
 
-descA    [type = "tiled_matrix_desc_t*"]
-IPIV     [type = "parsec_ddesc_t *" aligned=descA]
-TS      [type = "tiled_matrix_desc_t*" aligned=descA]
-TT      [type = "tiled_matrix_desc_t*" aligned=descA]
+descA    [type = "parsec_tiled_matrix_dc_t*"]
+IPIV     [type = "parsec_data_collection_t *" aligned=descA]
+TS      [type = "parsec_tiled_matrix_dc_t*" aligned=descA]
+TT      [type = "parsec_tiled_matrix_dc_t*" aligned=descA]
 lu_tab   [type = "int*"]
 qrtree   [type = "dplasma_qrtree_t"]
 ib       [type = "int"]

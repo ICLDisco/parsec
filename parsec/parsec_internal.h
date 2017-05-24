@@ -279,7 +279,7 @@ typedef parsec_hook_return_t (parsec_hook_t)(struct parsec_execution_stream_s*, 
  *
  */
 typedef struct parsec_data_ref_s {
-    struct parsec_ddesc_s *ddesc;
+    struct parsec_data_collection_s *dc;
     parsec_data_key_t key;
 } parsec_data_ref_t;
 
@@ -403,7 +403,7 @@ PARSEC_DECLSPEC extern int parsec_want_rusage;
 struct parsec_minimal_execution_context_s {
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profile_ddesc_info_t prof_info;
+    parsec_profile_data_collection_info_t prof_info;
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */
@@ -413,7 +413,7 @@ struct parsec_minimal_execution_context_s {
 struct parsec_task_s{
     PARSEC_MINIMAL_EXECUTION_CONTEXT
 #if defined(PARSEC_PROF_TRACE)
-    parsec_profile_ddesc_info_t prof_info;
+    parsec_profile_data_collection_info_t prof_info;
 #endif /* defined(PARSEC_PROF_TRACE) */
     /* WARNING: The following locals field must ABSOLUTELY stay contiguous with
      * prof_info so that the locals are part of the event specific infos */

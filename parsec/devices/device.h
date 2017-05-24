@@ -28,8 +28,8 @@ typedef int   (*parsec_device_init_f)(parsec_device_t*);
 typedef int   (*parsec_device_fini_f)(parsec_device_t*);
 typedef int   (*parsec_device_taskpool_register_f)(parsec_device_t*, parsec_taskpool_t*);
 typedef int   (*parsec_device_taskpool_unregister_f)(parsec_device_t*, parsec_taskpool_t*);
-typedef int   (*parsec_device_memory_register_f)(parsec_device_t*, parsec_ddesc_t*, void*, size_t);
-typedef int   (*parsec_device_memory_unregister_f)(parsec_device_t*, parsec_ddesc_t*, void*);
+typedef int   (*parsec_device_memory_register_f)(parsec_device_t*, parsec_data_collection_t*, void*, size_t);
+typedef int   (*parsec_device_memory_unregister_f)(parsec_device_t*, parsec_data_collection_t*, void*);
 typedef void* (*parsec_device_find_function_f)(parsec_device_t*, char*);
 
 struct parsec_device_s {

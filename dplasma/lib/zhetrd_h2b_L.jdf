@@ -16,8 +16,8 @@ extern "C" %{
 %}
 
 ib     [type = "int"]
-descA  [type = "tiled_matrix_desc_t*"]
-descT  [type = "tiled_matrix_desc_t*" aligned=descA]
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+descT  [type = "parsec_tiled_matrix_dc_t*" aligned=descA]
 
 pool_3 [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)*descT->nb*4 *descT->nb)"]
 pool_2 [type = "parsec_memory_pool_t *" size = "(sizeof(parsec_complex64_t)*descT->nb*2 *descT->nb)"]

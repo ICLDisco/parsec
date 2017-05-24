@@ -55,7 +55,7 @@
 int
 dplasma_zpotri( parsec_context_t *parsec,
                 PLASMA_enum uplo,
-                tiled_matrix_desc_t* A )
+                parsec_tiled_matrix_dc_t* A )
 {
     int info = 0;
     /* Check input arguments */

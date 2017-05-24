@@ -43,8 +43,8 @@ extern int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
 %}
 
 uplo       [type = "int"]
-desc_A     [type = "tiled_matrix_desc_t*"]
-data_A     [type = "parsec_ddesc_t *"]
+desc_A     [type = "parsec_tiled_matrix_dc_t*"]
+data_A     [type = "parsec_data_collection_t *"]
 DPLASMA_IB [type = "int"]
 pool_1     [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*lwork"]
 pool_0     [type = "parsec_memory_pool_t *" size = "(sizeof(PLASMA_Complex64_t))*ldwork"]

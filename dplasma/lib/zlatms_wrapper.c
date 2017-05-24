@@ -26,7 +26,7 @@
  */
 static int
 dplasma_zlatms_operator( parsec_execution_stream_t *es,
-                         const tiled_matrix_desc_t *descA,
+                         const parsec_tiled_matrix_dc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *args )
@@ -111,7 +111,7 @@ dplasma_zlatms_operator( parsec_execution_stream_t *es,
 int
 dplasma_zlatms( parsec_context_t *parsec,
                 PLASMA_enum mtxtype, double cond,
-                tiled_matrix_desc_t *A,
+                parsec_tiled_matrix_dc_t *A,
                 unsigned long long int seed)
 {
     two_dim_block_cyclic_t Q, T;
@@ -163,7 +163,7 @@ dplasma_zlatms( parsec_context_t *parsec,
     Q.mat = parsec_data_allocate((size_t)Q.super.nb_local_tiles *
                                 (size_t)Q.super.bsiz *
                                 (size_t)parsec_datadist_getsizeoftype(Q.super.mtype));
-    parsec_ddesc_set_key((parsec_ddesc_t*)&Q, "Q");
+    parsec_data_collection_set_key((parsec_data_collection_t*)&Q, "Q");
 
     /* Init the T matrix */
     two_dim_block_cyclic_init( &T, matrix_ComplexDouble, matrix_Tile,
@@ -171,14 +171,14 @@ dplasma_zlatms( parsec_context_t *parsec,
     T.mat = parsec_data_allocate((size_t)T.super.nb_local_tiles *
                                 (size_t)T.super.bsiz *
                                 (size_t)parsec_datadist_getsizeoftype(T.super.mtype));
-    parsec_ddesc_set_key((parsec_ddesc_t*)&T, "T");
+    parsec_data_collection_set_key((parsec_data_collection_t*)&T, "T");
 
     if ( mtxtype == PlasmaGeneral ) {
         if ( m >= n ) {
-            tiled_matrix_desc_t *subA = tiled_matrix_submatrix( A, 0, 0, n, n );
-            tiled_matrix_desc_t *subQ = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&Q,
+            parsec_tiled_matrix_dc_t *subA = tiled_matrix_submatrix( A, 0, 0, n, n );
+            parsec_tiled_matrix_dc_t *subQ = tiled_matrix_submatrix( (parsec_tiled_matrix_dc_t *)&Q,
                                                                 0, 0, n, n );
-            tiled_matrix_desc_t *subT = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&T,
+            parsec_tiled_matrix_dc_t *subT = tiled_matrix_submatrix( (parsec_tiled_matrix_dc_t *)&T,
                                                                 0, 0, nt*32, n );
 
 
@@ -190,21 +190,21 @@ dplasma_zlatms( parsec_context_t *parsec,
 
             /* Multiply on the left by an unitary matrix */
             dplasma_zplrnt( parsec, 0,
-                            (tiled_matrix_desc_t *)&Q, seed );
+                            (parsec_tiled_matrix_dc_t *)&Q, seed );
             dplasma_zgeqrf( parsec,
-                            (tiled_matrix_desc_t*)&Q,
-                            (tiled_matrix_desc_t*)&T );
+                            (parsec_tiled_matrix_dc_t*)&Q,
+                            (parsec_tiled_matrix_dc_t*)&T );
             dplasma_zunmqr( parsec, PlasmaLeft, PlasmaNoTrans,
-                            (tiled_matrix_desc_t*)&Q,
-                            (tiled_matrix_desc_t*)&T, A );
+                            (parsec_tiled_matrix_dc_t*)&Q,
+                            (parsec_tiled_matrix_dc_t*)&T, A );
 
             free(subA); free(subQ); free(subT);
         }
         else {
-            tiled_matrix_desc_t *subA = tiled_matrix_submatrix( A, 0, 0, m, m );
-            tiled_matrix_desc_t *subQ = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&Q,
+            parsec_tiled_matrix_dc_t *subA = tiled_matrix_submatrix( A, 0, 0, m, m );
+            parsec_tiled_matrix_dc_t *subQ = tiled_matrix_submatrix( (parsec_tiled_matrix_dc_t *)&Q,
                                                                 0, 0, m, m );
-            tiled_matrix_desc_t *subT = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&T,
+            parsec_tiled_matrix_dc_t *subT = tiled_matrix_submatrix( (parsec_tiled_matrix_dc_t *)&T,
                                                                 0, 0, mt*32, m );
 
 
@@ -216,13 +216,13 @@ dplasma_zlatms( parsec_context_t *parsec,
 
             /* Multiply on the right by an unitary matrix */
             dplasma_zplrnt( parsec, 0,
-                            (tiled_matrix_desc_t *)&Q, seed );
+                            (parsec_tiled_matrix_dc_t *)&Q, seed );
             dplasma_zgeqrf( parsec,
-                            (tiled_matrix_desc_t*)&Q,
-                            (tiled_matrix_desc_t*)&T );
+                            (parsec_tiled_matrix_dc_t*)&Q,
+                            (parsec_tiled_matrix_dc_t*)&T );
             dplasma_zunmqr( parsec, PlasmaRight, PlasmaNoTrans,
-                            (tiled_matrix_desc_t*)&Q,
-                            (tiled_matrix_desc_t*)&T, A );
+                            (parsec_tiled_matrix_dc_t*)&Q,
+                            (parsec_tiled_matrix_dc_t*)&T, A );
             free(subA); free(subQ); free(subT);
         }
     }
@@ -231,23 +231,23 @@ dplasma_zlatms( parsec_context_t *parsec,
 
         /* Init the unitary matrix */
         dplasma_zplrnt( parsec, 0,
-                        (tiled_matrix_desc_t *)&Q, seed );
+                        (parsec_tiled_matrix_dc_t *)&Q, seed );
         dplasma_zgeqrf( parsec,
-                        (tiled_matrix_desc_t*)&Q,
-                        (tiled_matrix_desc_t*)&T );
+                        (parsec_tiled_matrix_dc_t*)&Q,
+                        (parsec_tiled_matrix_dc_t*)&T );
 
         dplasma_zunmqr( parsec, PlasmaLeft, PlasmaNoTrans,
-                        (tiled_matrix_desc_t*)&Q,
-                        (tiled_matrix_desc_t*)&T, A );
+                        (parsec_tiled_matrix_dc_t*)&Q,
+                        (parsec_tiled_matrix_dc_t*)&T, A );
         dplasma_zunmqr( parsec, PlasmaRight, PlasmaConjTrans,
-                        (tiled_matrix_desc_t*)&Q,
-                        (tiled_matrix_desc_t*)&T, A );
+                        (parsec_tiled_matrix_dc_t*)&Q,
+                        (parsec_tiled_matrix_dc_t*)&T, A );
     }
 
     free(Q.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&Q );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&Q );
     free(T.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&T );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&T );
 
     return 0;
 }

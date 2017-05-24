@@ -25,7 +25,7 @@ static MPI_Datatype block;
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t *BT_reduction_new(tiled_matrix_desc_t *A, int nb, int nt)
+parsec_taskpool_t *BT_reduction_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
 {
     parsec_BT_reduction_taskpool_t *tp = NULL;
 

@@ -54,7 +54,7 @@
  ******************************************************************************/
 int dplasma_zprint( parsec_context_t *parsec,
                     PLASMA_enum uplo,
-                    const tiled_matrix_desc_t *A)
+                    const parsec_tiled_matrix_dc_t *A)
 {
     parsec_zprint_taskpool_t* tp;
 

@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world, cores;
     int size, nb, i, j, c;
-    parsec_ddesc_t *ddescA;
+    parsec_data_collection_t *dcA;
     int *decision;
     parsec_taskpool_t *choice;
     char **dargv, ***pargv;
@@ -76,12 +76,12 @@ int main(int argc, char *argv[])
     if( NULL == parsec ) {
         exit(-1);
     }
-    ddescA = create_and_distribute_data(rank, world, size);
-    parsec_ddesc_set_key(ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, size);
+    parsec_data_collection_set_key(dcA, "A");
 
     decision = (int*)calloc(sizeof(int), nb+1);
 
-    choice = choice_new(ddescA, size, decision, nb, world);
+    choice = choice_new(dcA, size, decision, nb, world);
     rc = parsec_enqueue(parsec, choice);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
 #endif
     }
 
-    free_data(ddescA);
+    free_data(dcA);
     free(decision);
 
 #ifdef PARSEC_HAVE_MPI

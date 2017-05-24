@@ -29,7 +29,7 @@
 typedef struct parsec_cholesky_object {
   parsec_taskpool_t super;
   /* The list of globals */
-  parsec_ddesc_t* A /* data A */;
+  parsec_data_collection_t* A /* data A */;
   int NB;
   int SIZE;
   PLASMA_enum uplo;
@@ -44,7 +44,7 @@ typedef struct parsec_cholesky_object {
   parsec_arena_t* arenas[1];
 } parsec_cholesky_taskpool_t;
 
-extern parsec_cholesky_taskpool_t *parsec_cholesky_new(parsec_ddesc_t* A /* data A */, int NB, int SIZE, PLASMA_enum uplo, int* INFO);
+extern parsec_cholesky_taskpool_t *parsec_cholesky_new(parsec_data_collection_t* A /* data A */, int NB, int SIZE, PLASMA_enum uplo, int* INFO);
 extern void parsec_cholesky_destroy( parsec_cholesky_taskpool_t *o );
 
 struct callback_args {

@@ -34,20 +34,20 @@
 #define DESTRUCT         0x1
 
 
-static uint32_t parsec_rbt_rank_of(parsec_ddesc_t *desc, ...){
+static uint32_t parsec_rbt_rank_of(parsec_data_collection_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
     uintptr_t offset;
     va_list ap;
-    parsec_seg_ddesc_t *segA;
-    parsec_ddesc_t *A;
+    parsec_seg_dc_t *segA;
+    parsec_data_collection_t *A;
 
     va_start(ap, desc);
     m_seg = va_arg(ap, int);
     n_seg = va_arg(ap, int);
     va_end(ap);
 
-    segA = (parsec_seg_ddesc_t *)desc;
-    A = (parsec_ddesc_t *)(segA->A_org);
+    segA = (parsec_seg_dc_t *)desc;
+    A = (parsec_data_collection_t *)(segA->A_org);
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
 
@@ -59,34 +59,34 @@ static uint32_t parsec_rbt_rank_of(parsec_ddesc_t *desc, ...){
 
 /*
  * Segments can be handled in two ways:
- * Case 1: The MPI datatype starts from the beginning of the tile (of the original ddesc) and
+ * Case 1: The MPI datatype starts from the beginning of the tile (of the original dc) and
  *         uses an offset to get to the beginning of the data of the segment (and a stride).
  * Case 2: The MPI datatype starts from the beginning of the data of the segment (and uses a
  *         stride so it has mb as lda).
  *
  * In case 1, parsec_rbt_data_of() should return a pointer to the beginning of the original tile,
- * i.e., it should return the same thing as data_of() of the original ddesc for the tile that
+ * i.e., it should return the same thing as data_of() of the original dc for the tile that
  * the given segment falls in.
  * In case 2, parsec_rbt_data_of() should return a pointer to the beginning of the segment,
- * i.e. add the offset to the return value of data_of() of the original ddesc.
+ * i.e. add the offset to the return value of data_of() of the original dc.
  * The choice between case 1 and case 2 is made in dplasma_datatype_define_subarray(), so
  * these two functions must always correspond.
  *
  * Currently we are using Case 2.
  */
-static parsec_data_t *parsec_rbt_data_of(parsec_ddesc_t *desc, ...){
+static parsec_data_t *parsec_rbt_data_of(parsec_data_collection_t *desc, ...){
     int m_seg, n_seg, m_tile, n_tile;
     uintptr_t offset, data_start;
     va_list ap;
-    parsec_seg_ddesc_t *segA;
-    parsec_ddesc_t *A;
+    parsec_seg_dc_t *segA;
+    parsec_data_collection_t *A;
 
     va_start(ap, desc);
     m_seg = va_arg(ap, int);
     n_seg = va_arg(ap, int);
     va_end(ap);
 
-    segA = (parsec_seg_ddesc_t *)desc;
+    segA = (parsec_seg_dc_t *)desc;
     A = &segA->A_org->super;
 
     segment_to_tile(segA, m_seg, n_seg, &m_tile, &n_tile, &offset);
@@ -108,20 +108,20 @@ static parsec_data_t *parsec_rbt_data_of(parsec_ddesc_t *desc, ...){
  * dplasma_zhebut_New()
  */
 parsec_taskpool_t*
-dplasma_zhebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
+dplasma_zhebut_New( parsec_tiled_matrix_dc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
 {
     parsec_taskpool_t *parsec_zhebut = NULL;
-    parsec_seg_ddesc_t *seg_descA;
+    parsec_seg_dc_t *seg_descA;
     parsec_memory_pool_t* pool_0;
     PLASMA_Complex64_t *U_before, *U_after;
     int i, mt, nt, N;
 
     (void)info;
 
-    seg_descA = (parsec_seg_ddesc_t *)calloc(1, sizeof(parsec_seg_ddesc_t));
+    seg_descA = (parsec_seg_dc_t *)calloc(1, sizeof(parsec_seg_dc_t));
 
-    /* copy the tiled_matrix_desc_t part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
+    /* copy the parsec_tiled_matrix_dc_t part of A into seg_descA */
+    memcpy(seg_descA, A, sizeof(parsec_tiled_matrix_dc_t));
     /* overwrite the rank_of() and data_of() */
     seg_descA->super.super.rank_of = parsec_rbt_rank_of;
     seg_descA->super.super.data_of = parsec_rbt_data_of;
@@ -179,20 +179,20 @@ dplasma_zhebut_Destruct( parsec_taskpool_t *tp )
  * dplasma_zgebut_New()
  */
 parsec_taskpool_t*
-dplasma_zgebut_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
+dplasma_zgebut_New( parsec_tiled_matrix_dc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int *info)
 {
     parsec_taskpool_t *parsec_zgebut = NULL;
-    parsec_seg_ddesc_t *seg_descA;
+    parsec_seg_dc_t *seg_descA;
     parsec_memory_pool_t *pool_0;
     int i, mt, nt, N;
     PLASMA_Complex64_t *U_before, *U_after;
 
     (void)info;
 
-    seg_descA = (parsec_seg_ddesc_t *)calloc(1, sizeof(parsec_seg_ddesc_t));
+    seg_descA = (parsec_seg_dc_t *)calloc(1, sizeof(parsec_seg_dc_t));
 
-    /* copy the tiled_matrix_desc_t part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
+    /* copy the parsec_tiled_matrix_dc_t part of A into seg_descA */
+    memcpy(seg_descA, A, sizeof(parsec_tiled_matrix_dc_t));
     /* overwrite the rank_of() and data_of() */
     seg_descA->super.super.rank_of = parsec_rbt_rank_of;
     seg_descA->super.super.data_of = parsec_rbt_data_of;
@@ -248,19 +248,19 @@ dplasma_zgebut_Destruct( parsec_taskpool_t *tp )
  * dplasma_zgebmm_New()
  */
 parsec_taskpool_t*
-dplasma_zgebmm_New( tiled_matrix_desc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int trans, int *info)
+dplasma_zgebmm_New( parsec_tiled_matrix_dc_t *A, PLASMA_Complex64_t *U_but_vec, int i_block, int j_block, int level, int trans, int *info)
 {
     parsec_taskpool_t *parsec_zgebmm = NULL;
-    parsec_seg_ddesc_t *seg_descA;
+    parsec_seg_dc_t *seg_descA;
     parsec_memory_pool_t *pool_0;
     int i, mt, nt, N;
 
     (void)info;
 
-    seg_descA = (parsec_seg_ddesc_t *)calloc(1, sizeof(parsec_seg_ddesc_t));
+    seg_descA = (parsec_seg_dc_t *)calloc(1, sizeof(parsec_seg_dc_t));
 
-    /* copy the tiled_matrix_desc_t part of A into seg_descA */
-    memcpy(seg_descA, A, sizeof(tiled_matrix_desc_t));
+    /* copy the parsec_tiled_matrix_dc_t part of A into seg_descA */
+    memcpy(seg_descA, A, sizeof(parsec_tiled_matrix_dc_t));
     /* overwrite the rank_of() and data_of() */
     seg_descA->super.super.rank_of = parsec_rbt_rank_of;
     seg_descA->super.super.data_of = parsec_rbt_data_of;
@@ -321,7 +321,7 @@ dplasma_zgebmm_Destruct( parsec_taskpool_t *tp )
  * Blocking Interface
  */
 
-static parsec_taskpool_t **iterate_ops(tiled_matrix_desc_t *A, int tmp_level,
+static parsec_taskpool_t **iterate_ops(parsec_tiled_matrix_dc_t *A, int tmp_level,
                                     int target_level, int i_block, int j_block,
                                     parsec_taskpool_t **subop,
                                     parsec_context_t *parsec,
@@ -373,7 +373,7 @@ static void RBT_zrandom(int N, PLASMA_Complex64_t *V)
 }
 
 
-int dplasma_zhebut(parsec_context_t *parsec, tiled_matrix_desc_t *A, PLASMA_Complex64_t **U_but_ptr, int levels)
+int dplasma_zhebut(parsec_context_t *parsec, parsec_tiled_matrix_dc_t *A, PLASMA_Complex64_t **U_but_ptr, int levels)
 {
     parsec_taskpool_t **subop;
     PLASMA_Complex64_t *U_but_vec, beta;

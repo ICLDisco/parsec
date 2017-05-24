@@ -88,7 +88,7 @@
     if ( !test )                                \
         return ret;
 
-int dplasma_qrtree_check( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree)
+int dplasma_qrtree_check( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree)
 {
     int minMN = dplasma_imin(A->mt, A->nt );
     int i, m, k, nb;
@@ -304,7 +304,7 @@ int dplasma_qrtree_check( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree)
     return 0;
 }
 
-void dplasma_qrtree_print_type( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
+void dplasma_qrtree_print_type( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree )
 {
     int minMN = dplasma_imin(A->mt, A->nt );
     int m, k;
@@ -340,7 +340,7 @@ void dplasma_qrtree_print_type( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree
     }
 }
 
-void dplasma_qrtree_print_pivot( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
+void dplasma_qrtree_print_pivot( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree )
 {
     int minMN = dplasma_imin(A->mt, A->nt );
     int m, k;
@@ -375,7 +375,7 @@ void dplasma_qrtree_print_pivot( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtre
     }
 }
 
-void dplasma_qrtree_print_next_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k )
+void dplasma_qrtree_print_next_k( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int k )
 {
     int m, s;
     printf("\n------------ Next (k = %d)--------------\n", k);
@@ -394,7 +394,7 @@ void dplasma_qrtree_print_next_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtr
     }
 }
 
-void dplasma_qrtree_print_prev_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k )
+void dplasma_qrtree_print_prev_k( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int k )
 {
     int m, s;
     printf("\n------------ Prev (k = %d)--------------\n", k);
@@ -413,7 +413,7 @@ void dplasma_qrtree_print_prev_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtr
     }
 }
 
-void dplasma_qrtree_print_perm( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int *perm )
+void dplasma_qrtree_print_perm( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int *perm )
 {
     int minMN = dplasma_imin(A->mt, A->nt );
     int m, k;
@@ -438,7 +438,7 @@ void dplasma_qrtree_print_perm( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree
     printf( "\n" );
 }
 
-void dplasma_qrtree_print_nbgeqrt( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree )
+void dplasma_qrtree_print_nbgeqrt( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree )
 {
     int minMN = dplasma_imin(A->mt, A->nt );
     int m, k, nb;
@@ -466,7 +466,7 @@ void dplasma_qrtree_print_nbgeqrt( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrt
     printf( "\n" );
 }
 
-void dplasma_qrtree_print_geqrt_k( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, int k )
+void dplasma_qrtree_print_geqrt_k( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, int k )
 {
     int i, m, nb;
     (void)A;
@@ -524,7 +524,7 @@ char *color[] = {
 };
 #define DAG_NBCOLORS 7
 
-void dplasma_qrtree_print_dag( tiled_matrix_desc_t *A, dplasma_qrtree_t *qrtree, char *filename )
+void dplasma_qrtree_print_dag( parsec_tiled_matrix_dc_t *A, dplasma_qrtree_t *qrtree, char *filename )
 {
     int *pos, *next, *done;
     int k, m, n, lpos, prev, length;

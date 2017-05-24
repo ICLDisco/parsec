@@ -34,7 +34,7 @@ int main( int argc, char* argv[] )
     parsec_context_t* parsec;
     int rc;
     parsec_taskpool_t* tp;
-    two_dim_block_cyclic_t ddescA;
+    two_dim_block_cyclic_t dcA;
     int cores = 2, world = 1, rank = 0;
     int nb = 100, ln = 900;
     int rows = 1;
@@ -51,16 +51,16 @@ int main( int argc, char* argv[] )
 
     parsec = parsec_init(cores, &argc, &argv);
 
-    two_dim_block_cyclic_init( &ddescA, matrix_RealFloat, matrix_Tile,
+    two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
                                world, rank, nb, 1, ln, 1, 0, 0, ln, 1, 1, 1, rows );
-    ddescA.mat = parsec_data_allocate((size_t)ddescA.super.nb_local_tiles *
-                                     (size_t)ddescA.super.bsiz *
-                                     (size_t)parsec_datadist_getsizeoftype(ddescA.super.mtype));
+    dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
+                                     (size_t)dcA.super.bsiz *
+                                     (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
 
-    parsec_ddesc_set_key(&ddescA.super.super, "A");
+    parsec_data_collection_set_key(&dcA.super.super, "A");
 
-    tp = (parsec_taskpool_t*)parsec_reduce_new((tiled_matrix_desc_t*)&ddescA,
-                                               (tiled_matrix_desc_t*)&ddescA,
+    tp = (parsec_taskpool_t*)parsec_reduce_new((parsec_tiled_matrix_dc_t*)&dcA,
+                                               (parsec_tiled_matrix_dc_t*)&dcA,
                                                NULL);
     /* Prepare the arena for the reduction */
     parsec_type_create_contiguous(nb, parsec_datatype_float_t, &newtype);

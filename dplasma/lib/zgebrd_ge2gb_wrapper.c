@@ -145,12 +145,12 @@ dplasma_zgebrd_ge2gbx_New( int ib,
                            dplasma_qrtree_t *qrtre0,
                            dplasma_qrtree_t *qrtree,
                            dplasma_qrtree_t *lqtree,
-                           tiled_matrix_desc_t *A,
-                           tiled_matrix_desc_t *TS0,
-                           tiled_matrix_desc_t *TT0,
-                           tiled_matrix_desc_t *TS,
-                           tiled_matrix_desc_t *TT,
-                           tiled_matrix_desc_t *Band )
+                           parsec_tiled_matrix_dc_t *A,
+                           parsec_tiled_matrix_dc_t *TS0,
+                           parsec_tiled_matrix_dc_t *TT0,
+                           parsec_tiled_matrix_dc_t *TS,
+                           parsec_tiled_matrix_dc_t *TT,
+                           parsec_tiled_matrix_dc_t *Band )
 {
     parsec_zgebrd_ge2gb_taskpool_t* tp;
 
@@ -302,11 +302,11 @@ dplasma_zgebrd_ge2gbx_New( int ib,
  ******************************************************************************/
 parsec_taskpool_t*
 dplasma_zgebrd_ge2gb_New( int ib,
-                          tiled_matrix_desc_t *A,
-                          tiled_matrix_desc_t *Band )
+                          parsec_tiled_matrix_dc_t *A,
+                          parsec_tiled_matrix_dc_t *Band )
 {
     parsec_taskpool_t *tp;
-    tiled_matrix_desc_t *subA = NULL;
+    parsec_tiled_matrix_dc_t *subA = NULL;
     dplasma_qrtree_t *qrtre0, *qrtree, *lqtree;
     int P, Q, cores;
 
@@ -534,12 +534,12 @@ dplasma_zgebrd_ge2gbx( parsec_context_t *parsec, int ib,
                        dplasma_qrtree_t *qrtre0,
                        dplasma_qrtree_t *qrtree,
                        dplasma_qrtree_t *lqtree,
-                       tiled_matrix_desc_t *A,
-                       tiled_matrix_desc_t *TS0,
-                       tiled_matrix_desc_t *TT0,
-                       tiled_matrix_desc_t *TS,
-                       tiled_matrix_desc_t *TT,
-                       tiled_matrix_desc_t *Band)
+                       parsec_tiled_matrix_dc_t *A,
+                       parsec_tiled_matrix_dc_t *TS0,
+                       parsec_tiled_matrix_dc_t *TT0,
+                       parsec_tiled_matrix_dc_t *TS,
+                       parsec_tiled_matrix_dc_t *TT,
+                       parsec_tiled_matrix_dc_t *Band)
 {
     parsec_taskpool_t *parsec_zgebrd_ge2gb = NULL;
 
@@ -599,8 +599,8 @@ dplasma_zgebrd_ge2gbx( parsec_context_t *parsec, int ib,
  ******************************************************************************/
 int
 dplasma_zgebrd_ge2gb( parsec_context_t *parsec, int ib,
-                      tiled_matrix_desc_t *A,
-                      tiled_matrix_desc_t *Band)
+                      parsec_tiled_matrix_dc_t *A,
+                      parsec_tiled_matrix_dc_t *Band)
 {
     parsec_taskpool_t *parsec_zgebrd_ge2gb = NULL;
 

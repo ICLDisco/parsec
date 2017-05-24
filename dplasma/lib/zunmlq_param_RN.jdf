@@ -21,10 +21,10 @@ extern "C" %{
 
 side      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
-descA    [type = "tiled_matrix_desc_t*"]
-descB    [type = "tiled_matrix_desc_t*"]
-descTS   [type = "tiled_matrix_desc_t*" aligned=descA]
-descTT   [type = "tiled_matrix_desc_t*" aligned=descA]
+descA    [type = "parsec_tiled_matrix_dc_t*"]
+descB    [type = "parsec_tiled_matrix_dc_t*"]
+descTS   [type = "parsec_tiled_matrix_dc_t*" aligned=descA]
+descTT   [type = "parsec_tiled_matrix_dc_t*" aligned=descA]
 qrtree    [type = "dplasma_qrtree_t"]
 
 ib      [type = "int" hidden = on default = "descTS->mb" ]

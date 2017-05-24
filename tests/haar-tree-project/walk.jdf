@@ -31,9 +31,9 @@ static int my_walk_startup(parsec_execution_stream_t * es,
 
 // These are global variables that are instanciated in the main.c
 tree               [type = "tree_dist_t *"]
-// The only type known to parsec is parsec_ddesc_t
+// The only type known to parsec is parsec_data_collection_t
 NP                 [type = "int"]
-fakeDesc           [type = "parsec_ddesc_t *"]
+fakeDesc           [type = "parsec_data_collection_t *"]
 on_fct_param       [type = "void*"]
 on_node_down       [type = "walk_fn_t"]
 on_node_up         [type = "walk_fn_t"]
@@ -104,7 +104,7 @@ BODY
     /* The root node has to delete all remaining tasks*/
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
+        int rank = (((parsec_data_collection_t*)__parsec_tp->super._g_tree)->rank_of((parsec_data_collection_t*)__parsec_tp->super._g_tree, n, l));
         fprintf(stderr, "CALLING UP(%d, %d) on rank %d\n", n, l, rank);
     }
     if( NULL != on_node_up ) {
@@ -152,13 +152,13 @@ CTL RL      <- (n > 0) ? RL DOWN(n-1, l/2)
 BODY
 {
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
+        int rank = (((parsec_data_collection_t*)__parsec_tp->super._g_tree)->rank_of((parsec_data_collection_t*)__parsec_tp->super._g_tree, n, l));
         fprintf(stderr, "CALLING DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
     if( tree_dist_lookup_node(tree, n, l) == -1 ) {
         if( verbose ) {
-            int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
+            int rank = (((parsec_data_collection_t*)__parsec_tp->super._g_tree)->rank_of((parsec_data_collection_t*)__parsec_tp->super._g_tree, n, l));
             fprintf(stderr, "Node (%d, %d) does not exist on rank %d\n", n, l, rank);
         }
         this_task->locals.node_exists.value = 0;
@@ -184,7 +184,7 @@ BODY
 {
     node_t *node = (node_t*)NODE;
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)__parsec_tp->super._g_tree)->rank_of((parsec_ddesc_t*)__parsec_tp->super._g_tree, n, l));
+        int rank = (((parsec_data_collection_t*)__parsec_tp->super._g_tree)->rank_of((parsec_data_collection_t*)__parsec_tp->super._g_tree, n, l));
         fprintf(stderr, "CALLING DO_DOWN(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -308,10 +308,10 @@ static int my_walk_startup(parsec_execution_stream_t * es, __parsec_walk_DOWN_ta
   int vpid = 0;
   parsec_context_t *context = __tp->super.super.context;
 
-  if ( ((parsec_ddesc_t *)__tp->super._g_tree)->myrank != 0)
+  if ( ((parsec_data_collection_t *)__tp->super._g_tree)->myrank != 0)
       return PARSEC_HOOK_RETURN_DONE;
-  if (NULL != ((parsec_ddesc_t *) __tp->super._g_tree)->vpid_of) {
-      vpid = ((parsec_ddesc_t *) __tp->super._g_tree)->vpid_of((parsec_ddesc_t *) __tp->super._g_tree, 0, 0);
+  if (NULL != ((parsec_data_collection_t *) __tp->super._g_tree)->vpid_of) {
+      vpid = ((parsec_data_collection_t *) __tp->super._g_tree)->vpid_of((parsec_data_collection_t *) __tp->super._g_tree, 0, 0);
       (void)vpid;
       assert(context->nb_vp >= vpid);
   }

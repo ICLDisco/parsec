@@ -201,31 +201,31 @@ static pthread_mutex_t mpi_thread_mutex;
 static pthread_cond_t mpi_thread_condition;
 #endif
 
-static parsec_execution_stream_t parsec_comm_eu = {
-        .th_id = 0,
-        .core_id = -1,
-        .socket_id = -1,
+static parsec_execution_stream_t parsec_comm_es = {
+    .th_id = 0,
+    .core_id = -1,
+    .socket_id = -1,
 #if defined(PARSEC_PROF_TRACE)
-        .es_profile = NULL,
+    .es_profile = NULL,
 #endif /* PARSEC_PROF_TRACE */
-        .scheduler_object = NULL,
+    .scheduler_object = NULL,
 #if defined(PARSEC_SCHED_REPORT_STATISTICS)
-       .sched_nb_tasks_done = 0,
+    .sched_nb_tasks_done = 0,
 #endif
 #if defined(PARSEC_SIM)
-        .largest_simulation_date = 0,
+    .largest_simulation_date = 0,
 #endif
 #if defined(PINS_ENABLE)
-        .pins_events_cb = {{0x0,},},
+    .pins_events_cb = {0},
 #endif  /* defined(PINS_ENABLE) */
 #if defined(PARSEC_PROF_RUSAGE_EU)
 #if defined(PARSEC_HAVE_GETRUSAGE) || !defined(__bgp__)
-        ._es_rusage = {0x0, },
+    ._es_rusage = {0},
 #endif /* PARSEC_HAVE_GETRUSAGE */
 #endif
-        .virtual_process = NULL,
-        .context_mempool = NULL,
-        .datarepo_mempools = {NULL, }
+    .virtual_process = NULL,
+    .context_mempool = NULL,
+    .datarepo_mempools = {0}
 };
 
 static int remote_dep_dequeue_init(parsec_context_t* context)
@@ -783,7 +783,7 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
     dep_cmd_item_t *item, *same_pos;
     parsec_list_t temp_list;
     int ret = 0, how_many, position, executed_tasks = 0;
-    parsec_execution_stream_t* es = &parsec_comm_eu;
+    parsec_execution_stream_t* es = &parsec_comm_es;
 
     OBJ_CONSTRUCT(&temp_list, parsec_list_t);
  check_pending_queues:
@@ -980,7 +980,7 @@ static void remote_dep_mpi_profiling_init(void)
     MPIctl_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI ctl");
     MPIsnd_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI isend");
     MPIrcv_prof = parsec_profiling_thread_init( 2*1024*1024, "MPI irecv");
-    parsec_comm_eu.es_profile = MPIctl_prof;
+    parsec_comm_es.es_profile = MPIctl_prof;
 }
 
 static void remote_dep_mpi_profiling_fini(void)
@@ -1166,7 +1166,7 @@ static int remote_dep_mpi_init(parsec_context_t* context)
 void
 remote_dep_mpi_initialize_execution_stream(parsec_context_t *context)
 {
-    memcpy(&parsec_comm_eu, context->virtual_processes[0]->execution_streams[0], sizeof(parsec_execution_stream_t));
+    memcpy(&parsec_comm_es, context->virtual_processes[0]->execution_streams[0], sizeof(parsec_execution_stream_t));
     remote_dep_mpi_profiling_init();
 }
 

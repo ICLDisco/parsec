@@ -415,7 +415,7 @@ void* parsec_data_get_ptr(parsec_data_t* data, uint32_t device)
 
 parsec_data_t *
 parsec_data_create( parsec_data_t **holder,
-                   parsec_ddesc_t *desc,
+                   parsec_data_collection_t *desc,
                    parsec_data_key_t key, void *ptr, size_t size )
 {
     parsec_data_t *data = *holder;
@@ -429,7 +429,7 @@ parsec_data_create( parsec_data_t **holder,
 
         data->owner_device = 0;
         data->key = key;
-        data->ddesc = desc;
+        data->dc = desc;
         data->nb_elts = size;
         parsec_data_copy_attach(data, data_copy, 0);
 

@@ -8,25 +8,25 @@
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/subtile.h"
 
-static uint32_t      subtile_rank_of(parsec_ddesc_t* ddesc, ...);
-static int32_t       subtile_vpid_of(parsec_ddesc_t* ddesc, ...);
-static parsec_data_t* subtile_data_of(parsec_ddesc_t* ddesc, ...);
-static uint32_t      subtile_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static int32_t       subtile_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static parsec_data_t* subtile_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static uint32_t      subtile_rank_of(parsec_data_collection_t* dc, ...);
+static int32_t       subtile_vpid_of(parsec_data_collection_t* dc, ...);
+static parsec_data_t* subtile_data_of(parsec_data_collection_t* dc, ...);
+static uint32_t      subtile_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static int32_t       subtile_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static parsec_data_t* subtile_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 
-subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
+subtile_desc_t *subtile_desc_create( const parsec_tiled_matrix_dc_t *tdesc,
                                      int mt, int nt,   /* Tile in tdesc */
                                      int mb, int nb,   /* sub-tiles size  */
                                      int i,  int j,    /* Starting point in the tile */
                                      int m,  int n)    /* Submatrix size (the one concerned by the computation) */
 {
     subtile_desc_t *sdesc = malloc( sizeof(subtile_desc_t) );
-    parsec_ddesc_t *o = &(sdesc->super.super);
+    parsec_data_collection_t *o = &(sdesc->super.super);
     (void)mt; (void)nt;
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(sdesc->super), tdesc->mtype, matrix_Lapack, 0,
+    parsec_tiled_matrix_dc_init( &(sdesc->super), tdesc->mtype, matrix_Lapack, 0,
                             tdesc->super.nodes, tdesc->super.myrank,
                             mb, nb, BLKLDD( tdesc, mt ), tdesc->nb,
                             i, j, m, n );
@@ -35,7 +35,7 @@ subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
     sdesc->super.data_map = (parsec_data_t**)calloc(sdesc->super.nb_local_tiles, sizeof(parsec_data_t*));
 
     sdesc->mat = NULL;  /* No data associated with the matrix yet */
-    //sdesc->mat  = tdesc->super.data_of( (parsec_ddesc_t*)tdesc, mt, nt );
+    //sdesc->mat  = tdesc->super.data_of( (parsec_data_collection_t*)tdesc, mt, nt );
     sdesc->vpid = 0;
 
     /* set the methods */
@@ -53,12 +53,12 @@ subtile_desc_t *subtile_desc_create( const tiled_matrix_desc_t *tdesc,
     return sdesc;
 }
 
-static inline void subtile_key_to_coordinates(parsec_ddesc_t *desc, parsec_data_key_t key, int *m, int *n)
+static inline void subtile_key_to_coordinates(parsec_data_collection_t *desc, parsec_data_key_t key, int *m, int *n)
 {
     int _m, _n;
-    tiled_matrix_desc_t *tdesc;
+    parsec_tiled_matrix_dc_t *tdesc;
 
-    tdesc = (tiled_matrix_desc_t *)desc;
+    tdesc = (parsec_tiled_matrix_dc_t *)desc;
 
     _m = key % tdesc->lmt;
     _n = key / tdesc->lmt;
@@ -71,29 +71,29 @@ static inline void subtile_key_to_coordinates(parsec_ddesc_t *desc, parsec_data_
  * Set of functions with no super-tiles
  *
  */
-static uint32_t subtile_rank_of(parsec_ddesc_t * desc, ...)
+static uint32_t subtile_rank_of(parsec_data_collection_t * desc, ...)
 {
     return desc->myrank;
 }
 
-static uint32_t subtile_rank_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static uint32_t subtile_rank_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     (void)key;
     return desc->myrank;
 }
 
-static int32_t subtile_vpid_of(parsec_ddesc_t *desc, ...)
+static int32_t subtile_vpid_of(parsec_data_collection_t *desc, ...)
 {
     return ((subtile_desc_t*)desc)->vpid;
 }
 
-static int32_t subtile_vpid_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static int32_t subtile_vpid_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     (void)key;
     return ((subtile_desc_t*)desc)->vpid;
 }
 
-static parsec_data_t* subtile_data_of(parsec_ddesc_t *desc, ...)
+static parsec_data_t* subtile_data_of(parsec_data_collection_t *desc, ...)
 {
     int m, n, position;
     size_t pos;
@@ -122,7 +122,7 @@ static parsec_data_t* subtile_data_of(parsec_ddesc_t *desc, ...)
                                      position, position );
 }
 
-static parsec_data_t* subtile_data_of_key(parsec_ddesc_t *desc, parsec_data_key_t key)
+static parsec_data_t* subtile_data_of_key(parsec_data_collection_t *desc, parsec_data_key_t key)
 {
     int m, n;
     subtile_key_to_coordinates(desc, key, &m, &n);

@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world, cores;
     int size, repeat;
-    tiled_matrix_desc_t *ddescA, *ddescB;
+    parsec_tiled_matrix_dc_t *dcA, *dcB;
     parsec_taskpool_t *a2a;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -38,12 +38,12 @@ int main(int argc, char *argv[])
     size = 256;
     repeat = 10;
 
-    ddescA = create_and_distribute_data(rank, world, world*size);
-    parsec_ddesc_set_key( (parsec_ddesc_t*)ddescA, "A");
-    ddescB = create_and_distribute_data(rank, world, world*size);
-    parsec_ddesc_set_key( (parsec_ddesc_t*)ddescB, "B");
+    dcA = create_and_distribute_data(rank, world, world*size);
+    parsec_data_collection_set_key( (parsec_data_collection_t*)dcA, "A");
+    dcB = create_and_distribute_data(rank, world, world*size);
+    parsec_data_collection_set_key( (parsec_data_collection_t*)dcB, "B");
 
-    a2a = a2a_new(ddescA, ddescB, size, repeat);
+    a2a = a2a_new(dcA, dcB, size, repeat);
     rc = parsec_enqueue(parsec, a2a);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
@@ -55,8 +55,8 @@ int main(int argc, char *argv[])
 
     parsec_taskpool_free(a2a);
     parsec_fini(&parsec);
-    free_data(ddescA);
-    free_data(ddescB);
+    free_data(dcA);
+    free_data(dcB);
 
 #ifdef PARSEC_HAVE_MPI
     MPI_Finalize();

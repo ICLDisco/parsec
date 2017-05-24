@@ -22,10 +22,10 @@ extern "C" %{
 
 %}
 
-descA     [type = "const tiled_matrix_desc_t*"]
-descL     [type = "const tiled_matrix_desc_t*" aligned=descA]
-dataIP    [type = "const tiled_matrix_desc_t*" aligned=descA] /* Unused: Here only to keep alignment with getrf_incpiv object */
-descB     [type = "tiled_matrix_desc_t*"]
+descA     [type = "const parsec_tiled_matrix_dc_t*"]
+descL     [type = "const parsec_tiled_matrix_dc_t*" aligned=descA]
+dataIP    [type = "const parsec_tiled_matrix_dc_t*" aligned=descA] /* Unused: Here only to keep alignment with getrf_incpiv object */
+descB     [type = "parsec_tiled_matrix_dc_t*"]
 
 ib        [type = "int" hidden=on default="descL->mb" ]
 KT        [type = "int" hidden=on default="dplasma_imin( descA->mt, descA->nt)-1" ]

@@ -44,9 +44,9 @@ static int my_project_startup(parsec_execution_stream_t * es,
 
 // These are global variables that are instanciated in the main.c
 treeA               [type = "tree_dist_t *"]
-// The only type known to parsec is parsec_ddesc_t
+// The only type known to parsec is parsec_data_collection_t
 NP                  [type = "int"]
-fakeDesc            [type = "parsec_ddesc_t *"]
+fakeDesc            [type = "parsec_data_collection_t *"]
 thresh              [type = "double"]
 verbose             [type = "int"]
 
@@ -111,7 +111,7 @@ BODY
 {
   /* The root node has to delete all remaining tasks*/
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)treeA)->rank_of((parsec_ddesc_t*)treeA, n, l));
+        int rank = (((parsec_data_collection_t*)treeA)->rank_of((parsec_data_collection_t*)treeA, n, l));
         fprintf(stderr, "CALLING END_PROPAGATE(%d, %d) on rank %d\n", n, l, rank);
     }
 }
@@ -137,7 +137,7 @@ BODY
     double sl, sr;
 
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)treeA)->rank_of((parsec_ddesc_t*)treeA, n, l));
+        int rank = (((parsec_data_collection_t*)treeA)->rank_of((parsec_data_collection_t*)treeA, n, l));
         fprintf(stderr, "CALLING CREATE_NODE(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -177,7 +177,7 @@ BODY
     double d;
 
     if( verbose ) {
-        int rank = (((parsec_ddesc_t*)treeA)->rank_of((parsec_ddesc_t*)treeA, n, l));
+        int rank = (((parsec_data_collection_t*)treeA)->rank_of((parsec_data_collection_t*)treeA, n, l));
         fprintf(stderr, "CALLING PROJECT(%d, %d) on rank %d\n", n, l, rank);
     }
 
@@ -309,10 +309,10 @@ static int my_project_startup(parsec_execution_stream_t * es, __parsec_project_P
   int vpid = 0;
   parsec_context_t *context = __tp->super.super.context;
 
-  if ( ((parsec_ddesc_t *)__tp->super._g_treeA)->myrank != 0)
+  if ( ((parsec_data_collection_t *)__tp->super._g_treeA)->myrank != 0)
       return PARSEC_HOOK_RETURN_DONE;
-  if (NULL != ((parsec_ddesc_t *) __tp->super._g_treeA)->vpid_of) {
-      vpid = ((parsec_ddesc_t *) __tp->super._g_treeA)->vpid_of((parsec_ddesc_t *) __tp->super._g_treeA, 0, 0);
+  if (NULL != ((parsec_data_collection_t *) __tp->super._g_treeA)->vpid_of) {
+      vpid = ((parsec_data_collection_t *) __tp->super._g_treeA)->vpid_of((parsec_data_collection_t *) __tp->super._g_treeA, 0, 0);
       assert(context->nb_vp >= vpid);
   }
   new_task = (__parsec_project_PROJECT_task_t *) parsec_thread_mempool_allocate(context->virtual_processes[0]->execution_streams[0]->context_mempool);

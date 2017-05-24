@@ -16,20 +16,20 @@ static inline uint32_t hash_hash(uint32_t hash_size, uint32_t key)
     return key % hash_size;
 }
 
-static uint32_t      hash_data_key(struct parsec_ddesc_s *desc, ...);
-static uint32_t      hash_rank_of(    parsec_ddesc_t* ddesc, ... );
-static uint32_t      hash_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static int32_t       hash_vpid_of(    parsec_ddesc_t* ddesc, ... );
-static int32_t       hash_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
-static parsec_data_t* hash_data_of(    parsec_ddesc_t* ddesc, ... );
-static parsec_data_t* hash_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
+static uint32_t      hash_data_key(struct parsec_data_collection_s *desc, ...);
+static uint32_t      hash_rank_of(    parsec_data_collection_t* dc, ... );
+static uint32_t      hash_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static int32_t       hash_vpid_of(    parsec_data_collection_t* dc, ... );
+static int32_t       hash_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
+static parsec_data_t* hash_data_of(    parsec_data_collection_t* dc, ... );
+static parsec_data_t* hash_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key);
 
 parsec_hash_datadist_t *parsec_hash_datadist_create(int np, int myrank)
 {
     parsec_hash_datadist_t *o;
 
     o = (parsec_hash_datadist_t*)malloc(sizeof(parsec_hash_datadist_t));
-    parsec_ddesc_init( (parsec_ddesc_t*)o, np, myrank );
+    parsec_data_collection_init( (parsec_data_collection_t*)o, np, myrank );
 
     o->super.data_key      = hash_data_key;
     o->super.rank_of       = hash_rank_of;
@@ -67,7 +67,7 @@ void parsec_hash_datadist_destroy(parsec_hash_datadist_t *d)
     free(d->hash);
     d->hash = NULL;
     d->hash_size = 0;
-    parsec_ddesc_destroy( &d->super );
+    parsec_data_collection_destroy( &d->super );
     free(d);
 }
 
@@ -132,7 +132,7 @@ void parsec_hash_datadist_set_data(parsec_hash_datadist_t *d, void *actual_data,
     u->size = size;
 }
 
-static uint32_t      hash_data_key(struct parsec_ddesc_s *desc, ...)
+static uint32_t      hash_data_key(struct parsec_data_collection_s *desc, ...)
 {
     uint32_t k;
     va_list ap;
@@ -143,20 +143,20 @@ static uint32_t      hash_data_key(struct parsec_ddesc_s *desc, ...)
     return k;
 }
 
-static uint32_t      hash_rank_of(    parsec_ddesc_t* ddesc, ... )
+static uint32_t      hash_rank_of(    parsec_data_collection_t* dc, ... )
 {
     uint32_t k;
     va_list ap;
 
-    va_start(ap, ddesc);
+    va_start(ap, dc);
     k = va_arg(ap, int);
     va_end(ap);
-    return hash_rank_of_key(ddesc, k);
+    return hash_rank_of_key(dc, k);
 }
 
-static uint32_t      hash_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key)
+static uint32_t      hash_rank_of_key(parsec_data_collection_t* dc, parsec_data_key_t key)
 {
-    parsec_hash_datadist_entry_t *e = hash_lookup( (parsec_hash_datadist_t*)ddesc, key );
+    parsec_hash_datadist_entry_t *e = hash_lookup( (parsec_hash_datadist_t*)dc, key );
     /**
      * Allow for incomplete hash data collections (each node has a partial view).
      * If we don't know the datadist entry then let's return a non-existing rank,
@@ -164,42 +164,42 @@ static uint32_t      hash_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t k
      * but will allow the high level language to make assumptions about the
      * locality of the data.
      */
-    return (NULL == e ? ddesc->nodes : (uint32_t)e->rank);
+    return (NULL == e ? dc->nodes : (uint32_t)e->rank);
 }
 
-static int32_t       hash_vpid_of(    parsec_ddesc_t* ddesc, ... )
+static int32_t       hash_vpid_of(    parsec_data_collection_t* dc, ... )
 {
     uint32_t k;
     va_list ap;
 
-    va_start(ap, ddesc);
+    va_start(ap, dc);
     k = va_arg(ap, int);
     va_end(ap);
-    return hash_vpid_of_key(ddesc, k);
+    return hash_vpid_of_key(dc, k);
 }
 
-static int32_t       hash_vpid_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key)
+static int32_t       hash_vpid_of_key(parsec_data_collection_t* dc, parsec_data_key_t key)
 {
-    parsec_hash_datadist_entry_t *e = hash_lookup( (parsec_hash_datadist_t*)ddesc, key );
+    parsec_hash_datadist_entry_t *e = hash_lookup( (parsec_hash_datadist_t*)dc, key );
     assert(e != NULL);
     return e->vpid;
 }
 
-static parsec_data_t* hash_data_of(    parsec_ddesc_t* ddesc, ... )
+static parsec_data_t* hash_data_of(    parsec_data_collection_t* dc, ... )
 {
     uint32_t k;
     va_list ap;
 
-    va_start(ap, ddesc);
+    va_start(ap, dc);
     k = va_arg(ap, int);
     va_end(ap);
-    return hash_data_of_key(ddesc, k);
+    return hash_data_of_key(dc, k);
 }
 
-static parsec_data_t* hash_data_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key)
+static parsec_data_t* hash_data_of_key(parsec_data_collection_t* dc, parsec_data_key_t key)
 {
-    parsec_hash_datadist_entry_t *e = hash_lookup( (parsec_hash_datadist_t*)ddesc, key );
+    parsec_hash_datadist_entry_t *e = hash_lookup( (parsec_hash_datadist_t*)dc, key );
     assert(e != NULL);
-    return parsec_data_create( &(e->data), ddesc, key,
+    return parsec_data_create( &(e->data), dc, key,
                               e->actual_data, e->size );
 }

@@ -39,8 +39,8 @@ struct parsec_dtd_task_param_ptg_to_dtd_s {
 static parsec_list_t *dtd_global_deque = NULL;
 /* for testing purpose of automatic insertion from Awesome PTG approach */
 static parsec_dtd_taskpool_t *__dtd_taskpool = NULL;
-/* We  use a global ddesc as PTG has varying behavior */
-static parsec_ddesc_t *__ddesc;
+/* We  use a global dc as PTG has varying behavior */
+static parsec_data_collection_t *__dc;
 
 /* Prototype of some of the static functions */
 static void pins_init_ptg_to_dtd(parsec_context_t *master_context);
@@ -89,14 +89,14 @@ copy_chores(parsec_taskpool_t *tp, parsec_dtd_taskpool_t *dtd_tp)
 static void pins_init_ptg_to_dtd(parsec_context_t *master_context)
 {
     (void)master_context;
-    __ddesc = malloc(sizeof(parsec_ddesc_t));
-    parsec_ddesc_init( __ddesc, 0 , 0 );
+    __dc = malloc(sizeof(parsec_data_collection_t));
+    parsec_data_collection_init( __dc, 0 , 0 );
 }
 
 static void pins_fini_ptg_to_dtd(parsec_context_t *master_context)
 {
-    parsec_ddesc_destroy( __ddesc );
-    free(__ddesc);
+    parsec_data_collection_destroy( __dc );
+    free(__dc);
     (void)master_context;
 }
 
@@ -104,7 +104,7 @@ static int pins_taskpool_complete_callback(parsec_taskpool_t* ptg_tp, void* void
 {
     parsec_taskpool_t *dtd_tp = (parsec_taskpool_t*)void_dtd_tp;
 
-    parsec_dtd_data_flush_all( (parsec_taskpool_t *)__dtd_taskpool, __ddesc );
+    parsec_dtd_data_flush_all( (parsec_taskpool_t *)__dtd_taskpool, __dc );
     /* We can not wait until all tasks are done as:
      * 1. This callback is called from the complete hook of another task
      *    so we need to wait for at least until the counter reaches 2
@@ -139,7 +139,7 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
         parsec_taskpool_free((parsec_taskpool_t *)__dtd_taskpool);
     }
 
-    parsec_dtd_ddesc_init( __ddesc );
+    parsec_dtd_data_collection_init( __dc );
     __dtd_taskpool = (parsec_dtd_taskpool_t *)parsec_dtd_taskpool_new( );
     dtd_global_deque = OBJ_NEW(parsec_list_t);
     copy_chores(ptg_tp, __dtd_taskpool);
@@ -161,7 +161,7 @@ static void pins_taskpool_fini_ptg_to_dtd(parsec_taskpool_t *tp)
         return;
     }
 
-    parsec_dtd_ddesc_fini( __ddesc );
+    parsec_dtd_data_collection_fini( __dc );
     OBJ_RELEASE(dtd_global_deque);
     dtd_global_deque = NULL;
 }
@@ -217,7 +217,7 @@ static const __parsec_chore_t dtd_chore_for_testing[] = {
  * This function checks if the tile structure(parsec_dtd_tile_t) is created for the data
  * already or not.
  * Arguments:   - parsec taskpool (parsec_dtd_taskpool_t *)
-                - data descriptor (parsec_ddesc_t *)
+                - data descriptor (parsec_data_collection_t *)
                 - key of this data (parsec_data_key_t)
  * Returns:     - tile, creates one if not already created, and returns that
                   tile, (parsec_dtd_tile_t *)
@@ -230,7 +230,7 @@ tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_in
 
     //uint64_t combined_key = ((((uint32_t)data)<<32) | ((uint32_t)key));
 
-    parsec_dtd_tile_t *tile = parsec_dtd_tile_find(__ddesc, combined_key);
+    parsec_dtd_tile_t *tile = parsec_dtd_tile_find(__dc, combined_key);
     if( NULL == tile ) {
         tile = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate(parsec_dtd_tile_mempool->thread_mempools);
         tile->key                   = combined_key;
@@ -241,13 +241,13 @@ tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_in
         tile->data_copy->readers    = 0;
 #endif
         tile->arena_index           = arena_index;
-        tile->ddesc                 = __ddesc;
+        tile->dc                 = __dc;
 
         SET_LAST_ACCESSOR(tile);
 
         parsec_dtd_tile_retain(tile);
         parsec_dtd_tile_insert( combined_key,
-                                tile, __ddesc );
+                                tile, __dc );
     }
     return tile;
 }

@@ -60,7 +60,7 @@ test_task_generator( parsec_execution_stream_t    *es,
 {
     (void)es;
 
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *dtd_tp = this_task->taskpool;
     int *total, *step, *iteration, *n;
     int *amount_of_work;
@@ -72,9 +72,9 @@ test_task_generator( parsec_execution_stream_t    *es,
                            UNPACK_VALUE,  &total,
                            UNPACK_VALUE,  &step,
                            UNPACK_VALUE,  &iteration,
-                           UNPACK_SCRATCH, &ddescA);
+                           UNPACK_SCRATCH, &dcA);
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
     for( i = 0; *iteration < *total; *iteration += 1, i++ ) {
         if( i > *step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
@@ -116,7 +116,7 @@ int main(int argc, char ** argv)
     int m, n;
     int no_of_chain;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
     int amount_of_work[3] = {1000, 10000, 100000};
     parsec_taskpool_t *dtd_tp;
 
@@ -134,8 +134,8 @@ int main(int argc, char ** argv)
     nb = 1; /* size of each tile */
     nt = no_of_chain; /* total tiles */
 
-    ddescA = create_and_distribute_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
@@ -143,8 +143,8 @@ int main(int argc, char ** argv)
                           MPI_INT);
 #endif
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
     int i;
     int work_index = 0;
 
@@ -180,7 +180,7 @@ int main(int argc, char ** argv)
                                 sizeof(int),      &tasks_in_each_chain[i],   VALUE,
                                 sizeof(int),      &step,                  VALUE,
                                 sizeof(int),      &iteration,             VALUE,
-                                sizeof(tiled_matrix_desc_t*),    ddescA,  SCRATCH,
+                                sizeof(parsec_tiled_matrix_dc_t*),    dcA,  SCRATCH,
                                 0 );
 
         }
@@ -194,8 +194,8 @@ int main(int argc, char ** argv)
     parsec_context_wait(parsec);
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
     parsec_taskpool_free( dtd_tp );
 

@@ -93,7 +93,7 @@ int main(int argc, char **argv)
     int rc;
     int rank, world, cores;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -122,11 +122,11 @@ int main(int argc, char **argv)
 #endif
 
     /* Correctness checking */
-    ddescA = create_and_distribute_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
 
     parsec_data_copy_t *gdata;
     parsec_data_t *data;
@@ -202,8 +202,8 @@ int main(int argc, char **argv)
     parsec_taskpool_free( dtd_tp );
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
     parsec_fini(&parsec);
 

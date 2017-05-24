@@ -174,7 +174,7 @@ int compute_data_size(int lvl, int i, int NB, int NT){
 #define MY_TYPE parsec_datatype_int_t
 %}
 
-dataA      [type = "struct tiled_matrix_desc_t *"]
+dataA      [type = "struct parsec_tiled_matrix_dc_t *"]
 NB         [type = int]
 NT         [type = int]
 

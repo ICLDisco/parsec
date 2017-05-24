@@ -13,7 +13,7 @@
 #include "parsec/data.h"
 
 typedef struct {
-    parsec_ddesc_t super;
+    parsec_data_collection_t super;
     int32_t start_rank;
     int32_t block_size;
     int32_t total_size;
@@ -22,7 +22,7 @@ typedef struct {
     int32_t* ptr;
 } vector_datatype_t;
 
-static uint32_t rank_of(parsec_ddesc_t *desc, ...)
+static uint32_t rank_of(parsec_data_collection_t *desc, ...)
 {
     vector_datatype_t *dat = (vector_datatype_t*)desc;
     va_list ap;
@@ -35,7 +35,7 @@ static uint32_t rank_of(parsec_ddesc_t *desc, ...)
     return (k + dat->start_rank) % dat->super.nodes;
 }
 
-static int32_t vpid_of(parsec_ddesc_t *desc, ...)
+static int32_t vpid_of(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -49,7 +49,7 @@ static int32_t vpid_of(parsec_ddesc_t *desc, ...)
     return 0;
 }
 
-static parsec_data_t* data_of(parsec_ddesc_t *desc, ...)
+static parsec_data_t* data_of(parsec_data_collection_t *desc, ...)
 {
     vector_datatype_t *dat = (vector_datatype_t*)desc;
     va_list ap;
@@ -69,7 +69,7 @@ static parsec_data_t* data_of(parsec_ddesc_t *desc, ...)
 }
 
 #if defined(PARSEC_PROF_TRACE)
-static uint32_t data_key(parsec_ddesc_t *desc, ...)
+static uint32_t data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -82,12 +82,12 @@ static uint32_t data_key(parsec_ddesc_t *desc, ...)
 }
 #endif
 
-parsec_ddesc_t*
+parsec_data_collection_t*
 create_vector(int me, int world, int start_rank,
               int block_size, int total_size)
 {
     vector_datatype_t *m = (vector_datatype_t*)calloc(1, sizeof(vector_datatype_t));
-    parsec_ddesc_t *d = &(m->super);
+    parsec_data_collection_t *d = &(m->super);
 
     d->myrank  = me;
     d->nodes   = world;
@@ -110,13 +110,13 @@ create_vector(int me, int world, int start_rank,
     return d;
 }
 
-void release_vector(parsec_ddesc_t *d)
+void release_vector(parsec_data_collection_t *d)
 {
     vector_datatype_t *m = (vector_datatype_t*)d;
     if(NULL != m->data) {
         PARSEC_DATA_COPY_RELEASE(m->data);
     }
     free(m->ptr);
-    parsec_ddesc_destroy(d);
+    parsec_data_collection_destroy(d);
     free(d);
 }

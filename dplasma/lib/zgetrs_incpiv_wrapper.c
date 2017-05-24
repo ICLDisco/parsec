@@ -84,10 +84,10 @@
 int
 dplasma_zgetrs_incpiv(parsec_context_t *parsec,
                       PLASMA_enum trans,
-                      tiled_matrix_desc_t *A,
-                      tiled_matrix_desc_t *L,
-                      tiled_matrix_desc_t *IPIV,
-                      tiled_matrix_desc_t *B)
+                      parsec_tiled_matrix_dc_t *A,
+                      parsec_tiled_matrix_dc_t *L,
+                      parsec_tiled_matrix_dc_t *IPIV,
+                      parsec_tiled_matrix_dc_t *B)
 {
     /* Check input arguments */
     if (trans != PlasmaNoTrans) {

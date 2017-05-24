@@ -81,7 +81,7 @@
  ******************************************************************************/
 parsec_taskpool_t*
 dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     double *result )
 {
     int P, Q, m, n, mb, nb, elt;
@@ -154,7 +154,7 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
     switch( norm ) {
     case PlasmaOneNorm:
         parsec_zlantr = (parsec_taskpool_t*)parsec_zlange_one_cyclic_new(
-            P, Q, norm, uplo, diag, A, (parsec_ddesc_t*)Tdist, result);
+            P, Q, norm, uplo, diag, A, (parsec_data_collection_t*)Tdist, result);
         break;
 
     case PlasmaMaxNorm:
@@ -162,7 +162,7 @@ dplasma_zlantr_New( PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
     case PlasmaFrobeniusNorm:
     default:
         parsec_zlantr = (parsec_taskpool_t*)parsec_zlange_frb_cyclic_new(
-            P, Q, norm, uplo, diag, A, (parsec_ddesc_t*)Tdist, result);
+            P, Q, norm, uplo, diag, A, (parsec_data_collection_t*)Tdist, result);
     }
 
     /* Set the datatypes */
@@ -205,7 +205,7 @@ dplasma_zlantr_Destruct( parsec_taskpool_t *tp )
 {
     parsec_zlange_frb_cyclic_taskpool_t *parsec_zlantr = (parsec_zlange_frb_cyclic_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlantr->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlantr->_g_Tdist) );
     free( parsec_zlantr->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlantr->arenas[PARSEC_zlange_frb_cyclic_DEFAULT_ARENA] );
@@ -276,7 +276,7 @@ dplasma_zlantr_Destruct( parsec_taskpool_t *tp )
 double
 dplasma_zlantr( parsec_context_t *parsec,
                 PLASMA_enum norm, PLASMA_enum uplo, PLASMA_enum diag,
-                const tiled_matrix_desc_t *A)
+                const parsec_tiled_matrix_dc_t *A)
 {
     double result = 0.;
     parsec_taskpool_t *parsec_zlantr = NULL;

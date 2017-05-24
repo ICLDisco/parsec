@@ -152,7 +152,7 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
     /* Parameters passed on to Insert_task() */
     int tempkm, tempmm, ldak, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
     parsec_complex64_t alpha_trsm, alpha_herk, beta;
-    sym_two_dim_block_cyclic_t *ddescA;
+    sym_two_dim_block_cyclic_t *dcA;
 
     int *total, *iteration, *uplo_enum, *info, m, n, k, count = 0;
 
@@ -163,9 +163,9 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
                           UNPACK_VALUE,   &iteration,
                           UNPACK_VALUE,   &uplo_enum,
                           UNPACK_SCRATCH, &info,
-                          UNPACK_SCRATCH, &ddescA);
+                          UNPACK_SCRATCH, &dcA);
 
-    sym_two_dim_block_cyclic_t *__ddescA = ddescA;
+    sym_two_dim_block_cyclic_t *__dcA = dcA;
 
     PLASMA_enum uplo = *uplo_enum;
     side = PlasmaRight;
@@ -184,8 +184,8 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
             return PARSEC_HOOK_RETURN_AGAIN;
         }
 
-        tempkm = (k == (ddescA->super.mt - 1)) ? ddescA->super.m - k * ddescA->super.mb : ddescA->super.mb;
-        ldak = BLKLDD(&ddescA->super, k);
+        tempkm = (k == (dcA->super.mt - 1)) ? dcA->super.m - k * dcA->super.mb : dcA->super.mb;
+        ldak = BLKLDD(&dcA->super, k);
 
         parsec_insert_task(dtd_tp, parsec_core_potrf,
                          (*total - k) * (*total-k) * (*total - k)/*priority*/, "Potrf",
@@ -196,8 +196,8 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
                          sizeof(int *),    &info,              SCRATCH,
                          0);
         for( m = k+1; m < *total; m++, count++ ) {
-            tempmm = m == ddescA->super.mt - 1 ? ddescA->super.m - m * ddescA->super.mb : ddescA->super.mb;
-            ldam = BLKLDD(&ddescA->super, m);
+            tempmm = m == dcA->super.mt - 1 ? dcA->super.m - m * dcA->super.mb : dcA->super.mb;
+            ldam = BLKLDD(&dcA->super, m);
             parsec_insert_task(dtd_tp, parsec_core_trsm,
                              (*total - m) * (*total-m) * (*total - m) + 3 * ((2 * *total) - k - m - 1) * (m - k)/*priority*/, "Trsm",
                              sizeof(int),      &side,               VALUE,
@@ -205,7 +205,7 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
                              sizeof(int),      &transA_p,           VALUE,
                              sizeof(int),      &diag,               VALUE,
                              sizeof(int),      &tempmm,             VALUE,
-                             sizeof(int),      &ddescA->super.nb,   VALUE,
+                             sizeof(int),      &dcA->super.nb,   VALUE,
                              sizeof(parsec_complex64_t),      &alpha_trsm,         VALUE,
                              PASSED_BY_REF,    TILE_OF(A, k, k), INPUT | TILE_FULL,
                              sizeof(int),      &ldak,               VALUE,
@@ -215,15 +215,15 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
         }
 
         parsec_dtd_data_flush(dtd_tp, TILE_OF(A, k, k));
-        for( m = k+1; m < ddescA->super.nt; m++, count++ ){
-            tempmm = m == ddescA->super.mt - 1 ? ddescA->super.m - m * ddescA->super.mb : ddescA->super.mb;
-            ldam = BLKLDD(&ddescA->super, m);
+        for( m = k+1; m < dcA->super.nt; m++, count++ ){
+            tempmm = m == dcA->super.mt - 1 ? dcA->super.m - m * dcA->super.mb : dcA->super.mb;
+            ldam = BLKLDD(&dcA->super, m);
             parsec_insert_task(dtd_tp, parsec_core_herk,
                             (*total - m) * (*total - m) * (*total - m) + 3 * (m - k)/*priority*/, "Herk",
                             sizeof(int),       &uplo,               VALUE,
                             sizeof(int),       &trans,              VALUE,
                             sizeof(int),       &tempmm,             VALUE,
-                            sizeof(int),       &ddescA->super.mb,   VALUE,
+                            sizeof(int),       &dcA->super.mb,   VALUE,
                             sizeof(parsec_complex64_t),       &alpha_herk,         VALUE,
                             PASSED_BY_REF,     TILE_OF(A, m, k), INPUT | TILE_FULL,
                             sizeof(int),       &ldam,               VALUE,
@@ -232,14 +232,14 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
                             sizeof(int),       &ldam,               VALUE,
                             0);
             for( n = m+1; n < *total; n++, count++ ){
-                ldan = BLKLDD(&ddescA->super, n);
+                ldan = BLKLDD(&dcA->super, n);
                 parsec_insert_task(dtd_tp,  parsec_core_gemm,
                                (*total - m) * (*total - m) * (*total - m) + 3 * ((2 * *total) - m - n - 3) * (m - n) + 6 * (m - k) /*priority*/, "Gemm",
                                sizeof(int),        &transA_g,           VALUE,
                                sizeof(int),        &transB,             VALUE,
                                sizeof(int),        &tempmm,             VALUE,
-                               sizeof(int),        &ddescA->super.mb,   VALUE,
-                               sizeof(int),        &ddescA->super.mb,   VALUE,
+                               sizeof(int),        &dcA->super.mb,   VALUE,
+                               sizeof(int),        &dcA->super.mb,   VALUE,
                                sizeof(parsec_complex64_t),        &alpha_herk,         VALUE,
                                PASSED_BY_REF,      TILE_OF(A, n, k), INPUT | TILE_FULL,
                                sizeof(int),        &ldan,               VALUE,
@@ -254,7 +254,7 @@ insert_task_lower(parsec_execution_stream_t *es, parsec_task_t *this_task)
         }
     }
 
-    parsec_dtd_data_flush_all(dtd_tp, (parsec_ddesc_t *)ddescA);
+    parsec_dtd_data_flush_all(dtd_tp, (parsec_data_collection_t *)dcA);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -265,7 +265,7 @@ insert_task_upper(parsec_execution_stream_t *es, parsec_task_t *this_task)
     /* Parameters passed on to Insert_task() */
     int tempkm, tempmm, ldak, ldam, side, transA_p, transA_g, diag, trans, transB, ldan;
     parsec_complex64_t alpha_trsm, alpha_herk, beta;
-    sym_two_dim_block_cyclic_t *ddescA;
+    sym_two_dim_block_cyclic_t *dcA;
 
     int *total, *iteration, *uplo_enum, *info, m, n, k, count = 0;
 
@@ -276,9 +276,9 @@ insert_task_upper(parsec_execution_stream_t *es, parsec_task_t *this_task)
                           UNPACK_VALUE,   &iteration,
                           UNPACK_VALUE,   &uplo_enum,
                           UNPACK_SCRATCH, &info,
-                          UNPACK_SCRATCH, &ddescA);
+                          UNPACK_SCRATCH, &dcA);
 
-    sym_two_dim_block_cyclic_t *__ddescA = ddescA;
+    sym_two_dim_block_cyclic_t *__dcA = dcA;
 
     PLASMA_enum uplo = *uplo_enum;
 
@@ -298,8 +298,8 @@ insert_task_upper(parsec_execution_stream_t *es, parsec_task_t *this_task)
             return PARSEC_HOOK_RETURN_AGAIN;
         }
 
-        tempkm = k == ddescA->super.nt-1 ? ddescA->super.n-k*ddescA->super.nb : ddescA->super.nb;
-        ldak = BLKLDD(&ddescA->super, k);
+        tempkm = k == dcA->super.nt-1 ? dcA->super.n-k*dcA->super.nb : dcA->super.nb;
+        ldak = BLKLDD(&dcA->super, k);
         parsec_insert_task(dtd_tp, parsec_core_potrf,
                          (*total - k) * (*total-k) * (*total - k)/*priority*/, "Potrf",
                          sizeof(int),      &uplo,              VALUE,
@@ -309,14 +309,14 @@ insert_task_upper(parsec_execution_stream_t *es, parsec_task_t *this_task)
                          sizeof(int *),    info,               SCRATCH,
                          0);
         for (m = k+1; m < *total; m++, count++) {
-            tempmm = m == ddescA->super.nt-1 ? ddescA->super.n-m*ddescA->super.nb : ddescA->super.nb;
+            tempmm = m == dcA->super.nt-1 ? dcA->super.n-m*dcA->super.nb : dcA->super.nb;
             parsec_insert_task(dtd_tp, parsec_core_trsm,
                              (*total - m) * (*total-m) * (*total - m) + 3 * ((2 * *total) - k - m - 1) * (m - k)/*priority*/, "Trsm",
                              sizeof(int),      &side,               VALUE,
                              sizeof(int),      &uplo,               VALUE,
                              sizeof(int),      &transA_p,           VALUE,
                              sizeof(int),      &diag,               VALUE,
-                             sizeof(int),      &ddescA->super.nb,   VALUE,
+                             sizeof(int),      &dcA->super.nb,   VALUE,
                              sizeof(int),      &tempmm,             VALUE,
                              sizeof(parsec_complex64_t),      &alpha_trsm,         VALUE,
                              PASSED_BY_REF,    TILE_OF(A, k, k), INPUT | TILE_FULL,
@@ -327,15 +327,15 @@ insert_task_upper(parsec_execution_stream_t *es, parsec_task_t *this_task)
         }
         parsec_dtd_data_flush(dtd_tp, TILE_OF(A, k, k));
 
-        for (m = k+1; m < ddescA->super.mt; m++, count++) {
-            tempmm = m == ddescA->super.nt-1 ? ddescA->super.n-m*ddescA->super.nb : ddescA->super.nb;
-            ldam = BLKLDD(&ddescA->super, m);
+        for (m = k+1; m < dcA->super.mt; m++, count++) {
+            tempmm = m == dcA->super.nt-1 ? dcA->super.n-m*dcA->super.nb : dcA->super.nb;
+            ldam = BLKLDD(&dcA->super, m);
             parsec_insert_task(dtd_tp, parsec_core_herk,
                             (*total - m) * (*total - m) * (*total - m) + 3 * (m - k)/*priority*/, "Herk",
                             sizeof(int),       &uplo,               VALUE,
                             sizeof(int),       &trans,              VALUE,
                             sizeof(int),       &tempmm,             VALUE,
-                            sizeof(int),       &ddescA->super.mb,   VALUE,
+                            sizeof(int),       &dcA->super.mb,   VALUE,
                             sizeof(parsec_complex64_t),       &alpha_herk,         VALUE,
                             PASSED_BY_REF,     TILE_OF(A, k, m), INPUT | TILE_FULL,
                             sizeof(int),       &ldak,               VALUE,
@@ -344,14 +344,14 @@ insert_task_upper(parsec_execution_stream_t *es, parsec_task_t *this_task)
                             sizeof(int),       &ldam,               VALUE,
                             0);
             for (n = m+1; n < *total; n++, count++) {
-               ldan = BLKLDD(&ddescA->super, n);
+               ldan = BLKLDD(&dcA->super, n);
                parsec_insert_task(dtd_tp,  parsec_core_gemm,
                                (*total - m) * (*total - m) * (*total - m) + 3 * ((2 * *total) - m - n - 3) * (m - n) + 6 * (m - k) /*priority*/, "Gemm",
                                sizeof(int),        &transA_g,           VALUE,
                                sizeof(int),        &transB,             VALUE,
-                               sizeof(int),        &ddescA->super.mb,   VALUE,
+                               sizeof(int),        &dcA->super.mb,   VALUE,
                                sizeof(int),        &tempmm,             VALUE,
-                               sizeof(int),        &ddescA->super.mb,   VALUE,
+                               sizeof(int),        &dcA->super.mb,   VALUE,
                                sizeof(parsec_complex64_t),        &alpha_herk,         VALUE,
                                PASSED_BY_REF,      TILE_OF(A, k, m), INPUT | TILE_FULL,
                                sizeof(int),        &ldak,               VALUE,
@@ -366,7 +366,7 @@ insert_task_upper(parsec_execution_stream_t *es, parsec_task_t *this_task)
         }
     }
 
-    parsec_dtd_data_flush_all(dtd_tp, (parsec_ddesc_t *)ddescA);
+    parsec_dtd_data_flush_all(dtd_tp, (parsec_data_collection_t *)dcA);
     return PARSEC_HOOK_RETURN_DONE;
 }
 
@@ -396,26 +396,26 @@ int main(int argc, char **argv)
     SMB = 1;
     SNB = 1;
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        sym_two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        sym_two_dim_block_cyclic, (&dcA, matrix_ComplexDouble,
                                    nodes, rank, MB, NB, LDA, N, 0, 0,
                                    N, N, P, uplo));
 
-    parsec_dtd_ddesc_init((parsec_ddesc_t *)&ddescA);
+    parsec_dtd_data_collection_init((parsec_data_collection_t *)&dcA);
 
     /* matrix generation */
     if(loud > 3) printf("+++ Generate matrices ... ");
     dplasma_zplghe( parsec, (double)(N), uplo,
-                    (tiled_matrix_desc_t *)&ddescA, random_seed);
+                    (parsec_tiled_matrix_dc_t *)&dcA, random_seed);
     if(loud > 3) printf("Done\n");
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new( );
 
     /* Default type */
     dplasma_add2arena_tile( parsec_dtd_arenas[0],
-                            ddescA.super.mb*ddescA.super.nb*sizeof(parsec_complex64_t),
+                            dcA.super.mb*dcA.super.nb*sizeof(parsec_complex64_t),
                             PARSEC_ARENA_ALIGNMENT_SSE,
-                            parsec_datatype_double_complex_t, ddescA.super.mb );
+                            parsec_datatype_double_complex_t, dcA.super.mb );
 
     /* Registering the handle with parsec context */
     parsec_enqueue( parsec, dtd_tp );
@@ -429,23 +429,23 @@ int main(int argc, char **argv)
 
     int iteration = 0, total;
     if( PlasmaLower == uplo ) {
-        total = ddescA.super.mt;
+        total = dcA.super.mt;
         parsec_insert_task( dtd_tp,       insert_task_lower, 0, "insert_task_lower",
                            sizeof(int),           &total,             VALUE,
                            sizeof(int),           &iteration,         VALUE,
                            sizeof(int),           &uplo,              VALUE,
                            sizeof(int *),         &info,              SCRATCH,
-                           sizeof(sym_two_dim_block_cyclic_t *), &ddescA, SCRATCH,
+                           sizeof(sym_two_dim_block_cyclic_t *), &dcA, SCRATCH,
                            0 );
 
     } else {
-        total = ddescA.super.nt;
+        total = dcA.super.nt;
         parsec_insert_task( dtd_tp,       insert_task_upper, 0, "insert_task_upper",
                            sizeof(int),           &total,             VALUE,
                            sizeof(int),           &iteration,         VALUE,
                            sizeof(int),           &uplo,              VALUE,
                            sizeof(int *),         &info,              SCRATCH,
-                           sizeof(sym_two_dim_block_cyclic_t *), &ddescA, SCRATCH,
+                           sizeof(sym_two_dim_block_cyclic_t *), &dcA, SCRATCH,
                            0 );
 
     }
@@ -471,53 +471,53 @@ int main(int argc, char **argv)
     }
     if( !info && check ) {
         /* Check the factorization */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, check,
-            sym_two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA0, check,
+            sym_two_dim_block_cyclic, (&dcA0, matrix_ComplexDouble,
                                        nodes, rank, MB, NB, LDA, N, 0, 0,
                                        N, N, P, uplo));
         dplasma_zplghe( parsec, (double)(N), uplo,
-                        (tiled_matrix_desc_t *)&ddescA0, random_seed);
+                        (parsec_tiled_matrix_dc_t *)&dcA0, random_seed);
 
         ret |= check_zpotrf( parsec, (rank == 0) ? loud : 0, uplo,
-                             (tiled_matrix_desc_t *)&ddescA,
-                             (tiled_matrix_desc_t *)&ddescA0);
+                             (parsec_tiled_matrix_dc_t *)&dcA,
+                             (parsec_tiled_matrix_dc_t *)&dcA0);
 
         /* Check the solution */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescB, check,
-            two_dim_block_cyclic, (&ddescB, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcB, check,
+            two_dim_block_cyclic, (&dcB, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescB, random_seed+1);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcB, random_seed+1);
 
-        PASTE_CODE_ALLOCATE_MATRIX(ddescX, check,
-            two_dim_block_cyclic, (&ddescX, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcX, check,
+            two_dim_block_cyclic, (&dcX, matrix_ComplexDouble, matrix_Tile,
                                    nodes, rank, MB, NB, LDB, NRHS, 0, 0,
                                    N, NRHS, SMB, SNB, P));
         dplasma_zlacpy( parsec, PlasmaUpperLower,
-                        (tiled_matrix_desc_t *)&ddescB, (tiled_matrix_desc_t *)&ddescX );
+                        (parsec_tiled_matrix_dc_t *)&dcB, (parsec_tiled_matrix_dc_t *)&dcX );
 
         dplasma_zpotrs(parsec, uplo,
-                       (tiled_matrix_desc_t *)&ddescA,
-                       (tiled_matrix_desc_t *)&ddescX );
+                       (parsec_tiled_matrix_dc_t *)&dcA,
+                       (parsec_tiled_matrix_dc_t *)&dcX );
 
         ret |= check_zaxmb( parsec, (rank == 0) ? loud : 0, uplo,
-                            (tiled_matrix_desc_t *)&ddescA0,
-                            (tiled_matrix_desc_t *)&ddescB,
-                            (tiled_matrix_desc_t *)&ddescX);
+                            (parsec_tiled_matrix_dc_t *)&dcA0,
+                            (parsec_tiled_matrix_dc_t *)&dcB,
+                            (parsec_tiled_matrix_dc_t *)&dcX);
 
         /* Cleanup */
-        parsec_data_free(ddescA0.mat); ddescA0.mat = NULL;
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0 );
-        parsec_data_free(ddescB.mat); ddescB.mat = NULL;
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescB );
-        parsec_data_free(ddescX.mat); ddescX.mat = NULL;
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescX );
+        parsec_data_free(dcA0.mat); dcA0.mat = NULL;
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA0 );
+        parsec_data_free(dcB.mat); dcB.mat = NULL;
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcB );
+        parsec_data_free(dcX.mat); dcX.mat = NULL;
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcX );
     }
 
     parsec_matrix_del2arena( parsec_dtd_arenas[TILE_FULL] );
-    parsec_dtd_ddesc_fini( (parsec_ddesc_t *)&ddescA );
-    parsec_data_free(ddescA.mat); ddescA.mat = NULL;
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
+    parsec_dtd_data_collection_fini( (parsec_data_collection_t *)&dcA );
+    parsec_data_free(dcA.mat); dcA.mat = NULL;
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
 
     cleanup_parsec(parsec, iparam);
     return ret;

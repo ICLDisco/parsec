@@ -15,7 +15,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int mb, int mt)
+parsec_tiled_matrix_dc_t *create_and_distribute_data(int rank, int world, int mb, int mt)
 {
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
@@ -31,10 +31,10 @@ tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int mb, int
                                 (size_t)m->super.bsiz *
                                 (size_t)parsec_datadist_getsizeoftype(m->super.mtype));
 
-    return (tiled_matrix_desc_t*)m;
+    return (parsec_tiled_matrix_dc_t*)m;
 }
 
-tiled_matrix_desc_t *create_and_distribute_empty_data(int rank, int world, int mb, int mt)
+parsec_tiled_matrix_dc_t *create_and_distribute_empty_data(int rank, int world, int mb, int mt)
 {
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
@@ -46,11 +46,11 @@ tiled_matrix_desc_t *create_and_distribute_empty_data(int rank, int world, int m
                               1, 1,
                               world);
 
-    return (tiled_matrix_desc_t*)m;
+    return (parsec_tiled_matrix_dc_t*)m;
 }
 
-void free_data(tiled_matrix_desc_t *d)
+void free_data(parsec_tiled_matrix_dc_t *d)
 {
-    parsec_ddesc_destroy(&d->super);
+    parsec_data_collection_destroy(&d->super);
     free(d);
 }

@@ -124,8 +124,8 @@ dplasma_zgeqrf_setrecursive( parsec_taskpool_t *tp, int hnb )
  *
  ******************************************************************************/
 parsec_taskpool_t*
-dplasma_zgeqrf_New( tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *T )
+dplasma_zgeqrf_New( parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *T )
 {
     parsec_zgeqrf_taskpool_t* tp;
     int ib = T->mb;
@@ -270,8 +270,8 @@ dplasma_zgeqrf_Destruct( parsec_taskpool_t *tp)
  ******************************************************************************/
 int
 dplasma_zgeqrf( parsec_context_t *parsec,
-                tiled_matrix_desc_t *A,
-                tiled_matrix_desc_t *T )
+                parsec_tiled_matrix_dc_t *A,
+                parsec_tiled_matrix_dc_t *T )
 {
     parsec_taskpool_t *parsec_zgeqrf = NULL;
 
@@ -360,8 +360,8 @@ dplasma_zgeqrf( parsec_context_t *parsec,
  ******************************************************************************/
 int
 dplasma_zgeqrf_rec( parsec_context_t *parsec,
-                    tiled_matrix_desc_t *A,
-                    tiled_matrix_desc_t *T, int hnb )
+                    parsec_tiled_matrix_dc_t *A,
+                    parsec_tiled_matrix_dc_t *T, int hnb )
 {
     parsec_taskpool_t *parsec_zgeqrf = NULL;
 

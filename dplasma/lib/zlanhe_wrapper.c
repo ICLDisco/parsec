@@ -77,7 +77,7 @@
 parsec_taskpool_t*
 dplasma_zlanhe_New( PLASMA_enum norm,
                     PLASMA_enum uplo,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     double *result )
 {
     int P, Q, mb, nb, elt, m;
@@ -141,7 +141,7 @@ dplasma_zlanhe_New( PLASMA_enum norm,
     /* Create the DAG */
     parsec_zlanhe = (parsec_taskpool_t*)parsec_zlansy_new(
         P, Q, norm, uplo, PlasmaConjTrans,
-        A, (parsec_ddesc_t*)Tdist,
+        A, (parsec_data_collection_t*)Tdist,
         result);
 
     /* Set the datatypes */
@@ -184,7 +184,7 @@ dplasma_zlanhe_Destruct( parsec_taskpool_t *tp )
 {
     parsec_zlansy_taskpool_t *parsec_zlanhe = (parsec_zlansy_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlanhe->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlanhe->_g_Tdist) );
     free( parsec_zlanhe->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlanhe->arenas[PARSEC_zlansy_DEFAULT_ARENA] );
@@ -251,7 +251,7 @@ double
 dplasma_zlanhe( parsec_context_t *parsec,
                 PLASMA_enum norm,
                 PLASMA_enum uplo,
-                const tiled_matrix_desc_t *A)
+                const parsec_tiled_matrix_dc_t *A)
 {
     double result = 0.;
     parsec_taskpool_t *parsec_zlanhe = NULL;

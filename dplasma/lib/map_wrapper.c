@@ -68,7 +68,7 @@
  ******************************************************************************/
 parsec_taskpool_t *
 dplasma_map_New( PLASMA_enum uplo,
-                 tiled_matrix_desc_t *A,
+                 parsec_tiled_matrix_dc_t *A,
                  tiled_matrix_unary_op_t operator,
                  void *op_args )
 {
@@ -210,7 +210,7 @@ dplasma_map_Destruct( parsec_taskpool_t *tp )
 int
 dplasma_map( parsec_context_t *parsec,
              PLASMA_enum uplo,
-             tiled_matrix_desc_t *A,
+             parsec_tiled_matrix_dc_t *A,
              tiled_matrix_unary_op_t operator,
              void *op_args )
 {

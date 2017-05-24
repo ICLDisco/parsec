@@ -31,8 +31,8 @@ extern "C" %{
  */
 P            [type = "int"]
 Q            [type = "int"]
-Tdist        [type = "parsec_ddesc_t *"]
-descA        [type = "const tiled_matrix_desc_t*" aligned=Tdist]
+Tdist        [type = "parsec_data_collection_t *"]
+descA        [type = "const parsec_tiled_matrix_dc_t*" aligned=Tdist]
 e            [type = "double *"]
 iter         [type = "int *"]
 

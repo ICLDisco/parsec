@@ -18,7 +18,7 @@ typedef struct cb_data_s {
     parsec_task_t *context;
     void (*destruct)( parsec_taskpool_t * );
     int nbdesc;
-    parsec_ddesc_t *desc[1];
+    parsec_data_collection_t *desc[1];
 } cb_data_t;
 
 static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_data)
@@ -29,7 +29,7 @@ static inline int parsec_recursivecall_callback(parsec_taskpool_t* tp, void* cb_
     rc = __parsec_complete_execution(data->es, data->context);
 
     for(i=0; i<data->nbdesc; i++){
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(data->desc[i]) );
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(data->desc[i]) );
         free( data->desc[i] );
     }
 
@@ -55,7 +55,7 @@ parsec_recursivecall( parsec_execution_stream_t    *es,
     parsec_devices_taskpool_restrict( tp, PARSEC_DEV_CPU );
 
     /* Callback */
-    cbdata = (cb_data_t *) malloc( sizeof(cb_data_t) + (nbdesc-1)*sizeof(parsec_ddesc_t*));
+    cbdata = (cb_data_t *) malloc( sizeof(cb_data_t) + (nbdesc-1)*sizeof(parsec_data_collection_t*));
     cbdata->es       = es;
     cbdata->context  = context;
     cbdata->destruct = taskpool_destroy;
@@ -64,7 +64,7 @@ parsec_recursivecall( parsec_execution_stream_t    *es,
     /* Get descriptors */
     va_start(ap, nbdesc);
     for(i=0; i<nbdesc; i++){
-        cbdata->desc[i] = va_arg(ap, parsec_ddesc_t *);
+        cbdata->desc[i] = va_arg(ap, parsec_data_collection_t *);
     }
     va_end(ap);
 

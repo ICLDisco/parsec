@@ -19,17 +19,17 @@
 #include "dplasmaaux.h"
 
 int
-dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc )
+dplasma_aux_get_priority_limit( char* function, const parsec_tiled_matrix_dc_t* dc )
 {
     char *v;
     char *keyword;
 
-    if( NULL == function || NULL == ddesc )
+    if( NULL == function || NULL == dc )
         return 0;
 
     keyword = alloca( strlen(function)+2 );
     
-    switch( ddesc->mtype ) {
+    switch( dc->mtype ) {
     case matrix_RealFloat:
         sprintf(keyword, "S%s", function);
         break;
@@ -53,7 +53,7 @@ dplasma_aux_get_priority_limit( char* function, const tiled_matrix_desc_t* ddesc
 }
 
 int
-dplasma_aux_getGEMMLookahead( tiled_matrix_desc_t *A )
+dplasma_aux_getGEMMLookahead( parsec_tiled_matrix_dc_t *A )
 {
     /**
      * Assume that the number of threads per node is constant, and compute the

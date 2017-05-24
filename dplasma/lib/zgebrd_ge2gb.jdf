@@ -16,13 +16,13 @@ extern "C" %{
 
 %}
 
-descA    [type = "tiled_matrix_desc_t *"]
-descTS0  [type = "tiled_matrix_desc_t *" aligned=descA]
-descTT0  [type = "tiled_matrix_desc_t *" aligned=descA]
-descTS   [type = "tiled_matrix_desc_t *" aligned=descA]
-descTT   [type = "tiled_matrix_desc_t *" aligned=descA]
+descA    [type = "parsec_tiled_matrix_dc_t *"]
+descTS0  [type = "parsec_tiled_matrix_dc_t *" aligned=descA]
+descTT0  [type = "parsec_tiled_matrix_dc_t *" aligned=descA]
+descTS   [type = "parsec_tiled_matrix_dc_t *" aligned=descA]
+descTT   [type = "parsec_tiled_matrix_dc_t *" aligned=descA]
 
-descBand [type = "tiled_matrix_desc_t *"]
+descBand [type = "parsec_tiled_matrix_dc_t *"]
 
 qrtre0   [type = "dplasma_qrtree_t *"]
 qrtree   [type = "dplasma_qrtree_t *"]

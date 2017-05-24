@@ -13,7 +13,7 @@
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 
-static uint32_t pseudo_rank_of(struct parsec_ddesc *mat, ...)
+static uint32_t pseudo_rank_of(struct parsec_dc *mat, ...)
 {
     va_list ap;
     va_start(ap, mat);
@@ -21,7 +21,7 @@ static uint32_t pseudo_rank_of(struct parsec_ddesc *mat, ...)
     return 0;
 }
 
-static void *pseudo_data_of(struct parsec_ddesc *mat, ...)
+static void *pseudo_data_of(struct parsec_dc *mat, ...)
 {
     va_list ap;
     va_start(ap, mat);
@@ -29,7 +29,7 @@ static void *pseudo_data_of(struct parsec_ddesc *mat, ...)
     return NULL;
 }
 
-static parsec_ddesc_t pseudo_desc = {
+static parsec_data_collection_t pseudo_desc = {
     .myrank = 0,
     .cores = 1,
     .nodes = 1,

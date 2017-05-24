@@ -57,8 +57,8 @@
 int
 dplasma_zpotrs( parsec_context_t *parsec,
                 PLASMA_enum uplo,
-                const tiled_matrix_desc_t* A,
-                tiled_matrix_desc_t* B )
+                const parsec_tiled_matrix_dc_t* A,
+                parsec_tiled_matrix_dc_t* B )
 {
     /* Check input arguments */
     if (uplo != PlasmaUpper && uplo != PlasmaLower) {

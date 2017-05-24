@@ -37,7 +37,7 @@ int main( int argc, char* argv[] )
     parsec_context_t* parsec;
     int rc;
     parsec_taskpool_t* op;
-    two_dim_block_cyclic_t ddescA;
+    two_dim_block_cyclic_t dcA;
     int cores = 4, world = 1, rank = 0;
     int mb = 100, nb = 100;
     int lm = 1000, ln = 1000;
@@ -54,14 +54,14 @@ int main( int argc, char* argv[] )
 
     parsec = parsec_init(cores, &argc, &argv);
 
-    two_dim_block_cyclic_init( &ddescA, matrix_RealFloat, matrix_Tile,
+    two_dim_block_cyclic_init( &dcA, matrix_RealFloat, matrix_Tile,
                                world, rank, mb, nb, lm, ln, 0, 0, lm, ln, 1, 1, rows );
-    ddescA.mat = parsec_data_allocate((size_t)ddescA.super.nb_local_tiles *
-                                     (size_t)ddescA.super.bsiz *
-                                     (size_t)parsec_datadist_getsizeoftype(ddescA.super.mtype));
+    dcA.mat = parsec_data_allocate((size_t)dcA.super.nb_local_tiles *
+                                     (size_t)dcA.super.bsiz *
+                                     (size_t)parsec_datadist_getsizeoftype(dcA.super.mtype));
 
-    parsec_ddesc_set_key(&ddescA.super.super, "A");
-    op = parsec_map_operator_New((tiled_matrix_desc_t*)&ddescA,
+    parsec_data_collection_set_key(&dcA.super.super, "A");
+    op = parsec_map_operator_New((parsec_tiled_matrix_dc_t*)&dcA,
                                   NULL,
                                   parsec_operator_print_id,
                                   "A");

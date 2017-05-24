@@ -25,7 +25,7 @@ static MPI_Datatype block;
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t *ctlgat_new(parsec_ddesc_t *A, int size, int nb)
+parsec_taskpool_t *ctlgat_new(parsec_data_collection_t *A, int size, int nb)
 {
     int worldsize;
     parsec_ctlgat_taskpool_t *tp = NULL;

@@ -23,9 +23,9 @@ extern "C" %{
 
 %}
 
-descA     [type = "tiled_matrix_desc_t*"]
-descL     [type = "tiled_matrix_desc_t*" aligned=descA]
-dataIP    [type = "parsec_ddesc_t *" aligned=descA]
+descA     [type = "parsec_tiled_matrix_dc_t*"]
+descL     [type = "parsec_tiled_matrix_dc_t*" aligned=descA]
+dataIP    [type = "parsec_data_collection_t *" aligned=descA]
 INFO      [type = "int*"]
 
 ib        [type = "int" hidden=on default="descL->mb" ]

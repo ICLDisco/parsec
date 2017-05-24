@@ -25,7 +25,7 @@ static MPI_Datatype block;
  *
  * @return the parsec object to schedule.
  */
-parsec_taskpool_t *merge_sort_new(tiled_matrix_desc_t *A, int nb, int nt)
+parsec_taskpool_t *merge_sort_new(parsec_tiled_matrix_dc_t *A, int nb, int nt)
 {
     parsec_merge_sort_taskpool_t *tp = NULL;
 

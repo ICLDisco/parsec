@@ -22,9 +22,9 @@ uplo   [type = PLASMA_enum]
 alpha  [type = parsec_complex64_t]
 beta   [type = parsec_complex64_t]
 
-descA  [type = "const tiled_matrix_desc_t*"]
-descB  [type = "const tiled_matrix_desc_t*"]
-descC  [type = "tiled_matrix_desc_t*"]
+descA  [type = "const parsec_tiled_matrix_dc_t*"]
+descB  [type = "const parsec_tiled_matrix_dc_t*"]
+descC  [type = "parsec_tiled_matrix_dc_t*"]
 
 plasma_upper   [type="PLASMA_enum" hidden=on default=PlasmaUpper ]
 plasma_lower   [type="PLASMA_enum" hidden=on default=PlasmaLower ]

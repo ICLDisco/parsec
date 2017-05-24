@@ -42,43 +42,43 @@ int main(int argc, char *argv[])
     LDA = dplasma_imax( LDA, N );
     LDB = dplasma_imax( LDB, N );
 
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                N, N, SMB, SMB, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescT, 1,
-        two_dim_block_cyclic, (&ddescT, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcT, 1,
+        two_dim_block_cyclic, (&dcT, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, SMB, SMB, P));
 
     /* Fill A with randomness */
     dplasma_zplghe( parsec, (double)N, uplo,
-                    (tiled_matrix_desc_t *)&ddescA, 3872);
+                    (parsec_tiled_matrix_dc_t *)&dcA, 3872);
 #ifdef PRINTF_HEAVY
     printf("########### A (initial, tile storage)\n");
-    dplasma_zprint( parsec, uplo, (tiled_matrix_desc_t *)&ddescA );
+    dplasma_zprint( parsec, uplo, (parsec_tiled_matrix_dc_t *)&dcA );
 #endif
 
     /* Step 1 - Reduction A to band matrix */
     PASTE_CODE_ENQUEUE_KERNEL(parsec, zherbt,
                               (uplo, IB,
-                               (tiled_matrix_desc_t*)&ddescA,
-                               (tiled_matrix_desc_t*)&ddescT));
+                               (parsec_tiled_matrix_dc_t*)&dcA,
+                               (parsec_tiled_matrix_dc_t*)&dcT));
     PASTE_CODE_PROGRESS_KERNEL(parsec, zherbt);
 #ifdef PRINTF_HEAVY
     printf("########### A (reduced to band form)\n");
-    dplasma_zprint( parsec, uplo, &ddescA);
+    dplasma_zprint( parsec, uplo, &dcA);
 #endif
 
 goto fin;
 
     /* Step 2 - Conversion of the tiled band to 1D band storage */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescBAND, 1,
-        two_dim_block_cyclic, (&ddescBAND, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcBAND, 1,
+        two_dim_block_cyclic, (&dcBAND, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB+1, NB+2, MB+1, (NB+2)*(NT+1), 0, 0,
                                MB+1, (NB+2)*(NT+1), 1, SNB, 1 /* 1D cyclic */ ));
     SYNC_TIME_START();
-    parsec_diag_band_to_rect_taskpool_t* PARSEC_diag_band_to_rect = parsec_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&ddescA, &ddescBAND,
+    parsec_diag_band_to_rect_taskpool_t* PARSEC_diag_band_to_rect = parsec_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)&dcA, &dcBAND,
                                                                                             MT, NT, MB, NB, sizeof(parsec_complex64_t));
     parsec_arena_t* arena = PARSEC_diag_band_to_rect->arenas[PARSEC_diag_band_to_rect_DEFAULT_ARENA];
     dplasma_add2arena_tile(arena,
@@ -94,11 +94,11 @@ goto fin;
     SYNC_TIME_PRINT(rank, ( "diag_band_to_rect N= %d NB = %d : %f s\n", N, NB, sync_time_elapsed));
 #ifdef PRINTF_HEAVY
     printf("########### BAND (converted from A)\n");
-    dplasma_zprint(parsec, PlasmaUpperLower, &ddescBAND);
+    dplasma_zprint(parsec, PlasmaUpperLower, &dcBAND);
 #endif
 
     /* Step 3 - Reduce band to bi-diag form */
-    PASTE_CODE_ENQUEUE_KERNEL(parsec, zhbrdt, ((tiled_matrix_desc_t*)&ddescBAND));
+    PASTE_CODE_ENQUEUE_KERNEL(parsec, zhbrdt, ((parsec_tiled_matrix_dc_t*)&dcBAND));
     PASTE_CODE_PROGRESS_KERNEL(parsec, zhbrdt);
 
     if( check ) {
@@ -115,20 +115,20 @@ goto fin;
             /* We need to gather the distributed band on rank0 */
 #if 0
             /* LAcpy doesn't taskpool differing tile sizes, so lets get simple here */
-            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
-                                       two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
+            PASTE_CODE_ALLOCATE_MATRIX(dcW, 1,
+                                       two_dim_block_cyclic, (&dcW, matrix_ComplexDouble, matrix_Tile,
                                                               nodes, rank, 2, N, 1, 1, 0, 0, 2, N, 1, 1, 1)); /* on rank 0 only */
 #else
-            PASTE_CODE_ALLOCATE_MATRIX(ddescW, 1,
-                                       two_dim_block_cyclic, (&ddescW, matrix_ComplexDouble, matrix_Tile,
+            PASTE_CODE_ALLOCATE_MATRIX(dcW, 1,
+                                       two_dim_block_cyclic, (&dcW, matrix_ComplexDouble, matrix_Tile,
                                                               1, rank, MB+1, NB+2, MB+1, (NB+2)*NT, 0, 0,
                                                               MB+1, (NB+2)*NT, 1, 1, 1 /* rank0 only */ ));
 #endif
-            dplasma_zlacpy(parsec, PlasmaUpperLower, &ddescBAND.super, &ddescW.super);
-            band = ddescW.mat;
+            dplasma_zlacpy(parsec, PlasmaUpperLower, &dcBAND.super, &dcW.super);
+            band = dcW.mat;
         }
         else {
-            band = ddescBAND.mat;
+            band = dcBAND.mat;
         }
 
         if( 0 == rank ) {
@@ -169,27 +169,27 @@ goto fin;
 
         /* COMPUTE THE EIGENVALUES WITH LAPACK */
         /* Regenerate A (same random generator) into A0 */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0t, 1,
-                                   two_dim_block_cyclic, (&ddescA0t, matrix_ComplexDouble, matrix_Tile,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA0t, 1,
+                                   two_dim_block_cyclic, (&dcA0t, matrix_ComplexDouble, matrix_Tile,
                                                           1, rank, MB, NB, LDA, N, 0, 0,
                                                           N, N, 1, 1, 1));
         /* Fill A0 again */
-        dplasma_zlaset( parsec, PlasmaUpperLower, 0.0, 0.0, &ddescA0t.super);
-        dplasma_zplghe( parsec, (double)N, uplo, (tiled_matrix_desc_t *)&ddescA0t, 3872);
+        dplasma_zlaset( parsec, PlasmaUpperLower, 0.0, 0.0, &dcA0t.super);
+        dplasma_zplghe( parsec, (double)N, uplo, (parsec_tiled_matrix_dc_t *)&dcA0t, 3872);
         /* Convert into Lapack format */
-        PASTE_CODE_ALLOCATE_MATRIX(ddescA0, 1, 
-                                   two_dim_block_cyclic, (&ddescA0, matrix_ComplexDouble, matrix_Lapack,
+        PASTE_CODE_ALLOCATE_MATRIX(dcA0, 1, 
+                                   two_dim_block_cyclic, (&dcA0, matrix_ComplexDouble, matrix_Lapack,
                                                           1, rank, MB, NB, LDA, N, 0, 0,
                                                           N, N, 1, 1, 1));
-        dplasma_zlacpy( parsec, uplo, &ddescA0t.super, &ddescA0.super);
-        parsec_data_free(ddescA0t.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA0t);
+        dplasma_zlacpy( parsec, uplo, &dcA0t.super, &dcA0.super);
+        parsec_data_free(dcA0t.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA0t);
 #ifdef PRINTF_HEAVY
         printf("########### A0 (initial, lapack storage)\n");
-        dplasma_zprint( parsec, uplo, &ddescA0 );
+        dplasma_zprint( parsec, uplo, &dcA0 );
 #endif
         if( 0 == rank ) {
-            A0 = ddescA0.mat;
+            A0 = dcA0.mat;
             /* Compute eigenvalues directly */
             TIME_START();
             LAPACKE_zheev( LAPACK_COL_MAJOR,
@@ -199,10 +199,10 @@ goto fin;
         }
 #ifdef PRINTF_HEAVY
         printf("########### A0 (after LAPACK direct eignesolver)\n");
-        dplasma_zprint( parsec, uplo, &ddescA0 );
+        dplasma_zprint( parsec, uplo, &dcA0 );
 #endif
-        parsec_data_free(ddescA0.mat);
-        tiled_matrix_desc_destroy( &ddescA0.super );
+        parsec_data_free(dcA0.mat);
+        parsec_tiled_matrix_dc_destroy( &dcA0.super );
         if( 0 == rank ) {
 #ifdef PRINTF_HEAVY
             printf("\n###############\nDPLASMA Eignevalues\n");
@@ -246,12 +246,12 @@ goto fin;
     PARSEC_INTERNAL_TASKPOOL_DESTRUCT( PARSEC_diag_band_to_rect );
     dplasma_zhbrdt_Destruct( PARSEC_zhbrdt );
 
-    parsec_data_free(ddescBAND.mat);
-    parsec_data_free(ddescA.mat);
-    parsec_data_free(ddescT.mat);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescBAND);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescT);
+    parsec_data_free(dcBAND.mat);
+    parsec_data_free(dcA.mat);
+    parsec_data_free(dcT.mat);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcBAND);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcT);
 fin:
     cleanup_parsec(parsec, iparam);
 

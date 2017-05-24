@@ -12,6 +12,13 @@
 #include "parsec/parsec_binary_profile.h"
 #endif
 #include "parsec/utils/colors.h"
+#include "parsec/parsec_internal.h"
+#include "parsec/parsec_description_structures.h"
+
+#if defined(PARSEC_HAVE_MPI)
+#include <mpi.h>
+#endif  /* defined(PARSEC_HAVE_MPI) */
+
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>

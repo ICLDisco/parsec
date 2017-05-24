@@ -11,16 +11,16 @@
 #include "data_dist/matrix/vector_two_dim_cyclic.h"
 #include "parsec/vpmap.h"
 
-static uint32_t vector_twoDBC_rank_of(parsec_ddesc_t* ddesc, ...);
-static int32_t  vector_twoDBC_vpid_of(parsec_ddesc_t* ddesc, ...);
-static parsec_data_t* vector_twoDBC_data_of(parsec_ddesc_t* ddesc, ...);
+static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t* dc, ...);
+static int32_t  vector_twoDBC_vpid_of(parsec_data_collection_t* dc, ...);
+static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t* dc, ...);
 
 #if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
-static uint32_t vector_twoDBC_data_key(struct parsec_ddesc_s *desc, ...);
+static uint32_t vector_twoDBC_data_key(struct parsec_data_collection_s *desc, ...);
 #endif /* defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA) */
 
 #if defined(PARSEC_PROF_TRACE)
-static int      vector_twoDBC_key_to_string(struct parsec_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
+static int      vector_twoDBC_key_to_string(struct parsec_data_collection_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size);
 #endif
 
 static inline int gcd(int a, int b){
@@ -39,7 +39,7 @@ static inline int lcm(int a, int b) {
     return (a / gcd(a, b)) * b;
 }
 
-void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
+void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * dc,
                                  enum matrix_type mtype,
                                  enum vector_distrib distrib,
                                  int nodes, int myrank,
@@ -50,13 +50,13 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
                                  int P )
 {
     int Q;
-    parsec_ddesc_t *o = &(Ddesc->super.super);
+    parsec_data_collection_t *o = &(dc->super.super);
 
     /* Initialize the tiled_matrix descriptor */
-    tiled_matrix_desc_init( &(Ddesc->super), mtype, matrix_Tile, two_dim_block_cyclic_type,
+    parsec_tiled_matrix_dc_init( &(dc->super), mtype, matrix_Tile, two_dim_block_cyclic_type,
                             nodes, myrank,
                             mb, 1, lm, 1, i, 0, m, 1 );
-    Ddesc->mat = NULL;  /* No data associated with the vector yet */
+    dc->mat = NULL;  /* No data associated with the vector yet */
 
     if(nodes < P) {
         parsec_warning("Block Cyclic Distribution:\tThere are not enough nodes (%d) to make a process grid with P=%d", nodes, P);
@@ -66,19 +66,19 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     if(nodes != P*Q)
         parsec_warning("Block Cyclic Distribution:\tNumber of nodes %d doesn't match the process grid %dx%d", nodes, P, Q);
 
-    grid_2Dcyclic_init(&Ddesc->grid, myrank, P, Q, 1, 1);
+    grid_2Dcyclic_init(&dc->grid, myrank, P, Q, 1, 1);
 
-    Ddesc->super.nb_local_tiles = 0;
-    Ddesc->distrib = distrib;
+    dc->super.nb_local_tiles = 0;
+    dc->distrib = distrib;
 
     switch ( distrib ) {
     case PlasmaVectorDiag:
     {
-        int pmq   = Ddesc->grid.crank - Ddesc->grid.rrank;
+        int pmq   = dc->grid.crank - dc->grid.rrank;
         int gcdpq = gcd( P, Q );
         int lcmpq = lcm( P, Q );
 
-        Ddesc->lcm = lcmpq;
+        dc->lcm = lcmpq;
 
         /*
          * Compute the number of segment stored locally
@@ -87,48 +87,48 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
         if ( pmq % gcdpq == 0 ) {
             int drank = pmq;
 
-            Ddesc->super.nb_local_tiles = Ddesc->super.lmt / lcmpq;
+            dc->super.nb_local_tiles = dc->super.lmt / lcmpq;
 
             /* Compute rank on the diagonal */
             while ( drank % Q != 0 ) {
                 drank += Q;
             }
-            drank = drank + Ddesc->grid.rrank;
+            drank = drank + dc->grid.rrank;
 
-            if ( drank < (Ddesc->super.lmt % lcmpq) )
-                (Ddesc->super.nb_local_tiles)++;
+            if ( drank < (dc->super.lmt % lcmpq) )
+                (dc->super.nb_local_tiles)++;
         }
     }
     break;
 
     case PlasmaVectorRow:
     {
-        Ddesc->lcm = Q;
+        dc->lcm = Q;
 
-        if ( Ddesc->grid.rrank == 0 ) {
-            Ddesc->super.nb_local_tiles = Ddesc->super.lmt / Q;
+        if ( dc->grid.rrank == 0 ) {
+            dc->super.nb_local_tiles = dc->super.lmt / Q;
 
-            if ( Ddesc->grid.rrank < (Ddesc->super.lmt % Q) )
-                (Ddesc->super.nb_local_tiles)++;
+            if ( dc->grid.rrank < (dc->super.lmt % Q) )
+                (dc->super.nb_local_tiles)++;
         }
     }
     break;
 
     case PlasmaVectorCol:
     default:
-        Ddesc->lcm = P;
+        dc->lcm = P;
 
-        if ( Ddesc->grid.crank == 0 ) {
-            Ddesc->super.nb_local_tiles = Ddesc->super.lmt / P;
+        if ( dc->grid.crank == 0 ) {
+            dc->super.nb_local_tiles = dc->super.lmt / P;
 
-            if ( Ddesc->grid.crank < (Ddesc->super.lmt % P) )
-                (Ddesc->super.nb_local_tiles)++;
+            if ( dc->grid.crank < (dc->super.lmt % P) )
+                (dc->super.nb_local_tiles)++;
         }
     }
 
     /* Update llm and lln */
-    Ddesc->super.llm = Ddesc->super.nb_local_tiles * mb;
-    Ddesc->super.lln = 1;
+    dc->super.llm = dc->super.nb_local_tiles * mb;
+    dc->super.lln = 1;
 
     /* set the methods */
     o->rank_of = vector_twoDBC_rank_of;
@@ -142,20 +142,20 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
     o->key_to_string = vector_twoDBC_key_to_string;
     o->key_dim       = NULL;
     o->key           = NULL;
-    asprintf(&(o->key_dim), "(%d)", Ddesc->super.lmt);
+    asprintf(&(o->key_dim), "(%d)", dc->super.lmt);
 #endif
-    Ddesc->super.data_map = (parsec_data_t**)calloc(Ddesc->super.nb_local_tiles, sizeof(parsec_data_t*));
+    dc->super.data_map = (parsec_data_t**)calloc(dc->super.nb_local_tiles, sizeof(parsec_data_t*));
 
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "vector_two_dim_cyclic_init: \n"
-            "      Ddesc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
+            "      dc = %p, mtype = %d, nodes = %u, myrank = %d, \n"
             "      mb = %d, nb = %d, lm = %d, ln = %d, i = %d, j = %d, m = %d, n = %d, \n"
             "      nrst = %d, ncst = %d, P = %d, Q = %d",
-            Ddesc, Ddesc->super.mtype, Ddesc->super.super.nodes, Ddesc->super.super.myrank,
-            Ddesc->super.mb, Ddesc->super.nb,
-            Ddesc->super.lm, Ddesc->super.ln,
-            Ddesc->super.i,  Ddesc->super.j,
-            Ddesc->super.m,  Ddesc->super.n,
-            Ddesc->grid.strows, Ddesc->grid.stcols,
+            dc, dc->super.mtype, dc->super.super.nodes, dc->super.super.myrank,
+            dc->super.mb, dc->super.nb,
+            dc->super.lm, dc->super.ln,
+            dc->super.i,  dc->super.j,
+            dc->super.m,  dc->super.n,
+            dc->grid.strows, dc->grid.stcols,
             P, Q);
 }
 
@@ -165,15 +165,15 @@ void vector_two_dim_cyclic_init( vector_two_dim_cyclic_t * Ddesc,
  * Set of functions with no super-tiles
  *
  */
-static uint32_t vector_twoDBC_rank_of(parsec_ddesc_t * desc, ...)
+static uint32_t vector_twoDBC_rank_of(parsec_data_collection_t * desc, ...)
 {
     unsigned int m;
     unsigned int rr = 0;
     unsigned int cr = 0;
     unsigned int res;
     va_list ap;
-    vector_two_dim_cyclic_t * Ddesc;
-    Ddesc = (vector_two_dim_cyclic_t *)desc;
+    vector_two_dim_cyclic_t * dc;
+    dc = (vector_two_dim_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -181,37 +181,37 @@ static uint32_t vector_twoDBC_rank_of(parsec_ddesc_t * desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
+    m += dc->super.i / dc->super.mb;
 
     /* P(rr, cr) has the tile, compute the rank*/
-    if ( Ddesc->distrib != PlasmaVectorCol )
-        rr = m % Ddesc->grid.rows;
+    if ( dc->distrib != PlasmaVectorCol )
+        rr = m % dc->grid.rows;
 
-    if ( Ddesc->distrib != PlasmaVectorRow )
-        cr = m % Ddesc->grid.cols;
+    if ( dc->distrib != PlasmaVectorRow )
+        cr = m % dc->grid.cols;
 
-    res = rr * Ddesc->grid.cols + cr;
+    res = rr * dc->grid.cols + cr;
 
     return res;
 }
 
-static int32_t vector_twoDBC_vpid_of(parsec_ddesc_t *desc, ...)
+static int32_t vector_twoDBC_vpid_of(parsec_data_collection_t *desc, ...)
 {
     int m, p, q, pq;
     int local_m = 0;
     int local_n = 0;
-    vector_two_dim_cyclic_t * Ddesc;
+    vector_two_dim_cyclic_t * dc;
     va_list ap;
     int32_t vpid;
-    Ddesc = (vector_two_dim_cyclic_t *)desc;
+    dc = (vector_two_dim_cyclic_t *)desc;
 
     /* If 1 VP, always return 0 */
     pq = vpmap_get_nb_vp();
     if ( pq == 1 )
         return 0;
 
-    p = Ddesc->grid.vp_p;
-    q = Ddesc->grid.vp_q;
+    p = dc->grid.vp_p;
+    q = dc->grid.vp_q;
     assert(p*q == pq);
 
     /* Get coordinates */
@@ -220,18 +220,18 @@ static int32_t vector_twoDBC_vpid_of(parsec_ddesc_t *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
+    m += dc->super.i / dc->super.mb;
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == vector_twoDBC_rank_of(desc, m));
 #endif
 
     /* Compute the local tile row */
-    if ( Ddesc->distrib != PlasmaVectorCol )
-        local_m = (m / Ddesc->grid.rows) % p;
+    if ( dc->distrib != PlasmaVectorCol )
+        local_m = (m / dc->grid.rows) % p;
 
-    if ( Ddesc->distrib != PlasmaVectorRow )
-        local_n = (m / Ddesc->grid.cols) % q;
+    if ( dc->distrib != PlasmaVectorRow )
+        local_n = (m / dc->grid.cols) % q;
 
     vpid = local_m * q + local_n;
 
@@ -239,14 +239,14 @@ static int32_t vector_twoDBC_vpid_of(parsec_ddesc_t *desc, ...)
     return vpid;
 }
 
-static parsec_data_t* vector_twoDBC_data_of(parsec_ddesc_t *desc, ...)
+static parsec_data_t* vector_twoDBC_data_of(parsec_data_collection_t *desc, ...)
 {
     int m;
     size_t pos;
     int local_m;
     va_list ap;
-    vector_two_dim_cyclic_t * Ddesc;
-    Ddesc = (vector_two_dim_cyclic_t *)desc;
+    vector_two_dim_cyclic_t * dc;
+    dc = (vector_two_dim_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -254,21 +254,21 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_ddesc_t *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
+    m += dc->super.i / dc->super.mb;
 
 #if defined(DISTRIBUTED)
     assert(desc->myrank == vector_twoDBC_rank_of(desc, m));
 #endif
 
     /* Compute the local tile row */
-    assert( Ddesc->super.bsiz == Ddesc->super.mb );
+    assert( dc->super.bsiz == dc->super.mb );
 
-    local_m = m / Ddesc->lcm;
-    pos = local_m * Ddesc->super.mb;
+    local_m = m / dc->lcm;
+    pos = local_m * dc->super.mb;
 
-    pos *= parsec_datadist_getsizeoftype(Ddesc->super.mtype);
-    return parsec_matrix_create_data(&Ddesc->super,
-                                    (char*)Ddesc->mat + pos,
+    pos *= parsec_datadist_getsizeoftype(dc->super.mtype);
+    return parsec_matrix_create_data(&dc->super,
+                                    (char*)dc->mat + pos,
                                     local_m, m);
 }
 
@@ -276,13 +276,13 @@ static parsec_data_t* vector_twoDBC_data_of(parsec_ddesc_t *desc, ...)
  * Common functions
  */
 #if defined(PARSEC_PROF_TRACE) || defined(PARSEC_HAVE_CUDA)
-/* return a unique key (unique only for the specified parsec_ddesc) associated to a data */
-static uint32_t vector_twoDBC_data_key(struct parsec_ddesc_s *desc, ...)
+/* return a unique key (unique only for the specified parsec_dc) associated to a data */
+static uint32_t vector_twoDBC_data_key(struct parsec_data_collection_s *desc, ...)
 {
     unsigned int m;
-    vector_two_dim_cyclic_t * Ddesc;
+    vector_two_dim_cyclic_t * dc;
     va_list ap;
-    Ddesc = (vector_two_dim_cyclic_t *)desc;
+    dc = (vector_two_dim_cyclic_t *)desc;
 
     /* Get coordinates */
     va_start(ap, desc);
@@ -290,7 +290,7 @@ static uint32_t vector_twoDBC_data_key(struct parsec_ddesc_s *desc, ...)
     va_end(ap);
 
     /* Offset by (i,j) to translate (m,n) in the global matrix */
-    m += Ddesc->super.i / Ddesc->super.mb;
+    m += dc->super.i / dc->super.mb;
 
     return m;
 }
@@ -298,7 +298,7 @@ static uint32_t vector_twoDBC_data_key(struct parsec_ddesc_s *desc, ...)
 
 #if defined(PARSEC_PROF_TRACE)
 /* return a string meaningful for profiling about data */
-static int  vector_twoDBC_key_to_string(struct parsec_ddesc_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
+static int  vector_twoDBC_key_to_string(struct parsec_data_collection_s * desc, uint32_t datakey, char * buffer, uint32_t buffer_size)
 {
     int res;
     (void)desc;

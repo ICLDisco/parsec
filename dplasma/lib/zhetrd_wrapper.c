@@ -25,9 +25,9 @@ int
 dplasma_zhetrd( parsec_context_t* parsec,
                 PLASMA_enum uplo,
                 int ib,
-                tiled_matrix_desc_t* A,
-                tiled_matrix_desc_t* DE,
-                tiled_matrix_desc_t* T,
+                parsec_tiled_matrix_dc_t* A,
+                parsec_tiled_matrix_dc_t* DE,
+                parsec_tiled_matrix_dc_t* T,
                 int* info )
 {
     parsec_zhetrd_h2b_L_taskpool_t * h2b = NULL;

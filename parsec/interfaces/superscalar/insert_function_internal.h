@@ -196,7 +196,7 @@ struct parsec_dtd_tile_s {
     int32_t                  rank;
     uint64_t                 key;
     parsec_data_copy_t      *data_copy;
-    parsec_ddesc_t          *ddesc;
+    parsec_data_collection_t          *dc;
     parsec_dtd_tile_user_t   last_user;
     parsec_dtd_tile_user_t   last_writer;
 };
@@ -314,12 +314,12 @@ parsec_dtd_schedule_tasks( parsec_dtd_taskpool_t *__tp );
 /* Function to remove tile from hash_table
  */
 void
-parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint64_t key );
+parsec_dtd_tile_remove( parsec_data_collection_t *dc, uint64_t key );
 
 /* Function to find tile in hash_table
  */
 parsec_dtd_tile_t *
-parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint64_t key );
+parsec_dtd_tile_find( parsec_data_collection_t *dc, uint64_t key );
 
 void
 parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
@@ -327,7 +327,7 @@ parsec_dtd_tile_release( parsec_dtd_tile_t *tile );
 void
 parsec_dtd_tile_insert( uint64_t key,
                         parsec_dtd_tile_t   *tile,
-                        parsec_ddesc_t      *ddesc );
+                        parsec_data_collection_t      *dc );
 
 parsec_dtd_task_class_t *
 parsec_dtd_find_task_class( parsec_dtd_taskpool_t  *tp,

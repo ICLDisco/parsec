@@ -57,9 +57,9 @@
  ******************************************************************************/
 int
 dplasma_zgesv( parsec_context_t *parsec,
-               tiled_matrix_desc_t *A,
-               tiled_matrix_desc_t *IPIV,
-               tiled_matrix_desc_t *B)
+               parsec_tiled_matrix_dc_t *A,
+               parsec_tiled_matrix_dc_t *IPIV,
+               parsec_tiled_matrix_dc_t *B)
 {
     int info;
 

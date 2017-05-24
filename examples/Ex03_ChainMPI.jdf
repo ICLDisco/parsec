@@ -16,7 +16,7 @@ extern "C" %{
  * Data descriptor used in the jdf can be declared manually as global to fix the
  * parameters order of the _New function
  */
-taskdist  [ type="parsec_ddesc_t*" ]
+taskdist  [ type="parsec_data_collection_t*" ]
 NB        [ type="int" ]
 
 Task(k)
@@ -55,7 +55,7 @@ extern "C" %{
  * a round-robin fashion among all the nodes.
  */
 static uint32_t
-rank_of(parsec_ddesc_t *desc, ...)
+rank_of(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -74,7 +74,7 @@ rank_of(parsec_ddesc_t *desc, ...)
  * so there is only one, and we return 0.
  */
 static int32_t
-vpid_of(parsec_ddesc_t *desc, ...)
+vpid_of(parsec_data_collection_t *desc, ...)
 {
     (void)desc;
     return 0;
@@ -86,7 +86,7 @@ vpid_of(parsec_ddesc_t *desc, ...)
  * define it.
  */
 static uint64_t
-data_key(parsec_ddesc_t *desc, ...)
+data_key(parsec_data_collection_t *desc, ...)
 {
     int k;
     va_list ap;
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
     parsec_context_t* parsec;
     int rc;
     int rank, world;
-    parsec_ddesc_t taskdist;
+    parsec_data_collection_t taskdist;
     parsec_Ex03_ChainMPI_taskpool_t *tp;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
      * rank_of, and vpid_of will be explained later, but right now those two
      * functions always return 0.
      */
-    parsec_ddesc_init(&taskdist, world, rank);
+    parsec_data_collection_init(&taskdist, world, rank);
     taskdist.rank_of = rank_of;
     taskdist.vpid_of = vpid_of;
     taskdist.data_key = data_key;
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
     /**
      * Cleanup the descriptor
      */
-    parsec_ddesc_destroy(&taskdist);
+    parsec_data_collection_destroy(&taskdist);
 
     parsec_fini(&parsec);
 #if defined(PARSEC_HAVE_MPI)

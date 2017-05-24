@@ -90,8 +90,8 @@
 parsec_taskpool_t *
 dplasma_map2_New( PLASMA_enum uplo,
                   PLASMA_enum trans,
-                  const tiled_matrix_desc_t *A,
-                  tiled_matrix_desc_t *B,
+                  const parsec_tiled_matrix_dc_t *A,
+                  parsec_tiled_matrix_dc_t *B,
                   tiled_matrix_binary_op_t operator,
                   void *op_args)
 {
@@ -266,8 +266,8 @@ int
 dplasma_map2( parsec_context_t *parsec,
               PLASMA_enum uplo,
               PLASMA_enum trans,
-              const tiled_matrix_desc_t *A,
-              tiled_matrix_desc_t *B,
+              const parsec_tiled_matrix_dc_t *A,
+              parsec_tiled_matrix_dc_t *B,
               tiled_matrix_binary_op_t operator,
               void *op_args)
 {

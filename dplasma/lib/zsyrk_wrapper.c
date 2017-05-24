@@ -82,9 +82,9 @@ parsec_taskpool_t*
 dplasma_zsyrk_New( PLASMA_enum uplo,
                    PLASMA_enum trans,
                    parsec_complex64_t alpha,
-                   const tiled_matrix_desc_t* A,
+                   const parsec_tiled_matrix_dc_t* A,
                    parsec_complex64_t beta,
-                   tiled_matrix_desc_t* C)
+                   parsec_tiled_matrix_dc_t* C)
 {
     parsec_taskpool_t* tp;
 
@@ -219,9 +219,9 @@ dplasma_zsyrk( parsec_context_t *parsec,
                PLASMA_enum uplo,
                PLASMA_enum trans,
                parsec_complex64_t alpha,
-               const tiled_matrix_desc_t *A,
+               const parsec_tiled_matrix_dc_t *A,
                parsec_complex64_t beta,
-               tiled_matrix_desc_t *C)
+               parsec_tiled_matrix_dc_t *C)
 {
     parsec_taskpool_t *parsec_zsyrk = NULL;
 

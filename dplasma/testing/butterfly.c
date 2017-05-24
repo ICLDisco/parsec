@@ -263,7 +263,7 @@ int rank_of(int i, int j){
 
     Tc = map_B_tile_to_A(i, j, Np, mb, nb);
 
-    return ddescA.super.super.rank_of(Tc.ip, Tc.jp);
+    return dcA.super.super.rank_of(Tc.ip, Tc.jp);
 }
 
 
@@ -273,7 +273,7 @@ PLASMA_Complex64_t* data_of(int i, int j){
 
     Tc = map_B_tile_to_A(i, j, Np, mb, nb);
 
-    ptr  = (uintptr_t)ddescA.super.super.data_of(Tc.ip, Tc.jp);
+    ptr  = (uintptr_t)dcA.super.super.data_of(Tc.ip, Tc.jp);
     ptr += Tc.offset*sizeof(PLASMA_Complex64_t);
     return (PLASMA_Complex64_t*)ptr;
 }

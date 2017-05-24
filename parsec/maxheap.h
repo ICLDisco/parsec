@@ -18,7 +18,7 @@ BEGIN_C_DECLS
  */
 
 /* main struct holding size info and ID */
-typedef struct parsec_heap {
+typedef struct parsec_heap_s {
     parsec_list_item_t list_item; /* to be compatible with the lists */
     unsigned int size;
     unsigned int priority;

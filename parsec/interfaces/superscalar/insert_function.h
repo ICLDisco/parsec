@@ -156,23 +156,23 @@ parsec_dtd_unpack_args( parsec_task_t *this_task, ... );
 /*
  * The following macro is very specific to two dimensional matrix.
  * The parameters to pass to get pointer to data
- * 1. parsec_ddesc_t *
+ * 1. parsec_data_collection_t *
  * 2. m (coordinates of the data in the matrix)
  * 3. n (coordinates of the data in the matrix)
  */
-#define TILE_OF(DDESC, I, J) \
-    parsec_dtd_tile_of(&(__ddesc##DDESC->super.super), (&(__ddesc##DDESC->super.super))->data_key(&(__ddesc##DDESC->super.super), I, J))
+#define TILE_OF(DC, I, J) \
+    parsec_dtd_tile_of(&(__dc##DC->super.super), (&(__dc##DC->super.super))->data_key(&(__dc##DC->super.super), I, J))
 
 /*
  * This macro is for any type of data. The user needs to provide the
- * data-descriptor and the key. The ddesc and the key will allow us
+ * data-descriptor and the key. The dc and the key will allow us
  * to uniquely identify the data a task is supposed to use.
  */
-#define TILE_OF_KEY(DDESC, KEY) \
-    parsec_dtd_tile_of(DDESC, KEY)
+#define TILE_OF_KEY(DC, KEY) \
+    parsec_dtd_tile_of(DC, KEY)
 
 parsec_dtd_tile_t *
-parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
+parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
 
 /*
  * Using this function users can insert task in PaRSEC
@@ -207,9 +207,9 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key );
  *                               copied),
  *
  *
- *    3.    PASSED_BY_REF,         TILE_OF(ddesc, i, j),               INOUT/INPUT/OUTPUT,
+ *    3.    PASSED_BY_REF,         TILE_OF(dc, i, j),               INOUT/INPUT/OUTPUT,
  *                                         /                                    /
- *                                 TILE_OF_KEY(ddesc, key),            INOUT | REGION_INFO,
+ *                                 TILE_OF_KEY(dc, key),            INOUT | REGION_INFO,
  *                                                                              /
  *                                                                     INOUT | AFFINITY/DONT_TRACK,
  *                                                                              /
@@ -243,20 +243,20 @@ parsec_insert_task( parsec_taskpool_t  *tp,
  * This macros should be called anytime users
  * are using data in their parsec-dtd runs.
  * This functions intializes/cleans necessary
- * structures in a data-descriptor(ddesc). The
- * init should be called after a valid ddesc
+ * structures in a data-descriptor(dc). The
+ * init should be called after a valid dc
  * has been acquired, and the fini before
- * the ddesc is cleaned.
+ * the dc is cleaned.
  */
-#define DTD_DDESC_INIT(DDESC) \
-    parsec_dtd_ddesc_init(&(__ddesc##DDESC->super.super))
+#define DTD_DC_INIT(DC) \
+    parsec_dtd_data_collection_init(&(__dc##DC->super.super))
 void
-parsec_dtd_ddesc_init( parsec_ddesc_t *ddesc );
+parsec_dtd_data_collection_init( parsec_data_collection_t *dc );
 
-#define DTD_DDESC_FINI(DDESC) \
-    parsec_dtd_ddesc_fini(&(__ddesc##DDESC->super.super))
+#define DTD_DC_FINI(DC) \
+    parsec_dtd_data_collection_fini(&(__dc##DC->super.super))
 void
-parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc );
+parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
 
 /*
  * This function will create and returns a parsec handle
@@ -294,13 +294,13 @@ parsec_dtd_data_flush( parsec_taskpool_t   *tp,
                        parsec_dtd_tile_t *tile );
 
 /*
- * This function flushes all the data of a ddesc(data descriptor).
- * This function must be called for all ddesc(s) before
+ * This function flushes all the data of a dc(data descriptor).
+ * This function must be called for all dc(s) before
  * parsec_context_wait() is called.
  */
 void
 parsec_dtd_data_flush_all( parsec_taskpool_t *tp,
-                           parsec_ddesc_t  *ddesc );
+                           parsec_data_collection_t  *dc );
 
 END_C_DECLS
 

@@ -16,8 +16,8 @@ extern "C" %{
 %}
 
 /** Globals */
-dataA     [type = "tiled_matrix_desc_t*"]
-dataIP    [type = "const tiled_matrix_desc_t*"]
+dataA     [type = "parsec_tiled_matrix_dc_t*"]
+dataIP    [type = "const parsec_tiled_matrix_dc_t*"]
 inc       [type = "int"]
 
 /************************************************************************************

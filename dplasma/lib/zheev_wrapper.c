@@ -50,9 +50,9 @@
  ******************************************************************************/
 parsec_taskpool_t*
 dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
-                  tiled_matrix_desc_t* A,
-                  tiled_matrix_desc_t* W,  /* Should be removed: internal workspace as T */
-                  tiled_matrix_desc_t* Z,
+                  parsec_tiled_matrix_dc_t* A,
+                  parsec_tiled_matrix_dc_t* W,  /* Should be removed: internal workspace as T */
+                  parsec_tiled_matrix_dc_t* Z,
                   int* info )
 {
     (void)Z;
@@ -91,9 +91,9 @@ dplasma_zheev_New(PLASMA_enum jobz, PLASMA_enum uplo,
         T->mat = parsec_data_allocate((size_t)T->super.nb_local_tiles *
                                      (size_t)T->super.bsiz *
                                      (size_t)parsec_datadist_getsizeoftype(T->super.mtype));
-        parsec_ddesc_set_key((parsec_ddesc_t*)T, "zheev_ddescT");
+        parsec_data_collection_set_key((parsec_data_collection_t*)T, "zheev_dcT");
 
-        zherbt_obj = (parsec_taskpool_t*)dplasma_zherbt_New( uplo, ib, A, (tiled_matrix_desc_t*)T );
+        zherbt_obj = (parsec_taskpool_t*)dplasma_zherbt_New( uplo, ib, A, (parsec_tiled_matrix_dc_t*)T );
         band2rect_obj = parsec_diag_band_to_rect_new((sym_two_dim_block_cyclic_t*)A, (two_dim_block_cyclic_t*)W,
                 A->mt, A->nt, A->mb, A->nb, sizeof(parsec_complex64_t));
         zhbrdt_obj = (parsec_taskpool_t*)dplasma_zhbrdt_New(W);
@@ -141,7 +141,7 @@ dplasma_zheev_Destruct( parsec_taskpool_t *tp )
 #if 0
     two_dim_block_cyclic_t* T = ???
     parsec_data_free(T->mat);
-    tiled_matrix_desc_destroy((tiled_matrix_desc_t*)T); free(T);
+    parsec_tiled_matrix_dc_destroy((parsec_tiled_matrix_dc_t*)T); free(T);
 
     parsec_matrix_del2arena( ((parsec_diag_band_to_rect_taskpool_t *)tp)->arenas[PARSEC_diag_band_to_rect_DEFAULT_ARENA] );
 #endif
@@ -178,9 +178,9 @@ dplasma_zheev_Destruct( parsec_taskpool_t *tp )
 int
 dplasma_zheev( parsec_context_t *parsec,
                PLASMA_enum jobz, PLASMA_enum uplo,
-               tiled_matrix_desc_t* A,
-               tiled_matrix_desc_t* W, /* Should be removed */
-               tiled_matrix_desc_t* Z )
+               parsec_tiled_matrix_dc_t* A,
+               parsec_tiled_matrix_dc_t* W, /* Should be removed */
+               parsec_tiled_matrix_dc_t* Z )
 {
     parsec_taskpool_t *parsec_zheev = NULL;
     int info = 0;

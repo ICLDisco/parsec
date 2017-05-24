@@ -64,8 +64,8 @@
 int
 dplasma_zposv( parsec_context_t *parsec,
                PLASMA_enum uplo,
-               tiled_matrix_desc_t *A,
-               tiled_matrix_desc_t *B )
+               parsec_tiled_matrix_dc_t *A,
+               parsec_tiled_matrix_dc_t *B )
 {
     int info;
 

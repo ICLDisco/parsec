@@ -87,13 +87,13 @@ static inline int parsec_translate_matrix_type( enum matrix_type mt, parsec_data
     return 0;
 }
 
-#define tiled_matrix_desc_type        0x01
+#define parsec_tiled_matrix_dc_type        0x01
 #define two_dim_block_cyclic_type     0x02
 #define sym_two_dim_block_cyclic_type 0x04
 #define two_dim_tabular_type          0x08
 
-typedef struct tiled_matrix_desc_t {
-    parsec_ddesc_t super;
+typedef struct parsec_tiled_matrix_dc_t {
+    parsec_data_collection_t super;
     parsec_data_t**       data_map;   /**< map of the data */
     enum matrix_type     mtype;      /**< precision of the matrix */
     enum matrix_storage  storage;    /**< storage of the matrix   */
@@ -115,18 +115,18 @@ typedef struct tiled_matrix_desc_t {
     int mt;             /**< number of tile rows of the submatrix - derived parameter */
     int nt;             /**< number of tile columns of the submatrix - derived parameter */
     int nb_local_tiles; /**< number of tile handled locally */
-} tiled_matrix_desc_t;
+} parsec_tiled_matrix_dc_t;
 
-void tiled_matrix_desc_init( tiled_matrix_desc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
+void parsec_tiled_matrix_dc_init( parsec_tiled_matrix_dc_t *tdesc, enum matrix_type dtyp, enum matrix_storage storage,
                              int matrix_distribution_type, int nodes, int myrank,
                              int mb, int nb, int lm, int ln, int i,  int j, int m,  int n);
 
-void tiled_matrix_desc_destroy( tiled_matrix_desc_t *tdesc );
+void parsec_tiled_matrix_dc_destroy( parsec_tiled_matrix_dc_t *tdesc );
 
-tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, int j, int m, int n);
+parsec_tiled_matrix_dc_t *tiled_matrix_submatrix( parsec_tiled_matrix_dc_t *tdesc, int i, int j, int m, int n);
 
-int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
-int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
+int  tiled_matrix_data_write(parsec_tiled_matrix_dc_t *tdesc, char *filename);
+int  tiled_matrix_data_read(parsec_tiled_matrix_dc_t *tdesc, char *filename);
 
 typedef int (*parsec_operator_t)( struct parsec_execution_stream_s *es,
                                   const void* src,
@@ -135,21 +135,21 @@ typedef int (*parsec_operator_t)( struct parsec_execution_stream_s *es,
                                   ... );
 
 typedef int (*tiled_matrix_unary_op_t )( struct parsec_execution_stream_s *es,
-                                         const tiled_matrix_desc_t *desc1,
+                                         const parsec_tiled_matrix_dc_t *desc1,
                                          void *data1,
                                          int uplo, int m, int n,
                                          void *args );
 
 typedef int (*tiled_matrix_binary_op_t)( struct parsec_execution_stream_s *es,
-                                         const tiled_matrix_desc_t *desc1,
-                                         const tiled_matrix_desc_t *desc2,
+                                         const parsec_tiled_matrix_dc_t *desc1,
+                                         const parsec_tiled_matrix_dc_t *desc2,
                                          const void *data1, void *data2,
                                          int uplo, int m, int n,
                                          void *args );
 
 extern struct parsec_taskpool_s*
-parsec_map_operator_New(const tiled_matrix_desc_t* src,
-                       tiled_matrix_desc_t* dest,
+parsec_map_operator_New(const parsec_tiled_matrix_dc_t* src,
+                       parsec_tiled_matrix_dc_t* dest,
                        parsec_operator_t op,
                        void* op_data);
 
@@ -157,16 +157,16 @@ extern void
 parsec_map_operator_Destruct( struct parsec_taskpool_s* o );
 
 extern struct parsec_taskpool_s*
-parsec_reduce_col_New( const tiled_matrix_desc_t* src,
-                      tiled_matrix_desc_t* dest,
+parsec_reduce_col_New( const parsec_tiled_matrix_dc_t* src,
+                      parsec_tiled_matrix_dc_t* dest,
                       parsec_operator_t op,
                       void* op_data );
 
 extern void parsec_reduce_col_Destruct( struct parsec_taskpool_s *o );
 
 extern struct parsec_taskpool_s*
-parsec_reduce_row_New( const tiled_matrix_desc_t* src,
-                      tiled_matrix_desc_t* dest,
+parsec_reduce_row_New( const parsec_tiled_matrix_dc_t* src,
+                      parsec_tiled_matrix_dc_t* dest,
                       parsec_operator_t op,
                       void* op_data );
 extern void parsec_reduce_row_Destruct( struct parsec_taskpool_s *o );
@@ -175,23 +175,23 @@ extern void parsec_reduce_row_Destruct( struct parsec_taskpool_s *o );
  * Macro to get the block leading dimension
  */
 #define BLKLDD( _desc_, _m_ ) ( (_desc_)->storage == matrix_Tile ? (_desc_)->mb : (_desc_)->llm )
-#define TILED_MATRIX_KEY( _desc_, _m_, _n_ ) ( ((parsec_ddesc_t*)(_desc_))->data_key( ((parsec_ddesc_t*)(_desc_)), (_m_), (_n_) ) )
+#define TILED_MATRIX_KEY( _desc_, _m_, _n_ ) ( ((parsec_data_collection_t*)(_desc_))->data_key( ((parsec_data_collection_t*)(_desc_)), (_m_), (_n_) ) )
 
 /**
  * Helper functions to allocate and retrieve pointers to the parsec_data_t and
  * the corresponding copies.
  */
 parsec_data_t*
-parsec_matrix_create_data(tiled_matrix_desc_t* matrix,
+parsec_matrix_create_data(parsec_tiled_matrix_dc_t* matrix,
                          void* ptr,
                          int pos,
                          parsec_data_key_t key);
 
 void
-parsec_matrix_destroy_data( tiled_matrix_desc_t* matrix );
+parsec_matrix_destroy_data( parsec_tiled_matrix_dc_t* matrix );
 
 parsec_data_t*
-fake_data_of(parsec_ddesc_t *mat, ...);
+fake_data_of(parsec_data_collection_t *mat, ...);
 
 /**
  * Helper functions to create arenas of matrices with different shapes

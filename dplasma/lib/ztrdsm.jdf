@@ -64,8 +64,8 @@ int CORE_ztrdsm(int M, int N,
 %}
 
 
-desc_A [type = "const tiled_matrix_desc_t*"]
-desc_B [type = "tiled_matrix_desc_t*"]
+desc_A [type = "const parsec_tiled_matrix_dc_t*"]
+desc_B [type = "parsec_tiled_matrix_dc_t*"]
 
 
 ztrdsm(k,n)

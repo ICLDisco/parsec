@@ -81,9 +81,9 @@ parsec_taskpool_t*
 dplasma_zherk_New( PLASMA_enum uplo,
                    PLASMA_enum trans,
                    double alpha,
-                   const tiled_matrix_desc_t* A,
+                   const parsec_tiled_matrix_dc_t* A,
                    double beta,
-                   tiled_matrix_desc_t* C)
+                   parsec_tiled_matrix_dc_t* C)
 {
     parsec_taskpool_t* tp;
 
@@ -216,9 +216,9 @@ dplasma_zherk( parsec_context_t *parsec,
                PLASMA_enum uplo,
                PLASMA_enum trans,
                double alpha,
-               const tiled_matrix_desc_t *A,
+               const parsec_tiled_matrix_dc_t *A,
                double beta,
-               tiled_matrix_desc_t *C)
+               parsec_tiled_matrix_dc_t *C)
 {
     parsec_taskpool_t *parsec_zherk = NULL;
 

@@ -7,8 +7,7 @@
 #ifndef PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED
 #define PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED
 
-#include "parsec.h"
-
+#include "parsec/parsec_internal.h"
 /**
  * Generic startup function for DSLs. For more info read comment in
  * parsec/interface/interface.c

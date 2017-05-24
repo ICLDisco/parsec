@@ -34,7 +34,7 @@ BEGIN_C_DECLS
  */
 
 typedef struct sym_two_dim_block_cyclic {
-    tiled_matrix_desc_t super;
+    parsec_tiled_matrix_dc_t super;
     grid_2Dcyclic_t grid;
     void *mat;              /**< pointer to the beginning of the matrix */
     int uplo;
@@ -52,7 +52,7 @@ typedef struct sym_two_dim_block_cyclic {
 
 /**
  * Initialize the description of a  2-D block cyclic distributed matrix.
- * @param Ddesc matrix description structure, already allocated, that will be initialize
+ * @param dc matrix description structure, already allocated, that will be initialize
  * @param nodes number of nodes
  * @param myrank rank of the local node (as of mpi rank)
  * @param mb number of row in a tile
@@ -66,49 +66,49 @@ typedef struct sym_two_dim_block_cyclic {
  * @param process_GridRows number of row of processes of the process grid (has to divide nodes)
  * @param uplo upper or lower triangular part of the matrix is kept
  */
-void sym_two_dim_block_cyclic_init( sym_two_dim_block_cyclic_t * Ddesc,
+void sym_two_dim_block_cyclic_init( sym_two_dim_block_cyclic_t * dc,
                                     enum matrix_type mtype,
                                     int nodes, int myrank,
                                     int mb, int nb, int lm, int ln,
                                     int i, int j, int m, int n,
                                     int process_GridRows, int uplo );
 
-static inline size_t sym_twoDBC_coordinates_to_position(sym_two_dim_block_cyclic_t *Ddesc, int m, int n){
+static inline size_t sym_twoDBC_coordinates_to_position(sym_two_dim_block_cyclic_t *dc, int m, int n){
     size_t pos;
     int nb_elem, nb_elem_col, column;
 
     pos = 0; /* current position (as number of tile) in the buffer */
-    column = Ddesc->grid.crank; /* tile column considered */
+    column = dc->grid.crank; /* tile column considered */
 
     /**********************************/
-    if(Ddesc->uplo == matrix_Lower ) {
-        nb_elem_col = (Ddesc->super.lmt) / (Ddesc->grid.rows); //nb of tile associated to that proc in a full column
-        if( (Ddesc->super.lmt) % (Ddesc->grid.rows) > Ddesc->grid.rrank )
+    if(dc->uplo == matrix_Lower ) {
+        nb_elem_col = (dc->super.lmt) / (dc->grid.rows); //nb of tile associated to that proc in a full column
+        if( (dc->super.lmt) % (dc->grid.rows) > dc->grid.rrank )
             nb_elem_col++;
 
         while(column != n) {
             /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-            nb_elem = column / (Ddesc->grid.rows);
-            if ( (column % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
+            nb_elem = column / (dc->grid.rows);
+            if ( (column % (dc->grid.rows)) > dc->grid.rrank)
                 nb_elem++;
 
             pos += (nb_elem_col - nb_elem);
-            column += Ddesc->grid.cols;
+            column += dc->grid.cols;
         }
 
-        pos += ((m - n) / (Ddesc->grid.rows));
+        pos += ((m - n) / (dc->grid.rows));
     } else {
         while(column != n) {
             /* for each column of tiles in memory before searched element, compute the number of tile for displacement */
-            nb_elem = (column + 1) / (Ddesc->grid.rows);
-            if ( ( (column + 1) % (Ddesc->grid.rows)) > Ddesc->grid.rrank)
+            nb_elem = (column + 1) / (dc->grid.rows);
+            if ( ( (column + 1) % (dc->grid.rows)) > dc->grid.rrank)
                 nb_elem++;
 
             pos += nb_elem;
-            column += Ddesc->grid.cols;
+            column += dc->grid.cols;
         }
 
-        pos += (m / (Ddesc->grid.rows));
+        pos += (m / (dc->grid.rows));
     }
     return pos;
 }

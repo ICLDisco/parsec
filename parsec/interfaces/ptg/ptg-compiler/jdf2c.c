@@ -240,7 +240,7 @@ static char* dump_data(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_of((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s",
+    string_arena_add_string(sa, ")  (((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_of((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s",
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -265,7 +265,7 @@ static char* dump_rank(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->rank_of((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s",
+    string_arena_add_string(sa, ")  (((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->rank_of((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s",
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -475,7 +475,7 @@ static char* dump_predicate(void** elem, void *arg)
     expr_info.prefix = "";
     expr_info.suffix = "";
     expr_info.assignments = "assignments";
-    string_arena_add_string(sa, "(((parsec_ddesc_t*)("TASKPOOL_GLOBAL_PREFIX"_g_%s))->myrank == "
+    string_arena_add_string(sa, "(((parsec_data_collection_t*)("TASKPOOL_GLOBAL_PREFIX"_g_%s))->myrank == "
                             "rank_of_%s(%s))",
                             f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
@@ -677,11 +677,11 @@ static char *dump_profiling_init(void **elem, void *arg)
     JDF_COUNT_LIST_ENTRIES(f->locals, jdf_def_list_t, next, nb_locals);
     profiling_convertor_params = string_arena_new(64);
     UTIL_DUMP_LIST_FIELD(profiling_convertor_params, f->locals, next, name, dump_string, NULL,
-                         PARSEC_PROFILE_DDESC_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
+                         PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR, ";", "{int32_t}", "{int32_t}");
 
     string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
-                            "                                       sizeof(parsec_profile_ddesc_info_t)+%d*sizeof(assignment_t),\n"
+                            "                                       sizeof(parsec_profile_data_collection_info_t)+%d*sizeof(assignment_t),\n"
                             "                                       \"%s\",\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[0 + 2 * %s_%s.task_class_id /* %s start key */],\n"
                             "                                       (int*)&__parsec_tp->super.super.profiling_array[1 + 2 * %s_%s.task_class_id /* %s end key */]);\n",
@@ -1080,7 +1080,7 @@ static inline char* jdf_generate_task_typedef(void **elt, void* arg)
     string_arena_add_string(sa, "typedef struct %s {\n"
                             "    PARSEC_MINIMAL_EXECUTION_CONTEXT\n"
                             "#if defined(PARSEC_PROF_TRACE)\n"
-                            "    parsec_profile_ddesc_info_t prof_info;\n"
+                            "    parsec_profile_data_collection_info_t prof_info;\n"
                             "#endif /* defined(PARSEC_PROF_TRACE) */\n"
                             "    struct __parsec_%s_%s_assignment_s locals;\n"
                             "#if defined(PINS_ENABLE)\n"
@@ -1506,9 +1506,9 @@ static void jdf_generate_affinity( const jdf_t *jdf, const jdf_function_entry_t 
     coutput("%s\n"
             "  /* Silent Warnings: should look into predicate to know what variables are usefull */\n"
             "%s\n"
-            "  ref->ddesc = (parsec_ddesc_t *)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
+            "  ref->dc = (parsec_data_collection_t *)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
             "  /* Compute data key */\n"
-            "  ref->key = ref->ddesc->data_key(ref->ddesc, %s);\n"
+            "  ref->key = ref->dc->data_key(ref->dc, %s);\n"
             "  return 1;\n"
             "}\n",
             UTIL_DUMP_LIST(sa1, f->locals, next,
@@ -1542,8 +1542,8 @@ static void jdf_generate_initfinal_data_for_call(const jdf_call_t *call,
 
     assert( call->var == NULL );
     if ( call->parameters != NULL ) {
-        string_arena_add_string(sa, "%s    __d = (parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
-                                "%s    refs[__flow_nb].ddesc = __d;\n",
+        string_arena_add_string(sa, "%s    __d = (parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
+                                "%s    refs[__flow_nb].dc = __d;\n",
                                 indent(il), call->func_or_mem,
                                 indent(il));
         string_arena_add_string(sa, "%s    refs[__flow_nb].key = __d->data_key(__d, %s);\n"
@@ -1556,7 +1556,7 @@ static void jdf_generate_initfinal_data_for_call(const jdf_call_t *call,
     else {
         /* TODO */
         string_arena_add_string(sa,
-                                "%s    refs[__flow_nb].ddesc = NULL;\n"
+                                "%s    refs[__flow_nb].dc = NULL;\n"
                                 "%s    refs[__flow_nb].key = 0xffffffff;\n"
                                 "%s    __flow_nb++;\n"
                                 "%s    (void)__d;\n",
@@ -1674,7 +1674,7 @@ static int jdf_generate_initfinal_data( const jdf_t *jdf,
                 "                     parsec_data_ref_t *refs)\n"
                 "{\n"
                 "    const __parsec_%s_internal_taskpool_t *__parsec_tp = (const __parsec_%s_internal_taskpool_t*)this_task->taskpool;\n"
-                "    parsec_ddesc_t *__d = NULL;\n"
+                "    parsec_data_collection_t *__d = NULL;\n"
                 "    int __flow_nb = 0;\n",
                 name, parsec_get_name(jdf, f, "task_t"),
                 jdf_basename, jdf_basename);
@@ -2359,8 +2359,8 @@ static void jdf_generate_startup_tasks(const jdf_t *jdf, const jdf_function_entr
             coutput("%s  if( !(%s) ) continue;\n", indent(nesting), condition );
     }
 
-    coutput("%s  if( NULL != ((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of ) {\n"
-            "%s    vpid = ((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
+    coutput("%s  if( NULL != ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of ) {\n"
+            "%s    vpid = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
             "%s    assert(context->nb_vp >= vpid);\n"
             "%s  }\n"
             "%s  new_task = (%s*)parsec_thread_mempool_allocate( context->virtual_processes[0]->execution_streams[0]->context_mempool );\n"
@@ -3226,7 +3226,7 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             "  for( _i = 0; _i < parsec_nb_devices; _i++ ) {\n"
             "    if( !(wanted_devices & (1<<_i)) ) continue;\n"
             "    parsec_device_t* device = parsec_devices_get(_i);\n"
-            "    parsec_ddesc_t* parsec_ddesc;\n"
+            "    parsec_data_collection_t* parsec_dc;\n"
             " \n"
             "    if(NULL == device) continue;\n"
             "    if(NULL != device->device_taskpool_register)\n"
@@ -3243,19 +3243,19 @@ static void jdf_generate_startup_hook( const jdf_t *jdf )
             jdf_basename, jdf_basename,
             UTIL_DUMP_LIST(sa1, jdf->globals, next,
                            dump_data_name, sa2, "",
-                           "      parsec_ddesc = (parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_",
+                           "      parsec_dc = (parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_",
                            ";\n"
-                           "      if( (NULL != parsec_ddesc->register_memory) &&\n"
-                           "          (PARSEC_SUCCESS != parsec_ddesc->register_memory(parsec_ddesc, device)) ) {\n"
+                           "      if( (NULL != parsec_dc->register_memory) &&\n"
+                           "          (PARSEC_SUCCESS != parsec_dc->register_memory(parsec_dc, device)) ) {\n"
                            "        parsec_debug_verbose(3, parsec_debug_output, \"Device %s refused to register memory for data %s (%p) from taskpool %p\",\n"
-                           "                     device->name, parsec_ddesc->key_base, parsec_ddesc, __parsec_tp);\n"
+                           "                     device->name, parsec_dc->key_base, parsec_dc, __parsec_tp);\n"
                            "        continue;\n"
                            "      }\n",
                            ";\n"
-                           "      if( (NULL != parsec_ddesc->register_memory) &&\n"
-                           "          (PARSEC_SUCCESS != parsec_ddesc->register_memory(parsec_ddesc, device)) ) {\n"
+                           "      if( (NULL != parsec_dc->register_memory) &&\n"
+                           "          (PARSEC_SUCCESS != parsec_dc->register_memory(parsec_dc, device)) ) {\n"
                            "        parsec_debug_verbose(3, parsec_debug_output, \"Device %s refused to register memory for data %s (%p) from taskpool %p\",\n"
-                           "                     device->name, parsec_ddesc->key_base, parsec_ddesc, __parsec_tp);\n"
+                           "                     device->name, parsec_dc->key_base, parsec_dc, __parsec_tp);\n"
                            "        continue;\n"
                            "      }\n"));
     coutput("  /* Remove all the chores without a backend device */\n"
@@ -3377,16 +3377,16 @@ static void jdf_generate_destructor( const jdf_t *jdf )
             "  uint32_t _i;\n"
             "  for( _i = 0; _i < parsec_nb_devices; _i++ ) {\n"
             "    parsec_device_t* device;\n"
-            "    parsec_ddesc_t* parsec_ddesc;\n"
+            "    parsec_data_collection_t* parsec_dc;\n"
             "    if(!(__parsec_tp->super.super.devices_mask & (1 << _i))) continue;\n"
             "    if((NULL == (device = parsec_devices_get(_i))) || (NULL == device->device_memory_unregister)) continue;\n"
             "  %s"
             "}\n",
             UTIL_DUMP_LIST(sa, jdf->globals, next,
                            dump_data_name, sa1, "",
-                           "  parsec_ddesc = (parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_",
-                           ";\n  if( NULL != parsec_ddesc->unregister_memory ) { (void)parsec_ddesc->unregister_memory(parsec_ddesc, device); };\n",
-                           ";\n  if( NULL != parsec_ddesc->unregister_memory ) { (void)parsec_ddesc->unregister_memory(parsec_ddesc, device); };\n"));
+                           "  parsec_dc = (parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_",
+                           ";\n  if( NULL != parsec_dc->unregister_memory ) { (void)parsec_dc->unregister_memory(parsec_dc, device); };\n",
+                           ";\n  if( NULL != parsec_dc->unregister_memory ) { (void)parsec_dc->unregister_memory(parsec_dc, device); };\n"));
 
     coutput("  /* Unregister the taskpool from the devices */\n"
             "  for( i = 0; i < parsec_nb_devices; i++ ) {\n"
@@ -4568,8 +4568,8 @@ jdf_generate_code_data_lookup(const jdf_t *jdf,
 
         coutput("  /** Generate profiling information */\n"
                 "#if defined(PARSEC_PROF_TRACE)\n"
-                "  this_task->prof_info.desc = (parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
-                "  this_task->prof_info.id   = ((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_key((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
+                "  this_task->prof_info.desc = (parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s;\n"
+                "  this_task->prof_info.id   = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->data_key((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n"
                 "#endif  /* defined(PARSEC_PROF_TRACE) */\n",
                 f->predicate->func_or_mem,
                 f->predicate->func_or_mem, f->predicate->func_or_mem,
@@ -5436,7 +5436,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
     string_arena_add_string(sa_open,
                             "%s%s  if( (NULL != es) && (rank_dst == es->virtual_process->parsec_context->my_rank) )\n"
                             "#endif /* DISTRIBUTED */\n"
-                            "%s%s    vpid_dst = ((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of((parsec_ddesc_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n",
+                            "%s%s    vpid_dst = ((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s)->vpid_of((parsec_data_collection_t*)"TASKPOOL_GLOBAL_PREFIX"_g_%s, %s);\n",
                             prefix, indent(nbopen),
                             prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next,

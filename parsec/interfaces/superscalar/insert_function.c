@@ -452,15 +452,15 @@ parsec_dtd_data_flush(parsec_taskpool_t *tp, parsec_dtd_tile_t *tile)
                         PASSED_BY_REF,    tile, INOUT | AFFINITY,
                         0 );
     tile->flushed = FLUSHED;
-    parsec_dtd_tile_remove( tile->ddesc, tile->key );
+    parsec_dtd_tile_remove( tile->dc, tile->key );
     parsec_dtd_tile_release( tile );
 }
 
 void
-parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_ddesc_t *ddesc)
+parsec_dtd_data_flush_all(parsec_taskpool_t *tp, parsec_data_collection_t *dc)
 {
     parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)tp;
-    hash_table_t *hash_table   = (hash_table_t *)ddesc->tile_h_table;
+    hash_table_t *hash_table   = (hash_table_t *)dc->tile_h_table;
 
     PINS(dtd_tp->super.context->virtual_processes[0]->execution_streams[0], DATA_FLUSH_BEGIN, NULL);
 
@@ -735,8 +735,8 @@ parsec_dtd_add_profiling_info( parsec_taskpool_t *tp,
 {
     char *str = fill_color(task_class_id, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                           sizeof(parsec_profile_ddesc_info_t),
-                                           PARSEC_PROFILE_DDESC_INFO_CONVERTOR,
+                                           sizeof(parsec_profile_data_collection_info_t),
+                                           PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
                                            (int *) &tp->profiling_array[0 +
                                                                                   2 *
                                                                                   task_class_id
@@ -758,8 +758,8 @@ parsec_dtd_add_profiling_info_generic( parsec_taskpool_t *tp,
     (void)tp;
     char *str = fill_color(*keyin, PARSEC_DTD_NB_TASK_CLASSES);
     parsec_profiling_add_dictionary_keyword(name, str,
-                                           sizeof(parsec_profile_ddesc_info_t),
-                                           PARSEC_PROFILE_DDESC_INFO_CONVERTOR,
+                                           sizeof(parsec_profile_data_collection_info_t),
+                                           PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR,
                                            keyin,
                                            keyout);
     free(str);
@@ -985,10 +985,10 @@ parsec_dtd_find_task_class( parsec_dtd_taskpool_t  *tp,
  * This function inserts DTD tile into tile hash table
  *
  * The actual key for each tile is formed by OR'ing the last 32 bits of
- * address of the data descriptor (ddesc) with the 32 bit key. So, the actual
+ * address of the data descriptor (dc) with the 32 bit key. So, the actual
  * key is of 64 bits,
- * first 32 bits: last 32 bits of ddesc pointer + last 32 bits: 32 bit key.
- * This is done as PaRSEC key for tiles are unique per ddesc.
+ * first 32 bits: last 32 bits of dc pointer + last 32 bits: 32 bit key.
+ * This is done as PaRSEC key for tiles are unique per dc.
  *
  * @param[in,out]   tp
  *                      Pointer to DTD taskpool, the tile hash table
@@ -997,17 +997,17 @@ parsec_dtd_find_task_class( parsec_dtd_taskpool_t  *tp,
  *                      The key of the tile
  * @param[in]       tile
  *                      Pointer to the tile structure
- * @param[in]       ddesc
- *                      Pointer to the ddesc the tile belongs to
+ * @param[in]       dc
+ *                      Pointer to the dc the tile belongs to
  *
  * @ingroup         DTD_ITERFACE_INTERNAL
  */
 void
 parsec_dtd_tile_insert( uint64_t key,
                         parsec_dtd_tile_t *tile,
-                        parsec_ddesc_t    *ddesc )
+                        parsec_data_collection_t    *dc )
 {
-    hash_table_t *hash_table = (hash_table_t *)ddesc->tile_h_table;
+    hash_table_t *hash_table = (hash_table_t *)dc->tile_h_table;
 
     tile->ht_item.key = (uint64_t)key;
 
@@ -1023,15 +1023,15 @@ parsec_dtd_tile_insert( uint64_t key,
  *                      is attached to this taskpool
  * @param[in]       key
  *                      The key of the tile
- * @param[in]       ddesc
- *                      Pointer to the ddesc the tile belongs to
+ * @param[in]       dc
+ *                      Pointer to the dc the tile belongs to
  *
  * @ingroup         DTD_ITERFACE_INTERNAL
  */
 void
-parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint64_t key )
+parsec_dtd_tile_remove( parsec_data_collection_t *dc, uint64_t key )
 {
-    hash_table_t *hash_table = (hash_table_t *)ddesc->tile_h_table;
+    hash_table_t *hash_table = (hash_table_t *)dc->tile_h_table;
 
     hash_table_remove( hash_table, (uint64_t)key );
 }
@@ -1045,15 +1045,15 @@ parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint64_t key )
  *                      is attached to this taskpool
  * @param[in]       key
  *                      The key of the tile
- * @param[in]       ddesc
- *                      Pointer to the ddesc the tile belongs to
+ * @param[in]       dc
+ *                      Pointer to the dc the tile belongs to
  *
  * @ingroup         DTD_ITERFACE_INTERNAL
  */
 parsec_dtd_tile_t *
-parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint64_t key )
+parsec_dtd_tile_find( parsec_data_collection_t *dc, uint64_t key )
 {
-    hash_table_t *hash_table   = (hash_table_t *)ddesc->tile_h_table;
+    hash_table_t *hash_table   = (hash_table_t *)dc->tile_h_table;
     assert(hash_table != NULL);
     parsec_dtd_tile_t *tile  = (parsec_dtd_tile_t *)hash_table_nolock_find( hash_table, (uint64_t)key );
 
@@ -1120,20 +1120,20 @@ parsec_dtd_release_task_class( parsec_dtd_taskpool_t *tp,
 }
 
 void
-parsec_dtd_ddesc_init( parsec_ddesc_t *ddesc )
+parsec_dtd_data_collection_init( parsec_data_collection_t *dc )
 {
-    ddesc->tile_h_table = OBJ_NEW(hash_table_t);
-    hash_table_init( ddesc->tile_h_table,
+    dc->tile_h_table = OBJ_NEW(hash_table_t);
+    hash_table_init( dc->tile_h_table,
                      offsetof(parsec_dtd_tile_t, ht_item),
                      tile_hash_table_size,
                      &hash_key,
-                     ddesc->tile_h_table);
+                     dc->tile_h_table);
 }
 
 void
-parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc )
+parsec_dtd_data_collection_fini( parsec_data_collection_t *dc )
 {
-    hash_table_fini( ddesc->tile_h_table );
+    hash_table_fini( dc->tile_h_table );
 }
 
 /* **************************************************************************** */
@@ -1145,7 +1145,7 @@ parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc )
  *
  * @param[in,out]   parsec taskpool
  *                      Pointer to the DTD taskpool
- * @param[in]       ddesc
+ * @param[in]       dc
  *                      Data descriptor
  * @param[in]       key
  *                      The data key of the tile in the matrix
@@ -1155,19 +1155,19 @@ parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc )
  * @ingroup         DTD_INTERFACE
  */
 parsec_dtd_tile_t*
-parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
+parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key )
 {
-    parsec_dtd_tile_t *tile = parsec_dtd_tile_find ( ddesc, (uint64_t)key );
+    parsec_dtd_tile_t *tile = parsec_dtd_tile_find ( dc, (uint64_t)key );
     if( NULL == tile ) {
         /* Creating Tile object */
         tile = (parsec_dtd_tile_t *) parsec_thread_mempool_allocate( parsec_dtd_tile_mempool->thread_mempools );
-        tile->ddesc                 = ddesc;
+        tile->dc                 = dc;
         tile->arena_index           = -1;
         tile->key                   = (uint64_t) 0x00000000 | key;
-        tile->rank                  = ddesc->rank_of_key(ddesc, tile->key);
+        tile->rank                  = dc->rank_of_key(dc, tile->key);
         tile->flushed               = NOT_FLUSHED;
-        if( tile->rank == (int)ddesc->myrank ) {
-            tile->data_copy         = (ddesc->data_of_key(ddesc, tile->key))->device_copies[0];
+        if( tile->rank == (int)dc->myrank ) {
+            tile->data_copy         = (dc->data_of_key(dc, tile->key))->device_copies[0];
 #if defined(PARSEC_HAVE_CUDA)
             tile->data_copy->readers = 0;
 #endif
@@ -1179,7 +1179,7 @@ parsec_dtd_tile_of( parsec_ddesc_t *ddesc, parsec_data_key_t key )
 
         parsec_dtd_tile_retain(tile);
         parsec_dtd_tile_insert( tile->key,
-                                tile, ddesc );
+                                tile, dc );
     }
     assert(tile->flushed == NOT_FLUSHED);
 #if defined(PARSEC_DEBUG_PARANOID)

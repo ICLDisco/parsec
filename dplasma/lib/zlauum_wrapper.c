@@ -68,7 +68,7 @@
  ******************************************************************************/
 parsec_taskpool_t*
 dplasma_zlauum_New( PLASMA_enum uplo,
-                    tiled_matrix_desc_t *A )
+                    parsec_tiled_matrix_dc_t *A )
 {
     parsec_taskpool_t *parsec_lauum = NULL;
 
@@ -183,7 +183,7 @@ dplasma_zlauum_Destruct( parsec_taskpool_t *tp )
 int
 dplasma_zlauum( parsec_context_t *parsec,
                 PLASMA_enum uplo,
-                tiled_matrix_desc_t *A )
+                parsec_tiled_matrix_dc_t *A )
 {
     parsec_taskpool_t *parsec_zlauum = NULL;
 

@@ -4,7 +4,7 @@ extern "C" %{
 
 NT
 DEPTH
-A    [type="parsec_ddesc_t*"]
+A    [type="parsec_data_collection_t*"]
 
 INIT(k)
  k = 0..0

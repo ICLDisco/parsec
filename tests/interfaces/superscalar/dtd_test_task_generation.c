@@ -117,7 +117,7 @@ int main(int argc, char ** argv)
     parsec_context_t* parsec;
     int rank, world, cores;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -205,11 +205,11 @@ int main(int argc, char ** argv)
         nt = total_flows[i]*total_tasks; /* total tiles */
         //nt = total_tasks; /* total tiles */
 
-        ddescA = create_and_distribute_empty_data(rank, world, nb, nt);
-        parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+        dcA = create_and_distribute_empty_data(rank, world, nb, nt);
+        parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-        parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-        parsec_dtd_ddesc_init(A);
+        parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+        parsec_dtd_data_collection_init(A);
 
         dtd_tp = parsec_dtd_taskpool_new(  );
 
@@ -377,8 +377,8 @@ int main(int argc, char ** argv)
         SYNC_TIME_PRINT(rank, ("\tNo of flows : %d \tTime for each task : %lf\n\n", total_flows[i], sync_time_elapsed/total_tasks));
 
         parsec_taskpool_free( dtd_tp );
-        parsec_dtd_ddesc_fini( A );
-        free_data(ddescA);
+        parsec_dtd_data_collection_fini( A );
+        free_data(dcA);
     }
 
     /***** Start of timing overhead of task generation ******/

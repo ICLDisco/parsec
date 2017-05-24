@@ -347,16 +347,16 @@ uint64_t parsec_profiling_get_time(void);
  *  appropriately the info profiling generation string below
  */
 typedef struct {
-    struct parsec_ddesc_s *desc; /**< The pointer to the ddesc is used as a key to identify the collection */
+    struct parsec_data_collection_s *desc; /**< The pointer to the data collection used as a key to identify the collection */
     uint32_t              id;    /**< The id of each data defines a unique element in the collection */
-} parsec_profile_ddesc_info_t;
+} parsec_profile_data_collection_info_t;
 
 /**
- * @brief Convertor for parsec_profile_ddesc_info_t
- * @details This macro is the character string to convert a parsec_profile_ddesc_info_t into
+ * @brief Convertor for parsec_profile_data_collection_info_t
+ * @details This macro is the character string to convert a parsec_profile_data_collection_info_t into
  * meaningful numbers from the binary profile format. To be used in parsec_profiling_add_dictionary_keyword.
  */
-#define PARSEC_PROFILE_DDESC_INFO_CONVERTOR "ddesc_unique_key{uint64_t};ddesc_data_id{uint32_t};ddessc_padding{uint32_t}"
+#define PARSEC_PROFILE_DATA_COLLECTION_INFO_CONVERTOR "data_collection_unique_key{uint64_t};data_collection_data_id{uint32_t};data_collection_padding{uint32_t}"
 /**
  * @brief String used to identify GPU streams
  */

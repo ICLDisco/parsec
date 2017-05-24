@@ -2239,7 +2239,7 @@ void parsec_debug_print_local_expecting_tasks_for_function( parsec_taskpool_t *t
 
         (*ntotal)++;
         tc->data_affinity(&task, &ref);
-        if( ref.ddesc->rank_of_key(ref.ddesc, ref.key) == ref.ddesc->myrank ) {
+        if( ref.dc->rank_of_key(ref.dc, ref.key) == ref.dc->myrank ) {
             (*nlocal)++;
             dep = tc->find_deps(tp, NULL, &task);
             if( NULL == dep ) {

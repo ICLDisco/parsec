@@ -45,7 +45,7 @@ int main(int argc, char ** argv)
     parsec_context_t* parsec;
     int rank, world, cores;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -79,11 +79,11 @@ int main(int argc, char ** argv)
     nb = 1; /* size of each tile */
     nt = 1; /* total tiles */
 
-    ddescA = create_and_distribute_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
 
     parsec_data_copy_t *gdata;
     parsec_data_t *data;
@@ -122,8 +122,8 @@ int main(int argc, char ** argv)
         parsec_output( 0, "Test passed if we do not see 0-%d printed sequentially in order\n\n", total_tasks-1 );
     }
 
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
     parsec_taskpool_free( dtd_tp );
 

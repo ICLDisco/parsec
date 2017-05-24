@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
     int rc;
     int rank, world;
     int size, nb;
-    parsec_ddesc_t *ddescA;
+    parsec_data_collection_t *dcA;
     parsec_taskpool_t *rtt;
 
 #if defined(PARSEC_HAVE_MPI)
@@ -40,11 +40,11 @@ int main(int argc, char *argv[])
 
     size = 256;
 
-    ddescA = create_and_distribute_data(rank, world, size);
-    parsec_ddesc_set_key(ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, size);
+    parsec_data_collection_set_key(dcA, "A");
 
     nb   = 4 * world;
-    rtt = rtt_new(ddescA, size, nb);
+    rtt = rtt_new(dcA, size, nb);
     rc = parsec_enqueue(parsec, rtt);
     PARSEC_CHECK_ERROR(rc, "parsec_enqueue");
 
@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
 
     parsec_taskpool_free((parsec_taskpool_t*)rtt);
 
-    free_data(ddescA);
+    free_data(dcA);
 
     parsec_fini(&parsec);
 

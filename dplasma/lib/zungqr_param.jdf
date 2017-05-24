@@ -15,10 +15,10 @@ extern "C" %{
 
 %}
 
-descA  [type = "tiled_matrix_desc_t*"]
-descTS [type = "tiled_matrix_desc_t*"]
-descTT [type = "tiled_matrix_desc_t*"]
-descQ  [type = "tiled_matrix_desc_t*"]
+descA  [type = "parsec_tiled_matrix_dc_t*"]
+descTS [type = "parsec_tiled_matrix_dc_t*"]
+descTT [type = "parsec_tiled_matrix_dc_t*"]
+descQ  [type = "parsec_tiled_matrix_dc_t*"]
 qrtree [type = "dplasma_qrtree_t"]
 
 ib     [type = "int" hidden=on default="descTT->mb" ]

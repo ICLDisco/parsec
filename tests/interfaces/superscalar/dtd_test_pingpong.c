@@ -85,7 +85,7 @@ int main(int argc, char **argv)
     parsec_context_t* parsec;
     int rank, world, cores;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
 
 #if defined(PARSEC_HAVE_MPI)
     {
@@ -123,11 +123,11 @@ int main(int argc, char **argv)
 #endif
 
     /* Correctness checking */
-    ddescA = create_and_distribute_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
 
     if( 0 == rank ) {
         parsec_output( 0, "\nChecking correctness of pingpong. We send data from rank 0 to rank 1 "
@@ -177,8 +177,8 @@ int main(int argc, char **argv)
     }
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
     if( 0 == rank ) {
         parsec_output( 0, "\nPingpong is behaving correctly.\n" );
@@ -215,11 +215,11 @@ int main(int argc, char **argv)
                               MPI_INT);
 #endif
 
-        ddescA = create_and_distribute_data(rank, world, nb, nt);
-        parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+        dcA = create_and_distribute_data(rank, world, nb, nt);
+        parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
-        parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-        parsec_dtd_ddesc_init(A);
+        parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+        parsec_dtd_data_collection_init(A);
 
         SYNC_TIME_START();
 
@@ -241,8 +241,8 @@ int main(int argc, char **argv)
         SYNC_TIME_PRINT(rank, ("\tSize of message : %ld bytes\tTime for each pingpong : %12.5f\n", sizes[i]*sizeof(int), sync_time_elapsed/repeat_pingpong));
 
         parsec_arena_destruct(parsec_dtd_arenas[0]);
-        parsec_dtd_ddesc_fini( A );
-        free_data(ddescA);
+        parsec_dtd_data_collection_fini( A );
+        free_data(dcA);
     }
 
     parsec_fini(&parsec);

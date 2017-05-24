@@ -54,7 +54,7 @@ typedef struct tree_buffer_s {
 } tree_buffer_t;
 
 struct tree_dist_s {
-    parsec_ddesc_t super;
+    parsec_data_collection_t super;
 
     /** Actual memory in which the node_t elements reside */
     pthread_mutex_t     buffer_lock;

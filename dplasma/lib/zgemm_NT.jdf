@@ -28,10 +28,10 @@ transB [type = int]
 alpha  [type = parsec_complex64_t]
 beta   [type = parsec_complex64_t]
 
-descA  [type = "const tiled_matrix_desc_t*"]
-descB  [type = "const tiled_matrix_desc_t*"]
-descC  [type = "tiled_matrix_desc_t*"]
-Cdist  [type = "parsec_ddesc_t *" hidden=on default="NULL"]
+descA  [type = "const parsec_tiled_matrix_dc_t*"]
+descB  [type = "const parsec_tiled_matrix_dc_t*"]
+descC  [type = "parsec_tiled_matrix_dc_t*"]
+Cdist  [type = "parsec_data_collection_t *" hidden=on default="NULL"]
 
 /** We need to keep the set of handle-globals the same between
  *  zgemm_*.jdf, to ensure that all handles can be destroyed
@@ -60,7 +60,7 @@ CTL ctla <- (k >= lookQ) ? ctla GEMM(m, 0 .. descC->nt-1, k-lookQ)
 
 BODY
 {
-    printlog("rank %u <- A(%d,%d)\n", ((parsec_ddesc_t*)descA)->myrank, m, k);
+    printlog("rank %u <- A(%d,%d)\n", ((parsec_data_collection_t*)descA)->myrank, m, k);
 }
 END
 
@@ -81,7 +81,7 @@ CTL ctlb <- (k >= lookP) ? ctlb GEMM(0 .. descC->mt-1, n, k-lookP)
 
 BODY
 {
-     printlog("rank %u <- B(%d,%d)\n", ((parsec_ddesc_t*)descB)->myrank, n, k);
+     printlog("rank %u <- B(%d,%d)\n", ((parsec_data_collection_t*)descB)->myrank, n, k);
 }
 END
 

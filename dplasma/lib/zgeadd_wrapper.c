@@ -23,8 +23,8 @@ typedef struct ztradd_args_s {
 
 static int
 dplasma_ztradd_operator( parsec_execution_stream_t *es,
-                         const tiled_matrix_desc_t *descA,
-                         const tiled_matrix_desc_t *descB,
+                         const parsec_tiled_matrix_dc_t *descA,
+                         const parsec_tiled_matrix_dc_t *descB,
                          const void *_A, void *_B,
                          PLASMA_enum uplo, int m, int n,
                          void *args )
@@ -118,9 +118,9 @@ dplasma_ztradd_operator( parsec_execution_stream_t *es,
 parsec_taskpool_t*
 dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans,
                     parsec_complex64_t alpha,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     parsec_complex64_t beta,
-                    tiled_matrix_desc_t *B)
+                    parsec_tiled_matrix_dc_t *B)
 {
     ztradd_args_t *args = (ztradd_args_t*)malloc(sizeof(ztradd_args_t));
     args->trans = trans;
@@ -188,9 +188,9 @@ dplasma_ztradd_New( PLASMA_enum uplo, PLASMA_enum trans,
 parsec_taskpool_t*
 dplasma_zgeadd_New( PLASMA_enum trans,
                     parsec_complex64_t alpha,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     parsec_complex64_t beta,
-                    tiled_matrix_desc_t *B)
+                    parsec_tiled_matrix_dc_t *B)
 {
     return dplasma_ztradd_New( PlasmaUpperLower, trans, alpha, A, beta, B );
 }
@@ -310,9 +310,9 @@ dplasma_ztradd( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 PLASMA_enum trans,
                 parsec_complex64_t alpha,
-                const tiled_matrix_desc_t *A,
+                const parsec_tiled_matrix_dc_t *A,
                 parsec_complex64_t beta,
-                tiled_matrix_desc_t *B)
+                parsec_tiled_matrix_dc_t *B)
 {
     parsec_taskpool_t *parsec_ztradd = NULL;
 
@@ -399,9 +399,9 @@ int
 dplasma_zgeadd( parsec_context_t *parsec,
                 PLASMA_enum trans,
                 parsec_complex64_t alpha,
-                const tiled_matrix_desc_t *A,
+                const parsec_tiled_matrix_dc_t *A,
                 parsec_complex64_t beta,
-                tiled_matrix_desc_t *B)
+                parsec_tiled_matrix_dc_t *B)
 {
     return dplasma_ztradd( parsec, PlasmaUpperLower, trans,
                            alpha, A, beta, B );

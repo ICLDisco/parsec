@@ -73,7 +73,7 @@
  ******************************************************************************/
 parsec_taskpool_t*
 dplasma_zlange_New( PLASMA_enum ntype,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     double *result )
 {
     int P, Q, m, n, mb, nb, elt;
@@ -146,7 +146,7 @@ dplasma_zlange_New( PLASMA_enum ntype,
     switch( ntype ) {
     case PlasmaOneNorm:
         parsec_zlange = (parsec_taskpool_t*)parsec_zlange_one_cyclic_new(
-            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, A, (parsec_ddesc_t*)Tdist, result);
+            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, A, (parsec_data_collection_t*)Tdist, result);
         break;
 
     case PlasmaMaxNorm:
@@ -154,7 +154,7 @@ dplasma_zlange_New( PLASMA_enum ntype,
     case PlasmaFrobeniusNorm:
     default:
         parsec_zlange = (parsec_taskpool_t*)parsec_zlange_frb_cyclic_new(
-            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, A, (parsec_ddesc_t*)Tdist, result);
+            P, Q, ntype, PlasmaUpperLower, PlasmaNonUnit, A, (parsec_data_collection_t*)Tdist, result);
     }
 
     /* Set the datatypes */
@@ -197,7 +197,7 @@ dplasma_zlange_Destruct( parsec_taskpool_t *tp )
 {
     parsec_zlange_frb_cyclic_taskpool_t *parsec_zlange = (parsec_zlange_frb_cyclic_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlange->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlange->_g_Tdist) );
     free( parsec_zlange->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlange->arenas[PARSEC_zlange_frb_cyclic_DEFAULT_ARENA] );
@@ -260,7 +260,7 @@ dplasma_zlange_Destruct( parsec_taskpool_t *tp )
 double
 dplasma_zlange( parsec_context_t *parsec,
                 PLASMA_enum ntype,
-                const tiled_matrix_desc_t *A)
+                const parsec_tiled_matrix_dc_t *A)
 {
     double result = 0.;
     parsec_taskpool_t *parsec_zlange = NULL;

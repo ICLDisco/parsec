@@ -79,7 +79,7 @@
 parsec_taskpool_t*
 dplasma_zlansy_New( PLASMA_enum norm,
                     PLASMA_enum uplo,
-                    const tiled_matrix_desc_t *A,
+                    const parsec_tiled_matrix_dc_t *A,
                     double *result )
 {
     int P, Q, mb, nb, elt, m;
@@ -145,7 +145,7 @@ dplasma_zlansy_New( PLASMA_enum norm,
     parsec_zlansy = (parsec_taskpool_t*)parsec_zlansy_new(
         P, Q, norm, uplo, PlasmaTrans,
         A,
-        (parsec_ddesc_t*)Tdist,
+        (parsec_data_collection_t*)Tdist,
         result);
 
     /* Set the datatypes */
@@ -188,7 +188,7 @@ dplasma_zlansy_Destruct( parsec_taskpool_t *tp )
 {
     parsec_zlansy_taskpool_t *parsec_zlansy = (parsec_zlansy_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlansy->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlansy->_g_Tdist) );
     free( parsec_zlansy->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlansy->arenas[PARSEC_zlansy_DEFAULT_ARENA] );
@@ -257,7 +257,7 @@ double
 dplasma_zlansy( parsec_context_t *parsec,
                 PLASMA_enum norm,
                 PLASMA_enum uplo,
-                const tiled_matrix_desc_t *A)
+                const parsec_tiled_matrix_dc_t *A)
 {
     double result = 0.;
     parsec_taskpool_t *parsec_zlansy = NULL;

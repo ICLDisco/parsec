@@ -95,8 +95,8 @@ parsec_taskpool_t*
 dplasma_ztrmm_New( PLASMA_enum side,  PLASMA_enum uplo,
                    PLASMA_enum trans, PLASMA_enum diag,
                    parsec_complex64_t alpha,
-                   const tiled_matrix_desc_t *A,
-                   tiled_matrix_desc_t *B )
+                   const parsec_tiled_matrix_dc_t *A,
+                   parsec_tiled_matrix_dc_t *B )
 {
     parsec_taskpool_t *parsec_trmm = NULL;
 
@@ -273,8 +273,8 @@ dplasma_ztrmm( parsec_context_t *parsec,
                PLASMA_enum side,  PLASMA_enum uplo,
                PLASMA_enum trans, PLASMA_enum diag,
                parsec_complex64_t alpha,
-               const tiled_matrix_desc_t *A,
-               tiled_matrix_desc_t *B)
+               const parsec_tiled_matrix_dc_t *A,
+               parsec_tiled_matrix_dc_t *B)
 {
     parsec_taskpool_t *parsec_ztrmm = NULL;
 

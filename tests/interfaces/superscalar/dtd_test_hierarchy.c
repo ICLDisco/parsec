@@ -66,7 +66,7 @@ test_task_generator( parsec_execution_stream_t *es,
 {
     (void)es;
 
-    tiled_matrix_desc_t *ddescB;
+    parsec_tiled_matrix_dc_t *dcB;
     int amount = 0, *nb, *nt;
     int rank = es->virtual_process->parsec_context->my_rank;
     int world = es->virtual_process->parsec_context->nb_nodes, i;
@@ -76,10 +76,10 @@ test_task_generator( parsec_execution_stream_t *es,
                             UNPACK_VALUE, &nt,
                             0);
 
-    ddescB = create_and_distribute_empty_data(rank, world, *nb, *nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescB, "B");
-    parsec_ddesc_t *B = (parsec_ddesc_t *)ddescB;
-    parsec_dtd_ddesc_init(B);
+    dcB = create_and_distribute_empty_data(rank, world, *nb, *nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcB, "B");
+    parsec_data_collection_t *B = (parsec_data_collection_t *)dcB;
+    parsec_dtd_data_collection_init(B);
 
     parsec_taskpool_t *dtd_tp = parsec_dtd_taskpool_new();
     /* Registering the dtd_handle with PARSEC context */
@@ -97,8 +97,8 @@ test_task_generator( parsec_execution_stream_t *es,
     /* finishing all the tasks inserted, but not finishing the handle */
     parsec_dtd_taskpool_wait( es->virtual_process->parsec_context, dtd_tp );
 
-    parsec_dtd_ddesc_fini(B);
-    free_data(ddescB);
+    parsec_dtd_data_collection_fini(B);
+    free_data(dcB);
 
     parsec_taskpool_free( dtd_tp );
 
@@ -126,7 +126,7 @@ int main(int argc, char ** argv)
 
     int m;
     int nb, nt;
-    tiled_matrix_desc_t *ddescA;
+    parsec_tiled_matrix_dc_t *dcA;
     parsec_taskpool_t *dtd_tp;
 
     parsec = parsec_init( cores, &argc, &argv );
@@ -140,8 +140,8 @@ int main(int argc, char ** argv)
     nb = 1; /* size of each tile */
     nt = world; /* total tiles */
 
-    ddescA = create_and_distribute_empty_data(rank, world, nb, nt);
-    parsec_ddesc_set_key((parsec_ddesc_t *)ddescA, "A");
+    dcA = create_and_distribute_empty_data(rank, world, nb, nt);
+    parsec_data_collection_set_key((parsec_data_collection_t *)dcA, "A");
 
 #if defined(PARSEC_HAVE_MPI)
     parsec_arena_construct(parsec_dtd_arenas[TILE_FULL],
@@ -149,8 +149,8 @@ int main(int argc, char ** argv)
                           MPI_INT);
 #endif
 
-    parsec_ddesc_t *A = (parsec_ddesc_t *)ddescA;
-    parsec_dtd_ddesc_init(A);
+    parsec_data_collection_t *A = (parsec_data_collection_t *)dcA;
+    parsec_dtd_data_collection_init(A);
 
     SYNC_TIME_START();
 
@@ -174,8 +174,8 @@ int main(int argc, char ** argv)
     parsec_context_wait(parsec);
 
     parsec_arena_destruct(parsec_dtd_arenas[0]);
-    parsec_dtd_ddesc_fini( A );
-    free_data(ddescA);
+    parsec_dtd_data_collection_fini( A );
+    free_data(dcA);
 
     parsec_taskpool_free( dtd_tp );
 

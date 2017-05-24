@@ -17,9 +17,9 @@ extern "C" %{
 
 side      [type = "PLASMA_enum"]
 trans     [type = "PLASMA_enum"]
-descA     [type = "tiled_matrix_desc_t*"]
-descB     [type = "tiled_matrix_desc_t*"]
-descT     [type = "tiled_matrix_desc_t*"]
+descA     [type = "parsec_tiled_matrix_dc_t*"]
+descB     [type = "parsec_tiled_matrix_dc_t*"]
+descT     [type = "parsec_tiled_matrix_dc_t*"]
 ib        [type = "int" hidden = on default = "descT->mb" ]
 pool_0    [type = "parsec_memory_pool_t *" size = "((sizeof(parsec_complex64_t))*ib)*descT->nb"]
 

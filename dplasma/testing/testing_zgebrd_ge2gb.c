@@ -101,7 +101,7 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
 {
     int ret = 0;
     dplasma_qrtree_t qrtre0, qrtree, lqtree;
-    tiled_matrix_desc_t *subA = NULL;
+    parsec_tiled_matrix_dc_t *subA = NULL;
     int minMN;
     int MT = (M%MB==0) ? (M/MB) : (M/MB+1);
     int NT = (N%NB==0) ? (N/NB) : (N/NB+1);
@@ -127,28 +127,28 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
     minMN = dplasma_imin(M, N);
 
     /* initializing matrix structure */
-    PASTE_CODE_ALLOCATE_MATRIX(ddescA, 1,
-        two_dim_block_cyclic, (&ddescA, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcA, 1,
+        two_dim_block_cyclic, (&dcA, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, MB, NB, LDA, N, 0, 0,
                                M, N, 1, 1, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescTS0, rbidiag,
-        two_dim_block_cyclic, (&ddescTS0, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcTS0, rbidiag,
+        two_dim_block_cyclic, (&dcTS0, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, 1, 1, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescTT0, rbidiag,
-        two_dim_block_cyclic, (&ddescTT0, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcTT0, rbidiag,
+        two_dim_block_cyclic, (&dcTT0, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, 1, 1, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescTS, 1,
-        two_dim_block_cyclic, (&ddescTS, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcTS, 1,
+        two_dim_block_cyclic, (&dcTS, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, 1, 1, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescTT, 1,
-        two_dim_block_cyclic, (&ddescTT, matrix_ComplexDouble, matrix_Tile,
+    PASTE_CODE_ALLOCATE_MATRIX(dcTT, 1,
+        two_dim_block_cyclic, (&dcTT, matrix_ComplexDouble, matrix_Tile,
                                nodes, rank, IB, NB, MT*IB, N, 0, 0,
                                MT*IB, N, 1, 1, P));
-    PASTE_CODE_ALLOCATE_MATRIX(ddescBand, 1,
-        two_dim_block_cyclic, (&ddescBand, matrix_ComplexDouble, matrix_Lapack,
+    PASTE_CODE_ALLOCATE_MATRIX(dcBand, 1,
+        two_dim_block_cyclic, (&dcBand, matrix_ComplexDouble, matrix_Lapack,
                                1, rank, MB+1, NB, MB+1, minMN, 0, 0,
                                MB+1, minMN, 1, 1, 1));
 
@@ -156,11 +156,11 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
     if(loud > 3) printf("+++ Generate matrices ... ");
 
     if ( rbidiag ) {
-        subA = tiled_matrix_submatrix( (tiled_matrix_desc_t *)&ddescA,
-                                       0, 0, ddescA.super.n, ddescA.super.n );
+        subA = tiled_matrix_submatrix( (parsec_tiled_matrix_dc_t *)&dcA,
+                                       0, 0, dcA.super.n, dcA.super.n );
 
         dplasma_hqr_init( &qrtre0,
-                          PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
+                          PlasmaNoTrans, (parsec_tiled_matrix_dc_t *)&dcA,
                           ltre0, htre0, ts, P, domino, 0 );
 
         /**
@@ -247,11 +247,11 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
          */
         if (ltree == 9) {
             dplasma_svd_init( &qrtree,
-                              PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
+                              PlasmaNoTrans, (parsec_tiled_matrix_dc_t *)&dcA,
                               htree, P, cores, hmb );
 
             dplasma_svd_init( &lqtree,
-                              PlasmaTrans, (tiled_matrix_desc_t *)&ddescA,
+                              PlasmaTrans, (parsec_tiled_matrix_dc_t *)&dcA,
                               htree, Q, cores, hmb );
         } else {
 #if defined(PARSEC_SIM)
@@ -270,11 +270,11 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
             }
 #endif /* defined(PARSEC_SIM) */
             dplasma_hqr_init( &qrtree,
-                              PlasmaNoTrans, (tiled_matrix_desc_t *)&ddescA,
+                              PlasmaNoTrans, (parsec_tiled_matrix_dc_t *)&dcA,
                               ltree, htree, ts, P, 0, 0 );
 
             dplasma_hqr_init( &lqtree,
-                              PlasmaTrans, (tiled_matrix_desc_t *)&ddescA,
+                              PlasmaTrans, (parsec_tiled_matrix_dc_t *)&dcA,
                               ltree, htree, ts, Q, 0, 0 );
         }
     }
@@ -286,18 +286,18 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
     for (i=0; i<nbrun; i++) {
 
         /* Generate the matrix on rank 0 */
-        dplasma_zplrnt( parsec, 0, (tiled_matrix_desc_t *)&ddescA, 3872);
+        dplasma_zplrnt( parsec, 0, (parsec_tiled_matrix_dc_t *)&dcA, 3872);
 
         /* Create Parsec */
         PASTE_CODE_ENQUEUE_KERNEL(parsec, zgebrd_ge2gbx,
                                   (IB, rbidiag ? &qrtre0 : &qrtree,
                                    &qrtree, &lqtree,
-                                   (tiled_matrix_desc_t*)&ddescA,
-                                   rbidiag ? (tiled_matrix_desc_t*)&ddescTS0 : (tiled_matrix_desc_t*)&ddescTS,
-                                   rbidiag ? (tiled_matrix_desc_t*)&ddescTT0 : (tiled_matrix_desc_t*)&ddescTT,
-                                   (tiled_matrix_desc_t*)&ddescTS,
-                                   (tiled_matrix_desc_t*)&ddescTT,
-                                   (tiled_matrix_desc_t*)&ddescBand));
+                                   (parsec_tiled_matrix_dc_t*)&dcA,
+                                   rbidiag ? (parsec_tiled_matrix_dc_t*)&dcTS0 : (parsec_tiled_matrix_dc_t*)&dcTS,
+                                   rbidiag ? (parsec_tiled_matrix_dc_t*)&dcTT0 : (parsec_tiled_matrix_dc_t*)&dcTT,
+                                   (parsec_tiled_matrix_dc_t*)&dcTS,
+                                   (parsec_tiled_matrix_dc_t*)&dcTT,
+                                   (parsec_tiled_matrix_dc_t*)&dcBand));
 
         /* lets rock! */
         SYNC_TIME_START();
@@ -355,21 +355,21 @@ int RunOneTest( parsec_context_t *parsec, int nodes, int cores, int rank, int lo
     if (rbidiag) {
         dplasma_hqr_finalize( &qrtre0 );
         free(subA);
-        parsec_data_free(ddescTS0.mat);
-        parsec_data_free(ddescTT0.mat);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescTS0);
-        tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescTT0);
+        parsec_data_free(dcTS0.mat);
+        parsec_data_free(dcTT0.mat);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcTS0);
+        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcTT0);
     }
 
-    parsec_data_free(ddescA.mat);
-    parsec_data_free(ddescTS.mat);
-    parsec_data_free(ddescTT.mat);
-    parsec_data_free(ddescBand.mat);
+    parsec_data_free(dcA.mat);
+    parsec_data_free(dcTS.mat);
+    parsec_data_free(dcTT.mat);
+    parsec_data_free(dcBand.mat);
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescA);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescTS);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescTT);
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)&ddescBand);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcA);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcTS);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcTT);
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)&dcBand);
 
     (void)cp; (void)NT;
 

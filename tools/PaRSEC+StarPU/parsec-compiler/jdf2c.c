@@ -210,7 +210,7 @@ static char* dump_data(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)__tp->super.%s)->data_of((parsec_ddesc_t*)__tp->super.%s", 
+    string_arena_add_string(sa, ")  (((parsec_data_collection_t*)__tp->super.%s)->data_of((parsec_data_collection_t*)__tp->super.%s", 
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -237,7 +237,7 @@ dump_data_handle(void** elem, void *arg)
     for( i = 1; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ",%s%d", data->dname, i );
     }
-    string_arena_add_string(sa, ")  (((parsec_ddesc_t*)__tp->super.%s)->data_handle_of((parsec_ddesc_t*)__tp->super.%s", 
+    string_arena_add_string(sa, ")  (((parsec_data_collection_t*)__tp->super.%s)->data_handle_of((parsec_data_collection_t*)__tp->super.%s", 
                             data->dname, data->dname);
     for( i = 0; i < data->nbparams; i++ ) {
         string_arena_add_string(sa, ", (%s%d)", data->dname, i );
@@ -455,7 +455,7 @@ static char* dump_predicate(void** elem, void *arg)
     expr_info.sa = sa3;
     expr_info.prefix = "";
     expr_info.assignments = "assignments";
-    string_arena_add_string(sa, "(((parsec_ddesc_t*)(__tp->super.%s))->myrank == ((parsec_ddesc_t*)(__tp->super.%s))->rank_of((parsec_ddesc_t*)__tp->super.%s, %s))", 
+    string_arena_add_string(sa, "(((parsec_data_collection_t*)(__tp->super.%s))->myrank == ((parsec_data_collection_t*)(__tp->super.%s))->rank_of((parsec_data_collection_t*)__tp->super.%s, %s))", 
                             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem,
                             UTIL_DUMP_LIST(sa2, f->predicate->parameters, next,
                                            dump_expr, &expr_info,
@@ -768,7 +768,7 @@ static char *dump_profiling_init(void **elem, void *arg)
 
     string_arena_add_string(info->sa,
                             "parsec_profiling_add_dictionary_keyword(\"%s\", \"fill:%02X%02X%02X\",\n"
-                            "                                       sizeof(parsec_profile_ddesc_info_t), parsec_profile_ddesc_key_to_string,\n"
+                            "                                       sizeof(parsec_profile_data_collection_info_t), parsec_profile_data_collection_key_to_string,\n"
                             "                                       (int*)&_res->super.super.profiling_array[0 + 2 * %s_%s.task_class_id /* %s start key */],\n"
                             "                                       (int*)&_res->super.super.profiling_array[1 + 2 * %s_%s.task_class_id /* %s end key */]);",
                             fname, R, G, B,
@@ -1204,8 +1204,8 @@ static void jdf_generate_structure(const jdf_t *jdf)
             "#if defined(PARSEC_PROF_TRACE)\n"
             "int %s_profiling_array[2*PARSEC_%s_NB_TASK_CLASSES] = {-1};\n"
             "#define TAKE_TIME(context, key, eid, refdesc, refid) do {   \\\n"
-            "   parsec_profile_ddesc_info_t info;                         \\\n"
-            "   info.desc = (parsec_ddesc_t*)refdesc;                     \\\n"
+            "   parsec_profile_data_collection_info_t info;                         \\\n"
+            "   info.desc = (parsec_data_collection_t*)refdesc;                     \\\n"
             "   info.id = refid;                                         \\\n"
             "   PARSEC_PROFILING_TRACE(context->es_profile,               \\\n"
             "                         __tp->super.super.profiling_array[(key)],\\\n"
@@ -3214,7 +3214,7 @@ jdf_generate_code_gpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
         linfo.sa = sa2;
         linfo.assignments = "this_task->locals";
 
-        /* cudaoutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_ddesc_t*)(__tp->super.%s))->data_key((parsec_ddesc_t*)__tp->super.%s, %s) );\n", */
+        /* cudaoutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_data_collection_t*)(__tp->super.%s))->data_key((parsec_data_collection_t*)__tp->super.%s, %s) );\n", */
         /*         f->fname, */
         /*         f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem, */
         /*         UTIL_DUMP_LIST(sa3, f->predicate->parameters, next, */
@@ -3309,7 +3309,7 @@ jdf_generate_code_cpu_function(const jdf_t *jdf, const jdf_function_entry_t *f, 
         linfo.sa = sa2;
         linfo.assignments = "this_task->locals";
 
-        /* coutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_ddesc_t*)(__tp->super.%s))->data_key((parsec_ddesc_t*)__tp->super.%s, %s) );\n", */
+        /* coutput("  TAKE_TIME(context, 2*this_task->task_class->task_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_data_collection_t*)(__tp->super.%s))->data_key((parsec_data_collection_t*)__tp->super.%s, %s) );\n", */
         /*         f->fname, */
         /*         f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem, */
         /*         UTIL_DUMP_LIST(sa3, f->predicate->parameters, next, */
@@ -3504,7 +3504,7 @@ static void jdf_generate_code_hook(const jdf_t *jdf, const jdf_function_entry_t 
     /*     linfo.sa = sa2; */
     /*     linfo.assignments = "this_task->locals"; */
 
-    /*     coutput("  TAKE_TIME(context, 2*this_task->task_class->tank_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_ddesc_t*)(__tp->super.%s))->data_key((parsec_ddesc_t*)__tp->super.%s, %s) );\n", */
+    /*     coutput("  TAKE_TIME(context, 2*this_task->task_class->tank_class_id, %s_hash( __tp, this_task->locals), __tp->super.%s, ((parsec_data_collection_t*)(__tp->super.%s))->data_key((parsec_data_collection_t*)__tp->super.%s, %s) );\n", */
     /*             f->fname, */
     /*             f->predicate->func_or_mem, f->predicate->func_or_mem, f->predicate->func_or_mem, */
     /*             UTIL_DUMP_LIST(sa3, f->predicate->parameters, next, */
@@ -3855,7 +3855,7 @@ static char *jdf_dump_context_assignment(string_arena_t *sa_open,
      */
     /* string_arena_add_string(sa_open,  */
     /*                         "#if defined(DISTRIBUTED)\n" */
-    /*                         "%s%s  rank_dst = ((parsec_ddesc_t*)__tp->super.%s)->rank_of((parsec_ddesc_t*)__tp->super.%s, %s);\n" */
+    /*                         "%s%s  rank_dst = ((parsec_data_collection_t*)__tp->super.%s)->rank_of((parsec_data_collection_t*)__tp->super.%s, %s);\n" */
     /*                         "#endif\n", */
     /*                         prefix, indent(nbopen), targetf->predicate->func_or_mem, targetf->predicate->func_or_mem, */
     /*                         UTIL_DUMP_LIST(sa2, targetf->predicate->parameters, next, */
@@ -3953,7 +3953,7 @@ static void jdf_generate_code_iterate_successors(const jdf_t *jdf, const jdf_fun
 
     coutput("  nc.taskpool = this_task->taskpool;\n");
     /* coutput("#if defined(DISTRIBUTED)\n" */
-    /*         "  rank_src = ((parsec_ddesc_t*)__tp->super.%s)->rank_of((parsec_ddesc_t*)__tp->super.%s, %s);\n" */
+    /*         "  rank_src = ((parsec_data_collection_t*)__tp->super.%s)->rank_of((parsec_data_collection_t*)__tp->super.%s, %s);\n" */
     /*         "#endif\n", */
     /*         f->predicate->func_or_mem, f->predicate->func_or_mem, */
     /*         UTIL_DUMP_LIST(sa, f->predicate->parameters, next, */

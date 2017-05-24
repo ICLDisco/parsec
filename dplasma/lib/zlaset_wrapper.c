@@ -17,7 +17,7 @@
 
 static int
 dplasma_zlaset_operator( parsec_execution_stream_t *es,
-                         const tiled_matrix_desc_t *descA,
+                         const parsec_tiled_matrix_dc_t *descA,
                          void *_A,
                          PLASMA_enum uplo, int m, int n,
                          void *args )
@@ -94,7 +94,7 @@ parsec_taskpool_t*
 dplasma_zlaset_New( PLASMA_enum uplo,
                     parsec_complex64_t alpha,
                     parsec_complex64_t beta,
-                    tiled_matrix_desc_t *A )
+                    parsec_tiled_matrix_dc_t *A )
 {
     parsec_complex64_t *params = (parsec_complex64_t*)malloc(2 * sizeof(parsec_complex64_t));
 
@@ -182,7 +182,7 @@ dplasma_zlaset( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 parsec_complex64_t alpha,
                 parsec_complex64_t beta,
-                tiled_matrix_desc_t *A )
+                parsec_tiled_matrix_dc_t *A )
 {
     parsec_taskpool_t *parsec_zlaset = NULL;
 

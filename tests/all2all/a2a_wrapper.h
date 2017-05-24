@@ -11,7 +11,7 @@
  *
  * @return the parsec handle to schedule.
  */
-parsec_taskpool_t *a2a_new(tiled_matrix_desc_t *A, tiled_matrix_desc_t *B, int size, int repeat);
+parsec_taskpool_t *a2a_new(parsec_tiled_matrix_dc_t *A, parsec_tiled_matrix_dc_t *B, int size, int repeat);
 
 /**
  * @param [INOUT] o the parsec handle to destroy

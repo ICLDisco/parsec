@@ -59,7 +59,7 @@
  *
  ******************************************************************************/
 parsec_taskpool_t*
-dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
+dplasma_zlanm2_New( const parsec_tiled_matrix_dc_t *A,
                     double *result, int *info )
 {
     int P, Q, m, n, mb, nb, elt;
@@ -103,7 +103,7 @@ dplasma_zlanm2_New( const tiled_matrix_desc_t *A,
         *info = -1;
     }
     parsec_zlanm2 = (parsec_taskpool_t*)parsec_zlanm2_new(
-        P, Q, (parsec_ddesc_t*)Tdist, A, result, info);
+        P, Q, (parsec_data_collection_t*)Tdist, A, result, info);
 
     /* Set the datatypes */
     dplasma_add2arena_tile(((parsec_zlanm2_taskpool_t*)parsec_zlanm2)->arenas[PARSEC_zlanm2_DEFAULT_ARENA],
@@ -151,7 +151,7 @@ dplasma_zlanm2_Destruct( parsec_taskpool_t *tp )
 {
     parsec_zlanm2_taskpool_t *parsec_zlanm2 = (parsec_zlanm2_taskpool_t *)tp;
 
-    tiled_matrix_desc_destroy( (tiled_matrix_desc_t*)(parsec_zlanm2->_g_Tdist) );
+    parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(parsec_zlanm2->_g_Tdist) );
     free( parsec_zlanm2->_g_Tdist );
 
     parsec_matrix_del2arena( parsec_zlanm2->arenas[PARSEC_zlanm2_DEFAULT_ARENA] );
@@ -203,7 +203,7 @@ dplasma_zlanm2_Destruct( parsec_taskpool_t *tp )
  ******************************************************************************/
 double
 dplasma_zlanm2( parsec_context_t *parsec,
-                const tiled_matrix_desc_t *A,
+                const parsec_tiled_matrix_dc_t *A,
                 int *info )
 {
     double result = 0.;

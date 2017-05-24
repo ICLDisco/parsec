@@ -75,7 +75,7 @@
 parsec_taskpool_t*
 dplasma_ztrtri_New( PLASMA_enum uplo,
                     PLASMA_enum diag,
-                    tiled_matrix_desc_t *A,
+                    parsec_tiled_matrix_dc_t *A,
                     int *INFO )
 {
     parsec_taskpool_t *parsec_trtri = NULL;
@@ -195,7 +195,7 @@ int
 dplasma_ztrtri( parsec_context_t *parsec,
                 PLASMA_enum uplo,
                 PLASMA_enum diag,
-                tiled_matrix_desc_t *A )
+                parsec_tiled_matrix_dc_t *A )
 {
     parsec_taskpool_t *parsec_ztrtri = NULL;
     int info = 0;
