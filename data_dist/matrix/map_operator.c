@@ -214,12 +214,12 @@ static void iterate_successors(parsec_execution_stream_t *es,
     __parsec_map_operator_taskpool_t *__tp = (__parsec_map_operator_taskpool_t*)this_task->taskpool;
     int k = this_task->locals[0].value;
     int n = this_task->locals[1].value+1;
-    parsec_task_t nc;
+    parsec_task_t nt;
 
-    nc.priority = 0;
-    nc.chore_id = 0;
-    nc.data[0].data_repo = NULL;
-    nc.data[1].data_repo = NULL;
+    nt.priority = 0;
+    nt.chore_id = 0;
+    nt.data[0].data_repo = NULL;
+    nt.data[1].data_repo = NULL;
     /* If this is the last n, try to move to the next k */
     for( ; k < (int)__tp->super.src->nt; n = 0) {
         for( ; n < (int)__tp->super.src->mt; n++ ) {
@@ -230,14 +230,14 @@ static void iterate_successors(parsec_execution_stream_t *es,
             int vpid =  ((parsec_data_collection_t*)__tp->super.src)->vpid_of((parsec_data_collection_t*)__tp->super.src,
                                                                              k, n);
             /* Here we go, one ready local task */
-            nc.locals[0].value = k;
-            nc.locals[1].value = n;
-            nc.task_class = &parsec_map_operator /*this*/;
-            nc.taskpool = this_task->taskpool;
-            nc.data[0].data_in = this_task->data[0].data_out;
-            nc.data[1].data_in = this_task->data[1].data_out;
+            nt.locals[0].value = k;
+            nt.locals[1].value = n;
+            nt.task_class = &parsec_map_operator /*this*/;
+            nt.taskpool = this_task->taskpool;
+            nt.data[0].data_in = this_task->data[0].data_out;
+            nt.data[1].data_in = this_task->data[1].data_out;
 
-            ontask(es, &nc, this_task, &flow_of_map_operator_dep_out, NULL,
+            ontask(es, &nt, this_task, &flow_of_map_operator_dep_out, NULL,
                    __tp->super.src->super.myrank,
                    __tp->super.src->super.myrank,
                    vpid,
