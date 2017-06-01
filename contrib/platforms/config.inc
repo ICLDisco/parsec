@@ -12,7 +12,7 @@ if [ "$1" = "profile" ]; then
 fi
 
 function dirname_bin {
-    local _progname=$(which $1)
+    local _progname=$(which $1 2>/dev/null)
     if [ -z "$_progname" ]; then
         echo ""
     else
@@ -23,9 +23,9 @@ function dirname_bin {
 
 ## If not overriden, try to guess some meaningful defaults
 function guess_defaults {
-    CC=${CC:=$(which icc)}
-    CXX=${CXX:=$(which icpc)}
-    FC=${FC:=$(which ifort)}
+    CC=${CC:=$(which icc 2>/dev/null)}
+    CXX=${CXX:=$(which icpc 2>/dev/null)}
+    FC=${FC:=$(which ifort 2>/dev/null)}
     MPI_DIR=${MPI_DIR:=$(dirname_bin mpicc)}
     HWLOC_DIR=${HWLOC_DIR:=$(dirname_bin hwloc-ls)}
     GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
@@ -33,7 +33,7 @@ function guess_defaults {
     OMEGA_DIR=${OMEGA_DIR:=/opt/omega} # wild guess, but no better way
     PLASMA_DIR=${PLASMA_DIR:=$(pkg-config plasma --variable=prefix)}
     PAPI_DIR=${PAPI_DIR:=$(dirname_bin papi_avail)}
-    PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python)}
+    PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python 2>/dev/null)}
 }
 
 function run_cmake() {
@@ -84,7 +84,7 @@ if [ -f "$GTG_DIR/include/GTG.h" -a -f "$GTG_DIR/lib/libgtg.so" ]; then
 fi
 
 if [ -n "${CUDA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_GPU_WITH_CUDA=OFF.*") -eq 0 ]; then
-    CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR} -DCUDA_HOST_COMPILER=$(which ${CC})"
+    CUDA="-DCUDA_TOOLKIT_ROOT_DIR=${CUDA_DIR} -DCUDA_HOST_COMPILER=$(which \"${CC}\" 2>/dev/null)"
 fi
 
 if [ -n "${OMEGA_DIR}" -a $(expr "${USER_OPTIONS}" : ".*PARSEC_Q2J=OFF.*") -eq 0 ]; then
