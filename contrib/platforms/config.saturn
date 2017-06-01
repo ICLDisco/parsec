@@ -15,27 +15,19 @@ elif [ "x${USER}" = "xmfaverge" ]; then
   #USER_OPTIONS+=" -DPARSEC_DIST_WITH_MPI=OFF"
   USER_OPTIONS+=" -DPARSEC_GPU_WITH_CUDA=ON"
   USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
-  if [ "$CC" = "gcc" ]; then
-      PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-gcc"}
-  else
-      PLASMA_DIR=${PLASMA_DIR:="/opt/plasma-intel"}
-  fi
 elif [ "x$USER" = "xrhoque" ]; then
-    CC="/opt/gcc/6.3.0/bin/gcc"
-    CXX="/opt/gcc/6.3.0/bin/c++"
-    FC="/opt/gcc/6.3.0/bin/gfortran"
-    PLASMA_DIR="/opt/plasma-gcc"
-    MPI_DIR="/opt/ompi/2.0.1"
+  module load gcc
+  CC=gcc
+  MPI_DIR="/sw/openmpi/2.0.2/"
 elif [ "x$USER" = "xdgenet" ]; then
-    CC=gcc
-    CXX=g++
-    FC=gfortran
-    PLASMA_DIR="/opt/plasma-2.8.0"
-    MPI_DIR="/opt/ompi/2.0.1/"
-    USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
+  CC=gcc
+  CXX=g++
+  FC=gfortran
+  MPI_DIR="/sw/openmpi/2.0.2/"
+  USER_OPTIONS+=" -DDPLASMA_PRECISIONS=d"
 elif [ "x$USER" = "xYOURSELF" ]; then
-    PLASMA_DIR="SOMEWHERE"
-    USER_OPTIONS+="-DPARSEC_OPTION=ON"
+  PLASMA_DIR="SOMEWHERE"
+  USER_OPTIONS+="-DPARSEC_OPTION=ON"
 fi
 
 echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
@@ -44,13 +36,18 @@ echo "### Defaults for Dancer machine (intel-NV Linux cluster)"
 # via hwloc-ls) nor the PYTHON_EXECUTABLE
 # if you want the default detection to work.
 INSTALL_PREFIX=${INSTALL_PREFIX:="$PWD"}
-HWLOC_DIR=${HWLOC_DIR:="/opt/hwloc"}
-GTG_DIR=${GTG_DIR:="/opt/gtg"}
+HWLOC_DIR=${HWLOC_DIR:="/sw/hwloc/1.11.5"}
+GTG_DIR=${GTG_DIR:="/sw/gtg/0.2-2"}
 OMEGA_DIR=${OMEGA_DIR:="/opt/omega"}
-PLASMA_DIR=${PLASMA_DIR:="/opt/plasma"}
-TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node -np 1\""
 
 . $(dirname $0)/config.inc
 guess_defaults
+if [[ "x$CC" != "x" && `basename ${CC}` = "icc" ]]; then
+  PLASMA_DIR=${PLASMA_DIR:="/sw/plasma/2.8.0i/"}
+else
+  PLASMA_DIR=${PLASMA_DIR:="/sw/plasma/2.8.0g/"}
+fi
+TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node -np 1\""
+
 run_cmake $*
 
