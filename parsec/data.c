@@ -348,7 +348,7 @@ int parsec_data_transfer_ownership_to_copy(parsec_data_t* data,
     if( FLOW_ACCESS_WRITE & access_mode ) {
         for( i = 0; i < parsec_nb_devices; i++ ) {
             if( NULL == data->device_copies[i] ) continue;
-            if( DATA_COHERENCY_INVALID == data->device_copies[i] ) continue;
+            if( DATA_COHERENCY_INVALID == data->device_copies[i]->coherency_state ) continue;
             data->device_copies[i]->coherency_state = DATA_COHERENCY_SHARED;
         }
         data->owner_device = (uint8_t)device;
