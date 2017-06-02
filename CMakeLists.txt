@@ -56,7 +56,7 @@ endif( BUILD_PARSEC )
 
 ### Misc options
 option(BUILD_SHARED_LIBS
-  "Build shared libraries" OFF)
+    "Build shared libraries" ON)
 option(BUILD_64bits
   "Build 64 bits mode" ON)
 if(NOT CMAKE_BUILD_TYPE)
