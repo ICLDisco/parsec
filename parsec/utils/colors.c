@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,6 @@
 #include "parsec_config.h"
 #include "parsec/utils/colors.h"
 
-#include <math.h>
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -28,7 +27,7 @@ static void HSVtoRGB( double *r, double *g, double *b, double h, double s, doubl
 
     c = v * s;
     h /= 60.0;
-    i = (int)floor( h );
+    i = (int)( h );
     x = c * (1 - abs(i % 2 - 1));
     m = v - c;
 
@@ -84,7 +83,7 @@ char *unique_color(int index, int colorspace)
     double brightness = get_rand_in_range(180, 360) / 360.0;  //  0.5 to 1.0, away from black
     HSVtoRGB(&r, &g, &b, hue, saturation, brightness);
     (void)index; (void)colorspace;
-    snprintf(color, 8, "#%02x%02x%02x", (int)floor(255.0*r), (int)floor(255.0*g), (int)floor(255.0*b));
+    snprintf(color, 8, "#%02x%02x%02x", (int)(255.0*r), (int)(255.0*g), (int)(255.0*b));
     return strdup(color);
 }
 

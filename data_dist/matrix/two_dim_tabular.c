@@ -14,7 +14,6 @@
 #include "parsec.h"
 #include "parsec/data.h"
 
-#include <math.h>
 
 static uint32_t      twoDTD_rank_of(    parsec_ddesc_t* ddesc, ... );
 static uint32_t      twoDTD_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);
@@ -238,10 +237,10 @@ void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc,
     for(n = 0; n < Ddesc->super.lnt; n++) {
         for(m = 0; m < Ddesc->super.lmt; m++) {
             p = ((n * Ddesc->super.lmt) + m);
-            table->elems[p].rank = (int)floor(((double)Ddesc->super.super.nodes * (double)rand_r(&rankseed)) / (double)RAND_MAX);
+            table->elems[p].rank = (int)(((double)Ddesc->super.super.nodes * (double)rand_r(&rankseed)) / (double)RAND_MAX);
 
             if( table->elems[p].rank == Ddesc->super.super.myrank ) {
-                table->elems[p].vpid = (int)floor(((double)nbvp * (double)rand_r(&vpseed)) / (double)RAND_MAX);
+                table->elems[p].vpid = (int)(((double)nbvp * (double)rand_r(&vpseed)) / (double)RAND_MAX);
             }
         }
     }
