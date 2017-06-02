@@ -12,6 +12,8 @@
 #include <unistd.h>
 #include <assert.h>
 
+BEGIN_C_DECLS
+
 #if !defined(BUILD_PARSEC)
 #include "atomic_external.h"
 #else  /* !defined(BUILD_PARSEC) */
@@ -67,42 +69,35 @@
 #  error "No safe atomics available"
 #endif
 
-ATOMIC_STATIC_INLINE
-uint64_t parsec_atomic_bor_xxb( volatile void* location,
-                                uint64_t or_value,
-                                size_t type_size )
-{
-    assert( 4 == type_size );
-    (void)type_size;
-    return (uint64_t)parsec_atomic_bor_32b((volatile uint32_t*)location,
-                                           (uint32_t)or_value);
-}
-
-#define parsec_atomic_band(LOCATION, OR_VALUE)  \
-    (__typeof__(*(LOCATION)))parsec_atomic_band_xxb(LOCATION, OR_VALUE, sizeof(*(LOCATION)) )
-
-#define parsec_atomic_bor(LOCATION, OR_VALUE)  \
-    (__typeof__(*(LOCATION)))parsec_atomic_bor_xxb(LOCATION, OR_VALUE, sizeof(*(LOCATION)) )
-
 #if PARSEC_SIZEOF_VOID_P == 4
-#define parsec_atomic_cas_ptr(L, O, N) parsec_atomic_cas_32b( (volatile uint32_t*)(L), \
-                                                            (uint32_t)(O), (uint32_t)(N) )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_ptr(volatile void* l, uint32_t o, uint32_t n)
+{
+    return parsec_atomic_cas_32b((volatile uint32_t*)l, o, n);
+}
 #elif PARSEC_SIZEOF_VOID_P == 8
-#define parsec_atomic_cas_ptr(L, O, N) parsec_atomic_cas_64b( (volatile uint64_t*)(L), \
-                                                            (uint64_t)(O), (uint64_t)(N) )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_ptr(volatile void* l, uint64_t o, uint64_t n)
+{
+    return parsec_atomic_cas_64b((volatile uint64_t*)l, o, n);
+}
 #else
-#define parsec_atomic_cas_ptr(L, O, N) parsec_atomic_cas_128b( (volatile __uint128_t*)(L), \
-                                                             (__uint128_t)(O), (__uint128_t)(N) )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
+{
+    return parsec_atomic_cas_128b((volatile __uint128_t*)l, o, n);
+}
 #endif
-
-#define parsec_atomic_set_mask(LOCATION, MASK) parsec_atomic_bor((LOCATION), (MASK))
-#define parsec_atomic_clear_mask(LOCATION, MASK)  parsec_atomic_band((LOCATION), ~(MASK))
 
 #ifndef PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
 #define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B /* We now have it ! */
 
 #ifdef PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-#define parsec_atomic_inc_32b(l)  parsec_atomic_add_32b((int32_t*)l, 1)
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
+{
+    parsec_atomic_add_32b((int32_t*)location, 1);
+}
 #else
 ATOMIC_STATIC_INLINE
 uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
@@ -120,7 +115,11 @@ uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
 #define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B /* We now have it ! */
 
 #ifdef PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
-#define parsec_atomic_dec_32b(l)  parsec_atomic_sub_32b((int32_t*)l, 1)
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
+{
+    return parsec_atomic_sub_32b((int32_t*)location, 1);
+}
 #else
 ATOMIC_STATIC_INLINE
 uint32_t parsec_atomic_dec_32b( volatile uint32_t *location )
@@ -178,6 +177,8 @@ long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
     return parsec_atomic_cas_32b( atomic_lock, 0, 1 );
 }
 #endif  /* (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_ATOMICS__) */
+
+END_C_DECLS
 
 #endif  /* !defined(BUILD_PARSEC) */
 

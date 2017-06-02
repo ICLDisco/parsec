@@ -1284,7 +1284,7 @@ static int parsec_update_deps_with_mask(const parsec_handle_t *parsec_handle,
 #endif
     }
 
-    dep_cur_value = parsec_atomic_bor( deps, dep_new_value );
+    dep_cur_value = parsec_atomic_bor_32b( deps, dep_new_value );
 
 #if defined(PARSEC_DEBUG_PARANOID)
     if( (dep_cur_value & function->dependencies_goal) == function->dependencies_goal ) {

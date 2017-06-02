@@ -18,22 +18,14 @@ void parsec_mfence(void)
  * the compilers to convert to the correct type. Thanks to StackOverflow for the
  * tip (http://stackoverflow.com/questions/22851465/typeof-uses-in-c-besides-macros).
  */
-#define parsec_atomic_band(LOCATION, AND_VALUE)  \
-    (((__typeof__(*(LOCATION)))atomic_fetch_and((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), (AND_VALUE))) & (AND_VALUE))
-
 #define parsec_atomic_bor(LOCATION, OR_VALUE)  \
     (((__typeof__(*(LOCATION)))atomic_fetch_or((_Atomic __typeof__(*(LOCATION))(*))(LOCATION), (OR_VALUE))) | (OR_VALUE))
 
 ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_set_mask(uint32_t* location, uint32_t mask)
+uint32_t parsec_atomic_bor_32b( volatile uint32_t* location,
+                                uint32_t or_value)
 {
-    return parsec_atomic_bor(location, mask);
-}
-
-ATOMIC_STATIC_INLINE
-uint32_t parsec_atomic_clear_mask(uint32_t* location, uint32_t mask)
-{
-    return parsec_atomic_band(location, ~mask);
+    return atomic_fetch_or(location, or_value);
 }
 
 ATOMIC_STATIC_INLINE
@@ -65,35 +57,44 @@ int32_t parsec_atomic_cas_128b(volatile __uint128_t* location,
 }
 
 #if PARSEC_SIZEOF_VOID_P == 4
-#define parsec_atomic_cas_ptr(L, O, N) parsec_atomic_cas_32b( (volatile uint32_t*)(L), \
-                                                            (uint32_t)(O), (uint32_t)(N) )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
+{
+    return parsec_atomic_cas_32b((volatile uint32_t*)l, (uint32_t)o, (uint32_t)n);
+}
 #elif PARSEC_SIZEOF_VOID_P == 8
-#define parsec_atomic_cas_ptr(L, O, N) parsec_atomic_cas_64b( (volatile uint64_t*)(L), \
-                                                            (uint64_t)(O), (uint64_t)(N) )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
+{
+    return parsec_atomic_cas_64b((volatile uint64_t*)l, (uint64_t)o, (uint64_t)n);
+}
 #else
-#define parsec_atomic_cas_ptr(L, O, N) parsec_atomic_cas_128b( (volatile __uint128_t*)(L), \
-                                                             (__uint128_t)(O), (__uint128_t)(N) )
+ATOMIC_STATIC_INLINE
+int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
+{
+    return parsec_atomic_cas_128b((volatile __uint128_t*)l, o, n);
+}
 #endif
 
-#define parsec_atomic_add_32b(LOCATION, VALUE)                           \
+#define parsec_atomic_add_32b(LOCATION, VALUE)                          \
     _Generic((LOCATION),                                                \
              int32_t* : (atomic_fetch_add((_Atomic int32_t*)(LOCATION), (VALUE)) + (VALUE)), \
              uint32_t*: (atomic_fetch_add((_Atomic uint32_t*)(LOCATION), (VALUE)) + (VALUE)), \
              default: (atomic_fetch_add((_Atomic int32_t*)(LOCATION), (VALUE)) + (VALUE)))
 
-#define parsec_atomic_sub_32b(LOCATION, VALUE)                           \
+#define parsec_atomic_sub_32b(LOCATION, VALUE)                          \
     _Generic((LOCATION),                                                \
              int32_t* : (atomic_fetch_sub((_Atomic int32_t*)(LOCATION), (VALUE)) - (VALUE)), \
              uint32_t*: (atomic_fetch_sub((_Atomic uint32_t*)(LOCATION), (VALUE)) - (VALUE)), \
              default: (atomic_fetch_sub((_Atomic int32_t*)(LOCATION), (VALUE)) - (VALUE)))
 
-#define parsec_atomic_inc_32b(LOCATION)                                  \
+#define parsec_atomic_inc_32b(LOCATION)                                 \
     _Generic((LOCATION),                                                \
              int32_t* : (1 + atomic_fetch_add((_Atomic int32_t*)(LOCATION), 1)), \
              uint32_t*: (1 + atomic_fetch_add((_Atomic uint32_t*)(LOCATION), 1)), \
              default: (1 + atomic_fetch_add((_Atomic int32_t*)(LOCATION), 1)))
 
-#define parsec_atomic_dec_32b(LOCATION)                                  \
+#define parsec_atomic_dec_32b(LOCATION)                                 \
     _Generic((LOCATION),                                                \
              int32_t* : (atomic_fetch_sub((_Atomic int32_t*)(LOCATION), 1) - 1), \
              uint32_t*: (atomic_fetch_sub((_Atomic uint32_t*)(LOCATION), 1) - 1), \

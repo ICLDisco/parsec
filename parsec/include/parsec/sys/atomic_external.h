@@ -32,10 +32,7 @@ parsec_atomic_cas_ptr(volatile void* location,
                       void* old_value,
                       void* new_value);
 
-PARSEC_DECLSPEC uint32_t parsec_atomic_band(uint32_t*, uint32_t);
 PARSEC_DECLSPEC uint32_t parsec_atomic_bor(uint32_t*, uint32_t);
-PARSEC_DECLSPEC uint32_t parsec_atomic_set_mask(uint32_t*, uint32_t);
-PARSEC_DECLSPEC uint32_t parsec_atomic_clear_mask(uint32_t*, uint32_t);
 
 PARSEC_DECLSPEC uint32_t parsec_atomic_add_32b( volatile uint32_t *location, int32_t );
 PARSEC_DECLSPEC uint32_t parsec_atomic_sub_32b( volatile uint32_t *location, int32_t );
