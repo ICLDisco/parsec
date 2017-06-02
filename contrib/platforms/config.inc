@@ -30,7 +30,7 @@ function guess_defaults {
     HWLOC_DIR=${HWLOC_DIR:=$(dirname_bin hwloc-ls)}
     GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
     CUDA_DIR=${CUDA_DIR:=$(dirname_bin nvcc)}
-    OMEGA_DIR=${OMEGA_DIR:=/opt/omega} # wild guess, but no better way
+    OMEGA_DIR=${OMEGA_DIR:=$(dirname_bin petit)}
     PLASMA_DIR=${PLASMA_DIR:=$(pkg-config plasma --variable=prefix)}
     PAPI_DIR=${PAPI_DIR:=$(dirname_bin papi_avail)}
     PYTHON_EXECUTABLE=${PYTHON_EXECUTABLE:=$(which python 2>/dev/null)}
