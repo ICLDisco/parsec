@@ -57,7 +57,7 @@ ATOMIC_STATIC_INLINE int parsec_atomic_cas_64b( volatile uint64_t* location,
     return __compare_and_swaplp( (volatile long*)location, &old, new_value );
 }
 #else
-#include "parsec/debug.h"
+extern void parsec_fatal();
 ATOMIC_STATIC_INLINE int parsec_atomic_cas_64b( volatile uint64_t* location,
                                         uint64_t old_value,
                                         uint64_t new_value )

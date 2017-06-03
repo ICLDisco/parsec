@@ -26,6 +26,20 @@ int parsec_atomic_band_32b( volatile uint32_t* location,
     return old_value & value;
 }
 
+#define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_add_32b(volatile int32_t* location, int32_t i)
+{
+    return __sync_add_and_fetch(location, i);
+}
+
+#define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
+ATOMIC_STATIC_INLINE
+int32_t parsec_atomic_sub_32b(volatile int32_t* location, int32_t i)
+{
+    return __sync_sub_and_fetch(location, i);
+}
+
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_32b( volatile uint32_t* location,
                            uint32_t old_value,
@@ -43,7 +57,7 @@ int parsec_atomic_cas_64b( volatile uint64_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 #else
-#include "parsec/debug.h"
+extern void parsec_fatal();
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_64b( volatile uint64_t* location,
                            uint64_t old_value,
@@ -65,7 +79,7 @@ int parsec_atomic_cas_128b( volatile __uint128_t* location,
     return (__sync_bool_compare_and_swap(location, old_value, new_value) ? 1 : 0);
 }
 #else
-#include "parsec/debug.h"
+extern void parsec_fatal();
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_128b( volatile uint64_t* location,
                             uint64_t old_value,
@@ -77,16 +91,3 @@ int parsec_atomic_cas_128b( volatile uint64_t* location,
 }
 #endif
 
-#define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
-ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_add_32b(volatile int32_t* location, int32_t i)
-{
-    return __sync_add_and_fetch(location, i);
-}
-
-#define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
-ATOMIC_STATIC_INLINE
-int32_t parsec_atomic_sub_32b(volatile int32_t* location, int32_t i)
-{
-    return __sync_sub_and_fetch(location, i);
-}
