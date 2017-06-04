@@ -25,7 +25,7 @@
 double time_elapsed = 0.0;
 double sync_time_elapsed = 0.0;
 
-int count = 0;
+uint32_t count = 0;
 
 int
 test_task( parsec_execution_unit_t    *context,

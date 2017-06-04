@@ -193,7 +193,7 @@ int main(int argc, char *argv[])
     }
 
     fprintf(stderr, "#Sampling %d frames in an execution of %llu %s\n",
-            NBFRAMES, (mintime - maxtime), TIMER_UNIT);
+            NBFRAMES, (unsigned long long)(mintime - maxtime), TIMER_UNIT);
     delta = (float)(mintime - maxtime) / (float)NBFRAMES;
 
     graphInit();

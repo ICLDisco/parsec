@@ -212,7 +212,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     status = cudaSetDevice( gpu_device->cuda_index );
     PARSEC_CUDA_CHECK_ERROR( "(cuda_solve_handle_dependencies) cudaSetDevice ", status, {continue;} );
 
-    for( i = 0, index = -1; i < (int)sizeof(cuda_legal_compute_capabilitites)/sizeof(int); i++ ) {
+    for( i = 0, index = -1; i < (int)(sizeof(cuda_legal_compute_capabilitites)/sizeof(int)); i++ ) {
         if(cuda_legal_compute_capabilitites[i] == capability) {
             index = i;
             break;

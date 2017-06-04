@@ -71,21 +71,21 @@ BEGIN_C_DECLS
 
 #if PARSEC_SIZEOF_VOID_P == 4
 ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_ptr(volatile void* l, uint32_t o, uint32_t n)
+int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
 {
-    return parsec_atomic_cas_32b((volatile uint32_t*)l, o, n);
+    return parsec_atomic_cas_32b((volatile uint32_t*)l, (uint32_t)o, (uint32_t)n);
 }
 #elif PARSEC_SIZEOF_VOID_P == 8
 ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_ptr(volatile void* l, uint64_t o, uint64_t n)
+int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
 {
-    return parsec_atomic_cas_64b((volatile uint64_t*)l, o, n);
+    return parsec_atomic_cas_64b((volatile uint64_t*)l, (uint64_t)o, (uint64_t)n);
 }
 #else
 ATOMIC_STATIC_INLINE
-int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
+int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
 {
-    return parsec_atomic_cas_128b((volatile __uint128_t*)l, o, n);
+    return parsec_atomic_cas_128b((volatile __uint128_t*)l, (__uint128_t)o, (__uint128_t)n);
 }
 #endif
 
@@ -96,7 +96,7 @@ int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
 ATOMIC_STATIC_INLINE
 uint32_t parsec_atomic_inc_32b( volatile uint32_t *location )
 {
-    parsec_atomic_add_32b((int32_t*)location, 1);
+    return (uint32_t)parsec_atomic_add_32b((int32_t*)location, 1);
 }
 #else
 ATOMIC_STATIC_INLINE

@@ -1868,7 +1868,7 @@ parsec_release_dtd_task_to_mempool(parsec_execution_unit_t *eu,
                                   parsec_execution_context_t *this_task)
 {
     (void)eu;
-    (void)parsec_atomic_dec_32b( &this_task->parsec_handle->nb_tasks );
+    (void)parsec_atomic_dec_32b( (uint32_t*)&this_task->parsec_handle->nb_tasks );
     return parsec_dtd_release_local_task( (parsec_dtd_task_t *)this_task );
 }
 

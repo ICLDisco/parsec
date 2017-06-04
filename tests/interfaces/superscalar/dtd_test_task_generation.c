@@ -27,7 +27,7 @@
 double time_elapsed;
 double sync_time_elapsed;
 
-int global_counter;
+uint32_t global_counter;
 
 int
 task_to_check_generation(parsec_execution_unit_t *context, parsec_execution_context_t *this_task)
@@ -185,7 +185,7 @@ int main(int argc, char ** argv)
 
     parsec_dtd_handle_wait( parsec, parsec_dtd_handle );
 
-    if( global_counter != total_tasks ) {
+    if( (int)global_counter != total_tasks ) {
         parsec_fatal( "Something is wrong, all tasks were not generated correctly\n" );
     }
 
