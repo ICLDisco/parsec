@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,6 +8,7 @@
  */
 
 
+#include "parsec_config.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 

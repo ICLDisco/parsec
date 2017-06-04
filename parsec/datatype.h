@@ -38,8 +38,6 @@ typedef MPI_Datatype parsec_datatype_t;
 #define parsec_datatype_complex_t          MPI_COMPLEX
 #define parsec_datatype_double_complex_t   MPI_DOUBLE_COMPLEX
 
-#include "parsec/datatype/datatype_mpi.h"
-
 #else  /* !defined(PARSEC_HAVE_MPI) */
 
 #define PARSEC_DATATYPE_NULL  ((intptr_t)NULL)
@@ -60,6 +58,9 @@ typedef intptr_t  parsec_datatype_t;
 #define parsec_datatype_complex_t          13
 #define parsec_datatype_double_complex_t   14
 
+#endif  /* !defined(PARSEC_HAVE_MPI) */
+
+
 BEGIN_C_DECLS
 
 /**
@@ -68,46 +69,44 @@ BEGIN_C_DECLS
  * functions to mix them together.
  */
 int parsec_type_size(parsec_datatype_t type,
-                    int *size);
+                     int *size);
 int parsec_type_extent(parsec_datatype_t type, ptrdiff_t *lb, ptrdiff_t *extent);
 
 int parsec_type_free(parsec_datatype_t* type);
 int parsec_type_create_contiguous(int count,
-                                 parsec_datatype_t oldtype,
-                                 parsec_datatype_t* newtype );
+                                  parsec_datatype_t oldtype,
+                                  parsec_datatype_t* newtype );
 int parsec_type_create_vector(int count,
-                             int blocklength,
-                             int stride,
-                             parsec_datatype_t oldtype,
+                              int blocklength,
+                              int stride,
+                              parsec_datatype_t oldtype,
                               parsec_datatype_t* newtype );
 int parsec_type_create_hvector(int count,
-                              int blocklength,
-                              ptrdiff_t stride,
-                              parsec_datatype_t oldtype,
-                              parsec_datatype_t* newtype );
+                               int blocklength,
+                               ptrdiff_t stride,
+                               parsec_datatype_t oldtype,
+                               parsec_datatype_t* newtype );
 int parsec_type_create_indexed(int count,
-                              const int array_of_blocklengths[],
-                              const int array_of_displacements[],
-                              parsec_datatype_t oldtype,
-                              parsec_datatype_t *newtype);
+                               const int array_of_blocklengths[],
+                               const int array_of_displacements[],
+                               parsec_datatype_t oldtype,
+                               parsec_datatype_t *newtype);
 int parsec_type_create_indexed_block(int count,
-                                    int blocklength,
-                                    const int array_of_displacements[],
-                                    parsec_datatype_t oldtype,
-                                    parsec_datatype_t *newtype);
+                                     int blocklength,
+                                     const int array_of_displacements[],
+                                     parsec_datatype_t oldtype,
+                                     parsec_datatype_t *newtype);
 int parsec_type_create_struct(int count,
-                             const int array_of_blocklengths[],
-                             const ptrdiff_t array_of_displacements[],
-                             const parsec_datatype_t array_of_types[],
-                             parsec_datatype_t *newtype);
-int parsec_type_create_resized(parsec_datatype_t oldtype,
-                              ptrdiff_t lb,
-                              ptrdiff_t extent,
+                              const int array_of_blocklengths[],
+                              const ptrdiff_t array_of_displacements[],
+                              const parsec_datatype_t array_of_types[],
                               parsec_datatype_t *newtype);
+int parsec_type_create_resized(parsec_datatype_t oldtype,
+                               ptrdiff_t lb,
+                               ptrdiff_t extent,
+                               parsec_datatype_t *newtype);
 
 END_C_DECLS
-
-#endif  /* defined(PARSEC_HAVE_MPI) */
 
 /** @} */
 

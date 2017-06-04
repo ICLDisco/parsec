@@ -14,11 +14,11 @@
 #ifndef INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 #define INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 
-BEGIN_C_DECLS
-
 #include <stdarg.h>
 #include "parsec.h"
 #include "parsec/data_distribution.h"
+
+BEGIN_C_DECLS
 
 /**
  * To see examples please look at testing_zpotrf_dtd.c, testing_zgeqrf_dtd.c,

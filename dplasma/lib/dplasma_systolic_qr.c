@@ -10,6 +10,7 @@
  * used in the Xgeqrf_param.jdf file.
  *
  */
+#include "parsec_config.h"
 #include "parsec.h"
 #include "dplasma.h"
 #include "dplasma_qr_param.h"

@@ -4,6 +4,7 @@
  *                         reserved.
  */
 
+#include "parsec_config.h"
 #include "parsec.h"
 #include "parsec/debug.h"
 #include "parsec/remote_dep.h"

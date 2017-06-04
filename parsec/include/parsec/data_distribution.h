@@ -12,17 +12,6 @@
 #include "parsec/types.h"
 #include "parsec/class/hash_table.h"
 
-#if defined(PARSEC_HAVE_STDARG_H)
-#include <stdarg.h>
-#endif  /* defined(PARSEC_HAVE_STDARG_H) */
-#if defined(PARSEC_HAVE_UNISTD_H)
-#include <unistd.h>
-#endif  /* defined(PARSEC_HAVE_UNISTD_H) */
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdio.h>
-
 struct parsec_device_s;
 typedef int (*parsec_memory_region_management_f)(parsec_ddesc_t*, struct parsec_device_s*);
 
@@ -74,38 +63,14 @@ struct parsec_ddesc_s {
 /**
  * Initialize/destroy the parsec_ddesc to default values.
  */
-static inline void
+void
 parsec_ddesc_init(parsec_ddesc_t *d,
-                 int nodes, int myrank )
-{
-    memset( d, 0, sizeof(parsec_ddesc_t) );
-
-    d->nodes  = nodes;
-    d->myrank = myrank;
-    d->tile_h_table = NULL;
-    d->memory_registration_status = MEMORY_STATUS_UNREGISTERED;
-}
-
-static inline void
-parsec_ddesc_destroy(parsec_ddesc_t *d)
-{
-#if defined(PARSEC_PROF_TRACE)
-    if( NULL != d->key_dim ) free(d->key_dim);
-    d->key_dim = NULL;
-#endif
-    if( NULL != d->key_base ) free(d->key_base);
-    d->key_base = NULL;
-}
+                  int nodes, int myrank );
+void
+parsec_ddesc_destroy(parsec_ddesc_t *d);
 
 #if defined(PARSEC_PROF_TRACE)
-#include "parsec/profiling.h"
-/* TODO: Fix me pleaseeeeeee */
-#define parsec_ddesc_set_key(d, k) do {                                  \
-        char dim[strlen(k) + strlen( (d)->key_dim ) + 4];               \
-        (d)->key_base = strdup(k);                                      \
-        sprintf(dim, "%s%s", k, (d)->key_dim);                          \
-        parsec_profiling_add_information( "DIMENSION", dim );            \
-    } while(0)
+void parsec_ddesc_set_key( parsec_ddesc_t* d, char* name);
 #else
 #define parsec_ddesc_set_key(d, k) do {} while(0)
 #endif

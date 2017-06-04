@@ -1,52 +1,6 @@
 #ifndef PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 #define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 
-#define PARSEC_VERSION_MAJOR @PARSEC_VERSION_MAJOR@
-#define PARSEC_VERSION_MINOR @PARSEC_VERSION_MINOR@
-
-/* Scheduling engine */
-#cmakedefine PARSEC_SCHED_DEPS_MASK
-#cmakedefine PARSEC_SCHED_REPORT_STATISTICS
-
-/* Communication engine */
-#cmakedefine PARSEC_DIST_WITH_MPI
-#cmakedefine PARSEC_DIST_THREAD
-#cmakedefine PARSEC_DIST_PRIORITIES
-#cmakedefine PARSEC_DIST_COLLECTIVES
-#define PARSEC_DIST_EAGER_LIMIT @PARSEC_DIST_EAGER_LIMIT@
-#define PARSEC_DIST_SHORT_LIMIT @PARSEC_DIST_SHORT_LIMIT@
-
-/* GPU Support */
-#cmakedefine PARSEC_GPU_WITH_CUDA
-#cmakedefine PARSEC_GPU_CUDA_ALLOC_PER_TILE
-#cmakedefine PARSEC_GPU_WITH_OPENCL
-#cmakedefine PARSEC_HAVE_PEER_DEVICE_MEMORY_ACCESS
-
-/* debug */
-#cmakedefine PARSEC_DEBUG
-#cmakedefine PARSEC_DEBUG_PARANOID
-#cmakedefine PARSEC_DEBUG_NOISIER
-#cmakedefine PARSEC_DEBUG_HISTORY
-#cmakedefine PARSEC_LIFO_USE_ATOMICS
-#cmakedefine PARSEC_CALL_TRACE
-
-/* profiling */
-#cmakedefine PARSEC_PROF_TRACE
-#cmakedefine PARSEC_PROF_STATS
-#cmakedefine PARSEC_PROF_RUSAGE_EU
-#cmakedefine PARSEC_PROF_TRACE_SCHEDULING_EVENTS
-#cmakedefine PARSEC_PROF_TRACE_ACTIVE_ARENA_SET
-#cmakedefine PARSEC_PROF_GRAPHER
-#cmakedefine PARSEC_PROF_DRY_RUN
-#cmakedefine PARSEC_PROF_DRY_BODY
-#cmakedefine PARSEC_PROF_DRY_DEP
-
-/* Instrumenting (PINS) */
-#cmakedefine PINS_ENABLE
-
-/* Simulating */
-#cmakedefine PARSEC_SIM
-
 /* system */
 #cmakedefine PARSEC_HAVE_PTHREAD
 #cmakedefine PARSEC_HAVE_SCHED_SETAFFINITY
@@ -92,53 +46,30 @@
 #cmakedefine PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE
 #cmakedefine PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF
 
-/* Configuration parameters */
-#cmakedefine PARSEC_WANT_HOME_CONFIG_FILES
-
-/* Compiler and flags used to compile PaRSEC generated sources */
-#define CMAKE_PARSEC_C_COMPILER   "@CMAKE_C_COMPILER@"
-#define CMAKE_PARSEC_C_FLAGS      "@CMAKE_C_FLAGS@"
-#define CMAKE_PARSEC_C_INCLUDES   "@PARSEC_C_INCLUDES@"
-
 /* Optional packages */
-#cmakedefine PARSEC_HAVE_HWLOC
 #cmakedefine PARSEC_HAVE_HWLOC_BITMAP
 #cmakedefine PARSEC_HAVE_HWLOC_PARENT_MEMBER
 #cmakedefine PARSEC_HAVE_HWLOC_CACHE_ATTR
 #cmakedefine PARSEC_HAVE_HWLOC_OBJ_PU
-
-#cmakedefine PARSEC_HAVE_PAPI
-#cmakedefine PARSEC_HAVE_CUDA
-#cmakedefine PARSEC_HAVE_OPENCL
-#cmakedefine PARSEC_HAVE_MPI
-#cmakedefine PARSEC_HAVE_MPI_20
-
-#cmakedefine PARSEC_HAVE_AYUDAME
 
 #cmakedefine PARSEC_HAVE_RECENT_LEX
 
 #cmakedefine PARSEC_HAVE_INDENT
 #define PARSEC_INDENT_PREFIX "@INDENT_EXECUTABLE@"
 #define PARSEC_INDENT_OPTIONS "@INDENT_OPTIONS@"
-#define PARSEC_INSTALL_PREFIX "@CMAKE_INSTALL_PREFIX@"
 
 #cmakedefine PARSEC_HAVE_AWK
 #define PARSEC_AWK_PREFIX "@AWK_EXECUTABLE@"
-
-/* Default PATH to look for the CUDA .so files */
-#define PARSEC_LIB_CUDA_PREFIX ".;@CUDA_cublas_LIBRARY@;@CMAKE_BINARY_DIR@/dplasma/cores"
 
 #if !defined(_GNU_SOURCE)
 #define _GNU_SOURCE
 #endif  /* !defined(_GNU_SOURCE) */
 
-#define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
-#define PARSEC_HAVE_UINT128  @HAVE_UINT128b@
 #ifdef PARSEC_ARCH_PPC
 #define inline __inline__
 #define restrict
 #endif
 
-#include "parsec/parsec_config_bottom.h"
+#include "parsec/parsec_flavor.h"
 
 #endif  /*PARSEC_CONFIG_H_HAS_BEEN_INCLUDED */

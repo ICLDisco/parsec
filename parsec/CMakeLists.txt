@@ -53,6 +53,7 @@ set(SOURCES
   bindthread.c
   parsec.c
   data.c
+  data_distribution.c
   debug.c
   debug_marks.c
   devices/device.c
@@ -69,6 +70,8 @@ set(SOURCES
 
 if( NOT MPI_C_FOUND )
   list(APPEND SOURCES datatype/datatype.c)
+else( NOT MPI_C_FOUND )
+  list(APPEND SOURCES datatype/datatype_mpi.c)
 endif( NOT MPI_C_FOUND )
 list(APPEND SOURCES parsec_hwloc.c)
 

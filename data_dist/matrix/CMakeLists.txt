@@ -76,4 +76,4 @@ install(FILES
   two_dim_tabular.h
   grid_2Dcyclic.h
   subtile.h
-  DESTINATION include/data_dist/matrix )
+  DESTINATION include/parsec/data_dist/matrix )

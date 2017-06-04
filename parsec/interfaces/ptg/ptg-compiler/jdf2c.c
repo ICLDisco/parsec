@@ -1114,7 +1114,8 @@ static void jdf_generate_header_file(const jdf_t* jdf)
     houtput("#ifndef _%s_h_\n"
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
-    houtput("#include \"parsec.h\"\n"
+    houtput("#include \"parsec_config.h\"\n"
+            "#include \"parsec.h\"\n"
             "#include \"parsec/constants.h\"\n"
             "#include \"parsec/data_distribution.h\"\n"
             "#include \"parsec/data_internal.h\"\n"
@@ -1210,7 +1211,8 @@ static void jdf_minimal_code_before_prologue(const jdf_t *jdf)
     int nbfunctions, nbdata;
     JDF_COUNT_LIST_ENTRIES(jdf->functions, jdf_function_entry_t, next, nbfunctions);
     JDF_COUNT_LIST_ENTRIES(jdf->data, jdf_data_entry_t, next, nbdata);
-    coutput("#include \"parsec.h\"\n"
+    coutput("#include \"parsec_config.h\"\n"
+            "#include \"parsec.h\"\n"
             "#include \"parsec/debug.h\"\n"
             "#include \"parsec/scheduling.h\"\n"
             "#include \"parsec/mca/pins/pins.h\"\n"

@@ -1,7 +1,7 @@
-#include <parsec.h>
-#include <data_dist/matrix/matrix.h>
-#include <data_dist/matrix/two_dim_rectangle_cyclic.h>
-#include <parsec/arena.h>
+#include "parsec_config.h"
+#include "parsec.h"
+#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
+#include "parsec/arena.h"
 
 #include "tree_dist.h"
 #include "project.h"

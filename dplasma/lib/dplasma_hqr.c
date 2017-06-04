@@ -70,6 +70,7 @@
  *     high level tree to reduce communications.
  *     These lines are defined by (i-k)/p = 0.
  */
+#include "parsec_config.h"
 #include "parsec.h"
 #include "dplasma.h"
 #include "dplasma_qr_param.h"

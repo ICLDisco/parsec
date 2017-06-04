@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2011 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -7,6 +7,7 @@
  *
  */
 
+#include "parsec_config.h"
 #include "reduc_data.h"
 #include "stdarg.h"
 #include <data_dist/matrix/two_dim_rectangle_cyclic.h>
@@ -16,7 +17,7 @@
 tiled_matrix_desc_t *create_and_distribute_data(int rank, int world, int mb, int mt, int typesize)
 {
     two_dim_block_cyclic_t *m = (two_dim_block_cyclic_t*)malloc(sizeof(two_dim_block_cyclic_t));
-    
+
     two_dim_block_cyclic_init(m, matrix_ComplexDouble, matrix_Tile,
                               world, rank,
                               mb*typesize, 1,

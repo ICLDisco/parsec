@@ -17,6 +17,7 @@
 #include <lapacke.h>
 #include <cblas.h>
 #include <core_blas.h>
+#include "parsec_config.h"
 #include "dplasma_zcores.h"
 
 #ifdef BLKLDD

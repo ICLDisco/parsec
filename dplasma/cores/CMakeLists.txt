@@ -9,8 +9,7 @@ if( CUDA_FOUND )
     set(CORE_CUDA_HEADERS
     )
     set(CORE_CUDA_SOURCES
-        dplasma_cuda_ztsmqr.c
-    )
+        dplasma_cuda_ztsmqr.c)
 else()
     set(CORE_CUDA_HEADERS "")
     set(CORE_CUDA_SOURCES "")
@@ -19,8 +18,7 @@ endif()
 ### generate the dplasma_cores headers for all possible precisions
 set(HEADERS
     dplasma_zcores.h
-    ${CORE_CUDA_HEADERS}
-)
+    ${CORE_CUDA_HEADERS})
 precisions_rules_py(generated_headers
                  ${HEADERS}
                  PRECISIONS "s;d;c;z")
@@ -28,7 +26,8 @@ add_custom_target(dplasma_cores_includes ALL SOURCES
     ${generated_headers} )
 
 foreach(generated_header ${generated_headers})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include/cores)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header}
+          DESTINATION dplasma/include/cores)
 endforeach()
 
 
@@ -51,7 +50,7 @@ precisions_rules_py(generated_files
 
 ### Generate the dplasma_cores lib
 link_directories(${COREBLAS_LIBRARY_DIRS})
-add_library(dplasma_cores
+add_library(dplasma_cores STATIC
   ${generated_files}
 )
 target_link_libraries(dplasma_cores
@@ -63,8 +62,8 @@ add_dependencies(dplasma_cores
          dplasma_cores_includes)
 
 install(TARGETS dplasma_cores
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib)
+        ARCHIVE DESTINATION dplasma/lib
+        LIBRARY DESTINATION dplasma/lib)
 
 if( CUDA_FOUND )
   # generate the cores_cuda library (hooks to cublas)
@@ -73,21 +72,19 @@ if( CUDA_FOUND )
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
   if( NOT "${generated_cuda_files}" STREQUAL "" )
-    add_library(dplasma_cores_cuda
-      ${generated_cuda_files}
-      )
+    add_library(dplasma_cores_cuda STATIC
+      ${generated_cuda_files})
     add_dependencies(dplasma_cores_cuda
       dplasma_includes
       dplasma_cores_includes)
     target_link_libraries(dplasma_cores_cuda
       ${COREBLAS_LIBRARIES}
-      ${EXTRA_LIBS}
-      )
+      ${EXTRA_LIBS})
     cuda_add_cublas_to_target( dplasma_cores_cuda )
     target_link_libraries(dplasma_cores dplasma_cores_cuda)
     install(TARGETS dplasma_cores_cuda
-      ARCHIVE DESTINATION lib
-      LIBRARY DESTINATION lib)
+      ARCHIVE DESTINATION dplasma/lib
+      LIBRARY DESTINATION dplasma/lib)
   endif()
 
   ### Generate the CUDA .cu kernels if necessary
@@ -161,7 +158,9 @@ elseif( ${CUDA_VERSION_STRING} VERSION_LESS "8.0" )
       cuda_add_library(dplasma_cucores_sm${_smtarget}
                        ${cuda_generated_files})
       cuda_add_cublas_to_target( dplasma_cucores_sm${_smtarget} )
-      install(TARGETS dplasma_cucores_sm${_smtarget} LIBRARY DESTINATION lib ARCHIVE DESTINATION lib )
+      install(TARGETS dplasma_cucores_sm${_smtarget}
+        LIBRARY DESTINATION dplasma/lib
+        ARCHIVE DESTINATION dplasma/lib )
       set(CUDA_NVCC_FLAGS ${CUDA_NVCC_FLAGS_BACKUP})
       if( NOT CMAKE_BUILD_SHARED_LIBS )
           target_link_libraries( dplasma_cores_cuda dplasma_cucores_sm${_smtarget} )

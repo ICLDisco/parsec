@@ -10,7 +10,6 @@
 
 #include "parsec_config.h"
 #include <stdarg.h>
-#include <assert.h>
 #include "precision.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data.h"

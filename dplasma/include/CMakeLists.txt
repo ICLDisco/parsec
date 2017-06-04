@@ -15,9 +15,9 @@ add_custom_target(dplasma_includes ALL DEPENDS dplasma.h SOURCES
 install(FILES
   dplasma.h
   dplasma_qr_param.h
-  DESTINATION include)
+  DESTINATION dplasma/include)
 
 foreach(generated_header ${generated_headers})
-  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION include)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${generated_header} DESTINATION dplasma/include)
 endforeach()
 

@@ -101,4 +101,5 @@ endif(COREBLAS_FOUND)
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/include/dplasma.pc.in"
   "${PROJECT_INCLUDE_DIR}/dplasma.pc" @ONLY)
-install(FILES "${PROJECT_INCLUDE_DIR}/dplasma.pc" DESTINATION lib/pkgconfig)
+install(FILES "${PROJECT_INCLUDE_DIR}/dplasma.pc"
+        DESTINATION dplasma/lib/pkgconfig)

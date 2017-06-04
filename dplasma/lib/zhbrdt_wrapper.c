@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2012 The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -9,8 +9,9 @@
 
 
 #include <core_blas.h>
-#include "data_dist/matrix/matrix.h"
+#include "parsec_config.h"
 #include "dplasma.h"
+#include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "dplasma/lib/dplasmaaux.h"
 #include "parsec/private_mempool.h"

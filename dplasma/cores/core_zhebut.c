@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011      The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  *
@@ -8,8 +8,8 @@
  */
 #include <math.h>
 #include <stdlib.h>
+#include "parsec_config.h"
 #include "parsec.h"
-//#include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <core_blas.h>
 #include <cblas.h>
 #include "dplasma.h"

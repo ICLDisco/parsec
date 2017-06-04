@@ -204,7 +204,7 @@ add_dependencies(dplasma
 
 target_link_libraries(dplasma
   dplasma_cores
-  ${COREBLAS_LIBRARIES}
+  ${COREBLAS_LIBRARIES} ${COREBLAS_LDFLAGS}
   parsec parsec-base parsec_distribution_matrix
   ${EXTRA_LIBS}
 )
@@ -215,9 +215,9 @@ endif (MPI_C_FOUND)
 
 add_dependencies(dplasma dplasma_includes)
 install(TARGETS dplasma
-        ARCHIVE DESTINATION lib
-        LIBRARY DESTINATION lib)
+        ARCHIVE DESTINATION dplasma/lib
+        LIBRARY DESTINATION dplasma/lib)
 
 ### install the dplasma headers
 install(FILES
-  DESTINATION include)
+  DESTINATION dplasma/include)

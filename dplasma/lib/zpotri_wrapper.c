@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2013      Inria. All rights reserved.
@@ -8,6 +8,8 @@
  * @precisions normal z -> s d c
  *
  */
+
+#include "parsec_config.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 

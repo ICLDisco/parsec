@@ -7,14 +7,7 @@
 #ifndef PARSEC_H_HAS_BEEN_INCLUDED
 #define PARSEC_H_HAS_BEEN_INCLUDED
 
-#ifndef PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
-#include "parsec_config.h"
-#endif /* #ifndef PARSEC_CONFIG_H */
-
-#if defined(PARSEC_HAVE_STDDEF_H)
-#include <stddef.h>
-#endif
-
+#include "parsec/parsec_flavor.h"
 #include "parsec/debug.h"
 
 BEGIN_C_DECLS
@@ -34,10 +27,6 @@ BEGIN_C_DECLS
 #define PARSEC_VERSION    2
 /** @brief Define the PaRSEC minor version number */
 #define PARSEC_SUBVERSION 0
-/** @brief For backward compatibility, major version number */
-#define PARSEC_VERSION_MAJOR 2
-/** @brief For backward compatibility, minor version number */
-#define PARSEC_VERSION_MINOR 0
 
 /** $brief To check if any parsec function returned error.
   *        Should be used by users to check correctness.

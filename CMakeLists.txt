@@ -730,9 +730,11 @@ add_subdirectory(examples)
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec_config.h.in"
   "${PROJECT_INCLUDE_DIR}/parsec_config.h")
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_flavor.h.in"
+  "${PROJECT_INCLUDE_DIR}/parsec/parsec_flavor.h")
 
 install(FILES
-  ${PROJECT_INCLUDE_DIR}/parsec_config.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h
   DESTINATION include)
 
@@ -746,11 +748,8 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
+  ${PROJECT_INCLUDE_DIR}/parsec/parsec_flavor.h
   DESTINATION include/parsec)
-
-install(FILES
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype/datatype_mpi.h
-  DESTINATION include/parsec/datatype )
 
 # Install header files for jdf generated code
 if( PARSEC_WITH_DEVEL_HEADERS )
@@ -821,13 +820,7 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     DESTINATION include/parsec/class )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-gcc.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-macosx.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-ppc-bgp.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-ppc.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-x86_32.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-x86_64.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-xlc.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-external.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic.h
     DESTINATION include/parsec/sys )
 
@@ -889,4 +882,5 @@ MESSAGE("\n\nConfiguration flags:")
 MESSAGE("  CMAKE_C_FLAGS          = ${CMAKE_C_FLAGS}")
 MESSAGE("  CMAKE_C_LDFLAGS        = ${CMAKE_C_LDFLAGS}")
 MESSAGE("  CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}")
+MESSAGE("  EXTRA_LIBS             = ${EXTRA_LIBS}")
 MESSAGE("\n\n")

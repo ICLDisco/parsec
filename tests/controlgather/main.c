@@ -1,9 +1,10 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
+#include "parsec_config.h"
 #include "parsec.h"
 #include "ctlgat_wrapper.h"
 #include "ctlgat_data.h"

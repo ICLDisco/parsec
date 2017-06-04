@@ -3,6 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+#include "parsec_config.h"
 #include "parsec.h"
 #include "parsec/constants.h"
 #include "parsec/arena.h"
