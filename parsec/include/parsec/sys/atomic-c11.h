@@ -42,12 +42,14 @@ int32_t parsec_atomic_cas_64b(volatile uint64_t* location,
                               uint64_t new_value)
 {
     if (sizeof(atomic_ulong) == sizeof(uint64_t))
-        return atomic_compare_exchange_strong( (atomic_ulong*)location, &old_value, new_value );
-    if (sizeof(atomic_ulong) == sizeof(uint64_t))
-        return atomic_compare_exchange_strong( (atomic_ullong*)location, &old_value, new_value );
-    assert(0);  /* not good */
+        return atomic_compare_exchange_strong( (atomic_ulong*)location, (unsigned long*)&old_value, new_value );
+    if (sizeof(atomic_ullong) == sizeof(uint64_t))
+      return atomic_compare_exchange_strong( (atomic_ullong*)location, (unsigned long long*)&old_value, new_value );
+    *((int*)0x0) = 0;  /* not good, there is no support */
+    return 0;
 }
 
+#if defined(HAVE_UINT128b)
 ATOMIC_STATIC_INLINE
 int32_t parsec_atomic_cas_128b(volatile __uint128_t* location,
                                __uint128_t old_value,
@@ -55,6 +57,8 @@ int32_t parsec_atomic_cas_128b(volatile __uint128_t* location,
 {
     return atomic_compare_exchange_strong( (_Atomic __uint128_t*)location, &old_value, new_value );
 }
+#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B 1
+#endif  /* defined(HAVE_UINT128b) */
 
 #if PARSEC_SIZEOF_VOID_P == 4
 ATOMIC_STATIC_INLINE
@@ -69,11 +73,15 @@ int parsec_atomic_cas_ptr(volatile void* l, void* o, void* n)
     return parsec_atomic_cas_64b((volatile uint64_t*)l, (uint64_t)o, (uint64_t)n);
 }
 #else
+#if defined(HAVE_UINT128b)
 ATOMIC_STATIC_INLINE
 int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
 {
     return parsec_atomic_cas_128b((volatile __uint128_t*)l, o, n);
 }
+#else  /* defined(HAVE_UINT128b) */
+#warning Pointers are 128 bits long but no atomic ioperation on 128 bits are available
+#endif  /* defined(HAVE_UINT128b) */
 #endif
 
 #define parsec_atomic_add_32b(LOCATION, VALUE)                          \
@@ -123,5 +131,4 @@ long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 }
 
 #define PARSEC_ATOMIC_UNLOCKED 0
-#define PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B 1
 

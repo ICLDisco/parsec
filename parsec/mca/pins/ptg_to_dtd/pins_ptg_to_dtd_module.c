@@ -227,7 +227,7 @@ static const __parsec_chore_t dtd_chore_for_testing[] = {
 static parsec_dtd_tile_t*
 tile_manage_for_testing(parsec_data_t *data, parsec_data_key_t key, int arena_index)
 {
-    uint64_t data_ptr = (uint64_t)data;
+    uint64_t data_ptr = (uint64_t)(uintptr_t)data;
     uint64_t combined_key = ( (data_ptr << 32) | ((uint32_t)key) );
 
     //uint64_t combined_key = ((((uint32_t)data)<<32) | ((uint32_t)key));
@@ -287,7 +287,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_handle_t  *parsec_dtd_handle,
 
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
-    uint64_t fkey = (uint64_t)fpointer + count_of_params;
+    uint64_t fkey = (uint64_t)(uintptr_t)fpointer + count_of_params;
     parsec_function_t *function = (parsec_function_t *) parsec_dtd_function_find
                                                      (parsec_dtd_handle, fkey);
 

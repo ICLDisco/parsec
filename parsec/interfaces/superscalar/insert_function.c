@@ -1413,7 +1413,7 @@ parsec_dtd_handle_release( parsec_handle_t *parsec_handle )
                 break;
             }
 
-            uint64_t fkey = (uint64_t)dtd_func->fpointer + func->nb_flows;
+            uint64_t fkey = (uint64_t)(uintptr_t)dtd_func->fpointer + func->nb_flows;
             parsec_dtd_function_release( parsec_dtd_handle, fkey );
 
             parsec_dtd_template_release( func );
@@ -2341,7 +2341,7 @@ parsec_dtd_create_function( parsec_dtd_handle_t *__parsec_handle, parsec_dtd_fun
     function->release_task          = parsec_release_dtd_task_to_mempool;
 
     /* Inserting Function structure in the hash table to keep track for each class of task */
-    uint64_t fkey = (uint64_t)fpointer + function->nb_flows;
+    uint64_t fkey = (uint64_t)(uintptr_t)fpointer + function->nb_flows;
     parsec_dtd_function_insert( __parsec_handle, fkey, dtd_function );
     __parsec_handle->super.functions_array[function->function_id] = (parsec_function_t *) function;
     __parsec_handle->super.nb_functions++;
@@ -3102,7 +3102,7 @@ parsec_insert_task( parsec_handle_t  *parsec_handle,
         }
     }
 
-    uint64_t fkey = (uint64_t)fpointer + flow_count_of_template;
+    uint64_t fkey = (uint64_t)(uintptr_t)fpointer + flow_count_of_template;
     /* Creating master function structures */
     /* Hash table lookup to check if the function structure exists or not */
     parsec_function_t *function = (parsec_function_t *) parsec_dtd_function_find

@@ -133,7 +133,7 @@
 #endif  /* !defined(_GNU_SOURCE) */
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
-
+#define PARSEC_HAVE_UINT128  @HAVE_UINT128b@
 #ifdef PARSEC_ARCH_PPC
 #define inline __inline__
 #define restrict
