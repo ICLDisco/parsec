@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015      The University of Tennessee and The University
+ * Copyright (c) 2015-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,6 @@
 
 #include "parsec/parsec_internal.h"
 #include "parsec/data.h"
-#include "parsec/types.h"
 
 /**
  * This is a variable changed only once, and contains the total number of

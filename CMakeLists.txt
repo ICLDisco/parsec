@@ -741,7 +741,6 @@ install(FILES
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/ayudame.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/constants.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/types.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_config_bottom.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/data_distribution.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype.h
@@ -820,11 +819,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     DESTINATION include/parsec/class )
 
   install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-external.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic.h
-    DESTINATION include/parsec/sys )
-
-  install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/devices/device.h
     DESTINATION include/parsec/devices )
 
@@ -833,6 +827,11 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     DESTINATION include/parsec/devices/cuda )
 
 endif(PARSEC_WITH_DEVEL_HEADERS)
+
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-external.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic.h
+  DESTINATION include/parsec/sys )
 
 # Due to the lack of standardization detecting libraries under CMake leads
 # to unconsistents lists of libraries, where some libraries are using full path,

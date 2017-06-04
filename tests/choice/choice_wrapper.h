@@ -8,7 +8,7 @@
 #define _choice_wrapper_h
 
 #include "parsec.h"
-#include "parsec/types.h"
+#include "parsec/data.h"
 
 /**
  * @param [IN] A    the data, already distributed and allocated

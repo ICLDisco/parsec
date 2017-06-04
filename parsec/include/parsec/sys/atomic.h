@@ -15,7 +15,7 @@
 BEGIN_C_DECLS
 
 #if !defined(BUILD_PARSEC)
-#include "atomic_external.h"
+#include "atomic-external.h"
 #else  /* !defined(BUILD_PARSEC) */
 
 #if !defined(ATOMIC_STATIC_INLINE)

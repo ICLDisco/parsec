@@ -8,7 +8,7 @@
 #define choice_data_h
 
 #include "parsec.h"
-#include "parsec/types.h"
+#include "parsec/data.h"
 
 parsec_ddesc_t *create_and_distribute_data(int rank, int world, int size);
 void free_data(parsec_ddesc_t *d);

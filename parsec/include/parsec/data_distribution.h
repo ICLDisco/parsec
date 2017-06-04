@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -9,7 +9,7 @@
 #define _DATA_DISTRIBUTION_H_
 
 #include "parsec_config.h"
-#include "parsec/types.h"
+#include "parsec/data.h"
 #include "parsec/class/hash_table.h"
 
 struct parsec_device_s;
