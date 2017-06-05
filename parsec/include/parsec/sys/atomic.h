@@ -178,9 +178,9 @@ long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 }
 #endif  /* (__STDC_VERSION__ >= 201112L) && !defined(__STDC_NO_ATOMICS__) */
 
-END_C_DECLS
-
 #endif  /* !defined(BUILD_PARSEC) */
+
+END_C_DECLS
 
 #if !defined(PARSEC_ATOMIC_HAS_WMB)
 #define parsec_atomic_wmb    parsec_mfence
