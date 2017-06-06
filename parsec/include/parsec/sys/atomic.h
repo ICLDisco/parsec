@@ -151,14 +151,15 @@ uint32_t parsec_atomic_add_32b( volatile uint32_t *location, int32_t d )
 ATOMIC_STATIC_INLINE
 void parsec_atomic_wmb(void)
 {
-    parsec_atomic_mfence();
+    parsec_mfence();
 }
 #endif  /* !defined(PARSEC_ATOMIC_HAS_WMB) */
+
 #if !defined(PARSEC_ATOMIC_HAS_RMB)
 ATOMIC_STATIC_INLINE
 void parsec_atomic_rmb(void)
 {
-    parsec_atomic_mfence();
+    parsec_mfence();
 }
 
 typedef volatile uint32_t parsec_atomic_lock_t;
