@@ -51,15 +51,11 @@ precisions_rules_py(generated_files
 ### Generate the dplasma_cores lib
 link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores STATIC
-  ${generated_files}
-)
-if( BUILD_SHARED_LIBS )
-  set_target_properties( dplasma_cores PROPERTIES POSITION_INDEPENDENT_CODE True)
-endif( BUILD_SHARED_LIBS )
+  ${generated_files})
+set_target_properties(dplasma_cores PROPERTIES POSITION_INDEPENDENT_CODE True)
 target_link_libraries(dplasma_cores
   ${COREBLAS_LIBRARIES}
-  ${EXTRA_LIBS}
-)
+  ${EXTRA_LIBS})
 add_dependencies(dplasma_cores
          dplasma_includes
          dplasma_cores_includes)
