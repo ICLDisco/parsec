@@ -53,6 +53,9 @@ link_directories(${COREBLAS_LIBRARY_DIRS})
 add_library(dplasma_cores STATIC
   ${generated_files}
 )
+if( BUILD_SHARED_LIBS )
+  set_target_properties( dplasma_cores PROPERTIES POSITION_INDEPENDENT_CODE True)
+endif( BUILD_SHARED_LIBS )
 target_link_libraries(dplasma_cores
   ${COREBLAS_LIBRARIES}
   ${EXTRA_LIBS}
@@ -72,7 +75,7 @@ if( CUDA_FOUND )
                  PRECISIONS "${DPLASMA_PRECISIONS}")
 
   if( NOT "${generated_cuda_files}" STREQUAL "" )
-    add_library(dplasma_cores_cuda STATIC
+    add_library(dplasma_cores_cuda
       ${generated_cuda_files})
     add_dependencies(dplasma_cores_cuda
       dplasma_includes
