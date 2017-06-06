@@ -39,7 +39,7 @@ void parsec_atomic_rmb(void)
 ATOMIC_STATIC_INLINE
 void parsec_atomic_wmb(void)
 {
-    __asm__ __volatile__ ("eieio" : : : "memory")
+    __asm__ __volatile__ ("lwsync" : : : "memory")
 }
 
 ATOMIC_STATIC_INLINE
