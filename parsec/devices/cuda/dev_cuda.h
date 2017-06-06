@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2016 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,6 @@
 #ifndef PARSEC_GPU_DATA_H_HAS_BEEN_INCLUDED
 #define PARSEC_GPU_DATA_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/class/parsec_object.h"
 #include "parsec/class/fifo.h"

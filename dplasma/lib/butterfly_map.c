@@ -11,6 +11,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "parsec_config.h"
 #include "dplasma/lib/butterfly_map.h"
 #include "parsec/data_internal.h"
 

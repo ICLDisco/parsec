@@ -1,13 +1,11 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #ifndef PARSEC_DESCRIPTION_STRUCTURES_H_HAS_BEEN_INCLUDED
 #define PARSEC_DESCRIPTION_STRUCTURES_H_HAS_BEEN_INCLUDED
-
-#include "parsec_config.h"
 
 typedef struct assignment_s assignment_t;
 typedef struct expr_s expr_t;

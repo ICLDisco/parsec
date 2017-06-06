@@ -2,15 +2,10 @@
 #define MCA_PINS_H
 /* PaRSEC Performance Instrumentation Callback System */
 
-#include "parsec_config.h"
+#include "parsec.h"
 #include "parsec/mca/mca.h"
 
 #define PARSEC_PINS_SEPARATOR ";"
-
-struct parsec_context_s;
-struct parsec_handle_s;
-struct parsec_execution_unit_s;
-struct parsec_execution_context_s;
 
 struct parsec_pins_next_callback_s;
 typedef void (*parsec_pins_callback)(struct parsec_execution_unit_s*      exec_unit,

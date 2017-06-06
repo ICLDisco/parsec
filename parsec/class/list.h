@@ -14,8 +14,8 @@
 #ifndef PARSEC_LIST_H_HAS_BEEN_INCLUDED
 #define PARSEC_LIST_H_HAS_BEEN_INCLUDED
 
-#include <parsec/sys/atomic.h>
 #include "parsec/class/list_item.h"
+#include "parsec/sys/atomic.h"
 
 typedef struct parsec_list_t {
     parsec_object_t      super;

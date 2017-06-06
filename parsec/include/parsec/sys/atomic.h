@@ -147,6 +147,20 @@ uint32_t parsec_atomic_add_32b( volatile uint32_t *location, int32_t d )
 }
 #endif /* PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B */
 
+#if !defined(PARSEC_ATOMIC_HAS_WMB)
+ATOMIC_STATIC_INLINE
+void parsec_atomic_wmb(void)
+{
+    parsec_atomic_mfence();
+}
+#endif  /* !defined(PARSEC_ATOMIC_HAS_WMB) */
+#if !defined(PARSEC_ATOMIC_HAS_RMB)
+ATOMIC_STATIC_INLINE
+void parsec_atomic_rmb(void)
+{
+    parsec_atomic_mfence();
+}
+
 typedef volatile uint32_t parsec_atomic_lock_t;
 
 /**
@@ -180,13 +194,8 @@ long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock )
 
 #endif  /* !defined(BUILD_PARSEC) */
 
-END_C_DECLS
-
-#if !defined(PARSEC_ATOMIC_HAS_WMB)
-#define parsec_atomic_wmb    parsec_mfence
-#endif  /* !defined(PARSEC_ATOMIC_HAS_WMB) */
-#if !defined(PARSEC_ATOMIC_HAS_RMB)
-#define parsec_atomic_rmb    parsec_mfence
 #endif  /* !defined(PARSEC_ATOMIC_HAS_RMB) */
+
+END_C_DECLS
 
 #endif  /* ATOMIC_H_HAS_BEEN_INCLUDED */

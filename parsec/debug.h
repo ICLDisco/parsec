@@ -16,7 +16,6 @@
  *  @{
  */
 
-#include "parsec_config.h"
 #include "parsec/utils/output.h"
 
 #include <stdlib.h>

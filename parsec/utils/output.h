@@ -63,8 +63,6 @@
 #ifndef PARSEC_OUTPUT_H_
 #define PARSEC_OUTPUT_H_
 
-#include "parsec_config.h"
-
 #ifdef PARSEC_HAVE_STDARG_H
 #include <stdarg.h>
 #endif

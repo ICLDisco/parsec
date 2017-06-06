@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2015 The University of Tennessee and The University
+ * Copyright (c) 2013-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,7 +7,6 @@
 #ifndef PARSEC_DEVICE_H_HAS_BEEN_INCLUDED
 #define PARSEC_DEVICE_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
 #include "parsec/class/list_item.h"
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/profiling.h"

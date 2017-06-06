@@ -7,6 +7,7 @@
 #include "hash_datadist.h"
 #include "parsec/vpmap.h"
 #include "parsec/utils/output.h"
+#include <string.h>
 
 #define DEFAULT_HASH_SIZE 65536
 

@@ -1,7 +1,6 @@
 #ifndef _mca_param_cmd_line_h_
 #define _mca_param_cmd_line_h_
 
-#include "parsec_config.h"
 #include "parsec/utils/cmd_line.h"
 
 int parsec_mca_cmd_line_setup(parsec_cmd_line_t *cmd);

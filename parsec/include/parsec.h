@@ -65,6 +65,11 @@ typedef struct parsec_context_s           parsec_context_t;
 typedef struct parsec_arena_s             parsec_arena_t;
 
 /**
+ * @brief Opaque structure representing a Task Class
+ */
+typedef struct parsec_function_s        parsec_function_t;
+
+/**
  * @brief Prototype of the allocator function
  */
 typedef void* (*parsec_data_allocate_t)(size_t matrix_size);
@@ -83,6 +88,19 @@ extern parsec_data_allocate_t parsec_data_allocate;
  * @brief Global deallocator function that PaRSEC uses (defaults to libc free)
  */
 extern parsec_data_free_t     parsec_data_free;
+
+/**
+ *
+ */
+typedef enum parsec_hook_return_e {
+    PARSEC_HOOK_RETURN_DONE    =  0,  /* This execution succeeded */
+    PARSEC_HOOK_RETURN_AGAIN   = -1,  /* Reschedule later */
+    PARSEC_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
+    PARSEC_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
+    PARSEC_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
+                                      * be triggered asynchronously. */
+    PARSEC_HOOK_RETURN_ERROR   = -5,  /* Some other major error happened */
+} parsec_hook_return_t;
 
 /**
  * @brief Create a new PaRSEC execution context
@@ -452,11 +470,6 @@ int32_t parsec_set_priority( parsec_handle_t* handle, int32_t new_priority );
  */
 char* parsec_snprintf_execution_context( char* str, size_t size,
                                         const parsec_execution_context_t* task);
-
-/**
- * @brief Opaque structure representing a Task Class
- */
-struct parsec_function_s;
 
 /**
  * @brief Opaque structure representing the parameters of a task

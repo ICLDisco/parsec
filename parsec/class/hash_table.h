@@ -7,7 +7,6 @@
 #ifndef _hash_table_h
 #define _hash_table_h
 
-#include "parsec_config.h"
 #include "parsec/class/list_item.h"
 
 typedef struct hash_table_s        hash_table_t;

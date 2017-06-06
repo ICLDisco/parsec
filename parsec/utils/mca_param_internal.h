@@ -34,8 +34,6 @@
 #ifndef PARSEC_MCA_PARAM_INTERNAL_H
 #define PARSEC_MCA_PARAM_INTERNAL_H
 
-#include "parsec_config.h"
-
 #include "parsec/constants.h"
 #include "parsec/class/parsec_object.h"
 #include "parsec/utils/mca_param.h"

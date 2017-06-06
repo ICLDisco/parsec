@@ -7,8 +7,6 @@
 #ifndef PARSEC_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 #define PARSEC_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
-
 #ifdef PARSEC_HAVE_HWLOC
 #include <hwloc.h>
 #endif

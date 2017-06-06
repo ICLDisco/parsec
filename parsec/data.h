@@ -16,8 +16,6 @@
  *  @{
  */
 
-#include "parsec_config.h"
-
 BEGIN_C_DECLS
 
 typedef struct parsec_data_s parsec_data_t;

@@ -4,8 +4,8 @@
  *                         reserved.
  */
 
-#ifndef PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
-#error "parsec_config_bottom.h should only be included from parsec_config.h"
+#if !(defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED) || defined(PARSEC_FLAVOR_H_HAS_BEEN_INCLUDED))
+#error "parsec_config_bottom.h should only be included from parsec_config.h or parsec_flavor.h"
 #endif
 
 /*

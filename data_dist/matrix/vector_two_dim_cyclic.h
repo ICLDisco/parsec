@@ -6,7 +6,6 @@
 #ifndef __VECTOR_TWO_DIM_CYCLIC_H__
 #define __VECTOR_TWO_DIM_CYCLIC_H__
 
-#include "parsec_config.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/grid_2Dcyclic.h"
 

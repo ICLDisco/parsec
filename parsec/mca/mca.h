@@ -89,9 +89,6 @@
 #ifndef PARSEC_MCA_H
 #define PARSEC_MCA_H
 
-#include "parsec_config.h"
-
-
 /**
  * Common type for all MCA modules.
  *

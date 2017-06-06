@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -7,8 +7,8 @@
 #ifndef LIFO_H_HAS_BEEN_INCLUDED
 #define LIFO_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
 #include "parsec/class/list_item.h"
+#include "parsec/sys/atomic.h"
 #if defined(PARSEC_HAVE_ATOMIC_LLSC_PTR)
 #include <time.h>
 #endif  /* defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */

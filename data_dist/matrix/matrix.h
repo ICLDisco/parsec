@@ -8,14 +8,18 @@
 #ifndef _MATRIX_H_
 #define _MATRIX_H_
 
-#include "parsec_config.h"
 #include <stdarg.h>
+#include <stdio.h>
 #include "precision.h"
+#include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data.h"
 #include "parsec/datatype.h"
 
 BEGIN_C_DECLS
+
+struct parsec_execution_unit_s;
+struct parsec_handle_s;
 
 enum matrix_type {
     matrix_Byte          = 0, /**< unsigned char  */
@@ -116,44 +120,48 @@ tiled_matrix_desc_t *tiled_matrix_submatrix( tiled_matrix_desc_t *tdesc, int i, 
 int  tiled_matrix_data_write(tiled_matrix_desc_t *tdesc, char *filename);
 int  tiled_matrix_data_read(tiled_matrix_desc_t *tdesc, char *filename);
 
-typedef int (*parsec_operator_t)( parsec_execution_unit_t *eu, const void* src, void* dst, void* op_data, ... );
+typedef int (*parsec_operator_t)( struct parsec_execution_unit_s *eu,
+                                  const void* src,
+                                  void* dst,
+                                  void* op_data,
+                                  ... );
 
-typedef int (*tiled_matrix_unary_op_t )( parsec_execution_unit_t *eu,
+typedef int (*tiled_matrix_unary_op_t )( struct parsec_execution_unit_s *eu,
                                          const tiled_matrix_desc_t *desc1,
                                          void *data1,
                                          int uplo, int m, int n,
                                          void *args );
 
-typedef int (*tiled_matrix_binary_op_t)( parsec_execution_unit_t *eu,
+typedef int (*tiled_matrix_binary_op_t)( struct parsec_execution_unit_s *eu,
                                          const tiled_matrix_desc_t *desc1,
                                          const tiled_matrix_desc_t *desc2,
                                          const void *data1, void *data2,
                                          int uplo, int m, int n,
                                          void *args );
 
-extern parsec_handle_t*
+extern struct parsec_handle_s*
 parsec_map_operator_New(const tiled_matrix_desc_t* src,
                        tiled_matrix_desc_t* dest,
                        parsec_operator_t op,
                        void* op_data);
 
 extern void
-parsec_map_operator_Destruct( parsec_handle_t* o );
+parsec_map_operator_Destruct( struct parsec_handle_s* o );
 
-extern parsec_handle_t*
+extern struct parsec_handle_s*
 parsec_reduce_col_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       parsec_operator_t op,
                       void* op_data );
 
-extern void parsec_reduce_col_Destruct( parsec_handle_t *o );
+extern void parsec_reduce_col_Destruct( struct parsec_handle_s* o );
 
-extern parsec_handle_t*
+extern struct parsec_handle_s*
 parsec_reduce_row_New( const tiled_matrix_desc_t* src,
                       tiled_matrix_desc_t* dest,
                       parsec_operator_t op,
                       void* op_data );
-extern void parsec_reduce_row_Destruct( parsec_handle_t *o );
+extern void parsec_reduce_row_Destruct( struct parsec_handle_s* o );
 
 /*
  * Macro to get the block leading dimension
@@ -181,9 +189,9 @@ fake_data_of(parsec_ddesc_t *mat, ...);
  * Helper functions to create arenas of matrices with different shapes
  */
 int parsec_matrix_add2arena( parsec_arena_t *arena, parsec_datatype_t oldtype,
-                            int uplo, int diag,
-                            unsigned int m, unsigned int n, unsigned int ld,
-                            size_t alignment, int resized );
+                             int uplo, int diag,
+                             unsigned int m, unsigned int n, unsigned int ld,
+                             size_t alignment, int resized );
 
 int parsec_matrix_del2arena( parsec_arena_t *arena );
 

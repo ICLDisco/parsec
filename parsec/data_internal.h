@@ -11,7 +11,8 @@
  *  @{
  */
 
-#include "parsec/parsec_internal.h"
+#include "parsec/class/parsec_object.h"
+#include "parsec/arena.h"
 #include "parsec/data.h"
 
 /**
@@ -44,20 +45,20 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_data_t);
  * This structure represent a device copy of a parsec_data_t.
  */
 struct parsec_data_copy_s {
-    parsec_list_item_t         super;
+    parsec_list_item_t          super;
 
-    int8_t                    device_index;         /**< Index in the original->device_copies array */
-    parsec_data_flag_t         flags;
-    parsec_data_coherency_t    coherency_state;
+    int8_t                      device_index;         /**< Index in the original->device_copies array */
+    parsec_data_flag_t          flags;
+    parsec_data_coherency_t     coherency_state;
     /* int8_t */
 
-    int32_t                   readers;
+    int32_t                     readers;
 
-    uint32_t                  version;
+    uint32_t                    version;
 
-    struct parsec_data_copy_s *older;                 /**< unused yet */
-    parsec_data_t             *original;
-    parsec_arena_chunk_t      *arena_chunk;           /**< If this is an arena-based data, keep
+    struct parsec_data_copy_s   *older;                 /**< unused yet */
+    parsec_data_t               *original;
+    struct parsec_arena_chunk_s *arena_chunk;           /**< If this is an arena-based data, keep
                                                       *   the chunk pointer here, to avoid
                                                       *   risky pointers arithmetic (pointers mis-alignment
                                                       *   depending on many parameters) */

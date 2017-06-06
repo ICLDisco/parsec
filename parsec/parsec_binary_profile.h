@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011-2015 The University of Tennessee and The University
+ * Copyright (c) 2011-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -16,7 +16,6 @@
  * @{
  */
 
-#include "parsec_config.h"
 #include <inttypes.h>
 #include <pthread.h>
 

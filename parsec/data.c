@@ -11,6 +11,7 @@
 #include "parsec/utils/output.h"
 #include "parsec/data_internal.h"
 #include "parsec/arena.h"
+#include "parsec/parsec_description_structures.h"
 
 static parsec_lifo_t parsec_data_lifo;
 static parsec_lifo_t parsec_data_copies_lifo;

@@ -10,7 +10,6 @@
 /** @addtogroup parsec_internal_scheduling
  *  @{ */
 
-#include "parsec_config.h"
 #include "parsec_internal.h"
 #include "parsec/debug.h"
 #include "parsec/sys/atomic.h"

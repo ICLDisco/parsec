@@ -1115,7 +1115,7 @@ static void jdf_generate_header_file(const jdf_t* jdf)
             "#define _%s_h_\n",
             jdf_basename, jdf_basename);
     houtput("#include \"parsec_config.h\"\n"
-            "#include \"parsec.h\"\n"
+            "#include \"parsec/parsec_internal.h\"\n"
             "#include \"parsec/constants.h\"\n"
             "#include \"parsec/data_distribution.h\"\n"
             "#include \"parsec/data_internal.h\"\n"

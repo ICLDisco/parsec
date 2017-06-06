@@ -12,7 +12,6 @@
  *  @{
  */
 
-#include "parsec_config.h"
 #include "parsec/class/lifo.h"
 #include <stdlib.h>
 

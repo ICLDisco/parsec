@@ -7,8 +7,6 @@
 #ifndef _ZONE_MALLOC_H_
 #define _ZONE_MALLOC_H_
 
-#include "parsec_config.h"
-
 #include <stdlib.h>
 #include <assert.h>
 

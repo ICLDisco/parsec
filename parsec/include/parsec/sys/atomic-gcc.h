@@ -12,7 +12,7 @@ void parsec_mfence( void )
 
 ATOMIC_STATIC_INLINE
 int parsec_atomic_bor_32b( volatile uint32_t* location,
-                                        uint32_t value )
+                           uint32_t value )
 {
     uint32_t old_value = __sync_fetch_and_or(location, value);
     return old_value | value;
@@ -20,7 +20,7 @@ int parsec_atomic_bor_32b( volatile uint32_t* location,
 
 ATOMIC_STATIC_INLINE
 int parsec_atomic_band_32b( volatile uint32_t* location,
-                                         uint32_t value )
+                            uint32_t value )
 {
     uint32_t old_value = __sync_fetch_and_and(location, value);
     return old_value & value;

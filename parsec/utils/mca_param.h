@@ -51,7 +51,6 @@
 #ifndef PARSEC_MCA_PARAM_H
 #define PARSEC_MCA_PARAM_H
 
-#include "parsec_config.h"
 #include "parsec/class/parsec_object.h"
 #if defined(PARSEC_HAVE_STDBOOL_H)
 #include <stdbool.h>

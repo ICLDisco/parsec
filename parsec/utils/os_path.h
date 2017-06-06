@@ -41,8 +41,6 @@
 #ifndef OPAL_OS_PATH_H
 #define OPAL_OS_PATH_H
 
-#include "parsec_config.h"
-
 #include <stdio.h>
 #include <stdarg.h>
 #if defined(PARSEC_HAVE_STDBOOL_H)

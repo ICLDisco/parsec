@@ -7,8 +7,6 @@
 #ifndef PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
 #define PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
-#include "parsec.h"
 #include "parsec/class/parsec_object.h"
 #include <stdlib.h>
 #include <assert.h>

@@ -3,6 +3,8 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
+
+#include "parsec_config.h"
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/subtile.h"
 

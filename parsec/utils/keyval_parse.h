@@ -21,8 +21,6 @@
 #ifndef PARSEC_UTIL_KEYVAL_PARSE_H
 #define PARSEC_UTIL_KEYVAL_PARSE_H
 
-#include <parsec_config.h>
-
 BEGIN_C_DECLS
 
 /**

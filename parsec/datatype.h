@@ -6,7 +6,6 @@
  *                         reserved.
  */
 
-#include "parsec.h"
 #include "parsec/constants.h"
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>

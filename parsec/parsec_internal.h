@@ -7,7 +7,6 @@
 #ifndef PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED
 #define PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
 #include "parsec.h"
 #include "parsec/data.h"
 #include "parsec/class/list_item.h"
@@ -34,10 +33,6 @@ BEGIN_C_DECLS
 #define container_of(ptr, type, member) \
     ((type *)((char *)ptr - offsetof(type,member)))
 
-/**
- * @brief A Task Class
- */
-typedef struct parsec_function_s        parsec_function_t;
 /**
  * @brief A Remote dependency
  */
@@ -273,15 +268,6 @@ typedef int (parsec_new_task_function_t)(const parsec_execution_context_t** task
 /**
  *
  */
-typedef enum parsec_hook_return_e {
-    PARSEC_HOOK_RETURN_DONE    =  0,  /* This execution succeeded */
-    PARSEC_HOOK_RETURN_AGAIN   = -1,  /* Reschedule later */
-    PARSEC_HOOK_RETURN_NEXT    = -2,  /* Try next variant [if any] */
-    PARSEC_HOOK_RETURN_DISABLE = -3,  /* Disable the device, something went wrong */
-    PARSEC_HOOK_RETURN_ASYNC   = -4,  /* The task is outside our reach, the completion will
-                                      * be triggered asynchronously. */
-    PARSEC_HOOK_RETURN_ERROR   = -5,  /* Some other major error happened */
-} parsec_hook_return_t;
 typedef parsec_hook_return_t (parsec_hook_t)(struct parsec_execution_unit_s*, parsec_execution_context_t*);
 
 /**

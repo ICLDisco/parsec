@@ -8,7 +8,6 @@
 #ifndef _DATA_DISTRIBUTION_H_
 #define _DATA_DISTRIBUTION_H_
 
-#include "parsec_config.h"
 #include "parsec/data.h"
 #include "parsec/class/hash_table.h"
 

@@ -746,9 +746,20 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/datatype.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/profiling.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/debug.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
   ${PROJECT_INCLUDE_DIR}/parsec/parsec_flavor.h
   DESTINATION include/parsec)
+
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
+  DESTINATION include/parsec/utils)
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
+  DESTINATION include/parsec/class)
+install(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/FindPARSEC.cmake
+  DESTINATION share/parsec/)
 
 # Install header files for jdf generated code
 if( PARSEC_WITH_DEVEL_HEADERS )
@@ -767,11 +778,9 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/execution_unit.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/os-spec-timing.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/maxheap.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mca/pins/pins.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mempool.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/vpmap.h
     DESTINATION include/parsec )
 
@@ -793,7 +802,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/argv.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/cmd_line.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/parsec_environ.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/installdirs.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/keyval_lex.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/keyval_parse.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param_cmd_line.h
@@ -808,8 +816,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
 
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/barrier.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_object.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/parsec_value_array.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/dequeue.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/fifo.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/class/hash_table.h
@@ -828,10 +834,14 @@ if( PARSEC_WITH_DEVEL_HEADERS )
 
 endif(PARSEC_WITH_DEVEL_HEADERS)
 
+#
+# Never install directly the parsec/include/parsec/sys/atomic.h header.
+# Instead replace it with the atomic-extermnal.h during the installation.
+#
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic-external.h
-  ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/sys/atomic.h
-  DESTINATION include/parsec/sys )
+  DESTINATION include/parsec/sys
+  RENAME atomic.h)
 
 # Due to the lack of standardization detecting libraries under CMake leads
 # to unconsistents lists of libraries, where some libraries are using full path,

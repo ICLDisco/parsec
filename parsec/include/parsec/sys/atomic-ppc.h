@@ -28,10 +28,19 @@ void parsec_mfence( void )
 }
 
 #define PARSEC_ATOMIC_HAS_RMB
-#define RMB() __asm__ __volatile__ ("lwsync" : : : "memory")
+ATOMIC_STATIC_INLINE
+void parsec_atomic_rmb(void)
+{
+    __asm__ __volatile__ ("lwsync" : : : "memory")
+}
+
 
 #define PARSEC_ATOMIC_HAS_WMB
-#define WMB() __asm__ __volatile__ ("eieio" : : : "memory")
+ATOMIC_STATIC_INLINE
+void parsec_atomic_wmb(void)
+{
+    __asm__ __volatile__ ("eieio" : : : "memory")
+}
 
 ATOMIC_STATIC_INLINE
 int parsec_atomic_bor_32b( volatile uint32_t* location,

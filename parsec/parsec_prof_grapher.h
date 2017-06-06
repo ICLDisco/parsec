@@ -12,9 +12,7 @@
  *  @{
  */
 
-#include "parsec_config.h"
-
-#include "parsec_internal.h"
+#include "parsec.h"
 #include "parsec/execution_unit.h"
 
 BEGIN_C_DECLS

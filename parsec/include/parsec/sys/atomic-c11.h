@@ -13,6 +13,20 @@ void parsec_mfence(void)
     atomic_thread_fence(memory_order_seq_cst);
 }
 
+#define PARSEC_ATOMIC_HAS_WMB
+ATOMIC_STATIC_INLINE
+void parsec_atomic_wmb(void)
+{
+    atomic_thread_fence(memory_order_release);
+}
+
+#define PARSEC_ATOMIC_HAS_RMB
+ATOMIC_STATIC_INLINE
+void parsec_atomic_rmb(void)
+{
+    atomic_thread_fence(memory_order_acquire);
+}
+
 /**
  * This is extremely ugly but apparently it is the only way to correctly coherce
  * the compilers to convert to the correct type. Thanks to StackOverflow for the
@@ -84,29 +98,33 @@ int parsec_atomic_cas_ptr(volatile void* l, __uint128_t o, __uint128_t n)
 #endif  /* defined(HAVE_UINT128b) */
 #endif
 
-#define parsec_atomic_add_32b(LOCATION, VALUE)                          \
-    _Generic((LOCATION),                                                \
-             int32_t* : (atomic_fetch_add((_Atomic int32_t*)(LOCATION), (VALUE)) + (VALUE)), \
-             uint32_t*: (atomic_fetch_add((_Atomic uint32_t*)(LOCATION), (VALUE)) + (VALUE)), \
-             default: (atomic_fetch_add((_Atomic int32_t*)(LOCATION), (VALUE)) + (VALUE)))
+#define PARSEC_ATOMIC_HAS_ATOMIC_ADD_32B
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_add_32b(volatile int32_t* l, int32_t v)
+{
+    return v + atomic_fetch_add((_Atomic uint32_t*)l, v);
+}
 
-#define parsec_atomic_sub_32b(LOCATION, VALUE)                          \
-    _Generic((LOCATION),                                                \
-             int32_t* : (atomic_fetch_sub((_Atomic int32_t*)(LOCATION), (VALUE)) - (VALUE)), \
-             uint32_t*: (atomic_fetch_sub((_Atomic uint32_t*)(LOCATION), (VALUE)) - (VALUE)), \
-             default: (atomic_fetch_sub((_Atomic int32_t*)(LOCATION), (VALUE)) - (VALUE)))
+#define PARSEC_ATOMIC_HAS_ATOMIC_INC_32B
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_inc_32b(volatile uint32_t* l)
+{
+    return 1 + atomic_fetch_add((_Atomic uint32_t*)l, 1);
+}
 
-#define parsec_atomic_inc_32b(LOCATION)                                 \
-    _Generic((LOCATION),                                                \
-             int32_t* : (1 + atomic_fetch_add((_Atomic int32_t*)(LOCATION), 1)), \
-             uint32_t*: (1 + atomic_fetch_add((_Atomic uint32_t*)(LOCATION), 1)), \
-             default: (1 + atomic_fetch_add((_Atomic int32_t*)(LOCATION), 1)))
+#define PARSEC_ATOMIC_HAS_ATOMIC_SUB_32B
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_sub_32b(volatile int32_t* l, int32_t v)
+{
+    return v + atomic_fetch_sub((_Atomic uint32_t*)l, v);
+}
 
-#define parsec_atomic_dec_32b(LOCATION)                                 \
-    _Generic((LOCATION),                                                \
-             int32_t* : (atomic_fetch_sub((_Atomic int32_t*)(LOCATION), 1) - 1), \
-             uint32_t*: (atomic_fetch_sub((_Atomic uint32_t*)(LOCATION), 1) - 1), \
-             default: (atomic_fetch_sub((_Atomic int32_t*)(LOCATION), 1) - 1))
+#define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
+ATOMIC_STATIC_INLINE
+uint32_t parsec_atomic_dec_32b(volatile uint32_t* l)
+{
+    return atomic_fetch_add((_Atomic uint32_t*)l, -1) - 1;
+}
 
 typedef volatile atomic_flag parsec_atomic_lock_t;
 

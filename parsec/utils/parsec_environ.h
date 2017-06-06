@@ -27,7 +27,6 @@
 #ifndef PARSEC_ENVIRON_H
 #define PARSEC_ENVIRON_H
 
-#include "parsec_config.h"
 #ifdef PARSEC_HAVE_STDBOOL_H
 #include <stdbool.h>
 #endif

@@ -7,7 +7,6 @@
 #ifndef _mempool_h
 #define _mempool_h
 
-#include "parsec_config.h"
 #include "parsec/class/lifo.h"
 
 /** @addtogroup parsec_internal_mempool

@@ -20,8 +20,6 @@
 #ifndef PARSEC_UTIL_KEYVAL_LEX_H_
 #define PARSEC_UTIL_KEYVAL_LEX_H_
 
-#include <parsec_config.h>
-
 #ifdef malloc
 #undef malloc
 #endif

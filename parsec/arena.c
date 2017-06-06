@@ -5,6 +5,7 @@
  */
 
 #include "parsec_config.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/arena.h"
 #include "parsec/class/lifo.h"
 #include "parsec/data_internal.h"

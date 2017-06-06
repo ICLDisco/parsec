@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2013 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -13,7 +13,6 @@
  * functions to emulate a fifo that is garanteed to be compatible with list accessors.
  */
 
-#include "parsec_config.h"
 #include "parsec/class/list.h"
 
 typedef parsec_list_t parsec_fifo_t;

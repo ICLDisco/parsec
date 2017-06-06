@@ -12,8 +12,6 @@
 #ifndef PARSEC_MCA_INSTALLDIRS_INSTALLDIRS_H
 #define PARSEC_MCA_INSTALLDIRS_INSTALLDIRS_H
 
-#include <parsec_config.h>
-
 BEGIN_C_DECLS
 
 /**

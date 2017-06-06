@@ -20,7 +20,6 @@
 #ifndef PARSEC_SHOW_HELP_LEX_H
 #define PARSEC_SHOW_HELP_LEX_H
 
-#include "parsec_config.h"
 #if defined(PARSEC_HAVE_STDBOOL_H)
 #include <stdbool.h>
 #endif  /* defined(PARSEC_HAVE_STDBOOL_H) */

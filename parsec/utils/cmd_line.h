@@ -111,11 +111,13 @@
 #ifndef PARSEC_CMD_LINE_H
 #define PARSEC_CMD_LINE_H
 
-#include "parsec_config.h"
-#include <stdbool.h>
 #include "parsec/class/parsec_object.h"
 #include "parsec/class/list.h"
 #include "parsec/sys/atomic.h"
+
+#if defined(PARSEC_HAVE_STDBOOL_H)
+#include <stdbool.h>
+#endif  /* defined(PARSEC_HAVE_STDBOOL_H) */
 
 BEGIN_C_DECLS
 /**

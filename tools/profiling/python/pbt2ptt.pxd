@@ -1,4 +1,6 @@
 # pbt2ptt python definition file
+cdef extern from "parsec_config.h":
+    pass
 
 cdef extern from "parsec/parsec_binary_profile.h":
    ctypedef struct parsec_thread_profiling_t:

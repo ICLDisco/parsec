@@ -7,8 +7,7 @@
 #ifndef PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED
 #define PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
-#include "parsec/parsec_internal.h"
+#include "parsec.h"
 
 /**
  * Generic startup function for DSLs. For more info read comment in
@@ -22,12 +21,12 @@ PARSEC_DECLSPEC extern const parsec_function_t __parsec_generic_startup;
  */
 parsec_hook_return_t
 parsec_release_task_to_mempool(parsec_execution_unit_t *eu,
-                              parsec_execution_context_t *this_task);
+                               parsec_execution_context_t *this_task);
 parsec_hook_return_t
 parsec_release_task_to_mempool_update_nbtasks(parsec_execution_unit_t *eu,
-                                             parsec_execution_context_t *this_task);
+                                              parsec_execution_context_t *this_task);
 
 parsec_hook_return_t
 parsec_release_task_to_mempool_and_count_as_runtime_tasks(parsec_execution_unit_t *eu,
-                                                         parsec_execution_context_t *this_task);
+                                                          parsec_execution_context_t *this_task);
 #endif  /* PARSEC_INTERFACE_H_HAS_BEEN_INCLUDED */

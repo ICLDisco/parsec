@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2016 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -10,16 +10,13 @@
  *  @{
  */
 
-#include "parsec_config.h"
 #include "parsec_internal.h"
-
-typedef unsigned long remote_dep_datakey_t;
-
+#include "parsec/class/lifo.h"
+#include "parsec/parsec_description_structures.h"
 #include "parsec/debug.h"
 #include <string.h>
 
-#include "parsec/parsec_description_structures.h"
-#include "parsec/class/lifo.h"
+typedef unsigned long remote_dep_datakey_t;
 
 #define PARSEC_ACTION_DEPS_MASK                  0x00FFFFFF
 #define PARSEC_ACTION_RELEASE_LOCAL_DEPS         0x01000000
