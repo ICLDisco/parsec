@@ -697,7 +697,7 @@ int parsec_mca_param_build_env(char ***env, int *num_env, bool internal)
                     free(str);
                 } else if (PARSEC_MCA_PARAM_TYPE_SIZET == array[i].mbp_type) {
                     rc = asprintf(&str, "%s=%lu", array[i].mbp_env_var_name,
-                                  storage.sizetval);
+                                  (unsigned long)storage.sizetval);
                     if (-1 == rc) {
                         return PARSEC_ERR_OUT_OF_RESOURCE;
                     }

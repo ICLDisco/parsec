@@ -85,7 +85,7 @@ static void find_memory_ref_in_thread(const dbp_multifile_reader_t *dbp, int dic
                     fprintf(stderr, "Event has no size information. Cannot trace this event!\n");
                 } else {
                     fprintf(stderr, "Event has an information of size %d, not %lu. Cannot trace this event!\n",
-                            dbp_event_info_len(e, dbp), sizeof(size_t));
+                            dbp_event_info_len(e, dbp), (unsigned long)sizeof(size_t));
                 }
                 free(m);
                 dbp_iterator_next(it);

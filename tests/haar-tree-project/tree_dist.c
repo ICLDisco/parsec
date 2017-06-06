@@ -2,6 +2,7 @@
 #include <parsec/devices/device.h>
 #include <parsec/data.h>
 #include <parsec/vpmap.h>
+#include <string.h>
 
 /***********************************************************************************************
  * Internals
