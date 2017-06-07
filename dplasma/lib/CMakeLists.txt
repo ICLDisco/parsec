@@ -214,5 +214,6 @@ if (MPI_C_FOUND)
 endif (MPI_C_FOUND)
 
 install(TARGETS dplasma
+        ARCHIVE DESTINATION dplasma/lib
         LIBRARY DESTINATION dplasma/lib)
 
