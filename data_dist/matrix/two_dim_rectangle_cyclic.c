@@ -38,6 +38,9 @@ static parsec_data_t* twoDBC_st_data_of_key(parsec_ddesc_t* ddesc, parsec_data_k
 static int twoDBC_memory_register(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
+    if( NULL == twodbc->mat ) {
+        return PARSEC_SUCCESS;
+    }
     return device->device_memory_register(device, desc,
                                           twodbc->mat,
                                           ((size_t)twodbc->super.nb_local_tiles * (size_t)twodbc->super.bsiz *
@@ -47,6 +50,9 @@ static int twoDBC_memory_register(parsec_ddesc_t* desc, struct parsec_device_s* 
 static int twoDBC_memory_unregister(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     two_dim_block_cyclic_t * twodbc = (two_dim_block_cyclic_t *)desc;
+    if( NULL == twodbc->mat ) {
+        return PARSEC_SUCCESS;
+    }
     return device->device_memory_unregister(device, desc, twodbc->mat);
 }
 

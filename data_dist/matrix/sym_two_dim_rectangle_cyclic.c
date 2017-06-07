@@ -41,6 +41,9 @@
 static int sym_twoDBC_memory_register(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
+    if( NULL != sym_twodbc->mat ) {
+        return PARSEC_SUCCESS;
+    }
     return device->device_memory_register(device, desc,
                                           sym_twodbc->mat,
                                           ((size_t)sym_twodbc->super.nb_local_tiles * (size_t)sym_twodbc->super.bsiz *
@@ -50,6 +53,9 @@ static int sym_twoDBC_memory_register(parsec_ddesc_t* desc, struct parsec_device
 static int sym_twoDBC_memory_unregister(parsec_ddesc_t* desc, struct parsec_device_s* device)
 {
     sym_two_dim_block_cyclic_t * sym_twodbc = (sym_two_dim_block_cyclic_t *)desc;
+    if( NULL != sym_twodbc->mat ) {
+        return PARSEC_SUCCESS;
+    }
     return device->device_memory_unregister(device, desc, sym_twodbc->mat);
 }
 
