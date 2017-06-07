@@ -64,6 +64,9 @@ set(SOURCES
   remote_dep.c
   scheduling.c
   vpmap.c
+  maxheap.c
+  hbbuffer.c
+  datarepo.c
   ${EXTRA_SOURCES}
   ${MCA_EXTRA_SOURCES}
 )
