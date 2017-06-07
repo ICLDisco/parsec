@@ -1528,7 +1528,6 @@ char* parsec_snprintf_execution_context( char* str, size_t size,
     const parsec_function_t* function = task->function;
     unsigned int i, ip, index = 0, is_param;
 
-    assert( NULL != task->parsec_handle );
     index += snprintf( str + index, size - index, "%s(", function->name );
     if( index >= size ) return str;
     for( ip = 0; ip < function->nb_parameters; ip++ ) {
@@ -1554,8 +1553,12 @@ char* parsec_snprintf_execution_context( char* str, size_t size,
                            task->locals[i].value );
         if( index >= size ) return str;
     }
-    index += snprintf(str + index, size - index, "]<%d>{%u}", task->priority, task->parsec_handle->handle_id );
-
+    index += snprintf(str + index, size - index, "]<%d>", task->priority );
+    if( index >= size ) return str;
+    if( NULL != task->parsec_handle ) {
+        index += snprintf(str + index, size - index, "{%u}", task->parsec_handle->handle_id );
+        if( index >= size ) return str;
+    }
     return str;
 }
 /*
