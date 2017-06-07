@@ -8,7 +8,7 @@
 #if defined(PARSEC_DEBUG_HISTORY)
 #include "parsec/debug_marks.h"
 #include "parsec/debug.h"
-#include "parsec_internal.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/remote_dep.h"
 
 void debug_mark_exe(int th, int vp, const struct parsec_execution_context_s *ctx)

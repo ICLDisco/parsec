@@ -5,7 +5,6 @@
  */
 
 #include "parsec_config.h"
-#include "parsec_internal.h"
 #include "parsec/mca/mca_repository.h"
 #include "parsec/mca/sched/sched.h"
 #include "parsec/profiling.h"
@@ -21,6 +20,7 @@
 #include "parsec/ayudame.h"
 #include "parsec/constants.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
+#include "parsec/class/list.h"
 
 #include <signal.h>
 #if defined(PARSEC_HAVE_STRING_H)

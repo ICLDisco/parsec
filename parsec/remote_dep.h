@@ -10,7 +10,7 @@
  *  @{
  */
 
-#include "parsec_internal.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/class/lifo.h"
 #include "parsec/parsec_description_structures.h"
 #include "parsec/debug.h"

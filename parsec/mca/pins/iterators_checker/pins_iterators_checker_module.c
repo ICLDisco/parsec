@@ -10,6 +10,7 @@
 #include "parsec/profiling.h"
 #include "parsec/execution_unit.h"
 #include "parsec/data_internal.h"
+#include "parsec/parsec_internal.h"
 
 #include <errno.h>
 #include <stdio.h>

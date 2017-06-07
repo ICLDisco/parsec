@@ -6,7 +6,7 @@
 
 #if defined(PARSEC_HAVE_AYUDAME)
 
-#include "parsec_internal.h"
+#include "parsec/parsec_internal.h"
 #include <Ayudame.h>
 
 #define AYU_INIT()                               \

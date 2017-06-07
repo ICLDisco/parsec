@@ -2732,7 +2732,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                 f->function_id );
     } else {
         coutput("  __parsec_handle->repositories[%d] = data_repo_create_nothreadsafe(%s, %d);\n",
-                f->function_id, need_to_count_tasks ? "nb_tasks" : "MAX_DATAREPO_HASH", idx );
+                f->function_id, need_to_count_tasks ? "nb_tasks" : "PARSEC_DEFAULT_DATAREPO_HASH_LENGTH", idx );
     }
 
     coutput("%s"

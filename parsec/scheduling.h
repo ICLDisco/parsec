@@ -13,7 +13,7 @@
  */
 
 
-#include "parsec_internal.h"
+#include "parsec/parsec_internal.h"
 
 BEGIN_C_DECLS
 

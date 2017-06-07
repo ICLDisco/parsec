@@ -5,7 +5,7 @@
  */
 
 #include "parsec_config.h"
-#include "parsec_internal.h"
+#include "parsec/parsec_internal.h"
 #include "parsec/debug.h"
 #include "parsec/utils/output.h"
 
