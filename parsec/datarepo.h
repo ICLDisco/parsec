@@ -98,6 +98,8 @@ typedef struct data_repo_s {
     data_repo_head_t  heads[1];
 } data_repo_t;
 
+BEGIN_C_DECLS
+
 data_repo_t*
 data_repo_create_nothreadsafe(unsigned int hashsize_hint, unsigned int nbdata);
 
@@ -149,5 +151,7 @@ __data_repo_entry_addto_usage_limit(data_repo_t *repo, uint64_t key, uint32_t us
 void data_repo_destroy_nothreadsafe(data_repo_t *repo);
 
 /** @} */
+
+END_C_DECLS
 
 #endif  /* PARSEC_DATAREPO_H_HAS_BEEN_INCLUDED */
