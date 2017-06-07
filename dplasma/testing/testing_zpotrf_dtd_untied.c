@@ -391,7 +391,7 @@ int main(int argc, char **argv)
     iparam[IPARAM_NGPUS] = 0;
 #endif
 
-    /* Initialize DAGuE */
+    /* Initialize PaRSEC */
     parsec = setup_parsec(argc, argv, iparam);
     PASTE_CODE_IPARAM_LOCALS(iparam);
     PASTE_CODE_FLOPS(FLOPS_ZPOTRF, ((DagDouble_t)N));
@@ -428,7 +428,7 @@ int main(int argc, char **argv)
 
     SYNC_TIME_START();
 
-    /* #### Dague context starting #### */
+    /* #### PaRSEC context starting #### */
 
     /* Start parsec context */
     parsec_context_start(parsec);
@@ -462,7 +462,7 @@ int main(int argc, char **argv)
     /* Waiting on all handle and turning everything off for this context */
     parsec_context_wait(parsec);
 
-    /* #### Dague context is done #### */
+    /* #### PaRSEC context is done #### */
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,

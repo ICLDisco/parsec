@@ -377,7 +377,7 @@ int main(int argc, char **argv)
     /* Waiting on all handle and turning everything off for this context */
     parsec_context_wait( parsec );
 
-    /* #### Dague context is done #### */
+    /* #### PaRSEC context is done #### */
 
     SYNC_TIME_PRINT(rank, ("\tPxQ= %3d %-3d NB= %4d N= %7d : %14f gflops\n",
                            P, Q, NB, N,

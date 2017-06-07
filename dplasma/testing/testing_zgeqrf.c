@@ -107,9 +107,9 @@ int main(int argc, char ** argv)
         dplasma_zgeqrf_Destruct( PARSEC_zgeqrf );
     }
 
-#if defined(DAGUE_SIM)
+#if defined(PARSEC_SIM)
     {
-        int largest_simulation_date = dague_getsimulationdate( dague );
+        int largest_simulation_date = parsec_getsimulationdate( parsec );
         if ( rank == 0 ) {
             printf("zgeqrf simulation NP= %d NC= %d P= %d SMB= %d MT= %d NT= %d : %d \n",
                iparam[IPARAM_NNODES],
