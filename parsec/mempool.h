@@ -47,6 +47,8 @@ struct parsec_thread_mempool_s {
     parsec_lifo_t mempool;       /**< Elements are stored in a LIFO */
 };
 
+BEGIN_C_DECLS
+
 /**
  * @brief constructs a mempool
  *
@@ -174,5 +176,7 @@ static inline void  parsec_thread_mempool_free( parsec_thread_mempool_t *thread_
 uint64_t parsec_mempool_destruct( parsec_mempool_t *mempool );
 
 /** @} */
+
+END_C_DECLS
 
 #endif /* defined(_mempool_h) */
