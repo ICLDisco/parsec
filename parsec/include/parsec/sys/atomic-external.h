@@ -11,6 +11,8 @@
 #error "This file should never be used while building PaRSEC internally"
 #endif  /* defined(PARSEC_ATOMIC_ACCESS_TO_INTERNALS_ALLOWED) */
 
+BEGIN_C_DECLS
+
 PARSEC_DECLSPEC void parsec_mfence(void);
 PARSEC_DECLSPEC void parsec_atomic_wmb(void);
 PARSEC_DECLSPEC void parsec_atomic_rmb(void);
@@ -59,5 +61,7 @@ typedef int parsec_atomic_lock_t;
 PARSEC_DECLSPEC void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock );
+
+END_C_DECLS
 
 #endif  /* ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED */
