@@ -862,18 +862,6 @@ FOREACH(LIB IN ITEMS ${EXTRA_LIBS})
   endif( IS_ABSOLUTE ${LIB} )
 ENDFOREACH(LIB)
 
-# pkg-config file
-string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
-  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
-configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
-  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
-
-install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
-install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"  DESTINATION lib/pkgconfig)
-
 # build a CPack driven installer package
 include (InstallRequiredSystemLibraries)
 set(CPACK_GENERATOR "TBZ2")
@@ -884,7 +872,7 @@ set (CPACK_PACKAGE_VERSION_MINOR "${PARSEC_VERSION_MINOR}")
 set (CPACK_PACKAGE_VERSION_PATCH "gamma")
 include (CPack)
 
-# build doxyegn documentation
+# build doxygen documentation
 add_subdirectory(docs)
 
 MESSAGE("\n\nConfiguration flags:")
@@ -893,3 +881,16 @@ MESSAGE("  CMAKE_C_LDFLAGS        = ${CMAKE_C_LDFLAGS}")
 MESSAGE("  CMAKE_EXE_LINKER_FLAGS = ${CMAKE_EXE_LINKER_FLAGS}")
 MESSAGE("  EXTRA_LIBS             = ${EXTRA_LIBS}")
 MESSAGE("\n\n")
+
+# Generate configure files to help other software detect and integrate with
+# PaRSEC. This generates the pkg-config files to slurp in all needed dependencies
+# but also generates the CMake package files.
+
+# pkg-config file
+string (REPLACE ";" " " EXTRA_LIBS_EXPANDED "${EXTRA_LIBS_EXPANDED}")
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.pc.in"
+  "${PROJECT_INCLUDE_DIR}/parsec.pc" @ONLY)
+
+install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
+
