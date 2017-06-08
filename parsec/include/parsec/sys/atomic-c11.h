@@ -39,7 +39,7 @@ ATOMIC_STATIC_INLINE
 uint32_t parsec_atomic_bor_32b( volatile uint32_t* location,
                                 uint32_t or_value)
 {
-    return atomic_fetch_or(location, or_value);
+    return (or_value | atomic_fetch_or(location, or_value));
 }
 
 ATOMIC_STATIC_INLINE
