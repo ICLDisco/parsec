@@ -5,7 +5,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include <stdio.h>
 #if defined(PARSEC_HAVE_STRING_H)

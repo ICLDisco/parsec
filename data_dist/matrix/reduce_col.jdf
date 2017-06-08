@@ -6,7 +6,7 @@ extern "C" %{
  */
 
 #include <math.h>
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "matrix.h"
 %}
 

@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include <parsec_config.h>
+#include <parsec/parsec_config.h>
 #include "jdf.h"
 #include "parsec.y.h"
 
