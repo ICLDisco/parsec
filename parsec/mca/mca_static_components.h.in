@@ -5,7 +5,7 @@
 #error This file must be included once only, and by mca_repository.c only
 #endif
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/utils/mca_param.h"
 #include <assert.h>

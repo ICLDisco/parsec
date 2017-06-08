@@ -1,5 +1,5 @@
 # pbt2ptt python definition file
-cdef extern from "parsec_config.h":
+cdef extern from "parsec/parsec_config.h":
     pass
 
 cdef extern from "parsec/parsec_binary_profile.h":
