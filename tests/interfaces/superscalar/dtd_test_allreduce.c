@@ -1,4 +1,4 @@
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 /* system and io */
 #include <stdlib.h>

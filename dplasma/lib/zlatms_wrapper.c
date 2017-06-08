@@ -9,7 +9,7 @@
  */
 
 #include <lapacke.h>
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
 #include "data_dist/matrix/sym_two_dim_rectangle_cyclic.h"

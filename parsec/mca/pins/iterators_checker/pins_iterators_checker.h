@@ -1,7 +1,7 @@
 #ifndef PINS_ITERATORS_CHECKER_H
 #define PINS_ITERATORS_CHECKER_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec.h"

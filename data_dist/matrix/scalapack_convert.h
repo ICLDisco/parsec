@@ -7,7 +7,7 @@
 #ifndef __SCALAPACK_CONVERT_H__
 #define __SCALAPACK_CONVERT_H__
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/data_distribution.h"
 #include "matrix.h"
 

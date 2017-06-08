@@ -17,7 +17,7 @@
  * $HEADER$
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include <stdio.h>
 #include <stdarg.h>

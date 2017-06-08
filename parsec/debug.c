@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/debug.h"
 #include "parsec/utils/output.h"
 #include "parsec/sys/atomic.h"

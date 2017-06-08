@@ -7,7 +7,7 @@
 #ifndef _dbpreader_h_
 #define _dbpreader_h_
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 /* Basic Key-Value Info interface */
 

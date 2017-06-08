@@ -8,7 +8,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include <math.h>
 #include <lapacke.h>

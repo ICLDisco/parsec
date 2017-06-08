@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/private_mempool.h"
 #include "parsec/class/lifo.h"
 

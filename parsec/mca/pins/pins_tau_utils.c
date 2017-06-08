@@ -1,4 +1,4 @@
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #if defined(PARSEC_HAVE_TAU)
 #include "TAU.h"
 #endif

@@ -7,7 +7,7 @@
  *
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "reduc_data.h"
 #include "stdarg.h"
 #include <data_dist/matrix/two_dim_rectangle_cyclic.h>

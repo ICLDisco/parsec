@@ -1,4 +1,4 @@
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/debug.h"
 #include "parsec/mca/mca.h"
 #include "parsec/utils/mca_param.h"

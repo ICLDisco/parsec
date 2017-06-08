@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/data_distribution.h"
 
 #if defined(PARSEC_HAVE_STDARG_H)

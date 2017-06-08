@@ -7,7 +7,7 @@
 #ifndef _OMEGA_INTERFACE_
 #define _OMEGA_INTERFACE_
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #if defined(c_plusplus) || defined(__cplusplus)
 list< pair<expr_t *, Relation> > simplify_conditions_and_split_disjunctions(Relation R, Relation S_es);

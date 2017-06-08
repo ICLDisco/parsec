@@ -18,7 +18,7 @@
 #ifndef _SCHED_LOCAL_QUEUES_UTILS_H
 #define _SCHED_LOCAL_QUEUES_UTILS_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 typedef struct {
     parsec_dequeue_t   *system_queue;

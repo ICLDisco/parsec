@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 /*  unset options that make debug.h unpure, we need bindthread to compile standalone for unit tests */
 #undef PARSEC_HAVE_MPI
 #undef PARSEC_DEBUG_HISTORY

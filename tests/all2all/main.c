@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "a2a_wrapper.h"
 #include "a2a_data.h"

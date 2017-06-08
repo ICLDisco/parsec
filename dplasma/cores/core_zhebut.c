@@ -8,7 +8,7 @@
  */
 #include <math.h>
 #include <stdlib.h>
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include <core_blas.h>
 #include <cblas.h>

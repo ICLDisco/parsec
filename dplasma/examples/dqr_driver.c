@@ -7,7 +7,7 @@
  *  Link with $CC $(pkg-config --libs dplasma) -o dqr_driver dqr_driver.o
  *
  */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include <getopt.h>

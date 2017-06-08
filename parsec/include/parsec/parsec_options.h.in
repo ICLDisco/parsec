@@ -1,6 +1,12 @@
-#ifndef PARSEC_FLAVOR_H_HAS_BEEN_INCLUDED
-#define PARSEC_FLAVOR_H_HAS_BEEN_INCLUDED
+#ifndef PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
+#define PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
 
+/* This file contains the OS dependent capabilities, and should be generic for
+ * all compilers o a particular architecture. It is used during the PaRSEC build to
+ * import all OS dependent features, but once PaRSEC installed this file will
+ * become the parsec_config.h and will hide all compiler dependent features used
+ * during PaRSEC compilation.
+ */
 #define PARSEC_VERSION_MAJOR @PARSEC_VERSION_MAJOR@
 #define PARSEC_VERSION_MINOR @PARSEC_VERSION_MINOR@
 
@@ -94,9 +100,8 @@
 #define PARSEC_LIB_CUDA_PREFIX ".;@CUDA_cublas_LIBRARY@;@CMAKE_BINARY_DIR@/dplasma/cores"
 
 #define PARSEC_SIZEOF_VOID_P @CMAKE_SIZEOF_VOID_P@
-#define PARSEC_HAVE_UINT128  @HAVE_UINT128b@
 
 #include "parsec/parsec_config_bottom.h"
 
-#endif  /* PARSEC_FLAVOR_H_HAS_BEEN_INCLUDED */
+#endif  /* PARSEC_CONFIG_H_HAS_BEEN_INCLUDED */
 

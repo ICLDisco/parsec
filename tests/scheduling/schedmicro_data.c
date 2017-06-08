@@ -5,7 +5,7 @@
  */
 
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "schedmicro_data.h"
 #include <stdarg.h>
 #include "parsec/data_distribution.h"

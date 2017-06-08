@@ -6,7 +6,7 @@
  * @precisions normal z -> s d c
  *
  */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 

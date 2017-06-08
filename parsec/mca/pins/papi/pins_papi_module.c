@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "pins_papi.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec/mca/pins/pins_papi_utils.h"

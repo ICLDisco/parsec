@@ -16,7 +16,7 @@
  * $HEADER$
  */
 
-#include <parsec_config.h>
+#include "parsec/parsec_config.h"
 
 #include "parsec/constants.h"
 #include "parsec/utils/keyval_parse.h"

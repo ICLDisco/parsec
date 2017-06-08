@@ -22,7 +22,7 @@
  * Implementation of parsec_object_t, the base opal foundation class
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include <stdio.h>
 

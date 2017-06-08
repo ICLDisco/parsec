@@ -4,7 +4,7 @@
  *                         reserved.
  *
  */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "parsec/execution_unit.h"
 #include "parsec/utils/mca_param.h"

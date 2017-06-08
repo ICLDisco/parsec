@@ -1,7 +1,7 @@
 #ifndef MCA_REPOSITORY_H
 #define MCA_REPOSITORY_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 
 void mca_components_repository_init(void);

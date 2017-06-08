@@ -11,7 +11,7 @@
  *   @{
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #ifdef PARSEC_DEBUG_HISTORY
 

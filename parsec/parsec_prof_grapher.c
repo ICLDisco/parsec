@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec_prof_grapher.h"
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/parsec_binary_profile.h"

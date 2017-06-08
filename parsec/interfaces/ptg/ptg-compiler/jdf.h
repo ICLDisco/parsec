@@ -7,7 +7,7 @@
 #ifndef jdf_h
 #define jdf_h
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include <stdint.h>
 

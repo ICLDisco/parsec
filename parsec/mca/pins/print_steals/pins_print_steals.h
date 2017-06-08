@@ -1,7 +1,7 @@
 #ifndef PINS_PRINT_STEALS_H
 #define PINS_PRINT_STEALS_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/pins/pins.h"

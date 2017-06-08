@@ -9,7 +9,7 @@
 
 
 #include <core_blas.h>
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include "data_dist/matrix/matrix.h"
 #include "dplasma/lib/dplasmatypes.h"

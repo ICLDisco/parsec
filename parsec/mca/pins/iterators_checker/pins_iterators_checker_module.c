@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/pins/pins.h"
 #include "pins_iterators_checker.h"
 #include "parsec/profiling.h"

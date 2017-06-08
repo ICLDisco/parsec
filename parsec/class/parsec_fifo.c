@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include <parsec_config.h>
+#include "parsec/parsec_config.h"
 #include "parsec/class/fifo.h"
 
 OBJ_CLASS_INSTANCE(parsec_fifo_t, parsec_list_t,

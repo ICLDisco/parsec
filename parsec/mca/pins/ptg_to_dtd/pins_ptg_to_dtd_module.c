@@ -14,7 +14,7 @@
  * The main complextity here is to synchronize the 2 parsec_handle_t, the one that the upper
  * level is manipulation (possible waiting on), and the one we create for internal purposes.
  */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/pins/pins.h"
 #include "pins_ptg_to_dtd.h"
 #include "parsec/profiling.h"

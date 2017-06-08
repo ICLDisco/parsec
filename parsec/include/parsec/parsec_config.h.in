@@ -22,6 +22,8 @@
 #cmakedefine PARSEC_HAVE_ATTRIBUTE_ALWAYS_INLINE
 #cmakedefine PARSEC_HAVE_ATTRIBUTE_FORMAT_PRINTF
 
+#define PARSEC_HAVE_UINT128  @HAVE_UINT128b@
+
 /* Optional packages */
 #cmakedefine PARSEC_HAVE_HWLOC_BITMAP
 #cmakedefine PARSEC_HAVE_HWLOC_PARENT_MEMBER
@@ -46,6 +48,11 @@
 #define restrict
 #endif
 
-#include "parsec/parsec_flavor.h"
+/* We undefined the PARSEC_CONFIG_H_HAS_BEEN_INCLUDED #define so that the parsec_options.h
+ * can be loaded. This mechanism is only used durig the PaRSEC compilation, once installed
+ * the parsec_options.h will become the new parsec_config.h.
+ */
+#undef PARSEC_CONFIG_H_HAS_BEEN_INCLUDED
+#include "parsec/parsec_options.h"
 
-#endif  /*PARSEC_CONFIG_H_HAS_BEEN_INCLUDED */
+#endif  /* PARSEC_CONFIG_H_HAS_BEEN_INCLUDED */

@@ -8,7 +8,7 @@
 #define MCA_PINS_PAPI_H
 
 #include "parsec.h"
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/pins/pins.h"
 

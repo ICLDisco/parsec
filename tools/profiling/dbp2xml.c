@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #undef PARSEC_HAVE_MPI
 
 #include <stdlib.h>

@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/class/lifo.h"
 #include "parsec/constants.h"
 #include "parsec/devices/device.h"

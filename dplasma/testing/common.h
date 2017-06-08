@@ -8,7 +8,7 @@
 #define _TESTSCOMMON_H
 
 /* includes used by the testing_*.c */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 /* system and io */
 #include <stdlib.h>

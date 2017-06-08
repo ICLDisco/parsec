@@ -7,7 +7,7 @@
 #ifndef PARSEC_H_HAS_BEEN_INCLUDED
 #define PARSEC_H_HAS_BEEN_INCLUDED
 
-#include "parsec/parsec_flavor.h"
+#include "parsec/parsec_config.h"
 #include "parsec/debug.h"
 
 BEGIN_C_DECLS

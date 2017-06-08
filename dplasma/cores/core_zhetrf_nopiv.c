@@ -15,7 +15,7 @@
 
 #include <lapacke.h>
 #include <math.h>
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "dplasma_cores.h"
 #include "dplasma_zcores.h"
 

@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "vector.h"
 #include <stdarg.h>
 #include "parsec/debug.h"

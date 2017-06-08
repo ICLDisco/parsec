@@ -19,7 +19,7 @@
 #ifndef MCA_SCHED_LTQ_H
 #define MCA_SCHED_LTQ_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/sched/sched.h"
 

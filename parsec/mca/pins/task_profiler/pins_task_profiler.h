@@ -1,7 +1,7 @@
 #ifndef PINS_TASK_PROFILER_H
 #define PINS_TASK_PROFILER_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec.h"

@@ -10,7 +10,7 @@
  *
  */
 
-#include <parsec_config.h>
+#include "parsec/parsec_config.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -21,9 +21,9 @@
 #include <stdbool.h>
 #endif  /* defined(PARSEC_HAVE_STDBOOL_H) */
 
-#include <parsec/constants.h>
-#include <parsec/utils/installdirs.h>
-#include <parsec/utils/os_path.h>
+#include "parsec/constants.h"
+#include "parsec/utils/installdirs.h"
+#include "parsec/utils/os_path.h"
 
 parsec_install_dirs_t parsec_install_dirs = {
     NULL, /* prefix */

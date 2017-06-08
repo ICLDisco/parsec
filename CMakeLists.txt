@@ -728,11 +728,11 @@ add_subdirectory(examples)
 
 # Configuration header
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec_config.h.in"
-  "${PROJECT_INCLUDE_DIR}/parsec_config.h")
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_config.h.in"
+  "${PROJECT_INCLUDE_DIR}/parsec/parsec_config.h")
 configure_file (
-  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_flavor.h.in"
-  "${PROJECT_INCLUDE_DIR}/parsec/parsec_flavor.h")
+  "${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec/parsec_options.h.in"
+  "${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h")
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/include/parsec.h
@@ -748,8 +748,12 @@ install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/debug.h
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/private_mempool.h
-  ${PROJECT_INCLUDE_DIR}/parsec/parsec_flavor.h
   DESTINATION include/parsec)
+
+install(FILES
+  ${PROJECT_INCLUDE_DIR}/parsec/parsec_options.h
+  DESTINATION include/parsec
+  RENAME parsec_config.h)
 
 install(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h

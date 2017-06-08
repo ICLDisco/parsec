@@ -5,7 +5,7 @@
  */
 
 #include <assert.h>
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/class/hash_table.h"
 #include "parsec/class/list.h"
 #include <stdio.h>

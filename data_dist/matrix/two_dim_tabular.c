@@ -5,7 +5,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/debug.h"
 #include "data_dist/matrix/matrix.h"

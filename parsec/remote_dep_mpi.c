@@ -7,7 +7,7 @@
 /* /!\  THIS FILE IS NOT INTENDED TO BE COMPILED ON ITS OWN
  *      It should be included from remote_dep.c if PARSEC_HAVE_MPI is defined
  */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include <mpi.h>
 #include "profiling.h"

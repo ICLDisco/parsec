@@ -3,7 +3,7 @@
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #if defined(PARSEC_DEBUG_HISTORY)
 #include "parsec/debug_marks.h"

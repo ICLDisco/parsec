@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "mempool.h"
 #ifdef PARSEC_HAVE_STRING_H
 #include <string.h>

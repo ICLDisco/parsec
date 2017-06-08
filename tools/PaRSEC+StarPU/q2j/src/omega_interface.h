@@ -7,7 +7,7 @@
 #ifndef _OMEGA_INTERFACE_
 #define _OMEGA_INTERFACE_
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 BEGIN_C_DECLS
 

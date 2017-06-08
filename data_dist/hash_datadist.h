@@ -7,7 +7,7 @@
 #ifndef HASH_DATATIST_H
 #define HASH_DATATIST_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include <stdarg.h>
 #include <assert.h>

@@ -16,7 +16,7 @@
  * $HEADER$
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include "parsec/class/parsec_value_array.h"
 

@@ -7,7 +7,7 @@
 #ifndef ATOMIC_H_HAS_BEEN_INCLUDED
 #define ATOMIC_H_HAS_BEEN_INCLUDED
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include <stdint.h>
 #include <unistd.h>
 #include <assert.h>

@@ -4,7 +4,7 @@
  *                         reserved.
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 /**
  * Define ATOMIC_STATIC_INLINE to empty in order to generate the fallback implementation for
  * the atomic operations. We need to have this version to be able to compile and link

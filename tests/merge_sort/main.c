@@ -8,7 +8,7 @@
 #if !defined(_ISOC99_SOURCE)
 # define _ISOC99_SOURCE // for using strtol()
 #endif
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "merge_sort_wrapper.h"
 #if defined(PARSEC_HAVE_STRING_H)

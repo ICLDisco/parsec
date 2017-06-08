@@ -33,7 +33,7 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/parsec_internal.h"
 #include "parsec/scheduling.h"
 #include "parsec/remote_dep.h"

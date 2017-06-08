@@ -1,7 +1,7 @@
 #ifndef PINS_PTG_TO_DTD_H
 #define PINS_PTG_TO_DTD_H
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "parsec/mca/mca.h"
 #include "parsec/mca/pins/pins.h"
 #include "parsec.h"

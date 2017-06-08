@@ -8,7 +8,7 @@
  */
 
 #include <stdint.h>
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 #include "data_dist/matrix/two_dim_rectangle_cyclic.h"
 #include "parsec/data_internal.h"
 

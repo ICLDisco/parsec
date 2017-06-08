@@ -16,7 +16,7 @@
  * $HEADER$
  */
 
-#include "parsec_config.h"
+#include "parsec/parsec_config.h"
 
 #include <string.h>
 #ifdef PARSEC_HAVE_UNISTD_H
