@@ -116,7 +116,7 @@ uint32_t parsec_atomic_inc_32b(volatile uint32_t* l)
 ATOMIC_STATIC_INLINE
 uint32_t parsec_atomic_sub_32b(volatile int32_t* l, int32_t v)
 {
-    return v + atomic_fetch_sub((_Atomic uint32_t*)l, v);
+    return atomic_fetch_sub((_Atomic uint32_t*)l, v) - v;
 }
 
 #define PARSEC_ATOMIC_HAS_ATOMIC_DEC_32B
