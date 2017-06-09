@@ -210,7 +210,7 @@ static inline void set_my_mark(const char *newm) {
 
     do {
         oldm = marks->marks[mymark_idx];
-    } while( !parsec_atomic_cas_ptr( &marks->marks[mymark_idx], oldm, newm ) );
+    } while( !parsec_atomic_cas_ptr( &marks->marks[mymark_idx], oldm, (void*)newm ) );
     if( oldm != NULL )
         free(oldm);
 }
