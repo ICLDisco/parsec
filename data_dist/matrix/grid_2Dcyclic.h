@@ -6,7 +6,7 @@
 #ifndef __GRID_2DCYCLIC_H__
 #define __GRID_2DCYCLIC_H__
 
-#include "parsec/parsec_config_bottom.h"
+#include "parsec/parsec_config.h"
 
 BEGIN_C_DECLS
 
