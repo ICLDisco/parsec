@@ -9,6 +9,7 @@
 #include "parsec/debug.h"
 #include "parsec/sys/atomic.h"
 #include "parsec/hbbuffer.h"
+#include "parsec/maxheap.h"
 
 #include <stdlib.h>
 
