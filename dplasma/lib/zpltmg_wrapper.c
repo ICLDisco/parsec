@@ -122,7 +122,7 @@ dplasma_zpltmg_generic( parsec_context_t *parsec,
     if ( parsec_zpltmg != NULL )
     {
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zpltmg);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_map_Destruct( parsec_zpltmg );
         return 0;
     }
@@ -219,7 +219,7 @@ dplasma_zpltmg_genvect( parsec_context_t *parsec,
                                 parsec_datatype_double_complex_t, A->mb );
 
         parsec_enqueue(parsec, handle);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
 
         parsec_matrix_del2arena( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_DEFAULT_ARENA] );
         parsec_matrix_del2arena( handle_zpltmg->arenas[PARSEC_zpltmg_hankel_VECTOR_ARENA ] );

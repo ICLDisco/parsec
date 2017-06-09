@@ -91,7 +91,7 @@ dplasma_zgesv_incpiv( parsec_context_t *parsec,
     parsec_enqueue( parsec, parsec_ztrsmpl );
     parsec_enqueue( parsec, parsec_ztrsm   );
 
-    dplasma_progress( parsec );
+    dplasma_wait_until_completion( parsec );
 
     dplasma_zgetrf_incpiv_Destruct( parsec_zgetrf  );
     dplasma_ztrsmpl_Destruct( parsec_ztrsmpl );

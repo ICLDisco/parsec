@@ -199,7 +199,7 @@ dplasma_zlaset( parsec_context_t *parsec,
 
     if ( parsec_zlaset != NULL ) {
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlaset);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zlaset_Destruct( parsec_zlaset );
     }
     return 0;

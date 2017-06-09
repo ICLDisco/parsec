@@ -216,7 +216,7 @@ dplasma_zlanm2( parsec_context_t *parsec,
     if ( parsec_zlanm2 != NULL )
     {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlanm2);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zlanm2_Destruct( parsec_zlanm2 );
     }
 

@@ -279,7 +279,7 @@ dplasma_zlanhe( parsec_context_t *parsec,
     if ( parsec_zlanhe != NULL )
     {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlanhe);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zlanhe_Destruct( parsec_zlanhe );
     }
 

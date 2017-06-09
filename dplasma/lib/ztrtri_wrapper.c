@@ -220,7 +220,7 @@ dplasma_ztrtri( parsec_context_t *parsec,
     if ( parsec_ztrtri != NULL )
     {
         parsec_enqueue( parsec, parsec_ztrtri );
-        dplasma_progress( parsec );
+        dplasma_wait_until_completion( parsec );
         dplasma_ztrtri_Destruct( parsec_ztrtri );
         return info;
     }

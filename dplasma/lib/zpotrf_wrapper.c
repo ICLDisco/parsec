@@ -238,7 +238,7 @@ dplasma_zpotrf( parsec_context_t *parsec,
     if ( parsec_zpotrf != NULL )
     {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpotrf);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zpotrf_Destruct( parsec_zpotrf );
     }
 
@@ -315,7 +315,7 @@ dplasma_zpotrf_rec( parsec_context_t *parsec,
     {
         dplasma_zpotrf_setrecursive( (parsec_handle_t*)parsec_zpotrf, hmb );
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpotrf);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zpotrf_Destruct( parsec_zpotrf );
         parsec_handle_sync_ids(); /* recursive DAGs are not synchronous on ids */
     }

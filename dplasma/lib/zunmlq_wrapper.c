@@ -335,7 +335,7 @@ dplasma_zunmlq( parsec_context_t *parsec,
 
     if ( parsec_zunmlq != NULL ){
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zunmlq);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zunmlq_Destruct( parsec_zunmlq );
     }
     return 0;

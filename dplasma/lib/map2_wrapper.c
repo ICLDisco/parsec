@@ -286,7 +286,7 @@ dplasma_map2( parsec_context_t *parsec,
     if ( parsec_map2 != NULL )
     {
         parsec_enqueue( parsec, parsec_map2 );
-        dplasma_progress( parsec );
+        dplasma_wait_until_completion( parsec );
         dplasma_map2_Destruct( parsec_map2 );
     }
 

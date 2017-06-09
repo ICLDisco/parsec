@@ -93,7 +93,7 @@ dplasma_zposv( parsec_context_t *parsec,
     parsec_enqueue( parsec, parsec_ztrsm1 );
     parsec_enqueue( parsec, parsec_ztrsm2 );
 
-    dplasma_progress( parsec );
+    dplasma_wait_until_completion( parsec );
 
     dplasma_zpotrf_Destruct( parsec_zpotrf );
     dplasma_ztrsm_Destruct( parsec_ztrsm1 );

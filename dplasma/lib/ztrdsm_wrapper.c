@@ -131,7 +131,7 @@ dplasma_ztrdsm( parsec_context_t *parsec,
 
     if ( parsec_ztrdsm != NULL ) {
         parsec_enqueue( parsec, parsec_ztrdsm );
-        dplasma_progress( parsec );
+        dplasma_wait_until_completion( parsec );
 
         dplasma_ztrdsm_Destruct( parsec_ztrdsm );
     }

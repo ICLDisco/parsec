@@ -200,7 +200,7 @@ dplasma_zplgsy( parsec_context_t *parsec,
 
     if ( parsec_zplgsy != NULL ) {
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplgsy);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zplgsy_Destruct( parsec_zplgsy );
     }
     return 0;

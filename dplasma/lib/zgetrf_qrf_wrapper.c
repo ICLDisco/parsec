@@ -443,7 +443,7 @@ dplasma_zgetrf_qrf( parsec_context_t *parsec,
     parsec_zgetrf_qrf = dplasma_zgetrf_qrf_New(qrtree, A, IPIV, TS, TT, criteria, alpha, lu_tab, INFO);
 
     parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgetrf_qrf);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
 
     dplasma_zgetrf_qrf_Destruct( parsec_zgetrf_qrf );
     return 0;

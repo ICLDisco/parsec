@@ -240,7 +240,7 @@ dplasma_zgelqf( parsec_context_t *parsec,
 
     if ( parsec_zgelqf != NULL ) {
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgelqf);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zgelqf_Destruct( parsec_zgelqf );
     }
 

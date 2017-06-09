@@ -168,7 +168,7 @@ dplasma_zgetrf_nopiv( parsec_context_t *parsec,
 
     if ( parsec_zgetrf_nopiv != NULL ) {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zgetrf_nopiv);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zgetrf_nopiv_Destruct( parsec_zgetrf_nopiv );
         return info;
     }

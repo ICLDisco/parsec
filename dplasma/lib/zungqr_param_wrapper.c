@@ -288,7 +288,7 @@ dplasma_zungqr_param( parsec_context_t *parsec,
 
     if ( parsec_zungqr != NULL ){
         parsec_enqueue(parsec, parsec_zungqr);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zungqr_param_Destruct( parsec_zungqr );
     }
     return 0;

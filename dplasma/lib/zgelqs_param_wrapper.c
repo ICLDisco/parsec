@@ -114,7 +114,7 @@ dplasma_zgelqs_param( parsec_context_t *parsec,
     parsec_enqueue( parsec, parsec_ztrsm );
     parsec_enqueue( parsec, parsec_zunmlq );
 
-    dplasma_progress( parsec );
+    dplasma_wait_until_completion( parsec );
 
     dplasma_ztrsm_Destruct( parsec_ztrsm );
     dplasma_ztrsm_Destruct( parsec_zunmlq );

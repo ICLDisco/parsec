@@ -294,7 +294,7 @@ dplasma_zgetrf_incpiv( parsec_context_t *parsec,
 
     if ( parsec_zgetrf_incpiv != NULL ) {
         parsec_enqueue( parsec, parsec_zgetrf_incpiv );
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zgetrf_incpiv_Destruct( parsec_zgetrf_incpiv );
         return info;
     }

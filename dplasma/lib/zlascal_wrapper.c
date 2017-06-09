@@ -215,7 +215,7 @@ dplasma_zlascal( parsec_context_t     *parsec,
 
     if ( parsec_zlascal != NULL ) {
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zlascal);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zlascal_Destruct( parsec_zlascal );
     }
     return 0;

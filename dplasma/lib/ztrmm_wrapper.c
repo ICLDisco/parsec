@@ -308,7 +308,7 @@ dplasma_ztrmm( parsec_context_t *parsec,
     if ( parsec_ztrmm != NULL )
     {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_ztrmm);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_ztrmm_Destruct( parsec_ztrmm );
         return 0;
     }

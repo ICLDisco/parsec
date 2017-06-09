@@ -194,7 +194,7 @@ dplasma_zpoinv( parsec_context_t *parsec,
     if ( parsec_zpoinv != NULL )
     {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zpoinv);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zpoinv_Destruct( parsec_zpoinv );
     }
 

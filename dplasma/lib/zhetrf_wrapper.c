@@ -105,13 +105,13 @@ int dplasma_zhetrf(parsec_context_t *parsec, tiled_matrix_desc_t *A)
 
     parsec_zhetrf = dplasma_zhetrf_New(A, &info);
     parsec_enqueue(parsec, (parsec_handle_t *)parsec_zhetrf);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
     dplasma_zhetrf_Destruct(parsec_zhetrf);
 
     /*
     parsec_ztrmdm = dplasma_ztrmdm_New(A);
     parsec_enqueue(parsec, (parsec_handle_t *)parsec_ztrmdm);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
     dplasma_ztrmdm_Destruct(parsec_ztrmdm);
     */
 

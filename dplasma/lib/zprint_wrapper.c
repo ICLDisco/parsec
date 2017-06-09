@@ -77,7 +77,7 @@ int dplasma_zprint( parsec_context_t *parsec,
                                 parsec_datatype_double_complex_t, A->mb );
 
         parsec_enqueue(parsec, (parsec_handle_t*)handle);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
 
         parsec_matrix_del2arena( handle->arenas[PARSEC_zprint_DEFAULT_ARENA] );
         PARSEC_INTERNAL_HANDLE_DESTRUCT( handle );

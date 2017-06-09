@@ -203,7 +203,7 @@ dplasma_zlauum( parsec_context_t *parsec,
     if ( parsec_zlauum != NULL )
     {
         parsec_enqueue( parsec, parsec_zlauum );
-        dplasma_progress( parsec );
+        dplasma_wait_until_completion( parsec );
         dplasma_zlauum_Destruct( parsec_zlauum );
         return 0;
     }

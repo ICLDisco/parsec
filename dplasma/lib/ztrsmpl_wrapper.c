@@ -249,7 +249,7 @@ dplasma_ztrsmpl( parsec_context_t *parsec,
     if ( parsec_ztrsmpl != NULL )
     {
         parsec_enqueue( parsec, parsec_ztrsmpl );
-        dplasma_progress( parsec );
+        dplasma_wait_until_completion( parsec );
         dplasma_ztrsmpl_Destruct( parsec_ztrsmpl );
         return 0;
     }

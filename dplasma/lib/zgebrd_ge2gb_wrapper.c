@@ -546,7 +546,7 @@ dplasma_zgebrd_ge2gbx( parsec_context_t *parsec, int ib,
                                                    A, TS0, TT0, TS, TT, Band);
 
     parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgebrd_ge2gb);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
 
     dplasma_zgebrd_ge2gbx_Destruct( parsec_zgebrd_ge2gb );
 
@@ -630,7 +630,7 @@ dplasma_zgebrd_ge2gb( parsec_context_t *parsec, int ib,
     parsec_zgebrd_ge2gb = dplasma_zgebrd_ge2gb_New(ib, A, Band);
 
     parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgebrd_ge2gb);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
 
     dplasma_zgebrd_ge2gb_Destruct( parsec_zgebrd_ge2gb );
 

@@ -229,7 +229,7 @@ dplasma_map( parsec_context_t *parsec,
     if ( parsec_map != NULL )
     {
         parsec_enqueue( parsec, parsec_map );
-        dplasma_progress( parsec );
+        dplasma_wait_until_completion( parsec );
         dplasma_map_Destruct( parsec_map );
     }
 

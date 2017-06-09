@@ -251,7 +251,7 @@ dplasma_zsyrk( parsec_context_t *parsec,
     if ( parsec_zsyrk != NULL )
     {
         parsec_enqueue( parsec, parsec_zsyrk);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zsyrk_Destruct( parsec_zsyrk );
     }
     return 0;

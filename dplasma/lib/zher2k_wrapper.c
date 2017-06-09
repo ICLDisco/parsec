@@ -291,7 +291,7 @@ dplasma_zher2k( parsec_context_t *parsec,
     if ( parsec_zher2k != NULL )
     {
         parsec_enqueue( parsec, parsec_zher2k);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zher2k_Destruct( parsec_zher2k );
     }
     return 0;

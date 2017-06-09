@@ -296,7 +296,7 @@ dplasma_zlantr( parsec_context_t *parsec,
     if ( parsec_zlantr != NULL )
     {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlantr);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zlantr_Destruct( parsec_zlantr );
     }
 

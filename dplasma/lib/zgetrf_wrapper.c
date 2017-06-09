@@ -235,7 +235,7 @@ dplasma_zgetrf( parsec_context_t *parsec,
 
     if ( parsec_zgetrf != NULL ) {
         parsec_enqueue( parsec, parsec_zgetrf );
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zgetrf_Destruct( parsec_zgetrf );
         return info;
     }

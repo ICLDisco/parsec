@@ -430,7 +430,7 @@ int dplasma_zhebut(parsec_context_t *parsec, tiled_matrix_desc_t *A, PLASMA_Comp
 
         subop = (parsec_handle_t **)malloc((nbhe+nbge) * sizeof(parsec_handle_t*));
         (void)iterate_ops(A, 0, cur_level, 0, 0, subop, parsec, U_but_vec, CREATE_N_ENQUEUE, &info);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         (void)iterate_ops(A, 0, cur_level, 0, 0, subop, parsec, NULL, DESTRUCT, &info);
         free(subop);
 

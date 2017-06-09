@@ -43,7 +43,7 @@ static void multilevel_zgebmm(parsec_context_t *parsec, tiled_matrix_desc_t* B, 
             }
         }
 
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
 
         for(i_block=0; i_block < block_count; i_block++){
             for(j_block=0; j_block < block_count; j_block++){

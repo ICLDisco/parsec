@@ -105,7 +105,7 @@ dplasma_zger_internal( parsec_context_t *parsec,
     if ( parsec_zger != NULL )
     {
         parsec_enqueue( parsec, parsec_zger);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zger_internal_Destruct( parsec_zger );
         return 0;
     }

@@ -196,7 +196,7 @@ dplasma_zplghe( parsec_context_t *parsec,
 
     if ( parsec_zplghe != NULL ) {
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplghe);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zplghe_Destruct( parsec_zplghe );
     }
     return 0;

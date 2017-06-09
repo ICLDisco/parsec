@@ -197,7 +197,7 @@ dplasma_zplrnt( parsec_context_t *parsec,
     parsec_zplrnt = dplasma_zplrnt_New(diagdom, A, seed);
 
     parsec_enqueue(parsec, (parsec_handle_t*)parsec_zplrnt);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
 
     dplasma_zplrnt_Destruct( parsec_zplrnt );
     return 0;

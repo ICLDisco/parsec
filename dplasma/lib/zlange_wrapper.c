@@ -280,7 +280,7 @@ dplasma_zlange( parsec_context_t *parsec,
     if ( parsec_zlange != NULL )
     {
         parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlange);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zlange_Destruct( parsec_zlange );
     }
 

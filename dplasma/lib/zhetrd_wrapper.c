@@ -91,7 +91,7 @@ dplasma_zhetrd( parsec_context_t* parsec,
     parsec_enqueue( parsec, (parsec_handle_t*)h2b );
     parsec_enqueue( parsec, (parsec_handle_t*)band2rect );
     parsec_enqueue( parsec, (parsec_handle_t*)b2s );
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
 
 cleanup:
     if( h2b ) PARSEC_INTERNAL_HANDLE_DESTRUCT( h2b );

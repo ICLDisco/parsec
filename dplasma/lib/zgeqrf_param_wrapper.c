@@ -265,7 +265,7 @@ dplasma_zgeqrf_param( parsec_context_t *parsec,
     parsec_zgeqrf_param = dplasma_zgeqrf_param_New(qrtree, A, TS, TT);
 
     parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgeqrf_param);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
 
     dplasma_zgeqrf_param_Destruct( parsec_zgeqrf_param );
 

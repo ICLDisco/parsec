@@ -164,7 +164,7 @@ dplasma_zlaswp( parsec_context_t *parsec,
     parsec_zlaswp = dplasma_zlaswp_New(A, IPIV, inc);
 
     parsec_enqueue( parsec, (parsec_handle_t*)parsec_zlaswp);
-    dplasma_progress(parsec);
+    dplasma_wait_until_completion(parsec);
 
     dplasma_zlaswp_Destruct( parsec_zlaswp );
 

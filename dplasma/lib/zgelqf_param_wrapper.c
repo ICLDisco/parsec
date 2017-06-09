@@ -266,7 +266,7 @@ dplasma_zgelqf_param( parsec_context_t *parsec,
 
     if (parsec_zgelqf_param != NULL) {
         parsec_enqueue(parsec, (parsec_handle_t*)parsec_zgelqf_param);
-        dplasma_progress(parsec);
+        dplasma_wait_until_completion(parsec);
         dplasma_zgelqf_param_Destruct( parsec_zgelqf_param );
         return 0;
     }
