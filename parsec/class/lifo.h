@@ -65,7 +65,7 @@ parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
 typedef union parsec_counted_pointer_u {
     struct {
         /** update counter used when cmpset_128 is available */
-        uint64_t counter;
+        uint64_t            counter;
         /** list item pointer */
         parsec_list_item_t *item;
     } data;
@@ -78,7 +78,7 @@ typedef union parsec_counted_pointer_u {
 
 struct parsec_lifo_s {
     parsec_object_t           super;
-    uint8_t                  alignment;
+    uint8_t                   alignment;
     parsec_list_item_t       *lifo_ghost;
     parsec_counted_pointer_t  lifo_head;
 };
@@ -205,15 +205,16 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
  * list (if the list was empty before this operation).
  */
 static inline void parsec_lifo_push(parsec_lifo_t *lifo,
-                                   parsec_list_item_t *item)
+                                    parsec_list_item_t *item)
 {
+    PARSEC_ITEM_ATTACH(lifo, item);
     /* item free acts as a mini lock to avoid ABA problems */
     item->aba_key = 1;
-     do {
+    do {
         parsec_list_item_t *next = (parsec_list_item_t *) lifo->lifo_head.data.item;
         item->list_next = next;
         parsec_atomic_wmb();
-         if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item) ) {
+        if( parsec_atomic_cas_ptr(&lifo->lifo_head.data.item, next, item) ) {
             parsec_atomic_wmb();
             /* now safe to pop this item */
             item->aba_key = 0;
@@ -392,7 +393,7 @@ static inline parsec_list_item_t* parsec_lifo_try_pop( parsec_lifo_t* lifo )
 #endif  /* defined(PARSEC_ATOMIC_HAS_ATOMIC_CAS_128B)) */
 
 static inline void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
-                                           parsec_list_item_t* item )
+                                            parsec_list_item_t* item )
 {
 #if defined(PARSEC_DEBUG_PARANOID)
     assert( (uintptr_t)item % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );
@@ -404,7 +405,7 @@ static inline void parsec_lifo_nolock_push( parsec_lifo_t* lifo,
 }
 
 static inline void parsec_lifo_nolock_chain( parsec_lifo_t* lifo,
-                                            parsec_list_item_t* items )
+                                             parsec_list_item_t* items )
 {
 #if defined(PARSEC_DEBUG_PARANOID)
     assert( (uintptr_t)items % PARSEC_LIFO_ALIGNMENT(lifo) == 0 );

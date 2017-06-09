@@ -175,14 +175,14 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
 
 /* This is debu helpers for list items accounting */
 #if defined(PARSEC_DEBUG_PARANOID)
-#define PARSEC_ITEMS_VALIDATE(ITEMS)                                     \
+#define PARSEC_ITEMS_VALIDATE(ITEMS)                                    \
     do {                                                                \
-        parsec_list_item_t *__end = (ITEMS);                             \
-        int _number; parsec_list_item_t *__item;                         \
-        for(_number=0, __item = (parsec_list_item_t*)__end->list_next;   \
+        parsec_list_item_t *__end = (ITEMS);                            \
+        int _number; parsec_list_item_t *__item;                        \
+        for(_number=0, __item = (parsec_list_item_t*)__end->list_next;  \
             __item != __end;                                            \
-            __item = (parsec_list_item_t*)__item->list_next ) {          \
-            assert( (__item->refcount == 0) || (__item->refcount == 1) );\
+            __item = (parsec_list_item_t*)__item->list_next ) {         \
+            assert( (__item->refcount == 0) || (__item->refcount == 1) ); \
             assert( __end->refcount == __item->refcount );              \
             if( __item->refcount == 1 )                                 \
                 assert(__item->belong_to == __end->belong_to);          \
@@ -190,30 +190,30 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
         }                                                               \
     } while(0)
 
-#define PARSEC_ITEM_ATTACH(LIST, ITEM)                                   \
+#define PARSEC_ITEM_ATTACH(LIST, ITEM)                                  \
     do {                                                                \
-        parsec_list_item_t *_item_ = (ITEM);                             \
+        parsec_list_item_t *_item_ = (ITEM);                            \
         _item_->refcount++;                                             \
         assert( 1 == _item_->refcount );                                \
         _item_->belong_to = (LIST);                                     \
     } while(0)
 
-#define PARSEC_ITEMS_ATTACH(LIST, ITEMS)                                 \
+#define PARSEC_ITEMS_ATTACH(LIST, ITEMS)                                \
     do {                                                                \
-        parsec_list_item_t *_item = (ITEMS);                             \
+        parsec_list_item_t *_item = (ITEMS);                            \
         assert( (void*)0xdeadbeef != _item->list_next );                \
         assert( (void*)0xdeadbeef != _item->list_prev );                \
         parsec_list_item_t *_end = (parsec_list_item_t *)_item->list_prev; \
         do {                                                            \
-            PARSEC_ITEM_ATTACH(LIST, _item);                             \
-            _item = (parsec_list_item_t*)_item->list_next;               \
+            PARSEC_ITEM_ATTACH(LIST, _item);                            \
+            _item = (parsec_list_item_t*)_item->list_next;              \
         } while(_item != _end->list_next);                              \
     } while(0)
 
-#define PARSEC_ITEM_DETACH(ITEM)                                         \
+#define PARSEC_ITEM_DETACH(ITEM)                                        \
     do {                                                                \
-        parsec_list_item_t *_item = (ITEM);                              \
-        /* check for not poping the ghost element, doesn't work for atomic_lifo */\
+        parsec_list_item_t *_item = (ITEM);                             \
+        /* check for not poping the ghost element */\
         assert( _item->belong_to != (void*)_item );                     \
         _item->list_prev = (void*)0xdeadbeef;                           \
         _item->list_next = (void*)0xdeadbeef;                           \
