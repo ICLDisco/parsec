@@ -13,6 +13,7 @@
 #include "parsec/vpmap.h"
 #include "parsec/debug.h"
 
+#include <string.h>
 #include <assert.h>
 
 typedef struct {

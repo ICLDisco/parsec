@@ -230,6 +230,8 @@ static int tree_dist_unregister_memory(parsec_ddesc_t* desc, struct parsec_devic
 #ifdef PARSEC_PROF_TRACE
 static int tree_dist_key_to_string(parsec_ddesc_t *desc, parsec_data_key_t key, char * buffer, uint32_t buffer_size)
 {
+    (void)desc;
+    (void)key;
     if( buffer_size > 0 )
         buffer[0] = '\0';
     return PARSEC_SUCCESS;

@@ -147,7 +147,7 @@ int main(int argc, char ** argv)
 
         int m, n, k;
         int ldam, ldak, ldbn, ldbk, ldcm;
-        int tempmm, tempnn, tempkn, tempkm;
+        int tempmm, tempnn, tempkn;
 
         parsec_complex64_t zbeta;
         parsec_complex64_t zone = (parsec_complex64_t)1.0;
@@ -227,7 +227,6 @@ int main(int argc, char ** argv)
                 else {
                     if( tB == PlasmaNoTrans ) {
                         for( k = 0; k < ddescA.super.mt; k++ ) {
-                            tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-k*ddescA.super.mb : ddescA.super.mb;
                             ldak = BLKLDD(&ddescA.super, k);
                             ldbk = BLKLDD(&ddescB.super, k);
                             zbeta = k == 0 ? beta : zone;
@@ -255,7 +254,6 @@ int main(int argc, char ** argv)
                     else {
                         ldbn = BLKLDD(&ddescB.super, n);
                         for( k = 0; k < ddescA.super.mt; k++ ) {
-                            tempkm = k == ddescA.super.mt-1 ? ddescA.super.m-k*ddescA.super.mb : ddescA.super.mb;
                             ldak = BLKLDD(&ddescA.super, k);
                             zbeta = k == 0 ? beta : zone;
 

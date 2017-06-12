@@ -798,7 +798,8 @@ void parsec_abort(parsec_context_t* ctx, int status)
 #if defined(PARSEC_PROF_TRACE)
 static void parsec_mempool_stats(parsec_context_t *context)
 {
-    int i, t, p;
+    int i, p;
+    unsigned int t;
     size_t m_usage;
     char meminfo[128];
     parsec_vp_t *vp;
@@ -811,7 +812,7 @@ static void parsec_mempool_stats(parsec_context_t *context)
         for(t = 0; t < mp->nb_thread_mempools; t++)
             m_usage += mp->thread_mempools[t].nb_elt * mp->elt_size;
     }
-    snprintf(meminfo, 128, "MEMPOOL - Contexts - %llu bytes", m_usage);
+    snprintf(meminfo, 128, "MEMPOOL - Contexts - %zu bytes", m_usage);
     parsec_profiling_add_information("MEMORY_USAGE", meminfo);
         
     m_usage = 0;
@@ -823,7 +824,7 @@ static void parsec_mempool_stats(parsec_context_t *context)
                 m_usage += mp->thread_mempools[t].nb_elt * mp->elt_size;
         }
     }
-    snprintf(meminfo, 128, "MEMPOOL - DataRepos - %llu bytes", m_usage);
+    snprintf(meminfo, 128, "MEMPOOL - DataRepos - %zu bytes", m_usage);
     parsec_profiling_add_information("MEMORY_USAGE", meminfo);
 
     m_usage = 0;
@@ -833,7 +834,7 @@ static void parsec_mempool_stats(parsec_context_t *context)
         for(t = 0; t < mp->nb_thread_mempools; t++)
             m_usage += mp->thread_mempools[t].nb_elt * mp->elt_size;
     }
-    snprintf(meminfo, 128, "MEMPOOL - Dependencies - %llu bytes", m_usage);
+    snprintf(meminfo, 128, "MEMPOOL - Dependencies - %zu bytes", m_usage);
     parsec_profiling_add_information("MEMORY_USAGE", meminfo);
 }
 #endif

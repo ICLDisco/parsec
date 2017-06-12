@@ -11,6 +11,7 @@
 #include "parsec/data_internal.h"
 #include "parsec/debug.h"
 
+#include <string.h>
 #include <assert.h>
 
 typedef struct {
