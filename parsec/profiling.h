@@ -8,10 +8,7 @@
 #define _PARSEC_profiling_h
 
 #include <stdint.h>
-#include <stdio.h>
 #include <stddef.h>
-#include <string.h>
-#include <stdlib.h>
 
 /**
  * @defgroup parsec_public_profiling Tracing System
@@ -405,15 +402,7 @@ void parsec_profiling_disable(void);
  * @param[in] value the value to use in the key/value pair
  * @remark not thread safe
  */
-static inline void
-profiling_save_dinfo(const char *key, double value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%g", value);
-    (void)rv;
-    parsec_profiling_add_information(key, svalue);
-    free(svalue);
-}
+void profiling_save_dinfo(const char *key, double value);
 
 /**
  * @brief Record a key/value pair in the profile with an integer value
@@ -422,15 +411,7 @@ profiling_save_dinfo(const char *key, double value)
  * @param[in] value the value to use in the key/value pair
  * @remark not thread safe
  */
-static inline void
-profiling_save_iinfo(const char *key, int value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%d", value);
-    (void)rv;
-    parsec_profiling_add_information(key, svalue);
-    free(svalue);
-}
+void profiling_save_iinfo(const char *key, int value);
 
 /**
  * @brief Record a key/value pair in the profile with a long long integer value
@@ -439,15 +420,7 @@ profiling_save_iinfo(const char *key, int value)
  * @param[in] value the value to use in the key/value pair
  * @remark not thread safe
  */
-static inline void
-profiling_save_uint64info(const char *key, unsigned long long int value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%llu", value);
-    (void)rv;
-    parsec_profiling_add_information(key, svalue);
-    free(svalue);
-}
+void profiling_save_uint64info(const char *key, unsigned long long int value);
 
 /**
  * @brief Record a key/value pair in the profile with a string value
@@ -456,11 +429,7 @@ profiling_save_uint64info(const char *key, unsigned long long int value)
  * @param[in] value the value to use in the key/value pair
  * @remark not thread safe
  */
-static inline void
-profiling_save_sinfo(const char *key, char* svalue)
-{
-    parsec_profiling_add_information(key, svalue);
-}
+void profiling_save_sinfo(const char *key, char* svalue);
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with a double value
@@ -470,16 +439,8 @@ profiling_save_sinfo(const char *key, char* svalue)
  * @param[in] value the value to use in the key/value pair
  * @remark thread safe
  */
-static inline void
-profiling_thread_save_dinfo(parsec_thread_profiling_t * thread,
-                            const char *key, double value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%g", value);
-    (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
-    free(svalue);
-}
+void profiling_thread_save_dinfo(parsec_thread_profiling_t * thread,
+                                 const char *key, double value);
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with an integer value
@@ -489,16 +450,8 @@ profiling_thread_save_dinfo(parsec_thread_profiling_t * thread,
  * @param[in] value the value to use in the key/value pair
  * @remark thread safe
  */
-static inline void
-profiling_thread_save_iinfo(parsec_thread_profiling_t * thread,
-                            const char *key, int value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%d", value);
-    (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
-    free(svalue);
-}
+void profiling_thread_save_iinfo(parsec_thread_profiling_t * thread,
+                                 const char *key, int value);
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with a long long integer value
@@ -508,16 +461,8 @@ profiling_thread_save_iinfo(parsec_thread_profiling_t * thread,
  * @param[in] value the value to use in the key/value pair
  * @remark thread safe
  */
-static inline void
-profiling_thread_save_uint64info(parsec_thread_profiling_t * thread,
-                                 const char *key, unsigned long long int value)
-{
-    char *svalue;
-    int rv=asprintf(&svalue, "%llu", value);
-    (void)rv;
-    parsec_profiling_thread_add_information(thread, key, svalue);
-    free(svalue);
-}
+void profiling_thread_save_uint64info(parsec_thread_profiling_t * thread,
+                                      const char *key, unsigned long long int value);
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with a string value
@@ -527,12 +472,8 @@ profiling_thread_save_uint64info(parsec_thread_profiling_t * thread,
  * @param[in] value the value to use in the key/value pair
  * @remark thread safe
  */
-static inline void
-profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
-                            const char *key, char* svalue)
-{
-    parsec_profiling_thread_add_information(thread, key, svalue);
-}
+void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,
+                                 const char *key, char* svalue);
 
 /** @cond DONT_DOCUMENT */
 #if defined(PARSEC_PROF_TRACE)
