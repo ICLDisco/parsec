@@ -632,6 +632,11 @@ IF (CMAKE_Fortran_COMPILER_WORKS)
     set (CMAKE_Fortran_FLAGS_RELEASE "-O2")
     set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g")
   endif (${CMAKE_Fortran_COMPILER_ID} STREQUAL "GNU")
+
+# Coherce CMake to install the generated .mod files
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/parsec/mod_files)
+install(DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY}/ DESTINATION include)
+
 ENDIF (CMAKE_Fortran_COMPILER_WORKS)
 
 #
