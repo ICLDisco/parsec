@@ -7,6 +7,8 @@
 #ifndef DATA_H_HAS_BEEN_INCLUDED
 #define DATA_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
+
 /** @defgroup parsec_internal_data Data
  *  @ingroup parsec_internal
  *    Data objects represent the meta-information associated to each
