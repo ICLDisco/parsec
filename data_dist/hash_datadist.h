@@ -15,6 +15,8 @@
 #include "parsec/data_distribution.h"
 #include "parsec/data_internal.h"
 
+BEGIN_C_DECLS
+
 typedef struct parsec_hash_datadist_entry_s {
     uint32_t      key;  /**< Unique key */
     parsec_data_t *data; /**< pointer to data meta information (if allocated) */
@@ -67,5 +69,7 @@ void parsec_hash_datadist_destroy(parsec_hash_datadist_t *d);
  * @PARAM [IN] size: the size in bytes of this data element
  */
 void parsec_hash_datadist_set_data(parsec_hash_datadist_t *d, void *actual_data, uint32_t key, int vpid, int rank, uint32_t size);
+
+END_C_DECLS
 
 #endif /* HASH_DATATIST_H */

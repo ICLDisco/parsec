@@ -9,6 +9,8 @@
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/grid_2Dcyclic.h"
 
+BEGIN_C_DECLS
+
 /*
  * Symmetrical matrix. 2D block cyclic distribution, lower tiles distributed only
  *
@@ -110,5 +112,7 @@ static inline size_t sym_twoDBC_coordinates_to_position(sym_two_dim_block_cyclic
     }
     return pos;
 }
+
+END_C_DECLS
 
 #endif /* __TWO_DIM_RECTANGLE_CYCLIC_H__*/

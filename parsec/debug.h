@@ -16,10 +16,13 @@
  *  @{
  */
 
+#include "parsec/parsec_config.h"
 #include "parsec/utils/output.h"
 
 #include <stdlib.h>
 #include <stdio.h>
+
+BEGIN_C_DECLS
 
 /**
  * Control debug output and verbosity
@@ -138,6 +141,8 @@ void parsec_debug_backtrace_dump(void);
 #else
 #define PARSEC_DEBUG_VERBOSE(...) do{} while(0)
 #endif /* defined(PARSEC_DEBUG_VERBOSE) */
+
+END_C_DECLS
 
 /** @} */
 

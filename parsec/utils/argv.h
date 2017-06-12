@@ -31,6 +31,8 @@
 #ifndef PARSEC_ARGV_H
 #define PARSEC_ARGV_H
 
+#include "parsec/parsec_config.h"
+
 #ifdef PARSEC_HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif

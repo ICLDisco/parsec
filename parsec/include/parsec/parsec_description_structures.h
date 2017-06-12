@@ -7,6 +7,11 @@
 #ifndef PARSEC_DESCRIPTION_STRUCTURES_H_HAS_BEEN_INCLUDED
 #define PARSEC_DESCRIPTION_STRUCTURES_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
+#include "parsec/datatype.h"
+
+BEGIN_C_DECLS
+
 typedef struct assignment_s assignment_t;
 typedef struct expr_s expr_t;
 typedef struct parsec_flow_s parsec_flow_t;
@@ -14,9 +19,6 @@ typedef struct dep_s dep_t;
 typedef struct symbol_s symbol_t;
 
 struct parsec_handle_s;
-#include "parsec/datatype.h"
-
-BEGIN_C_DECLS
 
 /**
  * Assignments

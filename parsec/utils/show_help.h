@@ -89,6 +89,8 @@
 #ifndef PARSEC_SHOW_HELP_H
 #define PARSEC_SHOW_HELP_H
 
+#include "parsec/parsec_config.h"
+
 #include <stdarg.h>
 #ifdef PARSEC_HAVE_STDBOOL_H
 #include <stdbool.h>

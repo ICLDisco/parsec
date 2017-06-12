@@ -7,8 +7,12 @@
 #ifndef _ZONE_MALLOC_H_
 #define _ZONE_MALLOC_H_
 
+#include "parsec/parsec_config.h"
+
 #include <stdlib.h>
 #include <assert.h>
+
+BEGIN_C_DECLS
 
 #define SEGMENT_EMPTY      1
 #define SEGMENT_FULL       2
@@ -52,5 +56,7 @@ void *zone_malloc(zone_malloc_t *gdata, size_t size);
  * merged with similar memory zones surrounding its position.
  */
 void zone_free(zone_malloc_t *gdata, void *add);
+
+END_C_DECLS
 
 #endif /* _ZONE_MALLOC_H_ */

@@ -7,9 +7,12 @@
 #ifndef PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
 #define PARSEC_LIST_ITEM_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/parsec_object.h"
 #include <stdlib.h>
 #include <assert.h>
+
+BEGIN_C_DECLS
 
 typedef struct parsec_list_item_s {
     parsec_object_t  super;
@@ -226,6 +229,8 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
 #define PARSEC_ITEMS_ATTACH(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
 #define PARSEC_ITEM_DETACH(ITEM) do { (void)(ITEM); } while(0)
 #endif  /* PARSEC_DEBUG_PARANOID */
+
+END_C_DECLS
 
 #endif
 

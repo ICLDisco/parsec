@@ -9,6 +9,8 @@
 #include "data_dist/matrix/matrix.h"
 #include "data_dist/matrix/grid_2Dcyclic.h"
 
+BEGIN_C_DECLS
+
 /*******************************************************************
  * distributed data vector and basic functionalities
  *******************************************************************/
@@ -54,5 +56,7 @@ void vector_two_dim_cyclic_init(vector_two_dim_cyclic_t * vdesc,
 void vector_two_dim_cyclic_supertiled_view( vector_two_dim_cyclic_t* target,
                                             vector_two_dim_cyclic_t* origin,
                                             int rst );
+
+END_C_DECLS
 
 #endif /* __VECTOR_TWO_DIM_CYCLIC_H__*/

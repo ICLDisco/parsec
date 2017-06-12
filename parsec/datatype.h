@@ -1,11 +1,13 @@
-#ifndef PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
-#define PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
 /*
  * Copyright (c) 2015-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
+#ifndef PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
+#define PARSEC_DATATYPE_H_HAS_BEEN_INCLUDED
+
+#include "parsec/parsec_config.h"
 #include "parsec/constants.h"
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>

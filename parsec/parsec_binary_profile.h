@@ -16,10 +16,13 @@
  * @{
  */
 
+#include "parsec/parsec_config.h"
 #include <inttypes.h>
 #include <pthread.h>
 
 #include "parsec/class/list.h"
+
+BEGIN_C_DECLS
 
 typedef struct parsec_profiling_output_base_event_s {
     uint16_t  key;
@@ -134,6 +137,8 @@ typedef struct {
 /** here keys are the internal key */
 #define START_KEY(key)    (((key) << 1) + 0)
 #define END_KEY(key)      (((key) << 1) + 1)
+
+END_C_DECLS
 
 /** @} */
 

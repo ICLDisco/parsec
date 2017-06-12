@@ -8,6 +8,7 @@
 #ifndef _MATRIX_H_
 #define _MATRIX_H_
 
+#include "parsec/parsec_config.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include "precision.h"

@@ -7,6 +7,8 @@
 #ifndef MEMORY_POOL_H_HAS_BEEN_INCLUDED
 #define MEMORY_POOL_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
+
 /** 
  *  @addtogroup parsec_internal_mempool
  *  @{
@@ -14,6 +16,8 @@
 
 #include "parsec/class/lifo.h"
 #include <stdlib.h>
+
+BEGIN_C_DECLS
 
 typedef struct parsec_memory_pool_t {
     parsec_lifo_t lifo;
@@ -42,6 +46,8 @@ parsec_private_memory_push(parsec_memory_pool_t* pool, void* memory)
 }
 
 extern int parsec_private_memory_fini(parsec_memory_pool_t* pool);
+
+END_C_DECLS
 
 /** @} */
 

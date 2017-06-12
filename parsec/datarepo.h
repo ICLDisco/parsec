@@ -7,6 +7,12 @@
 #ifndef PARSEC_DATAREPO_H_HAS_BEEN_INCLUDED
 #define PARSEC_DATAREPO_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
+#include <stdlib.h>
+#include "parsec/sys/atomic.h"
+#include "parsec/execution_unit.h"
+#include "parsec/arena.h"
+
 /** @defgroup parsec_internal_datarepo Data Repositories
  *  @ingroup parsec_internal
  *    Data Repositories store data objects into hash tables
@@ -17,11 +23,6 @@
 
 typedef struct data_repo_entry_s data_repo_entry_t;
 typedef struct data_repo_head_s  data_repo_head_t;
-
-#include <stdlib.h>
-#include "parsec/sys/atomic.h"
-#include "parsec/execution_unit.h"
-#include "parsec/arena.h"
 
 /**
  * Hash table:

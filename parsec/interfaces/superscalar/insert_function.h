@@ -14,7 +14,7 @@
 #ifndef INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 #define INSERT_FUNCTION_H_HAS_BEEN_INCLUDED
 
-#include <stdarg.h>
+#include "parsec/parsec_config.h"
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 

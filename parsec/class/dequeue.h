@@ -14,7 +14,10 @@
  * compatible with list accessors.
  */
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/list.h"
+
+BEGIN_C_DECLS
 
 typedef parsec_list_t parsec_dequeue_t;
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_dequeue_t);
@@ -106,5 +109,6 @@ parsec_dequeue_nolock_chain_back( parsec_dequeue_t* dequeue, parsec_list_item_t*
 }
 #define parsec_udequeue_chain_back(dequeue, items) parsec_dequeue_nolock_chain_back(dequeue, items)
 
+END_C_DECLS
 
 #endif  /* DEQUEUE_H_HAS_BEEN_INCLUDED */

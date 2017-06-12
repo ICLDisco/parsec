@@ -4,7 +4,6 @@
  *                         reserved.
  */
 
-
 #ifndef _PRECISION_H_
 #define _PRECISION_H_
 

@@ -11,14 +11,14 @@
 #include "parsec/data.h"
 #include "parsec/class/hash_table.h"
 
+BEGIN_C_DECLS
+
 struct parsec_device_s;
 typedef int (*parsec_memory_region_management_f)(parsec_ddesc_t*, struct parsec_device_s*);
 
 typedef uint8_t memory_registration_status_t;
 #define    MEMORY_STATUS_UNREGISTERED      ((memory_registration_status_t)0x0)
 #define    MEMORY_STATUS_REGISTERED        ((memory_registration_status_t)0x1)
-
-BEGIN_C_DECLS
 
 struct parsec_ddesc_s {
     uint32_t            myrank;    /**< process rank */

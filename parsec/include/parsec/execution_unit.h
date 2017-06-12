@@ -7,6 +7,7 @@
 #ifndef PARSEC_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 #define PARSEC_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
 #ifdef PARSEC_HAVE_HWLOC
 #include <hwloc.h>
 #endif
@@ -26,6 +27,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #endif
+
+BEGIN_C_DECLS
 
 /**
  *  Computational Thread-specific structure
@@ -158,5 +161,7 @@ struct parsec_context_s {
 };
 
 #define PARSEC_THREAD_IS_MASTER(eu) ( ((eu)->th_id == 0) && ((eu)->virtual_process->vp_id == 0) )
+
+END_C_DECLS
 
 #endif  /* PARSEC_EXECUTION_UNIT_H_HAS_BEEN_INCLUDED */

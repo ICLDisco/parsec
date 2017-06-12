@@ -14,8 +14,11 @@
 #ifndef PARSEC_LIST_H_HAS_BEEN_INCLUDED
 #define PARSEC_LIST_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
 #include "parsec/sys/atomic.h"
+
+BEGIN_C_DECLS
 
 typedef struct parsec_list_t {
     parsec_object_t      super;
@@ -806,5 +809,7 @@ parsec_list_try_pop_back( parsec_list_t* list)
 #undef _GHOST
 #undef _HEAD
 #undef _TAIL
+
+END_C_DECLS
 
 #endif  /* PARSEC_LIST_H_HAS_BEEN_INCLUDED */

@@ -116,6 +116,7 @@
 #ifndef PARSEC_OBJECT_H
 #define PARSEC_OBJECT_H
 
+#include "parsec/parsec_config.h"
 #include <assert.h>
 #include <stdlib.h>
 

@@ -10,7 +10,10 @@
 /** @addtogroup parsec_internal_scheduling
  *  @{ */
 
+#include"parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
+
+BEGIN_C_DECLS
 
 typedef struct parsec_hbbuffer_s parsec_hbbuffer_t;
 
@@ -74,6 +77,8 @@ parsec_hbbuffer_is_empty(parsec_hbbuffer_t *b)
 
 parsec_list_item_t*
 parsec_hbbuffer_pop_best(parsec_hbbuffer_t *b, off_t priority_offset);
+
+END_C_DECLS
 
 /** @} */
 

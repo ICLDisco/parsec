@@ -7,7 +7,10 @@
 #ifndef _hash_table_h
 #define _hash_table_h
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
+
+BEGIN_C_DECLS
 
 typedef struct hash_table_s        hash_table_t;
 typedef struct hash_table_item_s   hash_table_item_t;
@@ -178,6 +181,8 @@ void *hash_table_item_lookup(hash_table_t *ht, hash_table_item_t *item);
  */
 typedef void (*hash_elem_fct_t)(void*, void*);
 void hash_table_for_all(hash_table_t* ht, hash_elem_fct_t fct, void* cb_data);
+
+END_C_DECLS
 
 #endif
 

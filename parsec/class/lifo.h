@@ -7,11 +7,14 @@
 #ifndef LIFO_H_HAS_BEEN_INCLUDED
 #define LIFO_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
 #include "parsec/sys/atomic.h"
 #if defined(PARSEC_HAVE_ATOMIC_LLSC_PTR)
 #include <time.h>
 #endif  /* defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
+
+BEGIN_C_DECLS
 
 typedef struct parsec_lifo_s parsec_lifo_t;
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
@@ -444,5 +447,7 @@ static inline parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* lifo )
     (elt) = (__typeof__(elt))_elt;                              \
   })
 #define PARSEC_LIFO_ITEM_FREE( elt ) do { OBJ_DESTRUCT( elt ); free(elt); } while (0)
+
+END_C_DECLS
 
 #endif  /* LIFO_H_HAS_BEEN_INCLUDED */

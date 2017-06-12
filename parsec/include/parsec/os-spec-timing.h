@@ -7,6 +7,7 @@
 #ifndef _os_spec_timing_h
 #define _os_spec_timing_h
 
+#include "parsec/parsec_config.h"
 #include <stdint.h>
 
 /** TIMING SYSTEM-SPECIFICS **/

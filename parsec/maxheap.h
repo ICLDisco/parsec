@@ -7,7 +7,10 @@
 #ifndef MAXHEAP_H_HAS_BEEN_INCLUDED
 #define MAXHEAP_H_HAS_BEEN_INCLUDED
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/list_item.h"
+
+BEGIN_C_DECLS
 
 /**
  * The structure implemented here is not thread safe. All concurent
@@ -36,5 +39,7 @@ parsec_execution_context_t*
 heap_split_and_steal(parsec_heap_t ** heap_ptr,
                      parsec_heap_t ** new_heap_ptr);
 parsec_execution_context_t * heap_remove(parsec_heap_t ** heap_ptr);
+
+END_C_DECLS
 
 #endif  /* MAXHEAP_H_HAS_BEEN_INCLUDED */

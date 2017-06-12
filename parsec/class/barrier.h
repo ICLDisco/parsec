@@ -1,11 +1,13 @@
 /*
- * Copyright (c) 2009-2010 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
 #ifndef PARSEC_BARRIER_H_HAS_BEEN_INCLUDED
 #define PARSEC_BARRIER_H_HAS_BEEN_INCLUDED
+
+#include "parsec/parsec_config.h"
 
 #include <unistd.h>
 #include <pthread.h>

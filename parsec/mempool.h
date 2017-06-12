@@ -7,11 +7,14 @@
 #ifndef _mempool_h
 #define _mempool_h
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/lifo.h"
 
 /** @addtogroup parsec_internal_mempool
  *  @{
  */
+
+BEGIN_C_DECLS
 
 typedef struct parsec_mempool_s parsec_mempool_t;
 typedef struct parsec_thread_mempool_s parsec_thread_mempool_t;
@@ -46,8 +49,6 @@ struct parsec_thread_mempool_s {
                                   *   has allocated since the creation of the pool */
     parsec_lifo_t mempool;       /**< Elements are stored in a LIFO */
 };
-
-BEGIN_C_DECLS
 
 /**
  * @brief constructs a mempool

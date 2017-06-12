@@ -13,7 +13,10 @@
  * functions to emulate a fifo that is garanteed to be compatible with list accessors.
  */
 
+#include "parsec/parsec_config.h"
 #include "parsec/class/list.h"
+
+BEGIN_C_DECLS
 
 typedef parsec_list_t parsec_fifo_t;
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_fifo_t);
@@ -59,5 +62,7 @@ static inline parsec_list_item_t*
 parsec_fifo_nolock_pop(parsec_fifo_t* fifo) {
     return parsec_list_nolock_pop_front((parsec_list_t*)fifo);
 }
+
+END_C_DECLS
 
 #endif  /* FIFO_H_HAS_BEEN_INCLUDED */

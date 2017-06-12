@@ -769,9 +769,7 @@ install(FILES
 if( PARSEC_WITH_DEVEL_HEADERS )
   install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/arena.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/bindthread.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_binary_profile.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_hwloc.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_internal.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/parsec_prof_grapher.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/data_internal.h
@@ -785,7 +783,6 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/mempool.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/remote_dep.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/scheduling.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/vpmap.h
     DESTINATION include/parsec )
 
   install(FILES
@@ -806,15 +803,11 @@ if( PARSEC_WITH_DEVEL_HEADERS )
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/argv.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/cmd_line.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/parsec_environ.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/keyval_lex.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/keyval_parse.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param_cmd_line.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/mca_param_internal.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/os_path.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/output.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/show_help_lex.h
     ${CMAKE_CURRENT_SOURCE_DIR}/parsec/utils/zone_malloc.h
     DESTINATION include/parsec/utils )
 

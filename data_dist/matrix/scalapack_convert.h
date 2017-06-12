@@ -15,6 +15,8 @@
 #include <mpi.h>
 #endif/* PARSEC_HAVE_MPI */
 
+BEGIN_C_DECLS
+
 typedef struct scalapack_info_t {
     tiled_matrix_desc_t * Ddesc;
     int * sca_desc;
@@ -61,5 +63,7 @@ int tiles_to_scalapack(scalapack_info_t * info);
  * @param sca_mat: pointer to the scalapack matrix location
  */
 //int scalapack_to_tiles(scalapack_info_t * info);
+
+END_C_DECLS
 
 #endif /* __SCALAPACK_CONVERT_H__ */

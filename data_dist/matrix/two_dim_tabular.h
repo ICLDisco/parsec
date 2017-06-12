@@ -8,6 +8,8 @@
 
 #include "data_dist/matrix/matrix.h"
 
+BEGIN_C_DECLS
+
 /*
  * General distribution of data.
  */
@@ -70,5 +72,6 @@ void two_dim_tabular_set_user_table(two_dim_tabular_t *Ddesc, two_dim_td_table_t
 void two_dim_tabular_set_random_table(two_dim_tabular_t *Ddesc, unsigned int seed);
 void two_dim_td_table_clone_table_structure(two_dim_tabular_t *Src, two_dim_tabular_t *Dst);
 
+END_C_DECLS
 
 #endif /* __TWODTD_H__ */

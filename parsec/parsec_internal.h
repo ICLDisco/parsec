@@ -4,6 +4,10 @@
  *                         reserved.
  */
 
+#if !defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED)
+#error parsec_internal.h header should only be used after parsec_config.h has been included.
+#endif  /* !defined(PARSEC_CONFIG_H_HAS_BEEN_INCLUDED) */
+
 #ifndef PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED
 #define PARSEC_INTERNAL_H_HAS_BEEN_INCLUDED
 
