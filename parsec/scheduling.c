@@ -136,9 +136,10 @@ int __parsec_context_wait_task( parsec_execution_unit_t* eu_context,
 #endif
 
 int __parsec_execute( parsec_execution_unit_t* eu_context,
-                     parsec_execution_context_t* exec_context )
+                      parsec_execution_context_t* exec_context )
 {
     const parsec_function_t* function = exec_context->function;
+    parsec_evaluate_function_t* eval;
     int rc;
 #if defined(PARSEC_DEBUG)
     char tmp[MAX_TASK_STRLEN];
@@ -159,11 +160,27 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
     PINS(eu_context, EXEC_BEGIN, exec_context);
     /* Try all the incarnations until one agree to execute. */
     do {
+        if( NULL != (eval = function->incarnations[exec_context->chore_id].evaluate) ) {
+            rc = eval(exec_context);
+            if( PARSEC_HOOK_RETURN_DONE != rc ) {
+                if( PARSEC_HOOK_RETURN_NEXT != rc ) {
+#if defined(PARSEC_DEBUG)
+                    parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Failed to evaluate %s[%d] chore %d",
+                                         eu_context->th_id, eu_context->virtual_process->vp_id,
+                                         tmp, function->incarnations[exec_context->chore_id].type,
+                                         exec_context->chore_id);
+#endif
+                    break;
+                }
+                goto next_chore;
+            }
+        }
+
 #if defined(PARSEC_DEBUG)
         parsec_debug_verbose(5, parsec_debug_output, "Thread %d of VP %d Execute %s[%d] chore %d",
-                            eu_context->th_id, eu_context->virtual_process->vp_id,
-                            tmp, function->incarnations[exec_context->chore_id].type,
-                            exec_context->chore_id);
+                             eu_context->th_id, eu_context->virtual_process->vp_id,
+                             tmp, function->incarnations[exec_context->chore_id].type,
+                             exec_context->chore_id);
 #endif
         parsec_hook_t *hook = function->incarnations[exec_context->chore_id].hook;
 
@@ -176,6 +193,7 @@ int __parsec_execute( parsec_execution_unit_t* eu_context,
             }
             return rc;
         }
+    next_chore:
         exec_context->chore_id++;
 
     } while(NULL != function->incarnations[exec_context->chore_id].hook);
