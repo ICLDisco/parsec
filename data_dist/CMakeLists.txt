@@ -12,6 +12,9 @@ target_link_libraries(parsec_distribution parsec m)
 install(TARGETS parsec_distribution
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib )
+install(FILES
+  hash_datadist.h
+  DESTINATION include/parsec/data_dist )
 
 add_subdirectory(matrix)
 
