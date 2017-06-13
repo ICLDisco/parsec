@@ -22,6 +22,7 @@
 
 #include <pthread.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include "profiling.h"
 
 #define NB_THREADS         4

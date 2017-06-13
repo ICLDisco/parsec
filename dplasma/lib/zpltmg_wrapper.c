@@ -8,7 +8,6 @@
  *
  */
 
-#include <lapacke.h>
 #include "parsec/parsec_config.h"
 #include "dplasma.h"
 #include "dplasma/lib/dplasmatypes.h"
@@ -20,6 +19,9 @@
 #include "zpltmg_fiedler.h"
 #include "zpltmg_hankel.h"
 #include "zpltmg_toeppd.h"
+
+#include <string.h>
+#include <lapacke.h>
 
 /**
  *******************************************************************************

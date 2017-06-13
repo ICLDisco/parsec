@@ -20,6 +20,7 @@
 #if defined(PARSEC_HAVE_MPI)
 #include <mpi.h>
 #endif
+#include <string.h>
 
 static uint32_t tiled_matrix_data_key(struct parsec_ddesc_s *desc, ...);
 

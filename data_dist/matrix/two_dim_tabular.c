@@ -13,7 +13,7 @@
 #include "parsec/vpmap.h"
 #include "parsec.h"
 #include "parsec/data.h"
-
+#include <string.h>
 
 static uint32_t      twoDTD_rank_of(    parsec_ddesc_t* ddesc, ... );
 static uint32_t      twoDTD_rank_of_key(parsec_ddesc_t* ddesc, parsec_data_key_t key);

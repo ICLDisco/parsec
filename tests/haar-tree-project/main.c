@@ -9,6 +9,8 @@
 #include "walk.h"
 
 #include <unistd.h>
+#include <string.h>
+
 extern char *optarg;
 extern int optind;
 extern int optopt;

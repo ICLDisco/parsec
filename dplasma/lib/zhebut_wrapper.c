@@ -18,6 +18,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <cblas.h>
+#include <string.h>
 
 #include "dplasma/lib/butterfly_map.h"
 #include "dplasma/lib/zhebut.h"
