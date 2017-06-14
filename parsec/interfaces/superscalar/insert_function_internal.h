@@ -415,16 +415,19 @@ void
 parsec_dtd_fini();
 
 static inline void
-parsec_dtd_retain_floating_data( parsec_data_copy_t *data )
+parsec_dtd_retain_data_copy( parsec_data_copy_t *data )
 {
     OBJ_RETAIN(data);
 }
 
 static inline void
-parsec_dtd_release_floating_data( parsec_data_copy_t *data )
+parsec_dtd_release_data_copy( parsec_data_copy_t *data )
 {
     OBJ_RELEASE(data);
 }
+
+#define parsec_dtd_retain_floating_data(data) parsec_dtd_retain_data_copy(data)
+#define parsec_dtd_release_floating_data(data) parsec_dtd_release_data_copy(data)
 
 /***************************************************************************//**
  *

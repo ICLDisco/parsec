@@ -1664,7 +1664,7 @@ release_deps_of_dtd( parsec_execution_unit_t *eu,
     int __vp_id;
 
     assert(NULL != eu);
-    
+
     PINS(eu, RELEASE_DEPS_BEGIN, this_task);
 #if defined(DISTRIBUTED)
     arg.remote_deps = deps;
@@ -1841,12 +1841,9 @@ parsec_dtd_release_local_task( parsec_dtd_task_t *this_task )
             parsec_dtd_tile_t *tile = (FLOW_OF(this_task, current_flow))->tile;
             if( tile == NULL ) continue;
             assert( NULL != this_task->super.data[current_flow].data_in );
-            //if( tile->data_copy != this_task->super.data[current_flow].data_in ) {
-            if( ((FLOW_OF(this_task, current_flow))->flags & RELEASE_REMOTE_DATA) ) {
-                if( !((FLOW_OF(this_task, current_flow))->flags & DATA_RELEASED) ) {
-                    (FLOW_OF(this_task, current_flow))->flags |= DATA_RELEASED;
-                    parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_in);
-                }
+            if( !((FLOW_OF(this_task, current_flow))->flags & DATA_RELEASED) ) {
+                (FLOW_OF(this_task, current_flow))->flags |= DATA_RELEASED;
+                parsec_dtd_release_floating_data(this_task->super.data[current_flow].data_in);
             }
             if( ((parsec_dtd_function_t *)this_task->super.function)->fpointer == parsec_dtd_copy_data_to_matrix ) {
                 assert( current_flow == 0 );
@@ -2854,6 +2851,11 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
             if(last_user.task == this_task) {
                 satisfied_flow += 1;
                 this_task->super.data[flow_index].data_in = tile->data_copy;
+                /* We retain data for each flow of a task */
+                if( tile->data_copy != NULL ) {
+                    parsec_dtd_retain_data_copy(tile->data_copy);
+                }
+
                 /* What if we have the same task using the same data in different flows
                  * with the corresponding  operation type on the data : R then W, we are
                  * doomed and this is to not get doomed
@@ -2965,6 +2967,10 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
                 }
                 this_task->super.data[flow_index].data_in = tile->data_copy;
                 satisfied_flow += 1;
+                if( tile->data_copy != NULL ) {
+                    /* We are using this local data for the first time, let's retain it */
+                    parsec_dtd_retain_data_copy(tile->data_copy);
+                }
             }
         }
 

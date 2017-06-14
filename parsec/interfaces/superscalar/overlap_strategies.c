@@ -253,11 +253,8 @@ parsec_dtd_ordering_correctly( parsec_execution_unit_t *eu,
                 if(action_mask & PARSEC_ACTION_RELEASE_LOCAL_DEPS) {
                     if(parsec_dtd_task_is_local(current_desc)) {
                         current_desc->super.data[desc_flow_index].data_in = current_task->super.data[current_dep].data_out;
-                        if( current_task->super.data[current_dep].data_out != tile->data_copy ) {
-                            FLOW_OF(current_task, current_dep)->flags |= RELEASE_REMOTE_DATA;
-                            FLOW_OF(current_desc, desc_flow_index)->flags |= RELEASE_REMOTE_DATA;
-                            parsec_dtd_retain_floating_data(current_task->super.data[current_dep].data_out);
-                        }
+                        /* We retain local, remote data for each successor */
+                        parsec_dtd_retain_data_copy(current_task->super.data[current_dep].data_out);
                     }
                 }
 

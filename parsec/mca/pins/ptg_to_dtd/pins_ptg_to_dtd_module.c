@@ -194,8 +194,8 @@ testing_hook_of_dtd_task(parsec_execution_unit_t *context,
     rc = ((parsec_dtd_function_t *)(dtd_task->super.function))->fpointer(context, orig_task);
     if(rc == PARSEC_HOOK_RETURN_DONE) {
         /* Completing the orig task */
-        __parsec_complete_execution( context, orig_task );
         dtd_task->orig_task = NULL;
+        __parsec_complete_execution( context, orig_task );
     }
 
     return rc;
