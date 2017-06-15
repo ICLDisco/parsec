@@ -21,11 +21,15 @@ function dirname_bin {
 }
 
 
-## If not overriden, try to guess some meaningful defaults
+## If not overriden, try to guess some meaningful defaults. For the compilers
+## start with Intel and if not found fallback to GNU set of compilers.
 function guess_defaults {
     CC=${CC:=$(which icc 2>/dev/null)}
+    CC=${CC:=$(which gcc 2>/dev/null)}
     CXX=${CXX:=$(which icpc 2>/dev/null)}
+    CXX=${CXX:=$(which g++ 2>/dev/null)}
     FC=${FC:=$(which ifort 2>/dev/null)}
+    FC=${FC:=$(which gfortran 2>/dev/null)}
     MPI_DIR=${MPI_DIR:=$(dirname_bin mpicc)}
     HWLOC_DIR=${HWLOC_DIR:=$(dirname_bin hwloc-ls)}
     GTG_DIR=${GTG_DIR:=$(pkg-config gtg --variable=prefix)}
