@@ -1335,7 +1335,17 @@ static void jdf_generate_structure(const jdf_t *jdf)
                 "  (DEPS)->max = _vmax;                                                        \\\n"
                 "} while (0)\n\n");
     } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-        coutput("static uint32_t hash_fn_mod(uintptr_t key, void *param) { (void)param; return (uint32_t)(key %% 1024); }\n");
+        coutput("static uint32_t hash_fn_mod(uintptr_t key, void *param) {\n"
+                "  (void)param;\n"
+                "  /** Use all the bits of the 64 bits key, project on the lowest 10 bits (0 <= hash < 1024) */\n"
+                "  return (uint32_t)( (key ^ \n"
+                "                      (key >> 10) ^\n"
+                "                      (key >> 20) ^\n"
+                "                      (key >> 30) ^\n"
+                "                      (key >> 40) ^\n"
+                "                      (key >> 50) ^\n"
+                "                      (key >> 60) ) & 0x3FFULL);\n"
+                "}\n");
     }
     coutput("static inline int parsec_imin(int a, int b) { return (a <= b) ? a : b; };\n\n"
             "static inline int parsec_imax(int a, int b) { return (a >= b) ? a : b; };\n\n");
@@ -2722,7 +2732,7 @@ static void jdf_generate_internal_init(const jdf_t *jdf, const jdf_function_entr
                     f->function_id);
         } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
             coutput("  __parsec_handle->super.super.dependencies_array[%d] = OBJ_NEW(hash_table_t);\n"
-                    "  hash_table_init(__parsec_handle->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), 1024, hash_fn_mod, NULL);\n",
+                    "  hash_table_init(__parsec_handle->super.super.dependencies_array[%d], offsetof(parsec_hashable_dependency_t, ht_item), (1<<10), hash_fn_mod, NULL);\n",
                    f->function_id, f->function_id);
         }
     }
