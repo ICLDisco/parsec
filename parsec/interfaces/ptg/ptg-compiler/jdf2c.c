@@ -3072,14 +3072,14 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
 
     sprintf(prefix, "%s_%s", jdf_basename, f->fname);
     string_arena_add_string(sa, "  .incarnations = __%s_chores,\n", prefix);
-    
+
     if( !(f->user_defines & JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS) ) {
         if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
             sprintf(prefix, "find_deps_%s_%s", jdf_basename, f->fname);
             jdf_generate_code_find_deps(jdf, f, prefix);
-            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup(prefix));
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, prefix);
         } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("parsec_hash_find_deps"));
+            (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, "parsec_hash_find_deps");
         }
     }
     string_arena_add_string(sa, "  .find_deps = %s,\n", jdf_property_get_string(f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, NULL));
@@ -5947,9 +5947,9 @@ static void jdf_check_user_defined_internals(jdf_t *jdf)
         } else {
             f->user_defines &= ~JDF_FUNCTION_HAS_UD_DEPENDENCIES_FUNS;
             if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_INDEX_ARRAY ) {
-                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("parsec_default_find_deps"));
+                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, "parsec_default_find_deps");
             } else if( JDF_COMPILER_GLOBAL_ARGS.dep_management == DEP_MANAGEMENT_DYNAMIC_HASH_TABLE ) {
-                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, strdup("parsec_hash_find_deps"));
+                (void)jdf_add_string_property(&f->properties, JDF_PROP_UD_FIND_DEPS_FN_NAME, "parsec_hash_find_deps");
             } else {
                 assert(0);
             }
