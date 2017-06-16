@@ -1375,8 +1375,8 @@ jdf_def_list_t *jdf_add_string_property(jdf_def_list_t **properties, const char 
     assign->next              = NULL;
     assign->name              = strdup(prop_name);
     assign->expr              = malloc(sizeof(jdf_expr_t));
-    assign->expr->op = JDF_VAR;
-    assign->expr->jdf_var = strdup(prop_value);
+    assign->expr->op          = JDF_VAR;
+    assign->expr->jdf_var     = strdup(prop_value);
     JDF_OBJECT_LINENO(assign) = -1;
     assign->next = *properties;
     *properties = assign;

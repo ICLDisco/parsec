@@ -1,4 +1,4 @@
-/*
+*
  * Copyright (c) 2013-2016 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
@@ -482,6 +482,6 @@ fake_hook_for_testing(parsec_execution_unit_t    *context,
             free(tmp_param);
         }
     }
-    goto redo;
     (void)context;
+    goto redo;
 }

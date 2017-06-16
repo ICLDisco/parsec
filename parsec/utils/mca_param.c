@@ -2083,11 +2083,9 @@ static char *source_name(parsec_mca_param_source_t source,
 
     case MCA_PARAM_SOURCE_OVERRIDE:
         return strdup("internal override");
-
-    default:
-        return strdup("unknown (!)");
     }
     (void)rc;  /* prevent the compiler form complaining */
+    return strdup("unknown (!)");
 }
 
 int parsec_mca_param_check_exclusive_string(const char *type_a,

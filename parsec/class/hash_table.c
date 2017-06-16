@@ -32,12 +32,12 @@ OBJ_CLASS_INSTANCE(hash_table_t, parsec_object_t, NULL, NULL);
 void hash_table_init(hash_table_t *ht, int64_t offset, size_t size_of_table, hash_table_fn_t *hash, void *data)
 {
     parsec_atomic_lock_t unlocked = { PARSEC_ATOMIC_UNLOCKED };
-    
+
     ht->size      = size_of_table;
     ht->hash      = hash;
     ht->hash_data = data;
     ht->elt_hashitem_offset = offset;
-    
+
     ht->buckets = malloc(size_of_table * sizeof(hash_table_bucket_t));
 
     for( size_t i = 0; i < size_of_table; i++) {
