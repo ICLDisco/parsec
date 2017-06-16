@@ -56,12 +56,10 @@ parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
                                             ( sizeof(void*) ) :         \
                                             ( (uintptr_t)1 << PARSEC_LIFO_ALIGNMENT_BITS(LIFO) ) ))
 
-#include <stdlib.h>
-#include "parsec/sys/atomic.h"
-
 /**
  * This code is imported from Open MPI.
  */
+
 /**
  * Counted pointer to avoid the ABA problem.
  */
