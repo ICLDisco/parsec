@@ -395,7 +395,7 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
                                            "Path to the shared library files containing the CUDA version of the hooks. It is a ;-separated list of either directories or .so files.\n",
                                            false, false, PARSEC_LIB_CUDA_PREFIX, &cuda_lib_path);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_block_size",
-                                        "The CUDA memory page for PaRSEC internal management.",
+                                        "The CUDA memory page for PaRSEC internal management (in bytes).",
                                         false, false, 512*1024, &cuda_memory_block_size);
     (void)parsec_mca_param_reg_int_name("device_cuda", "memory_use",
                                         "The percentage of the total GPU memory to be used by this PaRSEC context",
@@ -885,11 +885,13 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
                  * the LRU (in order to be reused asap) and return without scheduling the task.
                  */
+#if defined(PARSEC_DEBUG_NOISIER)
                 char tmp[MAX_TASK_STRLEN];
-                parsec_output_verbose(1, parsec_cuda_output_stream,
+                PARSEC_OUTPUT_VERBOSE(1, parsec_cuda_output_stream,
                                       "GPU:\tRequest space on GPU failed for flow index %d/%d for task %s",
                                       i, this_task->task_class->nb_flows,
                                       parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task));
+#endif  /* defined(PARSEC_DEBUG_NOISIER) */
                 for( j = 0; j < i; j++ ) {
                     if( NULL != temp_loc[j] ) {
                         parsec_list_nolock_lifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
@@ -1519,11 +1521,11 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
         assert( NULL != parsec_data_copy_get_ptr(this_task->data[i].data_in) );
 
         PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
-                            "GPU[%1d]:\t\tIN  Data of %s <%x> on GPU\n",
-                            gpu_device->cuda_index, flow->name,
-                            this_task->data[i].data_out->original->key);
+                             "GPU[%1d]:\t\tIN  Data of %s <%x> on GPU\n",
+                             gpu_device->cuda_index, flow->name,
+                             this_task->data[i].data_out->original->key);
         ret = parsec_gpu_data_stage_in( gpu_device, flow->flow_flags,
-                                       &(this_task->data[i]), gpu_task, gpu_stream );
+                                        &(this_task->data[i]), gpu_task, gpu_stream );
         if( ret < 0 ) {
             return ret;
         }
@@ -1819,7 +1821,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     gpu_device_t* gpu_device;
     cudaError_t status;
     int rc, exec_stream = 0;
-    parsec_gpu_context_t *progress_task, *out_task_push, *out_task_submit = NULL, *out_task_pop = NULL;
+    parsec_gpu_context_t *progress_task, *out_task_submit = NULL, *out_task_pop = NULL;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif
@@ -1881,7 +1883,6 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
             goto get_data_out_of_device;
     }
     gpu_task = progress_task;
-    out_task_push = progress_task;
 
     /* Stage-in completed for this task: it is ready to be executed */
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
@@ -1916,15 +1917,10 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     out_task_submit = progress_task;
 
  get_data_out_of_device:
-    /* This task has completed its execution: we have to check if we schedule DtoN */
-    if( NULL != gpu_task ) {
+    if( NULL != gpu_task ) {  /* This task has completed its execution */
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->cuda_index,
                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                             gpu_task->ec->priority );
-    }
-    /* TODO: disable automatic transfer */
-    if (0 && out_task_submit == NULL && out_task_push == NULL) {
-        gpu_task = parsec_gpu_create_W2R_task(gpu_device, es);
     }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
