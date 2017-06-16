@@ -14,33 +14,145 @@
 #include <time.h>
 #endif  /* defined(PARSEC_HAVE_ATOMIC_LLSC_PTR) */
 
+/**
+ * @defgroup parsec_internal_classes_lifo Last In First Out
+ * @ingroup parsec_internal_classes
+ * @{
+ *
+ *  @brief Last In First out parsec_list_item_t management functions
+ *
+ *  @details There are two interfaces for LIFO: an atomic-based
+ *           lock-free implementation (this file), and a lock-based
+ *           lists emulation (in list.h). If you need to use 
+ *           list-compatible access in the LIFO, use the list.h 
+ *           implementation; otherwise, use this implementation.            
+ */
+
 BEGIN_C_DECLS
 
+/**
+ * @brief opaque structure to hold a LIFO
+ */
 typedef struct parsec_lifo_s parsec_lifo_t;
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_lifo_t);
 
+/**
+ * @brief check if the LIFO is empty
+ *
+ * @param[inout] lifo the LIFO to check
+ * @return 0 if lifo is not empty, 1 otherwise
+ *
+ * @remark this function is thread safe
+ */
 static inline int
 parsec_lifo_is_empty( parsec_lifo_t* lifo );
 
+/**
+ * @brief Push an element in the LIFO
+ *
+ * @details push an element at the front of the LIFO
+ *
+ * @param[inout] lifo the LIFO into which to push the element
+ * @param[inout] item the element to push in lifo
+ *
+ * @remark this function is thread safe
+ */
 static inline void
 parsec_lifo_push(parsec_lifo_t* lifo, parsec_list_item_t* item);
+
+/**
+ * @brief Push an element in the LIFO, assuming the atomic operations
+ *        would not fail.
+ *
+ * @details push an element at the front of the LIFO
+ *
+ * @param[inout] lifo the LIFO into which to push the element
+ * @param[inout] item the element to push in lifo
+ *
+ * @remark this function is not thread safe
+ */
 static inline void
 parsec_lifo_nolock_push(parsec_lifo_t* lifo, parsec_list_item_t* item);
 
+/**
+ * @brief Chain a ring of elements in front of a LIFO
+ *
+ * @details Take a ring of elements (items->prev points to the last
+ *          element in items), and push all the elements of items in
+ *          front of the LIFO, preserving the order in items.
+ *
+ * @param[inout] lifo the LIFO into which to push the elements
+ * @param[inout] items the elements ring to push in front
+ *
+ * @remark this function is thread safe
+ */
 static inline void
 parsec_lifo_chain(parsec_lifo_t* lifo, parsec_list_item_t* items);
+
+/**
+ * @brief Chain a ring of elements in front of a LIFO, assuming
+ *        atomic operations succeed
+ *
+ * @details Take a ring of elements (items->prev points to the last
+ *          element in items), and push all the elements of items in
+ *          front of the LIFO, preserving the order in items.
+ *
+ * @param[inout] lifo the LIFO into which to push the elements
+ * @param[inout] items the elements ring to push in front
+ *
+ * @remark this function is not thread safe
+ */
 static inline void
 parsec_lifo_nolock_chain(parsec_lifo_t* lifo, parsec_list_item_t* items);
 
+/**
+ * @brief Pop an element from the LIFO
+ *
+ * @details Pop the first element in the LIFO
+ *
+ * @param[inout] lifo the LIFO from which to pop the element
+ * @return the element that was removed from the LIFO (NULL if
+ *         the LIFO was empty)
+ *
+ * @remark this function is thread safe
+ */
 static inline parsec_list_item_t*
 parsec_lifo_pop(parsec_lifo_t* lifo);
+
+/**
+ * @brief Try popping an element from the LIFO
+ *
+ * @details Try popping the first element in the LIFO
+ *
+ * @param[inout] lifo the LIFO from which to pop the element
+ * @return the element that was removed from the LIFO (NULL if
+ *         the LIFO was empty)
+ *
+ * @remark this function is thread safe
+ */
 static inline parsec_list_item_t*
 parsec_lifo_try_pop(parsec_lifo_t* lifo);
+
+/**
+ * @brief Pop an element from the LIFO, assuming the atomic operations
+ *        would not fail
+ *
+ * @details Pop the first element in the LIFO
+ *
+ * @param[inout] lifo the LIFO from which to pop the element
+ * @return the element that was removed from the LIFO (NULL if
+ *         the LIFO was empty)
+ *
+ * @remark this function is not thread safe
+ */
 static inline parsec_list_item_t*
 parsec_lifo_nolock_pop(parsec_lifo_t* lifo);
 
-/***********************************************************************
- * Interface is defined. Everything else is private thereafter */
+/**
+ * @cond FALSE
+ ***********************************************************************
+ * Interface is defined. Everything else is private thereafter 
+ */
 
 /**
  * By default all LIFO will handle elements aligned to PARSEC_LIFO_ALIGNMENT_DEFAULT
@@ -446,6 +558,12 @@ static inline parsec_list_item_t* parsec_lifo_nolock_pop( parsec_lifo_t* lifo )
   })
 #define PARSEC_LIFO_ITEM_FREE( elt ) do { OBJ_DESTRUCT( elt ); free(elt); } while (0)
 
+/** @endcond */
+
 END_C_DECLS
+
+/**
+ * @}
+ */
 
 #endif  /* LIFO_H_HAS_BEEN_INCLUDED */

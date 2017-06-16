@@ -12,31 +12,63 @@
 #include <stdlib.h>
 #include <assert.h>
 
+/**
+ * @defgroup parsec_internal_classes_listitem List Item
+ * @ingroup parsec_internal_classes
+ * @{
+ *
+ *  @brief List Items for PaRSEC
+ *
+ *  @detail List Items are used in various structures to chain
+ *    elements one with the others. See @ref
+ *    parsec_internal_classes_list, @ref parsec_internal_classes_lifo,
+ *    @ref parsec_internal_classes_fifo, for examples of data structures
+ *    that use list items.
+ * 
+ *    Functions and macros in this group are used to manipulate the
+ *    list items.
+ */
+
 BEGIN_C_DECLS
 
+/**
+ * @brief List Item structure
+ */
 typedef struct parsec_list_item_s {
-    parsec_object_t  super;
-    volatile struct parsec_list_item_s* list_next;
-    /* This field is __very__ special and should be handled with extreme
-     * care. It is used to avoid the ABA problem when atomic operations
-     * are in use and we do not have support for 128 bits atomics.
-     * Technically we only need an int32_t (but we need to be cache aligned).
-     */
-    uint64_t aba_key;
-    volatile struct parsec_list_item_s* list_prev;
+    parsec_object_t  super;                         /**< A list item is a @ref parsec_internal_classes_object */
+    volatile struct parsec_list_item_s* list_next;  /**< Pointer to the next item */
+    uint64_t aba_key;                               /**< This field is __very__ special and should be handled with extreme
+                                                     *   care. It is used to avoid the ABA problem when atomic operations
+                                                     *   are in use and we do not have support for 128 bits atomics.
+                                                     *   Technically we only need an int32_t (but we need to be cache aligned).
+                                                     */
+    volatile struct parsec_list_item_s* list_prev;  /**< Pointer to the previous item */
 #if defined(PARSEC_DEBUG_PARANOID)
-    volatile int32_t refcount;
-    volatile void* belong_to;
+    volatile int32_t refcount;                      /**< Number of higher data structures (e.g. lists) that are still pointing to this item */
+    volatile void* belong_to;                       /**< Higher data structure into which this item belongs */
 #endif  /* defined(PARSEC_DEBUG_PARANOID) */
 } parsec_list_item_t;
 
 PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_item_t);
 
+/**
+ * @brief Convenience macro to access the next field without casting
+ *        an object that derives a List Item
+ */
 #define PARSEC_LIST_ITEM_NEXT(item) ((__typeof__(item))(((parsec_list_item_t*)(item))->list_next))
+/**
+ * @brief Convenience macro to access the prev field without casting
+ *        an object that derives a List Item
+ */
 #define PARSEC_LIST_ITEM_PREV(item) ((__typeof__(item))(((parsec_list_item_t*)(item))->list_prev))
 
-/** Make a well formed singleton ring with a list item @item.
- *   @return @item, a valid list item ring containing itself
+/** 
+ * @brief
+ *  Make a well formed singleton ring with a list item.
+ *
+ * @detail
+ *   @param[inout] item the item to singleton
+ *   @return a valid list item ring containing itself
  */
 static inline parsec_list_item_t*
 parsec_list_item_singleton( parsec_list_item_t* item )
@@ -49,11 +81,23 @@ parsec_list_item_singleton( parsec_list_item_t* item )
     item->list_prev = item;
     return item;
 }
+/**
+ * @brief Convenience macro to singleton an object that derives a List Item
+ */
 #define PARSEC_LIST_ITEM_SINGLETON(item) parsec_list_item_singleton((parsec_list_item_t*) item)
 
-/** Make a ring from a chain of items, starting with @first, ending with @last, @returns @first
+/**
+ * @brief
+ *   Make a ring from a chain of items
+ *
+ * @detail
+ *  Starting with first, ending with last, returns first.
  *    if first->last is not a valid chain of items, result is undetermined
- *    in PARSEC_DEBUG_PARANOID mode, attached items are detached, must be reattached if needed */
+ *    in PARSEC_DEBUG_PARANOID mode, attached items are detached, must be reattached if needed 
+ * @param[inout] first the first item of the chain
+ * @param[inout] last the last item of the chain
+ * @return first after it has been chained to last to make a ring
+ */
 static inline parsec_list_item_t*
 parsec_list_item_ring( parsec_list_item_t* first, parsec_list_item_t* last )
 {
@@ -76,8 +120,17 @@ parsec_list_item_ring( parsec_list_item_t* first, parsec_list_item_t* last )
     return first;
 }
 
-/* Add an @item to the item ring @ring, preceding @ring (not thread safe)
- *   @return @ring, the list item representing the ring
+/**
+ * @brief
+ *   Add an item to an item ring.
+ *
+ * @detail
+ *   item is added to the item ring ring, preceding ring
+ *  @param[inout] ring the ring of items to which item should be added
+ *  @param[inout] item the item to add to ring
+ *  @return ring, the list item representing the ring
+ * @remark
+ *  This is not a thread safe function
  */
 static inline parsec_list_item_t*
 parsec_list_item_ring_push( parsec_list_item_t* ring,
@@ -95,8 +148,17 @@ parsec_list_item_ring_push( parsec_list_item_t* ring,
     return ring;
 }
 
-/* Merge @ring1 with @ring2 (not thread safe)
- *   @return @ring1
+/**
+ * @brief
+ *   Merge to ring of items.
+ *
+ * @detail
+ *   ring2 is added to the item ring ring1, succeeding ring1
+ *  @param[inout] ring1 the ring of items to which ring2 should be added
+ *  @param[inout] ring2 the ring of items to add to ring1
+ *  @return ring1, the list item representing the merged ring
+ * @remark
+ *  This is not a thread safe function
  */
 static inline parsec_list_item_t*
 parsec_list_item_ring_merge( parsec_list_item_t* ring1,
@@ -118,8 +180,17 @@ parsec_list_item_ring_merge( parsec_list_item_t* ring1,
     return ring1;
 }
 
-/* Remove the current first item of the ring @item (not thread safe)
- *   @returns the ring starting at next item, or NULL if @item is a singleton
+/**
+ * @brief
+ *   Removes an item from a ring of items.
+ *
+ * @detail
+ *   item must belong to a ring. It is singletoned, and the ring without
+ *   item is returned.
+ *  @param[inout] item the item from the ring of items to be removed.
+ *  @return the rest of the ring
+ * @remark
+ *  This is not a thread safe function
  */
 static inline parsec_list_item_t*
 parsec_list_item_ring_chop( parsec_list_item_t* item )
@@ -140,6 +211,21 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
     return ring;
 }
 
+/**
+ * @brief Convenience macro to apply CODE on the elements of a ring
+ *        of items
+ *
+ * @detail
+ *  Paste a code that execute 'CODE', assigning all elements between
+ *  RING (included) and LAST (excluded) to ITEM before.
+ * @param RING the first element on which CODE should be applied
+ * @param LAST the last element on which CODE should not be applied (e.g.
+ *  if LAST == RING, CODE is applied on all the items of RING
+ * @param ITEM the name of a variable to use in CODE and that will be assigned
+ *  to each item between RING and LAST
+ * @param CODE A piece of code to execute for each value of ITEM
+ * @return the last item (LAST)
+ */
 #define _LIST_ITEM_ITERATOR(RING, LAST, ITEM, CODE)                     \
     ({                                                                  \
         parsec_list_item_t* ITEM = (parsec_list_item_t*)(RING);           \
@@ -152,6 +238,20 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
         ITEM;                                                           \
     })
 
+/**
+ * @brief
+ *   Insert an item into a sorted items ring, preserving the sorted property
+ *
+ * @detail
+ *   Assuming there is an integer off bytes after the beginning of each item,
+ *   inserts item before the first p of ring such that
+ *     A_LOWER_PRIORITY_THAN_B(item, p, off) is false
+ * @param[inout] ring the sorted ring of items
+ * @param[inout] item the item to add
+ * @param[in] off the offset where the integer to use to sort items can be found
+ * @return the newly formed ring of items (can be equal or different from ring)
+ * @remark This function is not thread safe
+ */
 static inline parsec_list_item_t*
 parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
                                    parsec_list_item_t* item,
@@ -176,7 +276,11 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
     return ring;
 }
 
-/* This is debu helpers for list items accounting */
+/* This is debug helpers for list items accounting */
+/**
+ * Don't include the implementation in the doxygen documentation
+ * @cond FALSE
+ */
 #if defined(PARSEC_DEBUG_PARANOID)
 #define PARSEC_ITEMS_VALIDATE(ITEMS)                                    \
     do {                                                                \
@@ -224,13 +328,28 @@ parsec_list_item_ring_push_sorted( parsec_list_item_t* ring,
         assert( 0 == _item->refcount );                                 \
     } while (0)
 #else
+/** @endcond */
+/**
+ * @brief Check that an item is well formed (it does belong to the structure it is supposed to)
+ */
 #define PARSEC_ITEMS_VALIDATE_ELEMS(ITEMS) do { (void)(ITEMS); } while(0)
+/**
+ * @brief Attach an item to a higher level structure
+ */
 #define PARSEC_ITEM_ATTACH(LIST, ITEM) do { (void)(LIST); (void)(ITEM); } while(0)
+/**
+ * @brief Attach a ring of items to a higher level structure
+ */
 #define PARSEC_ITEMS_ATTACH(LIST, ITEMS) do { (void)(LIST); (void)(ITEMS); } while(0)
+/**
+ * @brief Dettach an item from a higher level structure
+ */
 #define PARSEC_ITEM_DETACH(ITEM) do { (void)(ITEM); } while(0)
 #endif  /* PARSEC_DEBUG_PARANOID */
 
 END_C_DECLS
+
+/** @} */
 
 #endif
 

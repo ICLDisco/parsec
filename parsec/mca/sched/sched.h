@@ -83,6 +83,90 @@
  * a task that was scheduled at distance X if there are still tasks scheduled
  * at distance Y<X. A task that cannot execute now will kept being scheduled
  * with a distance larger than its selection distance.
+ *
+ * @section schedEx1 Example
+ * We consider in this example a simple priority list scheduling, whose full
+ * code can be found in `parsec/mca/sched/spq/sched_spq_module.c`
+ *
+ *   - For each particular distance, we maintain a sorted (by priority)
+ *     list of ready tasks.
+ *   - All cores share the same set of lists
+ *   - Scheduling will consist in inserting each task in the appropriate
+ *     list
+ *   - Selecting will consist in finding the list with the smallest distance,
+ *     and from that list picking the highest priority task.
+ *   - global locks (at the list of priority lists level) will be used to
+ *     ensure a (rough) thread safety.
+ * 
+ * \dontinclude parsec/mca/sched/spq/sched_spq_module.c
+ * \skip Example Starts Here
+ * The Install function (@ref parsec_sched_base_module_install_fn_t) is defined so:
+ * \skip sched_spq_install
+ * \until }
+ * Nothing specific has to be done in this function.
+ *
+ * The flow_init function (@ref parsec_sched_base_module_flow_init_fn_t) 
+ * is defined so: 
+ * \skip flow_spq_init
+ * \until }
+ *
+ * The execution unit for identifier 0 (see @ref parsec_execution_unit_t) 
+ * creates a new list (@ref parsec_internal_classes_list), and stores it 
+ * in the opaque pointer for scheduling, scheduler_object. All threads then
+ * join the barrier (@ref parsec_internal_classes_barrier), and store in their
+ * own scheduler_object the one that was created by the execution unit 0.
+ *
+ * The Selecting function (@ref parsec_sched_base_module_select_fn_t) is
+ * then defined so:
+ * \skip sched_spq_select
+ * \until return context
+ * \until }
+ * 
+ * Here, the current thread will 
+ *
+ *  - lock the task list (preventing all other thread to modify it)
+ *  - iterate over each element (this list being sorted, we consider
+ *    first sublists with a low distance)
+ *  - Each element of this sorted-by-distance list being a list head,
+ *    check if there is a task in this second-level list by trying to
+ *    pop the first element in it
+ *  - If there is a task in this second-level list, remember what
+ *    distance was used, and return the found context
+ *  - If there is no task, continue searching
+ *  - Evenutally return the found task, or NULL, afte having released
+ *    the lock on the lists.
+ * 
+ * The Scheduling function (@ref parsec_sched_base_module_schedule_fn_t) is
+ * defined so:
+ * \skip sched_spq_schedule
+ * \until return 0;
+ * \until }
+ *
+ * That function behaves similarly to the selection function:
+ * 
+ *  - it takes the lock on the lists
+ *  - iterate over the distance-sorted list heads, finding one with
+ *    the apprioriate priority (the distance provided by the runtime)
+ *  - if it did not find one, stop the iteration before we consider higher
+ *    distances, so that the new list head can be inserted in the right
+ *    position
+ *  - if necessary, create a new list head to store tasks with this
+ *    distance
+ *  - then insert (sorted) the ready tasks (since new_context is a 
+ *    ring of tasks) into the list corresponding to that distance
+ *  - and release the lock on the tasks lists.
+ *
+ * The remove function (@ref parsec_sched_base_module_remove_fn_t) is defined
+ * so:
+ * \skip sched_spq_remove
+ * \until }
+ * \until }
+ * \until }
+ * \until }
+ * 
+ * It frees the only list allocated by the flow_init function, and
+ * set the scheduler_object to NULL for all execution units under this
+ * @ref parsec_context_t
  */
 
 #ifndef MCA_SCHED_H

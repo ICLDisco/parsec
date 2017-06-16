@@ -40,6 +40,10 @@
  * @ingroup parsec_internal
  *    Internal Communication Engine of PaRSEC
  *
+ * @defgroup parsec_internal_classes Basic Classes
+ * @ingroup parsec_internal
+ *    Set of basic data structures to manage lists, hash tables, etc.
+ *
  ****
  * @defgroup DPlasma DPlasma
  *    This is the dense linear algebra library developed on top of the

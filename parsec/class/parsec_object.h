@@ -17,17 +17,28 @@
  * $HEADER$
  */
 
+#ifndef PARSEC_OBJECT_H
+#define PARSEC_OBJECT_H
+
+#include "parsec/parsec_config.h"
+#include <assert.h>
+#include <stdlib.h>
+
 /**
- * @file:
+ * @defgroup parsec_internal_classes_object PaRSEC Objects
+ * @ingroup parsec_internal_classes
+ * @{
  *
- * A simple C-language object-oriented system with single inheritance
- * and ownership-based memory management using a retain/release model.
+ *  @brief Base Object of the entire PaRSEC hierarchy.  A simple
+ *         C-language object-oriented system with single inheritance
+ *         and ownership-based memory management using a
+ *         retain/release model.
  *
- * A class consists of a struct and singly-instantiated class
- * descriptor.  The first element of the struct must be the parent
- * class's struct.  The class descriptor must be given a well-known
- * name based upon the class struct name (if the struct is sally_t,
- * the class descriptor should be sally_t_class) and must be
+ *  @details A class consists of a struct and singly-instantiated
+ * class descriptor.  The first element of the struct must be the
+ * parent class's struct.  The class descriptor must be given a
+ * well-known name based upon the class struct name (if the struct is
+ * sally_t, the class descriptor should be sally_t_class) and must be
  * statically initialized as discussed below.
  *
  * (a) To define a class
@@ -112,13 +123,6 @@
  *   OBJ_DESTRUCT(&sally);
  * @endcode
  */
-
-#ifndef PARSEC_OBJECT_H
-#define PARSEC_OBJECT_H
-
-#include "parsec/parsec_config.h"
-#include <assert.h>
-#include <stdlib.h>
 
 BEGIN_C_DECLS
 
@@ -496,5 +500,9 @@ PARSEC_DECLSPEC int parsec_obj_update_not_inline(parsec_object_t *object, int in
 #define parsec_obj_update parsec_obj_update_not_inline
 #endif  /* defined(BUILD_PARSEC) */
 END_C_DECLS
+
+/**
+ * @}
+ */
 
 #endif
