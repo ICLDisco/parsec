@@ -182,8 +182,8 @@ IF( BUILD_TOOLS )
   # Check for compiler tools
   find_package(BISON)
 ENDIF( BUILD_TOOLS )
-  find_package(FLEX)
-  set(PARSEC_HAVE_RECENT_LEX 0)
+find_package(FLEX)
+set(PARSEC_HAVE_RECENT_LEX 0)
 
 # check for the CPU we build for
 MESSAGE(STATUS "Building for target ${CMAKE_SYSTEM_PROCESSOR}")
