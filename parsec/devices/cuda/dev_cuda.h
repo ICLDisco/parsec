@@ -25,7 +25,6 @@ BEGIN_C_DECLS
 #define PARSEC_MAX_STREAMS            6
 #define PARSEC_MAX_EVENTS_PER_STREAM  4
 #define PARSEC_GPU_MAX_WORKSPACE      2
-#define PARSEC_GPU_W2R_NB_MOVE_OUT    1
 
 #if defined(PARSEC_PROF_TRACE)
 #define PARSEC_PROFILE_CUDA_TRACK_DATA_IN  0x0001
@@ -78,6 +77,7 @@ struct __parsec_gpu_exec_stream {
     struct __parsec_gpu_context **tasks;
     cudaEvent_t *events;
     cudaStream_t cuda_stream;
+    const char* name;
     int32_t max_events;  /* number of potential events, and tasks */
     int32_t executed;    /* number of executed tasks */
     int32_t start, end;  /* circular buffer management start and end positions */
@@ -133,6 +133,7 @@ void dump_GPU_state(gpu_device_t* gpu_device);
 /****************************************************
  ** GPU-DATA Specific Starts Here **
  ****************************************************/
+PARSEC_DECLSPEC int parsec_cuda_output_stream;
 
 /**
  * Overload the default data_copy_t with a GPU specialized type
