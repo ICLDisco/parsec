@@ -848,13 +848,11 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                 /* We can't find enough room on the GPU. Insert the tiles in the begining of
                  * the LRU (in order to be reused asap) and return without scheduling the task.
                  */
-#if defined(PARSEC_DEBUG_NOISIER)
                 char tmp[MAX_TASK_STRLEN];
-                PARSEC_OUTPUT_VERBOSE(1, parsec_cuda_output_stream,
+                parsec_output_verbose(1, parsec_cuda_output_stream,
                                       "GPU:\tRequest space on GPU failed for flow index %d/%d for task %s",
                                       i, this_task->task_class->nb_flows,
                                       parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task));
-#endif  /* defined(PARSEC_DEBUG_NOISIER) */
                 for( j = 0; j < i; j++ ) {
                     if( NULL != temp_loc[j] ) {
                         parsec_list_nolock_lifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
@@ -1884,6 +1882,10 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
         PARSEC_DEBUG_VERBOSE(10, parsec_device_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->cuda_index,
                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                             gpu_task->ec->priority );
+    }
+    /* TODO: disable automatic transfer */
+    if (0 && out_task_submit == NULL && out_task_push == NULL) {
+        gpu_task = parsec_gpu_create_W2R_task(gpu_device, es);
     }
     /* Task is ready to move the data back to main memory */
     rc = progress_stream( gpu_device,
