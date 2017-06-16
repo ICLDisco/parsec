@@ -2083,6 +2083,9 @@ static char *source_name(parsec_mca_param_source_t source,
 
     case MCA_PARAM_SOURCE_OVERRIDE:
         return strdup("internal override");
+    default:
+        break;
+        /* let it flow outside the switch */
     }
     (void)rc;  /* prevent the compiler form complaining */
     return strdup("unknown (!)");
