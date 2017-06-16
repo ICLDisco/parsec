@@ -116,7 +116,7 @@ dplasma_zgemm_New( PLASMA_enum transA, PLASMA_enum transB,
         m = dplasma_imax(C->mt, P);
         n = dplasma_imax(C->nt, Q);
 
-        /* Create a copy of the A matrix to be used as a data distribution metric.
+        /* Create a copy of the C matrix to be used as a data distribution metric.
          * As it is used as a NULL value we must have a data_copy and a data associated
          * with it, so we can create them here.
          * Create the task distribution */
@@ -233,14 +233,14 @@ void
 dplasma_zgemm_Destruct( parsec_taskpool_t *tp )
 {
     parsec_zgemm_NN_taskpool_t *zgemm_tp = (parsec_zgemm_NN_taskpool_t *)tp;
+    parsec_tiled_matrix_dc_t* Cdist = (parsec_tiled_matrix_dc_t*)zgemm_tp->_g_Cdist;
 
-    if ( zgemm_tp->_g_Cdist != NULL ) {
-        parsec_tiled_matrix_dc_destroy( (parsec_tiled_matrix_dc_t*)(zgemm_tp->_g_Cdist) );
-        free( zgemm_tp->_g_Cdist );
-    }
-
-    parsec_matrix_del2arena( ((parsec_zgemm_NN_taskpool_t *)tp)->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
+    parsec_matrix_del2arena( zgemm_tp->arenas[PARSEC_zgemm_NN_DEFAULT_ARENA] );
     parsec_taskpool_free(tp);
+    if ( NULL != Cdist ) {
+        parsec_tiled_matrix_dc_destroy( Cdist );
+        free( Cdist );
+    }
 }
 
 /**
