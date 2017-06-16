@@ -351,7 +351,7 @@ dplasma_zgebrd_ge2gb_New( int ib,
     else {
         fprintf(stderr, "The case M < N is not handled yet\n" );
         return NULL;
-
+#if 0
         if ( A->nt > 2*A->mt ) {
             qrtre0 = malloc( sizeof(dplasma_qrtree_t) );
             dplasma_hqr_init( qrtre0, PlasmaTrans,
@@ -375,6 +375,7 @@ dplasma_zgebrd_ge2gb_New( int ib,
         if (subA != A) {
             free(subA);
         }
+#endif
     }
 
     handle = dplasma_zgebrd_ge2gbx_New( ib, qrtre0, qrtree, lqtree,
