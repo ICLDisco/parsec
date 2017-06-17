@@ -20,6 +20,7 @@
  *    this is not required by the profiling system if events are correctly identified.
  */
 
+#include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <stdlib.h>
