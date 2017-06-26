@@ -1,4 +1,4 @@
-include(RulesPrecisions)
+include(PrecisionGenerator)
 
 # reset variables
 set(generated_headers "")
@@ -14,6 +14,7 @@ add_custom_target(dplasma_includes ALL DEPENDS dplasma.h SOURCES
 ### install the dplasma headers
 install(FILES
   dplasma.h
+  dplasma_complex.h
   dplasma_qr_param.h
   DESTINATION dplasma/include)
 

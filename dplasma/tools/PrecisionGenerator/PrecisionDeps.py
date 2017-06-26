@@ -1,14 +1,8 @@
 #!/usr/bin/env python
 
 ##
-# @defgroup dplasma_tools_gendep genDependencies
-# @ingroup dplasma_tools
-#   Internal tool for precision generation (extended)
+# @ingroup dplasma_tools_PrecisionGenerator
 #
-#This python script is responsible for precision generation replacements
-#as well as replacements of any kind in other files.  Different types of
-#replacements can be defined such that no two sets can conflict.  Multiple
-#types of replacements can, however, be specified for the same file.
 # @{
 
 """@package Tools

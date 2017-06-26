@@ -2,9 +2,9 @@
 # PaRSEC Internal: generation of various floating point precision files from a template.
 #
 
-set(GENDEPENDENCIES  ${CMAKE_SOURCE_DIR}/tools/precision_generator/genDependencies.py)
-set(PRECISIONPP      ${CMAKE_SOURCE_DIR}/tools/precision_generator/codegen.py)
-set(PRECISIONPP_subs ${CMAKE_SOURCE_DIR}/tools/precision_generator/subs.py)
+set(GENDEPENDENCIES  ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionDeps.py)
+set(PRECISIONPP      ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/PrecisionGenerator.py)
+set(PRECISIONPP_subs ${CMAKE_SOURCE_DIR}/dplasma/tools/PrecisionGenerator/subs.py)
 
 include(ParseArguments)
 FIND_PACKAGE(PythonInterp REQUIRED)

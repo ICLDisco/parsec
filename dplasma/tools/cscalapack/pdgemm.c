@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2015 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2010      University of Denver, Colorado.
@@ -13,7 +13,6 @@
 #include <math.h>
 #include "myscalapack.h"
 #include "common.h"
-#include "../../dplasma/testing/flops.h"
 
 static double check_solution( int params[], double *Alu, double *tau );
 

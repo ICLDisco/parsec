@@ -1,4 +1,4 @@
-include(RulesPrecisions)
+include(PrecisionGenerator)
 # reset variables
 set(generated_files "")
 set(generated_headers "")

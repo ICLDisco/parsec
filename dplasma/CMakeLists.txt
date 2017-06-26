@@ -2,17 +2,11 @@ cmake_minimum_required (VERSION 2.8)
 
 option(BUILD_DPLASMA
        "Compile the DPLASMA layer" ON)
-mark_as_advanced(DPLASMA_DEBUG_QR_PIVGEN)
-option(DPLASMA_DEBUG_QR_PIVGEN
-  "Enable the QR pivgen testings" OFF)
+IF( NOT BUILD_DPLASMA )
+  RETURN()
+ENDIF( NOT BUILD_DPLASMA )
 
 # DPLASMA specific option.
-option(DPLASMA_GPU_WITH_MAGMA
-  "Enable GPU support using MAGMA kernels" OFF)
-if(DPLASMA_GPU_WITH_MAGMA)
-  message(WARNING "MAGMA is not supported yet, ignored.")
-endif()
-
 option(DPLASMA_WITH_RECURSIVE
   "Enable recursive kernels to be called when available" OFF)
 if(DPLASMA_WITH_RECURSIVE)
@@ -20,15 +14,16 @@ if(DPLASMA_WITH_RECURSIVE)
   add_definitions(-DPARSEC_HAVE_RECURSIVE)
 endif()
 
-if(NOT DPLASMA_PRECISIONS)
-  set(DPLASMA_PRECISIONS "s;d;c;z" CACHE STRING "The precisions to compile in dplasma (accepts a colon separated list of s;d;c;z)" FORCE)
-else()
-  set(DPLASMA_PRECISIONS "${DPLASMA_PRECISIONS}" CACHE STRING "The precisions to compile in dplasma (accepts a colon separated list of s;d;c;z)" FORCE)
+mark_as_advanced( PARSEC_GPU_WITH_MAGMA )
+option(DPLASMA_GPU_WITH_MAGMA
+  "Enable GPU support using MAGMA kernels" OFF)
+if(DPLASMA_GPU_WITH_MAGMA)
+  message(WARNING "MAGMA is not supported yet, ignored.")
 endif()
 
-IF( NOT BUILD_DPLASMA )
-  RETURN()
-ENDIF( NOT BUILD_DPLASMA )
+mark_as_advanced(DPLASMA_DEBUG_QR_PIVGEN)
+option(DPLASMA_DEBUG_QR_PIVGEN
+  "Enable the QR pivgen testings" OFF)
 
 if( BUILD_DPLASMA AND NOT BUILD_PARSEC )
   message(FATAL_ERROR "Building the DPLASMA layer requires the PaRSEC framework")
@@ -41,13 +36,11 @@ LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/")
 
 include(FortranCInterface)
 
-
 find_package(COREBLAS)
 if( PLASMA_SRC )
    list(APPEND COREBLAS_INCLUDE_DIRS ${PLASMA_SRC})
 endif( PLASMA_SRC )
 
-mark_as_advanced( PARSEC_GPU_WITH_MAGMA )
 if( DPLASMA_GPU_WITH_MAGMA )
   find_package(MAGMA)
   if( MAGMA_FOUND )
@@ -63,6 +56,13 @@ else( ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
   include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
   include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR}/include)
 endif( ${CMAKE_CURRENT_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR} )
+
+if(NOT DPLASMA_PRECISIONS)
+  set(DPLASMA_PRECISIONS "s;d;c;z" CACHE STRING "The precisions to compile in dplasma (accepts a colon separated list of s;d;c;z)" FORCE)
+else()
+  set(DPLASMA_PRECISIONS "${DPLASMA_PRECISIONS}" CACHE STRING "The precisions to compile in dplasma (accepts a colon separated list of s;d;c;z)" FORCE)
+endif()
+LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tools/PrecisionGenerator/")
 
 # Veclib on OSX diverges from the standard BLAS interface. As a result, single
 # precision dplasma tests (real and complex) deliver wrong results. 

@@ -166,7 +166,7 @@ option(PINS_ENABLE
 # endif( PINS_ENABLE AND NOT PARSEC_PROF_TRACE )
 
 # cmake modules setup
-set(CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake_modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules/")
 include (CMakeDetermineSystem)
 include (CheckCCompilerFlag)
 include (CheckCSourceCompiles)

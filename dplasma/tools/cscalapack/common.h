@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2010      University of Denver, Colorado.
@@ -7,6 +7,9 @@
 
 #ifndef _SCALAPACK_COMMON_H_
 #define _SCALAPACK_COMMON_H_
+
+#include "../../testing/flops.h"
+
 
 static int i0=0, i1=1;
 static double m1=-1e0, p0=0e0, p1=1e0;

@@ -1,11 +1,11 @@
 /*
- * Copyright (c) 2010      The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
 
-#ifndef _PRECISION_H_
-#define _PRECISION_H_
+#ifndef _DPLASMA_COMPLEX_H_
+#define _DPLASMA_COMPLEX_H_
 
 /******************************************************************************
  * PaRSEC Complex numbers
@@ -66,4 +66,4 @@ extern parsec_complex32_t cpowf (parsec_complex32_t z, parsec_complex32_t w);
 }
 #endif
 
-#endif /* _PRECISION_H_ */
+#endif /* _DPLASMA_COMPLEX_H_ */

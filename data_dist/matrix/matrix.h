@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2015 The University of Tennessee and The University
+ * Copyright (c) 2010-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  */
@@ -11,7 +11,6 @@
 #include "parsec/parsec_config.h"
 #include <stdarg.h>
 #include <stdio.h>
-#include "precision.h"
 #include "parsec.h"
 #include "parsec/data_distribution.h"
 #include "parsec/data.h"
@@ -38,7 +37,7 @@ enum matrix_storage {
 
 /**
  * Put our own definition of Upper/Lower/General values mathing the
- * Cblas/Plasma/... ones to avoid teh dependency
+ * Cblas/Plasma/... ones to avoid the dependency
  */
 enum matrix_uplo {
     matrix_Upper      = 121,
@@ -46,18 +45,26 @@ enum matrix_uplo {
     matrix_UpperLower = 123
 };
 
+/**
+ * Obtain the size in bytes of a matrix type.
+ */
 static inline int parsec_datadist_getsizeoftype(enum matrix_type type)
 {
+    int size = -1;
     switch( type ) {
-    case matrix_Byte          : return sizeof(char);
-    case matrix_Integer       : return sizeof(int);
-    case matrix_RealFloat     : return sizeof(float);
-    case matrix_RealDouble    : return sizeof(double);
-    case matrix_ComplexFloat  : return sizeof(parsec_complex32_t);
-    case matrix_ComplexDouble : return sizeof(parsec_complex64_t);
+    case matrix_Byte          : parsec_type_size(parsec_datatype_int8_t, &size); break;
+    case matrix_Integer       : parsec_type_size(parsec_datatype_int32_t, &size); break;
+    case matrix_RealFloat     : parsec_type_size(parsec_datatype_float_t, &size); break;
+    case matrix_RealDouble    : parsec_type_size(parsec_datatype_double_t, &size); break;
+    case matrix_ComplexFloat  : parsec_type_size(parsec_datatype_complex_t, &size); break;
+    case matrix_ComplexDouble : parsec_type_size(parsec_datatype_double_complex_t, &size); break;
+    /* If you want to add more types, note that size=extent is true only for predefined datatypes. 
+     * also, for non-predefined datatypes, you'd want to check for errors from
+     * parsec_type_size() */
     default:
         return -1;
     }
+    return size;
 }
 
 /**

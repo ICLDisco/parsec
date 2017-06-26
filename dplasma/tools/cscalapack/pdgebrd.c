@@ -11,7 +11,6 @@
 #include <math.h>
 #include "myscalapack.h"
 #include "common.h"
-#include "../../dplasma/testing/flops.h"
 
 static double check_solution( int params[], double *W );
 

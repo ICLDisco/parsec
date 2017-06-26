@@ -8,6 +8,7 @@
 #define _DPLASMA_H_
 
 #include "parsec.h"
+#include "dplasma_complex.h"
 
 BEGIN_C_DECLS
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2013 The University of Tennessee and The University
+ * Copyright (c) 2009-2017 The University of Tennessee and The University
  *                         of Tennessee Research Foundation.  All rights
  *                         reserved.
  * Copyright (c) 2010      University of Denver, Colorado.
@@ -13,9 +13,8 @@
 #include <math.h>
 #include "myscalapack.h"
 #include "common.h"
-#include "../../dplasma/testing/flops.h"
 
-static double check_solution( int params[], double *Alu, double *tau );
+static double check_solution( int params[], double *Alu, int *ippiv );
 
 int main( int argc, char **argv ) {
     int params[8];
@@ -23,8 +22,8 @@ int main( int argc, char **argv ) {
     int ictxt, nprow, npcol, myrow, mycol, iam;
     int m, n, nb, s, mloc, nloc, verif, iseed;
     int descA[9];
-    double *A = NULL;
-    double *tau = NULL;
+    double *A=NULL;
+    int    *ippiv = NULL;
     double resid, telapsed, gflops, pgflops;
 
     setup_params( params, argc, argv );
@@ -42,8 +41,8 @@ int main( int argc, char **argv ) {
     nloc = numroc_( &n, &nb, &mycol, &i0, &npcol );
     descinit_( descA, &m, &n, &nb, &nb, &i0, &i0, &ictxt, &mloc, &info );
     assert( 0 == info );
-
     A = malloc( sizeof(double)*mloc*nloc );
+
     scalapack_pdplrnt( A,
                        m, n,
                        nb, nb,
@@ -51,48 +50,52 @@ int main( int argc, char **argv ) {
                        nprow, npcol,
                        mloc,
                        iseed );
-    tau = malloc( sizeof(double)*min(m,n) );
+
+    ippiv = malloc( sizeof(int)*2*n );
 
     {
-        double *work=NULL; int lwork=-1; double getlwork;
         double t1, t2;
-        pdgeqrf_( &m, &n, A, &i1, &i1, descA, tau, &getlwork, &lwork, &info );
-        assert( 0 == info );
-        lwork = (int)getlwork;
-        work = malloc( sizeof(double)*lwork );
         t1 = MPI_Wtime();
-        pdgeqrf_( &m, &n, A, &i1, &i1, descA, tau, work, &lwork, &info );
+        pdgetrf_( &m, &n, A, &i1, &i1, descA, ippiv, &info );
         assert( 0 == info );
         t2 = MPI_Wtime();
         telapsed = t2-t1;
-        free(work);
+    }
+
+    if ( info != 0 ) {
+        fprintf(stderr, "Factorization failed on proc (%d, %d): info = %d\n", myrow, mycol, info);
+        MPI_Finalize();
+        exit(1);
     }
     if ( verif ) {
-        resid = check_solution( params, A, tau );
+        resid = check_solution( params, A, ippiv );
     } else {
         resid = -1;
     }
 
-    if( 0 != iam ) {
+    if( 0 != iam )
+    {
         MPI_Reduce( &telapsed, NULL, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
     }
-    else {
+    else
+    {
         MPI_Reduce( MPI_IN_PLACE, &telapsed, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD );
-        gflops = FLOPS_DGEQRF((double)m, (double)n)/1e+9/telapsed;
+        gflops  = FLOPS_DGETRF((double)m, (double)n)/1e+9/telapsed;
         pgflops = gflops/(((double)nprow)*((double)npcol));
-        printf( "### PDGEQRF ###\n"
-                "#%4sx%-4s %7s %7s %4s %4s # %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "NRHS", "resid", "time(s)", "gflops", "gflops/pxq" );
+        printf( "### PDGETRF ###\n"
+                "#%4sx%-4s %7s %7s %4s %4s # %10s %10s %10s %11s\n", "P", "Q", "M", "N", "NB", "NRHS", "resid", "time(s)", "gflops", "gflops/PxQ" );
         printf( " %4d %-4d %7d %7d %4d %4d   %10.3e %10.3g %10.3g %11.3g\n", nprow, npcol, m, n, nb, s, resid, telapsed, gflops, pgflops );
     }
 
     free( A ); A = NULL;
-    free( tau ); tau = NULL;
+    free( ippiv ); ippiv = NULL;
 
     Cblacs_exit( 0 );
     return 0;
 }
 
-static double check_solution( int params[], double* Aqr, double *tau ) {
+static double check_solution( int params[], double* Alu, int *ippiv )
+{
     double resid = NAN;
     int info;
     int ictxt = params[PARAM_BLACS_CTX];
@@ -138,7 +141,7 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
                        myrow, mycol,
                        nprow, npcol,
                        mloc,
-                       iseed + 1 );
+                       iseed + 1);
 
     pdlacpy_( "All", &n, &s, B, &i1, &i1, descB, X, &i1, &i1, descB );
     {
@@ -148,23 +151,9 @@ static double check_solution( int params[], double* Aqr, double *tau ) {
         free( work );
     }
 
-    /* Compute X from Aqr */
-    {
-        double *work=NULL; int lwork=-1; double getlwork;
-        /* Get workspace size */
-        pdormqr_( "L", "T", &n, &s, &n, Aqr, &i1, &i1,
-                  descA, tau, X, &i1, &i1, descB,
-                  &getlwork, &lwork, &info );
-        lwork = (int)getlwork;
-        work = malloc( sizeof(double)*lwork );
-
-        /* Actual call to ormqr */
-        pdormqr_( "L", "T", &n, &s, &n, Aqr, &i1, &i1,
-                  descA, tau, X, &i1, &i1, descB,
-                  work, &lwork, &info );
-        free(work);
-    }
-    pdtrsm_( "L", "U", "N", "N", &n, &s, &p1, Aqr, &i1, &i1, descA, X, &i1, &i1, descB );
+    /* Solve Ax = b */
+    pdgetrs_( "N", &n, &s, Alu, &i1, &i1, descA, ippiv, X, &i1, &i1, descB, &info );
+    assert( 0 == info );
 
     /* Compute B-AX */
     pdgemm_( "N", "N", &n, &s, &n, &m1, A, &i1, &i1, descA, X, &i1, &i1, descB,

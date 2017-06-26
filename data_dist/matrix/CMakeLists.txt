@@ -1,10 +1,8 @@
 
 #
-# Sources depending on Precision
+# Sources generated from JDF
 #
-include(RulesPrecisions)
 include(RulesJDF)
-set(generated_files "")
 set(generated_jdf "")
 
 
@@ -12,14 +10,6 @@ SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf PROPERTY ADDITION
 SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
 SET_PROPERTY(SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf PROPERTY ADDITIONAL_PARSECPP_CFLAGS "--Wremoteref")
 jdf_rules(generated_jdf "${CMAKE_CURRENT_SOURCE_DIR}/reduce_col.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce_row.jdf;${CMAKE_CURRENT_SOURCE_DIR}/reduce.jdf;${CMAKE_CURRENT_SOURCE_DIR}/diag_band_to_rect.jdf")
-
-set( precision_files
-  ztwoDBC.c
-)
-precisions_rules_py(generated_files
-                 "${precision_files}"
-                 PRECISIONS "s;d;c;z"
-)
 
 include_directories(BEFORE ${CMAKE_CURRENT_BINARY_DIR})
 
@@ -38,12 +28,8 @@ set(sources
         vector_two_dim_cyclic.c
         reduce_wrapper.c
         subtile.c
-        ${generated_files}
         ${generated_jdf}
 )
-if( NOT PARSEC_HAVE_COMPLEX_H )
-  list(APPEND sources precision.c)
-endif()
 
 if (MPI_C_FOUND)
     LIST(APPEND sources scalapack_convert.c)
@@ -69,7 +55,6 @@ install(TARGETS parsec_distribution_matrix
 
 install(FILES
   matrix.h
-  precision.h
   two_dim_rectangle_cyclic.h
   sym_two_dim_rectangle_cyclic.h
   vector_two_dim_cyclic.h

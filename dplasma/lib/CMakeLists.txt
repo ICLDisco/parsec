@@ -1,4 +1,4 @@
-include(RulesPrecisions)
+include(PrecisionGenerator)
 include(RulesJDF)
 
 # reset variables
@@ -14,6 +14,11 @@ set(EXTRA_SOURCES
   map2_wrapper.c
   butterfly_map.c
 )
+if( NOT PARSEC_HAVE_COMPLEX_H )
+  list(APPEND EXTRA_SOURCES complex.c)
+endif()
+
+
 
 ### Generate .c files from .jdf for all required precisions
 set(JDF

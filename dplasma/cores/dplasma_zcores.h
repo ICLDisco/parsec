@@ -10,7 +10,7 @@
 #define _DPLASMA_Z_CORES_H
 
 #include "parsec.h"
-#include "data_dist/matrix/precision.h"
+#include "dplasma_complex.h"
 #include "data_dist/matrix/matrix.h"
 #include <core_blas.h>
 

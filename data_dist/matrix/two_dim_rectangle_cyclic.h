@@ -70,12 +70,6 @@ void two_dim_block_cyclic_init(two_dim_block_cyclic_t * twoDBCdesc,
                                int nrst, int ncst, /* Super-tiling size */
                                int process_GridRows );
 
-int twoDBC_tolapack( two_dim_block_cyclic_t *Mdesc, void* A, int lda);
-int twoDBC_ztolapack(two_dim_block_cyclic_t *Mdesc, parsec_complex64_t* A, int lda);
-int twoDBC_ctolapack(two_dim_block_cyclic_t *Mdesc, parsec_complex32_t* A, int lda);
-int twoDBC_dtolapack(two_dim_block_cyclic_t *Mdesc, double* A, int lda);
-int twoDBC_stolapack(two_dim_block_cyclic_t *Mdesc, float* A, int lda);
-
 
 void two_dim_block_cyclic_supertiled_view( two_dim_block_cyclic_t* target,
                                            two_dim_block_cyclic_t* origin,

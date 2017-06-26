@@ -1,4 +1,4 @@
-include(RulesPrecisions)
+include(PrecisionGenerator)
 
 macro(testings_addexec OUTPUTLIST PRECISIONS ZSOURCES)
   include_directories(. ${COREBLAS_INCLUDE_DIRS})

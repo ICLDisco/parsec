@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 ##
-# @defgroup dplasma_tools_codegen codegen
+# @defgroup dplasma_tools_PrecisionGenerator PrecisionGenerator
 # @ingroup dplasma_tools
 #   Internal tool for precision generation (extended)
 #
@@ -34,7 +34,7 @@ import shutil;
 from os import path;
 from optparse import OptionParser,OptionGroup;
 from datetime import datetime;
-from Conversion import KEYWORD,DONE_KEYWORD,REGEX,EXTS,Conversion,check_gen,subs;
+from Conversion import KEYWORD,DONE_KEYWORD,REGEX,EXTS,Conversion,check_gen;
 
 def main():
   """Create option parser, set static variables of the converter and manage printing options/order."""
