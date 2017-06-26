@@ -6,6 +6,7 @@
 
 #include "parsec/parsec_config.h"
 #include "parsec_prof_grapher.h"
+#include "parsec_internal.h"
 #if defined(PARSEC_PROF_TRACE)
 #include "parsec/parsec_binary_profile.h"
 #endif

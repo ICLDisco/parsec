@@ -14,6 +14,8 @@
 
 #include "parsec.h"
 #include "parsec/execution_unit.h"
+#include "data.h"
+#include "parsec/parsec_description_structures.h"
 
 BEGIN_C_DECLS
 
