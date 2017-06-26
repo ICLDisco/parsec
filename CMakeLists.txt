@@ -896,3 +896,13 @@ configure_file (
 
 install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
 
+# cmake config files
+include(CMakePackageConfigHelpers)
+configure_package_config_file(cmake_modules/ParsecConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake
+                              INSTALL_DESTINATION ${LIB_INSTALL_DIR}/parsec/cmake
+                              PATH_VARS CMAKE_INSTALL_PREFIX)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
+                                 VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.0
+                                 COMPATIBILITY SameMajorVersion)
+                               install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake ${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules/RulesJDF.cmake
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
