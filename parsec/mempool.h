@@ -83,12 +83,12 @@ struct parsec_thread_mempool_s {
  * release
  *
  * @param[out] mempool the mempool to construct
- * @param[in] ojb_class the class of objects stored in this mempool
+ * @param[in] obj_class the class of objects stored in this mempool
  * @param[in] elt_size the size of each objects in this mempool
  * @param[in] pool_offset the number of bytes between the beginning of the object
  *            and a parsec_thread_mempool_t pointer field inside the object
  *            that points to the mempool that allocated the object
- * @param[in] the number of threads that can share this mempool
+ * @param[in] nbthreads the number of threads that can share this mempool
  */
 void parsec_mempool_construct( parsec_mempool_t *mempool,
                               parsec_class_t* obj_class, size_t elt_size,

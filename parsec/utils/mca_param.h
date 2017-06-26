@@ -327,7 +327,7 @@ parsec_mca_param_reg_string_name(const char *type,
  *
  * @param original_index [in] The index of the original parameter to
  * create a synonym for.
- * @param type [in] Although this synonym is not associated with
+ * @param syn_type [in] Although this synonym is not associated with
  * a component, it still must have a string type name that will
  * act as a prefix (string).
  * @param syn_param_name [in] Parameter name of the synonym to be
@@ -343,7 +343,7 @@ parsec_mca_param_reg_string_name(const char *type,
  * values.
  */
 PARSEC_DECLSPEC int
-parsec_mca_param_reg_syn_name(int orignal_index,
+parsec_mca_param_reg_syn_name(int original_index,
                              const char *syn_type,
                              const char *syn_param_name,
                              bool deprecated);

@@ -56,7 +56,7 @@ BEGIN_C_DECLS
  * elements are included in the function call, then the function returns
  * "." for a relative path name and "<path separator char>" - 
  * the top of the directory tree - for an absolute path name.
- * @param elem1,elem2,... A variable number of (char *)path_elements
+ * @param ... A variable number of (char *)path_elements
  * can be provided to the function, terminated by a NULL value. These
  * elements will be concatenated, each separated by the path separator
  * character, into a path name and returned.

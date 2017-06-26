@@ -9,9 +9,10 @@
  * @version 2.4.5
  * @author Dulceneia Becker
  * @date 2011-1-18
- * @precisions normal z -> c d s
- *
  **/
+/*
+ * @precisions normal z -> c d s
+ */
 #include <lapacke.h>
 #include "parsec/parsec_config.h"
 #include "dplasma_cores.h"
@@ -55,7 +56,7 @@ int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
  *
 *******************************************************************************
  *
- * @param[in] UPLO
+ * @param[in] uplo
  *         INTEGER
  *         @arg PlasmaLower: Lower triangle of A is stored and scaled.
  *         @arg PlasmaUpper: Upper triangle of A is stored and scaled.
@@ -67,10 +68,10 @@ int CORE_ztrmdm(int uplo, int N, PLASMA_Complex64_t *A, int LDA);
  * @param[in,out] A
  *         PLASMA_Complex64_t array, dimension (LDA,N)
  *
- *         On entry, the triangular matrix A. If UPLO = 'U', the leading
+ *         On entry, the triangular matrix A. If uplo = 'U', the leading
  *         N-by-N upper triangular part of A contains the upper
  *         triangular part of the matrix A, and the strictly lower
- *         triangular part of A is not referenced.  If UPLO = 'L', the
+ *         triangular part of A is not referenced.  If uplo = 'L', the
  *         leading N-by-N lower triangular part of A contains the lower
  *         triangular part of the matrix A, and the strictly upper
  *         triangular part of A is not referenced.

@@ -344,8 +344,8 @@ int __parsec_schedule( parsec_execution_unit_t* eu_context,
  *          iterate over all existing execution units (in the current VP,
  *          then on the next VP and so on).
  *
- * @param [IN] eu_context, the start execution_unit (normall it is the current one).
- * @param [IN] task, the task to be rescheduled.
+ * @param[in] eu_context the start execution_unit (usually, the current one).
+ * @param[in] task the task to be rescheduled.
  *
  * @return parsec scheduling return code
  */

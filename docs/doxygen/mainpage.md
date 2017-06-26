@@ -30,7 +30,7 @@ PaRSEC exposes a [public API](@ref parsec_public), that feature:
 
   - [Dynamic Tasks Discovery (DTD)](@ref DTD_INTERFACE), that uses an
   inspector/executor model to build the DAG of tasks at runtime
-  - [Parameterized Task Graphs (PTG)](@ref PTG_INTERFACE), that
+  - [Parameterized Task Graphs (PTG)](https://bitbucket.org/icldistcomp/parsec/wiki/writejdf), that
   provides an intermediate representation of the DAG of tasks at
   compile time
   
@@ -53,7 +53,7 @@ subdirectory of the source. It is separated in a few modules:
 
     - [Arenas](@ref parsec_internal_arena) represent temporary memory
     allocated by the runtime engine to move and store user data.
-   - [Memory pools](@ref parsec_internal_mempool) are used to improve
+    - [Memory pools](@ref parsec_internal_mempool) are used to improve
    the performance of frequent allocation/de-allocation inside the
    runtime engine
 

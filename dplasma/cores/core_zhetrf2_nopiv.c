@@ -9,9 +9,10 @@
  * @version 2.4.5
  * @author Dulceneia Becker
  * @date 2011-1-18
- * @precisions normal z -> c d s
- *
  **/
+/*
+ * @precisions normal z -> c d s
+ */
 #include <lapacke.h>
 #include "parsec/parsec_config.h"
 #include "dplasma_cores.h"

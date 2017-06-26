@@ -19,7 +19,7 @@
  *
  *  @brief List Items for PaRSEC
  *
- *  @detail List Items are used in various structures to chain
+ *  @details List Items are used in various structures to chain
  *    elements one with the others. See @ref
  *    parsec_internal_classes_list, @ref parsec_internal_classes_lifo,
  *    @ref parsec_internal_classes_fifo, for examples of data structures
@@ -66,7 +66,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_list_item_t);
  * @brief
  *  Make a well formed singleton ring with a list item.
  *
- * @detail
+ * @details
  *   @param[inout] item the item to singleton
  *   @return a valid list item ring containing itself
  */
@@ -90,7 +90,7 @@ parsec_list_item_singleton( parsec_list_item_t* item )
  * @brief
  *   Make a ring from a chain of items
  *
- * @detail
+ * @details
  *  Starting with first, ending with last, returns first.
  *    if first->last is not a valid chain of items, result is undetermined
  *    in PARSEC_DEBUG_PARANOID mode, attached items are detached, must be reattached if needed 
@@ -124,7 +124,7 @@ parsec_list_item_ring( parsec_list_item_t* first, parsec_list_item_t* last )
  * @brief
  *   Add an item to an item ring.
  *
- * @detail
+ * @details
  *   item is added to the item ring ring, preceding ring
  *  @param[inout] ring the ring of items to which item should be added
  *  @param[inout] item the item to add to ring
@@ -152,7 +152,7 @@ parsec_list_item_ring_push( parsec_list_item_t* ring,
  * @brief
  *   Merge to ring of items.
  *
- * @detail
+ * @details
  *   ring2 is added to the item ring ring1, succeeding ring1
  *  @param[inout] ring1 the ring of items to which ring2 should be added
  *  @param[inout] ring2 the ring of items to add to ring1
@@ -184,7 +184,7 @@ parsec_list_item_ring_merge( parsec_list_item_t* ring1,
  * @brief
  *   Removes an item from a ring of items.
  *
- * @detail
+ * @details
  *   item must belong to a ring. It is singletoned, and the ring without
  *   item is returned.
  *  @param[inout] item the item from the ring of items to be removed.
@@ -215,7 +215,7 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
  * @brief Convenience macro to apply CODE on the elements of a ring
  *        of items
  *
- * @detail
+ * @details
  *  Paste a code that execute 'CODE', assigning all elements between
  *  RING (included) and LAST (excluded) to ITEM before.
  * @param RING the first element on which CODE should be applied
@@ -242,7 +242,7 @@ parsec_list_item_ring_chop( parsec_list_item_t* item )
  * @brief
  *   Insert an item into a sorted items ring, preserving the sorted property
  *
- * @detail
+ * @details
  *   Assuming there is an integer off bytes after the beginning of each item,
  *   inserts item before the first p of ring such that
  *     A_LOWER_PRIORITY_THAN_B(item, p, off) is false

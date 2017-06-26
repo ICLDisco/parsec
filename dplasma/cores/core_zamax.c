@@ -1,6 +1,6 @@
 /**
  *
- * @file core_dzamax.c
+ * @file
  *
  *  PLASMA core_blas kernel
  *  PLASMA is a software package provided by Univ. of Tennessee,
@@ -10,9 +10,10 @@
  * @author Mathieu Faverge
  * @author Julien Herrmann
  * @date 2013-03-12
+ */
+/*
  * @precisions normal z -> c d s
- *
- **/
+ */
 #include <math.h>
 #include <lapacke.h>
 #include <cblas.h>

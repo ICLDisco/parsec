@@ -118,6 +118,7 @@ typedef struct parsec_thread_profiling_s parsec_thread_profiling_t;
 
 /**
  * @brief Initializes the profiling engine.
+ *
  * @details Call this ONCE per process.
  * @return 0    if success, -1 otherwise
  *
@@ -127,6 +128,7 @@ int parsec_profiling_init( void );
 
 /**
  * @brief Set the reference time to now in the profiling system.
+ *
  * @details Optionally called before any even is traced.
  * @remark Not thread safe.
  */
@@ -134,6 +136,7 @@ void parsec_profiling_start(void);
 
 /**
  * @brief Releases all resources for the tracing.
+ *
  * @details Thread contexts become invalid after this call.
  *          Must be called after the dbp_dump if a dbp_start was called.
  *
@@ -144,6 +147,7 @@ int parsec_profiling_fini( void );
 
 /**
  * @brief Removes all current logged events.
+ *
  * @details Prefer this to fini / init if you want
  * to do a new profiling with the same thread contexts. This does not
  * invalidate the current thread contexts.
@@ -155,6 +159,7 @@ int parsec_profiling_reset( void );
 
 /**
  * @brief Add additional information about the current run, under the form key/value.
+ *
  * @details Used to store the value of the globals names and values in the current run
  * @param[in] key key part of the key/value to store
  * @param[in] value value part of the key/value to store
@@ -164,6 +169,7 @@ void parsec_profiling_add_information( const char *key, const char *value );
 
 /**
  * @brief Add additional information about the current run, under the form key/value.
+ *
  * @details This function adds key/value pairs PER THREAD, not globally.
  * @param[in] thread thread in which to store the key/value
  * @param[in] key key part of the key/value to store
@@ -175,6 +181,7 @@ void parsec_profiling_thread_add_information(parsec_thread_profiling_t * thread,
 
 /**
  * @brief Initializes the buffer trace with the specified length.
+ *
  * @details This function must be called once per thread that will use the profiling
  * functions. This creates the profiling_thread_unit_t that must be passed to
  * the tracing function call. See note about thread safety.
@@ -189,6 +196,7 @@ parsec_thread_profiling_t *parsec_profiling_thread_init( size_t length, const ch
 
 /**
  * @brief Inserts a new keyword in the dictionnary
+ *
  * @details The dictionnary is process-global, and operations on it are *not* thread
  * safe. All keywords should be inserted by one thread at most, and no thread
  * should use a key before it has been inserted.
@@ -209,7 +217,8 @@ int parsec_profiling_add_dictionary_keyword( const char* name, const char* attri
 
 /**
  * @brief Empties the global dictionnary
- * @degtails this might be usefull in conjunction with reset, if
+ *
+ * @details this might be usefull in conjunction with reset, if
  * you want to redo an experiment.
  *
  * @remark Emptying the dictionnary without reseting the profiling system will yield
@@ -222,6 +231,7 @@ int parsec_profiling_dictionary_flush( void );
 
 /**
  * @brief Trace one event
+ *
  * @details Event is added to the series of events related to the context passed as argument.
  *
  * @param[in] context a thread profiling context (should be the thread profiling context of the
@@ -264,7 +274,7 @@ int parsec_profiling_trace_flags(parsec_thread_profiling_t* context, int key,
  *                        - end is the next "end" event with the same key and the same non-null event_id and
  *                          non OBJECT_ID_NULL handle_id as start in the event buffer of the thread context
  *                        - if no matching end is found, this is an error
- * @param[in] handle_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
+ * @param[in] object_id unique object/handle identifier (use PROFILE_OBJECT_ID_NULL if N/A)
  * @param[in] info    a pointer to an area of size info_length for this key (see
  *                        parsec_profiling_add_dictionary_keyword)
  * @param[in] flags   flags related to the event
@@ -292,7 +302,7 @@ int parsec_profiling_ts_trace_flags(int key, uint64_t event_id, uint32_t object_
  * The basename is always respected, even in the case where it points to another
  * directory.
  * @param[in] basefile the base name of the target file to create
- *                       the file actually created will be <basefile>-%d.profile
+ *                       the file actually created will be "basefile"-%d.profile
  * @param[in] hr_info human readable global information associated with this
  *                      profile. Used "uniquely" identify the experiment, and
  *                      check that all separate profile files correspond to a same
@@ -397,7 +407,7 @@ void parsec_profiling_disable(void);
 
 /**
  * @brief Record a key/value pair in the profile with a double value
- * @detail
+ *
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
  * @remark not thread safe
@@ -406,7 +416,7 @@ void profiling_save_dinfo(const char *key, double value);
 
 /**
  * @brief Record a key/value pair in the profile with an integer value
- * @detail
+ *
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
  * @remark not thread safe
@@ -415,7 +425,7 @@ void profiling_save_iinfo(const char *key, int value);
 
 /**
  * @brief Record a key/value pair in the profile with a long long integer value
- * @detail
+ *
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
  * @remark not thread safe
@@ -424,16 +434,16 @@ void profiling_save_uint64info(const char *key, unsigned long long int value);
 
 /**
  * @brief Record a key/value pair in the profile with a string value
- * @detail
+ *
  * @param[in] key the key to use in the key/value pair
- * @param[in] value the value to use in the key/value pair
+ * @param[in] svalue the value to use in the key/value pair
  * @remark not thread safe
  */
 void profiling_save_sinfo(const char *key, char* svalue);
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with a double value
- * @detail
+ *
  * @param[in] thread the thread context to use
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
@@ -444,7 +454,7 @@ void profiling_thread_save_dinfo(parsec_thread_profiling_t * thread,
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with an integer value
- * @detail
+ *
  * @param[in] thread the thread context to use
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
@@ -455,7 +465,7 @@ void profiling_thread_save_iinfo(parsec_thread_profiling_t * thread,
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with a long long integer value
- * @detail
+ *
  * @param[in] thread the thread context to use
  * @param[in] key the key to use in the key/value pair
  * @param[in] value the value to use in the key/value pair
@@ -466,10 +476,10 @@ void profiling_thread_save_uint64info(parsec_thread_profiling_t * thread,
 
 /**
  * @brief Record a thread-specific key/value pair in the profile with a string value
- * @detail
+ *
  * @param[in] thread the thread context to use
  * @param[in] key the key to use in the key/value pair
- * @param[in] value the value to use in the key/value pair
+ * @param[in] svalue the value to use in the key/value pair
  * @remark thread safe
  */
 void profiling_thread_save_sinfo(parsec_thread_profiling_t * thread,

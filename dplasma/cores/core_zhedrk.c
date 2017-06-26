@@ -10,9 +10,10 @@
  * @author Dulceneia Becker
  * @author Mathieu Faverge
  * @date 2011-1-18
- * @precisions normal z -> c d s
- *
  **/
+/*
+ * @precisions normal z -> c d s
+ */
 #include <lapacke.h>
 #include "parsec/parsec_config.h"
 #include "dplasma_cores.h"
@@ -64,12 +65,12 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
  *
  *******************************************************************************
  *
- * @param[in] UPLO
+ * @param[in] uplo
  *          INTEGER
  *          @arg PlasmaLower: Lower triangle of A is stored and scaled.
  *          @arg PlasmaUpper: Upper triangle of A is stored and scaled.
  *
- * @param[in] TRANS
+ * @param[in] trans
  *         INTEGER
  *         @arg PlasmaNoTrans   :  No transpose, C := alpha*A*A' + beta*C;
  *         @arg PlasmaConjTrans :  Transpose, C := alpha*A'*A + beta*C.
@@ -88,7 +89,7 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
  *         of rows of the matrix  A.  K must be at least zero.
  *         Unchanged on exit.
  *
- * @param[in] ALPHA
+ * @param[in] alpha
  *         DOUBLE PRECISION.
  *         On entry, ALPHA specifies the scalar alpha.
  *         Unchanged on exit.
@@ -110,7 +111,7 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
  *        least  max( 1, k ).
  *        Unchanged on exit.
  *
- * @param[in] BETA
+ * @param[in] beta
  *       DOUBLE PRECISION.
  *       On entry,  BETA  specifies the scalar  beta.
  *       Unchanged on exit.
@@ -135,19 +136,12 @@ int CORE_zhedrk(PLASMA_enum uplo, PLASMA_enum trans,
  *       lower triangular part of the array  C is overwritten by the
  *       lower triangular part of the updated matrix.
  *
- * @param[in] LDC
+ * @param[in] incD
  *       INTEGER
- *       On entry, LDC specifies the first dimension of C as declared
- *       in  the  calling  (sub)  program.   LDC  must  be  at  least
+ *       On entry, incD specifies the first dimension of C as declared
+ *       in  the  calling  (sub)  program.   incD  must  be  at  least
  *       max( 1, m ).
  *       Unchanged on exit.
- *
- * @param[workspace] WORK
- *       PLASMA_Complex64_t array, dimension (MAX(1,LWORK))
- *
- * @param[in] LWORK
- *       INTEGER
- *       The length of WORK.  LWORK >= max(1, N*K)
  *
  *******************************************************************************
  *

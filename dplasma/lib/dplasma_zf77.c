@@ -9,9 +9,10 @@
  * @version 1.0.0
  * @author Mathieu Faverge
  * @date 2011-12-05
- * @precisions normal z -> c d s
- *
  **/
+/*
+ * @precisions normal z -> c d s
+ */
 #include "parsec.h"
 #include <core_blas.h>
 #include "dplasma.h"

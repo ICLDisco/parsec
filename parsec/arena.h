@@ -69,7 +69,7 @@ struct parsec_arena_chunk_s {
      *  This chunck is chained when it resides inside an arena's free list
      *  It is SINGLETON when ( (not in a free list) and (in debug mode) ) */
     parsec_list_item_t item;
-    uint32_t           count;    /**< Number of basic elements pointed by @field param in this chunck */
+    uint32_t           count;    /**< Number of basic elements pointed by param in this chunck */
     parsec_arena_t    *origin;   /**< Arena in which this chunck should be released */
     void              *data;     /**< Actual data pointed by this chunck */
 };

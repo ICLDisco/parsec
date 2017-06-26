@@ -20,7 +20,7 @@
  *  @details
  *    Items are defined with @ref hash_table_item_t.
  *    To make a structure hash-able, declare a field with this type
- *    in the structure, and when creating the Hash Table with @ref hash_table_create,
+ *    in the structure, and when creating the Hash Table with @ref hash_table_init,
  *    pass the offset of that field in that structure.
  * 
  *    Then, pass the address of that field in this structure to @ref hash_table_insert,

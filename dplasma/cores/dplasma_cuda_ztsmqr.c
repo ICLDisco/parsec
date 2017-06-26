@@ -9,9 +9,10 @@
  * @version 2.7.1
  * @author Mathieu Faverge
  * @date 2010-11-15
- * @precisions normal z -> c d s
- *
  **/
+/*
+ * @precisions normal z -> c d s
+ */
 #include <cblas.h>
 #include <cublas.h>
 #include "dplasma.h"

@@ -361,7 +361,7 @@ PARSEC_DECLSPEC void parsec_output_close(int output_id);
  *
  * @param output_id Stream id returned from parsec_output_open().
  * @param format printf-style format string.
- * @param varargs printf-style varargs list to fill the string
+ * @param ... printf-style varargs list to fill the string
  * specified by the format parameter.
  *
  * This is the main function to send output to custom streams (note
@@ -387,10 +387,10 @@ PARSEC_DECLSPEC void parsec_output(int output_id, const char *format, ...);
  * Send output to a stream only if the passed verbosity level is
  * high enough.
  *
+ * @param verbose_level Target verbosity level.
  * @param output_id Stream id returned from parsec_output_open().
- * @param level Target verbosity level.
  * @param format printf-style format string.
- * @param varargs printf-style varargs list to fill the string
+ * @param ... printf-style varargs list to fill the string
  * specified by the format parameter.
  *
  * Output is only sent to the stream if the current verbosity level
@@ -423,10 +423,10 @@ PARSEC_DECLSPEC void parsec_output_vverbose(int verbose_level, int output_id,
 /**
  * Send output to a string if the verbosity level is high enough.
  *
+ * @param verbose_level Target verbosity level.
  * @param output_id Stream id returned from parsec_output_open().
- * @param level Target verbosity level.
  * @param format printf-style format string.
- * @param varargs printf-style varargs list to fill the string
+ * @param ... printf-style varargs list to fill the string
  * specified by the format parameter.
  *
  * Exactly the same as parsec_output_verbose(), except the output it

@@ -129,7 +129,7 @@ int jdf_unparse( const jdf_t *jdf, FILE *out );
 
 extern jdf_t current_jdf;
 
-/** A prologue/epilogue is a c-code that is dumped as-is with a #line directive
+/** A prologue/epilogue is a c-code that is dumped as-is with a sharp-line directive
  *  We remember the line number in the JDF file where this external code was found
  */
 typedef struct jdf_external_entry {

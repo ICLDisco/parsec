@@ -463,7 +463,7 @@ parsec_dtd_last_user_unlock( parsec_dtd_tile_user_t *last_user )
  *
  * Function to lock last_user of a tile
  *
- * @param[in,out]   last_user
+ * @param[in,out]   two_hash_table
  *                      User we are trying to lock
  * @ingroup         DTD_INTERFACE_INTERNAL
  *
@@ -478,7 +478,7 @@ parsec_dtd_two_hash_table_lock( parsec_dtd_two_hash_table_t *two_hash_table )
  *
  * Function to unlock last_user of a tile
  *
- * @param[in,out]   last_user
+ * @param[in,out]   two_hash_table
  *                      User we are trying to unlock
  * @ingroup         DTD_INTERFACE_INTERNAL
  *

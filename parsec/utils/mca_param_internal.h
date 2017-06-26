@@ -74,8 +74,7 @@ struct parsec_mca_param_t {
     char *mbp_component_name;
     /** String of the parameter name */
     char *mbp_param_name;
-    /** Full parameter name, in case it is not
-       <type>_<component>_<param> */
+    /** Full parameter name, in case it is not "type"_"component"_"param" */
     char *mbp_full_name;
 
     /** List of synonym names for this parameter.  This *must* be a

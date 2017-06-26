@@ -289,7 +289,7 @@ PARSEC_DECLSPEC int parsec_cmd_line_make_opt_mca(parsec_cmd_line_t *cmd,
  * @param sd_name "Single dash" name of the command line option.
  * @param long_name "Long" name of the command line option.
  * @param num_params How many parameters this option takes.
- * @param dest Short string description of this option.
+ * @param desc Short string description of this option.
  *
  * @retval PARSEC_ERR_OUT_OF_RESOURCE If out of memory.
  * @retval PARSEC_ERR_BAD_PARAM If bad parameters passed.

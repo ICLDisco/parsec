@@ -1,6 +1,6 @@
 /**
  *
- * @file dplasma_core_ztradd.c
+ * @file
  *
  *  PLASMA core_blas kernel
  *  PLASMA is a software package provided by Univ. of Tennessee,
@@ -9,9 +9,10 @@
  * @version 2.7.1
  * @author Mathieu Faverge
  * @date 2010-11-15
- * @precisions normal z -> c d s
- *
  **/
+/*
+ * @precisions normal z -> c d s
+ */
 #include <cblas.h>
 #include "parsec/parsec_config.h"
 #include "dplasma.h"

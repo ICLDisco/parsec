@@ -227,7 +227,7 @@ parsec_list_nolock_add_before( parsec_list_t* list,
  * @param[inout] list the list in which position belongs and in which newel must
  *                be added
  * @param[inout] position the element that must preceed newel
- * @param[inout] newel the element the add to list after position
+ * @param[inout] item the element the add to list after position
  *
  * @remark position item must be in list
  * @remark this function is not thred safe

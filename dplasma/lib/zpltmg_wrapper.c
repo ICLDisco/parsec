@@ -284,7 +284,6 @@ dplasma_zpltmg_circul( parsec_context_t *parsec,
  *******************************************************************************
  *
  * @ingroup dplasma_internal
- * @ingroup dplasma_complex64
  *
  * dplasma_zpltmg_condex - Generates a Condex test matrix by tiles.
  *

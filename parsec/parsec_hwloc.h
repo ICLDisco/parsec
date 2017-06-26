@@ -116,8 +116,8 @@ unsigned int parsec_hwloc_nb_cores_per_obj( int level, int index );
 
 /**
  * Exports the loaded topology to an XML buffer.
- * @param [OUT] buflen: the size of the buffer as allocated by the function
- * @param [OUT] xmlbuffer: the buffer containing an XML representation.
+ * @param[out] buflen: the size of the buffer as allocated by the function
+ * @param[out] xmlbuffer: the buffer containing an XML representation.
  *              this buffer should then be freed using parsec_hwloc_free_xml_buffer
  *
  * @return -1 if an error
@@ -126,7 +126,7 @@ int parsec_hwloc_export_topology(int *buflen, char **xmlbuffer);
 
 /**
  * Frees memory allocated by parsec_hwloc_export_topology
- * @param [IN] xmlbuffer: the buffer to free.
+ * @param[in] xmlbuffer: the buffer to free.
  */
 void parsec_hwloc_free_xml_buffer(char *xmlbuffer);
 

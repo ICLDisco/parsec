@@ -60,8 +60,8 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_value_array_t);
  *  be called prior to using the array.
  *
  *  @param[inout]   array       The array to initialize.
- *  @param[in]      item_size   The sizeof each array element.
- *  @return          error code
+ *  @param[in]      item_sizeof The sizeof each array element.
+ *  @return         error code
  *
  * @remark Note that there is no corresponding "finalize" function -- use
  * OBJ_DESTRUCT (for stack arrays) or OBJ_RELEASE (for heap arrays) to
@@ -118,7 +118,7 @@ static inline size_t parsec_value_array_get_size(parsec_value_array_t* array)
  * @brief
  *  Set the number of elements in the array.
  *
- * @detail
+ * @details
  *  Note that resizing the array to a smaller size may not change
  *  the underlying memory allocated by the array. However, setting
  *  the size larger than the current allocation will grow it. In either
@@ -136,7 +136,7 @@ PARSEC_DECLSPEC int parsec_value_array_set_size(parsec_value_array_t* array, siz
  * @brief
  *  Macro to retrieve an item from the array by value. 
  *
- * @detail
+ * @details
  *  Note that this does not change the size of the array - this macro is 
  *  strictly for performance - the user assumes the responsibility of 
  *  ensuring the array index is valid (0 <= item index < array size).
@@ -154,7 +154,7 @@ PARSEC_DECLSPEC int parsec_value_array_set_size(parsec_value_array_t* array, siz
  * @brief
  *  Retrieve an item from the array by reference.
  *
- * @detail
+ * @details
  *  Note that if the specified item_index is larger than the current
  *  array size, the array is grown to satisfy the request.
  *
@@ -174,7 +174,7 @@ static inline void* parsec_value_array_get_item(parsec_value_array_t *array, siz
  * @brief
  *  Macro to set an array element by value.
  *
- * @detail
+ * @details
  *  Note that this does not change the size of the array - this macro is 
  *  strictly for performance - the user assumes the responsibility of 
  *  ensuring the array index is valid (0 <= item index < array size).
@@ -194,10 +194,10 @@ static inline void* parsec_value_array_get_item(parsec_value_array_t *array, siz
  * @brief
  *  Set an array element by value.
  *
- * @detail
+ * @details
  *  @param[inout]   array       The input array.
  *  @param[in]      item_index  The array index.
- *  @param[in]      item_value  A pointer to the item, which is copied into 
+ *  @param[in]      item        A pointer to the item, which is copied into 
  *                              the array.
  *  @return  error code.
  *
@@ -219,7 +219,7 @@ static inline int parsec_value_array_set_item(parsec_value_array_t *array, size_
  * @brief
  *  Appends an item to the end of the array. 
  *
- * @detail 
+ * @details
  *  This will grow the array if it is not large enough to
  *  contain the item.  It is safe to free the item after returning
  *  from this call; it is copied by value into the array.  
@@ -239,7 +239,7 @@ static inline int parsec_value_array_append_item(parsec_value_array_t *array, co
  * @brief
  *  Remove a specific item from the array. 
  *
- * @detail
+ * @details
  * All elements following this index are shifted down.
  *  @param[inout]   array       The input array.
  *  @param[in]      item_index  The index to remove, which must be less than
@@ -262,7 +262,7 @@ static inline int parsec_value_array_remove_item(parsec_value_array_t *array, si
  * @brief
  *   Get the base pointer of the underlying array.
  * 
- * @detail
+ * @details
  * This function is helpful when you need to iterate through an
  * entire array; simply get the base value of the array and use native
  * C to iterate through it manually.  This can have better performance
@@ -270,7 +270,7 @@ static inline int parsec_value_array_remove_item(parsec_value_array_t *array, si
  * PARSEC_VALUE_ARRAY_SET_ITEM() because it will [potentially] reduce the
  * number of pointer dereferences.
  * @param[in] array The input array.
- * @param[in] array_type The C datatype of the array.
+ * @param[in] item_type The C datatype of the items in the array.
  *
  * @returns ptr Pointer to the actual array.
  */

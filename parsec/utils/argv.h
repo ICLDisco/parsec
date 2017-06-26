@@ -49,7 +49,7 @@ BEGIN_C_DECLS
  * @param argc Pointer to the length of the argv array.  Must not be
  * NULL.
  * @param argv Pointer to an argv array.
- * @param str Pointer to the string to append.
+ * @param arg Pointer to the string to append.
  *
  * @retval OPAL_SUCCESS On success
  * @retval OPAL_ERROR On failure
@@ -77,7 +77,7 @@ PARSEC_DECLSPEC  int parsec_argv_append(int *argc, char ***argv, const char *arg
  * Append to an argv-style array, but ignore the size of the array.
  *
  * @param argv Pointer to an argv array.
- * @param str Pointer to the string to append.
+ * @param arg Pointer to the string to append.
  *
  * @retval OPAL_SUCCESS On success
  * @retval OPAL_ERROR On failure
@@ -94,7 +94,7 @@ PARSEC_DECLSPEC  int parsec_argv_append_nosize(char ***argv, const char *arg);
  * Insert the provided arg at the beginning of the array
  *
  * @param argv Pointer to an argv array
- * @param str Pointer to the string to prepend
+ * @param arg Pointer to the string to prepend
  *
  * @retval OPAL_SUCCESS On success
  * @retval OPAL_ERROR On failure
@@ -106,8 +106,8 @@ PARSEC_DECLSPEC int parsec_argv_prepend_nosize(char ***argv, const char *arg);
  * doesn't already exist somewhere in the array. Ignore the size of the array.
  *
  * @param argv Pointer to an argv array.
- * @param str Pointer to the string to append.
- * @param bool Whether or not to overwrite a matching value if found
+ * @param arg Pointer to the string to append.
+ * @param overwrite Whether or not to overwrite a matching value if found
  *
  * @retval OPAL_SUCCESS On success
  * @retval OPAL_ERROR On failure

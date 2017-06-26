@@ -1,4 +1,4 @@
-#Doxygen Documentation
+# Doxygen Documentation
 
 Document all functions prototypes, modules, macros, structures and variables. Doxygen is not very flexible: read this documentation and follow the guidelines. Remember to generate the documentation, and check that it appears as expected.
 

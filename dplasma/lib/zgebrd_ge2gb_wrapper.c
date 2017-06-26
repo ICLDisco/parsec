@@ -576,35 +576,11 @@ dplasma_zgebrd_ge2gbx( parsec_context_t *parsec, int ib,
  * @param[in,out] parsec
  *          The parsec context of the application that will run the operation.
  *
- * @param[in] qrtree
- *          The structure that describes the trees used to perform the
- *          hierarchical QR factorization.
- *          See dplasma_hqr_init() or dplasma_systolic_init().
- *
+ * @param[in] ib Internal Blocking
+ * 
  * @param[in,out] A
- *          Descriptor of the distributed matrix A to be factorized.
- *          On entry, describes the M-by-N matrix A.
- *          On exit, the elements on and above the diagonal of the array contain
- *          the min(M,N)-by-N upper trapezoidal matrix R (R is upper triangular
- *          if (M >= N); the elements below the diagonal represent the unitary
- *          matrix Q as a product of elementary reflectors stored by tiles.
- *          It cannot be used directly as in Lapack.
  *
- * @param[out] TS
- *          Descriptor of the matrix TS distributed exactly as the A matrix. TS.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
- *          of size A.mt * TS.mb - by - A.nt * TS.nb, with TS.nb == A.nb.
- *          On exit, contains auxiliary information computed through TS kernels
- *          at the lowest level and which are required to generate the Q matrix,
- *          and/or solve the problem.
- *
- * @param[out] TT
- *          Descriptor of the matrix TT distributed exactly as the A matrix. TT.mb
- *          defines the IB parameter of tile QR algorithm. This matrix must be
- *          of size A.mt * TT.mb - by - A.nt * TT.nb, with TT.nb == A.nb.
- *          On exit, contains auxiliary information computed through TT kernels
- *          at higher levels and which are required to generate the Q matrix,
- *          and/or solve the problem.
+ * @param[in,out] Band
  *
  *******************************************************************************
  *

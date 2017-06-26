@@ -118,7 +118,7 @@ dplasma_zsymm_New( PLASMA_enum side,
  *
  *******************************************************************************
  *
- * @param[in] o
+ * @param[in] handle
  *          On entry, the handle to destroy
  *          On exit, the handle cannot be used anymore.
  *

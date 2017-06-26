@@ -11,7 +11,7 @@
  */
 
 /**
- * @FILE
+ * @file
  *   Define helper functions and types useful for different local queues based schedulers
  */
 

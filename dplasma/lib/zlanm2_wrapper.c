@@ -22,8 +22,9 @@
  *
  *  dplasma_zlanm2_New - Generates the handle that computes an estimate of the
  *  matrix 2-norm:
- *
+ *  @code{.tex}
  *     ||A||_2 = sqrt( \lambda_{max} A* A ) = \sigma_{max}(A)
+ *  @endcode
  *
  *  WARNING: The computations are not done by this call
  *
@@ -169,7 +170,9 @@ dplasma_zlanm2_Destruct( parsec_handle_t *handle )
  *
  *  dplasma_zlanm2 - Computes an estimate of the matrix 2-norm:
  *
+ *  @code{.tex}
  *     ||A||_2 = sqrt( \lambda_{max} A* A ) = \sigma_{max}(A)
+ *  @endcode
  *
  *******************************************************************************
  *

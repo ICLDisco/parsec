@@ -10,9 +10,10 @@
  * @author Dulceneia Becker
  * @author Mathieu Faverge
  * @date 2011-1-18
+ */
+/*
  * @precisions normal z -> c d s
- *
- **/
+ */
 #include <lapacke.h>
 #include "parsec/parsec_config.h"
 #include "dplasma_cores.h"
@@ -64,12 +65,12 @@ int CORE_zgemdm(int transA, int transB,
  *
  *******************************************************************************
  *
- * @param[in] TRANSA
+ * @param[in] transA
  *         INTEGER
  *         @arg PlasmaNoTrans   :  No transpose, op( A ) = A;
  *         @arg PlasmaConjTrans :  Transpose, op( A ) = A'.
  *
- * @param[in] TRANSB
+ * @param[in] transB
  *         INTEGER
  *         @arg PlasmaNoTrans   :  No transpose, op( B ) = B;
  *         @arg PlasmaConjTrans :  Transpose, op( B ) = B'.
@@ -90,7 +91,7 @@ int CORE_zgemdm(int transA, int transB,
  *         rows of the matrix op( B ), and the number of rows and columns
  *         of matrix D. K must be at least  zero.
  *
- * @param[in] ALPHA
+ * @param[in] alpha
  *         PLASMA_Complex64_t.
  *         On entry, ALPHA specifies the scalar alpha.
  *         Unchanged on exit.
@@ -129,7 +130,7 @@ int CORE_zgemdm(int transA, int transB,
  *       least  max( 1, n ).
  *       Unchanged on exit.
  *
- * @param[in] BETA
+ * @param[in] beta
  *       PLASMA_Complex64_t.
  *       On entry,  BETA  specifies the scalar  beta.  When  BETA  is
  *       supplied as zero then C need not be set on input.
@@ -156,14 +157,14 @@ int CORE_zgemdm(int transA, int transB,
  *        must contain the matrix D.
  *        Unchanged on exit.
  *
- * @param[in] LDD
+ * @param[in] incD
  *       INTEGER.
- *       On entry, LDD specifies the first dimension of D as declared
- *       in  the  calling  (sub)  program.   LDD  must  be  at  least
+ *       On entry, incD specifies the first dimension of D as declared
+ *       in  the  calling  (sub)  program.   incD  must  be  at  least
  *       max( 1, k ).
  *       Unchanged on exit.
  *
- * @param[workspace] WORK
+ * @param[inout] WORK
  *       PLASMA_Complex64_t array, dimension (MAX(1,LWORK))
  *
  * @param[in] LWORK

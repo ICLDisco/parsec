@@ -22,13 +22,13 @@ BEGIN_C_DECLS
  * input dependencies are resolved. The execution context can be
  * executed immediately or delayed until resources become available.
  *
- * @param [IN] The execution unit where the tasks are to be proposed
+ * @param[in] eu The execution unit where the tasks are to be proposed
  *             for scheduling. This is a hint, as the scheduling engine
  *             is free to push them where it decides.
- * @param [IN] The execution context to be executed. This include
+ * @param[in] ec The execution context to be executed. This include
  *             calling the attached hook (if any) as well as marking
  *             all dependencies as completed.
- * @param [IN] Suggested distance to the current state where the tasks
+ * @param[in] distance Suggested distance to the current state where the tasks
  *             are to be pushed. The larger the value (in absolute) the
  *             further away the tasks will be pushed. This is a hint
  *             that the schedulers are free to ignore.
@@ -37,8 +37,8 @@ BEGIN_C_DECLS
  *            has been correctly marked.
  * @return -1 If something went wrong.
  */
-int __parsec_schedule( parsec_execution_unit_t*,
-                       parsec_execution_context_t*,
+int __parsec_schedule( parsec_execution_unit_t* eu,
+                       parsec_execution_context_t* ec,
                        int32_t distance);
 
 /**
@@ -52,14 +52,28 @@ int __parsec_schedule( parsec_execution_unit_t*,
  *          iterate over all existing execution units (in the current VP,
  *          then on the next VP and so on).
  *
- * @param [IN] eu_context, the start execution_unit (normall it is the current one).
- * @param [IN] task, the task to be rescheduled.
+ * @param[in] eu_context the start execution_unit (normal it is the current one).
+ * @param[in] task the task to be rescheduled.
  *
  * @return parsec scheduling return code
  */
 int __parsec_reschedule(parsec_execution_unit_t* eu_context,
                         parsec_execution_context_t* task);
 
+/**
+ * @brief Enter the progress engine for this execution unit
+ *
+ * @details The function enters the progress engine for eu.
+ *          If eu is a master execution unit, the function returns once
+ *          all parsec handles scheduled on that node have been completed
+ *          If eu is not a master execution unit, the function returns
+ *          once the master execution unit has stopped the execution
+ *          by calling parsec_fini.
+ *
+ * @param[in] eu_context the execution_unit that should start progressing.
+ *
+ * @return parsec scheduling return code
+ */
 int __parsec_context_wait(parsec_execution_unit_t* eu_context);
 
 /**
@@ -70,8 +84,8 @@ int __parsec_execute( parsec_execution_unit_t*, parsec_execution_context_t*);
  * Signal the termination of the execution context to all dependencies of
  * its dependencies.
  *
- * @param [IN]  The execution context of the finished task.
- * @param [IN]  The task to be completed
+ * @param[in]  eu_context The execution context of the finished task.
+ * @param[in]  exec_context The task to be completed
  *
  * @return 0    If the dependencies have successfully been signaled.
  * @return -1   If something went wrong.
@@ -111,7 +125,7 @@ int parsec_check_complete_cb(parsec_handle_t *parsec_handle, parsec_context_t *c
  *  not yet inside parsec_progress, but *before* any call to
  *  parsec_progress...
  *
- *  @RETURN 1 if the new scheduler was succesfully installed
+ *  @return 1 if the new scheduler was succesfully installed
  *          0 if it failed. In this case, the previous scheduler
  *            is kept.
  */

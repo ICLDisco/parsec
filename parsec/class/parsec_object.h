@@ -164,7 +164,7 @@ struct parsec_class_t {
 /**
  * For static initializations of OBJects.
  *
- * @param NAME   Name of the class to initialize
+ * @param BASE_CLASS   Name of the class to initialize
  */
 #if defined(PARSEC_DEBUG_PARANOID)
 #define PARSEC_OBJ_STATIC_INIT(BASE_CLASS) { PARSEC_OBJ_MAGIC_ID, OBJ_CLASS(BASE_CLASS), 1, __FILE__, __LINE__ }
@@ -239,7 +239,7 @@ struct parsec_object_t {
  * Create an object: dynamically allocate storage and run the class
  * constructor.
  *
- * @param type          Type (class) of the object
+ * @param cls          Type (class) of the object
  * @return              Pointer to the object
  */
 static inline parsec_object_t *parsec_obj_new(parsec_class_t * cls);
@@ -388,7 +388,7 @@ PARSEC_DECLSPEC OBJ_CLASS_DECLARATION(parsec_object_t);
  *
  * @param class    Pointer to class descriptor
  */
-PARSEC_DECLSPEC void parsec_class_initialize(parsec_class_t *);
+PARSEC_DECLSPEC void parsec_class_initialize(parsec_class_t *class);
 
 /**
  * Shut down the class system and release all memory
@@ -411,7 +411,7 @@ PARSEC_DECLSPEC int parsec_class_finalize(void);
  * the inheritance tree!!!
  *
  * Hardwired for fairly shallow inheritance trees
- * @param size          Pointer to the object.
+ * @param object          Pointer to the object.
  */
 static inline void parsec_obj_run_constructors(parsec_object_t * object)
 {
@@ -433,7 +433,7 @@ static inline void parsec_obj_run_constructors(parsec_object_t * object)
  *
  * Do not use this function directly: use OBJ_DESTRUCT() instead.
  *
- * @param size          Pointer to the object.
+ * @param object          Pointer to the object.
  */
 static inline void parsec_obj_run_destructors(parsec_object_t * object)
 {
@@ -455,7 +455,6 @@ static inline void parsec_obj_run_destructors(parsec_object_t * object)
  *
  * Do not use this function directly: use OBJ_NEW() instead.
  *
- * @param size          Size of the object
  * @param cls           Pointer to the class descriptor of this object
  * @return              Pointer to the object
  */

@@ -71,7 +71,7 @@ parsec_dequeue_pop_back( parsec_dequeue_t* dequeue ) {
  *
  * @details consider the list as a dequeue, and try poping its tail.
  *
- * @param[inout] deqeue the dequeue from which to pop the tail element
+ * @param[inout] dequeue the dequeue from which to pop the tail element
  * @return the element, if one was removed from the dequeue (NULL if
  *         the dequeue was empty, or if another thread is currently
  *         holding a lock on the dequeue)
@@ -108,7 +108,7 @@ parsec_dequeue_pop_front( parsec_dequeue_t* dequeue ) {
  *
  * @details consider the list as a dequeue, and try poping its head.
  *
- * @param[inout] deqeue the dequeue from which to pop the front element
+ * @param[inout] dequeue the dequeue from which to pop the front element
  * @return the element, if one was removed from the dequeue (NULL if
  *         the dequeue was empty, or if another thread is currently
  *         holding a lock on the dequeue)
@@ -127,7 +127,7 @@ parsec_dequeue_try_pop_front( parsec_dequeue_t* dequeue ) {
  *
  * @details consider the list as a dequeue, and push an element at its end
  *
- * @param[inout] deqeue the dequeue into which to push the element
+ * @param[inout] dequeue the dequeue into which to push the element
  * @param[inout] item the element to push in the end
  *
  * @remark this function is thread safe
@@ -144,7 +144,7 @@ parsec_dequeue_push_back( parsec_dequeue_t* dequeue, parsec_list_item_t* item ) 
  *
  * @details consider the list as a dequeue, and push an element at its front
  *
- * @param[inout] deqeue the dequeue into which to push the element
+ * @param[inout] dequeue the dequeue into which to push the element
  * @param[inout] item the element to push in the front
  *
  * @remark this function is thread safe
@@ -164,7 +164,7 @@ parsec_dequeue_push_front( parsec_dequeue_t* dequeue, parsec_list_item_t* item )
  *          and push all the elements of items in front of the dequeue,
  *          preserving the order in items.
  *
- * @param[inout] deqeue the dequeue into which to push the elements
+ * @param[inout] dequeue the dequeue into which to push the elements
  * @param[inout] items the elements ring to push in front
  *
  * @remark this function is thread safe
@@ -184,7 +184,7 @@ parsec_dequeue_chain_front( parsec_dequeue_t* dequeue, parsec_list_item_t* items
  *          and push all the elements of items in the back of the dequeue,
  *          preserving the order in items.
  *
- * @param[inout] deqeue the dequeue into which to push the elements
+ * @param[inout] dequeue the dequeue into which to push the elements
  * @param[inout] items the elements ring to push in the back
  *
  * @remark this function is thread safe
@@ -199,8 +199,8 @@ parsec_dequeue_chain_back( parsec_dequeue_t* dequeue, parsec_list_item_t* items 
 /**
  * @brief check if list is empty, ignoring the lock
  *
- * @param[in] deqeue the deqeue to check
- * @return 0 if the deqeue is not empty, 1 otherwise
+ * @param[in] dequeue the dequeue to check
+ * @return 0 if the dequeue is not empty, 1 otherwise
  *
  * @remark this function is not thread safe
  */
@@ -219,7 +219,7 @@ parsec_dequeue_nolock_is_empty( parsec_dequeue_t* dequeue) {
  *
  * @details consider the list as a dequeue, and pop the head of the queue
  *
- * @param[inout] deqeue the dequeue from which to pop the front element
+ * @param[inout] dequeue the dequeue from which to pop the front element
  * @return the element that was removed from the dequeue (NULL if
  *         the dequeue was empty)
  *
@@ -240,7 +240,7 @@ parsec_dequeue_nolock_pop_front( parsec_dequeue_t* dequeue ) {
  *
  * @details consider the list as a dequeue, and pop its tail.
  *
- * @param[inout] deqeue the dequeue from which to pop the tail element
+ * @param[inout] dequeue the dequeue from which to pop the tail element
  * @return the element, if one was removed from the dequeue (NULL if
  *         the dequeue was empty)
  *
@@ -261,7 +261,7 @@ parsec_dequeue_nolock_pop_back( parsec_dequeue_t* dequeue ) {
  *
  * @details consider the list as a dequeue, and push an element at its end
  *
- * @param[inout] deqeue the dequeue into which to push the element
+ * @param[inout] dequeue the dequeue into which to push the element
  * @param[inout] item the element to push in the end
  *
  * @remark this function is not thread safe
@@ -281,7 +281,7 @@ parsec_dequeue_nolock_push_front( parsec_dequeue_t* dequeue, parsec_list_item_t*
  *
  * @details consider the list as a dequeue, and push an element at its end
  *
- * @param[inout] deqeue the dequeue into which to push the element
+ * @param[inout] dequeue the dequeue into which to push the element
  * @param[inout] item the element to push in the end
  *
  * @remark this function is not thread safe
@@ -305,7 +305,7 @@ parsec_dequeue_nolock_push_back( parsec_dequeue_t* dequeue, parsec_list_item_t* 
  *          and push all the elements of items in front of the dequeue,
  *          preserving the order in items.
  *
- * @param[inout] deqeue the dequeue into which to push the elements
+ * @param[inout] dequeue the dequeue into which to push the elements
  * @param[inout] items the elements ring to push in front
  *
  * @remark this function is not thread safe
@@ -329,7 +329,7 @@ parsec_dequeue_nolock_chain_front( parsec_dequeue_t* dequeue, parsec_list_item_t
  *          and push all the elements of items in the back of the dequeue,
  *          preserving the order in items.
  *
- * @param[inout] deqeue the dequeue into which to push the elements
+ * @param[inout] dequeue the dequeue into which to push the elements
  * @param[inout] items the elements ring to push in the back
  *
  * @remark this function is not thread safe

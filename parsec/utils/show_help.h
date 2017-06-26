@@ -61,7 +61,7 @@
  *
  * Here's a sample helpfile:
  *
- * \verbatimbegin
+ * @code{.unparsed}
  * # This is a comment.
  * [topic 1]
  * Here's the first message.  Let's substitute in an integer: %d.
@@ -70,7 +70,7 @@
  * [another:topic:foo:foo:foo]
  * This is the second message.  Let's just keep rolling along to get
  * to the second line in the message for this example.
- * \verbatimend
+ * @endcode
  *
  * It is expected that help messages will be grouped by filename;
  * similar messages should be in a single file.  For example, an MCA

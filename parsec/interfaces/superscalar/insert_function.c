@@ -653,7 +653,7 @@ parsec_dtd_handle_wait_func( parsec_context_t *parsec,
  *
  * @param[in]   this_task
  *                  The task we are trying to unpack the parameters for
- * @param[out]  variadic paramter
+ * @param[out]  ...
  *                  The variables where the paramters will be unpacked
  *
  * @ingroup DTD_INTERFACE
@@ -779,8 +779,8 @@ parsec_dtd_add_profiling_info_generic( parsec_handle_t *parsec_handle,
  *
  * @param[in]   key
  *                  The key to be hashed
- * @param[in]   ht
- *                  the hash table
+ * @param[in]   data
+ *                  A pointer to the hash table
  * @return
  *              The hash for the key provided
  *
@@ -992,9 +992,6 @@ parsec_dtd_function_find( parsec_dtd_handle_t  *parsec_handle,
  * first 32 bits: last 32 bits of ddesc pointer + last 32 bits: 32 bit key.
  * This is done as PaRSEC key for tiles are unique per ddesc.
  *
- * @param[in,out]   parsec_handle
- *                      Pointer to DTD handle, the tile hash table
- *                      is attached to the handle
  * @param[in]       key
  *                      The key of the tile
  * @param[in]       tile
@@ -1020,9 +1017,6 @@ parsec_dtd_tile_insert( uint64_t key,
 /**
  * This function removes DTD tile from tile hash table
  *
- * @param[in,out]   parsec_handle
- *                      Pointer to DTD handle, the tile hash table
- *                      is attached to this handle
  * @param[in]       key
  *                      The key of the tile
  * @param[in]       ddesc
@@ -1042,9 +1036,6 @@ parsec_dtd_tile_remove( parsec_ddesc_t *ddesc, uint64_t key )
 /**
  * This function searches a DTD tile in the tile hash table
  *
- * @param[in,out]   parsec_handle
- *                      Pointer to DTD handle, the tile hash table
- *                      is attached to this handle
  * @param[in]       key
  *                      The key of the tile
  * @param[in]       ddesc
@@ -1072,9 +1063,6 @@ parsec_dtd_tile_find( parsec_ddesc_t *ddesc, uint64_t key )
  * This function is called for each flow of a task, after the task is
  * completed.
  *
- * @param[in,out]   parsec_handle
- *                      Pointer to DTD handle, the tile hash table
- *                      is attached to this handle
  * @param[in]       tile
  *                      Tile to be released
  *
@@ -1145,12 +1133,10 @@ parsec_dtd_ddesc_fini( parsec_ddesc_t *ddesc )
  * This function search for a tile if already inserted in the system,
  * and if not returns the freshly created tile.
  *
- * @param[in,out]   parsec handle
- *                      Pointer to the DTD handle
  * @param[in]       ddesc
  *                      Data descriptor
- * @param[in]       i,j
- *                      The co-ordinates of the tile in the matrix
+ * @param[in]       key
+ *                      The data key of the tile in the matrix
  * @return
  *                  The tile representing the data in specified co-ordinate
  *
@@ -1297,10 +1283,6 @@ parsec_dtd_update_runtime_task( parsec_handle_t *parsec_handle, int32_t count )
  *
  * For correct profiling the task_class_counter should be correct
  *
- * @param[in]   context
- *                  The PARSEC context
- * @param[in]   arena_count
- *                  The count of the task class DTD handle will deal with
  * @return
  *              The PARSEC DTD handle
  *
@@ -1500,7 +1482,7 @@ parsec_dtd_not_sent_to_rank(parsec_dtd_task_t *this_task, int flow_index, int ds
  *                  Pointer to DTD task we are trying to activate
  * @param[in]   oldcontext
  *                  Pointer to DTD task activating it's successor(newcontext)
- * @param       deps,data,src_rank,dst_rank,dst_vpid
+ * @param       dep,data,src_rank,dst_rank,dst_vpid
  *                  Parameters we will use in distributed memory implementation
  * @param[out]  param
  *                  Pointer to list in which we will push if the task is ready
@@ -2242,7 +2224,7 @@ set_dependencies_for_function(parsec_handle_t* parsec_handle,
  *
  * @param[in,out]   __parsec_handle
  *                      The DTD handle
- * @paramp[in]      fpointer
+ * @param[in]       fpointer
  *                      Function pointer that uniquely identifies a
  *                      task class, this is the pointer to the body
  *                      of the task
@@ -2387,7 +2369,7 @@ parsec_dtd_template_release( const parsec_function_t *function )
 /**
  * This function sets the flows in master-structure as we discover them
  *
- * @param[in,out]   __parsec_handle
+ * @param[in,out]   parsec_dtd_handle
  *                      DTD handle
  * @param[in]       this_task
  *                      Task to point to correct master-structure
@@ -3043,12 +3025,12 @@ parsec_insert_dtd_task( parsec_dtd_task_t *this_task )
  * each task class). The flow of data from each task to others
  * and all other dependencies are tracked from this function.
  *
- * @param[in,out]   __parsec_handle
+ * @param[in,out]   parsec_handle
  *                      DTD handle
  * @param[in]       fpointer
  *                      The pointer to the body of the task
- * @param[in]       name
- *                      The name of the task
+ * @param[in]       priority
+ *                      The priority of the task
  * @param[in]       ...
  *                      Variadic parameters of the task
  *
