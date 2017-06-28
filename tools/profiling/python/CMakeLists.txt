@@ -34,6 +34,26 @@ if( NOT PYTHON_EXECUTABLE )
     FIND_PACKAGE(PythonInterp QUIET)
 endif( NOT PYTHON_EXECUTABLE )
 if( PYTHONINTERP_FOUND )
+    # Copy all Python files to the build directory before we 
+    # potentially modify them with 2to3
+    file(GLOB_RECURSE pyfiles RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "${CMAKE_CURRENT_SOURCE_DIR}/*.py")
+    foreach(file ${pyfiles})
+        configure_file(${CMAKE_CURRENT_SOURCE_DIR}/${file} ${CMAKE_CURRENT_BINARY_DIR}/${file} COPYONLY)
+    endforeach()
+
+    if(PYTHON_VERSION_MAJOR GREATER 2)
+        get_filename_component(PYTHON_EXE_DIR ${PYTHON_EXECUTABLE} PATH)
+        find_program(PYTHON_2TO3_EXECUTABLE
+            NAMES 2to3
+            HINTS ${PYTHON_EXE_DIR})
+        if(NOT PYTHON_2TO3_EXECUTABLE)
+            message(WARNING "2to3 python utility not found. The profiling scripts will not be converted for use with selected Python version ${PYTHON_VERSION_MAJOR}.${PYTHON_VERSION_MINOR}")
+        else()
+            execute_process(OUTPUT_QUIET
+                COMMAND ${PYTHON_2TO3_EXECUTABLE} -w -n ${CMAKE_CURRENT_BINARY_DIR})
+        endif()
+    endif()
+
     add_custom_command(OUTPUT ${OUTPUT}
                        COMMAND ${PYTHON_EXECUTABLE} ${SETUP_PY} build_ext --inplace --quiet
                        COMMAND ${CMAKE_COMMAND} -E touch ${OUTPUT}
