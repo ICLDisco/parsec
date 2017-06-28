@@ -1,5 +1,6 @@
-tools/precision_generator/Conversion.pyc
-tools/precision_generator/subs.pyc
+contrib/spack/packages/parsec/package.pyc
+dplasma/tools/PrecisionGenerator/Conversion.pyc
+dplasma/tools/PrecisionGenerator/subs.pyc
 tools/profiling/python/pbt2ptt.c
 tools/profiling/python/build/
 tools/profiling/python/pbt2ptt.so
