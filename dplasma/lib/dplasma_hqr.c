@@ -1280,6 +1280,7 @@ static int hqr_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
         case 3:
             if ( arg->hlvl != NULL )
                 return arg->hlvl->currpiv(arg->hlvl, k, perm_m);
+            /* fallthrough */
         default:
             return gmt;
         }
@@ -1305,6 +1306,7 @@ static int hqr_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
         case 3:
             if ( arg->hlvl != NULL )
                 return perm[arg->hlvl->currpiv(arg->hlvl, k, perm_m)];
+            /* fallthrough */
         default:
             return gmt;
         }
@@ -1368,7 +1370,7 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
                 myassert( start == gmt );
                 return gmt;
             }
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_TS:
 
             /* If the tile is over the diagonal of step k, skip directly to type 2 */
@@ -1386,7 +1388,7 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
                 return perm[nextp];
             start = gmt;
             lstart = arg->llvl->ldd * a;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
 
             /* If the tile is over the diagonal of step k, skip directly to type 2 */
@@ -1407,7 +1409,7 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
             /* no next of type 1, we reset start to search the next 2 */
             start = gmt;
             lstart = arg->llvl->ldd * a;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_DOMINO:
 
             if ( lp < DPLASMA_QR_KILLED_BY_DOMINO ) {
@@ -1425,7 +1427,7 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
             /* no next of type 2, we reset start to search the next 3 */
             start = gmt;
             lstart = arg->llvl->ldd * a;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_DISTTREE:
 
             if ( lp < DPLASMA_QR_KILLED_BY_DISTTREE ) {
@@ -1437,7 +1439,7 @@ static int hqr_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
                 if ( tmp != gmt )
                     return perm[tmp];
             }
-
+            /* fallthrough */
         default:
             return gmt;
         }
@@ -1504,7 +1506,7 @@ hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 
             start = pivot;
             lstart = pivot / p;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_DOMINO:
             /* If the tile is over the diagonal of step k, process it as type 2 */
             if ( arg->domino && lpivot < k ) {
@@ -1521,7 +1523,7 @@ hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
             lstart = pivot / p;
 
             /* If it is the 'local' diagonal block, we go to 1 */
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
             /* If the tile is over the diagonal of step k and is of type 2,
                it cannot annihilate type 0 or 1 */
@@ -1538,7 +1540,7 @@ hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
                 return perm[tmp * a * p + rpivot];
 
             start = pivot;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_TS:
             /* Search for predecessor in TS tree */
             /* if ( ( start+p < gmt ) &&  */
@@ -1557,7 +1559,7 @@ hqr_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
             assert(nextp < gmt);
             if ( pivot < nextp )
                 return perm[nextp];
-
+            /* fallthrough */
         default:
             return gmt;
         }
@@ -2338,6 +2340,7 @@ static int svd_currpiv(const dplasma_qrtree_t *qrtree, int k, int m)
     case 3:
         if ( arg->hlvl != NULL )
             return arg->hlvl->currpiv(arg->hlvl, k, m);
+        /* fallthrough */
     default:
         return gmt;
     }
@@ -2390,13 +2393,14 @@ static int svd_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
         {
         case DPLASMA_QR_KILLED_BY_DOMINO:
             assert(0);
+
         case -1:
 
             if ( lp == DPLASMA_QR_KILLED_BY_TS ) {
                 myassert( start == gmt );
                 return gmt;
             }
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_TS:
             if ( start == gmt )
                 nextp = pivot + p;
@@ -2409,7 +2413,7 @@ static int svd_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
                 return nextp;
             start = gmt;
             lstart = ldd * a;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
             /* Get the next pivot for the low level tree */
             tmp = arg->llvl->nextpiv(arg->llvl, k, pivot, lstart / a );
@@ -2424,7 +2428,7 @@ static int svd_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
             /* no next of type 1, we reset start to search the next 2 */
             start = gmt;
             lstart = ldd * a;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_DISTTREE:
 
             if ( lp < DPLASMA_QR_KILLED_BY_DISTTREE ) {
@@ -2436,7 +2440,7 @@ static int svd_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int sta
                 if ( tmp != gmt )
                     return tmp;
             }
-
+            /* fallthrough */
         default:
             return gmt;
         }
@@ -2500,7 +2504,7 @@ svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
 
             start = pivot;
             lstart = pivot / p;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
             tmp = arg->llvl->prevpiv(arg->llvl, k, pivot, lstart / a);
 
@@ -2512,7 +2516,7 @@ svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
                 return tmp * a * p + rpivot;
 
             start = pivot;
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_TS:
             /* Search for predecessor in TS tree */
             /* if ( ( start+p < gmt ) &&  */
@@ -2531,7 +2535,7 @@ svd_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, int start)
             assert(nextp < gmt);
             if ( pivot < nextp )
                 return nextp;
-
+            /* fallthrough */
         default:
             return gmt;
         }

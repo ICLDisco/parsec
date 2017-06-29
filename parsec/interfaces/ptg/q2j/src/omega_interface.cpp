@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <signal.h>
 #include <sys/wait.h>
 #include <sys/mman.h>
 #include <assert.h>

@@ -144,7 +144,7 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                 return mt;
             }
             /* No break; process case for DPLASMA_QR_KILLED_BY_TS */
-            
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_TS:
 
             if ( start == mt )
@@ -157,7 +157,7 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
 
             start = mt;
             /* No break; process case for DPLASMA_QR_KILLED_BY_LOCALTREE */
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
 
             if (lp < DPLASMA_QR_KILLED_BY_DISTTREE)
@@ -175,7 +175,7 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
 
             start = mt;
             /* No break; process case for DPLASMA_QR_KILLED_BY_DISTTREE */
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_DISTTREE:
 
             if (pivot > k)
@@ -189,7 +189,7 @@ static int systolic_nextpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
             if ( nextp < k + p )
                 return nextp;
             /* No break; process default case  */
-
+            /* fallthrough */
         default:
             return mt;
         }
@@ -255,7 +255,7 @@ static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
             }
             start = pivot;
             /* No break; process case for DPLASMA_QR_KILLED_BY_LOCALTREE */
-            
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_LOCALTREE:
 
             if ( lp > DPLASMA_QR_KILLED_BY_LOCALTREE ) {
@@ -275,7 +275,7 @@ static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
             }
             start = pivot;
             /* No break; process case for DPLASMA_QR_KILLED_BY_TS */
-
+            /* fallthrough */
         case DPLASMA_QR_KILLED_BY_TS:
             /* Search for predecessor in TS tree */
             if ( lp > DPLASMA_QR_KILLED_BY_TS ) {
@@ -292,7 +292,7 @@ static int systolic_prevpiv(const dplasma_qrtree_t *qrtree, int k, int pivot, in
                     return nextp;
             }
             /* No break; process default case */
-
+            /* fallthrough */
         default:
             return mt;
         }

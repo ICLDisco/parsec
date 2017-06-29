@@ -346,8 +346,10 @@ static hash_key_t uid_hash_va(const char *first, va_list va)
         switch (nbytes & 3) {
         case 3:
             k ^= tail[2] << 16;
+            /* fallthrough */
         case 2:
             k ^= tail[1] << 8;
+            /* fallthrough */
         case 1:
             k ^= tail[0];
             k *= c1;

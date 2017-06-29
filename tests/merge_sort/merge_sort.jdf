@@ -127,9 +127,8 @@ int tree_height(int NT){
 }
 
 int tree_width_at_level(int lvl, int NT){
-    int w,h,i;
+    int w,i;
 
-    h = tree_height(NT);
     w = NT;
     for(i=0; i<lvl; i++){
         w = (w+1)/2;
@@ -139,9 +138,8 @@ int tree_width_at_level(int lvl, int NT){
 }
 
 int compute_cleanup_size(int lvl, int NB, int NT){
-    int w,h,j,nxt_size;
+    int w,j,nxt_size;
 
-    h = tree_height(NT);
     w = NT;
     nxt_size = NB;
     for(j=0; j<lvl; j++){
@@ -156,8 +154,7 @@ int compute_cleanup_size(int lvl, int NB, int NT){
 }
 
 int compute_data_size(int lvl, int i, int NB, int NT){
-    int h,w;
-    h = tree_height(NT);
+    int w;
     w = tree_width_at_level(lvl, NT);
 
     if( lvl < 0 )

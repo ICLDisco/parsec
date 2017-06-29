@@ -2934,13 +2934,13 @@ static void jdf_generate_one_function( const jdf_t *jdf, jdf_function_entry_t *f
                         if( NULL == dl->guard->callfalse->var ) {
                             fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
                         }
-
+                        /* fallthrough */
                     case JDF_GUARD_UNCONDITIONAL:
                         if( JDF_IS_DEP_WRITE_ONLY_INPUT_TYPE(dl) ) {
                             fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
                             break;
                         }
-
+                        /* fallthrough */
                     case JDF_GUARD_BINARY:
                         if( NULL == dl->guard->calltrue->var ) {
                             fl->flow_flags |= JDF_FLOW_HAS_IN_DEPS;
@@ -4452,6 +4452,7 @@ jdf_generate_code_datatype_lookup(const jdf_t *jdf,
             switch( dl->guard->guard_type ) {
             case JDF_GUARD_UNCONDITIONAL:
                 skip_condition = 1;
+                /* fallthrough */
                 /* No break; process case for JDF_GUARD_TERNARY */
             case JDF_GUARD_TERNARY:
                 if( type == JDF_DEP_FLOW_IN ) continue_dependencies = 0;
