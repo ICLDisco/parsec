@@ -11,7 +11,7 @@
 #include "parsec/include/parsec/os-spec-timing.h"
 
 static int init_done = 0;
-static int init_status = PARSEC_SUCCESS;
+static int init_status = 0;
 
 /**
  * A structure to store the unit conversion information for the
@@ -171,7 +171,7 @@ int pins_papi_init(parsec_context_t * master_context)
  */
 int pins_papi_fini(parsec_context_t * master_context)
 {
-    return PARSEC_SUCCESS;
+    return 0;
 }
 
 /**
