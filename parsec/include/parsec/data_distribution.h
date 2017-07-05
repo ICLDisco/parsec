@@ -9,7 +9,7 @@
 #define _DATA_DISTRIBUTION_H_
 
 #include "parsec/data.h"
-#include "parsec/class/hash_table.h"
+#include "parsec/class/parsec_hash_table.h"
 
 BEGIN_C_DECLS
 
@@ -25,7 +25,7 @@ struct parsec_data_collection_s {
     uint32_t            nodes;     /**< number of nodes involved in the computation */
 
     /* This hash table book keep dtd interface */
-    hash_table_t        *tile_h_table;
+    parsec_hash_table_t *tile_h_table;
 
     /* return a unique key (unique only for the specified parsec_dc) associated to a data */
     parsec_data_key_t (*data_key)(parsec_data_collection_t *d, ...);

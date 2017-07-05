@@ -62,6 +62,13 @@ PARSEC_DECLSPEC void parsec_atomic_lock( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC void parsec_atomic_unlock( parsec_atomic_lock_t* atomic_lock );
 PARSEC_DECLSPEC long parsec_atomic_trylock( parsec_atomic_lock_t* atomic_lock );
 
+typedef int parsec_atomic_rwlock_t;
+PARSEC_DECLSPEC void parsec_atomic_rwlock_rdlock( parsec_atomic_rwlock_t* atomic_rwlock );
+PARSEC_DECLSPEC int parsec_atomic_rwlock_try_rdlock( parsec_atomic_rwlock_t* atomic_rwlock );
+PARSEC_DECLSPEC void parsec_atomic_rwlock_wrlock( parsec_atomic_rwlock_t* atomic_rwlock );
+PARSEC_DECLSPEC int parsec_atomic_rwlock_try_wrlock( parsec_atomic_rwlock_t* atomic_rwlock );
+PARSEC_DECLSPEC void parsec_atomic_rwlock_unlock( parsec_atomic_rwlock_t* atomic_rwlock );
+
 END_C_DECLS
 
 #endif  /* ATOMIC_EXTERNAL_H_HAS_BEEN_INCLUDED */

@@ -14,7 +14,7 @@
 #include "parsec.h"
 #include "parsec/data.h"
 #include "parsec/class/list_item.h"
-#include "parsec/class/hash_table.h"
+#include "parsec/class/parsec_hash_table.h"
 #include "parsec/parsec_description_structures.h"
 #include "parsec/profiling.h"
 #include "parsec/mempool.h"
@@ -191,9 +191,9 @@ size_t parsec_destruct_dependencies(parsec_dependencies_t* d);
  * hash table
  */
 struct parsec_hashable_dependency_s {
-    hash_table_item_t        ht_item;
-    parsec_thread_mempool_t *mempool_owner;
-    parsec_dependency_t      dependency;
+    parsec_hash_table_item_t  ht_item;
+    parsec_thread_mempool_t  *mempool_owner;
+    parsec_dependency_t       dependency;
 };
 typedef struct parsec_hashable_dependency_s parsec_hashable_dependency_t;
 

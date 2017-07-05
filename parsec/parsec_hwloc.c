@@ -330,6 +330,11 @@ int parsec_hwloc_bind_on_core_index(int cpu_index, int local_ht_index)
     hwloc_obj_t      obj, core;      /* HWLOC object */
     hwloc_cpuset_t   cpuset;         /* HWLOC cpuset */
 
+    /* If we were not initialized first, let's initialize */
+    if( first_init == 1 ) {
+        parsec_hwloc_init();
+    }
+    
     /* Get the core of index cpu_index */
     obj = core = hwloc_get_obj_by_type(topology, HWLOC_OBJ_CORE, cpu_index);
     if (!core) {
@@ -377,8 +382,15 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
     unsigned cpu_index;
     int first_free;
     hwloc_obj_t obj;
-    hwloc_cpuset_t binding_mask = hwloc_bitmap_alloc();
+    hwloc_cpuset_t binding_mask;
 
+    /* If we were not initialized first, let's initialize */
+    if( first_init == 1 ) {
+        parsec_hwloc_init();
+    }
+
+    binding_mask = hwloc_bitmap_alloc();
+    
     /* For each index in the mask, get the associated cpu object and use its cpuset to add it to the binding mask */
     hwloc_bitmap_foreach_begin(cpu_index, cpuset) {
         /* Get the core of index cpu */
@@ -413,6 +425,11 @@ int parsec_hwloc_bind_on_mask_index(hwloc_cpuset_t cpuset)
 int parsec_hwloc_allow_ht(int htnb)
 {
     assert( htnb > 0 );
+
+    /* If we were not initialized first, let's initialize */
+    if( first_init == 1 ) {
+        parsec_hwloc_init();
+    }
 
 #if defined(PARSEC_HAVE_HWLOC) && defined(PARSEC_HAVE_HWLOC_BITMAP)
     /* Check the validity of the parameter. Correct otherwise  */
