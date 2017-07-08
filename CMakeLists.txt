@@ -477,6 +477,7 @@ check_c_source_compiles("
       }
       " PARSEC_HAVE_BUILTIN_EXPECT)
 
+set(EXTRA_INCLUDES "")
 #
 # Find optional packages
 #
@@ -503,6 +504,7 @@ IF( BUILD_PARSEC )
   if( HWLOC_FOUND )
     list(APPEND EXTRA_LIBS ${HWLOC_LIBRARIES})
     include_directories( ${HWLOC_INCLUDE_DIRS} )
+    list(APPEND EXTRA_INCLUDES ${HWLOC_INCLUDE_DIRS})
     set (PARSEC_PKG_REQUIRE "hwloc")
    endif (HWLOC_FOUND)
 
@@ -513,6 +515,7 @@ IF( BUILD_PARSEC )
     if (MPI_C_FOUND)
       list(APPEND EXTRA_LIBS ${MPI_C_LIBRARIES} )
       include_directories( ${MPI_C_INCLUDE_PATH} )
+      list(APPEND EXTRA_INCLUDES ${MPI_C_INCLUDE_PATH})
     else (MPI_C_FOUND)
       MESSAGE(ERROR "MPI is required but was not found. Please provide an MPI compiler")
     endif (MPI_C_FOUND)
@@ -538,6 +541,7 @@ IF( BUILD_PARSEC )
       endif(CUDA_VERSION VERSION_LESS "3.0")
       set(CUDA_BUILD_EMULATION OFF)
       include_directories(${CUDA_INCLUDE_DIRS})
+      list(APPEND EXTRA_INCLUDES ${CUDA_INCLUDE_DIRS})
       list(APPEND EXTRA_LIBS ${CUDA_LIBRARIES} )
       CMAKE_PUSH_CHECK_STATE()
       list(APPEND CMAKE_REQUIRED_INCLUDES  "${CUDA_INCLUDE_DIRS}")
@@ -560,6 +564,7 @@ IF( BUILD_PARSEC )
 #
   if(AYUDAME_FOUND)
     include_directories( ${AYUDAME_INCLUDE_DIR} )
+    list(APPEND EXTRA_INCLUDES ${AYUDAME_INCLUDE_DIR})
     if(CMAKE_SYSTEM_NAME MATCHES "Darwin")
       message(STATUS "Add '-undefined dynamic_lookup' to the linking flags")
       SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -undefined dynamic_lookup")
@@ -896,3 +901,13 @@ configure_file (
 
 install(FILES "${PROJECT_INCLUDE_DIR}/parsec.pc"   DESTINATION lib/pkgconfig)
 
+# cmake config files
+include(CMakePackageConfigHelpers)
+configure_package_config_file(cmake_modules/ParsecConfig.cmake.in ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake
+                              INSTALL_DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake
+                              PATH_VARS CMAKE_INSTALL_PREFIX)
+write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake
+                                 VERSION ${PARSEC_VERSION_MAJOR}.${PARSEC_VERSION_MINOR}.0
+                                 COMPATIBILITY SameMajorVersion)
+install(FILES ${CMAKE_CURRENT_BINARY_DIR}/cmake_modules/ParsecConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/ParsecConfigVersion.cmake cmake_modules/RulesJDF.cmake cmake_modules/FindPARSEC.cmake
+        DESTINATION ${CMAKE_INSTALL_PREFIX}/lib/cmake)
