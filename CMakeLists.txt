@@ -13,17 +13,20 @@ SET(DART_TESTING_TIMEOUT 120)
 enable_testing()
 include(CTest)
 
-set(MPI_TEST_CMD
-      "mpiexec" CACHE STRING
-      "A command to run distributed memory testings")
-if( "${MPI_TEST_CMD}" STREQUAL "" )
-    MESSAGE(WARNING "MPI tests will most likely not work, MPI_TEST_CMD is not set")
-endif()
-string(REPLACE " " ";" MPI_TEST_CMD_LIST "${MPI_TEST_CMD}")
-set(SHM_TEST_CMD
+set(CTEST_SHM_LAUNCHER
       "" CACHE STRING
       "A command to run shared memory testings")
-string(REPLACE " " ";" SHM_TEST_CMD_LIST "${SHM_TEST_CMD}")
+string(REPLACE " " ";" SHM_TEST_CMD_LIST "${CTEST_SHM_LAUNCHER}")
+set(CTEST_MPI_LAUNCHER
+      "mpiexec -n" CACHE STRING
+      "A command to run distributed memory testings")
+if( "${CTEST_MPI_LAUNCHER}" STREQUAL "" )
+    MESSAGE(WARNING "MPI tests will most likely not work: 'CTEST_MPI_LAUNCHER' is not set")
+endif()
+string(REPLACE " " ";" MPI_TEST_CMD_LIST "${CTEST_MPI_LAUNCHER}")
+set(CTEST_GPU_LAUNCHER_OPTIONS
+      "" CACHE STRING
+      "Options to pass to the CTEST_MPI_LAUNCHER to select GPU nodes")
 
 #####
 # ccmake tunable parameters
@@ -731,10 +734,14 @@ ENDIF( BUILD_PARSEC )
 #
 # Now continue with compiling the tests.
 #
-
-add_subdirectory(dplasma)
+find_program(HOSTNAME_EXE hostname)
+# Test that the launchers work
+add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
+add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
+add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_MPI_LAUNCHER_GPU_OPTS} ${HOSTNAME_EXE})
 add_subdirectory(tests)
 add_subdirectory(examples)
+add_subdirectory(dplasma)
 
 # Configuration header
 configure_file (

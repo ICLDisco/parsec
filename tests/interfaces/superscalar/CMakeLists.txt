@@ -19,18 +19,17 @@ parsec_addtest(C dtd_test_hierarchy "dtd_test_hierarchy.c;${COMMON_DATA}")
 #
 # Shared Memory Testings
 #
-add_test(shm_dtd_test_task_generation ${SHM_TEST_CMD_LIST} ./dtd_test_task_generation)
-add_test(shm_dtd_test_task_inserting_task ${SHM_TEST_CMD_LIST} ./dtd_test_task_inserting_task)
-add_test(shm_dtd_test_task_insertion ${SHM_TEST_CMD_LIST} ./dtd_test_task_insertion)
-add_test(shm_dtd_test_war ${SHM_TEST_CMD_LIST} ./dtd_test_war)
+add_test(unit_dtd_task_generation_shm ${SHM_TEST_CMD_LIST} ./dtd_test_task_generation)
+add_test(unit_dtd_task_inserting_task_shm ${SHM_TEST_CMD_LIST} ./dtd_test_task_inserting_task)
+add_test(unit_dtd_task_insertion_shm ${SHM_TEST_CMD_LIST} ./dtd_test_task_insertion)
+add_test(unit_dtd_war_shm ${SHM_TEST_CMD_LIST} ./dtd_test_war)
 
 #
 # Distributed Memory Testings
 #
 if( MPI_C_FOUND )
-  add_test(mpi_dtd_test_pingpong ${MPI_TEST_CMD_LIST} -np 2 ./dtd_test_pingpong)
-  add_test(mpi_dtd_test_task_generation ${MPI_TEST_CMD_LIST} -np 1 ./dtd_test_task_generation)
-  add_test(mpi_dtd_test_task_inserting_task ${MPI_TEST_CMD_LIST} -np 1 ./dtd_test_task_inserting_task)
-  add_test(mpi_dtd_test_task_insertion ${MPI_TEST_CMD_LIST} -np 1 ./dtd_test_task_insertion)
-  add_test(mpi_dtd_test_war ${MPI_TEST_CMD_LIST} -np 1 ./dtd_test_war)
+  add_test(unit_dtd_pingpong_mpi ${MPI_TEST_CMD_LIST} 2 ./dtd_test_pingpong)
+  add_test(unit_dtd_task_inserting_task_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_task_inserting_task)
+  add_test(unit_dtd_task_insertion_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_task_insertion)
+  add_test(unit_dtd_war_mpi ${MPI_TEST_CMD_LIST} 4 ./dtd_test_war)
 endif( MPI_C_FOUND )

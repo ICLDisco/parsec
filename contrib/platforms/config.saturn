@@ -47,7 +47,7 @@ if [[ "x$CC" != "x" && `basename ${CC}` = "icc" ]]; then
 else
   PLASMA_DIR=${PLASMA_DIR:="/sw/plasma/2.8.0g/"}
 fi
-TESTCMD="-DMPI_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node\" -DSHM_TEST_CMD=\"mpirun -x LD_LIBRARY_PATH -map-by node -np 1\""
+TESTCMD="-DCTEST_MPI_LAUNCHER=\"srun -Ccauchy -N\" -DCTEST_SHM_LAUNCHER=\"srun -Ccauchy\" -DCTEST_GPU_LAUNCHER_OPTIONS=-Ccuda"
 
 run_cmake $*
 
