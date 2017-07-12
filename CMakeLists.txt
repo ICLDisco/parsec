@@ -738,7 +738,7 @@ find_program(HOSTNAME_EXE hostname)
 # Test that the launchers work
 add_test(launcher_shm   ${SHM_TEST_CMD_LIST} ${HOSTNAME_EXE})
 add_test(launcher_mpi   ${MPI_TEST_CMD_LIST} 4 ${HOSTNAME_EXE})
-add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_MPI_LAUNCHER_GPU_OPTS} ${HOSTNAME_EXE})
+add_test(launcher_gpu   ${MPI_TEST_CMD_LIST} 4 ${CTEST_GPU_LAUNCHER_OPTIONS} ${HOSTNAME_EXE})
 add_subdirectory(tests)
 add_subdirectory(examples)
 add_subdirectory(dplasma)

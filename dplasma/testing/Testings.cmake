@@ -231,7 +231,7 @@ if( MPI_C_FOUND )
 
     # GPU Cholesky tests
     if (CUDA_FOUND)
-        dplasma_add_test(potrf potrf 1gpu_mpi:${PROCS} -N 8000 -t 320 ${OPTIONS} -g 1 -P 2)
+        dplasma_add_test(potrf potrf      1gpu_mpi:${PROCS} -N 8000 -t 320 ${OPTIONS} -g 1 -P 2)
         dplasma_add_test(potrf potrf_1gpu 2gpu_mpi:${PROCS} -N 8000 -t 320 ${OPTIONS} -g 2 -P 2)
     endif (CUDA_FOUND)
 
