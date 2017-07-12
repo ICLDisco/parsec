@@ -4688,8 +4688,8 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 fl->varname, fl->varname,
                 fl->varname);
     }
-    coutput("    if( this_task->function->sim_cost_fct != NULL ) {\n"
-            "      this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+    coutput("    if( this_task->task_class->sim_cost_fct != NULL ) {\n"
+            "      this_task->sim_exec_date += this_task->task_class->sim_cost_fct(this_task);\n"
             "    }\n"
             "    if( es->largest_simulation_date < this_task->sim_exec_date )\n"
             "      es->largest_simulation_date = this_task->sim_exec_date;\n"
@@ -4715,7 +4715,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
                 "                           gpu_stream->profiling,\n"
                 "                           (-1 == gpu_stream->prof_event_key_start ?\n"
                 "                           PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,\n"
-                "                                                     this_task->function->task_class_id) :\n"
+                "                                                     this_task->task_class->task_class_id) :\n"
                 "                           gpu_stream->prof_event_key_start),\n"
                 "                           this_task);\n");
     }
@@ -4724,7 +4724,7 @@ static void jdf_generate_code_hook_cuda(const jdf_t *jdf,
     dyldtype = jdf_property_get_string(body->properties, "dyldtype", "void*");
     if ( NULL != dyld ) {
         coutput("  /* Pointer to dynamic gpu function */\n"
-                "  parsec_body.dyld_fn = (%s)this_task->function->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
+                "  parsec_body.dyld_fn = (%s)this_task->task_class->incarnations[gpu_device->cuda_index].dyld_fn;\n\n",
                 dyldtype );
     }
 
@@ -4969,8 +4969,8 @@ static void jdf_generate_code_hook(const jdf_t *jdf,
                 fl->varname, fl->varname,
                 fl->varname);
     }
-    coutput("    if( this_task->function->sim_cost_fct != NULL ) {\n"
-            "      this_task->sim_exec_date += this_task->function->sim_cost_fct(this_task);\n"
+    coutput("    if( this_task->task_class->sim_cost_fct != NULL ) {\n"
+            "      this_task->sim_exec_date += this_task->task_class->sim_cost_fct(this_task);\n"
             "    }\n"
             "    if( es->largest_simulation_date < this_task->sim_exec_date )\n"
             "      es->largest_simulation_date = this_task->sim_exec_date;\n"

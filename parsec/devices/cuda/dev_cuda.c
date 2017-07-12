@@ -309,7 +309,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 }
 
 static int
-parsec_cuda_handle_register(parsec_device_t* device, parsec_taskpool_t* handle)
+parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* handle)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
     uint32_t i, j, dev_mask = 0x0;
@@ -352,7 +352,7 @@ parsec_cuda_handle_register(parsec_device_t* device, parsec_taskpool_t* handle)
 }
 
 static int
-parsec_cuda_handle_unregister(parsec_device_t* device, parsec_taskpool_t* handle)
+parsec_cuda_taskpool_unregister(parsec_device_t* device, parsec_taskpool_t* handle)
 {
     (void)device; (void)handle;
     return PARSEC_SUCCESS;
@@ -525,11 +525,11 @@ int parsec_gpu_init(parsec_context_t *parsec_context)
         gpu_device->super.required_data_in     = 0;
         gpu_device->super.required_data_out    = 0;
 
-        gpu_device->super.device_fini              = parsec_cuda_device_fini;
-        gpu_device->super.device_memory_register   = parsec_cuda_memory_register;
-        gpu_device->super.device_memory_unregister = parsec_cuda_memory_unregister;
-        gpu_device->super.device_handle_register   = parsec_cuda_handle_register;
-        gpu_device->super.device_handle_unregister = parsec_cuda_handle_unregister;
+        gpu_device->super.device_fini                = parsec_cuda_device_fini;
+        gpu_device->super.device_memory_register     = parsec_cuda_memory_register;
+        gpu_device->super.device_memory_unregister   = parsec_cuda_memory_unregister;
+        gpu_device->super.device_taskpool_register   = parsec_cuda_taskpool_register;
+        gpu_device->super.device_taskpool_unregister = parsec_cuda_taskpool_unregister;
 
         if (parsec_cuda_device_lookup_cudamp_floprate(major, minor, &srate, &drate) == PARSEC_ERROR ) {
             return -1;
@@ -838,7 +838,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
      * Parse all the input and output flows of data and ensure all have
      * corresponding data on the GPU available.
      */
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         flow = gpu_task->flow[i];
         assert( flow && (flow->flow_index == i) );
 
@@ -871,8 +871,8 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
                  * the LRU (in order to be reused asap) and return without scheduling the task.
                  */
                 parsec_warning("GPU:\tRequest space on GPU failed for %d out of %d data",
-                              this_task->function->nb_flows - i,
-                              this_task->function->nb_flows);
+                              this_task->task_class->nb_flows - i,
+                              this_task->task_class->nb_flows);
                 for( j = 0; j < i; j++ ) {
                     if( NULL != temp_loc[j] ) {
                         parsec_list_nolock_lifo_push(&gpu_device->gpu_mem_lru, (parsec_list_item_t*)temp_loc[j]);
@@ -904,7 +904,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
 
             /* Let's check we're not trying to steal one of our own data */
             oldmaster = lru_gpu_elem->original;
-            for( j = 0; j < this_task->function->nb_flows; j++ ) {
+            for( j = 0; j < this_task->task_class->nb_flows; j++ ) {
                 if( NULL == this_task->data[j].data_in ) continue;
                 if( this_task->data[j].data_in->original == oldmaster ) {
                     goto find_another_data;
@@ -914,7 +914,7 @@ parsec_gpu_data_reserve_device_space( gpu_device_t* gpu_device,
             /* The data is not used, and it's not one of ours: we can free it or reuse it */
             PARSEC_DEBUG_VERBOSE(20, parsec_cuda_output_stream,
                                 "GPU[%d]:\tRepurpose copy %p to mirror block %p (in task %s:i) instead of %p",
-                                gpu_device->cuda_index, lru_gpu_elem, master, this_task->function->name, i, oldmaster);
+                                gpu_device->cuda_index, lru_gpu_elem, master, this_task->task_class->name, i, oldmaster);
             parsec_data_copy_detach(oldmaster, lru_gpu_elem, gpu_device->super.device_index);
 
 #if !defined(PARSEC_GPU_CUDA_ALLOC_PER_TILE)
@@ -1010,7 +1010,7 @@ parsec_gpu_data_stage_in( gpu_device_t* gpu_device,
             assert(-1 != gpu_stream->prof_event_key_start);
             PARSEC_PROFILING_TRACE(gpu_stream->profiling,
                                   gpu_stream->prof_event_key_start,
-                                  this_task->function->key(this_task->taskpool, this_task->locals),
+                                  this_task->task_class->key(this_task->taskpool, this_task->locals),
                                   this_task->taskpool->taskpool_id,
                                   &original);
         }
@@ -1106,7 +1106,7 @@ static inline int parsec_gpu_check_space_needed(gpu_device_t *gpu_device, parsec
     parsec_data_copy_t *data;
     const parsec_flow_t *flow;
 
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         flow = gpu_task->flow[i];
         if(!(flow->flow_flags)) continue;
 
@@ -1238,7 +1238,7 @@ parsec_gpu_context_t* parsec_gpu_create_W2R_task(gpu_device_t *gpu_device, parse
     w2r_task = (parsec_gpu_context_t *)malloc(sizeof(parsec_gpu_context_t));
     OBJ_CONSTRUCT(w2r_task, parsec_list_item_t);
     ec->priority = INT32_MAX;
-    ec->function = NULL;
+    ec->task_class = NULL;
     w2r_task->ec = ec;
     w2r_task->task_type = GPU_TASK_TYPE_D2HTRANSFER;
     return w2r_task;
@@ -1301,10 +1301,10 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
     parsec_taskpool_t* handle = this_task->taskpool;
 
     /* Step one: Find the first data in WRITE mode stored on a GPU */
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
-        if( (NULL != this_task->function->out[i]) &&
-            (this_task->function->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
-            data_index = this_task->function->out[i]->flow_index;
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
+        if( (NULL != this_task->task_class->out[i]) &&
+            (this_task->task_class->out[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
+            data_index = this_task->task_class->out[i]->flow_index;
             dev_index  = this_task->data[data_index].data_in->original->owner_device;
             if (dev_index > 1) {
                 break;
@@ -1386,7 +1386,7 @@ progress_stream( gpu_device_t* gpu_device,
         /* Grab the submit function */
         progress_fct = task->submit;
 #if defined(PARSEC_DEBUG_PARANOID)
-        for( i = 0; i < task->ec->function->nb_flows; i++ ) {
+        for( i = 0; i < task->ec->task_class->nb_flows; i++ ) {
             flow = task->flow[i];
             assert( flow );
             assert( flow->flow_index == i );
@@ -1406,7 +1406,7 @@ progress_stream( gpu_device_t* gpu_device,
         PARSEC_FIFO_PUSH(exec_stream->fifo_pending, (parsec_list_item_t*)task);
         PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                              "GPU[%d]: Reschedule %s(task %p) priority %d: no room available on the GPU for data",
-                             gpu_device->cuda_index, task->ec->function->name, (void*)task->ec, task->ec->priority);
+                             gpu_device->cuda_index, task->ec->task_class->name, (void*)task->ec, task->ec->priority);
     } else {
         /**
          * Do not skip the cuda event generation. The problem is that some of the inputs
@@ -1429,7 +1429,7 @@ progress_stream( gpu_device_t* gpu_device,
             PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                                 "GPU[%d]: Submitted %s(task %p) priority %d on stream %p",
                                 gpu_device->cuda_index,
-                                task->ec->function->name, (void*)task->ec, task->ec->priority,
+                                task->ec->task_class->name, (void*)task->ec, task->ec->priority,
                                 (void*)exec_stream->cuda_stream);
         }
 #endif
@@ -1450,7 +1450,7 @@ progress_stream( gpu_device_t* gpu_device,
             if (exec_stream == &(gpu_device->exec_stream[0])) {  /* exec_stream[0] is the PUSH stream */
                 parsec_gpu_context_t *gtask = exec_stream->tasks[exec_stream->end];
                 this_task = gtask->ec;
-                for( i = 0; i < this_task->function->nb_flows; i++ ) {
+                for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
                     flow = gtask->flow[i];
                     assert( flow );
                     assert( flow->flow_index == i );
@@ -1485,7 +1485,7 @@ progress_stream( gpu_device_t* gpu_device,
                 PARSEC_DEBUG_VERBOSE(19, parsec_cuda_output_stream,
                                     "GPU[%d]: Completed %s(task %p) priority %d on stream %p",
                                     gpu_device->cuda_index,
-                                    task->ec->function->name, (void*)task->ec, task->ec->priority,
+                                    task->ec->task_class->name, (void*)task->ec, task->ec->priority,
                                     (void*)exec_stream->cuda_stream);
             }
 #endif
@@ -1502,7 +1502,7 @@ progress_stream( gpu_device_t* gpu_device,
                     PARSEC_TASK_PROF_TRACE(exec_stream->profiling,
                                           (-1 == exec_stream->prof_event_key_end ?
                                            PARSEC_PROF_FUNC_KEY_END(task->ec->taskpool,
-                                                                   task->ec->function->task_class_id) :
+                                                                    task->ec->task_class->task_class_id) :
                                            exec_stream->prof_event_key_end),
                                           task->ec);
                 }
@@ -1617,11 +1617,11 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
                              gpu_stream->profiling,
                              (-1 == gpu_stream->prof_event_key_start ?
                               PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,
-                                                        this_task->function->task_class_id) :
+                                                        this_task->task_class->task_class_id) :
                               gpu_stream->prof_event_key_start),
                              this_task);
 
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         flow = gpu_task->flow[i];
         /* Skip CTL flows */
         if(!(flow->flow_flags)) continue;
@@ -1679,7 +1679,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                                       cudaMemcpyDeviceToHost,
                                       gpu_stream->cuda_stream );
             PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                    { parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                    { parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
                                                     gpu_copy->device_private, original->device_copies[0]->device_private);
                                         return_code = -2;
                                         goto release_and_return_error;} );
@@ -1692,7 +1692,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                         gpu_device->cuda_index,
                         parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
 
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
 
@@ -1739,7 +1739,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                                          gpu_stream->profiling,
                                          (-1 == gpu_stream->prof_event_key_start ?
                                           PARSEC_PROF_FUNC_KEY_START(this_task->taskpool,
-                                                                    this_task->function->task_class_id) :
+                                                                    this_task->task_class->task_class_id) :
                                           gpu_stream->prof_event_key_start),
                                          this_task);
                 /* Move the data back into main memory */
@@ -1749,7 +1749,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
                                           cudaMemcpyDeviceToHost,
                                           gpu_stream->cuda_stream );
                 PARSEC_CUDA_CHECK_ERROR( "cudaMemcpyAsync from device ", status,
-                                        { parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->function->out[i]->name,
+                                        { parsec_warning("data %s <<%p>> -> <<%p>>\n", this_task->task_class->out[i]->name,
                                                         gpu_copy->device_private, original->device_copies[0]->device_private);
                                             return_code = -2;
                                             goto release_and_return_error;} );
@@ -1788,7 +1788,7 @@ parsec_gpu_kernel_epilog( gpu_device_t        *gpu_device,
                         parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
 #endif
 
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
 
@@ -1878,7 +1878,7 @@ parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
                         parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
 #endif
 
-    for( i = 0; i < this_task->function->nb_flows; i++ ) {
+    for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
         if(NULL == this_task->data[i].data_out) continue;
         if( !(gpu_task->flow[i]->flow_flags & FLOW_ACCESS_WRITE) ) {
@@ -1933,8 +1933,8 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
 #if defined(PARSEC_PROF_TRACE)
     PARSEC_PROFILING_TRACE_FLAGS( es->es_profile,
                                  PARSEC_PROF_FUNC_KEY_END(gpu_task->ec->taskpool,
-                                                         gpu_task->ec->function->task_class_id),
-                                 gpu_task->ec->function->key( gpu_task->ec->taskpool, gpu_task->ec->locals),
+                                                         gpu_task->ec->task_class->task_class_id),
+                                 gpu_task->ec->task_class->key( gpu_task->ec->taskpool, gpu_task->ec->locals),
                                  gpu_task->ec->taskpool->taskpool_id, NULL,
                                  PARSEC_PROFILING_EVENT_RESCHEDULED );
 #endif /* defined(PARSEC_PROF_TRACE) */
