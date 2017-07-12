@@ -72,8 +72,8 @@ set_tests_properties(
 )
 
 if( MPI_C_FOUND )
-  add_test(unit_jdf_forward_RW_NULL_mpi   ${MPI_TEST_CMD_LIST} -np 2 ./jdf_forward_RW_NULL)
-  add_test(unit_jdf_forward_READ_NULL_mpi ${MPI_TEST_CMD_LIST} -np 2 ./jdf_forward_READ_NULL)
+  add_test(unit_jdf_forward_RW_NULL_mpi   ${MPI_TEST_CMD_LIST} 2 ./jdf_forward_RW_NULL)
+  add_test(unit_jdf_forward_READ_NULL_mpi ${MPI_TEST_CMD_LIST} 2 ./jdf_forward_READ_NULL)
   set_tests_properties(
     unit_jdf_forward_RW_NULL_mpi
     unit_jdf_forward_READ_NULL_mpi
