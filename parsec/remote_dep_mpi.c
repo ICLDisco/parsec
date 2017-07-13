@@ -216,7 +216,7 @@ static parsec_execution_stream_t parsec_comm_es = {
     .largest_simulation_date = 0,
 #endif
 #if defined(PINS_ENABLE)
-    .pins_events_cb = {0},
+    .pins_events_cb = {{0}},
 #endif  /* defined(PINS_ENABLE) */
 #if defined(PARSEC_PROF_RUSAGE_EU)
 #if defined(PARSEC_HAVE_GETRUSAGE) || !defined(__bgp__)
