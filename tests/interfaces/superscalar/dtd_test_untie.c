@@ -79,7 +79,7 @@ test_task_generator( parsec_execution_stream_t    *es,
         if( i > *step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
-            parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
+            parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                 sizeof(int),      amount_of_work,    VALUE,
                                 PASSED_BY_REF,    TILE_OF_KEY(A, *n), INOUT  ,
                                 0 );
@@ -153,7 +153,7 @@ int main(int argc, char ** argv)
         SYNC_TIME_START();
         for( n = 0; n < no_of_chain; n++ ) {
             for( m = 0; m < tasks_in_each_chain[i]; m++ ) {
-                parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
+                parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                     sizeof(int),      &amount_of_work[work_index],    VALUE,
                                     PASSED_BY_REF,    TILE_OF_KEY(A, n), INOUT  ,
                                     0 );
@@ -171,10 +171,10 @@ int main(int argc, char ** argv)
     for( i = 0; i < 3; i++ ) {
 
         SYNC_TIME_START();
-        int step = dtd_window_size, iteration = 0;
+        int step = parsec_dtd_window_size, iteration = 0;
 
         for( n = 0; n < no_of_chain; n++ ) {
-            parsec_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_Generator",
+            parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_Generator",
                                 sizeof(int),      &n,                     VALUE,
                                 sizeof(int),      &amount_of_work[work_index],     VALUE,
                                 sizeof(int),      &tasks_in_each_chain[i],   VALUE,

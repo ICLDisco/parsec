@@ -413,7 +413,7 @@ void* parsec_data_get_ptr(parsec_data_t* data, uint32_t device)
     return PARSEC_DATA_COPY_GET_PTR(copy);
 }
 
-parsec_data_t *
+parsec_data_t*
 parsec_data_create( parsec_data_t **holder,
                    parsec_data_collection_t *desc,
                    parsec_data_key_t key, void *ptr, size_t size )
@@ -452,16 +452,13 @@ parsec_data_create( parsec_data_t **holder,
 void
 parsec_data_destroy( parsec_data_t *data )
 {
-    if (data != NULL)
-    {
-        /*
-         * Need to call destruct before release due to circular
-         * dependency between the parsec_data_copy_t and the parsec_data_t
-         */
-        OBJ_DESTRUCT(data);
+    /*
+     * Need to call destruct before release due to circular
+     * dependency between the parsec_data_copy_t and the parsec_data_t
+     */
+    OBJ_DESTRUCT(data);
 #if defined(PARSEC_DEBUG_PARANOID)
-        ((parsec_object_t *)(data))->obj_magic_id = PARSEC_OBJ_MAGIC_ID;
+    ((parsec_object_t *)(data))->obj_magic_id = PARSEC_OBJ_MAGIC_ID;
 #endif
-        OBJ_RELEASE(data);
-    }
+    OBJ_RELEASE(data);
 }

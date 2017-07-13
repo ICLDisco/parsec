@@ -235,8 +235,8 @@ static inline int remote_dep_bcast_star_child(int me, int him)
 #  define remote_dep_bcast_child(me, him) remote_dep_bcast_star_child(me, him)
 #endif
 
-int parsec_remote_dep_new_object(parsec_taskpool_t* obj) {
-    return remote_dep_new_object(obj);
+int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp) {
+    return remote_dep_new_taskpool(tp);
 }
 
 #ifdef PARSEC_DIST_COLLECTIVES
@@ -332,7 +332,7 @@ int parsec_remote_dep_activate(parsec_execution_stream_t* es,
 
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
-    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task);
+    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
 
     remote_dep_reset_forwarded(es, remote_deps);

@@ -39,7 +39,7 @@ static int remote_dep_nothread_memcpy(parsec_execution_stream_t* es,
                                       dep_cmd_item_t *item);
 
 static int remote_dep_dequeue_send(int rank, parsec_remote_deps_t* deps);
-static int remote_dep_dequeue_new_object(parsec_taskpool_t* obj);
+static int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp);
 #ifdef PARSEC_REMOTE_DEP_USE_THREADS
 static int remote_dep_dequeue_init(parsec_context_t* context);
 static int remote_dep_dequeue_fini(parsec_context_t* context);
@@ -50,7 +50,7 @@ static int remote_dep_dequeue_off(parsec_context_t* context);
 #   define remote_dep_fini(ctx) remote_dep_dequeue_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_dequeue_on(ctx)
 #   define remote_dep_off(ctx)  remote_dep_dequeue_off(ctx)
-#   define remote_dep_new_object(obj) remote_dep_dequeue_new_object(obj)
+#   define remote_dep_new_taskpool(tp) remote_dep_dequeue_new_taskpool(tp)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx, cycles) remote_dep_dequeue_nothread_progress(ctx, cycles)
 
@@ -61,7 +61,7 @@ static int remote_dep_dequeue_nothread_fini(parsec_context_t* context);
 #   define remote_dep_fini(ctx) remote_dep_dequeue_nothread_fini(ctx)
 #   define remote_dep_on(ctx)   remote_dep_mpi_on(ctx)
 #   define remote_dep_off(ctx)  0
-#   define remote_dep_new_object(obj) remote_dep_dequeue_new_object(obj)
+#   define remote_dep_new_taskpool(tp) remote_dep_dequeue_new_taskpool(tp)
 #   define remote_dep_send(rank, deps) remote_dep_dequeue_send(rank, deps)
 #   define remote_dep_progress(ctx, cycles) remote_dep_dequeue_nothread_progress(ctx, cycles)
 #endif
@@ -94,8 +94,8 @@ static int parsec_comm_last_active_req = 0;
  * pending array of messages.
  */
 typedef enum dep_cmd_action_t {
-    DEP_ACTIVATE    = -1,
-    DEP_NEW_OBJECT  =  0,
+    DEP_ACTIVATE      = -1,
+    DEP_NEW_TASKPOOL  =  0,
     DEP_MEMCPY,
     DEP_RELEASE,
     DEP_DTD_DELAYED_RELEASE,
@@ -118,8 +118,8 @@ union dep_cmd_u {
         int enable;
     } ctl;
     struct {
-        parsec_taskpool_t    *obj;
-    } new_object;
+        parsec_taskpool_t    *tp;
+    } new_taskpool;
     struct {
         parsec_taskpool_t    *taskpool;
         parsec_data_copy_t   *source;
@@ -161,7 +161,7 @@ static void remote_dep_mpi_get_end( parsec_execution_stream_t* es, int idx, pars
 static int
 remote_dep_mpi_get_end_cb(parsec_execution_stream_t* es,
                           parsec_comm_callback_t* cb, MPI_Status* status);
-static void remote_dep_mpi_new_object( parsec_execution_stream_t* es, dep_cmd_item_t *item );
+static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es, dep_cmd_item_t *item );
 static void remote_dep_mpi_release_delayed_deps( parsec_execution_stream_t* es,
                                                  dep_cmd_item_t *item );
 
@@ -178,7 +178,7 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_Function_%d", origin->task_class_id), str;
     memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.task_class->nb_locals);
     task.priority     = 0xFFFFFFFF;
-    return parsec_snprintf_execution_context(str, len, &task);
+    return parsec_task_snprintf(str, len, &task);
 }
 
 static pthread_t dep_thread_id;
@@ -425,14 +425,14 @@ static void* remote_dep_dequeue_main(parsec_context_t* context)
     return (void*)context;
 }
 
-static int remote_dep_dequeue_new_object(parsec_taskpool_t* obj)
+static int remote_dep_dequeue_new_taskpool(parsec_taskpool_t* tp)
 {
     if(!mpi_initialized) return 0;
     dep_cmd_item_t* item = (dep_cmd_item_t*)calloc(1, sizeof(dep_cmd_item_t));
     OBJ_CONSTRUCT(item, parsec_list_item_t);
-    item->action = DEP_NEW_OBJECT;
+    item->action = DEP_NEW_TASKPOOL;
     item->priority = 0;
-    item->cmd.new_object.obj = obj;
+    item->cmd.new_taskpool.tp = tp;
     parsec_dequeue_push_back(&dep_cmd_queue, (parsec_list_item_t*)item);
     return 1;
 }
@@ -570,7 +570,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     assert(NULL == origin->taskpool);
     origin->taskpool = parsec_taskpool_lookup(origin->msg.taskpool_id);
     if( NULL == origin->taskpool )
-        return -1; /* the parsec object doesn't exist yet */
+        return -1; /* the parsec taskpool doesn't exist yet */
     task.taskpool = origin->taskpool;
     task.task_class    = task.taskpool->task_classes_array[origin->msg.task_class_id];
 
@@ -868,8 +868,8 @@ remote_dep_dequeue_nothread_progress(parsec_context_t* context,
         OBJ_DESTRUCT(&temp_list);
         free(item);
         return ret;  /* FINI or OFF */
-    case DEP_NEW_OBJECT:
-        remote_dep_mpi_new_object(es, item);
+    case DEP_NEW_TASKPOOL:
+        remote_dep_mpi_new_taskpool(es, item);
         break;
     case DEP_DTD_DELAYED_RELEASE:
         remote_dep_mpi_release_delayed_deps(es, item);
@@ -1794,7 +1794,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
 #if defined(PARSEC_PROF_TRACE)
                     parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_handle->super.taskpool_id, NULL );
 #endif
-                    parsec_dtd_insert_remote_dep( dtd_handle, key, deps );
+                    parsec_dtd_track_remote_dep( dtd_handle, key, deps );
                 }
 
                 /* unlocking the two hash table */
@@ -1820,10 +1820,10 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
     return 0;
 }
 
-static void remote_dep_mpi_new_object( parsec_execution_stream_t* es,
-                                       dep_cmd_item_t *item )
+static void remote_dep_mpi_new_taskpool( parsec_execution_stream_t* es,
+                                         dep_cmd_item_t *item )
 {
-    parsec_taskpool_t* obj = item->cmd.new_object.obj;
+    parsec_taskpool_t* obj = item->cmd.new_taskpool.tp;
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
 #endif

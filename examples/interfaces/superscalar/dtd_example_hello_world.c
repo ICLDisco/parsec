@@ -80,7 +80,7 @@ int main(int argc, char ** argv)
     /* Inserting task to print Hello World
      * and the rank of the process
      */
-    parsec_insert_task( dtd_tp, task_hello_world,    0,   "Hello_World_task",
+    parsec_dtd_taskpool_insert_task( dtd_tp, task_hello_world,    0,   "Hello_World_task",
                         0 );
 
     /* finishing all the tasks inserted, but not finishing the handle */

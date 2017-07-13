@@ -63,7 +63,7 @@ task_to_insert_task_hello_world( parsec_execution_stream_t *es,
 
     printf("I am inserting task to print \"Hello World\", and my rank is: %d\n", this_task->taskpool->context->my_rank);
 
-    parsec_insert_task( dtd_tp, task_hello_world,    0,  "Hello_World_task", 0 );
+    parsec_dtd_taskpool_insert_task( dtd_tp, task_hello_world,    0,  "Hello_World_task", 0 );
 
     return PARSEC_HOOK_RETURN_DONE;
 }
@@ -101,7 +101,7 @@ int main(int argc, char ** argv)
      * will print Hello World and the
      * rank of the process
      */
-    parsec_insert_task( dtd_tp, task_to_insert_task_hello_world,    0,  "Task_inserting_task", 0 );
+    parsec_dtd_taskpool_insert_task( dtd_tp, task_to_insert_task_hello_world,    0,  "Task_inserting_task", 0 );
 
     /* finishing all the tasks inserted, but not finishing the handle */
     parsec_dtd_taskpool_wait( parsec, dtd_tp );

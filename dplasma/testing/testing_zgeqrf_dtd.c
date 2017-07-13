@@ -308,7 +308,7 @@ int main(int argc, char ** argv)
         tempkn = k == dcA.super.nt-1 ? dcA.super.n-(k*dcA.super.nb) : dcA.super.nb;
         ldak = BLKLDD( (parsec_tiled_matrix_dc_t*)&dcA, k);
 
-        parsec_insert_task( dtd_tp,      parsec_core_geqrt,
+        parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_geqrt,
                           (dcA.super.nt-k)*(dcA.super.nt-k)*(dcA.super.nt-k), "geqrt",
                            sizeof(int),           &tempkm,                           VALUE,
                            sizeof(int),           &tempkn,                           VALUE,
@@ -324,7 +324,7 @@ int main(int argc, char ** argv)
         for( n = k+1; n < dcA.super.nt; n++ ) {
             tempnn = n == dcA.super.nt-1 ? dcA.super.n-(n*dcA.super.nb) : dcA.super.nb;
 
-            parsec_insert_task( dtd_tp,      parsec_core_unmqr,          0,    "unmqr",
+            parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_unmqr,          0,    "unmqr",
                                sizeof(PLASMA_enum),   &side,                              VALUE,
                                sizeof(PLASMA_enum),   &trans,                             VALUE,
                                sizeof(int),           &tempkm,                            VALUE,
@@ -347,7 +347,7 @@ int main(int argc, char ** argv)
             tempmm = m == dcA.super.mt-1 ? dcA.super.m-(m*dcA.super.mb) : dcA.super.mb;
             ldam = BLKLDD( (parsec_tiled_matrix_dc_t*)&dcA, m);
 
-            parsec_insert_task( dtd_tp,      parsec_core_tsqrt,
+            parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_tsqrt,
                               (dcA.super.mt-k)*(dcA.super.mt-k)*(dcA.super.mt-k),  "tsqrt",
                                sizeof(PLASMA_enum),   &tempmm,                            VALUE,
                                sizeof(int),           &tempkn,                            VALUE,
@@ -366,7 +366,7 @@ int main(int argc, char ** argv)
                 tempnn = n == dcA.super.nt-1 ? dcA.super.n-(n*dcA.super.nb) : dcA.super.nb;
                 int ldwork = PlasmaLeft == PlasmaLeft ? ib : dcT.super.nb;
 
-                parsec_insert_task( dtd_tp,      parsec_core_tsmqr,
+                parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_tsmqr,
                                   (dcA.super.mt-k)*(dcA.super.mt-n)*(dcA.super.mt-n),        "tsmqr",
                                    sizeof(PLASMA_enum),   &side,                             VALUE,
                                    sizeof(PLASMA_enum),   &trans,                            VALUE,

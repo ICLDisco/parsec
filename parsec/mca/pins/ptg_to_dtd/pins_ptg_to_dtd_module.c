@@ -146,11 +146,11 @@ static void pins_taskpool_init_ptg_to_dtd(parsec_taskpool_t *ptg_tp)
     {
         parsec_event_cb_t lfct = NULL;
         void* ldata = NULL;
-        parsec_get_complete_callback(ptg_tp, &lfct, &ldata);
+        parsec_taskpool_get_complete_callback(ptg_tp, &lfct, &ldata);
         if( NULL != lfct ) {
-            parsec_set_complete_callback((parsec_taskpool_t*)__dtd_taskpool, lfct, ldata);
+            parsec_taskpool_set_complete_callback((parsec_taskpool_t*)__dtd_taskpool, lfct, ldata);
         }
-        parsec_set_complete_callback((parsec_taskpool_t*)ptg_tp, pins_taskpool_complete_callback, __dtd_taskpool);
+        parsec_taskpool_set_complete_callback((parsec_taskpool_t*)ptg_tp, pins_taskpool_complete_callback, __dtd_taskpool);
     }
     parsec_enqueue(ptg_tp->context, (parsec_taskpool_t*)__dtd_taskpool);
 }
@@ -270,7 +270,7 @@ data_lookup_ptg_to_dtd_task(parsec_execution_stream_t *es,
  * The flow of data from each task to others and all other dependencies are tracked from this function.
  */
 static void
-parsec_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
+parsec_dtd_taskpool_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
                               parsec_dtd_funcptr_t *fpointer, parsec_task_t *orig_task,
                               char *name_of_kernel, parsec_dtd_task_param_t *packed_parameters_head, int count_of_params )
 {
@@ -293,7 +293,7 @@ parsec_insert_task_ptg_to_dtd( parsec_dtd_taskpool_t  *dtd_tp,
         /* calculating the size of parameters for each task class*/
         long unsigned int size_of_params = 0;
 
-        if (dump_function_info) {
+        if (parsec_dtd_dump_function_info) {
             parsec_output(parsec_debug_output, "Function Created for task Class: %s\n Has %d parameters\n"
                    "Total Size: %lu\n", name_of_kernel, count_of_params, size_of_params);
         }
@@ -469,7 +469,7 @@ fake_hook_for_testing(parsec_execution_stream_t *es,
             current_param = tmp_param;
         }
 
-        parsec_insert_task_ptg_to_dtd( dtd_tp, __dtd_taskpool->actual_hook[this_task->task_class->task_class_id].hook,
+        parsec_dtd_taskpool_insert_task_ptg_to_dtd( dtd_tp, __dtd_taskpool->actual_hook[this_task->task_class->task_class_id].hook,
                                        this_task, (char *)this_task->task_class->name, (parsec_dtd_task_param_t *)head_param, count_of_params );
 
         /* Cleaning the params */

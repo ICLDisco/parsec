@@ -269,8 +269,10 @@ typedef int (*parsec_update_ref_t)(parsec_taskpool_t *parsec_tp, int32_t);
  * @return PARSEC_SUCCESS on success, an error otherwise
  */
 
-int parsec_set_complete_callback(parsec_taskpool_t* parsec_tp,
-                                parsec_event_cb_t complete_cb, void* complete_data);
+int
+parsec_taskpool_set_complete_callback(parsec_taskpool_t* parsec_tp,
+                                      parsec_event_cb_t complete_cb,
+                                      void* complete_data);
 
 /**
  * @brief Get the current completion callback associated with a PaRSEC taskpool
@@ -285,8 +287,10 @@ int parsec_set_complete_callback(parsec_taskpool_t* parsec_tp,
  * @param[out] complete_data a pointer to the data called with the callback
  * @return PARSEC_SUCCESS on success
  */
-int parsec_get_complete_callback(const parsec_taskpool_t* parsec_tp,
-                                parsec_event_cb_t* complete_cb, void** complete_data);
+int
+parsec_taskpool_get_complete_callback(const parsec_taskpool_t* parsec_tp,
+                                      parsec_event_cb_t* complete_cb,
+                                      void** complete_data);
 
 
 /**
@@ -302,8 +306,10 @@ int parsec_get_complete_callback(const parsec_taskpool_t* parsec_tp,
  *               when it is called
  * @return PARSEC_SUCCESS on success, an error otherwise
  */
-int parsec_set_enqueue_callback(parsec_taskpool_t* parsec_tp,
-                               parsec_event_cb_t enqueue_cb, void* enqueue_data);
+int
+parsec_taskpool_set_enqueue_callback(parsec_taskpool_t* parsec_tp,
+                                     parsec_event_cb_t enqueue_cb,
+                                     void* enqueue_data);
 
 /**
  * @brief Get the current enqueuing callback associated with a PaRSEC taskpool
@@ -318,8 +324,10 @@ int parsec_set_enqueue_callback(parsec_taskpool_t* parsec_tp,
  * @param[out] enqueue_data a pointer to the data called with the callback
  * @return PARSEC_SUCCESS on success
  */
-int parsec_get_enqueue_callback(const parsec_taskpool_t* parsec_tp,
-                               parsec_event_cb_t* enqueue_cb, void** enqueue_data);
+int
+parsec_taskpool_get_enqueue_callback(const parsec_taskpool_t* parsec_tp,
+                                     parsec_event_cb_t* enqueue_cb,
+                                     void** enqueue_data);
 
 /**
  * @brief Retrieve the local object attached to a unique object id
@@ -455,7 +463,7 @@ void parsec_usage(void);
  * @param[in] new_priority the new priority to set to that taskpool
  * @return The priority of the taskpool before being assigned to new_priority
  */
-int32_t parsec_set_priority( parsec_taskpool_t* taskpool, int32_t new_priority );
+int32_t parsec_taskpool_set_priority( parsec_taskpool_t* taskpool, int32_t new_priority );
 
 /**
  * @brief Human-readable print function for tasks
@@ -468,8 +476,8 @@ int32_t parsec_set_priority( parsec_taskpool_t* taskpool, int32_t new_priority )
  * @param[in] task the task to represent with str
  * @return str
  */
-char* parsec_snprintf_execution_context( char* str, size_t size,
-                                        const parsec_task_t* task);
+char* parsec_task_snprintf( char* str, size_t size,
+                            const parsec_task_t* task);
 
 /**
  * @brief Opaque structure representing a Task Class

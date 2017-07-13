@@ -142,7 +142,7 @@ void heap_insert(parsec_heap_t * heap, parsec_task_t * elem)
 #if defined(PARSEC_DEBUG_NOISIER)
     char tmp[MAX_TASK_STRLEN];
     PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tInserted exec C %s (%p) into maxheap %p of size %u",
-            parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, elem), elem, heap, heap->size);
+            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, elem), elem, heap, heap->size);
 #endif
 }
 
@@ -233,7 +233,7 @@ heap_split_and_steal(parsec_heap_t ** heap_ptr,
     {
         char tmp[MAX_TASK_STRLEN];
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tStole exec C %s (%p) from heap %p",
-                             parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
+                             parsec_task_snprintf(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
     }
 #endif
     return to_use;
@@ -387,7 +387,7 @@ parsec_task_t* heap_remove(parsec_heap_t ** heap_ptr)
 #if defined(PARSEC_DEBUG_NOISIER)
     if (to_use != NULL) {
         char tmp[MAX_TASK_STRLEN];
-        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tStole exec C %s (%p) from heap %p", parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
+        PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "MH:\tStole exec C %s (%p) from heap %p", parsec_task_snprintf(tmp, MAX_TASK_STRLEN, to_use), to_use, heap);
     }
 #endif
     return to_use;

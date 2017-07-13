@@ -87,7 +87,7 @@ static int sched_ip_schedule(parsec_execution_stream_t* es,
     char tmp[MAX_TASK_STRLEN];
     do {
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "IP:\t Pushing task %s",
-                parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_task_t*)it));
+                parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t*)it));
         it = (parsec_list_item_t*)((parsec_list_item_t*)it)->list_next;
     } while( it != (parsec_list_item_t*)new_context );
 #endif

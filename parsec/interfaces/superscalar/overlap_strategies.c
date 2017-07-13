@@ -19,7 +19,7 @@
 #include "parsec/remote_dep.h"
 #include "parsec/interfaces/superscalar/insert_function_internal.h"
 
-extern int dump_traversal_info; /**< For printing traversal info */
+extern int parsec_dtd_dump_traversal_info; /**< For printing traversal info */
 
 /***************************************************************************//**
  *
@@ -312,7 +312,7 @@ parsec_dtd_ordering_correctly( parsec_execution_stream_t *es,
                     }
                 }
 
-                if(dump_traversal_info) {
+                if(parsec_dtd_dump_traversal_info) {
                     parsec_output(parsec_debug_output,
                                   "------\nsuccessor of: %s \t %lld rank %d --> %s \t %lld rank: %d\nTotal flow: %d  flow_count:"
                                   "%d\n----- for pred flow: %d and desc flow: %d\n", current_task->super.task_class->name,

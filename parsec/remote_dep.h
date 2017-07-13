@@ -200,7 +200,7 @@ int parsec_remote_dep_off(parsec_context_t* context);
 int parsec_remote_dep_progress(parsec_execution_stream_t* es);
 
 /* Inform the communication engine from the creation of new objects */
-int parsec_remote_dep_new_object(parsec_taskpool_t* handle);
+int parsec_remote_dep_new_taskpool(parsec_taskpool_t* tp);
 
 /* Send remote dependencies to target processes */
 int parsec_remote_dep_activate(parsec_execution_stream_t* es,
@@ -232,13 +232,13 @@ int parsec_remote_dep_propagate(parsec_execution_stream_t* es,
 #endif
 
 #else
-#define parsec_remote_dep_init(ctx)           1
-#define parsec_remote_dep_fini(ctx)           0
-#define parsec_remote_dep_on(ctx)             0
-#define parsec_remote_dep_off(ctx)            0
-#define parsec_remote_dep_progress(ctx)       0
+#define parsec_remote_dep_init(ctx)            1
+#define parsec_remote_dep_fini(ctx)            0
+#define parsec_remote_dep_on(ctx)              0
+#define parsec_remote_dep_off(ctx)             0
+#define parsec_remote_dep_progress(ctx)        0
 #define parsec_remote_dep_activate(ctx, o, r) -1
-#define parsec_remote_dep_new_object(ctx)     0
+#define parsec_remote_dep_new_taskpool(ctx)    0
 #define remote_dep_mpi_initialize_execution_stream(ctx) 0
 #endif /* DISTRIBUTED */
 

@@ -28,7 +28,7 @@ BEGIN_C_DECLS
  **/
 
 /*
- * The following is a definition of the flags, for usage please check usage of parsec_insert_task() below.
+ * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
  *
  *   **  Details of Flags **
  *
@@ -56,7 +56,7 @@ typedef enum { INPUT=0x100000,
              } parsec_dtd_op_type;
 
 /*
- * The following is a definition of the flags, for usage please check usage of parsec_insert_task() below.
+ * The following is a definition of the flags, for usage please check usage of parsec_dtd_taskpool_insert_task() below.
  *
  *   **  Details of Flags **
  *
@@ -90,15 +90,15 @@ extern parsec_arena_t **parsec_dtd_arenas;
  * Users can use this two variables to control the sliding window of task insertion.
  * This is set using a default number or the number set by the mca_param.
  * The command line to set the value of window size and threshold size are:
- * "-- --mca dtd_window_size 4000 --mca dtd_threshold_size 2000"
+ * "-- --mca parsec_dtd_window_size 4000 --mca parsec_dtd_threshold_size 2000"
  * This will set the window size to be 4000 tasks. This means the main thread
  * will insert 4000 tasks and then retire from it and join the workers.
- * The dtd_threshold_size indicates the number of tasks, reaching which
+ * The parsec_dtd_threshold_size indicates the number of tasks, reaching which
  * the main thread will resume inserting tasks again.
  * The threshold should always be smaller than the window size.
  */
-extern int dtd_window_size;
-extern int dtd_threshold_size;
+extern int parsec_dtd_window_size;
+extern int parsec_dtd_threshold_size;
 
 #define PASSED_BY_REF                1
 #define UNPACK_VALUE                 1
@@ -107,8 +107,8 @@ extern int dtd_threshold_size;
 #define MAX_FLOW                    25 /* Max number of flows allowed per task */
 #define PARSEC_DTD_NB_TASK_CLASSES  25 /* Max number of task classes allowed */
 
-typedef struct parsec_dtd_tile_s       parsec_dtd_tile_t;
-typedef struct parsec_dtd_task_s       parsec_dtd_task_t;
+typedef struct parsec_dtd_tile_s         parsec_dtd_tile_t;
+typedef struct parsec_dtd_task_s         parsec_dtd_task_t;
 typedef struct parsec_dtd_taskpool_s     parsec_dtd_taskpool_t;
 
 /*
@@ -235,7 +235,7 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
  *
  */
 void
-parsec_insert_task( parsec_taskpool_t  *tp,
+parsec_dtd_taskpool_insert_task( parsec_taskpool_t  *tp,
                     parsec_dtd_funcptr_t *fpointer, int priority,
                     char *name_of_kernel, ... );
 

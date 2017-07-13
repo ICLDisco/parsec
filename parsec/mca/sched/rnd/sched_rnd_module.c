@@ -88,7 +88,7 @@ static int sched_rnd_schedule(parsec_execution_stream_t* es,
     do {
 #if defined(PARSEC_DEBUG_NOISIER)
         PARSEC_DEBUG_VERBOSE(20, parsec_debug_output, "RND:\t Pushing task %s",
-                parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, (parsec_task_t*)it));
+                parsec_task_snprintf(tmp, MAX_TASK_STRLEN, (parsec_task_t*)it));
 #endif
         /* randomly assign priority */
         (*((int*)(((uintptr_t)it)+parsec_execution_context_priority_comparator))) = rand();

@@ -203,7 +203,7 @@ insert_task_geqrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
     int ib = dcT->super.mb;
 
     for( k = *iteration; k < *total; k++, *iteration += 1, count++ ) {
-        if( count > dtd_window_size-1000 ) {
+        if( count > parsec_dtd_window_size-1000 ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         }
 
@@ -211,7 +211,7 @@ insert_task_geqrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
         tempkn = k == dcA->super.nt-1 ? dcA->super.n-(k*dcA->super.nb) : dcA->super.nb;
         ldak = BLKLDD( (parsec_tiled_matrix_dc_t*)dcA, k);
 
-        parsec_insert_task( dtd_tp,      parsec_core_geqrt,
+        parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_geqrt,
                           (dcA->super.nt-k)*(dcA->super.nt-k)*(dcA->super.nt-k), "geqrt",
                            sizeof(int),           &tempkm,                           VALUE,
                            sizeof(int),           &tempkn,                           VALUE,
@@ -227,7 +227,7 @@ insert_task_geqrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
         for( n = k+1; n < dcA->super.nt; n++, count++ ) {
             tempnn = n == dcA->super.nt-1 ? dcA->super.n-(n*dcA->super.nb) : dcA->super.nb;
 
-            parsec_insert_task( dtd_tp,      parsec_core_unmqr,          0,    "unmqr",
+            parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_unmqr,          0,    "unmqr",
                                sizeof(PLASMA_enum),   &side,                              VALUE,
                                sizeof(PLASMA_enum),   &trans,                             VALUE,
                                sizeof(int),           &tempkm,                            VALUE,
@@ -250,7 +250,7 @@ insert_task_geqrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
             tempmm = m == dcA->super.mt-1 ? dcA->super.m-(m*dcA->super.mb) : dcA->super.mb;
             ldam = BLKLDD( (parsec_tiled_matrix_dc_t*)dcA, m);
 
-            parsec_insert_task( dtd_tp,      parsec_core_tsqrt,
+            parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_tsqrt,
                               (dcA->super.mt-k)*(dcA->super.mt-k)*(dcA->super.mt-k),  "tsqrt",
                                sizeof(PLASMA_enum),   &tempmm,                            VALUE,
                                sizeof(int),           &tempkn,                            VALUE,
@@ -269,7 +269,7 @@ insert_task_geqrf(parsec_execution_stream_t *es, parsec_task_t *this_task)
                 tempnn = n == dcA->super.nt-1 ? dcA->super.n-(n*dcA->super.nb) : dcA->super.nb;
                 int ldwork = PlasmaLeft == PlasmaLeft ? ib : dcT->super.nb;
 
-                parsec_insert_task( dtd_tp,      parsec_core_tsmqr,
+                parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_tsmqr,
                                   (dcA->super.mt-k)*(dcA->super.mt-n)*(dcA->super.mt-n),        "tsmqr",
                                    sizeof(PLASMA_enum),   &side,                             VALUE,
                                    sizeof(PLASMA_enum),   &trans,                            VALUE,
@@ -434,7 +434,7 @@ int main(int argc, char ** argv)
     int iteration = 0, total = minMNT;
 
 
-    parsec_insert_task( dtd_tp,       insert_task_geqrf, 0, "insert_task_geeqrf",
+    parsec_dtd_taskpool_insert_task( dtd_tp,       insert_task_geqrf, 0, "insert_task_geeqrf",
                        sizeof(int),           &total,             VALUE,
                        sizeof(int),           &iteration,         VALUE,
                        sizeof(two_dim_block_cyclic_t *), &dcA, SCRATCH,

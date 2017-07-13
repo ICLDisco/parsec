@@ -86,7 +86,7 @@ test_task_generator( parsec_execution_stream_t *es,
     parsec_enqueue( es->virtual_process->parsec_context, dtd_tp );
 
     for( i = 0; i < 100; i++ ) {
-        parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
+        parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                             sizeof(int),       &amount,    VALUE,
                             PASSED_BY_REF,     TILE_OF_KEY(B, rank),      INOUT | AFFINITY,
                             0 );
@@ -155,7 +155,7 @@ int main(int argc, char ** argv)
     SYNC_TIME_START();
 
     for( m = 0; m < nt; m++ ) {
-        parsec_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_generator",
+        parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task_generator",
                             sizeof(int),       &nb,                 VALUE,
                             sizeof(int),       &nt,                 VALUE,
                             PASSED_BY_REF,     TILE_OF_KEY(A, m),   INOUT | AFFINITY,

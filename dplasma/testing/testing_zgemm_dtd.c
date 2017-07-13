@@ -176,7 +176,7 @@ int main(int argc, char ** argv)
                             ldbk = BLKLDD(&dcB.super, k);
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
+                            parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -202,7 +202,7 @@ int main(int argc, char ** argv)
                             tempkn = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
+                            parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm,  0, "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -230,7 +230,7 @@ int main(int argc, char ** argv)
                             ldbk = BLKLDD(&dcB.super, k);
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
+                            parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -256,7 +256,7 @@ int main(int argc, char ** argv)
                             ldak = BLKLDD(&dcA.super, k);
                             zbeta = k == 0 ? beta : zone;
 
-                            parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
+                            parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                      sizeof(PLASMA_enum),   &tA,                           VALUE,
                                      sizeof(PLASMA_enum),   &tB,                           VALUE,
                                      sizeof(int),           &tempmm,                       VALUE,
@@ -415,7 +415,7 @@ int main(int argc, char ** argv)
                                     ldbk = BLKLDD(&dcB.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,
@@ -442,7 +442,7 @@ int main(int argc, char ** argv)
                                     tempkn = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,
@@ -471,7 +471,7 @@ int main(int argc, char ** argv)
                                     ldbk = BLKLDD(&dcB.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,
@@ -499,7 +499,7 @@ int main(int argc, char ** argv)
                                     ldak = BLKLDD(&dcA.super, k);
                                     zbeta = k == 0 ? beta : zone;
 
-                                    parsec_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
+                                    parsec_dtd_taskpool_insert_task( dtd_tp,  &parsec_core_gemm, 0,  "Gemm",
                                              sizeof(PLASMA_enum),   &trans[tA],                    VALUE,
                                              sizeof(PLASMA_enum),   &trans[tB],                    VALUE,
                                              sizeof(int),           &tempmm,                       VALUE,

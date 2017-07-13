@@ -216,7 +216,7 @@ int main(int argc, char **argv)
             tempkm = (k == (dcA.super.mt - 1)) ? dcA.super.m - k * dcA.super.mb : dcA.super.mb;
             ldak = BLKLDD(&dcA.super, k);
 
-            parsec_insert_task( dtd_tp, parsec_core_potrf,
+            parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_potrf,
                               (total - k) * (total-k) * (total - k)/*priority*/, "Potrf",
                                sizeof(int),      &uplo,              VALUE,
                                sizeof(int),      &tempkm,            VALUE,
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
             for( m = k+1; m < total; m++ ) {
                 tempmm = m == dcA.super.mt - 1 ? dcA.super.m - m * dcA.super.mb : dcA.super.mb;
                 ldam = BLKLDD(&dcA.super, m);
-                parsec_insert_task( dtd_tp, parsec_core_trsm,
+                parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_trsm,
                                   (total - m) * (total-m) * (total - m) + 3 * ((2 * total) - k - m - 1) * (m - k)/*priority*/, "Trsm",
                                    sizeof(int),      &side,               VALUE,
                                    sizeof(int),      &uplo,               VALUE,
@@ -248,7 +248,7 @@ int main(int argc, char **argv)
             for( m = k+1; m < dcA.super.nt; m++ ) {
                 tempmm = m == dcA.super.mt - 1 ? dcA.super.m - m * dcA.super.mb : dcA.super.mb;
                 ldam = BLKLDD(&dcA.super, m);
-                parsec_insert_task( dtd_tp, parsec_core_herk,
+                parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_herk,
                                   (total - m) * (total - m) * (total - m) + 3 * (m - k)/*priority*/, "Herk",
                                    sizeof(int),       &uplo,               VALUE,
                                    sizeof(int),       &trans,              VALUE,
@@ -264,7 +264,7 @@ int main(int argc, char **argv)
 
                 for( n = m+1; n < total; n++ ) {
                     ldan = BLKLDD(&dcA.super, n);
-                    parsec_insert_task( dtd_tp,  parsec_core_gemm,
+                    parsec_dtd_taskpool_insert_task( dtd_tp,  parsec_core_gemm,
                                       (total - m) * (total - m) * (total - m) + 3 * ((2 * total) - m - n - 3) * (m - n) + 6 * (m - k) /*priority*/, "Gemm",
                                        sizeof(int),        &transA_g,           VALUE,
                                        sizeof(int),        &transB,             VALUE,
@@ -300,7 +300,7 @@ int main(int argc, char **argv)
         for( k = 0; k < total; k++ ) {
             tempkm = k == dcA.super.nt-1 ? dcA.super.n-k*dcA.super.nb : dcA.super.nb;
             ldak = BLKLDD(&dcA.super, k);
-            parsec_insert_task( dtd_tp, parsec_core_potrf, 4, "Potrf",
+            parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_potrf, 4, "Potrf",
                                sizeof(int),      &uplo,              VALUE,
                                sizeof(int),      &tempkm,            VALUE,
                                PASSED_BY_REF,    TILE_OF(A, k, k), INOUT | TILE_FULL | AFFINITY,
@@ -310,7 +310,7 @@ int main(int argc, char **argv)
 
             for( m = k+1; m < total; m++ ) {
                 tempmm = m == dcA.super.nt-1 ? dcA.super.n-m*dcA.super.nb : dcA.super.nb;
-                parsec_insert_task( dtd_tp, parsec_core_trsm, 3, "Trsm",
+                parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_trsm, 3, "Trsm",
                                    sizeof(int),      &side,               VALUE,
                                    sizeof(int),      &uplo,               VALUE,
                                    sizeof(int),      &transA_p,           VALUE,
@@ -329,7 +329,7 @@ int main(int argc, char **argv)
             for( m = k+1; m < dcA.super.mt; m++ ) {
                 tempmm = m == dcA.super.nt-1 ? dcA.super.n-m*dcA.super.nb : dcA.super.nb;
                 ldam = BLKLDD(&dcA.super, m);
-                parsec_insert_task( dtd_tp, parsec_core_herk, 2, "Herk",
+                parsec_dtd_taskpool_insert_task( dtd_tp, parsec_core_herk, 2, "Herk",
                                    sizeof(int),       &uplo,               VALUE,
                                    sizeof(int),       &trans,              VALUE,
                                    sizeof(int),       &tempmm,             VALUE,
@@ -344,7 +344,7 @@ int main(int argc, char **argv)
 
                 for( n = m+1; n < total; n++ ) {
                    ldan = BLKLDD(&dcA.super, n);
-                   parsec_insert_task( dtd_tp,  parsec_core_gemm, 1, "Gemm",
+                   parsec_dtd_taskpool_insert_task( dtd_tp,  parsec_core_gemm, 1, "Gemm",
                                       sizeof(int),        &transA_g,           VALUE,
                                       sizeof(int),        &transB,             VALUE,
                                       sizeof(int),        &dcA.super.mb,    VALUE,

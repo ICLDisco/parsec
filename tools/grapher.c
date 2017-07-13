@@ -138,8 +138,8 @@ static parsec_ontask_iterate_t ontask_function(struct parsec_execution_stream_s 
     (void)rank_dst;
     (void)param;
 
-    parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, oldcontext);
-    parsec_snprintf_execution_context(tostr, MAX_TASK_STRLEN, newcontext);
+    parsec_task_snprintf(fromstr, MAX_TASK_STRLEN, oldcontext);
+    parsec_task_snprintf(tostr, MAX_TASK_STRLEN, newcontext);
 
     from = lookup_create_vertex(fromstr);
     to = lookup_create_vertex(tostr);
@@ -208,7 +208,7 @@ int main(int argc, char *argv[])
     s = (parsec_list_item_t*)startup;
     do {
         char fromstr[MAX_TASK_STRLEN];
-        parsec_snprintf_execution_context(fromstr, MAX_TASK_STRLEN, (parsec_task_t*)s);
+        parsec_task_snprintf(fromstr, MAX_TASK_STRLEN, (parsec_task_t*)s);
         lookup_create_vertex(fromstr);
         s = (parsec_list_item_t*)s->list_next;
     } while( s != (parsec_list_item_t*)startup );

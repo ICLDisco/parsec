@@ -336,7 +336,7 @@ int main(int argc, char ** argv)
         ldak = BLKLDD((parsec_tiled_matrix_dc_t*)&dcA, k);
         check_info = k == dcA.super.mt-1;
 
-        parsec_insert_task( dtd_tp,     parsec_core_getrf_incpiv,             0, "getrf_incpiv",
+        parsec_dtd_taskpool_insert_task( dtd_tp,     parsec_core_getrf_incpiv,             0, "getrf_incpiv",
                            sizeof(int),           &tempkm,                           VALUE,
                            sizeof(int),           &tempkn,                           VALUE,
                            sizeof(int),           &ib,                               VALUE,
@@ -351,7 +351,7 @@ int main(int argc, char ** argv)
             tempnn = n == dcA.super.nt-1 ? (dcA.super.n)-n*(dcA.super.nb) : dcA.super.nb;
             ldl = dcL.super.mb;
 
-            parsec_insert_task( dtd_tp,      parsec_core_gessm,           0,  "gessm",
+            parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_gessm,           0,  "gessm",
                                sizeof(int),           &tempkm,                           VALUE,
                                sizeof(int),           &tempnn,                           VALUE,
                                sizeof(int),           &tempkm,                           VALUE,
@@ -375,7 +375,7 @@ int main(int argc, char ** argv)
             ldl = dcL.super.mb;
             check_info = m == dcA.super.mt-1;
 
-            parsec_insert_task( dtd_tp,      parsec_core_tstrf,              0,  "tstrf",
+            parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_tstrf,              0,  "tstrf",
                                sizeof(int),           &tempmm,                           VALUE,
                                sizeof(int),           &tempkn,                           VALUE,
                                sizeof(int),           &ib,                               VALUE,
@@ -398,7 +398,7 @@ int main(int argc, char ** argv)
                 anb = dcA.super.nb;
                 ldl = dcL.super.mb;
 
-                parsec_insert_task( dtd_tp,      parsec_core_ssssm,            0,    "ssssm",
+                parsec_dtd_taskpool_insert_task( dtd_tp,      parsec_core_ssssm,            0,    "ssssm",
                                    sizeof(int),           &anb,                               VALUE,
                                    sizeof(int),           &tempnn,                            VALUE,
                                    sizeof(int),           &tempmm,                            VALUE,

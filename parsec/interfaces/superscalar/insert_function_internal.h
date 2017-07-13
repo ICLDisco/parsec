@@ -26,9 +26,9 @@ BEGIN_C_DECLS
 typedef struct parsec_dtd_task_param_s  parsec_dtd_task_param_t;
 typedef struct parsec_dtd_task_class_s  parsec_dtd_task_class_t;
 
-extern int dtd_init; /* flag to indicate whether dtd_init() is called or not */
-extern int dump_traversal_info; /* For printing traversal info */
-extern int dump_function_info; /* For printing function_structure info */
+extern int __parsec_dtd_is_initialized; /* flag to indicate whether dtd_init() is called or not */
+extern int parsec_dtd_dump_traversal_info; /* For printing traversal info */
+extern int parsec_dtd_dump_function_info; /* For printing function_structure info */
 extern int hashtable_trace_keyin;
 extern int hashtable_trace_keyout;
 
@@ -357,26 +357,36 @@ parsec_execute_and_come_back( parsec_context_t *context,
                               int task_threshold_count );
 
 dep_t *
-parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task, parsec_dtd_task_t *desc_task,
-                                int parent_flow_index, int desc_flow_index );
+parsec_dtd_find_and_return_dep( parsec_dtd_task_t *parent_task,
+                                parsec_dtd_task_t *desc_task,
+                                int parent_flow_index,
+                                int desc_flow_index );
 
 void
-parsec_dtd_insert_task( parsec_dtd_taskpool_t *tp,
-                        uint64_t            key,
-                        void                *value );
+parsec_dtd_track_task( parsec_dtd_taskpool_t *tp,
+                       uint64_t               key,
+                       void                  *value );
 
 void *
 parsec_dtd_find_task( parsec_dtd_taskpool_t *tp,
-                      uint64_t            key );
+                      uint64_t               key );
 
 void *
-parsec_dtd_find_and_remove_task( parsec_dtd_taskpool_t *tp,
-                                 uint64_t            key );
+parsec_dtd_untrack_task( parsec_dtd_taskpool_t *tp,
+                         uint64_t               key );
 
 void
-parsec_dtd_insert_remote_dep( parsec_dtd_taskpool_t *tp,
-                              uint64_t            key,
-                              void                *value );
+parsec_dtd_track_remote_dep( parsec_dtd_taskpool_t *tp,
+                             uint64_t               key,
+                             void                  *value );
+
+void *
+parsec_dtd_find_remote_dep( parsec_dtd_taskpool_t *tp,
+                            uint64_t               key );
+
+void *
+parsec_dtd_untrack_remote_dep( parsec_dtd_taskpool_t *tp,
+                               uint64_t               key );
 
 int
 parsec_dtd_task_is_local( parsec_dtd_task_t *task );

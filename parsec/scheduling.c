@@ -113,7 +113,7 @@ int __parsec_context_wait_task( parsec_execution_stream_t* es,
 #if defined(PARSEC_DEBUG)
             char tmp[MAX_TASK_STRLEN];
             parsec_degug_verbose(5, parsec_debug_output, "thread %d of VP %d Execute %s\n", es->th_id, es->virtual_process->vp_id,
-                   parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task));
+                   parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task));
 #endif
         return -1;
 
@@ -144,14 +144,14 @@ int __parsec_execute( parsec_execution_stream_t* es,
     int rc;
 #if defined(PARSEC_DEBUG)
     char tmp[MAX_TASK_STRLEN];
-    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task);
+    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
     AYU_TASK_RUN(es->th_id, task);
 
     if (NULL == tc->incarnations[task->chore_id].hook) {
 #if !defined(PARSEC_DEBUG)
         char tmp[MAX_TASK_STRLEN];
-        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, task);
+        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, task);
 #endif
         parsec_warning("Task %s[%d] run out of valid incarnations. Consider it complete",
                        tmp, tc->incarnations[task->chore_id].type);
@@ -306,18 +306,18 @@ int __parsec_schedule(parsec_execution_stream_t* es,
                     set_parameters++;
                     if( NULL == context->data[flow->flow_index].data_in ) {
                         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "Task %s has flow %s data_repo != NULL but a data == NULL (%s:%d)",
-                                parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context),
+                                parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context),
                                 flow->name, __FILE__, __LINE__);
                     }
                 }
             }
             /*if( set_parameters > 1 ) {
                 parsec_fatal( "Task %s has more than one input flow set (impossible)!! (%s:%d)",
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), __FILE__, __LINE__);
             }*/ /* Change it as soon as dtd has a running version */
             PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "thread %d of VP %d Schedules %s (distance %d)",
                     es->th_id, es->virtual_process->vp_id,
-                    parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, context), distance );
+                    parsec_task_snprintf(tmp, MAX_TASK_STRLEN, context), distance );
             context = (parsec_task_t*)context->super.list_next;
         } while ( context != new_context );
     }
@@ -721,13 +721,6 @@ parsec_taskpool_t* parsec_compose( parsec_taskpool_t* start,
     return compound;
 }
 /* END: Composition */
-
-int32_t parsec_set_priority( parsec_taskpool_t* tp, int32_t new_priority )
-{
-    int32_t old_priority = tp->priority;
-    tp->priority = new_priority;
-    return old_priority;
-}
 
 int parsec_enqueue( parsec_context_t* context, parsec_taskpool_t* tp )
 {

@@ -127,11 +127,11 @@ int main(int argc, char **argv)
 
     for( i = 0; i < world; i ++ ) {
         if( root != i ) {
-            parsec_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
+            parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_0,    0,  "task_rank_0",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
                                 0 );
 
-            parsec_insert_task( dtd_tp, task_rank_1,    0,  "task_rank_0",
+            parsec_dtd_taskpool_insert_task( dtd_tp, task_rank_1,    0,  "task_rank_0",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
                                 PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
                                 0 );

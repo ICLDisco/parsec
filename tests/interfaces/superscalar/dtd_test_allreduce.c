@@ -152,11 +152,11 @@ int main(int argc, char **argv)
 
     for( i = 0; i < world; i ++ ) {
         if( root != i ) {
-            parsec_insert_task( dtd_tp, reduce0,    0,  "reduce0",
+            parsec_dtd_taskpool_insert_task( dtd_tp, reduce0,    0,  "reduce0",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i), INOUT | TILE_FULL | AFFINITY,
                                 0 );
 
-            parsec_insert_task( dtd_tp, reduce1,    0,  "reduce1",
+            parsec_dtd_taskpool_insert_task( dtd_tp, reduce1,    0,  "reduce1",
                                 PASSED_BY_REF,    TILE_OF_KEY(A, i),    INOUT | TILE_FULL,
                                 PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
                                 0 );
@@ -172,14 +172,14 @@ int main(int argc, char **argv)
         printf("Root: %d\n\n", root );
     }
 
-    parsec_insert_task( dtd_tp, bcast0,    0,  "bcast0",
+    parsec_dtd_taskpool_insert_task( dtd_tp, bcast0,    0,  "bcast0",
                         PASSED_BY_REF,    TILE_OF_KEY(A, root), INOUT | TILE_FULL | AFFINITY,
                         0 );
 
     if( rank == root ) {
         for( i = 0; i < world; i++ ) {
             if( i != root ) {
-                parsec_insert_task( dtd_tp, bcast1,    0,  "bcast1",
+                parsec_dtd_taskpool_insert_task( dtd_tp, bcast1,    0,  "bcast1",
                                     PASSED_BY_REF,    TILE_OF_KEY(A, root),  INPUT | TILE_FULL,
                                     PASSED_BY_REF,    TILE_OF_KEY(A, i),     INOUT | TILE_FULL | AFFINITY,
                                     0 );
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
         }
 
     } else {
-        parsec_insert_task( dtd_tp, bcast1,    0,  "bcast1",
+        parsec_dtd_taskpool_insert_task( dtd_tp, bcast1,    0,  "bcast1",
                             PASSED_BY_REF,    TILE_OF_KEY(A, root),    INPUT | TILE_FULL,
                             PASSED_BY_REF,    TILE_OF_KEY(A, rank), INOUT | TILE_FULL | AFFINITY,
                             0 );

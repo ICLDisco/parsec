@@ -1531,7 +1531,7 @@ void dump_exec_stream(parsec_gpu_exec_stream_t* exec_stream)
     for( i = 0; i < exec_stream->max_events; i++ ) {
         if( NULL == exec_stream->tasks[i] ) continue;
         parsec_debug_verbose(0, parsec_cuda_output_stream,
-                            "    %d: %s", i, parsec_snprintf_execution_context(task_str, 128, exec_stream->tasks[i]->ec));
+                            "    %d: %s", i, parsec_task_snprintf(task_str, 128, exec_stream->tasks[i]->ec));
     }
     /* Don't yet dump the fifo_pending queue */
 }
@@ -1599,7 +1599,7 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                         "GPU[%d]: Try to Push %s",
                         gpu_device->cuda_index,
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 
     /**
      * First, let's reserve enough space on the device to transfer the data on the GPU.
@@ -1642,7 +1642,7 @@ parsec_gpu_kernel_push( gpu_device_t            *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                         "GPU[%d]: Push task %s DONE",
                         gpu_device->cuda_index,
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 
     return ret;
 }
@@ -1690,7 +1690,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                         "GPU[%d]: Try to Pop %s",
                         gpu_device->cuda_index,
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
         /* Don't bother if there is no real data (aka. CTL or no output) */
@@ -1762,7 +1762,7 @@ parsec_gpu_kernel_pop( gpu_device_t            *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                         "GPU[%d]: Pop %s DONE",
                         gpu_device->cuda_index,
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 
   release_and_return_error:
     return (return_code < 0 ? return_code : how_many);
@@ -1785,7 +1785,7 @@ parsec_gpu_kernel_epilog( gpu_device_t        *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                         "GPU[%d]: Epilog of %s",
                         gpu_device->cuda_index,
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 #endif
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
@@ -1875,7 +1875,7 @@ parsec_gpu_kernel_cleanout( gpu_device_t        *gpu_device,
     PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                         "GPU[%d]: Cleanup of %s",
                         gpu_device->cuda_index,
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, this_task) );
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, this_task) );
 #endif
 
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
@@ -1961,7 +1961,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
         PARSEC_DEBUG_VERBOSE(10, parsec_cuda_output_stream,
                             "GPU[%1d]:\tUpload data (if any) for %s priority %d",
                             gpu_device->cuda_index,
-                            parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
+                            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                             gpu_task->ec->priority );
     }
     rc = progress_stream( gpu_device,
@@ -1979,7 +1979,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     exec_stream = (exec_stream + 1) % (gpu_device->max_exec_streams - 2);  /* Choose an exec_stream */
     if( NULL != gpu_task ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tExecute %s priority %d", gpu_device->cuda_index,
-                            parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
+                            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                             gpu_task->ec->priority );
     }
     rc = progress_stream( gpu_device,
@@ -2010,7 +2010,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     /* This task has completed its execution: we have to check if we schedule DtoN */
     if( NULL != gpu_task ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tRetrieve data (if any) for %s priority %d", gpu_device->cuda_index,
-                            parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
+                            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                             gpu_task->ec->priority );
     }
     if (out_task_submit == NULL && out_task_push == NULL) {
@@ -2045,7 +2045,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
     gpu_task = (parsec_gpu_context_t*)parsec_fifo_try_pop( &(gpu_device->pending) );
     if( NULL != gpu_task ) {
         PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tGet from shared queue %s priority %d", gpu_device->cuda_index,
-                            parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
+                            parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                             gpu_task->ec->priority );
     }
     goto check_in_deps;
@@ -2053,7 +2053,7 @@ parsec_gpu_kernel_scheduler( parsec_execution_stream_t *es,
   complete_task:
     assert( NULL != gpu_task );
     PARSEC_DEBUG_VERBOSE(10, parsec_debug_output,  "GPU[%1d]:\tComplete %s priority %d", gpu_device->cuda_index,
-                        parsec_snprintf_execution_context(tmp, MAX_TASK_STRLEN, gpu_task->ec),
+                        parsec_task_snprintf(tmp, MAX_TASK_STRLEN, gpu_task->ec),
                         gpu_task->ec->priority );
     /* Everything went fine so far, the result is correct and back in the main memory */
     PARSEC_LIST_ITEM_SINGLETON(gpu_task);

@@ -31,13 +31,13 @@ void debug_mark_ctl_msg_activate_sent(int to, const void *b, const struct remote
 {
     int j, pos = 0, len = 512;
     char msg[512];
-    parsec_taskpool_t *object;
+    parsec_taskpool_t *tp;
     const parsec_task_class_t *tc;
 
     pos += snprintf(msg+pos, len-pos, "Mark: emission of an activate message to %d\n", to);
     pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for emision\n", b);
-    object = parsec_taskpool_lookup( m->taskpool_id );
-    tc = object->task_classes_array[m->task_class_id];
+    tp = parsec_taskpool_lookup( m->taskpool_id );
+    tc = tp->task_classes_array[m->task_class_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", tc->name);
     for(j = 0; j < tc->nb_parameters; j++) {
         pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",
@@ -56,13 +56,13 @@ void debug_mark_ctl_msg_activate_recv(int from, const void *b, const struct remo
 {
     int j, pos = 0, len = 512;
     char msg[512];
-    parsec_taskpool_t *object;
+    parsec_taskpool_t *tp;
     const parsec_task_class_t *tc;
 
     pos += snprintf(msg+pos, len-pos, "Mark: reception of an activate message from %d\n", from);
     pos += snprintf(msg+pos, len-pos, "\t      Using buffer %p for reception\n", b);
-    object = parsec_taskpool_lookup( m->taskpool_id );
-    tc = object->task_classes_array[m->task_class_id];
+    tp = parsec_taskpool_lookup( m->taskpool_id );
+    tc = tp->task_classes_array[m->task_class_id];
     pos += snprintf(msg+pos, len-pos, "\t      Activation passed=%s(", tc->name);
     for(j = 0; j < tc->nb_parameters; j++) {
         pos += snprintf(msg+pos, len-pos, "locals[%d](%s)=%d%s",

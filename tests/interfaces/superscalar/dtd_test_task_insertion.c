@@ -71,7 +71,7 @@ test_task_generator( parsec_execution_stream_t *es,
         if( i > *step ) {
             return PARSEC_HOOK_RETURN_AGAIN;
         } else {
-            parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
+            parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                sizeof(int),      amount_of_work,    VALUE,
                                0 );
 
@@ -122,11 +122,11 @@ int main(int argc, char ** argv)
     }
 
     int tmp_window_size, tmp_threshold_size;
-    tmp_window_size    = dtd_window_size;
-    tmp_threshold_size = dtd_threshold_size;
+    tmp_window_size    = parsec_dtd_window_size;
+    tmp_threshold_size = parsec_dtd_threshold_size;
 
-    dtd_window_size    = no_of_tasks;
-    dtd_threshold_size = no_of_tasks;
+    parsec_dtd_window_size    = no_of_tasks;
+    parsec_dtd_threshold_size = no_of_tasks;
 
 
 /****** Inserting tasks using main thread while others execute ******/
@@ -142,7 +142,7 @@ int main(int argc, char ** argv)
         TIME_START();
 
         for( m = 0; m < no_of_tasks; m++ ) {
-            parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
+            parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                sizeof(int),      &amount_of_work[n], VALUE,
                                0 );
         }
@@ -155,8 +155,8 @@ int main(int argc, char ** argv)
 /****** END ******/
 
     count = 0;
-    dtd_window_size    = tmp_window_size;
-    dtd_threshold_size = tmp_threshold_size;
+    parsec_dtd_window_size    = tmp_window_size;
+    parsec_dtd_threshold_size = tmp_threshold_size;
 
 /****** Inserting tasks using main thread while others execute ******/
     if( rank == 0 ) {
@@ -171,7 +171,7 @@ int main(int argc, char ** argv)
         TIME_START();
 
         for( m = 0; m < no_of_tasks; m++ ) {
-            parsec_insert_task( dtd_tp, test_task,    0,  "Test_Task",
+            parsec_dtd_taskpool_insert_task( dtd_tp, test_task,    0,  "Test_Task",
                                sizeof(int),      &amount_of_work[n], VALUE,
                                0 );
         }
@@ -195,8 +195,8 @@ int main(int argc, char ** argv)
 
         TIME_START();
 
-        int step = dtd_window_size, iteration = 0;
-        parsec_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task",
+        int step = parsec_dtd_window_size, iteration = 0;
+        parsec_dtd_taskpool_insert_task( dtd_tp, test_task_generator,    0,  "Test_Task",
                            sizeof(int),      &amount_of_work[n],     VALUE,
                            sizeof(int),      &no_of_tasks,           VALUE,
                            sizeof(int),      &step,                  VALUE,

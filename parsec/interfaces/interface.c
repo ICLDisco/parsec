@@ -97,7 +97,7 @@ parsec_empty_function_without_arguments(parsec_execution_stream_t *es,
 {
     char tmp[128];
     parsec_fatal("Task %s is incorrectly initialized\n",
-                parsec_snprintf_execution_context(tmp, 128, this_task));
+                parsec_task_snprintf(tmp, 128, this_task));
     (void)es;
     return PARSEC_HOOK_RETURN_DONE;
 }

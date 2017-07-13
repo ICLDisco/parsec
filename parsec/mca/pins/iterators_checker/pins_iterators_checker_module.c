@@ -69,8 +69,8 @@ static parsec_ontask_iterate_t print_link(parsec_execution_stream_t *es,
     char  old_str[TASK_STR_LEN];
     char *info = (char*)param;
 
-    parsec_snprintf_execution_context(old_str, TASK_STR_LEN, oldcontext);
-    parsec_snprintf_execution_context(new_str, TASK_STR_LEN, newcontext);
+    parsec_task_snprintf(old_str, TASK_STR_LEN, oldcontext);
+    parsec_task_snprintf(new_str, TASK_STR_LEN, newcontext);
 
     fprintf(stderr, "PINS ITERATORS CHECKER::   %s that runs on rank %d, vpid %d is a %s of %s that runs on rank %d.\n",
             new_str, dst_rank, dst_vpid, info, old_str, src_rank);
@@ -89,7 +89,7 @@ iterators_checker_exec_count_begin(parsec_execution_stream_t* es,
     parsec_data_t *data;
     int nbfo, i;
 
-    parsec_snprintf_execution_context(str, TASK_STR_LEN, task);
+    parsec_task_snprintf(str, TASK_STR_LEN, task);
 
     if( task->task_class->iterate_successors )
         task->task_class->iterate_successors(es, task, PARSEC_DEPENDENCIES_BITMASK, print_link, "successor");
