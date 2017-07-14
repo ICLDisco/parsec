@@ -176,7 +176,7 @@ parsec_dtd_tile_of( parsec_data_collection_t *dc, parsec_data_key_t key );
 
 /*
  * Using this function users can insert task in PaRSEC
- * 1. The parsec handle (parsec_dtd_taskpool_t *)
+ * 1. The parsec taskpool (parsec_dtd_taskpool_t *)
  * 2. The function pointer which will be executed as the "real computation task" being inserted.
  *    This function should include the actual computation the user wants to perform on the data.
  * 3. The priority of the task, if not sure user should provide 0.
@@ -259,7 +259,7 @@ void
 parsec_dtd_data_collection_fini( parsec_data_collection_t *dc );
 
 /*
- * This function will create and returns a parsec handle
+ * This function will create and returns a parsec taskpool
  * of dtd-type.
  */
 parsec_taskpool_t*
@@ -270,7 +270,7 @@ parsec_dtd_taskpool_new();
  * so far is completed.
  * User can call this function multiple times
  * between a parsec_dtd_taskpool_new() and parsec_taskpool_free()
- * Takes a parsec context and a parsec handle as input.
+ * Takes a parsec context and a parsec taskpool as input.
  */
 int
 parsec_dtd_taskpool_wait( parsec_context_t *parsec,

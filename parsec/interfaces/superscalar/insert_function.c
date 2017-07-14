@@ -66,7 +66,7 @@ parsec_arena_t **parsec_dtd_arenas;
 
 extern parsec_sched_module_t *current_scheduler;
 
-/* Global mempool for all the parsec handles that will be created for a run */
+/* Global mempool for all the parsec DTD taskpools that will be created for a run */
 parsec_mempool_t *parsec_dtd_taskpool_mempool = NULL;
 
 /* Global mempool for all tiles */
@@ -114,18 +114,18 @@ void
 parsec_detach_all_dtd_taskpool_from_context( parsec_context_t *context )
 {
     /* Here we wait on all dtd taskpool registered with us */
-    if( NULL != context->object_array && 0 < context->object_array_occupied ) {
+    if( NULL != context->taskpool_array && 0 < context->taskpool_array_occupied ) {
         int iterator;
-        for( iterator = 0; iterator < context->object_array_occupied; iterator++ ) {
-            parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)context->object_array[iterator];
+        for( iterator = 0; iterator < context->taskpool_array_occupied; iterator++ ) {
+            parsec_dtd_taskpool_t *tp = (parsec_dtd_taskpool_t *)context->taskpool_array[iterator];
             if( NULL != tp ) {
                 if( tp->enqueue_flag ) {
                     parsec_taskpool_update_runtime_nbtask( (parsec_taskpool_t *)tp, -1 );
                 }
-                context->object_array[iterator] = NULL;
+                context->taskpool_array[iterator] = NULL;
             }
         }
-        context->object_array_occupied = 0;
+        context->taskpool_array_occupied = 0;
     }
 }
 
@@ -133,15 +133,15 @@ void
 parsec_dtd_attach_taskpool_to_context( parsec_taskpool_t  *tp,
                                        parsec_context_t *parsec_context )
 {
-    if( (NULL == parsec_context->object_array) ||
-        (parsec_context->object_array_occupied >= parsec_context->object_array_size) ) {
-        parsec_context->object_array_size <<= 1;
-        parsec_context->object_array = (parsec_taskpool_t**)realloc(parsec_context->object_array, parsec_context->object_array_size * sizeof(parsec_taskpool_t*) );
+    if( (NULL == parsec_context->taskpool_array) ||
+        (parsec_context->taskpool_array_occupied >= parsec_context->taskpool_array_size) ) {
+        parsec_context->taskpool_array_size <<= 1;
+        parsec_context->taskpool_array = (parsec_taskpool_t**)realloc(parsec_context->taskpool_array, parsec_context->taskpool_array_size * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
-        for( int32_t i = (parsec_context->object_array_size>>1); i < parsec_context->object_array_size;
-             parsec_context->object_array[i++] = NULL );
+        for( int32_t i = (parsec_context->taskpool_array_size>>1); i < parsec_context->taskpool_array_size;
+             parsec_context->taskpool_array[i++] = NULL );
     }
-    parsec_context->object_array[parsec_context->object_array_occupied++] = tp;
+    parsec_context->taskpool_array[parsec_context->taskpool_array_occupied++] = tp;
 }
 
 /* enqueue wrapper for dtd */

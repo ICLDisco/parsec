@@ -506,9 +506,9 @@ parsec_context_t* parsec_init( int nb_cores, int* pargc, char** pargv[] )
     context->my_rank             = 0;
     context->nb_vp               = nb_vp;
     /* initialize dtd taskpool array */
-    context->object_array_size     = 1;
-    context->object_array_occupied = 0;
-    context->object_array          = NULL;
+    context->taskpool_array_size     = 1;
+    context->taskpool_array_occupied = 0;
+    context->taskpool_array          = NULL;
 #if defined(PARSEC_SIM)
     context->largest_simulation_date = 0;
 #endif /* PARSEC_SIM */
@@ -865,8 +865,8 @@ int parsec_fini( parsec_context_t** pcontext )
     if( __parsec_dtd_is_initialized ) {
         parsec_dtd_fini();
         /* clean dtd taskpool array */
-        free(context->object_array);
-        context->object_array = NULL;
+        free(context->taskpool_array);
+        context->taskpool_array = NULL;
     }
 
     /**
@@ -1233,7 +1233,7 @@ parsec_update_deps_with_counter(const parsec_taskpool_t *tp,
     {
         char wtmp[MAX_TASK_STRLEN];
         if( (uint32_t)dep_cur_value > (uint32_t)-128) {
-            parsec_fatal("function %s as reached an improbable dependency count of %u",
+            parsec_fatal("task %s as reached an improbable dependency count of %u",
                   wtmp, dep_cur_value );
         }
 
@@ -1667,30 +1667,30 @@ parsec_taskpool_set_priority( parsec_taskpool_t* tp, int32_t new_priority )
 }
 
 /* TODO: Change this code to something better */
-static parsec_atomic_lock_t object_array_lock = { PARSEC_ATOMIC_UNLOCKED };
-static parsec_taskpool_t** object_array = NULL;
-static uint32_t object_array_size = 1, object_array_pos = 0;
+static parsec_atomic_lock_t taskpool_array_lock = { PARSEC_ATOMIC_UNLOCKED };
+static parsec_taskpool_t** taskpool_array = NULL;
+static uint32_t taskpool_array_size = 1, taskpool_array_pos = 0;
 #define NOOBJECT ((void*)-1)
 
 static void parsec_taskpool_release_resources(void)
 {
-    parsec_atomic_lock( &object_array_lock );
-    free(object_array);
-    object_array = NULL;
-    object_array_size = 1;
-    object_array_pos = 0;
-    parsec_atomic_unlock( &object_array_lock );
+    parsec_atomic_lock( &taskpool_array_lock );
+    free(taskpool_array);
+    taskpool_array = NULL;
+    taskpool_array_size = 1;
+    taskpool_array_pos = 0;
+    parsec_atomic_unlock( &taskpool_array_lock );
 }
 
 /* Retrieve the local object attached to a unique object id */
 parsec_taskpool_t* parsec_taskpool_lookup( uint32_t taskpool_id )
 {
     parsec_taskpool_t *r = NOOBJECT;
-    parsec_atomic_lock( &object_array_lock );
-    if( taskpool_id <= object_array_pos ) {
-        r = object_array[taskpool_id];
+    parsec_atomic_lock( &taskpool_array_lock );
+    if( taskpool_id <= taskpool_array_pos ) {
+        r = taskpool_array[taskpool_id];
     }
-    parsec_atomic_unlock( &object_array_lock );
+    parsec_atomic_unlock( &taskpool_array_lock );
     return (NOOBJECT == r ? NULL : r);
 }
 
@@ -1701,19 +1701,19 @@ int parsec_taskpool_reserve_id( parsec_taskpool_t* tp )
 {
     uint32_t idx;
 
-    parsec_atomic_lock( &object_array_lock );
-    idx = (uint32_t)++object_array_pos;
+    parsec_atomic_lock( &taskpool_array_lock );
+    idx = (uint32_t)++taskpool_array_pos;
 
-    if( (NULL == object_array) || (idx >= object_array_size) ) {
-        object_array_size <<= 1;
-        object_array = (parsec_taskpool_t**)realloc(object_array, object_array_size * sizeof(parsec_taskpool_t*) );
+    if( (NULL == taskpool_array) || (idx >= taskpool_array_size) ) {
+        taskpool_array_size <<= 1;
+        taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
-        for( uint32_t i = (object_array_size>>1); i < object_array_size;
-             object_array[i++] = NOOBJECT );
+        for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
+             taskpool_array[i++] = NOOBJECT );
     }
     tp->taskpool_id = idx;
-    assert( NOOBJECT == object_array[idx] );
-    parsec_atomic_unlock( &object_array_lock );
+    assert( NOOBJECT == taskpool_array[idx] );
+    parsec_atomic_unlock( &taskpool_array_lock );
     return idx;
 }
 
@@ -1724,16 +1724,16 @@ int parsec_taskpool_register( parsec_taskpool_t* tp )
 {
     uint32_t idx = tp->taskpool_id;
 
-    parsec_atomic_lock( &object_array_lock );
-    if( (NULL == object_array) || (idx >= object_array_size) ) {
-        object_array_size <<= 1;
-        object_array = (parsec_taskpool_t**)realloc(object_array, object_array_size * sizeof(parsec_taskpool_t*) );
+    parsec_atomic_lock( &taskpool_array_lock );
+    if( (NULL == taskpool_array) || (idx >= taskpool_array_size) ) {
+        taskpool_array_size <<= 1;
+        taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
-        for( uint32_t i = (object_array_size>>1); i < object_array_size;
-             object_array[i++] = NOOBJECT );
+        for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
+             taskpool_array[i++] = NOOBJECT );
     }
-    object_array[idx] = tp;
-    parsec_atomic_unlock( &object_array_lock );
+    taskpool_array[idx] = tp;
+    parsec_atomic_unlock( &taskpool_array_lock );
     return idx;
 }
 
@@ -1742,8 +1742,8 @@ int parsec_taskpool_register( parsec_taskpool_t* tp )
 void parsec_taskpool_sync_ids( void )
 {
     uint32_t idx;
-    parsec_atomic_lock( &object_array_lock );
-    idx = (int)object_array_pos;
+    parsec_atomic_lock( &taskpool_array_lock );
+    idx = (int)taskpool_array_pos;
 #if defined(DISTRIBUTED) && defined(PARSEC_HAVE_MPI)
     int mpi_is_on;
     MPI_Initialized(&mpi_is_on);
@@ -1751,15 +1751,15 @@ void parsec_taskpool_sync_ids( void )
         MPI_Allreduce( MPI_IN_PLACE, &idx, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD );
     }
 #endif
-    if( idx >= object_array_size ) {
-        object_array_size <<= 1;
-        object_array = (parsec_taskpool_t**)realloc(object_array, object_array_size * sizeof(parsec_taskpool_t*) );
+    if( idx >= taskpool_array_size ) {
+        taskpool_array_size <<= 1;
+        taskpool_array = (parsec_taskpool_t**)realloc(taskpool_array, taskpool_array_size * sizeof(parsec_taskpool_t*) );
         /* NULLify all the new elements */
-        for( uint32_t i = (object_array_size>>1); i < object_array_size;
-             object_array[i++] = NOOBJECT );
+        for( uint32_t i = (taskpool_array_size>>1); i < taskpool_array_size;
+             taskpool_array[i++] = NOOBJECT );
     }
-    object_array_pos = idx;
-    parsec_atomic_unlock( &object_array_lock );
+    taskpool_array_pos = idx;
+    parsec_atomic_unlock( &taskpool_array_lock );
 }
 
 /* Unregister the object with the engine. This make the taskpool_id available for
@@ -1768,13 +1768,13 @@ void parsec_taskpool_sync_ids( void )
  */
 void parsec_taskpool_unregister( parsec_taskpool_t* tp )
 {
-    parsec_atomic_lock( &object_array_lock );
-    assert( tp->taskpool_id < object_array_size );
-    assert( object_array[tp->taskpool_id] == tp );
+    parsec_atomic_lock( &taskpool_array_lock );
+    assert( tp->taskpool_id < taskpool_array_size );
+    assert( taskpool_array[tp->taskpool_id] == tp );
     assert( PARSEC_RUNTIME_RESERVED_NB_TASKS == tp->nb_tasks );
     assert( 0 == tp->nb_pending_actions );
-    object_array[tp->taskpool_id] = NOOBJECT;
-    parsec_atomic_unlock( &object_array_lock );
+    taskpool_array[tp->taskpool_id] = NOOBJECT;
+    parsec_atomic_unlock( &taskpool_array_lock );
 }
 
 void parsec_taskpool_free(parsec_taskpool_t *tp)
@@ -2206,15 +2206,15 @@ static int parsec_debug_enumerate_next_in_execution_space(parsec_task_t *context
  * @details
  *  This function is intended to be called at runtime from a debugger (e.g. gdb)
  *
- *    @param[IN] taskpool: the taskpool to explore
- *    @param[IN] function: the function of taskpool to explore
+ *    @param[IN] tp: the taskpool to explore
+ *    @param[IN] tc: the taskclass of taskpool to explore
  *    @param[IN] show_remote: boolean, to decide if we show information about remote tasks (progress is not accurate)
  *    @param[IN] show_startup: boolean, to decide if startup tasks should be treated as normal tasks or not when
  *                             displaying the tasks
  *    @param[IN] show_complete: boolean, to decide if completed tasks are shown or not
  */
 static void
-parsec_taskpool_print_count_local_tasks( parsec_taskpool_t *tp,
+parsec_debug_taskpool_count_local_tasks( parsec_taskpool_t *tp,
                                          const parsec_task_class_t *tc,
                                          int show_remote,
                                          int show_startup,
@@ -2304,9 +2304,9 @@ parsec_taskpool_print_count_local_tasks( parsec_taskpool_t *tp,
  *
  * @details
  *  This function is intended to be called at runtime from a debugger (e.g. gdb)
- *  It is called by parsec_debug_print_local_expecting_tasks on each taskpool
+ *  It is called by parsec_debug_taskpool_local_tasks on each taskpool
  *
- *  See help for parsec_debug_print_local_expecting_tasks. Only additional parameter
+ *  See help for parsec_debug_taskpool_local_tasks. Only additional parameter
  *  is which taskpool to use.
  *
  *    @param[IN] taskpool: the taskpool to explore
@@ -2315,7 +2315,7 @@ parsec_taskpool_print_count_local_tasks( parsec_taskpool_t *tp,
  *                             displaying the tasks
  *    @param[IN] show_complete: boolean, to decide if completed tasks are shown or not
  */
-void parsec_taskpool_print_local_tasks( parsec_taskpool_t *tp,
+void parsec_debug_taskpool_local_tasks( parsec_taskpool_t *tp,
                                         int show_remote, int show_startup, int show_complete)
 {
     uint32_t fi;
@@ -2326,7 +2326,7 @@ void parsec_taskpool_print_local_tasks( parsec_taskpool_t *tp,
 
     for(fi = 0; fi < tp->nb_task_classes; fi++) {
         parsec_debug_verbose(0, parsec_debug_output, " Tasks of Class %u (%s):\n", fi, tp->task_classes_array[fi]->name);
-        parsec_taskpool_print_count_local_tasks( tp, tp->task_classes_array[fi],
+        parsec_debug_taskpool_count_local_tasks( tp, tp->task_classes_array[fi],
                                                  show_remote, show_startup, show_complete,
                                                  &nlocal, &nreleased, &ntotal );
         parsec_debug_verbose(0, parsec_debug_output, " Total number of Tasks of Class %s: %d\n", tp->task_classes_array[fi]->name, ntotal);
@@ -2355,24 +2355,24 @@ void parsec_taskpool_print_local_tasks( parsec_taskpool_t *tp,
  *                             displaying the tasks
  *    @param[IN] show_complete: boolean, to decide if completed tasks are shown or not
  */
-void parsec_print_local_tasks_all_debug( int show_remote, int show_startup, int show_complete )
+void parsec_debug_all_taskpools_local_tasks( int show_remote, int show_startup, int show_complete )
 {
     parsec_taskpool_t *tp;
     uint32_t oi;
 
-    parsec_atomic_lock( &object_array_lock );
-    for( oi = 1; oi <= object_array_pos; oi++) {
-        tp = object_array[ oi ];
+    parsec_atomic_lock( &taskpool_array_lock );
+    for( oi = 1; oi <= taskpool_array_pos; oi++) {
+        tp = taskpool_array[ oi ];
         if( tp == NOOBJECT )
             continue;
         if( tp == NULL )
             continue;
         parsec_debug_verbose(0, parsec_debug_output, "Tasks of Taskpool %u:\n", oi);
-        parsec_taskpool_print_local_tasks(tp, show_remote,
+        parsec_debug_taskpool_local_tasks(tp, show_remote,
                                           show_startup,
                                           show_complete);
     }
-    parsec_atomic_unlock( &object_array_lock );
+    parsec_atomic_unlock( &taskpool_array_lock );
 }
 
 /* deps is an array of size MAX_PARAM_COUNT

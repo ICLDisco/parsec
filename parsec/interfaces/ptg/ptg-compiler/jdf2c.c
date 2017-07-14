@@ -5816,7 +5816,7 @@ jdf_generate_code_iterate_successors_or_predecessors(const jdf_t *jdf,
  * Generates the code corresponding to inline_c expressions. If the inline_c was
  * defined in the context of a function, then it uses the function name and the
  * function arguments to build it's scope. Otherwise, it uses the global scope
- * of the handle.
+ * of the taskpool.
  */
 static void jdf_generate_inline_c_function(jdf_expr_t *expr)
 {

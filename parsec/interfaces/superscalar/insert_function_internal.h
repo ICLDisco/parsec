@@ -277,7 +277,7 @@ void
 parsec_dtd_taskpool_destruct( parsec_taskpool_t *tp );
 
 int
-parsec_dtd_enqueue( parsec_taskpool_t *handle, void * );
+parsec_dtd_enqueue( parsec_taskpool_t *tp, void * );
 
 parsec_dtd_task_t *
 parsec_dtd_create_and_initialize_task( parsec_dtd_taskpool_t *dtd_tp,

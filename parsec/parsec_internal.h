@@ -70,7 +70,7 @@ typedef struct parsec_dep_data_description_s  parsec_dep_data_description_t;
  * @brief The prototype of startup functions
  *
  * @details Startup functions generate a list of tasks ready to execute from
- *          a PaRSEC handle
+ *          a PaRSEC taskpool
  * @param[in] context the general PaRSEC context
  * @param[inout] tp the DAG in which to look for list of startup tasks
  * @param[out] A list of tasks ready to execute
@@ -79,7 +79,7 @@ typedef void (*parsec_startup_fn_t)(parsec_context_t *context,
                                    parsec_taskpool_t *tp,
                                    parsec_task_t** startup_list);
 /**
- * @brief The prototype of a handle termination / destruction function
+ * @brief The prototype of a taskpool termination / destruction function
  */
 typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
 
@@ -88,41 +88,41 @@ typedef void (*parsec_destruct_fn_t)(parsec_taskpool_t* tp);
  *        as provided by the Domain Specific Language.
  */
 struct parsec_taskpool_s {
-    parsec_list_item_t         super;     /**< A PaRSEC handle is also a list_item, so it can be chained into different lists */
+    parsec_list_item_t         super;     /**< A PaRSEC taskpool is also a list_item, so it can be chained into different lists */
     uint32_t                   taskpool_id; /**< Taskpool are uniquely globally consisntently named */
     volatile int32_t           nb_tasks;  /**< A placeholder for the upper level to count (if necessary) the tasks
-                                           *   in the handle. This value is checked upon each task completion by
-                                           *   the runtime, to see if the handle is completed (a nb_tasks equal
-                                           *   to zero signal a completed handle). However, in order to prevent
-                                           *   multiple completions of the handle due to multiple tasks completing
+                                           *   in the taskpool. This value is checked upon each task completion by
+                                           *   the runtime, to see if the taskpool is completed (a nb_tasks equal
+                                           *   to zero signal a completed taskpool). However, in order to prevent
+                                           *   multiple completions of the taskpool due to multiple tasks completing
                                            *   simultaneously, the runtime reuse this value (once set to zero), for
                                            *   internal purposes (in which case it is atomically set to
                                            *   PARSEC_RUNTIME_RESERVED_NB_TASKS).
                                            */
-    uint16_t                   nb_task_classes; /**< The number of task classes defined in this handle */
-    uint16_t                   devices_mask; /**< A bitmask on what devices this handle may use */
+    uint16_t                   nb_task_classes; /**< The number of task classes defined in this taskpool */
+    uint16_t                   devices_mask; /**< A bitmask on what devices this taskpool may use */
     int32_t                    initial_number_tasks; /**< Counts the number of task classes initially ready */
-    int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this handle */
+    int32_t                    priority;             /**< A constant used to bump the priority of tasks related to this taskpool */
     int32_t                    taskpool_type;
     volatile uint32_t          nb_pending_actions;  /**< Internal counter of pending actions tracking all runtime
                                                      *   activities (such as communications, data movement, and
                                                      *   so on). Also, its value is increase by one for all the tasks
-                                                     *   in the handle. This extra reference will be removed upon
+                                                     *   in the taskpool. This extra reference will be removed upon
                                                      *   completion of all tasks.
                                                      */
-    parsec_context_t           *context;   /**< The PaRSEC context on which this handle was generated */
+    parsec_context_t           *context;   /**< The PaRSEC context on which this taskpool was generated */
     parsec_startup_fn_t         startup_hook; /**< Function pointer to a function that generates initial tasks */
     const parsec_task_class_t** task_classes_array; /**< Array of task classes that build this DAG */
 #if defined(PARSEC_PROF_TRACE)
     const int*                   profiling_array; /**< Array of profiling keys to start/stop each of the task classes
                                                    *   The array is indexed on the same index as task_classes_array */
 #endif  /* defined(PARSEC_PROF_TRACE) */
-    parsec_event_cb_t           on_enqueue;      /**< Callback called when the handle is enqueued (scheduled) */
+    parsec_event_cb_t           on_enqueue;      /**< Callback called when the taskpool is enqueued (scheduled) */
     void*                       on_enqueue_data; /**< Data to pass to on_enqueue when called */
-    parsec_event_cb_t           on_complete;     /**< Callback called when the handle is completed */
+    parsec_event_cb_t           on_complete;     /**< Callback called when the taskpool is completed */
     void*                       on_complete_data;/**< Data to pass to on_complete when called */
     parsec_update_ref_t         update_nb_runtime_task;
-    parsec_destruct_fn_t        destructor;      /**< handle-specific destructor function */
+    parsec_destruct_fn_t        destructor;      /**< taskpool-specific destructor function */
     void**                      dependencies_array; /**< Array of multidimensional dependencies
                                                      *   Indexed on the same index as task_classes_array */
     data_repo_t**               repo_array; /**< Array of data repositories

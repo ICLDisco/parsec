@@ -200,7 +200,7 @@ static int parsec_cuda_memory_unregister(parsec_device_t* device, parsec_data_co
 }
 
 
-void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
+void* cuda_find_incarnation(gpu_device_t* gpu_device,
                                      const char* fname)
 {
     char library_name[FILENAME_MAX], function_name[FILENAME_MAX], *env;
@@ -210,7 +210,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
     char** argv = NULL, **target;
 
     status = cudaSetDevice( gpu_device->cuda_index );
-    PARSEC_CUDA_CHECK_ERROR( "(cuda_solve_handle_dependencies) cudaSetDevice ", status, {continue;} );
+    PARSEC_CUDA_CHECK_ERROR( "(cuda_find_incarnation) cudaSetDevice ", status, {continue;} );
 
     for( i = 0, index = -1; i < (int)(sizeof(cuda_legal_compute_capabilitites)/sizeof(int)); i++ ) {
         if(cuda_legal_compute_capabilitites[i] == capability) {
@@ -309,7 +309,7 @@ void* cuda_solve_handle_dependencies(gpu_device_t* gpu_device,
 }
 
 static int
-parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* handle)
+parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* tp)
 {
     gpu_device_t* gpu_device = (gpu_device_t*)device;
     uint32_t i, j, dev_mask = 0x0;
@@ -321,8 +321,8 @@ parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* handle
      * user to write the code to assess this.
      */
     assert(PARSEC_DEV_CUDA == device->type);
-    for( i = 0; i < handle->nb_task_classes; i++ ) {
-        const parsec_task_class_t* tc = handle->task_classes_array[i];
+    for( i = 0; i < tp->nb_task_classes; i++ ) {
+        const parsec_task_class_t* tc = tp->task_classes_array[i];
         __parsec_chore_t* chores = (__parsec_chore_t*)tc->incarnations;
         for( dev_mask = j = 0; NULL != chores[j].hook; j++ ) {
             if( chores[j].type == device->type ) {
@@ -333,7 +333,7 @@ parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* handle
                     dev_mask |= chores[j].type;
                 }
                 else {
-                    void* devf = cuda_solve_handle_dependencies(gpu_device, chores[j].dyld);
+                    void* devf = cuda_find_incarnation(gpu_device, chores[j].dyld);
                     if( NULL != devf ) {
                         chores[gpu_device->cuda_index].dyld_fn = devf;
                         rc = PARSEC_SUCCESS;
@@ -345,16 +345,16 @@ parsec_cuda_taskpool_register(parsec_device_t* device, parsec_taskpool_t* handle
     }
     /* Not a single chore supports this device, there is no reason to check anything further */
     if(PARSEC_SUCCESS != rc) {
-        handle->devices_mask &= ~(device->device_index);
+        tp->devices_mask &= ~(device->device_index);
     }
 
     return rc;
 }
 
 static int
-parsec_cuda_taskpool_unregister(parsec_device_t* device, parsec_taskpool_t* handle)
+parsec_cuda_taskpool_unregister(parsec_device_t* device, parsec_taskpool_t* tp)
 {
-    (void)device; (void)handle;
+    (void)device; (void)tp;
     return PARSEC_SUCCESS;
 }
 
@@ -1298,7 +1298,7 @@ int parsec_gpu_W2R_task_fini(gpu_device_t *gpu_device,
 int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
 {
     int i, dev_index = -1, data_index = 0;
-    parsec_taskpool_t* handle = this_task->taskpool;
+    parsec_taskpool_t* tp = this_task->taskpool;
 
     /* Step one: Find the first data in WRITE mode stored on a GPU */
     for( i = 0; i < this_task->task_class->nb_flows; i++ ) {
@@ -1322,7 +1322,7 @@ int parsec_gpu_get_best_device( parsec_task_t* this_task, double ratio )
         /* Start at 2, to skip the recursive body */
         for( dev_index = 2; dev_index < parsec_devices_enabled(); dev_index++ ) {
             /* Skip the device if it is not configured */
-            if(!(handle->devices_mask & (1 << dev_index))) continue;
+            if(!(tp->devices_mask & (1 << dev_index))) continue;
             weight = parsec_device_load[dev_index] + ratio * parsec_device_sweight[dev_index];
             if( best_weight > weight ) {
                 best_index = dev_index;

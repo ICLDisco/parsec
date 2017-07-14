@@ -173,9 +173,9 @@ remote_dep_cmd_to_string(remote_dep_wire_activate_t* origin,
     parsec_task_t task;
 
     task.taskpool = parsec_taskpool_lookup( origin->taskpool_id );
-    if( NULL == task.taskpool ) return snprintf(str, len, "UNKNOWN_of_HANDLE_%d", origin->taskpool_id), str;
+    if( NULL == task.taskpool ) return snprintf(str, len, "UNKNOWN_of_TASKPOOL_%d", origin->taskpool_id), str;
     task.task_class   = task.taskpool->task_classes_array[origin->task_class_id];
-    if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_Function_%d", origin->task_class_id), str;
+    if( NULL == task.task_class ) return snprintf(str, len, "UNKNOWN_of_TASKCLASS_%d", origin->task_class_id), str;
     memcpy(&task.locals, origin->locals, sizeof(assignment_t) * task.task_class->nb_locals);
     task.priority     = 0xFFFFFFFF;
     return parsec_task_snprintf(str, len, &task);
@@ -564,7 +564,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     parsec_task_t task;
     uint32_t i, j, k, local_mask = 0;
 
-    parsec_dtd_taskpool_t *dtd_handle = NULL;
+    parsec_dtd_taskpool_t *dtd_tp = NULL;
     parsec_dtd_task_t *dtd_task = NULL;
 
     assert(NULL == origin->taskpool);
@@ -575,8 +575,8 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
     task.task_class    = task.taskpool->task_classes_array[origin->msg.task_class_id];
 
     if( 1 == origin->taskpool->taskpool_type ) {
-        dtd_handle = (parsec_dtd_taskpool_t *)origin->taskpool;
-        parsec_dtd_two_hash_table_lock(dtd_handle->two_hash_table);
+        dtd_tp = (parsec_dtd_taskpool_t *)origin->taskpool;
+        parsec_dtd_two_hash_table_lock(dtd_tp->two_hash_table);
 
         if( NULL == task.task_class ) {
             assert(origin->incoming_mask == 0);
@@ -599,7 +599,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
 
         if( 1 == origin->taskpool->taskpool_type ) {
             uint64_t key = (uint64_t)origin->msg.locals[0].value<<32 | (1U<<k);
-            dtd_task = parsec_dtd_find_task( dtd_handle, key );
+            dtd_task = parsec_dtd_find_task( dtd_tp, key );
 
             if( NULL == dtd_task ) { return_defer = 1; continue; }
         }
@@ -637,7 +637,7 @@ remote_dep_get_datatypes(parsec_execution_stream_t* es,
         if( return_defer ) return -2;
         else {
             assert(origin->incoming_mask == origin->msg.output_mask );
-            parsec_dtd_two_hash_table_unlock(dtd_handle->two_hash_table);
+            parsec_dtd_two_hash_table_unlock(dtd_tp->two_hash_table);
         }
     }
 
@@ -732,7 +732,7 @@ remote_dep_release_incoming(parsec_execution_stream_t* es,
     origin->outgoing_mask = 0;
 
 #if defined(PARSEC_DIST_COLLECTIVES)
-    if( 0 == origin->taskpool->taskpool_type ) /* indicates it is a PTG handle */
+    if( 0 == origin->taskpool->taskpool_type ) /* indicates it is a PTG taskpool */
         parsec_remote_dep_propagate(es, &task, origin);
 #endif  /* PARSEC_DIST_COLLECTIVES */
     /**
@@ -1612,7 +1612,7 @@ remote_dep_mpi_put_end_cb(parsec_execution_stream_t* es,
 
 /**
  * An activation message has been received, and the remote_dep_wire_activate_t
- * part has already been extracted into the deps->msg. This function handle the
+ * part has already been extracted into the deps->msg. This function handles the
  * rest of the receiver logic, extract the possible eager and control data from
  * the buffer, post all the short protocol receives and all other local
  * cleanups.
@@ -1759,7 +1759,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
         if( -1 == rc ) {
             /* the corresponding tp doesn't exist, yet. Put it in unexpected */
             char* packed_buffer;
-            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NOOBJ\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
+            PARSEC_DEBUG_VERBOSE(10, parsec_debug_output, "MPI:\tFROM\t%d\tActivate NoTPool\t% -8s\tk=%d\twith datakey %lx\tparams %lx",
                     deps->from, remote_dep_cmd_to_string(&deps->msg, tmp, MAX_TASK_STRLEN),
                     cb->storage2, deps->msg.deps, deps->msg.output_mask);
             /* Copy the eager data to some temp storage */
@@ -1774,7 +1774,7 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
             if( -2 == rc ) { /* DTD problems, defer activating this remote dep */
                 assert(deps->incoming_mask != deps->msg.output_mask);
                 int i;
-                parsec_dtd_taskpool_t *dtd_handle = (parsec_dtd_taskpool_t *)deps->taskpool;
+                parsec_dtd_taskpool_t *dtd_tp = (parsec_dtd_taskpool_t *)deps->taskpool;
 
                 for( i = 0; deps->msg.output_mask >> i; i++ ) {
                     if( !(deps->msg.output_mask & (1U<<i) ) ) continue;
@@ -1792,13 +1792,13 @@ remote_dep_mpi_save_activate_cb(parsec_execution_stream_t* es,
                     position += deps->msg.length;  /* move to the next order */
                     deps->taskpool = (parsec_taskpool_t*)packed_buffer;  /* temporary storage */
 #if defined(PARSEC_PROF_TRACE)
-                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_handle->super.taskpool_id, NULL );
+                    parsec_profiling_trace(MPIctl_prof, hashtable_trace_keyout, 0, dtd_tp->super.taskpool_id, NULL );
 #endif
-                    parsec_dtd_track_remote_dep( dtd_handle, key, deps );
+                    parsec_dtd_track_remote_dep( dtd_tp, key, deps );
                 }
 
                 /* unlocking the two hash table */
-                parsec_dtd_two_hash_table_unlock( dtd_handle->two_hash_table );
+                parsec_dtd_two_hash_table_unlock( dtd_tp->two_hash_table );
 
                 assert(deps->incoming_mask == 0);
                 continue;
