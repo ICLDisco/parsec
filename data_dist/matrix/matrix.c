@@ -47,8 +47,8 @@ parsec_matrix_destroy_data( parsec_tiled_matrix_dc_t* matrix )
         parsec_data_t **data = matrix->data_map;
         int i;
 
-        for(i=0; i<matrix->nb_local_tiles; i++, data++)
-        {
+        for(i=0; i<matrix->nb_local_tiles; i++, data++) {
+            if( NULL == *data ) continue;
             parsec_data_destroy( *data );
         }
 
